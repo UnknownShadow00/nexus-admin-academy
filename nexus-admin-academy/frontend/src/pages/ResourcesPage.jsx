@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import EmptyState from "../components/EmptyState";
+import TerminalWidget from "../components/Terminal";
 import { getResources } from "../services/api";
 
 const iconByType = {
-  Video: "??",
-  Article: "??",
-  "Study Guide": "??",
+  Video: "[VID]",
+  Article: "[DOC]",
+  "Study Guide": "[GUIDE]",
+  Other: "[RES]",
 };
 
 export default function ResourcesPage() {
@@ -26,7 +28,7 @@ export default function ResourcesPage() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
-      <div className="panel dark:bg-slate-900 dark:border-slate-700">
+      <div className="panel dark:border-slate-700 dark:bg-slate-900">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Resources Library</h1>
         <div className="mt-3 grid gap-2 md:grid-cols-3">
           <input className="input-field" type="number" placeholder="Week" value={week} onChange={(e) => setWeek(e.target.value)} />
@@ -44,17 +46,22 @@ export default function ResourcesPage() {
         </div>
       </div>
 
+      <section className="space-y-3">
+        <h2 className="text-xl font-bold">Practice Commands</h2>
+        <TerminalWidget />
+      </section>
+
       {!items.length ? (
-        <EmptyState icon="??" title="No resources added yet" message="Your instructor will add study materials soon" />
+        <EmptyState icon=".." title="No resources added yet" message="Your instructor will add study materials soon" />
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
-            <article key={item.id} className="panel dark:bg-slate-900 dark:border-slate-700">
+            <article key={item.id} className="panel dark:border-slate-700 dark:bg-slate-900">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{iconByType[item.resource_type] || "??"} {item.title}</h3>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{iconByType[item.resource_type] || "[RES]"} {item.title}</h3>
                 <a className="btn-secondary" href={item.url} target="_blank" rel="noreferrer">Open Resource</a>
               </div>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Week {item.week_number} ? {item.resource_type} ? {item.category || "General"}</p>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Week {item.week_number} - {item.resource_type} - {item.category || "General"}</p>
             </article>
           ))}
         </div>

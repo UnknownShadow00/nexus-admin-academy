@@ -1,10 +1,14 @@
 import logging
+from datetime import datetime, timedelta
+from decimal import Decimal
 from statistics import mean
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
+from app.models.ai_usage_log import AIUsageLog
 from app.models.quiz import Question, Quiz, QuizAttempt
 from app.models.resource import Resource
 from app.models.student import Student
@@ -13,8 +17,11 @@ from app.models.xp_ledger import XPLedger
 from app.schemas.quiz import BulkTicketGenerateRequest, QuizGenerateRequest
 from app.schemas.resource import ResourceCreateRequest
 from app.schemas.ticket import ManualReviewRequest, OverrideRequest, TicketCreateRequest
-from app.services.ai_service import AIServiceError, generate_quiz_questions
 from app.services.admin_auth import verify_admin
+from app.services.ai_service import ai_health_test
+from app.services.cve_service import fetch_recent_cves, generate_security_ticket_from_cve
+from app.services.quiz_generator import generate_quiz_from_video
+from app.services.ticket_generator import generate_ticket_description
 from app.services.xp_service import award_xp
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(verify_admin)])
@@ -41,33 +48,33 @@ def _collab_multiplier(count_people: int) -> float:
 
 
 @router.post("/quiz/generate")
-def generate_quiz(payload: QuizGenerateRequest, db: Session = Depends(get_db)):
+async def generate_quiz(payload: QuizGenerateRequest, db: Session = Depends(get_db)):
     try:
-        generated = generate_quiz_questions(str(payload.source_url), payload.title)
-    except AIServiceError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        questions = await generate_quiz_from_video(str(payload.source_url), payload.title, payload.week_number, db, admin_id=0)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Quiz generation failed: {exc}") from exc
 
     quiz = Quiz(title=payload.title, source_url=str(payload.source_url), week_number=payload.week_number)
     db.add(quiz)
     db.flush()
 
-    for item in generated:
+    for q in questions:
         db.add(
             Question(
                 quiz_id=quiz.id,
-                question_text=item["question_text"],
-                option_a=item["option_a"],
-                option_b=item["option_b"],
-                option_c=item["option_c"],
-                option_d=item["option_d"],
-                correct_answer=item["correct_answer"],
-                explanation=item.get("explanation"),
+                question_text=q["question_text"],
+                option_a=q["option_a"],
+                option_b=q["option_b"],
+                option_c=q["option_c"],
+                option_d=q["option_d"],
+                correct_answer=q["correct_answer"],
+                explanation=q["explanation"],
             )
         )
 
     db.commit()
     logger.info("admin_quiz_generated quiz_id=%s week=%s title=%s", quiz.id, payload.week_number, payload.title)
-    return _ok({"quiz_id": quiz.id, "questions": generated, "message": f"Quiz created: {payload.title} - 10 unique questions ready"})
+    return _ok({"quiz_id": quiz.id, "message": f"Quiz '{payload.title}' created with 10 questions"})
 
 
 @router.post("/tickets")
@@ -77,11 +84,11 @@ def create_ticket(payload: TicketCreateRequest, db: Session = Depends(get_db)):
         description=payload.description,
         difficulty=payload.difficulty,
         week_number=payload.week_number,
+        category=payload.category or "general",
     )
     db.add(ticket)
     db.commit()
     db.refresh(ticket)
-    logger.info("admin_ticket_created ticket_id=%s week=%s difficulty=%s", ticket.id, payload.week_number, payload.difficulty)
     return _ok({"ticket_id": ticket.id, "title": ticket.title})
 
 
@@ -97,7 +104,6 @@ def create_resource(payload: ResourceCreateRequest, db: Session = Depends(get_db
     db.add(resource)
     db.commit()
     db.refresh(resource)
-    logger.info("resource_created resource_id=%s week=%s type=%s", resource.id, resource.week_number, resource.resource_type)
     return _ok({"resource_id": resource.id})
 
 
@@ -108,16 +114,11 @@ def delete_resource(resource_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Resource not found")
     db.delete(resource)
     db.commit()
-    logger.info("resource_deleted resource_id=%s", resource_id)
     return _ok({"deleted": True})
 
 
 @router.get("/submissions")
-def list_submissions(
-    student_id: int | None = None,
-    ticket_id: int | None = None,
-    db: Session = Depends(get_db),
-):
+def list_submissions(student_id: int | None = None, ticket_id: int | None = None, db: Session = Depends(get_db)):
     query = db.query(TicketSubmission).options(selectinload(TicketSubmission.student), selectinload(TicketSubmission.ticket))
     if student_id is not None:
         query = query.filter(TicketSubmission.student_id == student_id)
@@ -142,42 +143,35 @@ def list_submissions(
 
 @router.get("/submissions/{submission_id}")
 def submission_details(submission_id: int, db: Session = Depends(get_db)):
-    submission = (
-        db.query(TicketSubmission)
-        .options(selectinload(TicketSubmission.student), selectinload(TicketSubmission.ticket))
-        .filter(TicketSubmission.id == submission_id)
-        .first()
-    )
+    submission = db.query(TicketSubmission).options(selectinload(TicketSubmission.student), selectinload(TicketSubmission.ticket)).filter(TicketSubmission.id == submission_id).first()
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
 
-    data = {
-        "id": submission.id,
-        "student_name": submission.student.name,
-        "ticket_title": submission.ticket.title,
-        "writeup": submission.writeup,
-        "ai_score": submission.ai_score,
-        "ai_feedback": submission.ai_feedback,
-        "xp_awarded": submission.xp_awarded,
-        "screenshots": submission.screenshots,
-        "collaborator_ids": submission.collaborator_ids,
-        "admin_reviewed": submission.admin_reviewed,
-        "admin_comment": submission.admin_comment,
-    }
-    return _ok(data)
+    return _ok(
+        {
+            "id": submission.id,
+            "student_name": submission.student.name,
+            "ticket_title": submission.ticket.title,
+            "writeup": submission.writeup,
+            "ai_score": submission.ai_score,
+            "ai_feedback": submission.ai_feedback,
+            "xp_awarded": submission.xp_awarded,
+            "screenshots": submission.screenshots,
+            "collaborator_ids": submission.collaborator_ids,
+            "admin_reviewed": submission.admin_reviewed,
+            "admin_comment": submission.admin_comment,
+        }
+    )
 
 
 @router.put("/submissions/{submission_id}/override")
 def override_grade(submission_id: int, payload: OverrideRequest, db: Session = Depends(get_db)):
     submission = db.query(TicketSubmission).filter(TicketSubmission.id == submission_id).first()
-    if not submission:
-        raise HTTPException(status_code=404, detail="Submission not found")
-    if submission.ai_score is None:
-        raise HTTPException(status_code=400, detail="Cannot override an ungraded submission")
+    if not submission or submission.ai_score is None:
+        raise HTTPException(status_code=400, detail="Submission not found or not graded")
 
     participants = [submission.student_id] + [int(x) for x in (submission.collaborator_ids or [])]
-    participant_count = len(participants)
-    multiplier = _collab_multiplier(participant_count)
+    multiplier = _collab_multiplier(len(participants))
 
     old_score = submission.ai_score
     old_xp_each = submission.xp_awarded
@@ -191,10 +185,10 @@ def override_grade(submission_id: int, payload: OverrideRequest, db: Session = D
     submission.admin_comment = payload.comment
     submission.xp_awarded = new_xp_each
 
-    for target_student_id in participants:
+    for sid in participants:
         award_xp(
             db,
-            student_id=target_student_id,
+            student_id=sid,
             delta=delta,
             source_type="admin_override",
             source_id=submission.id,
@@ -202,36 +196,12 @@ def override_grade(submission_id: int, payload: OverrideRequest, db: Session = D
         )
 
     db.commit()
-    logger.info(
-        "grade_override submission_id=%s old_score=%s new_score=%s xp_delta_each=%s participants=%s",
-        submission.id,
-        old_score,
-        payload.new_score,
-        delta,
-        participant_count,
-    )
-
-    return _ok(
-        {
-            "submission_id": submission.id,
-            "old_score": old_score,
-            "new_score": payload.new_score,
-            "xp_difference_per_student": delta,
-            "participants_updated": participant_count,
-        }
-    )
+    return _ok({"submission_id": submission.id, "old_score": old_score, "new_score": payload.new_score, "xp_difference_per_student": delta})
 
 
 @router.get("/review")
 def review_queue(db: Session = Depends(get_db)):
-    rows = (
-        db.query(TicketSubmission)
-        .options(selectinload(TicketSubmission.student), selectinload(TicketSubmission.ticket))
-        .filter(TicketSubmission.graded_at.isnot(None))
-        .order_by(TicketSubmission.submitted_at.desc())
-        .all()
-    )
-
+    rows = db.query(TicketSubmission).options(selectinload(TicketSubmission.student), selectinload(TicketSubmission.ticket)).filter(TicketSubmission.ai_score.isnot(None)).order_by(TicketSubmission.submitted_at.desc()).all()
     data = [
         {
             "submission_id": row.id,
@@ -261,12 +231,6 @@ def student_overview(db: Session = Depends(get_db)):
     for rank, student in enumerate(students, start=1):
         quiz_attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == student.id).all()
         ticket_subs = db.query(TicketSubmission).filter(TicketSubmission.student_id == student.id, TicketSubmission.ai_score.isnot(None)).all()
-
-        last_activity = None
-        timestamps = [q.completed_at for q in quiz_attempts] + [t.submitted_at for t in ticket_subs]
-        if timestamps:
-            last_activity = max(ts for ts in timestamps if ts is not None)
-
         data.append(
             {
                 "rank": rank,
@@ -279,10 +243,8 @@ def student_overview(db: Session = Depends(get_db)):
                 "ticket_done": len(ticket_subs),
                 "ticket_total": total_tickets,
                 "avg_ticket": round(mean([t.ai_score for t in ticket_subs if t.ai_score is not None]), 2) if ticket_subs else 0,
-                "last_active": last_activity,
             }
         )
-
     return _ok(data, total=len(data), page=1, per_page=len(data) or 1)
 
 
@@ -292,47 +254,53 @@ def student_activity(student_id: int, db: Session = Depends(get_db)):
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    entries = (
-        db.query(XPLedger)
-        .filter(XPLedger.student_id == student_id)
-        .order_by(XPLedger.created_at.desc())
-        .limit(50)
-        .all()
+    entries = db.query(XPLedger).filter(XPLedger.student_id == student_id).order_by(XPLedger.created_at.desc()).limit(50).all()
+    return _ok(
+        {
+            "student": {"id": student.id, "name": student.name, "total_xp": student.total_xp},
+            "activity": [
+                {
+                    "id": e.id,
+                    "source_type": e.source_type,
+                    "source_id": e.source_id,
+                    "delta": e.delta,
+                    "description": e.description,
+                    "created_at": e.created_at,
+                }
+                for e in entries
+            ],
+        }
     )
-
-    data = {
-        "student": {"id": student.id, "name": student.name, "total_xp": student.total_xp},
-        "activity": [
-            {
-                "id": e.id,
-                "source_type": e.source_type,
-                "source_id": e.source_id,
-                "delta": e.delta,
-                "description": e.description,
-                "created_at": e.created_at,
-            }
-            for e in entries
-        ],
-    }
-    return _ok(data)
 
 
 @router.post("/tickets/bulk-generate")
-def bulk_generate_tickets(payload: BulkTicketGenerateRequest):
-    generated = []
-    for raw in payload.titles:
-        title = raw.strip()
-        if not title:
-            continue
-        generated.append(
-            {
-                "title": title,
-                "description": f"Scenario: {title}. Diagnose the issue, document troubleshooting steps, include verification evidence, and summarize root cause.",
-                "difficulty": payload.difficulty,
-                "week_number": payload.week_number,
-            }
-        )
-    return _ok(generated)
+async def bulk_generate_tickets(payload: BulkTicketGenerateRequest, db: Session = Depends(get_db)):
+    try:
+        generated = []
+        for raw in payload.titles:
+            title = raw.strip()
+            if not title:
+                continue
+
+            try:
+                description = await generate_ticket_description(title, payload.week_number, payload.difficulty, db, user_id=0)
+                generated.append(
+                    {
+                        "title": title,
+                        "description": description,
+                        "difficulty": payload.difficulty,
+                        "week_number": payload.week_number,
+                        "success": True,
+                    }
+                )
+            except Exception as exc:
+                logger.exception("bulk_ticket_generate_item_failed title=%s", title)
+                generated.append({"title": title, "error": str(exc), "success": False})
+
+        return _ok(generated)
+    except Exception as exc:
+        logger.exception("bulk_ticket_generate_failed")
+        return {"success": False, "error": str(exc)}
 
 
 @router.post("/tickets/bulk-publish")
@@ -344,11 +312,130 @@ def bulk_publish_tickets(payload: list[TicketCreateRequest], db: Session = Depen
             description=item.description,
             difficulty=item.difficulty,
             week_number=item.week_number,
+            category=item.category or "general",
         )
         db.add(ticket)
         db.flush()
         created.append({"ticket_id": ticket.id, "title": ticket.title})
-
     db.commit()
-    logger.info("bulk_tickets_published count=%s", len(created))
     return _ok(created, total=len(created), page=1, per_page=len(created) or 1)
+
+
+@router.post("/tickets/bulk")
+async def bulk_generate_with_ai(payload: BulkTicketGenerateRequest, db: Session = Depends(get_db)):
+    try:
+        generated = []
+        for raw in payload.titles:
+            title = raw.strip()
+            if not title:
+                continue
+            try:
+                description = await generate_ticket_description(title, payload.week_number, payload.difficulty, db, user_id=0)
+                generated.append({
+                    "title": title,
+                    "description": description,
+                    "week_number": payload.week_number,
+                    "difficulty": payload.difficulty,
+                    "success": True,
+                })
+            except Exception as exc:
+                logger.exception("bulk_ticket_ai_item_failed title=%s", title)
+                generated.append({"title": title, "error": str(exc), "success": False})
+        return _ok(generated)
+    except Exception as exc:
+        logger.exception("bulk_ticket_ai_failed")
+        return {"success": False, "error": str(exc)}
+
+
+@router.get("/cve/recent")
+async def get_recent_cves(keyword: str = "windows"):
+    cves = await fetch_recent_cves(keyword=keyword)
+    return {"success": True, "cves": cves}
+
+
+@router.post("/tickets/from-cve")
+async def create_ticket_from_cve(cve_id: str, db: Session = Depends(get_db)):
+    ticket_data = await generate_security_ticket_from_cve(cve_id)
+    if not ticket_data:
+        raise HTTPException(status_code=404, detail="CVE not found")
+
+    ticket = Ticket(
+        title=ticket_data["title"],
+        description=ticket_data["description"],
+        difficulty=ticket_data["difficulty"],
+        week_number=ticket_data["week_number"],
+        category=ticket_data.get("category", "security"),
+    )
+    db.add(ticket)
+    db.commit()
+    db.refresh(ticket)
+
+    return {"success": True, "ticket_id": ticket.id}
+
+
+@router.get("/ai-test")
+async def ai_test(db: Session = Depends(get_db)):
+    try:
+        result = await ai_health_test(db, user_id=0)
+        return {"success": True, **result}
+    except HTTPException as exc:
+        return {"success": False, "error": exc.detail}
+    except Exception as exc:
+        logger.exception("ai_test_failed")
+        return {"success": False, "error": str(exc)}
+
+
+@router.get("/ai-usage")
+def get_ai_usage_stats(db: Session = Depends(get_db)):
+    now = datetime.utcnow()
+    daily_cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    monthly_cutoff = now - timedelta(days=30)
+
+    daily = db.query(func.coalesce(func.sum(AIUsageLog.cost_estimate), 0)).filter(AIUsageLog.created_at > daily_cutoff).scalar() or 0
+    monthly = db.query(func.coalesce(func.sum(AIUsageLog.cost_estimate), 0)).filter(AIUsageLog.created_at > monthly_cutoff).scalar() or 0
+    total = db.query(func.coalesce(func.sum(AIUsageLog.cost_estimate), 0)).scalar() or 0
+
+    breakdown_rows = (
+        db.query(
+            AIUsageLog.feature.label("feature"),
+            func.count(AIUsageLog.id).label("call_count"),
+            func.coalesce(func.sum(AIUsageLog.total_tokens), 0).label("total_tokens"),
+            func.coalesce(func.sum(AIUsageLog.cost_estimate), 0).label("total_cost"),
+            func.coalesce(func.avg(AIUsageLog.cost_estimate), 0).label("avg_cost_per_call"),
+        )
+        .group_by(AIUsageLog.feature)
+        .order_by(func.sum(AIUsageLog.cost_estimate).desc())
+        .all()
+    )
+
+    recent = db.query(AIUsageLog).order_by(AIUsageLog.created_at.desc()).limit(20).all()
+
+    return _ok(
+        {
+            "summary": {
+                "daily_cost": float(Decimal(str(daily))),
+                "monthly_cost": float(Decimal(str(monthly))),
+                "total_cost": float(Decimal(str(total))),
+            },
+            "breakdown": [
+                {
+                    "feature": row.feature,
+                    "calls": int(row.call_count),
+                    "tokens": int(row.total_tokens or 0),
+                    "cost": float(Decimal(str(row.total_cost or 0))),
+                    "avg_per_call": float(Decimal(str(row.avg_cost_per_call or 0))),
+                }
+                for row in breakdown_rows
+            ],
+            "recent_calls": [
+                {
+                    "feature": row.feature,
+                    "model": row.model,
+                    "tokens": row.total_tokens,
+                    "cost": float(Decimal(str(row.cost_estimate))),
+                    "timestamp": row.created_at.isoformat() if row.created_at else None,
+                }
+                for row in recent
+            ],
+        }
+    )

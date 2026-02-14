@@ -1,331 +1,278 @@
 import json
 import logging
 import os
-import re
-import time
-from hashlib import sha256
+from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Optional
 
-from pydantic import BaseModel, ValidationError, field_validator
+import httpx
+from fastapi import HTTPException
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
-from app.services.content_extractor import extract_source_summary
+from app.config import load_env
+from app.models.ai_usage_log import AIUsageLog
+from app.services.rate_limiter import check_rate_limit
 
 logger = logging.getLogger(__name__)
 
-QUIZ_CACHE: dict[str, list[dict]] = {}
+load_env()
+
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "").strip()
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_SITE_URL = os.getenv("OPENROUTER_SITE_URL", "http://localhost:3000")
+OPENROUTER_SITE_NAME = os.getenv("OPENROUTER_SITE_NAME", "Nexus Admin Academy")
+
+AI_ENABLED = os.getenv("AI_ENABLED", "true").lower() == "true"
+MAX_TOKENS = int(os.getenv("MAX_TOKENS", "600"))
+TEMPERATURE = float(os.getenv("AI_TEMPERATURE", "0.6"))
+TIMEOUT_SECONDS = int(os.getenv("AI_TIMEOUT_SECONDS", "30"))
+COST_PER_1K_TOKENS = Decimal(str(os.getenv("COST_PER_1K_TOKENS", "0.001")))
+DAILY_BUDGET_LIMIT = Decimal(str(os.getenv("DAILY_AI_BUDGET", "1.00")))
+
+if not OPENROUTER_MODEL:
+    raise RuntimeError("OPENROUTER_MODEL is required. Use OPENROUTER_MODEL=mistralai/mistral-large")
+if "/" not in OPENROUTER_MODEL:
+    raise RuntimeError(f"Invalid OPENROUTER_MODEL '{OPENROUTER_MODEL}'. Expected provider/model.")
 
 
 class AIServiceError(Exception):
     pass
 
 
-class QuizQuestionAI(BaseModel):
-    question_text: str
-    option_a: str
-    option_b: str
-    option_c: str
-    option_d: str
-    correct_answer: str
-    explanation: str
-
-    @field_validator("correct_answer")
-    @classmethod
-    def validate_correct_answer(cls, value: str) -> str:
-        v = value.strip().upper()
-        if v not in {"A", "B", "C", "D"}:
-            raise ValueError("correct_answer must be one of A/B/C/D")
-        return v
+def _today_window() -> tuple[datetime, datetime]:
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow_start = today_start + timedelta(days=1)
+    return today_start, tomorrow_start
 
 
-class QuizBatchAI(BaseModel):
-    questions: list[QuizQuestionAI]
-
-    @field_validator("questions")
-    @classmethod
-    def validate_questions(cls, value: list[QuizQuestionAI]) -> list[QuizQuestionAI]:
-        if len(value) != 10:
-            raise ValueError("AI must return exactly 10 questions")
-        seen: set[str] = set()
-        for q in value:
-            key = q.question_text.strip().lower()
-            if key in seen:
-                raise ValueError("AI returned duplicate question_text entries")
-            seen.add(key)
-        return value
+def check_daily_budget(db: Session) -> Decimal:
+    today_start, _ = _today_window()
+    today_spend = (
+        db.query(func.coalesce(func.sum(AIUsageLog.cost_estimate), 0))
+        .filter(AIUsageLog.created_at >= today_start)
+        .scalar()
+        or 0
+    )
+    return Decimal(str(today_spend))
 
 
-class TicketGradeAI(BaseModel):
-    ai_score: int
-    strengths: list[str]
-    weaknesses: list[str]
-    feedback: str
-
-    @field_validator("ai_score")
-    @classmethod
-    def validate_score(cls, value: int) -> int:
-        if value < 0 or value > 10:
-            raise ValueError("ai_score must be between 0 and 10")
-        return value
+def estimate_cost(prompt_length: int) -> Decimal:
+    estimated_tokens = max(0, prompt_length // 4) + MAX_TOKENS
+    return (Decimal(estimated_tokens) / Decimal(1000)) * COST_PER_1K_TOKENS
 
 
-def _call_claude_with_retry(client, *, model: str, max_tokens: int, prompt: str):
-    wait_seconds = 1
-    for attempt in range(2):
-        try:
-            return client.messages.create(
+def _log_usage(
+    *,
+    db: Session,
+    feature: str,
+    model: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    total_tokens: int,
+    cost_estimate: Decimal,
+    metadata_json: Optional[dict] = None,
+) -> None:
+    try:
+        db.add(
+            AIUsageLog(
+                feature=feature,
                 model=model,
-                max_tokens=max_tokens,
-                messages=[{"role": "user", "content": prompt}],
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                cost_estimate=cost_estimate,
+                metadata_json=metadata_json,
             )
-        except Exception:
-            if attempt == 1:
-                raise
-            time.sleep(wait_seconds)
-            wait_seconds *= 2
-
-
-def _extract_json_block(text: str, array: bool = True):
-    pattern = r"\[.*\]" if array else r"\{.*\}"
-    match = re.search(pattern, text, re.DOTALL)
-    if not match:
-        raise AIServiceError("AI response did not include a JSON block")
-    return json.loads(match.group(0))
-
-
-def _sanitize_text(value: str, max_len: int = 8000) -> str:
-    cleaned = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F]", "", value)
-    return cleaned.strip()[:max_len]
-
-
-def _fallback_quiz(topic: str) -> list[dict]:
-    return [
-        {
-            "question_text": f"{topic}: Which command shows full IP configuration on Windows?",
-            "option_a": "ip route",
-            "option_b": "ipconfig /all",
-            "option_c": "net use",
-            "option_d": "gpupdate /force",
-            "correct_answer": "B",
-            "explanation": "ipconfig /all returns detailed adapter and DNS settings.",
-        },
-        {
-            "question_text": f"{topic}: Which tool checks DNS lookup on Windows?",
-            "option_a": "nslookup",
-            "option_b": "tasklist",
-            "option_c": "diskpart",
-            "option_d": "winver",
-            "correct_answer": "A",
-            "explanation": "nslookup is used to query DNS records.",
-        },
-        {
-            "question_text": f"{topic}: Which command refreshes Group Policy?",
-            "option_a": "sfc /scannow",
-            "option_b": "gpupdate /force",
-            "option_c": "ping -t",
-            "option_d": "hostname",
-            "correct_answer": "B",
-            "explanation": "gpupdate /force refreshes computer and user policies.",
-        },
-        {
-            "question_text": f"{topic}: Which service manages AD authentication?",
-            "option_a": "Print Spooler",
-            "option_b": "DHCP Client",
-            "option_c": "Kerberos",
-            "option_d": "Windows Update",
-            "correct_answer": "C",
-            "explanation": "Kerberos is the default authentication protocol in AD domains.",
-        },
-        {
-            "question_text": f"{topic}: Which command shows listening ports?",
-            "option_a": "netstat -ano",
-            "option_b": "tracert",
-            "option_c": "route print",
-            "option_d": "cipher",
-            "correct_answer": "A",
-            "explanation": "netstat -ano lists listening ports and process IDs.",
-        },
-        {
-            "question_text": f"{topic}: Which utility verifies disk integrity on reboot?",
-            "option_a": "mstsc",
-            "option_b": "chkdsk /f",
-            "option_c": "icacls",
-            "option_d": "notepad",
-            "correct_answer": "B",
-            "explanation": "chkdsk /f fixes file system errors and may schedule a reboot check.",
-        },
-        {
-            "question_text": f"{topic}: Which admin tool resets user passwords in AD?",
-            "option_a": "Active Directory Users and Computers",
-            "option_b": "Device Manager",
-            "option_c": "Registry Editor",
-            "option_d": "Event Viewer",
-            "correct_answer": "A",
-            "explanation": "ADUC supports password resets and account management.",
-        },
-        {
-            "question_text": f"{topic}: Which command displays current user context?",
-            "option_a": "whoami",
-            "option_b": "shutdown",
-            "option_c": "ver",
-            "option_d": "color",
-            "correct_answer": "A",
-            "explanation": "whoami prints the active user identity and domain context.",
-        },
-        {
-            "question_text": f"{topic}: What does DHCP primarily provide?",
-            "option_a": "File encryption",
-            "option_b": "Automatic IP configuration",
-            "option_c": "Printer drivers",
-            "option_d": "Patch management",
-            "correct_answer": "B",
-            "explanation": "DHCP assigns IP addresses and other network settings automatically.",
-        },
-        {
-            "question_text": f"{topic}: Which command tests connectivity to a host?",
-            "option_a": "ping",
-            "option_b": "set",
-            "option_c": "dir",
-            "option_d": "tree",
-            "correct_answer": "A",
-            "explanation": "ping sends ICMP echo requests to test reachability.",
-        },
-    ]
-
-
-def _validate_quiz_payload(payload: list[dict]) -> list[dict]:
-    batch = QuizBatchAI(questions=[QuizQuestionAI(**q) for q in payload])
-    return [q.model_dump() for q in batch.questions]
-
-
-def _build_quiz_prompt(topic: str, content_summary: str, retry: bool) -> str:
-    retry_line = (
-        "Previous attempt had duplicates or invalid structure. Generate 10 COMPLETELY DIFFERENT questions with unique concepts. "
-        if retry
-        else ""
-    )
-    return (
-        "Generate exactly 10 DIFFERENT multiple-choice questions for IT admin training. "
-        "Each must test a unique concept. Do not repeat similar wording or the same fact. "
-        f"{retry_line}"
-        "Return valid JSON array only. Each object must include: question_text, option_a, option_b, option_c, option_d, "
-        "correct_answer (A/B/C/D), explanation. "
-        f"Topic: {topic}. Source context: {content_summary}"
-    )
-
-
-def generate_quiz_questions(source_url: str, topic: str) -> list[dict]:
-    source_url = _sanitize_text(source_url, max_len=2000)
-    topic = _sanitize_text(topic, max_len=300)
-    cache_key = sha256(f"{source_url}|{topic}".encode("utf-8")).hexdigest()
-    if cache_key in QUIZ_CACHE:
-        return QUIZ_CACHE[cache_key]
-
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        fallback = _fallback_quiz(topic)
-        QUIZ_CACHE[cache_key] = fallback
-        return fallback
-
-    content_summary = extract_source_summary(source_url)
-
-    try:
-        from anthropic import Anthropic
-
-        client = Anthropic(api_key=api_key)
-        for retry in (False, True):
-            prompt = _build_quiz_prompt(topic, content_summary, retry=retry)
-            start = time.time()
-            response = _call_claude_with_retry(
-                client,
-                model="claude-sonnet-4-20250514",
-                max_tokens=2000,
-                prompt=prompt,
-            )
-            duration_ms = int((time.time() - start) * 1000)
-            usage = getattr(response, "usage", None)
-            logger.info(
-                "quiz_generation model=claude-sonnet-4-20250514 duration_ms=%s input_tokens=%s output_tokens=%s",
-                duration_ms,
-                getattr(usage, "input_tokens", None),
-                getattr(usage, "output_tokens", None),
-            )
-
-            text = "\n".join(chunk.text for chunk in response.content if hasattr(chunk, "text"))
-            try:
-                payload = _extract_json_block(text, array=True)
-                validated = _validate_quiz_payload(payload)
-                QUIZ_CACHE[cache_key] = validated
-                return validated
-            except (AIServiceError, ValidationError, ValueError, json.JSONDecodeError) as exc:
-                logger.warning("quiz_generation validation_failed retry=%s error=%s", retry, exc)
-                continue
+        )
+        db.commit()
     except Exception as exc:
-        logger.exception("quiz_generation_failed error=%s", exc)
+        logger.exception("ai_usage_log_failed feature=%s model=%s error=%s", feature, model, exc)
+        db.rollback()
 
-    raise AIServiceError("AI generation failed. Please try a different source or create the quiz manually.")
 
-
-def grade_ticket_submission(ticket_title: str, ticket_description: str, writeup: str) -> dict:
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    safe_title = _sanitize_text(ticket_title, max_len=300)
-    safe_description = _sanitize_text(ticket_description, max_len=3000)
-    safe_writeup = _sanitize_text(writeup, max_len=6000)
-
-    if not api_key:
-        score = min(10, max(0, len(safe_writeup) // 250 + 5))
-        obj = TicketGradeAI(
-            ai_score=score,
-            strengths=["Clear writeup structure", "Attempted a practical troubleshooting flow"],
-            weaknesses=["Could include more command output evidence"],
-            feedback="Solid baseline response. Add validation commands and expected results.",
-        )
-        return {"ai_score": obj.ai_score, "feedback": obj.model_dump(exclude={"ai_score"})}
-
-    prompt = (
-        "Grade this IT support ticket solution from 0-10. Return JSON object only with keys: "
-        "ai_score (int), strengths (string array), weaknesses (string array), feedback (string). "
-        f"Ticket title: {safe_title}\n"
-        f"Ticket description: {safe_description}\n"
-        f"Student writeup: {safe_writeup}"
-    )
+async def _single_openrouter_call(body: dict, feature: str) -> tuple[str, dict]:
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": OPENROUTER_SITE_URL,
+        "X-Title": OPENROUTER_SITE_NAME,
+    }
 
     try:
-        from anthropic import Anthropic
+        async with httpx.AsyncClient(timeout=float(TIMEOUT_SECONDS)) as client:
+            response = await client.post(OPENROUTER_URL, headers=headers, json=body)
 
-        client = Anthropic(api_key=api_key)
-        start = time.time()
-        response = _call_claude_with_retry(
-            client,
-            model="claude-sonnet-4-20250514",
-            max_tokens=1000,
-            prompt=prompt,
-        )
-        duration_ms = int((time.time() - start) * 1000)
-        usage = getattr(response, "usage", None)
-        logger.info(
-            "ticket_grading model=claude-sonnet-4-20250514 duration_ms=%s input_tokens=%s output_tokens=%s",
-            duration_ms,
-            getattr(usage, "input_tokens", None),
-            getattr(usage, "output_tokens", None),
-        )
+        if response.status_code != 200:
+            logger.error(
+                "openrouter_non_200 feature=%s status=%s body_preview=%s",
+                feature,
+                response.status_code,
+                response.text[:2000],
+            )
 
-        text = "\n".join(chunk.text for chunk in response.content if hasattr(chunk, "text"))
-        payload = _extract_json_block(text, array=False)
-        validated = TicketGradeAI(**payload)
-        return {
-            "ai_score": validated.ai_score,
-            "feedback": {
-                "strengths": validated.strengths,
-                "weaknesses": validated.weaknesses,
-                "feedback": validated.feedback,
+        response.raise_for_status()
+    except httpx.TimeoutException as exc:
+        logger.exception("openrouter_timeout feature=%s timeout=%ss", feature, TIMEOUT_SECONDS)
+        raise HTTPException(status_code=504, detail="AI request timed out") from exc
+    except httpx.HTTPStatusError as exc:
+        logger.exception("openrouter_http_error feature=%s status=%s", feature, exc.response.status_code)
+        raise HTTPException(status_code=502, detail=f"AI provider error: {exc.response.status_code}") from exc
+    except httpx.RequestError as exc:
+        logger.exception("openrouter_request_error feature=%s", feature)
+        raise HTTPException(status_code=503, detail="Unable to connect to AI provider") from exc
+
+    try:
+        data = response.json()
+    except json.JSONDecodeError as exc:
+        logger.error("openrouter_invalid_json feature=%s raw_preview=%s", feature, response.text[:2000])
+        raise HTTPException(status_code=502, detail="AI provider returned invalid JSON response") from exc
+
+    choices = data.get("choices")
+    if not isinstance(choices, list) or not choices:
+        logger.error("openrouter_missing_choices feature=%s keys=%s", feature, list(data.keys()))
+        raise HTTPException(status_code=502, detail="AI provider response missing choices")
+
+    first_choice = choices[0] if isinstance(choices[0], dict) else {}
+    message = first_choice.get("message") if isinstance(first_choice, dict) else None
+    if not isinstance(message, dict):
+        logger.error("openrouter_missing_message feature=%s first_choice=%s", feature, str(first_choice)[:500])
+        raise HTTPException(status_code=502, detail="AI provider response missing message payload")
+
+    content = message.get("content")
+    if not isinstance(content, str) or not content.strip():
+        logger.error("openrouter_empty_content feature=%s message=%s", feature, str(message)[:500])
+        raise HTTPException(status_code=502, detail="AI provider returned empty content")
+
+    return content, (data.get("usage", {}) or {})
+
+
+async def call_ai(
+    *,
+    system_prompt: str,
+    user_prompt: str,
+    feature: str,
+    db: Session,
+    user_id: int = 0,
+    json_mode: bool = False,
+    metadata: Optional[dict] = None,
+    return_usage: bool = False,
+) -> str | tuple[str, dict]:
+    if not AI_ENABLED:
+        raise HTTPException(status_code=503, detail="AI temporarily disabled by administrator")
+
+    if not OPENROUTER_API_KEY:
+        raise AIServiceError("OPENROUTER_API_KEY not configured")
+
+    if not system_prompt or not user_prompt:
+        raise ValueError("Empty prompts not allowed")
+    if len(user_prompt.strip()) < 20:
+        raise ValueError("User prompt too short (minimum 20 characters)")
+
+    current_spend = check_daily_budget(db)
+    _, tomorrow_start = _today_window()
+    if current_spend >= DAILY_BUDGET_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "success": False,
+                "error": "Daily AI budget limit reached ($1.00). Resets at midnight.",
+                "retry_after": tomorrow_start.isoformat(),
             },
-        }
-    except Exception as exc:
-        logger.exception("ticket_grading_failed error=%s", exc)
+        )
 
-    fallback = TicketGradeAI(
-        ai_score=6,
-        strengths=["Submitted a complete response"],
-        weaknesses=["Missing validation details"],
-        feedback="Add exact commands, checks, and rollback notes.",
+    estimated_cost = estimate_cost(len(system_prompt) + len(user_prompt))
+    if current_spend + estimated_cost > DAILY_BUDGET_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "success": False,
+                "error": "Daily AI budget limit reached ($1.00). Resets at midnight.",
+                "retry_after": tomorrow_start.isoformat(),
+            },
+        )
+
+    check_rate_limit(user_id, feature, db)
+
+    request_metadata = dict(metadata or {})
+    request_metadata["user_id"] = int(user_id or 0)
+
+    body = {
+        "model": OPENROUTER_MODEL,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": TEMPERATURE,
+        "max_tokens": MAX_TOKENS,
+    }
+    if json_mode:
+        body["response_format"] = {"type": "json_object"}
+
+    logger.info(
+        "ai_call_start feature=%s user_id=%s est_cost=%s current_spend=%s",
+        feature,
+        int(user_id or 0),
+        str(estimated_cost),
+        str(current_spend),
     )
-    return {"ai_score": fallback.ai_score, "feedback": fallback.model_dump(exclude={"ai_score"})}
+
+    content, usage = await _single_openrouter_call(body, feature)
+
+    prompt_tokens = int(usage.get("prompt_tokens", 0) or 0)
+    completion_tokens = int(usage.get("completion_tokens", 0) or 0)
+    total_tokens = int(usage.get("total_tokens", prompt_tokens + completion_tokens) or 0)
+    actual_cost = (Decimal(total_tokens) / Decimal(1000)) * COST_PER_1K_TOKENS
+
+    _log_usage(
+        db=db,
+        feature=feature,
+        model=OPENROUTER_MODEL,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        cost_estimate=actual_cost,
+        metadata_json=request_metadata,
+    )
+
+    logger.info(
+        "ai_call_success feature=%s user_id=%s tokens=%s cost=%s",
+        feature,
+        int(user_id or 0),
+        total_tokens,
+        str(actual_cost),
+    )
+
+    if return_usage:
+        return content, {
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+            "cost_estimate": float(actual_cost),
+        }
+    return content
+
+
+async def ai_health_test(db: Session, user_id: int = 0) -> dict:
+    system_prompt = "You are a concise assistant."
+    user_prompt = "Reply with exactly: AI connectivity ok"
+
+    content, usage = await call_ai(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        feature="ticket_description",
+        db=db,
+        user_id=user_id,
+        json_mode=False,
+        metadata={"healthcheck": True},
+        return_usage=True,
+    )
+
+    return {
+        "model": OPENROUTER_MODEL,
+        "usage": usage,
+        "response_preview": content[:200],
+        "success": True,
+    }

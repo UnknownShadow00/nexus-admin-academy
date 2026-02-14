@@ -9,6 +9,7 @@ export default function TicketPage() {
   const [ticket, setTicket] = useState(null);
 
   useEffect(() => {
+    localStorage.setItem(`ticket_${ticketId}_started`, String(Date.now()));
     getTicket(ticketId).then((res) => setTicket(res.data));
   }, [ticketId]);
 

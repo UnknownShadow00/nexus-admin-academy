@@ -4,5 +4,6 @@ sqlalchemy==2.0.43
 alembic==1.16.4
 pydantic==2.11.7
 python-dotenv==1.1.1
-anthropic==0.59.0
+httpx==0.28.1
+youtube-transcript-api==0.6.2
 python-multipart==0.0.20

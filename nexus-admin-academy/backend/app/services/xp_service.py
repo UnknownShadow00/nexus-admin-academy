@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.models.student import Student
 from app.models.xp_ledger import XPLedger
+from app.services.discord_service import check_and_post_milestones
 
 
 def award_xp(
@@ -29,3 +30,4 @@ def award_xp(
     )
     db.add(entry)
     student.total_xp += delta
+    check_and_post_milestones(db, student_id, delta)

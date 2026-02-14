@@ -70,7 +70,12 @@ export default function TicketsPage() {
               {ticket.status === "graded" ? (
                 <p className="mt-2 text-sm text-green-700 dark:text-green-300">Score {ticket.score}/10 ? XP {ticket.xp}</p>
               ) : null}
-              <Link to={`/tickets/${ticket.id}`} className="btn-primary mt-3 w-full">{ticket.status === "graded" ? "View Feedback" : "Start Ticket"}</Link>
+              <Link
+                to={ticket.status === "graded" && ticket.submission_id ? `/tickets/${ticket.submission_id}/feedback` : `/tickets/${ticket.id}`}
+                className="btn-primary mt-3 w-full"
+              >
+                {ticket.status === "graded" ? "View Feedback" : "Start Ticket"}
+              </Link>
             </article>
           ))}
         </div>

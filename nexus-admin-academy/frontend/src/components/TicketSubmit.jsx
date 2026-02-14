@@ -1,20 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import Lightbox from "yet-another-react-lightbox";
-import "yet-another-react-lightbox/styles.css";
+import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import toast from "react-hot-toast";
 import Spinner from "./Spinner";
 import { getLeaderboard, submitTicket, uploadScreenshots } from "../services/api";
 
 export default function TicketSubmit({ ticket, studentId }) {
+  const navigate = useNavigate();
   const [writeup, setWriteup] = useState("");
   const [collaborators, setCollaborators] = useState([]);
   const [students, setStudents] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState(-1);
 
   useEffect(() => {
     getLeaderboard().then((res) => setStudents((res.data || []).filter((s) => s.student_id !== studentId)));
@@ -37,28 +35,37 @@ export default function TicketSubmit({ ticket, studentId }) {
 
   const onSubmit = async () => {
     setLoading(true);
-    const loadingToast = toast.loading("AI is grading your work... This may take 10-15 seconds");
-    const res = await submitTicket(ticket.id, {
-      student_id: studentId,
-      writeup,
-      collaborator_ids: collaboratorIds,
-      screenshots: uploadedFiles,
-      grade_now: true,
-    });
-    toast.dismiss(loadingToast);
-    setResult(res.data);
-    toast.success(`Ticket graded! +${res.data?.xp_awarded} XP`);
-    setLoading(false);
+    const loadingToast = toast.loading("AI is grading your work...");
+    try {
+      const startedAt = Number(localStorage.getItem(`ticket_${ticket.id}_started`) || Date.now());
+      const durationMinutes = Math.max(0, Math.floor((Date.now() - startedAt) / 60000));
+
+      const res = await submitTicket(ticket.id, {
+        student_id: studentId,
+        writeup,
+        collaborator_ids: collaboratorIds,
+        screenshots: uploadedFiles,
+        grade_now: true,
+        duration_minutes: durationMinutes,
+      });
+
+      localStorage.removeItem(`ticket_${ticket.id}_started`);
+      toast.success(`Ticket graded! +${res.data?.xp_awarded} XP`);
+      navigate(`/tickets/${res.data?.submission_id}/feedback`);
+    } finally {
+      toast.dismiss(loadingToast);
+      setLoading(false);
+    }
   };
 
   return (
     <section className="space-y-4">
-      <article className="panel dark:bg-slate-900 dark:border-slate-700">
+      <article className="panel dark:border-slate-700 dark:bg-slate-900">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{ticket.title}</h2>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{ticket.description}</p>
       </article>
 
-      <article className="panel space-y-3 dark:bg-slate-900 dark:border-slate-700">
+      <article className="panel space-y-3 dark:border-slate-700 dark:bg-slate-900">
         <label className="text-sm font-semibold">Solution Writeup (Markdown supported)</label>
         <textarea className="input-field h-40" value={writeup} onChange={(e) => setWriteup(e.target.value)} placeholder="Describe troubleshooting steps..." />
 
@@ -85,44 +92,6 @@ export default function TicketSubmit({ ticket, studentId }) {
           <ReactMarkdown>{writeup || "_Your preview will appear here._"}</ReactMarkdown>
         </div>
       </article>
-
-      {result ? (
-        <article className="panel dark:bg-slate-900 dark:border-slate-700">
-          <h3 className="text-xl font-bold">AI Score: {result.ai_score}/10 ? XP Awarded: {result.xp_awarded}</h3>
-          <p className="mt-1 text-sm">Collaboration: {result.participants} people ({Math.round((result.collaboration_multiplier || 1) * 100)}% multiplier)</p>
-
-          <div className="mt-3 grid gap-4 md:grid-cols-2">
-            <div>
-              <p className="font-semibold">Strengths</p>
-              <ul className="list-disc pl-5 text-sm">{(result.feedback?.strengths || []).map((s, i) => <li key={i}>{s}</li>)}</ul>
-            </div>
-            <div>
-              <p className="font-semibold">Areas to Improve</p>
-              <ul className="list-disc pl-5 text-sm">{(result.feedback?.weaknesses || []).map((s, i) => <li key={i}>{s}</li>)}</ul>
-            </div>
-          </div>
-
-          <p className="mt-3 text-sm">{result.feedback?.feedback}</p>
-
-          {result.screenshots?.length ? (
-            <div className="mt-4">
-              <p className="mb-2 text-sm font-semibold">Screenshots</p>
-              <div className="flex flex-wrap gap-2">
-                {result.screenshots.map((name, i) => {
-                  const src = `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/uploads/screenshots/${name}`;
-                  return <img key={name} src={src} alt={name} className="h-24 w-24 cursor-pointer rounded object-cover" onClick={() => setLightboxIndex(i)} />;
-                })}
-              </div>
-              <Lightbox
-                open={lightboxIndex >= 0}
-                close={() => setLightboxIndex(-1)}
-                index={lightboxIndex >= 0 ? lightboxIndex : 0}
-                slides={result.screenshots.map((name) => ({ src: `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/uploads/screenshots/${name}` }))}
-              />
-            </div>
-          ) : null}
-        </article>
-      ) : null}
     </section>
   );
 }

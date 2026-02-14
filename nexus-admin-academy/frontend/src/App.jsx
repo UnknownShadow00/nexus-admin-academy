@@ -4,10 +4,13 @@ import { useDarkMode } from "./hooks/useDarkMode";
 import AdminHome from "./pages/AdminHome";
 import AdminReviewPage from "./pages/AdminReviewPage";
 import AdminStudentsPage from "./pages/AdminStudentsPage";
+import AICostDashboard from "./pages/admin/AICostDashboard";
+import CommandReference from "./pages/CommandReference";
 import QuizPage from "./pages/QuizPage";
 import QuizzesPage from "./pages/QuizzesPage";
 import ResourcesPage from "./pages/ResourcesPage";
 import StudentHome from "./pages/StudentHome";
+import TicketFeedback from "./pages/TicketFeedback";
 import TicketPage from "./pages/TicketPage";
 import TicketsPage from "./pages/TicketsPage";
 
@@ -16,9 +19,11 @@ const navItems = [
   { to: "/quizzes", label: "Quizzes" },
   { to: "/tickets", label: "Tickets" },
   { to: "/resources", label: "Resources" },
+  { to: "/commands", label: "Commands" },
   { to: "/admin", label: "Admin" },
   { to: "/admin/review", label: "Review" },
   { to: "/admin/students", label: "Students" },
+  { to: "/admin/ai-costs", label: "AI Costs" },
 ];
 
 export default function App() {
@@ -51,10 +56,13 @@ export default function App() {
         <Route path="/quizzes" element={<QuizzesPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
         <Route path="/resources" element={<ResourcesPage />} />
+        <Route path="/commands" element={<CommandReference />} />
         <Route path="/admin" element={<AdminHome />} />
         <Route path="/admin/review" element={<AdminReviewPage />} />
         <Route path="/admin/students" element={<AdminStudentsPage />} />
+        <Route path="/admin/ai-costs" element={<AICostDashboard />} />
         <Route path="/quizzes/:quizId" element={<QuizPage />} />
+        <Route path="/tickets/:submissionId/feedback" element={<TicketFeedback />} />
         <Route path="/tickets/:ticketId" element={<TicketPage />} />
       </Routes>
     </div>

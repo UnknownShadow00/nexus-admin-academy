@@ -1,14 +1,22 @@
+from datetime import date, datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.quiz import QuizAttempt
+from app.models.comptia import ComptiaObjective, StudentObjectiveProgress
+from app.models.login_streak import LoginStreak
+from app.models.quiz import Quiz, QuizAttempt
 from app.models.student import Student
-from app.models.ticket import TicketSubmission
+from app.models.ticket import Ticket, TicketSubmission
 from app.models.xp_ledger import XPLedger
 from app.services.xp_calculator import level_from_xp
 
 router = APIRouter(tags=["students"])
+
+LEVEL_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2500]
+LEVEL_NAMES = ["Trainee", "Help Desk I", "Help Desk II", "Tier 2", "Junior Admin", "SysAdmin", "Master Admin"]
 
 
 def _ok(data, *, total: int | None = None, page: int | None = None, per_page: int | None = None):
@@ -20,6 +28,49 @@ def _ok(data, *, total: int | None = None, page: int | None = None, per_page: in
     if per_page is not None:
         payload["per_page"] = per_page
     return payload
+
+
+def _level_name(total_xp: int) -> tuple[int, str]:
+    level = 0
+    for i, threshold in enumerate(LEVEL_THRESHOLDS):
+        if total_xp >= threshold:
+            level = i
+    return level, LEVEL_NAMES[level] if level < len(LEVEL_NAMES) else "Master Admin"
+
+
+def update_login_streak(db: Session, student_id: int) -> LoginStreak:
+    today = date.today()
+    streak = db.query(LoginStreak).filter(LoginStreak.student_id == student_id).first()
+
+    if streak is None:
+        streak = LoginStreak(student_id=student_id, current_streak=1, longest_streak=1, last_login=today)
+        db.add(streak)
+        db.commit()
+        db.refresh(streak)
+        return streak
+
+    if streak.last_login == today:
+        return streak
+
+    if streak.last_login == today - timedelta(days=1):
+        streak.current_streak += 1
+        streak.longest_streak = max(streak.longest_streak, streak.current_streak)
+    else:
+        streak.current_streak = 1
+
+    streak.last_login = today
+    db.commit()
+    db.refresh(streak)
+    return streak
+
+
+@router.post("/api/students/{student_id}/check-in")
+def student_check_in(student_id: int, db: Session = Depends(get_db)):
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    streak = update_login_streak(db, student_id)
+    return {"success": True, "streak": streak.current_streak, "longest_streak": streak.longest_streak}
 
 
 @router.get("/api/students/{student_id}/dashboard")
@@ -49,7 +100,7 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db)):
             "level": level,
             "level_name": level_name,
             "quiz_best_scores": [{"quiz_id": q.quiz_id, "best_score": q.best_score, "first_attempt_xp": q.first_attempt_xp} for q in quiz_attempts],
-            "tickets_completed": sum(1 for t in ticket_subs if t.graded_at is not None),
+            "tickets_completed": sum(1 for t in ticket_subs if t.graded_at is not None or t.ai_score is not None),
         },
         "recent_activity": [
             {
@@ -63,6 +114,174 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db)):
     }
 
     return _ok(data)
+
+
+@router.get("/api/students/{student_id}/stats")
+def get_student_stats(student_id: int, db: Session = Depends(get_db)):
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    streak = update_login_streak(db, student_id)
+    level, level_name = _level_name(student.total_xp)
+
+    quiz_stats = (
+        db.query(func.count(QuizAttempt.id).label("completed"), func.coalesce(func.avg(QuizAttempt.score), 0).label("avg_score"))
+        .filter(QuizAttempt.student_id == student_id)
+        .first()
+    )
+    total_quizzes = db.query(func.count(Quiz.id)).scalar() or 0
+
+    ticket_stats = (
+        db.query(func.count(TicketSubmission.id).label("completed"), func.coalesce(func.avg(TicketSubmission.ai_score), 0).label("avg_score"))
+        .filter(TicketSubmission.student_id == student_id, TicketSubmission.ai_score.isnot(None))
+        .first()
+    )
+    total_tickets = db.query(func.count(Ticket.id)).scalar() or 0
+
+    week_number = 1
+    week_quizzes = db.query(func.count(Quiz.id)).filter(Quiz.week_number == week_number).scalar() or 0
+    week_tickets = db.query(func.count(Ticket.id)).filter(Ticket.week_number == week_number).scalar() or 0
+    week_completed_q = db.query(func.count(QuizAttempt.id)).join(Quiz, QuizAttempt.quiz_id == Quiz.id).filter(QuizAttempt.student_id == student_id, Quiz.week_number == week_number).scalar() or 0
+    week_completed_t = db.query(func.count(TicketSubmission.id)).join(Ticket, TicketSubmission.ticket_id == Ticket.id).filter(TicketSubmission.student_id == student_id, Ticket.week_number == week_number, TicketSubmission.ai_score.isnot(None)).scalar() or 0
+    week_total = week_quizzes + week_tickets
+    week_done = week_completed_q + week_completed_t
+    week_completion = round((week_done / week_total) * 100, 1) if week_total else 0
+
+    quiz_activity = (
+        db.query(
+            QuizAttempt.completed_at.label("timestamp"),
+            Quiz.title.label("title"),
+            QuizAttempt.score.label("score"),
+            QuizAttempt.xp_awarded.label("xp"),
+        )
+        .join(Quiz, Quiz.id == QuizAttempt.quiz_id)
+        .filter(QuizAttempt.student_id == student_id)
+        .all()
+    )
+    ticket_activity = (
+        db.query(
+            TicketSubmission.submitted_at.label("timestamp"),
+            Ticket.title.label("title"),
+            TicketSubmission.ai_score.label("score"),
+            TicketSubmission.xp_awarded.label("xp"),
+        )
+        .join(Ticket, Ticket.id == TicketSubmission.ticket_id)
+        .filter(TicketSubmission.student_id == student_id, TicketSubmission.ai_score.isnot(None))
+        .all()
+    )
+
+    recent_activity = [
+        {"type": "quiz", "title": row.title, "score": row.score, "xp": row.xp, "timestamp": row.timestamp}
+        for row in quiz_activity
+    ] + [
+        {"type": "ticket", "title": row.title, "score": row.score, "xp": row.xp, "timestamp": row.timestamp}
+        for row in ticket_activity
+    ]
+    recent_activity.sort(key=lambda x: x["timestamp"] or datetime.min, reverse=True)
+    recent_activity = recent_activity[:5]
+
+    weak_rows = (
+        db.query(
+            Ticket.category.label("category"),
+            func.count(TicketSubmission.id).label("attempts"),
+            func.coalesce(func.avg(TicketSubmission.ai_score), 0).label("avg_score"),
+        )
+        .join(Ticket, Ticket.id == TicketSubmission.ticket_id)
+        .filter(TicketSubmission.student_id == student_id, TicketSubmission.ai_score.isnot(None))
+        .group_by(Ticket.category)
+        .having(func.avg(TicketSubmission.ai_score) < 6)
+        .order_by(func.avg(TicketSubmission.ai_score).asc())
+        .all()
+    )
+
+    cohort = (
+        db.query(Student.id, Student.total_xp)
+        .filter(Student.id != student_id)
+        .all()
+    )
+    cohort_xp_values = [row.total_xp for row in cohort]
+    avg_xp = round(sum(cohort_xp_values) / len(cohort_xp_values), 0) if cohort_xp_values else 0
+    percentile = round(((student.total_xp - avg_xp) / avg_xp) * 100, 1) if avg_xp else 0
+
+    cohort_quiz_avg = (
+        db.query(func.coalesce(func.avg(QuizAttempt.score), 0))
+        .join(Student, Student.id == QuizAttempt.student_id)
+        .filter(Student.id != student_id)
+        .scalar()
+        or 0
+    )
+
+    cert = get_cert_readiness(student_id, db)
+
+    return {
+        "success": True,
+        "name": student.name,
+        "total_xp": student.total_xp,
+        "level": level,
+        "level_name": level_name,
+        "quizzes_completed": int(quiz_stats.completed or 0),
+        "total_quizzes": int(total_quizzes),
+        "avg_quiz_score": round(float(quiz_stats.avg_score or 0), 1),
+        "tickets_completed": int(ticket_stats.completed or 0),
+        "total_tickets": int(total_tickets),
+        "avg_ticket_score": round(float(ticket_stats.avg_score or 0), 1),
+        "current_week": week_number,
+        "week_completion": week_completion,
+        "recent_activity": recent_activity,
+        "weak_areas": [
+            {"topic": row.category or "general", "avg_score": round(float(row.avg_score or 0), 1), "attempts": int(row.attempts or 0)}
+            for row in weak_rows
+        ],
+        "streak": streak.current_streak,
+        "longest_streak": streak.longest_streak,
+        "cohort_comparison": {
+            "your_xp": student.total_xp,
+            "avg_xp": avg_xp,
+            "percentile": percentile,
+            "your_quiz_avg": round(float(quiz_stats.avg_score or 0), 1),
+            "cohort_quiz_avg": round(float(cohort_quiz_avg), 1),
+        },
+        "cert_readiness": cert["data"],
+    }
+
+
+@router.get("/api/students/{student_id}/certification-readiness")
+def get_cert_readiness(student_id: int, db: Session = Depends(get_db)):
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    total_objectives = db.query(func.count(ComptiaObjective.id)).scalar() or 0
+
+    mastery_rows = (
+        db.query(
+            ComptiaObjective.domain.label("domain"),
+            func.coalesce(func.avg(StudentObjectiveProgress.mastery_level), 0).label("avg_mastery"),
+        )
+        .outerjoin(
+            StudentObjectiveProgress,
+            (ComptiaObjective.id == StudentObjectiveProgress.objective_id)
+            & (StudentObjectiveProgress.student_id == student_id),
+        )
+        .group_by(ComptiaObjective.domain)
+        .order_by(ComptiaObjective.domain)
+        .all()
+    )
+
+    overall = (
+        db.query(func.coalesce(func.avg(StudentObjectiveProgress.mastery_level), 0))
+        .filter(StudentObjectiveProgress.student_id == student_id)
+        .scalar()
+        or 0
+    )
+
+    data = {
+        "overall_readiness": round(float(overall), 1),
+        "by_domain": [{"domain": row.domain, "readiness": round(float(row.avg_mastery), 1)} for row in mastery_rows],
+        "total_objectives": int(total_objectives),
+    }
+    return {"success": True, "data": data}
 
 
 @router.get("/api/leaderboard")

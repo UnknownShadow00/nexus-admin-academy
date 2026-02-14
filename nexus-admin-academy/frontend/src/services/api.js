@@ -1,7 +1,7 @@
 import axios from "axios";
 import toast from "react-hot-toast";
 
-const adminKey = import.meta.env.VITE_ADMIN_KEY || "";
+const adminKey = (import.meta.env.VITE_ADMIN_KEY || "").trim();
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
@@ -11,10 +11,20 @@ const api = axios.create({
 const adminApi = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
   timeout: 30000,
-  headers: {
-    "X-ADMIN-KEY": adminKey,
-  },
 });
+
+adminApi.interceptors.request.use((config) => {
+  const key = (adminKey || localStorage.getItem("admin_key") || "").trim();
+  config.headers = config.headers || {};
+  config.headers["X-Admin-Key"] = key;
+  config.headers["X-ADMIN-KEY"] = key;
+  return config;
+});
+
+adminApi.interceptors.response.use(
+  (response) => response,
+  (error) => Promise.reject(error)
+);
 
 function unwrap(response) {
   const body = response?.data;
@@ -26,14 +36,14 @@ function unwrap(response) {
 
 function handleError(error) {
   if (error.response) {
-    const message = error.response.data?.error || error.response.data?.detail || "Request failed";
+    const detail = error.response.data?.detail;
+    const message = error.response.data?.error || (typeof detail === "string" ? detail : detail?.error) || "Request failed";
     toast.error(message);
   } else if (error.request) {
     toast.error("Unable to connect to server");
   } else {
     toast.error("Unexpected request error");
   }
-  console.error("API Error:", error);
   throw error;
 }
 
@@ -47,6 +57,9 @@ async function request(clientCall) {
 }
 
 export const getDashboard = (studentId) => request(() => api.get(`/api/students/${studentId}/dashboard`));
+export const getStudentStats = (studentId) => request(() => api.get(`/api/students/${studentId}/stats`));
+export const checkInStudent = (studentId) => request(() => api.post(`/api/students/${studentId}/check-in`));
+export const getCertReadiness = (studentId) => request(() => api.get(`/api/students/${studentId}/certification-readiness`));
 export const getLeaderboard = () => request(() => api.get("/api/leaderboard"));
 
 export const getQuizzes = (weekNumber, studentId = 1) => request(() => api.get("/api/quizzes", { params: { week_number: weekNumber, student_id: studentId } }));
@@ -56,6 +69,7 @@ export const submitQuiz = (quizId, payload) => request(() => api.post(`/api/quiz
 export const getTickets = (weekNumber, studentId = 1) => request(() => api.get("/api/tickets", { params: { week_number: weekNumber, student_id: studentId } }));
 export const getTicket = (ticketId) => request(() => api.get(`/api/tickets/${ticketId}`));
 export const submitTicket = (ticketId, payload) => request(() => api.post(`/api/tickets/${ticketId}/submit`, payload));
+export const getSubmission = (submissionId) => request(() => api.get(`/api/submissions/${submissionId}`));
 
 export const uploadScreenshots = (files) => {
   const formData = new FormData();
@@ -64,6 +78,7 @@ export const uploadScreenshots = (files) => {
 };
 
 export const getResources = (params) => request(() => api.get("/api/resources", { params }));
+export const searchCommands = (q) => request(() => api.get("/api/commands/search", { params: { q } }));
 
 export const generateQuiz = (payload) => request(() => adminApi.post("/api/admin/quiz/generate", payload));
 export const createTicket = (payload) => request(() => adminApi.post("/api/admin/tickets", payload));
@@ -78,5 +93,8 @@ export const getStudentsOverview = () => request(() => adminApi.get("/api/admin/
 export const getStudentActivity = (id) => request(() => adminApi.get(`/api/admin/students/${id}/activity`));
 export const bulkGenerateTickets = (payload) => request(() => adminApi.post("/api/admin/tickets/bulk-generate", payload));
 export const bulkPublishTickets = (payload) => request(() => adminApi.post("/api/admin/tickets/bulk-publish", payload));
+export const getAIUsageStats = () => request(() => adminApi.get("/api/admin/ai-usage"));
+export const getRecentCVEs = (keyword = "windows") => request(() => adminApi.get("/api/admin/cve/recent", { params: { keyword } }));
+export const createTicketFromCVE = (cveId) => request(() => adminApi.post("/api/admin/tickets/from-cve", null, { params: { cve_id: cveId } }));
 
 export default api;

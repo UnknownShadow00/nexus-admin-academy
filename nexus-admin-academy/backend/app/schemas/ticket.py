@@ -6,6 +6,7 @@ class TicketCreateRequest(BaseModel):
     description: str = Field(min_length=10)
     difficulty: int = Field(ge=1, le=5)
     week_number: int = Field(ge=1)
+    category: str | None = Field(default="general", max_length=100)
 
 
 class TicketSubmitRequest(BaseModel):
@@ -14,6 +15,7 @@ class TicketSubmitRequest(BaseModel):
     collaborator_ids: list[int] = Field(default_factory=list)
     screenshots: list[str] = Field(default_factory=list)
     grade_now: bool = True
+    duration_minutes: int | None = Field(default=None, ge=0, le=1440)
 
 
 class OverrideRequest(BaseModel):

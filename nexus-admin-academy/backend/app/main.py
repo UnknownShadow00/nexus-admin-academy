@@ -11,9 +11,11 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import SessionLocal
+from app.config import load_env
 from app.models import Student
-from app.routers import admin, quizzes, resources, students, tickets
+from app.routers import admin, commands, quizzes, resources, students, submissions, tickets
 
+load_env()
 LOG_PATH = os.getenv("APP_LOG_PATH", "/var/log/nexus/app.log")
 
 
@@ -80,6 +82,11 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(StarletteHTTPException)
     async def http_error_handler(_: Request, exc: StarletteHTTPException):
+        if isinstance(exc.detail, dict):
+            content = dict(exc.detail)
+            content.setdefault("success", False)
+            content.setdefault("code", "HTTP_ERROR")
+            return JSONResponse(status_code=exc.status_code, content=content)
         return JSONResponse(
             status_code=exc.status_code,
             content={"success": False, "error": str(exc.detail), "code": "HTTP_ERROR"},
@@ -107,6 +114,8 @@ def create_app() -> FastAPI:
     app.include_router(admin.router)
     app.include_router(quizzes.router)
     app.include_router(tickets.router)
+    app.include_router(submissions.router)
+    app.include_router(commands.router)
     app.include_router(resources.router)
     app.include_router(students.router)
 

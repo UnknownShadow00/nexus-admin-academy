@@ -18,7 +18,9 @@ export default function AdminDashboard() {
     setSubmissions(res.data || []);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const avgScore = useMemo(() => {
     if (!submissions.length) return 0;
@@ -29,23 +31,31 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-4">
       <section className="grid gap-3 md:grid-cols-3">
-        <article className="panel dark:bg-slate-900 dark:border-slate-700"><p className="text-sm">Submissions</p><p className="text-2xl font-bold">{submissions.length}</p></article>
-        <article className="panel dark:bg-slate-900 dark:border-slate-700"><p className="text-sm">Average score</p><p className="text-2xl font-bold">{avgScore}/10</p></article>
-        <article className="panel dark:bg-slate-900 dark:border-slate-700"><p className="text-sm">Completion rate</p><p className="text-2xl font-bold">{Math.min(100, Math.round((new Set(submissions.map((x) => x.student_name)).size / 5) * 100))}%</p></article>
+        <article className="panel dark:border-slate-700 dark:bg-slate-900"><p className="text-sm">Submissions</p><p className="text-2xl font-bold">{submissions.length}</p></article>
+        <article className="panel dark:border-slate-700 dark:bg-slate-900"><p className="text-sm">Average score</p><p className="text-2xl font-bold">{avgScore}/10</p></article>
+        <article className="panel dark:border-slate-700 dark:bg-slate-900"><p className="text-sm">Completion rate</p><p className="text-2xl font-bold">{Math.min(100, Math.round((new Set(submissions.map((x) => x.student_name)).size / 5) * 100))}%</p></article>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
-        <article className="panel space-y-2 dark:bg-slate-900 dark:border-slate-700">
+        <article className="panel space-y-2 dark:border-slate-700 dark:bg-slate-900">
           <h2 className="text-xl font-semibold">Generate Quiz</h2>
           <input className="input-field" placeholder="Source URL" value={quizForm.source_url} onChange={(e) => setQuizForm({ ...quizForm, source_url: e.target.value })} />
           <input className="input-field" placeholder="Title" value={quizForm.title} onChange={(e) => setQuizForm({ ...quizForm, title: e.target.value })} />
           <input className="input-field" type="number" value={quizForm.week_number} onChange={(e) => setQuizForm({ ...quizForm, week_number: Number(e.target.value || 1) })} />
-          <button className="btn-primary" onClick={async () => { const t = toast.loading("Generating quiz..."); await generateQuiz(quizForm); toast.dismiss(t); toast.success("Quiz created successfully"); }}>
+          <button className="btn-primary" onClick={async () => {
+            const t = toast.loading("Generating quiz...");
+            try {
+              await generateQuiz(quizForm);
+              toast.success("Quiz created successfully");
+            } finally {
+              toast.dismiss(t);
+            }
+          }}>
             Generate Quiz
           </button>
         </article>
 
-        <article className="panel space-y-2 dark:bg-slate-900 dark:border-slate-700">
+        <article className="panel space-y-2 dark:border-slate-700 dark:bg-slate-900">
           <h2 className="text-xl font-semibold">Create Ticket</h2>
           <input className="input-field" placeholder="Title" value={ticketForm.title} onChange={(e) => setTicketForm({ ...ticketForm, title: e.target.value })} />
           <textarea className="input-field" placeholder="Description" value={ticketForm.description} onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })} />
@@ -60,7 +70,7 @@ export default function AdminDashboard() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
-        <article className="panel space-y-2 dark:bg-slate-900 dark:border-slate-700">
+        <article className="panel space-y-2 dark:border-slate-700 dark:bg-slate-900">
           <h2 className="text-xl font-semibold">Add Resource</h2>
           <input className="input-field" placeholder="Title" value={resourceForm.title} onChange={(e) => setResourceForm({ ...resourceForm, title: e.target.value })} />
           <input className="input-field" placeholder="URL" value={resourceForm.url} onChange={(e) => setResourceForm({ ...resourceForm, url: e.target.value })} />
@@ -76,7 +86,7 @@ export default function AdminDashboard() {
           </button>
         </article>
 
-        <article className="panel space-y-2 dark:bg-slate-900 dark:border-slate-700">
+        <article className="panel space-y-2 dark:border-slate-700 dark:bg-slate-900">
           <h2 className="text-xl font-semibold">Bulk Create Tickets</h2>
           <textarea className="input-field h-32" placeholder="One title per line" value={bulkText} onChange={(e) => setBulkText(e.target.value)} />
           <div className="grid grid-cols-2 gap-2">
@@ -86,16 +96,34 @@ export default function AdminDashboard() {
           <button className="btn-secondary" onClick={async () => {
             const titles = bulkText.split("\n").map((x) => x.trim()).filter(Boolean);
             const res = await bulkGenerateTickets({ titles, week_number: bulkWeek, difficulty: bulkDifficulty });
-            setGenerated(res.data || []);
+            const generatedItems = Array.isArray(res.data) ? res.data : (res.data?.tickets || []);
+            setGenerated(generatedItems);
             toast.success("Draft descriptions generated");
           }}>Generate Descriptions</button>
-          <button className="btn-primary" onClick={async () => { await bulkPublishTickets(generated); toast.success("Bulk tickets published"); }} disabled={!generated.length}>Publish All Tickets</button>
+          <button className="btn-primary" onClick={async () => {
+            const publishPayload = generated
+              .filter((x) => x.success !== false && x.title && x.description)
+              .map((x) => ({
+                title: x.title,
+                description: x.description,
+                difficulty: x.difficulty ?? bulkDifficulty,
+                week_number: x.week_number ?? bulkWeek,
+              }));
+
+            if (!publishPayload.length) {
+              toast.error("No valid generated tickets to publish");
+              return;
+            }
+
+            await bulkPublishTickets(publishPayload);
+            toast.success("Bulk tickets published");
+          }} disabled={!generated.length}>Publish All Tickets</button>
         </article>
       </section>
 
-      <section className="panel dark:bg-slate-900 dark:border-slate-700">
+      <section className="panel dark:border-slate-700 dark:bg-slate-900">
         <h2 className="mb-2 text-xl font-semibold">Submissions</h2>
-        {!submissions.length ? <EmptyState icon="📝" title="No submissions yet" message="Student work will appear here after they complete tickets" /> : (
+        {!submissions.length ? <EmptyState icon="??" title="No submissions yet" message="Student work will appear here after they complete tickets" /> : (
           <div className="space-y-2">
             {submissions.map((s) => (
               <div key={s.id} className="rounded border border-slate-200 p-3 dark:border-slate-700">

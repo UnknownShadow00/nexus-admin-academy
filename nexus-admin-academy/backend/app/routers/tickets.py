@@ -10,7 +10,7 @@ from app.database import get_db
 from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
 from app.schemas.ticket import TicketSubmitRequest
-from app.services.ai_service import grade_ticket_submission
+from app.services.ticket_grader import grade_ticket_submission
 from app.services.xp_service import award_xp
 
 router = APIRouter(prefix="/api/tickets", tags=["tickets"])
@@ -34,10 +34,7 @@ def _ok(data, *, total: int | None = None, page: int | None = None, per_page: in
 
 def _get_upload_dir() -> Path:
     configured = os.getenv("UPLOAD_DIR")
-    if configured:
-        path = Path(configured)
-    else:
-        path = Path(__file__).resolve().parents[2] / "uploads" / "screenshots"
+    path = Path(configured) if configured else Path(__file__).resolve().parents[2] / "uploads" / "screenshots"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -115,17 +112,11 @@ def get_tickets(week_number: int | None = None, student_id: int | None = None, d
     for t in tickets:
         sub = submissions.get(t.id)
         if sub is None:
-            status = "not_started"
-            score = None
-            xp = None
-        elif sub.graded_at is None:
-            status = "submitted"
-            score = None
-            xp = None
+            status, score, xp, submission_id = "not_started", None, None, None
+        elif sub.ai_score is None:
+            status, score, xp, submission_id = "submitted", None, None, sub.id
         else:
-            status = "graded"
-            score = sub.ai_score
-            xp = sub.xp_awarded
+            status, score, xp, submission_id = "graded", sub.ai_score, sub.xp_awarded, sub.id
 
         data.append(
             {
@@ -133,9 +124,11 @@ def get_tickets(week_number: int | None = None, student_id: int | None = None, d
                 "title": t.title,
                 "difficulty": t.difficulty,
                 "week_number": t.week_number,
+                "category": t.category or "general",
                 "status": status,
                 "score": score,
                 "xp": xp,
+                "submission_id": submission_id,
             }
         )
 
@@ -154,105 +147,99 @@ def get_ticket_details(ticket_id: int, db: Session = Depends(get_db)):
             "description": ticket.description,
             "difficulty": ticket.difficulty,
             "week_number": ticket.week_number,
+            "category": ticket.category or "general",
         }
     )
 
 
 @router.post("/{ticket_id}/submit")
-def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Session = Depends(get_db)):
+async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Session = Depends(get_db)):
+    student_id = payload.student_id
+    writeup = payload.writeup
+    collaborators = _validate_collaborators(db, student_id, payload.collaborator_ids or [])
+    screenshots = payload.screenshots or []
+    duration_minutes = payload.duration_minutes
+
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    student = db.query(Student).filter(Student.id == payload.student_id).first()
-    if not student:
-        raise HTTPException(status_code=404, detail="Student not found")
+    existing = db.query(TicketSubmission).filter(TicketSubmission.student_id == student_id, TicketSubmission.ticket_id == ticket_id).first()
+    if existing and existing.ai_score is not None:
+        raise HTTPException(status_code=400, detail="This ticket has already been graded. Contact instructor for review.")
 
-    collaborator_ids = _validate_collaborators(db, student.id, payload.collaborator_ids)
-
-    submission = (
-        db.query(TicketSubmission)
-        .filter(TicketSubmission.student_id == student.id, TicketSubmission.ticket_id == ticket.id)
-        .first()
-    )
-
-    if submission and submission.graded_at is not None:
-        raise HTTPException(status_code=400, detail="This ticket has already been graded. Contact your instructor to review.")
-
-    if submission is None:
-        submission = TicketSubmission(
-            student_id=student.id,
-            ticket_id=ticket.id,
-            writeup=payload.writeup,
-            ai_score=None,
-            ai_feedback={},
-            xp_awarded=0,
-            screenshots=payload.screenshots,
-            collaborator_ids=collaborator_ids,
+    try:
+        grading = await grade_ticket_submission(
+            ticket_id=ticket_id,
+            ticket_title=ticket.title,
+            ticket_description=ticket.description,
+            student_writeup=writeup,
+            difficulty=ticket.difficulty,
+            db=db,
+            student_id=student_id,
         )
-        db.add(submission)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"AI grading failed: {exc}") from exc
+
+    ai_score = grading["score"]
+    ai_feedback = {
+        "strengths": grading["strengths"],
+        "weaknesses": grading["weaknesses"],
+        "feedback": grading["feedback"],
+    }
+
+    base_xp = ai_score * 10
+    num_people = 1 + len(collaborators)
+    multiplier = _collab_multiplier(num_people)
+    xp_per_person = int(base_xp * multiplier)
+
+    if existing:
+        submission_id = existing.id
+        existing.writeup = writeup
+        existing.screenshots = screenshots
+        existing.collaborator_ids = collaborators
+        existing.ai_score = ai_score
+        existing.ai_feedback = ai_feedback
+        existing.xp_awarded = xp_per_person
+        existing.duration_minutes = duration_minutes
+        if duration_minutes is not None and existing.started_at is None:
+            existing.started_at = existing.submitted_at
     else:
-        submission.writeup = payload.writeup
-        submission.screenshots = payload.screenshots
-        submission.collaborator_ids = collaborator_ids
-
-    db.flush()
-
-    if not payload.grade_now:
-        db.commit()
-        return _ok(
-            {
-                "submission_id": submission.id,
-                "status": "pending",
-                "message": "Submission saved. You can still edit before grading.",
-            }
+        new_sub = TicketSubmission(
+            student_id=student_id,
+            ticket_id=ticket_id,
+            writeup=writeup,
+            screenshots=screenshots,
+            collaborator_ids=collaborators,
+            ai_score=ai_score,
+            ai_feedback=ai_feedback,
+            xp_awarded=xp_per_person,
+            duration_minutes=duration_minutes,
         )
+        db.add(new_sub)
+        db.flush()
+        submission_id = new_sub.id
 
-    ai_result = grade_ticket_submission(ticket.title, ticket.description, payload.writeup)
-    ai_score = max(0, min(10, int(ai_result["ai_score"])))
-    feedback = ai_result["feedback"]
-
-    participant_ids = [student.id] + collaborator_ids
-    multiplier = _collab_multiplier(len(participant_ids))
-    xp_per_person = int(ai_score * 10 * multiplier)
-
-    submission.ai_score = ai_score
-    submission.ai_feedback = feedback
-    submission.graded_at = submission.submitted_at
-    submission.xp_awarded = xp_per_person
-
-    for target_student_id in participant_ids:
+    for participant_id in [student_id] + collaborators:
         award_xp(
             db,
-            student_id=target_student_id,
+            student_id=participant_id,
             delta=xp_per_person,
             source_type="ticket",
-            source_id=submission.id,
-            description=f"Ticket: {ticket.title} (Score: {ai_score}/10, participants={len(participant_ids)})",
+            source_id=submission_id,
+            description=f"Ticket: {ticket.title} (Score: {ai_score}/10, {num_people} collaborators)",
         )
 
     db.commit()
-    db.refresh(submission)
-
-    logger.info(
-        "ticket_submission_graded submission_id=%s ticket_id=%s student_id=%s ai_score=%s xp_per_person=%s participants=%s",
-        submission.id,
-        ticket.id,
-        student.id,
-        ai_score,
-        xp_per_person,
-        len(participant_ids),
-    )
 
     return _ok(
         {
-            "submission_id": submission.id,
+            "submission_id": submission_id,
             "ai_score": ai_score,
             "xp_awarded": xp_per_person,
-            "collaboration_multiplier": multiplier,
-            "participants": len(participant_ids),
-            "feedback": feedback,
-            "screenshots": submission.screenshots,
-            "collaborator_ids": collaborator_ids,
+            "feedback": ai_feedback,
+            "num_collaborators": len(collaborators),
+            "screenshots": screenshots,
+            "duration_minutes": duration_minutes,
         }
     )
