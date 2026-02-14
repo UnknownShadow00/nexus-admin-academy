@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.database import Base, SessionLocal, engine
+from app.database import SessionLocal
 from app.models import Student
 from app.routers import admin, quizzes, resources, students, tickets
 
@@ -122,5 +122,4 @@ app = create_app()
 
 @app.on_event("startup")
 def startup() -> None:
-    Base.metadata.create_all(bind=engine)
     seed_students()

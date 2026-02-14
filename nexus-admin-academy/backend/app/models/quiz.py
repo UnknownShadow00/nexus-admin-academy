@@ -40,8 +40,8 @@ class QuizAttempt(Base):
     __table_args__ = (
         UniqueConstraint("student_id", "quiz_id", name="uq_student_quiz"),
         CheckConstraint("xp_awarded >= 0", name="ck_quiz_attempts_xp_awarded_non_negative"),
-        CheckConstraint("best_score BETWEEN 0 AND 10", name="ck_quiz_attempts_best_score"),
-        CheckConstraint("first_attempt_xp >= 0", name="ck_quiz_attempts_first_attempt_xp_non_negative"),
+        CheckConstraint("best_score IS NULL OR best_score BETWEEN 0 AND 10", name="ck_quiz_attempts_best_score"),
+        CheckConstraint("first_attempt_xp IS NULL OR first_attempt_xp >= 0", name="ck_quiz_attempts_first_attempt_xp_non_negative"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -50,8 +50,8 @@ class QuizAttempt(Base):
     answers: Mapped[dict] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False)
     score: Mapped[int] = mapped_column(Integer, nullable=False)
     xp_awarded: Mapped[int] = mapped_column(Integer, nullable=False)
-    best_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    first_attempt_xp: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    best_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    first_attempt_xp: Mapped[int | None] = mapped_column(Integer, nullable=True)
     completed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     student = relationship("Student", back_populates="quiz_attempts")

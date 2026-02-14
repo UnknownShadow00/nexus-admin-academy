@@ -120,8 +120,8 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     if existing:
         existing.answers = payload.answers
         existing.score = score
-        existing.best_score = max(existing.best_score, score)
-        existing.xp_awarded = existing.first_attempt_xp
+        existing.best_score = max(existing.best_score or 0, score)
+        existing.xp_awarded = existing.first_attempt_xp or existing.xp_awarded
         db.commit()
         logger.info("quiz_retake student_id=%s quiz_id=%s score=%s", student.id, quiz.id, score)
         return _ok(
@@ -131,7 +131,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
                 "xp_awarded": 0,
                 "is_first_attempt": False,
                 "best_score": existing.best_score,
-                "first_attempt_xp": existing.first_attempt_xp,
+                "first_attempt_xp": existing.first_attempt_xp or 0,
                 "message": "Score updated (no XP for retakes)",
                 "results": results,
             }
