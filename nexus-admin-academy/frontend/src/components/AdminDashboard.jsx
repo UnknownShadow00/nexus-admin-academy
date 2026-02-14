@@ -1,149 +1,109 @@
 import { useEffect, useMemo, useState } from "react";
-import { Award, BookOpen, Spinner, Ticket } from "./icons";
-import { createTicket, generateQuiz, getSubmissions, overrideSubmission } from "../services/api";
+import toast from "react-hot-toast";
+import EmptyState from "./EmptyState";
+import { bulkGenerateTickets, bulkPublishTickets, createResource, createTicket, generateQuiz, getSubmissions } from "../services/api";
 
 export default function AdminDashboard() {
   const [submissions, setSubmissions] = useState([]);
   const [quizForm, setQuizForm] = useState({ source_url: "", week_number: 1, title: "" });
-  const [ticketState, setTicketState] = useState({ title: "", description: "", difficulty: 1, week_number: 1 });
-  const [overrideScore, setOverrideScore] = useState(10);
-  const [statusMessage, setStatusMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [ticketForm, setTicketForm] = useState({ title: "", description: "", difficulty: 1, week_number: 1 });
+  const [resourceForm, setResourceForm] = useState({ title: "", url: "", resource_type: "Video", week_number: 1, category: "" });
+  const [bulkText, setBulkText] = useState("");
+  const [bulkWeek, setBulkWeek] = useState(1);
+  const [bulkDifficulty, setBulkDifficulty] = useState(2);
+  const [generated, setGenerated] = useState([]);
 
   const load = async () => {
     const res = await getSubmissions();
-    setSubmissions(res.data.submissions);
+    setSubmissions(res.data || []);
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   const avgScore = useMemo(() => {
     if (!submissions.length) return 0;
-    return (submissions.reduce((sum, sub) => sum + sub.ai_score, 0) / submissions.length).toFixed(1);
+    const total = submissions.reduce((sum, item) => sum + (item.ai_score || 0), 0);
+    return (total / submissions.length).toFixed(1);
   }, [submissions]);
-
-  const completionRate = useMemo(() => {
-    const uniqueStudents = new Set(submissions.map((sub) => sub.student_name));
-    return ((uniqueStudents.size / 5) * 100).toFixed(0);
-  }, [submissions]);
-
-  const statCards = [
-    { label: "Total submissions", value: submissions.length, Icon: Ticket, tone: "text-blue-600" },
-    { label: "Average score", value: `${avgScore}/10`, Icon: Award, tone: "text-emerald-600" },
-    { label: "Completion rate", value: `${completionRate}%`, Icon: BookOpen, tone: "text-amber-600" },
-  ];
 
   return (
     <div className="space-y-4">
-      {statusMessage && (
-        <div className="fixed right-6 top-24 z-20 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg">
-          {statusMessage}
-        </div>
-      )}
-
       <section className="grid gap-3 md:grid-cols-3">
-        {statCards.map(({ label, value, Icon, tone }) => (
-          <article key={label} className="panel">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-slate-500">{label}</p>
-              <Icon className={`h-4 w-4 ${tone}`} />
-            </div>
-            <p className="mt-2 text-2xl font-bold text-gray-900">{value}</p>
-          </article>
-        ))}
+        <article className="panel dark:bg-slate-900 dark:border-slate-700"><p className="text-sm">Submissions</p><p className="text-2xl font-bold">{submissions.length}</p></article>
+        <article className="panel dark:bg-slate-900 dark:border-slate-700"><p className="text-sm">Average score</p><p className="text-2xl font-bold">{avgScore}/10</p></article>
+        <article className="panel dark:bg-slate-900 dark:border-slate-700"><p className="text-sm">Completion rate</p><p className="text-2xl font-bold">{Math.min(100, Math.round((new Set(submissions.map((x) => x.student_name)).size / 5) * 100))}%</p></article>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <article className="panel space-y-3">
-          <h2 className="text-xl font-bold text-gray-900">Create Quiz</h2>
-          <input className="input-field" placeholder="Source URL" onChange={(e) => setQuizForm({ ...quizForm, source_url: e.target.value })} />
-          <input className="input-field" placeholder="Quiz title" onChange={(e) => setQuizForm({ ...quizForm, title: e.target.value })} />
-          <input className="input-field" type="number" value={quizForm.week_number} onChange={(e) => setQuizForm({ ...quizForm, week_number: Number(e.target.value) })} />
-          <button
-            className="btn-primary w-full"
-            onClick={async () => {
-              setLoading(true);
-              await generateQuiz(quizForm);
-              setStatusMessage("Quiz generated and saved.");
-              setLoading(false);
-            }}
-            disabled={loading}
-          >
-            {loading ? <span className="inline-flex items-center gap-2"><Spinner className="h-4 w-4 animate-spin" /> Working...</span> : "Create Quiz"}
+      <section className="grid gap-4 xl:grid-cols-2">
+        <article className="panel space-y-2 dark:bg-slate-900 dark:border-slate-700">
+          <h2 className="text-xl font-semibold">Generate Quiz</h2>
+          <input className="input-field" placeholder="Source URL" value={quizForm.source_url} onChange={(e) => setQuizForm({ ...quizForm, source_url: e.target.value })} />
+          <input className="input-field" placeholder="Title" value={quizForm.title} onChange={(e) => setQuizForm({ ...quizForm, title: e.target.value })} />
+          <input className="input-field" type="number" value={quizForm.week_number} onChange={(e) => setQuizForm({ ...quizForm, week_number: Number(e.target.value || 1) })} />
+          <button className="btn-primary" onClick={async () => { const t = toast.loading("Generating quiz..."); await generateQuiz(quizForm); toast.dismiss(t); toast.success("Quiz created successfully"); }}>
+            Generate Quiz
           </button>
         </article>
 
-        <article className="panel space-y-3">
-          <h2 className="text-xl font-bold text-gray-900">Create Ticket</h2>
-          <input className="input-field" placeholder="Ticket title" onChange={(e) => setTicketState({ ...ticketState, title: e.target.value })} />
-          <textarea className="input-field" placeholder="Description" onChange={(e) => setTicketState({ ...ticketState, description: e.target.value })} />
+        <article className="panel space-y-2 dark:bg-slate-900 dark:border-slate-700">
+          <h2 className="text-xl font-semibold">Create Ticket</h2>
+          <input className="input-field" placeholder="Title" value={ticketForm.title} onChange={(e) => setTicketForm({ ...ticketForm, title: e.target.value })} />
+          <textarea className="input-field" placeholder="Description" value={ticketForm.description} onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })} />
           <div className="grid grid-cols-2 gap-2">
-            <input className="input-field" type="number" value={ticketState.difficulty} onChange={(e) => setTicketState({ ...ticketState, difficulty: Number(e.target.value) })} />
-            <input className="input-field" type="number" value={ticketState.week_number} onChange={(e) => setTicketState({ ...ticketState, week_number: Number(e.target.value) })} />
+            <input className="input-field" type="number" value={ticketForm.difficulty} onChange={(e) => setTicketForm({ ...ticketForm, difficulty: Number(e.target.value || 1) })} />
+            <input className="input-field" type="number" value={ticketForm.week_number} onChange={(e) => setTicketForm({ ...ticketForm, week_number: Number(e.target.value || 1) })} />
           </div>
-          <button
-            className="btn-primary w-full"
-            onClick={async () => {
-              setLoading(true);
-              await createTicket(ticketState);
-              setStatusMessage("Ticket created successfully.");
-              setLoading(false);
-            }}
-            disabled={loading}
-          >
-            {loading ? <span className="inline-flex items-center gap-2"><Spinner className="h-4 w-4 animate-spin" /> Working...</span> : "Create Ticket"}
+          <button className="btn-primary" onClick={async () => { await createTicket(ticketForm); toast.success("Ticket created"); }}>
+            Create Ticket
           </button>
         </article>
       </section>
 
-      <section className="panel">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-xl font-bold text-gray-900">Submissions</h2>
-          <div className="flex items-center gap-2">
-            <select className="input-field w-36" defaultValue="all">
-              <option value="all">All students</option>
+      <section className="grid gap-4 xl:grid-cols-2">
+        <article className="panel space-y-2 dark:bg-slate-900 dark:border-slate-700">
+          <h2 className="text-xl font-semibold">Add Resource</h2>
+          <input className="input-field" placeholder="Title" value={resourceForm.title} onChange={(e) => setResourceForm({ ...resourceForm, title: e.target.value })} />
+          <input className="input-field" placeholder="URL" value={resourceForm.url} onChange={(e) => setResourceForm({ ...resourceForm, url: e.target.value })} />
+          <div className="grid grid-cols-3 gap-2">
+            <select className="input-field" value={resourceForm.resource_type} onChange={(e) => setResourceForm({ ...resourceForm, resource_type: e.target.value })}>
+              <option>Video</option><option>Article</option><option>Study Guide</option><option>Other</option>
             </select>
-            <input type="number" className="input-field w-24" min={0} max={10} value={overrideScore} onChange={(e) => setOverrideScore(Number(e.target.value))} />
+            <input className="input-field" type="number" value={resourceForm.week_number} onChange={(e) => setResourceForm({ ...resourceForm, week_number: Number(e.target.value || 1) })} />
+            <input className="input-field" placeholder="Category" value={resourceForm.category} onChange={(e) => setResourceForm({ ...resourceForm, category: e.target.value })} />
           </div>
-        </div>
+          <button className="btn-primary" onClick={async () => { await createResource(resourceForm); toast.success("Resource created"); }}>
+            Save Resource
+          </button>
+        </article>
 
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-100 text-slate-600">
-              <tr>
-                <th className="px-3 py-2 font-semibold">Student ↕</th>
-                <th className="px-3 py-2 font-semibold">Ticket ↕</th>
-                <th className="px-3 py-2 font-semibold">Score ↕</th>
-                <th className="px-3 py-2 font-semibold">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {submissions.map((s, idx) => (
-                <tr key={s.id} className={idx % 2 ? "bg-slate-50" : "bg-white"}>
-                  <td className="px-3 py-2">{s.student_name}</td>
-                  <td className="px-3 py-2">{s.ticket_title}</td>
-                  <td className="px-3 py-2 font-semibold text-gray-900">{s.ai_score}/10</td>
-                  <td className="px-3 py-2">
-                    <button
-                      className="btn-secondary"
-                      onClick={async () => {
-                        await overrideSubmission(s.id, { new_score: overrideScore });
-                        await load();
-                        setStatusMessage(`Submission ${s.id} overridden to ${overrideScore}.`);
-                      }}
-                    >
-                      Override
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <article className="panel space-y-2 dark:bg-slate-900 dark:border-slate-700">
+          <h2 className="text-xl font-semibold">Bulk Create Tickets</h2>
+          <textarea className="input-field h-32" placeholder="One title per line" value={bulkText} onChange={(e) => setBulkText(e.target.value)} />
+          <div className="grid grid-cols-2 gap-2">
+            <input className="input-field" type="number" value={bulkWeek} onChange={(e) => setBulkWeek(Number(e.target.value || 1))} />
+            <input className="input-field" type="number" value={bulkDifficulty} onChange={(e) => setBulkDifficulty(Number(e.target.value || 2))} />
+          </div>
+          <button className="btn-secondary" onClick={async () => {
+            const titles = bulkText.split("\n").map((x) => x.trim()).filter(Boolean);
+            const res = await bulkGenerateTickets({ titles, week_number: bulkWeek, difficulty: bulkDifficulty });
+            setGenerated(res.data || []);
+            toast.success("Draft descriptions generated");
+          }}>Generate Descriptions</button>
+          <button className="btn-primary" onClick={async () => { await bulkPublishTickets(generated); toast.success("Bulk tickets published"); }} disabled={!generated.length}>Publish All Tickets</button>
+        </article>
+      </section>
 
-        {!submissions.length && <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-500">No submissions yet.</p>}
+      <section className="panel dark:bg-slate-900 dark:border-slate-700">
+        <h2 className="mb-2 text-xl font-semibold">Submissions</h2>
+        {!submissions.length ? <EmptyState icon="📝" title="No submissions yet" message="Student work will appear here after they complete tickets" /> : (
+          <div className="space-y-2">
+            {submissions.map((s) => (
+              <div key={s.id} className="rounded border border-slate-200 p-3 dark:border-slate-700">
+                <p className="text-sm">{s.student_name} - {s.ticket_title} - {s.ai_score ?? "pending"}/10</p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

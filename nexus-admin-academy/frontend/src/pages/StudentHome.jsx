@@ -1,56 +1,44 @@
 import { useEffect, useState } from "react";
-import Dashboard from "../components/Dashboard";
-import Leaderboard from "../components/Leaderboard";
-import QuizList from "../components/QuizList";
-import TicketList from "../components/TicketList";
-import { getDashboard, getLeaderboard, getQuizzes, getTickets } from "../services/api";
+import EmptyState from "../components/EmptyState";
+import { getDashboard, getLeaderboard } from "../services/api";
 
 export default function StudentHome() {
-  const studentId = 1;
   const [dashboard, setDashboard] = useState(null);
-  const [leaderboard, setLeaderboard] = useState(null);
-  const [tickets, setTickets] = useState([]);
-  const [quizzes, setQuizzes] = useState([]);
-  const [week, setWeek] = useState(1);
+  const [leaderboard, setLeaderboard] = useState([]);
 
   useEffect(() => {
-    getDashboard(studentId).then((res) => setDashboard(res.data));
-    getLeaderboard().then((res) => setLeaderboard(res.data));
+    getDashboard(1).then((res) => setDashboard(res.data));
+    getLeaderboard().then((res) => setLeaderboard(res.data || []));
   }, []);
-
-  useEffect(() => {
-    getTickets(week).then((res) => setTickets(res.data.tickets));
-    getQuizzes(week).then((res) => setQuizzes(res.data.quizzes));
-  }, [week]);
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
-      <section className="rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white shadow-md">
-        <h1 className="text-3xl font-bold">Welcome back, {dashboard?.student?.name || "Student"}</h1>
-        <p className="mt-2 text-sm text-blue-100">Build real-world IT admin confidence with tickets, quizzes, and XP progression.</p>
+      <section className="panel bg-gradient-to-r from-sky-600 to-blue-700 text-white">
+        <h1 className="text-3xl font-bold">Student Dashboard</h1>
+        <p className="mt-2 text-sm text-blue-100">Hands-on Windows Server and Microsoft 365 training progression.</p>
       </section>
 
-      <div className="panel flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <label className="text-sm font-semibold text-slate-700">Filter by week</label>
-        <input
-          className="input-field max-w-24"
-          type="number"
-          min={1}
-          value={week}
-          onChange={(e) => setWeek(Number(e.target.value || 1))}
-        />
-      </div>
+      {!dashboard ? (
+        <EmptyState icon="??" title="Loading dashboard" message="Fetching your latest progress..." />
+      ) : (
+        <section className="grid gap-4 md:grid-cols-3">
+          <article className="panel dark:bg-slate-900 dark:border-slate-700"><p className="text-sm text-slate-500">Student</p><p className="text-2xl font-bold">{dashboard.student.name}</p></article>
+          <article className="panel dark:bg-slate-900 dark:border-slate-700"><p className="text-sm text-slate-500">Total XP</p><p className="text-2xl font-bold">{dashboard.student.total_xp}</p></article>
+          <article className="panel dark:bg-slate-900 dark:border-slate-700"><p className="text-sm text-slate-500">Level</p><p className="text-2xl font-bold">{dashboard.student.level_name}</p></article>
+        </section>
+      )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          <Dashboard dashboard={dashboard} />
-          <TicketList tickets={tickets} />
+      <section className="panel dark:bg-slate-900 dark:border-slate-700">
+        <h2 className="text-xl font-semibold">Leaderboard</h2>
+        <div className="mt-3 space-y-2">
+          {leaderboard.map((entry) => (
+            <div key={entry.student_id} className="flex items-center justify-between rounded border border-slate-200 p-2 dark:border-slate-700">
+              <span>#{entry.rank} {entry.name}</span>
+              <span>{entry.total_xp} XP</span>
+            </div>
+          ))}
         </div>
-        <div className="space-y-4">
-          <QuizList quizzes={quizzes} />
-          <Leaderboard data={leaderboard} currentStudentId={studentId} />
-        </div>
-      </div>
+      </section>
     </main>
   );
 }

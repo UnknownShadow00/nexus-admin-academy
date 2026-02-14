@@ -15,3 +15,4 @@ class Student(Base):
 
     quiz_attempts = relationship("QuizAttempt", back_populates="student", cascade="all, delete-orphan")
     ticket_submissions = relationship("TicketSubmission", back_populates="student", cascade="all, delete-orphan")
+    xp_entries = relationship("XPLedger", back_populates="student", cascade="all, delete-orphan")

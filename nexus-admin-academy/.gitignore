@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Local runtime artifacts
+backend/*.db
+backend/*.log
+backend/phase2_check*.db
+backend/uploads/
+
+# Node/Vite
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Workspace clutter
+nexus-admin-academy - Copy/

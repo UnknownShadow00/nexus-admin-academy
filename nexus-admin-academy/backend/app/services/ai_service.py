@@ -5,11 +5,66 @@ import re
 import time
 from hashlib import sha256
 
+from pydantic import BaseModel, ValidationError, field_validator
+
 from app.services.content_extractor import extract_source_summary
 
 logger = logging.getLogger(__name__)
 
 QUIZ_CACHE: dict[str, list[dict]] = {}
+
+
+class AIServiceError(Exception):
+    pass
+
+
+class QuizQuestionAI(BaseModel):
+    question_text: str
+    option_a: str
+    option_b: str
+    option_c: str
+    option_d: str
+    correct_answer: str
+    explanation: str
+
+    @field_validator("correct_answer")
+    @classmethod
+    def validate_correct_answer(cls, value: str) -> str:
+        v = value.strip().upper()
+        if v not in {"A", "B", "C", "D"}:
+            raise ValueError("correct_answer must be one of A/B/C/D")
+        return v
+
+
+class QuizBatchAI(BaseModel):
+    questions: list[QuizQuestionAI]
+
+    @field_validator("questions")
+    @classmethod
+    def validate_questions(cls, value: list[QuizQuestionAI]) -> list[QuizQuestionAI]:
+        if len(value) != 10:
+            raise ValueError("AI must return exactly 10 questions")
+        seen: set[str] = set()
+        for q in value:
+            key = q.question_text.strip().lower()
+            if key in seen:
+                raise ValueError("AI returned duplicate question_text entries")
+            seen.add(key)
+        return value
+
+
+class TicketGradeAI(BaseModel):
+    ai_score: int
+    strengths: list[str]
+    weaknesses: list[str]
+    feedback: str
+
+    @field_validator("ai_score")
+    @classmethod
+    def validate_score(cls, value: int) -> int:
+        if value < 0 or value > 10:
+            raise ValueError("ai_score must be between 0 and 10")
+        return value
 
 
 def _call_claude_with_retry(client, *, model: str, max_tokens: int, prompt: str):
@@ -28,17 +83,12 @@ def _call_claude_with_retry(client, *, model: str, max_tokens: int, prompt: str)
             wait_seconds *= 2
 
 
-def _extract_json_block(text: str) -> list[dict] | None:
-    match = re.search(r"\[.*\]", text, re.DOTALL)
+def _extract_json_block(text: str, array: bool = True):
+    pattern = r"\[.*\]" if array else r"\{.*\}"
+    match = re.search(pattern, text, re.DOTALL)
     if not match:
-        return None
-    try:
-        data = json.loads(match.group(0))
-        if isinstance(data, list):
-            return data
-    except json.JSONDecodeError:
-        return None
-    return None
+        raise AIServiceError("AI response did not include a JSON block")
+    return json.loads(match.group(0))
 
 
 def _sanitize_text(value: str, max_len: int = 8000) -> str:
@@ -56,8 +106,110 @@ def _fallback_quiz(topic: str) -> list[dict]:
             "option_d": "gpupdate /force",
             "correct_answer": "B",
             "explanation": "ipconfig /all returns detailed adapter and DNS settings.",
-        }
-    ] * 10
+        },
+        {
+            "question_text": f"{topic}: Which tool checks DNS lookup on Windows?",
+            "option_a": "nslookup",
+            "option_b": "tasklist",
+            "option_c": "diskpart",
+            "option_d": "winver",
+            "correct_answer": "A",
+            "explanation": "nslookup is used to query DNS records.",
+        },
+        {
+            "question_text": f"{topic}: Which command refreshes Group Policy?",
+            "option_a": "sfc /scannow",
+            "option_b": "gpupdate /force",
+            "option_c": "ping -t",
+            "option_d": "hostname",
+            "correct_answer": "B",
+            "explanation": "gpupdate /force refreshes computer and user policies.",
+        },
+        {
+            "question_text": f"{topic}: Which service manages AD authentication?",
+            "option_a": "Print Spooler",
+            "option_b": "DHCP Client",
+            "option_c": "Kerberos",
+            "option_d": "Windows Update",
+            "correct_answer": "C",
+            "explanation": "Kerberos is the default authentication protocol in AD domains.",
+        },
+        {
+            "question_text": f"{topic}: Which command shows listening ports?",
+            "option_a": "netstat -ano",
+            "option_b": "tracert",
+            "option_c": "route print",
+            "option_d": "cipher",
+            "correct_answer": "A",
+            "explanation": "netstat -ano lists listening ports and process IDs.",
+        },
+        {
+            "question_text": f"{topic}: Which utility verifies disk integrity on reboot?",
+            "option_a": "mstsc",
+            "option_b": "chkdsk /f",
+            "option_c": "icacls",
+            "option_d": "notepad",
+            "correct_answer": "B",
+            "explanation": "chkdsk /f fixes file system errors and may schedule a reboot check.",
+        },
+        {
+            "question_text": f"{topic}: Which admin tool resets user passwords in AD?",
+            "option_a": "Active Directory Users and Computers",
+            "option_b": "Device Manager",
+            "option_c": "Registry Editor",
+            "option_d": "Event Viewer",
+            "correct_answer": "A",
+            "explanation": "ADUC supports password resets and account management.",
+        },
+        {
+            "question_text": f"{topic}: Which command displays current user context?",
+            "option_a": "whoami",
+            "option_b": "shutdown",
+            "option_c": "ver",
+            "option_d": "color",
+            "correct_answer": "A",
+            "explanation": "whoami prints the active user identity and domain context.",
+        },
+        {
+            "question_text": f"{topic}: What does DHCP primarily provide?",
+            "option_a": "File encryption",
+            "option_b": "Automatic IP configuration",
+            "option_c": "Printer drivers",
+            "option_d": "Patch management",
+            "correct_answer": "B",
+            "explanation": "DHCP assigns IP addresses and other network settings automatically.",
+        },
+        {
+            "question_text": f"{topic}: Which command tests connectivity to a host?",
+            "option_a": "ping",
+            "option_b": "set",
+            "option_c": "dir",
+            "option_d": "tree",
+            "correct_answer": "A",
+            "explanation": "ping sends ICMP echo requests to test reachability.",
+        },
+    ]
+
+
+def _validate_quiz_payload(payload: list[dict]) -> list[dict]:
+    batch = QuizBatchAI(questions=[QuizQuestionAI(**q) for q in payload])
+    return [q.model_dump() for q in batch.questions]
+
+
+def _build_quiz_prompt(topic: str, content_summary: str, retry: bool) -> str:
+    retry_line = (
+        "Previous attempt had duplicates or invalid structure. Generate 10 COMPLETELY DIFFERENT questions with unique concepts. "
+        if retry
+        else ""
+    )
+    return (
+        "Generate exactly 10 DIFFERENT multiple-choice questions for IT admin training. "
+        "Each must test a unique concept. Do not repeat similar wording or the same fact. "
+        f"{retry_line}"
+        "Return valid JSON array only. Each object must include: question_text, option_a, option_b, option_c, option_d, "
+        "correct_answer (A/B/C/D), explanation. "
+        f"Topic: {topic}. Source context: {content_summary}"
+    )
 
 
 def generate_quiz_questions(source_url: str, topic: str) -> list[dict]:
@@ -67,44 +219,49 @@ def generate_quiz_questions(source_url: str, topic: str) -> list[dict]:
     if cache_key in QUIZ_CACHE:
         return QUIZ_CACHE[cache_key]
 
-    content_summary = extract_source_summary(source_url)
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        questions = _fallback_quiz(topic)
-        QUIZ_CACHE[cache_key] = questions
-        return questions
+        fallback = _fallback_quiz(topic)
+        QUIZ_CACHE[cache_key] = fallback
+        return fallback
 
-    prompt = (
-        "Generate exactly 10 multiple-choice questions for IT admin training. "
-        "Return JSON array only. Each object must include: question_text, option_a, option_b, option_c, option_d, "
-        "correct_answer (A/B/C/D), explanation."
-        f" Topic: {topic}. Source: {content_summary}"
-    )
+    content_summary = extract_source_summary(source_url)
 
     try:
         from anthropic import Anthropic
 
         client = Anthropic(api_key=api_key)
-        start = time.time()
-        response = _call_claude_with_retry(
-            client,
-            model="claude-sonnet-4-20250514",
-            max_tokens=2000,
-            prompt=prompt,
-        )
-        duration_ms = int((time.time() - start) * 1000)
-        text = "\n".join(chunk.text for chunk in response.content if hasattr(chunk, "text"))
-        logger.info("quiz_generation model=claude-sonnet-4-20250514 duration_ms=%s", duration_ms)
-        parsed = _extract_json_block(text)
-        if parsed and len(parsed) >= 10:
-            QUIZ_CACHE[cache_key] = parsed[:10]
-            return parsed[:10]
-    except Exception as exc:
-        logger.exception("quiz generation failed: %s", exc)
+        for retry in (False, True):
+            prompt = _build_quiz_prompt(topic, content_summary, retry=retry)
+            start = time.time()
+            response = _call_claude_with_retry(
+                client,
+                model="claude-sonnet-4-20250514",
+                max_tokens=2000,
+                prompt=prompt,
+            )
+            duration_ms = int((time.time() - start) * 1000)
+            usage = getattr(response, "usage", None)
+            logger.info(
+                "quiz_generation model=claude-sonnet-4-20250514 duration_ms=%s input_tokens=%s output_tokens=%s",
+                duration_ms,
+                getattr(usage, "input_tokens", None),
+                getattr(usage, "output_tokens", None),
+            )
 
-    questions = _fallback_quiz(topic)
-    QUIZ_CACHE[cache_key] = questions
-    return questions
+            text = "\n".join(chunk.text for chunk in response.content if hasattr(chunk, "text"))
+            try:
+                payload = _extract_json_block(text, array=True)
+                validated = _validate_quiz_payload(payload)
+                QUIZ_CACHE[cache_key] = validated
+                return validated
+            except (AIServiceError, ValidationError, ValueError, json.JSONDecodeError) as exc:
+                logger.warning("quiz_generation validation_failed retry=%s error=%s", retry, exc)
+                continue
+    except Exception as exc:
+        logger.exception("quiz_generation_failed error=%s", exc)
+
+    raise AIServiceError("AI generation failed. Please try a different source or create the quiz manually.")
 
 
 def grade_ticket_submission(ticket_title: str, ticket_description: str, writeup: str) -> dict:
@@ -114,15 +271,14 @@ def grade_ticket_submission(ticket_title: str, ticket_description: str, writeup:
     safe_writeup = _sanitize_text(writeup, max_len=6000)
 
     if not api_key:
-        score = min(10, max(0, len(safe_writeup) // 200 + 5))
-        return {
-            "ai_score": score,
-            "feedback": {
-                "strengths": ["Clear writeup structure", "Attempted a practical troubleshooting flow"],
-                "weaknesses": ["Could include more command output evidence"],
-                "feedback": "Solid baseline response. Add validation commands and expected results.",
-            },
-        }
+        score = min(10, max(0, len(safe_writeup) // 250 + 5))
+        obj = TicketGradeAI(
+            ai_score=score,
+            strengths=["Clear writeup structure", "Attempted a practical troubleshooting flow"],
+            weaknesses=["Could include more command output evidence"],
+            feedback="Solid baseline response. Add validation commands and expected results.",
+        )
+        return {"ai_score": obj.ai_score, "feedback": obj.model_dump(exclude={"ai_score"})}
 
     prompt = (
         "Grade this IT support ticket solution from 0-10. Return JSON object only with keys: "
@@ -144,29 +300,32 @@ def grade_ticket_submission(ticket_title: str, ticket_description: str, writeup:
             prompt=prompt,
         )
         duration_ms = int((time.time() - start) * 1000)
-        logger.info("ticket_grading model=claude-sonnet-4-20250514 duration_ms=%s", duration_ms)
+        usage = getattr(response, "usage", None)
+        logger.info(
+            "ticket_grading model=claude-sonnet-4-20250514 duration_ms=%s input_tokens=%s output_tokens=%s",
+            duration_ms,
+            getattr(usage, "input_tokens", None),
+            getattr(usage, "output_tokens", None),
+        )
 
         text = "\n".join(chunk.text for chunk in response.content if hasattr(chunk, "text"))
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            obj = json.loads(match.group(0))
-            score = int(obj.get("ai_score", 0))
-            return {
-                "ai_score": max(0, min(10, score)),
-                "feedback": {
-                    "strengths": obj.get("strengths", []),
-                    "weaknesses": obj.get("weaknesses", []),
-                    "feedback": obj.get("feedback", ""),
-                },
-            }
+        payload = _extract_json_block(text, array=False)
+        validated = TicketGradeAI(**payload)
+        return {
+            "ai_score": validated.ai_score,
+            "feedback": {
+                "strengths": validated.strengths,
+                "weaknesses": validated.weaknesses,
+                "feedback": validated.feedback,
+            },
+        }
     except Exception as exc:
-        logger.exception("ticket grading failed: %s", exc)
+        logger.exception("ticket_grading_failed error=%s", exc)
 
-    return {
-        "ai_score": 6,
-        "feedback": {
-            "strengths": ["Submitted a complete response"],
-            "weaknesses": ["Missing validation details"],
-            "feedback": "Add exact commands, checks, and rollback notes.",
-        },
-    }
+    fallback = TicketGradeAI(
+        ai_score=6,
+        strengths=["Submitted a complete response"],
+        weaknesses=["Missing validation details"],
+        feedback="Add exact commands, checks, and rollback notes.",
+    )
+    return {"ai_score": fallback.ai_score, "feedback": fallback.model_dump(exclude={"ai_score"})}

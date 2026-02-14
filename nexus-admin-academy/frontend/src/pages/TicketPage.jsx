@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import TicketSubmit from "../components/TicketSubmit";
+import Spinner from "../components/Spinner";
 import { getTicket } from "../services/api";
 
 export default function TicketPage() {
@@ -11,10 +12,12 @@ export default function TicketPage() {
     getTicket(ticketId).then((res) => setTicket(res.data));
   }, [ticketId]);
 
-  if (!ticket) return <main className="mx-auto max-w-7xl p-6"><section className="panel text-sm text-slate-500">Loading ticket...</section></main>;
+  if (!ticket) {
+    return <main className="mx-auto max-w-4xl p-6"><Spinner text="Loading ticket..." /></main>;
+  }
 
   return (
-    <main className="mx-auto max-w-7xl p-6">
+    <main className="mx-auto max-w-4xl p-6">
       <TicketSubmit ticket={ticket} studentId={1} />
     </main>
   );
