@@ -7,11 +7,16 @@ class TicketCreateRequest(BaseModel):
     difficulty: int = Field(ge=1, le=5)
     week_number: int = Field(ge=1)
     category: str | None = Field(default="general", max_length=100)
+    domain_id: str = Field(default="1.0", max_length=10)
 
 
 class TicketSubmitRequest(BaseModel):
     student_id: int = Field(ge=1)
-    writeup: str = Field(min_length=10, max_length=5000)
+    symptom: str = Field(min_length=3, max_length=2000)
+    root_cause: str = Field(min_length=3, max_length=2000)
+    resolution: str = Field(min_length=3, max_length=3000)
+    verification: str = Field(min_length=3, max_length=2000)
+    writeup: str | None = Field(default=None, max_length=5000)
     collaborator_ids: list[int] = Field(default_factory=list)
     screenshots: list[str] = Field(default_factory=list)
     grade_now: bool = True

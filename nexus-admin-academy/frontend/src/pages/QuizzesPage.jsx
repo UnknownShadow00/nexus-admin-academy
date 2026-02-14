@@ -4,8 +4,10 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import EmptyState from "../components/EmptyState";
 import { getQuizzes } from "../services/api";
+import { getSelectedProfile } from "../services/profile";
 
 export default function QuizzesPage() {
+  const studentId = getSelectedProfile()?.id || 1;
   const [week, setWeek] = useState(1);
   const [status, setStatus] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -14,12 +16,12 @@ export default function QuizzesPage() {
   useEffect(() => {
     const run = async () => {
       setLoading(true);
-      const res = await getQuizzes(week, 1);
+      const res = await getQuizzes(week, studentId);
       setItems(res.data || []);
       setLoading(false);
     };
     run();
-  }, [week]);
+  }, [week, studentId]);
 
   const filtered = useMemo(() => {
     if (status === "all") return items;

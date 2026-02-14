@@ -1,6 +1,7 @@
 import logging
 import os
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -10,8 +11,8 @@ from app.database import get_db
 from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
 from app.schemas.ticket import TicketSubmitRequest
+from app.services.activity_service import log_activity, mark_student_active
 from app.services.ticket_grader import grade_ticket_submission
-from app.services.xp_service import award_xp
 
 router = APIRouter(prefix="/api/tickets", tags=["tickets"])
 logger = logging.getLogger(__name__)
@@ -66,6 +67,15 @@ def _validate_collaborators(db: Session, owner_student_id: int, collaborator_ids
     return deduped
 
 
+def _build_itil_writeup(payload: TicketSubmitRequest) -> str:
+    return (
+        f"Symptom:\n{payload.symptom.strip()}\n\n"
+        f"Root Cause:\n{payload.root_cause.strip()}\n\n"
+        f"Resolution:\n{payload.resolution.strip()}\n\n"
+        f"Verification:\n{payload.verification.strip()}"
+    )
+
+
 @router.post("/uploads")
 async def upload_screenshots(files: list[UploadFile] = File(...)):
     upload_dir = _get_upload_dir()
@@ -113,10 +123,11 @@ def get_tickets(week_number: int | None = None, student_id: int | None = None, d
         sub = submissions.get(t.id)
         if sub is None:
             status, score, xp, submission_id = "not_started", None, None, None
-        elif sub.ai_score is None:
-            status, score, xp, submission_id = "submitted", None, None, sub.id
         else:
-            status, score, xp, submission_id = "graded", sub.ai_score, sub.xp_awarded, sub.id
+            status = sub.status or "pending"
+            score = sub.final_score if sub.final_score is not None else sub.ai_score
+            xp = sub.xp_awarded if sub.xp_granted else 0
+            submission_id = sub.id
 
         data.append(
             {
@@ -125,9 +136,11 @@ def get_tickets(week_number: int | None = None, student_id: int | None = None, d
                 "difficulty": t.difficulty,
                 "week_number": t.week_number,
                 "category": t.category or "general",
+                "domain_id": t.domain_id,
                 "status": status,
                 "score": score,
                 "xp": xp,
+                "xp_granted": sub.xp_granted if sub else False,
                 "submission_id": submission_id,
             }
         )
@@ -148,6 +161,7 @@ def get_ticket_details(ticket_id: int, db: Session = Depends(get_db)):
             "difficulty": ticket.difficulty,
             "week_number": ticket.week_number,
             "category": ticket.category or "general",
+            "domain_id": ticket.domain_id,
         }
     )
 
@@ -155,18 +169,21 @@ def get_ticket_details(ticket_id: int, db: Session = Depends(get_db)):
 @router.post("/{ticket_id}/submit")
 async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Session = Depends(get_db)):
     student_id = payload.student_id
-    writeup = payload.writeup
     collaborators = _validate_collaborators(db, student_id, payload.collaborator_ids or [])
     screenshots = payload.screenshots or []
     duration_minutes = payload.duration_minutes
+
+    writeup = _build_itil_writeup(payload)
 
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
+    mark_student_active(db, student_id)
+
     existing = db.query(TicketSubmission).filter(TicketSubmission.student_id == student_id, TicketSubmission.ticket_id == ticket_id).first()
-    if existing and existing.ai_score is not None:
-        raise HTTPException(status_code=400, detail="This ticket has already been graded. Contact instructor for review.")
+    if existing and existing.status == "verified":
+        raise HTTPException(status_code=400, detail="This ticket has already been verified. Contact instructor for review.")
 
     try:
         grading = await grade_ticket_submission(
@@ -181,7 +198,7 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"AI grading failed: {exc}") from exc
 
-    ai_score = grading["score"]
+    ai_score = grading["final_score"]
     ai_feedback = {
         "strengths": grading["strengths"],
         "weaknesses": grading["weaknesses"],
@@ -199,8 +216,17 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
         existing.screenshots = screenshots
         existing.collaborator_ids = collaborators
         existing.ai_score = ai_score
+        existing.structure_score = grading["structure_score"]
+        existing.technical_score = grading["technical_score"]
+        existing.communication_score = grading["communication_score"]
+        existing.final_score = grading["final_score"]
         existing.ai_feedback = ai_feedback
         existing.xp_awarded = xp_per_person
+        existing.xp_granted = False
+        existing.status = "pending"
+        existing.graded_at = datetime.utcnow()
+        existing.verified_at = None
+        existing.verified_by = None
         existing.duration_minutes = duration_minutes
         if duration_minutes is not None and existing.started_at is None:
             existing.started_at = existing.submitted_at
@@ -212,31 +238,41 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
             screenshots=screenshots,
             collaborator_ids=collaborators,
             ai_score=ai_score,
+            structure_score=grading["structure_score"],
+            technical_score=grading["technical_score"],
+            communication_score=grading["communication_score"],
+            final_score=grading["final_score"],
             ai_feedback=ai_feedback,
             xp_awarded=xp_per_person,
+            xp_granted=False,
+            status="pending",
+            graded_at=datetime.utcnow(),
             duration_minutes=duration_minutes,
         )
         db.add(new_sub)
         db.flush()
         submission_id = new_sub.id
 
-    for participant_id in [student_id] + collaborators:
-        award_xp(
-            db,
-            student_id=participant_id,
-            delta=xp_per_person,
-            source_type="ticket",
-            source_id=submission_id,
-            description=f"Ticket: {ticket.title} (Score: {ai_score}/10, {num_people} collaborators)",
-        )
-
-    db.commit()
+    log_activity(
+        db,
+        student_id,
+        "ticket_submitted",
+        ticket.title,
+        "Awaiting instructor verification",
+    )
 
     return _ok(
         {
             "submission_id": submission_id,
             "ai_score": ai_score,
+            "structure_score": grading["structure_score"],
+            "technical_score": grading["technical_score"],
+            "communication_score": grading["communication_score"],
+            "final_score": grading["final_score"],
             "xp_awarded": xp_per_person,
+            "xp_granted": False,
+            "status": "pending",
+            "message": "Awaiting Instructor Verification",
             "feedback": ai_feedback,
             "num_collaborators": len(collaborators),
             "screenshots": screenshots,

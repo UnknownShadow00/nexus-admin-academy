@@ -5,6 +5,7 @@ class QuizGenerateRequest(BaseModel):
     source_url: HttpUrl
     week_number: int = Field(ge=1)
     title: str = Field(min_length=3, max_length=200)
+    domain_id: str = Field(default="1.0", max_length=10)
 
 
 class QuizSubmitRequest(BaseModel):

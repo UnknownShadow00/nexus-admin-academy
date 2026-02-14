@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Integer, Text, String, func
+from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,6 +16,7 @@ class Ticket(Base):
     week_number: Mapped[int] = mapped_column(Integer, nullable=False)
     category: Mapped[str | None] = mapped_column(String(100), nullable=True, default="general")
     objective_ids: Mapped[list] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=list)
+    domain_id: Mapped[str] = mapped_column(String(10), nullable=False, default="1.0", index=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     submissions = relationship("TicketSubmission", back_populates="ticket", cascade="all, delete-orphan")
@@ -33,10 +34,18 @@ class TicketSubmission(Base):
     ticket_id: Mapped[int] = mapped_column(ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     writeup: Mapped[str] = mapped_column(Text, nullable=False)
     ai_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    structure_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    technical_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    communication_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    final_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ai_feedback: Mapped[dict] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
     xp_awarded: Mapped[int] = mapped_column(Integer, nullable=False)
+    xp_granted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", index=True)
     submitted_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     graded_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    verified_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    verified_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
     started_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     overridden: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

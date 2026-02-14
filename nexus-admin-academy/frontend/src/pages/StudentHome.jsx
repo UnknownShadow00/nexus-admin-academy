@@ -3,7 +3,8 @@ import confetti from "canvas-confetti";
 import toast from "react-hot-toast";
 import { BookOpen, CheckCircle, Target, TrendingUp } from "lucide-react";
 import EmptyState from "../components/EmptyState";
-import { getLeaderboard, getStudentStats } from "../services/api";
+import { checkInStudent, getLeaderboard, getStudentMastery, getStudentStats } from "../services/api";
+import { getSelectedProfile } from "../services/profile";
 
 function StatCard({ icon, label, value, subtitle }) {
   return (
@@ -19,13 +20,15 @@ function StatCard({ icon, label, value, subtitle }) {
 }
 
 export default function StudentHome() {
-  const studentId = 1;
+  const studentId = getSelectedProfile()?.id || 1;
   const [stats, setStats] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [mastery, setMastery] = useState([]);
 
   useEffect(() => {
     const run = async () => {
-      const [statsRes, lbRes] = await Promise.all([getStudentStats(studentId), getLeaderboard()]);
+      await checkInStudent(studentId);
+      const [statsRes, lbRes, masteryRes] = await Promise.all([getStudentStats(studentId), getLeaderboard(), getStudentMastery(studentId)]);
       const next = statsRes || null;
 
       const prevLevel = Number(localStorage.getItem("last_level") || "-1");
@@ -39,9 +42,10 @@ export default function StudentHome() {
 
       setStats(next);
       setLeaderboard(lbRes.data || []);
+      setMastery(masteryRes.data || []);
     };
     run();
-  }, []);
+  }, [studentId]);
 
   const activity = useMemo(() => stats?.recent_activity || [], [stats]);
 
@@ -79,6 +83,24 @@ export default function StudentHome() {
             <StatCard icon={<BookOpen className="text-green-600" size={24} />} label="Quizzes" value={`${stats.quizzes_completed}/${stats.total_quizzes}`} subtitle={`Avg: ${stats.avg_quiz_score}/10`} />
             <StatCard icon={<CheckCircle className="text-purple-600" size={24} />} label="Tickets" value={`${stats.tickets_completed}/${stats.total_tickets}`} subtitle={`Avg: ${stats.avg_ticket_score}/10`} />
             <StatCard icon={<Target className="text-orange-600" size={24} />} label="Week Progress" value={`${stats.week_completion}%`} subtitle={`Week ${stats.current_week}`} />
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <h3 className="mb-4 text-xl font-bold">Domain Mastery</h3>
+            <div className="space-y-3">
+              {mastery.map((item) => (
+                <div key={item.domain_id}>
+                  <div className="mb-1 flex justify-between text-sm">
+                    <span>{item.domain_name}</span>
+                    <span>{item.mastery_percent}%</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-slate-200 dark:bg-slate-700">
+                    <div className="h-3 rounded-full bg-blue-600" style={{ width: `${item.mastery_percent}%` }} />
+                  </div>
+                </div>
+              ))}
+              {!mastery.length ? <p className="text-sm text-slate-500">No mastery data yet. Complete a quiz and get a ticket verified.</p> : null}
+            </div>
           </section>
 
           {stats.cert_readiness && (

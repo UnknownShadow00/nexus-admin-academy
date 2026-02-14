@@ -1,4 +1,4 @@
-from sqlalchemy import CHAR, JSON, CheckConstraint, DateTime, ForeignKey, Integer, Text, UniqueConstraint, func
+from sqlalchemy import CHAR, JSON, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,6 +12,7 @@ class Quiz(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     source_url: Mapped[str] = mapped_column(Text, nullable=False)
     week_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    domain_id: Mapped[str] = mapped_column(String(10), nullable=False, default="1.0", index=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     questions = relationship("Question", back_populates="quiz", cascade="all, delete-orphan")

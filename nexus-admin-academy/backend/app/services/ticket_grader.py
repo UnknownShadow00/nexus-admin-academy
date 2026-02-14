@@ -1,4 +1,5 @@
 import json
+import re
 
 from sqlalchemy.orm import Session
 
@@ -39,7 +40,14 @@ CRITICAL RULES:
 - No root cause identified = Maximum 7/10
 
 Return ONLY valid JSON:
-{"score":1,"strengths":["..."],"weaknesses":["..."],"feedback":"..."}"""
+{
+  "structure_score": 1,
+  "technical_score": 1,
+  "communication_score": 1,
+  "strengths": ["..."],
+  "weaknesses": ["..."],
+  "feedback": "..."
+}"""
 
     user_prompt = f"""Grade this help desk ticket response:
 
@@ -62,17 +70,52 @@ STUDENT WRITEUP:
     )
 
     grading = json.loads(response_text)
-    required_keys = ["score", "strengths", "weaknesses", "feedback"]
+    required_keys = ["structure_score", "technical_score", "communication_score", "strengths", "weaknesses", "feedback"]
     missing = [k for k in required_keys if k not in grading]
     if missing:
         raise ValueError(f"AI grading missing keys: {missing}")
 
-    if not isinstance(grading["score"], int) or not (0 <= grading["score"] <= 10):
-        raise ValueError(f"Invalid score: {grading['score']}")
+    for key in ["structure_score", "technical_score", "communication_score"]:
+        if not isinstance(grading[key], int) or not (0 <= grading[key] <= 10):
+            raise ValueError(f"Invalid {key}: {grading[key]}")
 
     if not isinstance(grading["strengths"], list):
         grading["strengths"] = [str(grading["strengths"])]
     if not isinstance(grading["weaknesses"], list):
         grading["weaknesses"] = [str(grading["weaknesses"])]
 
+    structure_penalty = _calculate_structure_penalty(trimmed)
+    structure_score = max(0, int(round(grading["structure_score"] * (1 - structure_penalty))))
+    technical_score = grading["technical_score"]
+    communication_score = grading["communication_score"]
+
+    final_score = int(
+        round(
+            (structure_score * 0.3)
+            + (technical_score * 0.5)
+            + (communication_score * 0.2)
+        )
+    )
+    final_score = max(1, min(10, final_score))
+
+    grading["structure_score"] = structure_score
+    grading["technical_score"] = technical_score
+    grading["communication_score"] = communication_score
+    grading["final_score"] = final_score
+    grading["structure_penalty_applied"] = structure_penalty > 0
     return grading
+
+
+def _calculate_structure_penalty(writeup: str) -> float:
+    required_headers = ["symptom:", "root cause:", "resolution:", "verification:"]
+    lowered = writeup.lower()
+    missing = [h for h in required_headers if h not in lowered]
+    if missing:
+        return 0.3
+
+    # Penalize mostly-noisy responses even if headers exist.
+    tokens = re.findall(r"[a-zA-Z]{3,}", writeup)
+    if len(tokens) < 30:
+        return 0.3
+
+    return 0.0

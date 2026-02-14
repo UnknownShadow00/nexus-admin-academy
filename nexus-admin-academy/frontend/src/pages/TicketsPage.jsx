@@ -4,6 +4,7 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import EmptyState from "../components/EmptyState";
 import { getTickets } from "../services/api";
+import { getSelectedProfile } from "../services/profile";
 
 const difficultyClass = {
   1: "bg-emerald-100 text-emerald-700",
@@ -14,6 +15,7 @@ const difficultyClass = {
 };
 
 export default function TicketsPage() {
+  const studentId = getSelectedProfile()?.id || 1;
   const [week, setWeek] = useState(1);
   const [status, setStatus] = useState("all");
   const [difficulty, setDifficulty] = useState("all");
@@ -23,12 +25,12 @@ export default function TicketsPage() {
   useEffect(() => {
     const run = async () => {
       setLoading(true);
-      const res = await getTickets(week, 1);
+      const res = await getTickets(week, studentId);
       setItems(res.data || []);
       setLoading(false);
     };
     run();
-  }, [week]);
+  }, [week, studentId]);
 
   const filtered = useMemo(() => {
     return items.filter((item) => (status === "all" || item.status === status) && (difficulty === "all" || Number(difficulty) === item.difficulty));
@@ -43,8 +45,9 @@ export default function TicketsPage() {
           <select className="input-field max-w-52" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="all">All status</option>
             <option value="not_started">Not Started</option>
-            <option value="submitted">Pending Grading</option>
-            <option value="graded">Graded</option>
+            <option value="pending">Awaiting Verification</option>
+            <option value="verified">Verified</option>
+            <option value="rejected">Rejected</option>
           </select>
           <select className="input-field max-w-40" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
             <option value="all">Any difficulty</option>
@@ -67,14 +70,14 @@ export default function TicketsPage() {
                 <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">Week {ticket.week_number}</span>
                 <span className="rounded-full bg-blue-100 px-2 py-1 text-blue-700">{ticket.status.replace("_", " ")}</span>
               </div>
-              {ticket.status === "graded" ? (
+              {ticket.status === "verified" ? (
                 <p className="mt-2 text-sm text-green-700 dark:text-green-300">Score {ticket.score}/10 ? XP {ticket.xp}</p>
               ) : null}
               <Link
-                to={ticket.status === "graded" && ticket.submission_id ? `/tickets/${ticket.submission_id}/feedback` : `/tickets/${ticket.id}`}
+                to={ticket.submission_id ? `/tickets/${ticket.submission_id}/feedback` : `/tickets/${ticket.id}`}
                 className="btn-primary mt-3 w-full"
               >
-                {ticket.status === "graded" ? "View Feedback" : "Start Ticket"}
+                {ticket.submission_id ? "View Feedback" : "Start Ticket"}
               </Link>
             </article>
           ))}

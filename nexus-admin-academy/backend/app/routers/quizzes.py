@@ -1,4 +1,3 @@
-import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,6 +7,8 @@ from app.database import get_db
 from app.models.quiz import Quiz, QuizAttempt
 from app.models.student import Student
 from app.schemas.quiz import QuizGenerateRequest, QuizSubmitRequest
+from app.services.activity_service import log_activity, mark_student_active
+from app.services.mastery_service import record_quiz_mastery
 from app.services.quiz_generator import generate_quiz_from_video
 from app.services.xp_service import award_xp
 
@@ -46,6 +47,7 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
                 "id": quiz.id,
                 "title": quiz.title,
                 "week_number": quiz.week_number,
+                "domain_id": quiz.domain_id,
                 "question_count": len(quiz.questions),
                 "status": "completed" if attempt else "not_started",
                 "best_score": attempt.best_score if attempt else None,
@@ -67,6 +69,7 @@ def get_quiz_details(quiz_id: int, db: Session = Depends(get_db)):
         {
             "id": quiz.id,
             "title": quiz.title,
+            "domain_id": quiz.domain_id,
             "questions": [
                 {
                     "id": question.id,
@@ -85,11 +88,23 @@ def get_quiz_details(quiz_id: int, db: Session = Depends(get_db)):
 @router.post("/admin/generate")
 async def admin_generate_quiz(payload: QuizGenerateRequest, db: Session = Depends(get_db)):
     try:
-        questions = await generate_quiz_from_video(str(payload.source_url), payload.title, payload.week_number, db, admin_id=0)
+        questions = await generate_quiz_from_video(
+            str(payload.source_url),
+            payload.title,
+            payload.week_number,
+            db,
+            admin_id=0,
+            domain_id=payload.domain_id,
+        )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Quiz generation failed: {exc}") from exc
 
-    quiz = Quiz(title=payload.title, source_url=str(payload.source_url), week_number=payload.week_number)
+    quiz = Quiz(
+        title=payload.title,
+        source_url=str(payload.source_url),
+        week_number=payload.week_number,
+        domain_id=payload.domain_id,
+    )
     db.add(quiz)
     db.flush()
 
@@ -125,6 +140,8 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
+
+    mark_student_active(db, student_id)
 
     questions = sorted(quiz.questions, key=lambda q: q.id)
     if len(questions) != 10:
@@ -186,12 +203,16 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
                 source_id=attempt.id,
                 description=f"Quiz: {quiz.title} (Score: {score}/10)",
             )
+        record_quiz_mastery(db, student_id, quiz.domain_id, score)
+        log_activity(db, student_id, "quiz_passed", quiz.title, f"Score {score}/10")
     else:
         existing.answers = answers
         existing.score = score
         existing.best_score = max(existing.best_score or 0, score)
+        db.commit()
 
-    db.commit()
+    if is_first_attempt:
+        db.commit()
 
     return _ok(
         {
@@ -203,4 +224,3 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
             "message": "Great work!" if is_first_attempt else "Score updated (no XP for retakes)",
         }
     )
-

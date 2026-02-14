@@ -17,10 +17,13 @@ from app.models.xp_ledger import XPLedger
 from app.schemas.quiz import BulkTicketGenerateRequest, QuizGenerateRequest
 from app.schemas.resource import ResourceCreateRequest
 from app.schemas.ticket import ManualReviewRequest, OverrideRequest, TicketCreateRequest
+from app.services.activity_service import get_recent_activity, log_activity
 from app.services.admin_auth import verify_admin
 from app.services.ai_service import ai_health_test
 from app.services.cve_service import fetch_recent_cves, generate_security_ticket_from_cve
+from app.services.mastery_service import record_ticket_mastery_verified
 from app.services.quiz_generator import generate_quiz_from_video
+from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
 from app.services.ticket_generator import generate_ticket_description
 from app.services.xp_service import award_xp
 
@@ -50,11 +53,23 @@ def _collab_multiplier(count_people: int) -> float:
 @router.post("/quiz/generate")
 async def generate_quiz(payload: QuizGenerateRequest, db: Session = Depends(get_db)):
     try:
-        questions = await generate_quiz_from_video(str(payload.source_url), payload.title, payload.week_number, db, admin_id=0)
+        questions = await generate_quiz_from_video(
+            str(payload.source_url),
+            payload.title,
+            payload.week_number,
+            db,
+            admin_id=0,
+            domain_id=payload.domain_id,
+        )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Quiz generation failed: {exc}") from exc
 
-    quiz = Quiz(title=payload.title, source_url=str(payload.source_url), week_number=payload.week_number)
+    quiz = Quiz(
+        title=payload.title,
+        source_url=str(payload.source_url),
+        week_number=payload.week_number,
+        domain_id=payload.domain_id,
+    )
     db.add(quiz)
     db.flush()
 
@@ -85,6 +100,7 @@ def create_ticket(payload: TicketCreateRequest, db: Session = Depends(get_db)):
         difficulty=payload.difficulty,
         week_number=payload.week_number,
         category=payload.category or "general",
+        domain_id=payload.domain_id,
     )
     db.add(ticket)
     db.commit()
@@ -131,10 +147,12 @@ def list_submissions(student_id: int | None = None, ticket_id: int | None = None
             "id": s.id,
             "student_name": s.student.name,
             "ticket_title": s.ticket.title,
-            "ai_score": s.ai_score,
+            "ai_score": s.final_score if s.final_score is not None else s.ai_score,
             "submitted_at": s.submitted_at,
             "admin_reviewed": s.admin_reviewed,
             "collaborator_ids": s.collaborator_ids,
+            "status": s.status,
+            "xp_granted": s.xp_granted,
         }
         for s in submissions
     ]
@@ -153,13 +171,15 @@ def submission_details(submission_id: int, db: Session = Depends(get_db)):
             "student_name": submission.student.name,
             "ticket_title": submission.ticket.title,
             "writeup": submission.writeup,
-            "ai_score": submission.ai_score,
+            "ai_score": submission.final_score if submission.final_score is not None else submission.ai_score,
             "ai_feedback": submission.ai_feedback,
             "xp_awarded": submission.xp_awarded,
             "screenshots": submission.screenshots,
             "collaborator_ids": submission.collaborator_ids,
             "admin_reviewed": submission.admin_reviewed,
             "admin_comment": submission.admin_comment,
+            "status": submission.status,
+            "xp_granted": submission.xp_granted,
         }
     )
 
@@ -173,42 +193,61 @@ def override_grade(submission_id: int, payload: OverrideRequest, db: Session = D
     participants = [submission.student_id] + [int(x) for x in (submission.collaborator_ids or [])]
     multiplier = _collab_multiplier(len(participants))
 
-    old_score = submission.ai_score
+    old_score = submission.final_score if submission.final_score is not None else submission.ai_score
     old_xp_each = submission.xp_awarded
     new_xp_each = int(payload.new_score * 10 * multiplier)
     delta = new_xp_each - old_xp_each
 
     submission.ai_score = payload.new_score
+    submission.final_score = payload.new_score
     submission.override_score = payload.new_score
     submission.overridden = True
     submission.admin_reviewed = True
     submission.admin_comment = payload.comment
     submission.xp_awarded = new_xp_each
 
-    for sid in participants:
-        award_xp(
-            db,
-            student_id=sid,
-            delta=delta,
-            source_type="admin_override",
-            source_id=submission.id,
-            description=f"Manual review adjustment for ticket {submission.ticket_id}",
-        )
+    if submission.xp_granted and delta != 0:
+        for sid in participants:
+            award_xp(
+                db,
+                student_id=sid,
+                delta=delta,
+                source_type="admin_override",
+                source_id=submission.id,
+                description=f"Manual review adjustment for ticket {submission.ticket_id}",
+            )
+    elif not submission.xp_granted:
+        submission.status = "pending"
 
     db.commit()
+    log_activity(
+        db,
+        submission.student_id,
+        "ticket_override",
+        submission.ticket.title if submission.ticket else f"Ticket {submission.ticket_id}",
+        f"Score adjusted to {payload.new_score}/10",
+    )
     return _ok({"submission_id": submission.id, "old_score": old_score, "new_score": payload.new_score, "xp_difference_per_student": delta})
 
 
 @router.get("/review")
 def review_queue(db: Session = Depends(get_db)):
-    rows = db.query(TicketSubmission).options(selectinload(TicketSubmission.student), selectinload(TicketSubmission.ticket)).filter(TicketSubmission.ai_score.isnot(None)).order_by(TicketSubmission.submitted_at.desc()).all()
+    rows = (
+        db.query(TicketSubmission)
+        .options(selectinload(TicketSubmission.student), selectinload(TicketSubmission.ticket))
+        .filter(TicketSubmission.ai_score.isnot(None))
+        .order_by(TicketSubmission.submitted_at.desc())
+        .all()
+    )
     data = [
         {
             "submission_id": row.id,
             "student_name": row.student.name,
             "ticket_title": row.ticket.title,
-            "ai_score": row.ai_score,
+            "ai_score": row.final_score if row.final_score is not None else row.ai_score,
             "admin_reviewed": row.admin_reviewed,
+            "status": row.status,
+            "xp_granted": row.xp_granted,
             "submitted_at": row.submitted_at,
         }
         for row in rows
@@ -219,6 +258,78 @@ def review_queue(db: Session = Depends(get_db)):
 @router.put("/review/{submission_id}")
 def manual_review(submission_id: int, payload: ManualReviewRequest, db: Session = Depends(get_db)):
     return override_grade(submission_id, OverrideRequest(new_score=payload.new_score, comment=payload.comment), db)
+
+
+@router.put("/submissions/{submission_id}/verify-proof")
+def verify_proof(submission_id: int, comment: str | None = None, db: Session = Depends(get_db)):
+    submission = (
+        db.query(TicketSubmission)
+        .options(selectinload(TicketSubmission.ticket))
+        .filter(TicketSubmission.id == submission_id)
+        .first()
+    )
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if submission.ai_score is None:
+        raise HTTPException(status_code=400, detail="Submission has not been graded yet")
+    if submission.status == "verified" and submission.xp_granted:
+        return _ok({"submission_id": submission.id, "status": "verified", "message": "Already verified"})
+
+    participants = [submission.student_id] + [int(x) for x in (submission.collaborator_ids or [])]
+    for sid in participants:
+        award_xp(
+            db,
+            student_id=sid,
+            delta=submission.xp_awarded,
+            source_type="ticket",
+            source_id=submission.id,
+            description=f"Ticket verified: {submission.ticket.title if submission.ticket else submission.ticket_id}",
+        )
+
+    submission.xp_granted = True
+    submission.status = "verified"
+    submission.admin_reviewed = True
+    submission.admin_comment = comment or submission.admin_comment
+    submission.verified_at = datetime.utcnow()
+    submission.verified_by = 0
+    db.commit()
+
+    ticket_domain = submission.ticket.domain_id if submission.ticket else "1.0"
+    score_for_mastery = int(submission.final_score if submission.final_score is not None else submission.ai_score or 0)
+    for sid in participants:
+        record_ticket_mastery_verified(db, sid, ticket_domain, score_for_mastery)
+
+    log_activity(
+        db,
+        submission.student_id,
+        "ticket_verified",
+        submission.ticket.title if submission.ticket else f"Ticket {submission.ticket_id}",
+        f"Verified score {score_for_mastery}/10",
+    )
+
+    return _ok(
+        {
+            "submission_id": submission.id,
+            "status": submission.status,
+            "xp_awarded_each": submission.xp_awarded,
+            "participants": participants,
+        }
+    )
+
+
+@router.put("/submissions/{submission_id}/reject-proof")
+def reject_proof(submission_id: int, comment: str | None = None, db: Session = Depends(get_db)):
+    submission = db.query(TicketSubmission).filter(TicketSubmission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if submission.xp_granted:
+        raise HTTPException(status_code=400, detail="Cannot reject after XP was granted")
+
+    submission.status = "rejected"
+    submission.admin_reviewed = True
+    submission.admin_comment = comment or submission.admin_comment
+    db.commit()
+    return _ok({"submission_id": submission.id, "status": submission.status})
 
 
 @router.get("/students/overview")
@@ -313,6 +424,7 @@ def bulk_publish_tickets(payload: list[TicketCreateRequest], db: Session = Depen
             difficulty=item.difficulty,
             week_number=item.week_number,
             category=item.category or "general",
+            domain_id=item.domain_id,
         )
         db.add(ticket)
         db.flush()
@@ -365,12 +477,45 @@ async def create_ticket_from_cve(cve_id: str, db: Session = Depends(get_db)):
         difficulty=ticket_data["difficulty"],
         week_number=ticket_data["week_number"],
         category=ticket_data.get("category", "security"),
+        domain_id="4.0",
     )
     db.add(ticket)
     db.commit()
     db.refresh(ticket)
 
     return {"success": True, "ticket_id": ticket.id}
+
+
+@router.post("/weekly-domain-leads/recompute")
+def recompute_leads(db: Session = Depends(get_db)):
+    created = recompute_weekly_domain_leads(db)
+    return _ok(created, total=len(created), page=1, per_page=len(created) or 1)
+
+
+@router.get("/weekly-domain-leads")
+def list_weekly_leads(week_key: str | None = None, db: Session = Depends(get_db)):
+    leads = get_weekly_domain_leads(db, week_key=week_key)
+    return _ok(leads, total=len(leads), page=1, per_page=len(leads) or 1)
+
+
+@router.get("/squad/activity")
+def admin_squad_activity(limit: int = 30, db: Session = Depends(get_db)):
+    rows = get_recent_activity(db, limit=max(1, min(limit, 100)))
+    data = []
+    for row in rows:
+        student = db.query(Student).filter(Student.id == row.student_id).first()
+        data.append(
+            {
+                "id": row.id,
+                "student_id": row.student_id,
+                "student_name": student.name if student else f"Student {row.student_id}",
+                "activity_type": row.activity_type,
+                "title": row.title,
+                "detail": row.detail,
+                "created_at": row.created_at,
+            }
+        )
+    return _ok(data, total=len(data), page=1, per_page=len(data) or 1)
 
 
 @router.get("/ai-test")

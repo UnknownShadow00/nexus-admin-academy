@@ -14,6 +14,7 @@ from app.database import SessionLocal
 from app.config import load_env
 from app.models import Student
 from app.routers import admin, commands, quizzes, resources, students, submissions, tickets
+from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
 
 load_env()
 LOG_PATH = os.getenv("APP_LOG_PATH", "/var/log/nexus/app.log")
@@ -132,3 +133,9 @@ app = create_app()
 @app.on_event("startup")
 def startup() -> None:
     seed_students()
+    db = SessionLocal()
+    try:
+        if not get_weekly_domain_leads(db):
+            recompute_weekly_domain_leads(db)
+    finally:
+        db.close()

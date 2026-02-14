@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from pathlib import Path
 from typing import Dict, List
 
 from sqlalchemy.orm import Session
@@ -9,6 +10,8 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from app.services.ai_service import call_ai
 
 logger = logging.getLogger(__name__)
+
+OBJECTIVES_PATH = Path(__file__).resolve().parents[1] / "data" / "comptia_objectives.json"
 
 
 def extract_video_id(url: str) -> str:
@@ -32,12 +35,21 @@ def chunk_transcript(transcript_text: str, max_length: int = 10000) -> str:
     return transcript_text[: boundary + 1] if boundary > 0 else transcript_text[:max_length]
 
 
+def load_objectives(domain_id: str) -> list[dict]:
+    try:
+        raw = json.loads(OBJECTIVES_PATH.read_text(encoding="utf-8"))
+        return raw.get(domain_id, [])
+    except Exception:
+        return []
+
+
 async def generate_quiz_from_video(
     video_url: str,
     title: str,
     week_number: int,
     db: Session,
     admin_id: int,
+    domain_id: str = "1.0",
 ) -> List[Dict]:
     if not video_url or len(video_url.strip()) < 10:
         raise ValueError("Invalid video URL")
@@ -60,16 +72,22 @@ async def generate_quiz_from_video(
         raise ValueError("Video transcript too short (need at least 200 characters)")
 
     chunked_transcript = chunk_transcript(transcript_text, max_length=10000)
+    objectives = load_objectives(domain_id)
+    objective_block = "\n".join([f"- {o.get('id')}: {o.get('title')}" for o in objectives[:6]]) or "- General domain coverage"
 
-    system_prompt = """You are an IT training instructor creating CompTIA-style MCQ questions.
-Generate EXACTLY 10 different questions, each testing a unique concept.
-Return ONLY valid JSON:
-{"questions":[{"question_text":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","correct_answer":"A","explanation":"..."}]}
-"""
+    system_prompt = """You are an IT instructor writing certification quiz questions.
+Use the provided objective list and transcript as anchors.
+Generate EXACTLY 10 unique MCQ questions with 4 options each and one correct answer.
+Return ONLY JSON: {"questions": [...]}"""
 
-    user_prompt = f"""Based on this video transcript, generate 10 unique CompTIA-style questions.
+    user_prompt = f"""Domain: {domain_id}
+Objectives:
+{objective_block}
 
-VIDEO TRANSCRIPT:
+Generate 10 questions aligned to these objectives and this transcript.
+Include at least 3 questions directly tied to one objective id from the list.
+
+Transcript:
 {chunked_transcript}
 """
 
@@ -80,7 +98,7 @@ VIDEO TRANSCRIPT:
         db=db,
         user_id=admin_id,
         json_mode=True,
-        metadata={"video_url": video_url, "title": title, "week": week_number, "user_id": admin_id},
+        metadata={"video_url": video_url, "title": title, "week": week_number, "domain_id": domain_id, "user_id": admin_id},
     )
 
     if not response_text or not response_text.strip():

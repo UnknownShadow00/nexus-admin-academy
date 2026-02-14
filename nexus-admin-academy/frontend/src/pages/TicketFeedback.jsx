@@ -44,14 +44,20 @@ export default function TicketFeedback() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-5xl font-bold">{submission.ai_score}/10</div>
-              <div className="mt-2 text-blue-100">AI Grade</div>
+              <div className="mt-2 text-blue-100">AI Grade ({submission.status})</div>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold">+{submission.xp_awarded} XP</div>
+              <div className="text-3xl font-bold">+{submission.xp_granted ? submission.xp_awarded : 0} XP</div>
               {submission.duration_minutes != null && <div className="text-blue-100 text-sm mt-1">Time spent: {submission.duration_minutes} min</div>}
             </div>
           </div>
         </div>
+
+        {!submission.xp_granted && (
+          <div className="mb-6 rounded border border-amber-300 bg-amber-50 p-4 text-amber-800">
+            Awaiting instructor verification. XP and mastery update after proof is verified.
+          </div>
+        )}
 
         {submission.duration_minutes != null && (
           <div className="mb-6 rounded bg-slate-50 p-4 dark:bg-slate-800/60">
@@ -103,6 +109,13 @@ export default function TicketFeedback() {
             <div className="rounded bg-blue-50 p-4">
               <p className="whitespace-pre-wrap text-slate-800">{feedback.feedback}</p>
             </div>
+          </div>
+        )}
+
+        {submission.admin_comment && (
+          <div className="mb-6">
+            <h2 className="mb-2 text-xl font-bold">Instructor Review</h2>
+            <div className="rounded bg-slate-100 p-4 dark:bg-slate-800">{submission.admin_comment}</div>
           </div>
         )}
 

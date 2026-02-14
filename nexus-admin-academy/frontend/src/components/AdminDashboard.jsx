@@ -5,8 +5,8 @@ import { bulkGenerateTickets, bulkPublishTickets, createResource, createTicket, 
 
 export default function AdminDashboard() {
   const [submissions, setSubmissions] = useState([]);
-  const [quizForm, setQuizForm] = useState({ source_url: "", week_number: 1, title: "" });
-  const [ticketForm, setTicketForm] = useState({ title: "", description: "", difficulty: 1, week_number: 1 });
+  const [quizForm, setQuizForm] = useState({ source_url: "", week_number: 1, title: "", domain_id: "1.0" });
+  const [ticketForm, setTicketForm] = useState({ title: "", description: "", difficulty: 1, week_number: 1, domain_id: "1.0" });
   const [resourceForm, setResourceForm] = useState({ title: "", url: "", resource_type: "Video", week_number: 1, category: "" });
   const [bulkText, setBulkText] = useState("");
   const [bulkWeek, setBulkWeek] = useState(1);
@@ -41,7 +41,15 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-semibold">Generate Quiz</h2>
           <input className="input-field" placeholder="Source URL" value={quizForm.source_url} onChange={(e) => setQuizForm({ ...quizForm, source_url: e.target.value })} />
           <input className="input-field" placeholder="Title" value={quizForm.title} onChange={(e) => setQuizForm({ ...quizForm, title: e.target.value })} />
-          <input className="input-field" type="number" value={quizForm.week_number} onChange={(e) => setQuizForm({ ...quizForm, week_number: Number(e.target.value || 1) })} />
+          <div className="grid grid-cols-2 gap-2">
+            <input className="input-field" type="number" value={quizForm.week_number} onChange={(e) => setQuizForm({ ...quizForm, week_number: Number(e.target.value || 1) })} />
+            <select className="input-field" value={quizForm.domain_id} onChange={(e) => setQuizForm({ ...quizForm, domain_id: e.target.value })}>
+              <option value="1.0">1.0 Hardware</option>
+              <option value="2.0">2.0 Networking</option>
+              <option value="3.0">3.0 Software Troubleshooting</option>
+              <option value="4.0">4.0 Security / Procedures</option>
+            </select>
+          </div>
           <button className="btn-primary" onClick={async () => {
             const t = toast.loading("Generating quiz...");
             try {
@@ -63,6 +71,12 @@ export default function AdminDashboard() {
             <input className="input-field" type="number" value={ticketForm.difficulty} onChange={(e) => setTicketForm({ ...ticketForm, difficulty: Number(e.target.value || 1) })} />
             <input className="input-field" type="number" value={ticketForm.week_number} onChange={(e) => setTicketForm({ ...ticketForm, week_number: Number(e.target.value || 1) })} />
           </div>
+          <select className="input-field" value={ticketForm.domain_id} onChange={(e) => setTicketForm({ ...ticketForm, domain_id: e.target.value })}>
+            <option value="1.0">1.0 Hardware</option>
+            <option value="2.0">2.0 Networking</option>
+            <option value="3.0">3.0 Software Troubleshooting</option>
+            <option value="4.0">4.0 Security / Procedures</option>
+          </select>
           <button className="btn-primary" onClick={async () => { await createTicket(ticketForm); toast.success("Ticket created"); }}>
             Create Ticket
           </button>
@@ -108,6 +122,7 @@ export default function AdminDashboard() {
                 description: x.description,
                 difficulty: x.difficulty ?? bulkDifficulty,
                 week_number: x.week_number ?? bulkWeek,
+                domain_id: x.domain_id ?? "1.0",
               }));
 
             if (!publishPayload.length) {

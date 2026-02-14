@@ -1,0 +1,20 @@
+{
+  "1.0": [
+    {"id": "1.1", "title": "Laptop hardware and components"},
+    {"id": "1.2", "title": "Display components"}
+  ],
+  "2.0": [
+    {"id": "2.1", "title": "TCP and UDP ports"},
+    {"id": "2.3", "title": "Network troubleshooting"},
+    {"id": "2.4", "title": "DNS and DHCP behavior"}
+  ],
+  "3.0": [
+    {"id": "3.1", "title": "Windows OS troubleshooting"},
+    {"id": "3.2", "title": "Application troubleshooting"}
+  ],
+  "4.0": [
+    {"id": "4.1", "title": "Physical security controls"},
+    {"id": "4.2", "title": "Operational procedures"},
+    {"id": "4.3", "title": "Malware and remediation"}
+  ]
+}

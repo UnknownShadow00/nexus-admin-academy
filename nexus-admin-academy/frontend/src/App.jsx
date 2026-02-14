@@ -9,10 +9,13 @@ import CommandReference from "./pages/CommandReference";
 import QuizPage from "./pages/QuizPage";
 import QuizzesPage from "./pages/QuizzesPage";
 import ResourcesPage from "./pages/ResourcesPage";
+import SelectProfile from "./pages/SelectProfile";
 import StudentHome from "./pages/StudentHome";
+import SquadDashboard from "./pages/SquadDashboard";
 import TicketFeedback from "./pages/TicketFeedback";
 import TicketPage from "./pages/TicketPage";
 import TicketsPage from "./pages/TicketsPage";
+import { getSelectedProfile } from "./services/profile";
 
 const navItems = [
   { to: "/", label: "Dashboard" },
@@ -20,6 +23,7 @@ const navItems = [
   { to: "/tickets", label: "Tickets" },
   { to: "/resources", label: "Resources" },
   { to: "/commands", label: "Commands" },
+  { to: "/squad", label: "Squad" },
   { to: "/admin", label: "Admin" },
   { to: "/admin/review", label: "Review" },
   { to: "/admin/students", label: "Students" },
@@ -28,6 +32,7 @@ const navItems = [
 
 export default function App() {
   const [isDark, setIsDark] = useDarkMode();
+  const selected = getSelectedProfile();
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100">
@@ -48,15 +53,20 @@ export default function App() {
           >
             {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
+          <Link to="/select-profile" className="rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-700">
+            {selected ? selected.name : "Select Profile"}
+          </Link>
         </div>
       </header>
 
       <Routes>
         <Route path="/" element={<StudentHome />} />
+        <Route path="/select-profile" element={<SelectProfile />} />
         <Route path="/quizzes" element={<QuizzesPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
         <Route path="/resources" element={<ResourcesPage />} />
         <Route path="/commands" element={<CommandReference />} />
+        <Route path="/squad" element={<SquadDashboard />} />
         <Route path="/admin" element={<AdminHome />} />
         <Route path="/admin/review" element={<AdminReviewPage />} />
         <Route path="/admin/students" element={<AdminStudentsPage />} />
