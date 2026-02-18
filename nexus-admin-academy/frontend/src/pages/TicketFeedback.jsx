@@ -28,7 +28,9 @@ export default function TicketFeedback() {
   if (!submission) return <main className="mx-auto max-w-4xl p-6">Submission not found</main>;
 
   const feedback = typeof submission.ai_feedback === "string" ? JSON.parse(submission.ai_feedback) : (submission.ai_feedback || {});
-  const images = (submission.screenshots || []).map((name) => `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/uploads/screenshots/${name}`);
+  const images = (submission.evidence_artifacts || [])
+    .filter((a) => a.artifact_type === "screenshot")
+    .map((a) => `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/uploads/screenshots/${a.storage_key}`);
 
   return (
     <main className="mx-auto max-w-4xl p-6">

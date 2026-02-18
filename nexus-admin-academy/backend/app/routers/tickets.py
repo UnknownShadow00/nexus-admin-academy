@@ -12,7 +12,8 @@ from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
 from app.schemas.ticket import TicketSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
-from app.services.ticket_grader import grade_ticket_submission
+from app.services.methodology_enforcer import can_access_tickets
+from app.services.ticket_grader import grade_ticket_submission, grade_ticket_with_answer_key
 
 router = APIRouter(prefix="/api/tickets", tags=["tickets"])
 logger = logging.getLogger(__name__)
@@ -108,6 +109,16 @@ async def upload_screenshots(files: list[UploadFile] = File(...)):
 
 @router.get("")
 def get_tickets(week_number: int | None = None, student_id: int | None = None, db: Session = Depends(get_db)):
+    if student_id is not None:
+        access_check = can_access_tickets(student_id, db)
+        if not access_check["allowed"]:
+            return {
+                "success": False,
+                "error": "Complete troubleshooting methodology training first",
+                "missing_frameworks": access_check["missing_frameworks"],
+                "redirect": "/methodology-training",
+            }
+
     query = db.query(Ticket)
     if week_number is not None:
         query = query.filter(Ticket.week_number == week_number)
@@ -137,6 +148,7 @@ def get_tickets(week_number: int | None = None, student_id: int | None = None, d
                 "week_number": t.week_number,
                 "category": t.category or "general",
                 "domain_id": t.domain_id,
+                "lesson_id": t.lesson_id,
                 "status": status,
                 "score": score,
                 "xp": xp,
@@ -162,6 +174,8 @@ def get_ticket_details(ticket_id: int, db: Session = Depends(get_db)):
             "week_number": ticket.week_number,
             "category": ticket.category or "general",
             "domain_id": ticket.domain_id,
+            "lesson_id": ticket.lesson_id,
+            "required_evidence": ticket.required_evidence or {},
         }
     )
 
@@ -169,8 +183,16 @@ def get_ticket_details(ticket_id: int, db: Session = Depends(get_db)):
 @router.post("/{ticket_id}/submit")
 async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Session = Depends(get_db)):
     student_id = payload.student_id
+    access_check = can_access_tickets(student_id, db)
+    if not access_check["allowed"]:
+        return {
+            "success": False,
+            "error": "Complete troubleshooting methodology training first",
+            "missing_frameworks": access_check["missing_frameworks"],
+            "redirect": "/methodology-training",
+        }
+
     collaborators = _validate_collaborators(db, student_id, payload.collaborator_ids or [])
-    screenshots = payload.screenshots or []
     duration_minutes = payload.duration_minutes
 
     writeup = _build_itil_writeup(payload)
@@ -186,15 +208,27 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
         raise HTTPException(status_code=400, detail="This ticket has already been verified. Contact instructor for review.")
 
     try:
-        grading = await grade_ticket_submission(
-            ticket_id=ticket_id,
-            ticket_title=ticket.title,
-            ticket_description=ticket.description,
-            student_writeup=writeup,
-            difficulty=ticket.difficulty,
-            db=db,
-            student_id=student_id,
-        )
+        if ticket.required_checkpoints or ticket.scoring_anchors or ticket.root_cause:
+            grading = await grade_ticket_with_answer_key(
+                ticket_id=ticket_id,
+                ticket_title=ticket.title,
+                root_cause=ticket.root_cause,
+                required_checkpoints=ticket.required_checkpoints,
+                scoring_anchors=ticket.scoring_anchors,
+                student_writeup=writeup,
+                db=db,
+                student_id=student_id,
+            )
+        else:
+            grading = await grade_ticket_submission(
+                ticket_id=ticket_id,
+                ticket_title=ticket.title,
+                ticket_description=ticket.description,
+                student_writeup=writeup,
+                difficulty=ticket.difficulty,
+                db=db,
+                student_id=student_id,
+            )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"AI grading failed: {exc}") from exc
 
@@ -213,7 +247,9 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
     if existing:
         submission_id = existing.id
         existing.writeup = writeup
-        existing.screenshots = screenshots
+        existing.before_screenshot_id = payload.before_screenshot_id
+        existing.after_screenshot_id = payload.after_screenshot_id
+        existing.evidence_complete = bool(payload.before_screenshot_id and payload.after_screenshot_id)
         existing.collaborator_ids = collaborators
         existing.ai_score = ai_score
         existing.structure_score = grading["structure_score"]
@@ -235,7 +271,9 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
             student_id=student_id,
             ticket_id=ticket_id,
             writeup=writeup,
-            screenshots=screenshots,
+            before_screenshot_id=payload.before_screenshot_id,
+            after_screenshot_id=payload.after_screenshot_id,
+            evidence_complete=bool(payload.before_screenshot_id and payload.after_screenshot_id),
             collaborator_ids=collaborators,
             ai_score=ai_score,
             structure_score=grading["structure_score"],
@@ -274,8 +312,12 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
             "status": "pending",
             "message": "Awaiting Instructor Verification",
             "feedback": ai_feedback,
+            "checkpoints_met": grading.get("checkpoints_met", []),
+            "checkpoints_missed": grading.get("checkpoints_missed", []),
             "num_collaborators": len(collaborators),
-            "screenshots": screenshots,
+            "evidence_complete": bool(payload.before_screenshot_id and payload.after_screenshot_id),
+            "before_screenshot_id": payload.before_screenshot_id,
+            "after_screenshot_id": payload.after_screenshot_id,
             "duration_minutes": duration_minutes,
         }
     )

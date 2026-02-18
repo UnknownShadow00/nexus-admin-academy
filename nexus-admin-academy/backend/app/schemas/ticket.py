@@ -8,6 +8,13 @@ class TicketCreateRequest(BaseModel):
     week_number: int = Field(ge=1)
     category: str | None = Field(default="general", max_length=100)
     domain_id: str = Field(default="1.0", max_length=10)
+    lesson_id: int | None = Field(default=None, ge=1)
+    root_cause: str | None = None
+    root_cause_type: str | None = Field(default=None, max_length=50)
+    required_checkpoints: dict | None = None
+    required_evidence: dict | None = None
+    scoring_anchors: dict | None = None
+    model_answer: str | None = None
 
 
 class TicketSubmitRequest(BaseModel):
@@ -18,7 +25,8 @@ class TicketSubmitRequest(BaseModel):
     verification: str = Field(min_length=3, max_length=2000)
     writeup: str | None = Field(default=None, max_length=5000)
     collaborator_ids: list[int] = Field(default_factory=list)
-    screenshots: list[str] = Field(default_factory=list)
+    before_screenshot_id: int | None = Field(default=None, ge=1)
+    after_screenshot_id: int | None = Field(default=None, ge=1)
     grade_now: bool = True
     duration_minutes: int | None = Field(default=None, ge=0, le=1440)
 

@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.comptia import ComptiaObjective, StudentObjectiveProgress
+from app.models.learning import Lesson, Module
 from app.models.login_streak import LoginStreak
+from app.models.progression import MethodologyFramework, StudentMethodologyProgress
 from app.models.quiz import Quiz, QuizAttempt
 from app.models.student import Student
 from app.models.squad_activity import SquadActivity
@@ -14,6 +16,8 @@ from app.models.ticket import Ticket, TicketSubmission
 from app.models.xp_ledger import XPLedger
 from app.services.activity_service import mark_student_active
 from app.services.mastery_service import list_student_mastery
+from app.services.methodology_enforcer import can_access_tickets
+from app.services.progression_service import check_module_unlock, get_module_mastery, get_promotion_status
 from app.services.squad_service import get_weekly_domain_leads
 from app.services.xp_calculator import level_from_xp
 
@@ -377,3 +381,102 @@ def squad_dashboard(student_id: int | None = None, limit: int = 30, db: Session 
         response["selected_student_mastery"] = list_student_mastery(db, student_id)
 
     return _ok(response)
+
+
+@router.get("/api/students/{student_id}/learning-path")
+def get_learning_path(student_id: int, db: Session = Depends(get_db)):
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    modules = db.query(Module).order_by(Module.module_order.asc().nullslast(), Module.id.asc()).all()
+    result = []
+    for module in modules:
+        mastery = get_module_mastery(student_id, module.id, db)
+        unlock_check = check_module_unlock(student_id, module.id, db)
+        lessons = db.query(Lesson).filter(Lesson.module_id == module.id).order_by(Lesson.lesson_order.asc()).all()
+
+        lesson_items = []
+        for lesson in lessons:
+            quiz_count = db.query(func.count(Quiz.id)).filter(Quiz.lesson_id == lesson.id).scalar() or 0
+            ticket_count = db.query(func.count(Ticket.id)).filter(Ticket.lesson_id == lesson.id).scalar() or 0
+            completed_quiz = (
+                db.query(func.count(QuizAttempt.id))
+                .join(Quiz, QuizAttempt.quiz_id == Quiz.id)
+                .filter(QuizAttempt.student_id == student_id, Quiz.lesson_id == lesson.id)
+                .scalar()
+                or 0
+            )
+            completed_ticket = (
+                db.query(func.count(TicketSubmission.id))
+                .join(Ticket, TicketSubmission.ticket_id == Ticket.id)
+                .filter(TicketSubmission.student_id == student_id, Ticket.lesson_id == lesson.id, TicketSubmission.status == "verified")
+                .scalar()
+                or 0
+            )
+            total_parts = int(quiz_count + ticket_count)
+            done_parts = int(completed_quiz + completed_ticket)
+            completion_percent = round((done_parts / total_parts) * 100, 1) if total_parts else 0
+
+            lesson_items.append(
+                {
+                    "id": lesson.id,
+                    "title": lesson.title,
+                    "summary": lesson.summary,
+                    "lesson_order": lesson.lesson_order,
+                    "completion_percent": completion_percent,
+                }
+            )
+
+        result.append(
+            {
+                "id": module.id,
+                "code": module.code,
+                "title": module.title,
+                "description": module.description,
+                "mastery_percent": mastery,
+                "unlocked": unlock_check["unlocked"],
+                "unlock_requirements": unlock_check.get("requirements_missing", []),
+                "lessons": lesson_items,
+            }
+        )
+
+    return {"success": True, "modules": result}
+
+
+@router.get("/api/students/{student_id}/promotion-status")
+def promotion_status(student_id: int, db: Session = Depends(get_db)):
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    status = get_promotion_status(student_id, db)
+    return {"success": True, **status}
+
+
+@router.get("/api/students/{student_id}/methodology-status")
+def methodology_status(student_id: int, db: Session = Depends(get_db)):
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    access = can_access_tickets(student_id, db)
+    frameworks = db.query(MethodologyFramework).order_by(MethodologyFramework.id.asc()).all()
+    progress = (
+        db.query(StudentMethodologyProgress)
+        .filter(StudentMethodologyProgress.student_id == student_id)
+        .all()
+    )
+    by_framework = {p.framework_id: p for p in progress}
+    data = []
+    for fw in frameworks:
+        p = by_framework.get(fw.id)
+        data.append(
+            {
+                "framework_id": fw.id,
+                "name": fw.name,
+                "completed": bool(p.completed) if p else False,
+                "practice_passed": bool(p.practice_passed) if p else False,
+                "quiz_score": p.quiz_score if p else None,
+            }
+        )
+    return {"success": True, "allowed": access["allowed"], "missing_frameworks": access["missing_frameworks"], "frameworks": data}

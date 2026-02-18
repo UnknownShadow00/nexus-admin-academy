@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import toast from "react-hot-toast";
+import EvidenceUploader from "./EvidenceUploader";
 import Spinner from "./Spinner";
 import { getLeaderboard, submitTicket, uploadScreenshots } from "../services/api";
 
@@ -14,8 +15,8 @@ export default function TicketSubmit({ ticket, studentId }) {
   const [collaborators, setCollaborators] = useState([]);
   const [students, setStudents] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
-  const [uploadedFiles, setUploadedFiles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [evidenceUploads, setEvidenceUploads] = useState([]);
 
   useEffect(() => {
     getLeaderboard().then((res) => setStudents((res.data || []).filter((s) => s.student_id !== studentId)));
@@ -36,9 +37,8 @@ export default function TicketSubmit({ ticket, studentId }) {
   const handleUpload = async () => {
     if (!selectedFiles.length) return;
     const loadingToast = toast.loading("Uploading screenshots...");
-    const res = await uploadScreenshots(selectedFiles);
+    await uploadScreenshots(selectedFiles);
     toast.dismiss(loadingToast);
-    setUploadedFiles(res.data?.files || []);
     toast.success("Screenshots uploaded");
   };
 
@@ -49,6 +49,11 @@ export default function TicketSubmit({ ticket, studentId }) {
       const startedAt = Number(localStorage.getItem(`ticket_${ticket.id}_started`) || Date.now());
       const durationMinutes = Math.max(0, Math.floor((Date.now() - startedAt) / 60000));
 
+      const validArtifacts = evidenceUploads.filter((x) => x.validation?.valid && x.artifact_id);
+      const screenshotArtifacts = validArtifacts.filter((x) => x.type === "screenshot");
+      const beforeId = screenshotArtifacts[0]?.artifact_id || null;
+      const afterId = screenshotArtifacts[1]?.artifact_id || null;
+
       const res = await submitTicket(ticket.id, {
         student_id: studentId,
         symptom,
@@ -57,7 +62,8 @@ export default function TicketSubmit({ ticket, studentId }) {
         verification,
         writeup,
         collaborator_ids: collaboratorIds,
-        screenshots: uploadedFiles,
+        before_screenshot_id: beforeId,
+        after_screenshot_id: afterId,
         grade_now: true,
         duration_minutes: durationMinutes,
       });
@@ -97,9 +103,15 @@ export default function TicketSubmit({ ticket, studentId }) {
         </div>
       </div>
 
-      <label className="text-sm font-semibold">Upload Screenshots (optional)</label>
+      <label className="text-sm font-semibold">Upload Screenshots (optional legacy upload)</label>
       <input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={(e) => setSelectedFiles(Array.from(e.target.files || []))} />
       <button className="btn-secondary" type="button" onClick={handleUpload}>Upload Selected</button>
+
+      <EvidenceUploader
+        ticketId={ticket.id}
+        requiredEvidence={(ticket.required_evidence?.evidence_types || []).map((e) => ({ type: e.type, description: e.description, ...(e.validation || {}) }))}
+        onComplete={setEvidenceUploads}
+      />
 
       <label className="text-sm font-semibold">Collaborators (optional)</label>
       <div className="grid gap-2 md:grid-cols-2">

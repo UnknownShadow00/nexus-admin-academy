@@ -13,7 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.database import SessionLocal
 from app.config import load_env
 from app.models import Student
-from app.routers import admin, commands, quizzes, resources, students, submissions, tickets
+from app.routers import admin, commands, evidence, quizzes, resources, students, submissions, tickets
 from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
 
 load_env()
@@ -117,12 +117,14 @@ def create_app() -> FastAPI:
     app.include_router(tickets.router)
     app.include_router(submissions.router)
     app.include_router(commands.router)
+    app.include_router(evidence.router)
     app.include_router(resources.router)
     app.include_router(students.router)
 
     upload_dir = os.getenv("UPLOAD_DIR")
-    if upload_dir and Path(upload_dir).exists():
-        app.mount("/uploads/screenshots", StaticFiles(directory=upload_dir), name="screenshots")
+    directory = Path(upload_dir) if upload_dir else (Path(__file__).resolve().parents[1] / "uploads" / "screenshots")
+    directory.mkdir(parents=True, exist_ok=True)
+    app.mount("/uploads/screenshots", StaticFiles(directory=str(directory)), name="screenshots")
 
     return app
 

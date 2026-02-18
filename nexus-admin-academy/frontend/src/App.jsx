@@ -6,12 +6,17 @@ import AdminReviewPage from "./pages/AdminReviewPage";
 import AdminStudentsPage from "./pages/AdminStudentsPage";
 import AICostDashboard from "./pages/admin/AICostDashboard";
 import CommandReference from "./pages/CommandReference";
+import EvidenceReviewer from "./pages/EvidenceReviewer";
+import LearningPath from "./pages/LearningPath";
+import ModuleManager from "./pages/ModuleManager";
+import PromotionTracker from "./pages/PromotionTracker";
 import QuizPage from "./pages/QuizPage";
 import QuizzesPage from "./pages/QuizzesPage";
 import ResourcesPage from "./pages/ResourcesPage";
 import SelectProfile from "./pages/SelectProfile";
 import StudentHome from "./pages/StudentHome";
 import SquadDashboard from "./pages/SquadDashboard";
+import TicketKeyEditor from "./pages/TicketKeyEditor";
 import TicketFeedback from "./pages/TicketFeedback";
 import TicketPage from "./pages/TicketPage";
 import TicketsPage from "./pages/TicketsPage";
@@ -23,11 +28,16 @@ const navItems = [
   { to: "/tickets", label: "Tickets" },
   { to: "/resources", label: "Resources" },
   { to: "/commands", label: "Commands" },
+  { to: "/learning-path", label: "Learning Path" },
+  { to: "/promotion", label: "Promotion" },
   { to: "/squad", label: "Squad" },
   { to: "/admin", label: "Admin" },
   { to: "/admin/review", label: "Review" },
   { to: "/admin/students", label: "Students" },
   { to: "/admin/ai-costs", label: "AI Costs" },
+  { to: "/admin/modules", label: "Modules" },
+  { to: "/admin/ticket-keys", label: "Ticket Keys" },
+  { to: "/admin/evidence", label: "Evidence" },
 ];
 
 export default function App() {
@@ -66,11 +76,16 @@ export default function App() {
         <Route path="/tickets" element={<TicketsPage />} />
         <Route path="/resources" element={<ResourcesPage />} />
         <Route path="/commands" element={<CommandReference />} />
+        <Route path="/learning-path" element={<LearningPath />} />
+        <Route path="/promotion" element={<PromotionTracker />} />
         <Route path="/squad" element={<SquadDashboard />} />
         <Route path="/admin" element={<AdminHome />} />
         <Route path="/admin/review" element={<AdminReviewPage />} />
         <Route path="/admin/students" element={<AdminStudentsPage />} />
         <Route path="/admin/ai-costs" element={<AICostDashboard />} />
+        <Route path="/admin/modules" element={<ModuleManager />} />
+        <Route path="/admin/ticket-keys" element={<TicketKeyEditor />} />
+        <Route path="/admin/evidence" element={<EvidenceReviewer />} />
         <Route path="/quizzes/:quizId" element={<QuizPage />} />
         <Route path="/tickets/:submissionId/feedback" element={<TicketFeedback />} />
         <Route path="/tickets/:ticketId" element={<TicketPage />} />

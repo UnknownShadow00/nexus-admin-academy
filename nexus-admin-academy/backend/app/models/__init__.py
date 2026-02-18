@@ -11,6 +11,12 @@ from app.models.comptia import ComptiaObjective, StudentObjectiveProgress
 from app.models.mastery import StudentDomainMastery
 from app.models.weekly_lead import WeeklyDomainLead
 from app.models.squad_activity import SquadActivity
+from app.models.learning import Module, Lesson
+from app.models.evidence import EvidenceArtifact
+from app.models.progression import Role, PromotionGate, StudentRole, MethodologyFramework, StudentMethodologyProgress
+from app.models.lab import LabTemplate, LabRun
+from app.models.incident import RootCause, Incident, IncidentTicket, IncidentParticipant, RCASubmission
+from app.models.capstone import CapstoneTemplate, CapstoneRun
 
 __all__ = [
     "Student",
@@ -30,4 +36,21 @@ __all__ = [
     "StudentDomainMastery",
     "WeeklyDomainLead",
     "SquadActivity",
+    "Module",
+    "Lesson",
+    "EvidenceArtifact",
+    "Role",
+    "PromotionGate",
+    "StudentRole",
+    "MethodologyFramework",
+    "StudentMethodologyProgress",
+    "LabTemplate",
+    "LabRun",
+    "RootCause",
+    "Incident",
+    "IncidentTicket",
+    "IncidentParticipant",
+    "RCASubmission",
+    "CapstoneTemplate",
+    "CapstoneRun",
 ]

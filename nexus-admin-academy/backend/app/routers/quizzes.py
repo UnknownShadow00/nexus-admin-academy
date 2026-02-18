@@ -48,6 +48,7 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
                 "title": quiz.title,
                 "week_number": quiz.week_number,
                 "domain_id": quiz.domain_id,
+                "lesson_id": quiz.lesson_id,
                 "question_count": len(quiz.questions),
                 "status": "completed" if attempt else "not_started",
                 "best_score": attempt.best_score if attempt else None,
@@ -70,6 +71,7 @@ def get_quiz_details(quiz_id: int, db: Session = Depends(get_db)):
             "id": quiz.id,
             "title": quiz.title,
             "domain_id": quiz.domain_id,
+            "lesson_id": quiz.lesson_id,
             "questions": [
                 {
                     "id": question.id,
@@ -104,6 +106,7 @@ async def admin_generate_quiz(payload: QuizGenerateRequest, db: Session = Depend
         source_url=str(payload.source_url),
         week_number=payload.week_number,
         domain_id=payload.domain_id,
+        lesson_id=payload.lesson_id,
     )
     db.add(quiz)
     db.flush()

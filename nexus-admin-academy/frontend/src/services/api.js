@@ -69,6 +69,8 @@ export const getLeaderboard = () => request(() => api.get("/api/leaderboard"));
 export const getStudents = () => request(() => api.get("/api/students"));
 export const getStudentMastery = (studentId) => request(() => api.get(`/api/students/${studentId}/mastery`));
 export const getSquadDashboard = (studentId) => request(() => api.get("/api/squad/dashboard", { params: { student_id: studentId } }));
+export const getLearningPath = (studentId) => request(() => api.get(`/api/students/${studentId}/learning-path`));
+export const getPromotionStatus = (studentId) => request(() => api.get(`/api/students/${studentId}/promotion-status`));
 
 export const getQuizzes = (weekNumber, studentId = currentStudentId()) => request(() => api.get("/api/quizzes", { params: { week_number: weekNumber, student_id: studentId } }));
 export const getQuiz = (quizId) => request(() => api.get(`/api/quizzes/${quizId}`));
@@ -83,6 +85,13 @@ export const uploadScreenshots = (files) => {
   const formData = new FormData();
   files.forEach((file) => formData.append("files", file));
   return request(() => api.post("/api/tickets/uploads", formData, { headers: { "Content-Type": "multipart/form-data" } }));
+};
+export const uploadEvidence = ({ file, ticketId, artifactType }) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("ticket_id", String(ticketId));
+  formData.append("artifact_type", artifactType);
+  return request(() => api.post("/api/evidence/upload", formData, { headers: { "Content-Type": "multipart/form-data" } }));
 };
 
 export const getResources = (params) => request(() => api.get("/api/resources", { params }));
@@ -108,5 +117,13 @@ export const recomputeWeeklyLeads = () => request(() => adminApi.post("/api/admi
 export const getWeeklyLeads = () => request(() => adminApi.get("/api/admin/weekly-domain-leads"));
 export const getRecentCVEs = (keyword = "windows") => request(() => adminApi.get("/api/admin/cve/recent", { params: { keyword } }));
 export const createTicketFromCVE = (cveId) => request(() => adminApi.post("/api/admin/tickets/from-cve", null, { params: { cve_id: cveId } }));
+export const getModules = () => request(() => adminApi.get("/api/admin/modules"));
+export const createModule = (payload) => request(() => adminApi.post("/api/admin/modules", payload));
+export const updateModule = (id, payload) => request(() => adminApi.put(`/api/admin/modules/${id}`, payload));
+export const getLessons = (moduleId) => request(() => adminApi.get("/api/admin/lessons", { params: { module_id: moduleId } }));
+export const createLesson = (payload) => request(() => adminApi.post("/api/admin/lessons", payload));
+export const getEvidence = (status) => request(() => adminApi.get("/api/admin/evidence", { params: { status } }));
+export const reviewEvidence = (id, payload) => request(() => adminApi.put(`/api/admin/evidence/${id}`, payload));
+export const updateTicketAnswerKey = (ticketId, payload) => request(() => adminApi.put(`/api/admin/tickets/${ticketId}/answer-key`, payload));
 
 export default api;

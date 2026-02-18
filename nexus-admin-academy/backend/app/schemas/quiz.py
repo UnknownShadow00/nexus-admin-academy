@@ -6,6 +6,7 @@ class QuizGenerateRequest(BaseModel):
     week_number: int = Field(ge=1)
     title: str = Field(min_length=3, max_length=200)
     domain_id: str = Field(default="1.0", max_length=10)
+    lesson_id: int | None = Field(default=None, ge=1)
 
 
 class QuizSubmitRequest(BaseModel):
