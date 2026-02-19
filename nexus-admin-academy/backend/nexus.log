@@ -1,4 +1,0 @@
-2026-02-13 02:14:15,240 INFO app.routers.quizzes quiz_submission student_id=1 quiz_id=1 score=1 xp_awarded=10
-2026-02-13 02:14:18,534 INFO app.routers.quizzes quiz_submission student_id=1 quiz_id=1 score=1 xp_awarded=10
-2026-02-13 02:14:20,275 INFO app.routers.quizzes quiz_submission student_id=1 quiz_id=1 score=1 xp_awarded=10
-2026-02-13 02:14:21,783 INFO app.routers.quizzes quiz_submission student_id=1 quiz_id=1 score=2 xp_awarded=20
