@@ -11,20 +11,10 @@ from app.services.activity_service import log_activity, mark_student_active
 from app.services.mastery_service import record_quiz_mastery
 from app.services.quiz_generator import generate_quiz_from_video
 from app.services.xp_service import award_xp
+from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/quizzes", tags=["quizzes"])
 logger = logging.getLogger(__name__)
-
-
-def _ok(data, *, total: int | None = None, page: int | None = None, per_page: int | None = None):
-    payload = {"success": True, "data": data}
-    if total is not None:
-        payload["total"] = total
-    if page is not None:
-        payload["page"] = page
-    if per_page is not None:
-        payload["per_page"] = per_page
-    return payload
 
 
 @router.get("")
@@ -57,7 +47,7 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
             }
         )
 
-    return _ok(data, total=len(data), page=1, per_page=len(data) or 1)
+    return ok(data, total=len(data), page=1, per_page=len(data) or 1)
 
 
 @router.get("/{quiz_id}")
@@ -66,7 +56,7 @@ def get_quiz_details(quiz_id: int, db: Session = Depends(get_db)):
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
-    return _ok(
+    return ok(
         {
             "id": quiz.id,
             "title": quiz.title,
@@ -128,7 +118,7 @@ async def admin_generate_quiz(payload: QuizGenerateRequest, db: Session = Depend
         )
 
     db.commit()
-    return _ok({"quiz_id": quiz.id, "message": f"Quiz '{payload.title}' created with 10 questions"})
+    return ok({"quiz_id": quiz.id, "message": f"Quiz '{payload.title}' created with 10 questions"})
 
 
 @router.post("/{quiz_id}/submit")
@@ -217,7 +207,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     if is_first_attempt:
         db.commit()
 
-    return _ok(
+    return ok(
         {
             "score": score,
             "total": 10,

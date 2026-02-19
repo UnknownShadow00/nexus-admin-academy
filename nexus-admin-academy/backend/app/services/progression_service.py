@@ -42,7 +42,7 @@ def get_module_mastery(student_id: int, module_id: int, db: Session) -> float:
         ticket_avg = (
             db.query(func.coalesce(func.avg(TicketSubmission.final_score), 0))
             .join(Ticket, TicketSubmission.ticket_id == Ticket.id)
-            .filter(TicketSubmission.student_id == student_id, Ticket.lesson_id == lesson.id, TicketSubmission.status == "verified")
+            .filter(TicketSubmission.student_id == student_id, Ticket.lesson_id == lesson.id, TicketSubmission.status == "passed")
             .scalar()
             or 0
         )
@@ -136,7 +136,7 @@ def _check_ticket_requirement(student_id: int, config: dict, db: Session) -> dic
             .join(Ticket, TicketSubmission.ticket_id == Ticket.id)
             .filter(
                 TicketSubmission.student_id == student_id,
-                TicketSubmission.status == "verified",
+                TicketSubmission.status == "passed",
                 Ticket.difficulty == int(difficulty),
             )
             .scalar()

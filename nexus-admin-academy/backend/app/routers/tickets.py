@@ -14,6 +14,7 @@ from app.schemas.ticket import TicketSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.methodology_enforcer import can_access_tickets
 from app.services.ticket_grader import grade_ticket_submission, grade_ticket_with_answer_key
+from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/tickets", tags=["tickets"])
 logger = logging.getLogger(__name__)
@@ -21,17 +22,6 @@ logger = logging.getLogger(__name__)
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 ALLOWED_MIMES = {"image/jpeg", "image/png", "image/webp"}
 MAX_FILE_SIZE = 5 * 1024 * 1024
-
-
-def _ok(data, *, total: int | None = None, page: int | None = None, per_page: int | None = None):
-    payload = {"success": True, "data": data}
-    if total is not None:
-        payload["total"] = total
-    if page is not None:
-        payload["page"] = page
-    if per_page is not None:
-        payload["per_page"] = per_page
-    return payload
 
 
 def _get_upload_dir() -> Path:
@@ -104,7 +94,7 @@ async def upload_screenshots(files: list[UploadFile] = File(...)):
         logger.info("upload_saved filename=%s size=%s", safe_name, len(contents))
         saved.append(safe_name)
 
-    return _ok({"files": saved})
+    return ok({"files": saved})
 
 
 @router.get("")
@@ -112,12 +102,14 @@ def get_tickets(week_number: int | None = None, student_id: int | None = None, d
     if student_id is not None:
         access_check = can_access_tickets(student_id, db)
         if not access_check["allowed"]:
-            return {
-                "success": False,
-                "error": "Complete troubleshooting methodology training first",
-                "missing_frameworks": access_check["missing_frameworks"],
-                "redirect": "/methodology-training",
-            }
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "Complete troubleshooting methodology training first",
+                    "code": "METHODOLOGY_REQUIRED",
+                    "missing_frameworks": access_check["missing_frameworks"],
+                },
+            )
 
     query = db.query(Ticket)
     if week_number is not None:
@@ -157,7 +149,7 @@ def get_tickets(week_number: int | None = None, student_id: int | None = None, d
             }
         )
 
-    return _ok(data, total=len(data), page=1, per_page=len(data) or 1)
+    return ok(data, total=len(data), page=1, per_page=len(data) or 1)
 
 
 @router.get("/{ticket_id}")
@@ -165,7 +157,7 @@ def get_ticket_details(ticket_id: int, db: Session = Depends(get_db)):
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    return _ok(
+    return ok(
         {
             "id": ticket.id,
             "title": ticket.title,
@@ -185,12 +177,14 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
     student_id = payload.student_id
     access_check = can_access_tickets(student_id, db)
     if not access_check["allowed"]:
-        return {
-            "success": False,
-            "error": "Complete troubleshooting methodology training first",
-            "missing_frameworks": access_check["missing_frameworks"],
-            "redirect": "/methodology-training",
-        }
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "Complete troubleshooting methodology training first",
+                "code": "METHODOLOGY_REQUIRED",
+                "missing_frameworks": access_check["missing_frameworks"],
+            },
+        )
 
     collaborators = _validate_collaborators(db, student_id, payload.collaborator_ids or [])
     duration_minutes = payload.duration_minutes
@@ -204,8 +198,8 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
     mark_student_active(db, student_id)
 
     existing = db.query(TicketSubmission).filter(TicketSubmission.student_id == student_id, TicketSubmission.ticket_id == ticket_id).first()
-    if existing and existing.status == "verified":
-        raise HTTPException(status_code=400, detail="This ticket has already been verified. Contact instructor for review.")
+    if existing and existing.status == "passed":
+        raise HTTPException(status_code=400, detail="This ticket has already been passed. Contact instructor for review.")
 
     try:
         if ticket.required_checkpoints or ticket.scoring_anchors or ticket.root_cause:
@@ -247,6 +241,7 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
     if existing:
         submission_id = existing.id
         existing.writeup = writeup
+        existing.commands_used = payload.commands_used
         existing.before_screenshot_id = payload.before_screenshot_id
         existing.after_screenshot_id = payload.after_screenshot_id
         existing.evidence_complete = bool(payload.before_screenshot_id and payload.after_screenshot_id)
@@ -271,6 +266,7 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
             student_id=student_id,
             ticket_id=ticket_id,
             writeup=writeup,
+            commands_used=payload.commands_used,
             before_screenshot_id=payload.before_screenshot_id,
             after_screenshot_id=payload.after_screenshot_id,
             evidence_complete=bool(payload.before_screenshot_id and payload.after_screenshot_id),
@@ -299,7 +295,7 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
         "Awaiting instructor verification",
     )
 
-    return _ok(
+    return ok(
         {
             "submission_id": submission_id,
             "ai_score": ai_score,

@@ -1,173 +1,100 @@
-import { useEffect, useMemo, useState } from "react";
-import confetti from "canvas-confetti";
-import toast from "react-hot-toast";
-import { BookOpen, CheckCircle, Target, TrendingUp } from "lucide-react";
+﻿import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import EmptyState from "../components/EmptyState";
-import { checkInStudent, getLeaderboard, getStudentMastery, getStudentStats } from "../services/api";
+import { checkInStudent, getStudentStats } from "../services/api";
 import { getSelectedProfile } from "../services/profile";
 
-function StatCard({ icon, label, value, subtitle }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <div className="mb-2 flex items-center gap-3">
-        {icon}
-        <span className="font-medium text-slate-600 dark:text-slate-300">{label}</span>
-      </div>
-      <div className="mb-1 text-3xl font-bold text-slate-900 dark:text-slate-100">{value}</div>
-      <div className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</div>
-    </div>
-  );
-}
-
 export default function StudentHome() {
-  const studentId = getSelectedProfile()?.id || 1;
+  const profile = getSelectedProfile();
+  const studentId = profile?.id;
   const [stats, setStats] = useState(null);
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [mastery, setMastery] = useState([]);
 
   useEffect(() => {
+    if (!studentId) {
+      setStats(null);
+      return;
+    }
     const run = async () => {
       await checkInStudent(studentId);
-      const [statsRes, lbRes, masteryRes] = await Promise.all([getStudentStats(studentId), getLeaderboard(), getStudentMastery(studentId)]);
-      const next = statsRes || null;
-
-      const prevLevel = Number(localStorage.getItem("last_level") || "-1");
-      if (next?.level != null && prevLevel >= 0 && next.level > prevLevel) {
-        confetti({ particleCount: 120, spread: 75, origin: { y: 0.6 } });
-        toast.success(`Level up! You are now ${next.level_name}`);
-      }
-      if (next?.level != null) {
-        localStorage.setItem("last_level", String(next.level));
-      }
-
-      setStats(next);
-      setLeaderboard(lbRes.data || []);
-      setMastery(masteryRes.data || []);
+      const res = await getStudentStats(studentId);
+      setStats(res || null);
     };
     run();
   }, [studentId]);
 
-  const activity = useMemo(() => stats?.recent_activity || [], [stats]);
+  const continueTarget = useMemo(() => {
+    if (!stats) return { label: "Continue", to: "/learning-path", detail: "Open your learning path" };
+    if (stats.quizzes_completed < stats.total_quizzes) {
+      return { label: "Continue Quiz Track", to: "/quizzes", detail: "You still have unpassed quizzes." };
+    }
+    if (stats.tickets_completed < stats.total_tickets) {
+      return { label: "Continue Ticket Track", to: "/tickets", detail: "You have open ticket work to complete." };
+    }
+    return { label: "Review Learning Path", to: "/learning-path", detail: "All core items are complete. Review and reinforce." };
+  }, [stats]);
+
+  if (!studentId) {
+    return (
+      <main className="mx-auto max-w-5xl p-6">
+        <EmptyState icon="USER" title="Select a profile" message="Choose your student profile to continue." />
+        <Link className="btn-primary mt-4 inline-block" to="/select-profile">
+          Select Profile
+        </Link>
+      </main>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <main className="mx-auto max-w-5xl p-6">
+        <EmptyState icon="..." title="Loading" message="Fetching your latest progress..." />
+      </main>
+    );
+  }
+
+  const recent = stats.recent_activity || [];
+  const feedbackItem = recent.find((x) => x.type === "ticket");
 
   return (
-    <main className="mx-auto max-w-7xl space-y-6 p-6">
-      {!stats ? (
-        <EmptyState icon=".." title="Loading dashboard" message="Fetching your latest progress..." />
-      ) : (
-        <>
-          <section className="rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 p-8 text-white">
-            <h1 className="text-3xl font-bold">Welcome back, {stats.name}</h1>
-            <p className="mt-2 text-blue-100">Hands-on Windows Server and Microsoft 365 training progression</p>
-          </section>
+    <main className="mx-auto max-w-5xl space-y-4 p-6">
+      <section className="rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
+        <h1 className="text-3xl font-bold">Welcome back, {stats.name}</h1>
+        <p className="mt-1 text-blue-100">XP Total: {stats.total_xp}</p>
+      </section>
 
-          {stats.streak > 0 && (
-            <section className="rounded-lg bg-gradient-to-r from-orange-500 to-red-500 p-4 text-white">
-              <p className="text-2xl font-bold">{stats.streak} Day Streak</p>
-              <p className="text-sm text-orange-100">Keep it going. Longest: {stats.longest_streak} days</p>
-            </section>
-          )}
+      <section className="rounded-lg bg-gradient-to-r from-orange-500 to-red-500 p-4 text-white">
+        <p className="text-2xl font-bold">{stats.streak || 0} day streak</p>
+      </section>
 
-          {stats.weak_areas?.length > 0 && (
-            <section className="border-l-4 border-orange-500 bg-orange-50 p-4">
-              <h3 className="mb-2 font-bold text-orange-900">Areas Needing Review</h3>
-              {stats.weak_areas.map((area, i) => (
-                <p key={`${area.topic}-${i}`} className="text-sm text-orange-800">
-                  <strong>{area.topic}:</strong> {area.avg_score}/10 avg ({area.attempts} attempts)
-                </p>
-              ))}
-            </section>
-          )}
+      <section className="panel dark:border-slate-700 dark:bg-slate-900">
+        <h2 className="text-xl font-bold">Continue</h2>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{continueTarget.detail}</p>
+        <Link className="btn-primary mt-3 inline-block" to={continueTarget.to}>
+          {continueTarget.label}
+        </Link>
+      </section>
 
-          <section className="grid grid-cols-1 gap-6 md:grid-cols-4">
-            <StatCard icon={<TrendingUp className="text-blue-600" size={24} />} label="Total XP" value={stats.total_xp} subtitle={`Level: ${stats.level_name}`} />
-            <StatCard icon={<BookOpen className="text-green-600" size={24} />} label="Quizzes" value={`${stats.quizzes_completed}/${stats.total_quizzes}`} subtitle={`Avg: ${stats.avg_quiz_score}/10`} />
-            <StatCard icon={<CheckCircle className="text-purple-600" size={24} />} label="Tickets" value={`${stats.tickets_completed}/${stats.total_tickets}`} subtitle={`Avg: ${stats.avg_ticket_score}/10`} />
-            <StatCard icon={<Target className="text-orange-600" size={24} />} label="Week Progress" value={`${stats.week_completion}%`} subtitle={`Week ${stats.current_week}`} />
-          </section>
+      {feedbackItem ? (
+        <section className="rounded border border-blue-300 bg-blue-50 p-4">
+          <p className="font-semibold text-blue-900">New feedback available</p>
+          <p className="text-sm text-blue-800">Your latest ticket has an update.</p>
+          <Link className="mt-2 inline-block text-sm font-medium text-blue-700 underline" to="/tickets">
+            View feedback
+          </Link>
+        </section>
+      ) : null}
 
-          <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <h3 className="mb-4 text-xl font-bold">Domain Mastery</h3>
-            <div className="space-y-3">
-              {mastery.map((item) => (
-                <div key={item.domain_id}>
-                  <div className="mb-1 flex justify-between text-sm">
-                    <span>{item.domain_name}</span>
-                    <span>{item.mastery_percent}%</span>
-                  </div>
-                  <div className="h-3 rounded-full bg-slate-200 dark:bg-slate-700">
-                    <div className="h-3 rounded-full bg-blue-600" style={{ width: `${item.mastery_percent}%` }} />
-                  </div>
-                </div>
-              ))}
-              {!mastery.length ? <p className="text-sm text-slate-500">No mastery data yet. Complete a quiz and get a ticket verified.</p> : null}
+      <section className="panel dark:border-slate-700 dark:bg-slate-900">
+        <h2 className="mb-3 text-xl font-bold">Recent Activity</h2>
+        <div className="space-y-2">
+          {recent.slice(0, 5).map((item, i) => (
+            <div key={`${item.type}-${i}`} className="rounded border border-slate-200 p-3 text-sm dark:border-slate-700">
+              <p className="font-medium">{item.title || item.description || "Activity"}</p>
+              <p className="text-slate-500">{item.type === "quiz" ? "You passed a quiz" : "You submitted or updated a ticket"}</p>
             </div>
-          </section>
-
-          {stats.cert_readiness && (
-            <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-              <h3 className="mb-4 text-xl font-bold">CompTIA A+ Readiness</h3>
-              <div className="mb-4">
-                <div className="mb-2 flex justify-between">
-                  <span>Overall Progress</span>
-                  <span className="font-bold">{stats.cert_readiness.overall_readiness}%</span>
-                </div>
-                <div className="h-4 w-full rounded-full bg-slate-200">
-                  <div className="h-4 rounded-full bg-green-600" style={{ width: `${stats.cert_readiness.overall_readiness}%` }} />
-                </div>
-              </div>
-              <div className="space-y-1 text-sm">
-                {stats.cert_readiness.by_domain?.map((d) => (
-                  <div key={d.domain} className="flex justify-between">
-                    <span>Domain {d.domain}</span>
-                    <span className={d.readiness >= 70 ? "text-green-600" : "text-orange-600"}>{d.readiness}%</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {stats.cohort_comparison && (
-            <section className="border-l-4 border-blue-500 bg-blue-50 p-4">
-              <h4 className="mb-2 font-bold text-blue-900">Cohort Comparison</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between"><span>Your XP:</span><span className="font-semibold">{stats.cohort_comparison.your_xp}</span></div>
-                <div className="flex justify-between"><span>Cohort Average:</span><span>{stats.cohort_comparison.avg_xp}</span></div>
-                <div className="flex justify-between"><span>Performance:</span><span className={stats.cohort_comparison.percentile > 0 ? "font-semibold text-green-600" : "text-orange-600"}>{stats.cohort_comparison.percentile > 0 ? "+" : ""}{stats.cohort_comparison.percentile}% vs average</span></div>
-              </div>
-            </section>
-          )}
-
-          <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <h2 className="mb-4 text-xl font-bold">Recent Activity</h2>
-            <div className="space-y-3">
-              {activity.map((item, i) => (
-                <div key={`${item.type}-${i}`} className="flex items-center justify-between rounded bg-slate-50 p-3 dark:bg-slate-800/60">
-                  <div>
-                    <span className="font-medium">{item.title}</span>
-                    <span className="ml-3 text-sm text-slate-500">{item.type === "quiz" ? "Quiz" : "Ticket"}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-green-600">{item.score}/10 - +{item.xp} XP</div>
-                    <div className="text-xs text-slate-500">{item.timestamp ? new Date(item.timestamp).toLocaleDateString() : ""}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <h2 className="mb-4 text-xl font-bold">Leaderboard</h2>
-            <div className="space-y-2">
-              {leaderboard.map((entry) => (
-                <div key={entry.student_id} className="flex items-center justify-between rounded border border-slate-200 p-2 dark:border-slate-700">
-                  <span>#{entry.rank} {entry.name}</span>
-                  <span>{entry.total_xp} XP</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        </>
-      )}
+          ))}
+        </div>
+      </section>
     </main>
   );
 }

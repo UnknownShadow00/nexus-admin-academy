@@ -40,6 +40,7 @@ class TicketSubmission(Base):
     student_id: Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     ticket_id: Mapped[int] = mapped_column(ForeignKey("tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     writeup: Mapped[str] = mapped_column(Text, nullable=False)
+    commands_used: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     structure_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     technical_score: Mapped[int | None] = mapped_column(Integer, nullable=True)

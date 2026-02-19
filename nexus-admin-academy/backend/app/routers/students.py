@@ -20,30 +20,9 @@ from app.services.methodology_enforcer import can_access_tickets
 from app.services.progression_service import check_module_unlock, get_module_mastery, get_promotion_status
 from app.services.squad_service import get_weekly_domain_leads
 from app.services.xp_calculator import level_from_xp
+from app.utils.responses import ok
 
 router = APIRouter(tags=["students"])
-
-LEVEL_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2500]
-LEVEL_NAMES = ["Trainee", "Help Desk I", "Help Desk II", "Tier 2", "Junior Admin", "SysAdmin", "Master Admin"]
-
-
-def _ok(data, *, total: int | None = None, page: int | None = None, per_page: int | None = None):
-    payload = {"success": True, "data": data}
-    if total is not None:
-        payload["total"] = total
-    if page is not None:
-        payload["page"] = page
-    if per_page is not None:
-        payload["per_page"] = per_page
-    return payload
-
-
-def _level_name(total_xp: int) -> tuple[int, str]:
-    level = 0
-    for i, threshold in enumerate(LEVEL_THRESHOLDS):
-        if total_xp >= threshold:
-            level = i
-    return level, LEVEL_NAMES[level] if level < len(LEVEL_NAMES) else "Master Admin"
 
 
 def update_login_streak(db: Session, student_id: int) -> LoginStreak:
@@ -109,7 +88,7 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db)):
             "level": level,
             "level_name": level_name,
             "quiz_best_scores": [{"quiz_id": q.quiz_id, "best_score": q.best_score, "first_attempt_xp": q.first_attempt_xp} for q in quiz_attempts],
-            "tickets_completed": sum(1 for t in ticket_subs if t.status == "verified"),
+            "tickets_completed": sum(1 for t in ticket_subs if t.status == "passed"),
         },
         "recent_activity": [
             {
@@ -122,7 +101,7 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db)):
         ],
     }
 
-    return _ok(data)
+    return ok(data)
 
 
 @router.get("/api/students/{student_id}/stats")
@@ -132,7 +111,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Student not found")
 
     streak = update_login_streak(db, student_id)
-    level, level_name = _level_name(student.total_xp)
+    level, level_name = level_from_xp(student.total_xp)
 
     quiz_stats = (
         db.query(func.count(QuizAttempt.id).label("completed"), func.coalesce(func.avg(QuizAttempt.score), 0).label("avg_score"))
@@ -143,7 +122,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db)):
 
     ticket_stats = (
         db.query(func.count(TicketSubmission.id).label("completed"), func.coalesce(func.avg(TicketSubmission.ai_score), 0).label("avg_score"))
-        .filter(TicketSubmission.student_id == student_id, TicketSubmission.status == "verified")
+        .filter(TicketSubmission.student_id == student_id, TicketSubmission.status == "passed")
         .first()
     )
     total_tickets = db.query(func.count(Ticket.id)).scalar() or 0
@@ -155,7 +134,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db)):
     week_completed_t = (
         db.query(func.count(TicketSubmission.id))
         .join(Ticket, TicketSubmission.ticket_id == Ticket.id)
-        .filter(TicketSubmission.student_id == student_id, Ticket.week_number == week_number, TicketSubmission.status == "verified")
+        .filter(TicketSubmission.student_id == student_id, Ticket.week_number == week_number, TicketSubmission.status == "passed")
         .scalar()
         or 0
     )
@@ -182,7 +161,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db)):
             TicketSubmission.xp_awarded.label("xp"),
         )
         .join(Ticket, Ticket.id == TicketSubmission.ticket_id)
-        .filter(TicketSubmission.student_id == student_id, TicketSubmission.status == "verified")
+        .filter(TicketSubmission.student_id == student_id, TicketSubmission.status == "passed")
         .all()
     )
 
@@ -203,7 +182,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db)):
             func.coalesce(func.avg(TicketSubmission.ai_score), 0).label("avg_score"),
         )
         .join(Ticket, Ticket.id == TicketSubmission.ticket_id)
-        .filter(TicketSubmission.student_id == student_id, TicketSubmission.status == "verified")
+        .filter(TicketSubmission.student_id == student_id, TicketSubmission.status == "passed")
         .group_by(Ticket.category)
         .having(func.avg(TicketSubmission.ai_score) < 6)
         .order_by(func.avg(TicketSubmission.ai_score).asc())
@@ -314,14 +293,14 @@ def get_leaderboard(db: Session = Depends(get_db)):
                 "level": level,
             }
         )
-    return _ok(entries, total=len(entries), page=1, per_page=len(entries) or 1)
+    return ok(entries, total=len(entries), page=1, per_page=len(entries) or 1)
 
 
 @router.get("/api/students")
 def get_students(db: Session = Depends(get_db)):
     rows = db.query(Student).order_by(Student.name.asc()).all()
     data = [{"id": row.id, "name": row.name, "email": row.email, "last_active_at": row.last_active_at} for row in rows]
-    return _ok(data, total=len(data), page=1, per_page=len(data) or 1)
+    return ok(data, total=len(data), page=1, per_page=len(data) or 1)
 
 
 @router.get("/api/students/{student_id}/mastery")
@@ -329,7 +308,7 @@ def get_student_mastery(student_id: int, db: Session = Depends(get_db)):
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
-    return _ok(list_student_mastery(db, student_id))
+    return ok(list_student_mastery(db, student_id))
 
 
 @router.get("/api/squad/dashboard")
@@ -380,7 +359,7 @@ def squad_dashboard(student_id: int | None = None, limit: int = 30, db: Session 
     if student_id is not None:
         response["selected_student_mastery"] = list_student_mastery(db, student_id)
 
-    return _ok(response)
+    return ok(response)
 
 
 @router.get("/api/students/{student_id}/learning-path")
@@ -410,7 +389,7 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db)):
             completed_ticket = (
                 db.query(func.count(TicketSubmission.id))
                 .join(Ticket, TicketSubmission.ticket_id == Ticket.id)
-                .filter(TicketSubmission.student_id == student_id, Ticket.lesson_id == lesson.id, TicketSubmission.status == "verified")
+                .filter(TicketSubmission.student_id == student_id, Ticket.lesson_id == lesson.id, TicketSubmission.status == "passed")
                 .scalar()
                 or 0
             )

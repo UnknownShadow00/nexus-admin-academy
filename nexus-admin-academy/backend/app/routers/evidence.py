@@ -9,15 +9,12 @@ from app.database import get_db
 from app.models.evidence import EvidenceArtifact
 from app.models.ticket import Ticket
 from app.services.evidence_validator import validate_evidence_artifact
+from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/evidence", tags=["evidence"])
 
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "txt", "log"}
 ALLOWED_MIMES = {"image/jpeg", "image/png", "image/webp", "text/plain"}
-
-
-def _ok(data):
-    return {"success": True, "data": data}
 
 
 def _upload_dir() -> Path:
@@ -77,7 +74,7 @@ async def upload_evidence(
     db.commit()
     db.refresh(row)
 
-    return _ok(
+    return ok(
         {
             "artifact_id": row.id,
             "validation": validation,

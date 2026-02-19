@@ -5,12 +5,9 @@ from app.database import get_db
 from app.models.evidence import EvidenceArtifact
 from app.models.student import Student
 from app.models.ticket import TicketSubmission
+from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/submissions", tags=["submissions"])
-
-
-def _ok(data):
-    return {"success": True, "data": data}
 
 
 @router.get("/{submission_id}")
@@ -38,6 +35,7 @@ def get_submission(submission_id: int, db: Session = Depends(get_db)):
         "ticket_id": submission.ticket_id,
         "ticket_title": submission.ticket.title if submission.ticket else "Ticket",
         "writeup": submission.writeup,
+        "commands_used": submission.commands_used,
         "ai_score": submission.final_score if submission.final_score is not None else submission.ai_score,
         "structure_score": submission.structure_score,
         "technical_score": submission.technical_score,
@@ -71,4 +69,4 @@ def get_submission(submission_id: int, db: Session = Depends(get_db)):
     else:
         payload["evidence_artifacts"] = []
 
-    return _ok(payload)
+    return ok(payload)

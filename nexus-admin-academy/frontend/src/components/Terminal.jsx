@@ -47,10 +47,16 @@ function processCommand(cmd, term) {
   term.writeln("");
 }
 
-export default function TerminalWidget() {
+export default function TerminalWidget({ prefillCommand = "", onSessionChange }) {
   const terminalRef = useRef(null);
+  const termInstanceRef = useRef(null);
+  const currentLineRef = useRef("");
+  const historyRef = useRef([]);
+  const lastPrefillRef = useRef("");
 
   useEffect(() => {
+    if (!terminalRef.current) return;
+
     const term = new Terminal({
       cursorBlink: true,
       fontSize: 14,
@@ -61,9 +67,15 @@ export default function TerminalWidget() {
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.open(terminalRef.current);
-    fitAddon.fit();
+    const fitTimer = setTimeout(() => {
+      try {
+        fitAddon.fit();
+      } catch (e) {
+        // Ignore transient layout timing issues.
+      }
+    }, 0);
 
-    let currentLine = "";
+    termInstanceRef.current = term;
     term.writeln("Windows PowerShell Practice Terminal");
     term.writeln("Type commands to practice (simulated environment)");
     term.writeln("Available: ipconfig, ping, Get-Service, Get-Process");
@@ -73,31 +85,56 @@ export default function TerminalWidget() {
     term.onData((data) => {
       if (data === "\r") {
         term.write("\r\n");
-        processCommand(currentLine, term);
-        currentLine = "";
+        const command = currentLineRef.current;
+        historyRef.current.push(`PS C:\\Users\\Student> ${command}`);
+        processCommand(command, term);
+        currentLineRef.current = "";
+        onSessionChange?.(historyRef.current.join("\n"));
         term.write("PS C:\\Users\\Student> ");
       } else if (data === "\u007f") {
-        if (currentLine.length > 0) {
-          currentLine = currentLine.slice(0, -1);
+        if (currentLineRef.current.length > 0) {
+          currentLineRef.current = currentLineRef.current.slice(0, -1);
           term.write("\b \b");
         }
       } else if (data === "\u0003") {
         term.write("^C\r\nPS C:\\Users\\Student> ");
-        currentLine = "";
+        currentLineRef.current = "";
       } else {
-        currentLine += data;
+        currentLineRef.current += data;
         term.write(data);
       }
     });
 
-    const onResize = () => fitAddon.fit();
+    const onResize = () => {
+      try {
+        fitAddon.fit();
+      } catch (e) {
+        // Ignore resize errors during unmount.
+      }
+    };
     window.addEventListener("resize", onResize);
 
     return () => {
+      clearTimeout(fitTimer);
       window.removeEventListener("resize", onResize);
+      termInstanceRef.current = null;
       term.dispose();
     };
-  }, []);
+  }, [onSessionChange]);
+
+  useEffect(() => {
+    if (!prefillCommand || prefillCommand === lastPrefillRef.current) return;
+    const term = termInstanceRef.current;
+    if (!term) return;
+
+    while (currentLineRef.current.length > 0) {
+      term.write("\b \b");
+      currentLineRef.current = currentLineRef.current.slice(0, -1);
+    }
+    term.write(prefillCommand);
+    currentLineRef.current = prefillCommand;
+    lastPrefillRef.current = prefillCommand;
+  }, [prefillCommand]);
 
   return (
     <div className="rounded-lg border border-slate-300 bg-white p-4 shadow dark:border-slate-700 dark:bg-slate-900">

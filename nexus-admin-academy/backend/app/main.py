@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import datetime
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -13,7 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.database import SessionLocal
 from app.config import load_env
 from app.models import Student
-from app.routers import admin, commands, evidence, quizzes, resources, students, submissions, tickets
+from app.routers import admin, admin_session, commands, evidence, quizzes, resources, search, students, submissions, tickets
 from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
 
 load_env()
@@ -62,13 +63,30 @@ def seed_students() -> None:
         db.close()
 
 
+def _cors_origins() -> list[str]:
+    raw = os.getenv("CORS_ORIGINS") or os.getenv("FRONTEND_URL") or "http://localhost:5173"
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    seed_students()
+    db = SessionLocal()
+    try:
+        if not get_weekly_domain_leads(db):
+            recompute_weekly_domain_leads(db)
+    finally:
+        db.close()
+    yield
+
+
 def create_app() -> FastAPI:
     configure_logging()
-    app = FastAPI(title="Nexus Admin Academy API", version="1.0.0")
+    app = FastAPI(title="Nexus Admin Academy API", version="1.0.0", lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=_cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -113,10 +131,12 @@ def create_app() -> FastAPI:
         return {"success": True, "data": {"ok": True, "timestamp": datetime.utcnow().isoformat() + "Z"}}
 
     app.include_router(admin.router)
+    app.include_router(admin_session.router)
     app.include_router(quizzes.router)
     app.include_router(tickets.router)
     app.include_router(submissions.router)
     app.include_router(commands.router)
+    app.include_router(search.router)
     app.include_router(evidence.router)
     app.include_router(resources.router)
     app.include_router(students.router)
@@ -130,14 +150,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-
-
-@app.on_event("startup")
-def startup() -> None:
-    seed_students()
-    db = SessionLocal()
-    try:
-        if not get_weekly_domain_leads(db):
-            recompute_weekly_domain_leads(db)
-    finally:
-        db.close()

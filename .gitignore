@@ -1,3 +1,12 @@
 nexus-admin-academy - Copy/
 .env
 backend/.env
+frontend/.env
+nexus-admin-academy/backend/.env
+nexus-admin-academy/frontend/.env
+
+*.db
+*.log
+__pycache__/
+node_modules/
+.env.*

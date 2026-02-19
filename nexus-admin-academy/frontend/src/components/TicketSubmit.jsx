@@ -4,14 +4,16 @@ import ReactMarkdown from "react-markdown";
 import toast from "react-hot-toast";
 import EvidenceUploader from "./EvidenceUploader";
 import Spinner from "./Spinner";
-import { getLeaderboard, submitTicket, uploadScreenshots } from "../services/api";
+import { getStudents, submitTicket, uploadScreenshots } from "../services/api";
 
 export default function TicketSubmit({ ticket, studentId }) {
   const navigate = useNavigate();
+  const draftKey = `ticket_draft_${ticket.id}_${studentId}`;
   const [symptom, setSymptom] = useState("");
   const [rootCause, setRootCause] = useState("");
   const [resolution, setResolution] = useState("");
   const [verification, setVerification] = useState("");
+  const [commandsUsed, setCommandsUsed] = useState("");
   const [collaborators, setCollaborators] = useState([]);
   const [students, setStudents] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -19,8 +21,37 @@ export default function TicketSubmit({ ticket, studentId }) {
   const [evidenceUploads, setEvidenceUploads] = useState([]);
 
   useEffect(() => {
-    getLeaderboard().then((res) => setStudents((res.data || []).filter((s) => s.student_id !== studentId)));
+    getStudents().then((res) => setStudents((res.data || []).filter((s) => s.id !== studentId)));
   }, [studentId]);
+
+  useEffect(() => {
+    const raw = localStorage.getItem(draftKey);
+    if (!raw) return;
+    try {
+      const draft = JSON.parse(raw);
+      setSymptom(draft.symptom || "");
+      setRootCause(draft.rootCause || "");
+      setResolution(draft.resolution || "");
+      setVerification(draft.verification || "");
+      setCommandsUsed(draft.commandsUsed || "");
+    } catch {
+      // Ignore invalid draft payloads.
+    }
+  }, [draftKey]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const payload = {
+        symptom,
+        rootCause,
+        resolution,
+        verification,
+        commandsUsed,
+      };
+      localStorage.setItem(draftKey, JSON.stringify(payload));
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [draftKey, symptom, rootCause, resolution, verification, commandsUsed]);
 
   const collaboratorIds = useMemo(() => collaborators.map(Number), [collaborators]);
   const writeup = useMemo(
@@ -60,6 +91,7 @@ export default function TicketSubmit({ ticket, studentId }) {
         root_cause: rootCause,
         resolution,
         verification,
+        commands_used: commandsUsed,
         writeup,
         collaborator_ids: collaboratorIds,
         before_screenshot_id: beforeId,
@@ -69,6 +101,7 @@ export default function TicketSubmit({ ticket, studentId }) {
       });
 
       localStorage.removeItem(`ticket_${ticket.id}_started`);
+      localStorage.removeItem(draftKey);
       toast.success("Ticket graded and queued for instructor verification");
       navigate(`/tickets/${res.data?.submission_id}/feedback`);
     } finally {
@@ -101,6 +134,18 @@ export default function TicketSubmit({ ticket, studentId }) {
           <label className="text-sm font-semibold">Verification</label>
           <textarea className="input-field h-24" value={verification} onChange={(e) => setVerification(e.target.value)} placeholder="Confirm how the fix was validated." />
         </div>
+        <div>
+          <label className="text-sm font-semibold">Commands Used</label>
+          <textarea className="input-field h-24" value={commandsUsed} onChange={(e) => setCommandsUsed(e.target.value)} placeholder="Paste the commands you ran." />
+          <button
+            className="btn-secondary mt-2"
+            type="button"
+            onClick={() => setCommandsUsed(localStorage.getItem("terminal_session_history") || "")}
+          >
+            Copy from Terminal
+          </button>
+          <p className="mt-1 text-xs text-slate-500">Draft auto-saved.</p>
+        </div>
       </div>
 
       <label className="text-sm font-semibold">Upload Screenshots (optional legacy upload)</label>
@@ -116,8 +161,8 @@ export default function TicketSubmit({ ticket, studentId }) {
       <label className="text-sm font-semibold">Collaborators (optional)</label>
       <div className="grid gap-2 md:grid-cols-2">
         {students.map((student) => (
-          <label key={student.student_id} className="flex items-center gap-2 rounded border border-slate-200 p-2 dark:border-slate-700">
-            <input type="checkbox" checked={collaborators.includes(student.student_id)} onChange={(e) => toggleCollaborator(student.student_id, e.target.checked)} />
+          <label key={student.id} className="flex items-center gap-2 rounded border border-slate-200 p-2 dark:border-slate-700">
+            <input type="checkbox" checked={collaborators.includes(student.id)} onChange={(e) => toggleCollaborator(student.id, e.target.checked)} />
             {student.name}
           </label>
         ))}

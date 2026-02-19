@@ -54,7 +54,6 @@ COST_PER_1K_TOKENS=0.003
 Frontend (`frontend/.env`):
 ```env
 VITE_API_URL=http://localhost:8000
-VITE_ADMIN_KEY=change_me
 ```
 
 ## Implemented API Routes
@@ -84,6 +83,7 @@ VITE_ADMIN_KEY=change_me
 - `GET /api/leaderboard`
 
 ## Notes
-- Admin routes require `X-Admin-Key` and must match `ADMIN_SECRET_KEY`.
+- Admin routes require an authenticated admin session cookie.
+- Use `/api/admin/session/login` (or the `/admin` UI login form) with `ADMIN_SECRET_KEY`.
 - On startup, backend seeds 5 students if database is empty.
 - AI calls are logged in `ai_usage_logs` with token/cost data.

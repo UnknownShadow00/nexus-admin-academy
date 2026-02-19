@@ -2,24 +2,16 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { getSelectedProfile } from "./profile";
 
-const adminKey = (import.meta.env.VITE_ADMIN_KEY || "").trim();
-
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
   timeout: 30000,
+  withCredentials: true,
 });
 
 const adminApi = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
   timeout: 30000,
-});
-
-adminApi.interceptors.request.use((config) => {
-  const key = (adminKey || localStorage.getItem("admin_key") || "").trim();
-  config.headers = config.headers || {};
-  config.headers["X-Admin-Key"] = key;
-  config.headers["X-ADMIN-KEY"] = key;
-  return config;
+  withCredentials: true,
 });
 
 adminApi.interceptors.response.use(
@@ -65,10 +57,8 @@ export const getDashboard = (studentId) => request(() => api.get(`/api/students/
 export const getStudentStats = (studentId) => request(() => api.get(`/api/students/${studentId}/stats`));
 export const checkInStudent = (studentId) => request(() => api.post(`/api/students/${studentId}/check-in`));
 export const getCertReadiness = (studentId) => request(() => api.get(`/api/students/${studentId}/certification-readiness`));
-export const getLeaderboard = () => request(() => api.get("/api/leaderboard"));
 export const getStudents = () => request(() => api.get("/api/students"));
 export const getStudentMastery = (studentId) => request(() => api.get(`/api/students/${studentId}/mastery`));
-export const getSquadDashboard = (studentId) => request(() => api.get("/api/squad/dashboard", { params: { student_id: studentId } }));
 export const getLearningPath = (studentId) => request(() => api.get(`/api/students/${studentId}/learning-path`));
 export const getPromotionStatus = (studentId) => request(() => api.get(`/api/students/${studentId}/promotion-status`));
 
@@ -94,8 +84,12 @@ export const uploadEvidence = ({ file, ticketId, artifactType }) => {
   return request(() => api.post("/api/evidence/upload", formData, { headers: { "Content-Type": "multipart/form-data" } }));
 };
 
-export const getResources = (params) => request(() => api.get("/api/resources", { params }));
 export const searchCommands = (q) => request(() => api.get("/api/commands/search", { params: { q } }));
+export const globalSearch = (q) => request(() => api.get("/api/search/global", { params: { q } }));
+
+export const adminSessionStatus = () => request(() => api.get("/api/admin/session/status"));
+export const adminSessionLogin = (adminKey) => request(() => api.post("/api/admin/session/login", { admin_key: adminKey }));
+export const adminSessionLogout = () => request(() => api.post("/api/admin/session/logout"));
 
 export const generateQuiz = (payload) => request(() => adminApi.post("/api/admin/quiz/generate", payload));
 export const createTicket = (payload) => request(() => adminApi.post("/api/admin/tickets", payload));
@@ -112,7 +106,6 @@ export const getStudentsOverview = () => request(() => adminApi.get("/api/admin/
 export const getStudentActivity = (id) => request(() => adminApi.get(`/api/admin/students/${id}/activity`));
 export const bulkGenerateTickets = (payload) => request(() => adminApi.post("/api/admin/tickets/bulk-generate", payload));
 export const bulkPublishTickets = (payload) => request(() => adminApi.post("/api/admin/tickets/bulk-publish", payload));
-export const getAIUsageStats = () => request(() => adminApi.get("/api/admin/ai-usage"));
 export const recomputeWeeklyLeads = () => request(() => adminApi.post("/api/admin/weekly-domain-leads/recompute"));
 export const getWeeklyLeads = () => request(() => adminApi.get("/api/admin/weekly-domain-leads"));
 export const getRecentCVEs = (keyword = "windows") => request(() => adminApi.get("/api/admin/cve/recent", { params: { keyword } }));
@@ -125,5 +118,9 @@ export const createLesson = (payload) => request(() => adminApi.post("/api/admin
 export const getEvidence = (status) => request(() => adminApi.get("/api/admin/evidence", { params: { status } }));
 export const reviewEvidence = (id, payload) => request(() => adminApi.put(`/api/admin/evidence/${id}`, payload));
 export const updateTicketAnswerKey = (ticketId, payload) => request(() => adminApi.put(`/api/admin/tickets/${ticketId}/answer-key`, payload));
+export const getAdminCommands = () => request(() => adminApi.get("/api/admin/commands"));
+export const createAdminCommand = (payload) => request(() => adminApi.post("/api/admin/commands", payload));
+export const updateAdminCommand = (id, payload) => request(() => adminApi.put(`/api/admin/commands/${id}`, payload));
+export const deleteAdminCommand = (id) => request(() => adminApi.delete(`/api/admin/commands/${id}`));
 
 export default api;

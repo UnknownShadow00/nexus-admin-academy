@@ -1,3 +1,33 @@
-from app.routers import admin, commands, evidence, quizzes, resources, students, submissions, tickets
+from app.routers import (
+    admin,
+    admin_content,
+    admin_quiz,
+    admin_session,
+    admin_students,
+    admin_tickets,
+    commands,
+    evidence,
+    quizzes,
+    resources,
+    search,
+    students,
+    submissions,
+    tickets,
+)
 
-__all__ = ["admin", "commands", "evidence", "quizzes", "resources", "students", "submissions", "tickets"]
+__all__ = [
+    "admin",
+    "admin_content",
+    "admin_quiz",
+    "admin_session",
+    "admin_students",
+    "admin_tickets",
+    "commands",
+    "evidence",
+    "quizzes",
+    "resources",
+    "search",
+    "students",
+    "submissions",
+    "tickets",
+]

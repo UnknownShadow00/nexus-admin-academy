@@ -24,6 +24,7 @@ class TicketSubmitRequest(BaseModel):
     resolution: str = Field(min_length=3, max_length=3000)
     verification: str = Field(min_length=3, max_length=2000)
     writeup: str | None = Field(default=None, max_length=5000)
+    commands_used: str | None = Field(default=None, max_length=4000)
     collaborator_ids: list[int] = Field(default_factory=list)
     before_screenshot_id: int | None = Field(default=None, ge=1)
     after_screenshot_id: int | None = Field(default=None, ge=1)

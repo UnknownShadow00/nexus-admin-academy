@@ -68,6 +68,23 @@ export default function TicketFeedback() {
           </div>
         )}
 
+        <div className="mb-6 grid gap-4 lg:grid-cols-2">
+          <div className="rounded border border-slate-200 p-4 dark:border-slate-700">
+            <h2 className="mb-2 text-lg font-bold">Your Submission</h2>
+            <p className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{submission.writeup}</p>
+            {submission.commands_used ? (
+              <div className="mt-3 rounded bg-slate-100 p-2 dark:bg-slate-800">
+                <p className="text-xs font-semibold uppercase text-slate-500">Commands Used</p>
+                <pre className="whitespace-pre-wrap text-xs">{submission.commands_used}</pre>
+              </div>
+            ) : null}
+          </div>
+          <div className="rounded border border-slate-200 p-4 dark:border-slate-700">
+            <h2 className="mb-2 text-lg font-bold">Admin / AI Feedback</h2>
+            {feedback.feedback ? <p className="whitespace-pre-wrap text-sm">{feedback.feedback}</p> : <p className="text-sm text-slate-500">No feedback text.</p>}
+          </div>
+        </div>
+
         {feedback.strengths?.length > 0 && (
           <div className="mb-6">
             <div className="mb-3 flex items-center gap-2">
@@ -133,6 +150,9 @@ export default function TicketFeedback() {
           </div>
         )}
 
+        {submission.status === "needs_revision" ? (
+          <button onClick={() => navigate(`/tickets/${submission.ticket_id}`)} className="mb-3 w-full rounded-lg bg-amber-600 py-3 font-semibold text-white hover:bg-amber-700">Resubmit</button>
+        ) : null}
         <button onClick={() => navigate("/tickets")} className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700">Back to Tickets</button>
       </div>
     </main>

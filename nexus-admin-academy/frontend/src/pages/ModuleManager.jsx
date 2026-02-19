@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createLesson, createModule, getLessons, getModules } from "../services/api";
+import { createAdminCommand, createLesson, createModule, deleteAdminCommand, getAdminCommands, getLessons, getModules } from "../services/api";
 
 export default function ModuleManager() {
   const [modules, setModules] = useState([]);
@@ -7,6 +7,8 @@ export default function ModuleManager() {
   const [lessons, setLessons] = useState([]);
   const [moduleForm, setModuleForm] = useState({ code: "", title: "", module_order: 1, unlock_threshold: 70 });
   const [lessonForm, setLessonForm] = useState({ title: "", lesson_order: 1, summary: "" });
+  const [commands, setCommands] = useState([]);
+  const [commandForm, setCommandForm] = useState({ command: "", syntax: "", description: "", category: "Windows", example: "" });
 
   const loadModules = async () => {
     const res = await getModules();
@@ -15,6 +17,11 @@ export default function ModuleManager() {
 
   useEffect(() => {
     loadModules();
+    const loadCommands = async () => {
+      const res = await getAdminCommands();
+      setCommands(res.data || []);
+    };
+    loadCommands();
   }, []);
 
   useEffect(() => {
@@ -88,7 +95,46 @@ export default function ModuleManager() {
           </>
         ) : null}
       </section>
+
+      <section className="panel lg:col-span-2 dark:border-slate-700 dark:bg-slate-900">
+        <h2 className="mb-3 text-xl font-bold">Command Library</h2>
+        <div className="grid gap-2 md:grid-cols-5">
+          <input className="input-field" placeholder="Command" value={commandForm.command} onChange={(e) => setCommandForm({ ...commandForm, command: e.target.value })} />
+          <input className="input-field" placeholder="Syntax" value={commandForm.syntax} onChange={(e) => setCommandForm({ ...commandForm, syntax: e.target.value })} />
+          <input className="input-field md:col-span-2" placeholder="Description" value={commandForm.description} onChange={(e) => setCommandForm({ ...commandForm, description: e.target.value })} />
+          <input className="input-field" placeholder="Category" value={commandForm.category} onChange={(e) => setCommandForm({ ...commandForm, category: e.target.value })} />
+        </div>
+        <textarea className="input-field mt-2" placeholder="Example" value={commandForm.example} onChange={(e) => setCommandForm({ ...commandForm, example: e.target.value })} />
+        <button
+          className="btn-primary mt-2"
+          onClick={async () => {
+            await createAdminCommand(commandForm);
+            const res = await getAdminCommands();
+            setCommands(res.data || []);
+          }}
+        >
+          Add Command
+        </button>
+        <div className="mt-3 max-h-72 space-y-2 overflow-auto">
+          {commands.map((c) => (
+            <div key={c.id} className="flex items-center justify-between rounded border border-slate-200 p-2 text-sm dark:border-slate-700">
+              <div>
+                <p className="font-mono font-semibold">{c.command}</p>
+                <p className="text-xs text-slate-500">{c.category}</p>
+              </div>
+              <button
+                className="btn-secondary"
+                onClick={async () => {
+                  await deleteAdminCommand(c.id);
+                  setCommands((prev) => prev.filter((x) => x.id !== c.id));
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
-
