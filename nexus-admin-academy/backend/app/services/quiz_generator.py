@@ -43,6 +43,111 @@ def load_objectives(domain_id: str) -> list[dict]:
         return []
 
 
+async def generate_quiz_from_videos(
+    video_urls: list[str],
+    title: str,
+    week_number: int,
+    question_count: int,
+    db: Session,
+    admin_id: int,
+    domain_id: str = "1.0",
+) -> List[Dict]:
+    """
+    Extracts transcripts from each video, distributes questions proportionally,
+    generates per-video question batches, merges and deduplicates.
+    """
+    if not 1 <= len(video_urls) <= 5:
+        raise ValueError("Provide between 1 and 5 video URLs")
+    if not 5 <= question_count <= 20:
+        raise ValueError("Question count must be between 5 and 20")
+    if not title or len(title.strip()) < 3:
+        raise ValueError("Title too short")
+
+    transcripts: list[dict] = []
+    for url in video_urls:
+        cleaned_url = url.strip()
+        video_id = extract_video_id(cleaned_url)
+        try:
+            data = YouTubeTranscriptApi.get_transcript(video_id)
+        except Exception as exc:
+            logger.exception("transcript_extraction_failed video_url=%s video_id=%s", cleaned_url, video_id)
+            raise ValueError(f"Could not get transcript for {cleaned_url}: {exc}") from exc
+        text = " ".join(item.get("text", "") for item in data).strip()
+        if len(text) < 200:
+            raise ValueError(f"Transcript too short for video: {cleaned_url}")
+        transcripts.append({"url": cleaned_url, "video_id": video_id, "text": chunk_transcript(text, 8000)})
+
+    base = question_count // len(transcripts)
+    remainder = question_count % len(transcripts)
+    distribution = [base + (1 if i < remainder else 0) for i in range(len(transcripts))]
+
+    objectives = load_objectives(domain_id)
+    objective_block = "\n".join([f"- {o.get('id')}: {o.get('title')}" for o in objectives[:6]]) or "- General domain coverage"
+
+    all_questions: list[dict] = []
+    for i, (transcript, count) in enumerate(zip(transcripts, distribution)):
+        system_prompt = f"""You are an IT instructor writing certification quiz questions.
+Generate EXACTLY {count} unique MCQ questions with 4 options each.
+Each question must have one clearly correct answer.
+Return ONLY valid JSON: {{"questions": [...]}}
+Each question must have: question_text, option_a, option_b, option_c, option_d, correct_answer (A/B/C/D), explanation"""
+
+        user_prompt = f"""Domain: {domain_id}
+Objectives:
+{objective_block}
+
+Generate {count} questions from this video transcript. Questions must be directly based on the content below.
+
+Transcript:
+{transcript['text']}
+"""
+
+        response_text = await call_ai(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            feature="quiz_generation",
+            db=db,
+            user_id=admin_id,
+            json_mode=True,
+            metadata={
+                "video_url": transcript["url"],
+                "title": title,
+                "week": week_number,
+                "domain_id": domain_id,
+                "video_index": i,
+            },
+        )
+
+        try:
+            data = json.loads(response_text)
+        except json.JSONDecodeError as exc:
+            logger.error("quiz_generation_invalid_json video_index=%s raw_preview=%s", i, (response_text or "")[:2000])
+            raise ValueError(f"AI returned invalid JSON for video {i + 1}") from exc
+
+        questions = data.get("questions", [])
+        if len(questions) != count:
+            raise ValueError(f"Expected {count} questions from video {i + 1}, got {len(questions)}")
+
+        for question in questions:
+            question["source_video_url"] = transcript["url"]
+        all_questions.extend(questions)
+
+    required_fields = ["question_text", "option_a", "option_b", "option_c", "option_d", "correct_answer", "explanation"]
+    texts: list[str] = []
+    for idx, question in enumerate(all_questions, start=1):
+        missing = [field for field in required_fields if field not in question]
+        if missing:
+            raise ValueError(f"Question {idx} missing fields: {missing}")
+        if question["correct_answer"] not in ["A", "B", "C", "D"]:
+            raise ValueError(f"Question {idx} invalid correct_answer: {question['correct_answer']}")
+        texts.append(question["question_text"].strip())
+
+    if len(texts) != len(set(texts)):
+        raise ValueError("Duplicate questions detected across videos")
+
+    return all_questions
+
+
 async def generate_quiz_from_video(
     video_url: str,
     title: str,
@@ -51,80 +156,13 @@ async def generate_quiz_from_video(
     admin_id: int,
     domain_id: str = "1.0",
 ) -> List[Dict]:
-    if not video_url or len(video_url.strip()) < 10:
-        raise ValueError("Invalid video URL")
-    if not title or len(title.strip()) < 3:
-        raise ValueError("Title too short")
-
-    try:
-        video_id = extract_video_id(video_url)
-    except Exception as exc:
-        raise ValueError(f"Invalid video URL: {exc}") from exc
-
-    try:
-        transcript_data = YouTubeTranscriptApi.get_transcript(video_id)
-    except Exception as exc:
-        logger.exception("transcript_extraction_failed video_id=%s", video_id)
-        raise ValueError(f"Failed to extract video transcript: {exc}") from exc
-
-    transcript_text = " ".join(item.get("text", "") for item in transcript_data).strip()
-    if len(transcript_text) < 200:
-        raise ValueError("Video transcript too short (need at least 200 characters)")
-
-    chunked_transcript = chunk_transcript(transcript_text, max_length=10000)
-    objectives = load_objectives(domain_id)
-    objective_block = "\n".join([f"- {o.get('id')}: {o.get('title')}" for o in objectives[:6]]) or "- General domain coverage"
-
-    system_prompt = """You are an IT instructor writing certification quiz questions.
-Use the provided objective list and transcript as anchors.
-Generate EXACTLY 10 unique MCQ questions with 4 options each and one correct answer.
-Return ONLY JSON: {"questions": [...]}"""
-
-    user_prompt = f"""Domain: {domain_id}
-Objectives:
-{objective_block}
-
-Generate 10 questions aligned to these objectives and this transcript.
-Include at least 3 questions directly tied to one objective id from the list.
-
-Transcript:
-{chunked_transcript}
-"""
-
-    response_text = await call_ai(
-        system_prompt=system_prompt,
-        user_prompt=user_prompt,
-        feature="quiz_generation",
+    # Backward-compatible wrapper.
+    return await generate_quiz_from_videos(
+        video_urls=[video_url],
+        title=title,
+        week_number=week_number,
+        question_count=10,
         db=db,
-        user_id=admin_id,
-        json_mode=True,
-        metadata={"video_url": video_url, "title": title, "week": week_number, "domain_id": domain_id, "user_id": admin_id},
+        admin_id=admin_id,
+        domain_id=domain_id,
     )
-
-    if not response_text or not response_text.strip():
-        raise ValueError("AI returned empty response while generating quiz")
-
-    try:
-        data = json.loads(response_text)
-    except json.JSONDecodeError as exc:
-        logger.error("quiz_generation_invalid_json raw_preview=%s", response_text[:2000])
-        raise ValueError("AI returned invalid JSON for quiz generation") from exc
-
-    questions = data.get("questions", [])
-
-    if len(questions) != 10:
-        raise ValueError(f"Expected 10 questions, got {len(questions)}")
-
-    question_texts = [q.get("question_text", "").strip() for q in questions]
-    if len(question_texts) != len(set(question_texts)):
-        raise ValueError("AI generated duplicate questions")
-
-    required_fields = ["question_text", "option_a", "option_b", "option_c", "option_d", "correct_answer", "explanation"]
-    for i, q in enumerate(questions, start=1):
-        missing = [f for f in required_fields if f not in q]
-        if missing:
-            raise ValueError(f"Question {i} missing fields: {missing}")
-        if q["correct_answer"] not in ["A", "B", "C", "D"]:
-            raise ValueError(f"Question {i} has invalid correct_answer: {q['correct_answer']}")
-
-    return questions

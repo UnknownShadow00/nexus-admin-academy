@@ -11,6 +11,7 @@ from app.models.ticket import Ticket
 load_env()
 
 STUDENTS = [
+    ("Admin", "admin@nexus.local"),
     ("Alex", "alex@nexus.local"),
     ("Jordan", "jordan@nexus.local"),
     ("Sam", "sam@nexus.local"),
@@ -267,6 +268,30 @@ def seed_module0_and_methodology(db):
         )
 
 
+def seed_methodology_completions(db):
+    from app.models.progression import StudentMethodologyProgress
+
+    frameworks = db.query(MethodologyFramework).all()
+    students = db.query(Student).all()
+    for student in students:
+        for fw in frameworks:
+            exists = (
+                db.query(StudentMethodologyProgress)
+                .filter_by(student_id=student.id, framework_id=fw.id)
+                .first()
+            )
+            if not exists:
+                db.add(
+                    StudentMethodologyProgress(
+                        student_id=student.id,
+                        framework_id=fw.id,
+                        completed=True,
+                        practice_passed=True,
+                        quiz_score=100,
+                    )
+                )
+
+
 def seed_answer_keys(db, limit: int = 10):
     tickets = db.query(Ticket).limit(limit).all()
     for ticket in tickets:
@@ -326,6 +351,7 @@ def run_seed() -> None:
         seed_default_student_roles(db)
         seed_promotion_gates(db)
         seed_module0_and_methodology(db)
+        seed_methodology_completions(db)
         seed_answer_keys(db, limit=10)
         seed_commands(db)
         db.commit()

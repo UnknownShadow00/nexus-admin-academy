@@ -1,11 +1,10 @@
 import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
-from statistics import mean
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.ai_usage_log import AIUsageLog
@@ -15,24 +14,12 @@ from app.models.evidence import EvidenceArtifact
 from app.models.incident import Incident, IncidentParticipant, IncidentTicket, RCASubmission, RootCause
 from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson, Module
-from app.models.quiz import Question, Quiz, QuizAttempt
 from app.models.progression import MethodologyFramework, PromotionGate, Role
 from app.models.resource import Resource
-from app.models.student import Student
-from app.models.ticket import Ticket, TicketSubmission
-from app.models.xp_ledger import XPLedger
-from app.schemas.quiz import BulkTicketGenerateRequest, QuizGenerateRequest
+from app.models.ticket import Ticket
 from app.schemas.resource import ResourceCreateRequest
-from app.schemas.ticket import ManualReviewRequest, OverrideRequest, TicketCreateRequest
-from app.services.activity_service import get_recent_activity, log_activity
 from app.services.admin_auth import verify_admin
 from app.services.ai_service import ai_health_test
-from app.services.cve_service import fetch_recent_cves, generate_security_ticket_from_cve
-from app.services.mastery_service import record_ticket_mastery_verified
-from app.services.quiz_generator import generate_quiz_from_video
-from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
-from app.services.ticket_generator import generate_ticket_description
-from app.services.xp_service import award_xp
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(verify_admin)])
@@ -204,6 +191,7 @@ def list_lessons(module_id: int | None = None, db: Session = Depends(get_db)):
                 "id": row.id,
                 "module_id": row.module_id,
                 "title": row.title,
+                "video_url": row.video_url,
                 "summary": row.summary,
                 "lesson_order": row.lesson_order,
                 "outcomes": row.outcomes,
@@ -220,6 +208,7 @@ def create_lesson(payload: dict, db: Session = Depends(get_db)):
     row = Lesson(
         module_id=payload.get("module_id"),
         title=payload.get("title"),
+        video_url=payload.get("video_url"),
         summary=payload.get("summary"),
         lesson_order=payload.get("lesson_order"),
         outcomes=payload.get("outcomes") or [],
@@ -230,6 +219,28 @@ def create_lesson(payload: dict, db: Session = Depends(get_db)):
     db.add(row)
     db.commit()
     db.refresh(row)
+    return ok({"lesson_id": row.id})
+
+@router.put("/lessons/{lesson_id}")
+def update_lesson(lesson_id: int, payload: dict, db: Session = Depends(get_db)):
+    row = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    for field in [
+        "module_id",
+        "title",
+        "video_url",
+        "summary",
+        "lesson_order",
+        "outcomes",
+        "estimated_minutes",
+        "required_notes_template",
+        "status",
+    ]:
+        if field in payload:
+            setattr(row, field, payload[field])
+    db.commit()
     return ok({"lesson_id": row.id})
 
 @router.put("/tickets/{ticket_id}/answer-key")

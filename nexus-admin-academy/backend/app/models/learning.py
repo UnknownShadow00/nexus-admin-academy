@@ -30,6 +30,7 @@ class Lesson(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     module_id: Mapped[int] = mapped_column(ForeignKey("modules.id", ondelete="CASCADE"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
+    video_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     lesson_order: Mapped[int] = mapped_column(Integer, nullable=False)
     outcomes: Mapped[list] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=list)
@@ -37,4 +38,3 @@ class Lesson(Base):
     required_notes_template: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-

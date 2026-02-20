@@ -12,7 +12,6 @@ from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
 from app.schemas.ticket import TicketSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
-from app.services.methodology_enforcer import can_access_tickets
 from app.services.ticket_grader import grade_ticket_submission, grade_ticket_with_answer_key
 from app.utils.responses import ok
 
@@ -99,18 +98,6 @@ async def upload_screenshots(files: list[UploadFile] = File(...)):
 
 @router.get("")
 def get_tickets(week_number: int | None = None, student_id: int | None = None, db: Session = Depends(get_db)):
-    if student_id is not None:
-        access_check = can_access_tickets(student_id, db)
-        if not access_check["allowed"]:
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "error": "Complete troubleshooting methodology training first",
-                    "code": "METHODOLOGY_REQUIRED",
-                    "missing_frameworks": access_check["missing_frameworks"],
-                },
-            )
-
     query = db.query(Ticket)
     if week_number is not None:
         query = query.filter(Ticket.week_number == week_number)
@@ -175,17 +162,6 @@ def get_ticket_details(ticket_id: int, db: Session = Depends(get_db)):
 @router.post("/{ticket_id}/submit")
 async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Session = Depends(get_db)):
     student_id = payload.student_id
-    access_check = can_access_tickets(student_id, db)
-    if not access_check["allowed"]:
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "error": "Complete troubleshooting methodology training first",
-                "code": "METHODOLOGY_REQUIRED",
-                "missing_frameworks": access_check["missing_frameworks"],
-            },
-        )
-
     collaborators = _validate_collaborators(db, student_id, payload.collaborator_ids or [])
     duration_minutes = payload.duration_minutes
 

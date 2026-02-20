@@ -10,7 +10,9 @@ class Quiz(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_urls: Mapped[list | None] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    question_count: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
     week_number: Mapped[int] = mapped_column(Integer, nullable=False)
     domain_id: Mapped[str] = mapped_column(String(10), nullable=False, default="1.0", index=True)
     lesson_id: Mapped[int | None] = mapped_column(ForeignKey("lessons.id", ondelete="SET NULL"), nullable=True, index=True)

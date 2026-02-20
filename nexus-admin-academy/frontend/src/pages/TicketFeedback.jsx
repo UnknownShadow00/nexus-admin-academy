@@ -56,7 +56,7 @@ export default function TicketFeedback() {
         </div>
 
         {!submission.xp_granted && (
-          <div className="mb-6 rounded border border-amber-300 bg-amber-50 p-4 text-amber-800">
+          <div className="mb-6 rounded border border-amber-300 bg-amber-50 p-4 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
             Awaiting instructor verification. XP and mastery update after proof is verified.
           </div>
         )}
@@ -89,11 +89,11 @@ export default function TicketFeedback() {
           <div className="mb-6">
             <div className="mb-3 flex items-center gap-2">
               <CheckCircle className="text-green-600" size={24} />
-              <h2 className="text-xl font-bold text-green-900">Strengths</h2>
+              <h2 className="text-xl font-bold text-green-900 dark:text-green-300">Strengths</h2>
             </div>
             <ul className="space-y-2">
               {feedback.strengths.map((strength, i) => (
-                <li key={i} className="flex items-start gap-2 rounded bg-green-50 p-3">
+                <li key={i} className="flex items-start gap-2 rounded bg-green-50 p-3 dark:bg-green-950/30">
                   <span className="mt-1 text-green-600">+</span>
                   <span>{strength}</span>
                 </li>
@@ -106,11 +106,11 @@ export default function TicketFeedback() {
           <div className="mb-6">
             <div className="mb-3 flex items-center gap-2">
               <AlertCircle className="text-orange-600" size={24} />
-              <h2 className="text-xl font-bold text-orange-900">Areas to Improve</h2>
+              <h2 className="text-xl font-bold text-orange-900 dark:text-orange-300">Areas to Improve</h2>
             </div>
             <ul className="space-y-2">
               {feedback.weaknesses.map((weakness, i) => (
-                <li key={i} className="flex items-start gap-2 rounded bg-orange-50 p-3">
+                <li key={i} className="flex items-start gap-2 rounded bg-orange-50 p-3 dark:bg-orange-950/30">
                   <span className="mt-1 text-orange-600">!</span>
                   <span>{weakness}</span>
                 </li>
@@ -123,10 +123,10 @@ export default function TicketFeedback() {
           <div className="mb-6">
             <div className="mb-3 flex items-center gap-2">
               <MessageSquare className="text-blue-600" size={24} />
-              <h2 className="text-xl font-bold text-blue-900">Detailed Feedback</h2>
+              <h2 className="text-xl font-bold text-blue-900 dark:text-blue-300">Detailed Feedback</h2>
             </div>
-            <div className="rounded bg-blue-50 p-4">
-              <p className="whitespace-pre-wrap text-slate-800">{feedback.feedback}</p>
+            <div className="rounded bg-blue-50 p-4 dark:bg-blue-950/30">
+              <p className="whitespace-pre-wrap text-slate-800 dark:text-slate-200">{feedback.feedback}</p>
             </div>
           </div>
         )}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { BookOpen } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import EmptyState from "../components/EmptyState";
@@ -45,16 +46,19 @@ export default function QuizzesPage() {
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="panel"><Skeleton height={22} /><Skeleton count={4} /></div>)}</div>
       ) : filtered.length === 0 ? (
-        <EmptyState icon="??" title="No quizzes available yet" message="Check back after your instructor creates content for this week" />
+        <EmptyState icon={<BookOpen size={40} className="text-slate-300" />} title="No quizzes yet" message="Your instructor hasn't created quizzes for this week yet." />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((quiz) => (
             <article key={quiz.id} className={`panel ${quiz.status === "completed" ? "border-green-300" : "border-slate-200"} dark:bg-slate-900 dark:border-slate-700`}>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{quiz.title}</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-300">Week {quiz.week_number} ? {quiz.question_count} questions</p>
+              <div className="mb-2 flex items-center gap-2">
+                <BookOpen size={18} className="text-blue-600" />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{quiz.title}</h3>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Week {quiz.week_number} · {quiz.video_count || 1} videos · {quiz.question_count} questions</p>
               {quiz.status === "completed" ? (
                 <div className="mt-2 text-sm text-green-700 dark:text-green-300">
-                  <p>Best: {quiz.best_score}/10</p>
+                  <p>Attempted {quiz.attempt_count || 1} {quiz.attempt_count === 1 ? "time" : "times"} · Best: {quiz.best_score}/10</p>
                   <p>First Attempt XP: {quiz.first_attempt_xp}</p>
                   <p className="text-xs">Retakes allowed (no extra XP).</p>
                 </div>

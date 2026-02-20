@@ -54,7 +54,11 @@ async function request(clientCall) {
 }
 
 export const getDashboard = (studentId) => request(() => api.get(`/api/students/${studentId}/dashboard`));
-export const getStudentStats = (studentId) => request(() => api.get(`/api/students/${studentId}/stats`));
+export const getStudentStats = async (studentId) => {
+  const res = await request(() => api.get(`/api/students/${studentId}/stats`));
+  if (res?.data) return res;
+  return { ...res, data: res };
+};
 export const checkInStudent = (studentId) => request(() => api.post(`/api/students/${studentId}/check-in`));
 export const getCertReadiness = (studentId) => request(() => api.get(`/api/students/${studentId}/certification-readiness`));
 export const getStudents = () => request(() => api.get("/api/students"));
@@ -63,7 +67,7 @@ export const getLearningPath = (studentId) => request(() => api.get(`/api/studen
 export const getPromotionStatus = (studentId) => request(() => api.get(`/api/students/${studentId}/promotion-status`));
 
 export const getQuizzes = (weekNumber, studentId = currentStudentId()) => request(() => api.get("/api/quizzes", { params: { week_number: weekNumber, student_id: studentId } }));
-export const getQuiz = (quizId) => request(() => api.get(`/api/quizzes/${quizId}`));
+export const getQuiz = (quizId, studentId = currentStudentId()) => request(() => api.get(`/api/quizzes/${quizId}`, { params: { student_id: studentId } }));
 export const submitQuiz = (quizId, payload) => request(() => api.post(`/api/quizzes/${quizId}/submit`, payload));
 
 export const getTickets = (weekNumber, studentId = currentStudentId()) => request(() => api.get("/api/tickets", { params: { week_number: weekNumber, student_id: studentId } }));
@@ -92,6 +96,8 @@ export const adminSessionLogin = (adminKey) => request(() => api.post("/api/admi
 export const adminSessionLogout = () => request(() => api.post("/api/admin/session/logout"));
 
 export const generateQuiz = (payload) => request(() => adminApi.post("/api/admin/quiz/generate", payload));
+export const getQuizList = () => request(() => adminApi.get("/api/admin/quizzes"));
+export const deleteQuiz = (id) => request(() => adminApi.delete(`/api/admin/quizzes/${id}`));
 export const createTicket = (payload) => request(() => adminApi.post("/api/admin/tickets", payload));
 export const getSubmissions = () => request(() => adminApi.get("/api/admin/submissions"));
 export const getSubmissionDetail = (id) => request(() => adminApi.get(`/api/admin/submissions/${id}`));
@@ -104,8 +110,12 @@ export const deleteResource = (id) => request(() => adminApi.delete(`/api/admin/
 export const getReviewQueue = () => request(() => adminApi.get("/api/admin/review"));
 export const getStudentsOverview = () => request(() => adminApi.get("/api/admin/students/overview"));
 export const getStudentActivity = (id) => request(() => adminApi.get(`/api/admin/students/${id}/activity`));
+export const createStudent = (payload) => request(() => adminApi.post("/api/admin/students", payload));
+export const updateStudent = (id, payload) => request(() => adminApi.put(`/api/admin/students/${id}`, payload));
+export const deleteStudent = (id) => request(() => adminApi.delete(`/api/admin/students/${id}`));
 export const bulkGenerateTickets = (payload) => request(() => adminApi.post("/api/admin/tickets/bulk-generate", payload));
 export const bulkPublishTickets = (payload) => request(() => adminApi.post("/api/admin/tickets/bulk-publish", payload));
+export const getAIUsageStats = () => request(() => adminApi.get("/api/admin/ai-usage"));
 export const recomputeWeeklyLeads = () => request(() => adminApi.post("/api/admin/weekly-domain-leads/recompute"));
 export const getWeeklyLeads = () => request(() => adminApi.get("/api/admin/weekly-domain-leads"));
 export const getRecentCVEs = (keyword = "windows") => request(() => adminApi.get("/api/admin/cve/recent", { params: { keyword } }));
@@ -115,6 +125,7 @@ export const createModule = (payload) => request(() => adminApi.post("/api/admin
 export const updateModule = (id, payload) => request(() => adminApi.put(`/api/admin/modules/${id}`, payload));
 export const getLessons = (moduleId) => request(() => adminApi.get("/api/admin/lessons", { params: { module_id: moduleId } }));
 export const createLesson = (payload) => request(() => adminApi.post("/api/admin/lessons", payload));
+export const updateLesson = (id, payload) => request(() => adminApi.put(`/api/admin/lessons/${id}`, payload));
 export const getEvidence = (status) => request(() => adminApi.get("/api/admin/evidence", { params: { status } }));
 export const reviewEvidence = (id, payload) => request(() => adminApi.put(`/api/admin/evidence/${id}`, payload));
 export const updateTicketAnswerKey = (ticketId, payload) => request(() => adminApi.put(`/api/admin/tickets/${ticketId}/answer-key`, payload));

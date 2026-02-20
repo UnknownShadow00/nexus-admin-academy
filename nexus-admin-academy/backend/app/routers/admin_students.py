@@ -1,43 +1,32 @@
-import logging
-from datetime import datetime, timedelta
-from decimal import Decimal
+﻿import logging
 from statistics import mean
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func
-from sqlalchemy.orm import Session, selectinload
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.ai_usage_log import AIUsageLog
-from app.models.capstone import CapstoneRun, CapstoneTemplate
-from app.models.command_reference import CommandReference
-from app.models.evidence import EvidenceArtifact
-from app.models.incident import Incident, IncidentParticipant, IncidentTicket, RCASubmission, RootCause
-from app.models.lab import LabRun, LabTemplate
-from app.models.learning import Lesson, Module
-from app.models.quiz import Question, Quiz, QuizAttempt
-from app.models.progression import MethodologyFramework, PromotionGate, Role
-from app.models.resource import Resource
+from app.models.quiz import Quiz, QuizAttempt
 from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
 from app.models.xp_ledger import XPLedger
-from app.schemas.quiz import BulkTicketGenerateRequest, QuizGenerateRequest
-from app.schemas.resource import ResourceCreateRequest
-from app.schemas.ticket import ManualReviewRequest, OverrideRequest, TicketCreateRequest
-from app.services.activity_service import get_recent_activity, log_activity
+from app.services.activity_service import get_recent_activity
 from app.services.admin_auth import verify_admin
-from app.services.ai_service import ai_health_test
-from app.services.cve_service import fetch_recent_cves, generate_security_ticket_from_cve
-from app.services.mastery_service import record_ticket_mastery_verified
-from app.services.quiz_generator import generate_quiz_from_video
-from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
-from app.services.ticket_generator import generate_ticket_description
-from app.services.xp_service import award_xp
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(verify_admin)])
 logger = logging.getLogger(__name__)
 
+
+class StudentCreateRequest(BaseModel):
+    name: str
+    email: str
+
+
+class StudentUpdateRequest(BaseModel):
+    name: str | None = None
+    email: str | None = None
+    admin_notes: str | None = None
 
 
 @router.get("/students/overview")
@@ -55,6 +44,8 @@ def student_overview(db: Session = Depends(get_db)):
                 "rank": rank,
                 "student_id": student.id,
                 "name": student.name,
+                "email": student.email,
+                "admin_notes": student.admin_notes,
                 "xp": student.total_xp,
                 "quiz_done": len(quiz_attempts),
                 "quiz_total": total_quizzes,
@@ -65,6 +56,7 @@ def student_overview(db: Session = Depends(get_db)):
             }
         )
     return ok(data, total=len(data), page=1, per_page=len(data) or 1)
+
 
 @router.get("/students/{student_id}/activity")
 def student_activity(student_id: int, db: Session = Depends(get_db)):
@@ -90,15 +82,66 @@ def student_activity(student_id: int, db: Session = Depends(get_db)):
         }
     )
 
-@router.post("/weekly-domain-leads/recompute")
-def recompute_leads(db: Session = Depends(get_db)):
-    created = recompute_weekly_domain_leads(db)
-    return ok(created, total=len(created), page=1, per_page=len(created) or 1)
 
-@router.get("/weekly-domain-leads")
-def list_weekly_leads(week_key: str | None = None, db: Session = Depends(get_db)):
-    leads = get_weekly_domain_leads(db, week_key=week_key)
-    return ok(leads, total=len(leads), page=1, per_page=len(leads) or 1)
+@router.post("/students")
+def create_student(payload: StudentCreateRequest, db: Session = Depends(get_db)):
+    existing = db.query(Student).filter(Student.email == payload.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="A student with this email already exists")
+
+    student = Student(name=payload.name, email=payload.email, total_xp=0)
+    db.add(student)
+    db.flush()
+
+    from app.models.progression import MethodologyFramework, Role, StudentMethodologyProgress
+
+    first_role = db.query(Role).filter(Role.rank_order == 1).first()
+    if first_role:
+        student.current_role_id = first_role.id
+
+    for fw in db.query(MethodologyFramework).all():
+        db.add(
+            StudentMethodologyProgress(
+                student_id=student.id,
+                framework_id=fw.id,
+                completed=True,
+                practice_passed=True,
+                quiz_score=100,
+            )
+        )
+
+    db.commit()
+    db.refresh(student)
+    return ok({"student_id": student.id, "name": student.name, "email": student.email})
+
+
+@router.put("/students/{student_id}")
+def update_student(student_id: int, payload: StudentUpdateRequest, db: Session = Depends(get_db)):
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    if payload.name is not None:
+        student.name = payload.name
+    if payload.email is not None:
+        student.email = payload.email
+    if payload.admin_notes is not None:
+        student.admin_notes = payload.admin_notes
+
+    db.commit()
+    return ok({"student_id": student.id})
+
+
+@router.delete("/students/{student_id}")
+def delete_student(student_id: int, db: Session = Depends(get_db)):
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    db.delete(student)
+    db.commit()
+    return ok({"deleted": True})
+
 
 @router.get("/squad/activity")
 def admin_squad_activity(limit: int = 30, db: Session = Depends(get_db)):

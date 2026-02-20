@@ -4,18 +4,38 @@ import { getReviewQueue, overrideSubmission, rejectProof, verifyProof } from "..
 
 export default function AdminReviewPage() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [score, setScore] = useState(10);
   const [comment, setComment] = useState("");
 
   const load = async () => {
+    setLoading(true);
     const res = await getReviewQueue();
     setItems(res.data || []);
+    setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
 
+  if (loading) {
+    return (
+      <main className="mx-auto max-w-6xl p-6">
+        <div className="grid gap-4 md:grid-cols-2">
+          {[1, 2, 3].map((id) => (
+            <div key={id} className="panel animate-pulse dark:border-slate-700 dark:bg-slate-900">
+              <div className="h-5 w-2/3 rounded bg-slate-200 dark:bg-slate-700" />
+              <div className="mt-3 h-3 w-full rounded bg-slate-100 dark:bg-slate-800" />
+              <div className="mt-2 h-3 w-4/5 rounded bg-slate-100 dark:bg-slate-800" />
+              <div className="mt-4 h-9 w-full rounded bg-slate-200 dark:bg-slate-700" />
+            </div>
+          ))}
+        </div>
+      </main>
+    );
+  }
+
   if (!items.length) {
-    return <main className="mx-auto max-w-6xl p-6"><EmptyState icon="??" title="No submissions yet" message="Student work will appear here after they complete tickets" /></main>;
+    return <main className="mx-auto max-w-6xl p-6"><EmptyState icon="📝" title="No submissions yet" message="Student work will appear here after they complete tickets" /></main>;
   }
 
   return (

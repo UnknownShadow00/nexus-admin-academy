@@ -1,11 +1,12 @@
 ﻿import { Moon, Sun } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, Route, Routes, useLocation } from "react-router-dom";
+import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
 import AdminAccessGate from "./components/AdminAccessGate";
 import { useDarkMode } from "./hooks/useDarkMode";
 import AdminHome from "./pages/AdminHome";
 import AdminReviewPage from "./pages/AdminReviewPage";
 import AdminStudentsPage from "./pages/AdminStudentsPage";
+import AICostDashboard from "./pages/admin/AICostDashboard";
 import LearningPath from "./pages/LearningPath";
 import ModuleManager from "./pages/ModuleManager";
 import QuizPage from "./pages/QuizPage";
@@ -32,6 +33,7 @@ const adminNavItems = [
   { to: "/admin/review", label: "Review Tickets" },
   { to: "/admin/students", label: "Students" },
   { to: "/admin/modules", label: "Modules" },
+  { to: "/admin/ai-costs", label: "AI Costs" },
 ];
 
 export default function App() {
@@ -52,7 +54,7 @@ export default function App() {
     const run = async () => {
       try {
         const res = await getStudentStats(studentId);
-        setXp(res.total_xp || 0);
+        setXp(res.data?.total_xp || 0);
       } catch {
         setXp(0);
       }
@@ -103,12 +105,23 @@ export default function App() {
           <div className="mr-4 text-lg font-bold">Nexus Admin Academy</div>
           <nav className="flex flex-wrap items-center gap-2">
             {navItems.map((item) => (
-              <Link key={item.to} to={item.to} className="rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100">
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/"}
+                className={({ isActive }) =>
+                  `rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                  }`
+                }
+              >
                 {item.label}
                 {!isAdminRoute && item.to === "/tickets" && hasTicketFeedback ? (
-                  <span className="ml-2 inline-flex h-2.5 w-2.5 rounded-full bg-orange-500" title="New feedback" />
+                  <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-orange-400" title="New feedback" />
                 ) : null}
-              </Link>
+              </NavLink>
             ))}
           </nav>
 
@@ -172,6 +185,7 @@ export default function App() {
         <Route path="/admin/review" element={<AdminAccessGate><AdminReviewPage /></AdminAccessGate>} />
         <Route path="/admin/students" element={<AdminAccessGate><AdminStudentsPage /></AdminAccessGate>} />
         <Route path="/admin/modules" element={<AdminAccessGate><ModuleManager /></AdminAccessGate>} />
+        <Route path="/admin/ai-costs" element={<AdminAccessGate><AICostDashboard /></AdminAccessGate>} />
       </Routes>
     </div>
   );

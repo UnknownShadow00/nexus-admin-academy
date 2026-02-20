@@ -1,4 +1,4 @@
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -11,6 +11,7 @@ class Student(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     total_xp: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    admin_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     current_role_id: Mapped[int | None] = mapped_column(ForeignKey("roles.id", ondelete="SET NULL"), nullable=True)
     role_since: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_active_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)

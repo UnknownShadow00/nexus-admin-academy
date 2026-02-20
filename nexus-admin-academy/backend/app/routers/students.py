@@ -401,6 +401,7 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db)):
                 {
                     "id": lesson.id,
                     "title": lesson.title,
+                    "video_url": lesson.video_url,
                     "summary": lesson.summary,
                     "lesson_order": lesson.lesson_order,
                     "completion_percent": completion_percent,
