@@ -15,6 +15,8 @@ OBJECTIVES_PATH = Path(__file__).resolve().parents[1] / "data" / "comptia_object
 
 
 def extract_video_id(url: str) -> str:
+    # Strip common timestamp params before parsing.
+    url = url.split("&t=")[0].split("?t=")[0]
     patterns = [
         r'(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)',
         r'youtube\.com\/embed\/([^&\n?#]+)',
@@ -25,6 +27,39 @@ def extract_video_id(url: str) -> str:
         if match:
             return match.group(1)
     raise ValueError("Invalid YouTube URL format")
+
+
+def get_transcript_with_fallback(video_id: str) -> list[dict]:
+    """
+    Try multiple strategies to get a transcript.
+    Raises ValueError with a clear user-facing message if all fail.
+    """
+    try:
+        return YouTubeTranscriptApi.get_transcript(video_id)
+    except Exception:
+        pass
+
+    try:
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        for transcript in transcript_list:
+            try:
+                return transcript.fetch()
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    for lang in ["en", "en-US", "en-GB", "a.en"]:
+        try:
+            return YouTubeTranscriptApi.get_transcript(video_id, languages=[lang])
+        except Exception:
+            continue
+
+    raise ValueError(
+        "Could not retrieve transcript for this video. "
+        "Make sure the video has captions enabled. "
+        f"Video ID: {video_id}"
+    )
 
 
 def chunk_transcript(transcript_text: str, max_length: int = 10000) -> str:
@@ -68,7 +103,7 @@ async def generate_quiz_from_videos(
         cleaned_url = url.strip()
         video_id = extract_video_id(cleaned_url)
         try:
-            data = YouTubeTranscriptApi.get_transcript(video_id)
+            data = get_transcript_with_fallback(video_id)
         except Exception as exc:
             logger.exception("transcript_extraction_failed video_url=%s video_id=%s", cleaned_url, video_id)
             raise ValueError(f"Could not get transcript for {cleaned_url}: {exc}") from exc

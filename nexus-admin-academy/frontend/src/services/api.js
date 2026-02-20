@@ -98,6 +98,8 @@ export const adminSessionLogout = () => request(() => api.post("/api/admin/sessi
 export const generateQuiz = (payload) => request(() => adminApi.post("/api/admin/quiz/generate", payload));
 export const getQuizList = () => request(() => adminApi.get("/api/admin/quizzes"));
 export const deleteQuiz = (id) => request(() => adminApi.delete(`/api/admin/quizzes/${id}`));
+export const scrapeQuizPreview = (url) => request(() => adminApi.post("/api/admin/quiz/scrape-preview", { url }));
+export const scrapeQuizSave = (payload) => request(() => adminApi.post("/api/admin/quiz/scrape-save", payload));
 export const createTicket = (payload) => request(() => adminApi.post("/api/admin/tickets", payload));
 export const getSubmissions = () => request(() => adminApi.get("/api/admin/submissions"));
 export const getSubmissionDetail = (id) => request(() => adminApi.get(`/api/admin/submissions/${id}`));
