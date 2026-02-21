@@ -68,6 +68,7 @@ export const getPromotionStatus = (studentId) => request(() => api.get(`/api/stu
 
 export const getQuizzes = (weekNumber, studentId = currentStudentId()) => request(() => api.get("/api/quizzes", { params: { week_number: weekNumber, student_id: studentId } }));
 export const getQuiz = (quizId, studentId = currentStudentId()) => request(() => api.get(`/api/quizzes/${quizId}`, { params: { student_id: studentId } }));
+export const getQuizReview = (quizId, studentId = currentStudentId()) => request(() => api.get(`/api/quizzes/${quizId}/review/${studentId}`));
 export const submitQuiz = (quizId, payload) => request(() => api.post(`/api/quizzes/${quizId}/submit`, payload));
 
 export const getTickets = (weekNumber, studentId = currentStudentId()) => request(() => api.get("/api/tickets", { params: { week_number: weekNumber, student_id: studentId } }));
@@ -100,6 +101,9 @@ export const getQuizList = () => request(() => adminApi.get("/api/admin/quizzes"
 export const deleteQuiz = (id) => request(() => adminApi.delete(`/api/admin/quizzes/${id}`));
 export const scrapeQuizPreview = (url) => request(() => adminApi.post("/api/admin/quiz/scrape-preview", { url }));
 export const scrapeQuizSave = (payload) => request(() => adminApi.post("/api/admin/quiz/scrape-save", payload));
+export const bookmarkletImport = (payload) => request(() => adminApi.post("/api/admin/quiz/bookmarklet-import", payload));
+export const getQuizQuestions = (quizId) => request(() => adminApi.get(`/api/admin/quizzes/${quizId}/questions`));
+export const updateQuestion = (questionId, payload) => request(() => adminApi.put(`/api/admin/questions/${questionId}`, payload));
 export const createTicket = (payload) => request(() => adminApi.post("/api/admin/tickets", payload));
 export const getSubmissions = () => request(() => adminApi.get("/api/admin/submissions"));
 export const getSubmissionDetail = (id) => request(() => adminApi.get(`/api/admin/submissions/${id}`));

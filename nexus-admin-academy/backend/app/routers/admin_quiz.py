@@ -144,3 +144,105 @@ async def scrape_quiz_save(payload: dict, db: Session = Depends(get_db)):
 
     db.commit()
     return ok({"quiz_id": quiz.id, "question_count": saved_count, "title": quiz.title})
+
+
+@router.post("/quiz/bookmarklet-import")
+async def bookmarklet_import(payload: dict, db: Session = Depends(get_db)):
+    """
+    Receives questions extracted by the bookmarklet running in the user's browser.
+    Payload: { title, source_url, week_number, lesson_id, questions: [...] }
+    """
+    questions = payload.get("questions", [])
+    if not questions:
+        raise HTTPException(status_code=400, detail="No questions received")
+
+    title = (payload.get("title", "ExamCompass Import") or "").strip() or "ExamCompass Import"
+    source_url = payload.get("source_url", "")
+
+    quiz = Quiz(
+        title=title,
+        source_url=source_url,
+        source_urls=[source_url] if source_url else [],
+        week_number=int(payload.get("week_number", 1)),
+        question_count=len(questions),
+        lesson_id=payload.get("lesson_id") or None,
+        domain_id=payload.get("domain_id", "1.0"),
+    )
+    db.add(quiz)
+    db.flush()
+
+    saved = 0
+    for question in questions:
+        if not question.get("question_text") or not question.get("option_a"):
+            continue
+        all_correct = question.get("all_correct_answers", [])
+        if isinstance(all_correct, str):
+            all_correct = [item.strip() for item in all_correct.split(",") if item.strip()]
+
+        primary = all_correct[0] if all_correct else question.get("correct_answer", "A")
+        if primary not in ["A", "B", "C", "D", "E"]:
+            primary = "A"
+        if primary == "E" and not question.get("option_e"):
+            primary = "A"
+
+        correct_answers_str = ",".join(all_correct) if len(all_correct) > 1 else None
+        db.add(
+            Question(
+                quiz_id=quiz.id,
+                question_text=question["question_text"],
+                option_a=question["option_a"],
+                option_b=question.get("option_b", ""),
+                option_c=question.get("option_c", ""),
+                option_d=question.get("option_d", ""),
+                correct_answer=primary,
+                correct_answers=correct_answers_str,
+                explanation=question.get("explanation", ""),
+            )
+        )
+        saved += 1
+
+    db.commit()
+    logger.info("bookmarklet_import quiz_id=%s questions=%s title=%s", quiz.id, saved, title)
+    return ok({"quiz_id": quiz.id, "question_count": saved, "title": title})
+
+
+@router.get("/quizzes/{quiz_id}/questions")
+def get_quiz_questions(quiz_id: int, db: Session = Depends(get_db)):
+    quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    questions = db.query(Question).filter(Question.quiz_id == quiz_id).order_by(Question.id.asc()).all()
+    return ok(
+        {
+            "quiz_id": quiz.id,
+            "title": quiz.title,
+            "questions": [
+                {
+                    "id": question.id,
+                    "question_text": question.question_text,
+                    "option_a": question.option_a,
+                    "option_b": question.option_b,
+                    "option_c": question.option_c,
+                    "option_d": question.option_d,
+                    "correct_answer": question.correct_answer,
+                    "correct_answers": question.correct_answers,
+                    "explanation": question.explanation or "",
+                }
+                for question in questions
+            ],
+        }
+    )
+
+
+@router.put("/questions/{question_id}")
+def update_question(question_id: int, payload: dict, db: Session = Depends(get_db)):
+    question = db.query(Question).filter(Question.id == question_id).first()
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+
+    for field in ["correct_answer", "correct_answers", "explanation", "question_text", "option_a", "option_b", "option_c", "option_d"]:
+        if field in payload:
+            setattr(question, field, payload[field])
+    db.commit()
+    return ok({"updated": True})

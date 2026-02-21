@@ -73,7 +73,16 @@ export default function QuizzesPage() {
               ) : (
                 <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Not started</p>
               )}
-              <Link className="btn-primary mt-3 w-full" to={`/quizzes/${quiz.id}`}>{quiz.status === "completed" ? "Retake Quiz" : "Take Quiz"}</Link>
+              <div className="mt-3 space-y-2">
+                {quiz.status === "completed" ? (
+                  <Link className="btn-secondary block w-full text-center" to={`/quizzes/${quiz.id}/review`}>
+                    Review Last Attempt
+                  </Link>
+                ) : null}
+                <Link className="btn-primary block w-full text-center" to={`/quizzes/${quiz.id}`}>
+                  {quiz.status === "completed" ? "Retake Quiz" : "Take Quiz"}
+                </Link>
+              </div>
             </article>
           ))}
         </div>

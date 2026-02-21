@@ -7,9 +7,12 @@ import AdminHome from "./pages/AdminHome";
 import AdminReviewPage from "./pages/AdminReviewPage";
 import AdminStudentsPage from "./pages/AdminStudentsPage";
 import AICostDashboard from "./pages/admin/AICostDashboard";
+import BookmarkletPage from "./pages/admin/BookmarkletPage";
+import QuizEditorPage from "./pages/admin/QuizEditorPage";
 import LearningPath from "./pages/LearningPath";
 import ModuleManager from "./pages/ModuleManager";
 import QuizPage from "./pages/QuizPage";
+import QuizReviewPage from "./pages/QuizReviewPage";
 import QuizzesPage from "./pages/QuizzesPage";
 import SelectProfile from "./pages/SelectProfile";
 import StudentHome from "./pages/StudentHome";
@@ -33,6 +36,7 @@ const adminNavItems = [
   { to: "/admin/review", label: "Review Tickets" },
   { to: "/admin/students", label: "Students" },
   { to: "/admin/modules", label: "Modules" },
+  { to: "/admin/bookmarklet", label: "ExamCompass Import" },
   { to: "/admin/ai-costs", label: "AI Costs" },
 ];
 
@@ -176,6 +180,7 @@ export default function App() {
         <Route path="/learning-path" element={<LearningPath />} />
         <Route path="/quizzes" element={<QuizzesPage />} />
         <Route path="/quizzes/:quizId" element={<QuizPage />} />
+        <Route path="/quizzes/:quizId/review" element={<QuizReviewPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
         <Route path="/tickets/:ticketId" element={<TicketPage />} />
         <Route path="/tickets/:submissionId/feedback" element={<TicketFeedback />} />
@@ -185,6 +190,8 @@ export default function App() {
         <Route path="/admin/review" element={<AdminAccessGate><AdminReviewPage /></AdminAccessGate>} />
         <Route path="/admin/students" element={<AdminAccessGate><AdminStudentsPage /></AdminAccessGate>} />
         <Route path="/admin/modules" element={<AdminAccessGate><ModuleManager /></AdminAccessGate>} />
+        <Route path="/admin/bookmarklet" element={<AdminAccessGate><BookmarkletPage /></AdminAccessGate>} />
+        <Route path="/admin/quizzes/:quizId/edit" element={<AdminAccessGate><QuizEditorPage /></AdminAccessGate>} />
         <Route path="/admin/ai-costs" element={<AdminAccessGate><AICostDashboard /></AdminAccessGate>} />
       </Routes>
     </div>

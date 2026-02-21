@@ -174,8 +174,8 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
 
     for i, question in enumerate(questions, start=1):
         student_answer = answers.get(str(i)) or answers.get(str(question.id))
-        correct_answer = question.correct_answer
-        is_correct = student_answer == correct_answer
+        correct_letters = question.all_correct_answers
+        is_correct = student_answer in correct_letters
         if is_correct:
             correct_count += 1
 
@@ -185,9 +185,11 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
                 "question_number": i,
                 "question_text": question.question_text,
                 "student_answer": student_answer,
-                "correct_answer": correct_answer,
+                "correct_answer": question.correct_answer,
+                "correct_answers": question.all_correct_answers,
+                "is_multi_select": question.is_multi_select,
                 "is_correct": is_correct,
-                "explanation": question.explanation,
+                "explanation": question.explanation or "",
                 "options": {
                     "A": question.option_a,
                     "B": question.option_b,
@@ -208,6 +210,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
             student_id=student_id,
             quiz_id=quiz_id,
             answers=answers,
+            results=results,
             score=score,
             xp_awarded=xp_awarded,
             best_score=score,
@@ -229,6 +232,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
         log_activity(db, student_id, "quiz_passed", quiz.title, f"Score {score}/{total_questions}")
     else:
         existing.answers = answers
+        existing.results = results
         existing.score = score
         existing.best_score = max(existing.best_score or 0, score)
         db.commit()
@@ -244,5 +248,99 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
             "is_first_attempt": is_first_attempt,
             "results": results,
             "message": "Great work!" if is_first_attempt else "Score updated (no XP for retakes)",
+        }
+    )
+
+
+@router.get("/{quiz_id}/review/{student_id}")
+def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)):
+    """Returns the student's last attempt results for review."""
+    attempt = (
+        db.query(QuizAttempt)
+        .filter(QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == student_id)
+        .first()
+    )
+    if not attempt:
+        raise HTTPException(status_code=404, detail="No attempt found for this quiz")
+
+    quiz = db.query(Quiz).options(selectinload(Quiz.questions)).filter(Quiz.id == quiz_id).first()
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    if attempt.results:
+        return ok(
+            {
+                "quiz_id": quiz_id,
+                "title": quiz.title,
+                "score": attempt.score,
+                "total": len(quiz.questions),
+                "xp_awarded": attempt.xp_awarded,
+                "is_first_attempt": (attempt.first_attempt_xp or 0) > 0,
+                "results": attempt.results,
+                "questions": [
+                    {
+                        "id": q.id,
+                        "question_text": q.question_text,
+                        "option_a": q.option_a,
+                        "option_b": q.option_b,
+                        "option_c": q.option_c,
+                        "option_d": q.option_d,
+                        "correct_answer": q.correct_answer,
+                        "correct_answers": q.all_correct_answers,
+                        "explanation": q.explanation or "",
+                    }
+                    for q in sorted(quiz.questions, key=lambda x: x.id)
+                ],
+            }
+        )
+
+    stored_answers = attempt.answers or {}
+    questions = sorted(quiz.questions, key=lambda q: q.id)
+    results = []
+    for i, question in enumerate(questions, start=1):
+        student_answer = stored_answers.get(str(i)) or stored_answers.get(str(question.id))
+        results.append(
+            {
+                "question_id": question.id,
+                "question_number": i,
+                "question_text": question.question_text,
+                "student_answer": student_answer,
+                "correct_answer": question.correct_answer,
+                "correct_answers": question.all_correct_answers,
+                "is_multi_select": question.is_multi_select,
+                "is_correct": student_answer in question.all_correct_answers,
+                "explanation": question.explanation or "",
+                "options": {
+                    "A": question.option_a,
+                    "B": question.option_b,
+                    "C": question.option_c,
+                    "D": question.option_d,
+                },
+            }
+        )
+
+    return ok(
+        {
+            "quiz_id": quiz_id,
+            "title": quiz.title,
+            "score": attempt.score,
+            "total": len(questions),
+            "xp_awarded": attempt.xp_awarded,
+            "is_first_attempt": False,
+            "results": results,
+            "questions": [
+                {
+                    "id": q.id,
+                    "question_text": q.question_text,
+                    "option_a": q.option_a,
+                    "option_b": q.option_b,
+                    "option_c": q.option_c,
+                    "option_d": q.option_d,
+                    "correct_answer": q.correct_answer,
+                    "correct_answers": q.all_correct_answers,
+                    "explanation": q.explanation or "",
+                }
+                for q in questions
+            ],
         }
     )

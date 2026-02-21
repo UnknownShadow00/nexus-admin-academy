@@ -65,7 +65,11 @@ def seed_students() -> None:
 
 def _cors_origins() -> list[str]:
     raw = os.getenv("CORS_ORIGINS") or os.getenv("FRONTEND_URL") or "http://localhost:5173"
-    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+    origins = [origin.strip() for origin in raw.split(",") if origin.strip()]
+    for origin in ["https://www.examcompass.com", "https://examcompass.com"]:
+        if origin not in origins:
+            origins.append(origin)
+    return origins
 
 
 @asynccontextmanager

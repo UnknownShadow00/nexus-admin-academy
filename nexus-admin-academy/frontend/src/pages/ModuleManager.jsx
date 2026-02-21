@@ -1,4 +1,5 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import Papa from "papaparse";
 import {
   createAdminCommand,
@@ -438,13 +439,18 @@ export default function ModuleManager() {
                   <p className="font-medium">Week {quiz.week_number} - {quiz.title} ({quiz.question_count} questions)</p>
                   <p className="text-xs text-slate-500">created {quiz.created_at ? new Date(quiz.created_at).toLocaleDateString() : "-"}</p>
                 </div>
-                <button className="btn-secondary" onClick={async () => {
-                  if (!window.confirm("Delete this quiz?")) return;
-                  await deleteQuiz(quiz.id);
-                  await loadRecentQuizzes();
-                }}>
-                  Delete
-                </button>
+                <div className="flex items-center gap-2">
+                  <Link to={`/admin/quizzes/${quiz.id}/edit`} className="btn-secondary text-xs">
+                    Edit Answers
+                  </Link>
+                  <button className="btn-secondary" onClick={async () => {
+                    if (!window.confirm("Delete this quiz?")) return;
+                    await deleteQuiz(quiz.id);
+                    await loadRecentQuizzes();
+                  }}>
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -453,3 +459,6 @@ export default function ModuleManager() {
     </main>
   );
 }
+
+
+

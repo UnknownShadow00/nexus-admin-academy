@@ -24,7 +24,7 @@ class Quiz(Base):
 
 class Question(Base):
     __tablename__ = "questions"
-    __table_args__ = (CheckConstraint("correct_answer IN ('A','B','C','D')", name="ck_questions_correct_answer"),)
+    __table_args__ = ()
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     quiz_id: Mapped[int] = mapped_column(ForeignKey("quizzes.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -34,9 +34,21 @@ class Question(Base):
     option_c: Mapped[str] = mapped_column(Text, nullable=False)
     option_d: Mapped[str] = mapped_column(Text, nullable=False)
     correct_answer: Mapped[str] = mapped_column(CHAR(1), nullable=False)
+    correct_answers: Mapped[str | None] = mapped_column(Text, nullable=True)
     explanation: Mapped[str] = mapped_column(Text, nullable=True)
 
     quiz = relationship("Quiz", back_populates="questions")
+
+    @property
+    def all_correct_answers(self) -> list[str]:
+        """Return all correct letters for this question."""
+        if self.correct_answers:
+            return [item.strip() for item in self.correct_answers.split(",") if item.strip()]
+        return [self.correct_answer]
+
+    @property
+    def is_multi_select(self) -> bool:
+        return bool(self.correct_answers and "," in self.correct_answers)
 
 
 class QuizAttempt(Base):
@@ -52,6 +64,7 @@ class QuizAttempt(Base):
     student_id: Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
     quiz_id: Mapped[int] = mapped_column(ForeignKey("quizzes.id", ondelete="CASCADE"), nullable=False, index=True)
     answers: Mapped[dict] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False)
+    results: Mapped[list | None] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
     score: Mapped[int] = mapped_column(Integer, nullable=False)
     xp_awarded: Mapped[int] = mapped_column(Integer, nullable=False)
     best_score: Mapped[int | None] = mapped_column(Integer, nullable=True)

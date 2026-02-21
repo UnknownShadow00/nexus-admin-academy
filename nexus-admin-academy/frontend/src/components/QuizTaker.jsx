@@ -1,4 +1,5 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import { getQuiz, submitQuiz } from "../services/api";
@@ -8,262 +9,231 @@ function progressKey(quizId) {
   return `quiz_${quizId}_progress`;
 }
 
-function formatDate(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString();
+function OptionRow({ letter, text, correctAnswers, studentAnswer }) {
+  const isCorrect = correctAnswers.includes(letter);
+  const isStudentWrong = studentAnswer === letter && !isCorrect;
+
+  let cls = "flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm ";
+  if (isCorrect) {
+    cls += "border-green-400 bg-green-100 text-green-900 font-semibold dark:border-green-700 dark:bg-green-900/30 dark:text-green-200";
+  } else if (isStudentWrong) {
+    cls += "border-red-400 bg-red-100 text-red-900 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200";
+  } else {
+    cls += "border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400";
+  }
+
+  return (
+    <div className={cls}>
+      <span
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${
+          isCorrect ? "border-green-600 bg-green-600 text-white" : isStudentWrong ? "border-red-500 bg-red-500 text-white" : "border-slate-300 text-slate-400 dark:border-slate-600"
+        }`}
+      >
+        {letter}
+      </span>
+      <span className="flex-1">{text}</span>
+      {isCorrect && studentAnswer === letter ? <span className="ml-auto text-xs font-bold text-green-700 dark:text-green-400">Correct</span> : null}
+      {isCorrect && studentAnswer !== letter ? <span className="ml-auto text-xs font-bold text-green-600 dark:text-green-400">Correct answer</span> : null}
+      {isStudentWrong ? <span className="ml-auto text-xs font-bold text-red-600 dark:text-red-400">Your answer</span> : null}
+    </div>
+  );
+}
+
+function ReviewScreen({ quiz, result, onRetake }) {
+  const byId = {};
+  (result.results || []).forEach((row) => {
+    byId[row.question_id] = row;
+  });
+  const pct = Math.round((result.score / result.total) * 100);
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 p-8 text-center text-white shadow-lg">
+        <p className="text-7xl font-bold">
+          {result.score}
+          <span className="text-4xl text-blue-300">/{result.total}</span>
+        </p>
+        <p className="mt-2 text-2xl font-semibold">{pct}%</p>
+        <p className="mt-2 text-blue-100">{result.xp_awarded > 0 ? `+${result.xp_awarded} XP earned` : "No XP for retakes"}</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-lg border p-4 text-center dark:border-slate-700 dark:bg-slate-900">
+          <p className="text-2xl font-bold text-green-600">{result.score}</p>
+          <p className="text-xs text-slate-500">Correct</p>
+        </div>
+        <div className="rounded-lg border p-4 text-center dark:border-slate-700 dark:bg-slate-900">
+          <p className="text-2xl font-bold text-red-500">{result.total - result.score}</p>
+          <p className="text-xs text-slate-500">Wrong</p>
+        </div>
+        <div className="rounded-lg border p-4 text-center dark:border-slate-700 dark:bg-slate-900">
+          <p className="text-2xl font-bold text-blue-600">{result.xp_awarded}</p>
+          <p className="text-xs text-slate-500">XP</p>
+        </div>
+      </div>
+
+      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Answer Review</h3>
+      {(quiz.questions || []).map((question, index) => {
+        const review = byId[question.id];
+        const studentAnswer = review?.student_answer;
+        const correctAnswers = review?.correct_answers || [review?.correct_answer || question.correct_answer];
+        const isCorrect = review?.is_correct;
+        const options = review?.options || {
+          A: question.option_a,
+          B: question.option_b,
+          C: question.option_c,
+          D: question.option_d,
+        };
+
+        return (
+          <div key={question.id} className={`rounded-xl border p-4 ${isCorrect ? "border-green-200 dark:border-green-900" : "border-red-200 dark:border-red-900"}`}>
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <p className="font-semibold text-slate-900 dark:text-slate-100">
+                Q{index + 1}. {question.question_text}
+              </p>
+              <span className="shrink-0 text-lg">{isCorrect ? "OK" : "X"}</span>
+            </div>
+            <div className="space-y-1.5">
+              {["A", "B", "C", "D"].map((opt) => {
+                const text = options[opt];
+                if (!text) return null;
+                return <OptionRow key={opt} letter={opt} text={text} correctAnswers={correctAnswers} studentAnswer={studentAnswer} />;
+              })}
+            </div>
+            {review?.explanation ? (
+              <p className="mt-2 rounded bg-slate-50 p-2 text-sm italic text-slate-600 dark:bg-slate-800 dark:text-slate-300">Tip: {review.explanation}</p>
+            ) : null}
+          </div>
+        );
+      })}
+
+      <div className="flex gap-3">
+        <button className="btn-secondary flex-1" onClick={onRetake}>
+          Retake Quiz
+        </button>
+        <Link to="/quizzes" className="btn-primary flex-1 text-center">
+          Back to Quizzes
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 export default function QuizTaker({ quizId, studentId }) {
-  const [phase, setPhase] = useState("loading");
   const [quiz, setQuiz] = useState(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
-  const [attempts, setAttempts] = useState([]);
-  const [showAllReview, setShowAllReview] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    const run = async () => {
-      setPhase("loading");
-      const res = await getQuiz(quizId, studentId);
-      const quizData = res.data;
-      setQuiz(quizData);
-      setAttempts(quizData.attempts || []);
-
-      const existing = JSON.parse(localStorage.getItem(progressKey(quizId)) || "null");
-      if (existing?.answers) {
-        setAnswers(existing.answers);
-      }
-      if (typeof existing?.currentQuestion === "number") {
-        setCurrentIndex(existing.currentQuestion);
-      }
-
-      setPhase("history");
-    };
-    run();
+    getQuiz(quizId, studentId).then((res) => {
+      setQuiz(res.data);
+      const saved = JSON.parse(localStorage.getItem(progressKey(quizId)) || "null");
+      if (saved?.answers) setAnswers(saved.answers);
+      setLoading(false);
+    });
   }, [quizId, studentId]);
-
-  const totalQuestions = quiz?.questions?.length || 0;
-  const unansweredCount = useMemo(() => {
-    if (!quiz?.questions) return 0;
-    return quiz.questions.filter((question) => {
-      const selected = answers[question.id] || answers[String(question.id)] || answers[String(question.question_number)];
-      return !selected;
-    }).length;
-  }, [quiz, answers]);
-
-  const percentComplete = totalQuestions > 0 ? Math.round(((currentIndex + 1) / totalQuestions) * 100) : 0;
-  const currentQuestion = quiz?.questions?.[currentIndex];
 
   const selectAnswer = (questionId, option) => {
     const next = { ...answers, [questionId]: option };
     setAnswers(next);
-    localStorage.setItem(progressKey(quizId), JSON.stringify({ answers: next, submitted: false, currentQuestion: currentIndex }));
-  };
-
-  const goNext = () => {
-    setCurrentIndex((prev) => {
-      const nextIndex = Math.min(prev + 1, totalQuestions - 1);
-      localStorage.setItem(progressKey(quizId), JSON.stringify({ answers, submitted: false, currentQuestion: nextIndex }));
-      return nextIndex;
-    });
-  };
-
-  const goPrev = () => {
-    setCurrentIndex((prev) => {
-      const nextIndex = Math.max(prev - 1, 0);
-      localStorage.setItem(progressKey(quizId), JSON.stringify({ answers, submitted: false, currentQuestion: nextIndex }));
-      return nextIndex;
-    });
-  };
-
-  const startQuiz = () => {
-    setPhase("taking");
+    localStorage.setItem(progressKey(quizId), JSON.stringify({ answers: next }));
   };
 
   const onSubmit = async () => {
-    if (unansweredCount > 0) {
-      const confirmSubmit = window.confirm(`You have ${unansweredCount} unanswered question(s). Submit anyway?`);
-      if (!confirmSubmit) return;
+    const unanswered = (quiz?.questions?.length || 0) - Object.keys(answers).length;
+    if (unanswered > 0 && !window.confirm(`${unanswered} unanswered question(s). Submit anyway?`)) {
+      return;
     }
 
-    setPhase("submitting");
+    setSubmitting(true);
+    const toastId = toast.loading("Submitting...");
     try {
-      const loadingToast = toast.loading("Submitting quiz...");
       const res = await submitQuiz(quizId, { student_id: studentId, answers });
-      toast.dismiss(loadingToast);
-      toast.success(res.data?.is_first_attempt ? `Quiz completed! +${res.data?.xp_awarded} XP earned` : "Score updated (no XP for retakes)");
-
+      toast.dismiss(toastId);
+      toast.success(res.data?.xp_awarded > 0 ? `+${res.data.xp_awarded} XP earned!` : "Quiz submitted");
       setResult(res.data);
       localStorage.removeItem(progressKey(quizId));
-      setPhase("results");
-    } catch (error) {
-      setPhase("taking");
-      throw error;
+    } catch {
+      toast.dismiss(toastId);
+      toast.error("Submit failed - try again");
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  if (phase === "loading") {
-    return (
-      <div className="panel">
-        <Spinner text="Loading questions..." />
-      </div>
-    );
-  }
+  const onRetake = () => {
+    setResult(null);
+    setAnswers({});
+    setCurrentIndex(0);
+  };
 
-  if (phase === "submitting") {
-    return (
-      <div className="panel">
-        <Spinner text="Submitting quiz..." />
-      </div>
-    );
-  }
+  if (loading) return <div className="panel"><Spinner text="Loading..." /></div>;
+  if (result) return <ReviewScreen quiz={quiz} result={result} onRetake={onRetake} />;
 
-  if (phase === "history") {
-    const hasAttempts = attempts.length > 0;
-    const bestScore = hasAttempts ? Math.max(...attempts.map((item) => item.score || 0)) : null;
-
-    return (
-      <section className="space-y-4">
-        <article className="panel dark:border-slate-700 dark:bg-slate-900">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{quiz.title}</h2>
-          <p className="mt-1 text-sm text-slate-500">{(quiz.source_urls || []).length} video(s) - {quiz.question_count || totalQuestions} questions</p>
-        </article>
-
-        {hasAttempts ? (
-          <article className="panel dark:border-slate-700 dark:bg-slate-900">
-            <h3 className="mb-3 text-lg font-semibold">Your attempts</h3>
-            <div className="space-y-2">
-              {attempts.map((attempt) => (
-                <div key={`${attempt.attempt_number}-${attempt.created_at || "na"}`} className="flex items-center justify-between rounded border border-slate-200 p-3 text-sm dark:border-slate-700">
-                  <span>
-                    Attempt {attempt.attempt_number} - {Math.round(((attempt.score || 0) / (attempt.total || 1)) * 100)}% - {formatDate(attempt.created_at)}
-                  </span>
-                  <span className="text-slate-500">
-                    {attempt.xp_awarded > 0 ? `+${attempt.xp_awarded} XP` : "No XP"}
-                    {bestScore === attempt.score ? " - best" : ""}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </article>
-        ) : null}
-
-        <button className="btn-primary" onClick={startQuiz}>Start Quiz</button>
-      </section>
-    );
-  }
-
-  if (phase === "results" && result) {
-    const percent = Math.round(((result.score || 0) / (result.total || 1)) * 100);
-
-    return (
-      <section className="space-y-4">
-        <div className="space-y-4">
-          <div className="rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 p-8 text-center text-white shadow-lg">
-            <p className="text-7xl font-bold">{result.score}<span className="text-4xl text-blue-300">/{result.total}</span></p>
-            <p className="mt-2 text-2xl font-semibold">{percent}%</p>
-            <p className="mt-2 text-blue-100">
-              {result.xp_awarded > 0
-                ? `+${result.xp_awarded} XP earned`
-                : "No XP — score must improve to earn XP on retakes"}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-2xl font-bold text-green-600">{result.score}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Correct</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-2xl font-bold text-red-500">{result.total - result.score}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Wrong</p>
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-2xl font-bold text-blue-600">{result.xp_awarded}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">XP</p>
-            </div>
-          </div>
-        </div>
-
-        <article className="panel dark:border-slate-700 dark:bg-slate-900">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Answer Review</h3>
-            <button className="btn-secondary" onClick={() => setShowAllReview((prev) => !prev)}>
-              {showAllReview ? "Hide Details" : "Review All Questions"}
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {(result.results || []).map((item) => {
-              const isWrong = !item.is_correct;
-              const shouldShowDetails = showAllReview || isWrong;
-              return (
-                <div key={item.question_id} className={`rounded-lg border p-4 ${item.is_correct ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/20" : "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30"}`}>
-                  <div className="flex items-start justify-between gap-4">
-                    <p className="font-medium">Q{item.question_number}. {item.question_text}</p>
-                    <span className={item.is_correct ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}>{item.is_correct ? "✓" : "✗"}</span>
-                  </div>
-                  {shouldShowDetails ? (
-                    <div className="mt-2 space-y-1 text-sm">
-                      <p>Your answer: {item.student_answer || "(no answer)"}</p>
-                      <p>Correct answer: {item.correct_answer}</p>
-                      <p className="text-sm text-slate-600 dark:text-slate-300">{item.explanation}</p>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </article>
-      </section>
-    );
-  }
+  const question = quiz.questions[currentIndex];
+  const total = quiz.questions.length;
+  const progress = ((currentIndex + 1) / total) * 100;
 
   return (
     <section className="space-y-4">
-      <article className="panel dark:border-slate-700 dark:bg-slate-900">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{quiz.title}</h2>
-
-        <div className="mt-3">
-          <div className="mb-1 flex items-center justify-between text-sm">
-            <span>Question {currentIndex + 1} of {totalQuestions}</span>
-            <span>{percentComplete}%</span>
-          </div>
-          <div className="h-2 w-full rounded bg-slate-200 dark:bg-slate-700">
-            <div className="h-2 rounded bg-blue-600" style={{ width: `${percentComplete}%` }} />
-          </div>
+      <div>
+        <div className="mb-1 flex justify-between text-sm text-slate-500">
+          <span>Question {currentIndex + 1} of {total}</span>
+          <span>{Object.keys(answers).length} answered</span>
         </div>
-      </article>
+        <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700">
+          <div className="h-2 rounded-full bg-blue-600 transition-all" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
 
-      {currentQuestion ? (
-        <article className="panel dark:border-slate-700 dark:bg-slate-900">
-          <p className="mb-2 font-semibold text-slate-900 dark:text-slate-100">
-            Q{currentIndex + 1}. {currentQuestion.question_text}
-          </p>
-          {["A", "B", "C", "D"].map((opt) => (
-            <label key={opt} className="mb-1 block rounded border border-slate-200 p-2 dark:border-slate-700">
-              <input
-                type="radio"
-                name={`q_${currentQuestion.id}`}
-                className="mr-2"
-                checked={(answers[currentQuestion.id] || answers[String(currentQuestion.id)]) === opt}
-                onChange={() => selectAnswer(currentQuestion.id, opt)}
-              />
-              {currentQuestion[`option_${opt.toLowerCase()}`]}
-            </label>
-          ))}
-        </article>
-      ) : null}
+      <div className="panel dark:border-slate-700 dark:bg-slate-900">
+        <p className="mb-4 font-semibold text-slate-900 dark:text-slate-100">
+          {currentIndex + 1}. {question.question_text}
+        </p>
+        <div className="space-y-2">
+          {["A", "B", "C", "D"].map((opt) => {
+            const text = question[`option_${opt.toLowerCase()}`];
+            if (!text) return null;
+            const selected = answers[question.id] === opt;
+            return (
+              <label
+                key={opt}
+                className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all ${
+                  selected ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30" : "border-slate-200 hover:border-slate-300 dark:border-slate-700"
+                }`}
+              >
+                <input type="radio" className="sr-only" name={`q_${question.id}`} checked={selected} onChange={() => selectAnswer(question.id, opt)} />
+                <span
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${
+                    selected ? "border-blue-500 bg-blue-600 text-white" : "border-slate-300 dark:border-slate-600"
+                  }`}
+                >
+                  {opt}
+                </span>
+                <span className="text-sm text-slate-800 dark:text-slate-200">{text}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
 
-      <div className="flex items-center justify-between">
-        <button className="btn-secondary" onClick={goPrev} disabled={currentIndex === 0}>Previous</button>
-        {currentIndex < totalQuestions - 1 ? (
-          <button className="btn-primary" onClick={goNext}>Next</button>
+      <div className="flex gap-2">
+        {currentIndex > 0 ? (
+          <button className="btn-secondary flex-1" onClick={() => setCurrentIndex((idx) => idx - 1)}>
+            Previous
+          </button>
+        ) : null}
+        {currentIndex < total - 1 ? (
+          <button className="btn-primary flex-1" onClick={() => setCurrentIndex((idx) => idx + 1)}>
+            Next
+          </button>
         ) : (
-          <button className="btn-primary" onClick={onSubmit}>Submit Quiz</button>
+          <button className="btn-primary flex-1" onClick={onSubmit} disabled={submitting}>
+            {submitting ? "Submitting..." : "Submit Quiz"}
+          </button>
         )}
       </div>
     </section>
