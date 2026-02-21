@@ -7,6 +7,7 @@ export default function QuizEditorPage() {
   const { quizId } = useParams();
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [edits, setEdits] = useState({});
   const [saving, setSaving] = useState({});
   const [saved, setSaved] = useState({});
 
@@ -21,17 +22,21 @@ export default function QuizEditorPage() {
 
   const save = async (question) => {
     setSaving((s) => ({ ...s, [question.id]: true }));
+    const patch = edits[question.id] || {};
     await updateQuestion(question.id, {
-      correct_answer: question.correct_answer,
-      explanation: question.explanation,
+      correct_answer: patch.correct_answer ?? question.correct_answer,
+      correct_answers: patch.correct_answers ?? question.correct_answers ?? "",
+      explanation: patch.explanation ?? question.explanation,
     });
     setSaving((s) => ({ ...s, [question.id]: false }));
     setSaved((s) => ({ ...s, [question.id]: true }));
     setTimeout(() => setSaved((s) => ({ ...s, [question.id]: false })), 1500);
+    setEdits((prev) => ({ ...prev, [question.id]: {} }));
   };
 
   const update = (id, field, value) => {
     setQuestions((rows) => rows.map((q) => (q.id === id ? { ...q, [field]: value } : q)));
+    setEdits((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: value } }));
   };
 
   if (!quiz) return <main className="p-6">Loading...</main>;
@@ -73,6 +78,23 @@ export default function QuizEditorPage() {
             <button className="btn-primary shrink-0" onClick={() => save(q)} disabled={saving[q.id]}>
               {saving[q.id] ? "Saving..." : saved[q.id] ? "✓ Saved" : "Save"}
             </button>
+          </div>
+
+          <div className="mt-2">
+            <label className="mb-1 block text-xs text-slate-500 dark:text-slate-400">
+              All correct answers for multi-select (comma-separated e.g. "A,C,D" — leave blank for single answer)
+            </label>
+            <input
+              className="input-field w-full text-sm"
+              value={edits[q.id]?.correct_answers ?? q.correct_answers ?? ""}
+              placeholder="e.g. A,C,D"
+              onChange={(e) =>
+                setEdits((prev) => ({
+                  ...prev,
+                  [q.id]: { ...prev[q.id], correct_answers: e.target.value.toUpperCase().replace(/[^A-D,]/g, "") },
+                }))
+              }
+            />
           </div>
         </div>
       ))}

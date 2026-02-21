@@ -4,12 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.models.quiz import Question, Quiz, QuizAttempt
+from app.models.quiz import Quiz, QuizAttempt
 from app.models.student import Student
-from app.schemas.quiz import QuizGenerateRequest, QuizSubmitRequest
+from app.schemas.quiz import QuizSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.mastery_service import record_quiz_mastery
-from app.services.quiz_generator import generate_quiz_from_videos
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
 
@@ -103,52 +102,6 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
     )
 
 
-@router.post("/admin/generate")
-async def admin_generate_quiz(payload: QuizGenerateRequest, db: Session = Depends(get_db)):
-    urls = [str(url) for url in payload.source_urls]
-    try:
-        questions = await generate_quiz_from_videos(
-            video_urls=urls,
-            title=payload.title,
-            week_number=payload.week_number,
-            question_count=payload.question_count,
-            db=db,
-            admin_id=0,
-            domain_id=payload.domain_id,
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Quiz generation failed: {exc}") from exc
-
-    quiz = Quiz(
-        title=payload.title,
-        source_url=urls[0],
-        source_urls=urls,
-        week_number=payload.week_number,
-        question_count=payload.question_count,
-        domain_id=payload.domain_id,
-        lesson_id=payload.lesson_id,
-    )
-    db.add(quiz)
-    db.flush()
-
-    for q in questions:
-        db.add(
-            Question(
-                quiz_id=quiz.id,
-                question_text=q["question_text"],
-                option_a=q["option_a"],
-                option_b=q["option_b"],
-                option_c=q["option_c"],
-                option_d=q["option_d"],
-                correct_answer=q["correct_answer"],
-                explanation=q["explanation"],
-            )
-        )
-
-    db.commit()
-    return ok({"quiz_id": quiz.id, "message": f"Quiz '{payload.title}' created with {payload.question_count} questions"})
-
-
 @router.post("/{quiz_id}/submit")
 def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(get_db)):
     student_id = payload.student_id
@@ -173,7 +126,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     correct_count = 0
 
     for i, question in enumerate(questions, start=1):
-        student_answer = answers.get(str(i)) or answers.get(str(question.id))
+        student_answer = answers.get(str(question.id)) or answers.get(str(i))
         correct_letters = question.all_correct_answers
         is_correct = student_answer in correct_letters
         if is_correct:
@@ -203,7 +156,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     existing = db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id, QuizAttempt.quiz_id == quiz_id).first()
 
     is_first_attempt = existing is None
-    xp_awarded = score * 10 if is_first_attempt else 0
+    xp_awarded = round((score / total_questions) * 100) if is_first_attempt else 0
 
     if is_first_attempt:
         attempt = QuizAttempt(
@@ -298,7 +251,7 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
     questions = sorted(quiz.questions, key=lambda q: q.id)
     results = []
     for i, question in enumerate(questions, start=1):
-        student_answer = stored_answers.get(str(i)) or stored_answers.get(str(question.id))
+        student_answer = stored_answers.get(str(question.id)) or stored_answers.get(str(i))
         results.append(
             {
                 "question_id": question.id,

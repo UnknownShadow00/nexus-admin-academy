@@ -132,7 +132,9 @@ export default function QuizReviewPage() {
               <p className="font-semibold text-slate-900 dark:text-slate-100">
                 Q{index + 1}. {question.question_text}
               </p>
-              <span className="shrink-0 text-lg">{isCorrect ? "OK" : studentAnswer ? "X" : "-"}</span>
+              <span className={`shrink-0 text-lg font-bold ${isCorrect ? "text-green-600" : studentAnswer ? "text-red-500" : "text-slate-400"}`}>
+                {isCorrect ? "✓" : studentAnswer ? "✗" : "—"}
+              </span>
             </div>
             <div className="space-y-2">
               {["A", "B", "C", "D"].map((opt) => {

@@ -56,7 +56,7 @@ class QuizAttempt(Base):
     __table_args__ = (
         UniqueConstraint("student_id", "quiz_id", name="uq_student_quiz"),
         CheckConstraint("xp_awarded >= 0", name="ck_quiz_attempts_xp_awarded_non_negative"),
-        CheckConstraint("best_score IS NULL OR best_score BETWEEN 0 AND 10", name="ck_quiz_attempts_best_score"),
+        CheckConstraint("best_score IS NULL OR best_score >= 0", name="ck_quiz_attempts_best_score"),
         CheckConstraint("first_attempt_xp IS NULL OR first_attempt_xp >= 0", name="ck_quiz_attempts_first_attempt_xp_non_negative"),
     )
 

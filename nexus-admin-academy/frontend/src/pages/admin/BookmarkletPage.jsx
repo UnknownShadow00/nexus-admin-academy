@@ -92,7 +92,8 @@ export default function BookmarkletPage() {
       var hasMissed=rowText.includes('Missed');
       var hasThumbsDown=rowHTML.includes('thumb')||!!row.querySelector('[class*="thumb"],[class*="dislike"],[alt*="thumb"]');
       var hasCheckmark=!!row.querySelector('[class*="correct"],[class*="check"]:not(input),svg[class*="check"]')||
-                       rowHTML.includes('\\u2713')||rowHTML.includes('\\u2714');
+                       rowHTML.includes('✓')||rowHTML.includes('✔')||
+                       rowHTML.includes('\u2713')||rowHTML.includes('\u2714');
       if(!hasMissed&&!hasThumbsDown&&!hasCheckmark) return;
 
       var clone=row.cloneNode(true);
@@ -111,7 +112,7 @@ export default function BookmarkletPage() {
 
     correctOptionTexts=correctOptionTexts.filter(function(t,i,a){return a.indexOf(t)===i;});
 
-    return collectedQuestions.map(function(q){
+    var finalQuestions = collectedQuestions.map(function(q){
       var opts=q.options;
       var correctIndices=[];
       opts.forEach(function(opt,idx){
@@ -141,14 +142,26 @@ export default function BookmarkletPage() {
                  correctIndices.length>1
       };
     });
+
+    console.log('[Nexus] correctOptionTexts:', correctOptionTexts);
+    console.log('[Nexus] answers detected:', finalQuestions.map(function(q){
+      return {q: q.question_text.substring(0,50), correct: q.correct_answer, all: q.all_correct_answers};
+    }));
+
+    return finalQuestions;
   }
 
   function clickContinue(){
-    var btns=document.querySelectorAll('button,input[type=button],input[type=submit],.btn,.button');
-    for(var i=0;i<btns.length;i++){
-      var t=(btns[i].innerText||btns[i].value||'').trim().toLowerCase();
-      if(t==='continue'||t==='next'||t.includes('continue')){btns[i].click();return true;}
+    var all=document.querySelectorAll('button,input[type=button],input[type=submit],a');
+    for(var i=0;i<all.length;i++){
+      var t=(all[i].innerText||all[i].value||all[i].textContent||'').trim().toLowerCase();
+      if(t==='continue'||t==='next question'||t==='next'||t.includes('continue')){
+        all[i].click();return true;
+      }
     }
+    // Fallback: if only one prominent button exists, click it
+    var btns=document.querySelectorAll('button:not([class*="nav"]):not([class*="menu"])');
+    if(btns.length===1){btns[0].click();return true;}
     return false;
   }
 
