@@ -16,13 +16,13 @@ export default function BookmarkletPage() {
     if(!el){
       el=document.createElement('div');
       el.id='nexus-banner';
-      el.style.cssText='position:fixed;top:0;left:0;right:0;z-index:999999;padding:14px 20px;font-family:sans-serif;font-size:14px;font-weight:600;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);';
+      el.style.cssText='position:fixed;top:0;left:0;right:0;z-index:999999;padding:14px 20px;font-family:sans-serif;font-size:14px;font-weight:600;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.3);transition:background 0.3s;';
       document.body.appendChild(el);
     }
     el.style.background=state==='error'?'#dc2626':state==='done'?'#16a34a':'#1d4ed8';
     el.style.color='white';
     el.innerText=msg;
-    if(state==='done'||state==='error') setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},6000);
+    if(state==='done'||state==='error') setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},8000);
   }
 
   function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
@@ -33,134 +33,203 @@ export default function BookmarkletPage() {
   }
 
   function isResultsPage(){
-    return !document.body.innerText.match(/Page:\\s*\\d+\\s*of\\s*\\d+/i)&&
-           (document.body.innerText.includes('Missed')||!!document.body.innerText.match(/score|correct|incorrect|complete/i));
+    var text=document.body.innerText;
+    return !text.match(/Page:\\s*\\d+\\s*of\\s*\\d+/i)&&
+           (text.includes('Missed')||text.match(/Your Score|Results|you (got|scored)|Quiz Complete/i));
   }
 
   function parseQuestionPage(){
     var inputs=document.querySelectorAll('input[type=checkbox],input[type=radio]');
     if(!inputs.length) return null;
+
+    // Find question text
     var questionText='';
-    var container=inputs[0].closest('table,form,[class*=question],fieldset,.panel,.card')||inputs[0].closest('div');
-    if(container){
-      var candidates=container.querySelectorAll('p,h3,h4,h5,strong,span,td,div');
-      for(var i=0;i<candidates.length;i++){
-        if(candidates[i].querySelector('input')) continue;
-        var t=(candidates[i].innerText||'').trim();
-        if(t.length>15&&t.length<800&&!t.match(/^(Page|Continue|Next|ExamCompass|CompTIA Exam|Discount|Support|Copyright)/i)){
-          questionText=t.replace(/^[>\\u25B6\\u25BA\\u25B8]\\s*/,'').trim();
-          break;
-        }
+    var container=inputs[0].closest('form,table,fieldset,[class*=quiz],[class*=question],.panel,.card')||document.body;
+    var candidates=container.querySelectorAll('p,h3,h4,h5,strong,b,td,div,span');
+    for(var i=0;i<candidates.length;i++){
+      if(candidates[i].querySelector('input,label')) continue;
+      var t=(candidates[i].innerText||'').trim();
+      if(t.length>15&&t.length<800&&!t.match(/^(Page\\s*\\d|Continue|Next|ExamCompass|CompTIA|Discount|Copyright|Select your answer)/i)){
+        questionText=t.replace(/^[\\u25B6\\u25BA\\u25B8\\u25CF>\\-]\\s*/,'').trim();
+        break;
       }
     }
     if(!questionText){
-      var paras=document.querySelectorAll('p');
-      for(var j=0;j<paras.length;j++){
-        var pt=(paras[j].innerText||'').trim();
-        if(pt.length>15&&!pt.match(/Page:|ExamCompass|Practice Test|Discount/i)){
-          questionText=pt.replace(/^[>]\\s*/,'').trim();
+      var allP=document.querySelectorAll('p,h3,h4');
+      for(var j=0;j<allP.length;j++){
+        var pt=(allP[j].innerText||'').trim();
+        if(pt.length>20&&!pt.match(/ExamCompass|Practice Test|Discount|Page:|Copyright/i)){
+          questionText=pt.replace(/^[>\\u25B6]\\s*/,'').trim();
           break;
         }
       }
     }
     if(!questionText) return null;
 
+    // Collect options
     var options=[];
     inputs.forEach(function(inp){
-      var lbl=(inp.id&&document.querySelector('label[for="'+inp.id+'"]'))||inp.closest('label')||inp.parentElement;
-      var text=((lbl?lbl.innerText||lbl.textContent:'')||'').trim()
-        .replace(/^[A-Ea-e][.)\\s]+/,'')
-        .replace(/^[\\u2713\\u2717\\u2610\\u2611\\u2714]\\s*/g,'')
-        .trim();
+      var lbl=document.querySelector('label[for="'+inp.id+'"]')||inp.closest('label')||inp.parentElement;
+      var text='';
+      if(lbl){
+        var clone=lbl.cloneNode(true);
+        clone.querySelectorAll('input').forEach(function(el){el.remove();});
+        text=(clone.innerText||clone.textContent||'').trim();
+      }
+      text=text.replace(/^[A-Ea-e][.)\\s]+/,'').replace(/^[\\u2713\\u2717\\u2610\\u2611\\u2714]\\s*/g,'').trim();
       if(text&&text.length>0&&options.indexOf(text)===-1) options.push(text);
     });
     if(options.length<2) return null;
     return {question_text:questionText,options:options};
   }
 
+  // NEW STRATEGY: Parse correct answers from the results page
+  // by reading the full page text and finding option text that appears
+  // near "Missed" markers. Works regardless of HTML structure.
   function parseResultsPage(collectedQuestions){
-    var correctOptionTexts=[];
 
-    var rows=Array.from(document.querySelectorAll('tr,li,[class*="row"],[class*="item"],[class*="option"],[class*="answer"],[class*="choice"]'));
-    document.querySelectorAll('table,ul,ol,[class*="question"],[class*="answers"]').forEach(function(c){
-      c.childNodes.forEach(function(child){if(child.nodeType===1) rows.push(child);});
+    // APPROACH 1: Walk the DOM tree looking for text nodes
+    // The results page lists each question with answers. Correct answers
+    // the user missed are marked. We find them by their surrounding context.
+    var correctTexts=[];
+
+    // Try getting all leaf-level text from the page
+    var fullText=document.body.innerText;
+
+    // APPROACH 2: Find every element that literally contains "Missed"
+    // and grab its sibling/parent text as the correct answer text
+    var allElements=Array.from(document.querySelectorAll('*'));
+    var missedEls=allElements.filter(function(el){
+      return el.children.length===0&&(el.innerText||el.textContent||'').trim()==='Missed';
     });
 
-    rows.forEach(function(row){
-      var rowHTML=row.innerHTML||'';
-      var rowText=row.innerText||'';
-      var hasMissed=rowText.includes('Missed');
-      var hasThumbsDown=rowHTML.includes('thumb')||!!row.querySelector('[class*="thumb"],[class*="dislike"],[alt*="thumb"]');
-      var hasCheckmark=!!row.querySelector('[class*="correct"],[class*="check"]:not(input),svg[class*="check"]')||
-                       rowHTML.includes('✓')||rowHTML.includes('✔')||
-                       rowHTML.includes('\u2713')||rowHTML.includes('\u2714');
-      if(!hasMissed&&!hasThumbsDown&&!hasCheckmark) return;
+    console.log('[Nexus] Found',missedEls.length,'"Missed" leaf elements');
 
-      var clone=row.cloneNode(true);
-      clone.querySelectorAll('input,svg,img,[class*="icon"],[class*="thumb"],[class*="check"]:not(label)').forEach(function(el){el.remove();});
-      clone.querySelectorAll('*').forEach(function(el){
-        var t=(el.innerText||el.textContent||'').trim();
-        if(t.match(/^\\(?\\s*Missed\\s*\\)?$/i)||t.match(/^\\(.*Missed.*\\)$/i)) el.remove();
+    missedEls.forEach(function(el){
+      // Walk up to find a container that has the option text
+      var node=el;
+      for(var depth=0;depth<5;depth++){
+        node=node.parentElement;
+        if(!node) break;
+        var clone=node.cloneNode(true);
+        // Remove the Missed element and any icons
+        clone.querySelectorAll('input,svg,img,button').forEach(function(x){x.remove();});
+        var cleaned=(clone.innerText||clone.textContent||'')
+          .replace(/Missed/gi,'')
+          .replace(/Your answer/gi,'')
+          .replace(/Correct answer/gi,'')
+          .replace(/[\\u2713\\u2714\\u2717\\u2718]/g,'') // ✓✔✗✘
+          .replace(/\\(.*?\\)/g,'')  // remove parenthetical markers
+          .replace(/^[A-Ea-e][.)\\s]+/,'')
+          .replace(/\\s+/g,' ')
+          .trim();
+        if(cleaned.length>5&&cleaned.length<300&&
+           !cleaned.match(/^(Page|ExamCompass|CompTIA|Copyright|Quiz|Score|Result)/i)){
+          correctTexts.push(cleaned);
+          console.log('[Nexus] Correct text found at depth',depth,':',cleaned.substring(0,80));
+          break;
+        }
+      }
+    });
+
+    // APPROACH 3: If approach 2 found nothing, fall back to scanning all text
+    // for option text that appears near the word "Missed" in the raw text
+    if(correctTexts.length===0){
+      console.log('[Nexus] Approach 2 found nothing, trying text proximity approach');
+      // Split page text into lines and find lines near "Missed" lines
+      var lines=fullText.split('\\n').map(function(l){return l.trim();}).filter(function(l){return l.length>0;});
+      lines.forEach(function(line,idx){
+        if(line.match(/^Missed$/i)||line.match(/\\(.*Missed.*\\)/i)){
+          // The option text is usually 1-3 lines before the "Missed" marker
+          for(var back=1;back<=4;back++){
+            var candidate=(lines[idx-back]||'').trim()
+              .replace(/^[A-Ea-e][.)\\s]+/,'')
+              .replace(/[\\u2713\\u2714\\u2717]/g,'')
+              .trim();
+            if(candidate.length>5&&!candidate.match(/^(Your answer|Correct|Missed|Page|ExamCompass)/i)){
+              correctTexts.push(candidate);
+              console.log('[Nexus] Text proximity match:',candidate.substring(0,80));
+              break;
+            }
+          }
+        }
       });
-      var cleaned=(clone.innerText||clone.textContent||'')
-        .replace(/\\(.*?Missed.*?\\)/gi,'').replace(/Missed/gi,'')
-        .replace(/[\\u2713\\u2714\\u2717]/g,'').replace(/^[A-Ea-e][.)\\s]+/,'')
-        .replace(/\\s+/g,' ').trim();
-      if(cleaned&&cleaned.length>3&&!cleaned.match(/^(Your answer|incorrect|complete|Page|CompTIA|ExamCompass)/i))
-        correctOptionTexts.push(cleaned);
-    });
+    }
 
-    correctOptionTexts=correctOptionTexts.filter(function(t,i,a){return a.indexOf(t)===i;});
+    // APPROACH 4: Look at the full page text for the ✓ character directly
+    if(correctTexts.length===0){
+      console.log('[Nexus] Trying checkmark character scan');
+      allElements.forEach(function(el){
+        if(el.children.length>3) return;
+        var t=(el.innerText||el.textContent||'').trim();
+        if((t.includes('\\u2713')||t.includes('\\u2714')||t.startsWith('✓')||t.startsWith('✔'))&&t.length<300){
+          var cleaned=t.replace(/[\\u2713\\u2714]/g,'').replace(/Missed/gi,'').replace(/^[A-Ea-e][.)\\s]+/,'').trim();
+          if(cleaned.length>5) correctTexts.push(cleaned);
+        }
+      });
+    }
 
-    var finalQuestions = collectedQuestions.map(function(q){
+    console.log('[Nexus] All correct texts collected:',correctTexts);
+
+    // Deduplicate
+    correctTexts=correctTexts.filter(function(t,i,a){return a.indexOf(t)===i;});
+
+    // Match correct texts back to each question's options
+    return collectedQuestions.map(function(q){
       var opts=q.options;
       var correctIndices=[];
+
       opts.forEach(function(opt,idx){
         var optClean=opt.toLowerCase().replace(/\\s+/g,' ').trim();
-        var matched=correctOptionTexts.some(function(c){
-          var cClean=c.toLowerCase().replace(/\\s+/g,' ').trim();
-          if(cClean===optClean) return true;
-          var shorter=optClean.length<cClean.length?optClean:cClean;
-          var longer=optClean.length<cClean.length?cClean:optClean;
-          if(shorter.length>10&&longer.includes(shorter)) return true;
-          var prefix=Math.min(40,shorter.length-3);
-          if(prefix>8&&cClean.substring(0,prefix)===optClean.substring(0,prefix)) return true;
+        var matched=correctTexts.some(function(ct){
+          var ctClean=ct.toLowerCase().replace(/\\s+/g,' ').trim();
+          // Exact match
+          if(ctClean===optClean) return true;
+          // One contains the other (handles minor differences)
+          var shorter=optClean.length<=ctClean.length?optClean:ctClean;
+          var longer=optClean.length<=ctClean.length?ctClean:optClean;
+          if(shorter.length>8&&longer.includes(shorter)) return true;
+          // First N chars match (handles truncation)
+          var n=Math.min(35,shorter.length-2);
+          if(n>6&&ctClean.substring(0,n)===optClean.substring(0,n)) return true;
           return false;
         });
         if(matched) correctIndices.push(idx);
       });
+
       var allCorrect=correctIndices.map(function(i){return String.fromCharCode(65+i);});
+      console.log('[Nexus] Q:',q.question_text.substring(0,50),'-> correct:',allCorrect);
+
       return {
         question_text:q.question_text,
-        option_a:opts[0]||'',option_b:opts[1]||'',option_c:opts[2]||'',option_d:opts[3]||'',option_e:opts[4]||'',
+        option_a:opts[0]||'',
+        option_b:opts[1]||'',
+        option_c:opts[2]||'',
+        option_d:opts[3]||'',
+        option_e:opts[4]||'',
         correct_answer:allCorrect.length>0?allCorrect[0]:'A',
         all_correct_answers:allCorrect.length>0?allCorrect:['A'],
         explanation:'',
-        is_multi:q.question_text.toLowerCase().includes('select all')||
+        is_multi:correctIndices.length>1||
+                 q.question_text.toLowerCase().includes('select all')||
                  q.question_text.toLowerCase().includes('select 2')||
-                 q.question_text.toLowerCase().includes('select 3')||
-                 correctIndices.length>1
+                 q.question_text.toLowerCase().includes('select 3')
       };
     });
-
-    console.log('[Nexus] correctOptionTexts:', correctOptionTexts);
-    console.log('[Nexus] answers detected:', finalQuestions.map(function(q){
-      return {q: q.question_text.substring(0,50), correct: q.correct_answer, all: q.all_correct_answers};
-    }));
-
-    return finalQuestions;
   }
 
   function clickContinue(){
-    var all=document.querySelectorAll('button,input[type=button],input[type=submit],a');
+    var all=document.querySelectorAll('button,input[type=button],input[type=submit],a.btn,a.button');
     for(var i=0;i<all.length;i++){
       var t=(all[i].innerText||all[i].value||all[i].textContent||'').trim().toLowerCase();
-      if(t==='continue'||t==='next question'||t==='next'||t.includes('continue')){
+      if(t==='continue'||t==='next'||t==='next question'||t.includes('continue')){
         all[i].click();return true;
       }
     }
-    // Fallback: if only one prominent button exists, click it
-    var btns=document.querySelectorAll('button:not([class*="nav"]):not([class*="menu"])');
+    // Last resort: only big button on page
+    var btns=Array.from(document.querySelectorAll('button')).filter(function(b){
+      return (b.innerText||'').trim().length>0;
+    });
     if(btns.length===1){btns[0].click();return true;}
     return false;
   }
@@ -170,62 +239,107 @@ export default function BookmarkletPage() {
       var start=Date.now();
       var iv=setInterval(function(){
         var info=getPageInfo();
-        if(info.current>prevPage||isResultsPage()){clearInterval(iv);setTimeout(resolve,800);} 
-        else if(Date.now()-start>(timeout||10000)){clearInterval(iv);reject(new Error('timeout'));}
+        if(info.current>prevPage||isResultsPage()){clearInterval(iv);setTimeout(resolve,1000);}
+        else if(Date.now()-start>(timeout||12000)){clearInterval(iv);reject(new Error('timeout on page '+prevPage));}
       },300);
     });
   }
 
   async function run(){
-    var weekNum=prompt('Auto-importing with correct answers.\\nWeek number?','1');
+    var weekNum=prompt('ExamCompass Quiz Import\\nWeek number?','1');
     if(weekNum===null) return;
-    var title=document.title.replace(/[|\\-].*examcompass.*/i,'').trim();
+
+    var pageInfo=getPageInfo();
+    if(!pageInfo.found){
+      showBanner('Not on a quiz page. Go to an ExamCompass quiz first.','error');
+      return;
+    }
+
+    var title=document.title.replace(/[|\\-].*$/,'').trim();
     var sourceUrl=window.location.href;
     var collectedQuestions=[];
-    var pageInfo=getPageInfo();
-    if(!pageInfo.found){showBanner('Not on a quiz page.','error');return;}
     var totalPages=pageInfo.total;
-    showBanner('Nexus - Collecting '+totalPages+' questions...');
-    await sleep(400);
 
+    showBanner('Collecting '+totalPages+' questions — do not click anything...');
+    await sleep(500);
+
+    // Phase 1: click through all pages collecting question text and options
     for(var page=pageInfo.current;page<=totalPages;page++){
-      showBanner('Collecting Q'+page+'/'+totalPages+'...');
+      showBanner('Reading question '+page+' of '+totalPages+'...');
       var q=parseQuestionPage();
-      if(q&&!collectedQuestions.some(function(x){return x.question_text===q.question_text;})) collectedQuestions.push(q);
-      var clicked=clickContinue();
-      if(!clicked&&page<totalPages){showBanner('Could not find Continue on page '+page,'error');return;}
+      if(q){
+        var isDup=collectedQuestions.some(function(x){return x.question_text===q.question_text;});
+        if(!isDup) collectedQuestions.push(q);
+      }
       if(page<totalPages){
-        try{await waitForPageChange(page,10000);}catch(e){await sleep(2000);}
+        var clicked=clickContinue();
+        if(!clicked){showBanner('Could not find Continue button on page '+page,'error');return;}
+        try{await waitForPageChange(page,12000);}catch(e){await sleep(2500);}
       } else {
-        showBanner('Waiting for results page...');
-        await new Promise(function(resolve){
-          var start=Date.now();
-          var iv=setInterval(function(){
-            if(isResultsPage()){clearInterval(iv);setTimeout(resolve,1500);} 
-            else if(Date.now()-start>15000){clearInterval(iv);resolve();}
-          },400);
-        });
+        // Last page: submit without answering to get results
+        var clicked2=clickContinue();
+        if(clicked2){
+          showBanner('Submitted — waiting for results page...');
+          await new Promise(function(resolve){
+            var start=Date.now();
+            var iv=setInterval(function(){
+              if(isResultsPage()){clearInterval(iv);setTimeout(resolve,2000);}
+              else if(Date.now()-start>20000){clearInterval(iv);resolve();}
+            },400);
+          });
+        }
       }
     }
 
-    showBanner('Reading correct answers...');
-    await sleep(600);
+    if(collectedQuestions.length===0){
+      showBanner('No questions collected. Are you on an ExamCompass quiz page?','error');
+      return;
+    }
+
+    showBanner('Reading correct answers from results...');
+    await sleep(800);
+
     var finalQuestions=parseResultsPage(collectedQuestions);
-    var allA=finalQuestions.every(function(q){return q.correct_answer==='A'&&q.all_correct_answers.join('')==='A';});
-    if(allA){showBanner('Warning: correct answers defaulting to A - importing anyway...');await sleep(2000);}
-    showBanner('Sending '+finalQuestions.length+' questions...');
+
+    var detected=finalQuestions.filter(function(q){
+      return q.all_correct_answers.length>1||q.correct_answer!=='A';
+    }).length;
+
+    var allDefaultA=finalQuestions.every(function(q){
+      return q.correct_answer==='A'&&q.all_correct_answers.join('')==='A';
+    });
+
+    if(allDefaultA){
+      showBanner('Warning: could not detect correct answers (all defaulted to A). Open DevTools Console for diagnostic info. Importing anyway...');
+      await sleep(3000);
+    } else {
+      showBanner('Detected '+detected+'/'+finalQuestions.length+' correct answers. Saving...');
+      await sleep(500);
+    }
 
     try{
-      var res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Key':ADMIN_KEY},body:JSON.stringify({title:title,source_url:sourceUrl,week_number:parseInt(weekNum)||1,questions:finalQuestions})});
+      var res=await fetch(API,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Admin-Key':ADMIN_KEY},
+        body:JSON.stringify({
+          title:title,
+          source_url:sourceUrl,
+          week_number:parseInt(weekNum)||1,
+          questions:finalQuestions
+        })
+      });
       var data=await res.json();
       if(data.success||(data.data&&data.data.quiz_id)){
-        var detected=finalQuestions.filter(function(q){return q.correct_answer!=='A'||q.all_correct_answers.length>1;}).length;
-        showBanner('Done! '+finalQuestions.length+' questions, '+detected+' answers detected.','done');
+        showBanner(allDefaultA
+          ?'Saved (answers need manual correction in quiz editor — check console for diagnostic)'
+          :'Done! '+finalQuestions.length+' questions, '+detected+' answers auto-detected.',
+          allDefaultA?'error':'done'
+        );
       } else {
         showBanner('Server error: '+JSON.stringify(data).slice(0,120),'error');
       }
     }catch(e){
-      showBanner('Cannot reach backend. Is it running? '+e.message,'error');
+      showBanner('Cannot reach backend at ${API_URL}. '+e.message,'error');
     }
   }
 

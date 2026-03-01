@@ -94,6 +94,9 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
                     "option_b": question.option_b,
                     "option_c": question.option_c,
                     "option_d": question.option_d,
+                    "option_e": question.option_e or "",
+                    "is_multi_select": question.is_multi_select,
+                    "correct_answers": question.all_correct_answers,
                 }
                 for question in quiz.questions
             ],
@@ -126,9 +129,15 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     correct_count = 0
 
     for i, question in enumerate(questions, start=1):
-        student_answer = answers.get(str(question.id)) or answers.get(str(i))
+        raw_answer = answers.get(str(question.id)) or answers.get(str(i))
         correct_letters = question.all_correct_answers
-        is_correct = student_answer in correct_letters
+        if question.is_multi_select and raw_answer and "," in str(raw_answer):
+            student_letters = sorted([letter.strip() for letter in str(raw_answer).split(",") if letter.strip()])
+            is_correct = student_letters == sorted(correct_letters)
+            student_answer = raw_answer
+        else:
+            student_answer = raw_answer
+            is_correct = student_answer in correct_letters
         if is_correct:
             correct_count += 1
 
@@ -148,6 +157,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
                     "B": question.option_b,
                     "C": question.option_c,
                     "D": question.option_d,
+                    "E": question.option_e or "",
                 },
             }
         )
@@ -238,6 +248,7 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
                         "option_b": q.option_b,
                         "option_c": q.option_c,
                         "option_d": q.option_d,
+                        "option_e": q.option_e or "",
                         "correct_answer": q.correct_answer,
                         "correct_answers": q.all_correct_answers,
                         "explanation": q.explanation or "",
@@ -268,6 +279,7 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
                     "B": question.option_b,
                     "C": question.option_c,
                     "D": question.option_d,
+                    "E": question.option_e or "",
                 },
             }
         )
@@ -289,6 +301,7 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
                     "option_b": q.option_b,
                     "option_c": q.option_c,
                     "option_d": q.option_d,
+                    "option_e": q.option_e or "",
                     "correct_answer": q.correct_answer,
                     "correct_answers": q.all_correct_answers,
                     "explanation": q.explanation or "",

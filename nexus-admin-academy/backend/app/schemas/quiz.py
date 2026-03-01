@@ -16,11 +16,13 @@ class QuizSubmitRequest(BaseModel):
 
     @field_validator("answers")
     @classmethod
-    def answers_must_be_abcd(cls, value: dict[str, str]) -> dict[str, str]:
-        valid = {"A", "B", "C", "D"}
+    def answers_must_be_abcde(cls, value: dict[str, str]) -> dict[str, str]:
+        valid = {"A", "B", "C", "D", "E"}
         for answer in value.values():
-            if answer not in valid:
-                raise ValueError("Quiz answers must be A/B/C/D only")
+            # Allow multi-select like "A,C" or "A,B,D"
+            letters = [l.strip() for l in str(answer).split(",")]
+            if not all(l in valid for l in letters if l):
+                raise ValueError("Quiz answers must be A/B/C/D/E only")
         return value
 
 

@@ -70,6 +70,11 @@ export const getQuizzes = (weekNumber, studentId = currentStudentId()) => reques
 export const getQuiz = (quizId, studentId = currentStudentId()) => request(() => api.get(`/api/quizzes/${quizId}`, { params: { student_id: studentId } }));
 export const getQuizReview = (quizId, studentId = currentStudentId()) => request(() => api.get(`/api/quizzes/${quizId}/review/${studentId}`));
 export const submitQuiz = (quizId, payload) => request(() => api.post(`/api/quizzes/${quizId}/submit`, payload));
+export const getCurriculum = () => request(() => api.get("/api/study-tracker/curriculum"));
+export const getStudyTracker = (studentId = currentStudentId()) => request(() => api.get(`/api/study-tracker/${studentId}`));
+export const markVideoWatched = (videoKey, studentId = currentStudentId()) => request(() => api.post(`/api/study-tracker/${studentId}/watch/${encodeURIComponent(videoKey)}`));
+export const unmarkVideoWatched = (videoKey, studentId = currentStudentId()) => request(() => api.delete(`/api/study-tracker/${studentId}/watch/${encodeURIComponent(videoKey)}`));
+export const updateCurriculumVideo = (videoId, data) => request(() => adminApi.patch(`/api/study-tracker/curriculum/${videoId}`, data));
 
 export const getTickets = (weekNumber, studentId = currentStudentId()) => request(() => api.get("/api/tickets", { params: { week_number: weekNumber, student_id: studentId } }));
 export const getTicket = (ticketId) => request(() => api.get(`/api/tickets/${ticketId}`));

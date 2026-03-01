@@ -17,6 +17,8 @@ from app.models.progression import Role, PromotionGate, StudentRole, Methodology
 from app.models.lab import LabTemplate, LabRun
 from app.models.incident import RootCause, Incident, IncidentTicket, IncidentParticipant, RCASubmission
 from app.models.capstone import CapstoneTemplate, CapstoneRun
+from app.models.video_watch import VideoWatch
+from app.models.curriculum_video import CurriculumVideo
 
 __all__ = [
     "Student",
@@ -53,4 +55,6 @@ __all__ = [
     "RCASubmission",
     "CapstoneTemplate",
     "CapstoneRun",
+    "VideoWatch",
+    "CurriculumVideo",
 ]

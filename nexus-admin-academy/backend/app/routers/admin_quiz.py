@@ -52,6 +52,7 @@ async def generate_quiz(payload: QuizGenerateRequest, db: Session = Depends(get_
                 option_b=q["option_b"],
                 option_c=q["option_c"],
                 option_d=q["option_d"],
+                option_e=q.get("option_e", "") or None,
                 correct_answer=q["correct_answer"],
                 explanation=q["explanation"],
             )
@@ -136,6 +137,7 @@ async def scrape_quiz_save(payload: dict, db: Session = Depends(get_db)):
                 option_b=question.get("option_b", ""),
                 option_c=question.get("option_c", ""),
                 option_d=question.get("option_d", ""),
+                option_e=question.get("option_e", "") or None,
                 correct_answer=question.get("correct_answer", "A"),
                 explanation=question.get("explanation", ""),
             )
@@ -179,11 +181,11 @@ async def bookmarklet_import(payload: dict, db: Session = Depends(get_db)):
         if isinstance(all_correct, str):
             all_correct = [item.strip() for item in all_correct.split(",") if item.strip()]
 
-        primary = all_correct[0] if all_correct else question.get("correct_answer", "A")
-        if primary not in ["A", "B", "C", "D", "E"]:
-            primary = "A"
-        if primary == "E" and not question.get("option_e"):
-            primary = "A"
+        primary_correct = all_correct[0] if all_correct else question.get("correct_answer", "A")
+        if primary_correct not in ["A", "B", "C", "D", "E"]:
+            primary_correct = "A"
+        if primary_correct == "E" and not question.get("option_e"):
+            primary_correct = "A"
 
         correct_answers_str = ",".join(all_correct) if len(all_correct) > 1 else None
         db.add(
@@ -194,7 +196,8 @@ async def bookmarklet_import(payload: dict, db: Session = Depends(get_db)):
                 option_b=question.get("option_b", ""),
                 option_c=question.get("option_c", ""),
                 option_d=question.get("option_d", ""),
-                correct_answer=primary,
+                option_e=question.get("option_e", "") or None,
+                correct_answer=primary_correct,
                 correct_answers=correct_answers_str,
                 explanation=question.get("explanation", ""),
             )
@@ -225,6 +228,7 @@ def get_quiz_questions(quiz_id: int, db: Session = Depends(get_db)):
                     "option_b": question.option_b,
                     "option_c": question.option_c,
                     "option_d": question.option_d,
+                    "option_e": question.option_e or "",
                     "correct_answer": question.correct_answer,
                     "correct_answers": question.correct_answers,
                     "explanation": question.explanation or "",
@@ -241,7 +245,7 @@ def update_question(question_id: int, payload: dict, db: Session = Depends(get_d
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    for field in ["correct_answer", "correct_answers", "explanation", "question_text", "option_a", "option_b", "option_c", "option_d"]:
+    for field in ["correct_answer", "correct_answers", "explanation", "question_text", "option_a", "option_b", "option_c", "option_d", "option_e"]:
         if field in payload:
             setattr(question, field, payload[field])
     db.commit()

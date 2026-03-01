@@ -33,6 +33,7 @@ class Question(Base):
     option_b: Mapped[str] = mapped_column(Text, nullable=False)
     option_c: Mapped[str] = mapped_column(Text, nullable=False)
     option_d: Mapped[str] = mapped_column(Text, nullable=False)
+    option_e: Mapped[str | None] = mapped_column(Text, nullable=True)
     correct_answer: Mapped[str] = mapped_column(CHAR(1), nullable=False)
     correct_answers: Mapped[str | None] = mapped_column(Text, nullable=True)
     explanation: Mapped[str] = mapped_column(Text, nullable=True)

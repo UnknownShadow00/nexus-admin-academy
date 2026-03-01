@@ -8,6 +8,7 @@ import AdminReviewPage from "./pages/AdminReviewPage";
 import AdminStudentsPage from "./pages/AdminStudentsPage";
 import AICostDashboard from "./pages/admin/AICostDashboard";
 import BookmarkletPage from "./pages/admin/BookmarkletPage";
+import CurriculumEditorPage from "./pages/admin/CurriculumEditorPage";
 import QuizEditorPage from "./pages/admin/QuizEditorPage";
 import LearningPath from "./pages/LearningPath";
 import ModuleManager from "./pages/ModuleManager";
@@ -16,6 +17,7 @@ import QuizReviewPage from "./pages/QuizReviewPage";
 import QuizzesPage from "./pages/QuizzesPage";
 import SelectProfile from "./pages/SelectProfile";
 import StudentHome from "./pages/StudentHome";
+import StudyTrackerPage from "./pages/StudyTrackerPage";
 import TerminalCommandsPage from "./pages/TerminalCommandsPage";
 import TicketFeedback from "./pages/TicketFeedback";
 import TicketPage from "./pages/TicketPage";
@@ -27,6 +29,7 @@ const studentNavItems = [
   { to: "/", label: "Home" },
   { to: "/learning-path", label: "Learning Path" },
   { to: "/quizzes", label: "Quizzes" },
+  { to: "/study-tracker", label: "📚 Study Tracker" },
   { to: "/tickets", label: "Tickets" },
   { to: "/terminal", label: "Terminal & Commands" },
 ];
@@ -37,6 +40,7 @@ const adminNavItems = [
   { to: "/admin/students", label: "Students" },
   { to: "/admin/modules", label: "Modules" },
   { to: "/admin/bookmarklet", label: "ExamCompass Import" },
+  { to: "/admin/curriculum", label: "📋 Curriculum" },
   { to: "/admin/ai-costs", label: "AI Costs" },
 ];
 
@@ -179,6 +183,7 @@ export default function App() {
         <Route path="/select-profile" element={<SelectProfile />} />
         <Route path="/learning-path" element={<LearningPath />} />
         <Route path="/quizzes" element={<QuizzesPage />} />
+        <Route path="/study-tracker" element={<StudyTrackerPage />} />
         <Route path="/quizzes/:quizId" element={<QuizPage />} />
         <Route path="/quizzes/:quizId/review" element={<QuizReviewPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
@@ -191,6 +196,7 @@ export default function App() {
         <Route path="/admin/students" element={<AdminAccessGate><AdminStudentsPage /></AdminAccessGate>} />
         <Route path="/admin/modules" element={<AdminAccessGate><ModuleManager /></AdminAccessGate>} />
         <Route path="/admin/bookmarklet" element={<AdminAccessGate><BookmarkletPage /></AdminAccessGate>} />
+        <Route path="/admin/curriculum" element={<AdminAccessGate><CurriculumEditorPage /></AdminAccessGate>} />
         <Route path="/admin/quizzes/:quizId/edit" element={<AdminAccessGate><QuizEditorPage /></AdminAccessGate>} />
         <Route path="/admin/ai-costs" element={<AdminAccessGate><AICostDashboard /></AdminAccessGate>} />
       </Routes>
