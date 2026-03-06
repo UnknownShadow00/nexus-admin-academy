@@ -1,29 +1,32 @@
-# Nexus Admin Academy V1
+﻿# Nexus Admin Academy
 
-AI-driven IT training platform for a trusted cohort of 5 students.
+Nexus Admin Academy is a CompTIA A+ training platform where students progress through Professor Messer videos, complete quizzes, and earn XP, while admins manage curriculum content and quiz imports from ExamCompass.
 
-## Stack
-- Backend: FastAPI + SQLAlchemy + Alembic
-- Frontend: React 18 + Vite + Tailwind
-- Database: PostgreSQL 15 (local dev defaults to SQLite)
-- AI: OpenRouter (`mistralai/mistral-large`)
-
-## Project Structure
-- `backend/` API, models, services, migrations
-- `frontend/` student/admin web app
+## Prerequisites
+- Python 3.11+
+- Node.js 18+
+- PostgreSQL
 
 ## Backend Setup
 ```bash
 cd backend
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# Linux/macOS
-# source .venv/bin/activate
-
 pip install -r requirements.txt
 cp .env.example .env
-python -m alembic upgrade head
+```
+
+Set these values in `backend/.env`:
+- `DATABASE_URL`
+- `ADMIN_SECRET_KEY`
+- `ANTHROPIC_API_KEY`
+
+Run database setup and seed data:
+```bash
+alembic upgrade head
+python seed_curriculum.py
+```
+
+Start the backend:
+```bash
 uvicorn app.main:app --reload
 ```
 
@@ -31,59 +34,19 @@ uvicorn app.main:app --reload
 ```bash
 cd frontend
 npm install
+```
+
+Set these values in `frontend/.env`:
+- `VITE_API_URL`
+- `VITE_ADMIN_KEY`
+
+Start the frontend:
+```bash
 npm run dev
 ```
 
-Set `VITE_API_URL` if backend is not `http://localhost:8000`.
+## Bookmarklet Import and Quiz Title Matching
+The admin bookmarklet runs on ExamCompass quiz pages, extracts questions/answers, and posts them to `/api/admin/quiz/bookmarklet-import`. For study-tracker linking to work reliably, each imported quiz title must match the expected `quiz_title` values from `seed_curriculum.py` exactly.
 
-## Required Environment Variables
-Backend (`backend/.env`):
-```env
-DATABASE_URL=sqlite:///./nexus.db
-ADMIN_SECRET_KEY=change_me
-APP_LOG_PATH=./nexus.log
-UPLOAD_DIR=./uploads/screenshots
-
-OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=mistralai/mistral-large
-OPENROUTER_SITE_URL=http://localhost:3000
-OPENROUTER_SITE_NAME=Nexus Admin Academy
-COST_PER_1K_TOKENS=0.003
-```
-
-Frontend (`frontend/.env`):
-```env
-VITE_API_URL=http://localhost:8000
-```
-
-## Implemented API Routes
-- `POST /api/admin/quiz/generate`
-- `POST /api/admin/tickets`
-- `POST /api/admin/tickets/bulk-generate`
-- `POST /api/admin/tickets/bulk-publish`
-- `POST /api/admin/tickets/bulk`
-- `GET /api/admin/ai-usage`
-- `GET /api/admin/submissions`
-- `GET /api/admin/submissions/{submission_id}`
-- `PUT /api/admin/submissions/{submission_id}/override`
-- `GET /api/admin/review`
-- `GET /api/admin/students/overview`
-- `GET /api/admin/students/{student_id}/activity`
-- `POST /api/admin/resources`
-- `DELETE /api/admin/resources/{resource_id}`
-- `GET /api/quizzes`
-- `GET /api/quizzes/{quiz_id}`
-- `POST /api/quizzes/{quiz_id}/submit`
-- `GET /api/tickets`
-- `GET /api/tickets/{ticket_id}`
-- `POST /api/tickets/uploads`
-- `POST /api/tickets/{ticket_id}/submit`
-- `GET /api/resources`
-- `GET /api/students/{student_id}/dashboard`
-- `GET /api/leaderboard`
-
-## Notes
-- Admin routes require an authenticated admin session cookie.
-- Use `/api/admin/session/login` (or the `/admin` UI login form) with `ADMIN_SECRET_KEY`.
-- On startup, backend seeds 5 students if database is empty.
-- AI calls are logged in `ai_usage_logs` with token/cost data.
+## Important Admin Note
+`ADMIN_SECRET_KEY` must be set. If it is missing or empty, admin-protected routes will return `500` errors.

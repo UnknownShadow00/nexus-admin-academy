@@ -292,9 +292,10 @@ export default function QuizTaker({ quizId, studentId }) {
       });
       toast.dismiss(toastId);
       toast.success(
-        res.data?.xp_awarded > 0
-          ? `+${res.data.xp_awarded} XP earned!`
-          : "Quiz submitted"
+        res.data?.message ||
+          (res.data?.xp_awarded > 0
+            ? `+${res.data.xp_awarded} XP earned!`
+            : "Quiz submitted")
       );
       setResult(res.data);
       localStorage.removeItem(progressKey(quizId));

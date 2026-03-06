@@ -1,6 +1,7 @@
 ﻿import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
@@ -24,13 +25,22 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
     quizzes = query.order_by(Quiz.created_at.desc()).all()
 
     attempts_by_quiz = {}
+    attempt_counts_by_quiz = {}
     if student_id is not None:
         attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).all()
         attempts_by_quiz = {attempt.quiz_id: attempt for attempt in attempts}
+        attempt_counts = (
+            db.query(QuizAttempt.quiz_id, func.count(QuizAttempt.id))
+            .filter(QuizAttempt.student_id == student_id)
+            .group_by(QuizAttempt.quiz_id)
+            .all()
+        )
+        attempt_counts_by_quiz = {quiz_id: count for quiz_id, count in attempt_counts}
 
     data = []
     for quiz in quizzes:
         attempt = attempts_by_quiz.get(quiz.id)
+        attempt_count = attempt_counts_by_quiz.get(quiz.id, 0) if student_id else 0
         data.append(
             {
                 "id": quiz.id,
@@ -43,7 +53,7 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
                 "status": "completed" if attempt else "not_started",
                 "best_score": attempt.best_score if attempt else None,
                 "first_attempt_xp": attempt.first_attempt_xp if attempt else None,
-                "attempt_count": 1 if attempt else 0,
+                "attempt_count": attempt_count,
                 "retake_available": attempt is not None,
             }
         )

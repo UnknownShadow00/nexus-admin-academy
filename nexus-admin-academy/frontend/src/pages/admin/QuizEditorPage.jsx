@@ -1,7 +1,7 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { getQuizQuestions, updateQuestion } from "../../services/api";
+import { getQuizQuestions, updateQuestion, updateQuiz } from "../../services/api";
 
 export default function QuizEditorPage() {
   const { quizId } = useParams();
@@ -11,14 +11,42 @@ export default function QuizEditorPage() {
   const [saving, setSaving] = useState({});
   const [saved, setSaved] = useState({});
 
+  const [titleEdit, setTitleEdit] = useState("");
+  const [titleSaving, setTitleSaving] = useState(false);
+  const [titleSaved, setTitleSaved] = useState(false);
+  const [titleError, setTitleError] = useState("");
+
   useEffect(() => {
     const run = async () => {
       const res = await getQuizQuestions(quizId);
-      setQuiz({ title: res.data.title });
-      setQuestions(res.data.questions || []);
+      const nextTitle = res.data?.title || "";
+      setQuiz({ title: nextTitle });
+      setTitleEdit(nextTitle);
+      setQuestions(res.data?.questions || []);
     };
     run();
   }, [quizId]);
+
+  const saveTitle = async () => {
+    const trimmed = titleEdit.trim();
+    if (!trimmed || !quiz) return;
+
+    setTitleSaving(true);
+    setTitleSaved(false);
+    setTitleError("");
+    try {
+      const res = await updateQuiz(quizId, { title: trimmed });
+      const updatedTitle = res.data?.title || trimmed;
+      setQuiz((prev) => ({ ...(prev || {}), title: updatedTitle }));
+      setTitleEdit(updatedTitle);
+      setTitleSaved(true);
+      setTimeout(() => setTitleSaved(false), 1500);
+    } catch (error) {
+      setTitleError(error?.response?.data?.detail || "Failed to save title");
+    } finally {
+      setTitleSaving(false);
+    }
+  };
 
   const save = async (question) => {
     setSaving((s) => ({ ...s, [question.id]: true }));
@@ -43,9 +71,38 @@ export default function QuizEditorPage() {
 
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-6">
-      <div>
+      <div className="panel space-y-3 dark:border-slate-700 dark:bg-slate-900">
         <h1 className="text-2xl font-bold dark:text-slate-100">Edit Quiz</h1>
-        <p className="text-slate-500">{quiz.title} — {questions.length} questions</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{questions.length} questions</p>
+
+        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+          Quiz Title
+          <span className="ml-2 text-xs font-normal text-slate-500 dark:text-slate-400">
+            (must match quiz_title in curriculum for video linking)
+          </span>
+        </label>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            className="input-field flex-1"
+            value={titleEdit}
+            onChange={(e) => setTitleEdit(e.target.value)}
+            placeholder="Enter quiz title"
+          />
+          <button
+            className="btn-primary shrink-0"
+            onClick={saveTitle}
+            disabled={titleSaving || !titleEdit.trim() || titleEdit.trim() === (quiz.title || "").trim()}
+          >
+            {titleSaving ? "Saving..." : titleSaved ? "Saved" : "Save Title"}
+          </button>
+        </div>
+
+        {titleError ? <p className="text-sm text-red-600 dark:text-red-400">{titleError}</p> : null}
+
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          💡 To link this quiz to a video, the title must exactly match the video's quiz_title in the Curriculum editor.
+        </p>
       </div>
 
       {questions.map((q, i) => (
@@ -53,7 +110,7 @@ export default function QuizEditorPage() {
           <p className="font-semibold text-slate-900 dark:text-slate-100">{i + 1}. {q.question_text}</p>
 
           <div className="grid grid-cols-2 gap-2 text-sm">
-            {["a", "b", "c", "d"].map((opt) => (
+            {["a", "b", "c", "d", "e"].filter((opt) => (q[`option_${opt}`] || "").trim()).map((opt) => (
               <div
                 key={opt}
                 className={`rounded border p-2 dark:border-slate-700 ${
@@ -73,6 +130,7 @@ export default function QuizEditorPage() {
               <option value="B">B</option>
               <option value="C">C</option>
               <option value="D">D</option>
+              <option value="E">E</option>
             </select>
             <input className="input-field flex-1" placeholder="Explanation (optional)" value={q.explanation} onChange={(e) => update(q.id, "explanation", e.target.value)} />
             <button className="btn-primary shrink-0" onClick={() => save(q)} disabled={saving[q.id]}>
@@ -82,7 +140,7 @@ export default function QuizEditorPage() {
 
           <div className="mt-2">
             <label className="mb-1 block text-xs text-slate-500 dark:text-slate-400">
-              All correct answers for multi-select (comma-separated e.g. "A,C,D" — leave blank for single answer)
+              All correct answers for multi-select (comma-separated e.g. "A,C,D" - leave blank for single answer)
             </label>
             <input
               className="input-field w-full text-sm"
@@ -91,7 +149,7 @@ export default function QuizEditorPage() {
               onChange={(e) =>
                 setEdits((prev) => ({
                   ...prev,
-                  [q.id]: { ...prev[q.id], correct_answers: e.target.value.toUpperCase().replace(/[^A-D,]/g, "") },
+                  [q.id]: { ...prev[q.id], correct_answers: e.target.value.toUpperCase().replace(/[^A-E,]/g, "") },
                 }))
               }
             />

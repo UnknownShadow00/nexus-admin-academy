@@ -71,6 +71,7 @@ export const getQuiz = (quizId, studentId = currentStudentId()) => request(() =>
 export const getQuizReview = (quizId, studentId = currentStudentId()) => request(() => api.get(`/api/quizzes/${quizId}/review/${studentId}`));
 export const submitQuiz = (quizId, payload) => request(() => api.post(`/api/quizzes/${quizId}/submit`, payload));
 export const getCurriculum = () => request(() => api.get("/api/study-tracker/curriculum"));
+export const getCurriculumLinkStatus = () => request(() => adminApi.get("/api/study-tracker/curriculum/link-status"));
 export const getStudyTracker = (studentId = currentStudentId()) => request(() => api.get(`/api/study-tracker/${studentId}`));
 export const markVideoWatched = (videoKey, studentId = currentStudentId()) => request(() => api.post(`/api/study-tracker/${studentId}/watch/${encodeURIComponent(videoKey)}`));
 export const unmarkVideoWatched = (videoKey, studentId = currentStudentId()) => request(() => api.delete(`/api/study-tracker/${studentId}/watch/${encodeURIComponent(videoKey)}`));
@@ -104,6 +105,7 @@ export const adminSessionLogout = () => request(() => api.post("/api/admin/sessi
 export const generateQuiz = (payload) => request(() => adminApi.post("/api/admin/quiz/generate", payload));
 export const getQuizList = () => request(() => adminApi.get("/api/admin/quizzes"));
 export const deleteQuiz = (id) => request(() => adminApi.delete(`/api/admin/quizzes/${id}`));
+export const updateQuiz = (quizId, payload) => request(() => adminApi.patch(`/api/admin/quizzes/${quizId}`, payload));
 export const scrapeQuizPreview = (url) => request(() => adminApi.post("/api/admin/quiz/scrape-preview", { url }));
 export const scrapeQuizSave = (payload) => request(() => adminApi.post("/api/admin/quiz/scrape-save", payload));
 export const bookmarkletImport = (payload) => request(() => adminApi.post("/api/admin/quiz/bookmarklet-import", payload));

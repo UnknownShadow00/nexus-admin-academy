@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Integer, String, Text
+﻿from sqlalchemy import Boolean, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -15,5 +15,6 @@ class CurriculumVideo(Base):
     duration: Mapped[str | None] = mapped_column(String(20), nullable=True)
     url: Mapped[str | None] = mapped_column(Text, nullable=True)
     quiz_title: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    job_relevance: Mapped[str] = mapped_column(String(20), default="know_it", nullable=False, server_default="know_it")
     video_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

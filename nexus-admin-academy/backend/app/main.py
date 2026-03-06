@@ -15,6 +15,7 @@ from app.database import SessionLocal
 from app.config import load_env
 from app.models import Student
 from app.routers import admin, admin_session, commands, evidence, quizzes, resources, search, students, study_tracker, submissions, tickets
+from app.routers.admin_curriculum import router as admin_curriculum_router
 from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
 
 load_env()
@@ -135,6 +136,7 @@ def create_app() -> FastAPI:
         return {"success": True, "data": {"ok": True, "timestamp": datetime.utcnow().isoformat() + "Z"}}
 
     app.include_router(admin.router)
+    app.include_router(admin_curriculum_router)
     app.include_router(admin_session.router)
     app.include_router(quizzes.router)
     app.include_router(tickets.router)

@@ -10,6 +10,12 @@ import {
 import { getSelectedProfile } from "../services/profile";
 import Spinner from "../components/Spinner";
 
+const JOB_TAGS = {
+  job_critical: { label: "💼 Job Critical", shortLabel: "Job Critical", cls: "bg-indigo-600 text-white border-indigo-600" },
+  know_it: { label: "📚 Know It", shortLabel: "Know It", cls: "bg-slate-200 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+  awareness: { label: "👀 Awareness", shortLabel: "Awareness Only", cls: "bg-transparent text-slate-500 border-slate-300 dark:text-slate-300 dark:border-slate-600" },
+};
+
 function ScoreBadge({ pct }) {
   if (pct == null) return null;
   const color =
@@ -23,6 +29,11 @@ function ScoreBadge({ pct }) {
       {pct}%
     </span>
   );
+}
+
+function JobRelevanceBadge({ value }) {
+  const tag = JOB_TAGS[value] || JOB_TAGS.know_it;
+  return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${tag.cls}`}>{tag.label}</span>;
 }
 
 function SectionBlock({ section, videos, watched, scores, quizMap, onToggleWatch }) {
@@ -102,11 +113,12 @@ function SectionBlock({ section, videos, watched, scores, quizMap, onToggleWatch
                   >
                     {video.title}
                   </span>
-                  {video.duration && (
+                    {video.duration && (
                     <span className="shrink-0 text-xs text-slate-400">
                       ({video.duration})
                     </span>
                   )}
+                  <JobRelevanceBadge value={video.job_relevance} />
                   <span className="shrink-0 text-xs text-blue-400 opacity-0 group-hover:opacity-100">
                     ↗
                   </span>
@@ -152,6 +164,7 @@ export default function StudyTrackerPage() {
   const [curriculum, setCurriculum] = useState([]);
   const [trackerData, setTrackerData] = useState({ watched: {}, scores: {} });
   const [quizMap, setQuizMap] = useState({});
+  const [tagFilter, setTagFilter] = useState("all");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -221,6 +234,12 @@ export default function StudyTrackerPage() {
   const totalVideos = curriculum.reduce((s, sec) => s + sec.videos.length, 0);
   const totalWatched = Object.keys(trackerData.watched).length;
   const overallPct = totalVideos ? Math.round((totalWatched / totalVideos) * 100) : 0;
+  const filteredCurriculum =
+    tagFilter === "all"
+      ? curriculum
+      : curriculum
+          .map((sec) => ({ ...sec, videos: sec.videos.filter((video) => video.job_relevance === tagFilter) }))
+          .filter((sec) => sec.videos.length > 0);
 
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-4 pb-20">
@@ -244,7 +263,34 @@ export default function StudyTrackerPage() {
         </p>
       </div>
 
-      {curriculum.map((sec) => (
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { value: "all", label: "All" },
+            { value: "job_critical", label: "Job Critical" },
+            { value: "know_it", label: "Know It" },
+            { value: "awareness", label: "Awareness Only" },
+          ].map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setTagFilter(opt.value)}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                tagFilter === opt.value
+                  ? "border-blue-600 bg-blue-600 text-white"
+                  : "border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          Tags show job relevance for help desk / sysadmin roles, not exam weight.
+        </p>
+      </div>
+
+      {filteredCurriculum.map((sec) => (
         <SectionBlock
           key={sec.section}
           section={sec.section}

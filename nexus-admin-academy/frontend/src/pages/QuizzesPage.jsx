@@ -66,7 +66,7 @@ export default function QuizzesPage() {
               <p className="text-sm text-slate-600 dark:text-slate-300">Week {quiz.week_number} · {quiz.video_count || 1} video(s) · {quiz.question_count} questions</p>
               {quiz.status === "completed" ? (
                 <div className="mt-2 text-sm text-green-700 dark:text-green-300">
-                  <p>Attempted {quiz.attempt_count || 1} time(s) · Best: {quiz.best_score || 0}/{quiz.question_count} ({Math.round(((quiz.best_score || 0) / (quiz.question_count || 10)) * 100)}%)</p>
+                  <p>Completed · Best: {quiz.best_score || 0}/{quiz.question_count} ({Math.round(((quiz.best_score || 0) / (quiz.question_count || 10)) * 100)}%)</p>
                   <p>First Attempt XP: {quiz.first_attempt_xp}</p>
                   <p className="text-xs">Retakes allowed (no extra XP).</p>
                 </div>

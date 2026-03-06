@@ -11,6 +11,16 @@ from app.services.examcompass_scraper import scrape_examcompass_quiz
 from app.services.quiz_generator import generate_quiz_from_videos
 from app.utils.responses import ok
 
+
+def _normalize_examcompass_title(raw: str) -> str:
+    import re as _re
+    title = _re.sub(r"\s*[|\-]\s*ExamCompass.*$", "", raw, flags=_re.IGNORECASE)
+    title = _re.sub(r"\s*\|.*$", "", title)
+    title = _re.sub(r"^[^:]+:\s*", "", title)
+    title = title.strip()
+    return title if len(title) >= 3 else raw.strip()
+
+
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(verify_admin)])
 logger = logging.getLogger(__name__)
 
@@ -91,6 +101,35 @@ def delete_quiz(quiz_id: int, db: Session = Depends(get_db)):
     return ok({"deleted": True})
 
 
+@router.patch("/quizzes/{quiz_id}")
+def update_quiz(quiz_id: int, payload: dict, db: Session = Depends(get_db)):
+    quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    updated = {}
+    if "title" in payload:
+        title = (payload.get("title") or "").strip()
+        if title:
+            quiz.title = title
+            updated["title"] = quiz.title
+
+    if "week_number" in payload:
+        week_number = payload.get("week_number")
+        if week_number not in (None, ""):
+            quiz.week_number = int(week_number)
+            updated["week_number"] = quiz.week_number
+
+    if "domain_id" in payload:
+        domain_id = str(payload.get("domain_id") or "").strip()
+        if domain_id:
+            quiz.domain_id = domain_id
+            updated["domain_id"] = quiz.domain_id
+
+    db.commit()
+    return ok({"id": quiz.id, "title": quiz.title, "week_number": quiz.week_number, "domain_id": quiz.domain_id, **updated})
+
+
 @router.post("/quiz/scrape-preview")
 async def scrape_quiz_preview(payload: dict):
     url = (payload.get("url") or "").strip()
@@ -158,7 +197,8 @@ async def bookmarklet_import(payload: dict, db: Session = Depends(get_db)):
     if not questions:
         raise HTTPException(status_code=400, detail="No questions received")
 
-    title = (payload.get("title", "ExamCompass Import") or "").strip() or "ExamCompass Import"
+    raw_title = (payload.get("title", "") or "").strip()
+    title = _normalize_examcompass_title(raw_title) or raw_title or "ExamCompass Import"
     source_url = payload.get("source_url", "")
 
     quiz = Quiz(

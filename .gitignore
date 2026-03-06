@@ -10,3 +10,4 @@ nexus-admin-academy/frontend/.env
 __pycache__/
 node_modules/
 .env.*
+/package-lock.json

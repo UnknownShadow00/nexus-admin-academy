@@ -1,16 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
 import Spinner from "../../components/Spinner";
-import { getCurriculum, updateCurriculumVideo } from "../../services/api";
+import { getCurriculum, getCurriculumLinkStatus, updateCurriculumVideo } from "../../services/api";
 
-function EditableCell({ value, onSave, placeholder, type = "text" }) {
+function EditableCell({ value, onSave, placeholder, type = "text", forceEditing = false, onEditFinish }) {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(value || "");
 
+  useEffect(() => {
+    setVal(value || "");
+  }, [value]);
+
+  useEffect(() => {
+    if (forceEditing) setEditing(true);
+  }, [forceEditing]);
+
   const save = async () => {
     setEditing(false);
+    onEditFinish?.();
     if (val !== value) await onSave(val);
+  };
+
+  const cancel = () => {
+    setEditing(false);
+    setVal(value || "");
+    onEditFinish?.();
   };
 
   if (editing) {
@@ -24,7 +39,7 @@ function EditableCell({ value, onSave, placeholder, type = "text" }) {
         onBlur={save}
         onKeyDown={(e) => {
           if (e.key === "Enter") save();
-          if (e.key === "Escape") setEditing(false);
+          if (e.key === "Escape") cancel();
         }}
       />
     );
@@ -43,14 +58,27 @@ function EditableCell({ value, onSave, placeholder, type = "text" }) {
 
 export default function CurriculumEditorPage() {
   const [curriculum, setCurriculum] = useState([]);
+  const [linkStatus, setLinkStatus] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingQuizTitleId, setEditingQuizTitleId] = useState(null);
 
   useEffect(() => {
-    getCurriculum().then((res) => {
-      setCurriculum(res.data || []);
+    const run = async () => {
+      const [curriculumRes, linkStatusRes] = await Promise.all([
+        getCurriculum(),
+        getCurriculumLinkStatus(),
+      ]);
+      setCurriculum(curriculumRes.data || []);
+      setLinkStatus(linkStatusRes.data || []);
       setLoading(false);
-    });
+    };
+    run();
   }, []);
+
+  const refreshLinkStatus = async () => {
+    const linkStatusRes = await getCurriculumLinkStatus();
+    setLinkStatus(linkStatusRes.data || []);
+  };
 
   const handleUpdate = async (videoId, field, value) => {
     try {
@@ -64,8 +92,24 @@ export default function CurriculumEditorPage() {
           ),
         }))
       );
+      if (field === "quiz_title") {
+        await refreshLinkStatus();
+      }
     } catch {
       toast.error("Save failed");
+    }
+  };
+
+  const unlinked = useMemo(
+    () => (linkStatus || []).filter((row) => !row.linked),
+    [linkStatus]
+  );
+
+  const startInlineQuizTitleEdit = (videoId) => {
+    setEditingQuizTitleId(videoId);
+    const rowEl = document.getElementById(`video-row-${videoId}`);
+    if (rowEl) {
+      rowEl.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   };
 
@@ -87,6 +131,33 @@ export default function CurriculumEditorPage() {
         </p>
       </div>
 
+      <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Link Status</h2>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+          {(linkStatus.length || 0) - unlinked.length}/{linkStatus.length || 0} videos linked to quizzes
+        </p>
+
+        {unlinked.length === 0 ? (
+          <p className="mt-3 text-sm text-green-700 dark:text-green-300">All curriculum videos are linked.</p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {unlinked.map((row) => (
+              <div key={row.id} className="rounded border border-amber-200 bg-amber-50 p-2 text-sm dark:border-amber-800 dark:bg-amber-950/30">
+                <div className="font-medium text-slate-900 dark:text-slate-100">{row.title}</div>
+                <div className="text-slate-600 dark:text-slate-300">Expected quiz_title: {row.quiz_title || "(empty)"}</div>
+                <button
+                  type="button"
+                  className="mt-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                  onClick={() => startInlineQuizTitleEdit(row.id)}
+                >
+                  Edit
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       {curriculum.map((sec) => (
         <div key={sec.section} className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
           <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
@@ -96,17 +167,18 @@ export default function CurriculumEditorPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-xs text-slate-500">
-                  <th className="px-3 py-2 text-left font-medium w-48">Video Title</th>
-                  <th className="px-3 py-2 text-left font-medium w-16">Duration</th>
+                <tr className="border-b border-slate-100 text-xs text-slate-500 dark:border-slate-800">
+                  <th className="w-48 px-3 py-2 text-left font-medium">Video Title</th>
+                  <th className="w-16 px-3 py-2 text-left font-medium">Duration</th>
                   <th className="px-3 py-2 text-left font-medium">Professor Messer URL</th>
-                  <th className="px-3 py-2 text-left font-medium w-56">Linked Quiz Title</th>
+                  <th className="w-56 px-3 py-2 text-left font-medium">Linked Quiz Title</th>
                 </tr>
               </thead>
               <tbody>
                 {sec.videos.map((video, idx) => (
                   <tr
                     key={video.id}
+                    id={`video-row-${video.id}`}
                     className={`border-b border-slate-50 dark:border-slate-800/50 ${
                       idx % 2 === 0 ? "" : "bg-slate-50/50 dark:bg-slate-800/20"
                     }`}
@@ -137,7 +209,7 @@ export default function CurriculumEditorPage() {
                             href={video.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="shrink-0 text-blue-500 hover:text-blue-700 text-xs"
+                            className="shrink-0 text-xs text-blue-500 hover:text-blue-700"
                           >
                             ?
                           </a>
@@ -149,6 +221,10 @@ export default function CurriculumEditorPage() {
                         value={video.quiz_title}
                         placeholder="Quiz name (must match exactly)"
                         onSave={(v) => handleUpdate(video.id, "quiz_title", v)}
+                        forceEditing={editingQuizTitleId === video.id}
+                        onEditFinish={() => {
+                          if (editingQuizTitleId === video.id) setEditingQuizTitleId(null);
+                        }}
                       />
                     </td>
                   </tr>

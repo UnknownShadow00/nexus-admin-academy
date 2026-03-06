@@ -9,6 +9,7 @@ import AdminStudentsPage from "./pages/AdminStudentsPage";
 import AICostDashboard from "./pages/admin/AICostDashboard";
 import BookmarkletPage from "./pages/admin/BookmarkletPage";
 import CurriculumEditorPage from "./pages/admin/CurriculumEditorPage";
+import CurriculumTagsPage from "./pages/admin/CurriculumTagsPage";
 import QuizEditorPage from "./pages/admin/QuizEditorPage";
 import LearningPath from "./pages/LearningPath";
 import ModuleManager from "./pages/ModuleManager";
@@ -41,6 +42,7 @@ const adminNavItems = [
   { to: "/admin/modules", label: "Modules" },
   { to: "/admin/bookmarklet", label: "ExamCompass Import" },
   { to: "/admin/curriculum", label: "📋 Curriculum" },
+  { to: "/admin/curriculum-tags", label: "🏷️ Job Tags" },
   { to: "/admin/ai-costs", label: "AI Costs" },
 ];
 
@@ -197,6 +199,7 @@ export default function App() {
         <Route path="/admin/modules" element={<AdminAccessGate><ModuleManager /></AdminAccessGate>} />
         <Route path="/admin/bookmarklet" element={<AdminAccessGate><BookmarkletPage /></AdminAccessGate>} />
         <Route path="/admin/curriculum" element={<AdminAccessGate><CurriculumEditorPage /></AdminAccessGate>} />
+        <Route path="/admin/curriculum-tags" element={<AdminAccessGate><CurriculumTagsPage /></AdminAccessGate>} />
         <Route path="/admin/quizzes/:quizId/edit" element={<AdminAccessGate><QuizEditorPage /></AdminAccessGate>} />
         <Route path="/admin/ai-costs" element={<AdminAccessGate><AICostDashboard /></AdminAccessGate>} />
       </Routes>

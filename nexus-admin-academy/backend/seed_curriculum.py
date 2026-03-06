@@ -72,9 +72,59 @@ CURRICULUM = [
     ("Hardware & Network Troubleshooting", 4, "Troubleshooting Printers", "11:54", "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/troubleshooting-printers-220-1201/", "Printer Troubleshooting Quiz", 5),
 ]
 
+JOB_RELEVANCE = {
+    "Mobile Device Hardware Servicing Quiz": "awareness",
+    "Mobile Device Connection Methods Quiz": "awareness",
+    "Mobile Device Accessories Quiz": "awareness",
+    "Mobile Device Network Connectivity Quiz": "know_it",
+    "Mobile Device Application Support Quiz": "know_it",
+    "Network Protocols Quiz": "job_critical",
+    "TCP & UDP Ports Quiz": "job_critical",
+    "Wireless Networking Technologies Quiz": "job_critical",
+    "Network Services Quiz": "job_critical",
+    "Network Configuration Concepts Quiz": "job_critical",
+    "Common Networking Hardware Quiz": "job_critical",
+    "IP Addressing Quiz": "job_critical",
+    "Internet Connection Types Quiz": "know_it",
+    "Network Types Quiz": "know_it",
+    "Networking Tools Quiz": "job_critical",
+    "Display Devices Quiz": "know_it",
+    "Cabling Quiz": "know_it",
+    "Connector Quiz": "awareness",
+    "RAM Quiz": "know_it",
+    "Storage Devices Quiz": "know_it",
+    "Motherboard Quiz": "awareness",
+    "BIOS Quiz": "job_critical",
+    "CPU Quiz": "awareness",
+    "Power Supply Quiz": "awareness",
+    "Multifunction Devices Quiz": "know_it",
+    "Printer Quiz": "job_critical",
+    "Virtualization Concepts Quiz": "job_critical",
+    "Cloud Computing Concepts Quiz": "job_critical",
+    "Core PC Hardware Troubleshooting Quiz": "job_critical",
+    "Storage and RAID Troubleshooting Quiz": "know_it",
+    "Display Devices Troubleshooting Quiz": "know_it",
+    "Mobile Devices Troubleshooting Quiz": "awareness",
+    "Network Troubleshooting Quiz": "job_critical",
+    "Printer Troubleshooting Quiz": "job_critical",
+}
+
+
+def infer_job_relevance(video_title: str, quiz_title: str | None) -> str:
+    if quiz_title and quiz_title in JOB_RELEVANCE:
+        return JOB_RELEVANCE[quiz_title]
+
+    title = (video_title or "").lower()
+    if any(token in title for token in ["troubleshooting", "network", "ip", "dns", "dhcp", "cloud", "virtual"]):
+        return "job_critical"
+    if any(token in title for token in ["mobile", "motherboard", "power supply", "cpu", "connector"]):
+        return "awareness"
+    return "know_it"
+
 db = SessionLocal()
 try:
     for section, section_order, title, duration, url, quiz_title, video_order in CURRICULUM:
+        job_relevance = infer_job_relevance(title, quiz_title)
         key = title.lower().replace(" ", "-").replace("&", "and").replace("/", "-")
         existing = db.query(CurriculumVideo).filter(CurriculumVideo.video_key == key).first()
         if not existing:
@@ -87,9 +137,19 @@ try:
                     duration=duration,
                     url=url,
                     quiz_title=quiz_title,
+                    job_relevance=job_relevance,
                     video_order=video_order,
                 )
             )
+        else:
+            existing.section = section
+            existing.section_order = section_order
+            existing.title = title
+            existing.duration = duration
+            existing.url = url
+            existing.quiz_title = quiz_title
+            existing.video_order = video_order
+            existing.job_relevance = job_relevance
     db.commit()
     print("Curriculum seeded successfully")
 finally:
