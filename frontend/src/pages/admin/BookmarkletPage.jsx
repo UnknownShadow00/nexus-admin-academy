@@ -1,14 +1,19 @@
-﻿import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle, Copy } from "lucide-react";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || "";
+import { buildApiUrl } from "../../services/api";
 
 export default function BookmarkletPage() {
   const [copied, setCopied] = useState(false);
+  const [adminKey, setAdminKey] = useState(() => localStorage.getItem("nexus_bookmarklet_admin_key") || "");
+  const apiUrl = buildApiUrl("");
+
+  useEffect(() => {
+    localStorage.setItem("nexus_bookmarklet_admin_key", adminKey);
+  }, [adminKey]);
 
   const bookmarkletCode = `javascript:(function(){
-  var API='${API_URL}/api/admin/quiz/bookmarklet-import',ADMIN_KEY='${ADMIN_KEY}';
+  var API='${apiUrl}/api/admin/quiz/bookmarklet-import',ADMIN_KEY='${adminKey.trim()}';
 
   function banner(msg,state){
     var el=document.getElementById('nexus-banner');
@@ -119,7 +124,6 @@ export default function BookmarkletPage() {
           !/^(A|B|C|D|E)[.)\\s]/i.test(t);
       }
 
-      // Best source: immediate heading block before this answer list
       var prev=group.previousElementSibling;
       while(prev){
         var pt=cleanQ(prev.innerText||prev.textContent||'');
@@ -127,13 +131,11 @@ export default function BookmarkletPage() {
         prev=prev.previousElementSibling;
       }
 
-      // Next source: heading elements inside nearest question panel
       var container=group.closest('.question-item,.panel,.well,.box,.quiz-result,.gk-article')||group.parentElement||group;
       var headingEl=container.querySelector('h1,h2,h3,h4,.panel-heading,.question-title,.question-text,strong');
       var ht=cleanQ(headingEl&&(headingEl.innerText||headingEl.textContent||'')||'');
       if(validQ(ht)) return ht;
 
-      // Last resort: remove answer lists and status messages, pick first valid line
       var clone=container.cloneNode(true);
       clone.querySelectorAll('ul.list-group.quiz-result-question,li.list-group-item.choice-answer,i,svg,img,input,button,.text-error').forEach(function(x){x.remove();});
       var lines=(clone.innerText||clone.textContent||'').split('\\n').map(cleanQ).filter(Boolean);
@@ -191,7 +193,6 @@ export default function BookmarkletPage() {
     });
 
     if(parsed.length){
-      // If we parsed fewer result groups than questions collected, fill missing entries.
       if(collected.length>parsed.length){
         for(var i=parsed.length;i<collected.length;i++){
           var opts=collected[i].options||[];
@@ -212,7 +213,6 @@ export default function BookmarkletPage() {
       return parsed;
     }
 
-    // Fallback to collected question structure if result parsing fails
     return collected.map(function(q){
       var opts=q.options||[];
       return {question_text:q.question_text,option_a:opts[0]||'',option_b:opts[1]||'',option_c:opts[2]||'',option_d:opts[3]||'',option_e:opts[4]||'',correct_answer:'A',all_correct_answers:['A'],explanation:'',is_multi:/select all|select 2|select 3/i.test(q.question_text)};
@@ -239,6 +239,8 @@ export default function BookmarkletPage() {
   }
 
   async function run(){
+    if(!API){banner('Missing backend URL. Set VITE_API_URL for production.','error');return;}
+    if(!ADMIN_KEY){banner('Missing admin API key. Paste it in Nexus first.','error');return;}
     var weekNum=prompt('ExamCompass Import\\nWeek number?','1');
     if(weekNum===null) return;
     var pi=pageInfo();
@@ -306,6 +308,20 @@ export default function BookmarkletPage() {
       <div className="panel space-y-5 dark:border-slate-700 dark:bg-slate-900">
         <h2 className="text-lg font-bold">Setup (one time)</h2>
 
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+          <p className="font-medium text-slate-900 dark:text-slate-100">Admin API key</p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Paste the backend admin API key here before generating the bookmarklet. It stays in your browser only and is not bundled into the app.
+          </p>
+          <input
+            className="input-field mt-3"
+            onChange={(event) => setAdminKey(event.target.value)}
+            placeholder="Paste ADMIN_API_KEY"
+            type="password"
+            value={adminKey}
+          />
+        </div>
+
         <div className="flex items-start gap-4">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">1</span>
           <div>
@@ -345,11 +361,8 @@ export default function BookmarkletPage() {
           <button onClick={handleCopy} className="btn-secondary text-xs">{copied ? "Copied!" : "Copy"}</button>
         </div>
         <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-slate-100 p-3 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300">{bookmarkletCode}</pre>
-        <p className="mt-2 text-xs text-slate-400">This code runs in your browser and posts to {API_URL}</p>
+        <p className="mt-2 text-xs text-slate-400">This code runs in your browser and posts to {apiUrl || "your configured backend URL"}.</p>
       </div>
     </main>
   );
 }
-
-
-

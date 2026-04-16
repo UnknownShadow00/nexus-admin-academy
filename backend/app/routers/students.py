@@ -15,7 +15,7 @@ from app.models.squad_activity import SquadActivity
 from app.models.ticket import Ticket, TicketSubmission
 from app.models.xp_ledger import XPLedger
 from app.services.activity_service import mark_student_active
-from app.services.auth_service import get_current_student
+from app.services.auth_service import ensure_student_access, get_current_student
 from app.services.mastery_service import list_student_mastery
 from app.services.methodology_enforcer import can_access_tickets
 from app.services.progression_service import check_module_unlock, get_module_mastery, get_promotion_status
@@ -54,6 +54,7 @@ def update_login_streak(db: Session, student_id: int) -> LoginStreak:
 
 @router.post("/api/students/{student_id}/check-in")
 def student_check_in(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -64,6 +65,7 @@ def student_check_in(student_id: int, db: Session = Depends(get_db), current_stu
 
 @router.get("/api/students/{student_id}/dashboard")
 def get_student_dashboard(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -107,6 +109,7 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db), curren
 
 @router.get("/api/students/{student_id}/stats")
 def get_student_stats(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -243,6 +246,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
 
 @router.get("/api/students/{student_id}/certification-readiness")
 def get_cert_readiness(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -306,6 +310,7 @@ def get_students(db: Session = Depends(get_db), current_student: Student = Depen
 
 @router.get("/api/students/{student_id}/mastery")
 def get_student_mastery(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -314,6 +319,8 @@ def get_student_mastery(student_id: int, db: Session = Depends(get_db), current_
 
 @router.get("/api/squad/dashboard")
 def squad_dashboard(student_id: int | None = None, limit: int = 30, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    if student_id is not None:
+        ensure_student_access(current_student, student_id)
     cutoff = datetime.utcnow() - timedelta(hours=48)
 
     members = db.query(Student).order_by(Student.total_xp.desc(), Student.name.asc()).all()
@@ -365,6 +372,7 @@ def squad_dashboard(student_id: int | None = None, limit: int = 30, db: Session 
 
 @router.get("/api/students/{student_id}/learning-path")
 def get_learning_path(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -427,6 +435,7 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db), current_st
 
 @router.get("/api/students/{student_id}/promotion-status")
 def promotion_status(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -436,6 +445,7 @@ def promotion_status(student_id: int, db: Session = Depends(get_db), current_stu
 
 @router.get("/api/students/{student_id}/methodology-status")
 def methodology_status(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")

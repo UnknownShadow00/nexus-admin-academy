@@ -223,17 +223,23 @@ export default function QuizTaker({ quizId, studentId }) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    getQuiz(quizId, studentId).then((res) => {
-      const q = res.data;
-      setQuiz(q);
-      const sq = shuffle(q.questions || []).map(buildShuffledQuestion);
-      setShuffledQuestions(sq);
-      const saved = JSON.parse(
-        localStorage.getItem(progressKey(quizId)) || "null"
-      );
-      if (saved?.answers) setAnswers(saved.answers);
-      setLoading(false);
-    });
+    getQuiz(quizId, studentId, { suppressToast: true })
+      .then((res) => {
+        const q = res.data;
+        setQuiz(q);
+        const sq = shuffle(q.questions || []).map(buildShuffledQuestion);
+        setShuffledQuestions(sq);
+        const saved = JSON.parse(
+          localStorage.getItem(progressKey(quizId)) || "null"
+        );
+        if (saved?.answers) setAnswers(saved.answers);
+      })
+      .catch((err) => {
+        toast.error(err?.userMessage || "Unable to load quiz");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [quizId, studentId]);
 
   const selectAnswer = (questionId, displayLetter, shuffledQ) => {
@@ -321,6 +327,13 @@ export default function QuizTaker({ quizId, studentId }) {
         <Spinner text="Loading..." />
       </div>
     );
+  if (!quiz) {
+    return (
+      <div className="panel">
+        <p className="text-sm text-slate-500 dark:text-slate-300">Quiz is unavailable right now.</p>
+      </div>
+    );
+  }
   if (result) return <ReviewScreen quiz={quiz} result={result} onRetake={onRetake} />;
 
   const shuffledQ = shuffledQuestions[currentIndex];

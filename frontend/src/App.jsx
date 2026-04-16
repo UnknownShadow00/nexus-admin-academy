@@ -86,7 +86,7 @@ export default function App() {
     if (!authenticated || !studentId || isAdminRoute || isAdminLoginRoute) return;
     const run = async () => {
       try {
-        const res = await getStudentStats(studentId);
+        const res = await getStudentStats(studentId, { suppressToast: true });
         setXp(res.data?.total_xp || 0);
       } catch {
         setXp(0);
@@ -103,7 +103,7 @@ export default function App() {
     }
     const run = async () => {
       try {
-        const res = await getTickets(undefined, studentId);
+        const res = await getTickets(undefined, studentId, { suppressToast: true });
         const rows = Array.isArray(res.data) ? res.data : [];
         setHasTicketFeedback(rows.some((row) => row.status === "needs_revision"));
       } catch {
@@ -122,7 +122,7 @@ export default function App() {
         return;
       }
       try {
-        const res = await globalSearch(q);
+        const res = await globalSearch(q, { suppressToast: true });
         setSearchResults(res.data || { lessons: [], commands: [] });
       } catch {
         setSearchResults({ lessons: [], commands: [] });

@@ -11,11 +11,13 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from app.database import Base
+from app.config import load_env
+from app.database import Base, normalize_database_url
 from app.models import *  # noqa: F401,F403
 
 config = context.config
-env_database_url = os.getenv("DATABASE_URL")
+load_env()
+env_database_url = normalize_database_url(os.getenv("DATABASE_URL")) if os.getenv("DATABASE_URL") else None
 if env_database_url:
     config.set_main_option("sqlalchemy.url", env_database_url)
 

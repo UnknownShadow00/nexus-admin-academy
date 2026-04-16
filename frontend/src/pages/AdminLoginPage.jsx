@@ -6,6 +6,7 @@ const initialForm = { username: "", password: "" };
 const defaultRedirectTarget = "/admin";
 
 function getErrorMessage(error) {
+  if (typeof error?.userMessage === "string") return error.userMessage;
   const detail = error?.response?.data?.detail;
   if (typeof detail === "string") return detail;
   if (typeof error?.response?.data?.error === "string") return error.response.data.error;
@@ -31,7 +32,7 @@ export default function AdminLoginPage() {
 
     const run = async () => {
       try {
-        const res = await adminSessionStatus();
+        const res = await adminSessionStatus({ suppressToast: true });
         if (active && res.data?.authenticated) {
           navigate(redirectTo, { replace: true });
           return;
@@ -66,7 +67,7 @@ export default function AdminLoginPage() {
     setSubmitting(true);
 
     try {
-      await adminSessionLogin({ username, password });
+      await adminSessionLogin({ username, password }, { suppressToast: true });
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setError(getErrorMessage(err));
@@ -121,6 +122,10 @@ export default function AdminLoginPage() {
             {checkingSession ? "Checking session..." : submitting ? "Logging in..." : "Login"}
           </button>
         </form>
+
+        <p className="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
+          First admin request can take up to 30 seconds while Render wakes the backend.
+        </p>
 
         <div className="mt-6 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
           <span>Student login stays at `/login`.</span>

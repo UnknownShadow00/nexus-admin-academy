@@ -18,7 +18,7 @@ export default function AdminAccessGate({ children }) {
   useEffect(() => {
     const run = async () => {
       try {
-        const res = await adminSessionStatus();
+        const res = await adminSessionStatus({ suppressToast: true });
         setAuthenticated(Boolean(res.data?.authenticated));
       } catch {
         setAuthenticated(false);
@@ -49,7 +49,7 @@ export default function AdminAccessGate({ children }) {
   };
 
   if (loading) {
-    return <main className="mx-auto max-w-3xl p-6">Checking admin session...</main>;
+    return <main className="mx-auto max-w-3xl p-6">Checking admin session and waking the backend if needed...</main>;
   }
 
   if (!loading && !authenticated) {
@@ -86,4 +86,3 @@ export default function AdminAccessGate({ children }) {
     </>
   );
 }
-

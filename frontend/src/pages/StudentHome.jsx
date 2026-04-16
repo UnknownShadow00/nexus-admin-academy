@@ -26,8 +26,8 @@ export default function StudentHome() {
     }
     const run = async () => {
       try {
-        await checkInStudent(studentId);
-        const res = await getStudentStats(studentId);
+        await checkInStudent(studentId, { suppressToast: true });
+        const res = await getStudentStats(studentId, { suppressToast: true });
         setStats(res?.data || null);
       } catch {
         setStats(null);

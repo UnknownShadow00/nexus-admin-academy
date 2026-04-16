@@ -1,23 +1,14 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 
 import Spinner from "../../components/Spinner";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || "";
+import { getAdminCurriculumVideos, updateAdminCurriculumVideoTag } from "../../services/api";
 
 const TAG_OPTIONS = [
   { value: "job_critical", label: "💼 Job Critical" },
   { value: "know_it", label: "📚 Know It" },
   { value: "awareness", label: "👀 Awareness Only" },
 ];
-
-function adminHeaders() {
-  return {
-    "Content-Type": "application/json",
-    "X-Admin-Key": ADMIN_KEY,
-  };
-}
 
 export default function CurriculumTagsPage() {
   const [rows, setRows] = useState([]);
@@ -28,13 +19,8 @@ export default function CurriculumTagsPage() {
   useEffect(() => {
     const run = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/admin/curriculum/videos`, {
-          method: "GET",
-          credentials: "include",
-          headers: adminHeaders(),
-        });
-        const body = await res.json();
-        setRows(body?.data || []);
+        const res = await getAdminCurriculumVideos({ suppressToast: true });
+        setRows(res?.data || []);
       } catch {
         toast.error("Failed to load curriculum tags");
       } finally {
@@ -69,17 +55,7 @@ export default function CurriculumTagsPage() {
     setRows((prev) => prev.map((row) => (row.id === id ? { ...row, job_relevance: jobRelevance } : row)));
 
     try {
-      const res = await fetch(`${API_URL}/api/admin/curriculum/videos/${id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: adminHeaders(),
-        body: JSON.stringify({ job_relevance: jobRelevance }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Save failed");
-      }
-
+      await updateAdminCurriculumVideoTag(id, { job_relevance: jobRelevance }, { suppressToast: true });
       setSavedById((prev) => ({ ...prev, [id]: true }));
       setTimeout(() => setSavedById((prev) => ({ ...prev, [id]: false })), 1500);
     } catch {
@@ -142,7 +118,7 @@ export default function CurriculumTagsPage() {
                           ))}
                         </select>
                         <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {savingById[row.id] ? "Saving..." : savedById[row.id] ? "Saved ✓" : ""}
+                          {savingById[row.id] ? "Saving..." : savedById[row.id] ? "Saved" : ""}
                         </span>
                       </div>
                     </td>

@@ -7,6 +7,7 @@ import { clearSelectedProfile, setSelectedProfile } from "../services/profile";
 const initialLoginForm = { username: "", password: "" };
 
 function getErrorMessage(error) {
+  if (typeof error?.userMessage === "string") return error.userMessage;
   const detail = error?.response?.data?.detail;
   if (typeof detail === "string") return detail;
   if (typeof error?.response?.data?.error === "string") return error.response.data.error;
@@ -37,7 +38,7 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      const response = await authLogin(loginForm);
+      const response = await authLogin(loginForm, { suppressToast: true });
       await handleSuccess(response);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -84,6 +85,10 @@ export default function LoginPage() {
             {submitting ? "Logging in..." : "Login"}
           </button>
         </form>
+
+        <p className="mt-4 text-center text-xs text-slate-400">
+          First load can take up to 30 seconds while the backend wakes on Render.
+        </p>
 
         <div className="mt-6 border-t border-slate-800 pt-6">
           <Link

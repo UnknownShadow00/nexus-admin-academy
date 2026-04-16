@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import SessionLocal
-from app.config import load_env
+from app.config import is_production_environment, load_env
 from app.models import Student
 from app.routers import admin, admin_session, auth, commands, evidence, quizzes, resources, search, students, study_tracker, submissions, tickets
 from app.routers.admin_curriculum import router as admin_curriculum_router
@@ -65,7 +65,9 @@ def seed_students() -> None:
 
 
 def _cors_origins() -> list[str]:
-    raw = os.getenv("CORS_ORIGINS") or os.getenv("FRONTEND_URL") or "http://localhost:5173"
+    raw = os.getenv("CORS_ORIGINS") or os.getenv("FRONTEND_URL")
+    if not raw and not is_production_environment():
+        raw = "http://localhost:5173"
     origins = [origin.strip() for origin in raw.split(",") if origin.strip()]
     for origin in ["https://www.examcompass.com", "https://examcompass.com"]:
         if origin not in origins:

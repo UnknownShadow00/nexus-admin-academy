@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { AlertCircle, ArrowLeft, CheckCircle, MessageSquare } from "lucide-react";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
-import { getSubmission } from "../services/api";
+import { buildApiUrl, getSubmission } from "../services/api";
 
 export default function TicketFeedback() {
   const { submissionId } = useParams();
@@ -11,12 +11,15 @@ export default function TicketFeedback() {
   const [submission, setSubmission] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lightboxIndex, setLightboxIndex] = useState(-1);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const run = async () => {
       try {
-        const response = await getSubmission(submissionId);
+        const response = await getSubmission(submissionId, { suppressToast: true });
         setSubmission(response.data || null);
+      } catch (err) {
+        setError(err?.userMessage || "Unable to load feedback.");
       } finally {
         setLoading(false);
       }
@@ -25,12 +28,13 @@ export default function TicketFeedback() {
   }, [submissionId]);
 
   if (loading) return <main className="mx-auto max-w-4xl p-6">Loading feedback...</main>;
+  if (error) return <main className="mx-auto max-w-4xl p-6">{error}</main>;
   if (!submission) return <main className="mx-auto max-w-4xl p-6">Submission not found</main>;
 
   const feedback = typeof submission.ai_feedback === "string" ? JSON.parse(submission.ai_feedback) : (submission.ai_feedback || {});
   const images = (submission.evidence_artifacts || [])
     .filter((a) => a.artifact_type === "screenshot")
-    .map((a) => `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/uploads/screenshots/${a.storage_key}`);
+    .map((a) => buildApiUrl(`/uploads/screenshots/${a.storage_key}`));
 
   return (
     <main className="mx-auto max-w-4xl p-6">

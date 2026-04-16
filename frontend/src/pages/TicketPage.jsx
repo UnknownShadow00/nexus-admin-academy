@@ -9,14 +9,31 @@ export default function TicketPage() {
   const { ticketId } = useParams();
   const studentId = getCurrentStudent()?.id;
   const [ticket, setTicket] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     localStorage.setItem(`ticket_${ticketId}_started`, String(Date.now()));
-    getTicket(ticketId).then((res) => setTicket(res.data));
+    let cancelled = false;
+
+    getTicket(ticketId, { suppressToast: true })
+      .then((res) => {
+        if (!cancelled) setTicket(res.data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err?.userMessage || "Unable to load ticket.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [ticketId]);
 
-  if (!ticket) {
+  if (!ticket && !error) {
     return <main className="mx-auto max-w-4xl p-6"><Spinner text="Loading ticket..." /></main>;
+  }
+
+  if (error) {
+    return <main className="mx-auto max-w-4xl p-6 text-sm text-slate-500 dark:text-slate-300">{error}</main>;
   }
 
   return (

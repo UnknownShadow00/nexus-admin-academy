@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.evidence import EvidenceArtifact
 from app.models.student import Student
 from app.models.ticket import TicketSubmission
-from app.services.auth_service import get_current_student
+from app.services.auth_service import ensure_student_access, get_current_student
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/submissions", tags=["submissions"])
@@ -16,6 +16,7 @@ def get_submission(submission_id: int, db: Session = Depends(get_db), current_st
     submission = db.query(TicketSubmission).filter(TicketSubmission.id == submission_id).first()
     if not submission:
         raise HTTPException(status_code=404, detail="Submission not found")
+    ensure_student_access(current_student, submission.student_id)
 
     collaborators = []
     ids = [int(x) for x in (submission.collaborator_ids or [])]

@@ -134,15 +134,30 @@ export default function LearningPath() {
   const studentId = getCurrentStudent()?.id;
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
     const run = async () => {
       setLoading(true);
-      const res = await getLearningPath(studentId);
-      setModules(res.modules || []);
-      setLoading(false);
+      setError("");
+      try {
+        const res = await getLearningPath(studentId, { suppressToast: true });
+        if (!cancelled) setModules(res.modules || []);
+      } catch (err) {
+        if (!cancelled) {
+          setModules([]);
+          setError(err?.userMessage || "Unable to load your learning path.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
     run();
+    return () => {
+      cancelled = true;
+    };
   }, [studentId]);
 
   return (
@@ -151,6 +166,8 @@ export default function LearningPath() {
       <div className="space-y-6">
         {loading
           ? [1, 2, 3].map((id) => <SkeletonCard key={id} />)
+          : error
+            ? <div className="panel text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{error}</div>
           : modules.map((module) => <ModuleCard key={module.id} module={module} />)}
       </div>
     </main>

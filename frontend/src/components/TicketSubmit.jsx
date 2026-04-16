@@ -21,7 +21,9 @@ export default function TicketSubmit({ ticket, studentId }) {
   const [evidenceUploads, setEvidenceUploads] = useState([]);
 
   useEffect(() => {
-    getStudents().then((res) => setStudents((res.data || []).filter((s) => s.id !== studentId)));
+    getStudents({ suppressToast: true })
+      .then((res) => setStudents((res.data || []).filter((s) => s.id !== studentId)))
+      .catch(() => setStudents([]));
   }, [studentId]);
 
   useEffect(() => {

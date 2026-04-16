@@ -10,6 +10,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
+from app.config import load_env
 from app.database import get_db
 from app.models.student import Student
 
@@ -101,7 +102,14 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
+def ensure_student_access(current_student: Student, student_id: int) -> None:
+    if current_student.is_mentor or current_student.id == student_id:
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+
 def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
+    load_env()
     secret_key = os.environ["JWT_SECRET_KEY"]
     algorithm = os.environ["JWT_ALGORITHM"]
     expire_minutes = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))
@@ -113,6 +121,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
 
 def decode_token(token: str) -> dict:
     try:
+        load_env()
         secret_key = os.environ["JWT_SECRET_KEY"]
         algorithm = os.environ["JWT_ALGORITHM"]
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])

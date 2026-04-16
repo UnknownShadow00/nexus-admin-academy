@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.config import use_secure_cookies
 from app.database import get_db
 from app.models.student import Student
 from app.services.admin_auth import (
@@ -45,12 +46,13 @@ def admin_session_login(payload: AdminLoginRequest, response: Response):
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     expiry = datetime.now(timezone.utc) + timedelta(hours=12)
+    secure_cookie = use_secure_cookies()
     response.set_cookie(
         key="admin_session",
         value=_session_token(session_secret),
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=secure_cookie,
+        samesite="none" if secure_cookie else "lax",
         expires=int(expiry.timestamp()),
         max_age=60 * 60 * 12,
         path="/",
@@ -92,4 +94,3 @@ def get_student_token(request: Request, db: Session = Depends(get_db)):
             "name": mentor.name,
         },
     }
-

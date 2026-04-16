@@ -14,15 +14,30 @@ export default function QuizzesPage() {
   const [status, setStatus] = useState("all");
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
     const run = async () => {
       setLoading(true);
-      const res = await getQuizzes(week, studentId);
-      setItems(res.data || []);
-      setLoading(false);
+      setError("");
+      try {
+        const res = await getQuizzes(week, studentId, { suppressToast: true });
+        if (!cancelled) setItems(res.data || []);
+      } catch (err) {
+        if (!cancelled) {
+          setItems([]);
+          setError(err?.userMessage || "Unable to load quizzes right now.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
     run();
+    return () => {
+      cancelled = true;
+    };
   }, [week, studentId]);
 
   const filtered = useMemo(() => {
@@ -56,6 +71,8 @@ export default function QuizzesPage() {
             </div>
           ))}
         </div>
+      ) : error ? (
+        <EmptyState icon={<BookOpen size={40} className="text-slate-300" />} title="Quizzes are unavailable" message={error} />
       ) : filtered.length === 0 ? (
         <EmptyState icon={<BookOpen size={40} className="text-slate-300" />} title="No quizzes yet" message="Your instructor hasn't created quizzes for this week yet." />
       ) : (

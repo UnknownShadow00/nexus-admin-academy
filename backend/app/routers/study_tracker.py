@@ -7,8 +7,8 @@ from app.models.curriculum_video import CurriculumVideo
 from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
 from app.models.student import Student
 from app.models.video_watch import VideoWatch
-from app.services.admin_auth import allow_admin_or_student
-from app.services.auth_service import get_current_student
+from app.services.admin_auth import allow_admin_or_student, verify_admin
+from app.services.auth_service import ensure_student_access, get_current_student
 from app.utils.responses import ok
 
 
@@ -70,7 +70,7 @@ def get_curriculum(db: Session = Depends(get_db), _: bool = Depends(_get_student
 
 
 @router.get("/curriculum/link-status")
-def get_curriculum_link_status(db: Session = Depends(get_db), _: bool = Depends(_get_student_or_admin)):
+def get_curriculum_link_status(db: Session = Depends(get_db), _: bool = Depends(verify_admin)):
     videos = (
         db.query(CurriculumVideo)
         .filter(CurriculumVideo.active == True)
@@ -105,6 +105,7 @@ def get_curriculum_link_status(db: Session = Depends(get_db), _: bool = Depends(
 @router.get("/{student_id}")
 def get_study_tracker(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
     """Return watched video keys and best quiz scores for this student."""
+    ensure_student_access(current_student, student_id)
     watches = db.query(VideoWatch).filter(VideoWatch.student_id == student_id).all()
     watched = {watch.video_key: watch.watched_at.isoformat() for watch in watches}
 
@@ -143,6 +144,7 @@ def get_study_tracker(student_id: int, db: Session = Depends(get_db), current_st
 
 @router.post("/{student_id}/watch/{video_key:path}")
 def mark_watched(student_id: int, video_key: str, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    ensure_student_access(current_student, student_id)
     exists = (
         db.query(VideoWatch)
         .filter(VideoWatch.student_id == student_id, VideoWatch.video_key == video_key)
@@ -156,6 +158,7 @@ def mark_watched(student_id: int, video_key: str, db: Session = Depends(get_db),
 
 @router.delete("/{student_id}/watch/{video_key:path}")
 def unmark_watched(student_id: int, video_key: str, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    ensure_student_access(current_student, student_id)
     db.query(VideoWatch).filter(
         VideoWatch.student_id == student_id,
         VideoWatch.video_key == video_key,
@@ -173,7 +176,7 @@ class VideoUpdate(BaseModel):
 
 
 @router.patch("/curriculum/{video_id}")
-def update_curriculum_video(video_id: int, body: VideoUpdate, db: Session = Depends(get_db), _: bool = Depends(_get_student_or_admin)):
+def update_curriculum_video(video_id: int, body: VideoUpdate, db: Session = Depends(get_db), _: bool = Depends(verify_admin)):
     """Admin: edit a video's title, URL, or linked quiz."""
     video = db.query(CurriculumVideo).filter(CurriculumVideo.id == video_id).first()
     if not video:

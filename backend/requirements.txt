@@ -9,5 +9,6 @@ youtube-transcript-api==0.6.2
 python-multipart==0.0.20
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+psycopg[binary]==3.2.9
 playwright==1.55.0
 beautifulsoup4==4.12.3

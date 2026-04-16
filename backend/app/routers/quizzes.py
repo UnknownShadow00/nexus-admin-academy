@@ -9,7 +9,7 @@ from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
 from app.models.student import Student
 from app.schemas.quiz import QuizSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
-from app.services.auth_service import get_current_student
+from app.services.auth_service import ensure_student_access, get_current_student
 from app.services.mastery_service import record_quiz_mastery
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 @router.get("")
 def get_quizzes(week_number: int | None = None, student_id: int | None = None, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    scoped_student_id = student_id or current_student.id
+    ensure_student_access(current_student, scoped_student_id)
     query = db.query(Quiz).options(selectinload(Quiz.questions)).filter(Quiz.status == QUIZ_STATUS_PUBLISHED)
     if week_number is not None:
         query = query.filter(Quiz.week_number == week_number)
@@ -27,12 +29,12 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
 
     attempts_by_quiz = {}
     attempt_counts_by_quiz = {}
-    if student_id is not None:
-        attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).all()
+    if scoped_student_id is not None:
+        attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == scoped_student_id).all()
         attempts_by_quiz = {attempt.quiz_id: attempt for attempt in attempts}
         attempt_counts = (
             db.query(QuizAttempt.quiz_id, func.count(QuizAttempt.id))
-            .filter(QuizAttempt.student_id == student_id)
+            .filter(QuizAttempt.student_id == scoped_student_id)
             .group_by(QuizAttempt.quiz_id)
             .all()
         )
@@ -41,7 +43,7 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
     data = []
     for quiz in quizzes:
         attempt = attempts_by_quiz.get(quiz.id)
-        attempt_count = attempt_counts_by_quiz.get(quiz.id, 0) if student_id else 0
+        attempt_count = attempt_counts_by_quiz.get(quiz.id, 0) if scoped_student_id else 0
         data.append(
             {
                 "id": quiz.id,
@@ -64,15 +66,17 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
 
 @router.get("/{quiz_id}")
 def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    scoped_student_id = student_id or current_student.id
+    ensure_student_access(current_student, scoped_student_id)
     quiz = db.query(Quiz).options(selectinload(Quiz.questions)).filter(Quiz.id == quiz_id).first()
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
     attempts = []
-    if student_id:
+    if scoped_student_id:
         rows = (
             db.query(QuizAttempt)
-            .filter(QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == student_id)
+            .filter(QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == scoped_student_id)
             .order_by(QuizAttempt.completed_at.asc())
             .all()
         )
@@ -107,7 +111,6 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
                     "option_d": question.option_d,
                     "option_e": question.option_e or "",
                     "is_multi_select": question.is_multi_select,
-                    "correct_answers": question.all_correct_answers,
                 }
                 for question in quiz.questions
             ],
@@ -119,6 +122,7 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
 @router.post("/{quiz_id}/submit")
 def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
     student_id = payload.student_id
+    ensure_student_access(current_student, student_id)
     answers = payload.answers
 
     quiz = db.query(Quiz).options(selectinload(Quiz.questions)).filter(Quiz.id == quiz_id).first()
@@ -229,6 +233,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
 @router.get("/{quiz_id}/review/{student_id}")
 def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
     """Returns the student's last attempt results for review."""
+    ensure_student_access(current_student, student_id)
     attempt = (
         db.query(QuizAttempt)
         .filter(QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == student_id)

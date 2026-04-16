@@ -12,7 +12,7 @@ from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
 from app.schemas.ticket import TicketSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
-from app.services.auth_service import get_current_student
+from app.services.auth_service import ensure_student_access, get_current_student
 from app.services.ticket_grader import grade_ticket_submission, grade_ticket_with_answer_key
 from app.utils.responses import ok
 
@@ -99,14 +99,16 @@ async def upload_screenshots(files: list[UploadFile] = File(...), current_studen
 
 @router.get("")
 def get_tickets(week_number: int | None = None, student_id: int | None = None, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    scoped_student_id = student_id or current_student.id
+    ensure_student_access(current_student, scoped_student_id)
     query = db.query(Ticket)
     if week_number is not None:
         query = query.filter(Ticket.week_number == week_number)
     tickets = query.order_by(Ticket.created_at.desc()).all()
 
     submissions = {}
-    if student_id is not None:
-        rows = db.query(TicketSubmission).filter(TicketSubmission.student_id == student_id).all()
+    if scoped_student_id is not None:
+        rows = db.query(TicketSubmission).filter(TicketSubmission.student_id == scoped_student_id).all()
         submissions = {row.ticket_id: row for row in rows}
 
     data = []
@@ -163,6 +165,7 @@ def get_ticket_details(ticket_id: int, db: Session = Depends(get_db), current_st
 @router.post("/{ticket_id}/submit")
 async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
     student_id = payload.student_id
+    ensure_student_access(current_student, student_id)
     collaborators = _validate_collaborators(db, student_id, payload.collaborator_ids or [])
     duration_minutes = payload.duration_minutes
 
