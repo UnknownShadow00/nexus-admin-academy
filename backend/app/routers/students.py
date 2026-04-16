@@ -52,6 +52,38 @@ def update_login_streak(db: Session, student_id: int) -> LoginStreak:
     return streak
 
 
+def _build_cert_readiness(student_id: int, db: Session) -> dict:
+    total_objectives = db.query(func.count(ComptiaObjective.id)).scalar() or 0
+
+    mastery_rows = (
+        db.query(
+            ComptiaObjective.domain.label("domain"),
+            func.coalesce(func.avg(StudentObjectiveProgress.mastery_level), 0).label("avg_mastery"),
+        )
+        .outerjoin(
+            StudentObjectiveProgress,
+            (ComptiaObjective.id == StudentObjectiveProgress.objective_id)
+            & (StudentObjectiveProgress.student_id == student_id),
+        )
+        .group_by(ComptiaObjective.domain)
+        .order_by(ComptiaObjective.domain)
+        .all()
+    )
+
+    overall = (
+        db.query(func.coalesce(func.avg(StudentObjectiveProgress.mastery_level), 0))
+        .filter(StudentObjectiveProgress.student_id == student_id)
+        .scalar()
+        or 0
+    )
+
+    return {
+        "overall_readiness": round(float(overall), 1),
+        "by_domain": [{"domain": row.domain, "readiness": round(float(row.avg_mastery), 1)} for row in mastery_rows],
+        "total_objectives": int(total_objectives),
+    }
+
+
 @router.post("/api/students/{student_id}/check-in")
 def student_check_in(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
     ensure_student_access(current_student, student_id)
@@ -210,7 +242,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
         or 0
     )
 
-    cert = get_cert_readiness(student_id, db)
+    cert = _build_cert_readiness(student_id, db)
 
     return {
         "success": True,
@@ -240,7 +272,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
             "your_quiz_avg": round(float(quiz_stats.avg_score or 0), 1),
             "cohort_quiz_avg": round(float(cohort_quiz_avg), 1),
         },
-        "cert_readiness": cert["data"],
+        "cert_readiness": cert,
     }
 
 
@@ -250,37 +282,7 @@ def get_cert_readiness(student_id: int, db: Session = Depends(get_db), current_s
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
-
-    total_objectives = db.query(func.count(ComptiaObjective.id)).scalar() or 0
-
-    mastery_rows = (
-        db.query(
-            ComptiaObjective.domain.label("domain"),
-            func.coalesce(func.avg(StudentObjectiveProgress.mastery_level), 0).label("avg_mastery"),
-        )
-        .outerjoin(
-            StudentObjectiveProgress,
-            (ComptiaObjective.id == StudentObjectiveProgress.objective_id)
-            & (StudentObjectiveProgress.student_id == student_id),
-        )
-        .group_by(ComptiaObjective.domain)
-        .order_by(ComptiaObjective.domain)
-        .all()
-    )
-
-    overall = (
-        db.query(func.coalesce(func.avg(StudentObjectiveProgress.mastery_level), 0))
-        .filter(StudentObjectiveProgress.student_id == student_id)
-        .scalar()
-        or 0
-    )
-
-    data = {
-        "overall_readiness": round(float(overall), 1),
-        "by_domain": [{"domain": row.domain, "readiness": round(float(row.avg_mastery), 1)} for row in mastery_rows],
-        "total_objectives": int(total_objectives),
-    }
-    return {"success": True, "data": data}
+    return {"success": True, "data": _build_cert_readiness(student_id, db)}
 
 
 @router.get("/api/leaderboard")
