@@ -1,10 +1,10 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { BookOpen } from "lucide-react";
-import Skeleton from "react-loading-skeleton";
-import "react-loading-skeleton/dist/skeleton.css";
-
 import EmptyState from "../components/EmptyState";
+import { StatusBadge } from "../components/ui/Badge";
+import FilterBar from "../components/ui/FilterBar";
+import PageHeader from "../components/ui/PageHeader";
 import { getCurrentStudent } from "../hooks/useAuth";
 import { getQuizzes } from "../services/api";
 
@@ -47,27 +47,25 @@ export default function QuizzesPage() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
-      <div className="panel dark:border-slate-700 dark:bg-slate-900">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Available Quizzes</h1>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <label className="flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
-            Week:
-            <input className="input-field max-w-24" type="number" value={week} min={1} onChange={(e) => setWeek(Number(e.target.value || 1))} />
-          </label>
-          <select className="input-field max-w-52" value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="all">All status</option>
-            <option value="not_started">Not Started</option>
-            <option value="completed">Completed</option>
-          </select>
-        </div>
-      </div>
+      <PageHeader title="Quizzes" />
+      <FilterBar>
+        <label className="flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+          Week:
+          <input className="input-field max-w-24" type="number" value={week} min={1} onChange={(e) => setWeek(Number(e.target.value || 1))} />
+        </label>
+        <select className="input-field max-w-52" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="all">All status</option>
+          <option value="not_started">Not Started</option>
+          <option value="completed">Completed</option>
+        </select>
+      </FilterBar>
 
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="panel">
-              <Skeleton height={22} />
-              <Skeleton count={4} />
+              <div className="animate-pulse bg-slate-200 dark:bg-slate-700 rounded h-4 mb-2" />
+              <div className="animate-pulse bg-slate-100 dark:bg-slate-800 rounded h-16" />
             </div>
           ))}
         </div>
@@ -82,11 +80,12 @@ export default function QuizzesPage() {
               <div className="mb-2 flex items-center gap-2">
                 <BookOpen size={18} className="text-blue-600" />
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{quiz.title}</h3>
+                <StatusBadge status={quiz.status || "not_started"} />
               </div>
-              <p className="text-sm text-slate-600 dark:text-slate-300">Week {quiz.week_number} · {quiz.video_count || 1} video(s) · {quiz.question_count} questions</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Week {quiz.week_number}{" \u00b7 "}{quiz.video_count || 1} video(s){" \u00b7 "}{quiz.question_count} questions</p>
               {quiz.status === "completed" ? (
                 <div className="mt-2 text-sm text-green-700 dark:text-green-300">
-                  <p>Completed · Best: {quiz.best_score || 0}/{quiz.question_count} ({Math.round(((quiz.best_score || 0) / (quiz.question_count || 10)) * 100)}%)</p>
+                  <p>Completed{" \u00b7 "}Best: {quiz.best_score || 0}/{quiz.question_count} ({Math.round(((quiz.best_score || 0) / (quiz.question_count || 10)) * 100)}%)</p>
                   <p>First Attempt XP: {quiz.first_attempt_xp}</p>
                   <p className="text-xs">Retakes allowed (no extra XP).</p>
                 </div>

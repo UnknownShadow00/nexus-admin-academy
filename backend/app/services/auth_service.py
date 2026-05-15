@@ -14,18 +14,20 @@ from app.config import load_env
 from app.database import get_db
 from app.models.student import Student
 
+def _b64url_encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).rstrip(b"=").decode("utf-8")
+
+
+def _b64url_decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode((value + padding).encode("utf-8"))
+
+
 try:
     from jose import JWTError, jwt
 except ImportError:
     class JWTError(Exception):
         pass
-
-    def _b64url_encode(value: bytes) -> str:
-        return base64.urlsafe_b64encode(value).rstrip(b"=").decode("utf-8")
-
-    def _b64url_decode(value: str) -> bytes:
-        padding = "=" * (-len(value) % 4)
-        return base64.urlsafe_b64decode((value + padding).encode("utf-8"))
 
     class _FallbackJWT:
         @staticmethod

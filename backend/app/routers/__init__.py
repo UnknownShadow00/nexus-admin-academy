@@ -1,6 +1,7 @@
 from app.routers import (
     auth,
     admin,
+    capstones,
     admin_content,
     admin_quiz,
     admin_session,
@@ -8,6 +9,7 @@ from app.routers import (
     admin_tickets,
     commands,
     evidence,
+    labs,
     quizzes,
     resources,
     search,
@@ -20,6 +22,7 @@ from app.routers import (
 __all__ = [
     "auth",
     "admin",
+    "capstones",
     "admin_content",
     "admin_quiz",
     "admin_session",
@@ -27,6 +30,7 @@ __all__ = [
     "admin_tickets",
     "commands",
     "evidence",
+    "labs",
     "quizzes",
     "resources",
     "search",

@@ -4,6 +4,8 @@ import { CheckCircle, ChevronDown, ChevronUp, Circle, Lock } from "lucide-react"
 
 import { getCurrentStudent } from "../hooks/useAuth";
 import { getLearningPath } from "../services/api";
+import Banner from "../components/ui/Banner";
+import PageHeader from "../components/ui/PageHeader";
 
 function getYouTubeEmbedUrl(url) {
   if (!url) return null;
@@ -110,13 +112,11 @@ function ModuleCard({ module }) {
             </div>
           </div>
           {!module.unlocked && module.unlock_requirements?.length > 0 ? (
-            <div className="mb-4 rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
-              <p className="font-semibold">Unlock requirements</p>
-              <ul className="ml-4 list-disc">
-                {module.unlock_requirements.map((req, idx) => (
-                  <li key={idx}>{req}</li>
-                ))}
-              </ul>
+            <div className="mb-4">
+              <Banner variant="warning">
+                <span className="font-semibold">Unlock requirements: </span>
+                {module.unlock_requirements.join(" · ")}
+              </Banner>
             </div>
           ) : null}
           <div className="space-y-2">
@@ -162,7 +162,7 @@ export default function LearningPath() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
-      <h1 className="text-3xl font-bold">Your Learning Path</h1>
+      <PageHeader title="Your Learning Path" />
       <div className="space-y-6">
         {loading
           ? [1, 2, 3].map((id) => <SkeletonCard key={id} />)

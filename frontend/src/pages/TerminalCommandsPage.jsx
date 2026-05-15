@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import TerminalWidget from "../components/Terminal";
 import { searchCommands } from "../services/api";
+import PageHeader from "../components/ui/PageHeader";
 
 export default function TerminalCommandsPage() {
   const [query, setQuery] = useState("");
@@ -28,7 +29,7 @@ export default function TerminalCommandsPage() {
 
   return (
     <main className="mx-auto max-w-7xl p-6">
-      <h1 className="mb-4 text-2xl font-bold">Terminal & Commands</h1>
+      <PageHeader title="Terminal & Commands" />
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="panel dark:border-slate-700 dark:bg-slate-900">
           <input

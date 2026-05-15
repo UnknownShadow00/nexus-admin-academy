@@ -86,5 +86,10 @@
 ## [2026-05-14T20:31:05-05:00] Task Completed
 - Task: Staged the requested Nexus quiz publishing and capstone visibility fix files and committed them with the requested message.
 - Files changed: .gitignore, backend/pytest.ini, backend/app/schemas/quiz.py, backend/app/routers/admin_quiz.py, backend/app/routers/quizzes.py, backend/app/routers/admin_content.py, backend/tests/test_quizzes.py, backend/tests/test_capstones.py, frontend/src/pages/QuizReviewPage.jsx, tasks/loop-log.md
-- Result: pass; commit `616c29b` was created with message `Fix quiz publishing and capstone visibility flows`.
+- Result: pass; commit `c7bd00a` was created with message `Fix quiz publishing and capstone visibility flows`.
 - Next: None.
+## [2026-05-14T20:56:18-05:00] Task Completed
+- Task: Reviewed project docs, loop log, and worktree state to identify unfinished tasks and phases still needed for Nexus Admin Academy.
+- Files changed: tasks/loop-log.md
+- Result: pass; unfinished work areas were summarized from current repository evidence.
+- Next: Prioritize committing or finishing the uncommitted labs/capstones/UI phase changes, then work through the remaining product gaps.

@@ -1,4 +1,4 @@
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -16,7 +16,9 @@ class LabTemplate(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     lab_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     difficulty: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    week_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1, index=True)
     estimated_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     environment_requirements: Mapped[dict] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
     setup_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
     break_script: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -42,5 +44,6 @@ class LabRun(Base):
     final_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     xp_awarded: Mapped[int | None] = mapped_column(Integer, nullable=True)
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

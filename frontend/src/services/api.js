@@ -179,6 +179,19 @@ export const getQuizReview = (quizId, studentId = currentStudentId(), requestOpt
   request(() => api.get(`/api/quizzes/${quizId}/review/${studentId}`), requestOptions);
 export const submitQuiz = (quizId, payload, requestOptions) =>
   request(() => api.post(`/api/quizzes/${quizId}/submit`, payload), requestOptions);
+export const getLabs = (weekNumber, requestOptions) =>
+  request(() => api.get("/api/labs", { params: { week_number: weekNumber } }), requestOptions);
+export const getLab = (labId, requestOptions) => request(() => api.get(`/api/labs/${labId}`), requestOptions);
+export const startLab = (labId, requestOptions) => request(() => api.post(`/api/labs/${labId}/start`), requestOptions);
+export const submitLab = (labId, payload, requestOptions) =>
+  request(() => api.post(`/api/labs/${labId}/submit`, payload), requestOptions);
+export const getCapstones = (weekNumber, requestOptions) =>
+  request(() => api.get("/api/capstones", { params: { week_number: weekNumber } }), requestOptions);
+export const getCapstone = (capstoneId, requestOptions) => request(() => api.get(`/api/capstones/${capstoneId}`), requestOptions);
+export const startCapstone = (capstoneId, requestOptions) =>
+  request(() => api.post(`/api/capstones/${capstoneId}/start`), requestOptions);
+export const submitCapstone = (capstoneId, payload, requestOptions) =>
+  request(() => api.post(`/api/capstones/${capstoneId}/submit`, payload), requestOptions);
 export const getCurriculum = (requestOptions) => request(() => api.get("/api/study-tracker/curriculum"), requestOptions);
 export const getCurriculumLinkStatus = (requestOptions) =>
   request(() => adminApi.get("/api/study-tracker/curriculum/link-status"), requestOptions);

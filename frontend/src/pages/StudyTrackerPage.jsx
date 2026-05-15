@@ -8,23 +8,19 @@ import {
   unmarkVideoWatched,
 } from "../services/api";
 import { getCurrentStudent } from "../hooks/useAuth";
+import { scoreBand } from "../utils/theme";
 
 const JOB_TAGS = {
-  job_critical: { label: "💼 Job Critical", shortLabel: "Job Critical", cls: "bg-indigo-600 text-white border-indigo-600" },
-  know_it: { label: "📚 Know It", shortLabel: "Know It", cls: "bg-slate-200 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
-  awareness: { label: "👀 Awareness", shortLabel: "Awareness Only", cls: "bg-transparent text-slate-500 border-slate-300 dark:text-slate-300 dark:border-slate-600" },
+  job_critical: { label: "Job Critical", shortLabel: "Job Critical", cls: "bg-indigo-600 text-white border-indigo-600" },
+  know_it: { label: "Know It", shortLabel: "Know It", cls: "bg-slate-200 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+  awareness: { label: "Awareness", shortLabel: "Awareness Only", cls: "bg-transparent text-slate-500 border-slate-300 dark:text-slate-300 dark:border-slate-600" },
 };
 
 function ScoreBadge({ pct }) {
   if (pct == null) return null;
-  const color =
-    pct >= 80
-      ? "bg-green-100 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400"
-      : pct >= 60
-        ? "bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400"
-        : "bg-red-100 text-red-700 border-red-300 dark:bg-red-900/30 dark:text-red-400";
+  const cls = scoreBand.classes[scoreBand(pct)];
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold ${color}`}>
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold ${cls}`}>
       {pct}%
     </span>
   );
@@ -251,7 +247,7 @@ export default function StudyTrackerPage() {
 
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-4 pb-20">
-      <div className="rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 p-6 text-white shadow">
+      <div className="rounded-xl bg-blue-600 p-6 text-white shadow">
         <h1 className="text-2xl font-bold">CompTIA A+ Study Tracker</h1>
         <p className="mt-0.5 text-sm text-blue-200">220-1201 Core 1 · Professor Messer</p>
         <div className="mt-4">

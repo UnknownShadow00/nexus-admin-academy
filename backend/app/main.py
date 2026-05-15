@@ -14,7 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.database import SessionLocal
 from app.config import is_production_environment, load_env
 from app.models import Student
-from app.routers import admin, admin_session, auth, commands, evidence, quizzes, resources, search, students, study_tracker, submissions, tickets
+from app.routers import admin, admin_session, auth, capstones, commands, evidence, labs, quizzes, resources, search, students, study_tracker, submissions, tickets
 from app.routers.admin_curriculum import router as admin_curriculum_router
 from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
 
@@ -142,6 +142,8 @@ def create_app() -> FastAPI:
     app.include_router(admin_session.router)
     app.include_router(auth.router)
     app.include_router(quizzes.router)
+    app.include_router(labs.router)
+    app.include_router(capstones.router)
     app.include_router(tickets.router)
     app.include_router(submissions.router)
     app.include_router(commands.router)

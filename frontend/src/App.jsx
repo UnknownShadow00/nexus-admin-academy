@@ -1,4 +1,4 @@
-import { Moon, Sun } from "lucide-react";
+import { LogOut, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AdminAccessGate from "./components/AdminAccessGate";
@@ -15,6 +15,10 @@ import CurriculumEditorPage from "./pages/admin/CurriculumEditorPage";
 import CurriculumTagsPage from "./pages/admin/CurriculumTagsPage";
 import QuizEditorPage from "./pages/admin/QuizEditorPage";
 import LearningPath from "./pages/LearningPath";
+import CapstonePage from "./pages/CapstonePage";
+import CapstonesPage from "./pages/CapstonesPage";
+import LabPage from "./pages/LabPage";
+import LabsPage from "./pages/LabsPage";
 import LoginPage from "./pages/LoginPage";
 import ModuleManager from "./pages/ModuleManager";
 import QuizPage from "./pages/QuizPage";
@@ -26,7 +30,7 @@ import TerminalCommandsPage from "./pages/TerminalCommandsPage";
 import TicketFeedback from "./pages/TicketFeedback";
 import TicketPage from "./pages/TicketPage";
 import TicketsPage from "./pages/TicketsPage";
-import { getStudentStats, getTickets, globalSearch } from "./services/api";
+import { getTickets, globalSearch } from "./services/api";
 import { clearSelectedProfile } from "./services/profile";
 
 const studentNavItems = [
@@ -35,6 +39,8 @@ const studentNavItems = [
   { to: "/quizzes", label: "Quizzes" },
   { to: "/study-tracker", label: "Study Tracker" },
   { to: "/tickets", label: "Tickets" },
+  { to: "/labs", label: "Labs" },
+  { to: "/capstones", label: "Capstones" },
   { to: "/terminal", label: "Terminal & Commands" },
 ];
 
@@ -55,6 +61,32 @@ const mentorNavItems = [
   { to: "/admin/curriculum", label: "Curriculum" },
 ];
 
+const navLinkBase = "rounded-lg px-3 py-2 text-sm font-medium transition-colors";
+const navLinkInactive = "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100";
+const navLinkActive = "bg-blue-600 text-white";
+const iconButtonClass = "rounded-lg border border-slate-300 p-2 text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800";
+
+function AppNav({ items, hasTicketFeedback, isAdminRoute, onNavigate, mobile = false }) {
+  return (
+    <nav className={mobile ? "flex flex-col gap-2" : "hidden items-center gap-3 md:flex"}>
+      {items.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          end={item.to === "/"}
+          onClick={onNavigate}
+          className={({ isActive }) => `${navLinkBase} ${isActive ? navLinkActive : navLinkInactive}`}
+        >
+          {item.label}
+          {!isAdminRoute && item.to === "/tickets" && hasTicketFeedback ? (
+            <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-orange-400" title="New feedback" />
+          ) : null}
+        </NavLink>
+      ))}
+    </nav>
+  );
+}
+
 export default function App() {
   const [isDark, setIsDark] = useDarkMode();
   const location = useLocation();
@@ -63,12 +95,14 @@ export default function App() {
   const isAdminLoginRoute = location.pathname === "/admin-login";
   const authenticated = isAuthenticated();
   const currentStudent = authenticated ? getCurrentStudent() : null;
-  const [xp, setXp] = useState(0);
   const [hasTicketFeedback, setHasTicketFeedback] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState({ lessons: [], commands: [] });
+  const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const showChrome = authenticated || isAdminRoute;
+  const showSearch = authenticated && !isAdminRoute && !isAdminLoginRoute;
+  const hasSearchResults = searchResults.lessons?.length || searchResults.commands?.length;
 
   const navItems = useMemo(() => {
     if (isAdminRoute) {
@@ -79,21 +113,10 @@ export default function App() {
 
   useEffect(() => {
     setMobileOpen(false);
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchResults({ lessons: [], commands: [] });
   }, [location.pathname]);
-
-  useEffect(() => {
-    const studentId = currentStudent?.id;
-    if (!authenticated || !studentId || isAdminRoute || isAdminLoginRoute) return;
-    const run = async () => {
-      try {
-        const res = await getStudentStats(studentId, { suppressToast: true });
-        setXp(res.data?.total_xp || 0);
-      } catch {
-        setXp(0);
-      }
-    };
-    run();
-  }, [authenticated, currentStudent?.id, isAdminLoginRoute, isAdminRoute, location.pathname]);
 
   useEffect(() => {
     const studentId = currentStudent?.id;
@@ -114,7 +137,7 @@ export default function App() {
   }, [authenticated, currentStudent?.id, isAdminLoginRoute, isAdminRoute, location.pathname]);
 
   useEffect(() => {
-    if (!authenticated || isAdminRoute || isAdminLoginRoute) return;
+    if (!showSearch || !searchOpen) return;
     const timer = setTimeout(async () => {
       const q = searchQuery.trim();
       if (!q) {
@@ -129,7 +152,7 @@ export default function App() {
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [authenticated, isAdminLoginRoute, isAdminRoute, searchQuery]);
+  }, [searchOpen, searchQuery, showSearch]);
 
   function handleLogout() {
     clearToken();
@@ -141,118 +164,94 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100">
       {showChrome ? (
         <header className="relative sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-6 py-4">
-            <div className="mr-4 text-lg font-bold">Nexus Admin Academy</div>
-            <>
+          <div className="mx-auto flex max-w-7xl items-center gap-3 px-6 py-4">
+            <div className="text-lg font-bold">Nexus Admin Academy</div>
+            <AppNav items={navItems} hasTicketFeedback={hasTicketFeedback} isAdminRoute={isAdminRoute} />
+            <div className="ml-auto flex items-center gap-3">
               <button
-                className="mr-2 rounded-md border border-slate-300 p-2 text-slate-700 md:hidden dark:border-slate-700 dark:text-slate-200"
+                className={`${iconButtonClass} md:hidden`}
                 onClick={() => setMobileOpen((o) => !o)}
                 aria-label="Toggle menu"
               >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d={mobileOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
-                  />
-                </svg>
+                {mobileOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
-              <nav className="hidden flex-wrap items-center gap-2 md:flex">
-                {navItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.to === "/"}
-                    className={({ isActive }) =>
-                      `rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                        isActive
-                          ? "bg-blue-600 text-white"
-                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-                      }`
-                    }
+              {showSearch ? (
+                <div className="relative">
+                  <button
+                    className={iconButtonClass}
+                    onClick={() => setSearchOpen((open) => !open)}
+                    aria-expanded={searchOpen}
+                    aria-label="Toggle search"
+                    type="button"
                   >
-                    {item.label}
-                    {!isAdminRoute && item.to === "/tickets" && hasTicketFeedback ? (
-                      <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-orange-400" title="New feedback" />
-                    ) : null}
-                  </NavLink>
-                ))}
-              </nav>
-              {mobileOpen ? (
-                <div className="absolute left-0 right-0 top-full z-30 border-b border-slate-200 bg-white px-4 py-3 md:hidden dark:border-slate-800 dark:bg-slate-900">
-                  <nav className="flex flex-col gap-1">
-                    {navItems.map((item) => (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        end={item.to === "/"}
-                        onClick={() => setMobileOpen(false)}
-                        className={({ isActive }) =>
-                          `rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                            isActive
-                              ? "bg-blue-600 text-white"
-                              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-                          }`
-                        }
-                      >
-                        {item.label}
-                      </NavLink>
-                    ))}
-                  </nav>
+                    <Search size={18} />
+                  </button>
+                  {searchOpen ? (
+                    <div className="absolute right-0 top-full z-30 mt-3 w-[min(22rem,calc(100vw-3rem))] rounded-xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                      <input
+                        className="input-field w-full"
+                        placeholder="Search lessons or commands..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                      {hasSearchResults ? (
+                        <div className="mt-3 max-h-80 overflow-auto">
+                          {searchResults.lessons?.length ? <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Lessons</p> : null}
+                          {(searchResults.lessons || []).map((lesson) => (
+                            <Link key={`lesson-${lesson.id}`} to="/learning-path" className="block rounded-lg px-2 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">
+                              {lesson.title}
+                            </Link>
+                          ))}
+                          {searchResults.commands?.length ? <p className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Commands</p> : null}
+                          {(searchResults.commands || []).map((cmd) => (
+                            <Link key={`command-${cmd.id}`} to="/terminal" className="block rounded-lg px-2 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">
+                              {cmd.command}
+                            </Link>
+                          ))}
+                        </div>
+                      ) : searchQuery.trim() ? (
+                        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">No matches found.</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
-            </>
 
-            {!isAdminRoute && !isAdminLoginRoute ? (
-              <div className="relative ml-auto w-72">
-                <input
-                  className="input-field w-full"
-                  placeholder="Search lessons or commands..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {(searchResults.lessons?.length || searchResults.commands?.length) ? (
-                  <div className="absolute z-30 mt-1 max-h-80 w-full overflow-auto rounded border border-slate-200 bg-white p-2 shadow dark:border-slate-700 dark:bg-slate-900">
-                    {searchResults.lessons?.length ? <p className="mb-1 text-xs font-semibold text-slate-500">Lessons</p> : null}
-                    {(searchResults.lessons || []).map((lesson) => (
-                      <Link key={`lesson-${lesson.id}`} to="/learning-path" className="block rounded px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">
-                        {lesson.title}
-                      </Link>
-                    ))}
-                    {searchResults.commands?.length ? <p className="mb-1 mt-2 text-xs font-semibold text-slate-500">Commands</p> : null}
-                    {(searchResults.commands || []).map((cmd) => (
-                      <Link key={`command-${cmd.id}`} to="/terminal" className="block rounded px-2 py-1 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">
-                        {cmd.command}
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="ml-auto" />
-            )}
+              <button
+                className={iconButtonClass}
+                onClick={() => setIsDark(!isDark)}
+                aria-label="Toggle dark mode"
+                type="button"
+              >
+                {isDark ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
 
-            <button
-              className="rounded-md border border-slate-300 p-2 text-slate-700 dark:border-slate-700 dark:text-slate-200"
-              onClick={() => setIsDark(!isDark)}
-              aria-label="Toggle dark mode"
-            >
-              {isDark ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-
-            {!isAdminRoute ? (
-              <div className="flex items-center gap-2">
-                <div className="rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-700">
-                  {currentStudent?.name || "Student"}
-                </div>
+              {!isAdminRoute ? (
                 <button
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-700"
+                  className="hidden items-center gap-2 rounded-full border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 md:inline-flex dark:border-slate-700 dark:text-slate-200"
                   onClick={handleLogout}
                   type="button"
                 >
-                  Logout
+                  <span>{currentStudent?.name || "Student"}</span>
+                  <LogOut size={16} />
                 </button>
+              ) : null}
+            </div>
+            {mobileOpen ? (
+              <div className="absolute inset-x-0 top-full z-30 border-b border-slate-200 bg-white px-6 py-4 shadow-lg md:hidden dark:border-slate-800 dark:bg-slate-900">
+                <div className="flex flex-col gap-3">
+                  <AppNav items={navItems} hasTicketFeedback={hasTicketFeedback} isAdminRoute={isAdminRoute} onNavigate={() => setMobileOpen(false)} mobile />
+                  {!isAdminRoute ? (
+                    <button
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200"
+                      onClick={handleLogout}
+                      type="button"
+                    >
+                      <span>{currentStudent?.name || "Student"}</span>
+                      <LogOut size={16} />
+                    </button>
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </div>
@@ -270,6 +269,10 @@ export default function App() {
         <Route path="/tickets" element={<RequireAuth><TicketsPage /></RequireAuth>} />
         <Route path="/tickets/:ticketId" element={<RequireAuth><TicketPage /></RequireAuth>} />
         <Route path="/tickets/:submissionId/feedback" element={<RequireAuth><TicketFeedback /></RequireAuth>} />
+        <Route path="/labs" element={<RequireAuth><LabsPage /></RequireAuth>} />
+        <Route path="/labs/:labId" element={<RequireAuth><LabPage /></RequireAuth>} />
+        <Route path="/capstones" element={<RequireAuth><CapstonesPage /></RequireAuth>} />
+        <Route path="/capstones/:capstoneId" element={<RequireAuth><CapstonePage /></RequireAuth>} />
         <Route path="/terminal" element={<RequireAuth><TerminalCommandsPage /></RequireAuth>} />
         <Route path="/admin-login" element={<AdminLoginPage />} />
 

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { AlertCircle, ArrowLeft, CheckCircle, MessageSquare } from "lucide-react";
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
+import Banner from "../components/ui/Banner";
 import { buildApiUrl, getSubmission } from "../services/api";
 
 export default function TicketFeedback() {
@@ -46,7 +47,7 @@ export default function TicketFeedback() {
         <h1 className="mb-2 text-3xl font-bold">{submission.ticket_title}</h1>
         <p className="mb-6 text-slate-600 dark:text-slate-300">Submission Feedback</p>
 
-        <div className="mb-6 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 p-6 text-white">
+        <div className="mb-6 rounded-lg bg-blue-600 p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-5xl font-bold">{submission.ai_score}/10</div>
@@ -60,8 +61,8 @@ export default function TicketFeedback() {
         </div>
 
         {!submission.xp_granted && (
-          <div className="mb-6 rounded border border-amber-300 bg-amber-50 p-4 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-            Awaiting instructor verification. XP and mastery update after proof is verified.
+          <div className="mb-6">
+            <Banner variant="warning">Awaiting instructor verification. XP and mastery update after proof is verified.</Banner>
           </div>
         )}
 
@@ -155,9 +156,9 @@ export default function TicketFeedback() {
         )}
 
         {submission.status === "needs_revision" ? (
-          <button onClick={() => navigate(`/tickets/${submission.ticket_id}`)} className="mb-3 w-full rounded-lg bg-amber-600 py-3 font-semibold text-white hover:bg-amber-700">Resubmit</button>
+          <button onClick={() => navigate(`/tickets/${submission.ticket_id}`)} className="btn-danger mb-3 w-full">Resubmit</button>
         ) : null}
-        <button onClick={() => navigate("/tickets")} className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700">Back to Tickets</button>
+        <button onClick={() => navigate("/tickets")} className="btn-primary w-full">Back to Tickets</button>
       </div>
     </main>
   );

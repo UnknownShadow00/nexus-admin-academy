@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from app.config import load_env
 from app.database import SessionLocal
 from app.models.command_reference import CommandReference
+from app.models.capstone import CapstoneTemplate
+from app.models.lab import LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.progression import MethodologyFramework, PromotionGate, Role
 from app.models.student import Student
@@ -75,6 +77,381 @@ FRAMEWORK_STEPS = {
         "Document findings, actions, and outcomes",
     ]
 }
+
+TICKETS = [
+    {
+        "title": "User cannot browse the internet — DNS resolution failing",
+        "description": (
+            "A user reports they can ping 8.8.8.8 successfully but all website names fail to resolve. "
+            "Chrome shows DNS_PROBE_FINISHED_NXDOMAIN. They are on a domain-joined Windows 10 machine."
+        ),
+        "difficulty": 2,
+        "week_number": 1,
+        "category": "Networking",
+        "domain_id": "2.0",
+        "root_cause": "Client NIC is pointing to the wrong DNS server address",
+        "root_cause_type": "dns_misconfiguration",
+        "required_checkpoints": {
+            "checkpoints": [
+                {"id": 1, "step": "Verify IP and DNS settings", "commands": ["ipconfig /all"], "weight": 0.2},
+                {"id": 2, "step": "Test DNS resolution", "commands": ["nslookup google.com"], "weight": 0.3},
+                {"id": 3, "step": "Identify incorrect DNS server address", "required_mention": ["dns", "incorrect", "wrong"], "weight": 0.3},
+                {"id": 4, "step": "Update DNS settings and re-test", "commands": ["nslookup google.com"], "weight": 0.2},
+            ]
+        },
+        "required_evidence": {
+            "evidence_types": [
+                {"type": "screenshot", "description": "ipconfig /all showing DNS values", "validation": {"must_contain_text": ["DNS"]}},
+                {"type": "screenshot", "description": "Successful resolution after fix", "validation": {}},
+            ]
+        },
+        "scoring_anchors": {"6": "Identified DNS issue but skipped verification", "8": "Systematic triage with validation", "10": "Root cause proven, fix applied, re-tested, documented"},
+        "model_answer": "Run ipconfig /all to confirm the DNS server IP. Update the NIC settings to the correct DNS server. Run nslookup to verify resolution is restored.",
+    },
+    {
+        "title": "User account locked out — cannot log in to Windows",
+        "description": (
+            "An employee calls reporting their Windows login fails with 'Your account has been locked'. "
+            "They tried their password five times yesterday. You have domain admin access."
+        ),
+        "difficulty": 1,
+        "week_number": 1,
+        "category": "Authentication",
+        "domain_id": "4.0",
+        "root_cause": "Account locked due to repeated failed login attempts",
+        "root_cause_type": "account_lockout",
+        "required_checkpoints": {
+            "checkpoints": [
+                {"id": 1, "step": "Confirm lockout in Active Directory", "commands": ["Active Directory Users and Computers"], "weight": 0.3},
+                {"id": 2, "step": "Check Event Viewer for failed logins", "required_mention": ["event viewer", "4740", "failed"], "weight": 0.4},
+                {"id": 3, "step": "Unlock and verify user can log in", "required_mention": ["unlock", "test"], "weight": 0.3},
+            ]
+        },
+        "required_evidence": {
+            "evidence_types": [
+                {"type": "screenshot", "description": "Locked account state in ADUC", "validation": {}},
+                {"type": "screenshot", "description": "Successful login after unlock", "validation": {}},
+            ]
+        },
+        "scoring_anchors": {"6": "Unlocked account, no root-cause investigation", "8": "Checked Event Viewer and unlocked", "10": "Investigated source, resolved, and documented"},
+        "model_answer": "Open ADUC, find the user, unlock the account. Check Event Viewer for event 4740 to identify the source. Advise user to reset password if cause was credential theft.",
+    },
+    {
+        "title": "Printer offline — user cannot print from Windows",
+        "description": (
+            "A user reports that their network printer shows 'Offline' in the Windows print queue. "
+            "Other users on the same subnet can print without issue. The user is on Windows 11."
+        ),
+        "difficulty": 2,
+        "week_number": 2,
+        "category": "Hardware",
+        "domain_id": "1.0",
+        "root_cause": "Static IP conflict causing the printer to be unreachable from the affected workstation",
+        "root_cause_type": "ip_conflict",
+        "required_checkpoints": {
+            "checkpoints": [
+                {"id": 1, "step": "Ping the printer IP from the affected PC", "commands": ["ping <printer_ip>"], "weight": 0.25},
+                {"id": 2, "step": "Check the printer port configuration", "required_mention": ["port", "ip", "printer properties"], "weight": 0.35},
+                {"id": 3, "step": "Update port IP and set printer online", "required_mention": ["update", "online"], "weight": 0.25},
+                {"id": 4, "step": "Print a test page to verify", "required_mention": ["test page", "verify"], "weight": 0.15},
+            ]
+        },
+        "required_evidence": {
+            "evidence_types": [
+                {"type": "screenshot", "description": "Printer showing offline in queue", "validation": {}},
+                {"type": "screenshot", "description": "Successful test page print", "validation": {}},
+            ]
+        },
+        "scoring_anchors": {"6": "Set online, no root-cause analysis", "8": "Verified IP conflict and fixed port", "10": "Root cause identified, validated, test page confirmed"},
+        "model_answer": "Ping the printer IP to test reachability. Open printer properties and check the port IP matches the actual printer IP. Correct if wrong. Set 'Use Printer Online' and print a test page.",
+    },
+    {
+        "title": "Laptop cannot connect to corporate Wi-Fi",
+        "description": (
+            "A remote employee's laptop fails to connect to the office Wi-Fi SSID 'CorpNet'. "
+            "Their Windows 11 machine shows 'Can't connect to this network'. "
+            "Other devices connect to CorpNet fine. The network uses WPA2-Enterprise."
+        ),
+        "difficulty": 3,
+        "week_number": 2,
+        "category": "Networking",
+        "domain_id": "2.0",
+        "root_cause": "Corrupted wireless profile preventing authentication",
+        "root_cause_type": "wireless_profile_corrupt",
+        "required_checkpoints": {
+            "checkpoints": [
+                {"id": 1, "step": "Forget and re-add the wireless network", "required_mention": ["forget", "delete", "remove"], "weight": 0.3},
+                {"id": 2, "step": "Check for driver or certificate issues", "required_mention": ["driver", "certificate", "device manager"], "weight": 0.4},
+                {"id": 3, "step": "Re-join and verify connectivity", "commands": ["ping"], "weight": 0.3},
+            ]
+        },
+        "required_evidence": {
+            "evidence_types": [
+                {"type": "screenshot", "description": "Error message when connecting", "validation": {}},
+                {"type": "screenshot", "description": "Successful Wi-Fi connection after fix", "validation": {}},
+            ]
+        },
+        "scoring_anchors": {"6": "Forgot network, no verification of cause", "8": "Investigated profile and driver", "10": "Root cause identified, resolved, and connectivity confirmed"},
+        "model_answer": "Forget the CorpNet profile via Settings > Network. Re-add the network. If it fails again, check Device Manager for driver issues and verify the certificate used for WPA2-Enterprise is valid.",
+    },
+    {
+        "title": "PC running very slowly — high CPU usage on startup",
+        "description": (
+            "A user reports their Windows 10 desktop takes 10+ minutes to become usable after boot. "
+            "Task Manager shows 95–100% CPU for several minutes. The PC is 3 years old with 8 GB RAM."
+        ),
+        "difficulty": 2,
+        "week_number": 3,
+        "category": "Performance",
+        "domain_id": "1.0",
+        "root_cause": "Multiple startup programs consuming CPU; background antivirus scan also scheduled at boot",
+        "root_cause_type": "excessive_startup_programs",
+        "required_checkpoints": {
+            "checkpoints": [
+                {"id": 1, "step": "Check startup programs in Task Manager", "commands": ["taskmgr"], "required_mention": ["startup", "task manager"], "weight": 0.3},
+                {"id": 2, "step": "Identify high-impact startup items", "required_mention": ["startup impact", "disable"], "weight": 0.35},
+                {"id": 3, "step": "Reschedule antivirus scan and reboot to test", "required_mention": ["antivirus", "schedule", "reboot"], "weight": 0.35},
+            ]
+        },
+        "required_evidence": {
+            "evidence_types": [
+                {"type": "screenshot", "description": "Task Manager showing high CPU at boot", "validation": {}},
+                {"type": "screenshot", "description": "Startup tab with items disabled", "validation": {}},
+            ]
+        },
+        "scoring_anchors": {"6": "Disabled items, no antivirus investigation", "8": "Identified all contributors, made targeted changes", "10": "Root causes confirmed, improvements verified, documented"},
+        "model_answer": "Open Task Manager > Startup tab. Disable high-impact unnecessary programs. Open the antivirus console and reschedule the daily scan from boot time to a low-usage period. Reboot and confirm boot time improvement.",
+    },
+    {
+        "title": "External hard drive not recognized in Windows",
+        "description": (
+            "A user plugs in their USB external hard drive but it does not appear in File Explorer. "
+            "Device Manager shows a yellow exclamation on the drive under 'Disk drives'. "
+            "The drive works fine on another laptop."
+        ),
+        "difficulty": 2,
+        "week_number": 3,
+        "category": "Hardware",
+        "domain_id": "1.0",
+        "root_cause": "Corrupted or missing USB driver on the workstation",
+        "root_cause_type": "driver_issue",
+        "required_checkpoints": {
+            "checkpoints": [
+                {"id": 1, "step": "Check Device Manager for driver errors", "required_mention": ["device manager", "driver", "yellow"], "weight": 0.3},
+                {"id": 2, "step": "Update or reinstall the driver", "required_mention": ["update driver", "reinstall", "uninstall"], "weight": 0.4},
+                {"id": 3, "step": "Verify drive appears in Disk Management", "required_mention": ["disk management", "appears"], "weight": 0.3},
+            ]
+        },
+        "required_evidence": {
+            "evidence_types": [
+                {"type": "screenshot", "description": "Device Manager showing the error", "validation": {}},
+                {"type": "screenshot", "description": "Drive recognized in Disk Management after fix", "validation": {}},
+            ]
+        },
+        "scoring_anchors": {"6": "Reinstalled driver without confirming recognition", "8": "Diagnosed driver, reinstalled, verified in Disk Management", "10": "Root cause confirmed, drive fully accessible, documented"},
+        "model_answer": "Open Device Manager, right-click the drive with the error, and choose 'Update driver' or 'Uninstall device' then replug. Open Disk Management (diskmgmt.msc) to confirm the drive appears and is accessible.",
+    },
+    {
+        "title": "Email client cannot send mail — SMTP authentication error",
+        "description": (
+            "A user's Outlook reports 'Cannot send the message. Verify the email address in your account properties. "
+            "The server responded: 535 Authentication Failed'. They can receive mail normally."
+        ),
+        "difficulty": 3,
+        "week_number": 4,
+        "category": "Email",
+        "domain_id": "2.0",
+        "root_cause": "Outdated SMTP credentials stored in Outlook credential manager",
+        "root_cause_type": "expired_credential",
+        "required_checkpoints": {
+            "checkpoints": [
+                {"id": 1, "step": "Check SMTP server and port settings", "required_mention": ["smtp", "port", "587", "465"], "weight": 0.25},
+                {"id": 2, "step": "Remove and re-enter credentials in Windows Credential Manager", "required_mention": ["credential manager", "remove", "password"], "weight": 0.45},
+                {"id": 3, "step": "Send a test email to verify", "required_mention": ["test", "send", "verify"], "weight": 0.3},
+            ]
+        },
+        "required_evidence": {
+            "evidence_types": [
+                {"type": "screenshot", "description": "Error message in Outlook", "validation": {}},
+                {"type": "screenshot", "description": "Successful test email sent", "validation": {}},
+            ]
+        },
+        "scoring_anchors": {"6": "Re-entered password but no settings check", "8": "Checked SMTP config and refreshed credentials", "10": "Root cause confirmed, sent test, documented fix"},
+        "model_answer": "Verify SMTP port (587 TLS or 465 SSL) in Outlook account settings. Open Windows Credential Manager, find and delete the stored Outlook credentials, then re-enter them. Send a test email to confirm.",
+    },
+    {
+        "title": "New employee laptop will not join the Active Directory domain",
+        "description": (
+            "During new hire setup, joining a Windows 11 Pro laptop to the corp.local domain fails with "
+            "'The specified domain either does not exist or could not be contacted'. "
+            "The laptop is on the office network and can ping other workstations."
+        ),
+        "difficulty": 3,
+        "week_number": 4,
+        "category": "Active Directory",
+        "domain_id": "4.0",
+        "root_cause": "Laptop DNS is pointing to a public DNS server instead of the domain controller",
+        "root_cause_type": "dns_misconfiguration",
+        "required_checkpoints": {
+            "checkpoints": [
+                {"id": 1, "step": "Check DNS settings on the laptop NIC", "commands": ["ipconfig /all"], "weight": 0.3},
+                {"id": 2, "step": "Change DNS to the domain controller IP", "required_mention": ["dns", "domain controller", "dc"], "weight": 0.4},
+                {"id": 3, "step": "Retry domain join and confirm", "required_mention": ["join", "domain", "success"], "weight": 0.3},
+            ]
+        },
+        "required_evidence": {
+            "evidence_types": [
+                {"type": "screenshot", "description": "ipconfig /all before DNS fix", "validation": {}},
+                {"type": "screenshot", "description": "Successful domain join confirmation", "validation": {}},
+            ]
+        },
+        "scoring_anchors": {"6": "Tried rejoin without checking DNS", "8": "Identified DNS issue and fixed", "10": "Root cause confirmed, domain joined, verified login"},
+        "model_answer": "Run ipconfig /all and verify the DNS server is the domain controller IP (not 8.8.8.8). Update the NIC preferred DNS to the DC IP. Retry joining the domain via System Properties.",
+    },
+]
+
+LABS = [
+    {
+        "title": "IP Addressing & Subnetting Practice",
+        "description": "Step-by-step subnetting calculations and address classification",
+        "difficulty": 2,
+        "week_number": 2,
+        "estimated_minutes": 30,
+        "lab_type": "guided",
+        "setup_instructions": "You will answer subnetting questions using pen and paper or a calculator. No software required.",
+        "success_criteria": {
+            "tasks": [
+                "Identify network class",
+                "Calculate subnet mask",
+                "Find broadcast address",
+                "List valid host range",
+            ]
+        },
+        "hints": [
+            "Use the formula 2^n for subnet calculation",
+            "Broadcast is always the last address in the range",
+        ],
+    },
+    {
+        "title": "Troubleshoot a Network Connectivity Scenario",
+        "description": "Given a simulated scenario, identify and resolve the connectivity issue using a structured approach",
+        "difficulty": 3,
+        "week_number": 3,
+        "estimated_minutes": 45,
+        "lab_type": "scenario",
+        "setup_instructions": "Read the scenario carefully. Use the OSI model layers from bottom to top to diagnose.",
+        "success_criteria": {
+            "tasks": [
+                "Identify OSI layer of failure",
+                "Name the likely cause",
+                "Describe the fix",
+                "Explain how to verify",
+            ]
+        },
+        "hints": [
+            "Start at Layer 1 (physical)",
+            "Check DHCP before DNS",
+        ],
+    },
+    {
+        "title": "Windows Command-Line Diagnostics",
+        "description": "Practice using ipconfig, ping, tracert, netstat, and nslookup to diagnose network issues",
+        "difficulty": 2,
+        "week_number": 4,
+        "estimated_minutes": 40,
+        "lab_type": "guided",
+        "setup_instructions": "Open Command Prompt on your Windows machine. You will run commands and document the output.",
+        "success_criteria": {
+            "tasks": [
+                "Run ipconfig /all and identify gateway",
+                "Ping 8.8.8.8 and interpret result",
+                "Run tracert and identify hops",
+                "Use nslookup to resolve a domain",
+            ]
+        },
+        "hints": [
+            "Use ipconfig /all not just ipconfig",
+            "tracert shows where packets stop - that's the failure point",
+        ],
+    },
+    {
+        "title": "Hardware Component Identification",
+        "description": "Identify and describe the purpose of common PC components from photos and descriptions",
+        "difficulty": 1,
+        "week_number": 1,
+        "estimated_minutes": 20,
+        "lab_type": "identification",
+        "setup_instructions": "Read each component description and answer the identification questions below.",
+        "success_criteria": {
+            "tasks": [
+                "Name the component",
+                "Describe its function",
+                "Identify the form factor or slot type",
+            ]
+        },
+        "hints": [
+            "Focus on form factor - ATX, microATX, M.2, PCIe",
+            "RAM slots are longer and narrower than PCIe slots",
+        ],
+    },
+]
+
+CAPSTONES = [
+    {
+        "title": "CompTIA A+ Module 1 Capstone: Hardware & Troubleshooting",
+        "description": "Demonstrate your knowledge of PC hardware components, assembly, and systematic troubleshooting by completing all required deliverables.",
+        "week_number": 4,
+        "is_published": True,
+        "estimated_hours": 3,
+        "requirements": {
+            "skills": [
+                "Identify all major PC components and their functions",
+                "Explain the POST process and common error codes",
+                "Apply a systematic troubleshooting methodology",
+                "Document findings in a professional format",
+            ]
+        },
+        "deliverables": {
+            "items": [
+                "Written component identification guide (300+ words)",
+                "Troubleshooting scenario walkthrough using the OSI or layered approach",
+                "Reflection on what you would do differently next time",
+            ]
+        },
+        "rubric": {
+            "technical_accuracy": "Correctly identifies components and troubleshooting steps",
+            "documentation_quality": "Clear, structured, professional writing",
+            "completeness": "All deliverables submitted with sufficient detail",
+        },
+    },
+    {
+        "title": "CompTIA A+ Module 2 Capstone: Networking & OS",
+        "description": "Apply your understanding of networking concepts and Windows/Linux administration by completing a full scenario-based capstone project.",
+        "week_number": 8,
+        "is_published": True,
+        "estimated_hours": 4,
+        "requirements": {
+            "skills": [
+                "Configure TCP/IP settings and understand subnetting",
+                "Troubleshoot network connectivity issues methodically",
+                "Navigate and administer Windows and Linux from the command line",
+                "Explain DNS, DHCP, and common protocols",
+            ]
+        },
+        "deliverables": {
+            "items": [
+                "Network diagram (text-based or described) for a small office scenario",
+                "Step-by-step troubleshooting documentation for a network scenario",
+                "Command reference sheet with 10 essential Windows and Linux commands",
+            ]
+        },
+        "rubric": {
+            "technical_accuracy": "Correct understanding of networking concepts and commands",
+            "problem_solving": "Logical and structured troubleshooting approach",
+            "documentation_quality": "Professional format with clear explanations",
+        },
+    },
+]
 
 ANSWER_KEYS = [
     {
@@ -293,6 +670,71 @@ def seed_methodology_completions(db):
                 )
 
 
+def seed_tickets(db):
+    existing_titles = {row.title for row in db.query(Ticket).all()}
+    for t in TICKETS:
+        if t["title"] in existing_titles:
+            continue
+        db.add(
+            Ticket(
+                title=t["title"],
+                description=t["description"],
+                difficulty=t["difficulty"],
+                week_number=t["week_number"],
+                category=t.get("category", "general"),
+                domain_id=t.get("domain_id", "1.0"),
+                root_cause=t.get("root_cause"),
+                root_cause_type=t.get("root_cause_type"),
+                required_checkpoints=t.get("required_checkpoints", {}),
+                required_evidence=t.get("required_evidence", {}),
+                scoring_anchors=t.get("scoring_anchors", {}),
+                model_answer=t.get("model_answer"),
+            )
+        )
+
+
+def seed_labs(db):
+    existing_titles = {row.title for row in db.query(LabTemplate).all()}
+    for lab in LABS:
+        if lab["title"] in existing_titles:
+            continue
+        db.add(
+            LabTemplate(
+                title=lab["title"],
+                description=lab["description"],
+                lab_type=lab["lab_type"],
+                difficulty=lab["difficulty"],
+                week_number=lab["week_number"],
+                estimated_minutes=lab["estimated_minutes"],
+                environment_requirements={},
+                setup_instructions=lab["setup_instructions"],
+                success_criteria=lab["success_criteria"],
+                required_evidence={},
+                hints=lab["hints"],
+                is_published=True,
+            )
+        )
+
+
+def seed_capstones(db):
+    existing_titles = {row.title for row in db.query(CapstoneTemplate).all()}
+    for capstone in CAPSTONES:
+        if capstone["title"] in existing_titles:
+            continue
+        db.add(
+            CapstoneTemplate(
+                title=capstone["title"],
+                description=capstone["description"],
+                week_number=capstone["week_number"],
+                is_published=capstone["is_published"],
+                requirements=capstone["requirements"],
+                deliverables=capstone["deliverables"],
+                estimated_hours=capstone["estimated_hours"],
+                rubric=capstone["rubric"],
+            )
+        )
+
+
 def seed_answer_keys(db, limit: int = 10):
     tickets = db.query(Ticket).limit(limit).all()
     for ticket in tickets:
@@ -353,10 +795,14 @@ def run_seed() -> None:
         seed_promotion_gates(db)
         seed_module0_and_methodology(db)
         seed_methodology_completions(db)
+        seed_tickets(db)
+        seed_labs(db)
+        seed_capstones(db)
+        db.flush()
         seed_answer_keys(db, limit=10)
         seed_commands(db)
         db.commit()
-        print("Seed complete: students, roles, promotion gates, module0, methodology, answer keys, commands(50)")
+        print("Seed complete: students, roles, promotion gates, module0, methodology, tickets(8), labs(4), capstones(2), answer keys, commands(50)")
     except Exception:
         db.rollback()
         raise

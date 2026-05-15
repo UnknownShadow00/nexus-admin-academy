@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 import toast from "react-hot-toast";
 import EvidenceUploader from "./EvidenceUploader";
 import Spinner from "./Spinner";
-import { getStudents, submitTicket, uploadScreenshots } from "../services/api";
+import { getStudents, submitTicket } from "../services/api";
 
 export default function TicketSubmit({ ticket, studentId }) {
   const navigate = useNavigate();
@@ -16,7 +16,6 @@ export default function TicketSubmit({ ticket, studentId }) {
   const [commandsUsed, setCommandsUsed] = useState("");
   const [collaborators, setCollaborators] = useState([]);
   const [students, setStudents] = useState([]);
-  const [selectedFiles, setSelectedFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [evidenceUploads, setEvidenceUploads] = useState([]);
 
@@ -65,14 +64,6 @@ export default function TicketSubmit({ ticket, studentId }) {
 
   const toggleCollaborator = (id, checked) => {
     setCollaborators((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFiles.length) return;
-    const loadingToast = toast.loading("Uploading screenshots...");
-    await uploadScreenshots(selectedFiles);
-    toast.dismiss(loadingToast);
-    toast.success("Screenshots uploaded");
   };
 
   const onSubmit = async () => {
@@ -149,10 +140,6 @@ export default function TicketSubmit({ ticket, studentId }) {
           <p className="mt-1 text-xs text-slate-500">Draft auto-saved.</p>
         </div>
       </div>
-
-      <label className="text-sm font-semibold">Upload Screenshots (optional legacy upload)</label>
-      <input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={(e) => setSelectedFiles(Array.from(e.target.files || []))} />
-      <button className="btn-secondary" type="button" onClick={handleUpload}>Upload Selected</button>
 
       <EvidenceUploader
         ticketId={ticket.id}
