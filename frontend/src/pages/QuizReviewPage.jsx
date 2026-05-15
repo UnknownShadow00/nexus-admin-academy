@@ -6,9 +6,31 @@ import { getCurrentStudent } from "../hooks/useAuth";
 import Spinner from "../components/Spinner";
 import { getQuizReview } from "../services/api";
 
-function OptionRow({ letter, text, correctAnswers, studentAnswer }) {
+const OPTION_LETTERS = ["A", "B", "C", "D", "E"];
+
+function normalizeAnswers(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (!value) return [];
+  return String(value)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function buildOptions(row, question) {
+  const rowOptions = row?.options || {};
+  return OPTION_LETTERS.map((letter) => ({
+    letter,
+    text: rowOptions[letter] || question[`option_${letter.toLowerCase()}`] || "",
+  })).filter((option) => option.text);
+}
+
+function OptionRow({ letter, text, correctAnswers, studentAnswers }) {
   const isCorrect = correctAnswers.includes(letter);
-  const isStudentWrong = studentAnswer === letter && !isCorrect;
+  const isStudentPick = studentAnswers.includes(letter);
+  const isStudentWrong = isStudentPick && !isCorrect;
 
   let cls = "flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm ";
   if (isCorrect) {
@@ -29,8 +51,8 @@ function OptionRow({ letter, text, correctAnswers, studentAnswer }) {
         {letter}
       </span>
       <span className="flex-1">{text}</span>
-      {isCorrect && studentAnswer === letter ? <span className="ml-auto text-xs font-bold text-green-700 dark:text-green-400">Correct</span> : null}
-      {isCorrect && studentAnswer !== letter ? <span className="ml-auto text-xs font-bold text-green-600 dark:text-green-400">Correct answer</span> : null}
+      {isCorrect && isStudentPick ? <span className="ml-auto text-xs font-bold text-green-700 dark:text-green-400">Correct</span> : null}
+      {isCorrect && !isStudentPick ? <span className="ml-auto text-xs font-bold text-green-600 dark:text-green-400">Correct answer</span> : null}
       {isStudentWrong ? <span className="ml-auto text-xs font-bold text-red-600 dark:text-red-400">Your answer</span> : null}
     </div>
   );
@@ -111,15 +133,10 @@ export default function QuizReviewPage() {
       <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Answer Review</h2>
       {(questions || []).map((question, index) => {
         const row = byId[question.id];
-        const studentAnswer = row?.student_answer;
-        const correctAnswers = row?.correct_answers || [row?.correct_answer || question.correct_answer];
+        const studentAnswers = normalizeAnswers(row?.student_answer);
+        const correctAnswers = normalizeAnswers(row?.correct_answers || row?.correct_answer || question.correct_answers || question.correct_answer);
         const isCorrect = row?.is_correct;
-        const options = row?.options || {
-          A: question.option_a,
-          B: question.option_b,
-          C: question.option_c,
-          D: question.option_d,
-        };
+        const options = buildOptions(row, question);
 
         return (
           <div
@@ -132,18 +149,22 @@ export default function QuizReviewPage() {
               <p className="font-semibold text-slate-900 dark:text-slate-100">
                 Q{index + 1}. {question.question_text}
               </p>
-              <span className={`shrink-0 text-lg font-bold ${isCorrect ? "text-green-600" : studentAnswer ? "text-red-500" : "text-slate-400"}`}>
-                {isCorrect ? "✓" : studentAnswer ? "✗" : "—"}
+              <span className={`shrink-0 text-lg font-bold ${isCorrect ? "text-green-600" : studentAnswers.length ? "text-red-500" : "text-slate-400"}`}>
+                {isCorrect ? "✓" : studentAnswers.length ? "✗" : "—"}
               </span>
             </div>
             <div className="space-y-2">
-              {["A", "B", "C", "D"].map((opt) => {
-                const text = options[opt] || question[`option_${opt.toLowerCase()}`];
-                if (!text) return null;
-                return <OptionRow key={opt} letter={opt} text={text} correctAnswers={correctAnswers} studentAnswer={studentAnswer} />;
-              })}
+              {options.map((option) => (
+                <OptionRow
+                  key={option.letter}
+                  letter={option.letter}
+                  text={option.text}
+                  correctAnswers={correctAnswers}
+                  studentAnswers={studentAnswers}
+                />
+              ))}
             </div>
-            {!studentAnswer ? <p className="mt-2 text-xs italic text-slate-400">Not answered</p> : null}
+            {!studentAnswers.length ? <p className="mt-2 text-xs italic text-slate-400">Not answered</p> : null}
             {row?.explanation ? (
               <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm italic text-slate-600 dark:bg-slate-800 dark:text-slate-300">Tip: {row.explanation}</p>
             ) : null}

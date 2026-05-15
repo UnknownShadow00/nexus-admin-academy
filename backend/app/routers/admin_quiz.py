@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.quiz import Question, Quiz
-from app.schemas.quiz import QuizGenerateRequest
+from app.schemas.quiz import QuizGenerateRequest, QuizUpdateRequest
 from app.services.admin_auth import verify_admin
 from app.services.examcompass_scraper import scrape_examcompass_quiz
 from app.services.quiz_generator import generate_quiz_from_videos
@@ -82,6 +82,7 @@ def list_quizzes(db: Session = Depends(get_db)):
                 "title": row.title,
                 "week_number": row.week_number,
                 "question_count": row.question_count,
+                "status": row.status,
                 "source_urls": row.source_urls or ([row.source_url] if row.source_url else []),
                 "lesson_id": row.lesson_id,
                 "created_at": row.created_at.isoformat() if row.created_at else None,
@@ -102,32 +103,39 @@ def delete_quiz(quiz_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/quizzes/{quiz_id}")
-def update_quiz(quiz_id: int, payload: dict, db: Session = Depends(get_db)):
+def update_quiz(quiz_id: int, payload: QuizUpdateRequest, db: Session = Depends(get_db)):
     quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
     updated = {}
-    if "title" in payload:
-        title = (payload.get("title") or "").strip()
-        if title:
-            quiz.title = title
-            updated["title"] = quiz.title
+    if payload.title is not None:
+        quiz.title = payload.title
+        updated["title"] = quiz.title
 
-    if "week_number" in payload:
-        week_number = payload.get("week_number")
-        if week_number not in (None, ""):
-            quiz.week_number = int(week_number)
-            updated["week_number"] = quiz.week_number
+    if payload.week_number is not None:
+        quiz.week_number = payload.week_number
+        updated["week_number"] = quiz.week_number
 
-    if "domain_id" in payload:
-        domain_id = str(payload.get("domain_id") or "").strip()
-        if domain_id:
-            quiz.domain_id = domain_id
-            updated["domain_id"] = quiz.domain_id
+    if payload.domain_id is not None:
+        quiz.domain_id = payload.domain_id
+        updated["domain_id"] = quiz.domain_id
+
+    if payload.status is not None:
+        quiz.status = payload.status
+        updated["status"] = quiz.status
 
     db.commit()
-    return ok({"id": quiz.id, "title": quiz.title, "week_number": quiz.week_number, "domain_id": quiz.domain_id, **updated})
+    return ok(
+        {
+            "id": quiz.id,
+            "title": quiz.title,
+            "week_number": quiz.week_number,
+            "domain_id": quiz.domain_id,
+            "status": quiz.status,
+            **updated,
+        }
+    )
 
 
 @router.post("/quiz/scrape-preview")
@@ -260,6 +268,7 @@ def get_quiz_questions(quiz_id: int, db: Session = Depends(get_db)):
         {
             "quiz_id": quiz.id,
             "title": quiz.title,
+            "status": quiz.status,
             "questions": [
                 {
                     "id": question.id,

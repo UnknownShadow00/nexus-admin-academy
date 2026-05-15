@@ -68,7 +68,12 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
 def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
     scoped_student_id = student_id or current_student.id
     ensure_student_access(current_student, scoped_student_id)
-    quiz = db.query(Quiz).options(selectinload(Quiz.questions)).filter(Quiz.id == quiz_id).first()
+    quiz = (
+        db.query(Quiz)
+        .options(selectinload(Quiz.questions))
+        .filter(Quiz.id == quiz_id, Quiz.status == QUIZ_STATUS_PUBLISHED)
+        .first()
+    )
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
@@ -125,7 +130,12 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     ensure_student_access(current_student, student_id)
     answers = payload.answers
 
-    quiz = db.query(Quiz).options(selectinload(Quiz.questions)).filter(Quiz.id == quiz_id).first()
+    quiz = (
+        db.query(Quiz)
+        .options(selectinload(Quiz.questions))
+        .filter(Quiz.id == quiz_id, Quiz.status == QUIZ_STATUS_PUBLISHED)
+        .first()
+    )
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
@@ -242,7 +252,12 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
     if not attempt:
         raise HTTPException(status_code=404, detail="No attempt found for this quiz")
 
-    quiz = db.query(Quiz).options(selectinload(Quiz.questions)).filter(Quiz.id == quiz_id).first()
+    quiz = (
+        db.query(Quiz)
+        .options(selectinload(Quiz.questions))
+        .filter(Quiz.id == quiz_id, Quiz.status == QUIZ_STATUS_PUBLISHED)
+        .first()
+    )
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 

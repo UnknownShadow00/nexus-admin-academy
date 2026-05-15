@@ -43,3 +43,48 @@
 - Files changed: backend/app/routers/students.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; `python -m py_compile app/routers/students.py` succeeded and the dependency-injection error path is removed.
 - Next: Restart the local backend process so Uvicorn picks up the updated router code, then refresh the student dashboard.
+## [2026-04-23 02:37:48 -05:00] Task Completed
+- Task: Added the Phase 1 frontend design-system foundation in `frontend/src` with centralized theme configs, shared badge/header/filter UI primitives, and aligned shared stylesheet utilities without modifying existing page files.
+- Files changed: frontend/src/utils/theme.js, frontend/src/components/ui/Badge.jsx, frontend/src/components/ui/PageHeader.jsx, frontend/src/components/ui/FilterBar.jsx, frontend/src/styles.css, tasks/loop-log.md
+- Result: partial against acceptance criteria; all requested files and exports were added, but `npm.cmd run build` remains blocked in this sandbox before app compilation because Vite/esbuild child-process startup fails with `spawn EPERM`.
+- Next: Re-run `cd frontend && npm run build` in an environment that allows Vite/esbuild process spawning to complete full frontend verification.
+## [2026-04-23 02:42:09 -05:00] Task Completed
+- Task: Refactored `StudentHome.jsx` to a single-focus dashboard using shared Phase 1 UI primitives and simplified `App.jsx` navigation with collapsible search plus a single shared mobile nav renderer.
+- Files changed: frontend/src/pages/StudentHome.jsx, frontend/src/App.jsx, tasks/loop-log.md
+- Result: partial against acceptance criteria; the requested UI/navigation refactors are implemented and no emoji remain in the two files, but `cd frontend && npm run build` is still blocked in this sandbox because Vite/esbuild child-process startup fails with `spawn EPERM`.
+- Next: Re-run `cd frontend && npm run build` in an environment that allows Vite/esbuild process spawning to confirm the final frontend build.
+## [2026-04-23 13:20:00 -05:00] Task Completed
+- Task: Cleaned up the Phase 3 quizzes flow UI by extracting the quiz review screen, adding a shared banner primitive, and updating the quizzes pages to use shared header/filter/status UI.
+- Files changed: frontend/src/components/ui/Banner.jsx, frontend/src/components/QuizReviewScreen.jsx, frontend/src/components/QuizTaker.jsx, frontend/src/pages/QuizzesPage.jsx, frontend/src/pages/QuizPage.jsx, tasks/loop-log.md
+- Result: pass against acceptance criteria
+- Next: None
+## [2026-04-23T21:35:58.3829364-05:00] Task Completed
+- Task: Implemented the Phase 10 lab exercises feature with authenticated lab APIs, seed data, student lab pages, routes, and focused backend tests.
+- Files changed: backend/app/models/lab.py, backend/alembic/versions/0025_lab_student_fields.py, backend/app/schemas/lab.py, backend/app/routers/labs.py, backend/app/routers/__init__.py, backend/app/main.py, backend/app/routers/admin_content.py, backend/seed.py, backend/tests/test_labs.py, frontend/src/services/api.js, frontend/src/pages/LabsPage.jsx, frontend/src/pages/LabPage.jsx, frontend/src/App.jsx, tasks/loop-log.md
+- Result: partial against acceptance criteria; the backend API, seed data, routes, pages, and backend tests are in place, `python -m compileall app seed.py` succeeded, and `python -m pytest tests/test_labs.py` passed, but `npm.cmd run build` is blocked in this sandbox because Vite/esbuild fails with `spawn EPERM` during config loading.
+- Next: Re-run `cd frontend && npm run build` in an environment that allows Vite/esbuild child-process spawning, and apply the new Alembic migration before using the lab feature against an existing database.
+## [2026-04-23T21:43:02-05:00] Task Completed
+- Task: Implemented the Phase 11 capstone projects feature with authenticated backend endpoints, migration, seed data, student capstone pages/routes, and focused backend tests.
+- Files changed: backend/app/models/capstone.py, backend/alembic/versions/0026_capstone_student_fields.py, backend/app/schemas/capstone.py, backend/app/routers/capstones.py, backend/app/routers/__init__.py, backend/app/main.py, backend/seed.py, backend/tests/test_capstones.py, frontend/src/services/api.js, frontend/src/pages/CapstonesPage.jsx, frontend/src/pages/CapstonePage.jsx, frontend/src/App.jsx, tasks/loop-log.md
+- Result: partial against acceptance criteria; backend capstone APIs, migration, seed data, routes, pages, and focused backend tests are in place, and `$env:PYTHONPATH='backend'; pytest backend/tests/test_labs.py backend/tests/test_capstones.py` passed, but `npm.cmd run build` is blocked in this sandbox because Vite/esbuild fails with `spawn EPERM` during config loading.
+- Next: Apply Alembic migration `0026` to the target database and re-run `cd frontend && npm run build` in an environment that allows Vite/esbuild child-process spawning.
+## [2026-05-14T20:14:54-05:00] Task Completed
+- Task: Reviewed the project state, source code, dirty worktree, tests, build output, completed features, pending gaps, and likely bugs so the project can continue from the right point.
+- Files changed: tasks/loop-log.md, frontend/dist/index.html, frontend/dist/assets/index-B8rzC5Vk.css, frontend/dist/assets/index-Bq_dYAEC.js, frontend/dist/assets/index-BHo4YmWS.css (deleted by build), frontend/dist/assets/index-bbpxCFX5.js (deleted by build)
+- Result: pass against acceptance criteria; review completed, frontend build passed, backend compile passed, scoped backend tests passed, and blocking/pending issues were identified.
+- Next: Fix quiz publishing first, then clean locked pytest cache directories and decide whether `frontend/dist` should be committed or ignored.
+## [2026-05-14T20:25:09-05:00] Task Completed
+- Task: Fixed quiz publishing/status updates, blocked student access to draft quiz detail/submission routes, added admin capstone publish/week support, repaired quiz review option highlighting for E and multi-select answers, and added pytest/dist/cache hygiene ignores.
+- Files changed: .gitignore, backend/pytest.ini, backend/app/schemas/quiz.py, backend/app/routers/admin_quiz.py, backend/app/routers/quizzes.py, backend/app/routers/admin_content.py, backend/tests/test_quizzes.py, backend/tests/test_capstones.py, frontend/src/pages/QuizReviewPage.jsx, frontend/dist/index.html, frontend/dist/assets/index-BHo4YmWS.css (deleted by build), frontend/dist/assets/index-bbpxCFX5.js (deleted by build), tasks/loop-log.md
+- Result: pass against acceptance criteria; `python -m compileall app seed.py -q`, `python -m pytest -q`, focused quiz/capstone tests, and `npm run build` all passed.
+- Next: Existing tracked `frontend/dist` files still show build churn; fully enforcing the new ignore policy requires a later one-time untrack/restore decision for those tracked artifacts.
+## [2026-05-14T20:28:55-05:00] Task Completed
+- Task: Performed final regression review of Nexus quiz publish/detail/take/submit/review flow, capstone admin publishing support, frontend dist hygiene, draft/published edge cases, and quiz review multi-select/E UI handling; fixed draft quiz review access.
+- Files changed: backend/app/routers/quizzes.py, backend/tests/test_quizzes.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; `python -m compileall app seed.py -q`, full `python -m pytest -q` (31 passed), `npm run build`, `git status`, and `git diff --check` completed successfully. Tracked `frontend/dist` build churn was restored and ignored generated hashed assets were removed.
+- Next: No blocker for committing the current work; remaining warning is the existing Vite large chunk warning and existing backend `datetime.utcnow()` deprecation warnings in activity-service tests.
+## [2026-05-14T20:31:05-05:00] Task Completed
+- Task: Staged the requested Nexus quiz publishing and capstone visibility fix files and committed them with the requested message.
+- Files changed: .gitignore, backend/pytest.ini, backend/app/schemas/quiz.py, backend/app/routers/admin_quiz.py, backend/app/routers/quizzes.py, backend/app/routers/admin_content.py, backend/tests/test_quizzes.py, backend/tests/test_capstones.py, frontend/src/pages/QuizReviewPage.jsx, tasks/loop-log.md
+- Result: pass; commit `616c29b` was created with message `Fix quiz publishing and capstone visibility flows`.
+- Next: None.

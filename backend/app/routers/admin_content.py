@@ -356,7 +356,9 @@ def list_lab_templates(lesson_id: int | None = None, db: Session = Depends(get_d
                 "description": r.description,
                 "lab_type": r.lab_type,
                 "difficulty": r.difficulty,
+                "week_number": r.week_number,
                 "estimated_minutes": r.estimated_minutes,
+                "is_published": r.is_published,
                 "success_criteria": r.success_criteria,
                 "required_evidence": r.required_evidence,
             }
@@ -372,7 +374,9 @@ def create_lab_template(payload: dict, db: Session = Depends(get_db)):
         description=payload.get("description"),
         lab_type=payload.get("lab_type"),
         difficulty=payload.get("difficulty", 1),
+        week_number=payload.get("week_number", 1),
         estimated_minutes=payload.get("estimated_minutes"),
+        is_published=payload.get("is_published", True),
         environment_requirements=payload.get("environment_requirements") or {},
         setup_instructions=payload.get("setup_instructions"),
         break_script=payload.get("break_script"),
@@ -460,6 +464,8 @@ def list_capstone_templates(db: Session = Depends(get_db)):
                 "title": r.title,
                 "description": r.description,
                 "role_level": r.role_level,
+                "week_number": r.week_number,
+                "is_published": r.is_published,
                 "requirements": r.requirements,
                 "deliverables": r.deliverables,
                 "estimated_hours": r.estimated_hours,
@@ -475,6 +481,8 @@ def create_capstone_template(payload: dict, db: Session = Depends(get_db)):
         title=payload.get("title"),
         description=payload.get("description"),
         role_level=payload.get("role_level"),
+        week_number=payload.get("week_number"),
+        is_published=payload.get("is_published", False),
         requirements=payload.get("requirements") or {},
         deliverables=payload.get("deliverables") or {},
         estimated_hours=payload.get("estimated_hours"),
@@ -484,6 +492,36 @@ def create_capstone_template(payload: dict, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(row)
     return ok({"capstone_template_id": row.id})
+
+@router.put("/capstones/templates/{template_id}")
+def update_capstone_template(template_id: int, payload: dict, db: Session = Depends(get_db)):
+    row = db.query(CapstoneTemplate).filter(CapstoneTemplate.id == template_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Capstone template not found")
+
+    for field in [
+        "title",
+        "description",
+        "role_level",
+        "week_number",
+        "is_published",
+        "requirements",
+        "deliverables",
+        "estimated_hours",
+        "rubric",
+    ]:
+        if field in payload:
+            setattr(row, field, payload[field])
+
+    db.commit()
+    db.refresh(row)
+    return ok(
+        {
+            "capstone_template_id": row.id,
+            "week_number": row.week_number,
+            "is_published": row.is_published,
+        }
+    )
 
 @router.get("/ops/summary")
 def operations_summary(db: Session = Depends(get_db)):
