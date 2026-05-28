@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { getQuizQuestions, updateQuestion, updateQuiz } from "../../services/api";
+import { getAdminFlaggedAttempts, getQuizQuestions, updateQuestion, updateQuiz } from "../../services/api";
 
 export default function QuizEditorPage() {
   const { quizId } = useParams();
@@ -16,6 +16,7 @@ export default function QuizEditorPage() {
   const [titleSaving, setTitleSaving] = useState(false);
   const [titleSaved, setTitleSaved] = useState(false);
   const [titleError, setTitleError] = useState("");
+  const [flaggedAttempts, setFlaggedAttempts] = useState([]);
 
   useEffect(() => {
     const run = async () => {
@@ -24,6 +25,12 @@ export default function QuizEditorPage() {
       setQuiz({ title: nextTitle, status: res.data?.status || "draft" });
       setTitleEdit(nextTitle);
       setQuestions(res.data?.questions || []);
+      getAdminFlaggedAttempts({ suppressToast: true })
+        .then((flaggedRes) => {
+          const data = Array.isArray(flaggedRes?.data) ? flaggedRes.data : Array.isArray(flaggedRes) ? flaggedRes : [];
+          setFlaggedAttempts(data.filter((attempt) => attempt.quiz_id === Number(quizId)));
+        })
+        .catch(() => {});
     };
     run();
   }, [quizId]);
@@ -184,6 +191,40 @@ export default function QuizEditorPage() {
           </div>
         </div>
       ))}
+
+      {flaggedAttempts.length > 0 && (
+        <section className="mt-8">
+          <h2 className="mb-3 text-base font-semibold text-slate-800 dark:text-slate-200">Speed-Flagged Attempts</h2>
+          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-800">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Student</th>
+                  <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Score</th>
+                  <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Avg Time/Q</th>
+                  <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {flaggedAttempts.map((attempt) => (
+                  <tr key={attempt.attempt_id} className="border-t border-slate-100 dark:border-slate-700">
+                    <td className="px-4 py-2 text-slate-800 dark:text-slate-200">{attempt.student_name}</td>
+                    <td className="px-4 py-2 text-slate-800 dark:text-slate-200">{attempt.score}</td>
+                    <td className="px-4 py-2">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                        {attempt.avg_seconds_per_question}s avg
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-slate-500 dark:text-slate-400">
+                      {attempt.completed_at ? new Date(attempt.completed_at).toLocaleDateString() : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </main>
   );
 }

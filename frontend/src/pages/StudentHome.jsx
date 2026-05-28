@@ -1,6 +1,7 @@
-import { BookOpen, Flame, Ticket, Trophy, Zap } from "lucide-react";
+import { BookOpen, Brain, Flame, Ticket, Trophy, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import FlashcardReviewPanel from "../components/FlashcardReviewPanel";
 import { XPBadge } from "../components/ui/Badge";
 import PageHeader from "../components/ui/PageHeader";
 import { getCurrentStudent } from "../hooks/useAuth";
@@ -77,6 +78,18 @@ export default function StudentHome() {
             <span className="text-sm font-medium text-blue-600 transition group-hover:text-blue-700 dark:text-blue-400 dark:group-hover:text-blue-300">Open {label.toLowerCase()}</span>
           </Link>
         ))}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="rounded-lg bg-blue-100 p-2 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+            <Brain size={iconSizes.heading} aria-hidden="true" />
+          </span>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Daily Review</h2>
+        </div>
+        <div className="panel">
+          <FlashcardReviewPanel />
+        </div>
       </section>
 
       <section className="panel flex flex-col gap-4 border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/70 sm:flex-row sm:items-center sm:justify-between">

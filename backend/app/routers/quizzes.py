@@ -10,12 +10,22 @@ from app.models.student import Student
 from app.schemas.quiz import QuizSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import ensure_student_access, get_current_student
+from app.services.fsrs_service import create_cards_for_wrong_answers
 from app.services.mastery_service import record_quiz_mastery
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/quizzes", tags=["quizzes"])
 logger = logging.getLogger(__name__)
+
+
+def _avg_seconds_per_question(time_per_question: dict | None) -> float | None:
+    if not time_per_question:
+        return None
+    values = [value for value in time_per_question.values() if isinstance(value, (int, float))]
+    if not values:
+        return None
+    return sum(values) / len(values)
 
 
 @router.get("")
@@ -129,6 +139,8 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     student_id = payload.student_id
     ensure_student_access(current_student, student_id)
     answers = payload.answers
+    time_per_question = payload.time_per_question
+    avg_seconds = _avg_seconds_per_question(time_per_question)
 
     quiz = (
         db.query(Quiz)
@@ -152,6 +164,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
 
     results = []
     correct_count = 0
+    wrong_question_ids = []
 
     for i, question in enumerate(questions, start=1):
         raw_answer = answers.get(str(question.id)) or answers.get(str(i))
@@ -165,6 +178,8 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
             is_correct = student_answer in correct_letters
         if is_correct:
             correct_count += 1
+        else:
+            wrong_question_ids.append(question.id)
 
         results.append(
             {
@@ -203,6 +218,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
             xp_awarded=xp_awarded,
             best_score=score,
             first_attempt_xp=xp_awarded,
+            time_per_question=time_per_question,
         )
         db.add(attempt)
         db.flush()
@@ -223,9 +239,12 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
         existing.results = results
         existing.score = score
         existing.best_score = max(existing.best_score or 0, score)
+        existing.time_per_question = time_per_question
+        create_cards_for_wrong_answers(db, student.id, wrong_question_ids)
         db.commit()
 
     if is_first_attempt:
+        create_cards_for_wrong_answers(db, student.id, wrong_question_ids)
         db.commit()
 
     return ok(
@@ -234,6 +253,8 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
             "total": total_questions,
             "xp_awarded": xp_awarded,
             "is_first_attempt": is_first_attempt,
+            "avg_seconds_per_question": round(avg_seconds, 1) if avg_seconds is not None else None,
+            "is_speed_flagged": avg_seconds is not None and avg_seconds < 8,
             "results": results,
             "message": "Great work!" if is_first_attempt else "Score updated (no XP for retakes)",
         }
@@ -261,6 +282,8 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
+    avg_seconds = _avg_seconds_per_question(attempt.time_per_question)
+
     if attempt.results:
         return ok(
             {
@@ -270,6 +293,8 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
                 "total": len(quiz.questions),
                 "xp_awarded": attempt.xp_awarded,
                 "is_first_attempt": (attempt.first_attempt_xp or 0) > 0,
+                "avg_seconds_per_question": round(avg_seconds, 1) if avg_seconds is not None else None,
+                "is_speed_flagged": avg_seconds is not None and avg_seconds < 8,
                 "results": attempt.results,
                 "questions": [
                     {
@@ -323,6 +348,8 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
             "total": len(questions),
             "xp_awarded": attempt.xp_awarded,
             "is_first_attempt": False,
+            "avg_seconds_per_question": round(avg_seconds, 1) if avg_seconds is not None else None,
+            "is_speed_flagged": avg_seconds is not None and avg_seconds < 8,
             "results": results,
             "questions": [
                 {

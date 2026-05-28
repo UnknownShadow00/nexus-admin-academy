@@ -75,6 +75,7 @@ class QuizAttempt(Base):
     best_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     first_attempt_xp: Mapped[int | None] = mapped_column(Integer, nullable=True)
     completed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    time_per_question: Mapped[dict | None] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
 
     student = relationship("Student", back_populates="quiz_attempts")
     quiz = relationship("Quiz", back_populates="attempts")

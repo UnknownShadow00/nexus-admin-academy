@@ -53,6 +53,7 @@ class QuizUpdateRequest(BaseModel):
 class QuizSubmitRequest(BaseModel):
     student_id: int = Field(ge=1)
     answers: dict[str, str]
+    time_per_question: dict[str, int] | None = Field(default=None)
 
     @field_validator("answers")
     @classmethod

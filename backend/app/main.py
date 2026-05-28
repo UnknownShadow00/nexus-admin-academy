@@ -1,7 +1,7 @@
 import logging
-import os
-from datetime import datetime
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -14,7 +14,24 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.database import SessionLocal
 from app.config import is_production_environment, load_env
 from app.models import Student
-from app.routers import admin, admin_session, auth, capstones, commands, evidence, labs, quizzes, resources, search, students, study_tracker, submissions, tickets
+from app.routers import (
+    admin,
+    admin_session,
+    auth,
+    capstones,
+    commands,
+    evidence,
+    flashcards,
+    labs,
+    lesson_notes,
+    quizzes,
+    resources,
+    search,
+    students,
+    study_tracker,
+    submissions,
+    tickets,
+)
 from app.routers.admin_curriculum import router as admin_curriculum_router
 from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
 
@@ -135,7 +152,7 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     def healthcheck():
-        return {"success": True, "data": {"ok": True, "timestamp": datetime.utcnow().isoformat() + "Z"}}
+        return {"success": True, "data": {"ok": True, "timestamp": datetime.now(timezone.utc).isoformat()}}
 
     app.include_router(admin.router)
     app.include_router(admin_curriculum_router)
@@ -149,8 +166,10 @@ def create_app() -> FastAPI:
     app.include_router(commands.router)
     app.include_router(search.router)
     app.include_router(evidence.router)
+    app.include_router(flashcards.router)
     app.include_router(resources.router)
     app.include_router(students.router)
+    app.include_router(lesson_notes.router)
     app.include_router(study_tracker.router)
 
     upload_dir = os.getenv("UPLOAD_DIR")

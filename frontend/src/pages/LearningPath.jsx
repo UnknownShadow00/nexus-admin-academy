@@ -1,9 +1,9 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle, ChevronDown, ChevronUp, Circle, Lock } from "lucide-react";
 
 import { getCurrentStudent } from "../hooks/useAuth";
-import { getLearningPath } from "../services/api";
+import { getLearningPath, getLessonNote, saveLessonNote } from "../services/api";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
 
@@ -20,6 +20,66 @@ function SkeletonCard() {
       <div className="mt-3 h-3 w-full rounded bg-slate-100 dark:bg-slate-800" />
       <div className="mt-2 h-3 w-4/5 rounded bg-slate-100 dark:bg-slate-800" />
       <div className="mt-4 h-9 w-full rounded bg-slate-200 dark:bg-slate-700" />
+    </div>
+  );
+}
+
+function LessonNotes({ lessonId }) {
+  const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saved, setSaved] = useState(false);
+  const editedRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    editedRef.current = false;
+    getLessonNote(lessonId, { suppressToast: true })
+      .then((res) => {
+        if (!cancelled) setContent(res.data?.content || "");
+      })
+      .catch(() => {
+        if (!cancelled) setContent("");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lessonId]);
+
+  useEffect(() => {
+    if (loading || !editedRef.current) return;
+    const timer = setTimeout(async () => {
+      try {
+        await saveLessonNote(lessonId, content, { suppressToast: true });
+        editedRef.current = false;
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      } catch {
+        editedRef.current = true;
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [content, lessonId, loading]);
+
+  return (
+    <div className="space-y-2">
+      <textarea
+        className="input-field w-full"
+        disabled={loading}
+        onChange={(event) => {
+          editedRef.current = true;
+          setContent(event.target.value);
+        }}
+        placeholder="Your notes for this lesson..."
+        rows={4}
+        value={content}
+      />
+      <p className={`text-sm font-medium transition-opacity ${saved ? "text-emerald-600 opacity-100 dark:text-emerald-300" : "opacity-0"}`}>
+        Saved
+      </p>
     </div>
   );
 }
@@ -80,6 +140,7 @@ function LessonRow({ lesson, moduleUnlocked }) {
               <p className="text-sm text-slate-400">No video yet - admin can add a YouTube URL in Module Manager.</p>
             </div>
           )}
+          <LessonNotes lessonId={lesson.id} />
           <div className="flex gap-2">
             <Link to="/quizzes" className="btn-primary text-sm">Take Quizzes →</Link>
             <Link to="/tickets" className="btn-secondary text-sm">Practice Tickets →</Link>

@@ -15,7 +15,9 @@ from app.models.incident import Incident, IncidentParticipant, IncidentTicket, R
 from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.progression import MethodologyFramework, PromotionGate, Role
+from app.models.quiz import Quiz, QuizAttempt
 from app.models.resource import Resource
+from app.models.student import Student
 from app.models.ticket import Ticket
 from app.schemas.resource import ResourceCreateRequest
 from app.services.admin_auth import verify_admin
@@ -359,8 +361,13 @@ def list_lab_templates(lesson_id: int | None = None, db: Session = Depends(get_d
                 "week_number": r.week_number,
                 "estimated_minutes": r.estimated_minutes,
                 "is_published": r.is_published,
+                "environment_requirements": r.environment_requirements,
+                "setup_instructions": r.setup_instructions,
+                "break_script": r.break_script,
                 "success_criteria": r.success_criteria,
                 "required_evidence": r.required_evidence,
+                "hints": r.hints,
+                "model_solution": r.model_solution,
             }
             for r in rows
         ]
@@ -389,6 +396,45 @@ def create_lab_template(payload: dict, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(row)
     return ok({"lab_template_id": row.id})
+
+@router.put("/labs/templates/{template_id}")
+def update_lab_template(template_id: int, payload: dict, db: Session = Depends(get_db)):
+    row = db.query(LabTemplate).filter(LabTemplate.id == template_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Lab template not found")
+
+    for field in [
+        "lesson_id",
+        "title",
+        "description",
+        "lab_type",
+        "difficulty",
+        "week_number",
+        "estimated_minutes",
+        "is_published",
+        "environment_requirements",
+        "setup_instructions",
+        "break_script",
+        "success_criteria",
+        "required_evidence",
+        "hints",
+        "model_solution",
+    ]:
+        if field in payload:
+            setattr(row, field, payload[field])
+
+    db.commit()
+    return ok({"lab_template_id": row.id})
+
+@router.delete("/labs/templates/{template_id}")
+def delete_lab_template(template_id: int, db: Session = Depends(get_db)):
+    row = db.query(LabTemplate).filter(LabTemplate.id == template_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Lab template not found")
+
+    db.delete(row)
+    db.commit()
+    return ok({"deleted": True})
 
 @router.get("/incidents")
 def list_incidents(db: Session = Depends(get_db)):
@@ -523,6 +569,16 @@ def update_capstone_template(template_id: int, payload: dict, db: Session = Depe
         }
     )
 
+@router.delete("/capstones/templates/{template_id}")
+def delete_capstone_template(template_id: int, db: Session = Depends(get_db)):
+    row = db.query(CapstoneTemplate).filter(CapstoneTemplate.id == template_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Capstone template not found")
+
+    db.delete(row)
+    db.commit()
+    return ok({"deleted": True})
+
 @router.get("/ops/summary")
 def operations_summary(db: Session = Depends(get_db)):
     return ok(
@@ -589,3 +645,35 @@ def delete_command(command_id: int, db: Session = Depends(get_db)):
     db.delete(row)
     db.commit()
     return ok({"deleted": True})
+
+
+@router.get("/quiz-attempts/flagged")
+def get_flagged_attempts(db: Session = Depends(get_db)):
+    attempts = db.query(QuizAttempt).filter(QuizAttempt.time_per_question.isnot(None)).all()
+    result = []
+    for attempt in attempts:
+        tpq = attempt.time_per_question or {}
+        if not tpq:
+            continue
+        values = [value for value in tpq.values() if isinstance(value, (int, float))]
+        if not values:
+            continue
+        avg = sum(values) / len(values)
+        if avg >= 8:
+            continue
+        student = db.query(Student).filter(Student.id == attempt.student_id).first()
+        quiz = db.query(Quiz).filter(Quiz.id == attempt.quiz_id).first()
+        result.append(
+            {
+                "attempt_id": attempt.id,
+                "student_id": attempt.student_id,
+                "student_name": getattr(student, "full_name", None) or student.name if student else "Unknown",
+                "quiz_id": attempt.quiz_id,
+                "quiz_title": quiz.title if quiz else "Unknown",
+                "score": attempt.score,
+                "avg_seconds_per_question": round(avg, 1),
+                "completed_at": attempt.completed_at.isoformat() if attempt.completed_at else None,
+            }
+        )
+    result.sort(key=lambda x: x["avg_seconds_per_question"])
+    return ok(result, total=len(result), page=1, per_page=len(result) or 1)

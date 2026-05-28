@@ -10,6 +10,9 @@ import AdminLoginPage from "./pages/AdminLoginPage";
 import AdminReviewPage from "./pages/AdminReviewPage";
 import AdminStudentsPage from "./pages/AdminStudentsPage";
 import AICostDashboard from "./pages/admin/AICostDashboard";
+import AdminCapstonesPage from "./pages/admin/AdminCapstonesPage";
+import AdminLabsPage from "./pages/admin/AdminLabsPage";
+import AdminTicketReviewPage from "./pages/admin/AdminTicketReviewPage";
 import BookmarkletPage from "./pages/admin/BookmarkletPage";
 import CurriculumEditorPage from "./pages/admin/CurriculumEditorPage";
 import CurriculumTagsPage from "./pages/admin/CurriculumTagsPage";
@@ -17,6 +20,7 @@ import QuizEditorPage from "./pages/admin/QuizEditorPage";
 import LearningPath from "./pages/LearningPath";
 import CapstonePage from "./pages/CapstonePage";
 import CapstonesPage from "./pages/CapstonesPage";
+import CommandReferencePage from "./pages/CommandReferencePage";
 import LabPage from "./pages/LabPage";
 import LabsPage from "./pages/LabsPage";
 import LoginPage from "./pages/LoginPage";
@@ -41,14 +45,18 @@ const studentNavItems = [
   { to: "/tickets", label: "Tickets" },
   { to: "/labs", label: "Labs" },
   { to: "/capstones", label: "Capstones" },
+  { to: "/commands", label: "Commands" },
   { to: "/terminal", label: "Terminal & Commands" },
 ];
 
 const adminNavItems = [
   { to: "/admin", label: "Admin Home" },
+  { to: "/admin/ticket-review", label: "Ticket Review Queue" },
   { to: "/admin/review", label: "Review Tickets" },
   { to: "/admin/students", label: "Students" },
   { to: "/admin/modules", label: "Modules" },
+  { to: "/admin/labs", label: "Labs" },
+  { to: "/admin/capstones", label: "Capstones" },
   { to: "/admin/bookmarklet", label: "ExamCompass Import" },
   { to: "/admin/curriculum", label: "Curriculum" },
   { to: "/admin/curriculum-tags", label: "Job Tags" },
@@ -56,6 +64,7 @@ const adminNavItems = [
 ];
 
 const mentorNavItems = [
+  { to: "/admin/ticket-review", label: "Ticket Review Queue" },
   { to: "/admin/review", label: "Review Tickets" },
   { to: "/admin/students", label: "Students" },
   { to: "/admin/curriculum", label: "Curriculum" },
@@ -204,7 +213,7 @@ export default function App() {
                           ))}
                           {searchResults.commands?.length ? <p className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Commands</p> : null}
                           {(searchResults.commands || []).map((cmd) => (
-                            <Link key={`command-${cmd.id}`} to="/terminal" className="block rounded-lg px-2 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">
+                            <Link key={`command-${cmd.id}`} to="/commands" className="block rounded-lg px-2 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">
                               {cmd.command}
                             </Link>
                           ))}
@@ -273,13 +282,17 @@ export default function App() {
         <Route path="/labs/:labId" element={<RequireAuth><LabPage /></RequireAuth>} />
         <Route path="/capstones" element={<RequireAuth><CapstonesPage /></RequireAuth>} />
         <Route path="/capstones/:capstoneId" element={<RequireAuth><CapstonePage /></RequireAuth>} />
+        <Route path="/commands" element={<RequireAuth><CommandReferencePage /></RequireAuth>} />
         <Route path="/terminal" element={<RequireAuth><TerminalCommandsPage /></RequireAuth>} />
         <Route path="/admin-login" element={<AdminLoginPage />} />
 
         <Route path="/admin" element={<AdminAccessGate><AdminHome /></AdminAccessGate>} />
+        <Route path="/admin/ticket-review" element={<AdminAccessGate><AdminTicketReviewPage /></AdminAccessGate>} />
         <Route path="/admin/review" element={<AdminAccessGate><AdminReviewPage /></AdminAccessGate>} />
         <Route path="/admin/students" element={<AdminAccessGate><AdminStudentsPage /></AdminAccessGate>} />
         <Route path="/admin/modules" element={<AdminAccessGate><ModuleManager /></AdminAccessGate>} />
+        <Route path="/admin/labs" element={<AdminAccessGate><AdminLabsPage /></AdminAccessGate>} />
+        <Route path="/admin/capstones" element={<AdminAccessGate><AdminCapstonesPage /></AdminAccessGate>} />
         <Route path="/admin/bookmarklet" element={<AdminAccessGate><BookmarkletPage /></AdminAccessGate>} />
         <Route path="/admin/curriculum" element={<AdminAccessGate><CurriculumEditorPage /></AdminAccessGate>} />
         <Route path="/admin/curriculum-tags" element={<AdminAccessGate><CurriculumTagsPage /></AdminAccessGate>} />

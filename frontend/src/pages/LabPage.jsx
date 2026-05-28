@@ -3,10 +3,11 @@ import { useParams } from "react-router-dom";
 import Spinner from "../components/Spinner";
 import { DifficultyBadge } from "../components/ui/Badge";
 import PageHeader from "../components/ui/PageHeader";
-import { getLab, startLab, submitLab } from "../services/api";
+import { getLab, startLab, submitLab, uploadLabEvidence } from "../services/api";
 
 const statusConfig = {
   not_started: { label: "Not Started", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
+  assigned: { label: "Assigned", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
   in_progress: { label: "In Progress", cls: "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300" },
   submitted: { label: "Submitted", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300" },
 };
@@ -17,6 +18,11 @@ export default function LabPage() {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [evidenceFile, setEvidenceFile] = useState(null);
+  const [evidenceArtifacts, setEvidenceArtifacts] = useState([]);
+  const [evidenceMessage, setEvidenceMessage] = useState("");
+  const [evidenceBusy, setEvidenceBusy] = useState(false);
+  const [evidenceInputKey, setEvidenceInputKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,6 +32,7 @@ export default function LabPage() {
         if (cancelled) return;
         setLab(res.data);
         setNotes(res.data?.notes || "");
+        setEvidenceArtifacts(res.data?.evidence_artifacts || []);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -44,6 +51,7 @@ export default function LabPage() {
       const res = await startLab(labId);
       setLab(res.data);
       setNotes(res.data?.notes || "");
+      setEvidenceArtifacts(res.data?.evidence_artifacts || []);
     } finally {
       setBusy(false);
     }
@@ -57,6 +65,26 @@ export default function LabPage() {
       setNotes(res.data?.notes || "");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleEvidenceUpload() {
+    if (!evidenceFile || !lab?.run_id) return;
+    setEvidenceBusy(true);
+    setEvidenceMessage("");
+    try {
+      const res = await uploadLabEvidence(lab.run_id, evidenceFile);
+      const artifact = {
+        artifact_id: res.data?.artifact_id,
+        storage_key: res.data?.storage_key,
+        original_filename: evidenceFile.name,
+      };
+      setEvidenceArtifacts((items) => [artifact, ...items]);
+      setEvidenceFile(null);
+      setEvidenceInputKey((key) => key + 1);
+      setEvidenceMessage("Screenshot uploaded");
+    } finally {
+      setEvidenceBusy(false);
     }
   }
 
@@ -75,6 +103,7 @@ export default function LabPage() {
   const tasks = Array.isArray(lab.success_criteria?.tasks) ? lab.success_criteria.tasks : [];
   const hints = Array.isArray(lab.hints) ? lab.hints : [];
   const status = statusConfig[lab.status] || statusConfig.not_started;
+  const canUploadEvidence = ["in_progress", "assigned"].includes(lab.status) && Boolean(lab.run_id);
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
@@ -94,6 +123,34 @@ export default function LabPage() {
             <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Setup Instructions</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300">{lab.setup_instructions}</p>
           </div>
+
+          {canUploadEvidence ? (
+            <div className="panel space-y-3 dark:border-slate-700 dark:bg-slate-900">
+              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Evidence Upload</h2>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <input
+                  key={evidenceInputKey}
+                  accept="image/*"
+                  className="input-field"
+                  onChange={(event) => setEvidenceFile(event.target.files?.[0] || null)}
+                  type="file"
+                />
+                <button className="btn-secondary shrink-0" disabled={!evidenceFile || evidenceBusy} onClick={handleEvidenceUpload} type="button">
+                  {evidenceBusy ? "Uploading..." : "Upload Screenshot"}
+                </button>
+              </div>
+              {evidenceMessage ? <p className="text-sm font-medium text-emerald-600 dark:text-emerald-300">{evidenceMessage}</p> : null}
+              {evidenceArtifacts.length ? (
+                <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
+                  {evidenceArtifacts.map((artifact) => (
+                    <li key={artifact.artifact_id || artifact.id || artifact.storage_key} className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-950">
+                      {artifact.original_filename || artifact.storage_key}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="panel dark:border-slate-700 dark:bg-slate-900">
             <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Success Criteria</h2>
@@ -136,7 +193,7 @@ export default function LabPage() {
           />
 
           <div className="flex flex-wrap gap-3">
-            {lab.status === "not_started" ? (
+            {["not_started", "assigned"].includes(lab.status) ? (
               <button className="btn-secondary" onClick={handleStart} disabled={busy} type="button">
                 {busy ? "Starting..." : "Start Lab"}
               </button>

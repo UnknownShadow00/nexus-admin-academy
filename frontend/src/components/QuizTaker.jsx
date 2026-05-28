@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { getQuiz, submitQuiz } from "../services/api";
 import QuizReviewScreen from "./QuizReviewScreen";
@@ -52,6 +52,8 @@ export default function QuizTaker({ quizId, studentId }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [timings, setTimings] = useState({});
+  const questionStartRef = useRef(Date.now());
 
   useEffect(() => {
     getQuiz(quizId, studentId, { suppressToast: true })
@@ -64,6 +66,8 @@ export default function QuizTaker({ quizId, studentId }) {
           localStorage.getItem(progressKey(quizId)) || "null"
         );
         if (saved?.answers) setAnswers(saved.answers);
+        setTimings({});
+        questionStartRef.current = Date.now();
       })
       .catch((err) => {
         toast.error(err?.userMessage || "Unable to load quiz");
@@ -72,6 +76,21 @@ export default function QuizTaker({ quizId, studentId }) {
         setLoading(false);
       });
   }, [quizId, studentId]);
+
+  useEffect(() => {
+    questionStartRef.current = Date.now();
+  }, [currentIndex]);
+
+  const recordCurrentTiming = () => {
+    const currentQuestion = shuffledQuestions[currentIndex];
+    if (!currentQuestion) return;
+    const elapsed = Math.round((Date.now() - questionStartRef.current) / 1000);
+    setTimings((prev) => ({
+      ...prev,
+      [String(currentQuestion.id)]: (prev[String(currentQuestion.id)] || 0) + elapsed,
+    }));
+    questionStartRef.current = Date.now();
+  };
 
   const selectAnswer = (questionId, displayLetter, shuffledQ) => {
     const realLetter = shuffledQ.displayToReal[displayLetter];
@@ -112,6 +131,12 @@ export default function QuizTaker({ quizId, studentId }) {
     )
       return;
 
+    const currentQuestion = shuffledQuestions[currentIndex];
+    const lastElapsed = Math.round((Date.now() - questionStartRef.current) / 1000);
+    const finalTimings = currentQuestion
+      ? { ...timings, [String(currentQuestion.id)]: (timings[String(currentQuestion.id)] || 0) + lastElapsed }
+      : { ...timings };
+
     // Convert multi-select arrays to comma-separated strings
     const submittableAnswers = {};
     Object.entries(answers).forEach(([qId, answer]) => {
@@ -126,6 +151,7 @@ export default function QuizTaker({ quizId, studentId }) {
       const res = await submitQuiz(quizId, {
         student_id: studentId,
         answers: submittableAnswers,
+        time_per_question: finalTimings,
       });
       toast.dismiss(toastId);
       toast.success(
@@ -157,7 +183,7 @@ export default function QuizTaker({ quizId, studentId }) {
       </div>
     );
   }
-  if (result) return <QuizReviewScreen quiz={quiz} result={result} onRetake={() => { setResult(null); setAnswers({}); setCurrentIndex(0); }} />;
+  if (result) return <QuizReviewScreen quiz={quiz} result={result} onRetake={() => { setResult(null); setAnswers({}); setTimings({}); setCurrentIndex(0); questionStartRef.current = Date.now(); }} />;
 
   const shuffledQ = shuffledQuestions[currentIndex];
   if (!shuffledQ) return null;
@@ -249,7 +275,10 @@ export default function QuizTaker({ quizId, studentId }) {
         {shuffledQuestions.map((q, idx) => (
           <button
             key={q.id}
-            onClick={() => setCurrentIndex(idx)}
+            onClick={() => {
+              recordCurrentTiming();
+              setCurrentIndex(idx);
+            }}
             className={`h-8 w-8 rounded text-xs font-bold transition-all ${
               idx === currentIndex
                 ? "bg-blue-600 text-white"
@@ -267,7 +296,10 @@ export default function QuizTaker({ quizId, studentId }) {
         {currentIndex > 0 && (
           <button
             className="btn-secondary flex-1"
-            onClick={() => setCurrentIndex((i) => i - 1)}
+            onClick={() => {
+              recordCurrentTiming();
+              setCurrentIndex((i) => i - 1);
+            }}
           >
             Previous
           </button>
@@ -275,7 +307,10 @@ export default function QuizTaker({ quizId, studentId }) {
         {currentIndex < total - 1 ? (
           <button
             className="btn-primary flex-1"
-            onClick={() => setCurrentIndex((i) => i + 1)}
+            onClick={() => {
+              recordCurrentTiming();
+              setCurrentIndex((i) => i + 1);
+            }}
           >
             Next
           </button>

@@ -19,6 +19,8 @@ from app.models.incident import RootCause, Incident, IncidentTicket, IncidentPar
 from app.models.capstone import CapstoneTemplate, CapstoneRun
 from app.models.video_watch import VideoWatch
 from app.models.curriculum_video import CurriculumVideo
+from app.models.lesson_notes import StudentLessonNote
+from app.models.flashcard import FlashcardReview
 
 __all__ = [
     "Student",
@@ -57,4 +59,6 @@ __all__ = [
     "CapstoneRun",
     "VideoWatch",
     "CurriculumVideo",
+    "StudentLessonNote",
+    "FlashcardReview",
 ]

@@ -1,9 +1,13 @@
 from datetime import UTC, datetime
+import os
+from pathlib import Path
+import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.evidence import EvidenceArtifact
 from app.models.lab import LabRun, LabTemplate
 from app.models.student import Student
 from app.schemas.lab import LabSubmitRequest
@@ -12,6 +16,7 @@ from app.services.auth_service import get_current_student
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/labs", tags=["labs"])
+ALLOWED_EVIDENCE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 
 
 def _normalize_hints(value):
@@ -29,7 +34,7 @@ def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
         if run.status == "submitted":
             status = "submitted"
         elif run.status in {"assigned", "not_started"}:
-            status = "not_started"
+            status = run.status
         else:
             status = "in_progress"
 
@@ -51,6 +56,24 @@ def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
         "notes": run.notes if run else "",
         "started_at": run.started_at if run else None,
         "submitted_at": run.submitted_at if run else None,
+    }
+
+
+def _screenshots_dir() -> Path:
+    configured = os.getenv("UPLOAD_DIR")
+    path = (Path(configured) / "screenshots") if configured else Path(__file__).resolve().parents[2] / "uploads" / "screenshots"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _serialize_artifact(artifact: EvidenceArtifact) -> dict:
+    return {
+        "id": artifact.id,
+        "artifact_id": artifact.id,
+        "artifact_type": artifact.artifact_type,
+        "storage_key": artifact.storage_key,
+        "original_filename": artifact.original_filename,
+        "uploaded_at": artifact.uploaded_at,
     }
 
 
@@ -105,7 +128,18 @@ def get_lab(
 ):
     lab = _get_published_lab(db, lab_id)
     run = _get_lab_run(db, lab_id, current_student.id)
-    return ok(_serialize_lab(lab, run))
+    data = _serialize_lab(lab, run)
+    if run:
+        artifacts = (
+            db.query(EvidenceArtifact)
+            .filter(EvidenceArtifact.submission_type == "lab", EvidenceArtifact.submission_id == run.id)
+            .order_by(EvidenceArtifact.uploaded_at.desc(), EvidenceArtifact.id.desc())
+            .all()
+        )
+        data["evidence_artifacts"] = [_serialize_artifact(artifact) for artifact in artifacts]
+    else:
+        data["evidence_artifacts"] = []
+    return ok(data)
 
 
 @router.post("/{lab_id}/start")
@@ -176,3 +210,43 @@ def submit_lab(
     mark_student_active(db, current_student.id)
     log_activity(db, current_student.id, "lab_submitted", lab.title, "Lab submitted")
     return ok(_serialize_lab(lab, run))
+
+
+@router.post("/{lab_run_id}/evidence")
+async def upload_lab_evidence(
+    lab_run_id: int,
+    file: UploadFile = File(...),
+    artifact_type: str = Form("screenshot"),
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    run = db.query(LabRun).filter(LabRun.id == lab_run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Lab run not found")
+    if run.student_id != current_student.id:
+        raise HTTPException(status_code=403, detail="Not allowed to upload evidence for this lab run")
+
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else ""
+    if ext not in ALLOWED_EVIDENCE_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported file extension")
+
+    storage_name = f"{uuid.uuid4()}.{ext}"
+    dest = (_screenshots_dir() / storage_name).resolve()
+    data = await file.read()
+    with open(dest, "wb") as handle:
+        handle.write(data)
+
+    artifact = EvidenceArtifact(
+        submission_type="lab",
+        submission_id=run.id,
+        artifact_type=artifact_type or "screenshot",
+        storage_key=storage_name,
+        original_filename=file.filename,
+        file_size_bytes=len(data),
+        mime_type=file.content_type,
+    )
+    db.add(artifact)
+    db.commit()
+    db.refresh(artifact)
+
+    return ok({"artifact_id": artifact.id, "storage_key": artifact.storage_key})

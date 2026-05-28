@@ -185,6 +185,15 @@ export const getLab = (labId, requestOptions) => request(() => api.get(`/api/lab
 export const startLab = (labId, requestOptions) => request(() => api.post(`/api/labs/${labId}/start`), requestOptions);
 export const submitLab = (labId, payload, requestOptions) =>
   request(() => api.post(`/api/labs/${labId}/submit`, payload), requestOptions);
+export const uploadLabEvidence = (labRunId, file, artifactType = "screenshot", requestOptions) => {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("artifact_type", artifactType);
+  return request(
+    () => api.post(`/api/labs/${labRunId}/evidence`, form, { headers: { "Content-Type": "multipart/form-data" } }),
+    requestOptions
+  );
+};
 export const getCapstones = (weekNumber, requestOptions) =>
   request(() => api.get("/api/capstones", { params: { week_number: weekNumber } }), requestOptions);
 export const getCapstone = (capstoneId, requestOptions) => request(() => api.get(`/api/capstones/${capstoneId}`), requestOptions);
@@ -233,6 +242,12 @@ export const uploadEvidence = ({ file, ticketId, artifactType }, requestOptions)
 
 export const searchCommands = (q, requestOptions) =>
   request(() => api.get("/api/commands/search", { params: { q } }), requestOptions);
+export const getCommands = (params, requestOptions) =>
+  request(() => api.get("/api/commands", { params }), requestOptions);
+export const getLessonNote = (lessonId, requestOptions) =>
+  request(() => api.get(`/api/lessons/${lessonId}/notes`), requestOptions);
+export const saveLessonNote = (lessonId, content, requestOptions) =>
+  request(() => api.put(`/api/lessons/${lessonId}/notes`, { content }), requestOptions);
 export const globalSearch = (q, requestOptions) =>
   request(() => api.get("/api/search/global", { params: { q } }), requestOptions);
 
@@ -259,6 +274,8 @@ export const bookmarkletImport = (payload, requestOptions) =>
   request(() => adminApi.post("/api/admin/quiz/bookmarklet-import", payload), requestOptions);
 export const getQuizQuestions = (quizId, requestOptions) =>
   request(() => adminApi.get(`/api/admin/quizzes/${quizId}/questions`), requestOptions);
+export const getAdminFlaggedAttempts = (requestOptions) =>
+  request(() => adminApi.get("/api/admin/quiz-attempts/flagged"), requestOptions);
 export const updateQuestion = (questionId, payload, requestOptions) =>
   request(() => adminApi.put(`/api/admin/questions/${questionId}`, payload), requestOptions);
 export const createTicket = (payload, requestOptions) =>
@@ -278,6 +295,21 @@ export const createResource = (payload, requestOptions) =>
 export const deleteResource = (id, requestOptions) =>
   request(() => adminApi.delete(`/api/admin/resources/${id}`), requestOptions);
 export const getReviewQueue = (requestOptions) => request(() => adminApi.get("/api/admin/review"), requestOptions);
+export const getAdminReviewQueue = (requestOptions) => request(() => adminApi.get("/api/admin/review"), requestOptions);
+export const getAdminSubmission = (id, requestOptions) =>
+  request(() => adminApi.get(`/api/admin/submissions/${id}`), requestOptions);
+export const verifySubmission = (id, comment, requestOptions) =>
+  request(
+    () => adminApi.put(`/api/admin/submissions/${id}/verify-proof`, null, { params: comment ? { comment } : {} }),
+    requestOptions
+  );
+export const rejectSubmission = (id, comment, requestOptions) =>
+  request(
+    () => adminApi.put(`/api/admin/submissions/${id}/reject-proof`, null, { params: comment ? { comment } : {} }),
+    requestOptions
+  );
+export const overrideScore = (id, new_score, comment, requestOptions) =>
+  request(() => adminApi.put(`/api/admin/review/${id}`, { new_score, comment }), requestOptions);
 export const getStudentsOverview = (requestOptions) =>
   request(() => adminApi.get("/api/admin/students/overview"), requestOptions);
 export const getStudentActivity = (id, requestOptions) =>
@@ -294,6 +326,22 @@ export const bulkPublishTickets = (payload, requestOptions) =>
   request(() => adminApi.post("/api/admin/tickets/bulk-publish", payload), requestOptions);
 export const getAIUsageStats = (requestOptions) =>
   request(() => adminApi.get("/api/admin/ai-usage"), requestOptions);
+export const getAdminLabTemplates = (requestOptions) =>
+  request(() => adminApi.get("/api/admin/labs/templates"), requestOptions);
+export const createAdminLabTemplate = (data, requestOptions) =>
+  request(() => adminApi.post("/api/admin/labs/templates", data), requestOptions);
+export const updateAdminLabTemplate = (id, data, requestOptions) =>
+  request(() => adminApi.put(`/api/admin/labs/templates/${id}`, data), requestOptions);
+export const deleteAdminLabTemplate = (id, requestOptions) =>
+  request(() => adminApi.delete(`/api/admin/labs/templates/${id}`), requestOptions);
+export const getAdminCapstoneTemplates = (requestOptions) =>
+  request(() => adminApi.get("/api/admin/capstones/templates"), requestOptions);
+export const createAdminCapstoneTemplate = (data, requestOptions) =>
+  request(() => adminApi.post("/api/admin/capstones/templates", data), requestOptions);
+export const updateAdminCapstoneTemplate = (id, data, requestOptions) =>
+  request(() => adminApi.put(`/api/admin/capstones/templates/${id}`, data), requestOptions);
+export const deleteAdminCapstoneTemplate = (id, requestOptions) =>
+  request(() => adminApi.delete(`/api/admin/capstones/templates/${id}`), requestOptions);
 export const recomputeWeeklyLeads = (requestOptions) =>
   request(() => adminApi.post("/api/admin/weekly-domain-leads/recompute"), requestOptions);
 export const getWeeklyLeads = (requestOptions) =>
@@ -333,5 +381,9 @@ export const updateAdminCurriculumVideoTag = (id, payload, requestOptions) =>
   request(() => adminApi.patch(`/api/admin/curriculum/videos/${id}`, payload), requestOptions);
 export const authLogin = (data, requestOptions) =>
   requestData(() => api.post("/auth/login", data), { retries: 2, warmupOnRetry: true, ...requestOptions });
+
+export const getDueFlashcards = (requestOptions) => request(() => api.get("/api/flashcards/due"), requestOptions);
+export const rateFlashcard = (cardId, rating, requestOptions) =>
+  request(() => api.post(`/api/flashcards/${cardId}/rate`, { rating }), requestOptions);
 
 export default api;
