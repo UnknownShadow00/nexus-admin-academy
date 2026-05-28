@@ -677,3 +677,39 @@ def get_flagged_attempts(db: Session = Depends(get_db)):
         )
     result.sort(key=lambda x: x["avg_seconds_per_question"])
     return ok(result, total=len(result), page=1, per_page=len(result) or 1)
+
+
+@router.delete("/vms/cleanup")
+def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
+    from datetime import timezone
+    from app.models.vm_assignment import VmAssignment
+    from app.services import proxmox_service, guacamole_service
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=idle_hours)
+    idle = (
+        db.query(VmAssignment)
+        .filter(VmAssignment.status != "destroyed", VmAssignment.created_at < cutoff)
+        .all()
+    )
+
+    destroyed = []
+    errors = []
+    for assignment in idle:
+        try:
+            proxmox_service.destroy_vm(assignment.vmid)
+        except Exception as exc:
+            logger.warning("Cleanup: failed to destroy VM %s: %s", assignment.vmid, exc)
+            errors.append({"vmid": assignment.vmid, "error": str(exc)})
+
+        if assignment.guac_conn_id:
+            try:
+                guacamole_service.delete_connection(assignment.guac_conn_id)
+            except Exception as exc:
+                logger.warning("Cleanup: failed to delete connection %s: %s", assignment.guac_conn_id, exc)
+
+        assignment.status = "destroyed"
+        assignment.destroyed_at = datetime.now(timezone.utc)
+        destroyed.append(assignment.vmid)
+
+    db.commit()
+    return ok({"destroyed": destroyed, "errors": errors})

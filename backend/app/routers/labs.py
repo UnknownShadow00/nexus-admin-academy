@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+import logging
 import os
 from pathlib import Path
 import uuid
@@ -10,10 +11,13 @@ from app.database import get_db
 from app.models.evidence import EvidenceArtifact
 from app.models.lab import LabRun, LabTemplate
 from app.models.student import Student
+from app.models.vm_assignment import VmAssignment
 from app.schemas.lab import LabSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import get_current_student
 from app.utils.responses import ok
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/labs", tags=["labs"])
 ALLOWED_EVIDENCE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
@@ -91,6 +95,75 @@ def _get_lab_run(db: Session, lab_id: int, student_id: int) -> LabRun | None:
         .order_by(LabRun.created_at.desc(), LabRun.id.desc())
         .first()
     )
+
+
+def _provision_vm(db: Session, lab: LabTemplate, run: LabRun) -> str | None:
+    existing = db.query(VmAssignment).filter(
+        VmAssignment.lab_run_id == run.id,
+        VmAssignment.status != "destroyed",
+    ).first()
+    if existing:
+        try:
+            from app.services import guacamole_service
+            return guacamole_service.get_token_url(existing.guac_conn_id)
+        except Exception as exc:
+            logger.warning("Could not get token url for existing VM assignment %s: %s", existing.id, exc)
+            return None
+
+    try:
+        from app.services import proxmox_service, guacamole_service
+        name = f"lab-{lab.id}-student-{run.student_id}-run-{run.id}"
+        vmid = proxmox_service.clone_template(lab.proxmox_template_vmid, name)
+        proxmox_service.start_vm(vmid)
+        ip = proxmox_service.get_vm_ip(vmid)
+
+        assignment = VmAssignment(
+            vmid=vmid,
+            student_id=run.student_id,
+            lab_run_id=run.id,
+            status="running",
+            ip_address=ip,
+        )
+        db.add(assignment)
+        db.flush()
+
+        if ip:
+            conn_id = guacamole_service.create_connection(ip, vmid)
+            if conn_id:
+                assignment.guac_conn_id = conn_id
+                db.commit()
+                return guacamole_service.get_token_url(conn_id)
+
+        db.commit()
+    except Exception as exc:
+        logger.error("VM provisioning failed for lab_run %s: %s", run.id, exc)
+    return None
+
+
+def _destroy_vm_if_assigned(db: Session, lab_run_id: int) -> None:
+    assignment = db.query(VmAssignment).filter(
+        VmAssignment.lab_run_id == lab_run_id,
+        VmAssignment.status != "destroyed",
+    ).first()
+    if not assignment:
+        return
+
+    try:
+        from app.services import proxmox_service
+        proxmox_service.destroy_vm(assignment.vmid)
+    except Exception as exc:
+        logger.warning("Failed to destroy VM %s: %s", assignment.vmid, exc)
+
+    if assignment.guac_conn_id:
+        try:
+            from app.services import guacamole_service
+            guacamole_service.delete_connection(assignment.guac_conn_id)
+        except Exception as exc:
+            logger.warning("Failed to delete Guacamole connection %s: %s", assignment.guac_conn_id, exc)
+
+    assignment.status = "destroyed"
+    assignment.destroyed_at = datetime.now(UTC)
+    db.commit()
 
 
 @router.get("")
@@ -172,7 +245,12 @@ def start_lab(
     mark_student_active(db, current_student.id)
     if created:
         log_activity(db, current_student.id, "lab_started", lab.title, "Lab in progress")
-    return ok({"created": created, **_serialize_lab(lab, run)})
+
+    guac_token_url = None
+    if lab.proxmox_template_vmid:
+        guac_token_url = _provision_vm(db, lab, run)
+
+    return ok({"created": created, "guac_token_url": guac_token_url, **_serialize_lab(lab, run)})
 
 
 @router.post("/{lab_id}/submit")
@@ -207,6 +285,7 @@ def submit_lab(
 
     db.commit()
     db.refresh(run)
+    _destroy_vm_if_assigned(db, run.id)
     mark_student_active(db, current_student.id)
     log_activity(db, current_student.id, "lab_submitted", lab.title, "Lab submitted")
     return ok(_serialize_lab(lab, run))

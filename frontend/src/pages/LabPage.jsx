@@ -15,6 +15,7 @@ const statusConfig = {
 export default function LabPage() {
   const { labId } = useParams();
   const [lab, setLab] = useState(null);
+  const [guacUrl, setGuacUrl] = useState(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -52,6 +53,9 @@ export default function LabPage() {
       setLab(res.data);
       setNotes(res.data?.notes || "");
       setEvidenceArtifacts(res.data?.evidence_artifacts || []);
+      if (res.data?.guac_token_url) {
+        setGuacUrl(res.data.guac_token_url);
+      }
     } finally {
       setBusy(false);
     }
@@ -112,6 +116,23 @@ export default function LabPage() {
         subtitle={`Week ${lab.week_number} | ${lab.estimated_minutes} minutes | ${lab.lab_type}`}
         actions={<DifficultyBadge level={lab.difficulty} />}
       />
+
+      {guacUrl ? (
+        <div className="panel overflow-hidden dark:border-slate-700 dark:bg-slate-900">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Lab Environment</h2>
+            <a className="text-xs text-blue-500 hover:underline" href={guacUrl} rel="noopener noreferrer" target="_blank">
+              Open in new tab
+            </a>
+          </div>
+          <iframe
+            allowFullScreen
+            className="h-[60vh] w-full rounded-lg border border-slate-200 dark:border-slate-700"
+            src={guacUrl}
+            title="Lab VM"
+          />
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <article className="space-y-4">
