@@ -118,3 +118,19 @@
 - Files changed: backend/app/models/quiz.py, backend/app/routers/quizzes.py, backend/app/routers/admin_content.py, backend/app/schemas/quiz.py, alembic migration, frontend/src/components/QuizTaker.jsx, frontend/src/pages/admin/QuizEditorPage.jsx, frontend/src/services/api.js
 - Result: pass
 - Next: P3 Proxmox VM integration
+## [2026-05-30T15:20:14-05:00] Task Completed
+- Task: Implemented the project review plan by hardening VM-backed lab provisioning, exposing Proxmox template VMIDs in admin lab management, moving browser student auth to httpOnly cookies with in-memory bearer compatibility, and refreshing stale project docs.
+- Files changed: CLAUDE.md, README.md, backend/app/config.py, backend/app/routers/admin_content.py, backend/app/routers/admin_session.py, backend/app/routers/auth.py, backend/app/routers/labs.py, backend/app/services/auth_service.py, backend/app/services/guacamole_service.py, backend/app/services/proxmox_service.py, backend/tests/test_auth.py, backend/tests/test_labs.py, docs/vision-gap-review.md, frontend/src/App.jsx, frontend/src/components/AdminAccessGate.jsx, frontend/src/components/RequireAuth.jsx, frontend/src/hooks/useAuth.js, frontend/src/pages/LabPage.jsx, frontend/src/pages/LoginPage.jsx, frontend/src/pages/admin/AdminLabsPage.jsx, frontend/src/services/api.js, frontend/src/services/profile.js, tasks/loop-log.md
+- Result: pass against acceptance criteria; backend compile passed, backend pytest passed with 35 tests, frontend build passed, git diff whitespace check passed, and accessible pytest cache directories were cleaned. Some locked temp/cache directories still return Windows access denied.
+- Next: Deploy/configure P4 sidecars, wire a scheduled call to `/api/admin/vms/cleanup`, smoke test a real VM-backed lab, clear remaining locked cache directories after handles are released, and optionally split the large frontend bundle.
+## [2026-06-12] Task Completed
+- Task: Full project audit (code + docs), then doc-drift sync: created TASKS.md backlog from audit findings, corrected CLAUDE.md (AI provider is OpenRouter not Anthropic, removed references to nonexistent NEXUS_*.md files, replaced stale P2/P3 "not done" backlog with pointer to TASKS.md, synced env var reference), rewrote backend/.env.example with all env vars the code actually reads, fixed README (ANTHROPIC_API_KEY -> OPENROUTER vars, removed unused VITE_ADMIN_KEY, added seed_users.py step).
+- Files changed: TASKS.md (new), CLAUDE.md, backend/.env.example, README.md, tasks/loop-log.md
+- Result: pass — audit delivered (P0 findings: Guacamole client URL encoding wrong + admin token handed to students, VM provisioning blocks worker past frontend timeout, iframe unrecoverable after refresh, Bearer-anything bypass in allow_admin_or_student, phantom seed students in main.py, app boot requires OPENROUTER_MODEL, multi-select partial-answer grading bug, Railway ephemeral-disk upload risk). No code changed per brief.
+- Next: Start TASKS.md P0 in order (Guacamole URL/token fix first), then async VM provisioning.
+
+## [2026-06-12] Task Completed
+- Task: Reconstructed the full 2026-06-11 audit report as a persistent document (original lived only in the cleared session). Re-verified all P0 findings against current code before writing - all still present.
+- Files changed: docs/audit-2026-06-11.md (new), tasks/loop-log.md
+- Result: pass
+- Next: Start TASKS.md P0 #1 (Guacamole URL encoding + per-student token).

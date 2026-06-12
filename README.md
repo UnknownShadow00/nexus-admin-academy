@@ -16,12 +16,16 @@ cp .env.example .env
 
 Set these values in `backend/.env`:
 - `DATABASE_URL`
-- `ADMIN_SECRET_KEY`
-- `ANTHROPIC_API_KEY`
+- `JWT_SECRET_KEY`
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+- `ADMIN_API_KEY`
+- `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` (AI grading/quiz generation — the app currently requires `OPENROUTER_MODEL` to boot)
 
 Run database setup and seed data:
 ```bash
 alembic upgrade head
+python scripts/seed_users.py
 python seed_curriculum.py
 ```
 
@@ -38,7 +42,6 @@ npm install
 
 Set these values in `frontend/.env`:
 - `VITE_API_URL`
-- `VITE_ADMIN_KEY`
 
 Start the frontend:
 ```bash
@@ -49,4 +52,4 @@ npm run dev
 The admin bookmarklet runs on ExamCompass quiz pages, extracts questions/answers, and posts them to `/api/admin/quiz/bookmarklet-import`. For study-tracker linking to work reliably, each imported quiz title must match the expected `quiz_title` values from `seed_curriculum.py` exactly.
 
 ## Important Admin Note
-`ADMIN_SECRET_KEY` must be set. If it is missing or empty, admin-protected routes will return `500` errors.
+`ADMIN_PASSWORD` or `ADMIN_API_KEY` must be set for admin access. VM-backed labs also require the Proxmox and Guacamole environment variables documented in `CLAUDE.md`.

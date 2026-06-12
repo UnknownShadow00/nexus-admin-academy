@@ -11,7 +11,7 @@ Private IT training platform. Mentor (Abdi, ~5 years help desk/network admin) pe
 | Frontend | React 18, Vite, React Router 6, Tailwind CSS, Axios, Lucide React, xterm.js |
 | Backend | FastAPI, SQLAlchemy 2, Alembic, SQLite → Supabase (PostgreSQL) |
 | Auth | JWT (python-jose), passlib, httpOnly cookies |
-| AI | Anthropic Claude via `app/services/ai_service.py` |
+| AI | OpenRouter (OpenAI-compatible chat completions) via `app/services/ai_service.py` — planned swap to local Ollama (see TASKS.md P2) |
 | Scraping | Playwright + BeautifulSoup (ExamCompass — permission confirmed) |
 | Deployment | Railway (backend), Supabase (DB + auth) |
 | Dev comms | Discord (weekly calls, methodology card, student coordination) |
@@ -24,8 +24,6 @@ Private IT training platform. Mentor (Abdi, ~5 years help desk/network admin) pe
 nexus-admin-academy/
 ├── CLAUDE.md                  ← you are here — update after every task
 ├── TASKS.md                   ← backlog — update after every task
-├── NEXUS_UPGRADE_PLAN.md      ← full feature roadmap (Proxmox, Guacamole, etc.)
-├── NEXUS_ADDONS_RESEARCH.md   ← open-source tool research (GLPI, Netdata, etc.)
 ├── backend/
 │   ├── app/
 │   │   ├── main.py
@@ -78,7 +76,10 @@ Role, PromotionGate, StudentRole, MethodologyFramework, StudentMethodologyProgre
 ## Existing Services (do not duplicate)
 
 ```
-ai_service.py           ← Anthropic API calls, cost logging
+ai_service.py           ← OpenRouter chat-completions calls, budget cap, cost logging
+proxmox_service.py      ← VM clone/start/IP/destroy via proxmoxer
+guacamole_service.py    ← Guacamole connection create/delete, token URLs
+fsrs_service.py         ← flashcard scheduling (SM-2 algorithm)
 auth_service.py         ← JWT issue/verify
 admin_auth.py           ← admin session auth
 quiz_generator.py       ← YouTube transcript → MCQ via AI
@@ -156,6 +157,7 @@ cve_service.py
 - [x] `StudentLessonNote` model + router (`/api/lesson-notes`)
 - [x] `FlashcardReview` model + FSRS service + router (`/api/flashcards`)
 - [x] Quiz attempt `time_per_question` JSON field (timing migration)
+- [x] Proxmox/Guacamole VM integration layer: `proxmox_template_vmid`, `VmAssignment`, VM provisioning, Guacamole URLs, lab submit teardown, and admin idle cleanup
 
 ### Frontend — Complete
 - [x] Dark mode, shared design system (Badge, PageHeader, FilterBar, Banner)
@@ -174,35 +176,16 @@ cve_service.py
 - [x] Admin ticket review UI (`/admin/ticket-review`) — explanation grade view
 - [x] Command reference page (`/commands`) with search
 - [x] Flashcard review panel (`FlashcardReviewPanel.jsx`) on StudentHome
+- [x] VM-backed lab UI: admin template VMID field, LabPage Guacamole iframe, and visible VM start failure state
 
 ---
 
 ## What Is NOT Done (Build These Next)
 
-Priority order. Pick the top item unless told otherwise.
+**The live backlog is `TASKS.md` — always pick from there.** Summary as of the 2026-06-11 audit:
 
-### P2 — Remaining retention gap
-- [ ] **Quiz speed-flag admin view** — `time_per_question` is tracked on `QuizAttempt` but no admin UI shows flagged fast attempts (avg < 8s). Build a view in the admin quiz review page.
-
-### P3 — Proxmox VM integration (biggest feature)
-- [ ] **`proxmox_template_vmid` on `LabTemplate`** — nullable Integer column + migration; links a lab to a Proxmox VM template VMID
-- [ ] **`VmAssignment` model + migration** — vmid, student_id (FK→students), lab_run_id (FK→lab_runs), status (provisioning/running/submitted/destroyed), ip_address, guac_conn_id, created_at, destroyed_at
-- [ ] **`proxmox_service.py`** — clone/start/get_ip/destroy via `proxmoxer` library; reads PROXMOX_HOST, PROXMOX_TOKEN_ID, PROXMOX_TOKEN_SECRET, PROXMOX_NODE env vars
-- [ ] **`guacamole_service.py`** — create_connection(vm_ip, protocol)/get_token_url(conn_id); reads GUACAMOLE_URL, GUACAMOLE_ADMIN_USER, GUACAMOLE_ADMIN_PASS env vars
-- [ ] **Wire `/labs/{id}/start`** — if template.proxmox_template_vmid set → provision VM → create VmAssignment → return guac_token_url
-- [ ] **Wire `/labs/{id}/submit`** — if VmAssignment exists for run → destroy VM → set status=destroyed
-- [ ] **`DELETE /api/admin/vms/cleanup`** — destroy all VmAssignment rows idle > 2 hours (called by n8n on schedule)
-- [ ] **LabPage iframe embed** — if startLab() returns guac_token_url → render `<iframe>` filling main content area
-- [ ] **`proxmoxer` in requirements.txt**
-
-### P4 — Sidecar services (run on Proxmox, not in this codebase)
-These are deployed separately. Document config here when done.
-- [ ] Apache Guacamole (Docker Compose on Proxmox VM)
-- [ ] GLPI (student "work ticketing system" — separate from Nexus tickets)
-- [ ] Netdata (infrastructure monitoring — students read dashboards as lab skill)
-- [ ] Uptime Kuma (service status — wire to Discord for lab-down alerts)
-- [ ] Gitea (student runbook wikis + break script version control)
-- [ ] n8n (VM cleanup automation + Discord → ticket bridge + weekly reports)
+- The old P2 (speed-flag view) and P3 (Proxmox/Guacamole application layer) items are **code-complete** — but the VM layer has known P0 bugs (broken Guacamole client URL encoding, students receive the Guacamole *admin* token, provisioning blocks the request worker past the frontend timeout, iframe unrecoverable after refresh) and has never been smoke-tested against real infrastructure.
+- Remaining work, in order: TASKS.md P0 stability/data-risk fixes → P1 security/correctness → P2 perf/Ollama swap → P3 cleanup → P4 sidecar deployment (Guacamole first) → content backlog (AD lab template family is the highest-value gap).
 
 ---
 
@@ -210,25 +193,41 @@ These are deployed separately. Document config here when done.
 
 ### Backend `.env`
 ```
-# Existing — required
+# Core — required
 DATABASE_URL=
 JWT_SECRET_KEY=
+JWT_EXPIRE_MINUTES=1440
 ADMIN_USERNAME=
-ADMIN_PASSWORD=
-ANTHROPIC_API_KEY=
+ADMIN_PASSWORD=             # also the admin session secret; ADMIN_SECRET_KEY is a legacy fallback
+ADMIN_API_KEY=              # X-Admin-Key header alternative to the session cookie
 CORS_ORIGINS=
 UPLOAD_DIR=
+APP_LOG_PATH=
 COOKIE_SECURE=true          # set false for local dev
 
-# New — Proxmox (add when building P3)
+# AI — OpenRouter today; Ollama swap planned (TASKS.md P2)
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=           # provider/model, e.g. mistralai/mistral-large — app currently fails to boot if unset (P0 fix pending)
+AI_ENABLED=true
+DAILY_AI_BUDGET=1.00
+COST_PER_1K_TOKENS=0.001
+MAX_TOKENS=600
+AI_TIMEOUT_SECONDS=30
+AI_TEMPERATURE=0.6
+
+# Discord (optional)
+DISCORD_WEBHOOK_URL=
+
+# Proxmox (VM-backed labs)
 PROXMOX_HOST=
 PROXMOX_TOKEN_ID=           # format: apiuser@pve!tokenname
 PROXMOX_TOKEN_SECRET=
 PROXMOX_NODE=pve
 VMID_POOL_START=200
 VMID_POOL_END=299
+PROXMOX_VERIFY_SSL=true
 
-# New — Guacamole (add when building P3)
+# Guacamole (VM-backed labs)
 GUACAMOLE_URL=
 GUACAMOLE_ADMIN_USER=
 GUACAMOLE_ADMIN_PASS=
@@ -278,7 +277,7 @@ python -m pytest tests/test_labs.py tests/test_capstones.py -q
 
 ## Proxmox VM Integration — Design Reference
 
-When building P3, follow this pattern:
+Implemented (see `labs.py`, `proxmox_service.py`, `guacamole_service.py`, `VmAssignment`). Original design pattern — note TASKS.md P0: provisioning must become async, and the iframe currently uses the wrong URL encoding + admin token:
 
 ```
 Student clicks "Start Lab"
@@ -301,7 +300,7 @@ Student submits evidence
 
 ## FSRS Flashcard Design Reference
 
-When building P2 flashcards:
+Implemented (`flashcard_reviews` table, `fsrs_service.py` — actually SM-2 scheduling, `FlashcardReviewPanel.jsx`). Original design:
 
 ```sql
 -- New table

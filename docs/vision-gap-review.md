@@ -1,44 +1,32 @@
 # Vision Gap Review
 
-This review compares the current implementation to your original product vision and identifies what has been improved and what still needs work.
+This review reflects the current codebase after the Proxmox/Guacamole hardening pass on 2026-05-30.
 
 ## Strongly Implemented
-- Core data model for students, quizzes, tickets, quiz attempts, and ticket submissions.
-- API endpoints for quiz generation, quiz taking, ticket CRUD (admin create + student list/detail/submit), leaderboard, and admin override.
-- AI fallback logic when Anthropic API key is unavailable.
-- Student dashboard and admin dashboard routes in frontend.
+- Student, mentor, and admin separation with JWT-compatible student auth and httpOnly browser session cookies.
+- Core student workflows for learning path, quizzes, flashcards, tickets, labs, capstones, notes, command reference, and evidence upload.
+- Admin workflows for students, quizzes, curriculum, labs, capstones, ticket review, bookmarklet import, AI cost visibility, and speed-flagged quiz attempts.
+- Proxmox/Guacamole application layer for VM-backed labs: template VMID mapping, VM assignment tracking, lab start provisioning, iframe session launch, submit teardown, and idle cleanup endpoint.
+- Backend regression coverage for auth, quizzes, tickets, labs, capstones, admin sessions, and VM assignment lifecycle behavior.
 
 ## Gaps Still Open
-1. **No authentication and role isolation**
-   - This is currently expected for V1 per your spec, but admin and student views are openly reachable by URL.
+1. **Sidecar services are deployment work**
+   - Guacamole, GLPI, Netdata, Uptime Kuma, Gitea, and n8n still need real Proxmox deployment/configuration outside this repository.
 
-2. **Admin quiz review/publish workflow**
-   - Current flow generates and stores immediately.
-   - Your vision calls for review/edit + explicit Publish step.
+2. **Production VM smoke test**
+   - The code path is mocked in tests, but still needs a real Proxmox template VMID, Guacamole credentials, and an end-to-end lab start/submit run.
 
-3. **Ticket quality rubric customization**
-   - AI grading exists, but there is no admin-defined rubric per ticket.
+3. **Scheduler wiring**
+   - n8n or another scheduler should call `DELETE /api/admin/vms/cleanup?idle_hours=2` on a fixed cadence.
 
-4. **Discord/Proxmox workflow integration artifacts**
-   - Not expected to automate chaos actions, but UI lacks procedural prompts/checklists for VM lab workflows.
+4. **Operational cleanup**
+   - Inaccessible local pytest/temp cache directories still create noisy `git status --ignored` warnings on this workstation.
 
-5. **Observability requirements**
-   - Vision requests token usage logs, override logs, and centralized file logging (`/var/log/nexus.log`).
-   - Backend currently logs operational events but should be verified against exact format/path expectations.
-
-6. **Manual test scripts and acceptance checklist**
-   - Definition of done includes two end-to-end manual flows; these should be formalized in a test checklist doc.
-
-## Frontend Enhancements Added In This Revision
-- Student home now supports week filtering and displays **both quizzes and tickets** by week.
-- Student dashboard now includes recent activity cards (instead of only XP/level).
-- Quiz taker now validates all questions are answered before submit and renders per-question correctness + explanations.
-- Ticket submission now renders strengths and weaknesses arrays, not just aggregate feedback.
-- Admin dashboard now includes quick stats (submission count, average score, completion rate), status messages, and configurable override score.
+5. **Frontend bundle size**
+   - `npm run build` passes, but Vite still warns that the main chunk is larger than 500 kB.
 
 ## Recommended Next High-Impact Steps
-1. Add explicit **quiz review + publish** state machine in backend and frontend.
-2. Add admin **submission detail drill-down** in UI using existing endpoint.
-3. Add rubric-aware AI grading prompt that references difficulty and expected troubleshooting milestones.
-4. Add structured logging config and docs for production LXC deployment.
-5. Add a short acceptance test runbook matching your Definition of Done line-by-line.
+1. Deploy/configure the P4 sidecars on Proxmox and document exact URLs, credentials locations, and operator runbooks.
+2. Run a real VM-backed lab smoke test and capture the result in `tasks/loop-log.md`.
+3. Configure the idle VM cleanup scheduler.
+4. Split large frontend routes with dynamic imports if startup performance becomes a practical issue.
