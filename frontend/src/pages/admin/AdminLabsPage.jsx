@@ -18,6 +18,7 @@ const emptyForm = {
   week_number: "1",
   estimated_minutes: "",
   is_published: false,
+  proxmox_template_vmid: "",
   setup_instructions: "",
   break_script: "",
   model_solution: "",
@@ -93,6 +94,7 @@ export default function AdminLabsPage() {
       week_number: String(template.week_number || 1),
       estimated_minutes: template.estimated_minutes == null ? "" : String(template.estimated_minutes),
       is_published: !!template.is_published,
+      proxmox_template_vmid: template.proxmox_template_vmid == null ? "" : String(template.proxmox_template_vmid),
       setup_instructions: template.setup_instructions || "",
       break_script: template.break_script || "",
       model_solution: template.model_solution || "",
@@ -115,6 +117,7 @@ export default function AdminLabsPage() {
       week_number: Number(form.week_number || 1),
       estimated_minutes: toNullableNumber(form.estimated_minutes),
       is_published: form.is_published,
+      proxmox_template_vmid: toNullableNumber(form.proxmox_template_vmid),
       setup_instructions: form.setup_instructions.trim() || null,
       break_script: form.break_script.trim() || null,
       model_solution: form.model_solution.trim() || null,
@@ -245,6 +248,17 @@ export default function AdminLabsPage() {
                   onChange={(event) => setField("estimated_minutes", event.target.value)}
                 />
               </label>
+              <label className="space-y-1 text-sm font-medium">
+                <span>Proxmox Template VMID</span>
+                <input
+                  className="input-field"
+                  type="number"
+                  min="1"
+                  placeholder="Leave blank for non-VM labs"
+                  value={form.proxmox_template_vmid}
+                  onChange={(event) => setField("proxmox_template_vmid", event.target.value)}
+                />
+              </label>
               <label className="flex items-center gap-2 text-sm font-medium">
                 <input
                   className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-700"
@@ -321,6 +335,7 @@ export default function AdminLabsPage() {
                 <th className="px-4 py-3 font-semibold">Type</th>
                 <th className="px-4 py-3 font-semibold">Difficulty</th>
                 <th className="px-4 py-3 font-semibold">Week</th>
+                <th className="px-4 py-3 font-semibold">VM Template</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 text-right font-semibold">Actions</th>
               </tr>
@@ -328,14 +343,14 @@ export default function AdminLabsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="px-4 py-6 text-slate-500 dark:text-slate-400" colSpan={6}>
+                  <td className="px-4 py-6 text-slate-500 dark:text-slate-400" colSpan={7}>
                     Loading lab templates...
                   </td>
                 </tr>
               ) : null}
               {!loading && templates.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-slate-500 dark:text-slate-400" colSpan={6}>
+                  <td className="px-4 py-6 text-slate-500 dark:text-slate-400" colSpan={7}>
                     No lab templates found.
                   </td>
                 </tr>
@@ -347,6 +362,7 @@ export default function AdminLabsPage() {
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{template.lab_type || "-"}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{template.difficulty}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{template.week_number}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{template.proxmox_template_vmid || "-"}</td>
                       <td className="px-4 py-3">
                         <StatusBadge status={template.is_published ? "published" : "draft"} />
                       </td>

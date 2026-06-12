@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Spinner from "../components/Spinner";
 import { DifficultyBadge } from "../components/ui/Badge";
+import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
 import { getLab, startLab, submitLab, uploadLabEvidence } from "../services/api";
 
@@ -18,6 +19,7 @@ export default function LabPage() {
   const [guacUrl, setGuacUrl] = useState(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
+  const [vmError, setVmError] = useState("");
   const [busy, setBusy] = useState(false);
   const [evidenceFile, setEvidenceFile] = useState(null);
   const [evidenceArtifacts, setEvidenceArtifacts] = useState([]);
@@ -48,6 +50,7 @@ export default function LabPage() {
 
   async function handleStart() {
     setBusy(true);
+    setVmError("");
     try {
       const res = await startLab(labId);
       setLab(res.data);
@@ -56,6 +59,8 @@ export default function LabPage() {
       if (res.data?.guac_token_url) {
         setGuacUrl(res.data.guac_token_url);
       }
+    } catch (err) {
+      setVmError(err?.userMessage || "Unable to start the lab environment.");
     } finally {
       setBusy(false);
     }
@@ -116,6 +121,8 @@ export default function LabPage() {
         subtitle={`Week ${lab.week_number} | ${lab.estimated_minutes} minutes | ${lab.lab_type}`}
         actions={<DifficultyBadge level={lab.difficulty} />}
       />
+
+      {vmError ? <Banner variant="error">{vmError}</Banner> : null}
 
       {guacUrl ? (
         <div className="panel overflow-hidden dark:border-slate-700 dark:bg-slate-900">

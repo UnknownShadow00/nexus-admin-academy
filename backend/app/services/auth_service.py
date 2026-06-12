@@ -6,7 +6,7 @@ import json
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -93,7 +93,8 @@ except ImportError:
             return hmac.compare_digest(actual, expected)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+STUDENT_SESSION_COOKIE = "student_session"
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
 def hash_password(plain: str) -> str:
@@ -137,9 +138,14 @@ def decode_token(token: str) -> dict:
 
 
 def get_current_student(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
+    token: str | None = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> Student:
+    token = token or request.cookies.get(STUDENT_SESSION_COOKIE)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
     payload = decode_token(token)
     try:
         student_id = int(payload["sub"])

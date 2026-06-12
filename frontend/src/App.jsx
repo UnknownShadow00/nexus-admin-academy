@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AdminAccessGate from "./components/AdminAccessGate";
 import RequireAuth from "./components/RequireAuth";
-import { clearToken, getCurrentStudent, isAuthenticated } from "./hooks/useAuth";
+import { clearAuthSession, getCurrentStudent, isAuthenticated } from "./hooks/useAuth";
 import { useDarkMode } from "./hooks/useDarkMode";
 import AdminHome from "./pages/AdminHome";
 import AdminLoginPage from "./pages/AdminLoginPage";
@@ -34,8 +34,7 @@ import TerminalCommandsPage from "./pages/TerminalCommandsPage";
 import TicketFeedback from "./pages/TicketFeedback";
 import TicketPage from "./pages/TicketPage";
 import TicketsPage from "./pages/TicketsPage";
-import { getTickets, globalSearch } from "./services/api";
-import { clearSelectedProfile } from "./services/profile";
+import { authLogout, getTickets, globalSearch } from "./services/api";
 
 const studentNavItems = [
   { to: "/", label: "Home" },
@@ -163,9 +162,13 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [searchOpen, searchQuery, showSearch]);
 
-  function handleLogout() {
-    clearToken();
-    clearSelectedProfile();
+  async function handleLogout() {
+    try {
+      await authLogout({ suppressToast: true });
+    } catch {
+      // Local cleanup still logs the browser out if the backend is unavailable.
+    }
+    clearAuthSession();
     navigate("/login");
   }
 

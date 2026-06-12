@@ -1,19 +1,27 @@
-import os
+import base64
 import logging
+import os
 from typing import Optional
+
 import requests
 
 logger = logging.getLogger(__name__)
 
-GUACAMOLE_URL = os.getenv("GUACAMOLE_URL", "")
-GUACAMOLE_ADMIN_USER = os.getenv("GUACAMOLE_ADMIN_USER", "guacadmin")
-GUACAMOLE_ADMIN_PASS = os.getenv("GUACAMOLE_ADMIN_PASS", "")
+
+def _settings() -> dict:
+    url = (os.getenv("GUACAMOLE_URL") or "").strip().rstrip("/")
+    admin_user = (os.getenv("GUACAMOLE_ADMIN_USER") or "guacadmin").strip()
+    admin_pass = (os.getenv("GUACAMOLE_ADMIN_PASS") or "").strip()
+    if not url or not admin_user or not admin_pass:
+        raise RuntimeError("Guacamole integration is not configured")
+    return {"url": url, "admin_user": admin_user, "admin_pass": admin_pass}
 
 
 def _get_token() -> str:
+    settings = _settings()
     resp = requests.post(
-        f"{GUACAMOLE_URL}/api/tokens",
-        data={"username": GUACAMOLE_ADMIN_USER, "password": GUACAMOLE_ADMIN_PASS},
+        f"{settings['url']}/api/tokens",
+        data={"username": settings["admin_user"], "password": settings["admin_pass"]},
         timeout=10,
     )
     resp.raise_for_status()
@@ -21,6 +29,7 @@ def _get_token() -> str:
 
 
 def create_connection(vm_ip: str, vmid: int, protocol: str = "rdp") -> Optional[str]:
+    settings = _settings()
     token = _get_token()
     headers = {"Guacamole-Token": token, "Content-Type": "application/json"}
 
@@ -36,7 +45,7 @@ def create_connection(vm_ip: str, vmid: int, protocol: str = "rdp") -> Optional[
     }
 
     resp = requests.post(
-        f"{GUACAMOLE_URL}/api/session/data/postgresql/connections",
+        f"{settings['url']}/api/session/data/postgresql/connections",
         json=payload,
         headers=headers,
         timeout=10,
@@ -48,18 +57,18 @@ def create_connection(vm_ip: str, vmid: int, protocol: str = "rdp") -> Optional[
 
 
 def get_token_url(conn_id: str) -> str:
+    settings = _settings()
     token = _get_token()
-    encoded = f"c/{conn_id}"
-    import base64
-    encoded_b64 = base64.b64encode(encoded.encode()).decode()
-    return f"{GUACAMOLE_URL}/#/client/{encoded_b64}?token={token}"
+    encoded_b64 = base64.b64encode(f"c/{conn_id}".encode("utf-8")).decode("utf-8")
+    return f"{settings['url']}/#/client/{encoded_b64}?token={token}"
 
 
 def delete_connection(conn_id: str) -> None:
+    settings = _settings()
     token = _get_token()
     headers = {"Guacamole-Token": token}
     resp = requests.delete(
-        f"{GUACAMOLE_URL}/api/session/data/postgresql/connections/{conn_id}",
+        f"{settings['url']}/api/session/data/postgresql/connections/{conn_id}",
         headers=headers,
         timeout=10,
     )

@@ -39,7 +39,12 @@ export default function AdminAccessGate({ children }) {
       const res = await getStudentTokenAsAdmin();
       if (res?.data?.access_token) {
         setToken(res.data.access_token);
-        setSelectedProfile({ id: res.data.student_id, name: res.data.name });
+        setSelectedProfile({
+          id: res.data.student_id,
+          name: res.data.name,
+          email: res.data.email,
+          is_mentor: res.data.is_mentor,
+        });
         navigate("/", { replace: true });
       }
     } catch {

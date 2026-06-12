@@ -361,6 +361,7 @@ def list_lab_templates(lesson_id: int | None = None, db: Session = Depends(get_d
                 "week_number": r.week_number,
                 "estimated_minutes": r.estimated_minutes,
                 "is_published": r.is_published,
+                "proxmox_template_vmid": r.proxmox_template_vmid,
                 "environment_requirements": r.environment_requirements,
                 "setup_instructions": r.setup_instructions,
                 "break_script": r.break_script,
@@ -384,6 +385,7 @@ def create_lab_template(payload: dict, db: Session = Depends(get_db)):
         week_number=payload.get("week_number", 1),
         estimated_minutes=payload.get("estimated_minutes"),
         is_published=payload.get("is_published", True),
+        proxmox_template_vmid=payload.get("proxmox_template_vmid"),
         environment_requirements=payload.get("environment_requirements") or {},
         setup_instructions=payload.get("setup_instructions"),
         break_script=payload.get("break_script"),
@@ -412,6 +414,7 @@ def update_lab_template(template_id: int, payload: dict, db: Session = Depends(g
         "week_number",
         "estimated_minutes",
         "is_published",
+        "proxmox_template_vmid",
         "environment_requirements",
         "setup_instructions",
         "break_script",
@@ -699,7 +702,9 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
             proxmox_service.destroy_vm(assignment.vmid)
         except Exception as exc:
             logger.warning("Cleanup: failed to destroy VM %s: %s", assignment.vmid, exc)
+            assignment.status = "failed"
             errors.append({"vmid": assignment.vmid, "error": str(exc)})
+            continue
 
         if assignment.guac_conn_id:
             try:

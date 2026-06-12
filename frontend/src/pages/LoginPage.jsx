@@ -28,7 +28,12 @@ export default function LoginPage() {
     clearToken();
     clearSelectedProfile();
     setToken(response.access_token);
-    setSelectedProfile({ id: response.student_id, name: response.name });
+    setSelectedProfile({
+      id: response.student_id,
+      name: response.name,
+      email: response.email,
+      is_mentor: response.is_mentor,
+    });
     navigate("/");
   }
 

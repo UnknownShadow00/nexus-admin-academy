@@ -1,35 +1,48 @@
-const TOKEN_KEY = "nexus_auth_token";
+import { clearSelectedProfile, getSelectedProfile } from "../services/profile";
 
-export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
-}
+const LEGACY_TOKEN_KEY = "nexus_auth_token";
 
-export function setToken(token) {
-  localStorage.setItem(TOKEN_KEY, token);
-}
+let memoryToken = null;
 
-export function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
-}
-
-export function isAuthenticated() {
-  const token = getToken();
-  if (!token) return false;
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.exp * 1000 > Date.now();
-  } catch {
-    return false;
-  }
-}
-
-export function getCurrentStudent() {
-  const token = getToken();
+function decodeToken(token) {
   if (!token) return null;
   try {
-    const p = JSON.parse(atob(token.split(".")[1]));
-    return { id: parseInt(p.sub), name: p.name, email: p.email, is_mentor: Boolean(p.is_mentor) };
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (payload.exp && payload.exp * 1000 <= Date.now()) return null;
+    return payload;
   } catch {
     return null;
   }
+}
+
+export function getToken() {
+  return memoryToken;
+}
+
+export function setToken(token) {
+  memoryToken = token || null;
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+}
+
+export function clearToken() {
+  memoryToken = null;
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+}
+
+export function isAuthenticated() {
+  if (decodeToken(memoryToken)) return true;
+  return Boolean(getSelectedProfile());
+}
+
+export function getCurrentStudent() {
+  const payload = decodeToken(memoryToken);
+  if (payload) {
+    return { id: parseInt(payload.sub, 10), name: payload.name, email: payload.email, is_mentor: Boolean(payload.is_mentor) };
+  }
+  return getSelectedProfile();
+}
+
+export function clearAuthSession() {
+  clearToken();
+  clearSelectedProfile();
 }

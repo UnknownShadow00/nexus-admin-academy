@@ -5,7 +5,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 DEFAULT_ADMIN_USERNAME = "shadowgarden"
-DEFAULT_ADMIN_PASSWORD = "IloveIT"
 PRODUCTION_ENVIRONMENTS = {"production", "prod", "staging"}
 
 
@@ -37,4 +36,5 @@ def load_env() -> None:
     os.environ.setdefault("JWT_ALGORITHM", "HS256")
     if not is_production_environment():
         os.environ.setdefault("ADMIN_USERNAME", DEFAULT_ADMIN_USERNAME)
-        os.environ.setdefault("ADMIN_PASSWORD", os.getenv("ADMIN_SECRET_KEY") or DEFAULT_ADMIN_PASSWORD)
+        if os.getenv("ADMIN_SECRET_KEY"):
+            os.environ.setdefault("ADMIN_PASSWORD", os.getenv("ADMIN_SECRET_KEY"))

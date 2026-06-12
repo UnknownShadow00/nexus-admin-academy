@@ -97,47 +97,84 @@ def _get_lab_run(db: Session, lab_id: int, student_id: int) -> LabRun | None:
     )
 
 
-def _provision_vm(db: Session, lab: LabTemplate, run: LabRun) -> str | None:
+def _provision_vm(db: Session, lab: LabTemplate, run: LabRun) -> dict:
     existing = db.query(VmAssignment).filter(
         VmAssignment.lab_run_id == run.id,
         VmAssignment.status != "destroyed",
     ).first()
     if existing:
+        if existing.status == "failed":
+            raise HTTPException(status_code=502, detail="Lab VM provisioning previously failed. Ask an admin to clean up this VM assignment.")
         try:
             from app.services import guacamole_service
-            return guacamole_service.get_token_url(existing.guac_conn_id)
+
+            if existing.guac_conn_id:
+                return {
+                    "guac_token_url": guacamole_service.get_token_url(existing.guac_conn_id),
+                    "vmid": existing.vmid,
+                    "vm_status": existing.status,
+                }
+            if existing.ip_address:
+                conn_id = guacamole_service.create_connection(existing.ip_address, existing.vmid)
+                existing.guac_conn_id = conn_id
+                existing.status = "running"
+                db.commit()
+                return {
+                    "guac_token_url": guacamole_service.get_token_url(conn_id),
+                    "vmid": existing.vmid,
+                    "vm_status": existing.status,
+                }
         except Exception as exc:
             logger.warning("Could not get token url for existing VM assignment %s: %s", existing.id, exc)
-            return None
+        raise HTTPException(status_code=502, detail="Lab VM exists but no remote session is available yet.")
 
+    assignment = None
     try:
         from app.services import proxmox_service, guacamole_service
+
         name = f"lab-{lab.id}-student-{run.student_id}-run-{run.id}"
         vmid = proxmox_service.clone_template(lab.proxmox_template_vmid, name)
-        proxmox_service.start_vm(vmid)
-        ip = proxmox_service.get_vm_ip(vmid)
-
         assignment = VmAssignment(
             vmid=vmid,
             student_id=run.student_id,
             lab_run_id=run.id,
-            status="running",
-            ip_address=ip,
+            status="provisioning",
         )
         db.add(assignment)
-        db.flush()
-
-        if ip:
-            conn_id = guacamole_service.create_connection(ip, vmid)
-            if conn_id:
-                assignment.guac_conn_id = conn_id
-                db.commit()
-                return guacamole_service.get_token_url(conn_id)
-
         db.commit()
+        db.refresh(assignment)
+
+        proxmox_service.start_vm(vmid)
+        ip = proxmox_service.get_vm_ip(vmid)
+        if not ip:
+            assignment.status = "failed"
+            db.commit()
+            raise HTTPException(status_code=502, detail="Lab VM started but did not report an IP address.")
+
+        conn_id = guacamole_service.create_connection(ip, vmid)
+        if not conn_id:
+            assignment.status = "failed"
+            assignment.ip_address = ip
+            db.commit()
+            raise HTTPException(status_code=502, detail="Lab VM remote connection could not be created.")
+
+        assignment.status = "running"
+        assignment.ip_address = ip
+        assignment.guac_conn_id = conn_id
+        db.commit()
+        return {
+            "guac_token_url": guacamole_service.get_token_url(conn_id),
+            "vmid": assignment.vmid,
+            "vm_status": assignment.status,
+        }
+    except HTTPException:
+        raise
     except Exception as exc:
+        if assignment is not None:
+            assignment.status = "failed"
+            db.commit()
         logger.error("VM provisioning failed for lab_run %s: %s", run.id, exc)
-    return None
+        raise HTTPException(status_code=502, detail="Lab VM provisioning failed.")
 
 
 def _destroy_vm_if_assigned(db: Session, lab_run_id: int) -> None:
@@ -153,6 +190,9 @@ def _destroy_vm_if_assigned(db: Session, lab_run_id: int) -> None:
         proxmox_service.destroy_vm(assignment.vmid)
     except Exception as exc:
         logger.warning("Failed to destroy VM %s: %s", assignment.vmid, exc)
+        assignment.status = "failed"
+        db.commit()
+        return
 
     if assignment.guac_conn_id:
         try:
@@ -246,11 +286,11 @@ def start_lab(
     if created:
         log_activity(db, current_student.id, "lab_started", lab.title, "Lab in progress")
 
-    guac_token_url = None
+    vm_data = {}
     if lab.proxmox_template_vmid:
-        guac_token_url = _provision_vm(db, lab, run)
+        vm_data = _provision_vm(db, lab, run)
 
-    return ok({"created": created, "guac_token_url": guac_token_url, **_serialize_lab(lab, run)})
+    return ok({"created": created, **vm_data, **_serialize_lab(lab, run)})
 
 
 @router.post("/{lab_id}/submit")

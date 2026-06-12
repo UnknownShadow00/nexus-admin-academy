@@ -1,6 +1,6 @@
 import axios from "axios";
 import toast from "react-hot-toast";
-import { getCurrentStudent } from "../hooks/useAuth";
+import { getCurrentStudent, getToken } from "../hooks/useAuth";
 
 const COLD_START_RETRY_DELAY_MS = 1500;
 const RETRYABLE_STATUS_CODES = new Set([502, 503, 504]);
@@ -45,7 +45,7 @@ const adminApi = axios.create(clientConfig);
 let warmupPromise = null;
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("nexus_auth_token");
+  const token = getToken();
   if (token) config.headers.Authorization = "Bearer " + token;
   return config;
 });
@@ -381,6 +381,9 @@ export const updateAdminCurriculumVideoTag = (id, payload, requestOptions) =>
   request(() => adminApi.patch(`/api/admin/curriculum/videos/${id}`, payload), requestOptions);
 export const authLogin = (data, requestOptions) =>
   requestData(() => api.post("/auth/login", data), { retries: 2, warmupOnRetry: true, ...requestOptions });
+export const authMe = (requestOptions) =>
+  request(() => api.get("/auth/me"), { retries: 1, warmupOnRetry: true, ...requestOptions });
+export const authLogout = (requestOptions) => request(() => api.post("/auth/logout"), requestOptions);
 
 export const getDueFlashcards = (requestOptions) => request(() => api.get("/api/flashcards/due"), requestOptions);
 export const rateFlashcard = (cardId, rating, requestOptions) =>

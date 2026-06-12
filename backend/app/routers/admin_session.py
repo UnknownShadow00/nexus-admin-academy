@@ -14,7 +14,7 @@ from app.services.admin_auth import (
     has_valid_admin_session,
     validate_admin_credentials,
 )
-from app.services.auth_service import create_access_token
+from app.services.auth_service import STUDENT_SESSION_COOKIE, create_access_token
 
 router = APIRouter(prefix="/api/admin/session", tags=["admin-session"])
 
@@ -67,7 +67,7 @@ def admin_session_logout(response: Response):
 
 
 @router.get("/student-token")
-def get_student_token(request: Request, db: Session = Depends(get_db)):
+def get_student_token(request: Request, response: Response, db: Session = Depends(get_db)):
     """Admin endpoint: returns JWT token for a mentor to switch to student view."""
     if not has_valid_admin_session(request):
         raise HTTPException(status_code=403, detail="Unauthorized")
@@ -85,6 +85,16 @@ def get_student_token(request: Request, db: Session = Depends(get_db)):
         "is_mentor": mentor.is_mentor,
     }
     token = create_access_token(payload)
+    secure_cookie = use_secure_cookies()
+    response.set_cookie(
+        key=STUDENT_SESSION_COOKIE,
+        value=token,
+        httponly=True,
+        secure=secure_cookie,
+        samesite="none" if secure_cookie else "lax",
+        max_age=60 * 60 * 24,
+        path="/",
+    )
     return {
         "success": True,
         "data": {
@@ -92,5 +102,7 @@ def get_student_token(request: Request, db: Session = Depends(get_db)):
             "token_type": "bearer",
             "student_id": mentor.id,
             "name": mentor.name,
+            "email": mentor.email or "",
+            "is_mentor": mentor.is_mentor,
         },
     }

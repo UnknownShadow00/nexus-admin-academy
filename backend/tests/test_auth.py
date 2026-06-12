@@ -11,6 +11,11 @@ def test_login_success(db):
     body = res.json()
     assert "access_token" in body
     assert body["student_id"] == student.id
+    assert "student_session=" in res.headers.get("set-cookie", "")
+
+    me = client.get("/auth/me")
+    assert me.status_code == 200
+    assert me.json()["data"]["student_id"] == student.id
 
 
 def test_login_wrong_password(db):
