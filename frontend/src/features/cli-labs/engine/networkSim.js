@@ -1,4 +1,6 @@
 import { normalizeIfName } from "./interfaceCommands.js";
+import { effectiveInterface, portChannelForMember } from "./etherchannel.js";
+import { stpBlocksPort } from "./stpSim.js";
 import { isOperationalTrunk, parseLinkEndpoint, vlanAllowed } from "./trunking.js";
 
 function pingFailure(source, rawCommand) {
@@ -63,7 +65,8 @@ function linkEndpoints(link) {
   return a && b ? [a, b] : null;
 }
 
-function findDirectLink(topology, sourceSwitch, targetSwitch) {
+function directLinks(topology, sourceSwitch, targetSwitch) {
+  const links = [];
   for (const link of topology?.links || []) {
     const endpoints = linkEndpoints(link);
     if (!endpoints) continue;
@@ -72,16 +75,23 @@ function findDirectLink(topology, sourceSwitch, targetSwitch) {
       (a.deviceId === sourceSwitch && b.deviceId === targetSwitch) ||
       (b.deviceId === sourceSwitch && a.deviceId === targetSwitch)
     ) {
-      return a.deviceId === sourceSwitch ? { link, local: a, remote: b } : { link, local: b, remote: a };
+      links.push(a.deviceId === sourceSwitch ? { link, local: a, remote: b } : { link, local: b, remote: a });
     }
   }
-  return null;
+  return links;
 }
 
-function trunkPasses(deviceStates, link, vlan) {
-  const localIface = deviceStates[link.local.deviceId]?.interfaces?.[link.local.interface];
-  const remoteIface = deviceStates[link.remote.deviceId]?.interfaces?.[link.remote.interface];
+function trunkPasses(deviceStates, topology, link, vlan) {
+  const localState = deviceStates[link.local.deviceId];
+  const remoteState = deviceStates[link.remote.deviceId];
+  const localContext = { topology, deviceId: link.local.deviceId, deviceStates };
+  const remoteContext = { topology, deviceId: link.remote.deviceId, deviceStates };
+  const localPort = portChannelForMember(localState, localContext, link.local.interface) || link.local.interface;
+  const remotePort = portChannelForMember(remoteState, remoteContext, link.remote.interface) || link.remote.interface;
+  const localIface = effectiveInterface(localState, localContext, link.local.interface);
+  const remoteIface = effectiveInterface(remoteState, remoteContext, link.remote.interface);
   if (!localIface || !remoteIface) return false;
+  if (stpBlocksPort(localState, localContext, localPort, vlan) || stpBlocksPort(remoteState, remoteContext, remotePort, vlan)) return false;
   if (!isOperationalTrunk(localIface, remoteIface)) return false;
   if (localIface.encapsulationRequired && localIface.trunkEncapsulation !== "dot1q") return false;
   if (remoteIface.encapsulationRequired && remoteIface.trunkEncapsulation !== "dot1q") return false;
@@ -89,7 +99,15 @@ function trunkPasses(deviceStates, link, vlan) {
   const localNative = Number(localIface.nativeVlan || 1);
   const remoteNative = Number(remoteIface.nativeVlan || 1);
   if ((Number(vlan) === localNative || Number(vlan) === remoteNative) && localNative !== remoteNative) return false;
-  return true;
+  return { ...link, localIface, remoteIface, local: { ...link.local, interface: localPort }, remote: { ...link.remote, interface: remotePort } };
+}
+
+function findReachableDirectLink(deviceStates, topology, sourceSwitch, targetSwitch, vlan) {
+  for (const link of directLinks(topology, sourceSwitch, targetSwitch)) {
+    const passable = trunkPasses(deviceStates, topology, link, vlan);
+    if (passable) return passable;
+  }
+  return null;
 }
 
 function transcript(source, target, vlan, link) {
@@ -123,9 +141,8 @@ export function evaluatePcPing(deviceStates, topology, sourcePcId, targetIp, raw
 
   let link = null;
   if (source.switch !== target.switch) {
-    link = findDirectLink(topology, source.switch, target.switch);
-    if (!link || !trunkPasses(deviceStates, link, sourceAccess.vlan)) return pingFailure(source, rawCommand);
-    link.localIface = deviceStates[link.local.deviceId].interfaces[link.local.interface];
+    link = findReachableDirectLink(deviceStates, topology, source.switch, target.switch, sourceAccess.vlan);
+    if (!link) return pingFailure(source, rawCommand);
   }
 
   learnMac(sourceAccess.state, source.mac, sourceAccess.vlan, sourceAccess.port);

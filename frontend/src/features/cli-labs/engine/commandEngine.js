@@ -16,6 +16,8 @@ import {
   renderVlanBrief,
 } from "./interfaceCommands.js";
 import { isValidAllowedVlanList, normalizeAllowedVlans, renderNeighborTable } from "./trunking.js";
+import { ETHERCHANNEL_COMMANDS } from "./etherchannel.js";
+import { STP_COMMANDS } from "./stpSim.js";
 export { redactCommandLog, runPcCommand } from "./pcCommands.js";
 export { SUPPORTED_EVENT_IDS } from "./supportedEvents.js";
 
@@ -339,7 +341,10 @@ const registry = [
     canonical: "shutdown",
     validModes: ["interface", "interface-range"],
     handler: (state) => {
-      for (const name of activeInterfaceNames(state)) state.interfaces[name].shutdown = true;
+      for (const name of activeInterfaceNames(state)) {
+        state.interfaces[name].shutdown = true;
+        state.interfaces[name].errDisabled = false;
+      }
       state.saved = false;
       return { output: [], event: "interface.shutdown", eventArg: state.activeInterfaceRangeLabel || state.activeInterface };
     },
@@ -348,11 +353,16 @@ const registry = [
     canonical: "no shutdown",
     validModes: ["interface", "interface-range"],
     handler: (state) => {
-      for (const name of activeInterfaceNames(state)) state.interfaces[name].shutdown = false;
+      for (const name of activeInterfaceNames(state)) {
+        state.interfaces[name].shutdown = false;
+        state.interfaces[name].errDisabled = false;
+      }
       state.saved = false;
       return { output: [], event: "interface.no-shutdown", eventArg: state.activeInterfaceRangeLabel || state.activeInterface };
     },
   },
+  ...ETHERCHANNEL_COMMANDS(activeInterfaceNames),
+  ...STP_COMMANDS(activeInterfaceNames),
   {
     canonical: "description",
     validModes: ["interface", "interface-range"],
@@ -545,7 +555,7 @@ const registry = [
     canonical: "show interfaces status",
     aliasPrefixes: ["show int status", "sh int status"],
     validModes: ["privileged"],
-    handler: (state) => ({ output: renderInterfaceStatus(state), event: "cmd.show.interfaces-status" }),
+    handler: (state, _args, _raw, context) => ({ output: renderInterfaceStatus(state, context), event: "cmd.show.interfaces-status" }),
   },
   {
     canonical: "show interfaces trunk",
@@ -579,7 +589,7 @@ const registry = [
     canonical: "show ip interface brief",
     aliasPrefixes: ["show ip int brief", "sh ip int brief"],
     validModes: ["privileged"],
-    handler: (state) => ({ output: renderInterfaceStatus(state), event: "cmd.show.ip-interface-brief" }),
+    handler: (state, _args, _raw, context) => ({ output: renderInterfaceStatus(state, context), event: "cmd.show.ip-interface-brief" }),
   },
   {
     canonical: "show mac address-table dynamic",

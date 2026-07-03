@@ -7,12 +7,13 @@ import {
   peerInterfaceState,
   trunkModeColumn,
 } from "./trunking.js";
+import { channelGroups, channelSummary, effectiveInterface, isBundledMember } from "./etherchannel.js";
 
 const MAX_PORT = 48;
 
 export function normalizeIfName(raw = "") {
   const compact = raw.replace(/\s+/g, "");
-  return compact.replace(/^gigabitethernet/i, "g").replace(/^vlan/i, "Vlan").replace(/^g/i, "g");
+  return compact.replace(/^port-channel/i, "Po").replace(/^po/i, "Po").replace(/^gigabitethernet/i, "g").replace(/^vlan/i, "Vlan").replace(/^g/i, "g");
 }
 
 export function ensureInterface(state, name) {
@@ -104,6 +105,9 @@ function renderInterfaceConfig(name, iface) {
   if (iface.accessVlan && Number(iface.accessVlan) !== 1) lines.push(` switchport access vlan ${iface.accessVlan}`);
   if (iface.speed) lines.push(` speed ${iface.speed}`);
   if (iface.duplex) lines.push(` duplex ${iface.duplex}`);
+  if (iface.portfast) lines.push(" spanning-tree portfast");
+  if (iface.bpduguard) lines.push(" spanning-tree bpduguard enable");
+  if (iface.channelGroup) lines.push(` channel-group ${iface.channelGroup} mode ${iface.channelMode}`);
   if (iface.shutdown) lines.push(" shutdown");
   if (iface.ip) lines.push(` ip address ${iface.ip} ${iface.mask}`);
   return lines;
@@ -117,7 +121,7 @@ export function renderVlanBrief(state) {
   return lines;
 }
 
-export function renderInterfaceStatus(state) {
+export function renderInterfaceStatus(state, context = {}) {
   const interfaces = Object.entries(state.interfaces);
   const showDescription = interfaces.some(([, iface]) => iface.description);
   const lines = [
@@ -126,7 +130,7 @@ export function renderInterfaceStatus(state) {
       : "Port      Status       Vlan       Duplex   Speed    Type",
   ];
   for (const [name, iface] of interfaces) {
-    const status = iface.shutdown ? "disabled" : pcOnPort(state, name) ? "connected" : "notconnect";
+    const status = interfaceStatusValue(state, context, name, iface);
     const duplex = status === "connected" ? statusValue(iface.duplex, "a-full") : statusValue(iface.duplex, "auto");
     const speed = status === "connected" ? statusValue(iface.speed, "a-1000") : statusValue(iface.speed, "auto");
     const values = showDescription
@@ -185,17 +189,21 @@ export function renderInterfacesTrunk(state, context = {}) {
   const rows = [];
   for (const [name, iface] of Object.entries(state.interfaces || {})) {
     if (name.startsWith("Vlan")) continue;
+    if (name.startsWith("Po")) continue;
+    if (isBundledMember(state, context, name)) continue;
+    const localEffective = effectiveInterface(state, context, name);
     const peer = peerInterfaceState(context, name);
-    if (!isOperationalTrunk(iface, peer)) continue;
+    if (!isOperationalTrunk(localEffective, peer)) continue;
     rows.push({
       name,
-      mode: trunkModeColumn(iface),
-      encapsulation: iface.trunkEncapsulation || peer?.trunkEncapsulation || "802.1q",
+      mode: trunkModeColumn(localEffective),
+      encapsulation: localEffective.trunkEncapsulation || peer?.trunkEncapsulation || "802.1q",
       status: "trunking",
-      nativeVlan: iface.nativeVlan || 1,
-      allowed: allowedVlansLabel(normalizeAllowedVlans(iface.allowedVlans)),
+      nativeVlan: localEffective.nativeVlan || 1,
+      allowed: allowedVlansLabel(normalizeAllowedVlans(localEffective.allowedVlans)),
     });
   }
+  rows.push(...portChannelTrunkRows(state, context));
   const lines = ["Port        Mode         Encapsulation  Status        Native vlan"];
   for (const row of rows) {
     lines.push(`${row.name.padEnd(12)}${row.mode.padEnd(13)}${row.encapsulation.padEnd(15)}${row.status.padEnd(14)}${row.nativeVlan}`);
@@ -219,6 +227,31 @@ export function renderShowVersion(state) {
 function pcOnPort(state, name) {
   if (!(state.pcDevices || []).length) return !name.startsWith("Vlan");
   return (state.pcDevices || []).some((pc) => pc.connectedTo === name);
+}
+
+function interfaceStatusValue(state, context, name, iface) {
+  if (iface.errDisabled) return "err-disabled";
+  if (iface.shutdown) return "disabled";
+  if (name.startsWith("Po")) return channelSummary(state, context, name.replace(/^Po/, "")).up ? "connected" : "notconnect";
+  return pcOnPort(state, name) ? "connected" : "notconnect";
+}
+
+function portChannelTrunkRows(state, context) {
+  return channelGroups(state)
+    .map((group) => channelSummary(state, context, group))
+    .filter((summary) => summary.up)
+    .flatMap((summary) => {
+      const iface = { ...(state.interfaces[summary.members[0]] || {}), ...(state.interfaces[summary.name] || {}) };
+      if (!isOperationalTrunk(iface, iface)) return [];
+      return [{
+        name: summary.name,
+        mode: trunkModeColumn(iface),
+        encapsulation: iface.trunkEncapsulation || "802.1q",
+        status: "trunking",
+        nativeVlan: iface.nativeVlan || 1,
+        allowed: allowedVlansLabel(normalizeAllowedVlans(iface.allowedVlans)),
+      }];
+    });
 }
 
 function statusValue(configured, autoValue) {

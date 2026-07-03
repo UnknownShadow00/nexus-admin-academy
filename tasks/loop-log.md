@@ -211,3 +211,15 @@
 - Files changed: frontend/src/features/cli-labs/engine/networkSim.js; frontend/src/features/cli-labs/engine/trunking.js; frontend/src/features/cli-labs/engine/commandEngine.js; frontend/scripts/validate-cli-labs.mjs; frontend/scripts/cli-engine-sanity.mjs; tasks/loop-log.md
 - Result: pass - npm.cmd run cli:validate, npm.cmd run cli:sanity, npm.cmd run build, and backend PYTHONPATH=. python -m pytest tests/ -q all passed.
 - Next: No follow-up needed.
+
+## [2026-07-02 20:31:11 -05:00] Task Completed
+- Task: Implemented Wave 2 Task 4 STP/Rapid PVST+ and EtherChannel/LACP engine support with root election, blocked redundant links, PortFast/BPDU Guard, Port-channel summaries, bundle-aware ping, and sanity coverage.
+- Files changed: frontend/src/features/cli-labs/engine/stpSim.js; frontend/src/features/cli-labs/engine/etherchannel.js; frontend/src/features/cli-labs/engine/commandEngine.js; frontend/src/features/cli-labs/engine/interfaceCommands.js; frontend/src/features/cli-labs/engine/networkSim.js; frontend/src/features/cli-labs/engine/supportedEvents.js; frontend/scripts/cli-engine-sanity.mjs; frontend/scripts/validate-cli-labs.mjs; tasks/loop-log.md
+- Result: pass - npm.cmd run cli:validate, npm.cmd run cli:sanity, npm.cmd run build, and backend PYTHONPATH=. python -m pytest tests/ -q all passed. No spec deviations.
+- Next: No follow-up needed.
+
+## [2026-07-02 20:47:07 -05:00] Task Completed
+- Task: Applied Wave 2 Task 4 post-review fixes for STP single-switch and PortFast edge rendering, EtherChannel PAgP/detail/neighbor commands, channel-group and STP argument validation, and Port-channel shutdown traffic handling.
+- Files changed: frontend/src/features/cli-labs/engine/stpSim.js; frontend/src/features/cli-labs/engine/etherchannel.js; frontend/src/features/cli-labs/engine/supportedEvents.js; frontend/scripts/cli-engine-sanity.mjs; tasks/loop-log.md
+- Result: pass - npm.cmd run cli:validate, npm.cmd run cli:sanity, npm.cmd run build, and backend PYTHONPATH=. pytest all passed.
+- Next: No follow-up needed.

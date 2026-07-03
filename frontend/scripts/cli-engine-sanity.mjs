@@ -381,6 +381,212 @@ const rangeTopology = {
   },
 };
 
+const etherTopology = {
+  devices: [
+    { id: "SW1", type: "switch", hostname: "SW1" },
+    { id: "SW2", type: "switch", hostname: "SW2" },
+    { id: "PC-A", type: "pc", label: "PC-A", switch: "SW1", connectedTo: "g0/3", vlan: 10, ip: "192.168.10.10" },
+    { id: "PC-B", type: "pc", label: "PC-B", switch: "SW2", connectedTo: "g0/3", vlan: 10, ip: "192.168.10.20" },
+  ],
+  interfaces: {
+    SW1: {
+      "g0/1": { mode: "trunk", shutdown: false },
+      "g0/2": { mode: "trunk", shutdown: false },
+      "g0/3": { mode: "access", accessVlan: 10, shutdown: false },
+    },
+    SW2: {
+      "g0/1": { mode: "trunk", shutdown: false },
+      "g0/2": { mode: "trunk", shutdown: false },
+      "g0/3": { mode: "access", accessVlan: 10, shutdown: false },
+    },
+  },
+  vlans: {
+    SW1: { "10": { name: "SALES", ports: ["g0/3"] } },
+    SW2: { "10": { name: "SALES", ports: ["g0/3"] } },
+  },
+  links: [
+    { a: "SW1:g0/1", b: "SW2:g0/1" },
+    { a: "SW1:g0/2", b: "SW2:g0/2" },
+  ],
+};
+
+function etherStates() {
+  return initialDeviceStates({ id: "ether-sanity", title: "ether", topology: etherTopology });
+}
+
+function configureChannel(states, sw1Mode, sw2Mode) {
+  commandOn(states, etherTopology, "SW1", "enable");
+  commandOn(states, etherTopology, "SW2", "enable");
+  ["SW1", "SW2"].forEach((deviceId) => commandOn(states, etherTopology, deviceId, "configure terminal"));
+  commandOn(states, etherTopology, "SW1", "interface range g0/1 - 2");
+  commandOn(states, etherTopology, "SW1", `channel-group 1 mode ${sw1Mode}`);
+  commandOn(states, etherTopology, "SW1", "end");
+  commandOn(states, etherTopology, "SW2", "interface range g0/1 - 2");
+  commandOn(states, etherTopology, "SW2", `channel-group 1 mode ${sw2Mode}`);
+  commandOn(states, etherTopology, "SW2", "end");
+}
+
+const singleSwitchStp = initialState();
+runCommand(singleSwitchStp, "enable");
+assert(runCommand(singleSwitchStp, "show spanning-tree").output.join("\n").includes("This bridge is the root"), "single-switch show spanning-tree does not throw");
+
+const edgePortState = initialState({
+  topology: {
+    devices: [{ id: "PC-A", type: "pc", label: "PC-A", connectedTo: "g0/1", vlan: 1, ip: "192.168.1.10" }],
+    interfaces: { "g0/1": { mode: "access", accessVlan: 1, shutdown: false } },
+  },
+});
+["enable", "configure terminal", "interface g0/1", "spanning-tree portfast", "end"].forEach((command) => runCommand(edgePortState, command));
+const edgeTree = runCommand(edgePortState, "show spanning-tree").output.join("\n");
+assert(edgeTree.includes("Gi0/1") && edgeTree.includes("P2p Edge"), "PortFast access port appears as P2p Edge");
+
+const argValidationState = initialState();
+["enable", "configure terminal"].forEach((command) => runCommand(argValidationState, command));
+assert(runCommand(argValidationState, "spanning-tree mode").output.includes("% Incomplete command."), "missing spanning-tree mode arg is incomplete");
+assert(
+  runCommand(argValidationState, "spanning-tree mode rapid-pvst extra").output.includes("% Invalid input detected at '^' marker."),
+  "spanning-tree mode rejects trailing args"
+);
+assert(runCommand(argValidationState, "spanning-tree vlan").output.includes("% Incomplete command."), "missing spanning-tree vlan args are incomplete");
+assert(runCommand(argValidationState, "spanning-tree vlan 1 priority").output.includes("% Incomplete command."), "missing STP priority value is incomplete");
+assert(
+  runCommand(argValidationState, "spanning-tree vlan 0 priority 4096").output.includes("% Invalid input detected at '^' marker."),
+  "STP vlan 0 is invalid"
+);
+assert(
+  runCommand(argValidationState, "spanning-tree vlan 4095 root primary").output.includes("% Invalid input detected at '^' marker."),
+  "STP vlan 4095 is invalid"
+);
+runCommand(argValidationState, "end");
+assert(runCommand(argValidationState, "show spanning-tree extra").output.includes("% Invalid input detected at '^' marker."), "show spanning-tree rejects extras");
+assert(
+  runCommand(argValidationState, "show spanning-tree vlan 1 extra").output.includes("% Invalid input detected at '^' marker."),
+  "show spanning-tree vlan rejects extras"
+);
+runCommand(argValidationState, "configure terminal");
+assert(
+  runCommand(argValidationState, "interface port-channel x").output.includes("% Invalid input detected at '^' marker."),
+  "non-numeric port-channel id is invalid"
+);
+assert(
+  runCommand(argValidationState, "interface port-channel 1 extra").output.includes("% Invalid input detected at '^' marker."),
+  "interface port-channel rejects extras"
+);
+runCommand(argValidationState, "interface g0/1");
+assert(
+  runCommand(argValidationState, "channel-group 1 mode active extra").output.includes("% Invalid input detected at '^' marker."),
+  "channel-group rejects extras"
+);
+
+let ether = etherStates();
+commandOn(ether, etherTopology, "SW1", "enable");
+commandOn(ether, etherTopology, "SW2", "enable");
+commandOn(ether, etherTopology, "SW2", "configure terminal");
+commandOn(ether, etherTopology, "SW2", "spanning-tree vlan 1 priority 4096");
+commandOn(ether, etherTopology, "SW2", "end");
+assert(commandOn(ether, etherTopology, "SW2", "show spanning-tree").output.join("\n").includes("This bridge is the root"), "lower STP priority wins root election");
+ether = etherStates();
+commandOn(ether, etherTopology, "SW1", "enable");
+commandOn(ether, etherTopology, "SW2", "enable");
+commandOn(ether, etherTopology, "SW2", "configure terminal");
+commandOn(ether, etherTopology, "SW2", "spanning-tree vlan 1 root primary");
+commandOn(ether, etherTopology, "SW2", "end");
+assert(commandOn(ether, etherTopology, "SW2", "show spanning-tree").output.join("\n").includes("This bridge is the root"), "root primary takes over");
+const sw2Tree = commandOn(ether, etherTopology, "SW1", "show spanning-tree").output.join("\n");
+assert(sw2Tree.includes("Gi0/2") && sw2Tree.includes("Altn BLK"), "parallel links block the higher port on the non-root switch");
+
+ether = etherStates();
+commandOn(ether, etherTopology, "SW1", "enable");
+commandOn(ether, etherTopology, "SW1", "configure terminal");
+commandOn(ether, etherTopology, "SW1", "interface g0/1");
+commandOn(ether, etherTopology, "SW1", "spanning-tree portfast");
+commandOn(ether, etherTopology, "SW1", "spanning-tree bpduguard enable");
+commandOn(ether, etherTopology, "SW1", "end");
+assert(commandOn(ether, etherTopology, "SW1", "show interfaces status").output.join("\n").includes("err-disabled"), "BPDU Guard err-disables switch-facing PortFast port");
+commandOn(ether, etherTopology, "SW1", "configure terminal");
+commandOn(ether, etherTopology, "SW1", "interface g0/1");
+commandOn(ether, etherTopology, "SW1", "shutdown");
+commandOn(ether, etherTopology, "SW1", "no shutdown");
+commandOn(ether, etherTopology, "SW1", "end");
+assert(!commandOn(ether, etherTopology, "SW1", "show interfaces status").output.join("\n").includes("err-disabled"), "shutdown/no shutdown recovers BPDU Guard port");
+
+ether = etherStates();
+configureChannel(ether, "active", "passive");
+let summary = commandOn(ether, etherTopology, "SW1", "show etherchannel summary").output.join("\n");
+assert(summary.includes("Po1(SU)") && summary.includes("Gi0/1(P)") && summary.includes("Gi0/2(P)"), "active/passive LACP forms bundle");
+assert(summary.includes("LACP"), "show etherchannel summary displays LACP protocol");
+const lacpDetail = commandOn(ether, etherTopology, "SW1", "show etherchannel detail").output.join("\n");
+assert(lacpDetail.includes("Protocol: LACP") && lacpDetail.includes("Gi0/1") && lacpDetail.includes("Flags: P"), "show etherchannel detail renders LACP member flags");
+const lacpNeighbor = commandOn(ether, etherTopology, "SW1", "show lacp neighbor");
+assert(lacpNeighbor.event === "cmd.show.lacp-neighbor" && lacpNeighbor.output.join("\n").includes("SW2"), "show lacp neighbor lists peer hostname");
+assert(runMultiPcCommand(ether, etherTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.success", "formed trunk bundle passes cross-switch ping");
+commandOn(ether, etherTopology, "SW2", "configure terminal");
+commandOn(ether, etherTopology, "SW2", "interface range g0/1 - 2");
+commandOn(ether, etherTopology, "SW2", "channel-group 1 mode auto");
+commandOn(ether, etherTopology, "SW2", "end");
+summary = commandOn(ether, etherTopology, "SW1", "show etherchannel summary").output.join("\n");
+assert(summary.includes("Po1(SD)") && summary.includes("(s)"), "active/auto does not form a bundle");
+assert(runMultiPcCommand(ether, etherTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.success", "mode mismatch falls back to individual STP-managed trunks");
+
+ether = etherStates();
+configureChannel(ether, "desirable", "desirable");
+summary = commandOn(ether, etherTopology, "SW1", "show etherchannel summary").output.join("\n");
+assert(summary.includes("Po1(SU)") && summary.includes("PAgP"), "desirable/desirable PAgP forms bundle");
+assert(commandOn(ether, etherTopology, "SW1", "show pagp neighbor").output.join("\n").includes("SW2"), "show pagp neighbor lists peer hostname");
+
+ether = etherStates();
+configureChannel(ether, "desirable", "auto");
+summary = commandOn(ether, etherTopology, "SW1", "show etherchannel summary").output.join("\n");
+assert(summary.includes("Po1(SU)") && summary.includes("PAgP"), "desirable/auto PAgP forms bundle");
+
+ether = etherStates();
+configureChannel(ether, "auto", "auto");
+summary = commandOn(ether, etherTopology, "SW1", "show etherchannel summary").output.join("\n");
+let summaryLine = summary.split("\n").find((line) => line.startsWith("1")) || "";
+assert(summaryLine.includes("Po1(SD)") && summaryLine.includes("-") && !summaryLine.includes("PAgP"), "auto/auto PAgP does not form a bundle");
+
+ether = etherStates();
+configureChannel(ether, "active", "desirable");
+summary = commandOn(ether, etherTopology, "SW1", "show etherchannel summary").output.join("\n");
+summaryLine = summary.split("\n").find((line) => line.startsWith("1")) || "";
+assert(summaryLine.includes("Po1(SD)") && summaryLine.includes("-") && !summaryLine.includes("LACP") && !summaryLine.includes("PAgP"), "LACP and PAgP modes do not interoperate");
+
+ether = etherStates();
+configureChannel(ether, "on", "on");
+summary = commandOn(ether, etherTopology, "SW1", "show etherchannel summary").output.join("\n");
+assert(summary.includes("Po1(SU)") && summary.includes("Static"), "on/on forms static EtherChannel");
+
+ether = etherStates();
+configureChannel(ether, "active", "active");
+commandOn(ether, etherTopology, "SW1", "configure terminal");
+commandOn(ether, etherTopology, "SW1", "interface range g0/1 - 2");
+const missingNoChannel = commandOn(ether, etherTopology, "SW1", "no channel-group");
+assert(
+  missingNoChannel.output.includes("% Incomplete command.") &&
+    missingNoChannel.events.length === 0 &&
+    ether.SW1.interfaces["g0/1"].channelGroup === 1 &&
+    ether.SW1.interfaces["g0/2"].channelMode === "active",
+  "no channel-group without arg is incomplete and leaves config intact"
+);
+commandOn(ether, etherTopology, "SW1", "end");
+
+ether = etherStates();
+configureChannel(ether, "active", "active");
+commandOn(ether, etherTopology, "SW1", "configure terminal");
+commandOn(ether, etherTopology, "SW1", "interface port-channel 1");
+commandOn(ether, etherTopology, "SW1", "shutdown");
+commandOn(ether, etherTopology, "SW1", "end");
+summary = commandOn(ether, etherTopology, "SW1", "show etherchannel summary").output.join("\n");
+assert(summary.includes("Po1(SD)") && summary.includes("Gi0/1(D)") && summary.includes("Gi0/2(D)"), "shutdown Port-channel shows SD with down members");
+assert(runMultiPcCommand(ether, etherTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.failed", "shutdown Port-channel blocks bundle traffic");
+commandOn(ether, etherTopology, "SW1", "configure terminal");
+commandOn(ether, etherTopology, "SW1", "interface port-channel 1");
+commandOn(ether, etherTopology, "SW1", "no shutdown");
+commandOn(ether, etherTopology, "SW1", "end");
+summary = commandOn(ether, etherTopology, "SW1", "show etherchannel summary").output.join("\n");
+assert(summary.includes("Po1(SU)") && summary.includes("Gi0/1(P)") && summary.includes("Gi0/2(P)"), "no shutdown restores Port-channel bundle");
+assert(runMultiPcCommand(ether, etherTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.success", "restored Port-channel passes bundle traffic");
+
 let multiStates = initialDeviceStates(multiLesson);
 assert(runMultiPcCommand(multiStates, multiTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.failed", "cross-switch ping fails before trunk");
 configureTrunk(multiStates, multiTopology, "SW1");
