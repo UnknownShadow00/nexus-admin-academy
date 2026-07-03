@@ -19,6 +19,7 @@ from app.routers import (
     admin_session,
     auth,
     capstones,
+    cli_labs,
     commands,
     evidence,
     flashcards,
@@ -33,6 +34,7 @@ from app.routers import (
     tickets,
 )
 from app.routers.admin_curriculum import router as admin_curriculum_router
+from app.services.cli_lab_seed import seed_cli_labs
 from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
 
 load_env()
@@ -84,7 +86,7 @@ def seed_students() -> None:
 def _cors_origins() -> list[str]:
     raw = os.getenv("CORS_ORIGINS") or os.getenv("FRONTEND_URL")
     if not raw and not is_production_environment():
-        raw = "http://localhost:5173"
+        raw = "http://localhost:5173,http://127.0.0.1:5173"
     origins = [origin.strip() for origin in raw.split(",") if origin.strip()]
     for origin in ["https://www.examcompass.com", "https://examcompass.com"]:
         if origin not in origins:
@@ -97,8 +99,10 @@ async def lifespan(_: FastAPI):
     seed_students()
     db = SessionLocal()
     try:
+        seed_cli_labs(db)
         if not get_weekly_domain_leads(db):
             recompute_weekly_domain_leads(db)
+        db.commit()
     finally:
         db.close()
     yield
@@ -161,6 +165,7 @@ def create_app() -> FastAPI:
     app.include_router(quizzes.router)
     app.include_router(labs.router)
     app.include_router(capstones.router)
+    app.include_router(cli_labs.router)
     app.include_router(tickets.router)
     app.include_router(submissions.router)
     app.include_router(commands.router)

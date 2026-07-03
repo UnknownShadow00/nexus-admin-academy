@@ -9,6 +9,7 @@ from app.models.learning import Lesson, Module
 from app.models.progression import MethodologyFramework, PromotionGate, Role
 from app.models.student import Student
 from app.models.ticket import Ticket
+from app.services.cli_lab_seed import seed_cli_labs
 from app.services.auth_service import hash_password
 
 load_env()
@@ -798,6 +799,7 @@ def run_seed() -> None:
         seed_tickets(db)
         seed_labs(db)
         seed_capstones(db)
+        seed_cli_labs(db)
         db.flush()
         seed_answer_keys(db, limit=10)
         seed_commands(db)

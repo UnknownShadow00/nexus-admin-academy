@@ -185,6 +185,10 @@ export const getLab = (labId, requestOptions) => request(() => api.get(`/api/lab
 export const startLab = (labId, requestOptions) => request(() => api.post(`/api/labs/${labId}/start`), requestOptions);
 export const submitLab = (labId, payload, requestOptions) =>
   request(() => api.post(`/api/labs/${labId}/submit`, payload), requestOptions);
+export const getCliLabs = (requestOptions) => request(() => api.get("/api/cli-labs"), requestOptions);
+export const getCliLab = (labId, requestOptions) => request(() => api.get(`/api/cli-labs/${labId}`), requestOptions);
+export const completeCliLab = (labId, payload, requestOptions) =>
+  request(() => api.post(`/api/cli-labs/${labId}/complete`, payload), requestOptions);
 export const uploadLabEvidence = (labRunId, file, artifactType = "screenshot", requestOptions) => {
   const form = new FormData();
   form.append("file", file);

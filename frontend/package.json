@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "cli:sanity": "node scripts/cli-engine-sanity.mjs",
+    "cli:validate": "node scripts/validate-cli-labs.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

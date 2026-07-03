@@ -1,0 +1,545 @@
+{
+  "compartmentId": "network-foundations",
+  "compartmentTitle": "Learn Network Foundations",
+  "vendorId": "cisco-ios",
+  "sharedTopology": {
+    "devices": [
+      { "id": "main", "type": "switch", "label": "Switch" },
+      { "id": "PC-A", "type": "pc", "label": "PC-A", "connectedTo": "g0/1", "vlan": 10, "ip": "192.168.10.10" },
+      { "id": "PC-B", "type": "pc", "label": "PC-B", "connectedTo": "g0/2", "vlan": 10, "ip": "192.168.10.20" }
+    ],
+    "interfaces": {
+      "g0/1": { "mode": "access", "status": "up", "accessVlan": 10 },
+      "g0/2": { "mode": "access", "status": "up", "accessVlan": 10 },
+      "g0/3": { "mode": "access", "status": "down", "shutdown": true },
+      "g0/4": { "mode": "access", "status": "down", "shutdown": true }
+    },
+    "vlans": {
+      "10": { "name": "SALES", "ports": ["g0/1", "g0/2"] }
+    }
+  },
+  "lessons": [
+    {
+      "id": "dev-nf-encap-001",
+      "title": "How Data Travels: Encapsulation",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 8,
+      "scenario": "Before a single command, picture what happens when PC-A sends data to PC-B. Each layer wraps the data with its own header: Transport adds ports, Network adds IP addresses, and Data Link adds MAC addresses to build the frame the switch actually forwards. Walk the stack, then look at the real interface the bits travel over.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "enter-privileged", "label": "Type 'enable' to enter privileged EXEC mode", "trigger": "mode.privileged.enter" },
+        { "id": "show-interface-status", "label": "Type 'show interfaces status' to see the up links carrying frames", "trigger": "cmd.show.interfaces-status" }
+      ],
+      "successCriteria": { "requiredCommands": ["show interfaces status"] },
+      "hints": [
+        "Encapsulation goes top-down: each layer adds its own header to the data from the layer above.",
+        "The Data Link layer is where MAC addresses are added and the Ethernet frame is built.",
+        "Run 'show interfaces status' to confirm the ports are up - that is the physical path the bits cross."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "type": "explanation",
+          "title": "Wrapping data for the journey",
+          "body": "Data does not leave a computer as-is. Each layer adds a header: Transport adds port numbers (a segment), Network adds IP addresses (a packet), and Data Link adds MAC addresses and a trailer (a frame). The frame is finally sent as bits on the wire."
+        },
+        {
+          "id": "step-2",
+          "type": "multiple-choice",
+          "title": "Where do MAC addresses live?",
+          "question": "Which layer adds the source and destination MAC addresses that a switch uses to forward?",
+          "options": ["Network layer (Layer 3)", "Data Link layer (Layer 2)", "Transport layer (Layer 4)", "Application layer (Layer 7)"],
+          "correctIndex": 1,
+          "explanation": "The Data Link (Layer 2) header carries MAC addresses. Switches operate here, which is why they forward by MAC, not IP."
+        },
+        {
+          "id": "step-3",
+          "type": "multiple-choice",
+          "title": "The order of wrapping",
+          "question": "As data is encapsulated to be sent, which sequence is correct?",
+          "options": [
+            "Bits -> Frame -> Packet -> Segment -> Data",
+            "Data -> Packet -> Segment -> Frame -> Bits",
+            "Data -> Segment -> Packet -> Frame -> Bits",
+            "Frame -> Packet -> Segment -> Data -> Bits"
+          ],
+          "correctIndex": 2,
+          "explanation": "Sending encapsulates top-down: Data -> Segment (Transport) -> Packet (Network) -> Frame (Data Link) -> Bits (Physical). The receiver reverses it."
+        },
+        {
+          "id": "step-4",
+          "type": "observe",
+          "title": "See the physical path",
+          "body": "Enter privileged mode and run 'show interfaces status'. Confirm g0/1 and g0/2 are connected - this is the real link the encapsulated bits cross.",
+          "objectiveIds": ["enter-privileged", "show-interface-status"],
+          "explanation": "Encapsulation is abstract until you see the up link. Those frames become electrical/optical bits on exactly these ports."
+        },
+        {
+          "id": "step-5",
+          "type": "explanation",
+          "title": "Recap",
+          "body": "Every message is wrapped layer by layer into a frame of bits, sent across a physical link, then unwrapped by the receiver. Switching happens at the frame (Layer 2) level - which is where we go next."
+        }
+      ],
+      "nextLabId": "dev-nf-frame-001"
+    },
+    {
+      "id": "dev-nf-frame-001",
+      "title": "Anatomy of an Ethernet Frame",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 9,
+      "scenario": "Every frame on the LAN has the same shape: destination MAC, source MAC, an EtherType that names the payload, the payload itself, and a Frame Check Sequence that catches corruption. Order the fields, decode the EtherType, then watch the switch build its MAC address table from real frames.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "ping-pc-b", "label": "Open PC-A and type 'ping 192.168.10.20' to put real frames on the wire", "trigger": "pc.ping.success" },
+        { "id": "enter-privileged", "label": "On the switch, type 'enable' to enter privileged EXEC mode", "trigger": "mode.privileged.enter" },
+        { "id": "show-mac-table", "label": "Type 'show mac address-table' to see source MACs learned from those frames", "trigger": "cmd.show.mac-address-table" }
+      ],
+      "successCriteria": { "requiredCommands": ["show mac address-table"] },
+      "hints": [
+        "An Ethernet II frame starts with the destination MAC, then the source MAC.",
+        "The EtherType field names the payload protocol - IPv4 is 0x0800.",
+        "The table is built from the SOURCE MAC of each frame: ping first to generate traffic, then 'show mac address-table'."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "type": "explanation",
+          "title": "One shape for every frame",
+          "body": "An Ethernet II frame is read left to right: Destination MAC, Source MAC, EtherType, Payload, and the Frame Check Sequence (FCS) trailer. The switch reads the front of the frame to decide where to send it."
+        },
+        {
+          "id": "step-2",
+          "type": "frame-builder",
+          "title": "Order the frame fields",
+          "question": "Put the fields of an Ethernet II frame in the order they appear on the wire.",
+          "fields": ["Destination MAC", "Source MAC", "EtherType", "Payload", "FCS"],
+          "correctOrder": [0, 1, 2, 3, 4],
+          "explanation": "Destination first so a switch can decide forwarding as early as possible; the FCS trailer lets the receiver detect corruption."
+        },
+        {
+          "id": "step-3",
+          "type": "hex-input",
+          "title": "Decode the EtherType",
+          "question": "The EtherType names the payload protocol. Enter the hex EtherType for an IPv4 packet.",
+          "answer": "0800",
+          "accept": ["0800", "0x0800", "800"],
+          "explanation": "IPv4 is EtherType 0x0800. (ARP is 0x0806, IPv6 is 0x86DD.) The receiver uses this to hand the payload to the right protocol."
+        },
+        {
+          "id": "step-4",
+          "type": "multiple-choice",
+          "title": "What the switch forwards on",
+          "question": "Which field does a switch read to decide which port to send a frame out of?",
+          "options": ["Destination MAC address", "Source MAC address", "Source IP address", "Frame Check Sequence"],
+          "correctIndex": 0,
+          "explanation": "A switch forwards on the DESTINATION MAC. It also learns the SOURCE MAC to fill its table, but forwarding is decided by the destination."
+        },
+        {
+          "id": "step-5",
+          "type": "observe",
+          "title": "Put a frame on the wire",
+          "body": "Open PC-A and run 'ping 192.168.10.20'. This sends real Ethernet frames whose source MACs the switch learns as it forwards them.",
+          "objectiveIds": ["ping-pc-b"],
+          "explanation": "A frame is only learned once the switch actually sees it - so the table stays empty until traffic flows."
+        },
+        {
+          "id": "step-6",
+          "type": "observe",
+          "title": "See frames become a table",
+          "body": "On the switch, enter privileged mode and run 'show mac address-table'. Each DYNAMIC entry was learned from the source MAC of a frame the ping generated.",
+          "objectiveIds": ["enter-privileged", "show-mac-table"],
+          "explanation": "The frame header is not just theory - the switch records the source MAC and ingress port of every frame it sees."
+        }
+      ],
+      "nextLabId": "dev-nf-mac-001"
+    },
+    {
+      "id": "dev-nf-mac-001",
+      "title": "MAC Addresses and Hexadecimal",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 9,
+      "scenario": "A MAC address is 48 bits, written as 12 hex digits. The first half (OUI) identifies the vendor; the second half identifies the specific device. Hex is just a compact way to write binary four bits at a time. Practice the conversions, then map the addresses in a real MAC table.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "ping-pc-b", "label": "Open PC-A and type 'ping 192.168.10.20' so the switch learns real MACs", "trigger": "pc.ping.success" },
+        { "id": "enter-privileged", "label": "On the switch, type 'enable' to enter privileged EXEC mode", "trigger": "mode.privileged.enter" },
+        { "id": "show-mac-table", "label": "Type 'show mac address-table' and read the 12-hex-digit addresses", "trigger": "cmd.show.mac-address-table" }
+      ],
+      "successCriteria": { "requiredCommands": ["show mac address-table"] },
+      "hints": [
+        "Each hex digit represents exactly four binary bits: 1010 = A, 1111 = F.",
+        "A MAC has 12 hex digits (48 bits): the first 6 are the vendor OUI, the last 6 the device.",
+        "The broadcast MAC is all ones - twelve F hex digits."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "type": "explanation",
+          "title": "A name burned into the card",
+          "body": "A MAC address is a 48-bit hardware address written as 12 hexadecimal digits, e.g. aabb.cc00.0010. The first 24 bits are the vendor OUI; the last 24 identify the individual device."
+        },
+        {
+          "id": "step-2",
+          "type": "hex-input",
+          "title": "Binary to hex",
+          "question": "Convert the binary byte 1010 1010 to hexadecimal.",
+          "answer": "aa",
+          "accept": ["aa", "0xaa"],
+          "explanation": "1010 = A and 1010 = A, so 1010 1010 = 0xAA. Each hex digit maps to exactly four bits."
+        },
+        {
+          "id": "step-3",
+          "type": "multiple-choice",
+          "title": "What the first half tells you",
+          "question": "In the MAC address aabb.cc00.0010, what does the aabb.cc portion represent?",
+          "options": ["The VLAN assigned to the device", "The locally learned switch port", "The Organizationally Unique Identifier for the manufacturer", "The EtherType carried in the frame"],
+          "correctIndex": 2,
+          "explanation": "The first 24 bits are the Organizationally Unique Identifier - the manufacturer. The last 24 bits make the address unique per device."
+        },
+        {
+          "id": "step-4",
+          "type": "hex-input",
+          "title": "The broadcast address",
+          "question": "Enter the 12-hex-digit destination MAC that means \"every device on this LAN\" (the broadcast address).",
+          "answer": "ffffffffffff",
+          "accept": ["ffffffffffff", "ffff.ffff.ffff", "ff:ff:ff:ff:ff:ff"],
+          "explanation": "All 48 bits set to 1 = ffff.ffff.ffff. A switch floods a frame addressed to it out every port in the VLAN."
+        },
+        {
+          "id": "step-5",
+          "type": "observe",
+          "title": "Generate some MACs",
+          "body": "Open PC-A and run 'ping 192.168.10.20' so the switch learns the PCs' real hardware addresses.",
+          "objectiveIds": ["ping-pc-b"],
+          "explanation": "The MAC table is learned from live traffic - without a frame to inspect, there is nothing to read."
+        },
+        {
+          "id": "step-6",
+          "type": "observe",
+          "title": "Read real addresses",
+          "body": "On the switch, enter privileged mode and run 'show mac address-table'. Notice each address is 12 hex digits bound to a port.",
+          "objectiveIds": ["enter-privileged", "show-mac-table"],
+          "explanation": "Now the hex is concrete: every learned entry is a real 48-bit MAC the switch saw as a source."
+        }
+      ],
+      "nextLabId": "dev-nf-mac-static-001"
+    },
+    {
+      "id": "dev-nf-mac-static-001",
+      "title": "Pin a MAC: Static Table Entries",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 9,
+      "scenario": "Dynamic entries are learned from traffic and time out when a device goes quiet. Sometimes you want a permanent binding - for a server that must always be reachable on a known port, or to lock a port to one address. The command is \"mac address-table static <mac> vlan <id> interface <port>\". Install one and read it back as a STATIC entry.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "enter-privileged", "label": "Type 'enable' to enter privileged EXEC mode", "trigger": "mode.privileged.enter" },
+        { "id": "enter-config", "label": "Type 'configure terminal' to enter global configuration", "trigger": "mode.config.enter" },
+        { "id": "set-static-mac", "label": "Type 'mac address-table static aaaa.bbbb.cccc vlan 10 interface g0/2'", "trigger": "config.mac-static.set", "expectedArg": "aaaa.bbbb.cccc" },
+        { "id": "return-privileged", "label": "Return with 'end'", "trigger": "mode.privileged.enter" },
+        { "id": "show-mac-table", "label": "Run 'show mac address-table' and find the STATIC row", "trigger": "cmd.show.mac-address-table" }
+      ],
+      "successCriteria": { "requiredCommands": ["show mac address-table"] },
+      "hints": [
+        "A dynamic entry is learned from a frame and ages out; a static entry is configured by hand and stays.",
+        "The command lives in global config: 'mac address-table static <mac> vlan <id> interface <port>'.",
+        "After 'end', run 'show mac address-table' - the Type column reads STATIC for your entry."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "type": "explanation",
+          "title": "Learned vs configured",
+          "body": "Most MAC entries are DYNAMIC: the switch learns them from frames and removes them after an aging timer. A STATIC entry is one you configure by hand - it never ages out and survives idle time."
+        },
+        {
+          "id": "step-2",
+          "type": "multiple-choice",
+          "title": "Why pin a MAC?",
+          "question": "Which is a real reason to configure a static MAC entry instead of relying on dynamic learning?",
+          "options": [
+            "To make a MAC address route between VLANs",
+            "To permanently bind a known MAC address to a specific switch port",
+            "To change the EtherType used by IPv4 frames",
+            "To make ARP requests stop using broadcasts"
+          ],
+          "correctIndex": 1,
+          "explanation": "Static entries give a permanent, administrator-defined MAC->port binding - useful for servers or to lock a port to one address."
+        },
+        {
+          "id": "step-3",
+          "type": "hex-input",
+          "title": "The address to pin",
+          "question": "You will pin the MAC aaaa.bbbb.cccc. Enter it as its 12 hexadecimal digits.",
+          "answer": "aaaabbbbcccc",
+          "accept": ["aaaabbbbcccc", "aaaa.bbbb.cccc", "aa:aa:bb:bb:cc:cc"],
+          "explanation": "Cisco writes a MAC as three dotted groups of four hex digits, but it is just 48 bits / 12 hex digits."
+        },
+        {
+          "id": "step-4",
+          "type": "observe",
+          "title": "Install the entry",
+          "body": "Enter privileged mode, then 'configure terminal', and run: mac address-table static aaaa.bbbb.cccc vlan 10 interface g0/2",
+          "objectiveIds": ["enter-privileged", "enter-config", "set-static-mac"],
+          "explanation": "This binds aaaa.bbbb.cccc in VLAN 10 to port g0/2 permanently - no traffic required."
+        },
+        {
+          "id": "step-5",
+          "type": "observe",
+          "title": "Read it back",
+          "body": "Type 'end', then 'show mac address-table'. Find your entry - the Type column reads STATIC, not DYNAMIC.",
+          "objectiveIds": ["return-privileged", "show-mac-table"],
+          "explanation": "Unlike a learned entry, this one appears immediately and will stay until you remove it with the \"no\" form."
+        },
+        {
+          "id": "step-6",
+          "type": "multiple-choice",
+          "title": "What makes it different?",
+          "question": "Compared with a dynamic entry, a static MAC entry...",
+          "options": [
+            "Is manually configured and does not age out",
+            "Is learned from source MAC addresses only",
+            "Exists only until the first ping finishes",
+            "Uses IP addresses instead of MAC addresses"
+          ],
+          "correctIndex": 0,
+          "explanation": "Static = manually configured and persistent; dynamic = learned from frames and aged out over time."
+        }
+      ],
+      "nextLabId": "dev-nf-arp-001"
+    },
+    {
+      "id": "dev-nf-arp-001",
+      "title": "ARP: From IP Address to MAC",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 10,
+      "scenario": "PC-A wants to reach PC-B at 192.168.10.20, but to build a frame it needs PC-B's MAC address. ARP solves this: PC-A broadcasts \"who has 192.168.10.20?\", every device hears it, and only PC-B answers with a unicast reply. Predict each step, then run a real ping and watch it happen.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "ping-pc-b", "label": "Open PC-A and type 'ping 192.168.10.20'; watch the ARP request and reply", "trigger": "pc.ping.success" },
+        { "id": "enter-privileged", "label": "On the switch, type 'enable' to enter privileged EXEC mode", "trigger": "mode.privileged.enter" },
+        { "id": "show-mac-table", "label": "Type 'show mac address-table' to see the MACs learned during ARP", "trigger": "cmd.show.mac-address-table" }
+      ],
+      "successCriteria": { "requiredCommands": ["show mac address-table"] },
+      "hints": [
+        "A host needs the destination MAC to build a frame; ARP maps a known IP to an unknown MAC.",
+        "An ARP request is a Layer 2 broadcast (destination ffff.ffff.ffff), so the switch floods it.",
+        "Run 'ping 192.168.10.20' from PC-A, then 'show mac address-table' on the switch to see the result."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "type": "explanation",
+          "title": "You know the IP, but not the MAC",
+          "body": "PC-A knows it wants 192.168.10.20, but a frame needs a destination MAC. ARP (Address Resolution Protocol) bridges that gap: it discovers the MAC that belongs to a known IP on the local network."
+        },
+        {
+          "id": "step-2",
+          "type": "forward-decision",
+          "title": "How does the request travel?",
+          "question": "PC-A sends an ARP request for 192.168.10.20 with destination MAC ffff.ffff.ffff. What does the switch do with this broadcast frame?",
+          "options": [
+            "Drops it because the destination is not in the MAC table",
+            "Sends it only back to PC-A",
+            "Routes it to every VLAN on the switch",
+            "Floods it out every other port in the same VLAN"
+          ],
+          "correctIndex": 3,
+          "explanation": "A broadcast (ffff.ffff.ffff) is flooded out every other port in the VLAN, so every device - including PC-B - hears the question."
+        },
+        {
+          "id": "step-3",
+          "type": "multiple-choice",
+          "title": "Who answers, and how?",
+          "question": "Which statement about the ARP reply is correct?",
+          "options": [
+            "Only PC-B replies, and it unicasts the answer back to PC-A",
+            "Every device replies so PC-A can choose the fastest path",
+            "The switch replies with PC-B's MAC address from its VLAN table",
+            "PC-B broadcasts the reply to every VLAN"
+          ],
+          "correctIndex": 0,
+          "explanation": "Only the owner of the IP (PC-B) answers, and it sends a unicast reply straight back to PC-A. PC-A caches the IP->MAC mapping."
+        },
+        {
+          "id": "step-4",
+          "type": "observe",
+          "title": "Run it for real",
+          "body": "Open PC-A and run 'ping 192.168.10.20'. Step through the transcript: the ARP broadcast, PC-B's reply, then the echo request and reply.",
+          "objectiveIds": ["ping-pc-b"],
+          "explanation": "The first ping must resolve the MAC via ARP before any ICMP can flow. After that, the mapping is cached."
+        },
+        {
+          "id": "step-5",
+          "type": "observe",
+          "title": "Confirm what the switch learned",
+          "body": "On the switch, enter privileged mode and run 'show mac address-table'. Both PC-A and PC-B now appear, learned from the frames ARP and ping generated.",
+          "objectiveIds": ["enter-privileged", "show-mac-table"],
+          "explanation": "ARP at Layer 3-to-2 and MAC learning at Layer 2 work together to make local delivery possible."
+        }
+      ],
+      "nextLabId": "dev-nf-broadcast-001"
+    },
+    {
+      "id": "dev-nf-broadcast-001",
+      "title": "Broadcast and Collision Domains",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 8,
+      "scenario": "A switch gives every port its own collision domain, so modern LANs rarely collide. Broadcasts are different: a broadcast floods to every port in the same VLAN. This switch has two VLANs - SALES and ENG - which means two separate broadcast domains. Reason about the boundaries, then confirm them with show vlan brief.",
+      "startMode": "user",
+      "startState": {
+        "vlans": {
+          "10": { "name": "SALES", "ports": ["g0/1", "g0/2"] },
+          "20": { "name": "ENG", "ports": ["g0/3"] }
+        },
+        "interfaces": {
+          "g0/1": { "mode": "access", "accessVlan": 10, "shutdown": false },
+          "g0/2": { "mode": "access", "accessVlan": 10, "shutdown": false },
+          "g0/3": { "mode": "access", "accessVlan": 20, "shutdown": false }
+        }
+      },
+      "objectives": [
+        { "id": "enter-privileged", "label": "Type 'enable' to enter privileged EXEC mode", "trigger": "mode.privileged.enter" },
+        { "id": "show-vlan-brief", "label": "Type 'show vlan brief' to see the two broadcast domains (VLAN 10 and 20)", "trigger": "cmd.show.vlan-brief" }
+      ],
+      "successCriteria": { "requiredCommands": ["show vlan brief"] },
+      "hints": [
+        "Each switch port is its own collision domain - a key reason switches replaced hubs.",
+        "A broadcast stays inside its VLAN; each VLAN is one broadcast domain.",
+        "Run 'show vlan brief' to count the broadcast domains: one per active VLAN."
+      ],
+      "steps": [
+        {
+          "id": "step-1",
+          "type": "explanation",
+          "title": "Two kinds of \"domain\"",
+          "body": "A collision domain is a segment where two frames can collide - on a modern switch, that is just a single port. A broadcast domain is the set of devices that receive each other's broadcasts - on a switch, that is one VLAN."
+        },
+        {
+          "id": "step-2",
+          "type": "multiple-choice",
+          "title": "Counting collision domains",
+          "question": "On a switch with eight active access ports, how many collision domains are there?",
+          "options": ["One shared collision domain", "Two collision domains, one per VLAN", "Eight collision domains, one per port", "Zero collision domains because switches use MAC tables"],
+          "correctIndex": 2,
+          "explanation": "Each switch port is its own collision domain. This is why full-duplex switched links essentially eliminate collisions."
+        },
+        {
+          "id": "step-3",
+          "type": "multiple-choice",
+          "title": "Counting broadcast domains",
+          "question": "This switch has ports in VLAN 10 (SALES) and VLAN 20 (ENG). How many broadcast domains is that?",
+          "options": ["One, because it is one physical switch", "Two, one for each VLAN", "Three, one for each active port", "Four, one for each MAC table entry"],
+          "correctIndex": 1,
+          "explanation": "Each VLAN is a separate broadcast domain. A broadcast in VLAN 10 never reaches VLAN 20 - that is what VLANs are for."
+        },
+        {
+          "id": "step-4",
+          "type": "multiple-choice",
+          "title": "Crossing the boundary",
+          "question": "What is required for traffic in VLAN 10 to reach a device in VLAN 20?",
+          "options": ["A Layer 3 routing function between the VLANs", "A static MAC table entry on the switch", "An ARP broadcast from VLAN 10", "A larger collision domain"],
+          "correctIndex": 0,
+          "explanation": "Switching stays within a VLAN. Moving between broadcast domains is routing - a Layer 3 job (the next compartment)."
+        },
+        {
+          "id": "step-5",
+          "type": "observe",
+          "title": "See the broadcast domains",
+          "body": "Enter privileged mode and run 'show vlan brief'. Confirm VLAN 10 and VLAN 20 each list their own ports - two broadcast domains on one switch.",
+          "objectiveIds": ["enter-privileged", "show-vlan-brief"],
+          "explanation": "The VLAN table is the map of broadcast domains. This sets up Learn Switching, where you build and troubleshoot them."
+        }
+      ],
+      "nextLabId": "dev-nf-checkpoint-001"
+    },
+    {
+      "id": "dev-nf-checkpoint-001",
+      "title": "Checkpoint: Network Foundations",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 10,
+      "type": "checkpoint",
+      "scenario": "No hints this time. Recall how a frame is built, decode hex, predict the switch's forwarding decision, and reason about broadcast domains. Finish by proving the model: ping across the switch and read the MAC address table it builds.",
+      "startMode": "user",
+      "startState": {
+        "vlans": {
+          "10": { "name": "SALES", "ports": ["g0/1", "g0/2"] },
+          "20": { "name": "ENG", "ports": ["g0/3"] }
+        },
+        "interfaces": {
+          "g0/1": { "mode": "access", "accessVlan": 10, "shutdown": false },
+          "g0/2": { "mode": "access", "accessVlan": 10, "shutdown": false },
+          "g0/3": { "mode": "access", "accessVlan": 20, "shutdown": false }
+        }
+      },
+      "objectives": [
+        { "id": "ping-pc-b", "label": "Open PC-A and type 'ping 192.168.10.20' to reach PC-B", "trigger": "pc.ping.success" },
+        { "id": "enter-privileged", "label": "On the switch, type 'enable' to enter privileged EXEC mode", "trigger": "mode.privileged.enter" },
+        { "id": "show-mac-table", "label": "Type 'show mac address-table' and map PC-A and PC-B to their ports", "trigger": "cmd.show.mac-address-table" }
+      ],
+      "successCriteria": { "requiredCommands": ["show mac address-table"] },
+      "hints": [],
+      "steps": [
+        {
+          "id": "step-1",
+          "type": "multiple-choice",
+          "title": "Forwarding decision",
+          "question": "Which frame field does a switch use to choose the egress port?",
+          "options": ["Source MAC address", "Destination MAC address", "Source IP address", "EtherType"],
+          "correctIndex": 1,
+          "explanation": "Forwarding is decided by the destination MAC; the source MAC is only learned."
+        },
+        {
+          "id": "step-2",
+          "type": "hex-input",
+          "title": "EtherType",
+          "question": "Enter the hex EtherType that identifies an IPv4 payload.",
+          "answer": "0800",
+          "accept": ["0800", "0x0800", "800"],
+          "explanation": "0x0800 is IPv4."
+        },
+        {
+          "id": "step-3",
+          "type": "frame-builder",
+          "title": "Frame order",
+          "question": "Order the fields of an Ethernet II frame as they appear on the wire.",
+          "fields": ["Destination MAC", "Source MAC", "EtherType", "Payload", "FCS"],
+          "correctOrder": [0, 1, 2, 3, 4],
+          "explanation": "Destination MAC leads; the FCS trailer closes the frame."
+        },
+        {
+          "id": "step-4",
+          "type": "forward-decision",
+          "title": "Unknown unicast",
+          "question": "A frame arrives for a destination MAC the switch has never learned, inside the VLAN. What does the switch do?",
+          "options": [
+            "Drops the frame immediately",
+            "Sends the frame to the default gateway only",
+            "Floods it out every other port in the VLAN",
+            "Broadcasts it to every VLAN on the switch"
+          ],
+          "correctIndex": 2,
+          "explanation": "Unknown unicast is flooded out every other port in the VLAN until the destination is learned."
+        },
+        {
+          "id": "step-5",
+          "type": "multiple-choice",
+          "title": "Broadcast domains",
+          "question": "A switch has ports in VLAN 10 and VLAN 20. How many broadcast domains is that?",
+          "options": ["One", "Two", "Ten", "Twenty"],
+          "correctIndex": 1,
+          "explanation": "One broadcast domain per VLAN."
+        },
+        {
+          "id": "step-6",
+          "type": "observe",
+          "title": "Prove it on the wire",
+          "body": "From PC-A, run 'ping 192.168.10.20'. Then on the switch run 'show mac address-table' and confirm PC-A on g0/1 and PC-B on g0/2.",
+          "objectiveIds": ["ping-pc-b", "enter-privileged", "show-mac-table"],
+          "explanation": "You predicted the behavior; now you have demonstrated it with real traffic and real forwarding evidence."
+        }
+      ],
+      "nextLabId": null
+    }
+  ]
+}

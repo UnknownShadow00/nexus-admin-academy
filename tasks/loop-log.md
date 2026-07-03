@@ -134,3 +134,68 @@
 - Files changed: docs/audit-2026-06-11.md (new), tasks/loop-log.md
 - Result: pass
 - Next: Start TASKS.md P0 #1 (Guacamole URL encoding + per-student token).
+## [2026-07-02 05:02:26 -05:00] Task Completed
+- Task: Stabilized CLI Labs for future lesson expansion with command log redaction, backend-owned seed JSON, lesson validation script, and repeatable engine sanity script.
+- Files changed: backend/app/routers/cli_labs.py; backend/app/services/cli_lab_seed.py; backend/app/data/cli_labs/meet-the-cli.json; backend/tests/test_cli_labs.py; frontend/package.json; frontend/scripts/validate-cli-labs.mjs; frontend/scripts/cli-engine-sanity.mjs; frontend/src/features/cli-labs/engine/commandEngine.js; frontend/src/features/cli-labs/engine/objectiveTracker.js; frontend/src/features/cli-labs/components/LabRunner.jsx; tasks/loop-log.md
+- Result: pass - CLI lesson validation passed, CLI engine sanity passed, frontend build passed, backend pytest suite passed, and git diff whitespace check passed.
+- Next: Use npm run cli:validate and npm run cli:sanity before adding future CLI lesson packs.
+
+## [2026-07-02 04:37:18 -05:00] Task Completed
+- Task: Fixed local development CORS so the FastAPI backend accepts the Vite frontend at http://127.0.0.1:5173 as well as localhost.
+- Files changed: backend/app/main.py; tasks/loop-log.md
+- Result: pass - backend health check passed, CORS preflight from http://127.0.0.1:5173 passed, and backend pytest suite passed.
+- Next: Refresh the browser session and retry login from http://127.0.0.1:5173.
+
+## [2026-07-02 04:27:34 -05:00] Task Completed
+- Task: Implemented the CLI Labs module with client-side Cisco IOS simulator, lesson catalog, student UI, completion API, XP award persistence, seed path, migration, and tests.
+- Files changed: backend/app/models/cli_lab.py; backend/app/schemas/cli_lab.py; backend/app/routers/cli_labs.py; backend/app/services/cli_lab_seed.py; backend/app/main.py; backend/app/models/__init__.py; backend/seed.py; backend/alembic/versions/b1c2d3e4f5a6_add_cli_labs.py; backend/tests/test_cli_labs.py; frontend/src/App.jsx; frontend/src/services/api.js; frontend/src/features/cli-labs/data/lessons/meet-the-cli.json; frontend/src/features/cli-labs/data/lessonCatalog.js; frontend/src/features/cli-labs/engine/commandEngine.js; frontend/src/features/cli-labs/engine/objectiveTracker.js; frontend/src/features/cli-labs/components/CliTerminal.jsx; frontend/src/features/cli-labs/components/LabRunner.jsx; frontend/src/features/cli-labs/components/ObjectivesPanel.jsx; frontend/src/features/cli-labs/components/PcTerminal.jsx; frontend/src/features/cli-labs/components/TopologyPanel.jsx; frontend/src/pages/CliLabsPage.jsx; frontend/src/pages/CliLabPage.jsx; tasks/loop-log.md
+- Result: pass - command engine sanity checks passed, frontend production build passed, and backend pytest suite passed.
+- Next: Run Alembic migrations in the target environment before enabling the new tab for students.
+
+## [2026-07-02 06:19:53 -05:00] Task Completed
+- Task: Extended CLI Labs with optional step-driven lesson support, step widgets, observe-step objective gating, validation, and sanity coverage.
+- Files changed: frontend/src/features/cli-labs/components/StepPanel.jsx; frontend/src/features/cli-labs/components/steps/McqStep.jsx; frontend/src/features/cli-labs/components/steps/HexInputStep.jsx; frontend/src/features/cli-labs/components/steps/FrameBuilderStep.jsx; frontend/src/features/cli-labs/components/LabRunner.jsx; frontend/src/features/cli-labs/engine/objectiveTracker.js; frontend/scripts/validate-cli-labs.mjs; frontend/scripts/cli-engine-sanity.mjs; tasks/loop-log.md
+- Result: pass - npm run cli:validate passed, npm run cli:sanity passed, and npm run build passed.
+- Next: Add future lesson packs with steps; existing meet-the-cli lessons remain step-free and do not render StepPanel.
+
+## [2026-07-02 06:26:17 -05:00] Task Completed
+- Task: Added CLI engine support for PC ping with ARP transcript, dynamic MAC learning, show mac address-table, and static MAC address-table entries.
+- Files changed: frontend/src/features/cli-labs/engine/commandEngine.js; frontend/src/features/cli-labs/engine/macTable.js; frontend/scripts/cli-engine-sanity.mjs; tasks/loop-log.md
+- Result: pass - npm run cli:validate passed, npm run cli:sanity passed, and npm run build passed.
+- Next: No follow-up needed.
+
+## [2026-07-02 06:34:54 -05:00] Task Completed
+- Task: Added the Learn Network Foundations CLI Labs pack and grouped CLI Labs lessons into collapsible topic sections.
+- Files changed: frontend/src/features/cli-labs/data/lessons/network-foundations.json; backend/app/data/cli_labs/network-foundations.json; frontend/src/features/cli-labs/data/lessonCatalog.js; frontend/src/features/cli-labs/components/LabRunner.jsx; frontend/src/features/cli-labs/engine/objectiveTracker.js; frontend/src/pages/CliLabsPage.jsx; tasks/loop-log.md
+- Result: pass - npm run cli:validate, npm run cli:sanity, npm run build, backend py_compile, backend pytest, JSON hash comparison, and ad-hoc network foundations runtime completion checks passed.
+- Next: No follow-up needed.
+
+## [2026-07-02 06:43:55 -05:00] Task Completed
+- Task: Fixed Task 3 objective tracking regression by restoring one-objective-per-command behavior and removing redundant summary objectives from the Network Foundations pack.
+- Files changed: frontend/src/features/cli-labs/engine/objectiveTracker.js; frontend/src/features/cli-labs/data/lessons/network-foundations.json; backend/app/data/cli_labs/network-foundations.json; frontend/scripts/cli-engine-sanity.mjs; tasks/loop-log.md
+- Result: pass - npm run cli:validate, npm run cli:sanity, npm run build, no-consecutive-duplicate trigger check, JSON hash comparison, all-7 foundations runtime completion check, and backend pytest passed.
+- Next: No follow-up needed.
+
+## [2026-07-02 14:18:03 -05:00] Task Completed
+- Task: Applied post-review CLI Labs fixes for out-of-order objective progress, topology VLAN/interface initialization, PC-terminal detection for mini objectives, and ping requiredPcAction validation.
+- Files changed: frontend/src/features/cli-labs/engine/objectiveTracker.js; frontend/src/features/cli-labs/engine/commandEngine.js; frontend/src/features/cli-labs/components/LabRunner.jsx; frontend/scripts/validate-cli-labs.mjs; frontend/scripts/cli-engine-sanity.mjs; tasks/loop-log.md
+- Result: pass - npm run cli:validate, npm run cli:sanity, npm run build, all-7 Network Foundations runtime completion checks including enable-first ordering, JSON copy comparison, and backend pytest passed.
+- Next: No follow-up needed.
+
+## [2026-07-02 15:29:09 -05:00] Task Completed
+- Task: Added switching port administration CLI engine commands for lessons A-D, including descriptions, interface ranges, access VLAN assignment, link settings, scoped show commands, MAC filters, and switchport audits.
+- Files changed: frontend/src/features/cli-labs/engine/commandEngine.js; frontend/src/features/cli-labs/engine/interfaceCommands.js; frontend/src/features/cli-labs/engine/macTable.js; frontend/src/features/cli-labs/engine/pcCommands.js; frontend/src/features/cli-labs/engine/supportedEvents.js; frontend/scripts/cli-engine-sanity.mjs; tasks/loop-log.md
+- Result: pass - npm run cli:validate, npm run cli:sanity, and npm run build all passed; validation still reports 25 lessons across 2 files.
+- Next: No follow-up needed.
+
+## [2026-07-02 15:43:21 -05:00] Task Completed
+- Task: Converted Learn Switching sections A-D into the new CLI lab pack, registered it, copied it to backend seed data, and added required engine/tracker support for PC source selection, ARP cache checks, context transitions, and interface/VLAN success criteria.
+- Files changed: frontend/src/features/cli-labs/data/lessons/learn-switching.json; backend/app/data/cli_labs/learn-switching.json; frontend/src/features/cli-labs/data/lessonCatalog.js; frontend/src/features/cli-labs/engine/commandEngine.js; frontend/src/features/cli-labs/engine/objectiveTracker.js; frontend/src/features/cli-labs/engine/pcCommands.js; frontend/src/features/cli-labs/engine/supportedEvents.js; frontend/src/features/cli-labs/components/LabRunner.jsx; frontend/src/features/cli-labs/components/PcTerminal.jsx; frontend/scripts/cli-engine-sanity.mjs; tasks/loop-log.md
+- Result: pass - npm run cli:validate, npm run cli:sanity, npm run build, 23-lab runtime completion drive including out-of-order dev-sw-act-10, backend py_compile, backend pytest, and frontend/backend JSON hash comparison passed.
+- Next: No follow-up needed.
+
+## [2026-07-02 19:50:38 -05:00] Task Completed
+- Task: Applied Wave 2 post-review CLI Labs fixes for dev-sw-act-06 completion, bounded interface ranges, incomplete MAC filter commands, per-PC ARP caches, and learn-switching sanity coverage.
+- Files changed: frontend/src/features/cli-labs/data/lessons/learn-switching.json; backend/app/data/cli_labs/learn-switching.json; frontend/src/features/cli-labs/engine/interfaceCommands.js; frontend/src/features/cli-labs/engine/commandEngine.js; frontend/src/features/cli-labs/engine/pcCommands.js; frontend/scripts/cli-engine-sanity.mjs; tasks/loop-log.md
+- Result: pass - npm run cli:validate, npm run cli:sanity with learn-switching drive and dev-sw-act-06 status-path check, npm run build, backend pytest, and frontend/backend learn-switching.json hash comparison passed.
+- Next: No follow-up needed.

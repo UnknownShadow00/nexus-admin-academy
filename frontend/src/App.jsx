@@ -20,6 +20,8 @@ import QuizEditorPage from "./pages/admin/QuizEditorPage";
 import LearningPath from "./pages/LearningPath";
 import CapstonePage from "./pages/CapstonePage";
 import CapstonesPage from "./pages/CapstonesPage";
+import CliLabPage from "./pages/CliLabPage";
+import CliLabsPage from "./pages/CliLabsPage";
 import CommandReferencePage from "./pages/CommandReferencePage";
 import LabPage from "./pages/LabPage";
 import LabsPage from "./pages/LabsPage";
@@ -43,6 +45,7 @@ const studentNavItems = [
   { to: "/study-tracker", label: "Study Tracker" },
   { to: "/tickets", label: "Tickets" },
   { to: "/labs", label: "Labs" },
+  { to: "/cli-labs", label: "CLI Labs" },
   { to: "/capstones", label: "Capstones" },
   { to: "/commands", label: "Commands" },
   { to: "/terminal", label: "Terminal & Commands" },
@@ -283,6 +286,8 @@ export default function App() {
         <Route path="/tickets/:submissionId/feedback" element={<RequireAuth><TicketFeedback /></RequireAuth>} />
         <Route path="/labs" element={<RequireAuth><LabsPage /></RequireAuth>} />
         <Route path="/labs/:labId" element={<RequireAuth><LabPage /></RequireAuth>} />
+        <Route path="/cli-labs" element={<RequireAuth><CliLabsPage /></RequireAuth>} />
+        <Route path="/cli-labs/:labId" element={<RequireAuth><CliLabPage /></RequireAuth>} />
         <Route path="/capstones" element={<RequireAuth><CapstonesPage /></RequireAuth>} />
         <Route path="/capstones/:capstoneId" element={<RequireAuth><CapstonePage /></RequireAuth>} />
         <Route path="/commands" element={<RequireAuth><CommandReferencePage /></RequireAuth>} />

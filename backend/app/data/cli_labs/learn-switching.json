@@ -1,0 +1,2391 @@
+{
+  "compartmentId": "learn-switching",
+  "compartmentTitle": "Learn Switching",
+  "vendorId": "cisco-ios",
+  "sharedTopology": {
+    "devices": [
+      {
+        "id": "main",
+        "type": "switch",
+        "label": "Switch"
+      },
+      {
+        "id": "PC-A",
+        "type": "pc",
+        "label": "PC-A",
+        "connectedTo": "g0/1",
+        "vlan": 10,
+        "ip": "192.168.10.10"
+      },
+      {
+        "id": "PC-B",
+        "type": "pc",
+        "label": "PC-B",
+        "connectedTo": "g0/2",
+        "vlan": 10,
+        "ip": "192.168.10.20"
+      }
+    ],
+    "interfaces": {
+      "g0/1": {
+        "mode": "access",
+        "status": "up",
+        "accessVlan": 10
+      },
+      "g0/2": {
+        "mode": "access",
+        "status": "up",
+        "accessVlan": 10
+      },
+      "g0/3": {
+        "mode": "access",
+        "status": "down",
+        "shutdown": false,
+        "accessVlan": 1
+      },
+      "g0/4": {
+        "mode": "access",
+        "status": "down",
+        "shutdown": false,
+        "accessVlan": 1
+      }
+    },
+    "vlans": {
+      "10": {
+        "name": "SALES",
+        "ports": [
+          "g0/1",
+          "g0/2"
+        ]
+      }
+    }
+  },
+  "lessons": [
+    {
+      "id": "dev-sw-act-01",
+      "title": "Read the Switch Map",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 7,
+      "sectionTitle": "Section A — Port Basics",
+      "scenario": "A branch switch is already cabled. Three desks are live — PC-A and PC-B in Sales (VLAN 10) and PC-C in IT (VLAN 20) — and one wall port is empty. Before changing anything, read the switch’s map so you can tell a connected port from an empty one and see each port’s VLAN at a glance.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-A",
+            "type": "pc",
+            "label": "PC-A",
+            "connectedTo": "g0/1",
+            "vlan": 10,
+            "ip": "192.168.10.10"
+          },
+          {
+            "id": "PC-B",
+            "type": "pc",
+            "label": "PC-B",
+            "connectedTo": "g0/2",
+            "vlan": 10,
+            "ip": "192.168.10.20"
+          },
+          {
+            "id": "PC-C",
+            "type": "pc",
+            "label": "PC-C",
+            "connectedTo": "g0/3",
+            "vlan": 20,
+            "ip": "192.168.20.30"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/2": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/3": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 20
+          },
+          "g0/4": {
+            "mode": "access",
+            "status": "down",
+            "shutdown": false,
+            "accessVlan": 1
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": [
+              "g0/1",
+              "g0/2"
+            ]
+          },
+          "20": {
+            "name": "IT",
+            "ports": [
+              "g0/3"
+            ]
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "enter-privileged",
+          "label": "Type 'enable' to enter privileged EXEC mode",
+          "trigger": "mode.privileged.enter"
+        },
+        {
+          "id": "show-interface-status",
+          "label": "Type 'show interfaces status' and locate the notconnect port",
+          "trigger": "cmd.show.interfaces-status"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show interfaces status"
+        ]
+      },
+      "hints": [
+        "Enter privileged mode with enable, then run show interfaces status."
+      ],
+      "nextLabId": "dev-sw-act-02"
+    },
+    {
+      "id": "dev-sw-act-02",
+      "title": "Select and Describe Ports",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 8,
+      "sectionTitle": "Section A — Port Basics",
+      "scenario": "Two ports on this switch are live but unlabelled: g0/1 reaches the Sales PC and g0/2 reaches the file server. Unlabelled ports cause mistakes during changes. Select each port, give it a clear description, then verify your work one port at a time — without scrolling the whole running-config.",
+      "startMode": "user",
+      "startState": {
+        "interfaces": {
+          "g0/1": {
+            "description": null
+          },
+          "g0/2": {
+            "description": null
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "enter-config",
+          "label": "Type 'configure terminal' to enter configuration mode",
+          "trigger": "mode.config.enter"
+        },
+        {
+          "id": "describe-g01",
+          "label": "Type 'interface g0/1', then 'description Sales-PC'",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/1"
+            },
+            {
+              "id": "describe",
+              "trigger": "config.description.set",
+              "expectedArg": "Sales-PC"
+            }
+          ]
+        },
+        {
+          "id": "describe-g02",
+          "label": "Type 'interface g0/2', then 'description File-Server'",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/2"
+            },
+            {
+              "id": "describe",
+              "trigger": "config.description.set",
+              "expectedArg": "File-Server"
+            }
+          ]
+        },
+        {
+          "id": "show-g01-config",
+          "label": "Return to privileged mode and type 'show running-config interface g0/1'",
+          "trigger": "cmd.show.running-config-interface"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show running-config interface"
+        ],
+        "requiredState": {
+          "interfaces": {
+            "g0/1": {
+              "description": "Sales-PC"
+            },
+            "g0/2": {
+              "description": "File-Server"
+            }
+          }
+        }
+      },
+      "hints": [
+        "enable, then configure terminal. Select a port with interface g0/1."
+      ],
+      "nextLabId": "dev-sw-act-03"
+    },
+    {
+      "id": "dev-sw-act-03",
+      "title": "Administrative State",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 8,
+      "sectionTitle": "Section A — Port Basics",
+      "scenario": "Two clean-ups are needed on this switch. g0/3 reaches an old, unused workstation that is being decommissioned — administratively disable it. g0/4 reaches a desk that a tech shut by mistake — bring it back. Along the way, notice that an administratively disabled port (disabled) looks different from an empty port with nothing plugged in (notconnect) — g0/5 is one such empty port.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-C",
+            "type": "pc",
+            "label": "PC-C",
+            "connectedTo": "g0/3",
+            "vlan": 1,
+            "ip": "192.168.1.30"
+          },
+          {
+            "id": "PC-D",
+            "type": "pc",
+            "label": "PC-D",
+            "connectedTo": "g0/4",
+            "vlan": 10,
+            "ip": "192.168.10.40"
+          }
+        ],
+        "interfaces": {
+          "g0/3": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/4": {
+            "mode": "access",
+            "accessVlan": 10,
+            "shutdown": true
+          },
+          "g0/5": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": [
+              "g0/4"
+            ]
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "shutdown-g03",
+          "label": "Type 'interface g0/3', then 'shutdown'",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/3"
+            },
+            {
+              "id": "shutdown",
+              "trigger": "interface.shutdown",
+              "expectedArg": "g0/3"
+            }
+          ]
+        },
+        {
+          "id": "no-shutdown-g04",
+          "label": "Type 'interface g0/4', then 'no shutdown'",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/4"
+            },
+            {
+              "id": "restore",
+              "trigger": "interface.no-shutdown",
+              "expectedArg": "g0/4"
+            }
+          ]
+        },
+        {
+          "id": "show-status",
+          "label": "Type 'show interfaces status' and compare disabled, connected, and notconnect",
+          "trigger": "cmd.show.interfaces-status"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show interfaces status"
+        ],
+        "requiredState": {
+          "interfaces": {
+            "g0/3": {
+              "shutdown": true
+            },
+            "g0/4": {
+              "shutdown": false
+            }
+          }
+        }
+      },
+      "hints": [
+        "enable, configure terminal. Select a port (interface g0/3), then shutdown to disable it."
+      ],
+      "nextLabId": "dev-sw-act-04"
+    },
+    {
+      "id": "dev-sw-act-04",
+      "title": "Restore the Silent Port",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 7,
+      "sectionTitle": "Section A — Port Basics",
+      "scenario": "A Sales user on g0/2 reports their desk is offline. Everything else works. Before you send anyone to check cables, read the switch: the Status column will tell you whether this is a configuration problem or a physical one. Fix only what is actually broken — and leave the VLAN alone.",
+      "startMode": "user",
+      "startState": {
+        "interfaces": {
+          "g0/2": {
+            "shutdown": true,
+            "accessVlan": 10
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "show-status-first",
+          "label": "Type 'show interfaces status' and confirm g0/2 is disabled",
+          "trigger": "cmd.show.interfaces-status"
+        },
+        {
+          "id": "restore-g02",
+          "label": "Type 'interface g0/2', then 'no shutdown'",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/2"
+            },
+            {
+              "id": "restore",
+              "trigger": "interface.no-shutdown",
+              "expectedArg": "g0/2"
+            }
+          ]
+        },
+        {
+          "id": "show-vlan-brief",
+          "label": "Type 'show vlan brief' and confirm g0/2 remains in VLAN 10",
+          "trigger": "cmd.show.vlan-brief"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show interfaces status",
+          "show vlan brief"
+        ],
+        "requiredState": {
+          "interfaces": {
+            "g0/2": {
+              "shutdown": false,
+              "accessVlan": 10
+            }
+          },
+          "vlansDetailed": {
+            "10": {
+              "name": "SALES",
+              "ports": [
+                "g0/2"
+              ]
+            }
+          }
+        }
+      },
+      "hints": [
+        "Start with show interfaces status. Is g0/2 disabled (administratively shut) or notconnect (nothing cabled)?"
+      ],
+      "nextLabId": "dev-sw-act-05"
+    },
+    {
+      "id": "dev-sw-act-05",
+      "title": "Configure a Port Range",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 7,
+      "sectionTitle": "Section A — Port Basics",
+      "scenario": "Three open wall ports — g0/4, g0/5, and g0/6 — currently have temporary test devices connected, so the links start up. Rather than disable them one by one, select the whole block with interface range and shut them in a single step. Then verify the range with show ip interface brief.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-D",
+            "type": "pc",
+            "label": "PC-D",
+            "connectedTo": "g0/4",
+            "vlan": 1,
+            "ip": "192.168.1.40"
+          },
+          {
+            "id": "PC-E",
+            "type": "pc",
+            "label": "PC-E",
+            "connectedTo": "g0/5",
+            "vlan": 1,
+            "ip": "192.168.1.50"
+          },
+          {
+            "id": "PC-F",
+            "type": "pc",
+            "label": "PC-F",
+            "connectedTo": "g0/6",
+            "vlan": 1,
+            "ip": "192.168.1.60"
+          }
+        ],
+        "interfaces": {
+          "g0/4": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/5": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/6": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          }
+        },
+        "vlans": {}
+      },
+      "objectives": [
+        {
+          "id": "range-shutdown",
+          "label": "Type 'interface range g0/4 - 6', then 'shutdown'",
+          "miniObjectives": [
+            {
+              "id": "range",
+              "trigger": "mode.interface-range.enter",
+              "expectedArg": "g0/4 - 6"
+            },
+            {
+              "id": "shutdown",
+              "trigger": "interface.shutdown",
+              "expectedArg": "g0/4 - 6"
+            }
+          ]
+        },
+        {
+          "id": "show-ip-brief",
+          "label": "Type 'show ip int br' and confirm g0/4, g0/5, and g0/6 are down",
+          "trigger": "cmd.show.ip-interface-brief"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show ip interface brief"
+        ],
+        "requiredState": {
+          "interfaces": {
+            "g0/4": {
+              "shutdown": true
+            },
+            "g0/5": {
+              "shutdown": true
+            },
+            "g0/6": {
+              "shutdown": true
+            }
+          }
+        }
+      },
+      "hints": [
+        "Select the block in one shot: interface range g0/4 - 6. The prompt changes to (config-if-range)."
+      ],
+      "nextLabId": "dev-sw-act-06"
+    },
+    {
+      "id": "dev-sw-act-06",
+      "title": "Link Settings Audit",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 8,
+      "sectionTitle": "Section A — Port Basics",
+      "scenario": "The same branch switch is live. Before you trust the access layer, audit whether each link is up and what duplex and speed it settled on. Both show interfaces status and show interfaces expose that evidence at different levels of detail, so use either one. Three desks are connected (PC-A and PC-B in Sales VLAN 10, PC-C in IT VLAN 20) and one wall port is empty.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-A",
+            "type": "pc",
+            "label": "PC-A",
+            "connectedTo": "g0/1",
+            "vlan": 10,
+            "ip": "192.168.10.10"
+          },
+          {
+            "id": "PC-B",
+            "type": "pc",
+            "label": "PC-B",
+            "connectedTo": "g0/2",
+            "vlan": 10,
+            "ip": "192.168.10.20"
+          },
+          {
+            "id": "PC-C",
+            "type": "pc",
+            "label": "PC-C",
+            "connectedTo": "g0/3",
+            "vlan": 20,
+            "ip": "192.168.20.30"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/2": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/3": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 20
+          },
+          "g0/4": {
+            "mode": "access",
+            "status": "down",
+            "shutdown": false,
+            "accessVlan": 1
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": [
+              "g0/1",
+              "g0/2"
+            ]
+          },
+          "20": {
+            "name": "IT",
+            "ports": [
+              "g0/3"
+            ]
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "enter-privileged",
+          "label": "Type 'enable' to enter privileged EXEC mode",
+          "trigger": "mode.privileged.enter"
+        },
+        {
+          "id": "show-interfaces",
+          "label": "Use 'show interfaces status' or 'show interfaces' to audit link state, duplex, and speed",
+          "trigger": "regex:^show\\s+interfaces(\\s+status|\\s+g0/1)?$"
+        },
+        {
+          "id": "force-half-duplex",
+          "label": "Type 'interface g0/2', then 'duplex half' to observe the mismatch",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/2"
+            },
+            {
+              "id": "duplex",
+              "trigger": "config.duplex.set",
+              "expectedArg": "half"
+            }
+          ]
+        }
+      ],
+      "successCriteria": {
+        "requiredState": {
+          "interfaces": {
+            "g0/2": {
+              "duplex": "half"
+            }
+          }
+        }
+      },
+      "hints": [
+        "Enter privileged mode with enable, then use show interfaces status for a summary or show interfaces for detailed per-port output."
+      ],
+      "nextLabId": "dev-sw-act-07"
+    },
+    {
+      "id": "dev-sw-act-07",
+      "title": "Build an Ethernet Frame",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 7,
+      "sectionTitle": "Section B — Frames and MAC Learning",
+      "scenario": "Before a switch can forward anything, it works with Ethernet frames. PC-A wants to send a frame to PC-B across one switch. In this lesson you will assemble the frame field by field, see which field the switch uses to forward and which it learns from, read MAC and EtherType values in hexadecimal, then send one ping so the packet transcript can walk the frame on the wire.",
+      "startMode": "user",
+      "objectives": [
+        {
+          "id": "ping-pc-b",
+          "label": "Open PC-A and type 'ping 192.168.10.20'",
+          "trigger": "pc.ping.success",
+          "expectedArg": "PC-A: ping 192.168.10.20"
+        }
+      ],
+      "successCriteria": {
+        "requiredPcAction": "ping 192.168.10.20"
+      },
+      "hints": [
+        "An Ethernet II frame carries: Destination MAC, Source MAC, EtherType, Payload, and a Frame Check Sequence (FCS)."
+      ],
+      "nextLabId": "dev-sw-act-08"
+    },
+    {
+      "id": "dev-sw-act-08",
+      "title": "Forward, Flood, or Filter",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 7,
+      "sectionTitle": "Section B — Frames and MAC Learning",
+      "scenario": "A switch makes one decision for every frame: forward it out a known port, flood it out every other port in the VLAN, or filter (drop) it because the destination is already on the port it arrived on. The decision depends entirely on what the switch has learned. Read the switch's port map first so you can see the flood domain, then work through each case before you watch it happen for real in the next lab.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-A",
+            "type": "pc",
+            "label": "PC-A",
+            "connectedTo": "g0/1",
+            "vlan": 10,
+            "ip": "192.168.10.10"
+          },
+          {
+            "id": "PC-B",
+            "type": "pc",
+            "label": "PC-B",
+            "connectedTo": "g0/2",
+            "vlan": 10,
+            "ip": "192.168.10.20"
+          },
+          {
+            "id": "PC-C",
+            "type": "pc",
+            "label": "PC-C",
+            "connectedTo": "g0/3",
+            "vlan": 10,
+            "ip": "192.168.10.30"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/2": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/3": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": [
+              "g0/1",
+              "g0/2",
+              "g0/3"
+            ]
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "enter-privileged",
+          "label": "Type 'enable' to enter privileged EXEC mode",
+          "trigger": "mode.privileged.enter"
+        },
+        {
+          "id": "show-interface-status",
+          "label": "Type 'show interfaces status' and confirm g0/1-g0/3 share VLAN 10",
+          "trigger": "cmd.show.interfaces-status"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show interfaces status"
+        ]
+      },
+      "hints": [
+        "For every frame the switch FIRST learns the source MAC on the ingress port, THEN looks up the destination MAC."
+      ],
+      "nextLabId": "dev-sw-act-09"
+    },
+    {
+      "id": "dev-sw-act-09",
+      "title": "Watch a Switch Learn",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 12,
+      "sectionTitle": "Section B — Frames and MAC Learning",
+      "scenario": "Four Sales PCs share VLAN 10 on one switch. The MAC table starts empty. Establish a baseline, predict the first forwarding decision, compare the first and repeat ping to PC-B, then apply the same model to PC-C and PC-D. Finish by mapping every learned MAC address to its access port.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-A",
+            "type": "pc",
+            "label": "PC-A",
+            "connectedTo": "g0/1",
+            "vlan": 10,
+            "ip": "192.168.10.10"
+          },
+          {
+            "id": "PC-B",
+            "type": "pc",
+            "label": "PC-B",
+            "connectedTo": "g0/2",
+            "vlan": 10,
+            "ip": "192.168.10.20"
+          },
+          {
+            "id": "PC-C",
+            "type": "pc",
+            "label": "PC-C",
+            "connectedTo": "g0/3",
+            "vlan": 10,
+            "ip": "192.168.10.30"
+          },
+          {
+            "id": "PC-D",
+            "type": "pc",
+            "label": "PC-D",
+            "connectedTo": "g0/4",
+            "vlan": 10,
+            "ip": "192.168.10.40"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/2": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/3": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/4": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": [
+              "g0/1",
+              "g0/2",
+              "g0/3",
+              "g0/4"
+            ]
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "show-empty-table",
+          "label": "Type 'enable', then 'show mac address-table' for the empty-table baseline",
+          "trigger": "cmd.show.mac-address-table"
+        },
+        {
+          "id": "ping-pc-b-twice",
+          "label": "From PC-A, ping 192.168.10.20 twice",
+          "miniObjectives": [
+            {
+              "id": "first",
+              "trigger": "pc.ping.success",
+              "expectedArg": "PC-A: ping 192.168.10.20"
+            },
+            {
+              "id": "second",
+              "trigger": "pc.ping.success",
+              "expectedArg": "PC-A: ping 192.168.10.20"
+            }
+          ]
+        },
+        {
+          "id": "show-ab-table",
+          "label": "Type 'show mac address-table' and find PC-A and PC-B",
+          "trigger": "cmd.show.mac-address-table"
+        },
+        {
+          "id": "ping-pc-cd",
+          "label": "From PC-A, ping PC-C and PC-D",
+          "miniObjectives": [
+            {
+              "id": "pc-c",
+              "trigger": "pc.ping.success",
+              "expectedArg": "PC-A: ping 192.168.10.30"
+            },
+            {
+              "id": "pc-d",
+              "trigger": "pc.ping.success",
+              "expectedArg": "PC-A: ping 192.168.10.40"
+            }
+          ]
+        },
+        {
+          "id": "show-all-table",
+          "label": "Type 'show mac address-table' and map PC-A through PC-D",
+          "trigger": "cmd.show.mac-address-table"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show mac address-table"
+        ],
+        "requiredPcAction": "ping 192.168.10.40"
+      },
+      "hints": [
+        "Start with the empty table. The important question is not only whether a ping works, but what forwarding evidence changes afterward."
+      ],
+      "nextLabId": "dev-sw-act-10"
+    },
+    {
+      "id": "dev-sw-act-10",
+      "title": "Filter MAC Evidence",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 9,
+      "sectionTitle": "Section B — Frames and MAC Learning",
+      "scenario": "One switch carries two departments: Sales in VLAN 10 (PC-A 192.168.10.10 on g0/1, PC-B 192.168.10.20 on g0/2) and IT in VLAN 20 (PC-C 192.168.20.30 on g0/3, PC-D 192.168.20.40 on g0/4). First generate traffic inside each VLAN, then use the MAC-table filters to answer specific questions without scrolling past unrelated entries.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-A",
+            "type": "pc",
+            "label": "PC-A",
+            "connectedTo": "g0/1",
+            "vlan": 10,
+            "ip": "192.168.10.10"
+          },
+          {
+            "id": "PC-B",
+            "type": "pc",
+            "label": "PC-B",
+            "connectedTo": "g0/2",
+            "vlan": 10,
+            "ip": "192.168.10.20"
+          },
+          {
+            "id": "PC-C",
+            "type": "pc",
+            "label": "PC-C",
+            "connectedTo": "g0/3",
+            "vlan": 20,
+            "ip": "192.168.20.30"
+          },
+          {
+            "id": "PC-D",
+            "type": "pc",
+            "label": "PC-D",
+            "connectedTo": "g0/4",
+            "vlan": 20,
+            "ip": "192.168.20.40"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/2": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/3": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 20
+          },
+          "g0/4": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 20
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": [
+              "g0/1",
+              "g0/2"
+            ]
+          },
+          "20": {
+            "name": "IT",
+            "ports": [
+              "g0/3",
+              "g0/4"
+            ]
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "ping-sales",
+          "label": "Open PC-A and type 'ping 192.168.10.20'",
+          "trigger": "pc.ping.success",
+          "expectedArg": "PC-A: ping 192.168.10.20"
+        },
+        {
+          "id": "ping-it",
+          "label": "Open PC-C and type 'ping 192.168.20.40'",
+          "trigger": "pc.ping.success",
+          "expectedArg": "PC-C: ping 192.168.20.40"
+        },
+        {
+          "id": "show-dynamic",
+          "label": "Type 'show mac address-table dynamic'",
+          "trigger": "cmd.show.mac-address-table-dynamic"
+        },
+        {
+          "id": "show-vlan-10",
+          "label": "Type 'show mac address-table vlan 10'",
+          "trigger": "cmd.show.mac-address-table-vlan",
+          "expectedArg": "10"
+        },
+        {
+          "id": "show-interface-g03",
+          "label": "Type 'show mac address-table interface g0/3'",
+          "trigger": "cmd.show.mac-address-table-interface",
+          "expectedArg": "g0/3"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show mac address-table dynamic",
+          "show mac address-table vlan",
+          "show mac address-table interface"
+        ],
+        "requiredPcAction": "ping 192.168.20.40"
+      },
+      "hints": [
+        "First create entries: from PC-A ping 192.168.10.20, and from PC-C ping 192.168.20.40. Each ping is within one VLAN, so it succeeds."
+      ],
+      "nextLabId": "dev-sw-act-11"
+    },
+    {
+      "id": "dev-sw-act-11",
+      "title": "ARP Before ICMP",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 9,
+      "sectionTitle": "Section B — Frames and MAC Learning",
+      "scenario": "PC-A (192.168.10.10) and PC-B (192.168.10.20) share VLAN 10 on one switch. PC-A knows PC-B’s IP but not its MAC. A ping cannot leave until ARP resolves that MAC. Generate one ping, step through the packet transcript to see the ARP request and reply, then read PC-A’s own ARP cache and compare it with the switch’s MAC table — two different tables on two different devices.",
+      "startMode": "user",
+      "objectives": [
+        {
+          "id": "ping-pc-b",
+          "label": "Open PC-A and type 'ping 192.168.10.20'",
+          "trigger": "pc.ping.success",
+          "expectedArg": "PC-A: ping 192.168.10.20"
+        },
+        {
+          "id": "show-arp",
+          "label": "On PC-A, type 'arp -a'",
+          "trigger": "pc.arp.show",
+          "expectedArg": "PC-A"
+        }
+      ],
+      "successCriteria": {},
+      "hints": [
+        "On PC-A, run ping 192.168.10.20. The first thing that happens is an ARP broadcast asking \"who has 192.168.10.20?\"."
+      ],
+      "nextLabId": "dev-sw-act-12"
+    },
+    {
+      "id": "dev-sw-act-12",
+      "title": "Same VLAN, Different VLAN",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 8,
+      "sectionTitle": "Section B — Frames and MAC Learning",
+      "scenario": "One switch carries two VLANs: Sales VLAN 10 (PC-A 192.168.10.10 on g0/1, PC-B 192.168.10.20 on g0/2) and IT VLAN 20 (PC-C 192.168.20.30 on g0/3). From PC-A, prove you can reach PC-B in the same VLAN, then try to reach PC-C in a different VLAN and read exactly where the switch stops the frame. No router is present, so the cross-VLAN attempt must fail.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-A",
+            "type": "pc",
+            "label": "PC-A",
+            "connectedTo": "g0/1",
+            "vlan": 10,
+            "ip": "192.168.10.10"
+          },
+          {
+            "id": "PC-B",
+            "type": "pc",
+            "label": "PC-B",
+            "connectedTo": "g0/2",
+            "vlan": 10,
+            "ip": "192.168.10.20"
+          },
+          {
+            "id": "PC-C",
+            "type": "pc",
+            "label": "PC-C",
+            "connectedTo": "g0/3",
+            "vlan": 20,
+            "ip": "192.168.20.30"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/2": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/3": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 20
+          },
+          "g0/4": {
+            "mode": "access",
+            "status": "down",
+            "shutdown": false,
+            "accessVlan": 1
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": [
+              "g0/1",
+              "g0/2"
+            ]
+          },
+          "20": {
+            "name": "IT",
+            "ports": [
+              "g0/3"
+            ]
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "ping-same-vlan",
+          "label": "Open PC-A and type 'ping 192.168.10.20'",
+          "trigger": "pc.ping.success",
+          "expectedArg": "PC-A: ping 192.168.10.20"
+        },
+        {
+          "id": "ping-different-vlan",
+          "label": "On PC-A, type 'ping 192.168.20.30' and observe the failure",
+          "trigger": "pc.ping.failed"
+        }
+      ],
+      "successCriteria": {
+        "requiredPcAction": "ping 192.168.20.30"
+      },
+      "hints": [
+        "From PC-A, ping 192.168.10.20. PC-B is in the same VLAN 10, so delivery works."
+      ],
+      "nextLabId": "dev-sw-act-13"
+    },
+    {
+      "id": "dev-sw-act-13",
+      "title": "VLANs as Broadcast Domains",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 7,
+      "sectionTitle": "Section C — VLAN Foundations",
+      "scenario": "One switch can be split into separate broadcast domains called VLANs. A frame — especially a broadcast — only reaches ports in the same VLAN as the sender. Here PC-A and PC-B share VLAN 10 while PC-C sits in VLAN 20. Read the switch's port map to see the two broadcast domains, then predict where a broadcast travels before you build any VLANs in the next labs.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-A",
+            "type": "pc",
+            "label": "PC-A",
+            "connectedTo": "g0/1",
+            "vlan": 10,
+            "ip": "192.168.10.10"
+          },
+          {
+            "id": "PC-B",
+            "type": "pc",
+            "label": "PC-B",
+            "connectedTo": "g0/2",
+            "vlan": 10,
+            "ip": "192.168.10.20"
+          },
+          {
+            "id": "PC-C",
+            "type": "pc",
+            "label": "PC-C",
+            "connectedTo": "g0/3",
+            "vlan": 20,
+            "ip": "192.168.20.30"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/2": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 10
+          },
+          "g0/3": {
+            "mode": "access",
+            "status": "up",
+            "accessVlan": 20
+          },
+          "g0/4": {
+            "mode": "access",
+            "status": "down",
+            "shutdown": false,
+            "accessVlan": 1
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": [
+              "g0/1",
+              "g0/2"
+            ]
+          },
+          "20": {
+            "name": "IT",
+            "ports": [
+              "g0/3"
+            ]
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "enter-privileged",
+          "label": "Type 'enable' to enter privileged EXEC mode",
+          "trigger": "mode.privileged.enter"
+        },
+        {
+          "id": "show-interface-status",
+          "label": "Type 'show interfaces status' and read the VLAN column",
+          "trigger": "cmd.show.interfaces-status"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show interfaces status"
+        ]
+      },
+      "hints": [
+        "A VLAN is one broadcast domain. A broadcast frame floods to every port in the VLAN and no further."
+      ],
+      "nextLabId": "dev-sw-act-14"
+    },
+    {
+      "id": "dev-sw-act-14",
+      "title": "Create and Name a VLAN",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 8,
+      "sectionTitle": "Section C — VLAN Foundations",
+      "scenario": "The Sales team needs its own VLAN on this switch. Create VLAN 10, name it SALES so it is recognisable, and verify it appears with the right name and status. Only VLAN 1 (default) exists right now.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/2": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/3": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/4": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          }
+        },
+        "vlans": {}
+      },
+      "objectives": [
+        {
+          "id": "enter-config",
+          "label": "Type 'configure terminal' to enter configuration mode",
+          "trigger": "mode.config.enter"
+        },
+        {
+          "id": "create-vlan-10",
+          "label": "Type 'vlan 10'",
+          "trigger": "vlan.create",
+          "expectedArg": "10"
+        },
+        {
+          "id": "name-sales",
+          "label": "In the VLAN, type 'name SALES'",
+          "trigger": "config.vlan-name.set",
+          "expectedArg": "SALES"
+        },
+        {
+          "id": "show-vlan-brief",
+          "label": "Return to privileged mode and type 'show vlan brief'",
+          "trigger": "cmd.show.vlan-brief"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show vlan brief"
+        ],
+        "requiredState": {
+          "vlansDetailed": {
+            "10": {
+              "name": "SALES"
+            }
+          }
+        }
+      },
+      "hints": [
+        "enable, then configure terminal. Create the VLAN with vlan 10 — the prompt becomes (config-vlan)."
+      ],
+      "nextLabId": "dev-sw-act-15"
+    },
+    {
+      "id": "dev-sw-act-15",
+      "title": "Build Department VLANs",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 9,
+      "sectionTitle": "Section C — VLAN Foundations",
+      "scenario": "The branch is growing. Build three department VLANs on this switch: VLAN 10 SALES, VLAN 20 HR, and VLAN 30 IT. Only the default VLAN exists today. Create and name each one, then confirm they are all present.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/2": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/3": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/4": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          }
+        },
+        "vlans": {}
+      },
+      "objectives": [
+        {
+          "id": "vlan-10-sales",
+          "label": "Create VLAN 10 and name it SALES",
+          "miniObjectives": [
+            {
+              "id": "create",
+              "trigger": "vlan.create",
+              "expectedArg": "10"
+            },
+            {
+              "id": "name",
+              "trigger": "config.vlan-name.set",
+              "expectedArg": "SALES"
+            }
+          ]
+        },
+        {
+          "id": "vlan-20-hr",
+          "label": "Create VLAN 20 and name it HR",
+          "miniObjectives": [
+            {
+              "id": "create",
+              "trigger": "vlan.create",
+              "expectedArg": "20"
+            },
+            {
+              "id": "name",
+              "trigger": "config.vlan-name.set",
+              "expectedArg": "HR"
+            }
+          ]
+        },
+        {
+          "id": "vlan-30-it",
+          "label": "Create VLAN 30 and name it IT",
+          "miniObjectives": [
+            {
+              "id": "create",
+              "trigger": "vlan.create",
+              "expectedArg": "30"
+            },
+            {
+              "id": "name",
+              "trigger": "config.vlan-name.set",
+              "expectedArg": "IT"
+            }
+          ]
+        },
+        {
+          "id": "show-vlan-brief",
+          "label": "Type 'show vlan brief' and confirm the database",
+          "trigger": "cmd.show.vlan-brief"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show vlan brief"
+        ],
+        "requiredState": {
+          "vlansDetailed": {
+            "10": {
+              "name": "SALES"
+            },
+            "20": {
+              "name": "HR"
+            },
+            "30": {
+              "name": "IT"
+            }
+          }
+        }
+      },
+      "hints": [
+        "Create each VLAN the same way: vlan 10 → name SALES, vlan 20 → name HR, vlan 30 → name IT."
+      ],
+      "nextLabId": "dev-sw-act-16"
+    },
+    {
+      "id": "dev-sw-act-16",
+      "title": "Repair the VLAN Database",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 9,
+      "sectionTitle": "Section C — VLAN Foundations",
+      "scenario": "A colleague set up this switch in a hurry. The plan calls for VLAN 10 SALES, VLAN 20 HR, and VLAN 30 IT — but something is off. Read the current database, find what is wrong, and fix exactly two problems: VLAN 10 has the wrong name, and one required VLAN is missing. Leave the correct VLAN alone.",
+      "startMode": "user",
+      "startState": {
+        "vlans": {
+          "10": {
+            "name": "SALESS",
+            "ports": []
+          },
+          "30": {
+            "name": "IT",
+            "ports": []
+          }
+        },
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "show-vlan-first",
+          "label": "Type 'show vlan brief' first; find VLAN 10 SALESS and missing VLAN 20",
+          "trigger": "cmd.show.vlan-brief"
+        },
+        {
+          "id": "rename-vlan-10",
+          "label": "Rename VLAN 10 to SALES",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.vlan.enter",
+              "expectedArg": "10"
+            },
+            {
+              "id": "name",
+              "trigger": "config.vlan-name.set",
+              "expectedArg": "SALES"
+            }
+          ]
+        },
+        {
+          "id": "create-vlan-20",
+          "label": "Create VLAN 20 and name it HR",
+          "miniObjectives": [
+            {
+              "id": "create",
+              "trigger": "vlan.create",
+              "expectedArg": "20"
+            },
+            {
+              "id": "name",
+              "trigger": "config.vlan-name.set",
+              "expectedArg": "HR"
+            }
+          ]
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show vlan brief"
+        ],
+        "requiredState": {
+          "vlansDetailed": {
+            "10": {
+              "name": "SALES"
+            },
+            "20": {
+              "name": "HR"
+            },
+            "30": {
+              "name": "IT"
+            }
+          }
+        }
+      },
+      "hints": [
+        "Start with show vlan brief. Compare what you see against the plan: VLAN 10 SALES, VLAN 20 HR, VLAN 30 IT."
+      ],
+      "nextLabId": "dev-sw-act-17"
+    },
+    {
+      "id": "dev-sw-act-17",
+      "title": "Exam 1: VLAN Foundations",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 10,
+      "type": "exam",
+      "sectionTitle": "Section C — VLAN Foundations",
+      "scenario": "Time to prove you can build a VLAN database unaided. This switch has only the default VLAN. Create and name VLAN 10 SALES, VLAN 20 HR, and VLAN 30 IT, then verify your work with show vlan brief. No hints are provided.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/2": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/3": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/4": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          }
+        },
+        "vlans": {}
+      },
+      "objectives": [
+        {
+          "id": "vlan-10-sales",
+          "label": "Create and name VLAN 10 SALES",
+          "miniObjectives": [
+            {
+              "id": "create",
+              "trigger": "vlan.create",
+              "expectedArg": "10"
+            },
+            {
+              "id": "name",
+              "trigger": "config.vlan-name.set",
+              "expectedArg": "SALES"
+            }
+          ]
+        },
+        {
+          "id": "vlan-20-hr",
+          "label": "Create and name VLAN 20 HR",
+          "miniObjectives": [
+            {
+              "id": "create",
+              "trigger": "vlan.create",
+              "expectedArg": "20"
+            },
+            {
+              "id": "name",
+              "trigger": "config.vlan-name.set",
+              "expectedArg": "HR"
+            }
+          ]
+        },
+        {
+          "id": "vlan-30-it",
+          "label": "Create and name VLAN 30 IT",
+          "miniObjectives": [
+            {
+              "id": "create",
+              "trigger": "vlan.create",
+              "expectedArg": "30"
+            },
+            {
+              "id": "name",
+              "trigger": "config.vlan-name.set",
+              "expectedArg": "IT"
+            }
+          ]
+        },
+        {
+          "id": "show-vlan-brief",
+          "label": "Verify the VLAN database with 'show vlan brief'",
+          "trigger": "cmd.show.vlan-brief"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show vlan brief"
+        ],
+        "requiredState": {
+          "vlansDetailed": {
+            "10": {
+              "name": "SALES"
+            },
+            "20": {
+              "name": "HR"
+            },
+            "30": {
+              "name": "IT"
+            }
+          }
+        }
+      },
+      "hints": [],
+      "nextLabId": "dev-sw-act-18"
+    },
+    {
+      "id": "dev-sw-act-18",
+      "title": "Configure the First Access Port",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 8,
+      "sectionTitle": "Section D — Access Ports",
+      "scenario": "VLAN 10 SALES already exists, but the Sales laptop on g0/1 is still in the default VLAN 1. Make g0/1 a static access port and place it in VLAN 10, then confirm the switch sees it there.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-A",
+            "type": "pc",
+            "label": "PC-A",
+            "connectedTo": "g0/1",
+            "vlan": 10,
+            "ip": "192.168.10.10"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": []
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "g01-access-vlan-10",
+          "label": "Type 'interface g0/1', 'switchport mode access', then 'switchport access vlan 10'",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/1"
+            },
+            {
+              "id": "mode",
+              "trigger": "config.switchport-mode.set",
+              "expectedArg": "access"
+            },
+            {
+              "id": "vlan",
+              "trigger": "config.access-vlan.set",
+              "expectedArg": "10"
+            }
+          ]
+        },
+        {
+          "id": "show-vlan-brief",
+          "label": "Type 'show vlan brief' and confirm g0/1 is under VLAN 10",
+          "trigger": "cmd.show.vlan-brief"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show vlan brief"
+        ],
+        "requiredState": {
+          "interfaces": {
+            "g0/1": {
+              "mode": "access",
+              "accessVlan": 10
+            }
+          }
+        }
+      },
+      "hints": [
+        "enable, configure terminal, interface g0/1."
+      ],
+      "nextLabId": "dev-sw-act-19"
+    },
+    {
+      "id": "dev-sw-act-19",
+      "title": "Assign a Desk Group",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 8,
+      "sectionTitle": "Section D — Access Ports",
+      "scenario": "Three more Sales desks just arrived on g0/2, g0/3, and g0/4. Rather than configure them one at a time, select the whole block with interface range and put all three into VLAN 10 in one pass. Then confirm every port landed in the right VLAN.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-B",
+            "type": "pc",
+            "label": "PC-B",
+            "connectedTo": "g0/2",
+            "vlan": 10,
+            "ip": "192.168.10.20"
+          },
+          {
+            "id": "PC-C",
+            "type": "pc",
+            "label": "PC-C",
+            "connectedTo": "g0/3",
+            "vlan": 10,
+            "ip": "192.168.10.30"
+          },
+          {
+            "id": "PC-D",
+            "type": "pc",
+            "label": "PC-D",
+            "connectedTo": "g0/4",
+            "vlan": 10,
+            "ip": "192.168.10.40"
+          }
+        ],
+        "interfaces": {
+          "g0/2": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/3": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/4": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": []
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "range-access-vlan-10",
+          "label": "Type 'interface range g0/2 - 4', 'switchport mode access', and 'switchport access vlan 10'",
+          "miniObjectives": [
+            {
+              "id": "range",
+              "trigger": "mode.interface-range.enter",
+              "expectedArg": "g0/2 - 4"
+            },
+            {
+              "id": "mode",
+              "trigger": "config.switchport-mode.set",
+              "expectedArg": "access"
+            },
+            {
+              "id": "vlan",
+              "trigger": "config.access-vlan.set",
+              "expectedArg": "10"
+            }
+          ]
+        },
+        {
+          "id": "show-vlan-brief",
+          "label": "Type 'show vlan brief' and verify g0/2, g0/3, and g0/4",
+          "trigger": "cmd.show.vlan-brief"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show vlan brief"
+        ],
+        "requiredState": {
+          "interfaces": {
+            "g0/2": {
+              "mode": "access",
+              "accessVlan": 10
+            },
+            "g0/3": {
+              "mode": "access",
+              "accessVlan": 10
+            },
+            "g0/4": {
+              "mode": "access",
+              "accessVlan": 10
+            }
+          }
+        }
+      },
+      "hints": [
+        "Select the block: interface range g0/2 - 4. The prompt becomes (config-if-range)."
+      ],
+      "nextLabId": "dev-sw-act-20"
+    },
+    {
+      "id": "dev-sw-act-20",
+      "title": "Prove Same-VLAN Delivery",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 9,
+      "sectionTitle": "Section D — Access Ports",
+      "scenario": "Two Sales laptops are cabled to g0/1 (PC-A) and g0/2 (PC-B) but both sit in the default VLAN. VLAN 10 SALES already exists. Put both ports in VLAN 10 — once they share a VLAN they become 192.168.10.10 and 192.168.10.20 — then prove delivery with a ping from PC-A to PC-B.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-A",
+            "type": "pc",
+            "label": "PC-A",
+            "connectedTo": "g0/1",
+            "vlan": 10,
+            "ip": "192.168.10.10"
+          },
+          {
+            "id": "PC-B",
+            "type": "pc",
+            "label": "PC-B",
+            "connectedTo": "g0/2",
+            "vlan": 10,
+            "ip": "192.168.10.20"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/2": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": []
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "g01-access-vlan-10",
+          "label": "Configure g0/1 as access and 'switchport access vlan 10'",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/1"
+            },
+            {
+              "id": "mode",
+              "trigger": "config.switchport-mode.set",
+              "expectedArg": "access"
+            },
+            {
+              "id": "vlan",
+              "trigger": "config.access-vlan.set",
+              "expectedArg": "10"
+            }
+          ]
+        },
+        {
+          "id": "g02-access-vlan-10",
+          "label": "Configure g0/2 as access and 'switchport access vlan 10'",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/2"
+            },
+            {
+              "id": "mode",
+              "trigger": "config.switchport-mode.set",
+              "expectedArg": "access"
+            },
+            {
+              "id": "vlan",
+              "trigger": "config.access-vlan.set",
+              "expectedArg": "10"
+            }
+          ]
+        },
+        {
+          "id": "ping-pc-b",
+          "label": "Open PC-A and type 'ping 192.168.10.20'",
+          "trigger": "pc.ping.success",
+          "expectedArg": "PC-A: ping 192.168.10.20"
+        }
+      ],
+      "successCriteria": {
+        "requiredPcAction": "ping 192.168.10.20",
+        "requiredState": {
+          "interfaces": {
+            "g0/1": {
+              "mode": "access",
+              "accessVlan": 10
+            },
+            "g0/2": {
+              "mode": "access",
+              "accessVlan": 10
+            }
+          }
+        }
+      },
+      "hints": [
+        "Configure each port: interface g0/1 → switchport mode access → switchport access vlan 10, and the same for g0/2."
+      ],
+      "nextLabId": "dev-sw-act-21"
+    },
+    {
+      "id": "dev-sw-act-21",
+      "title": "Wrong Desk, Wrong VLAN",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 9,
+      "sectionTitle": "Section D — Access Ports",
+      "scenario": "Three Sales desks should all be in VLAN 10, but PC-C on g0/3 cannot reach its neighbours. PC-A (g0/1) and PC-B (g0/2) are fine in VLAN 10. Inspect the ports, find the one in the wrong VLAN, move only it into VLAN 10, and prove PC-A can now reach PC-C. Do not disturb the working desks.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-A",
+            "type": "pc",
+            "label": "PC-A",
+            "connectedTo": "g0/1",
+            "vlan": 10,
+            "ip": "192.168.10.10"
+          },
+          {
+            "id": "PC-B",
+            "type": "pc",
+            "label": "PC-B",
+            "connectedTo": "g0/2",
+            "vlan": 10,
+            "ip": "192.168.10.20"
+          },
+          {
+            "id": "PC-C",
+            "type": "pc",
+            "label": "PC-C",
+            "connectedTo": "g0/3",
+            "vlan": 10,
+            "ip": "192.168.10.30"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "accessVlan": 10,
+            "shutdown": false
+          },
+          "g0/2": {
+            "mode": "access",
+            "accessVlan": 10,
+            "shutdown": false
+          },
+          "g0/3": {
+            "mode": "access",
+            "accessVlan": 99,
+            "shutdown": false
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": [
+              "g0/1",
+              "g0/2"
+            ]
+          },
+          "99": {
+            "name": "QUARANTINE",
+            "ports": [
+              "g0/3"
+            ]
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "show-vlan-brief",
+          "label": "Type 'show vlan brief' and find g0/3 in the wrong VLAN",
+          "trigger": "cmd.show.vlan-brief"
+        },
+        {
+          "id": "repair-g03",
+          "label": "Set 'switchport access vlan 10' on g0/3",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/3"
+            },
+            {
+              "id": "vlan",
+              "trigger": "config.access-vlan.set",
+              "expectedArg": "10"
+            }
+          ]
+        },
+        {
+          "id": "ping-pc-c",
+          "label": "From PC-A, type 'ping 192.168.10.30'",
+          "trigger": "pc.ping.success",
+          "expectedArg": "PC-A: ping 192.168.10.30"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show vlan brief"
+        ],
+        "requiredPcAction": "ping 192.168.10.30",
+        "requiredState": {
+          "interfaces": {
+            "g0/3": {
+              "accessVlan": 10
+            },
+            "g0/1": {
+              "accessVlan": 10
+            },
+            "g0/2": {
+              "accessVlan": 10
+            }
+          }
+        }
+      },
+      "hints": [
+        "Use show vlan brief to compare the three Sales ports. Two are in VLAN 10; one is not."
+      ],
+      "nextLabId": "dev-sw-act-22"
+    },
+    {
+      "id": "dev-sw-act-22",
+      "title": "Access-Port Handoff Audit",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 8,
+      "sectionTitle": "Section D — Access Ports",
+      "scenario": "You are taking over this switch from another technician. Before you trust it, audit the access ports with show interfaces switchport — it shows each port’s administrative mode, operational mode, and access VLAN in one place. The ports are already configured: g0/1 and g0/2 in Sales VLAN 10, g0/3 in HR VLAN 20. Read the evidence; change nothing unless it is wrong.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-A",
+            "type": "pc",
+            "label": "PC-A",
+            "connectedTo": "g0/1",
+            "vlan": 10,
+            "ip": "192.168.10.10"
+          },
+          {
+            "id": "PC-B",
+            "type": "pc",
+            "label": "PC-B",
+            "connectedTo": "g0/2",
+            "vlan": 10,
+            "ip": "192.168.10.20"
+          },
+          {
+            "id": "PC-C",
+            "type": "pc",
+            "label": "PC-C",
+            "connectedTo": "g0/3",
+            "vlan": 20,
+            "ip": "192.168.20.30"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "accessVlan": 10,
+            "shutdown": false
+          },
+          "g0/2": {
+            "mode": "access",
+            "accessVlan": 10,
+            "shutdown": false
+          },
+          "g0/3": {
+            "mode": "access",
+            "accessVlan": 20,
+            "shutdown": false
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": [
+              "g0/1",
+              "g0/2"
+            ]
+          },
+          "20": {
+            "name": "HR",
+            "ports": [
+              "g0/3"
+            ]
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "enter-privileged",
+          "label": "Type 'enable' to enter privileged EXEC mode",
+          "trigger": "mode.privileged.enter"
+        },
+        {
+          "id": "show-switchport",
+          "label": "Type 'show interfaces switchport' and read each port's mode and access VLAN",
+          "trigger": "cmd.show.interfaces-switchport"
+        }
+      ],
+      "successCriteria": {
+        "requiredCommands": [
+          "show interfaces"
+        ]
+      },
+      "hints": [
+        "Enter privileged mode with enable, then run show interfaces switchport."
+      ],
+      "nextLabId": "dev-sw-act-23"
+    },
+    {
+      "id": "dev-sw-act-23",
+      "title": "Exam 2: Access Ports",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 12,
+      "type": "exam",
+      "sectionTitle": "Section D — Access Ports",
+      "scenario": "Prove you can run the access layer unaided. VLAN 10 SALES and VLAN 20 HR already exist. Place the Sales laptop on g0/1 into VLAN 10 and the HR laptop on g0/3 into VLAN 20. The desk on g0/2 was set up wrong — it must be in Sales VLAN 10. Fix it, then prove the two Sales desks (g0/1 and g0/2) can reach each other. No hints.",
+      "startMode": "user",
+      "topology": {
+        "devices": [
+          {
+            "id": "main",
+            "type": "switch",
+            "label": "Switch"
+          },
+          {
+            "id": "PC-A",
+            "type": "pc",
+            "label": "PC-A",
+            "connectedTo": "g0/1",
+            "vlan": 10,
+            "ip": "192.168.10.10"
+          },
+          {
+            "id": "PC-B",
+            "type": "pc",
+            "label": "PC-B",
+            "connectedTo": "g0/2",
+            "vlan": 10,
+            "ip": "192.168.10.20"
+          },
+          {
+            "id": "PC-C",
+            "type": "pc",
+            "label": "PC-C",
+            "connectedTo": "g0/3",
+            "vlan": 20,
+            "ip": "192.168.20.30"
+          }
+        ],
+        "interfaces": {
+          "g0/1": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          },
+          "g0/2": {
+            "mode": "access",
+            "accessVlan": 20,
+            "shutdown": false
+          },
+          "g0/3": {
+            "mode": "access",
+            "accessVlan": 1,
+            "shutdown": false
+          }
+        },
+        "vlans": {
+          "10": {
+            "name": "SALES",
+            "ports": []
+          },
+          "20": {
+            "name": "HR",
+            "ports": [
+              "g0/2"
+            ]
+          }
+        }
+      },
+      "objectives": [
+        {
+          "id": "g01-sales",
+          "label": "Place g0/1 in Sales VLAN 10",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/1"
+            },
+            {
+              "id": "mode",
+              "trigger": "config.switchport-mode.set",
+              "expectedArg": "access"
+            },
+            {
+              "id": "vlan",
+              "trigger": "config.access-vlan.set",
+              "expectedArg": "10"
+            }
+          ]
+        },
+        {
+          "id": "g03-hr",
+          "label": "Place g0/3 in HR VLAN 20",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/3"
+            },
+            {
+              "id": "mode",
+              "trigger": "config.switchport-mode.set",
+              "expectedArg": "access"
+            },
+            {
+              "id": "vlan",
+              "trigger": "config.access-vlan.set",
+              "expectedArg": "20"
+            }
+          ]
+        },
+        {
+          "id": "g02-sales",
+          "label": "Repair g0/2 into Sales VLAN 10",
+          "miniObjectives": [
+            {
+              "id": "select",
+              "trigger": "mode.interface.enter",
+              "expectedArg": "g0/2"
+            },
+            {
+              "id": "mode",
+              "trigger": "config.switchport-mode.set",
+              "expectedArg": "access"
+            },
+            {
+              "id": "vlan",
+              "trigger": "config.access-vlan.set",
+              "expectedArg": "10"
+            }
+          ]
+        },
+        {
+          "id": "ping-pc-b",
+          "label": "From PC-A, ping PC-B at 192.168.10.20",
+          "trigger": "pc.ping.success",
+          "expectedArg": "PC-A: ping 192.168.10.20"
+        }
+      ],
+      "successCriteria": {
+        "requiredPcAction": "ping 192.168.10.20",
+        "requiredState": {
+          "interfaces": {
+            "g0/1": {
+              "mode": "access",
+              "accessVlan": 10
+            },
+            "g0/2": {
+              "mode": "access",
+              "accessVlan": 10
+            },
+            "g0/3": {
+              "mode": "access",
+              "accessVlan": 20
+            }
+          }
+        }
+      },
+      "hints": [],
+      "nextLabId": null
+    }
+  ]
+}

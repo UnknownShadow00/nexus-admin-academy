@@ -17,6 +17,7 @@ from app.models.progression import Role, PromotionGate, StudentRole, Methodology
 from app.models.lab import LabTemplate, LabRun
 from app.models.incident import RootCause, Incident, IncidentTicket, IncidentParticipant, RCASubmission
 from app.models.capstone import CapstoneTemplate, CapstoneRun
+from app.models.cli_lab import CliLab, CliLabAttempt
 from app.models.video_watch import VideoWatch
 from app.models.curriculum_video import CurriculumVideo
 from app.models.lesson_notes import StudentLessonNote
@@ -58,6 +59,8 @@ __all__ = [
     "RCASubmission",
     "CapstoneTemplate",
     "CapstoneRun",
+    "CliLab",
+    "CliLabAttempt",
     "VideoWatch",
     "CurriculumVideo",
     "StudentLessonNote",
