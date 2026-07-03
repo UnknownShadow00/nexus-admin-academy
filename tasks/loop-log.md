@@ -199,3 +199,15 @@
 - Files changed: frontend/src/features/cli-labs/data/lessons/learn-switching.json; backend/app/data/cli_labs/learn-switching.json; frontend/src/features/cli-labs/engine/interfaceCommands.js; frontend/src/features/cli-labs/engine/commandEngine.js; frontend/src/features/cli-labs/engine/pcCommands.js; frontend/scripts/cli-engine-sanity.mjs; tasks/loop-log.md
 - Result: pass - npm run cli:validate, npm run cli:sanity with learn-switching drive and dev-sw-act-06 status-path check, npm run build, backend pytest, and frontend/backend learn-switching.json hash comparison passed.
 - Next: No follow-up needed.
+
+## [2026-07-02 20:03:15 -05:00] Task Completed
+- Task: Implemented Wave 2 Task 3 multi-switch topology support, 802.1Q trunking/DTP commands, neighbor discovery, device-scoped objectives, cross-switch PC ping evaluation, and multi-device LabRunner state handling with cloned active device state before runCommand.
+- Files changed: frontend/src/features/cli-labs/components/LabRunner.jsx; frontend/src/features/cli-labs/engine/commandEngine.js; frontend/src/features/cli-labs/engine/interfaceCommands.js; frontend/src/features/cli-labs/engine/multiDeviceState.js; frontend/src/features/cli-labs/engine/networkSim.js; frontend/src/features/cli-labs/engine/objectiveTracker.js; frontend/src/features/cli-labs/engine/supportedEvents.js; frontend/src/features/cli-labs/engine/trunking.js; frontend/scripts/cli-engine-sanity.mjs; frontend/scripts/validate-cli-labs.mjs; tasks/loop-log.md
+- Result: pass - npm run cli:validate, npm run cli:sanity, npm run build, and backend pytest passed. New event ids: cmd.show.interfaces-trunk, cmd.show.cdp-neighbors, cmd.show.lldp-neighbors, config.nonegotiate.set, config.trunk-allowed.add, config.trunk-allowed.set, config.trunk-encapsulation.set, config.trunk-native.set.
+- Next: No follow-up needed.
+
+## [2026-07-02 20:19:43 -05:00] Task Completed
+- Task: Applied Wave 2 Task 3 post-review trunking fixes for encapsulation-required links, allowed-VLAN range validation, nonegotiate DTP behavior, and native VLAN argument errors, with sanity coverage.
+- Files changed: frontend/src/features/cli-labs/engine/networkSim.js; frontend/src/features/cli-labs/engine/trunking.js; frontend/src/features/cli-labs/engine/commandEngine.js; frontend/scripts/validate-cli-labs.mjs; frontend/scripts/cli-engine-sanity.mjs; tasks/loop-log.md
+- Result: pass - npm.cmd run cli:validate, npm.cmd run cli:sanity, npm.cmd run build, and backend PYTHONPATH=. python -m pytest tests/ -q all passed.
+- Next: No follow-up needed.

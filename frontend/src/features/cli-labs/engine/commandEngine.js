@@ -8,12 +8,14 @@ import {
   parseInterfaceRange,
   renderInterfaces,
   renderInterfacesSwitchport,
+  renderInterfacesTrunk,
   renderInterfaceStatus,
   renderRunningConfig,
   renderRunningConfigInterface,
   renderShowVersion,
   renderVlanBrief,
 } from "./interfaceCommands.js";
+import { isValidAllowedVlanList, normalizeAllowedVlans, renderNeighborTable } from "./trunking.js";
 export { redactCommandLog, runPcCommand } from "./pcCommands.js";
 export { SUPPORTED_EVENT_IDS } from "./supportedEvents.js";
 
@@ -372,6 +374,98 @@ const registry = [
     },
   },
   {
+    canonical: "switchport mode trunk",
+    validModes: ["interface", "interface-range"],
+    handler: (state) => {
+      for (const name of activeInterfaceNames(state)) state.interfaces[name].mode = "trunk";
+      state.saved = false;
+      return { output: [], event: "config.switchport-mode.set", eventArg: "trunk" };
+    },
+  },
+  {
+    canonical: "switchport mode dynamic desirable",
+    validModes: ["interface", "interface-range"],
+    handler: (state) => {
+      for (const name of activeInterfaceNames(state)) state.interfaces[name].mode = "dynamic desirable";
+      state.saved = false;
+      return { output: [], event: "config.switchport-mode.set", eventArg: "dynamic desirable" };
+    },
+  },
+  {
+    canonical: "switchport mode dynamic auto",
+    validModes: ["interface", "interface-range"],
+    handler: (state) => {
+      for (const name of activeInterfaceNames(state)) state.interfaces[name].mode = "dynamic auto";
+      state.saved = false;
+      return { output: [], event: "config.switchport-mode.set", eventArg: "dynamic auto" };
+    },
+  },
+  {
+    canonical: "switchport nonegotiate",
+    validModes: ["interface", "interface-range"],
+    handler: (state) => {
+      const activeNames = activeInterfaceNames(state);
+      if (activeNames.some((name) => ["dynamic auto", "dynamic desirable"].includes(state.interfaces[name].mode))) {
+        return { output: ["Command rejected: Conflict between 'nonegotiate' and 'dynamic' status."] };
+      }
+      for (const name of activeNames) state.interfaces[name].nonegotiate = true;
+      state.saved = false;
+      return { output: [], event: "config.nonegotiate.set" };
+    },
+  },
+  {
+    canonical: "switchport trunk encapsulation dot1q",
+    validModes: ["interface", "interface-range"],
+    handler: (state) => {
+      for (const name of activeInterfaceNames(state)) state.interfaces[name].trunkEncapsulation = "dot1q";
+      state.saved = false;
+      return { output: [], event: "config.trunk-encapsulation.set", eventArg: "dot1q" };
+    },
+  },
+  {
+    canonical: "switchport trunk allowed vlan add",
+    validModes: ["interface", "interface-range"],
+    takesArg: true,
+    handler: (state, _args, raw) => {
+      if (!raw) return { output: ["% Incomplete command."] };
+      if (raw.trim().toLowerCase() === "all" || !isValidAllowedVlanList(raw)) return { output: ["% Invalid input detected at '^' marker."] };
+      const addList = normalizeAllowedVlans(raw);
+      for (const name of activeInterfaceNames(state)) {
+        const current = normalizeAllowedVlans(state.interfaces[name].allowedVlans);
+        state.interfaces[name].allowedVlans = current === "all" ? addList : normalizeAllowedVlans([...current, ...addList]);
+      }
+      state.saved = false;
+      return { output: [], event: "config.trunk-allowed.add", eventArg: raw };
+    },
+  },
+  {
+    canonical: "switchport trunk allowed vlan",
+    validModes: ["interface", "interface-range"],
+    takesArg: true,
+    handler: (state, _args, raw) => {
+      if (!raw) return { output: ["% Incomplete command."] };
+      if (!isValidAllowedVlanList(raw)) return { output: ["% Invalid input detected at '^' marker."] };
+      const value = raw.toLowerCase() === "all" ? "all" : normalizeAllowedVlans(raw);
+      for (const name of activeInterfaceNames(state)) state.interfaces[name].allowedVlans = value;
+      state.saved = false;
+      return { output: [], event: "config.trunk-allowed.set", eventArg: raw };
+    },
+  },
+  {
+    canonical: "switchport trunk native vlan",
+    validModes: ["interface", "interface-range"],
+    takesArg: true,
+    handler: (state, args) => {
+      if (!args[0]) return { output: ["% Incomplete command."] };
+      if (!/^\d+$/.test(args[0])) return { output: ["% Invalid input detected at '^' marker."] };
+      const nativeVlan = Number(args[0]);
+      if (nativeVlan < 1 || nativeVlan > 4094) return { output: ["% Invalid input detected at '^' marker."] };
+      for (const name of activeInterfaceNames(state)) state.interfaces[name].nativeVlan = nativeVlan;
+      state.saved = false;
+      return { output: [], event: "config.trunk-native.set", eventArg: args[0] };
+    },
+  },
+  {
     canonical: "switchport access vlan",
     validModes: ["interface", "interface-range"],
     takesArg: true,
@@ -454,14 +548,32 @@ const registry = [
     handler: (state) => ({ output: renderInterfaceStatus(state), event: "cmd.show.interfaces-status" }),
   },
   {
+    canonical: "show interfaces trunk",
+    aliasPrefixes: ["show int trunk", "sh interfaces trunk", "sh int trunk"],
+    validModes: ["privileged"],
+    handler: (state, _args, _raw, context) => ({ output: renderInterfacesTrunk(state, context), event: "cmd.show.interfaces-trunk" }),
+  },
+  {
     canonical: "show interfaces",
     aliasPrefixes: ["show int", "sh interfaces", "sh int"],
     validModes: ["privileged"],
     takesRawArg: true,
-    handler: (state, _args, raw) =>
+    handler: (state, _args, raw, context) =>
       /\bswitchport\s*$/i.test(raw)
-        ? { output: renderInterfacesSwitchport(state, raw), event: "cmd.show.interfaces-switchport" }
+        ? { output: renderInterfacesSwitchport(state, raw, context), event: "cmd.show.interfaces-switchport" }
         : { output: renderInterfaces(state, raw), event: "cmd.show.interfaces" },
+  },
+  {
+    canonical: "show cdp neighbors",
+    aliasPrefixes: ["sh cdp neighbors", "show cdp neigh", "sh cdp neigh"],
+    validModes: ["privileged"],
+    handler: (_state, _args, _raw, context) => ({ output: renderNeighborTable(context), event: "cmd.show.cdp-neighbors" }),
+  },
+  {
+    canonical: "show lldp neighbors",
+    aliasPrefixes: ["sh lldp neighbors", "show lldp neigh", "sh lldp neigh"],
+    validModes: ["privileged"],
+    handler: (_state, _args, _raw, context) => ({ output: renderNeighborTable(context), event: "cmd.show.lldp-neighbors" }),
   },
   {
     canonical: "show ip interface brief",
@@ -736,7 +848,7 @@ function handlePendingAuth(state, trimmed) {
   return normalizeResult({ output: ["% Access denied"], event: "error.auth.failed" });
 }
 
-export function runCommand(state, rawInput) {
+export function runCommand(state, rawInput, context = {}) {
   const trimmed = rawInput.trim();
   if (trimmed === "") return normalizeResult({ output: [] });
 
@@ -784,7 +896,7 @@ export function runCommand(state, rawInput) {
   state.commandLog[state.commandLog.length - 1].canonical = entry.canonical;
   const args = words.slice(maxConsumed);
   const raw = args.join(" ");
-  const result = entry.handler(state, args, raw);
+  const result = entry.handler(state, args, raw, context);
   if (result?.suppressCommandLog) state.commandLog.pop();
   return normalizeResult(result, extraEvents);
 }

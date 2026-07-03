@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { getPrompt, initialState, redactCommandLog, runCommand, runPcCommand } from "../src/features/cli-labs/engine/commandEngine.js";
+import { initialDeviceStates } from "../src/features/cli-labs/engine/multiDeviceState.js";
+import { runMultiPcCommand } from "../src/features/cli-labs/engine/networkSim.js";
 import { applyCommandProgress, createProgress, isLabComplete } from "../src/features/cli-labs/engine/objectiveTracker.js";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -28,6 +30,32 @@ function findNetworkFoundationsLesson(id) {
 
 function packLesson(pack, lesson) {
   return { ...lesson, topology: lesson.topology || pack.sharedTopology };
+}
+
+function commandOn(deviceStates, topology, deviceId, command) {
+  return runCommand(deviceStates[deviceId], command, { topology, deviceId, deviceStates });
+}
+
+function configureTrunk(deviceStates, topology, deviceId) {
+  ["enable", "configure terminal", "interface g0/24", "switchport trunk encapsulation dot1q", "switchport mode trunk", "end"].forEach((command) =>
+    commandOn(deviceStates, topology, deviceId, command)
+  );
+}
+
+function runOnTrunkInterface(deviceStates, topology, deviceId, command) {
+  ["configure terminal", "interface g0/24", command, "end"].forEach((item) => commandOn(deviceStates, topology, deviceId, item));
+}
+
+function runOnTrunkInterfaceMany(deviceStates, topology, deviceId, commands) {
+  ["configure terminal", "interface g0/24", ...commands, "end"].forEach((item) => commandOn(deviceStates, topology, deviceId, item));
+}
+
+function runOnTrunkInterfaceResult(deviceStates, topology, deviceId, command) {
+  commandOn(deviceStates, topology, deviceId, "configure terminal");
+  commandOn(deviceStates, topology, deviceId, "interface g0/24");
+  const result = commandOn(deviceStates, topology, deviceId, command);
+  commandOn(deviceStates, topology, deviceId, "end");
+  return result;
 }
 
 function runLesson(id, commands) {
@@ -304,6 +332,154 @@ runCommand(broadcastState, "enable");
 const broadcastVlans = runCommand(broadcastState, "show vlan brief").output.join("\n");
 assert(broadcastVlans.includes("10   SALES") && broadcastVlans.includes("20   ENG"), "broadcast lesson vlan brief includes SALES and ENG");
 
+const multiTopology = {
+  devices: [
+    { id: "SW1", type: "switch", hostname: "SW1" },
+    { id: "SW2", type: "switch", hostname: "SW2" },
+    { id: "PC-A", type: "pc", label: "PC-A", switch: "SW1", connectedTo: "g0/1", vlan: 10, ip: "192.168.10.10" },
+    { id: "PC-B", type: "pc", label: "PC-B", switch: "SW2", connectedTo: "g0/1", vlan: 10, ip: "192.168.10.20" },
+    { id: "PC-C", type: "pc", label: "PC-C", switch: "SW1", connectedTo: "g0/2", vlan: 20, ip: "192.168.20.30" },
+    { id: "PC-D", type: "pc", label: "PC-D", switch: "SW2", connectedTo: "g0/2", vlan: 20, ip: "192.168.20.40" },
+    { id: "PC-E", type: "pc", label: "PC-E", switch: "SW1", connectedTo: "g0/3", vlan: 1, ip: "192.168.1.10" },
+    { id: "PC-F", type: "pc", label: "PC-F", switch: "SW2", connectedTo: "g0/3", vlan: 1, ip: "192.168.1.20" },
+  ],
+  interfaces: {
+    SW1: {
+      "g0/1": { mode: "access", accessVlan: 10, shutdown: false },
+      "g0/2": { mode: "access", accessVlan: 20, shutdown: false },
+      "g0/3": { mode: "access", accessVlan: 1, shutdown: false },
+      "g0/24": { mode: "access", accessVlan: 1, shutdown: false },
+    },
+    SW2: {
+      "g0/1": { mode: "access", accessVlan: 10, shutdown: false },
+      "g0/2": { mode: "access", accessVlan: 20, shutdown: false },
+      "g0/3": { mode: "access", accessVlan: 1, shutdown: false },
+      "g0/24": { mode: "access", accessVlan: 1, shutdown: false },
+    },
+  },
+  vlans: {
+    SW1: { "10": { name: "SALES", ports: ["g0/1"] }, "20": { name: "IT", ports: ["g0/2"] } },
+    SW2: { "10": { name: "SALES", ports: ["g0/1"] }, "20": { name: "IT", ports: ["g0/2"] } },
+  },
+  links: [{ a: "SW1:g0/24", b: "SW2:g0/24" }],
+};
+const multiLesson = { id: "multi-sanity", title: "multi", topology: multiTopology };
+const rangeTopology = {
+  ...multiTopology,
+  devices: [
+    ...multiTopology.devices,
+    { id: "PC-G", type: "pc", label: "PC-G", switch: "SW1", connectedTo: "g0/4", vlan: 15, ip: "192.168.15.10" },
+    { id: "PC-H", type: "pc", label: "PC-H", switch: "SW2", connectedTo: "g0/4", vlan: 15, ip: "192.168.15.20" },
+  ],
+  interfaces: {
+    SW1: { ...multiTopology.interfaces.SW1, "g0/4": { mode: "access", accessVlan: 15, shutdown: false } },
+    SW2: { ...multiTopology.interfaces.SW2, "g0/4": { mode: "access", accessVlan: 15, shutdown: false } },
+  },
+  vlans: {
+    SW1: { ...multiTopology.vlans.SW1, "15": { name: "VOICE", ports: ["g0/4"] } },
+    SW2: { ...multiTopology.vlans.SW2, "15": { name: "VOICE", ports: ["g0/4"] } },
+  },
+};
+
+let multiStates = initialDeviceStates(multiLesson);
+assert(runMultiPcCommand(multiStates, multiTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.failed", "cross-switch ping fails before trunk");
+configureTrunk(multiStates, multiTopology, "SW1");
+configureTrunk(multiStates, multiTopology, "SW2");
+const trunkPing = runMultiPcCommand(multiStates, multiTopology, "ping 192.168.10.20", "PC-A");
+assert(trunkPing.event === "pc.ping.success" && trunkPing.output.join("\n").includes("802.1Q tag VLAN 10 added"), "cross-switch trunk ping succeeds with transcript");
+const pcAMac = multiStates.SW1.pcDevices.find((pcDevice) => pcDevice.id === "PC-A").mac;
+assert(multiStates.SW2.macTable.some((entry) => entry.mac === pcAMac && entry.port === "g0/24"), "remote switch learns source MAC on trunk port");
+assert(commandOn(multiStates, multiTopology, "SW1", "show cdp neighbors").event === "cmd.show.cdp-neighbors", "cdp neighbors event");
+assert(commandOn(multiStates, multiTopology, "SW1", "show lldp neighbors").output.join("\n").includes("SW2"), "lldp neighbors renders peer");
+
+multiStates = initialDeviceStates({
+  ...multiLesson,
+  startState: { devices: { SW1: { interfaces: { "g0/24": { encapsulationRequired: true } } } } },
+});
+commandOn(multiStates, multiTopology, "SW1", "enable");
+configureTrunk(multiStates, multiTopology, "SW2");
+runOnTrunkInterface(multiStates, multiTopology, "SW1", "switchport mode trunk");
+assert(runMultiPcCommand(multiStates, multiTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.failed", "encapsulationRequired trunk without dot1q fails");
+runOnTrunkInterface(multiStates, multiTopology, "SW1", "switchport trunk encapsulation dot1q");
+assert(runMultiPcCommand(multiStates, multiTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.success", "encapsulationRequired trunk with dot1q succeeds");
+
+multiStates = initialDeviceStates(multiLesson);
+configureTrunk(multiStates, multiTopology, "SW1");
+configureTrunk(multiStates, multiTopology, "SW2");
+runOnTrunkInterface(multiStates, multiTopology, "SW2", "switchport trunk native vlan 99");
+assert(runMultiPcCommand(multiStates, multiTopology, "ping 192.168.1.20", "PC-E").event === "pc.ping.failed", "native vlan mismatch fails vlan 1 ping");
+runOnTrunkInterface(multiStates, multiTopology, "SW1", "switchport trunk native vlan 99");
+assert(runMultiPcCommand(multiStates, multiTopology, "ping 192.168.1.20", "PC-E").event === "pc.ping.success", "matching native vlans restore vlan 1 ping");
+
+multiStates = initialDeviceStates(multiLesson);
+configureTrunk(multiStates, multiTopology, "SW1");
+configureTrunk(multiStates, multiTopology, "SW2");
+runOnTrunkInterface(multiStates, multiTopology, "SW2", "switchport trunk allowed vlan 20");
+assert(runMultiPcCommand(multiStates, multiTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.failed", "allowed vlan pruning blocks vlan 10");
+runOnTrunkInterface(multiStates, multiTopology, "SW2", "switchport trunk allowed vlan add 10");
+assert(runMultiPcCommand(multiStates, multiTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.success", "allowed vlan add restores vlan 10");
+
+multiStates = initialDeviceStates({ id: "range-sanity", title: "range", topology: rangeTopology });
+configureTrunk(multiStates, rangeTopology, "SW1");
+configureTrunk(multiStates, rangeTopology, "SW2");
+runOnTrunkInterface(multiStates, rangeTopology, "SW2", "switchport trunk allowed vlan 10-20");
+assert(runMultiPcCommand(multiStates, rangeTopology, "ping 192.168.15.20", "PC-G").event === "pc.ping.success", "allowed vlan range permits vlan 15");
+const allowedBeforeInvalid = JSON.stringify(multiStates.SW2.interfaces["g0/24"].allowedVlans);
+const invalidAllowed = runOnTrunkInterfaceResult(multiStates, rangeTopology, "SW2", "switchport trunk allowed vlan 10,abc");
+assert(invalidAllowed.output.includes("% Invalid input detected at '^' marker.") && invalidAllowed.events.length === 0, "invalid allowed vlan token is rejected without event");
+assert(JSON.stringify(multiStates.SW2.interfaces["g0/24"].allowedVlans) === allowedBeforeInvalid, "invalid allowed vlan token does not change state");
+
+multiStates = initialDeviceStates(multiLesson);
+commandOn(multiStates, multiTopology, "SW1", "enable");
+commandOn(multiStates, multiTopology, "SW2", "enable");
+runOnTrunkInterfaceMany(multiStates, multiTopology, "SW1", ["switchport trunk encapsulation dot1q", "switchport mode dynamic desirable"]);
+runOnTrunkInterfaceMany(multiStates, multiTopology, "SW2", ["switchport trunk encapsulation dot1q", "switchport mode dynamic auto"]);
+const dtpTrunk = commandOn(multiStates, multiTopology, "SW1", "show interfaces trunk").output.join("\n");
+assert(dtpTrunk.includes("desirable") && runMultiPcCommand(multiStates, multiTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.success", "desirable/auto negotiates trunk");
+runOnTrunkInterface(multiStates, multiTopology, "SW1", "switchport mode dynamic auto");
+assert(runMultiPcCommand(multiStates, multiTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.failed", "auto/auto does not negotiate trunk");
+
+multiStates = initialDeviceStates(multiLesson);
+commandOn(multiStates, multiTopology, "SW1", "enable");
+commandOn(multiStates, multiTopology, "SW2", "enable");
+commandOn(multiStates, multiTopology, "SW1", "configure terminal");
+commandOn(multiStates, multiTopology, "SW1", "interface g0/24");
+commandOn(multiStates, multiTopology, "SW1", "switchport mode dynamic auto");
+const rejectedNonegotiate = commandOn(multiStates, multiTopology, "SW1", "switchport nonegotiate");
+assert(
+  rejectedNonegotiate.output.includes("Command rejected: Conflict between 'nonegotiate' and 'dynamic' status.") &&
+    rejectedNonegotiate.events.length === 0 &&
+    multiStates.SW1.interfaces["g0/24"].nonegotiate !== true,
+  "nonegotiate on dynamic mode is rejected without state change"
+);
+commandOn(multiStates, multiTopology, "SW1", "end");
+runOnTrunkInterfaceMany(multiStates, multiTopology, "SW1", ["switchport trunk encapsulation dot1q", "switchport mode trunk", "switchport nonegotiate"]);
+runOnTrunkInterfaceMany(multiStates, multiTopology, "SW2", ["switchport trunk encapsulation dot1q", "switchport mode dynamic desirable"]);
+assert(runMultiPcCommand(multiStates, multiTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.failed", "trunk nonegotiate does not form trunk with dynamic peer");
+runOnTrunkInterface(multiStates, multiTopology, "SW2", "switchport mode trunk");
+assert(runMultiPcCommand(multiStates, multiTopology, "ping 192.168.10.20", "PC-A").event === "pc.ping.success", "trunk nonegotiate forms trunk with static trunk peer");
+
+const nativeArgState = initialState();
+["enable", "configure terminal", "interface g0/1"].forEach((command) => runCommand(nativeArgState, command));
+const invalidNative = runCommand(nativeArgState, "switchport trunk native vlan abc");
+assert(invalidNative.output.includes("% Invalid input detected at '^' marker.") && invalidNative.events.length === 0, "native vlan non-numeric arg is invalid without event");
+assert(nativeArgState.interfaces["g0/1"].nativeVlan === undefined, "invalid native vlan arg does not change state");
+
+let scopedProgress = applyCommandProgress(
+  { objectives: [{ id: "sw2-only", label: "SW2 only", trigger: "cmd.show.interfaces-trunk", device: "SW2" }] },
+  createProgress(),
+  { events: [{ id: "cmd.show.interfaces-trunk", device: "SW1" }] },
+  "show interfaces trunk"
+);
+assert(!scopedProgress.completed.includes("sw2-only"), "SW1 event must not complete SW2-scoped objective");
+scopedProgress = applyCommandProgress(
+  { objectives: [{ id: "sw2-only", label: "SW2 only", trigger: "cmd.show.interfaces-trunk", device: "SW2" }] },
+  scopedProgress,
+  { events: [{ id: "cmd.show.interfaces-trunk", device: "SW2" }] },
+  "show interfaces trunk"
+);
+assert(scopedProgress.completed.includes("sw2-only"), "SW2 event completes SW2-scoped objective");
+
 const learnSwitchingDrives = {
   "dev-sw-act-01": ["enable", "show interfaces status"],
   "dev-sw-act-02": [
@@ -393,5 +569,6 @@ for (const lesson of learnSwitchingPack.lessons) {
 
 runLesson("meet-cli-001", ["enable", "?", "config t"]);
 runLesson("meet-cli-002", ["enable", "config t", "hostname Branch-SW1", "end", "show running-config"]);
+runLessonDrive(findNetworkFoundationsLesson("dev-nf-encap-001"), ["enable", "show interfaces status"]);
 
 console.log("CLI engine sanity passed.");

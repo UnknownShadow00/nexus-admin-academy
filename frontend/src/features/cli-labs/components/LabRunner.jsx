@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { completeCliLab } from "../../../services/api";
 import { cloneState, completeCommand, getPrompt, initialState, redactCommandLog, runCommand, runPcCommand } from "../engine/commandEngine";
+import { aggregateDeviceState, cloneDeviceStates, initialDeviceStates, isMultiSwitchTopology, switchDevices } from "../engine/multiDeviceState";
+import { runMultiPcCommand } from "../engine/networkSim";
 import { applyCommandProgress, createProgress, isLabComplete, isObjectivesMet } from "../engine/objectiveTracker";
 import CliTerminal from "./CliTerminal";
 import ObjectivesPanel from "./ObjectivesPanel";
@@ -27,10 +29,28 @@ function objectiveUsesPcTerminal(objective) {
   return triggers.some((trigger) => String(trigger || "").startsWith("pc."));
 }
 
+function tagResultEvents(result, deviceId) {
+  const events = (result.events || (result.event ? [{ id: result.event, arg: result.eventArg }] : [])).map((event) => ({
+    ...event,
+    device: event.device || deviceId,
+  }));
+  return { ...result, events, event: events[0]?.id };
+}
+
+function mapInitialLines(lesson, devices) {
+  return Object.fromEntries(devices.map((device) => [device.id, initialLines({ ...lesson, title: `${lesson.title} | ${device.id}` })]));
+}
+
 export default function LabRunner({ lesson, initialCompleted = false }) {
+  const topology = lesson.topology || {};
+  const devices = useMemo(() => switchDevices(topology), [topology]);
+  const isMultiSwitch = isMultiSwitchTopology(topology);
   const [switchState, setSwitchState] = useState(() => initialState(lesson));
+  const [deviceStates, setDeviceStates] = useState(() => (isMultiSwitch ? initialDeviceStates(lesson) : {}));
+  const [activeDeviceId, setActiveDeviceId] = useState(() => devices[0]?.id || "main");
   const [progress, setProgress] = useState(() => createProgress());
   const [lines, setLines] = useState(() => initialLines(lesson));
+  const [deviceLines, setDeviceLines] = useState(() => (isMultiSwitch ? mapInitialLines(lesson, devices) : {}));
   const [pcLines, setPcLines] = useState([]);
   const [complete, setComplete] = useState(false);
   const [completion, setCompletion] = useState(initialCompleted ? { xp_awarded: 0, duplicate_completion: true } : null);
@@ -40,7 +60,8 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
   const startedAtRef = useRef(Date.now());
   const completionPostedRef = useRef(false);
 
-  const prompt = getPrompt(switchState);
+  const activeSwitchState = isMultiSwitch ? deviceStates[activeDeviceId] || Object.values(deviceStates)[0] : switchState;
+  const prompt = getPrompt(activeSwitchState);
   const requiresPcTerminal = Boolean(
     lesson.successCriteria?.requiredPcAction || lesson.objectives?.some((objective) => objectiveUsesPcTerminal(objective))
   );
@@ -59,9 +80,10 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
   }
 
   function updateCompletionState(state, nextProgress, stepIds = completedStepIds) {
-    const done = isLabComplete(lesson, nextProgress, state) && areStepsComplete(stepIds);
+    const completionState = isMultiSwitch ? aggregateDeviceState(state) : state;
+    const done = isLabComplete(lesson, nextProgress, completionState) && areStepsComplete(stepIds);
     setComplete(done);
-    postCompletion(state, done);
+    postCompletion(completionState, done);
     return done;
   }
 
@@ -74,8 +96,8 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
 
     const nextStepIds = [...completedStepIds, currentStep.id];
     setCompletedStepIds(nextStepIds);
-    updateCompletionState(switchState, progress, nextStepIds);
-  }, [completedStepIds, currentStepIndex, hasSteps, lesson, progress, switchState]);
+    updateCompletionState(isMultiSwitch ? deviceStates : switchState, progress, nextStepIds);
+  }, [completedStepIds, currentStepIndex, deviceStates, hasSteps, isMultiSwitch, lesson, progress, switchState]);
 
   async function postCompletion(state, done) {
     if (!done || completionPostedRef.current) return;
@@ -99,7 +121,8 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
 
   function applyResult(workingState, result, rawCommand) {
     const nextProgress = applyCommandProgress(lesson, progress, result, rawCommand);
-    setSwitchState(workingState);
+    if (isMultiSwitch) setDeviceStates(workingState);
+    else setSwitchState(workingState);
     setProgress(nextProgress);
     updateCompletionState(workingState, nextProgress);
   }
@@ -108,7 +131,7 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
     if (!stepId || completedStepIds.includes(stepId)) return;
     const nextStepIds = [...completedStepIds, stepId];
     setCompletedStepIds(nextStepIds);
-    updateCompletionState(switchState, progress, nextStepIds);
+    updateCompletionState(isMultiSwitch ? deviceStates : switchState, progress, nextStepIds);
   }
 
   function continueStep() {
@@ -116,38 +139,52 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
   }
 
   function handleCommand(command) {
-    const beforePrompt = getPrompt(switchState);
-    const working = cloneState(switchState);
+    const currentState = isMultiSwitch ? deviceStates[activeDeviceId] : switchState;
+    const beforePrompt = getPrompt(currentState);
+    const working = cloneState(currentState);
     const wasAuth = Boolean(working.pendingAuth);
-    const result = runCommand(working, command);
+    const context = isMultiSwitch ? { topology, deviceId: activeDeviceId, deviceStates: { ...deviceStates, [activeDeviceId]: working } } : {};
+    const result = isMultiSwitch ? tagResultEvents(runCommand(working, command, context), activeDeviceId) : runCommand(working, command);
     const output = result.output || [];
+    if (isMultiSwitch) {
+      setDeviceLines((current) => ({
+        ...current,
+        [activeDeviceId]: [...(current[activeDeviceId] || []), commandDisplay(beforePrompt, command, wasAuth), ...output.map((text) => ({ text }))],
+      }));
+      applyResult({ ...deviceStates, [activeDeviceId]: working }, result, command);
+      return;
+    }
     setLines((current) => [...current, commandDisplay(beforePrompt, command, wasAuth), ...output.map((text) => ({ text }))]);
     applyResult(working, result, command);
   }
 
   function handleTabComplete(input) {
-    const completed = completeCommand(switchState, input);
+    const completed = completeCommand(activeSwitchState, input);
     if (completed.event) {
-      const result = { events: [completed.event], output: [] };
-      applyResult(cloneState(switchState), result, input);
+      const result = { events: [isMultiSwitch ? { ...completed.event, device: activeDeviceId } : completed.event], output: [] };
+      applyResult(isMultiSwitch ? cloneDeviceStates(deviceStates) : cloneState(switchState), result, input);
     }
     return completed;
   }
 
   function handlePcCommand(command, pcId) {
-    const working = cloneState(switchState);
-    const result = runPcCommand(working, command, pcId);
+    const working = isMultiSwitch ? cloneDeviceStates(deviceStates) : cloneState(switchState);
+    const result = isMultiSwitch ? runMultiPcCommand(working, topology, command, pcId) : runPcCommand(working, command, pcId);
     setPcLines((current) => [...current, `${pcId || "PC-A"}> ${command}`, ...(result.output || [])]);
     applyResult(working, result, command);
   }
 
   function resetSession() {
     const fresh = initialState(lesson);
+    const freshDevices = isMultiSwitch ? initialDeviceStates(lesson) : {};
     startedAtRef.current = Date.now();
     completionPostedRef.current = false;
     setSwitchState(fresh);
+    setDeviceStates(freshDevices);
+    setActiveDeviceId(devices[0]?.id || "main");
     setProgress(createProgress());
     setLines(initialLines(lesson));
+    setDeviceLines(isMultiSwitch ? mapInitialLines(lesson, devices) : {});
     setPcLines([]);
     setComplete(false);
     setCompletion(null);
@@ -190,7 +227,32 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
           />
         ) : null}
 
-        <CliTerminal prompt={prompt} lines={lines} onSubmit={handleCommand} onTabComplete={handleTabComplete} disabled={posting} />
+        {isMultiSwitch ? (
+          <div className="flex flex-wrap gap-2">
+            {devices.map((device) => (
+              <button
+                key={device.id}
+                type="button"
+                onClick={() => setActiveDeviceId(device.id)}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+                  activeDeviceId === device.id
+                    ? "border-blue-500 bg-blue-600 text-white dark:border-blue-400 dark:bg-blue-500"
+                    : "border-slate-300 bg-white text-slate-700 hover:border-blue-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                }`}
+              >
+                {device.label || device.hostname || device.id}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <CliTerminal
+          prompt={prompt}
+          lines={isMultiSwitch ? deviceLines[activeDeviceId] || [] : lines}
+          onSubmit={handleCommand}
+          onTabComplete={handleTabComplete}
+          disabled={posting}
+        />
 
         {requiresPcTerminal ? <PcTerminal lines={pcLines} onSubmit={handlePcCommand} disabled={posting} devices={pcDevices} /> : null}
       </section>

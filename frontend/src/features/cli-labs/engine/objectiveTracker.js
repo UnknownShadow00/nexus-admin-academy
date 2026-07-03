@@ -37,6 +37,7 @@ function matchesTrigger(item, events, rawCommand) {
   }
   return events.some((event) => {
     if (event.id !== item.trigger) return false;
+    if (item.device && event.device !== item.device) return false;
     if (item.expectedArg === undefined) return true;
     return String(event.arg || "") === String(item.expectedArg);
   });

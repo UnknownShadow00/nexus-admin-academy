@@ -10,6 +10,23 @@ const lessonsDir = path.resolve(root, "../src/features/cli-labs/data/lessons");
 const supportedEvents = new Set(SUPPORTED_EVENT_IDS);
 const supportedStateKeys = new Set(SUPPORTED_REQUIRED_STATE_KEYS);
 const supportedStepTypes = new Set(["explanation", "multiple-choice", "observe", "forward-decision", "hex-input", "frame-builder"]);
+const supportedStartStateInterfaceKeys = new Set([
+  "accessVlan",
+  "allowedVlans",
+  "description",
+  "duplex",
+  "encapsulationRequired",
+  "ip",
+  "label",
+  "mask",
+  "mode",
+  "nativeVlan",
+  "nonegotiate",
+  "shutdown",
+  "speed",
+  "status",
+  "trunkEncapsulation",
+]);
 const errors = [];
 const lessonIds = new Set();
 const lessons = [];
@@ -98,8 +115,53 @@ function validateSteps(lesson, prefix, objectiveIds) {
   }
 }
 
-function validateLesson(lesson, sourceFile) {
+function validateObjectiveDevice(item, location, deviceIds) {
+  if (item?.device && !deviceIds.has(item.device)) {
+    fail(`${location}: device "${item.device}" does not exist in topology`);
+  }
+}
+
+function validateStartStateInterfaces(startState, location, deviceIds) {
+  if (!startState || typeof startState !== "object" || Array.isArray(startState)) return;
+
+  const validateInterfaceBag = (bag, bagLocation) => {
+    if (!bag?.interfaces) return;
+    if (typeof bag.interfaces !== "object" || Array.isArray(bag.interfaces)) {
+      fail(`${bagLocation}: startState interfaces must be an object`);
+      return;
+    }
+    for (const [rawName, iface] of Object.entries(bag.interfaces)) {
+      if (!iface || typeof iface !== "object" || Array.isArray(iface)) {
+        fail(`${bagLocation}: startState interface "${rawName}" must be an object`);
+        continue;
+      }
+      for (const key of Object.keys(iface)) {
+        if (!supportedStartStateInterfaceKeys.has(key)) {
+          fail(`${bagLocation}: startState interface "${rawName}" has unsupported key "${key}"`);
+        }
+      }
+    }
+  };
+
+  validateInterfaceBag(startState, location);
+
+  for (const groupName of ["devices", "switches"]) {
+    const group = startState[groupName];
+    if (!group || typeof group !== "object" || Array.isArray(group)) continue;
+    for (const [deviceId, bag] of Object.entries(group)) {
+      validateInterfaceBag(bag, `${location}: startState.${groupName}.${deviceId}`);
+    }
+  }
+
+  for (const deviceId of deviceIds) {
+    validateInterfaceBag(startState[deviceId], `${location}: startState.${deviceId}`);
+  }
+}
+
+function validateLesson(lesson, sourceFile, sharedTopology = {}) {
   const prefix = `${sourceFile}:${lesson.id || "(missing id)"}`;
+  const topology = lesson.topology || sharedTopology || {};
+  const deviceIds = new Set((topology.devices || []).map((device) => device.id));
   if (!lesson.id) fail(`${prefix}: missing id`);
   if (!lesson.title) fail(`${prefix}: missing title`);
   if (lesson.id && lessonIds.has(lesson.id)) fail(`${prefix}: duplicate lesson id`);
@@ -111,6 +173,7 @@ function validateLesson(lesson, sourceFile) {
     if (!objective.id) fail(`${prefix}: objective missing id`);
     if (objective.id && objectiveIds.has(objective.id)) fail(`${prefix}: duplicate objective id "${objective.id}"`);
     if (objective.id) objectiveIds.add(objective.id);
+    validateObjectiveDevice(objective, `${prefix}: objective ${objective.id || "(missing id)"}`, deviceIds);
 
     if (objective.miniObjectives?.length) {
       const miniIds = new Set();
@@ -118,6 +181,7 @@ function validateLesson(lesson, sourceFile) {
         if (!mini.id) fail(`${prefix}: mini objective missing id`);
         if (mini.id && miniIds.has(mini.id)) fail(`${prefix}: duplicate mini objective id "${mini.id}"`);
         if (mini.id) miniIds.add(mini.id);
+        validateObjectiveDevice(mini, `${prefix}: mini objective ${mini.id || "(missing id)"}`, deviceIds);
         checkTrigger(mini.trigger, `${prefix}: mini objective ${mini.id || "(missing id)"}`);
       }
     } else {
@@ -126,6 +190,7 @@ function validateLesson(lesson, sourceFile) {
   }
 
   validateSteps(lesson, prefix, objectiveIds);
+  validateStartStateInterfaces(lesson.startState, prefix, deviceIds);
 
   const criteria = lesson.successCriteria || {};
   for (const key of Object.keys(criteria.requiredState || {})) {
@@ -148,7 +213,7 @@ for (const file of files) {
   if (!payload.compartmentId) fail(`${file}: missing compartmentId`);
   if (!payload.vendorId) fail(`${file}: missing vendorId`);
   for (const lesson of payload.lessons || []) {
-    validateLesson(lesson, file);
+    validateLesson(lesson, file, payload.sharedTopology);
   }
 }
 

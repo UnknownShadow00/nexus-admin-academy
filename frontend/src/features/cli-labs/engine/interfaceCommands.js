@@ -1,3 +1,13 @@
+import {
+  administrativeMode,
+  allowedVlansLabel,
+  isOperationalTrunk,
+  normalizeAllowedVlans,
+  operationalMode,
+  peerInterfaceState,
+  trunkModeColumn,
+} from "./trunking.js";
+
 const MAX_PORT = 48;
 
 export function normalizeIfName(raw = "") {
@@ -86,6 +96,11 @@ function renderInterfaceConfig(name, iface) {
   const lines = [`interface ${name}`];
   if (iface.description) lines.push(` description ${iface.description}`);
   if (iface.mode === "access") lines.push(" switchport mode access");
+  if (iface.trunkEncapsulation) lines.push(` switchport trunk encapsulation ${iface.trunkEncapsulation}`);
+  if (["trunk", "dynamic desirable", "dynamic auto"].includes(iface.mode)) lines.push(` switchport mode ${iface.mode}`);
+  if (iface.nonegotiate) lines.push(" switchport nonegotiate");
+  if (iface.allowedVlans && iface.allowedVlans !== "all") lines.push(` switchport trunk allowed vlan ${allowedVlansLabel(iface.allowedVlans)}`);
+  if (iface.nativeVlan && Number(iface.nativeVlan) !== 1) lines.push(` switchport trunk native vlan ${iface.nativeVlan}`);
   if (iface.accessVlan && Number(iface.accessVlan) !== 1) lines.push(` switchport access vlan ${iface.accessVlan}`);
   if (iface.speed) lines.push(` speed ${iface.speed}`);
   if (iface.duplex) lines.push(` duplex ${iface.duplex}`);
@@ -143,24 +158,51 @@ export function renderInterfaces(state, rawName = "") {
   return lines.at(-1) === "" ? lines.slice(0, -1) : lines;
 }
 
-export function renderInterfacesSwitchport(state, raw = "") {
+export function renderInterfacesSwitchport(state, raw = "", context = {}) {
   const cleaned = raw.replace(/\s*switchport\s*$/i, "").trim();
   const names = cleaned ? [normalizeIfName(cleaned)] : Object.keys(state.interfaces).filter((name) => !name.startsWith("Vlan"));
   const lines = [];
   for (const name of names) {
     const iface = state.interfaces[name];
     if (!iface) return ["% Invalid input detected at '^' marker."];
-    const mode = iface.mode === "access" ? "static access" : iface.mode || "access";
+    const admin = administrativeMode(iface);
+    const oper = operationalMode(iface, context, name);
     lines.push(
       `Name: ${name}`,
-      `  Administrative Mode: ${mode}`,
-      `  Operational Mode: ${mode}`,
+      `  Administrative Mode: ${admin}`,
+      `  Operational Mode: ${oper}`,
+      `  Trunking Encapsulation: ${iface.trunkEncapsulation || "negotiate"}`,
       `  Access Mode VLAN: ${iface.accessVlan || 1}`,
-      "  Trunking Native Mode VLAN: 1",
+      `  Trunking Native Mode VLAN: ${iface.nativeVlan || 1}`,
+      `  Trunking VLANs Enabled: ${allowedVlansLabel(iface.allowedVlans)}`,
       ""
     );
   }
   return lines.at(-1) === "" ? lines.slice(0, -1) : lines;
+}
+
+export function renderInterfacesTrunk(state, context = {}) {
+  const rows = [];
+  for (const [name, iface] of Object.entries(state.interfaces || {})) {
+    if (name.startsWith("Vlan")) continue;
+    const peer = peerInterfaceState(context, name);
+    if (!isOperationalTrunk(iface, peer)) continue;
+    rows.push({
+      name,
+      mode: trunkModeColumn(iface),
+      encapsulation: iface.trunkEncapsulation || peer?.trunkEncapsulation || "802.1q",
+      status: "trunking",
+      nativeVlan: iface.nativeVlan || 1,
+      allowed: allowedVlansLabel(normalizeAllowedVlans(iface.allowedVlans)),
+    });
+  }
+  const lines = ["Port        Mode         Encapsulation  Status        Native vlan"];
+  for (const row of rows) {
+    lines.push(`${row.name.padEnd(12)}${row.mode.padEnd(13)}${row.encapsulation.padEnd(15)}${row.status.padEnd(14)}${row.nativeVlan}`);
+  }
+  lines.push("", "Port        Vlans allowed on trunk");
+  for (const row of rows) lines.push(`${row.name.padEnd(12)}${row.allowed}`);
+  return lines;
 }
 
 export function renderShowVersion(state) {
