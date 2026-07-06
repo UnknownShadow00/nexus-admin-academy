@@ -110,7 +110,7 @@ def _provision_vm(db: Session, lab: LabTemplate, run: LabRun) -> dict:
 
             if existing.guac_conn_id:
                 return {
-                    "guac_token_url": guacamole_service.get_token_url(existing.guac_conn_id),
+                    "guac_token_url": guacamole_service.get_student_token_url(existing.guac_conn_id, run.id),
                     "vmid": existing.vmid,
                     "vm_status": existing.status,
                 }
@@ -120,7 +120,7 @@ def _provision_vm(db: Session, lab: LabTemplate, run: LabRun) -> dict:
                 existing.status = "running"
                 db.commit()
                 return {
-                    "guac_token_url": guacamole_service.get_token_url(conn_id),
+                    "guac_token_url": guacamole_service.get_student_token_url(conn_id, run.id),
                     "vmid": existing.vmid,
                     "vm_status": existing.status,
                 }
@@ -163,7 +163,7 @@ def _provision_vm(db: Session, lab: LabTemplate, run: LabRun) -> dict:
         assignment.guac_conn_id = conn_id
         db.commit()
         return {
-            "guac_token_url": guacamole_service.get_token_url(conn_id),
+            "guac_token_url": guacamole_service.get_student_token_url(conn_id, run.id),
             "vmid": assignment.vmid,
             "vm_status": assignment.status,
         }
@@ -195,11 +195,15 @@ def _destroy_vm_if_assigned(db: Session, lab_run_id: int) -> None:
         return
 
     if assignment.guac_conn_id:
+        from app.services import guacamole_service
         try:
-            from app.services import guacamole_service
             guacamole_service.delete_connection(assignment.guac_conn_id)
         except Exception as exc:
             logger.warning("Failed to delete Guacamole connection %s: %s", assignment.guac_conn_id, exc)
+        try:
+            guacamole_service.delete_lab_user(lab_run_id)
+        except Exception as exc:
+            logger.warning("Failed to delete Guacamole lab user for run %s: %s", lab_run_id, exc)
 
     assignment.status = "destroyed"
     assignment.destroyed_at = datetime.now(UTC)

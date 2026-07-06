@@ -711,6 +711,10 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
                 guacamole_service.delete_connection(assignment.guac_conn_id)
             except Exception as exc:
                 logger.warning("Cleanup: failed to delete connection %s: %s", assignment.guac_conn_id, exc)
+            try:
+                guacamole_service.delete_lab_user(assignment.lab_run_id)
+            except Exception as exc:
+                logger.warning("Cleanup: failed to delete Guacamole lab user for run %s: %s", assignment.lab_run_id, exc)
 
         assignment.status = "destroyed"
         assignment.destroyed_at = datetime.now(timezone.utc)

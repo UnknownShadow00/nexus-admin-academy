@@ -82,7 +82,7 @@ def test_start_vm_backed_lab_provisions_guacamole_session(monkeypatch, db):
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: "10.0.0.25")
     monkeypatch.setattr(guacamole_service, "create_connection", lambda vm_ip, vmid: "conn-210")
-    monkeypatch.setattr(guacamole_service, "get_token_url", lambda conn_id: f"https://guac.local/{conn_id}")
+    monkeypatch.setattr(guacamole_service, "get_student_token_url", lambda conn_id, lab_run_id: f"https://guac.local/{conn_id}")
 
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
 
@@ -119,14 +119,16 @@ def test_submit_vm_backed_lab_destroys_assignment(monkeypatch, db):
     lab = _seed_lab(db, proxmox_template_vmid=900)
     destroyed = []
     deleted = []
+    deleted_users = []
 
     monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 212)
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: "10.0.0.26")
     monkeypatch.setattr(guacamole_service, "create_connection", lambda vm_ip, vmid: "conn-212")
-    monkeypatch.setattr(guacamole_service, "get_token_url", lambda conn_id: f"https://guac.local/{conn_id}")
+    monkeypatch.setattr(guacamole_service, "get_student_token_url", lambda conn_id, lab_run_id: f"https://guac.local/{conn_id}")
     monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid: destroyed.append(vmid))
     monkeypatch.setattr(guacamole_service, "delete_connection", lambda conn_id: deleted.append(conn_id))
+    monkeypatch.setattr(guacamole_service, "delete_lab_user", lambda lab_run_id: deleted_users.append(lab_run_id))
 
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
     assert started.status_code == 200
@@ -143,6 +145,7 @@ def test_submit_vm_backed_lab_destroys_assignment(monkeypatch, db):
     assert assignment.destroyed_at is not None
     assert destroyed == [212]
     assert deleted == ["conn-212"]
+    assert deleted_users == [assignment.lab_run_id]
 
 
 def test_admin_cleanup_destroys_idle_vm_assignments(monkeypatch, db):
@@ -165,9 +168,11 @@ def test_admin_cleanup_destroys_idle_vm_assignments(monkeypatch, db):
     db.commit()
     destroyed = []
     deleted = []
+    deleted_users = []
 
     monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid: destroyed.append(vmid))
     monkeypatch.setattr(guacamole_service, "delete_connection", lambda conn_id: deleted.append(conn_id))
+    monkeypatch.setattr(guacamole_service, "delete_lab_user", lambda lab_run_id: deleted_users.append(lab_run_id))
 
     res = admin_client.delete("/api/admin/vms/cleanup", headers={"X-Admin-Key": "unit-test-admin"})
 
@@ -178,3 +183,4 @@ def test_admin_cleanup_destroys_idle_vm_assignments(monkeypatch, db):
     assert assignment.destroyed_at is not None
     assert destroyed == [213]
     assert deleted == ["conn-213"]
+    assert deleted_users == [run.id]
