@@ -31,14 +31,15 @@ TIMEOUT_SECONDS = int(os.getenv("AI_TIMEOUT_SECONDS", "30"))
 COST_PER_1K_TOKENS = Decimal(str(os.getenv("COST_PER_1K_TOKENS", "0.001")))
 DAILY_BUDGET_LIMIT = Decimal(str(os.getenv("DAILY_AI_BUDGET", "1.00")))
 
-if not OPENROUTER_MODEL:
-    raise RuntimeError("OPENROUTER_MODEL is required. Use OPENROUTER_MODEL=mistralai/mistral-large")
-if "/" not in OPENROUTER_MODEL:
-    raise RuntimeError(f"Invalid OPENROUTER_MODEL '{OPENROUTER_MODEL}'. Expected provider/model.")
-
-
 class AIServiceError(Exception):
     pass
+
+
+def _validate_model_config() -> None:
+    if not OPENROUTER_MODEL:
+        raise AIServiceError("OPENROUTER_MODEL is required. Use OPENROUTER_MODEL=mistralai/mistral-large")
+    if "/" not in OPENROUTER_MODEL:
+        raise AIServiceError(f"Invalid OPENROUTER_MODEL '{OPENROUTER_MODEL}'. Expected provider/model.")
 
 
 def _today_window() -> tuple[datetime, datetime]:
@@ -162,6 +163,8 @@ async def call_ai(
 ) -> str | tuple[str, dict]:
     if not AI_ENABLED:
         raise HTTPException(status_code=503, detail="AI temporarily disabled by administrator")
+
+    _validate_model_config()
 
     if not OPENROUTER_API_KEY:
         raise AIServiceError("OPENROUTER_API_KEY not configured")
