@@ -223,3 +223,9 @@
 - Files changed: frontend/src/features/cli-labs/engine/stpSim.js; frontend/src/features/cli-labs/engine/etherchannel.js; frontend/src/features/cli-labs/engine/supportedEvents.js; frontend/scripts/cli-engine-sanity.mjs; tasks/loop-log.md
 - Result: pass - npm.cmd run cli:validate, npm.cmd run cli:sanity, npm.cmd run build, and backend PYTHONPATH=. pytest all passed.
 - Next: No follow-up needed.
+
+## [2026-07-06] Task Completed
+- Task: P0 batch on branch `fix/p0-batch` — 8 items: ai_service import-safe, remove phantom seed_students from main.py, seed_users.py env passwords, .env.example/README sync, Guacamole client URL encoding fix, per-lab-run Guacamole user (no admin token to students), async VM provisioning (202 + BackgroundTask + vm-status polling), multi-select quiz exact-set grading
+- Files changed: backend/app/services/ai_service.py, backend/app/main.py, backend/scripts/seed_users.py, backend/.env.example, frontend/.env.example, README.md, .gitignore, backend/app/services/guacamole_service.py, backend/app/routers/labs.py, backend/app/routers/admin_content.py, backend/app/routers/quizzes.py, backend/app/models/lab.py, backend/alembic/versions/c7d8e9f0a1b2_add_lab_run_vm_status_and_guac_url.py, backend/tests/test_labs.py, backend/tests/test_quizzes.py, frontend/src/pages/LabPage.jsx, frontend/src/services/api.js, TASKS.md
+- Result: pass — 42 backend tests green after every item, npm run build green, 9 commits on fix/p0-batch
+- Next: run `alembic upgrade head` when deploying (new migration c7d8e9f0a1b2); purge phantom student rows from existing DBs; VM flow still needs smoke test against real Proxmox/Guacamole

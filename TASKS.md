@@ -7,18 +7,19 @@ Priority order. Pick the top unchecked item unless told otherwise. Reference lin
 
 ## P0 — Broken / data-risk (fix before anything else)
 
-- [ ] **Fix Guacamole client URL encoding** — `guacamole_service.py:get_token_url` builds `base64("c/{conn_id}")`; Guacamole expects `base64("{identifier}\0c\0{datasource}")` (NUL-separated, datasource e.g. `postgresql`). Iframe is broken until this is fixed.
-- [ ] **Stop handing students the Guacamole admin token** — `get_token_url` authenticates as `GUACAMOLE_ADMIN_USER` and embeds that token in the student URL. Create a per-student (or per-assignment) Guacamole user via REST, grant it only its own connection, return that user's token.
-- [ ] **Make VM provisioning async** — `labs.py:_provision_vm` blocks the worker up to 120s+ (`proxmox_service.get_vm_ip` poll) vs the frontend's 30s axios timeout. Return `202 provisioning` immediately, move clone/start/IP-wait to a background task, add `GET /api/labs/{id}/vm-status` for the frontend to poll, render iframe when `running`.
-- [ ] **Return existing VM connection info from `GET /labs/{id}`** — `guacUrl` lives only in React state (`LabPage.jsx`); page refresh during `in_progress` locks the student out of their running VM.
+- [x] **Fix Guacamole client URL encoding** — done 2026-07-06 (`fix/p0-batch`): `_client_identifier` builds `base64("{id}\0c\0{datasource}")`, datasource configurable via `GUACAMOLE_DATASOURCE` (default `postgresql`).
+- [x] **Stop handing students the Guacamole admin token** — done 2026-07-06 (`fix/p0-batch`): per-lab-run user `lab-run-{id}` with READ on only its connection; user deleted in submit teardown and admin idle cleanup.
+- [x] **Make VM provisioning async** — done 2026-07-06 (`fix/p0-batch`): start returns 202, FastAPI BackgroundTask provisions, `LabRun.vm_status`/`guac_url` persisted (migration `c7d8e9f0a1b2`), `GET /api/labs/{id}/vm-status`, LabPage polls every 3s with failed state + retry.
+- [x] **Return existing VM connection info on page refresh** — done 2026-07-06 (`fix/p0-batch`): LabPage checks `vm-status` on load for in-progress runs and restores the iframe from the persisted `guac_url`.
 - [ ] **Verify Railway persistence** — uploads write to local disk (`labs.py`, `tickets.py`, `evidence.py`); Railway FS is ephemeral. Mount a Railway volume for `UPLOAD_DIR` or move to Supabase Storage. Confirm prod `DATABASE_URL` points at Supabase, not SQLite.
-- [ ] **Remove `seed_students()` from `main.py`** — creates 5 phantom students (Alex/Jordan/Sam/Taylor/Riley, no credentials) on empty DB; pollutes leaderboard/squad/cohort stats. `scripts/seed_users.py` is the only seeder. Purge ghost rows from existing DBs.
-- [ ] **Make `ai_service` import-safe** — module-level `raise` when `OPENROUTER_MODEL` unset kills app boot (import chain: main → tickets → ticket_grader → ai_service). Move the check into `call_ai()`.
+- [x] **Remove `seed_students()` from `main.py`** — done 2026-07-06 (`fix/p0-batch`). NOTE: purge of ghost rows from existing DBs still pending; `seed.py` also has its own `seed_students(db)` content seeder (different accounts, not removed).
+- [x] **Make `ai_service` import-safe** — done 2026-07-06 (`fix/p0-batch`): model validation moved into `call_ai()` (`_validate_model_config`), raises `AIServiceError` at call time.
+- [x] **Seed passwords from env** — done 2026-07-06 (`fix/p0-batch`): `scripts/seed_users.py` reads `SEED_PASSWORD_MENTOR1`/`SEED_PASSWORD_STUDENT1..5`, refuses to run listing any missing vars.
 
 ## P1 — Security / correctness
 
 - [ ] **Fix `allow_admin_or_student` bearer bypass** — `admin_auth.py` accepts any `Authorization: Bearer <anything>` without decoding. Decode the JWT or require `get_current_student` on `/api/study-tracker/curriculum`.
-- [ ] **Fix multi-select grading** — `quizzes.py:submit_quiz`: single-letter answer to a multi-select question is graded `in correct_letters` → full credit for partial answer. Always compare as sets when `is_multi_select`.
+- [x] **Fix multi-select grading** — done 2026-07-06 (`fix/p0-batch`): `_is_answer_correct` compares exact sorted sets for multi-select in both submit and review paths; regression test added.
 - [ ] **Harden admin session** — token is unsalted deterministic `sha256(password)` with no server-side expiry; comparisons are non-constant-time `==`; auth logs leak secret lengths. Use a random/signed token, `secrets.compare_digest`, drop the length logging.
 - [ ] **Evidence upload limits + ownership** — `labs.py` evidence and `evidence.py` have no file-size cap (tickets has 5MB); `evidence.py` lets any student attach evidence to any ticket_id. Add size cap + ownership check. Note `EvidenceArtifact.submission_id` means ticket_id for tickets but lab_run_id for labs — document or fix.
 - [ ] **Per-attempt quiz history** — retakes overwrite the single `QuizAttempt` row; "attempts" list is fiction and speed-flag evidence can be laundered by a slow retake. Insert a new row per attempt.
