@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
 
-from conftest import auth_headers, make_client, make_student
+from conftest import _Session, auth_headers, make_client, make_student
 from app.models.lab import LabRun, LabTemplate
 from app.models.vm_assignment import VmAssignment
 from app.routers.admin_content import router as admin_content_router
+from app.routers import labs
 from app.routers.labs import router
 from app.services import guacamole_service, proxmox_service
 
@@ -78,6 +79,7 @@ def test_start_vm_backed_lab_provisions_guacamole_session(monkeypatch, db):
     student = make_student(db)
     lab = _seed_lab(db, proxmox_template_vmid=900)
 
+    monkeypatch.setattr(labs, "SessionLocal", _Session)
     monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 210)
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: "10.0.0.25")
@@ -86,12 +88,18 @@ def test_start_vm_backed_lab_provisions_guacamole_session(monkeypatch, db):
 
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
 
-    assert started.status_code == 200
+    assert started.status_code == 202
     data = started.json()["data"]
     assert data["status"] == "in_progress"
-    assert data["vmid"] == 210
-    assert data["vm_status"] == "running"
-    assert data["guac_token_url"] == "https://guac.local/conn-210"
+    assert data["vm_status"] == "provisioning"
+    assert "guac_token_url" not in data
+
+    # TestClient runs the background task before returning, so status is final
+    status_res = client.get(f"/api/labs/{lab.id}/vm-status", headers=auth_headers(student))
+    assert status_res.status_code == 200
+    status_data = status_res.json()["data"]
+    assert status_data["vm_status"] == "ready"
+    assert status_data["guac_token_url"] == "https://guac.local/conn-210"
 
     assignment = db.query(VmAssignment).filter(VmAssignment.lab_run_id == data["run_id"]).one()
     assert assignment.status == "running"
@@ -103,13 +111,21 @@ def test_start_vm_backed_lab_marks_assignment_failed_without_ip(monkeypatch, db)
     student = make_student(db)
     lab = _seed_lab(db, proxmox_template_vmid=900)
 
+    monkeypatch.setattr(labs, "SessionLocal", _Session)
     monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 211)
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: None)
 
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
 
-    assert started.status_code == 502
+    assert started.status_code == 202
+
+    status_res = client.get(f"/api/labs/{lab.id}/vm-status", headers=auth_headers(student))
+    assert status_res.status_code == 200
+    status_data = status_res.json()["data"]
+    assert status_data["vm_status"] == "failed"
+    assert status_data["guac_token_url"] is None
+
     assignment = db.query(VmAssignment).filter(VmAssignment.vmid == 211).one()
     assert assignment.status == "failed"
 
@@ -121,6 +137,7 @@ def test_submit_vm_backed_lab_destroys_assignment(monkeypatch, db):
     deleted = []
     deleted_users = []
 
+    monkeypatch.setattr(labs, "SessionLocal", _Session)
     monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 212)
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: "10.0.0.26")
@@ -131,7 +148,7 @@ def test_submit_vm_backed_lab_destroys_assignment(monkeypatch, db):
     monkeypatch.setattr(guacamole_service, "delete_lab_user", lambda lab_run_id: deleted_users.append(lab_run_id))
 
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
-    assert started.status_code == 200
+    assert started.status_code == 202
 
     submitted = client.post(
         f"/api/labs/{lab.id}/submit",

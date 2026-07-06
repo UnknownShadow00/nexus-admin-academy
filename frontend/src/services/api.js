@@ -183,6 +183,7 @@ export const getLabs = (weekNumber, requestOptions) =>
   request(() => api.get("/api/labs", { params: { week_number: weekNumber } }), requestOptions);
 export const getLab = (labId, requestOptions) => request(() => api.get(`/api/labs/${labId}`), requestOptions);
 export const startLab = (labId, requestOptions) => request(() => api.post(`/api/labs/${labId}/start`), requestOptions);
+export const getLabVmStatus = (labId, requestOptions) => request(() => api.get(`/api/labs/${labId}/vm-status`), requestOptions);
 export const submitLab = (labId, payload, requestOptions) =>
   request(() => api.post(`/api/labs/${labId}/submit`, payload), requestOptions);
 export const getCliLabs = (requestOptions) => request(() => api.get("/api/cli-labs"), requestOptions);

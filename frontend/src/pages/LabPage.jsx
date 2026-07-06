@@ -4,7 +4,7 @@ import Spinner from "../components/Spinner";
 import { DifficultyBadge } from "../components/ui/Badge";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
-import { getLab, startLab, submitLab, uploadLabEvidence } from "../services/api";
+import { getLab, getLabVmStatus, startLab, submitLab, uploadLabEvidence } from "../services/api";
 
 const statusConfig = {
   not_started: { label: "Not Started", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
@@ -17,6 +17,7 @@ export default function LabPage() {
   const { labId } = useParams();
   const [lab, setLab] = useState(null);
   const [guacUrl, setGuacUrl] = useState(null);
+  const [vmStatus, setVmStatus] = useState(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [vmError, setVmError] = useState("");
@@ -36,6 +37,14 @@ export default function LabPage() {
         setLab(res.data);
         setNotes(res.data?.notes || "");
         setEvidenceArtifacts(res.data?.evidence_artifacts || []);
+        if (res.data?.run_id && res.data?.status === "in_progress") {
+          getLabVmStatus(labId, { suppressToast: true })
+            .then((statusRes) => {
+              if (cancelled) return;
+              applyVmStatus(statusRes.data);
+            })
+            .catch(() => {});
+        }
       })
       .catch((err) => {
         if (!cancelled) {
@@ -48,6 +57,30 @@ export default function LabPage() {
     };
   }, [labId]);
 
+  useEffect(() => {
+    if (vmStatus !== "provisioning") return undefined;
+    const timer = setInterval(() => {
+      getLabVmStatus(labId, { suppressToast: true })
+        .then((res) => applyVmStatus(res.data))
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [vmStatus, labId]);
+
+  function applyVmStatus(data) {
+    const status = data?.vm_status;
+    if (status === "ready" && data?.guac_token_url) {
+      setGuacUrl(data.guac_token_url);
+      setVmStatus("ready");
+      setVmError("");
+    } else if (status === "provisioning") {
+      setVmStatus("provisioning");
+    } else if (status === "failed") {
+      setVmStatus("failed");
+      setVmError("Lab VM provisioning failed. Retry, or ask your mentor to clean up the VM assignment.");
+    }
+  }
+
   async function handleStart() {
     setBusy(true);
     setVmError("");
@@ -58,6 +91,9 @@ export default function LabPage() {
       setEvidenceArtifacts(res.data?.evidence_artifacts || []);
       if (res.data?.guac_token_url) {
         setGuacUrl(res.data.guac_token_url);
+        setVmStatus("ready");
+      } else if (res.data?.vm_status === "provisioning") {
+        setVmStatus("provisioning");
       }
     } catch (err) {
       setVmError(err?.userMessage || "Unable to start the lab environment.");
@@ -122,7 +158,24 @@ export default function LabPage() {
         actions={<DifficultyBadge level={lab.difficulty} />}
       />
 
-      {vmError ? <Banner variant="error">{vmError}</Banner> : null}
+      {vmError ? (
+        <Banner variant="error">
+          <div className="flex items-center gap-3">
+            <span>{vmError}</span>
+            {vmStatus === "failed" ? (
+              <button className="btn-secondary shrink-0" disabled={busy} onClick={handleStart} type="button">
+                Retry
+              </button>
+            ) : null}
+          </div>
+        </Banner>
+      ) : null}
+
+      {vmStatus === "provisioning" ? (
+        <div className="panel dark:border-slate-700 dark:bg-slate-900">
+          <Spinner text="Provisioning lab VM... this can take a minute or two." />
+        </div>
+      ) : null}
 
       {guacUrl ? (
         <div className="panel overflow-hidden dark:border-slate-700 dark:bg-slate-900">
