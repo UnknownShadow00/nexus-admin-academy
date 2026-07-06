@@ -12,9 +12,10 @@ def _settings() -> dict:
     url = (os.getenv("GUACAMOLE_URL") or "").strip().rstrip("/")
     admin_user = (os.getenv("GUACAMOLE_ADMIN_USER") or "guacadmin").strip()
     admin_pass = (os.getenv("GUACAMOLE_ADMIN_PASS") or "").strip()
+    datasource = (os.getenv("GUACAMOLE_DATASOURCE") or "postgresql").strip()
     if not url or not admin_user or not admin_pass:
         raise RuntimeError("Guacamole integration is not configured")
-    return {"url": url, "admin_user": admin_user, "admin_pass": admin_pass}
+    return {"url": url, "admin_user": admin_user, "admin_pass": admin_pass, "datasource": datasource}
 
 
 def _get_token() -> str:
@@ -45,7 +46,7 @@ def create_connection(vm_ip: str, vmid: int, protocol: str = "rdp") -> Optional[
     }
 
     resp = requests.post(
-        f"{settings['url']}/api/session/data/postgresql/connections",
+        f"{settings['url']}/api/session/data/{settings['datasource']}/connections",
         json=payload,
         headers=headers,
         timeout=10,
@@ -56,10 +57,15 @@ def create_connection(vm_ip: str, vmid: int, protocol: str = "rdp") -> Optional[
     return conn_id
 
 
+def _client_identifier(conn_id: str, datasource: str) -> str:
+    # Guacamole client URLs encode base64("{identifier}\0c\0{datasource}")
+    return base64.b64encode(f"{conn_id}\0c\0{datasource}".encode("utf-8")).decode("utf-8")
+
+
 def get_token_url(conn_id: str) -> str:
     settings = _settings()
     token = _get_token()
-    encoded_b64 = base64.b64encode(f"c/{conn_id}".encode("utf-8")).decode("utf-8")
+    encoded_b64 = _client_identifier(conn_id, settings["datasource"])
     return f"{settings['url']}/#/client/{encoded_b64}?token={token}"
 
 
@@ -68,7 +74,7 @@ def delete_connection(conn_id: str) -> None:
     token = _get_token()
     headers = {"Guacamole-Token": token}
     resp = requests.delete(
-        f"{settings['url']}/api/session/data/postgresql/connections/{conn_id}",
+        f"{settings['url']}/api/session/data/{settings['datasource']}/connections/{conn_id}",
         headers=headers,
         timeout=10,
     )
