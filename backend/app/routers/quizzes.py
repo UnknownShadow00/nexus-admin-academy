@@ -19,6 +19,16 @@ router = APIRouter(prefix="/api/quizzes", tags=["quizzes"])
 logger = logging.getLogger(__name__)
 
 
+def _is_answer_correct(question, raw_answer) -> bool:
+    correct_letters = question.all_correct_answers
+    if question.is_multi_select:
+        # Multi-select requires the exact set of correct letters — a single
+        # correct letter is not full credit
+        student_letters = sorted(letter.strip() for letter in str(raw_answer or "").split(",") if letter.strip())
+        return bool(student_letters) and student_letters == sorted(correct_letters)
+    return raw_answer in correct_letters
+
+
 def _avg_seconds_per_question(time_per_question: dict | None) -> float | None:
     if not time_per_question:
         return None
@@ -168,14 +178,8 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
 
     for i, question in enumerate(questions, start=1):
         raw_answer = answers.get(str(question.id)) or answers.get(str(i))
-        correct_letters = question.all_correct_answers
-        if question.is_multi_select and raw_answer and "," in str(raw_answer):
-            student_letters = sorted([letter.strip() for letter in str(raw_answer).split(",") if letter.strip()])
-            is_correct = student_letters == sorted(correct_letters)
-            student_answer = raw_answer
-        else:
-            student_answer = raw_answer
-            is_correct = student_answer in correct_letters
+        student_answer = raw_answer
+        is_correct = _is_answer_correct(question, raw_answer)
         if is_correct:
             correct_count += 1
         else:
@@ -328,7 +332,7 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
                 "correct_answer": question.correct_answer,
                 "correct_answers": question.all_correct_answers,
                 "is_multi_select": question.is_multi_select,
-                "is_correct": student_answer in question.all_correct_answers,
+                "is_correct": _is_answer_correct(question, student_answer),
                 "explanation": question.explanation or "",
                 "options": {
                     "A": question.option_a,
