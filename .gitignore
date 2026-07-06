@@ -18,4 +18,5 @@ backend/tests/_tmp/
 node_modules/
 frontend/dist/
 .env.*
+!.env.example
 /package-lock.json
