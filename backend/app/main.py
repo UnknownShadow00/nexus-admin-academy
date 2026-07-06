@@ -13,7 +13,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import SessionLocal
 from app.config import is_production_environment, load_env
-from app.models import Student
 from app.routers import (
     admin,
     admin_session,
@@ -64,25 +63,6 @@ def configure_logging() -> None:
     )
 
 
-def seed_students() -> None:
-    default_students = [
-        ("Alex", "alex@nexus.local"),
-        ("Jordan", "jordan@nexus.local"),
-        ("Sam", "sam@nexus.local"),
-        ("Taylor", "taylor@nexus.local"),
-        ("Riley", "riley@nexus.local"),
-    ]
-
-    db = SessionLocal()
-    try:
-        if db.query(Student).count() == 0:
-            for name, email in default_students:
-                db.add(Student(name=name, email=email, total_xp=0))
-            db.commit()
-    finally:
-        db.close()
-
-
 def _cors_origins() -> list[str]:
     raw = os.getenv("CORS_ORIGINS") or os.getenv("FRONTEND_URL")
     if not raw and not is_production_environment():
@@ -96,7 +76,6 @@ def _cors_origins() -> list[str]:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    seed_students()
     db = SessionLocal()
     try:
         seed_cli_labs(db)
