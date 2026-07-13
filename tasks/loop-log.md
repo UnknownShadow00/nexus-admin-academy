@@ -229,3 +229,15 @@
 - Files changed: backend/app/services/ai_service.py, backend/app/main.py, backend/scripts/seed_users.py, backend/.env.example, frontend/.env.example, README.md, .gitignore, backend/app/services/guacamole_service.py, backend/app/routers/labs.py, backend/app/routers/admin_content.py, backend/app/routers/quizzes.py, backend/app/models/lab.py, backend/alembic/versions/c7d8e9f0a1b2_add_lab_run_vm_status_and_guac_url.py, backend/tests/test_labs.py, backend/tests/test_quizzes.py, frontend/src/pages/LabPage.jsx, frontend/src/services/api.js, TASKS.md
 - Result: pass — 42 backend tests green after every item, npm run build green, 9 commits on fix/p0-batch
 - Next: run `alembic upgrade head` when deploying (new migration c7d8e9f0a1b2); purge phantom student rows from existing DBs; VM flow still needs smoke test against real Proxmox/Guacamole
+
+## [2026-07-09 07:24:26 -05:00] Task Completed
+- Task: Reviewed top-level IT TRAINING PROJECT CODE CLAUDE.md and identified workspace/server access guidance.
+- Files changed: tasks/loop-log.md
+- Result: pass - top-level CLAUDE.md was accessible and reviewed.
+- Next: Use the documented remote-exec.ps1 script for server commands if server access is requested.
+
+## [2026-07-09 07:32:20 -05:00] Task Completed
+- Task: Tested Linux server access through the documented remote-exec.ps1 script with hostname, whoami, and uname -a.
+- Files changed: tasks/loop-log.md
+- Result: pass - remote server responded as host nexus-services, user agent-exec, Linux kernel 7.0.0-27-generic.
+- Next: Use powershell -ExecutionPolicy Bypass -File "C:\Users\Shadow\Desktop\IT TRAINING PROJECT CODE\tools\remote-exec.ps1" -Cmd "<command>" when script execution policy blocks the plain documented invocation.
