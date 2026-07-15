@@ -20,7 +20,7 @@ Set these values in `backend/.env`:
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
 - `ADMIN_API_KEY`
-- `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` (AI grading/quiz generation — only required when AI features are used)
+- `AI_BASE_URL` (Ollama base URL, e.g. `http://192.168.0.104:11434/v1`) and `AI_MODEL` (e.g. `deepseek-r1:32b`) — only required when AI features are used
 - `SEED_PASSWORD_MENTOR1` and `SEED_PASSWORD_STUDENT1`..`SEED_PASSWORD_STUDENT5` (required by `scripts/seed_users.py`)
 
 Run database setup and seed data:

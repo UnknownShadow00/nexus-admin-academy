@@ -329,8 +329,6 @@ export const bulkGenerateTickets = (payload, requestOptions) =>
   request(() => adminApi.post("/api/admin/tickets/bulk-generate", payload), requestOptions);
 export const bulkPublishTickets = (payload, requestOptions) =>
   request(() => adminApi.post("/api/admin/tickets/bulk-publish", payload), requestOptions);
-export const getAIUsageStats = (requestOptions) =>
-  request(() => adminApi.get("/api/admin/ai-usage"), requestOptions);
 export const getAdminLabTemplates = (requestOptions) =>
   request(() => adminApi.get("/api/admin/labs/templates"), requestOptions);
 export const createAdminLabTemplate = (data, requestOptions) =>

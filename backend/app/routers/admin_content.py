@@ -1,13 +1,11 @@
 import logging
 from datetime import datetime, timedelta
-from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.ai_usage_log import AIUsageLog
 from app.models.capstone import CapstoneRun, CapstoneTemplate
 from app.models.command_reference import CommandReference
 from app.models.evidence import EvidenceArtifact
@@ -64,59 +62,8 @@ async def ai_test(db: Session = Depends(get_db)):
         return {"success": False, "error": str(exc)}
 
 @router.get("/ai-usage")
-def get_ai_usage_stats(db: Session = Depends(get_db)):
-    now = datetime.utcnow()
-    daily_cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    monthly_cutoff = now - timedelta(days=30)
-
-    daily = db.query(func.coalesce(func.sum(AIUsageLog.cost_estimate), 0)).filter(AIUsageLog.created_at > daily_cutoff).scalar() or 0
-    monthly = db.query(func.coalesce(func.sum(AIUsageLog.cost_estimate), 0)).filter(AIUsageLog.created_at > monthly_cutoff).scalar() or 0
-    total = db.query(func.coalesce(func.sum(AIUsageLog.cost_estimate), 0)).scalar() or 0
-
-    breakdown_rows = (
-        db.query(
-            AIUsageLog.feature.label("feature"),
-            func.count(AIUsageLog.id).label("call_count"),
-            func.coalesce(func.sum(AIUsageLog.total_tokens), 0).label("total_tokens"),
-            func.coalesce(func.sum(AIUsageLog.cost_estimate), 0).label("total_cost"),
-            func.coalesce(func.avg(AIUsageLog.cost_estimate), 0).label("avg_cost_per_call"),
-        )
-        .group_by(AIUsageLog.feature)
-        .order_by(func.sum(AIUsageLog.cost_estimate).desc())
-        .all()
-    )
-
-    recent = db.query(AIUsageLog).order_by(AIUsageLog.created_at.desc()).limit(20).all()
-
-    return ok(
-        {
-            "summary": {
-                "daily_cost": float(Decimal(str(daily))),
-                "monthly_cost": float(Decimal(str(monthly))),
-                "total_cost": float(Decimal(str(total))),
-            },
-            "breakdown": [
-                {
-                    "feature": row.feature,
-                    "calls": int(row.call_count),
-                    "tokens": int(row.total_tokens or 0),
-                    "cost": float(Decimal(str(row.total_cost or 0))),
-                    "avg_per_call": float(Decimal(str(row.avg_cost_per_call or 0))),
-                }
-                for row in breakdown_rows
-            ],
-            "recent_calls": [
-                {
-                    "feature": row.feature,
-                    "model": row.model,
-                    "tokens": row.total_tokens,
-                    "cost": float(Decimal(str(row.cost_estimate))),
-                    "timestamp": row.created_at.isoformat() if row.created_at else None,
-                }
-                for row in recent
-            ],
-        }
-    )
+def get_ai_usage_stats():
+    return ok({"summary": {"daily_cost": 0, "monthly_cost": 0, "total_cost": 0}, "breakdown": [], "recent_calls": []})
 
 @router.get("/modules")
 def list_modules(db: Session = Depends(get_db)):
