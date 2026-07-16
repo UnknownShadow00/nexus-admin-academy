@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/labs", tags=["labs"])
 ALLOWED_EVIDENCE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+MAX_EVIDENCE_SIZE = 5 * 1024 * 1024
 
 
 def _normalize_hints(value):
@@ -64,8 +65,11 @@ def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
 
 
 def _screenshots_dir() -> Path:
+    # UPLOAD_DIR is itself the screenshots dir — matches tickets.py, evidence.py
+    # and the static mount in main.py (files were previously saved one level
+    # deeper than they were served from)
     configured = os.getenv("UPLOAD_DIR")
-    path = (Path(configured) / "screenshots") if configured else Path(__file__).resolve().parents[2] / "uploads" / "screenshots"
+    path = Path(configured) if configured else Path(__file__).resolve().parents[2] / "uploads" / "screenshots"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -389,13 +393,17 @@ async def upload_lab_evidence(
     if ext not in ALLOWED_EVIDENCE_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported file extension")
 
+    data = await file.read()
+    if len(data) > MAX_EVIDENCE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+
     storage_name = f"{uuid.uuid4()}.{ext}"
     dest = (_screenshots_dir() / storage_name).resolve()
-    data = await file.read()
     with open(dest, "wb") as handle:
         handle.write(data)
 
     artifact = EvidenceArtifact(
+        student_id=current_student.id,
         submission_type="lab",
         submission_id=run.id,
         artifact_type=artifact_type or "screenshot",

@@ -1,12 +1,19 @@
 import logging
 import os
-from hashlib import sha256
+import secrets
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Header, HTTPException, Request
 
 from app.config import load_env
 
 logger = logging.getLogger(__name__)
+
+# Server-side admin session store. In-memory is fine for this deployment:
+# single uvicorn worker, 1 admin. A restart logs the admin out, which is
+# acceptable (12h sessions anyway).
+_ADMIN_SESSIONS: dict[str, datetime] = {}
+ADMIN_SESSION_TTL_HOURS = 12
 
 
 def _clean_secret(value: str | None) -> str:
@@ -15,8 +22,30 @@ def _clean_secret(value: str | None) -> str:
     return value.strip().strip("\"'").strip()
 
 
-def _session_token(secret: str) -> str:
-    return sha256(f"{secret}:nexus-admin-session:v1".encode("utf-8")).hexdigest()
+def _prune_expired_sessions() -> None:
+    now = datetime.now(timezone.utc)
+    for token in [t for t, expiry in _ADMIN_SESSIONS.items() if expiry <= now]:
+        del _ADMIN_SESSIONS[token]
+
+
+def create_admin_session() -> str:
+    _prune_expired_sessions()
+    token = secrets.token_urlsafe(32)
+    _ADMIN_SESSIONS[token] = datetime.now(timezone.utc) + timedelta(hours=ADMIN_SESSION_TTL_HOURS)
+    return token
+
+
+def revoke_admin_session(token: str | None) -> None:
+    if token:
+        _ADMIN_SESSIONS.pop(_clean_secret(token), None)
+
+
+def is_valid_admin_session_token(token: str) -> bool:
+    if not token:
+        return False
+    _prune_expired_sessions()
+    # compare_digest over every stored token keeps the lookup constant-time
+    return any(secrets.compare_digest(token, stored) for stored in _ADMIN_SESSIONS)
 
 
 def get_admin_username() -> str:
@@ -34,15 +63,8 @@ def get_admin_api_key() -> str:
     return _clean_secret(os.getenv("ADMIN_API_KEY")) or _clean_secret(os.getenv("ADMIN_SECRET_KEY"))
 
 
-def get_admin_session_secret() -> str:
-    return get_admin_password()
-
-
 def has_valid_admin_session(request: Request) -> bool:
-    session_secret = get_admin_session_secret()
-    cookie_token = _clean_secret(request.cookies.get("admin_session"))
-    expected_cookie = _session_token(session_secret) if session_secret else ""
-    return bool(cookie_token and expected_cookie and cookie_token == expected_cookie)
+    return is_valid_admin_session_token(_clean_secret(request.cookies.get("admin_session")))
 
 
 def validate_admin_credentials(username: str, password: str) -> bool:
@@ -51,8 +73,8 @@ def validate_admin_credentials(username: str, password: str) -> bool:
     return bool(
         expected_username
         and expected_password
-        and _clean_secret(username) == expected_username
-        and _clean_secret(password) == expected_password
+        and secrets.compare_digest(_clean_secret(username), expected_username)
+        and secrets.compare_digest(_clean_secret(password), expected_password)
     )
 
 
@@ -62,7 +84,6 @@ async def verify_admin(
 ) -> bool:
     load_env()
 
-    session_secret = get_admin_session_secret()
     expected_api_key = get_admin_api_key()
     header_key = _clean_secret(
         x_admin_key
@@ -70,37 +91,25 @@ async def verify_admin(
         or request.headers.get("X-ADMIN-KEY")
     )
     cookie_token = _clean_secret(request.cookies.get("admin_session"))
-    expected_cookie = _session_token(session_secret) if session_secret else ""
-    provided = header_key or cookie_token
 
     logger.info(
-        "admin_auth_check path=%s has_session_secret=%s session_secret_len=%s has_api_key=%s api_key_len=%s provided_len=%s mode=%s",
+        "admin_auth_check path=%s mode=%s",
         request.url.path,
-        bool(session_secret),
-        len(session_secret),
-        bool(expected_api_key),
-        len(expected_api_key),
-        len(provided),
         "header" if header_key else ("cookie" if cookie_token else "none"),
     )
 
-    if not session_secret and not expected_api_key:
+    if not expected_api_key and not get_admin_password():
         logger.error("admin_auth_missing_env path=%s", request.url.path)
         raise HTTPException(status_code=500, detail="Admin authentication is not configured")
 
-    if not provided:
-        logger.warning("admin_auth_missing_header path=%s", request.url.path)
-        raise HTTPException(status_code=403, detail="Unauthorized")
-
-    if header_key and header_key == expected_api_key:
+    if header_key and expected_api_key and secrets.compare_digest(header_key, expected_api_key):
         return True
 
-    if cookie_token and cookie_token == expected_cookie:
+    if is_valid_admin_session_token(cookie_token):
         return True
 
     if header_key or cookie_token:
         logger.warning("admin_auth_invalid_key path=%s", request.url.path)
-        raise HTTPException(status_code=403, detail="Unauthorized")
 
     raise HTTPException(status_code=403, detail="Unauthorized")
 
@@ -111,11 +120,17 @@ async def allow_admin_or_student(request: Request) -> bool:
     if has_valid_admin_session(request):
         return True
 
-    # Check for student JWT (this will be verified by get_current_student in the caller)
-    # For curriculum endpoints that don't strictly need student identity,
-    # we just need to know if someone authenticated is accessing
+    # Check for a student JWT — must actually decode, not just be present
     auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
+    token = auth_header.removeprefix("Bearer ").strip() if auth_header.startswith("Bearer ") else ""
+    if not token:
+        from app.services.auth_service import STUDENT_SESSION_COOKIE
+
+        token = request.cookies.get(STUDENT_SESSION_COOKIE) or ""
+    if token:
+        from app.services.auth_service import decode_token
+
+        decode_token(token)  # raises 401 on invalid/expired tokens
         return True
 
     raise HTTPException(status_code=401, detail="Unauthorized")

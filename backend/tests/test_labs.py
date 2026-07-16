@@ -165,6 +165,97 @@ def test_submit_vm_backed_lab_destroys_assignment(monkeypatch, db):
     assert deleted_users == [assignment.lab_run_id]
 
 
+def test_upload_lab_evidence_rejects_oversized_file(db, tmp_path, monkeypatch):
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    student = make_student(db)
+    lab = _seed_lab(db)
+    run = LabRun(lab_template_id=lab.id, student_id=student.id, status="in_progress")
+    db.add(run)
+    db.commit()
+
+    big = b"x" * (5 * 1024 * 1024 + 1)
+    res = client.post(
+        f"/api/labs/{run.id}/evidence",
+        files={"file": ("proof.png", big, "image/png")},
+        headers=auth_headers(student),
+    )
+
+    assert res.status_code == 400
+    assert "too large" in res.json()["detail"].lower()
+
+
+def test_upload_lab_evidence_rejects_other_students_run(db, tmp_path, monkeypatch):
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    owner = make_student(db, username="owner1")
+    intruder = make_student(db, username="intruder1")
+    lab = _seed_lab(db)
+    run = LabRun(lab_template_id=lab.id, student_id=owner.id, status="in_progress")
+    db.add(run)
+    db.commit()
+
+    res = client.post(
+        f"/api/labs/{run.id}/evidence",
+        files={"file": ("proof.png", b"fake-image", "image/png")},
+        headers=auth_headers(intruder),
+    )
+
+    assert res.status_code == 403
+
+
+def test_get_student_token_url_uses_per_run_user_and_nul_encoding(monkeypatch):
+    import base64
+
+    monkeypatch.setenv("GUACAMOLE_URL", "https://guac.local/guacamole")
+    monkeypatch.setenv("GUACAMOLE_ADMIN_USER", "guacadmin")
+    monkeypatch.setenv("GUACAMOLE_ADMIN_PASS", "adminpass")
+    monkeypatch.setenv("GUACAMOLE_DATASOURCE", "postgresql")
+
+    calls = []
+
+    class _Resp:
+        def __init__(self, payload=None, status_code=200):
+            self._payload = payload or {}
+            self.status_code = status_code
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, data=None, json=None, headers=None, timeout=None):
+        calls.append(("POST", url, data, json))
+        if url.endswith("/api/tokens"):
+            if data["username"] == "guacadmin":
+                return _Resp({"authToken": "ADMIN-TOKEN"})
+            return _Resp({"authToken": "STUDENT-TOKEN"})
+        return _Resp()
+
+    def fake_patch(url, json=None, headers=None, timeout=None):
+        calls.append(("PATCH", url, None, json))
+        return _Resp()
+
+    monkeypatch.setattr(guacamole_service.requests, "post", fake_post)
+    monkeypatch.setattr(guacamole_service.requests, "patch", fake_patch)
+
+    url = guacamole_service.get_student_token_url("42", lab_run_id=7)
+
+    # Client URL: base64("{identifier}\0c\0{datasource}") + student (not admin) token
+    expected_id = base64.b64encode(b"42\0c\0postgresql").decode()
+    assert url == f"https://guac.local/guacamole/#/client/{expected_id}?token=STUDENT-TOKEN"
+    assert "ADMIN-TOKEN" not in url
+
+    # Per-lab-run user created and granted READ on only its connection
+    user_creates = [c for c in calls if c[0] == "POST" and c[1].endswith("/users")]
+    assert len(user_creates) == 1
+    assert user_creates[0][3]["username"] == "lab-run-7"
+
+    perm_patches = [c for c in calls if c[0] == "PATCH"]
+    assert len(perm_patches) == 1
+    assert perm_patches[0][1].endswith("/users/lab-run-7/permissions")
+    assert perm_patches[0][3] == [{"op": "add", "path": "/connectionPermissions/42", "value": "READ"}]
+
+
 def test_admin_cleanup_destroys_idle_vm_assignments(monkeypatch, db):
     monkeypatch.setenv("ADMIN_API_KEY", "unit-test-admin")
     student = make_student(db)

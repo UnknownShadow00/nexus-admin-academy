@@ -50,3 +50,70 @@ def test_list_tickets_week_filter(db):
 def test_list_tickets_unauthenticated(db):
     res = client.get("/api/tickets")
     assert res.status_code == 401
+
+
+def test_submit_rejects_evidence_owned_by_another_student(db, monkeypatch):
+    from app.models.evidence import EvidenceArtifact
+
+    ticket = _seed_ticket(db)
+    owner = make_student(db, username="owner2")
+    intruder = make_student(db, username="intruder2")
+    artifact = EvidenceArtifact(
+        student_id=owner.id,
+        submission_type="ticket",
+        submission_id=ticket.id,
+        artifact_type="screenshot",
+        storage_key="someone-elses.png",
+    )
+    db.add(artifact)
+    db.commit()
+
+    res = client.post(
+        f"/api/tickets/{ticket.id}/submit",
+        json={
+            "student_id": intruder.id,
+            "symptom": "Machine will not boot to the OS at all.",
+            "root_cause": "Boot order was changed to PXE first.",
+            "resolution": "Restored boot order to the internal SSD in firmware.",
+            "verification": "Machine boots normally, user confirmed login.",
+            "before_screenshot_id": artifact.id,
+        },
+        headers=auth_headers(intruder),
+    )
+
+    assert res.status_code == 403
+    assert "does not belong" in res.json()["detail"].lower()
+
+
+def test_ticket_upload_rejects_oversized_file(db, tmp_path, monkeypatch):
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    student = make_student(db, username="uploader1")
+
+    big = b"x" * (5 * 1024 * 1024 + 1)
+    res = client.post(
+        "/api/tickets/uploads",
+        files={"files": ("shot.png", big, "image/png")},
+        headers=auth_headers(student),
+    )
+
+    assert res.status_code == 400
+
+
+def test_evidence_upload_rejects_oversized_file(db, tmp_path, monkeypatch):
+    from app.routers.evidence import router as evidence_router
+
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    evidence_client = make_client(evidence_router)
+    ticket = _seed_ticket(db)
+    student = make_student(db, username="uploader2")
+
+    big = b"x" * (5 * 1024 * 1024 + 1)
+    res = evidence_client.post(
+        "/api/evidence/upload",
+        files={"file": ("shot.png", big, "image/png")},
+        data={"ticket_id": str(ticket.id), "artifact_type": "screenshot"},
+        headers=auth_headers(student),
+    )
+
+    assert res.status_code == 400
+    assert "too large" in res.json()["detail"].lower()

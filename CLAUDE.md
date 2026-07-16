@@ -11,7 +11,7 @@ Private IT training platform. Mentor (Abdi, ~5 years help desk/network admin) pe
 | Frontend | React 18, Vite, React Router 6, Tailwind CSS, Axios, Lucide React, xterm.js |
 | Backend | FastAPI, SQLAlchemy 2, Alembic, SQLite → Supabase (PostgreSQL) |
 | Auth | JWT (python-jose), passlib, httpOnly cookies |
-| AI | OpenRouter (OpenAI-compatible chat completions) via `app/services/ai_service.py` — planned swap to local Ollama (see TASKS.md P2) |
+| AI | Local Ollama (OpenAI-compatible chat completions) via `app/services/ai_service.py` |
 | Scraping | Playwright + BeautifulSoup (ExamCompass — permission confirmed) |
 | Deployment | Railway (backend), Supabase (DB + auth) |
 | Dev comms | Discord (weekly calls, methodology card, student coordination) |
@@ -76,7 +76,7 @@ Role, PromotionGate, StudentRole, MethodologyFramework, StudentMethodologyProgre
 ## Existing Services (do not duplicate)
 
 ```
-ai_service.py           ← OpenRouter chat-completions calls, budget cap, cost logging
+ai_service.py           ← Local Ollama chat-completions calls
 proxmox_service.py      ← VM clone/start/IP/destroy via proxmoxer
 guacamole_service.py    ← Guacamole connection create/delete, token URLs
 fsrs_service.py         ← flashcard scheduling (SM-2 algorithm)
@@ -205,13 +205,11 @@ UPLOAD_DIR=
 APP_LOG_PATH=
 COOKIE_SECURE=true          # set false for local dev
 
-# AI — OpenRouter today; Ollama swap planned (TASKS.md P2)
-OPENROUTER_API_KEY=
-OPENROUTER_MODEL=           # provider/model, e.g. mistralai/mistral-large — app currently fails to boot if unset (P0 fix pending)
+# AI — local Ollama (OpenAI-compatible endpoint)
+AI_BASE_URL=http://192.168.0.104:11434/v1
+AI_MODEL=deepseek-r1:32b
 AI_ENABLED=true
-DAILY_AI_BUDGET=1.00
-COST_PER_1K_TOKENS=0.001
-MAX_TOKENS=600
+MAX_TOKENS=2000               # deepseek-r1 burns tokens on reasoning before answering — 600 starves the answer
 AI_TIMEOUT_SECONDS=30
 AI_TEMPERATURE=0.6
 

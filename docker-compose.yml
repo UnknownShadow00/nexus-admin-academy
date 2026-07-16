@@ -1,0 +1,63 @@
+# Nexus Admin Academy — production deployment
+#
+# Compose-level variables (POSTGRES_PASSWORD, VITE_API_URL) come from a root
+# `.env` file next to this compose file. Application settings come from
+# `backend/.env` (see backend/.env.example).
+#
+# First deploy:
+#   docker compose build && docker compose up -d
+#   docker compose exec backend alembic upgrade head
+#   docker compose exec backend python scripts/seed_users.py
+#   docker compose exec backend python seed_curriculum.py
+
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: backend/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://nexus:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in root .env}@postgres:5432/nexus
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - uploads:/data/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in root .env}
+      POSTGRES_DB: nexus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus -d nexus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  uploads:

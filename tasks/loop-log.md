@@ -6,7 +6,7 @@
 ## [2026-03-31 20:32:08 -05:00] Task Completed
 - Task: Implemented student authentication across the nested Nexus Admin Academy app, including student username/password storage, JWT auth endpoints, frontend login/register flow, and bearer token wiring while preserving the existing profile layer and admin auth.
 - Files changed: nexus-admin-academy/backend/alembic/versions/0018_student_auth.py, nexus-admin-academy/backend/app/models/student.py, nexus-admin-academy/backend/app/services/auth_service.py, nexus-admin-academy/backend/app/routers/auth.py, nexus-admin-academy/backend/app/routers/__init__.py, nexus-admin-academy/backend/app/main.py, nexus-admin-academy/backend/.env.example, nexus-admin-academy/backend/requirements.txt, nexus-admin-academy/frontend/src/hooks/useAuth.js, nexus-admin-academy/frontend/src/pages/LoginPage.jsx, nexus-admin-academy/frontend/src/services/api.js, nexus-admin-academy/frontend/src/App.jsx, nexus-admin-academy/frontend/node_modules/*, tasks/loop-log.md
-- Result: pass against acceptance criteria; `python -m py_compile` passed, `cmd /c npm run build` passed, and `python -m pytest tests/ -q` passed for the 4 backend tests present in this nested app tree when run with `OPENROUTER_MODEL=mistralai/mistral-large`.
+- Result: pass against acceptance criteria; `python -m py_compile` passed, `cmd /c npm run build` passed, and `python -m pytest tests/ -q` passed for the 4 backend tests present in this nested app tree when run with the former hosted AI model configured.
 - Next: Install `python-jose` and `passlib` into the active backend environment, and prune or restore the synced nested `frontend/node_modules` tree if those generated dependency diffs should not be kept.
 ## [2026-03-31 21:39:06 -05:00] Task Completed
 - Task: Collapsed the nested `nexus-admin-academy/` app into the repository root by syncing the nested backend and frontend into `backend/` and `frontend/`, moving missing root files and `docs/`, removing the nested directory, reinstalling frontend dependencies, and verifying backend/frontend commands from root-level directories.
@@ -124,9 +124,9 @@
 - Result: pass against acceptance criteria; backend compile passed, backend pytest passed with 35 tests, frontend build passed, git diff whitespace check passed, and accessible pytest cache directories were cleaned. Some locked temp/cache directories still return Windows access denied.
 - Next: Deploy/configure P4 sidecars, wire a scheduled call to `/api/admin/vms/cleanup`, smoke test a real VM-backed lab, clear remaining locked cache directories after handles are released, and optionally split the large frontend bundle.
 ## [2026-06-12] Task Completed
-- Task: Full project audit (code + docs), then doc-drift sync: created TASKS.md backlog from audit findings, corrected CLAUDE.md (AI provider is OpenRouter not Anthropic, removed references to nonexistent NEXUS_*.md files, replaced stale P2/P3 "not done" backlog with pointer to TASKS.md, synced env var reference), rewrote backend/.env.example with all env vars the code actually reads, fixed README (ANTHROPIC_API_KEY -> OPENROUTER vars, removed unused VITE_ADMIN_KEY, added seed_users.py step).
+- Task: Full project audit (code + docs), then doc-drift sync: created TASKS.md backlog from audit findings, corrected CLAUDE.md (documented the then-current hosted AI provider, removed references to nonexistent NEXUS_*.md files, replaced stale P2/P3 "not done" backlog with pointer to TASKS.md, synced env var reference), rewrote backend/.env.example with all env vars the code actually reads, fixed README (updated legacy AI credentials, removed unused VITE_ADMIN_KEY, added seed_users.py step).
 - Files changed: TASKS.md (new), CLAUDE.md, backend/.env.example, README.md, tasks/loop-log.md
-- Result: pass — audit delivered (P0 findings: Guacamole client URL encoding wrong + admin token handed to students, VM provisioning blocks worker past frontend timeout, iframe unrecoverable after refresh, Bearer-anything bypass in allow_admin_or_student, phantom seed students in main.py, app boot requires OPENROUTER_MODEL, multi-select partial-answer grading bug, Railway ephemeral-disk upload risk). No code changed per brief.
+- Result: pass — audit delivered (P0 findings: Guacamole client URL encoding wrong + admin token handed to students, VM provisioning blocks worker past frontend timeout, iframe unrecoverable after refresh, Bearer-anything bypass in allow_admin_or_student, phantom seed students in main.py, app boot requires the hosted AI model setting, multi-select partial-answer grading bug, Railway ephemeral-disk upload risk). No code changed per brief.
 - Next: Start TASKS.md P0 in order (Guacamole URL/token fix first), then async VM provisioning.
 
 ## [2026-06-12] Task Completed
@@ -241,3 +241,27 @@
 - Files changed: tasks/loop-log.md
 - Result: pass - remote server responded as host nexus-services, user agent-exec, Linux kernel 7.0.0-27-generic.
 - Next: Use powershell -ExecutionPolicy Bypass -File "C:\Users\Shadow\Desktop\IT TRAINING PROJECT CODE\tools\remote-exec.ps1" -Cmd "<command>" when script execution policy blocks the plain documented invocation.
+
+## [2026-07-16 23:11:37 UTC] Task Completed
+- Task: Audited and completed the five-part local Ollama, AI table removal, student seeding, per-user seed password, and environment documentation cleanup.
+- Files changed: backend/app/services/ai_service.py, backend/tests/test_ai_service.py, backend/seed.py, README.md, CLAUDE.md, NEXUS_NEXT_PHASES_HANDOFF.md, docs/audit-2026-06-11.md, tasks/loop-log.md
+- Result: pass against acceptance criteria; all forbidden provider/model references and phantom seed definitions are absent, Alembic head is 0027_drop_ai_tables, lazy AI import passed with invalid AI settings, seed password refusal listed all six missing variables, and three server-side `python -m pytest -q` runs passed with 44 tests.
+- Next: Optionally purge any phantom student rows created in existing databases before this fix; rerun the same suite through the Windows remote-exec wrapper if proof of the agent-exec SSH identity is required.
+
+## [2026-07-16 23:35 UTC] Task Completed
+- Task: Phase 1b verification + test gap fill. Confirmed all four VM-lab P0 fixes (NUL-separated Guacamole client URL with GUACAMOLE_DATASOURCE, per-lab-run Guacamole user instead of admin token, async 202/BackgroundTask provisioning with vm-status endpoint + persisted guac_url, LabPage 3s polling with failed state) were already committed; added a real unit test for get_student_token_url covering URL encoding and per-run user creation.
+- Files changed: backend/tests/test_labs.py
+- Result: pass — `python -m pytest -q backend/tests/test_labs.py` 8/8 on server.
+- Next: Phase 2 functional verification.
+
+## [2026-07-16 23:36 UTC] Task Completed
+- Task: Phase 2 verification + two live AI-grading bug fixes. Ran alembic upgrade head (no-op at 0027) and idempotent curriculum seed; removed leftover phantom `admin` student (id 11) and its xp/streak/squad/methodology/cli rows (backup in session scratchpad); verified live ticket AI grading against Ollama failed with JSONDecodeError, fixed by (1) extract_json_payload() in ai_service.py stripping <think> blocks/markdown fences and raw_decoding the first JSON value when json_mode=True, (2) MAX_TOKENS 600→2000 in backend/.env because deepseek-r1 exhausted the whole budget on reasoning and returned empty content (added clearer 502 for that case). Verified live: ticket submit graded 200 with real rubric scores via 192.168.0.104:11434; quiz submit works (79 quizzes); CLI labs list works. Test submission data for student1 deleted afterwards.
+- Files changed: backend/app/services/ai_service.py, backend/tests/test_ai_service.py, backend/.env (MAX_TOKENS), CLAUDE.md
+- Result: pass — 54/54 backend tests; live grading confirmed hitting Ollama (9s round trip, model-generated feedback). Remaining human check: log in with all 6 SEED_PASSWORD_* accounts (passwords not present in .env, unknown to agent).
+- Next: Phase 3 — Dockerfiles, docker-compose, backup script.
+
+## [2026-07-16 23:32 UTC] Task Completed
+- Task: Phase 3 — Dockerize. Created backend/Dockerfile (python:3.12-slim), backend/requirements-dev.txt (playwright + pytest moved out of prod image — playwright import in examcompass_scraper is lazy so prod is safe), frontend/Dockerfile (node:22-alpine build → nginx:alpine with SPA try_files, VITE_API_URL build ARG), nginx.conf, .dockerignore files, docker-compose.yml (backend with env_file + /health healthcheck + uploads volume at /data/uploads, frontend on 8081:80, postgres:16-alpine with pgdata volume + pg_isready), scripts/backup_db.sh (pg_dump | gzip to /opt/backups, 14-day retention, crontab line in comment, small-dump guard).
+- Files changed: backend/Dockerfile, backend/.dockerignore, backend/requirements.txt, backend/requirements-dev.txt, frontend/Dockerfile, frontend/nginx.conf, frontend/.dockerignore, docker-compose.yml, scripts/backup_db.sh
+- Result: pass — compose config validates, both images build, backend container serves /health 200 after alembic upgrade head, frontend container serves index + SPA fallback 200. Human-run remainder: fill root .env (POSTGRES_PASSWORD, VITE_API_URL), docker compose build && up -d, migrations/seeds via exec, phone check via Tailscale. NOTE: fresh containers fail startup until alembic upgrade head has run (lifespan seeds CLI labs) — run migrations before first up, as documented in compose header.
+- Next: Phase 5 security batch (Phase 4 is human infra work).

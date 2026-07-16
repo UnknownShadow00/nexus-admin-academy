@@ -10,18 +10,8 @@ from app.models.progression import MethodologyFramework, PromotionGate, Role
 from app.models.student import Student
 from app.models.ticket import Ticket
 from app.services.cli_lab_seed import seed_cli_labs
-from app.services.auth_service import hash_password
 
 load_env()
-
-STUDENTS = [
-    ("Admin", "admin@nexus.local", "admin", "admin123"),
-    ("Alex", "alex@nexus.local", "alex", "alex123"),
-    ("Jordan", "jordan@nexus.local", "jordan", "jordan123"),
-    ("Sam", "sam@nexus.local", "sam", "sam123"),
-    ("Taylor", "taylor@nexus.local", "taylor", "taylor123"),
-    ("Riley", "riley@nexus.local", "riley", "riley123"),
-]
 
 ROLES = [
     {"name": "L1 Help Desk", "rank_order": 1, "description": "Entry support analyst"},
@@ -564,14 +554,6 @@ COMMANDS = [
 ]
 
 
-def seed_students(db):
-    existing = {row.email for row in db.query(Student).all()}
-    for name, email, username, password in STUDENTS:
-        if email in existing:
-            continue
-        db.add(Student(name=name, email=email, username=username, password_hash=hash_password(password), total_xp=0))
-
-
 def seed_roles(db):
     for role in ROLES:
         exists = db.query(Role).filter(Role.name == role["name"]).first()
@@ -789,8 +771,6 @@ def seed_commands(db):
 def run_seed() -> None:
     db = SessionLocal()
     try:
-        seed_students(db)
-        db.flush()
         seed_roles(db)
         seed_default_student_roles(db)
         seed_promotion_gates(db)
@@ -804,7 +784,7 @@ def run_seed() -> None:
         seed_answer_keys(db, limit=10)
         seed_commands(db)
         db.commit()
-        print("Seed complete: students, roles, promotion gates, module0, methodology, tickets(8), labs(4), capstones(2), answer keys, commands(50)")
+        print("Seed complete: roles, promotion gates, module0, methodology, tickets(8), labs(4), capstones(2), answer keys, commands(50)")
     except Exception:
         db.rollback()
         raise

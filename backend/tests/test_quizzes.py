@@ -162,3 +162,42 @@ def test_submit_multi_select_requires_exact_answer_set(db):
 def test_list_quizzes_unauthenticated(db):
     res = client.get("/api/quizzes")
     assert res.status_code == 401
+
+
+def test_each_quiz_submission_creates_new_attempt_row(db):
+    from app.models.quiz import QuizAttempt
+
+    student = make_student(db, username="retaker1")
+    quiz = _seed_quiz(db, title="Retake Quiz")
+    question = _seed_question(db, quiz.id)
+
+    first = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={"student_id": student.id, "answers": {str(question.id): "A"}},
+        headers=auth_headers(student),
+    )
+    assert first.status_code == 200
+    assert first.json()["data"]["is_first_attempt"] is True
+    assert first.json()["data"]["xp_awarded"] == 100
+
+    second = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={"student_id": student.id, "answers": {str(question.id): "B"}},
+        headers=auth_headers(student),
+    )
+    assert second.status_code == 200
+    assert second.json()["data"]["is_first_attempt"] is False
+    assert second.json()["data"]["xp_awarded"] == 0
+
+    attempts = (
+        db.query(QuizAttempt)
+        .filter(QuizAttempt.student_id == student.id, QuizAttempt.quiz_id == quiz.id)
+        .order_by(QuizAttempt.id.asc())
+        .all()
+    )
+    assert len(attempts) == 2
+    assert attempts[0].score == 1
+    assert attempts[1].score == 0
+    # best_score carries forward on the newest row
+    assert attempts[1].best_score == 1
+    assert attempts[1].first_attempt_xp == 100

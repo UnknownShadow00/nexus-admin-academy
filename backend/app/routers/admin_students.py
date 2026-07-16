@@ -43,7 +43,14 @@ def student_overview(db: Session = Depends(get_db)):
 
     data = []
     for rank, student in enumerate(students, start=1):
-        quiz_attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == student.id).all()
+        quiz_attempt_rows = (
+            db.query(QuizAttempt)
+            .filter(QuizAttempt.student_id == student.id)
+            .order_by(QuizAttempt.completed_at.asc(), QuizAttempt.id.asc())
+            .all()
+        )
+        # latest attempt per quiz — retakes must not inflate quiz_done
+        quiz_attempts = list({a.quiz_id: a for a in quiz_attempt_rows}.values())
         ticket_subs = db.query(TicketSubmission).filter(TicketSubmission.student_id == student.id, TicketSubmission.ai_score.isnot(None)).all()
         data.append(
             {

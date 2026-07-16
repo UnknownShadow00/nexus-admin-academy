@@ -112,7 +112,14 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db), curren
         .all()
     )
 
-    quiz_attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).all()
+    quiz_attempt_rows = (
+        db.query(QuizAttempt)
+        .filter(QuizAttempt.student_id == student_id)
+        .order_by(QuizAttempt.completed_at.asc(), QuizAttempt.id.asc())
+        .all()
+    )
+    # one entry per quiz — the latest attempt carries the cumulative best_score
+    quiz_attempts = list({a.quiz_id: a for a in quiz_attempt_rows}.values())
     ticket_subs = db.query(TicketSubmission).filter(TicketSubmission.student_id == student_id).all()
 
     data = {
@@ -150,7 +157,10 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
     level, level_name = level_from_xp(student.total_xp)
 
     quiz_stats = (
-        db.query(func.count(QuizAttempt.id).label("completed"), func.coalesce(func.avg(QuizAttempt.score), 0).label("avg_score"))
+        db.query(
+            func.count(func.distinct(QuizAttempt.quiz_id)).label("completed"),
+            func.coalesce(func.avg(QuizAttempt.score), 0).label("avg_score"),
+        )
         .filter(QuizAttempt.student_id == student_id)
         .first()
     )
@@ -166,7 +176,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
     week_number = 1
     week_quizzes = db.query(func.count(Quiz.id)).filter(Quiz.week_number == week_number, Quiz.status == QUIZ_STATUS_PUBLISHED).scalar() or 0
     week_tickets = db.query(func.count(Ticket.id)).filter(Ticket.week_number == week_number).scalar() or 0
-    week_completed_q = db.query(func.count(QuizAttempt.id)).join(Quiz, QuizAttempt.quiz_id == Quiz.id).filter(QuizAttempt.student_id == student_id, Quiz.week_number == week_number).scalar() or 0
+    week_completed_q = db.query(func.count(func.distinct(QuizAttempt.quiz_id))).join(Quiz, QuizAttempt.quiz_id == Quiz.id).filter(QuizAttempt.student_id == student_id, Quiz.week_number == week_number).scalar() or 0
     week_completed_t = (
         db.query(func.count(TicketSubmission.id))
         .join(Ticket, TicketSubmission.ticket_id == Ticket.id)
@@ -391,7 +401,7 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db), current_st
             quiz_count = db.query(func.count(Quiz.id)).filter(Quiz.lesson_id == lesson.id).scalar() or 0
             ticket_count = db.query(func.count(Ticket.id)).filter(Ticket.lesson_id == lesson.id).scalar() or 0
             completed_quiz = (
-                db.query(func.count(QuizAttempt.id))
+                db.query(func.count(func.distinct(QuizAttempt.quiz_id)))
                 .join(Quiz, QuizAttempt.quiz_id == Quiz.id)
                 .filter(QuizAttempt.student_id == student_id, Quiz.lesson_id == lesson.id)
                 .scalar()

@@ -50,7 +50,13 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
     attempts_by_quiz = {}
     attempt_counts_by_quiz = {}
     if scoped_student_id is not None:
-        attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == scoped_student_id).all()
+        attempts = (
+            db.query(QuizAttempt)
+            .filter(QuizAttempt.student_id == scoped_student_id)
+            .order_by(QuizAttempt.completed_at.asc(), QuizAttempt.id.asc())
+            .all()
+        )
+        # dict overwrite keeps the latest attempt per quiz
         attempts_by_quiz = {attempt.quiz_id: attempt for attempt in attempts}
         attempt_counts = (
             db.query(QuizAttempt.quiz_id, func.count(QuizAttempt.id))
@@ -207,26 +213,32 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
         )
 
     score = correct_count
-    existing = db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id, QuizAttempt.quiz_id == quiz_id).first()
+    prior = (
+        db.query(QuizAttempt)
+        .filter(QuizAttempt.student_id == student_id, QuizAttempt.quiz_id == quiz_id)
+        .order_by(QuizAttempt.completed_at.desc(), QuizAttempt.id.desc())
+        .first()
+    )
 
-    is_first_attempt = existing is None
+    is_first_attempt = prior is None
     xp_awarded = round((score / total_questions) * 100) if is_first_attempt else 0
 
-    if is_first_attempt:
-        attempt = QuizAttempt(
-            student_id=student_id,
-            quiz_id=quiz_id,
-            answers=answers,
-            results=results,
-            score=score,
-            xp_awarded=xp_awarded,
-            best_score=score,
-            first_attempt_xp=xp_awarded,
-            time_per_question=time_per_question,
-        )
-        db.add(attempt)
-        db.flush()
+    # Every attempt gets its own row; best_score/first_attempt_xp carry forward
+    attempt = QuizAttempt(
+        student_id=student_id,
+        quiz_id=quiz_id,
+        answers=answers,
+        results=results,
+        score=score,
+        xp_awarded=xp_awarded,
+        best_score=max(prior.best_score or 0, score) if prior else score,
+        first_attempt_xp=xp_awarded if is_first_attempt else (prior.first_attempt_xp or 0),
+        time_per_question=time_per_question,
+    )
+    db.add(attempt)
+    db.flush()
 
+    if is_first_attempt:
         if xp_awarded > 0:
             award_xp(
                 db,
@@ -238,18 +250,9 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
             )
         record_quiz_mastery(db, student_id, quiz.domain_id, score)
         log_activity(db, student_id, "quiz_passed", quiz.title, f"Score {score}/{total_questions}")
-    else:
-        existing.answers = answers
-        existing.results = results
-        existing.score = score
-        existing.best_score = max(existing.best_score or 0, score)
-        existing.time_per_question = time_per_question
-        create_cards_for_wrong_answers(db, student.id, wrong_question_ids)
-        db.commit()
 
-    if is_first_attempt:
-        create_cards_for_wrong_answers(db, student.id, wrong_question_ids)
-        db.commit()
+    create_cards_for_wrong_answers(db, student.id, wrong_question_ids)
+    db.commit()
 
     return ok(
         {
@@ -272,6 +275,7 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
     attempt = (
         db.query(QuizAttempt)
         .filter(QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == student_id)
+        .order_by(QuizAttempt.completed_at.desc(), QuizAttempt.id.desc())
         .first()
     )
     if not attempt:

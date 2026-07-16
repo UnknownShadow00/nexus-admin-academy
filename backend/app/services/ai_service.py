@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 from typing import Optional
 
 import httpx
@@ -13,28 +14,59 @@ logger = logging.getLogger(__name__)
 
 load_env()
 
-AI_ENABLED = os.getenv("AI_ENABLED", "true").lower() == "true"
-MAX_TOKENS = int(os.getenv("MAX_TOKENS", "600"))
-TEMPERATURE = float(os.getenv("AI_TEMPERATURE", "0.6"))
-TIMEOUT_SECONDS = int(os.getenv("AI_TIMEOUT_SECONDS", "30"))
+DEFAULT_AI_BASE_URL = "http://192.168.0.104:11434/v1"
+DEFAULT_AI_MODEL = "deepseek-r1:32b"
+
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+_FENCED_BLOCK_RE = re.compile(r"```(?:json)?\s*\n?(.*?)```", re.DOTALL)
 
 
-class AIServiceError(Exception):
-    pass
+def extract_json_payload(content: str) -> str:
+    """deepseek-r1 wraps JSON answers in markdown fences, may emit <think>
+    blocks even in json_mode, and sometimes appends prose after the JSON —
+    strip all of that so callers can json.loads."""
+    text = _THINK_BLOCK_RE.sub("", content).strip()
+
+    fenced = _FENCED_BLOCK_RE.search(text)
+    if fenced:
+        text = fenced.group(1).strip()
+
+    # Take the first complete JSON value, ignoring surrounding prose.
+    decoder = json.JSONDecoder()
+    starts = [i for i in (text.find("{"), text.find("[")) if i != -1]
+    if starts:
+        start = min(starts)
+        try:
+            _, end = decoder.raw_decode(text[start:])
+            return text[start : start + end]
+        except json.JSONDecodeError:
+            pass
+
+    return text
 
 
-def _get_ollama_config() -> tuple[str, str]:
-    base_url = (os.getenv("AI_BASE_URL") or "http://192.168.0.104:11434/v1").rstrip("/")
-    model = (os.getenv("AI_MODEL") or "deepseek-r1:32b").strip()
-    return base_url, model
+def _get_ollama_config() -> tuple[str, str, int, float, float]:
+    base_url = (os.getenv("AI_BASE_URL") or DEFAULT_AI_BASE_URL).strip().rstrip("/")
+    model = (os.getenv("AI_MODEL") or DEFAULT_AI_MODEL).strip()
+    try:
+        parsed_url = httpx.URL(base_url)
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.host:
+            raise ValueError
+        max_tokens = int(os.getenv("MAX_TOKENS", "600"))
+        temperature = float(os.getenv("AI_TEMPERATURE", "0.6"))
+        timeout_seconds = float(os.getenv("AI_TIMEOUT_SECONDS", "30"))
+        if not model or max_tokens <= 0 or timeout_seconds <= 0:
+            raise ValueError
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="Invalid local AI configuration") from exc
+    return base_url, model, max_tokens, temperature, timeout_seconds
 
 
-async def _single_ollama_call(body: dict, feature: str) -> tuple[str, dict]:
-    base_url, _ = _get_ollama_config()
+async def _single_ollama_call(body: dict, feature: str, base_url: str, timeout_seconds: float) -> tuple[str, dict]:
     url = f"{base_url}/chat/completions"
 
     try:
-        async with httpx.AsyncClient(timeout=float(TIMEOUT_SECONDS)) as client:
+        async with httpx.AsyncClient(timeout=timeout_seconds) as client:
             response = await client.post(url, headers={"Content-Type": "application/json"}, json=body)
 
         if response.status_code != 200:
@@ -47,7 +79,7 @@ async def _single_ollama_call(body: dict, feature: str) -> tuple[str, dict]:
 
         response.raise_for_status()
     except httpx.TimeoutException as exc:
-        logger.exception("ollama_timeout feature=%s timeout=%ss", feature, TIMEOUT_SECONDS)
+        logger.exception("ollama_timeout feature=%s timeout=%ss", feature, timeout_seconds)
         raise HTTPException(status_code=504, detail="AI request timed out") from exc
     except httpx.HTTPStatusError as exc:
         logger.exception("ollama_http_error feature=%s status=%s", feature, exc.response.status_code)
@@ -77,6 +109,12 @@ async def _single_ollama_call(body: dict, feature: str) -> tuple[str, dict]:
     content = message.get("content")
     if not isinstance(content, str) or not content.strip():
         logger.error("ollama_empty_content feature=%s message=%s", feature, str(message)[:500])
+        if isinstance(message.get("reasoning"), str) and message["reasoning"].strip():
+            # deepseek-r1 exhausted max_tokens on chain-of-thought before answering
+            raise HTTPException(
+                status_code=502,
+                detail="AI spent its whole token budget reasoning and returned no answer — increase MAX_TOKENS",
+            )
         raise HTTPException(status_code=502, detail="AI provider returned empty content")
 
     return content, (data.get("usage", {}) or {})
@@ -93,7 +131,7 @@ async def call_ai(
     metadata: Optional[dict] = None,
     return_usage: bool = False,
 ) -> str | tuple[str, dict]:
-    if not AI_ENABLED:
+    if os.getenv("AI_ENABLED", "true").lower() != "true":
         raise HTTPException(status_code=503, detail="AI temporarily disabled by administrator")
 
     if not system_prompt or not user_prompt:
@@ -101,7 +139,7 @@ async def call_ai(
     if len(user_prompt.strip()) < 20:
         raise ValueError("User prompt too short (minimum 20 characters)")
 
-    _, model = _get_ollama_config()
+    base_url, model, max_tokens, temperature, timeout_seconds = _get_ollama_config()
 
     body = {
         "model": model,
@@ -109,15 +147,18 @@ async def call_ai(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        "temperature": TEMPERATURE,
-        "max_tokens": MAX_TOKENS,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
     }
     if json_mode:
         body["response_format"] = {"type": "json_object"}
 
     logger.info("ai_call_start feature=%s user_id=%s model=%s", feature, int(user_id or 0), model)
 
-    content, usage = await _single_ollama_call(body, feature)
+    content, usage = await _single_ollama_call(body, feature, base_url, timeout_seconds)
+
+    if json_mode:
+        content = extract_json_payload(content)
 
     prompt_tokens = int(usage.get("prompt_tokens", 0) or 0)
     completion_tokens = int(usage.get("completion_tokens", 0) or 0)
@@ -140,7 +181,6 @@ async def call_ai(
 
 
 async def ai_health_test(db: Session, user_id: int = 0) -> dict:
-    _, model = _get_ollama_config()
     system_prompt = "You are a concise assistant."
     user_prompt = "Reply with exactly: AI connectivity ok"
 
@@ -154,7 +194,7 @@ async def ai_health_test(db: Session, user_id: int = 0) -> dict:
     )
 
     return {
-        "model": model,
+        "model": (os.getenv("AI_MODEL") or DEFAULT_AI_MODEL).strip(),
         "usage": usage,
         "response_preview": content[:200],
         "success": True,

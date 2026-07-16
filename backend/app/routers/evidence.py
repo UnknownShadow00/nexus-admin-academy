@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api/evidence", tags=["evidence"])
 
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "txt", "log"}
 ALLOWED_MIMES = {"image/jpeg", "image/png", "image/webp", "text/plain"}
+MAX_FILE_SIZE = 5 * 1024 * 1024
 
 
 def _upload_dir() -> Path:
@@ -45,9 +46,12 @@ async def upload_evidence(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
+    data = await file.read()
+    if len(data) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+
     storage_name = f"{uuid.uuid4()}.{ext}"
     dest = (_upload_dir() / storage_name).resolve()
-    data = await file.read()
     with open(dest, "wb") as handle:
         handle.write(data)
 
@@ -61,6 +65,7 @@ async def upload_evidence(
     )
 
     row = EvidenceArtifact(
+        student_id=current_student.id,
         submission_type="ticket",
         submission_id=ticket_id,
         artifact_type=artifact_type,

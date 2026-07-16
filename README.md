@@ -5,7 +5,7 @@ Nexus Admin Academy is a CompTIA A+ training platform where students progress th
 ## Prerequisites
 - Python 3.11+
 - Node.js 18+
-- PostgreSQL
+- SQLite (the default) or PostgreSQL
 
 ## Backend Setup
 ```bash
@@ -14,14 +14,16 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Set these values in `backend/.env`:
-- `DATABASE_URL`
+Review these values in `backend/.env`:
+- `DATABASE_URL` (defaults to the local SQLite database shown in the template)
 - `JWT_SECRET_KEY`
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
 - `ADMIN_API_KEY`
-- `AI_BASE_URL` (Ollama base URL, e.g. `http://192.168.0.104:11434/v1`) and `AI_MODEL` (e.g. `deepseek-r1:32b`) — only required when AI features are used
+- `AI_BASE_URL` (Ollama base URL, default `http://192.168.0.104:11434/v1`) and `AI_MODEL` (default `deepseek-r1:32b`)
 - `SEED_PASSWORD_MENTOR1` and `SEED_PASSWORD_STUDENT1`..`SEED_PASSWORD_STUDENT5` (required by `scripts/seed_users.py`)
+
+The copied template also documents CORS, logging, upload storage, Proxmox, and Guacamole settings. Proxmox and Guacamole values are only required for VM-backed labs.
 
 Run database setup and seed data:
 ```bash
@@ -54,4 +56,4 @@ npm run dev
 The admin bookmarklet runs on ExamCompass quiz pages, extracts questions/answers, and posts them to `/api/admin/quiz/bookmarklet-import`. For study-tracker linking to work reliably, each imported quiz title must match the expected `quiz_title` values from `seed_curriculum.py` exactly.
 
 ## Important Admin Note
-`ADMIN_PASSWORD` or `ADMIN_API_KEY` must be set for admin access. VM-backed labs also require the Proxmox and Guacamole environment variables documented in `CLAUDE.md`.
+`ADMIN_USERNAME` and `ADMIN_PASSWORD` are required for admin login. `ADMIN_API_KEY` is the separate header-based access key.

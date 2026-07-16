@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.evidence import EvidenceArtifact
 from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
 from app.schemas.ticket import TicketSubmitRequest
@@ -168,6 +169,12 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
     ensure_student_access(current_student, student_id)
     collaborators = _validate_collaborators(db, student_id, payload.collaborator_ids or [])
     duration_minutes = payload.duration_minutes
+
+    for artifact_id in (payload.before_screenshot_id, payload.after_screenshot_id):
+        if artifact_id:
+            artifact = db.query(EvidenceArtifact).filter(EvidenceArtifact.id == artifact_id).first()
+            if not artifact or artifact.student_id != student_id:
+                raise HTTPException(status_code=403, detail="Evidence does not belong to this student")
 
     writeup = _build_itil_writeup(payload)
 
