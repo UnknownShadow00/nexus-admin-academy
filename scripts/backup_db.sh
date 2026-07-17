@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Nightly PostgreSQL backup for Nexus Admin Academy (docker compose deployment).
+# Nightly backup for Nexus Admin Academy (docker compose deployment).
 #
-# Dumps the `nexus` database from the compose `postgres` service, gzips it
+# Dumps the `nexus` database from the compose `postgres` service and tars the
+# uploads volume (evidence screenshots) from the `backend` service, gzips both
 # into /opt/backups, and prunes backups older than 14 days.
 #
 # Install (manual step — run `crontab -e` and add):
@@ -26,6 +27,13 @@ if [ "$(stat -c%s "${OUTFILE}")" -lt 1024 ]; then
     exit 1
 fi
 
-find "${BACKUP_DIR}" -name "nexus-*.sql.gz" -mtime "+${RETENTION_DAYS}" -delete
+# Uploads volume (mounted at /data/uploads in the backend service, see
+# docker-compose.yml). An empty archive is legitimate, so no size check here.
+UPLOADS_OUTFILE="${BACKUP_DIR}/nexus-uploads-${STAMP}.tar.gz"
+docker compose --project-directory "${COMPOSE_DIR}" exec -T backend \
+    tar -czf - -C /data uploads > "${UPLOADS_OUTFILE}"
 
-echo "OK: ${OUTFILE} ($(stat -c%s "${OUTFILE}") bytes)"
+find "${BACKUP_DIR}" -name "nexus-*.sql.gz" -mtime "+${RETENTION_DAYS}" -delete
+find "${BACKUP_DIR}" -name "nexus-uploads-*.tar.gz" -mtime "+${RETENTION_DAYS}" -delete
+
+echo "OK: ${OUTFILE} ($(stat -c%s "${OUTFILE}") bytes), ${UPLOADS_OUTFILE} ($(stat -c%s "${UPLOADS_OUTFILE}") bytes)"

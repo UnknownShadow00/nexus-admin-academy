@@ -107,3 +107,13 @@ Apply this security batch, one item at a time with diffs and tests:
 3. Phase 4 — real Proxmox/Guacamole infra + end-to-end lab smoke test.
 
 **Next agent session:** pick from TASKS.md — top items are the Railway/uploads persistence decision (P0), then P2 leftovers (linked clones, lazy-load admin routes, utcnow sweep).
+
+---
+
+## CONTINUATION MARKER — 2026-07-17 (second session on nexus-services)
+
+**State:** `fix/p0-batch` merged into `main` (fast-forward `9959ae5..796e5cc`, no conflicts). P0 uploads/DB persistence item **resolved**: decision recorded that prod is the self-hosted Docker Compose stack on nexus-services (Railway/Supabase dropped — no Railway config was ever created; Phase 3 compose stack is built and validated). Verified `labs.py`/`tickets.py`/`evidence.py` + `main.py` static mount all honor `UPLOAD_DIR`; compose wires `UPLOAD_DIR=/data/uploads` (named volume) and `DATABASE_URL` → compose postgres (psycopg 3). Added 3 happy-path persistence tests (70/70 pass). `scripts/backup_db.sh` extended to tar the uploads volume nightly (same 14-day retention).
+
+**Next agent session:** P2 leftovers from TASKS.md, in order — linked clones (`proxmox_service.clone_template` `full=1` → linked), lazy-load the 11 admin routes (`React.lazy`), `datetime.utcnow()` sweep (rate_limiter is gone; check activity_service, admin_content, students, tickets, `ai_service._today_window()`).
+
+**Human items unchanged:** SEED_PASSWORD_* browser logins, `docker compose build && up -d` first deploy + crontab install, real Proxmox/Guacamole smoke test.

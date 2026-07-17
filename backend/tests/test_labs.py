@@ -165,6 +165,31 @@ def test_submit_vm_backed_lab_destroys_assignment(monkeypatch, db):
     assert deleted_users == [assignment.lab_run_id]
 
 
+def test_upload_lab_evidence_persists_file_and_stamps_owner(db, tmp_path, monkeypatch):
+    from app.models.evidence import EvidenceArtifact
+
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    student = make_student(db)
+    lab = _seed_lab(db)
+    run = LabRun(lab_template_id=lab.id, student_id=student.id, status="in_progress")
+    db.add(run)
+    db.commit()
+
+    res = client.post(
+        f"/api/labs/{run.id}/evidence",
+        files={"file": ("proof.png", b"\x89PNG-lab-proof", "image/png")},
+        headers=auth_headers(student),
+    )
+
+    assert res.status_code == 200
+    body = res.json()["data"]
+    assert (tmp_path / body["storage_key"]).read_bytes() == b"\x89PNG-lab-proof"
+    artifact = db.query(EvidenceArtifact).filter(EvidenceArtifact.id == body["artifact_id"]).one()
+    assert artifact.student_id == student.id
+    assert artifact.submission_type == "lab"
+    assert artifact.submission_id == run.id
+
+
 def test_upload_lab_evidence_rejects_oversized_file(db, tmp_path, monkeypatch):
     monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
     student = make_student(db)

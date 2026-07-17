@@ -277,3 +277,9 @@
 - Files changed: tasks/loop-log.md
 - Result: pass — directory contents were successfully enumerated.
 - Next: None.
+
+## [2026-07-17 04:30 UTC] Task Completed
+- Task: Merged fix/p0-batch into main (fast-forward, no conflicts). Resolved P0 uploads/DB persistence item: recorded decision that prod = self-hosted Docker Compose on nexus-services (Railway/Supabase dropped), verified UPLOAD_DIR/DATABASE_URL wiring end-to-end, added happy-path upload persistence tests, extended nightly backup to cover the uploads volume.
+- Files changed: backend/tests/test_tickets.py, backend/tests/test_labs.py, scripts/backup_db.sh, TASKS.md, CLAUDE.md, NEXUS_NEXT_PHASES_HANDOFF.md, tasks/loop-log.md
+- Result: pass — 70/70 backend tests (3 new: ticket upload persists to UPLOAD_DIR, evidence upload persists + stamps owner, lab evidence persists + stamps owner); backup script bash -n clean, tar confirmed present in python:3.12-slim base.
+- Next: P2 leftovers — linked clones, lazy-load admin routes, datetime.utcnow() sweep.

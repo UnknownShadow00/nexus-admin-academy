@@ -13,7 +13,7 @@ Private IT training platform. Mentor (Abdi, ~5 years help desk/network admin) pe
 | Auth | JWT (python-jose), passlib, httpOnly cookies |
 | AI | Local Ollama (OpenAI-compatible chat completions) via `app/services/ai_service.py` |
 | Scraping | Playwright + BeautifulSoup (ExamCompass — permission confirmed) |
-| Deployment | Railway (backend), Supabase (DB + auth) |
+| Deployment | Self-hosted Docker Compose on nexus-services (backend + frontend + postgres:16), reachable via Tailscale — Railway/Supabase dropped 2026-07-17 |
 | Dev comms | Discord (weekly calls, methodology card, student coordination) |
 
 ---
@@ -186,8 +186,9 @@ cve_service.py
 
 - P0 VM-lab bugs: **all fixed and tested** (Guacamole NUL-encoded client URLs, per-lab-run Guacamole users instead of the admin token, async 202/BackgroundTask provisioning with persisted `vm_status`/`guac_url` and 3s polling). Still never smoke-tested against real Proxmox/Guacamole hardware (TASKS.md P4).
 - P1 security batch: **complete 2026-07-17** (JWT-validated `allow_admin_or_student`, random server-side admin session tokens with `compare_digest`, multi-select grading, evidence 5MB cap + ownership via `EvidenceArtifact.student_id`, per-attempt `QuizAttempt` history, AdminAccessGate localStorage shell removed).
-- Phase 3 deployment files exist: `backend/Dockerfile`, `frontend/Dockerfile` + `nginx.conf`, `docker-compose.yml` (postgres 16 + uploads volume), `scripts/backup_db.sh` (nightly pg_dump, cron line in the script comment).
-- Remaining, in order: Railway/uploads persistence decision (P0 last item) → P2 perf leftovers → P3 cleanup → P4 sidecar deployment + real-hardware lab smoke test → content backlog (AD lab template family is the highest-value gap).
+- Phase 3 deployment files exist: `backend/Dockerfile`, `frontend/Dockerfile` + `nginx.conf`, `docker-compose.yml` (postgres 16 + uploads volume), `scripts/backup_db.sh` (nightly pg_dump + uploads-volume tar, cron line in the script comment).
+- P0 uploads/DB persistence: **resolved 2026-07-17** — prod = self-hosted Docker Compose (Railway/Supabase dropped); `UPLOAD_DIR=/data/uploads` named volume + compose-injected `DATABASE_URL` → postgres service; 3 happy-path persistence tests added (70/70 pass).
+- Remaining, in order: P2 perf leftovers (linked clones, lazy-load admin routes, utcnow sweep) → P3 cleanup → P4 sidecar deployment + real-hardware lab smoke test → content backlog (AD lab template family is the highest-value gap).
 
 ---
 
