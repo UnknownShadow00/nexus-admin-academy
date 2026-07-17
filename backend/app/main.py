@@ -13,6 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import SessionLocal
 from app.config import is_production_environment, load_env
+from app.models import Student
 from app.routers import (
     admin,
     admin_session,
@@ -61,6 +62,12 @@ def configure_logging() -> None:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
         handlers=handlers,
     )
+
+
+# seed_students() removed (TASKS P0 / TB-01): it created 5 credential-less phantom
+# students on any empty DB, polluting leaderboard/squad/cohort stats and conflicting
+# with scripts/seed_users.py, the only intended account seeder.
+# One-off cleanup for existing databases: scripts/purge_ghost_students.py --yes
 
 
 def _cors_origins() -> list[str]:

@@ -10,7 +10,7 @@ class EvidenceArtifact(Base):
     __tablename__ = "evidence_artifacts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    student_id: Mapped[int | None] = mapped_column(ForeignKey("students.id", ondelete="SET NULL"), nullable=True, index=True)
+    student_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # Part 9: uploader ownership
     submission_type: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     submission_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     artifact_type: Mapped[str] = mapped_column(String(50), nullable=False)

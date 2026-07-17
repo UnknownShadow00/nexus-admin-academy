@@ -59,12 +59,14 @@ class QuizSubmitRequest(BaseModel):
     @classmethod
     def answers_must_be_abcde(cls, value: dict[str, str]) -> dict[str, str]:
         valid = {"A", "B", "C", "D", "E"}
-        for answer in value.values():
-            # Allow multi-select like "A,C" or "A,B,D"
-            letters = [l.strip() for l in str(answer).split(",")]
+        normalized: dict[str, str] = {}
+        for key, answer in value.items():
+            # Allow multi-select like "A,C" or "a, c" — normalize to uppercase.
+            letters = [l.strip().upper() for l in str(answer).split(",")]
             if not all(l in valid for l in letters if l):
                 raise ValueError("Quiz answers must be A/B/C/D/E only")
-        return value
+            normalized[key] = ",".join(l for l in letters if l)
+        return normalized
 
 
 class BulkTicketGenerateRequest(BaseModel):

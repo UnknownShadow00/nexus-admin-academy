@@ -1,3 +1,35 @@
+
+## Go-live Day-1 + grader/smoke session update (2026-07-17)
+DONE (verified on .101, see tasks/loop-log.md):
+- [x] Day 1 of NEXUS_GO_LIVE_CHECKLIST.md — 24-week build deployed, fresh DB migrated+seeded, 98/98 tests, frontend built, service restarted, admin login + 25 modules verified
+- [x] Real-AI grader calibration RUN against live Ollama (deepseek-r1:32b): **NEEDS TUNING** — strong=10 OK, weak=2 OK, unsafe=1 OK, malicious=1 OK, incomplete=6 (expected ≤5; its verification anchor correctly 0). One band miss; prompt/model tweak pending.
+- [x] AI grader JSON parsing fixed: `extract_json_payload()` restored in ai_service (json_mode), `_strip_think_tags` belt-and-suspenders in ticket_grader — Ollama ignores `response_format: json_object`
+- [x] Calibration script: 25s spacing between fixtures + self-reset of user-0 rate counters (8/day cap made re-runs impossible)
+- [x] bcrypt pinned to 4.0.1 (passlib 1.7.4 incompatible with bcrypt≥4.1)
+- [x] P0 "seed_students() phantom accounts" — REGRESSED in the 24-week pack's seed.py (shipped admin/admin123, alex/alex123... on every deploy); removed again, ghost rows purged, reseed verified clean
+- [x] Quiz retake 500 fixed: `first_attempt_xp=None` vs NOT NULL DB column (migration 0002 vs model drift) — retakes write 0
+- [x] NEW `PUT /api/admin/submissions/{id}/flag` + `/resolve-flag` — no endpoint could create the open-flag state `no_unresolved_flags` gates check for
+- [x] Ticket submit response now includes `anchors`
+- [x] Day-4 smoke test automated: `backend/scripts/day4_smoke_test.py` — **8/8 PASS** (login, week-plan, lesson→done, quiz retake/XP-once, hint cost+substitution, live AI grade 9/10, flag→gate block→resolve, evidence 413/200); smoke residue purged from DB
+
+STILL OPEN from this session:
+- [ ] Grader calibration "incomplete" fixture: final=6 vs expected ≤5 — tune prompt or EXPECTATIONS band, re-run until PASSED (checklist Day 3 blocker for AI grading trust)
+- [ ] Nothing serves frontend/dist on .101 (backend :8000 only) — decide nginx vs compose frontend container before students need the UI from LAN
+
+## Phase 1 status update (2026-07-10)
+DONE (verified, tested — see tasks/loop-log.md for evidence):
+- P0 #6 (app boots without AI env) and #7 (phantom seed removed + purge script)
+- P1: multi-select set grading; per-attempt quiz history (uq_student_quiz dropped); study-tracker "Bearer anything" bypass closed; weak deterministic admin session replaced with random expiring sessions; evidence ownership + 10MB size cap (IDOR closed)
+- Ollama/OpenAI-compatible AI config (AI_BASE_URL/AI_MODEL/AI_API_KEY) + calibration script (NOT yet run against live AI)
+- Six-role ladder + Gate 1 & Gate 2 seeded, enforced, pass/fail tested
+- Weeks 1-8 content fully seeded: 9 modules, 24 lessons, 9 quizzes/71 questions, 26 tickets incl. Simulations 1 & 2 with hints/anchors/parameters
+- "This Week" dashboard (API + panel), ticket hint UI, drift fix (quizzes.status)
+
+STILL OPEN (unchanged priority):
+- Proxmox/Guacamole P0 set (encoding, admin token, sync provisioning, session recovery) — still blocks AUTO-VM only; Weeks 1-8 do not depend on it
+- Real-AI grader calibration run (needs the Ollama VM)
+- Weeks 9-24 content (Phase C onward)
+
 # TASKS.md — Nexus Backlog
 
 Source: full project audit 2026-06-11 (see `docs/vision-gap-review.md` for the earlier review).
@@ -7,28 +39,27 @@ Priority order. Pick the top unchecked item unless told otherwise. Reference lin
 
 ## P0 — Broken / data-risk (fix before anything else)
 
-- [x] **Fix Guacamole client URL encoding** — done 2026-07-06 (`fix/p0-batch`): `_client_identifier` builds `base64("{id}\0c\0{datasource}")`, datasource configurable via `GUACAMOLE_DATASOURCE` (default `postgresql`).
-- [x] **Stop handing students the Guacamole admin token** — done 2026-07-06 (`fix/p0-batch`): per-lab-run user `lab-run-{id}` with READ on only its connection; user deleted in submit teardown and admin idle cleanup.
-- [x] **Make VM provisioning async** — done 2026-07-06 (`fix/p0-batch`): start returns 202, FastAPI BackgroundTask provisions, `LabRun.vm_status`/`guac_url` persisted (migration `c7d8e9f0a1b2`), `GET /api/labs/{id}/vm-status`, LabPage polls every 3s with failed state + retry.
-- [x] **Return existing VM connection info on page refresh** — done 2026-07-06 (`fix/p0-batch`): LabPage checks `vm-status` on load for in-progress runs and restores the iframe from the persisted `guac_url`.
-- [x] **Uploads/DB persistence (was "Verify Railway persistence")** — resolved 2026-07-17: prod target is the self-hosted Docker Compose stack on nexus-services (Phase 3), NOT Railway/Supabase — no Railway config exists and compose was built+validated instead. Persistence verified: all three upload writers (`labs.py`, `tickets.py`, `evidence.py`) + the `main.py` static mount honor `UPLOAD_DIR`; compose sets `UPLOAD_DIR=/data/uploads` on the named `uploads` volume and injects `DATABASE_URL` pointing at the compose `postgres` service (`psycopg` driver in requirements; SQLite is only the bare-metal dev fallback). Added 3 happy-path persistence tests (ticket upload, evidence upload w/ owner stamp, lab evidence w/ owner stamp) — 70/70 pass. `scripts/backup_db.sh` now also tars the uploads volume nightly with the same 14-day retention.
-- [x] **Remove `seed_students()` from `main.py`** — done 2026-07-06 (`fix/p0-batch`). Ghost rows purged from the live server DB 2026-07-16 (phantom `admin` student id 11 + its xp/streak/squad/methodology/cli rows deleted; backup taken first).
-- [x] **Make `ai_service` import-safe** — done 2026-07-06 (`fix/p0-batch`): model validation moved into `call_ai()` (`_validate_model_config`), raises `AIServiceError` at call time.
-- [x] **Seed passwords from env** — done 2026-07-06 (`fix/p0-batch`): `scripts/seed_users.py` reads `SEED_PASSWORD_MENTOR1`/`SEED_PASSWORD_STUDENT1..5`, refuses to run listing any missing vars.
+- [ ] **Fix Guacamole client URL encoding** — `guacamole_service.py:get_token_url` builds `base64("c/{conn_id}")`; Guacamole expects `base64("{identifier}\0c\0{datasource}")` (NUL-separated, datasource e.g. `postgresql`). Iframe is broken until this is fixed.
+- [ ] **Stop handing students the Guacamole admin token** — `get_token_url` authenticates as `GUACAMOLE_ADMIN_USER` and embeds that token in the student URL. Create a per-student (or per-assignment) Guacamole user via REST, grant it only its own connection, return that user's token.
+- [ ] **Make VM provisioning async** — `labs.py:_provision_vm` blocks the worker up to 120s+ (`proxmox_service.get_vm_ip` poll) vs the frontend's 30s axios timeout. Return `202 provisioning` immediately, move clone/start/IP-wait to a background task, add `GET /api/labs/{id}/vm-status` for the frontend to poll, render iframe when `running`.
+- [ ] **Return existing VM connection info from `GET /labs/{id}`** — `guacUrl` lives only in React state (`LabPage.jsx`); page refresh during `in_progress` locks the student out of their running VM.
+- [ ] **Verify Railway persistence** — uploads write to local disk (`labs.py`, `tickets.py`, `evidence.py`); Railway FS is ephemeral. Mount a Railway volume for `UPLOAD_DIR` or move to Supabase Storage. Confirm prod `DATABASE_URL` points at Supabase, not SQLite.
+- [ ] **Remove `seed_students()` from `main.py`** — creates 5 phantom students (Alex/Jordan/Sam/Taylor/Riley, no credentials) on empty DB; pollutes leaderboard/squad/cohort stats. `scripts/seed_users.py` is the only seeder. Purge ghost rows from existing DBs.
+- [ ] **Make `ai_service` import-safe** — module-level `raise` when `OPENROUTER_MODEL` unset kills app boot (import chain: main → tickets → ticket_grader → ai_service). Move the check into `call_ai()`.
 
 ## P1 — Security / correctness
 
-- [x] **Fix `allow_admin_or_student` bearer bypass** — done 2026-07-17 (`fix/p0-batch`): decodes the JWT via `decode_token` (401 on invalid/expired), also accepts the student session cookie; tests in `test_admin_session.py`.
-- [x] **Fix multi-select grading** — done 2026-07-06 (`fix/p0-batch`): `_is_answer_correct` compares exact sorted sets for multi-select in both submit and review paths; regression test added.
-- [x] **Harden admin session** — done 2026-07-17 (`fix/p0-batch`): random `secrets.token_urlsafe(32)` server-side session store with 12h expiry, `secrets.compare_digest` everywhere, logout revokes server-side, secret-length logging removed; forged-sha256-cookie regression test added.
-- [x] **Evidence upload limits + ownership** — done 2026-07-17 (`fix/p0-batch`): 5MB cap on `labs.py` evidence + `evidence.py`; `EvidenceArtifact.student_id` column (migration `c456ad196e2d`) stamped at upload; ticket submit rejects screenshot ids owned by another student; labs `_screenshots_dir` no longer writes one level deeper than the static mount serves.
-- [x] **Per-attempt quiz history** — done 2026-07-17 (`fix/p0-batch`): dropped `uq_student_quiz` (migration `d5e6f7a8b9c0`), every submit inserts a new `QuizAttempt` row with `best_score`/`first_attempt_xp` carried forward; list/review pick the latest attempt; completed-counts use distinct quiz_id so retakes don't inflate stats.
-- [x] **Remove localStorage-driven mentor admin shell** — done 2026-07-17 (`fix/p0-batch`): `AdminAccessGate.jsx` mentor fallback deleted; unauthenticated always redirects to `/admin-login`.
+- [ ] **Fix `allow_admin_or_student` bearer bypass** — `admin_auth.py` accepts any `Authorization: Bearer <anything>` without decoding. Decode the JWT or require `get_current_student` on `/api/study-tracker/curriculum`.
+- [ ] **Fix multi-select grading** — `quizzes.py:submit_quiz`: single-letter answer to a multi-select question is graded `in correct_letters` → full credit for partial answer. Always compare as sets when `is_multi_select`.
+- [ ] **Harden admin session** — token is unsalted deterministic `sha256(password)` with no server-side expiry; comparisons are non-constant-time `==`; auth logs leak secret lengths. Use a random/signed token, `secrets.compare_digest`, drop the length logging.
+- [ ] **Evidence upload limits + ownership** — `labs.py` evidence and `evidence.py` have no file-size cap (tickets has 5MB); `evidence.py` lets any student attach evidence to any ticket_id. Add size cap + ownership check. Note `EvidenceArtifact.submission_id` means ticket_id for tickets but lab_run_id for labs — document or fix.
+- [ ] **Per-attempt quiz history** — retakes overwrite the single `QuizAttempt` row; "attempts" list is fiction and speed-flag evidence can be laundered by a slow retake. Insert a new row per attempt.
+- [ ] **Remove localStorage-driven mentor admin shell** — `AdminAccessGate.jsx` renders admin pages when client-writable `selected_profile.is_mentor` is true. Contradicts "mentor cannot access admin panel". Backend already blocks the APIs; clean up the gate.
 
 ## P2 — Lighter / cheaper
 
-- [x] **Swap AI to local Ollama** — done 2026-07-16 (`fix/p0-batch`) — make the chat-completions base URL configurable in `ai_service.py` (`AI_BASE_URL`), point at Ollama's OpenAI-compatible endpoint over Tailscale. Keep budget/rate-limit/logging plumbing. Calibrate grading prompts against known-good writeups on the chosen local model.
-- [x] **Move Playwright out of prod requirements** — done 2026-07-17 (`fix/p0-batch`): `requirements-dev.txt` created (playwright + pytest); scraper's playwright import is lazy so prod image is unaffected.
+- [ ] **Swap AI to local Ollama** — make the chat-completions base URL configurable in `ai_service.py` (`AI_BASE_URL`), point at Ollama's OpenAI-compatible endpoint over Tailscale. Keep budget/rate-limit/logging plumbing. Calibrate grading prompts against known-good writeups on the chosen local model.
+- [ ] **Move Playwright out of prod requirements** — only used for occasional admin scraping; bloats the Railway image. `requirements-dev.txt` or run locally.
 - [ ] **Linked clones** — `proxmox_service.clone_template` uses `full=1`; use linked clones for seconds-fast, disk-cheap provisioning.
 - [ ] **Lazy-load admin routes** — `React.lazy` the 11 admin pages; kills the >500kB bundle warning.
 - [ ] **`datetime.utcnow()` sweep** — rate_limiter, activity_service, admin_content, students, tickets; replace with `datetime.now(timezone.utc)` before Supabase cutover. Also `ai_service._today_window()` uses local time for the daily budget window.

@@ -14,7 +14,7 @@ def _seed_quiz(db, title="Networks 101", week_number=1, status=QUIZ_STATUS_PUBLI
     return quiz
 
 
-def _seed_question(db, quiz_id, correct_answer="A", correct_answers=None):
+def _seed_question(db, quiz_id):
     question = Question(
         quiz_id=quiz_id,
         question_text="Which option is correct?",
@@ -22,8 +22,7 @@ def _seed_question(db, quiz_id, correct_answer="A", correct_answers=None):
         option_b="Wrong",
         option_c="Wrong",
         option_d="Wrong",
-        correct_answer=correct_answer,
-        correct_answers=correct_answers,
+        correct_answer="A",
         explanation="A is correct.",
     )
     db.add(question)
@@ -131,73 +130,6 @@ def test_get_quiz_not_found(db):
     assert res.status_code == 404
 
 
-def test_submit_multi_select_requires_exact_answer_set(db):
-    student = make_student(db)
-    quiz = _seed_quiz(db)
-    question = _seed_question(db, quiz.id, correct_answer="A", correct_answers="A,C")
-
-    # One correct letter is not full credit on a multi-select question
-    res = client.post(
-        f"/api/quizzes/{quiz.id}/submit",
-        json={"student_id": student.id, "answers": {str(question.id): "A"}},
-        headers=auth_headers(student),
-    )
-    assert res.status_code == 200
-    data = res.json()["data"]
-    assert data["score"] == 0
-    assert data["results"][0]["is_correct"] is False
-
-    # The exact set, in any order, is full credit
-    res = client.post(
-        f"/api/quizzes/{quiz.id}/submit",
-        json={"student_id": student.id, "answers": {str(question.id): "C,A"}},
-        headers=auth_headers(student),
-    )
-    assert res.status_code == 200
-    data = res.json()["data"]
-    assert data["score"] == 1
-    assert data["results"][0]["is_correct"] is True
-
-
 def test_list_quizzes_unauthenticated(db):
     res = client.get("/api/quizzes")
     assert res.status_code == 401
-
-
-def test_each_quiz_submission_creates_new_attempt_row(db):
-    from app.models.quiz import QuizAttempt
-
-    student = make_student(db, username="retaker1")
-    quiz = _seed_quiz(db, title="Retake Quiz")
-    question = _seed_question(db, quiz.id)
-
-    first = client.post(
-        f"/api/quizzes/{quiz.id}/submit",
-        json={"student_id": student.id, "answers": {str(question.id): "A"}},
-        headers=auth_headers(student),
-    )
-    assert first.status_code == 200
-    assert first.json()["data"]["is_first_attempt"] is True
-    assert first.json()["data"]["xp_awarded"] == 100
-
-    second = client.post(
-        f"/api/quizzes/{quiz.id}/submit",
-        json={"student_id": student.id, "answers": {str(question.id): "B"}},
-        headers=auth_headers(student),
-    )
-    assert second.status_code == 200
-    assert second.json()["data"]["is_first_attempt"] is False
-    assert second.json()["data"]["xp_awarded"] == 0
-
-    attempts = (
-        db.query(QuizAttempt)
-        .filter(QuizAttempt.student_id == student.id, QuizAttempt.quiz_id == quiz.id)
-        .order_by(QuizAttempt.id.asc())
-        .all()
-    )
-    assert len(attempts) == 2
-    assert attempts[0].score == 1
-    assert attempts[1].score == 0
-    # best_score carries forward on the newest row
-    assert attempts[1].best_score == 1
-    assert attempts[1].first_attempt_xp == 100

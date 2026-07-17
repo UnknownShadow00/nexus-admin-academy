@@ -183,7 +183,6 @@ export const getLabs = (weekNumber, requestOptions) =>
   request(() => api.get("/api/labs", { params: { week_number: weekNumber } }), requestOptions);
 export const getLab = (labId, requestOptions) => request(() => api.get(`/api/labs/${labId}`), requestOptions);
 export const startLab = (labId, requestOptions) => request(() => api.post(`/api/labs/${labId}/start`), requestOptions);
-export const getLabVmStatus = (labId, requestOptions) => request(() => api.get(`/api/labs/${labId}/vm-status`), requestOptions);
 export const submitLab = (labId, payload, requestOptions) =>
   request(() => api.post(`/api/labs/${labId}/submit`, payload), requestOptions);
 export const getCliLabs = (requestOptions) => request(() => api.get("/api/cli-labs"), requestOptions);
@@ -221,6 +220,10 @@ export const updateCurriculumVideo = (videoId, data, requestOptions) =>
 export const getTickets = (weekNumber, studentId = currentStudentId(), requestOptions) =>
   request(() => api.get("/api/tickets", { params: { week_number: weekNumber, student_id: studentId } }), requestOptions);
 export const getTicket = (ticketId, requestOptions) => request(() => api.get(`/api/tickets/${ticketId}`), requestOptions);
+export const revealTicketHint = (ticketId, requestOptions) =>
+  request(() => api.post(`/api/tickets/${ticketId}/hint`), requestOptions);
+export const getWeekPlan = (week, requestOptions) =>
+  request(() => api.get(`/api/students/me/week-plan${week ? `?week=${week}` : ""}`), requestOptions);
 export const submitTicket = (ticketId, payload, requestOptions) =>
   request(() => api.post(`/api/tickets/${ticketId}/submit`, payload), requestOptions);
 export const getSubmission = (submissionId, requestOptions) =>
@@ -329,6 +332,8 @@ export const bulkGenerateTickets = (payload, requestOptions) =>
   request(() => adminApi.post("/api/admin/tickets/bulk-generate", payload), requestOptions);
 export const bulkPublishTickets = (payload, requestOptions) =>
   request(() => adminApi.post("/api/admin/tickets/bulk-publish", payload), requestOptions);
+export const getAIUsageStats = (requestOptions) =>
+  request(() => adminApi.get("/api/admin/ai-usage"), requestOptions);
 export const getAdminLabTemplates = (requestOptions) =>
   request(() => adminApi.get("/api/admin/labs/templates"), requestOptions);
 export const createAdminLabTemplate = (data, requestOptions) =>

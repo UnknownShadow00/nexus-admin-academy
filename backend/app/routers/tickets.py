@@ -8,11 +8,12 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.evidence import EvidenceArtifact
 from app.models.student import Student
+from app.models.evidence import EvidenceArtifact
 from app.models.ticket import Ticket, TicketSubmission
 from app.schemas.ticket import TicketSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
+from app.services.ticket_params import resolve_parameters, substitute, substitute_list
 from app.services.auth_service import ensure_student_access, get_current_student
 from app.services.ticket_grader import grade_ticket_submission, grade_ticket_with_answer_key
 from app.utils.responses import ok
@@ -148,20 +149,138 @@ def get_ticket_details(ticket_id: int, db: Session = Depends(get_db), current_st
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
+    values = resolve_parameters(ticket.parameters, current_student.id)  # TB-05
+    # Student-safe fields only: checkpoints are intentional guidance (Phase A
+    # guided tickets); scoring_anchors/root_cause/model_answer stay server-side
+    # because the five-anchor texts describe the expected root cause.
+    checkpoints = ticket.required_checkpoints or {}
+    if isinstance(checkpoints, dict) and checkpoints.get("checkpoints"):
+        checkpoints = {
+            "checkpoints": [
+                {**c, "step": substitute(str(c.get("step", "")), values)}
+                for c in checkpoints["checkpoints"]
+            ]
+        }
+    sub = (
+        db.query(TicketSubmission)
+        .filter(TicketSubmission.student_id == current_student.id, TicketSubmission.ticket_id == ticket_id)
+        .first()
+    )
+    hints = list(ticket.hints or [])
+    hints_used = (sub.hints_used if sub else 0) or 0
     return ok(
         {
             "id": ticket.id,
-            "title": ticket.title,
-            "description": ticket.description,
+            "title": substitute(ticket.title, values),
+            "description": substitute(ticket.description, values),
             "difficulty": ticket.difficulty,
             "week_number": ticket.week_number,
             "category": ticket.category or "general",
             "domain_id": ticket.domain_id,
             "lesson_id": ticket.lesson_id,
             "required_evidence": ticket.required_evidence or {},
+            "required_checkpoints": checkpoints,
+            "grading_rubric": [
+                "investigation", "root_cause", "safe_fix_or_escalation",
+                "verification", "communication",
+            ],
+            "hints_total": len(hints),
+            "hints_used": hints_used,
+            "hints_revealed": substitute_list(hints[:hints_used], values),
         }
     )
 
+
+
+# ---------------------------------------------------------------- TB-04: hints
+
+HINT_PENALTIES = [0.05, 0.10, 0.20, 0.35]  # cumulative-by-count XP reduction
+HINT_XP_FLOOR = 0.40  # student always keeps at least 40% of earned XP
+
+
+def hint_multiplier(hints_used: int) -> float:
+    """XP multiplier for a submission that revealed N hints.
+
+    Penalty is the ladder value for the DEEPEST hint revealed (not summed):
+    1 hint → −5%, 2 → −10%, 3 → −20%, 4 → −35%. Floor at 40%.
+    """
+    if hints_used <= 0:
+        return 1.0
+    idx = min(hints_used, len(HINT_PENALTIES)) - 1
+    return max(1.0 - HINT_PENALTIES[idx], HINT_XP_FLOOR)
+
+
+@router.post("/{ticket_id}/hint")
+def reveal_hint(ticket_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    """Reveal the next hint for the current student's active work on this ticket.
+
+    Tracks reveals on an in_progress submission row (created on first reveal)
+    so the penalty survives refreshes and applies at grading time. The response
+    always states the XP cost BEFORE the next hint can be requested.
+    """
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    hints = list(ticket.hints or [])
+    if not hints:
+        raise HTTPException(status_code=404, detail="This ticket has no hints")
+
+    sub = (
+        db.query(TicketSubmission)
+        .filter(TicketSubmission.student_id == current_student.id, TicketSubmission.ticket_id == ticket_id)
+        .first()
+    )
+    if sub and sub.status == "passed":
+        raise HTTPException(status_code=400, detail="Ticket already passed — hints unavailable")
+
+    if sub is None:
+        sub = TicketSubmission(
+            student_id=current_student.id,
+            ticket_id=ticket_id,
+            writeup="",
+            xp_awarded=0,
+            xp_granted=False,
+            status="in_progress",
+            hints_used=0,
+        )
+        db.add(sub)
+        db.flush()
+
+    already = sub.hints_used or 0
+    if already >= len(hints):
+        raise HTTPException(status_code=400, detail="All hints already revealed")
+
+    sub.hints_used = already + 1
+    db.commit()
+
+    values = resolve_parameters(ticket.parameters, current_student.id)  # TB-05
+    revealed = substitute_list(hints[: sub.hints_used], values)
+    next_cost = None
+    if sub.hints_used < len(hints):
+        next_cost = int(round(HINT_PENALTIES[sub.hints_used] * 100))
+    return ok(
+        {
+            "hints_revealed": revealed,
+            "hints_used": sub.hints_used,
+            "hints_total": len(hints),
+            "current_xp_multiplier": hint_multiplier(sub.hints_used),
+            "next_hint_xp_penalty_percent": next_cost,
+        }
+    )
+
+
+
+
+def _verify_evidence_ownership(db: Session, student_id: int, *artifact_ids: int | None) -> None:
+    """Part 9: a submission may only reference the submitter's own artifacts.
+    Legacy rows (student_id NULL, pre-fix uploads) are rejected for NEW links —
+    students re-upload rather than inherit unowned evidence."""
+    for artifact_id in artifact_ids:
+        if not artifact_id:
+            continue
+        row = db.query(EvidenceArtifact).filter(EvidenceArtifact.id == artifact_id).first()
+        if row is None or row.student_id != student_id:
+            raise HTTPException(status_code=403, detail=f"Evidence artifact {artifact_id} is not yours")
 
 @router.post("/{ticket_id}/submit")
 async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
@@ -169,12 +288,6 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
     ensure_student_access(current_student, student_id)
     collaborators = _validate_collaborators(db, student_id, payload.collaborator_ids or [])
     duration_minutes = payload.duration_minutes
-
-    for artifact_id in (payload.before_screenshot_id, payload.after_screenshot_id):
-        if artifact_id:
-            artifact = db.query(EvidenceArtifact).filter(EvidenceArtifact.id == artifact_id).first()
-            if not artifact or artifact.student_id != student_id:
-                raise HTTPException(status_code=403, detail="Evidence does not belong to this student")
 
     writeup = _build_itil_writeup(payload)
 
@@ -188,13 +301,15 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
     if existing and existing.status == "passed":
         raise HTTPException(status_code=400, detail="This ticket has already been passed. Contact instructor for review.")
 
+    _verify_evidence_ownership(db, student_id, payload.before_screenshot_id, payload.after_screenshot_id)  # Part 9
+    param_values = resolve_parameters(ticket.parameters, student_id)  # TB-05
     try:
         if ticket.required_checkpoints or ticket.scoring_anchors or ticket.root_cause:
             grading = await grade_ticket_with_answer_key(
                 ticket_id=ticket_id,
-                ticket_title=ticket.title,
-                root_cause=ticket.root_cause,
-                required_checkpoints=ticket.required_checkpoints,
+                ticket_title=substitute(ticket.title, param_values),
+                root_cause=substitute(ticket.root_cause, param_values),
+                required_checkpoints=[substitute(str(c), param_values) for c in (ticket.required_checkpoints or [])] if isinstance(ticket.required_checkpoints, list) else ticket.required_checkpoints,
                 scoring_anchors=ticket.scoring_anchors,
                 student_writeup=writeup,
                 db=db,
@@ -203,8 +318,8 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
         else:
             grading = await grade_ticket_submission(
                 ticket_id=ticket_id,
-                ticket_title=ticket.title,
-                ticket_description=ticket.description,
+                ticket_title=substitute(ticket.title, param_values),
+                ticket_description=substitute(ticket.description, param_values),
                 student_writeup=writeup,
                 difficulty=ticket.difficulty,
                 db=db,
@@ -223,7 +338,8 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
     base_xp = ai_score * 10
     num_people = 1 + len(collaborators)
     multiplier = _collab_multiplier(num_people)
-    xp_per_person = int(base_xp * multiplier)
+    hints_used_now = existing.hints_used if existing else 0
+    xp_per_person = int(base_xp * multiplier * hint_multiplier(hints_used_now or 0))
 
     if existing:
         submission_id = existing.id
@@ -295,6 +411,7 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
             "status": "pending",
             "message": "Awaiting Instructor Verification",
             "feedback": ai_feedback,
+            "anchors": grading.get("anchors"),
             "checkpoints_met": grading.get("checkpoints_met", []),
             "checkpoints_missed": grading.get("checkpoints_missed", []),
             "num_collaborators": len(collaborators),

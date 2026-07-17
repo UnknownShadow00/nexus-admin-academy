@@ -10,32 +10,165 @@ from app.models.progression import MethodologyFramework, PromotionGate, Role
 from app.models.student import Student
 from app.models.ticket import Ticket
 from app.services.cli_lab_seed import seed_cli_labs
-
+from seed_phase_a import seed_phase_a
+from seed_phase_b import seed_phase_b
+from seed_phase_c import seed_phase_c
+from seed_phase_d import seed_phase_d
+from seed_phase_e import seed_phase_e
+from seed_phase_f import seed_phase_f
+from seed_phase_g import seed_phase_g
 load_env()
 
+# TB-01: seed.py must NEVER create login-able accounts. The 6 real accounts
+# come exclusively from scripts/seed_users.py; the old STUDENTS list here
+# shipped guessable demo credentials (admin/admin123...) on every deploy.
+
 ROLES = [
-    {"name": "L1 Help Desk", "rank_order": 1, "description": "Entry support analyst"},
-    {"name": "L2 Help Desk", "rank_order": 2, "description": "Escalation support analyst"},
-    {"name": "Junior SysAdmin", "rank_order": 3, "description": "Junior systems administrator"},
-    {"name": "SysAdmin", "rank_order": 4, "description": "Systems administrator"},
-    {"name": "Network Admin", "rank_order": 5, "description": "Network administrator"},
+    # TB-02: the six curriculum roles (replaces the old 5-role L1/L2 ladder).
+    # Old→new remap for existing StudentRole rows happens in seed_roles_and_gates().
+    {"name": "Trainee", "rank_order": 1, "description": "New IT support trainee — Weeks 1–4"},
+    {"name": "Support Technician I", "rank_order": 2, "description": "Passed Gate 1 — foundational troubleshooting and ticket writing"},
+    {"name": "Support Technician II", "rank_order": 3, "description": "Passed Gate 2 — workplace help desk, security, and client networking"},
+    {"name": "Network Support Technician", "rank_order": 4, "description": "Passed Gate 3 — switching, VLANs, and network troubleshooting"},
+    {"name": "Junior Systems Technician", "rank_order": 5, "description": "Passed Gate 4 — Windows Server, AD, and PowerShell administration"},
+    {"name": "Junior Infrastructure Administrator", "rank_order": 6, "description": "Passed Gate 5 — graduated the integrated capstone"},
 ]
 
+# Old role names → new role names, used to migrate existing StudentRole data.
+ROLE_RENAME_MAP = {
+    "L1 Help Desk": "Trainee",
+    "L2 Help Desk": "Support Technician II",
+    "Junior SysAdmin": "Junior Systems Technician",
+    "SysAdmin": "Junior Systems Technician",
+    "Network Admin": "Network Support Technician",
+}
+
 PROMOTION_GATES = [
+    # ---- GATE 1: Trainee → Support Technician I (end of Week 4) ----
     {
-        "role": "L2 Help Desk",
-        "requirement_type": "min_verified_tickets_by_difficulty",
-        "config": {"thresholds": {"1": 10, "2": 8, "3": 5}},
+        "role": "Support Technician I",
+        "requirement_type": "min_completed_lessons",
+        "config": {"module_codes": ["MOD-000", "MOD-001", "MOD-002", "MOD-003", "MOD-004"]},
     },
     {
-        "role": "L2 Help Desk",
+        "role": "Support Technician I",
         "requirement_type": "min_mastery_by_domain",
-        "config": {"thresholds": {"hardware": 70, "networking": 70}},
+        "config": {"thresholds": {"hardware": 70, "software_troubleshooting": 70}},
     },
     {
-        "role": "Junior SysAdmin",
+        "role": "Support Technician I",
         "requirement_type": "min_verified_tickets_by_difficulty",
-        "config": {"thresholds": {"2": 10, "3": 8, "4": 5}},
+        "config": {"thresholds": {"1": 4, "2": 2}},
+    },
+    {
+        "role": "Support Technician I",
+        "requirement_type": "practical_checkpoint",
+        "config": {"ticket_title": "Multi-Ticket Simulation 1", "max_hints": 0, "min_score": 7},
+    },
+    {
+        "role": "Support Technician I",
+        "requirement_type": "min_cli_labs",
+        "config": {"min_completed": 9},
+    },
+    {
+        "role": "Support Technician I",
+        "requirement_type": "no_unresolved_flags",
+        "config": {},
+    },
+    # ---- GATE 2: Support Technician I → Support Technician II (end of Week 8) ----
+    # Ticket/mastery thresholds per the master doc; checkpoint is Simulation 2.
+    {
+        "role": "Support Technician II",
+        "requirement_type": "min_completed_lessons",
+        "config": {"module_codes": ["MOD-005", "MOD-006", "MOD-007", "MOD-008"]},
+    },
+    {
+        "role": "Support Technician II",
+        "requirement_type": "min_mastery_by_domain",
+        "config": {"thresholds": {"software_troubleshooting": 70, "networking": 70, "security": 70}},
+    },
+    {
+        "role": "Support Technician II",
+        "requirement_type": "min_verified_tickets_by_difficulty",
+        "config": {"thresholds": {"1": 6, "2": 8, "3": 2}},
+    },
+    {
+        "role": "Support Technician II",
+        "requirement_type": "practical_checkpoint",
+        "config": {"ticket_title": "Multi-Ticket Simulation 2", "max_hints": 1, "min_score": 7},
+    },
+    {
+        "role": "Support Technician II",
+        "requirement_type": "no_unresolved_flags",
+        "config": {},
+    },
+    # ---- GATE 3: Support Technician II → Network Support Technician (end of Week 12) ----
+    {
+        "role": "Network Support Technician",
+        "requirement_type": "min_completed_lessons",
+        "config": {"module_codes": ["MOD-009", "MOD-010", "MOD-011", "MOD-012"]},
+    },
+    {
+        "role": "Network Support Technician",
+        "requirement_type": "min_mastery_by_domain",
+        "config": {"thresholds": {"networking": 75}},
+    },
+    {
+        "role": "Network Support Technician",
+        "requirement_type": "min_verified_tickets_by_difficulty",
+        "config": {"thresholds": {"3": 3, "4": 2}},
+    },
+    {
+        "role": "Network Support Technician",
+        "requirement_type": "min_cli_labs",
+        "config": {"min_completed": 20, "pack_prefix": "dev-sw-"},
+    },
+    {
+        "role": "Network Support Technician",
+        "requirement_type": "no_unresolved_flags",
+        "config": {},
+    },
+    # ---- GATE 4: Network Support Technician → Junior Systems Technician (end of Week 17) ----
+    {
+        "role": "Junior Systems Technician",
+        "requirement_type": "min_completed_lessons",
+        "config": {"module_codes": ["MOD-013", "MOD-014", "MOD-015", "MOD-016", "MOD-017"]},
+    },
+    {
+        "role": "Junior Systems Technician",
+        "requirement_type": "min_mastery_by_domain",
+        "config": {"thresholds": {"windows_server": 75, "active_directory": 75}},
+    },
+    {
+        "role": "Junior Systems Technician",
+        "requirement_type": "min_verified_tickets_by_difficulty",
+        "config": {"thresholds": {"3": 3, "4": 1}},
+    },
+    {
+        "role": "Junior Systems Technician",
+        "requirement_type": "no_unresolved_flags",
+        "config": {},
+    },
+    # ---- GATE 5 (GRADUATION): Junior Systems Technician → Junior Infrastructure Administrator (end of Week 24) ----
+    {
+        "role": "Junior Infrastructure Administrator",
+        "requirement_type": "min_completed_lessons",
+        "config": {"module_codes": ["MOD-018", "MOD-019", "MOD-020", "MOD-021", "MOD-022", "MOD-023", "MOD-024"]},
+    },
+    {
+        "role": "Junior Infrastructure Administrator",
+        "requirement_type": "min_verified_tickets_by_difficulty",
+        "config": {"thresholds": {"3": 3, "4": 3}},
+    },
+    {
+        "role": "Junior Infrastructure Administrator",
+        "requirement_type": "practical_checkpoint",
+        "config": {"ticket_title": "Multi-Ticket Simulation 3", "max_hints": 1, "min_score": 7},
+    },
+    {
+        "role": "Junior Infrastructure Administrator",
+        "requirement_type": "no_unresolved_flags",
+        "config": {},
     },
 ]
 
@@ -555,10 +688,61 @@ COMMANDS = [
 
 
 def seed_roles(db):
+    # TB-02: rename pass FIRST — migrate old L1/L2-era rows in place so existing
+    # StudentRole/Student.current_role_id references survive the remap. Renaming
+    # in place also avoids rank_order unique-constraint collisions with new rows.
+    # Step 0: park EVERY role on a temporary unique negative rank so neither
+    # renames nor re-ranking can collide with a legacy row still holding a
+    # rank the new ladder needs (e.g. old "SysAdmin" on rank 4).
+    for row in db.query(Role).all():
+        row.rank_order = -row.id
+    db.flush()
+
+    renamed_targets: set[str] = set()
+    for old_name, new_name in ROLE_RENAME_MAP.items():
+        old_row = db.query(Role).filter(Role.name == old_name).first()
+        new_row = db.query(Role).filter(Role.name == new_name).first()
+        # Rename in place only when the target name is still free — including
+        # free of a rename we just performed in this loop (two old roles can map
+        # to the same new role, e.g. Junior SysAdmin + SysAdmin → Junior Systems
+        # Technician; the second one is retired by the legacy pass below instead).
+        if old_row and not new_row and new_name not in renamed_targets:
+            old_row.name = new_name  # keep id; rank/description fixed below
+            renamed_targets.add(new_name)
+            db.flush()
+
+    target_names = {r["name"] for r in ROLES}
+
     for role in ROLES:
         exists = db.query(Role).filter(Role.name == role["name"]).first()
-        if not exists:
+        if exists:
+            exists.rank_order = role["rank_order"]
+            exists.description = role["description"]
+        else:
             db.add(Role(**role))
+    db.flush()
+
+    # Retire any legacy roles not in the new ladder (e.g. duplicate "SysAdmin"
+    # after its rename target already existed): repoint students to the nearest
+    # new role, then drop the orphan.
+    legacy = db.query(Role).filter(~Role.name.in_(target_names)).all()
+    if legacy:
+        fallback = db.query(Role).filter(Role.rank_order == 1).first()
+        for row in legacy:
+            replacement_name = ROLE_RENAME_MAP.get(row.name)
+            replacement = (
+                db.query(Role).filter(Role.name == replacement_name).first()
+                if replacement_name
+                else None
+            ) or fallback
+            if replacement:
+                db.query(Student).filter(Student.current_role_id == row.id).update(
+                    {"current_role_id": replacement.id}, synchronize_session=False
+                )
+            db.query(PromotionGate).filter(PromotionGate.role_id == row.id).delete(
+                synchronize_session=False
+            )
+            db.delete(row)
     db.flush()
 
 
@@ -784,7 +968,21 @@ def run_seed() -> None:
         seed_answer_keys(db, limit=10)
         seed_commands(db)
         db.commit()
-        print("Seed complete: roles, promotion gates, module0, methodology, tickets(8), labs(4), capstones(2), answer keys, commands(50)")
+        phase_a = seed_phase_a(db)
+        db.commit()
+        phase_b = seed_phase_b(db)
+        db.commit()
+        phase_c = seed_phase_c(db)
+        db.commit()
+        phase_d = seed_phase_d(db)
+        db.commit()
+        phase_e = seed_phase_e(db)
+        db.commit()
+        phase_f = seed_phase_f(db)
+        db.commit()
+        phase_g = seed_phase_g(db)
+        db.commit()
+        print(f"Seed complete: roles(6), gates, module0+methodology, base tickets(8), labs(4), capstones(2), commands(50), phase_a={phase_a}, phase_b={phase_b}, phase_c={phase_c}, phase_d={phase_d}, phase_e={phase_e}, phase_f={phase_f}, phase_g={phase_g}")
     except Exception:
         db.rollback()
         raise

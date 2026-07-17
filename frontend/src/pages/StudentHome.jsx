@@ -2,6 +2,7 @@ import { BookOpen, Brain, Flame, Ticket, Trophy, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import FlashcardReviewPanel from "../components/FlashcardReviewPanel";
+import WeekPlanPanel from "../components/WeekPlanPanel";
 import { XPBadge } from "../components/ui/Badge";
 import PageHeader from "../components/ui/PageHeader";
 import { getCurrentStudent } from "../hooks/useAuth";
@@ -58,6 +59,8 @@ export default function StudentHome() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <PageHeader title={stats.name || "Student Home"} subtitle="Stay on track with your next lesson, quiz, and support ticket milestone." />
+
+      <WeekPlanPanel />
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map(({ label, value, to, Icon, accent, card }) => (

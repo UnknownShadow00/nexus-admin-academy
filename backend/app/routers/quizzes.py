@@ -19,16 +19,6 @@ router = APIRouter(prefix="/api/quizzes", tags=["quizzes"])
 logger = logging.getLogger(__name__)
 
 
-def _is_answer_correct(question, raw_answer) -> bool:
-    correct_letters = question.all_correct_answers
-    if question.is_multi_select:
-        # Multi-select requires the exact set of correct letters — a single
-        # correct letter is not full credit
-        student_letters = sorted(letter.strip() for letter in str(raw_answer or "").split(",") if letter.strip())
-        return bool(student_letters) and student_letters == sorted(correct_letters)
-    return raw_answer in correct_letters
-
-
 def _avg_seconds_per_question(time_per_question: dict | None) -> float | None:
     if not time_per_question:
         return None
@@ -50,13 +40,7 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
     attempts_by_quiz = {}
     attempt_counts_by_quiz = {}
     if scoped_student_id is not None:
-        attempts = (
-            db.query(QuizAttempt)
-            .filter(QuizAttempt.student_id == scoped_student_id)
-            .order_by(QuizAttempt.completed_at.asc(), QuizAttempt.id.asc())
-            .all()
-        )
-        # dict overwrite keeps the latest attempt per quiz
+        attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == scoped_student_id).all()
         attempts_by_quiz = {attempt.quiz_id: attempt for attempt in attempts}
         attempt_counts = (
             db.query(QuizAttempt.quiz_id, func.count(QuizAttempt.id))
@@ -184,8 +168,23 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
 
     for i, question in enumerate(questions, start=1):
         raw_answer = answers.get(str(question.id)) or answers.get(str(i))
-        student_answer = raw_answer
-        is_correct = _is_answer_correct(question, raw_answer)
+        correct_letters = question.all_correct_answers
+        if question.is_multi_select:
+            # TB-06 fix: ALWAYS compare as sets for multi-select. Previously a
+            # single-letter answer (no comma) fell through to `in correct_letters`
+            # and earned full credit for a partial answer.
+            student_letters = sorted(
+                letter.strip().upper()
+                for letter in str(raw_answer or "").split(",")
+                if letter.strip()
+            )
+            is_correct = bool(student_letters) and student_letters == sorted(
+                letter.strip().upper() for letter in correct_letters
+            )
+            student_answer = raw_answer
+        else:
+            student_answer = raw_answer
+            is_correct = student_answer in correct_letters
         if is_correct:
             correct_count += 1
         else:
@@ -213,17 +212,17 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
         )
 
     score = correct_count
-    prior = (
+    # TB-06: every attempt is a new row (migration c2d3e4f5a6b7 dropped uq_student_quiz).
+    prior_attempts = (
         db.query(QuizAttempt)
         .filter(QuizAttempt.student_id == student_id, QuizAttempt.quiz_id == quiz_id)
-        .order_by(QuizAttempt.completed_at.desc(), QuizAttempt.id.desc())
-        .first()
+        .all()
     )
-
-    is_first_attempt = prior is None
+    is_first_attempt = len(prior_attempts) == 0
+    prior_best = max((a.score or 0) for a in prior_attempts) if prior_attempts else 0
+    # XP policy unchanged: only the first attempt earns quiz XP.
     xp_awarded = round((score / total_questions) * 100) if is_first_attempt else 0
 
-    # Every attempt gets its own row; best_score/first_attempt_xp carry forward
     attempt = QuizAttempt(
         student_id=student_id,
         quiz_id=quiz_id,
@@ -231,26 +230,27 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
         results=results,
         score=score,
         xp_awarded=xp_awarded,
-        best_score=max(prior.best_score or 0, score) if prior else score,
-        first_attempt_xp=xp_awarded if is_first_attempt else (prior.first_attempt_xp or 0),
+        best_score=max(prior_best, score),
+        # live DB column is NOT NULL DEFAULT 0 (migration 0002) — 0, not None, on retakes
+        first_attempt_xp=xp_awarded if is_first_attempt else 0,
         time_per_question=time_per_question,
     )
     db.add(attempt)
     db.flush()
 
-    if is_first_attempt:
-        if xp_awarded > 0:
-            award_xp(
-                db,
-                student_id=student_id,
-                delta=xp_awarded,
-                source_type="quiz",
-                source_id=attempt.id,
-                description=f"Quiz: {quiz.title} (Score: {score}/{total_questions})",
-            )
-        record_quiz_mastery(db, student_id, quiz.domain_id, score)
-        log_activity(db, student_id, "quiz_passed", quiz.title, f"Score {score}/{total_questions}")
-
+    if xp_awarded > 0:
+        award_xp(
+            db,
+            student_id=student_id,
+            delta=xp_awarded,
+            source_type="quiz",
+            source_id=attempt.id,
+            description=f"Quiz: {quiz.title} (Score: {score}/{total_questions})",
+        )
+    # Mastery uses best-known score across attempts (documented rule: mastery=best,
+    # speed-flags evaluate every attempt individually).
+    record_quiz_mastery(db, student_id, quiz.domain_id, max(prior_best, score))
+    log_activity(db, student_id, "quiz_passed", quiz.title, f"Score {score}/{total_questions}")
     create_cards_for_wrong_answers(db, student.id, wrong_question_ids)
     db.commit()
 
@@ -275,7 +275,6 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
     attempt = (
         db.query(QuizAttempt)
         .filter(QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == student_id)
-        .order_by(QuizAttempt.completed_at.desc(), QuizAttempt.id.desc())
         .first()
     )
     if not attempt:
@@ -336,7 +335,7 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
                 "correct_answer": question.correct_answer,
                 "correct_answers": question.all_correct_answers,
                 "is_multi_select": question.is_multi_select,
-                "is_correct": _is_answer_correct(question, student_answer),
+                "is_correct": student_answer in question.all_correct_answers,
                 "explanation": question.explanation or "",
                 "options": {
                     "A": question.option_a,

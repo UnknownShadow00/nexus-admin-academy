@@ -1,4 +1,4 @@
-from sqlalchemy import CHAR, JSON, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import CHAR, JSON, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -59,9 +59,13 @@ class Question(Base):
 class QuizAttempt(Base):
     __tablename__ = "quiz_attempts"
     __table_args__ = (
+        # uq_student_quiz removed (TB-06, migration c2d3e4f5a6b7): every attempt
+        # is now its own row so retakes never overwrite history.
         CheckConstraint("xp_awarded >= 0", name="ck_quiz_attempts_xp_awarded_non_negative"),
-        CheckConstraint("best_score IS NULL OR best_score >= 0", name="ck_quiz_attempts_best_score"),
-        CheckConstraint("first_attempt_xp IS NULL OR first_attempt_xp >= 0", name="ck_quiz_attempts_first_attempt_xp_non_negative"),
+        # best_score/first_attempt_xp are NOT NULL DEFAULT 0 in the real schema
+        # (migration 0002) — 0 means "none", never NULL. Model matches the DB.
+        CheckConstraint("best_score >= 0", name="ck_quiz_attempts_best_score"),
+        CheckConstraint("first_attempt_xp >= 0", name="ck_quiz_attempts_first_attempt_xp_non_negative"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -71,8 +75,8 @@ class QuizAttempt(Base):
     results: Mapped[list | None] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
     score: Mapped[int] = mapped_column(Integer, nullable=False)
     xp_awarded: Mapped[int] = mapped_column(Integer, nullable=False)
-    best_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    first_attempt_xp: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    best_score: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
+    first_attempt_xp: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0", default=0)
     completed_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     time_per_question: Mapped[dict | None] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
 

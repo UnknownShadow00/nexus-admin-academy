@@ -73,7 +73,18 @@ def check_promotion_eligibility(student_id: int, target_role_id: int, db: Sessio
             result = _check_ticket_requirement(student_id, config, db)
         elif req_type == "min_mastery_by_domain":
             result = _check_mastery_requirement(student_id, config, db)
+        elif req_type == "practical_checkpoint":
+            result = _check_practical_checkpoint(student_id, config, db)
+        elif req_type == "min_completed_lessons":
+            result = _check_lessons_requirement(student_id, config, db)
+        elif req_type == "min_cli_labs":
+            result = _check_cli_labs_requirement(student_id, config, db)
+        elif req_type == "no_unresolved_flags":
+            result = _check_no_flags(student_id, config, db)
         else:
+            # Unknown types are ignored for forward-compatibility, and must not
+            # count toward the completion denominator (previously they did,
+            # silently deflating completion_percent).
             continue
 
         if result["met"]:
@@ -81,7 +92,8 @@ def check_promotion_eligibility(student_id: int, target_role_id: int, db: Sessio
         else:
             requirements_missing.append(result)
 
-    completion_percent = (len(requirements_met) / len(gates) * 100) if gates else 0
+    evaluated = len(requirements_met) + len(requirements_missing)
+    completion_percent = (len(requirements_met) / evaluated * 100) if evaluated else 0
     return {
         "eligible": len(requirements_missing) == 0,
         "requirements_met": requirements_met,
@@ -185,4 +197,154 @@ def _check_mastery_requirement(student_id: int, config: dict, db: Session) -> di
         "description": "Mastery by domain",
         "progress": progress,
         "met": met,
+    }
+
+
+# --------------------------------------------------------------------------- 
+# TB-02 gate evaluators (Gate 1 / Gate 2). Same contract as the evaluators
+# above: return {"type", "description", "progress", "met"}.
+# ---------------------------------------------------------------------------
+
+def _check_practical_checkpoint(student_id: int, config: dict, db: Session) -> dict:
+    """A designated ticket completed within hint/score limits.
+
+    Config: {"ticket_title": str (substring match) OR "ticket_id": int,
+             "max_hints": int (default 0), "min_score": int (default 7)}
+    """
+    cfg = config or {}
+    max_hints = int(cfg.get("max_hints", 0))
+    min_score = int(cfg.get("min_score", 7))
+
+    query = (
+        db.query(TicketSubmission)
+        .join(Ticket, TicketSubmission.ticket_id == Ticket.id)
+        .filter(
+            TicketSubmission.student_id == student_id,
+            TicketSubmission.status == "passed",
+        )
+    )
+    if cfg.get("ticket_id"):
+        query = query.filter(Ticket.id == int(cfg["ticket_id"]))
+        label = f"ticket #{cfg['ticket_id']}"
+    else:
+        title = str(cfg.get("ticket_title", ""))
+        query = query.filter(Ticket.title.ilike(f"%{title}%"))
+        label = f'"{title}"'
+
+    best = None
+    for sub in query.all():
+        score = sub.final_score if sub.final_score is not None else sub.ai_score
+        hints = getattr(sub, "hints_used", 0) or 0  # column lands with TB-04
+        if score is not None and score >= min_score and hints <= max_hints:
+            best = sub
+            break
+        if best is None:
+            best = sub
+
+    met = bool(
+        best
+        and (best.final_score if best.final_score is not None else best.ai_score) is not None
+        and (best.final_score if best.final_score is not None else best.ai_score) >= min_score
+        and (getattr(best, "hints_used", 0) or 0) <= max_hints
+    )
+    achieved_score = None
+    achieved_hints = None
+    if best is not None:
+        achieved_score = best.final_score if best.final_score is not None else best.ai_score
+        achieved_hints = getattr(best, "hints_used", 0) or 0
+    return {
+        "type": "practical_checkpoint",
+        "description": f"Practical checkpoint {label}: score ≥ {min_score} with ≤ {max_hints} hints",
+        "progress": {
+            "required_min_score": min_score,
+            "required_max_hints": max_hints,
+            "achieved_score": achieved_score,
+            "achieved_hints": achieved_hints,
+        },
+        "met": met,
+    }
+
+
+def _check_lessons_requirement(student_id: int, config: dict, db: Session) -> dict:
+    """Lesson completion = submitted lesson notes (the platform's completion signal).
+
+    Config: {"weeks": [1,2,3,4]} or {"module_codes": ["MOD-001", ...]}.
+    Requires notes for every published lesson in scope.
+    """
+    from app.models.lesson_notes import StudentLessonNote
+
+    cfg = config or {}
+    lesson_query = db.query(Lesson.id).filter(Lesson.status == "published")
+    scope_desc = "all published lessons"
+    if cfg.get("module_codes"):
+        lesson_query = lesson_query.join(Module, Lesson.module_id == Module.id).filter(
+            Module.code.in_(list(cfg["module_codes"]))
+        )
+        scope_desc = f"modules {', '.join(cfg['module_codes'])}"
+
+    required_ids = {row.id for row in lesson_query.all()}
+    done_ids = {
+        row.lesson_id
+        for row in db.query(StudentLessonNote.lesson_id)
+        .filter(StudentLessonNote.student_id == student_id)
+        .all()
+    }
+    missing = sorted(required_ids - done_ids)
+    return {
+        "type": "min_completed_lessons",
+        "description": f"Lesson notes submitted for {scope_desc}",
+        "progress": {
+            "required": len(required_ids),
+            "completed": len(required_ids) - len(missing),
+            "missing_lesson_ids": missing,
+        },
+        "met": len(missing) == 0 and len(required_ids) > 0,
+    }
+
+
+def _check_cli_labs_requirement(student_id: int, config: dict, db: Session) -> dict:
+    """Config: {"min_completed": int, "pack_prefix": optional str (lab id prefix)}."""
+    from app.models.cli_lab import CliLab, CliLabAttempt
+
+    cfg = config or {}
+    required = int(cfg.get("min_completed", 0))
+    query = (
+        db.query(func.count(func.distinct(CliLabAttempt.lab_id)))
+        .filter(
+            CliLabAttempt.student_id == student_id,
+            CliLabAttempt.completed_at.isnot(None),
+        )
+    )
+    if cfg.get("pack_prefix"):
+        query = query.join(CliLab, CliLabAttempt.lab_id == CliLab.id).filter(
+            CliLab.id.like(f"{cfg['pack_prefix']}%")
+        )
+    completed = int(query.scalar() or 0)
+    return {
+        "type": "min_cli_labs",
+        "description": f"CLI labs completed (≥ {required})",
+        "progress": {"required": required, "completed": completed},
+        "met": completed >= required,
+    }
+
+
+def _check_no_flags(student_id: int, config: dict, db: Session) -> dict:
+    """No unresolved mentor flags: a flag is a mentor comment on a submission
+    that has not been re-reviewed (admin_comment set, admin_reviewed False)."""
+    open_flags = (
+        db.query(func.count(TicketSubmission.id))
+        .filter(
+            TicketSubmission.student_id == student_id,
+            TicketSubmission.admin_comment.isnot(None),
+            TicketSubmission.admin_comment != "",
+            TicketSubmission.admin_reviewed.is_(False),
+        )
+        .scalar()
+        or 0
+    )
+    return {
+        "type": "no_unresolved_flags",
+        "description": "No unresolved mentor flags",
+        "progress": {"open_flags": int(open_flags)},
+        "met": int(open_flags) == 0,
     }

@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
-from conftest import _Session, auth_headers, make_client, make_student
+from conftest import auth_headers, make_client, make_student
 from app.models.lab import LabRun, LabTemplate
 from app.models.vm_assignment import VmAssignment
 from app.routers.admin_content import router as admin_content_router
-from app.routers import labs
 from app.routers.labs import router
 from app.services import guacamole_service, proxmox_service
 
@@ -79,27 +78,20 @@ def test_start_vm_backed_lab_provisions_guacamole_session(monkeypatch, db):
     student = make_student(db)
     lab = _seed_lab(db, proxmox_template_vmid=900)
 
-    monkeypatch.setattr(labs, "SessionLocal", _Session)
     monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 210)
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: "10.0.0.25")
     monkeypatch.setattr(guacamole_service, "create_connection", lambda vm_ip, vmid: "conn-210")
-    monkeypatch.setattr(guacamole_service, "get_student_token_url", lambda conn_id, lab_run_id: f"https://guac.local/{conn_id}")
+    monkeypatch.setattr(guacamole_service, "get_token_url", lambda conn_id: f"https://guac.local/{conn_id}")
 
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
 
-    assert started.status_code == 202
+    assert started.status_code == 200
     data = started.json()["data"]
     assert data["status"] == "in_progress"
-    assert data["vm_status"] == "provisioning"
-    assert "guac_token_url" not in data
-
-    # TestClient runs the background task before returning, so status is final
-    status_res = client.get(f"/api/labs/{lab.id}/vm-status", headers=auth_headers(student))
-    assert status_res.status_code == 200
-    status_data = status_res.json()["data"]
-    assert status_data["vm_status"] == "ready"
-    assert status_data["guac_token_url"] == "https://guac.local/conn-210"
+    assert data["vmid"] == 210
+    assert data["vm_status"] == "running"
+    assert data["guac_token_url"] == "https://guac.local/conn-210"
 
     assignment = db.query(VmAssignment).filter(VmAssignment.lab_run_id == data["run_id"]).one()
     assert assignment.status == "running"
@@ -111,21 +103,13 @@ def test_start_vm_backed_lab_marks_assignment_failed_without_ip(monkeypatch, db)
     student = make_student(db)
     lab = _seed_lab(db, proxmox_template_vmid=900)
 
-    monkeypatch.setattr(labs, "SessionLocal", _Session)
     monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 211)
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: None)
 
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
 
-    assert started.status_code == 202
-
-    status_res = client.get(f"/api/labs/{lab.id}/vm-status", headers=auth_headers(student))
-    assert status_res.status_code == 200
-    status_data = status_res.json()["data"]
-    assert status_data["vm_status"] == "failed"
-    assert status_data["guac_token_url"] is None
-
+    assert started.status_code == 502
     assignment = db.query(VmAssignment).filter(VmAssignment.vmid == 211).one()
     assert assignment.status == "failed"
 
@@ -135,20 +119,17 @@ def test_submit_vm_backed_lab_destroys_assignment(monkeypatch, db):
     lab = _seed_lab(db, proxmox_template_vmid=900)
     destroyed = []
     deleted = []
-    deleted_users = []
 
-    monkeypatch.setattr(labs, "SessionLocal", _Session)
     monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 212)
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: "10.0.0.26")
     monkeypatch.setattr(guacamole_service, "create_connection", lambda vm_ip, vmid: "conn-212")
-    monkeypatch.setattr(guacamole_service, "get_student_token_url", lambda conn_id, lab_run_id: f"https://guac.local/{conn_id}")
+    monkeypatch.setattr(guacamole_service, "get_token_url", lambda conn_id: f"https://guac.local/{conn_id}")
     monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid: destroyed.append(vmid))
     monkeypatch.setattr(guacamole_service, "delete_connection", lambda conn_id: deleted.append(conn_id))
-    monkeypatch.setattr(guacamole_service, "delete_lab_user", lambda lab_run_id: deleted_users.append(lab_run_id))
 
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
-    assert started.status_code == 202
+    assert started.status_code == 200
 
     submitted = client.post(
         f"/api/labs/{lab.id}/submit",
@@ -162,123 +143,6 @@ def test_submit_vm_backed_lab_destroys_assignment(monkeypatch, db):
     assert assignment.destroyed_at is not None
     assert destroyed == [212]
     assert deleted == ["conn-212"]
-    assert deleted_users == [assignment.lab_run_id]
-
-
-def test_upload_lab_evidence_persists_file_and_stamps_owner(db, tmp_path, monkeypatch):
-    from app.models.evidence import EvidenceArtifact
-
-    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
-    student = make_student(db)
-    lab = _seed_lab(db)
-    run = LabRun(lab_template_id=lab.id, student_id=student.id, status="in_progress")
-    db.add(run)
-    db.commit()
-
-    res = client.post(
-        f"/api/labs/{run.id}/evidence",
-        files={"file": ("proof.png", b"\x89PNG-lab-proof", "image/png")},
-        headers=auth_headers(student),
-    )
-
-    assert res.status_code == 200
-    body = res.json()["data"]
-    assert (tmp_path / body["storage_key"]).read_bytes() == b"\x89PNG-lab-proof"
-    artifact = db.query(EvidenceArtifact).filter(EvidenceArtifact.id == body["artifact_id"]).one()
-    assert artifact.student_id == student.id
-    assert artifact.submission_type == "lab"
-    assert artifact.submission_id == run.id
-
-
-def test_upload_lab_evidence_rejects_oversized_file(db, tmp_path, monkeypatch):
-    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
-    student = make_student(db)
-    lab = _seed_lab(db)
-    run = LabRun(lab_template_id=lab.id, student_id=student.id, status="in_progress")
-    db.add(run)
-    db.commit()
-
-    big = b"x" * (5 * 1024 * 1024 + 1)
-    res = client.post(
-        f"/api/labs/{run.id}/evidence",
-        files={"file": ("proof.png", big, "image/png")},
-        headers=auth_headers(student),
-    )
-
-    assert res.status_code == 400
-    assert "too large" in res.json()["detail"].lower()
-
-
-def test_upload_lab_evidence_rejects_other_students_run(db, tmp_path, monkeypatch):
-    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
-    owner = make_student(db, username="owner1")
-    intruder = make_student(db, username="intruder1")
-    lab = _seed_lab(db)
-    run = LabRun(lab_template_id=lab.id, student_id=owner.id, status="in_progress")
-    db.add(run)
-    db.commit()
-
-    res = client.post(
-        f"/api/labs/{run.id}/evidence",
-        files={"file": ("proof.png", b"fake-image", "image/png")},
-        headers=auth_headers(intruder),
-    )
-
-    assert res.status_code == 403
-
-
-def test_get_student_token_url_uses_per_run_user_and_nul_encoding(monkeypatch):
-    import base64
-
-    monkeypatch.setenv("GUACAMOLE_URL", "https://guac.local/guacamole")
-    monkeypatch.setenv("GUACAMOLE_ADMIN_USER", "guacadmin")
-    monkeypatch.setenv("GUACAMOLE_ADMIN_PASS", "adminpass")
-    monkeypatch.setenv("GUACAMOLE_DATASOURCE", "postgresql")
-
-    calls = []
-
-    class _Resp:
-        def __init__(self, payload=None, status_code=200):
-            self._payload = payload or {}
-            self.status_code = status_code
-
-        def raise_for_status(self):
-            pass
-
-        def json(self):
-            return self._payload
-
-    def fake_post(url, data=None, json=None, headers=None, timeout=None):
-        calls.append(("POST", url, data, json))
-        if url.endswith("/api/tokens"):
-            if data["username"] == "guacadmin":
-                return _Resp({"authToken": "ADMIN-TOKEN"})
-            return _Resp({"authToken": "STUDENT-TOKEN"})
-        return _Resp()
-
-    def fake_patch(url, json=None, headers=None, timeout=None):
-        calls.append(("PATCH", url, None, json))
-        return _Resp()
-
-    monkeypatch.setattr(guacamole_service.requests, "post", fake_post)
-    monkeypatch.setattr(guacamole_service.requests, "patch", fake_patch)
-
-    url = guacamole_service.get_student_token_url("42", lab_run_id=7)
-
-    # Client URL: base64("{identifier}\0c\0{datasource}") + student (not admin) token
-    expected_id = base64.b64encode(b"42\0c\0postgresql").decode()
-    assert url == f"https://guac.local/guacamole/#/client/{expected_id}?token=STUDENT-TOKEN"
-    assert "ADMIN-TOKEN" not in url
-
-    # Per-lab-run user created and granted READ on only its connection
-    user_creates = [c for c in calls if c[0] == "POST" and c[1].endswith("/users")]
-    assert len(user_creates) == 1
-    assert user_creates[0][3]["username"] == "lab-run-7"
-
-    perm_patches = [c for c in calls if c[0] == "PATCH"]
-    assert len(perm_patches) == 1
-    assert perm_patches[0][1].endswith("/users/lab-run-7/permissions")
-    assert perm_patches[0][3] == [{"op": "add", "path": "/connectionPermissions/42", "value": "READ"}]
 
 
 def test_admin_cleanup_destroys_idle_vm_assignments(monkeypatch, db):
@@ -301,11 +165,9 @@ def test_admin_cleanup_destroys_idle_vm_assignments(monkeypatch, db):
     db.commit()
     destroyed = []
     deleted = []
-    deleted_users = []
 
     monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid: destroyed.append(vmid))
     monkeypatch.setattr(guacamole_service, "delete_connection", lambda conn_id: deleted.append(conn_id))
-    monkeypatch.setattr(guacamole_service, "delete_lab_user", lambda lab_run_id: deleted_users.append(lab_run_id))
 
     res = admin_client.delete("/api/admin/vms/cleanup", headers={"X-Admin-Key": "unit-test-admin"})
 
@@ -316,4 +178,3 @@ def test_admin_cleanup_destroys_idle_vm_assignments(monkeypatch, db):
     assert assignment.destroyed_at is not None
     assert destroyed == [213]
     assert deleted == ["conn-213"]
-    assert deleted_users == [run.id]

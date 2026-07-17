@@ -23,6 +23,8 @@ class Ticket(Base):
     required_checkpoints: Mapped[dict] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
     required_evidence: Mapped[dict] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
     scoring_anchors: Mapped[dict] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
+    hints: Mapped[list] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=list)  # TB-04: up to 4 progressive hints
+    parameters: Mapped[dict] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)  # TB-05: per-student placeholders
     model_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -56,6 +58,7 @@ class TicketSubmission(Base):
     verified_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
     started_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    hints_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")  # TB-04
     overridden: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     override_score: Mapped[int] = mapped_column(Integer, nullable=True)
     evidence_complete: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

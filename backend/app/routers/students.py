@@ -112,14 +112,7 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db), curren
         .all()
     )
 
-    quiz_attempt_rows = (
-        db.query(QuizAttempt)
-        .filter(QuizAttempt.student_id == student_id)
-        .order_by(QuizAttempt.completed_at.asc(), QuizAttempt.id.asc())
-        .all()
-    )
-    # one entry per quiz — the latest attempt carries the cumulative best_score
-    quiz_attempts = list({a.quiz_id: a for a in quiz_attempt_rows}.values())
+    quiz_attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).all()
     ticket_subs = db.query(TicketSubmission).filter(TicketSubmission.student_id == student_id).all()
 
     data = {
@@ -157,10 +150,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
     level, level_name = level_from_xp(student.total_xp)
 
     quiz_stats = (
-        db.query(
-            func.count(func.distinct(QuizAttempt.quiz_id)).label("completed"),
-            func.coalesce(func.avg(QuizAttempt.score), 0).label("avg_score"),
-        )
+        db.query(func.count(QuizAttempt.id).label("completed"), func.coalesce(func.avg(QuizAttempt.score), 0).label("avg_score"))
         .filter(QuizAttempt.student_id == student_id)
         .first()
     )
@@ -176,7 +166,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
     week_number = 1
     week_quizzes = db.query(func.count(Quiz.id)).filter(Quiz.week_number == week_number, Quiz.status == QUIZ_STATUS_PUBLISHED).scalar() or 0
     week_tickets = db.query(func.count(Ticket.id)).filter(Ticket.week_number == week_number).scalar() or 0
-    week_completed_q = db.query(func.count(func.distinct(QuizAttempt.quiz_id))).join(Quiz, QuizAttempt.quiz_id == Quiz.id).filter(QuizAttempt.student_id == student_id, Quiz.week_number == week_number).scalar() or 0
+    week_completed_q = db.query(func.count(QuizAttempt.id)).join(Quiz, QuizAttempt.quiz_id == Quiz.id).filter(QuizAttempt.student_id == student_id, Quiz.week_number == week_number).scalar() or 0
     week_completed_t = (
         db.query(func.count(TicketSubmission.id))
         .join(Ticket, TicketSubmission.ticket_id == Ticket.id)
@@ -401,7 +391,7 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db), current_st
             quiz_count = db.query(func.count(Quiz.id)).filter(Quiz.lesson_id == lesson.id).scalar() or 0
             ticket_count = db.query(func.count(Ticket.id)).filter(Ticket.lesson_id == lesson.id).scalar() or 0
             completed_quiz = (
-                db.query(func.count(func.distinct(QuizAttempt.quiz_id)))
+                db.query(func.count(QuizAttempt.id))
                 .join(Quiz, QuizAttempt.quiz_id == Quiz.id)
                 .filter(QuizAttempt.student_id == student_id, Quiz.lesson_id == lesson.id)
                 .scalar()
@@ -483,3 +473,232 @@ def methodology_status(student_id: int, db: Session = Depends(get_db), current_s
             }
         )
     return {"success": True, "allowed": access["allowed"], "missing_frameworks": access["missing_frameworks"], "frameworks": data}
+
+
+# ---------------------------------------------------------------- TB-03: week plan
+
+# CLI packs → week mapping (CliLab has no week column by design; packs are the
+# unit of assignment). Documented in NEXUS_WEEKS_1-4_PACKAGE.md.
+CLI_PACK_WEEKS = {
+    "meet-the-cli": 1,
+    "network-foundations": 9,
+    "learn-switching": 10,
+}
+
+# Module code → week mapping for Phase A (modules carry order, not weeks).
+MODULE_WEEKS = {
+    "MOD-000": 1,
+    "MOD-001": 1,
+    "MOD-002": 2,
+    "MOD-003": 3,
+    "MOD-004": 4,
+    "MOD-005": 5,
+    "MOD-006": 6,
+    "MOD-007": 7,
+    "MOD-008": 8,
+    "MOD-009": 9,
+    "MOD-010": 10,
+    "MOD-011": 11,
+    "MOD-012": 12,
+    "MOD-013": 13,
+    "MOD-014": 14,
+    "MOD-015": 15,
+    "MOD-016": 16,
+    "MOD-017": 17,
+    "MOD-018": 18,
+    "MOD-019": 19,
+    "MOD-020": 20,
+    "MOD-021": 21,
+    "MOD-022": 22,
+    "MOD-023": 23,
+    "MOD-024": 24,
+}
+
+
+def _derive_current_week(student_id: int, db: Session) -> int:
+    """Simplest correct rule (documented in backlog TB-03): the earliest week
+    with an incomplete required item; falls back to the highest week touched."""
+    from app.models.lesson_notes import StudentLessonNote
+    from app.models.learning import Lesson, Module
+
+    for code in sorted(MODULE_WEEKS, key=lambda c: MODULE_WEEKS[c]):
+        module = db.query(Module).filter(Module.code == code).first()
+        if not module:
+            continue
+        lesson_ids = {
+            row.id
+            for row in db.query(Lesson.id).filter(
+                Lesson.module_id == module.id, Lesson.status == "published"
+            )
+        }
+        if not lesson_ids:
+            continue
+        done = {
+            row.lesson_id
+            for row in db.query(StudentLessonNote.lesson_id).filter(
+                StudentLessonNote.student_id == student_id,
+                StudentLessonNote.lesson_id.in_(lesson_ids),
+            )
+        }
+        if lesson_ids - done:
+            return MODULE_WEEKS[code]
+    return max(MODULE_WEEKS.values())
+
+
+@router.get("/api/students/me/week-plan")
+def get_week_plan(
+    week: int | None = None,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    """The student's ordered plan for a week: lessons, quizzes, CLI labs, labs,
+    tickets — each with done/available status. Scope: own data only (TB-03)."""
+    from app.models.cli_lab import CliLab, CliLabAttempt
+    from app.models.lab import LabRun, LabTemplate
+    from app.models.learning import Lesson, Module
+    from app.models.lesson_notes import StudentLessonNote
+    from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
+    from app.models.ticket import Ticket, TicketSubmission
+    from app.services.progression_service import get_promotion_status
+
+    student_id = current_student.id
+    current_week = week or _derive_current_week(student_id, db)
+
+    # Lessons for this week's modules
+    week_module_codes = [c for c, w in MODULE_WEEKS.items() if w == current_week]
+    lessons_out = []
+    if week_module_codes:
+        modules = (
+            db.query(Module)
+            .filter(Module.code.in_(week_module_codes))
+            .order_by(Module.module_order)
+            .all()
+        )
+        done_lessons = {
+            row.lesson_id
+            for row in db.query(StudentLessonNote.lesson_id).filter(
+                StudentLessonNote.student_id == student_id
+            )
+        }
+        for module in modules:
+            for lesson in (
+                db.query(Lesson)
+                .filter(Lesson.module_id == module.id, Lesson.status == "published")
+                .order_by(Lesson.lesson_order)
+                .all()
+            ):
+                lessons_out.append(
+                    {
+                        "id": lesson.id,
+                        "title": lesson.title,
+                        "module": module.code,
+                        "status": "done" if lesson.id in done_lessons else "available",
+                        "route": "/learning-path",
+                    }
+                )
+
+    # Quizzes by week_number; done = any attempt
+    attempted_quiz_ids = {
+        row.quiz_id
+        for row in db.query(QuizAttempt.quiz_id).filter(QuizAttempt.student_id == student_id)
+    }
+    quizzes_out = [
+        {
+            "id": q.id,
+            "title": q.title,
+            "status": "done" if q.id in attempted_quiz_ids else "available",
+            "route": f"/quizzes/{q.id}",
+        }
+        for q in db.query(Quiz)
+        .filter(Quiz.week_number == current_week, Quiz.status == QUIZ_STATUS_PUBLISHED)
+        .order_by(Quiz.id)
+        .all()
+    ]
+
+    # CLI labs by pack mapping
+    week_packs = [p for p, w in CLI_PACK_WEEKS.items() if w == current_week]
+    cli_out = []
+    if week_packs:
+        completed_cli = {
+            row.lab_id
+            for row in db.query(CliLabAttempt.lab_id).filter(
+                CliLabAttempt.student_id == student_id,
+                CliLabAttempt.completed_at.isnot(None),
+            )
+        }
+        for lab in (
+            db.query(CliLab)
+            .filter(CliLab.compartment_id.in_(week_packs))
+            .order_by(CliLab.order_index)
+            .all()
+        ):
+            cli_out.append(
+                {
+                    "id": lab.id,
+                    "title": lab.title,
+                    "status": "done" if lab.id in completed_cli else "available",
+                    "route": f"/cli-labs/{lab.id}",
+                }
+            )
+
+    # VM/local labs by week_number; done = verified or submitted run
+    lab_runs = {
+        run.lab_template_id: run.status
+        for run in db.query(LabRun).filter(LabRun.student_id == student_id).all()
+    }
+    labs_out = [
+        {
+            "id": lt.id,
+            "title": lt.title,
+            "status": "done" if lab_runs.get(lt.id) in ("submitted", "verified") else "available",
+            "route": f"/labs/{lt.id}",
+        }
+        for lt in db.query(LabTemplate)
+        .filter(LabTemplate.week_number == current_week, LabTemplate.is_published.is_(True))
+        .order_by(LabTemplate.id)
+        .all()
+    ]
+
+    # Tickets by week_number; done = passed submission
+    sub_status = {
+        s.ticket_id: s.status
+        for s in db.query(TicketSubmission).filter(TicketSubmission.student_id == student_id).all()
+    }
+    tickets_out = [
+        {
+            "id": t.id,
+            "title": t.title,
+            "difficulty": t.difficulty,
+            "status": "done" if sub_status.get(t.id) == "passed" else (
+                "in_review" if sub_status.get(t.id) == "pending" else "available"
+            ),
+            "route": f"/tickets/{t.id}",
+        }
+        for t in db.query(Ticket)
+        .filter(Ticket.week_number == current_week)
+        .order_by(Ticket.difficulty, Ticket.id)
+        .all()
+    ]
+
+    all_items = lessons_out + quizzes_out + cli_out + labs_out + tickets_out
+    done_count = sum(1 for item in all_items if item["status"] == "done")
+
+    # Recommended next action: first non-done item in pedagogical order
+    next_action = next((i for i in all_items if i["status"] != "done"), None)
+
+    promotion = get_promotion_status(student_id, db)
+
+    return ok(
+        {
+            "week": current_week,
+            "role": (promotion.get("current_role") or {}).get("name"),
+            "gate": promotion.get("eligibility"),
+            "progress_percent": round(done_count / len(all_items) * 100, 1) if all_items else 0,
+            "next_action": next_action,
+            "lessons": lessons_out,
+            "quizzes": quizzes_out,
+            "cli_labs": cli_out,
+            "labs": labs_out,
+            "tickets": tickets_out,
+        }
+    )

@@ -40,3 +40,7 @@ class OverrideRequest(BaseModel):
 class ManualReviewRequest(BaseModel):
     new_score: int = Field(ge=0, le=10)
     comment: str | None = Field(default=None, max_length=4000)
+
+
+class FlagRequest(BaseModel):
+    comment: str = Field(min_length=3, max_length=4000)

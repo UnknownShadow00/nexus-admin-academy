@@ -1,17 +1,36 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
+from decimal import Decimal
+from statistics import mean
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
+from app.models.ai_usage_log import AIUsageLog
+from app.models.capstone import CapstoneRun, CapstoneTemplate
+from app.models.command_reference import CommandReference
+from app.models.evidence import EvidenceArtifact
+from app.models.incident import Incident, IncidentParticipant, IncidentTicket, RCASubmission, RootCause
+from app.models.lab import LabRun, LabTemplate
+from app.models.learning import Lesson, Module
+from app.models.quiz import Question, Quiz, QuizAttempt
+from app.models.progression import MethodologyFramework, PromotionGate, Role
+from app.models.resource import Resource
+from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
-from app.schemas.quiz import BulkTicketGenerateRequest
-from app.schemas.ticket import ManualReviewRequest, OverrideRequest, TicketCreateRequest
-from app.services.activity_service import log_activity
+from app.models.xp_ledger import XPLedger
+from app.schemas.quiz import BulkTicketGenerateRequest, QuizGenerateRequest
+from app.schemas.resource import ResourceCreateRequest
+from app.schemas.ticket import FlagRequest, ManualReviewRequest, OverrideRequest, TicketCreateRequest
+from app.services.activity_service import get_recent_activity, log_activity
 from app.services.admin_auth import verify_admin
+from app.services.ai_service import ai_health_test
 from app.services.cve_service import fetch_recent_cves, generate_security_ticket_from_cve
 from app.services.mastery_service import record_ticket_mastery_verified
+from app.services.quiz_generator import generate_quiz_from_video
+from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
 from app.services.ticket_generator import generate_ticket_description
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
@@ -246,6 +265,30 @@ def reject_proof(submission_id: int, comment: str | None = None, db: Session = D
     submission.admin_comment = comment or submission.admin_comment
     db.commit()
     return ok({"submission_id": submission.id, "status": submission.status})
+
+@router.put("/submissions/{submission_id}/flag")
+def flag_submission(submission_id: int, payload: FlagRequest, db: Session = Depends(get_db)):
+    """Leave an OPEN mentor flag (admin_comment set, admin_reviewed False) —
+    the exact state progression_service._check_no_flags blocks gates on.
+    No other endpoint could create it, which made the no_unresolved_flags
+    gate requirement unreachable from the UI/API."""
+    submission = db.query(TicketSubmission).filter(TicketSubmission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    submission.admin_comment = payload.comment
+    submission.admin_reviewed = False
+    db.commit()
+    return ok({"submission_id": submission.id, "flagged": True, "comment": submission.admin_comment})
+
+@router.put("/submissions/{submission_id}/resolve-flag")
+def resolve_flag(submission_id: int, db: Session = Depends(get_db)):
+    """Mark a flagged submission re-reviewed without changing score/XP/status."""
+    submission = db.query(TicketSubmission).filter(TicketSubmission.id == submission_id).first()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    submission.admin_reviewed = True
+    db.commit()
+    return ok({"submission_id": submission.id, "flagged": False})
 
 @router.post("/tickets/bulk-generate")
 async def bulk_generate_tickets(payload: BulkTicketGenerateRequest, db: Session = Depends(get_db)):

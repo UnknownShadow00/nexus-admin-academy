@@ -20,3 +20,7 @@ frontend/dist/
 .env.*
 !.env.example
 /package-lock.json
+
+# deployment artifacts — never commit
+content-pack/
+backend/nexus.db.pre24wk*

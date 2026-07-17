@@ -4,10 +4,10 @@ import os
 from pathlib import Path
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from app.database import SessionLocal, get_db
+from app.database import get_db
 from app.models.evidence import EvidenceArtifact
 from app.models.lab import LabRun, LabTemplate
 from app.models.student import Student
@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/labs", tags=["labs"])
 ALLOWED_EVIDENCE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
-MAX_EVIDENCE_SIZE = 5 * 1024 * 1024
 
 
 def _normalize_hints(value):
@@ -65,11 +64,8 @@ def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
 
 
 def _screenshots_dir() -> Path:
-    # UPLOAD_DIR is itself the screenshots dir — matches tickets.py, evidence.py
-    # and the static mount in main.py (files were previously saved one level
-    # deeper than they were served from)
     configured = os.getenv("UPLOAD_DIR")
-    path = Path(configured) if configured else Path(__file__).resolve().parents[2] / "uploads" / "screenshots"
+    path = (Path(configured) / "screenshots") if configured else Path(__file__).resolve().parents[2] / "uploads" / "screenshots"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -101,30 +97,43 @@ def _get_lab_run(db: Session, lab_id: int, student_id: int) -> LabRun | None:
     )
 
 
-def _do_provision(db: Session, run: LabRun, lab_id: int, template_vmid: int) -> str:
-    from app.services import proxmox_service, guacamole_service
-
+def _provision_vm(db: Session, lab: LabTemplate, run: LabRun) -> dict:
     existing = db.query(VmAssignment).filter(
         VmAssignment.lab_run_id == run.id,
         VmAssignment.status != "destroyed",
     ).first()
     if existing:
         if existing.status == "failed":
-            raise RuntimeError("Lab VM provisioning previously failed. Ask an admin to clean up this VM assignment.")
-        if existing.guac_conn_id:
-            return guacamole_service.get_student_token_url(existing.guac_conn_id, run.id)
-        if existing.ip_address:
-            conn_id = guacamole_service.create_connection(existing.ip_address, existing.vmid)
-            existing.guac_conn_id = conn_id
-            existing.status = "running"
-            db.commit()
-            return guacamole_service.get_student_token_url(conn_id, run.id)
-        raise RuntimeError("Lab VM exists but no remote session is available yet.")
+            raise HTTPException(status_code=502, detail="Lab VM provisioning previously failed. Ask an admin to clean up this VM assignment.")
+        try:
+            from app.services import guacamole_service
+
+            if existing.guac_conn_id:
+                return {
+                    "guac_token_url": guacamole_service.get_token_url(existing.guac_conn_id),
+                    "vmid": existing.vmid,
+                    "vm_status": existing.status,
+                }
+            if existing.ip_address:
+                conn_id = guacamole_service.create_connection(existing.ip_address, existing.vmid)
+                existing.guac_conn_id = conn_id
+                existing.status = "running"
+                db.commit()
+                return {
+                    "guac_token_url": guacamole_service.get_token_url(conn_id),
+                    "vmid": existing.vmid,
+                    "vm_status": existing.status,
+                }
+        except Exception as exc:
+            logger.warning("Could not get token url for existing VM assignment %s: %s", existing.id, exc)
+        raise HTTPException(status_code=502, detail="Lab VM exists but no remote session is available yet.")
 
     assignment = None
     try:
-        name = f"lab-{lab_id}-student-{run.student_id}-run-{run.id}"
-        vmid = proxmox_service.clone_template(template_vmid, name)
+        from app.services import proxmox_service, guacamole_service
+
+        name = f"lab-{lab.id}-student-{run.student_id}-run-{run.id}"
+        vmid = proxmox_service.clone_template(lab.proxmox_template_vmid, name)
         assignment = VmAssignment(
             vmid=vmid,
             student_id=run.student_id,
@@ -140,48 +149,32 @@ def _do_provision(db: Session, run: LabRun, lab_id: int, template_vmid: int) -> 
         if not ip:
             assignment.status = "failed"
             db.commit()
-            raise RuntimeError("Lab VM started but did not report an IP address.")
+            raise HTTPException(status_code=502, detail="Lab VM started but did not report an IP address.")
 
         conn_id = guacamole_service.create_connection(ip, vmid)
         if not conn_id:
             assignment.status = "failed"
             assignment.ip_address = ip
             db.commit()
-            raise RuntimeError("Lab VM remote connection could not be created.")
+            raise HTTPException(status_code=502, detail="Lab VM remote connection could not be created.")
 
         assignment.status = "running"
         assignment.ip_address = ip
         assignment.guac_conn_id = conn_id
         db.commit()
-        return guacamole_service.get_student_token_url(conn_id, run.id)
-    except RuntimeError:
+        return {
+            "guac_token_url": guacamole_service.get_token_url(conn_id),
+            "vmid": assignment.vmid,
+            "vm_status": assignment.status,
+        }
+    except HTTPException:
         raise
     except Exception as exc:
         if assignment is not None:
             assignment.status = "failed"
             db.commit()
-        raise RuntimeError("Lab VM provisioning failed.") from exc
-
-
-def _provision_vm_task(lab_run_id: int, lab_id: int, template_vmid: int) -> None:
-    """Runs in a FastAPI BackgroundTask with its own DB session — the request
-    that scheduled it has already returned 202."""
-    db = SessionLocal()
-    try:
-        run = db.query(LabRun).filter(LabRun.id == lab_run_id).first()
-        if run is None:
-            return
-        try:
-            guac_url = _do_provision(db, run, lab_id, template_vmid)
-            run.vm_status = "ready"
-            run.guac_url = guac_url
-        except Exception as exc:
-            logger.error("VM provisioning failed for lab_run %s: %s", lab_run_id, exc)
-            run.vm_status = "failed"
-            run.guac_url = None
-        db.commit()
-    finally:
-        db.close()
+        logger.error("VM provisioning failed for lab_run %s: %s", run.id, exc)
+        raise HTTPException(status_code=502, detail="Lab VM provisioning failed.")
 
 
 def _destroy_vm_if_assigned(db: Session, lab_run_id: int) -> None:
@@ -202,22 +195,14 @@ def _destroy_vm_if_assigned(db: Session, lab_run_id: int) -> None:
         return
 
     if assignment.guac_conn_id:
-        from app.services import guacamole_service
         try:
+            from app.services import guacamole_service
             guacamole_service.delete_connection(assignment.guac_conn_id)
         except Exception as exc:
             logger.warning("Failed to delete Guacamole connection %s: %s", assignment.guac_conn_id, exc)
-        try:
-            guacamole_service.delete_lab_user(lab_run_id)
-        except Exception as exc:
-            logger.warning("Failed to delete Guacamole lab user for run %s: %s", lab_run_id, exc)
 
     assignment.status = "destroyed"
     assignment.destroyed_at = datetime.now(UTC)
-    run = db.query(LabRun).filter(LabRun.id == lab_run_id).first()
-    if run is not None:
-        run.vm_status = None
-        run.guac_url = None
     db.commit()
 
 
@@ -273,8 +258,6 @@ def get_lab(
 @router.post("/{lab_id}/start")
 def start_lab(
     lab_id: int,
-    background_tasks: BackgroundTasks,
-    response: Response,
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
@@ -305,36 +288,9 @@ def start_lab(
 
     vm_data = {}
     if lab.proxmox_template_vmid:
-        if run.vm_status == "ready" and run.guac_url:
-            vm_data = {"vm_status": "ready", "guac_token_url": run.guac_url}
-        elif run.vm_status == "provisioning":
-            response.status_code = 202
-            vm_data = {"vm_status": "provisioning"}
-        else:
-            run.vm_status = "provisioning"
-            run.guac_url = None
-            db.commit()
-            background_tasks.add_task(_provision_vm_task, run.id, lab.id, lab.proxmox_template_vmid)
-            response.status_code = 202
-            vm_data = {"vm_status": "provisioning"}
+        vm_data = _provision_vm(db, lab, run)
 
     return ok({"created": created, **vm_data, **_serialize_lab(lab, run)})
-
-
-@router.get("/{lab_id}/vm-status")
-def get_vm_status(
-    lab_id: int,
-    db: Session = Depends(get_db),
-    current_student: Student = Depends(get_current_student),
-):
-    run = _get_lab_run(db, lab_id, current_student.id)
-    if run is None:
-        raise HTTPException(status_code=404, detail="Lab run not found")
-    return ok({
-        "run_id": run.id,
-        "vm_status": run.vm_status,
-        "guac_token_url": run.guac_url if run.vm_status == "ready" else None,
-    })
 
 
 @router.post("/{lab_id}/submit")
@@ -393,17 +349,13 @@ async def upload_lab_evidence(
     if ext not in ALLOWED_EVIDENCE_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported file extension")
 
-    data = await file.read()
-    if len(data) > MAX_EVIDENCE_SIZE:
-        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
-
     storage_name = f"{uuid.uuid4()}.{ext}"
     dest = (_screenshots_dir() / storage_name).resolve()
+    data = await file.read()
     with open(dest, "wb") as handle:
         handle.write(data)
 
     artifact = EvidenceArtifact(
-        student_id=current_student.id,
         submission_type="lab",
         submission_id=run.id,
         artifact_type=artifact_type or "screenshot",

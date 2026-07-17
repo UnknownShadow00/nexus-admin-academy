@@ -11,9 +11,9 @@ Private IT training platform. Mentor (Abdi, ~5 years help desk/network admin) pe
 | Frontend | React 18, Vite, React Router 6, Tailwind CSS, Axios, Lucide React, xterm.js |
 | Backend | FastAPI, SQLAlchemy 2, Alembic, SQLite → Supabase (PostgreSQL) |
 | Auth | JWT (python-jose), passlib, httpOnly cookies |
-| AI | Local Ollama (OpenAI-compatible chat completions) via `app/services/ai_service.py` |
+| AI | OpenRouter (OpenAI-compatible chat completions) via `app/services/ai_service.py` — planned swap to local Ollama (see TASKS.md P2) |
 | Scraping | Playwright + BeautifulSoup (ExamCompass — permission confirmed) |
-| Deployment | Self-hosted Docker Compose on nexus-services (backend + frontend + postgres:16), reachable via Tailscale — Railway/Supabase dropped 2026-07-17 |
+| Deployment | Railway (backend), Supabase (DB + auth) |
 | Dev comms | Discord (weekly calls, methodology card, student coordination) |
 
 ---
@@ -76,7 +76,7 @@ Role, PromotionGate, StudentRole, MethodologyFramework, StudentMethodologyProgre
 ## Existing Services (do not duplicate)
 
 ```
-ai_service.py           ← Local Ollama chat-completions calls
+ai_service.py           ← OpenRouter chat-completions calls, budget cap, cost logging
 proxmox_service.py      ← VM clone/start/IP/destroy via proxmoxer
 guacamole_service.py    ← Guacamole connection create/delete, token URLs
 fsrs_service.py         ← flashcard scheduling (SM-2 algorithm)
@@ -182,13 +182,10 @@ cve_service.py
 
 ## What Is NOT Done (Build These Next)
 
-**The live backlog is `TASKS.md` — always pick from there.** Summary as of 2026-07-17:
+**The live backlog is `TASKS.md` — always pick from there.** Summary as of the 2026-06-11 audit:
 
-- P0 VM-lab bugs: **all fixed and tested** (Guacamole NUL-encoded client URLs, per-lab-run Guacamole users instead of the admin token, async 202/BackgroundTask provisioning with persisted `vm_status`/`guac_url` and 3s polling). Still never smoke-tested against real Proxmox/Guacamole hardware (TASKS.md P4).
-- P1 security batch: **complete 2026-07-17** (JWT-validated `allow_admin_or_student`, random server-side admin session tokens with `compare_digest`, multi-select grading, evidence 5MB cap + ownership via `EvidenceArtifact.student_id`, per-attempt `QuizAttempt` history, AdminAccessGate localStorage shell removed).
-- Phase 3 deployment files exist: `backend/Dockerfile`, `frontend/Dockerfile` + `nginx.conf`, `docker-compose.yml` (postgres 16 + uploads volume), `scripts/backup_db.sh` (nightly pg_dump + uploads-volume tar, cron line in the script comment).
-- P0 uploads/DB persistence: **resolved 2026-07-17** — prod = self-hosted Docker Compose (Railway/Supabase dropped); `UPLOAD_DIR=/data/uploads` named volume + compose-injected `DATABASE_URL` → postgres service; 3 happy-path persistence tests added (70/70 pass).
-- Remaining, in order: P2 perf leftovers (linked clones, lazy-load admin routes, utcnow sweep) → P3 cleanup → P4 sidecar deployment + real-hardware lab smoke test → content backlog (AD lab template family is the highest-value gap).
+- The old P2 (speed-flag view) and P3 (Proxmox/Guacamole application layer) items are **code-complete** — but the VM layer has known P0 bugs (broken Guacamole client URL encoding, students receive the Guacamole *admin* token, provisioning blocks the request worker past the frontend timeout, iframe unrecoverable after refresh) and has never been smoke-tested against real infrastructure.
+- Remaining work, in order: TASKS.md P0 stability/data-risk fixes → P1 security/correctness → P2 perf/Ollama swap → P3 cleanup → P4 sidecar deployment (Guacamole first) → content backlog (AD lab template family is the highest-value gap).
 
 ---
 
@@ -208,11 +205,13 @@ UPLOAD_DIR=
 APP_LOG_PATH=
 COOKIE_SECURE=true          # set false for local dev
 
-# AI — local Ollama (OpenAI-compatible endpoint)
-AI_BASE_URL=http://192.168.0.104:11434/v1
-AI_MODEL=deepseek-r1:32b
+# AI — OpenRouter today; Ollama swap planned (TASKS.md P2)
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=           # provider/model, e.g. mistralai/mistral-large — app currently fails to boot if unset (P0 fix pending)
 AI_ENABLED=true
-MAX_TOKENS=2000               # deepseek-r1 burns tokens on reasoning before answering — 600 starves the answer
+DAILY_AI_BUDGET=1.00
+COST_PER_1K_TOKENS=0.001
+MAX_TOKENS=600
 AI_TIMEOUT_SECONDS=30
 AI_TEMPERATURE=0.6
 
@@ -397,5 +396,18 @@ And update `TASKS.md` backlog accordingly.
 - **Do NOT add a `/auth/register` endpoint** — accounts are seeded only.
 - **SQLite locally, PostgreSQL (Supabase) in prod** — SQLAlchemy handles both but watch for SQLite-specific syntax in raw queries.
 - **AI calls must check `AIRateLimit` first** — never call `ai_service` directly from a router without rate check.
-- **deepseek-r1 output is not clean JSON** — it wraps answers in ```json fences, may emit `<think>` blocks, and can burn the whole MAX_TOKENS budget on reasoning (empty `content`). `call_ai(json_mode=True)` sanitizes via `extract_json_payload()`; keep `MAX_TOKENS` ≥ 2000.
-- **`frontend/node_modules` and `backend/.env` are Windows Syncthing mirrors** — node_modules lacks Linux native binaries (`npm run build` fails on the server; build via the frontend Dockerfile instead), and `.env` has CRLF+BOM (never `source` it; python-dotenv handles it).
+
+## Phase 1 session notes (2026-07-10)
+- AI config: AI_BASE_URL/AI_MODEL/AI_API_KEY (OpenRouter vars still work as fallback); app boots with AI unset; endpoints 503 cleanly.
+- Roles are now the 6-role ladder (Trainee → Junior Infrastructure Administrator); seed migrates legacy L1/L2 rows in place.
+- Quiz attempts: one row PER attempt (uq_student_quiz dropped); mastery = best score, XP = first attempt only.
+- Tickets: hints (≤4, XP −5/−10/−20/−35% floor 40%), parameters ({{PLACEHOLDER}} JSON, student_id % len deterministic), five-anchor scoring (investigation/root_cause/safe_fix_or_escalation/verification/communication, sum = final 0-10).
+- Phase A content lives in backend/seed_phase_a.py (structured source; idempotent; edit there, not in DB).
+- New gate requirement types: practical_checkpoint, min_completed_lessons, min_cli_labs, no_unresolved_flags.
+- STALE sections above this note: the 5-role table and OpenRouter-only AI notes are superseded by this section.
+
+## Deployment reality note (2026-07-17 — Day 1 go-live on .101)
+- STALE above: the Railway/Supabase/OpenRouter rows in the Stack table. Actual deployment: self-hosted on nexus-services (.101), systemd unit `nexus-admin-academy.service` → uvicorn from `backend/.venv` on :8000, SQLite (`backend/nexus.db`, fresh DB seeded at go-live). AI = local Ollama at 192.168.0.104:11434 (deepseek-r1:32b) per `.env`.
+- Restarting the service: `systemctl restart` needs interactive sudo — use `kill -KILL $(systemctl show nexus-admin-academy -p MainPID --value)`; `Restart=on-failure` brings it back in ~8s.
+- Pre-go-live state preserved at `../nexus-admin-academy.bak-2026-07-17` and `~/nexus-pre-24wk-2026-07-17.sql`; old DB parked at `backend/nexus.db.pre24wk-2026-07-17`. Do not delete.
+- Nothing on .101 serves `frontend/dist` yet — backend API only. See NEXUS_GO_LIVE_CHECKLIST.md for Days 2–5.

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { setToken } from "../hooks/useAuth";
+import { getCurrentStudent, setToken } from "../hooks/useAuth";
 import { adminSessionLogout, adminSessionStatus, getStudentTokenAsAdmin } from "../services/api";
 import { setSelectedProfile } from "../services/profile";
 
@@ -55,6 +55,22 @@ export default function AdminAccessGate({ children }) {
 
   if (loading) {
     return <main className="mx-auto max-w-3xl p-6">Checking admin session and waking the backend if needed...</main>;
+  }
+
+  if (!loading && !authenticated) {
+    const mentor = getCurrentStudent();
+    if (mentor?.is_mentor) {
+      return (
+        <>
+          <div className="mx-auto mt-2 max-w-7xl px-6">
+            <div className="rounded border border-blue-300 bg-blue-50 px-4 py-2 text-sm text-blue-800 dark:border-blue-700 dark:bg-blue-950/30 dark:text-blue-200">
+              Mentor view (read-only)
+            </div>
+          </div>
+          {children}
+        </>
+      );
+    }
   }
 
   if (!authenticated) {
