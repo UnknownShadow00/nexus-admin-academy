@@ -288,3 +288,18 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Services restarted: nexus-admin-academy (SIGKILL→systemd) ×2 during fixes; final state serves all fixed code
 - Result: partial — everything verified done EXCEPT calibration still NEEDS TUNING (1/5 fixtures out of band); do NOT put students on AI grading until it passes (checklist Day 3 rule)
 - Next: tune grader prompt or "incomplete" expectation band and re-run calibrate_grader.py; decide how frontend/dist gets served on .101
+
+## [2026-07-17 21:10 UTC] Task Completed
+- Task: Close-out session — capture calibration PASS evidence, close the SQLite backup gap, verify live serving stack, sync stale docs
+- Files changed: scripts/backup_sqlite.sh (NEW — Python online-backup API since sqlite3 CLI absent; gzip; uploads rsync; 14-day retention; small-dump guard), TASKS.md (closed 2 stale "STILL OPEN" items + backup item), CLAUDE.md (deployment note: frontend on :80, backup story, calibration cleared), tasks/loop-log.md
+- Calibration RE-RUN vs live deepseek-r1:32b (post verification-anchor-0 hard cap), output verbatim:
+  - strong      final=10  OK
+  - weak        final=1   OK
+  - incomplete  final=5   OK  (verification=0 → capped, was the failing fixture at 6)
+  - unsafe      final=1   OK
+  - malicious   final=1   OK
+  - **Calibration PASSED — grader behaves within expected bands.** AI grading cleared for students (checklist Day 3 done).
+- Backup gap CLOSED: nightly git snapshot never covered nexus.db (*.db gitignored) → backup_sqlite.sh installed in crontab 23:30 (before 23:59 snapshot), first run OK (169 KB gz), RESTORE PROVEN to scratch DB: 6 students (mentor1, student1-5), 25 modules, 48 tickets (checklist Day 5.5 done — "an untested backup is a hope").
+- Live verification: frontend / and SPA fallback 200 on :80; /api proxy → identical 401 as direct :8000 (auth-gated, correct); admin login via proxy 200, cookie HttpOnly+SameSite=lax, NO Secure flag → browsers keep it over http:// LAN (COOKIE_SECURE unset, non-prod default — correct for this deployment); guides scanned — student guide clean, mentor guide has only intentional template lines.
+- Result: pass — all agent-resolvable checklist items complete
+- Next: human-only Day 5 items — post Student Guide + login info to Discord, schedule Week-1 kickoff call. PARKED items unchanged (AUTO-VM P0s, learn-routing engine).

@@ -12,9 +12,10 @@ DONE (verified on .101, see tasks/loop-log.md):
 - [x] Ticket submit response now includes `anchors`
 - [x] Day-4 smoke test automated: `backend/scripts/day4_smoke_test.py` — **8/8 PASS** (login, week-plan, lesson→done, quiz retake/XP-once, hint cost+substitution, live AI grade 9/10, flag→gate block→resolve, evidence 413/200); smoke residue purged from DB
 
-STILL OPEN from this session:
-- [ ] Grader calibration "incomplete" fixture: final=6 vs expected ≤5 — tune prompt or EXPECTATIONS band, re-run until PASSED (checklist Day 3 blocker for AI grading trust)
-- [ ] Nothing serves frontend/dist on .101 (backend :8000 only) — decide nginx vs compose frontend container before students need the UI from LAN
+RESOLVED later same day (2026-07-17, see loop-log):
+- [x] Grader calibration — verification-anchor-0 hard cap added to ticket_grader.py (unverified fix now caps final ≤5); re-run vs live deepseek-r1:32b: **Calibration PASSED (5/5 fixtures)**
+- [x] Frontend now served on .101 — `nexus-frontend` nginx container on :80 (dist copied into container, API proxied to :8000; config: `frontend/nginx.host.conf`)
+- [x] Nightly SQLite + uploads backup — `scripts/backup_sqlite.sh` (Python online-backup API, 14-day retention, small-dump guard), crontab 23:30 installed, restore-to-scratch-DB PROVEN (6 students / 25 modules / 48 tickets). The 23:59 git snapshot never covered the DB (`*.db` gitignored) — this closes that gap.
 
 ## Phase 1 status update (2026-07-10)
 DONE (verified, tested — see tasks/loop-log.md for evidence):
