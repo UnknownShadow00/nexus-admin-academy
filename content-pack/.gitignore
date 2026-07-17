@@ -1,0 +1,21 @@
+nexus-admin-academy - Copy/
+.env
+backend/.env
+frontend/.env
+nexus-admin-academy/backend/.env
+nexus-admin-academy/frontend/.env
+
+*.db
+*.log
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+**/.pytest_cache/
+pytest-cache-files*/
+**/pytest-cache-files*/
+backend/tests/_tmp/
+.tmp/
+node_modules/
+frontend/dist/
+.env.*
+/package-lock.json

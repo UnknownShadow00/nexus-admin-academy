@@ -1,0 +1,363 @@
+{
+  "compartmentId": "meet-the-cli",
+  "compartmentTitle": "Meet the CLI",
+  "vendorId": "cisco-ios",
+  "sharedTopology": {
+    "devices": [
+      { "id": "main", "type": "switch", "label": "Switch" },
+      { "id": "PC-A", "type": "pc", "label": "Admin PC", "connectedTo": "g0/1", "vlan": 1, "ip": "192.168.1.10" },
+      { "id": "PC-B", "type": "pc", "label": "Test PC", "connectedTo": "g0/2", "vlan": 1, "ip": "192.168.1.20" }
+    ],
+    "interfaces": {
+      "g0/1": { "mode": "access", "status": "up" },
+      "g0/2": { "mode": "access", "status": "up" },
+      "g0/3": { "mode": "access", "status": "down", "shutdown": true },
+      "g0/4": { "mode": "access", "status": "down", "shutdown": true },
+      "Vlan1": { "status": "down", "shutdown": true }
+    }
+  },
+  "lessons": [
+    {
+      "id": "meet-cli-001",
+      "title": "First Contact",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 5,
+      "scenario": "A brand-new Catalyst switch just arrived on your desk. Before making any changes, your team lead asks you to connect to it, enter privileged mode, and take a quick look around. You need to see what commands are available and find the command that lets you enter Global Configuration mode.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "enter-privileged", "label": "Enter privileged EXEC mode", "trigger": "mode.privileged.enter" },
+        { "id": "explore-help", "label": "Explore available commands using '?'", "trigger": "cmd.help" },
+        { "id": "find-config", "label": "Find out how to enter Global Configuration mode", "trigger": "mode.config.enter" }
+      ],
+      "successCriteria": { "requiredModes": ["config"] },
+      "hints": ["Type 'enable' to leave user mode.", "'?' lists every command valid in your current mode."],
+      "nextLabId": "meet-cli-002"
+    },
+    {
+      "id": "meet-cli-002",
+      "title": "Give It a Name",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 5,
+      "scenario": "The new switch is being prepared for the branch office rack. Your company standard requires every device to have a descriptive hostname. Set the hostname to Branch-SW1 and verify the change is reflected in the active configuration.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "enter-config", "label": "Enter global configuration mode", "trigger": "mode.config.enter" },
+        { "id": "set-hostname", "label": "Set the hostname to Branch-SW1", "trigger": "config.hostname.set", "expectedArg": "Branch-SW1" },
+        { "id": "return-priv", "label": "Return to Privileged Exec Mode", "trigger": "mode.privileged.enter" },
+        { "id": "verify", "label": "Verify the configuration with show running-config", "trigger": "cmd.show.running-config" }
+      ],
+      "successCriteria": { "requiredModes": ["privileged"], "requiredCommands": ["show running-config"], "requiredState": { "hostname": "Branch-SW1" } },
+      "hints": ["hostname <name> only works from global config mode."],
+      "nextLabId": "meet-cli-003"
+    },
+    {
+      "id": "meet-cli-003",
+      "title": "Learning From Errors",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 5,
+      "scenario": "Your mentor wants you to get comfortable experimenting at the CLI. Try entering configuration mode with odd capitalization and notice IOS accepts it anyway. Then try a show command from inside configuration mode, read the error, and learn the 'do' trick to run it without leaving config mode.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "enter-privileged", "label": "Enter privileged EXEC mode", "trigger": "mode.privileged.enter" },
+        { "id": "weird-case-config", "label": "Enter config mode using odd capitalization", "trigger": "mode.config.enter" },
+        { "id": "show-in-config-fails", "label": "Try 'show running-config' inside config mode and read the error", "trigger": "error.invalid-in-mode" },
+        { "id": "do-trick", "label": "Use 'do show running-config' to run it without leaving config mode", "trigger": "cmd.do" }
+      ],
+      "successCriteria": { "requiredCommands": ["do show running-config"] },
+      "hints": ["IOS commands are not case-sensitive.", "'do' prefixes any privileged/user command so it runs from inside config mode."],
+      "nextLabId": "meet-cli-004"
+    },
+    {
+      "id": "meet-cli-004",
+      "title": "Find Your Way Around",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 5,
+      "scenario": "You are shadowing a senior engineer who wants you to get comfortable with the CLI hierarchy. Move from user mode up through global configuration, drop into interface configuration, then into VLAN configuration, and find your way back to privileged mode. No changes will be saved - this is pure navigation practice.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "enter-privileged", "label": "Enter privileged EXEC mode", "trigger": "mode.privileged.enter" },
+        { "id": "enter-config", "label": "Enter global configuration mode", "trigger": "mode.config.enter" },
+        { "id": "enter-interface", "label": "Enter interface configuration mode (interface g0/1)", "trigger": "mode.interface.enter" },
+        { "id": "back-to-config", "label": "Return to global configuration mode", "trigger": "mode.config.enter" },
+        { "id": "enter-vlan", "label": "Enter VLAN configuration mode (vlan 10)", "trigger": "mode.vlan.enter" },
+        { "id": "back-to-priv", "label": "Return to privileged EXEC mode with 'end'", "trigger": "mode.privileged.enter" }
+      ],
+      "successCriteria": { "requiredModes": ["privileged"] },
+      "hints": ["'exit' moves up one level; 'end' jumps straight back to privileged mode from anywhere in config."],
+      "nextLabId": "meet-cli-005"
+    },
+    {
+      "id": "meet-cli-005",
+      "title": "Type Smart, Not Hard",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 5,
+      "scenario": "You are getting faster with the CLI. Your mentor shows you that you do not need to type every letter: 'en' becomes 'enable', 'int g0/2' becomes 'interface g0/2', and Tab finishes a command for you. But abbreviation has a sharp edge - IOS only accepts a shortcut if it matches exactly ONE command. 'sh st' is ambiguous (standby / stackwise-virtual / startup-config / storm-control); add letters until it's unique. On the exam, know the FULL commands.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "abbrev-enable", "label": "Type 'en' to enter privileged mode", "trigger": "mode.privileged.enter" },
+        { "id": "back-to-user", "label": "Return to User EXEC mode", "trigger": "mode.user.enter" },
+        { "id": "tab-complete", "label": "Use tab completion to expand a command", "trigger": "cmd.tab-complete" },
+        { "id": "save-config", "label": "Save the configuration with 'write memory'", "trigger": "cmd.write.memory" },
+        { "id": "ambiguous-fail", "label": "Type 'sh st' and observe the ambiguous command error", "trigger": "error.ambiguous" },
+        { "id": "ambiguous-fixed", "label": "Type 'sh start' and see it resolve", "trigger": "cmd.show.startup-config" },
+        { "id": "enter-config", "label": "Enter global configuration mode", "trigger": "mode.config.enter" },
+        { "id": "enter-int-g1", "label": "Enter interface g0/1 configuration mode", "trigger": "mode.interface.enter" },
+        { "id": "shorthand-int", "label": "Use 'int g0/2' shorthand to jump to interface g0/2", "trigger": "mode.interface.enter" }
+      ],
+      "successCriteria": { "requiredCommands": ["sh st", "sh start"] },
+      "hints": ["Ambiguous abbreviations throw '% Ambiguous command' - add letters until only one command matches."],
+      "nextLabId": "meet-cli-006"
+    },
+    {
+      "id": "meet-cli-006",
+      "title": "Read the Switch - VLANs",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 5,
+      "scenario": "A colleague just finished configuring a switch for the branch office but left before documenting it. Your job is to inspect the current state and make one small change. Use show commands to read the VLAN table, then shut down the interface that is on VLAN 20.",
+      "startMode": "user",
+      "startState": { "vlans": { "20": { "name": "VLAN20", "ports": ["g0/4"] } }, "interfaces": { "g0/4": { "mode": "access", "accessVlan": 20, "shutdown": false } } },
+      "objectives": [
+        { "id": "enter-privileged", "label": "Enter privileged EXEC mode", "trigger": "mode.privileged.enter" },
+        { "id": "show-vlan-brief", "label": "See which ports belong to which VLANs", "trigger": "cmd.show.vlan-brief" },
+        { "id": "shutdown-vlan20-port", "label": "Shut down the interface on VLAN 20", "trigger": "interface.shutdown" }
+      ],
+      "successCriteria": { "requiredCommands": ["show vlan brief"], "requiredState": { "interfaceShutdown": true } },
+      "hints": ["show vlan brief lists access VLAN assignments per port."],
+      "nextLabId": "meet-cli-007"
+    },
+    {
+      "id": "meet-cli-007",
+      "title": "Make and Undo",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 6,
+      "scenario": "Every configuration command in IOS has an undo: type the same command with 'no' in front of it. Create VLANs 10 and 20, confirm they exist with show vlan brief, then remove both with 'no vlan' and confirm the switch is back to just the default VLAN. Tip: 'no vlan' only works from the (config)# prompt, not from inside VLAN-config mode.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "create-vlans", "label": "Create VLAN 10 and VLAN 20", "trigger": "vlan.create" },
+        { "id": "confirm-created", "label": "Confirm both VLANs exist with show vlan brief", "trigger": "cmd.show.vlan-brief" },
+        { "id": "delete-vlans", "label": "Delete both VLANs with 'no vlan'", "trigger": "vlan.delete" },
+        { "id": "confirm-deleted", "label": "Confirm the VLANs are gone", "trigger": "cmd.show.vlan-brief" }
+      ],
+      "successCriteria": { "requiredState": { "vlans": ["1"] } },
+      "hints": ["Exit VLAN-config mode back to global config before running 'no vlan'."],
+      "nextLabId": "meet-cli-008"
+    },
+    {
+      "id": "meet-cli-008",
+      "title": "Read the Switch - Interfaces",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 5,
+      "scenario": "The second-floor closet switch has already been cabled for several departments. Before the change window starts, inspect the switch and confirm what is active. Then bring the down interface back to an administratively up state.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "enter-privileged", "label": "Enter privileged EXEC mode", "trigger": "mode.privileged.enter" },
+        { "id": "show-status", "label": "Show the status of all interfaces", "trigger": "cmd.show.interfaces-status" },
+        { "id": "show-ip-int-brief", "label": "Show which interfaces are on", "trigger": "cmd.show.ip-interface-brief" },
+        { "id": "no-shutdown-g3", "label": "Bring interface g0/3 to Administratively Up", "trigger": "interface.no-shutdown" }
+      ],
+      "successCriteria": { "requiredCommands": ["show interfaces status"], "requiredState": { "g0/3Up": true } },
+      "hints": ["'no shutdown' is the undo for 'shutdown' on an interface."],
+      "nextLabId": "meet-cli-009"
+    },
+    {
+      "id": "meet-cli-009",
+      "title": "Save Your Work",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 5,
+      "scenario": "You have spent the afternoon configuring a new switch. A maintenance window tonight includes a power cycle. If you do not save your work, every change you made will disappear when the switch reboots. Save the running configuration to startup configuration and prove the save worked.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "check-startup", "label": "Check what is currently saved", "trigger": "cmd.show.startup-config" },
+        { "id": "save-config", "label": "Save running-config to startup-config", "trigger": "cmd.write.memory" },
+        { "id": "verify-saved", "label": "Verify the startup configuration now matches", "trigger": "cmd.show.startup-config" }
+      ],
+      "successCriteria": { "requiredCommands": ["write memory"] },
+      "hints": ["'write memory' and 'copy running-config startup-config' do the same thing."],
+      "nextLabId": "meet-cli-010"
+    },
+    {
+      "id": "meet-cli-010",
+      "title": "Test 1 - Investigate",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 10,
+      "type": "checkpoint",
+      "scenario": "A switch has been handed to you with several mistakes. Use show commands to audit the device, correct the hostname, create the VLANs the site requires, bring the disabled desk port back online, and save your work. No hints are provided - this is a test of what you have learned so far.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "audit", "label": "Audit the device with show commands", "trigger": "cmd.show.running-config" },
+        { "id": "fix-hostname", "label": "Change the hostname to Branch-SW1", "trigger": "config.hostname.set", "expectedArg": "Branch-SW1" },
+        { "id": "create-vlans", "label": "Create VLANs 10, 20, and 30", "trigger": "vlan.create" },
+        { "id": "no-shutdown-g3", "label": "Bring g0/3 back online", "trigger": "interface.no-shutdown" },
+        { "id": "verify-save", "label": "Verify and save", "trigger": "cmd.write.memory" }
+      ],
+      "successCriteria": { "requiredState": { "hostname": "Branch-SW1", "vlans": ["1", "10", "20", "30"], "g0/3Up": true }, "requiredCommands": ["write memory"] },
+      "hints": [],
+      "nextLabId": "meet-cli-011"
+    },
+    {
+      "id": "meet-cli-011",
+      "title": "Leave a Note",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 5,
+      "scenario": "Your company standard requires every device to display a warning banner when someone connects. Set a message-of-the-day banner that reads: 'Authorized Access Only - Branch Office'. Then verify it is saved in the active configuration.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "enter-config", "label": "Enter Global Configuration mode", "trigger": "mode.config.enter" },
+        { "id": "set-banner", "label": "Configure the MOTD banner", "trigger": "config.banner.set" },
+        { "id": "return-user", "label": "Return to User EXEC mode to trigger the banner", "trigger": "mode.user.enter" },
+        { "id": "verify-banner", "label": "Verify the banner is saved", "trigger": "cmd.show.running-config" }
+      ],
+      "successCriteria": { "requiredState": { "bannerSet": true }, "requiredCommands": ["show running-config"] },
+      "hints": ["banner motd # your message # - the delimiter character must match on both ends."],
+      "nextLabId": "meet-cli-012"
+    },
+    {
+      "id": "meet-cli-012",
+      "title": "Security First",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 5,
+      "scenario": "The branch office switch is about to be moved into the server room. Before it goes live, add an enable password so that anyone who enters privileged mode must know the password. Set the enable password to CCNA and test it.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "enter-config", "label": "Enter Global Configuration mode", "trigger": "mode.config.enter" },
+        { "id": "set-enable-pw", "label": "Configure an unencrypted enable password of CCNA", "trigger": "config.enable-password.set", "expectedArg": "CCNA" },
+        { "id": "return-user", "label": "Return to User EXEC mode", "trigger": "mode.user.enter" },
+        { "id": "test-password", "label": "Test the password by entering privileged mode", "trigger": "mode.privileged.enter" }
+      ],
+      "successCriteria": { "requiredState": { "enablePassword": "CCNA" } },
+      "hints": [],
+      "nextLabId": "meet-cli-013"
+    },
+    {
+      "id": "meet-cli-013",
+      "title": "Lock the Door",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 7,
+      "scenario": "The branch office switch is about to be moved into the server room. Before it goes live, you need to add basic passwords. Set an enable secret, protect the console line, and test the login.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "enter-config", "label": "Enter global configuration mode", "trigger": "mode.config.enter" },
+        { "id": "set-enable-secret", "label": "Set the enable secret to CCNA", "trigger": "config.enable-secret.set", "expectedArg": "CCNA" },
+        { "id": "console-line", "label": "Configure console line 0 password Console123", "trigger": "line.console.password" },
+        { "id": "return-user", "label": "Return to User EXEC mode", "trigger": "mode.user.enter" },
+        { "id": "test-secret", "label": "Test the secret by entering privileged mode", "trigger": "mode.privileged.enter" }
+      ],
+      "successCriteria": { "requiredState": { "enableSecret": "CCNA", "consolePassword": "Console123" } },
+      "hints": ["enable secret takes priority over enable password if both are set."],
+      "nextLabId": "meet-cli-014"
+    },
+    {
+      "id": "meet-cli-014",
+      "title": "Where is the Remote",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 5,
+      "scenario": "You need to allow remote access to the switch for up to 5 simultaneous sessions. Configure VTY lines 0 through 4, set a password, and require login.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "enter-config", "label": "Enter global configuration mode", "trigger": "mode.config.enter" },
+        { "id": "vty-lines", "label": "Configure VTY lines 0 through 4", "trigger": "mode.line.enter" },
+        { "id": "vty-password", "label": "Set password Remote123 on the VTY lines", "trigger": "line.password.set", "expectedArg": "Remote123" },
+        { "id": "vty-login", "label": "Require login on the VTY lines", "trigger": "line.login.set" }
+      ],
+      "successCriteria": { "requiredState": { "vtyPassword": "Remote123", "vtyLogin": true } },
+      "hints": [],
+      "nextLabId": "meet-cli-015"
+    },
+    {
+      "id": "meet-cli-015",
+      "title": "Who Gets In",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 7,
+      "scenario": "Shared passwords are a security risk. Your security team now requires every administrator to log in with their own username and password. Create a local user account named admin with privilege level 15, then change the VTY lines to use local username authentication instead of a shared line password. Verify the configuration in the running config.",
+      "startMode": "user",
+      "objectives": [
+        { "id": "enter-config", "label": "Enter global configuration mode", "trigger": "mode.config.enter" },
+        { "id": "create-user", "label": "Create local user admin with privilege 15", "trigger": "config.username.set" },
+        { "id": "vty-login-local", "label": "Switch VTY lines to local username login", "trigger": "line.login-local.set" },
+        { "id": "verify", "label": "Verify the configuration", "trigger": "cmd.show.running-config" }
+      ],
+      "successCriteria": { "requiredState": { "users": ["admin"], "vtyLoginLocal": true } },
+      "hints": ["'login local' replaces 'login' + a line password with username/password auth."],
+      "nextLabId": "meet-cli-016"
+    },
+    {
+      "id": "meet-cli-016",
+      "title": "Test 2 - Access Review Before Go-Live",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 8,
+      "type": "checkpoint",
+      "scenario": "The lobby switch is almost ready for production. A previous tech already set the enable password to 'netadmin' and created the local administrator account, but the physical console still has no password and remote access has not been tied to local usernames. Enter privileged mode with the enable password netadmin, then finish the access review: secure the console line, require local authentication on the VTY lines, verify the running configuration, and save the handoff.",
+      "startMode": "user",
+      "startState": { "enablePassword": "netadmin", "users": [{ "username": "admin", "privilege": 15, "password": "admin123" }] },
+      "objectives": [
+        { "id": "enter-priv", "label": "Enter privileged mode with password netadmin", "trigger": "mode.privileged.enter" },
+        { "id": "console-secure", "label": "Secure the console line (password lobbyconsole, login)", "trigger": "line.console.password" },
+        { "id": "vty-secure", "label": "Secure VTY lines for local login", "trigger": "line.login-local.set" },
+        { "id": "verify-save", "label": "Verify and save", "trigger": "cmd.write.memory" }
+      ],
+      "successCriteria": { "requiredState": { "consolePassword": "lobbyconsole", "vtyLoginLocal": true }, "requiredCommands": ["write memory"] },
+      "hints": [],
+      "nextLabId": "exam-first-switch"
+    },
+    {
+      "id": "exam-first-switch",
+      "title": "Exam - Configure Your First Switch",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 10,
+      "type": "checkpoint-exam",
+      "scenario": "This is your first solo assignment. A new switch just arrived for the remote office in factory-default state. Complete the entire baseline setup using the exact values below, then verify and save. No step-by-step hints are available.",
+      "requiredConfig": {
+        "hostname": "Floor1-SW1",
+        "enablePassword": "cisco",
+        "localUser": { "username": "tech", "password": "tech123" },
+        "console": { "password": "console123", "login": true },
+        "vty": { "loginLocal": true }
+      },
+      "startMode": "user",
+      "objectives": [
+        { "id": "identity", "label": "Set hostname to Floor1-SW1", "trigger": "config.hostname.set", "expectedArg": "Floor1-SW1" },
+        { "id": "security-basic", "label": "Set the enable password and create the local user", "trigger": "config.username.set" },
+        { "id": "secure-lines", "label": "Secure console and VTY lines", "trigger": "line.login-local.set" },
+        { "id": "verify-save", "label": "Verify and save", "trigger": "cmd.write.memory" }
+      ],
+      "successCriteria": { "requiredState": { "hostname": "Floor1-SW1", "enablePassword": "cisco", "users": ["tech"], "consolePassword": "console123", "vtyLoginLocal": true }, "requiredCommands": ["write memory"] },
+      "hints": ["After configuring console/VTY lines you're in line-config mode - 'end' returns you to privileged mode before show/write commands."],
+      "nextLabId": "exam-ssh"
+    },
+    {
+      "id": "exam-ssh",
+      "title": "Exam - SSH Into the Switch",
+      "difficulty": "Beginner",
+      "estimatedMinutes": 14,
+      "type": "checkpoint-exam",
+      "scenario": "Final challenge. So far you have configured this switch from the directly-attached console. Real administrators rarely have that luxury - they manage switches remotely over an encrypted SSH session. Right now the switch has NO management IP and its VTY lines only accept insecure Telnet. Build the complete SSH setup in the correct order, then open the PC terminal and connect.",
+      "requiredConfig": {
+        "hostname": "SW1",
+        "domainName": "ccna.lab",
+        "localUser": { "username": "admin", "privilege": 15, "password": "sshadmin" },
+        "enableSecret": "cisco",
+        "rsaModulus": 2048,
+        "managementIp": { "interface": "Vlan1", "ip": "192.168.1.1", "mask": "255.255.255.0" },
+        "vty": { "loginLocal": true, "transportInput": "ssh" }
+      },
+      "startMode": "user",
+      "objectives": [
+        { "id": "identity", "label": "Configure hostname and domain name", "trigger": "config.domain-name.set" },
+        { "id": "user", "label": "Create admin user with privilege 15", "trigger": "config.username.set" },
+        { "id": "secret", "label": "Set enable secret", "trigger": "config.enable-secret.set" },
+        { "id": "rsa", "label": "Generate RSA keys (2048-bit)", "trigger": "config.crypto-key.generate" },
+        { "id": "mgmt-ip", "label": "Configure VLAN 1 management IP and bring it up", "trigger": "interface.ip-address.set" },
+        { "id": "vty-ssh", "label": "Set VTY lines to login local + SSH-only transport", "trigger": "line.transport-input.set" },
+        { "id": "verify-save", "label": "Verify and save", "trigger": "cmd.write.memory" },
+        { "id": "ssh-connect", "label": "SSH into the switch from the PC terminal", "trigger": "pc.ssh.connect" }
+      ],
+      "successCriteria": {
+        "requiredState": { "hostname": "SW1", "domainName": "ccna.lab", "rsaGenerated": true, "vlan1Ip": "192.168.1.1", "vtyTransportSsh": true },
+        "requiredCommands": ["write memory"],
+        "requiredPcAction": "ssh admin@192.168.1.1"
+      },
+      "hints": ["RSA key generation requires hostname AND domain name to already be set, in that order.", "'transport input ssh' replaces Telnet - Telnet access is removed once this is set."],
+      "nextLabId": null
+    }
+  ]
+}

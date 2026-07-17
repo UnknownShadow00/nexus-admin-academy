@@ -1,0 +1,63 @@
+﻿# Nexus Admin Academy
+
+Nexus IT Academy (Nexus Admin Academy) is a private, self-hosted training platform that runs like a simulated IT workplace. Complete-beginner students progress through a six-role career ladder (Trainee → Support Technician I/II → Network Support Technician → Junior Systems Technician → Junior Infrastructure Administrator) by working realistic tickets, labs, and simulations — not by memorizing exam objectives. Weeks 1-8 are fully built; see `docs/STUDENT_GUIDE.md` and `docs/MENTOR_GUIDE.md`.
+
+
+> **Documentation updated 2026-07-10 (Phase 1).** Sections describing an
+> "A+ video platform" or an `OPENROUTER_MODEL`-required boot are **superseded**
+> by the current design below and in `docs/`. Key guides:
+> [Student Guide](docs/STUDENT_GUIDE.md) ·
+> [Mentor Guide](docs/MENTOR_GUIDE.md) ·
+> [Authoring / Config / Security](docs/AUTHORING_CONFIG_SECURITY.md).
+
+## Prerequisites
+- Python 3.11+
+- Node.js 18+
+- PostgreSQL
+
+## Backend Setup
+```bash
+cd backend
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Set these values in `backend/.env`:
+- `DATABASE_URL`
+- `JWT_SECRET_KEY`
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
+- `ADMIN_API_KEY`
+- `AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY` (AI grading — OpenAI-compatible or local Ollama). **The app boots fine without any AI config**; grading falls back to manual. Legacy `OPENROUTER_*` vars still work. Full list: `docs/AUTHORING_CONFIG_SECURITY.md`.
+
+Run database setup and seed data:
+```bash
+alembic upgrade head
+python scripts/seed_users.py
+python seed.py            # roles, gates, and all Weeks 1-8 content (idempotent)
+```
+
+Start the backend:
+```bash
+uvicorn app.main:app --reload
+```
+
+## Frontend Setup
+```bash
+cd frontend
+npm install
+```
+
+Set these values in `frontend/.env`:
+- `VITE_API_URL`
+
+Start the frontend:
+```bash
+npm run dev
+```
+
+## Bookmarklet Import and Quiz Title Matching
+The admin bookmarklet runs on ExamCompass quiz pages, extracts questions/answers, and posts them to `/api/admin/quiz/bookmarklet-import`. For study-tracker linking to work reliably, each imported quiz title must match the expected `quiz_title` values from `seed_curriculum.py` exactly.
+
+## Important Admin Note
+`ADMIN_PASSWORD` or `ADMIN_API_KEY` must be set for admin access. VM-backed labs also require the Proxmox and Guacamole environment variables documented in `CLAUDE.md`.
