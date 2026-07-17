@@ -182,10 +182,12 @@ cve_service.py
 
 ## What Is NOT Done (Build These Next)
 
-**The live backlog is `TASKS.md` — always pick from there.** Summary as of the 2026-06-11 audit:
+**The live backlog is `TASKS.md` — always pick from there.** Summary as of 2026-07-17:
 
-- The old P2 (speed-flag view) and P3 (Proxmox/Guacamole application layer) items are **code-complete** — but the VM layer has known P0 bugs (broken Guacamole client URL encoding, students receive the Guacamole *admin* token, provisioning blocks the request worker past the frontend timeout, iframe unrecoverable after refresh) and has never been smoke-tested against real infrastructure.
-- Remaining work, in order: TASKS.md P0 stability/data-risk fixes → P1 security/correctness → P2 perf/Ollama swap → P3 cleanup → P4 sidecar deployment (Guacamole first) → content backlog (AD lab template family is the highest-value gap).
+- P0 VM-lab bugs: **all fixed and tested** (Guacamole NUL-encoded client URLs, per-lab-run Guacamole users instead of the admin token, async 202/BackgroundTask provisioning with persisted `vm_status`/`guac_url` and 3s polling). Still never smoke-tested against real Proxmox/Guacamole hardware (TASKS.md P4).
+- P1 security batch: **complete 2026-07-17** (JWT-validated `allow_admin_or_student`, random server-side admin session tokens with `compare_digest`, multi-select grading, evidence 5MB cap + ownership via `EvidenceArtifact.student_id`, per-attempt `QuizAttempt` history, AdminAccessGate localStorage shell removed).
+- Phase 3 deployment files exist: `backend/Dockerfile`, `frontend/Dockerfile` + `nginx.conf`, `docker-compose.yml` (postgres 16 + uploads volume), `scripts/backup_db.sh` (nightly pg_dump, cron line in the script comment).
+- Remaining, in order: Railway/uploads persistence decision (P0 last item) → P2 perf leftovers → P3 cleanup → P4 sidecar deployment + real-hardware lab smoke test → content backlog (AD lab template family is the highest-value gap).
 
 ---
 
@@ -394,3 +396,5 @@ And update `TASKS.md` backlog accordingly.
 - **Do NOT add a `/auth/register` endpoint** — accounts are seeded only.
 - **SQLite locally, PostgreSQL (Supabase) in prod** — SQLAlchemy handles both but watch for SQLite-specific syntax in raw queries.
 - **AI calls must check `AIRateLimit` first** — never call `ai_service` directly from a router without rate check.
+- **deepseek-r1 output is not clean JSON** — it wraps answers in ```json fences, may emit `<think>` blocks, and can burn the whole MAX_TOKENS budget on reasoning (empty `content`). `call_ai(json_mode=True)` sanitizes via `extract_json_payload()`; keep `MAX_TOKENS` ≥ 2000.
+- **`frontend/node_modules` and `backend/.env` are Windows Syncthing mirrors** — node_modules lacks Linux native binaries (`npm run build` fails on the server; build via the frontend Dockerfile instead), and `.env` has CRLF+BOM (never `source` it; python-dotenv handles it).

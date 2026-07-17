@@ -12,23 +12,23 @@ Priority order. Pick the top unchecked item unless told otherwise. Reference lin
 - [x] **Make VM provisioning async** — done 2026-07-06 (`fix/p0-batch`): start returns 202, FastAPI BackgroundTask provisions, `LabRun.vm_status`/`guac_url` persisted (migration `c7d8e9f0a1b2`), `GET /api/labs/{id}/vm-status`, LabPage polls every 3s with failed state + retry.
 - [x] **Return existing VM connection info on page refresh** — done 2026-07-06 (`fix/p0-batch`): LabPage checks `vm-status` on load for in-progress runs and restores the iframe from the persisted `guac_url`.
 - [ ] **Verify Railway persistence** — uploads write to local disk (`labs.py`, `tickets.py`, `evidence.py`); Railway FS is ephemeral. Mount a Railway volume for `UPLOAD_DIR` or move to Supabase Storage. Confirm prod `DATABASE_URL` points at Supabase, not SQLite.
-- [x] **Remove `seed_students()` from `main.py`** — done 2026-07-06 (`fix/p0-batch`). NOTE: purge of ghost rows from existing DBs still pending; `seed.py` also has its own `seed_students(db)` content seeder (different accounts, not removed).
+- [x] **Remove `seed_students()` from `main.py`** — done 2026-07-06 (`fix/p0-batch`). Ghost rows purged from the live server DB 2026-07-16 (phantom `admin` student id 11 + its xp/streak/squad/methodology/cli rows deleted; backup taken first).
 - [x] **Make `ai_service` import-safe** — done 2026-07-06 (`fix/p0-batch`): model validation moved into `call_ai()` (`_validate_model_config`), raises `AIServiceError` at call time.
 - [x] **Seed passwords from env** — done 2026-07-06 (`fix/p0-batch`): `scripts/seed_users.py` reads `SEED_PASSWORD_MENTOR1`/`SEED_PASSWORD_STUDENT1..5`, refuses to run listing any missing vars.
 
 ## P1 — Security / correctness
 
-- [ ] **Fix `allow_admin_or_student` bearer bypass** — `admin_auth.py` accepts any `Authorization: Bearer <anything>` without decoding. Decode the JWT or require `get_current_student` on `/api/study-tracker/curriculum`.
+- [x] **Fix `allow_admin_or_student` bearer bypass** — done 2026-07-17 (`fix/p0-batch`): decodes the JWT via `decode_token` (401 on invalid/expired), also accepts the student session cookie; tests in `test_admin_session.py`.
 - [x] **Fix multi-select grading** — done 2026-07-06 (`fix/p0-batch`): `_is_answer_correct` compares exact sorted sets for multi-select in both submit and review paths; regression test added.
-- [ ] **Harden admin session** — token is unsalted deterministic `sha256(password)` with no server-side expiry; comparisons are non-constant-time `==`; auth logs leak secret lengths. Use a random/signed token, `secrets.compare_digest`, drop the length logging.
-- [ ] **Evidence upload limits + ownership** — `labs.py` evidence and `evidence.py` have no file-size cap (tickets has 5MB); `evidence.py` lets any student attach evidence to any ticket_id. Add size cap + ownership check. Note `EvidenceArtifact.submission_id` means ticket_id for tickets but lab_run_id for labs — document or fix.
-- [ ] **Per-attempt quiz history** — retakes overwrite the single `QuizAttempt` row; "attempts" list is fiction and speed-flag evidence can be laundered by a slow retake. Insert a new row per attempt.
-- [ ] **Remove localStorage-driven mentor admin shell** — `AdminAccessGate.jsx` renders admin pages when client-writable `selected_profile.is_mentor` is true. Contradicts "mentor cannot access admin panel". Backend already blocks the APIs; clean up the gate.
+- [x] **Harden admin session** — done 2026-07-17 (`fix/p0-batch`): random `secrets.token_urlsafe(32)` server-side session store with 12h expiry, `secrets.compare_digest` everywhere, logout revokes server-side, secret-length logging removed; forged-sha256-cookie regression test added.
+- [x] **Evidence upload limits + ownership** — done 2026-07-17 (`fix/p0-batch`): 5MB cap on `labs.py` evidence + `evidence.py`; `EvidenceArtifact.student_id` column (migration `c456ad196e2d`) stamped at upload; ticket submit rejects screenshot ids owned by another student; labs `_screenshots_dir` no longer writes one level deeper than the static mount serves.
+- [x] **Per-attempt quiz history** — done 2026-07-17 (`fix/p0-batch`): dropped `uq_student_quiz` (migration `d5e6f7a8b9c0`), every submit inserts a new `QuizAttempt` row with `best_score`/`first_attempt_xp` carried forward; list/review pick the latest attempt; completed-counts use distinct quiz_id so retakes don't inflate stats.
+- [x] **Remove localStorage-driven mentor admin shell** — done 2026-07-17 (`fix/p0-batch`): `AdminAccessGate.jsx` mentor fallback deleted; unauthenticated always redirects to `/admin-login`.
 
 ## P2 — Lighter / cheaper
 
 - [x] **Swap AI to local Ollama** — done 2026-07-16 (`fix/p0-batch`) — make the chat-completions base URL configurable in `ai_service.py` (`AI_BASE_URL`), point at Ollama's OpenAI-compatible endpoint over Tailscale. Keep budget/rate-limit/logging plumbing. Calibrate grading prompts against known-good writeups on the chosen local model.
-- [ ] **Move Playwright out of prod requirements** — only used for occasional admin scraping; bloats the Railway image. `requirements-dev.txt` or run locally.
+- [x] **Move Playwright out of prod requirements** — done 2026-07-17 (`fix/p0-batch`): `requirements-dev.txt` created (playwright + pytest); scraper's playwright import is lazy so prod image is unaffected.
 - [ ] **Linked clones** — `proxmox_service.clone_template` uses `full=1`; use linked clones for seconds-fast, disk-cheap provisioning.
 - [ ] **Lazy-load admin routes** — `React.lazy` the 11 admin pages; kills the >500kB bundle warning.
 - [ ] **`datetime.utcnow()` sweep** — rate_limiter, activity_service, admin_content, students, tickets; replace with `datetime.now(timezone.utc)` before Supabase cutover. Also `ai_service._today_window()` uses local time for the daily budget window.

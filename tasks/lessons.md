@@ -14,3 +14,7 @@ Past mistakes and the rules derived from them. Reviewed at the start of every se
 ## 2026-07-16 — backend/.env has Windows CRLF + BOM
 - Mistake: tried `source .env` in bash; CRLF line endings (Syncthing mirror from Windows) broke every value.
 - Rule: load env in Python via python-dotenv (handles CRLF/BOM) or strip with `tr -d '\r'` first; never `source` this file.
+
+## 2026-07-17 — frontend node_modules is a Windows mirror
+- Mistake: ran `npm run build` on the server; vite/rollup native binaries are Windows builds (Syncthing mirror), so it fails with Permission denied / missing @rollup/rollup-linux-x64-gnu.
+- Rule: validate frontend builds on this server via `docker build ./frontend` (fresh npm ci in node:22-alpine), never via the synced node_modules.

@@ -94,3 +94,16 @@ Apply this security batch, one item at a time with diffs and tests:
 - No paid APIs and no new external dependencies beyond what's already justified (Ollama, Postgres, Guacamole, Proxmox).
 - Seeds must remain idempotent (existing project convention).
 - Update `CLAUDE.md` / `TASKS.md` / `loop-log.md` with what changed at the end of each phase, and leave an exact continuation marker for the next session.
+
+---
+
+## CONTINUATION MARKER — 2026-07-17 (session on nexus-services)
+
+**State: Phases 1b, 2 (agent-verifiable part), 3, 4 (code side), and 5 are complete.** 67/67 backend tests pass; frontend builds clean (validate via `docker build ./frontend` — server node_modules is a Windows mirror). Live service verified: AI grading hits Ollama (two bugs fixed: fenced/thinking JSON output now sanitized by `ai_service.extract_json_payload`, MAX_TOKENS raised 600→2000 because deepseek-r1 exhausted the budget on reasoning), admin session tokens are random + revocable, leaderboard has exactly the 6 real accounts (phantom `admin` purged from live DB).
+
+**Remaining for the human:**
+1. Phase 2 login check — set/browse with `SEED_PASSWORD_*` passwords (not stored in `.env`, unknown to the agent).
+2. Phase 3 first deploy — root `.env` with `POSTGRES_PASSWORD` + `VITE_API_URL`, then `docker compose build && docker compose up -d`, migrations/seeds via `docker compose exec backend ...`, install the crontab line from `scripts/backup_db.sh`.
+3. Phase 4 — real Proxmox/Guacamole infra + end-to-end lab smoke test.
+
+**Next agent session:** pick from TASKS.md — top items are the Railway/uploads persistence decision (P0), then P2 leftovers (linked clones, lazy-load admin routes, utcnow sweep).
