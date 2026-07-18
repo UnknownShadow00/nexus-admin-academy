@@ -15,6 +15,7 @@ from app.models.vm_assignment import VmAssignment
 from app.schemas.lab import LabSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import get_current_student
+from app.services.a_plus_access import require_a_plus_unlocked
 from app.utils.responses import ok
 
 logger = logging.getLogger(__name__)
@@ -261,6 +262,7 @@ def start_lab(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
+    require_a_plus_unlocked(db, current_student)
     lab = _get_published_lab(db, lab_id)
     run = _get_lab_run(db, lab_id, current_student.id)
     created = False
@@ -300,6 +302,7 @@ def submit_lab(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
+    require_a_plus_unlocked(db, current_student)
     lab = _get_published_lab(db, lab_id)
     run = _get_lab_run(db, lab_id, current_student.id)
     now = datetime.now(UTC)
@@ -339,6 +342,7 @@ async def upload_lab_evidence(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
+    require_a_plus_unlocked(db, current_student)
     run = db.query(LabRun).filter(LabRun.id == lab_run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Lab run not found")

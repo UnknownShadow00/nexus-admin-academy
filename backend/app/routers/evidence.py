@@ -11,6 +11,7 @@ from app.models.student import Student
 from app.models.ticket import Ticket
 from app.services.auth_service import get_current_student
 from app.services.evidence_validator import validate_evidence_artifact
+from app.services.a_plus_access import require_a_plus_unlocked
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/evidence", tags=["evidence"])
@@ -35,6 +36,7 @@ async def upload_evidence(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
+    require_a_plus_unlocked(db, current_student)
     ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else ""
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported file extension")

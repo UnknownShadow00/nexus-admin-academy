@@ -10,6 +10,7 @@ from app.models.squad_activity import SquadActivity
 from app.models.student import Student
 from app.schemas.cli_lab import CliLabCompleteRequest
 from app.services.auth_service import get_current_student
+from app.services.a_plus_access import require_a_plus_unlocked
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
 
@@ -108,6 +109,7 @@ def complete_cli_lab(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
+    require_a_plus_unlocked(db, current_student)
     lab = db.query(CliLab).filter(CliLab.id == lab_id).first()
     if not lab:
         raise HTTPException(status_code=404, detail="CLI lab not found")

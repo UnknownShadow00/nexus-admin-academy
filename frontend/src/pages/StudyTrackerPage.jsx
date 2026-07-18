@@ -8,6 +8,7 @@ import {
   unmarkVideoWatched,
 } from "../services/api";
 import { getCurrentStudent } from "../hooks/useAuth";
+import { setSelectedProfile } from "../services/profile";
 import { scoreBand } from "../utils/theme";
 
 const JOB_TAGS = {
@@ -207,8 +208,19 @@ export default function StudyTrackerPage() {
       return next;
     });
     try {
-      if (isWatched) await unmarkVideoWatched(videoKey, studentId);
-      else await markVideoWatched(videoKey, studentId);
+      const response = isWatched
+        ? await unmarkVideoWatched(videoKey, studentId)
+        : await markVideoWatched(videoKey, studentId);
+      const access = response?.data;
+      const currentStudent = getCurrentStudent();
+      if (currentStudent && typeof access?.a_plus_unlocked === "boolean") {
+        setSelectedProfile({
+          ...currentStudent,
+          a_plus_progress_pct: access.a_plus_progress_pct,
+          a_plus_unlocked: access.a_plus_unlocked,
+          a_plus_unlock_threshold_pct: access.a_plus_unlock_threshold_pct,
+        });
+      }
     } catch {
       setTrackerData((prev) => {
         const next = { ...prev, watched: { ...prev.watched } };

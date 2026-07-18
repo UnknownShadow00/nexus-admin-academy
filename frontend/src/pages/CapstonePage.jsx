@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Spinner from "../components/Spinner";
+import APlusPreviewLock, { getAPlusPreviewAccess } from "../components/APlusPreviewLock";
 import PageHeader from "../components/ui/PageHeader";
 import { getCapstone, startCapstone, submitCapstone } from "../services/api";
 
@@ -12,6 +13,7 @@ const statusConfig = {
 
 export default function CapstonePage() {
   const { capstoneId } = useParams();
+  const previewAccess = getAPlusPreviewAccess();
   const [capstone, setCapstone] = useState(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
@@ -83,6 +85,8 @@ export default function CapstonePage() {
         subtitle={`Week ${capstone.week_number} | ${capstone.estimated_hours} hours`}
       />
 
+      <APlusPreviewLock access={previewAccess} />
+
       <div className="grid gap-6 lg:grid-cols-2">
         <article className="space-y-4">
           <div className="panel dark:border-slate-700 dark:bg-slate-900">
@@ -139,24 +143,26 @@ export default function CapstonePage() {
             placeholder="Document your capstone approach, findings, deliverables, and reflection here."
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            readOnly={busy || capstone.status === "submitted"}
+            readOnly={previewAccess.locked || busy || capstone.status === "submitted"}
           />
 
-          <div className="flex flex-wrap gap-3">
-            {capstone.status === "not_started" ? (
-              <button className="btn-secondary" onClick={handleStart} disabled={busy} type="button">
-                {busy ? "Starting..." : "Start Capstone"}
+          {!previewAccess.locked ? (
+            <div className="flex flex-wrap gap-3">
+              {capstone.status === "not_started" ? (
+                <button className="btn-secondary" onClick={handleStart} disabled={busy} type="button">
+                  {busy ? "Starting..." : "Start Capstone"}
+                </button>
+              ) : null}
+              <button
+                className="btn-primary"
+                onClick={handleSubmit}
+                disabled={busy || capstone.status === "submitted"}
+                type="button"
+              >
+                {capstone.status === "submitted" ? "Submitted" : busy ? "Submitting..." : "Submit Capstone"}
               </button>
-            ) : null}
-            <button
-              className="btn-primary"
-              onClick={handleSubmit}
-              disabled={busy || capstone.status === "submitted"}
-              type="button"
-            >
-              {capstone.status === "submitted" ? "Submitted" : busy ? "Submitting..." : "Submit Capstone"}
-            </button>
-          </div>
+            </div>
+          ) : null}
 
           <div className="text-xs text-slate-500 dark:text-slate-400">
             {capstone.status === "submitted"

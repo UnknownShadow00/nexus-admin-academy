@@ -1,4 +1,14 @@
 
+## A+ hands-on preview gate (2026-07-18)
+DONE (verified and deployed on .101; see tasks/loop-log.md):
+- [x] **Schema reality:** live `curriculum_videos` is at Alembic `0027` and has `exam_code` in addition to free-text `section`. The catalog has 108 `220-1201` rows and 74 `220-1202` rows (137 active), so A+ is grouped by those exam codes; there is no separate certification-family column.
+- [x] **Enforcement reality before this change:** `check_module_unlock()` / `get_module_mastery()` were called only by the Learning Path response and did not gate Tickets, Labs, Networking Labs, Quizzes, or Capstones. Capstone `role_level` was separately enforced on list/detail/start; it was not module/mastery enforcement.
+- [x] Database-backed setting `a_plus_unlock_threshold_pct` defaults to **40** and is read on every request (not statically cached). Admins can read it with `GET /api/admin/settings/a-plus-unlock` and change it without a deploy with `PATCH /api/admin/settings/a-plus-unlock`, JSON body `{"a_plus_unlock_threshold_pct": 50}`, using normal admin auth or `X-Admin-Key`.
+- [x] Login and `/auth/me` expose `a_plus_progress_pct`, `a_plus_unlock_threshold_pct`, and `a_plus_unlocked`. Study Tracker watch/unwatch responses refresh the same fields so crossing the threshold updates the stored frontend profile without another request.
+- [x] Below-threshold students retain list/detail preview access to Tickets, Labs, Networking Labs, and Capstones, while all state-changing actions (including hints, submissions/completions, starts, and uploads) return a progress-aware 403. Quizzes and Learning Path remain fully open.
+- [x] Frontend list/detail pages show the real threshold/progress message linked to `/study-tracker` and hide or disable mutation controls until unlocked. Mentors bypass the gate. If the A+ catalog is empty, the gate deliberately fails open; an admin threshold change is server-immediate but an already-open SPA may need a reload to refresh its cached message/buttons.
+- [x] Verification: 119 backend tests pass (115 existing + 4 A+ cases), frontend build + CLI validation/sanity pass, migration backup/integrity + fresh upgrade pass, live below-threshold cohort student receives four 403s while all four browse endpoints remain 200, threshold 0 makes the same student unlocked and the gate stops intercepting mutations (normal 404s on deliberately nonexistent targets), then live threshold restored to **40**.
+
 ## Nav restructure batch (2026-07-18, second session)
 DONE (verified on .101, see tasks/loop-log.md):
 - [x] Quizzes hidden from top nav (routes + all entry points intact — reachable via Study Tracker, Home cards, Learning Path)

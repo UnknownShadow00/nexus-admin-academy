@@ -13,6 +13,7 @@ from app.services.auth_service import (
     normalize_username,
     verify_password,
 )
+from app.services.a_plus_access import get_a_plus_progress
 
 router = APIRouter(tags=["auth"])
 
@@ -78,6 +79,7 @@ def login(request: LoginRequest, response: Response, db: Session = Depends(get_d
 
     payload = _token_response(student, response)
     payload["has_unlocked_capstones"] = has_unlocked_capstones(db, student)
+    payload.update(get_a_plus_progress(db, student))
     return payload
 
 
@@ -87,6 +89,7 @@ def me(db: Session = Depends(get_db), current_student: Student = Depends(get_cur
 
     response = _me_response(current_student)
     response["data"]["has_unlocked_capstones"] = has_unlocked_capstones(db, current_student)
+    response["data"].update(get_a_plus_progress(db, current_student))
     return response
 
 

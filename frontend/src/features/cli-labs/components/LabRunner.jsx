@@ -41,7 +41,7 @@ function mapInitialLines(lesson, devices) {
   return Object.fromEntries(devices.map((device) => [device.id, initialLines({ ...lesson, title: `${lesson.title} | ${device.id}` })]));
 }
 
-export default function LabRunner({ lesson, initialCompleted = false }) {
+export default function LabRunner({ lesson, initialCompleted = false, previewLocked = false }) {
   const topology = lesson.topology || {};
   const devices = useMemo(() => switchDevices(topology), [topology]);
   const isMultiSwitch = isMultiSwitchTopology(topology);
@@ -88,6 +88,7 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
   }
 
   useEffect(() => {
+    if (previewLocked) return;
     if (!hasSteps) return;
     const currentStep = lesson.steps[currentStepIndex];
     if (currentStep?.type !== "observe") return;
@@ -97,10 +98,10 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
     const nextStepIds = [...completedStepIds, currentStep.id];
     setCompletedStepIds(nextStepIds);
     updateCompletionState(isMultiSwitch ? deviceStates : switchState, progress, nextStepIds);
-  }, [completedStepIds, currentStepIndex, deviceStates, hasSteps, isMultiSwitch, lesson, progress, switchState]);
+  }, [completedStepIds, currentStepIndex, deviceStates, hasSteps, isMultiSwitch, lesson, previewLocked, progress, switchState]);
 
   async function postCompletion(state, done) {
-    if (!done || completionPostedRef.current) return;
+    if (previewLocked || !done || completionPostedRef.current) return;
     completionPostedRef.current = true;
     setPosting(true);
     try {
@@ -128,6 +129,7 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
   }
 
   function completeStep(stepId) {
+    if (previewLocked) return;
     if (!stepId || completedStepIds.includes(stepId)) return;
     const nextStepIds = [...completedStepIds, stepId];
     setCompletedStepIds(nextStepIds);
@@ -135,10 +137,12 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
   }
 
   function continueStep() {
+    if (previewLocked) return;
     setCurrentStepIndex((index) => Math.min(index + 1, Math.max((lesson.steps || []).length - 1, 0)));
   }
 
   function handleCommand(command) {
+    if (previewLocked) return;
     const currentState = isMultiSwitch ? deviceStates[activeDeviceId] : switchState;
     const beforePrompt = getPrompt(currentState);
     const working = cloneState(currentState);
@@ -159,6 +163,7 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
   }
 
   function handleTabComplete(input) {
+    if (previewLocked) return { value: input };
     const completed = completeCommand(activeSwitchState, input);
     if (completed.event) {
       const result = { events: [isMultiSwitch ? { ...completed.event, device: activeDeviceId } : completed.event], output: [] };
@@ -168,6 +173,7 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
   }
 
   function handlePcCommand(command, pcId) {
+    if (previewLocked) return;
     const working = isMultiSwitch ? cloneDeviceStates(deviceStates) : cloneState(switchState);
     const result = isMultiSwitch ? runMultiPcCommand(working, topology, command, pcId) : runPcCommand(working, command, pcId);
     setPcLines((current) => [...current, `${pcId || "PC-A"}> ${command}`, ...(result.output || [])]);
@@ -175,6 +181,7 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
   }
 
   function resetSession() {
+    if (previewLocked) return;
     const fresh = initialState(lesson);
     const freshDevices = isMultiSwitch ? initialDeviceStates(lesson) : {};
     startedAtRef.current = Date.now();
@@ -201,7 +208,7 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
               <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Scenario</h2>
               <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-300">{scenario}</p>
             </div>
-            <button className="btn-secondary gap-2" type="button" onClick={resetSession}>
+            <button className="btn-secondary gap-2" type="button" onClick={resetSession} disabled={previewLocked}>
               <RotateCcw size={16} />
               Restart
             </button>
@@ -224,6 +231,7 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
             completedStepIds={completedStepIds}
             onCompleteStep={completeStep}
             onContinue={continueStep}
+            disabled={previewLocked}
           />
         ) : null}
 
@@ -234,6 +242,7 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
                 key={device.id}
                 type="button"
                 onClick={() => setActiveDeviceId(device.id)}
+                disabled={previewLocked}
                 className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
                   activeDeviceId === device.id
                     ? "border-blue-500 bg-blue-600 text-white dark:border-blue-400 dark:bg-blue-500"
@@ -251,10 +260,10 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
           lines={isMultiSwitch ? deviceLines[activeDeviceId] || [] : lines}
           onSubmit={handleCommand}
           onTabComplete={handleTabComplete}
-          disabled={posting}
+          disabled={previewLocked || posting}
         />
 
-        {requiresPcTerminal ? <PcTerminal lines={pcLines} onSubmit={handlePcCommand} disabled={posting} devices={pcDevices} /> : null}
+        {requiresPcTerminal ? <PcTerminal lines={pcLines} onSubmit={handlePcCommand} disabled={previewLocked || posting} devices={pcDevices} /> : null}
       </section>
 
       <aside className="space-y-4">
@@ -263,7 +272,9 @@ export default function LabRunner({ lesson, initialCompleted = false }) {
         <section className="panel space-y-2 dark:border-slate-700 dark:bg-slate-900">
           <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Progress</h2>
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            {completion
+            {previewLocked
+              ? "Preview only. Complete the A+ Study Tracker requirement to save lab completion."
+              : completion
               ? completion.xp_awarded
                 ? `Saved with ${completion.xp_awarded} XP awarded.`
                 : "Completion saved. XP was already awarded for this lab."

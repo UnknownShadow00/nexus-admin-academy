@@ -11,6 +11,7 @@ from app.models.student import Student
 from app.schemas.capstone import CapstoneSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import get_current_student
+from app.services.a_plus_access import require_a_plus_unlocked
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/capstones", tags=["capstones"])
@@ -135,6 +136,7 @@ def start_capstone(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
+    require_a_plus_unlocked(db, current_student)
     capstone = _get_published_capstone(db, capstone_id)
     accessible = (
         _accessible_capstones_query(db, current_student)
@@ -176,6 +178,7 @@ def submit_capstone(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
+    require_a_plus_unlocked(db, current_student)
     capstone = _get_published_capstone(db, capstone_id)
     run = _get_capstone_run(db, capstone_id, current_student.id)
     now = datetime.now(UTC)

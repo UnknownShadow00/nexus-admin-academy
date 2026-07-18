@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -22,10 +23,29 @@ from app.models.ticket import Ticket
 from app.schemas.resource import ResourceCreateRequest
 from app.services.admin_auth import verify_admin
 from app.services.ai_service import ai_health_test
+from app.services.a_plus_access import get_a_plus_unlock_threshold, set_a_plus_unlock_threshold
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(verify_admin)])
 logger = logging.getLogger(__name__)
+
+
+class APlusUnlockSettingUpdate(BaseModel):
+    a_plus_unlock_threshold_pct: int = Field(ge=0, le=100)
+
+
+@router.get("/settings/a-plus-unlock")
+def get_a_plus_unlock_setting(db: Session = Depends(get_db)):
+    return ok({"a_plus_unlock_threshold_pct": get_a_plus_unlock_threshold(db)})
+
+
+@router.patch("/settings/a-plus-unlock")
+def update_a_plus_unlock_setting(
+    payload: APlusUnlockSettingUpdate,
+    db: Session = Depends(get_db),
+):
+    threshold = set_a_plus_unlock_threshold(db, payload.a_plus_unlock_threshold_pct)
+    return ok({"a_plus_unlock_threshold_pct": threshold})
 
 
 

@@ -44,6 +44,9 @@ export function getCurrentStudent() {
       email: payload.email,
       is_mentor: Boolean(payload.is_mentor),
       has_unlocked_capstones: profile?.has_unlocked_capstones,
+      a_plus_progress_pct: profile?.a_plus_progress_pct,
+      a_plus_unlocked: profile?.a_plus_unlocked,
+      a_plus_unlock_threshold_pct: profile?.a_plus_unlock_threshold_pct,
     };
   }
   return getSelectedProfile();

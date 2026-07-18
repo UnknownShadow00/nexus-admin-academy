@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Spinner from "../components/Spinner";
+import APlusPreviewLock, { getAPlusPreviewAccess } from "../components/APlusPreviewLock";
 import { DifficultyBadge } from "../components/ui/Badge";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
@@ -15,6 +16,7 @@ const statusConfig = {
 
 export default function LabPage() {
   const { labId } = useParams();
+  const previewAccess = getAPlusPreviewAccess();
   const [lab, setLab] = useState(null);
   const [guacUrl, setGuacUrl] = useState(null);
   const [notes, setNotes] = useState("");
@@ -122,6 +124,8 @@ export default function LabPage() {
         actions={<DifficultyBadge level={lab.difficulty} />}
       />
 
+      <APlusPreviewLock access={previewAccess} />
+
       {vmError ? <Banner variant="error">{vmError}</Banner> : null}
 
       {guacUrl ? (
@@ -152,7 +156,7 @@ export default function LabPage() {
             <p className="text-sm text-slate-600 dark:text-slate-300">{lab.setup_instructions}</p>
           </div>
 
-          {canUploadEvidence ? (
+          {canUploadEvidence && !previewAccess.locked ? (
             <div className="panel space-y-3 dark:border-slate-700 dark:bg-slate-900">
               <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Evidence Upload</h2>
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -217,19 +221,21 @@ export default function LabPage() {
             placeholder="Document your answers, steps, findings, and verification notes here."
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            readOnly={busy || lab.status === "submitted"}
+            readOnly={previewAccess.locked || busy || lab.status === "submitted"}
           />
 
-          <div className="flex flex-wrap gap-3">
-            {["not_started", "assigned"].includes(lab.status) ? (
-              <button className="btn-secondary" onClick={handleStart} disabled={busy} type="button">
-                {busy ? "Starting..." : "Start Lab"}
+          {!previewAccess.locked ? (
+            <div className="flex flex-wrap gap-3">
+              {["not_started", "assigned"].includes(lab.status) ? (
+                <button className="btn-secondary" onClick={handleStart} disabled={busy} type="button">
+                  {busy ? "Starting..." : "Start Lab"}
+                </button>
+              ) : null}
+              <button className="btn-primary" onClick={handleSubmit} disabled={busy || lab.status === "submitted"} type="button">
+                {lab.status === "submitted" ? "Submitted" : busy ? "Submitting..." : "Submit Lab"}
               </button>
-            ) : null}
-            <button className="btn-primary" onClick={handleSubmit} disabled={busy || lab.status === "submitted"} type="button">
-              {lab.status === "submitted" ? "Submitted" : busy ? "Submitting..." : "Submit Lab"}
-            </button>
-          </div>
+            </div>
+          ) : null}
 
           <div className="text-xs text-slate-500 dark:text-slate-400">
             {lab.status === "submitted"

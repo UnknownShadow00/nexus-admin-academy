@@ -23,6 +23,7 @@ from app.models.curriculum_video import CurriculumVideo
 from app.models.lesson_notes import StudentLessonNote
 from app.models.flashcard import FlashcardReview
 from app.models.vm_assignment import VmAssignment
+from app.models.app_setting import AppSetting
 
 __all__ = [
     "Student",
@@ -66,4 +67,5 @@ __all__ = [
     "StudentLessonNote",
     "FlashcardReview",
     "VmAssignment",
+    "AppSetting",
 ]

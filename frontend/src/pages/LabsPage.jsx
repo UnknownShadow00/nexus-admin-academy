@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { FlaskConical } from "lucide-react";
 import { Link } from "react-router-dom";
 import EmptyState from "../components/EmptyState";
+import APlusPreviewLock, { getAPlusPreviewAccess } from "../components/APlusPreviewLock";
 import Spinner from "../components/Spinner";
 import { DifficultyBadge } from "../components/ui/Badge";
 import PageHeader from "../components/ui/PageHeader";
@@ -15,6 +16,7 @@ const statusConfig = {
 };
 
 export default function LabsPage() {
+  const previewAccess = getAPlusPreviewAccess();
   const [week, setWeek] = useState(1);
   const [allWeeks, setAllWeeks] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -105,6 +107,8 @@ export default function LabsPage() {
           </button>
         </div>
       </div>
+
+      <APlusPreviewLock access={previewAccess} />
 
       {loading ? (
         <div className="panel dark:border-slate-700 dark:bg-slate-900">

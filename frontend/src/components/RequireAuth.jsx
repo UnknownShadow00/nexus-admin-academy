@@ -29,6 +29,9 @@ export default function RequireAuth({ children }) {
           email: student.email,
           is_mentor: student.is_mentor,
           has_unlocked_capstones: student.has_unlocked_capstones,
+          a_plus_progress_pct: student.a_plus_progress_pct,
+          a_plus_unlocked: student.a_plus_unlocked,
+          a_plus_unlock_threshold_pct: student.a_plus_unlock_threshold_pct,
         });
         setAuthorized(true);
       })

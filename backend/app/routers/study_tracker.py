@@ -8,6 +8,7 @@ from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
 from app.models.student import Student
 from app.models.video_watch import VideoWatch
 from app.services.admin_auth import allow_admin_or_student, verify_admin
+from app.services.a_plus_access import get_a_plus_progress
 from app.services.auth_service import ensure_student_access, get_current_student
 from app.utils.responses import ok
 
@@ -154,7 +155,7 @@ def mark_watched(student_id: int, video_key: str, db: Session = Depends(get_db),
     if not exists:
         db.add(VideoWatch(student_id=student_id, video_key=video_key))
         db.commit()
-    return ok({"watched": True})
+    return ok({"watched": True, **get_a_plus_progress(db, current_student)})
 
 
 @router.delete("/{student_id}/watch/{video_key:path}")
@@ -165,7 +166,7 @@ def unmark_watched(student_id: int, video_key: str, db: Session = Depends(get_db
         VideoWatch.video_key == video_key,
     ).delete()
     db.commit()
-    return ok({"watched": False})
+    return ok({"watched": False, **get_a_plus_progress(db, current_student)})
 
 
 class VideoUpdate(BaseModel):

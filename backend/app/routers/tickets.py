@@ -16,6 +16,7 @@ from app.services.activity_service import log_activity, mark_student_active
 from app.services.ticket_params import resolve_parameters, substitute, substitute_list
 from app.services.auth_service import ensure_student_access, get_current_student
 from app.services.ticket_grader import grade_ticket_submission, grade_ticket_with_answer_key
+from app.services.a_plus_access import require_a_plus_unlocked
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/tickets", tags=["tickets"])
@@ -70,7 +71,12 @@ def _build_itil_writeup(payload: TicketSubmitRequest) -> str:
 
 
 @router.post("/uploads")
-async def upload_screenshots(files: list[UploadFile] = File(...), current_student: Student = Depends(get_current_student)):
+async def upload_screenshots(
+    files: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    require_a_plus_unlocked(db, current_student)
     upload_dir = _get_upload_dir()
     saved = []
 
@@ -218,6 +224,7 @@ def reveal_hint(ticket_id: int, db: Session = Depends(get_db), current_student: 
     so the penalty survives refreshes and applies at grading time. The response
     always states the XP cost BEFORE the next hint can be requested.
     """
+    require_a_plus_unlocked(db, current_student)
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -284,6 +291,7 @@ def _verify_evidence_ownership(db: Session, student_id: int, *artifact_ids: int 
 
 @router.post("/{ticket_id}/submit")
 async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    require_a_plus_unlocked(db, current_student)
     student_id = payload.student_id
     ensure_student_access(current_student, student_id)
     collaborators = _validate_collaborators(db, student_id, payload.collaborator_ids or [])
