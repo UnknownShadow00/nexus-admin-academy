@@ -130,6 +130,91 @@ def test_get_quiz_not_found(db):
     assert res.status_code == 404
 
 
+def test_get_quiz_detail_preserves_legacy_options_f_through_h(db):
+    student = make_student(db)
+    quiz = _seed_quiz(db, title="Legacy Eight-Option Quiz", week_number=1)
+    question = Question(
+        quiz_id=quiz.id,
+        question_text="Which legacy option is correct?",
+        option_a="A",
+        option_b="B",
+        option_c="C",
+        option_d="D",
+        option_e="E",
+        option_f="F",
+        option_g="Correct legacy answer",
+        option_h="H",
+        correct_answer="G",
+        explanation="The old quiz uses option G.",
+    )
+    db.add(question)
+    quiz.question_count = 1
+    db.commit()
+
+    res = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student))
+
+    assert res.status_code == 200
+    payload = res.json()["data"]["questions"][0]
+    assert payload["option_f"] == "F"
+    assert payload["option_g"] == "Correct legacy answer"
+    assert payload["option_h"] == "H"
+
+
+def test_submit_quiz_scores_legacy_f_and_g_answers(db):
+    student = make_student(db)
+    quiz = _seed_quiz(db, title="Legacy F/G Scoring", week_number=1)
+    questions = [
+        Question(
+            quiz_id=quiz.id,
+            question_text="Which option is F?",
+            option_a="A",
+            option_b="B",
+            option_c="C",
+            option_d="D",
+            option_e="E",
+            option_f="Correct F answer",
+            correct_answer="F",
+        ),
+        Question(
+            quiz_id=quiz.id,
+            question_text="Which option is G?",
+            option_a="A",
+            option_b="B",
+            option_c="C",
+            option_d="D",
+            option_e="E",
+            option_f="F",
+            option_g="Correct G answer",
+            correct_answer="G",
+        ),
+    ]
+    db.add_all(questions)
+    quiz.question_count = 2
+    db.commit()
+    for question in questions:
+        db.refresh(question)
+
+    res = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={
+            "student_id": student.id,
+            "answers": {
+                str(questions[0].id): "F",
+                str(questions[1].id): "G",
+            },
+        },
+        headers=auth_headers(student),
+    )
+
+    assert res.status_code == 200
+    payload = res.json()["data"]
+    assert payload["score"] == 2
+    assert payload["total"] == 2
+    assert [result["is_correct"] for result in payload["results"]] == [True, True]
+    assert payload["results"][0]["options"]["F"] == "Correct F answer"
+    assert payload["results"][1]["options"]["G"] == "Correct G answer"
+
+
 def test_list_quizzes_unauthenticated(db):
     res = client.get("/api/quizzes")
     assert res.status_code == 401

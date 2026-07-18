@@ -1,7 +1,7 @@
 import { CheckCircle2, XCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const ALL_OPTS = ["A", "B", "C", "D", "E"];
+const ALL_OPTS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 function OptionRow({ letter, text, correctAnswers, studentAnswer }) {
   const studentAnswers = Array.isArray(studentAnswer) ? studentAnswer : studentAnswer ? [studentAnswer] : [];
@@ -36,7 +36,16 @@ export default function QuizReviewScreen({ quiz, result, onRetake }) {
         const studentAnswer = review?.student_answer;
         const correctAnswers = review?.correct_answers || [review?.correct_answer || question.correct_answer];
         const isCorrect = review?.is_correct;
-        const options = review?.options || { A: question.option_a, B: question.option_b, C: question.option_c, D: question.option_d, E: question.option_e || "" };
+        const options = review?.options || {
+          A: question.option_a,
+          B: question.option_b,
+          C: question.option_c,
+          D: question.option_d,
+          E: question.option_e || "",
+          F: question.option_f || "",
+          G: question.option_g || "",
+          H: question.option_h || "",
+        };
         const studentAnswerArr = studentAnswer ? String(studentAnswer).split(",").map((s) => s.trim()) : [];
 
         return (

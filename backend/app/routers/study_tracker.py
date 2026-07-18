@@ -62,6 +62,7 @@ def get_curriculum(db: Session = Depends(get_db), _: bool = Depends(_get_student
                 "duration": video.duration,
                 "url": video.url,
                 "quiz_title": video.quiz_title,
+                "exam_code": video.exam_code,
                 "job_relevance": video.job_relevance,
             }
         )

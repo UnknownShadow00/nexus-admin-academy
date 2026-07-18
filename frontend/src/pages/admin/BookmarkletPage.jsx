@@ -95,7 +95,7 @@ export default function BookmarkletPage() {
         c.querySelectorAll('input,svg,img').forEach(function(x){x.remove();});
         ot=(c.innerText||c.textContent||'').trim();
       }
-      ot=ot.replace(/^[A-Ea-e][.)\\s]+/,'').replace(/^[\\u2713\\u2717\\u2610\\u2611\\u2714]\\s*/g,'').trim();
+      ot=ot.replace(/^[A-Ha-h][.)\\s]+/,'').replace(/^[\\u2713\\u2717\\u2610\\u2611\\u2714]\\s*/g,'').trim();
       if(ot&&options.indexOf(ot)===-1) options.push(ot);
     });
 
@@ -109,7 +109,7 @@ export default function BookmarkletPage() {
       return (c.innerText||c.textContent||'')
         .replace(/Missed/gi,'').replace(/Your answer/gi,'').replace(/Correct answer/gi,'')
         .replace(/incorrect or incomplete/gi,'').replace(/\\([\\s\\S]*?\\)/g,'')
-        .replace(/^[A-Ea-e][.)\\s]+/,'').replace(/\\s+/g,' ').trim();
+        .replace(/^[A-Ha-h][.)\\s]+/,'').replace(/\\s+/g,' ').trim();
     }
     function extractQuestionText(group){
       function cleanQ(t){
@@ -121,7 +121,7 @@ export default function BookmarkletPage() {
       function validQ(t){
         return t.length>15 &&
           !/CompTIA|ExamCompass|Your answer|incorrect or incomplete|Correct answer|Missed|Discount/i.test(t) &&
-          !/^(A|B|C|D|E)[.)\\s]/i.test(t);
+          !/^(A|B|C|D|E|F|G|H)[.)\\s]/i.test(t);
       }
 
       var prev=group.previousElementSibling;
@@ -183,6 +183,9 @@ export default function BookmarkletPage() {
         option_c:options[2]||'',
         option_d:options[3]||'',
         option_e:options[4]||'',
+        option_f:options[5]||'',
+        option_g:options[6]||'',
+        option_h:options[7]||'',
         correct_answer:all.length?all[0]:'A',
         all_correct_answers:all.length?all:['A'],
         explanation:'',
@@ -203,6 +206,9 @@ export default function BookmarkletPage() {
             option_c:opts[2]||'',
             option_d:opts[3]||'',
             option_e:opts[4]||'',
+            option_f:opts[5]||'',
+            option_g:opts[6]||'',
+            option_h:opts[7]||'',
             correct_answer:'A',
             all_correct_answers:['A'],
             explanation:'',
@@ -215,7 +221,7 @@ export default function BookmarkletPage() {
 
     return collected.map(function(q){
       var opts=q.options||[];
-      return {question_text:q.question_text,option_a:opts[0]||'',option_b:opts[1]||'',option_c:opts[2]||'',option_d:opts[3]||'',option_e:opts[4]||'',correct_answer:'A',all_correct_answers:['A'],explanation:'',is_multi:/select all|select 2|select 3/i.test(q.question_text)};
+      return {question_text:q.question_text,option_a:opts[0]||'',option_b:opts[1]||'',option_c:opts[2]||'',option_d:opts[3]||'',option_e:opts[4]||'',option_f:opts[5]||'',option_g:opts[6]||'',option_h:opts[7]||'',correct_answer:'A',all_correct_answers:['A'],explanation:'',is_multi:/select all|select 2|select 3/i.test(q.question_text)};
     });
   }
 

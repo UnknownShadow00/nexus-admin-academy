@@ -315,3 +315,21 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - CRITICAL side-find: backend/.env contained COOKIE_SECURE=true on a line dotenv couldn't parse (mangled line endings); normalizing .env would have activated Secure cookies on next restart → http:// LAN students locked out. Set to false (correct for this http deployment) + conftest now forces false for tests.
 - Result: pass
 - Next: distribute new credentials to the cohort (human)
+
+## [2026-07-18 02:06 UTC] Task Completed
+- Task: Investigated the Study Tracker route and history, audited every current/old application-data table, staged and transactionally restored only the confirmed tracker videos/quizzes/questions, and verified the live URL and database invariants
+- Files changed: backend/nexus.db; backend/nexus.db.pre-study-tracker-restore-20260718T015810Z (new backup); backend/alembic/versions/c8d9e0f1a2b3_restore_tracker_metadata.py; backend/scripts/restore_study_tracker.py; backend/app/models/curriculum_video.py; backend/app/models/quiz.py; backend/app/routers/admin_quiz.py; backend/app/routers/flashcards.py; backend/app/routers/quizzes.py; backend/app/routers/study_tracker.py; backend/tests/test_quizzes.py; frontend/src/components/QuizReviewScreen.jsx; frontend/src/components/QuizTaker.jsx; frontend/src/pages/QuizReviewPage.jsx; frontend/src/pages/admin/BookmarkletPage.jsx; frontend/src/pages/admin/QuizEditorPage.jsx; frontend/dist (rebuilt); tasks/old-database-audit-2026-07-18.md; tasks/loop-log.md
+- Result: pass — route is still present and linked; 182 videos, 79 quizzes, and 778 questions restored after staging; live integrity is ok; all non-target tables unchanged; 109 backend tests and frontend production build passed
+- Next: explicitly authorize a controlled backend restart and frontend-container deployment to activate F/G/H compatibility in the running service; review the one legacy resource and historical student-activity identity mapping separately
+
+## [2026-07-18 02:18 UTC] Task Completed
+- Task: Activate the restored Study Tracker backend/frontend, verify A-E/F/G live scoring, and prepare a safe commit and push
+- Files changed: backend/app/schemas/quiz.py; backend/tests/test_quizzes.py; running nexus-admin-academy systemd service restarted; running nexus-frontend container assets redeployed; one pre-existing student_methodology_progress row temporarily removed by verification cleanup and restored exactly from the deployment backup; tasks/loop-log.md
+- Result: fail against full acceptance criteria — deployment and live A-E/F/G scoring passed, but the required stop condition triggered on an unexpected verification-cleanup count change; full database equivalence was restored before stopping, and no commit or push was attempted
+- Next: begin a fresh verification run using a synthetic student ID proven not to collide with any orphaned student_id references, check post-deployment logs, then commit and push the already deployed safe source changes if all gates remain green
+
+## [2026-07-18 02:30 UTC] Task Completed
+- Task: Finish collision-proof live Study Tracker verification and prepare the audited restoration/F-G compatibility source changes for commit and push
+- Files changed: backend/alembic/versions/c8d9e0f1a2b3_restore_tracker_metadata.py; backend/scripts/restore_study_tracker.py; backend/app/models/curriculum_video.py; backend/app/models/quiz.py; backend/app/routers/admin_quiz.py; backend/app/routers/flashcards.py; backend/app/routers/quizzes.py; backend/app/routers/study_tracker.py; backend/app/schemas/quiz.py; backend/tests/test_quizzes.py; frontend/src/components/QuizReviewScreen.jsx; frontend/src/components/QuizTaker.jsx; frontend/src/pages/QuizReviewPage.jsx; frontend/src/pages/admin/BookmarkletPage.jsx; frontend/src/pages/admin/QuizEditorPage.jsx; tasks/old-database-audit-2026-07-18.md; tasks/loop-log.md
+- Result: pass — safe high-ID authentication and A-E/F/G scoring passed; all 42 application tables exactly match the fresh backup after cleanup; five known FK violations and 12 methodology rows are unchanged; services, logs, migration, counts, and integrity are healthy
+- Next: none

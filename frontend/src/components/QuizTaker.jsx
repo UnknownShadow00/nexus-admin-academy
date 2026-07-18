@@ -17,13 +17,13 @@ function shuffle(arr) {
 
 function buildShuffledQuestion(question) {
   // Build list of options that exist
-  const rawOpts = ["A", "B", "C", "D", "E"]
+  const rawOpts = ["A", "B", "C", "D", "E", "F", "G", "H"]
     .map((letter) => ({ letter, text: question[`option_${letter.toLowerCase()}`] }))
     .filter((o) => o.text);
 
   const shuffled = shuffle(rawOpts);
 
-  // Map display letter (A/B/C/D/E) -> real letter
+  // Map display letters to the original answer letters.
   const displayToReal = {};
   const realToDisplay = {};
   shuffled.forEach((opt, idx) => {

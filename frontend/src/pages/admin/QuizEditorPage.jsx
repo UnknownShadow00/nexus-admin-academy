@@ -145,7 +145,7 @@ export default function QuizEditorPage() {
           <p className="font-semibold text-slate-900 dark:text-slate-100">{i + 1}. {q.question_text}</p>
 
           <div className="grid grid-cols-2 gap-2 text-sm">
-            {["a", "b", "c", "d", "e"].filter((opt) => (q[`option_${opt}`] || "").trim()).map((opt) => (
+            {["a", "b", "c", "d", "e", "f", "g", "h"].filter((opt) => (q[`option_${opt}`] || "").trim()).map((opt) => (
               <div
                 key={opt}
                 className={`rounded border p-2 dark:border-slate-700 ${
@@ -166,6 +166,9 @@ export default function QuizEditorPage() {
               <option value="C">C</option>
               <option value="D">D</option>
               <option value="E">E</option>
+              <option value="F">F</option>
+              <option value="G">G</option>
+              <option value="H">H</option>
             </select>
             <input className="input-field flex-1" placeholder="Explanation (optional)" value={q.explanation} onChange={(e) => update(q.id, "explanation", e.target.value)} />
             <button className="btn-primary shrink-0" onClick={() => save(q)} disabled={saving[q.id]}>
@@ -184,7 +187,7 @@ export default function QuizEditorPage() {
               onChange={(e) =>
                 setEdits((prev) => ({
                   ...prev,
-                  [q.id]: { ...prev[q.id], correct_answers: e.target.value.toUpperCase().replace(/[^A-E,]/g, "") },
+                  [q.id]: { ...prev[q.id], correct_answers: e.target.value.toUpperCase().replace(/[^A-H,]/g, "") },
                 }))
               }
             />

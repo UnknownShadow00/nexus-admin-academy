@@ -37,6 +37,9 @@ def _serialize_card(card: FlashcardReview, question: Question | None = None) -> 
             "C": question.option_c,
             "D": question.option_d,
             "E": question.option_e or "",
+            "F": question.option_f or "",
+            "G": question.option_g or "",
+            "H": question.option_h or "",
         }
         if question
         else {},

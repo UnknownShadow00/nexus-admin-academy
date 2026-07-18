@@ -6,7 +6,7 @@ import { getCurrentStudent } from "../hooks/useAuth";
 import Spinner from "../components/Spinner";
 import { getQuizReview } from "../services/api";
 
-const OPTION_LETTERS = ["A", "B", "C", "D", "E"];
+const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 function normalizeAnswers(value) {
   if (Array.isArray(value)) {

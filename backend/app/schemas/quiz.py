@@ -57,14 +57,14 @@ class QuizSubmitRequest(BaseModel):
 
     @field_validator("answers")
     @classmethod
-    def answers_must_be_abcde(cls, value: dict[str, str]) -> dict[str, str]:
-        valid = {"A", "B", "C", "D", "E"}
+    def answers_must_be_valid_option_letters(cls, value: dict[str, str]) -> dict[str, str]:
+        valid = {"A", "B", "C", "D", "E", "F", "G", "H"}
         normalized: dict[str, str] = {}
         for key, answer in value.items():
             # Allow multi-select like "A,C" or "a, c" — normalize to uppercase.
             letters = [l.strip().upper() for l in str(answer).split(",")]
             if not all(l in valid for l in letters if l):
-                raise ValueError("Quiz answers must be A/B/C/D/E only")
+                raise ValueError("Quiz answers must use option letters A through H only")
             normalized[key] = ",".join(l for l in letters if l)
         return normalized
 
