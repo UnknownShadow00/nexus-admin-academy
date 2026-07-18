@@ -333,3 +333,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/alembic/versions/c8d9e0f1a2b3_restore_tracker_metadata.py; backend/scripts/restore_study_tracker.py; backend/app/models/curriculum_video.py; backend/app/models/quiz.py; backend/app/routers/admin_quiz.py; backend/app/routers/flashcards.py; backend/app/routers/quizzes.py; backend/app/routers/study_tracker.py; backend/app/schemas/quiz.py; backend/tests/test_quizzes.py; frontend/src/components/QuizReviewScreen.jsx; frontend/src/components/QuizTaker.jsx; frontend/src/pages/QuizReviewPage.jsx; frontend/src/pages/admin/BookmarkletPage.jsx; frontend/src/pages/admin/QuizEditorPage.jsx; tasks/old-database-audit-2026-07-18.md; tasks/loop-log.md
 - Result: pass — safe high-ID authentication and A-E/F/G scoring passed; all 42 application tables exactly match the fresh backup after cleanup; five known FK violations and 12 methodology rows are unchanged; services, logs, migration, counts, and integrity are healthy
 - Next: none
+
+## [2026-07-18 03:01 UTC] Task Completed
+- Task: Verify the completed Study Tracker source commit is fully pushed to the existing GitHub main branch
+- Files changed: tasks/loop-log.md
+- Result: pass — local main and origin/main matched at 07b21857862f3e43021746c1cca00541ba44179a before recording this required completion entry
+- Next: none
