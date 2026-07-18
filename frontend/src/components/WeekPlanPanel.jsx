@@ -7,7 +7,7 @@ import { iconSizes } from "../utils/theme";
 const SECTIONS = [
   { key: "lessons", label: "Lessons", Icon: BookOpen },
   { key: "quizzes", label: "Quizzes", Icon: ClipboardList },
-  { key: "cli_labs", label: "CLI Labs", Icon: TerminalSquare },
+  { key: "cli_labs", label: "Networking Labs", Icon: TerminalSquare },
   { key: "labs", label: "Labs", Icon: FlaskConical },
   { key: "tickets", label: "Tickets", Icon: TicketIcon },
 ];

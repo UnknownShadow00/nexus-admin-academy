@@ -40,7 +40,7 @@ export default function CliLabsPage() {
     <main className="mx-auto max-w-7xl space-y-6 p-6">
       <div className="panel dark:border-slate-700 dark:bg-slate-900">
         <PageHeader
-          title="CLI Labs"
+          title="Networking Labs"
           subtitle="Cisco IOS command practice for Network+ and CCNA-adjacent skills."
           actions={
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">

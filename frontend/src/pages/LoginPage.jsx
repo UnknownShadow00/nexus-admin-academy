@@ -33,6 +33,7 @@ export default function LoginPage() {
       name: response.name,
       email: response.email,
       is_mentor: response.is_mentor,
+      has_unlocked_capstones: response.has_unlocked_capstones,
     });
     navigate("/");
   }

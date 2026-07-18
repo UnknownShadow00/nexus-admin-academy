@@ -1,4 +1,10 @@
 
+## Nav restructure batch (2026-07-18, second session)
+DONE (verified on .101, see tasks/loop-log.md):
+- [x] Quizzes hidden from top nav (routes + all entry points intact — reachable via Study Tracker, Home cards, Learning Path)
+- [x] Nav renames: Commands→Command Library, Terminal & Commands→Terminal Practice, CLI Labs→Networking Labs (+ on-page titles/back-links synced; routes/files unchanged)
+- [x] Capstone unlock now real: `role_level` enforced server-side (list/404/403, mentor bypass, NULL=everyone) + `has_unlocked_capstones` on login+/auth/me (zero new round-trips) + nav tab hidden when false. All live capstones NULL → behavior unchanged until role_level set on a template. 115/115 tests.
+
 ## Codex-review fix batch + All Weeks feature (2026-07-18)
 DONE (verified on .101, see tasks/loop-log.md):
 - [x] Study Tracker 401-after-refresh — `allow_admin_or_student` now accepts the `student_session` cookie; reproduced live before fix, 200 after; 2 regression tests; 112/112 tests pass

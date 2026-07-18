@@ -31,7 +31,7 @@ export default function CliLabPage() {
   if (!lesson) {
     return (
       <main className="mx-auto max-w-4xl p-6">
-        <EmptyState title="CLI lab not found" message="Return to the CLI Labs list and choose another exercise." />
+        <EmptyState title="CLI lab not found" message="Return to the Networking Labs list and choose another exercise." />
       </main>
     );
   }
@@ -41,7 +41,7 @@ export default function CliLabPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link to="/cli-labs" className="btn-secondary gap-2">
           <ArrowLeft size={16} />
-          CLI Labs
+          Networking Labs
         </Link>
         {nextLesson ? (
           <Link to={`/cli-labs/${nextLesson.id}`} className="btn-secondary">

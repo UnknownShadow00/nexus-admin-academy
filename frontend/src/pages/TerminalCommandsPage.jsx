@@ -29,7 +29,7 @@ export default function TerminalCommandsPage() {
 
   return (
     <main className="mx-auto max-w-7xl p-6">
-      <PageHeader title="Terminal & Commands" />
+      <PageHeader title="Terminal Practice" />
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="panel dark:border-slate-700 dark:bg-slate-900">
           <input

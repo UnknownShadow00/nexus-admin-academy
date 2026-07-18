@@ -28,6 +28,7 @@ export default function RequireAuth({ children }) {
           name: student.name,
           email: student.email,
           is_mentor: student.is_mentor,
+          has_unlocked_capstones: student.has_unlocked_capstones,
         });
         setAuthorized(true);
       })

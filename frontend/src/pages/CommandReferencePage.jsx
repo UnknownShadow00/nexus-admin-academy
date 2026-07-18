@@ -79,7 +79,7 @@ export default function CommandReferencePage() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
-      <PageHeader title="Command Reference" subtitle={countText} />
+      <PageHeader title="Command Library" subtitle={countText} />
 
       <FilterBar>
         <div className="min-w-64 flex-1">

@@ -74,12 +74,20 @@ def login(request: LoginRequest, response: Response, db: Session = Depends(get_d
     student = db.query(Student).filter(func.lower(Student.username) == normalize_username(request.username)).first()
     if not student or not student.password_hash or not verify_password(request.password, student.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    return _token_response(student, response)
+    from app.routers.capstones import has_unlocked_capstones
+
+    payload = _token_response(student, response)
+    payload["has_unlocked_capstones"] = has_unlocked_capstones(db, student)
+    return payload
 
 
 @router.get("/auth/me")
-def me(current_student: Student = Depends(get_current_student)):
-    return _me_response(current_student)
+def me(db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    from app.routers.capstones import has_unlocked_capstones
+
+    response = _me_response(current_student)
+    response["data"]["has_unlocked_capstones"] = has_unlocked_capstones(db, current_student)
+    return response
 
 
 @router.post("/auth/logout")

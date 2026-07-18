@@ -12,6 +12,8 @@ export function getSelectedProfile() {
       name: String(parsed.name),
       email: parsed.email ? String(parsed.email) : "",
       is_mentor: Boolean(parsed.is_mentor),
+      has_unlocked_capstones:
+        typeof parsed.has_unlocked_capstones === "boolean" ? parsed.has_unlocked_capstones : undefined,
     };
   } catch {
     return null;
@@ -26,6 +28,8 @@ export function setSelectedProfile(profile) {
         name: String(profile.name),
         email: profile.email ? String(profile.email) : "",
         is_mentor: Boolean(profile.is_mentor),
+        has_unlocked_capstones:
+          typeof profile.has_unlocked_capstones === "boolean" ? profile.has_unlocked_capstones : undefined,
       })
   );
 }
@@ -33,4 +37,3 @@ export function setSelectedProfile(profile) {
 export function clearSelectedProfile() {
   localStorage.removeItem(PROFILE_KEY);
 }
-

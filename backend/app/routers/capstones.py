@@ -1,10 +1,12 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Session, aliased
 
 from app.database import get_db
 from app.models.capstone import CapstoneRun, CapstoneTemplate
+from app.models.progression import Role, StudentRole
 from app.models.student import Student
 from app.schemas.capstone import CapstoneSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
@@ -12,6 +14,28 @@ from app.services.auth_service import get_current_student
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/capstones", tags=["capstones"])
+
+
+def _accessible_capstones_query(db: Session, student: Student):
+    query = db.query(CapstoneTemplate).filter(CapstoneTemplate.is_published.is_(True))
+    if student.is_mentor:
+        return query
+
+    student_rank = (
+        db.query(func.coalesce(func.max(Role.rank_order), 1))
+        .select_from(StudentRole)
+        .join(Role, StudentRole.role_id == Role.id)
+        .filter(StudentRole.student_id == student.id)
+        .scalar_subquery()
+    )
+    required_role = aliased(Role)
+    return query.outerjoin(required_role, CapstoneTemplate.role_level == required_role.id).filter(
+        or_(CapstoneTemplate.role_level.is_(None), required_role.rank_order <= student_rank)
+    )
+
+
+def has_unlocked_capstones(db: Session, student: Student) -> bool:
+    return _accessible_capstones_query(db, student).with_entities(CapstoneTemplate.id).first() is not None
 
 
 def _serialize_capstone(template: CapstoneTemplate, run: CapstoneRun | None = None) -> dict:
@@ -67,7 +91,7 @@ def get_capstones(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
-    query = db.query(CapstoneTemplate).filter(CapstoneTemplate.is_published.is_(True))
+    query = _accessible_capstones_query(db, current_student)
     if week_number is not None:
         query = query.filter(CapstoneTemplate.week_number == week_number)
     capstones = query.order_by(CapstoneTemplate.week_number.asc(), CapstoneTemplate.created_at.desc()).all()
@@ -94,7 +118,13 @@ def get_capstone(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
-    capstone = _get_published_capstone(db, capstone_id)
+    capstone = (
+        _accessible_capstones_query(db, current_student)
+        .filter(CapstoneTemplate.id == capstone_id)
+        .first()
+    )
+    if not capstone:
+        raise HTTPException(status_code=404, detail="Capstone not found")
     run = _get_capstone_run(db, capstone_id, current_student.id)
     return ok(_serialize_capstone(capstone, run))
 
@@ -106,6 +136,13 @@ def start_capstone(
     current_student: Student = Depends(get_current_student),
 ):
     capstone = _get_published_capstone(db, capstone_id)
+    accessible = (
+        _accessible_capstones_query(db, current_student)
+        .filter(CapstoneTemplate.id == capstone_id)
+        .first()
+    )
+    if not accessible:
+        raise HTTPException(status_code=403, detail="Capstone is locked")
     run = _get_capstone_run(db, capstone_id, current_student.id)
     created = False
 

@@ -41,14 +41,13 @@ import { authLogout, getTickets, globalSearch } from "./services/api";
 const studentNavItems = [
   { to: "/", label: "Home" },
   { to: "/learning-path", label: "Learning Path" },
-  { to: "/quizzes", label: "Quizzes" },
   { to: "/study-tracker", label: "Study Tracker" },
   { to: "/tickets", label: "Tickets" },
   { to: "/labs", label: "Labs" },
-  { to: "/cli-labs", label: "CLI Labs" },
+  { to: "/cli-labs", label: "Networking Labs" },
   { to: "/capstones", label: "Capstones" },
-  { to: "/commands", label: "Commands" },
-  { to: "/terminal", label: "Terminal & Commands" },
+  { to: "/commands", label: "Command Library" },
+  { to: "/terminal", label: "Terminal Practice" },
 ];
 
 const adminNavItems = [
@@ -119,8 +118,11 @@ export default function App() {
     if (isAdminRoute) {
       return currentStudent?.is_mentor ? mentorNavItems : adminNavItems;
     }
+    if (!currentStudent?.is_mentor && currentStudent?.has_unlocked_capstones === false) {
+      return studentNavItems.filter((item) => item.to !== "/capstones");
+    }
     return studentNavItems;
-  }, [isAdminRoute, currentStudent?.is_mentor]);
+  }, [isAdminRoute, currentStudent?.has_unlocked_capstones, currentStudent?.is_mentor]);
 
   useEffect(() => {
     setMobileOpen(false);

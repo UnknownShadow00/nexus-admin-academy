@@ -1,15 +1,18 @@
 from conftest import auth_headers, make_client, make_student
 from app.models.capstone import CapstoneTemplate
+from app.models.progression import Role, StudentRole
 from app.routers.admin_content import router as admin_content_router
-from app.routers.capstones import router
+from app.routers.auth import router as auth_router
+from app.routers.capstones import has_unlocked_capstones, router
 
-client = make_client(router, admin_content_router)
+client = make_client(router, admin_content_router, auth_router)
 
 
-def _seed_capstone(db, title="Hardware Capstone", week_number=4, is_published=True):
+def _seed_capstone(db, title="Hardware Capstone", week_number=4, is_published=True, role_level=None):
     capstone = CapstoneTemplate(
         title=title,
         description="Document a troubleshooting scenario.",
+        role_level=role_level,
         week_number=week_number,
         is_published=is_published,
         requirements={"skills": ["Apply a systematic methodology"]},
@@ -36,6 +39,55 @@ def test_list_capstones_filters_to_published_week(db):
     assert len(data) == 1
     assert data[0]["id"] == published.id
     assert data[0]["status"] == "not_started"
+    assert has_unlocked_capstones(db, student) is True
+
+
+def test_rank_locked_capstone_is_inaccessible_to_rank_one_student(db):
+    student = make_student(db)
+    rank_three = Role(name="Support Technician II", rank_order=3)
+    db.add(rank_three)
+    db.commit()
+    db.refresh(rank_three)
+    capstone = _seed_capstone(db, title="Rank Three Capstone", role_level=rank_three.id)
+
+    listed = client.get("/api/capstones", headers=auth_headers(student))
+    detail = client.get(f"/api/capstones/{capstone.id}", headers=auth_headers(student))
+    started = client.post(f"/api/capstones/{capstone.id}/start", headers=auth_headers(student))
+
+    assert listed.status_code == 200
+    assert listed.json()["data"] == []
+    assert detail.status_code == 404
+    assert started.status_code == 403
+    assert has_unlocked_capstones(db, student) is False
+
+
+def test_rank_locked_capstone_is_accessible_at_required_rank(db):
+    student = make_student(db)
+    rank_three = Role(name="Support Technician II", rank_order=3)
+    db.add(rank_three)
+    db.flush()
+    db.add(StudentRole(student_id=student.id, role_id=rank_three.id))
+    db.commit()
+    capstone = _seed_capstone(db, title="Rank Three Capstone", role_level=rank_three.id)
+
+    listed = client.get("/api/capstones", headers=auth_headers(student))
+
+    assert listed.status_code == 200
+    assert [row["id"] for row in listed.json()["data"]] == [capstone.id]
+    assert has_unlocked_capstones(db, student) is True
+
+
+def test_auth_me_includes_has_unlocked_capstones_boolean(db):
+    student = make_student(db)
+    _seed_capstone(db)
+
+    login = client.post("/auth/login", json={"username": student.username, "password": "pass123"})
+    response = client.get("/auth/me", headers=auth_headers(student))
+
+    assert login.status_code == 200
+    assert login.json()["has_unlocked_capstones"] is True
+    assert response.status_code == 200
+    assert response.json()["data"]["has_unlocked_capstones"] is True
 
 
 def test_start_and_submit_capstone_updates_run_state(db):

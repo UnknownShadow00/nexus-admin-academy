@@ -37,7 +37,14 @@ export function isAuthenticated() {
 export function getCurrentStudent() {
   const payload = decodeToken(memoryToken);
   if (payload) {
-    return { id: parseInt(payload.sub, 10), name: payload.name, email: payload.email, is_mentor: Boolean(payload.is_mentor) };
+    const profile = getSelectedProfile();
+    return {
+      id: parseInt(payload.sub, 10),
+      name: payload.name,
+      email: payload.email,
+      is_mentor: Boolean(payload.is_mentor),
+      has_unlocked_capstones: profile?.has_unlocked_capstones,
+    };
   }
   return getSelectedProfile();
 }
