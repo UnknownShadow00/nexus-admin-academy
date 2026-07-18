@@ -356,3 +356,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - NOT DONE: TASK 1 was absent from the instruction list (numbering started at 2) — nothing skipped by me, but flagging the gap. Codex's own loop-log entry for Task 7 appears above.
 - Result: pass on tasks 2-8 against acceptance criteria
 - Next: distribute HTTPS-only login guidance to cohort (http:// LAN logins no longer persist cookies)
+
+## [2026-07-18 09:35 UTC] Task Completed — Mentor password rotation
+- Task: Rotated weak mentor password (was Mentor1 — guessable, mentor reads all student data). New value in backend/.env SEED_PASSWORD_MENTOR (gitignored; also given to Abdi in session summary).
+- Verification: old password 401, new password 200, both via https://nexus.builtfromzero.fyi. DB hash + .env both updated so reseeds stay consistent.
+- Result: pass
+- Next: none
