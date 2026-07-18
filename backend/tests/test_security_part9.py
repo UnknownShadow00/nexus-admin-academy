@@ -174,6 +174,43 @@ def test_valid_student_jwt_still_passes(db, monkeypatch):
     assert r.status_code == 200
 
 
+def test_student_session_cookie_passes(db, monkeypatch):
+    """Refresh regression: after a page reload the frontend has no Authorization
+    header — only the httpOnly student_session cookie. allow_admin_or_student
+    must accept it (it used to 401, breaking /api/study-tracker/* on refresh)."""
+    _admin_env(monkeypatch)
+    from app.services.admin_auth import allow_admin_or_student
+    from app.services.auth_service import STUDENT_SESSION_COOKIE, create_access_token
+    student = make_student(db)
+    app = FastAPI()
+
+    @app.get("/guarded", dependencies=[Depends(allow_admin_or_student)])
+    def guarded():
+        return {"ok": True}
+
+    token = create_access_token({"sub": str(student.id), "name": student.name,
+                                 "email": student.email or "", "is_mentor": student.is_mentor})
+    client = TestClient(app)
+    r = client.get("/guarded", cookies={STUDENT_SESSION_COOKIE: token})
+    assert r.status_code == 200
+
+
+def test_student_session_cookie_garbage_rejected(db, monkeypatch):
+    """A forged/expired student_session cookie must still 401."""
+    _admin_env(monkeypatch)
+    from app.services.admin_auth import allow_admin_or_student
+    from app.services.auth_service import STUDENT_SESSION_COOKIE
+    app = FastAPI()
+
+    @app.get("/guarded", dependencies=[Depends(allow_admin_or_student)])
+    def guarded():
+        return {"ok": True}
+
+    client = TestClient(app)
+    r = client.get("/guarded", cookies={STUDENT_SESSION_COOKIE: "not-a-jwt"})
+    assert r.status_code == 401
+
+
 def test_legacy_deterministic_admin_cookie_rejected(monkeypatch):
     """sha256(password + constant) cookies must no longer authenticate."""
     _admin_env(monkeypatch)

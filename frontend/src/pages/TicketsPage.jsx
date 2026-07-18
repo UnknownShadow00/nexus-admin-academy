@@ -4,6 +4,7 @@ import { Ticket } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import EmptyState from "../components/EmptyState";
+import WeekAccordion from "../components/ui/WeekAccordion";
 import { getCurrentStudent } from "../hooks/useAuth";
 import { getTickets } from "../services/api";
 
@@ -26,6 +27,7 @@ const statusConfig = {
 export default function TicketsPage() {
   const studentId = getCurrentStudent()?.id;
   const [week, setWeek] = useState(1);
+  const [allWeeks, setAllWeeks] = useState(false);
   const [status, setStatus] = useState("all");
   const [difficulty, setDifficulty] = useState("all");
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ export default function TicketsPage() {
       setLoading(true);
       setMethodologyBlocked(false);
       try {
-        const res = await getTickets(week, studentId);
+        const res = await getTickets(allWeeks ? undefined : week, studentId);
         const tickets = Array.isArray(res.data) ? res.data : [];
         setItems(tickets);
       } catch (err) {
@@ -50,7 +52,7 @@ export default function TicketsPage() {
       }
     };
     run();
-  }, [week, studentId]);
+  }, [week, allWeeks, studentId]);
 
   const filtered = useMemo(() => {
     if (!Array.isArray(items)) return [];
@@ -60,6 +62,36 @@ export default function TicketsPage() {
         (difficulty === "all" || Number(difficulty) === item.difficulty),
     );
   }, [items, status, difficulty]);
+
+  const renderTicket = (ticket) => (
+    <article key={ticket.id} className="panel overflow-hidden p-0 dark:border-slate-700 dark:bg-slate-900">
+      <div className={`h-1.5 w-full ${difficultyColor[ticket.difficulty] || "bg-slate-300"}`} />
+      <div className="p-5">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{ticket.title}</h3>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <span className={`rounded-full px-2 py-1 text-xs font-medium ${(statusConfig[ticket.status] || statusConfig.not_started).cls}`}>
+            {(statusConfig[ticket.status] || statusConfig.not_started).label}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">Week {ticket.week_number}</span>
+        </div>
+        {ticket.status === "passed" ? (
+          <p className="mt-2 text-sm text-green-700 dark:text-green-300">
+            Score {ticket.score}/10 | XP {ticket.xp}
+          </p>
+        ) : null}
+        <Link
+          to={["passed", "needs_revision", "pending", "in_review"].includes(ticket.status) && ticket.submission_id
+            ? `/tickets/${ticket.submission_id}/feedback`
+            : `/tickets/${ticket.id}`}
+          className="btn-primary mt-3 w-full"
+        >
+          {["passed", "needs_revision", "pending", "in_review"].includes(ticket.status) && ticket.submission_id
+            ? "View Feedback"
+            : "Start Ticket"}
+        </Link>
+      </div>
+    </article>
+  );
 
   if (methodologyBlocked) {
     return (
@@ -81,13 +113,25 @@ export default function TicketsPage() {
           <label className="flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
             Week:
             <input
-              className="input-field max-w-24"
+              className="input-field max-w-24 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
               type="number"
               min={1}
               value={week}
+              disabled={allWeeks}
               onChange={(e) => setWeek(Number(e.target.value || 1))}
             />
           </label>
+          <button
+            type="button"
+            className={`rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-700 ${
+              allWeeks
+                ? "bg-blue-600 text-white"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            }`}
+            onClick={() => setAllWeeks((current) => !current)}
+          >
+            All Weeks
+          </button>
           <select className="input-field max-w-52" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="all">All status</option>
             <option value="not_started">Not Started</option>
@@ -116,37 +160,11 @@ export default function TicketsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState icon={<Ticket size={40} className="text-slate-300" />} title="No tickets assigned" message="New tickets will appear here each week." />
+      ) : allWeeks ? (
+        <WeekAccordion items={filtered} renderItem={renderTicket} gridClassName="grid gap-4 md:grid-cols-2" />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {filtered.map((ticket) => (
-            <article key={ticket.id} className="panel overflow-hidden p-0 dark:border-slate-700 dark:bg-slate-900">
-              <div className={`h-1.5 w-full ${difficultyColor[ticket.difficulty] || "bg-slate-300"}`} />
-              <div className="p-5">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{ticket.title}</h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <span className={`rounded-full px-2 py-1 text-xs font-medium ${(statusConfig[ticket.status] || statusConfig.not_started).cls}`}>
-                    {(statusConfig[ticket.status] || statusConfig.not_started).label}
-                  </span>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">Week {ticket.week_number}</span>
-                </div>
-                {ticket.status === "passed" ? (
-                  <p className="mt-2 text-sm text-green-700 dark:text-green-300">
-                    Score {ticket.score}/10 | XP {ticket.xp}
-                  </p>
-                ) : null}
-                <Link
-                  to={["passed", "needs_revision", "pending", "in_review"].includes(ticket.status) && ticket.submission_id
-                    ? `/tickets/${ticket.submission_id}/feedback`
-                    : `/tickets/${ticket.id}`}
-                  className="btn-primary mt-3 w-full"
-                >
-                  {["passed", "needs_revision", "pending", "in_review"].includes(ticket.status) && ticket.submission_id
-                    ? "View Feedback"
-                    : "Start Ticket"}
-                </Link>
-              </div>
-            </article>
-          ))}
+          {filtered.map(renderTicket)}
         </div>
       )}
     </main>

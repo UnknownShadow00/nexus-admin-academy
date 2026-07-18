@@ -35,6 +35,7 @@ Run database setup and seed data:
 alembic upgrade head
 python scripts/seed_users.py
 python seed.py            # roles, gates, and all Weeks 1-8 content (idempotent)
+python seed_curriculum.py # Study Tracker video/quiz curriculum (required — Study Tracker is empty without it; idempotent)
 ```
 
 Start the backend:

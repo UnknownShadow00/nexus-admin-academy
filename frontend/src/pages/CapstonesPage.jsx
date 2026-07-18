@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import EmptyState from "../components/EmptyState";
 import Spinner from "../components/Spinner";
 import PageHeader from "../components/ui/PageHeader";
+import WeekAccordion from "../components/ui/WeekAccordion";
 import { getCapstones } from "../services/api";
 
 const statusConfig = {
@@ -14,6 +15,7 @@ const statusConfig = {
 
 export default function CapstonesPage() {
   const [week, setWeek] = useState("");
+  const [allWeeks, setAllWeeks] = useState(false);
   const [loading, setLoading] = useState(true);
   const [capstones, setCapstones] = useState([]);
 
@@ -23,7 +25,7 @@ export default function CapstonesPage() {
     const run = async () => {
       setLoading(true);
       try {
-        const res = await getCapstones(week ? Number(week) : undefined, { suppressToast: true });
+        const res = await getCapstones(allWeeks ? undefined : (week ? Number(week) : undefined), { suppressToast: true });
         if (!cancelled) {
           setCapstones(Array.isArray(res.data) ? res.data : []);
         }
@@ -42,7 +44,32 @@ export default function CapstonesPage() {
     return () => {
       cancelled = true;
     };
-  }, [week]);
+  }, [week, allWeeks]);
+
+  const renderCapstone = (capstone) => (
+    <article key={capstone.id} className="panel space-y-4 dark:border-slate-700 dark:bg-slate-900">
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{capstone.title}</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-300">{capstone.description}</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          Week {capstone.week_number}
+        </span>
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          {capstone.estimated_hours} hrs
+        </span>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${(statusConfig[capstone.status] || statusConfig.not_started).cls}`}>
+          {(statusConfig[capstone.status] || statusConfig.not_started).label}
+        </span>
+      </div>
+
+      <Link to={`/capstones/${capstone.id}`} className="btn-primary inline-flex w-full justify-center">
+        {capstone.status === "submitted" ? "View Submission" : "Open Capstone"}
+      </Link>
+    </article>
+  );
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
@@ -55,14 +82,26 @@ export default function CapstonesPage() {
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
             Week:
             <input
-              className="input-field max-w-24"
+              className="input-field max-w-24 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
               type="number"
               min={1}
               placeholder="All"
               value={week}
+              disabled={allWeeks}
               onChange={(event) => setWeek(event.target.value)}
             />
           </label>
+          <button
+            type="button"
+            className={`rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-700 ${
+              allWeeks
+                ? "bg-blue-600 text-white"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            }`}
+            onClick={() => setAllWeeks((current) => !current)}
+          >
+            All Weeks
+          </button>
         </div>
       </div>
 
@@ -76,32 +115,11 @@ export default function CapstonesPage() {
           title="No capstones published"
           message="Try another week number or check back after new capstone projects are published."
         />
+      ) : allWeeks ? (
+        <WeekAccordion items={capstones} renderItem={renderCapstone} gridClassName="grid gap-4 md:grid-cols-2" />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {capstones.map((capstone) => (
-            <article key={capstone.id} className="panel space-y-4 dark:border-slate-700 dark:bg-slate-900">
-              <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{capstone.title}</h2>
-                <p className="text-sm text-slate-600 dark:text-slate-300">{capstone.description}</p>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  Week {capstone.week_number}
-                </span>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  {capstone.estimated_hours} hrs
-                </span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${(statusConfig[capstone.status] || statusConfig.not_started).cls}`}>
-                  {(statusConfig[capstone.status] || statusConfig.not_started).label}
-                </span>
-              </div>
-
-              <Link to={`/capstones/${capstone.id}`} className="btn-primary inline-flex w-full justify-center">
-                {capstone.status === "submitted" ? "View Submission" : "Open Capstone"}
-              </Link>
-            </article>
-          ))}
+          {capstones.map(renderCapstone)}
         </div>
       )}
     </main>

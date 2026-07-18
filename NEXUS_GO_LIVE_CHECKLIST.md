@@ -38,17 +38,21 @@ pip install -r requirements.txt --break-system-packages
 alembic upgrade head
 python scripts/seed_users.py
 python seed.py
+python seed_curriculum.py
 ```
 **VERIFY:** the seed summary line ends with
 `phase_g={'modules': 2, 'lessons': 3, ...}` and no traceback.
 Run `python seed.py` a SECOND time — counts should show 0 new
 modules/tickets (idempotency proof).
+**VERIFY:** `seed_curriculum.py` prints `Curriculum seeded successfully` and
+`SELECT COUNT(*) FROM curriculum_videos` is non-zero (fresh-install proof: 62) —
+Study Tracker shows nothing without this step.
 
 ☐ 5. Test suite on the real box:
 ```bash
 python -m pytest tests/ -q
 ```
-**VERIFY:** `98 passed, 0 failed`. Anything else → stop, paste it back.
+**VERIFY:** `112 passed, 0 failed` (count as of 2026-07-18; was 98 at go-live — +10 username-case, +2 study-tracker restore, +2 study-tracker auth regression). Anything else → stop, paste it back.
 
 ☐ 6. Frontend build + serve:
 ```bash
@@ -59,7 +63,7 @@ cd ../frontend && npm ci && npm run build
 ☐ 7. Restart your services (docker compose / systemd — however you run it).
 **VERIFY:** log into the web UI as admin; you can see modules MOD-000 → MOD-024.
 
-**Day 1 done when:** admin login works, 25 modules visible, 98 tests green on .101.
+**Day 1 done when:** admin login works, 25 modules visible, 112 tests green on .101 (98 at original go-live).
 
 ---
 

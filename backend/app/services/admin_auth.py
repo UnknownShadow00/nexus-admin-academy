@@ -148,4 +148,15 @@ async def allow_admin_or_student(request: Request) -> bool:
         except Exception:
             pass
 
+    # After a page refresh the frontend has no in-memory token — only the
+    # httpOnly student_session cookie (same JWT get_current_student accepts).
+    from app.services.auth_service import STUDENT_SESSION_COOKIE, decode_token
+    cookie_token = request.cookies.get(STUDENT_SESSION_COOKIE)
+    if cookie_token:
+        try:
+            decode_token(cookie_token)
+            return True
+        except Exception:
+            pass
+
     raise HTTPException(status_code=401, detail="Unauthorized")

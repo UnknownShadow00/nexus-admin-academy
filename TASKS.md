@@ -1,4 +1,13 @@
 
+## Codex-review fix batch + All Weeks feature (2026-07-18)
+DONE (verified on .101, see tasks/loop-log.md):
+- [x] Study Tracker 401-after-refresh — `allow_admin_or_student` now accepts the `student_session` cookie; reproduced live before fix, 200 after; 2 regression tests; 112/112 tests pass
+- [x] `seed_curriculum.py` documented in README + go-live checklist (was a silent required step); fresh-DB proof: migrate+seed.py+seed_curriculum.py → 62 curriculum_videos, idempotent
+- [x] COOKIE_SECURE actually enabled — was still `false` in .env (07-18 01:20 session set it false for http; HTTPS domain via Cloudflare tunnel now exists); flipped to true, service restarted, live Set-Cookie via https://nexus.builtfromzero.fyi shows `HttpOnly; SameSite=none; Secure`. NOTE: http:// LAN logins no longer persist the cookie — use the HTTPS domain.
+- [x] SelectProfile.jsx deleted (dead code, fake student profiles); bundle clean, build passes
+- [x] Test-count truth: 110 before this session (checklist's 98 was stale), 112 now; "slow" seed tests are inherent bcrypt work-factor (max 2.15s, suite 22s on .101); bcrypt==4.0.1 confirmed installed
+- [x] "All Weeks" view with per-week collapse/expand + Expand All/Collapse All on Tickets/Quizzes/Labs/Capstones pages (Codex-implemented, reviewed; CLI Labs & Learning Path have no week filter — out of scope); deployed to nginx container
+
 ## Go-live Day-1 + grader/smoke session update (2026-07-17)
 DONE (verified on .101, see tasks/loop-log.md):
 - [x] Day 1 of NEXUS_GO_LIVE_CHECKLIST.md — 24-week build deployed, fresh DB migrated+seeded, 98/98 tests, frontend built, service restarted, admin login + 25 modules verified
@@ -50,7 +59,7 @@ Priority order. Pick the top unchecked item unless told otherwise. Reference lin
 
 ## P1 — Security / correctness
 
-- [ ] **Fix `allow_admin_or_student` bearer bypass** — `admin_auth.py` accepts any `Authorization: Bearer <anything>` without decoding. Decode the JWT or require `get_current_student` on `/api/study-tracker/curriculum`.
+- [x] **Fix `allow_admin_or_student` bearer bypass** — DONE (Part 9: JWT now verified). 2026-07-18: also accepts the httpOnly `student_session` cookie — study-tracker no longer 401s after page refresh (regression tests in test_security_part9.py).
 - [ ] **Fix multi-select grading** — `quizzes.py:submit_quiz`: single-letter answer to a multi-select question is graded `in correct_letters` → full credit for partial answer. Always compare as sets when `is_multi_select`.
 - [ ] **Harden admin session** — token is unsalted deterministic `sha256(password)` with no server-side expiry; comparisons are non-constant-time `==`; auth logs leak secret lengths. Use a random/signed token, `secrets.compare_digest`, drop the length logging.
 - [ ] **Evidence upload limits + ownership** — `labs.py` evidence and `evidence.py` have no file-size cap (tickets has 5MB); `evidence.py` lets any student attach evidence to any ticket_id. Add size cap + ownership check. Note `EvidenceArtifact.submission_id` means ticket_id for tickets but lab_run_id for labs — document or fix.
@@ -69,7 +78,7 @@ Priority order. Pick the top unchecked item unless told otherwise. Reference lin
 
 - [ ] Pydantic schemas for admin CRUD (`admin_content.py` takes raw dicts everywhere)
 - [ ] Replace `python-jose` with PyJWT; delete the fallback crypto shims in `auth_service.py`
-- [ ] Delete dead code: `SelectProfile.jsx`, `components/Dashboard.jsx`, `QuizList.jsx`, `Leaderboard.jsx`, `tmp_bookmarklet.js`
+- [ ] Delete dead code: ~~`SelectProfile.jsx`~~ (deleted 2026-07-18 — zero imports/routes confirmed, fake Alex/Jordan/Sam/Taylor/Riley profiles gone from bundle), `components/Dashboard.jsx`, `QuizList.jsx`, `Leaderboard.jsx`, `tmp_bookmarklet.js`
 - [ ] Fix hardcoded `week_number = 1` in `students.py` stats
 - [ ] Prune old `AIRateLimit` rows (unbounded growth)
 - [ ] Unify on `httpx` (guacamole_service still uses `requests`)

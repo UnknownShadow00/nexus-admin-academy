@@ -339,3 +339,20 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: tasks/loop-log.md
 - Result: pass — local main and origin/main matched at 07b21857862f3e43021746c1cca00541ba44179a before recording this required completion entry
 - Next: none
+
+## [2026-07-18 09:20 UTC] Task Completed
+- Task: Add an All Weeks view with shared per-week collapsible sections to the student tickets, quizzes, labs, and capstones pages
+- Files changed: frontend/src/components/ui/WeekAccordion.jsx; frontend/src/pages/TicketsPage.jsx; frontend/src/pages/QuizzesPage.jsx; frontend/src/pages/LabsPage.jsx; frontend/src/pages/CapstonesPage.jsx; tasks/loop-log.md
+- Result: pass — all four pages fetch without a week in All Weeks mode, preserve their existing cards and filters, and the frontend production build and static acceptance checks pass
+- Next: none
+
+## [2026-07-18 09:30 UTC] Task Completed — Codex-review fix batch (Tasks 2-8)
+- Task 2 (Study Tracker 401-after-refresh): CONFIRMED real — reproduced live (login 200 → cookie-only GET /api/study-tracker/curriculum → 401). Fixed allow_admin_or_student() to also verify the httpOnly student_session cookie JWT. 2 regression tests added (valid cookie → 200, garbage cookie → 401). Service restarted; live re-test: 200 with cookie, 401 with garbage.
+- Task 3 (seed_curriculum gap): CONFIRMED — seed.py does not touch CurriculumVideo; README + checklist never mentioned seed_curriculum.py. Added to both docs after seed.py. Fresh-DB proof (scratch DB): migrate + seed.py + seed_curriculum.py → 62 curriculum_videos; second run still 62 (idempotent upsert by video_key).
+- Task 4 (COOKIE_SECURE): premise was WRONG — .env still had COOKIE_SECURE=false (the 07-18 01:20 session set false deliberately for http). HTTPS now exists (Cloudflare tunnel → nginx :80). Flipped to true (CRLF preserved), restarted, verified via real login through https://nexus.builtfromzero.fyi. Raw header: `set-cookie: student_session=<jwt>; HttpOnly; Max-Age=86400; Path=/; SameSite=none; Secure`. SameSite lax→none is intentional code when Secure. SIDE EFFECT (verified): http:// clients no longer persist the cookie — HTTPS domain is now the only login path.
+- Task 5 (SelectProfile.jsx): zero imports/routes confirmed; only file containing Alex/Jordan/Sam/Taylor/Riley; services/profile.js kept (used by real login flow, display-info only). Deleted; npm run build clean; dist redeployed to nexus-frontend container; fake names absent from served bundle; /login 200 via HTTPS.
+- Task 6 (test count): TRUE count on .101: 112 passed / 0 failed / 22s (was 110 before this session — Codex's 110 was right, checklist's 98 was stale go-live count: 98 +10 username-case +2 study-tracker restore = 110, +2 new = 112). Slow tests = test_username_case seed tests (max 2.15s) doing real bcrypt hashes — inherent work-factor cost, NOT the passlib crash (bcrypt==4.0.1 confirmed installed). Checklist counts updated.
+- Task 7 (All Weeks view): Codex implemented per spec (WeekAccordion.jsx + TicketsPage/QuizzesPage/LabsPage/CapstonesPage); I reviewed: cards reused verbatim via renderItem, single-week path byte-identical (same render fn), collapsed-by-default via empty Set state, Expand All/Collapse All right-aligned, status/difficulty filters still applied in All-Weeks mode. Backend already returns all rows when week omitted; live check: tickets 48 items weeks 1-24, quizzes 104 w1-23, labs 5, capstones 3; zero NULL week_numbers. No lock rules exist on these endpoints today (any week reachable via the input), so All Weeks exposes nothing new. HONEST SCOPE NOTE: CLI Labs and Learning Path have NO week filter — not applicable. Build clean; deployed; "All Weeks" present in served bundle.
+- NOT DONE: TASK 1 was absent from the instruction list (numbering started at 2) — nothing skipped by me, but flagging the gap. Codex's own loop-log entry for Task 7 appears above.
+- Result: pass on tasks 2-8 against acceptance criteria
+- Next: distribute HTTPS-only login guidance to cohort (http:// LAN logins no longer persist cookies)
