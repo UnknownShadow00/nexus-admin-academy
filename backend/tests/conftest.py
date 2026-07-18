@@ -3,6 +3,9 @@ import os
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-pytest")
 os.environ.setdefault("JWT_ALGORITHM", "HS256")
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+# Force, don't setdefault: TestClient talks plain http, so a Secure cookie
+# from the host env/.env would silently break every cookie-auth test.
+os.environ["COOKIE_SECURE"] = "false"
 
 import pytest  # noqa: E402
 from fastapi import FastAPI  # noqa: E402

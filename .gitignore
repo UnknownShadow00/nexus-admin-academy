@@ -23,4 +23,4 @@ frontend/dist/
 
 # deployment artifacts — never commit
 content-pack/
-backend/nexus.db.pre24wk*
+backend/nexus.db.*

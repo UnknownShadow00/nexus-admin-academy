@@ -3,6 +3,7 @@ from statistics import mean
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -12,7 +13,7 @@ from app.models.ticket import Ticket, TicketSubmission
 from app.models.xp_ledger import XPLedger
 from app.services.activity_service import get_recent_activity
 from app.services.admin_auth import verify_admin
-from app.services.auth_service import hash_password
+from app.services.auth_service import hash_password, normalize_username
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(verify_admin)])
@@ -97,7 +98,10 @@ def create_student(payload: StudentCreateRequest, db: Session = Depends(get_db))
     if existing:
         raise HTTPException(status_code=400, detail="A student with this email already exists")
 
-    existing_username = db.query(Student).filter(Student.username == payload.username).first()
+    username = payload.username.strip()
+    existing_username = (
+        db.query(Student).filter(func.lower(Student.username) == normalize_username(username)).first()
+    )
     if existing_username:
         raise HTTPException(status_code=400, detail="A student with this username already exists")
 
@@ -105,7 +109,7 @@ def create_student(payload: StudentCreateRequest, db: Session = Depends(get_db))
         name=payload.name,
         email=payload.email,
         total_xp=0,
-        username=payload.username,
+        username=username,
         password_hash=hash_password(payload.password),
     )
     db.add(student)

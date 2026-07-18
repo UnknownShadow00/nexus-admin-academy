@@ -1,11 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import use_secure_cookies
 from app.database import get_db
 from app.models.student import Student
-from app.services.auth_service import STUDENT_SESSION_COOKIE, create_access_token, get_current_student, verify_password
+from app.services.auth_service import (
+    STUDENT_SESSION_COOKIE,
+    create_access_token,
+    get_current_student,
+    normalize_username,
+    verify_password,
+)
 
 router = APIRouter(tags=["auth"])
 
@@ -64,7 +71,7 @@ def _me_response(student: Student) -> dict:
 
 @router.post("/auth/login")
 def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    student = db.query(Student).filter(Student.username == request.username).first()
+    student = db.query(Student).filter(func.lower(Student.username) == normalize_username(request.username)).first()
     if not student or not student.password_hash or not verify_password(request.password, student.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     return _token_response(student, response)

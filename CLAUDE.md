@@ -103,8 +103,9 @@ cve_service.py
 
 ## Auth Model
 
-- 6 hardcoded accounts: 1 mentor (`is_mentor=True`), 5 students
-- Seeded by `backend/scripts/seed_users.py`
+- 7 seeded accounts: `Mentor` (`is_mentor=True`) + 6 students (`Shak`, `Rakib`, `Ahmed`, `Emran`, `Walo`, `Hudayfa`)
+- Seeded by `backend/scripts/seed_users.py` — passwords come from `SEED_PASSWORD_*` vars in gitignored `backend/.env` (script refuses to run without them; never hardcode passwords)
+- Usernames are case-insensitive (`Shak` = `shak` = `SHAK`; input is trimmed + casefolded, DB enforces a unique index on `lower(username)` — migration `b7c8d9e0f1a2`). Display capitalization is preserved in the DB/UI. Passwords stay case-sensitive.
 - No public registration — `/auth/register` endpoint does NOT exist
 - JWT in httpOnly cookies — never localStorage
 - Two separate auth flows:

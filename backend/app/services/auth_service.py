@@ -97,6 +97,16 @@ STUDENT_SESSION_COOKIE = "student_session"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
+def normalize_username(username: str) -> str:
+    """Trim surrounding whitespace and Unicode-casefold a username.
+
+    Used for case-insensitive matching; DB lookups pair this with SQL
+    lower(), which agrees with casefold() for the ASCII usernames this
+    platform seeds. Passwords are never normalized — they stay case-sensitive.
+    """
+    return (username or "").strip().casefold()
+
+
 def hash_password(plain: str) -> str:
     return pwd_context.hash(plain)
 

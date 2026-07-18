@@ -303,3 +303,15 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Live verification: frontend / and SPA fallback 200 on :80; /api proxy → identical 401 as direct :8000 (auth-gated, correct); admin login via proxy 200, cookie HttpOnly+SameSite=lax, NO Secure flag → browsers keep it over http:// LAN (COOKIE_SECURE unset, non-prod default — correct for this deployment); guides scanned — student guide clean, mentor guide has only intentional template lines.
 - Result: pass — all agent-resolvable checklist items complete
 - Next: human-only Day 5 items — post Student Guide + login info to Discord, schedule Week-1 kickoff call. PARKED items unchanged (AUTO-VM P0s, learn-routing engine).
+
+## [2026-07-18 01:20 UTC] Task Completed
+- Task: Replace seeded accounts (7 named accounts, per-account .env passwords) + case-insensitive usernames throughout auth
+- Files changed: app/services/auth_service.py (normalize_username: strip+casefold), app/routers/auth.py (login lookup via lower(username)), app/routers/admin_students.py (case-insensitive uniqueness on create, strip stored username), app/models/student.py (unique expression index uq_students_username_lower), alembic/versions/b7c8d9e0f1a2 (same index for existing DBs), scripts/seed_users.py (rewritten: env-driven passwords, legacy in-place rename, refuses missing env), tests/test_username_case.py (NEW, 10 tests), tests/conftest.py (force COOKIE_SECURE=false — hermetic), backend/.env.example (7 SEED_PASSWORD_* placeholders), .gitignore (backend/nexus.db.* — backup DBs were committable via nightly git add -A)
+- Account mapping (rename in place — student.id and ALL FK-linked data preserved): mentor1→Mentor(id1), student1→Shak(id2), student2→Rakib(id3), student3→Ahmed(id4), student4→Emran(id5), student5→Walo(id6), Hudayfa(id7, NEW, rank-1 role like cohort). Shared nexus123 hardcode REMOVED.
+- DB backup before changes: backend/nexus.db.pre-account-rename-2026-07-18
+- Tests: 108 passed / 0 failed (98 existing + 10 new)
+- Seed idempotency: run 1 = 6 renames + 1 create; run 2 = 7 skips, hashes untouched
+- Live verification (service restarted): all 7 accounts login 200 with correct is_mentor; shak/SHAK/sHaK/"  shak  " → same student_id=2; wrong-case password 401; cross-user password 401; mentor1/student1/nexus123 all 401
+- CRITICAL side-find: backend/.env contained COOKIE_SECURE=true on a line dotenv couldn't parse (mangled line endings); normalizing .env would have activated Secure cookies on next restart → http:// LAN students locked out. Set to false (correct for this http deployment) + conftest now forces false for tests.
+- Result: pass
+- Next: distribute new credentials to the cohort (human)
