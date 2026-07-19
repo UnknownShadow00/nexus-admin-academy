@@ -5,7 +5,9 @@ import APlusPreviewLock, { getAPlusPreviewAccess } from "../components/APlusPrev
 import { DifficultyBadge } from "../components/ui/Badge";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
-import { getLab, startLab, submitLab, uploadLabEvidence } from "../services/api";
+import { createLabVmAccess, getLab, getLabVmStatus, startLab, submitLab, uploadLabEvidence } from "../services/api";
+
+const provisioningStatuses = new Set(["provisioning", "starting", "waiting_for_ip", "configuring_connection"]);
 
 const statusConfig = {
   not_started: { label: "Not Started", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
@@ -19,6 +21,7 @@ export default function LabPage() {
   const previewAccess = getAPlusPreviewAccess();
   const [lab, setLab] = useState(null);
   const [guacUrl, setGuacUrl] = useState(null);
+  const [vmAssignment, setVmAssignment] = useState(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [vmError, setVmError] = useState("");
@@ -38,6 +41,7 @@ export default function LabPage() {
         setLab(res.data);
         setNotes(res.data?.notes || "");
         setEvidenceArtifacts(res.data?.evidence_artifacts || []);
+        setVmAssignment(res.data?.vm_assignment || null);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -50,6 +54,39 @@ export default function LabPage() {
     };
   }, [labId]);
 
+  useEffect(() => {
+    if (!vmAssignment || !provisioningStatuses.has(vmAssignment.status)) return undefined;
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      getLabVmStatus(labId, { suppressToast: true })
+        .then((res) => {
+          if (!cancelled) setVmAssignment(res.data);
+        })
+        .catch(() => {
+          if (!cancelled) setVmError("Unable to check the lab environment status.");
+        });
+    }, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [labId, vmAssignment?.status]);
+
+  useEffect(() => {
+    if (vmAssignment?.status !== "running" || guacUrl) return;
+    let cancelled = false;
+    createLabVmAccess(labId, { suppressToast: true })
+      .then((res) => {
+        if (!cancelled) setGuacUrl(res.data?.url || null);
+      })
+      .catch((err) => {
+        if (!cancelled) setVmError(err?.userMessage || "Unable to open the remote lab session.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [guacUrl, labId, vmAssignment?.status]);
+
   async function handleStart() {
     setBusy(true);
     setVmError("");
@@ -58,9 +95,7 @@ export default function LabPage() {
       setLab(res.data);
       setNotes(res.data?.notes || "");
       setEvidenceArtifacts(res.data?.evidence_artifacts || []);
-      if (res.data?.guac_token_url) {
-        setGuacUrl(res.data.guac_token_url);
-      }
+      setVmAssignment(res.data?.vm_assignment || null);
     } catch (err) {
       setVmError(err?.userMessage || "Unable to start the lab environment.");
     } finally {
@@ -74,6 +109,8 @@ export default function LabPage() {
       const res = await submitLab(labId, { notes });
       setLab(res.data);
       setNotes(res.data?.notes || "");
+      setVmAssignment(null);
+      setGuacUrl(null);
     } finally {
       setBusy(false);
     }
@@ -127,6 +164,13 @@ export default function LabPage() {
       <APlusPreviewLock access={previewAccess} />
 
       {vmError ? <Banner variant="error">{vmError}</Banner> : null}
+
+      {vmAssignment && provisioningStatuses.has(vmAssignment.status) ? (
+        <Banner variant="info">Preparing the lab environment: {vmAssignment.status.replaceAll("_", " ")}…</Banner>
+      ) : null}
+      {vmAssignment?.status === "failed" ? (
+        <Banner variant="error">{vmAssignment.provisioning_error || "Lab environment provisioning failed."}</Banner>
+      ) : null}
 
       {guacUrl ? (
         <div className="panel overflow-hidden dark:border-slate-700 dark:bg-slate-900">

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -20,7 +20,24 @@ from app.models.quiz import Quiz, QuizAttempt
 from app.models.resource import Resource
 from app.models.student import Student
 from app.models.ticket import Ticket
+from app.models.vm_assignment import VmAssignment
 from app.schemas.resource import ResourceCreateRequest
+from app.schemas.admin_content import (
+    CapstoneTemplateCreate,
+    CapstoneTemplateUpdate,
+    CommandCreate,
+    CommandUpdate,
+    EvidenceReview,
+    IncidentCreate,
+    IncidentTicketCreate,
+    LabTemplateCreate,
+    LabTemplateUpdate,
+    LessonCreate,
+    LessonUpdate,
+    ModuleCreate,
+    ModuleUpdate,
+    TicketAnswerKeyUpdate,
+)
 from app.services.admin_auth import verify_admin
 from app.services.ai_service import ai_health_test
 from app.services.a_plus_access import get_a_plus_unlock_threshold, set_a_plus_unlock_threshold
@@ -85,7 +102,7 @@ async def ai_test(db: Session = Depends(get_db)):
 
 @router.get("/ai-usage")
 def get_ai_usage_stats(db: Session = Depends(get_db)):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     daily_cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0)
     monthly_cutoff = now - timedelta(days=30)
 
@@ -161,43 +178,20 @@ def list_modules(db: Session = Depends(get_db)):
     )
 
 @router.post("/modules")
-def create_module(payload: dict, db: Session = Depends(get_db)):
-    row = Module(
-        code=payload.get("code"),
-        title=payload.get("title"),
-        description=payload.get("description"),
-        target_role=payload.get("target_role"),
-        difficulty_band=payload.get("difficulty_band"),
-        estimated_hours=payload.get("estimated_hours"),
-        prerequisite_module_id=payload.get("prerequisite_module_id"),
-        unlock_threshold=payload.get("unlock_threshold", 70),
-        module_order=payload.get("module_order"),
-        active=payload.get("active", True),
-    )
+def create_module(payload: ModuleCreate, db: Session = Depends(get_db)):
+    row = Module(**payload.model_dump())
     db.add(row)
     db.commit()
     db.refresh(row)
     return ok({"module_id": row.id})
 
 @router.put("/modules/{module_id}")
-def update_module(module_id: int, payload: dict, db: Session = Depends(get_db)):
+def update_module(module_id: int, payload: ModuleUpdate, db: Session = Depends(get_db)):
     row = db.query(Module).filter(Module.id == module_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Module not found")
-    for field in [
-        "code",
-        "title",
-        "description",
-        "target_role",
-        "difficulty_band",
-        "estimated_hours",
-        "prerequisite_module_id",
-        "unlock_threshold",
-        "module_order",
-        "active",
-    ]:
-        if field in payload:
-            setattr(row, field, payload[field])
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(row, field, value)
     db.commit()
     return ok({"module_id": row.id})
 
@@ -226,63 +220,32 @@ def list_lessons(module_id: int | None = None, db: Session = Depends(get_db)):
     )
 
 @router.post("/lessons")
-def create_lesson(payload: dict, db: Session = Depends(get_db)):
-    row = Lesson(
-        module_id=payload.get("module_id"),
-        title=payload.get("title"),
-        video_url=payload.get("video_url"),
-        summary=payload.get("summary"),
-        lesson_order=payload.get("lesson_order"),
-        outcomes=payload.get("outcomes") or [],
-        estimated_minutes=payload.get("estimated_minutes"),
-        required_notes_template=payload.get("required_notes_template"),
-        status=payload.get("status", "draft"),
-    )
+def create_lesson(payload: LessonCreate, db: Session = Depends(get_db)):
+    row = Lesson(**payload.model_dump())
     db.add(row)
     db.commit()
     db.refresh(row)
     return ok({"lesson_id": row.id})
 
 @router.put("/lessons/{lesson_id}")
-def update_lesson(lesson_id: int, payload: dict, db: Session = Depends(get_db)):
+def update_lesson(lesson_id: int, payload: LessonUpdate, db: Session = Depends(get_db)):
     row = db.query(Lesson).filter(Lesson.id == lesson_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
-    for field in [
-        "module_id",
-        "title",
-        "video_url",
-        "summary",
-        "lesson_order",
-        "outcomes",
-        "estimated_minutes",
-        "required_notes_template",
-        "status",
-    ]:
-        if field in payload:
-            setattr(row, field, payload[field])
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(row, field, value)
     db.commit()
     return ok({"lesson_id": row.id})
 
 @router.put("/tickets/{ticket_id}/answer-key")
-def update_ticket_answer_key(ticket_id: int, payload: dict, db: Session = Depends(get_db)):
+def update_ticket_answer_key(ticket_id: int, payload: TicketAnswerKeyUpdate, db: Session = Depends(get_db)):
     row = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    for field in [
-        "root_cause",
-        "root_cause_type",
-        "required_checkpoints",
-        "required_evidence",
-        "scoring_anchors",
-        "model_answer",
-        "lesson_id",
-        "domain_id",
-    ]:
-        if field in payload:
-            setattr(row, field, payload[field])
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(row, field, value)
     db.commit()
     return ok({"ticket_id": row.id})
 
@@ -309,16 +272,17 @@ def list_evidence(status: str | None = None, db: Session = Depends(get_db)):
     )
 
 @router.put("/evidence/{artifact_id}")
-def review_evidence(artifact_id: int, payload: dict, db: Session = Depends(get_db)):
+def review_evidence(artifact_id: int, payload: EvidenceReview, db: Session = Depends(get_db)):
     row = db.query(EvidenceArtifact).filter(EvidenceArtifact.id == artifact_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Artifact not found")
-    if "validation_status" in payload:
-        row.validation_status = payload["validation_status"]
-    if "validation_notes" in payload:
-        row.validation_notes = payload["validation_notes"]
-    row.validated_at = datetime.utcnow()
-    row.validated_by = payload.get("validated_by")
+    updates = payload.model_dump(exclude_unset=True)
+    if "validation_status" in updates:
+        row.validation_status = updates["validation_status"]
+    if "validation_notes" in updates:
+        row.validation_notes = updates["validation_notes"]
+    row.validated_at = datetime.now(timezone.utc)
+    row.validated_by = updates.get("validated_by")
     db.commit()
     return ok({"artifact_id": row.id})
 
@@ -395,56 +359,21 @@ def list_lab_templates(lesson_id: int | None = None, db: Session = Depends(get_d
     )
 
 @router.post("/labs/templates")
-def create_lab_template(payload: dict, db: Session = Depends(get_db)):
-    row = LabTemplate(
-        lesson_id=payload.get("lesson_id"),
-        title=payload.get("title"),
-        description=payload.get("description"),
-        lab_type=payload.get("lab_type"),
-        difficulty=payload.get("difficulty", 1),
-        week_number=payload.get("week_number", 1),
-        estimated_minutes=payload.get("estimated_minutes"),
-        is_published=payload.get("is_published", True),
-        proxmox_template_vmid=payload.get("proxmox_template_vmid"),
-        environment_requirements=payload.get("environment_requirements") or {},
-        setup_instructions=payload.get("setup_instructions"),
-        break_script=payload.get("break_script"),
-        success_criteria=payload.get("success_criteria") or {},
-        required_evidence=payload.get("required_evidence") or {},
-        hints=payload.get("hints") or {},
-        model_solution=payload.get("model_solution"),
-    )
+def create_lab_template(payload: LabTemplateCreate, db: Session = Depends(get_db)):
+    row = LabTemplate(**payload.model_dump())
     db.add(row)
     db.commit()
     db.refresh(row)
     return ok({"lab_template_id": row.id})
 
 @router.put("/labs/templates/{template_id}")
-def update_lab_template(template_id: int, payload: dict, db: Session = Depends(get_db)):
+def update_lab_template(template_id: int, payload: LabTemplateUpdate, db: Session = Depends(get_db)):
     row = db.query(LabTemplate).filter(LabTemplate.id == template_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Lab template not found")
 
-    for field in [
-        "lesson_id",
-        "title",
-        "description",
-        "lab_type",
-        "difficulty",
-        "week_number",
-        "estimated_minutes",
-        "is_published",
-        "proxmox_template_vmid",
-        "environment_requirements",
-        "setup_instructions",
-        "break_script",
-        "success_criteria",
-        "required_evidence",
-        "hints",
-        "model_solution",
-    ]:
-        if field in payload:
-            setattr(row, field, payload[field])
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(row, field, value)
 
     db.commit()
     return ok({"lab_template_id": row.id})
@@ -479,31 +408,24 @@ def list_incidents(db: Session = Depends(get_db)):
     )
 
 @router.post("/incidents")
-def create_incident(payload: dict, db: Session = Depends(get_db)):
-    root_cause_id = payload.get("root_cause_id")
-    if not root_cause_id and payload.get("root_cause"):
-        rc = RootCause(
-            service_area=payload["root_cause"].get("service_area"),
-            cause_type=payload["root_cause"].get("cause_type"),
-            description=payload["root_cause"].get("description"),
-            break_method=payload["root_cause"].get("break_method"),
-            fix_method=payload["root_cause"].get("fix_method"),
-            validation_steps=payload["root_cause"].get("validation_steps"),
-        )
+def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)):
+    root_cause_id = payload.root_cause_id
+    if not root_cause_id and payload.root_cause:
+        rc = RootCause(**payload.root_cause.model_dump())
         db.add(rc)
         db.flush()
         root_cause_id = rc.id
 
     row = Incident(
-        title=payload.get("title"),
-        description=payload.get("description"),
-        incident_type=payload.get("incident_type"),
-        impacted_services=payload.get("impacted_services") or [],
+        title=payload.title,
+        description=payload.description,
+        incident_type=payload.incident_type,
+        impacted_services=payload.impacted_services,
         root_cause_id=root_cause_id,
-        start_time=payload.get("start_time"),
-        end_time=payload.get("end_time"),
-        rca_required=payload.get("rca_required", True),
-        severity=payload.get("severity"),
+        start_time=payload.start_time,
+        end_time=payload.end_time,
+        rca_required=payload.rca_required,
+        severity=payload.severity,
     )
     db.add(row)
     db.commit()
@@ -511,12 +433,12 @@ def create_incident(payload: dict, db: Session = Depends(get_db)):
     return ok({"incident_id": row.id})
 
 @router.post("/incidents/{incident_id}/tickets")
-def link_incident_ticket(incident_id: int, payload: dict, db: Session = Depends(get_db)):
+def link_incident_ticket(incident_id: int, payload: IncidentTicketCreate, db: Session = Depends(get_db)):
     row = IncidentTicket(
         incident_id=incident_id,
-        ticket_id=payload.get("ticket_id"),
-        symptom_role=payload.get("symptom_role"),
-        dependency_order=payload.get("dependency_order"),
+        ticket_id=payload.ticket_id,
+        symptom_role=payload.symptom_role,
+        dependency_order=payload.dependency_order,
     )
     db.add(row)
     db.commit()
@@ -545,42 +467,21 @@ def list_capstone_templates(db: Session = Depends(get_db)):
     )
 
 @router.post("/capstones/templates")
-def create_capstone_template(payload: dict, db: Session = Depends(get_db)):
-    row = CapstoneTemplate(
-        title=payload.get("title"),
-        description=payload.get("description"),
-        role_level=payload.get("role_level"),
-        week_number=payload.get("week_number"),
-        is_published=payload.get("is_published", False),
-        requirements=payload.get("requirements") or {},
-        deliverables=payload.get("deliverables") or {},
-        estimated_hours=payload.get("estimated_hours"),
-        rubric=payload.get("rubric") or {},
-    )
+def create_capstone_template(payload: CapstoneTemplateCreate, db: Session = Depends(get_db)):
+    row = CapstoneTemplate(**payload.model_dump())
     db.add(row)
     db.commit()
     db.refresh(row)
     return ok({"capstone_template_id": row.id})
 
 @router.put("/capstones/templates/{template_id}")
-def update_capstone_template(template_id: int, payload: dict, db: Session = Depends(get_db)):
+def update_capstone_template(template_id: int, payload: CapstoneTemplateUpdate, db: Session = Depends(get_db)):
     row = db.query(CapstoneTemplate).filter(CapstoneTemplate.id == template_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Capstone template not found")
 
-    for field in [
-        "title",
-        "description",
-        "role_level",
-        "week_number",
-        "is_published",
-        "requirements",
-        "deliverables",
-        "estimated_hours",
-        "rubric",
-    ]:
-        if field in payload:
-            setattr(row, field, payload[field])
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(row, field, value)
 
     db.commit()
     db.refresh(row)
@@ -635,28 +536,20 @@ def list_commands(db: Session = Depends(get_db)):
     )
 
 @router.post("/commands")
-def create_command(payload: dict, db: Session = Depends(get_db)):
-    row = CommandReference(
-        command=payload.get("command"),
-        description=payload.get("description"),
-        syntax=payload.get("syntax"),
-        example=payload.get("example"),
-        category=payload.get("category"),
-        os=payload.get("os", "windows"),
-    )
+def create_command(payload: CommandCreate, db: Session = Depends(get_db)):
+    row = CommandReference(**payload.model_dump())
     db.add(row)
     db.commit()
     db.refresh(row)
     return ok({"command_id": row.id})
 
 @router.put("/commands/{command_id}")
-def update_command(command_id: int, payload: dict, db: Session = Depends(get_db)):
+def update_command(command_id: int, payload: CommandUpdate, db: Session = Depends(get_db)):
     row = db.query(CommandReference).filter(CommandReference.id == command_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Command not found")
-    for field in ["command", "description", "syntax", "example", "category", "os"]:
-        if field in payload:
-            setattr(row, field, payload[field])
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(row, field, value)
     db.commit()
     return ok({"command_id": row.id})
 
@@ -704,8 +597,6 @@ def get_flagged_attempts(db: Session = Depends(get_db)):
 
 @router.delete("/vms/cleanup")
 def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
-    from datetime import timezone
-    from app.models.vm_assignment import VmAssignment
     from app.services import proxmox_service, guacamole_service
 
     cutoff = datetime.now(timezone.utc) - timedelta(hours=idle_hours)
@@ -718,13 +609,11 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
     destroyed = []
     errors = []
     for assignment in idle:
-        try:
-            proxmox_service.destroy_vm(assignment.vmid)
-        except Exception as exc:
-            logger.warning("Cleanup: failed to destroy VM %s: %s", assignment.vmid, exc)
-            assignment.status = "failed"
-            errors.append({"vmid": assignment.vmid, "error": str(exc)})
-            continue
+        if assignment.guac_username:
+            try:
+                guacamole_service.delete_user(assignment.guac_username)
+            except Exception as exc:
+                logger.warning("Cleanup: failed to delete temporary Guacamole user for assignment %s: %s", assignment.id, exc)
 
         if assignment.guac_conn_id:
             try:
@@ -732,9 +621,61 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
             except Exception as exc:
                 logger.warning("Cleanup: failed to delete connection %s: %s", assignment.guac_conn_id, exc)
 
+        if assignment.vmid is not None:
+            try:
+                proxmox_service.destroy_vm(assignment.vmid)
+            except Exception as exc:
+                logger.warning("Cleanup: failed to destroy VM %s: %s", assignment.vmid, exc)
+                assignment.status = "failed"
+                errors.append({"vmid": assignment.vmid, "error": "VM cleanup failed"})
+                continue
+
         assignment.status = "destroyed"
+        assignment.guac_username = None
         assignment.destroyed_at = datetime.now(timezone.utc)
         destroyed.append(assignment.vmid)
 
     db.commit()
     return ok({"destroyed": destroyed, "errors": errors})
+
+
+@router.get("/vms/assignments")
+def get_vm_assignments(limit: int = 100, db: Session = Depends(get_db)):
+    limit = min(max(limit, 1), 200)
+    rows = db.query(VmAssignment).order_by(VmAssignment.created_at.desc(), VmAssignment.id.desc()).limit(limit).all()
+    lab_runs = {
+        row.id: row
+        for row in db.query(LabRun).filter(LabRun.id.in_([item.lab_run_id for item in rows])).all()
+    } if rows else {}
+    student_ids = {item.student_id for item in rows}
+    students = {
+        row.id: row
+        for row in db.query(Student).filter(Student.id.in_(student_ids)).all()
+    } if student_ids else {}
+    lab_ids = {run.lab_template_id for run in lab_runs.values()}
+    labs = {
+        row.id: row
+        for row in db.query(LabTemplate).filter(LabTemplate.id.in_(lab_ids)).all()
+    } if lab_ids else {}
+
+    data = []
+    for assignment in rows:
+        run = lab_runs.get(assignment.lab_run_id)
+        lab = labs.get(run.lab_template_id) if run else None
+        student = students.get(assignment.student_id)
+        data.append({
+            "id": assignment.id,
+            "student_id": assignment.student_id,
+            "student_name": student.name if student else "Unknown student",
+            "lab_run_id": assignment.lab_run_id,
+            "lab_title": lab.title if lab else "Unknown lab",
+            "vmid": assignment.vmid,
+            "status": assignment.status,
+            "ip_address": assignment.ip_address,
+            "provisioning_error": assignment.provisioning_error,
+            "started_at": assignment.started_at,
+            "expires_at": assignment.expires_at,
+            "created_at": assignment.created_at,
+            "destroyed_at": assignment.destroyed_at,
+        })
+    return ok(data, total=len(data), page=1, per_page=limit)

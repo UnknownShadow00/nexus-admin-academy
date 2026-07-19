@@ -4,14 +4,22 @@ from statistics import mean
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.ai_rate_limit import AIRateLimit
+from app.models.evidence import EvidenceArtifact
+from app.models.login_streak import LoginStreak
+from app.models.mastery import StudentDomainMastery
 from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
+from app.models.squad_activity import SquadActivity
 from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
+from app.models.weekly_lead import WeeklyDomainLead
 from app.models.xp_ledger import XPLedger
 from app.services.activity_service import get_recent_activity
+from app.services.quiz_progression import is_quiz_passed
 from app.services.admin_auth import verify_admin
 from app.services.auth_service import hash_password, normalize_username
 from app.utils.responses import ok
@@ -39,12 +47,24 @@ class StudentUpdateRequest(BaseModel):
 @router.get("/students/overview")
 def student_overview(db: Session = Depends(get_db)):
     students = db.query(Student).order_by(Student.total_xp.desc(), Student.id.asc()).all()
-    total_quizzes = db.query(Quiz).filter(Quiz.status == QUIZ_STATUS_PUBLISHED).count()
+    required_quizzes = db.query(Quiz).filter(
+        Quiz.status == QUIZ_STATUS_PUBLISHED,
+        Quiz.is_active.is_(True),
+        Quiz.is_required.is_(True),
+        Quiz.show_in_weekly_checklist.is_(True),
+        Quiz.answer_keys_validated.is_(True),
+    ).all()
+    total_quizzes = len(required_quizzes)
     total_tickets = db.query(Ticket).count()
 
     data = []
     for rank, student in enumerate(students, start=1):
-        quiz_attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == student.id).all()
+        required_ids = {quiz.id for quiz in required_quizzes}
+        quiz_attempts = db.query(QuizAttempt).filter(
+            QuizAttempt.student_id == student.id,
+            QuizAttempt.quiz_id.in_(required_ids),
+        ).all() if required_ids else []
+        completed_required = sum(is_quiz_passed(db, student.id, quiz) for quiz in required_quizzes)
         ticket_subs = db.query(TicketSubmission).filter(TicketSubmission.student_id == student.id, TicketSubmission.ai_score.isnot(None)).all()
         data.append(
             {
@@ -56,7 +76,7 @@ def student_overview(db: Session = Depends(get_db)):
                 "admin_notes": student.admin_notes,
                 "is_mentor": bool(student.is_mentor),
                 "xp": student.total_xp,
-                "quiz_done": len(quiz_attempts),
+                "quiz_done": completed_required,
                 "quiz_total": total_quizzes,
                 "avg_quiz": round(mean([q.score for q in quiz_attempts]), 2) if quiz_attempts else 0,
                 "ticket_done": len(ticket_subs),
@@ -132,7 +152,12 @@ def create_student(payload: StudentCreateRequest, db: Session = Depends(get_db))
             )
         )
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        logger.warning("student_create_integrity_conflict")
+        raise HTTPException(status_code=409, detail="Student account could not be created") from exc
     db.refresh(student)
     return ok({"student_id": student.id, "name": student.name, "email": student.email})
 
@@ -166,8 +191,23 @@ def delete_student(student_id: int, db: Session = Depends(get_db)):
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    db.delete(student)
-    db.commit()
+    # Most student-owned tables have ON DELETE CASCADE. These legacy tables do
+    # not in every deployed schema, so clean them explicitly before deleting
+    # the account. Evidence is retained for audit but no longer has an owner.
+    db.query(EvidenceArtifact).filter(EvidenceArtifact.student_id == student_id).update(
+        {EvidenceArtifact.student_id: None}, synchronize_session=False
+    )
+    for model in (LoginStreak, SquadActivity, StudentDomainMastery, WeeklyDomainLead):
+        db.query(model).filter(model.student_id == student_id).delete(synchronize_session=False)
+    db.query(AIRateLimit).filter(AIRateLimit.user_id == student_id).delete(synchronize_session=False)
+
+    try:
+        db.delete(student)
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        logger.warning("student_delete_integrity_conflict student_id=%s", student_id)
+        raise HTTPException(status_code=409, detail="Student account has protected records") from exc
     return ok({"deleted": True})
 
 

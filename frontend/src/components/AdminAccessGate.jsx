@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { getCurrentStudent, setToken } from "../hooks/useAuth";
+import { setToken } from "../hooks/useAuth";
 import { adminSessionLogout, adminSessionStatus, getStudentTokenAsAdmin } from "../services/api";
 import { setSelectedProfile } from "../services/profile";
 
-export default function AdminAccessGate({ children }) {
+export default function AdminAccessGate({ children, onAuthenticationChange }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -19,19 +19,32 @@ export default function AdminAccessGate({ children }) {
     const run = async () => {
       try {
         const res = await adminSessionStatus({ suppressToast: true });
-        setAuthenticated(Boolean(res.data?.authenticated));
+        const isAuthenticated = Boolean(res.data?.authenticated);
+        setAuthenticated(isAuthenticated);
+        onAuthenticationChange?.(isAuthenticated);
       } catch {
         setAuthenticated(false);
+        onAuthenticationChange?.(false);
       } finally {
         setLoading(false);
       }
     };
     run();
-  }, []);
+  }, [onAuthenticationChange]);
+
+  useEffect(() => {
+    const invalidate = () => {
+      setAuthenticated(false);
+      onAuthenticationChange?.(false);
+    };
+    window.addEventListener("nexus:admin-session-invalid", invalidate);
+    return () => window.removeEventListener("nexus:admin-session-invalid", invalidate);
+  }, [onAuthenticationChange]);
 
   const onLogout = async () => {
     await adminSessionLogout();
     setAuthenticated(false);
+    onAuthenticationChange?.(false);
   };
 
   const onSwitchToStudent = async () => {
@@ -55,22 +68,6 @@ export default function AdminAccessGate({ children }) {
 
   if (loading) {
     return <main className="mx-auto max-w-3xl p-6">Checking admin session and waking the backend if needed...</main>;
-  }
-
-  if (!loading && !authenticated) {
-    const mentor = getCurrentStudent();
-    if (mentor?.is_mentor) {
-      return (
-        <>
-          <div className="mx-auto mt-2 max-w-7xl px-6">
-            <div className="rounded border border-blue-300 bg-blue-50 px-4 py-2 text-sm text-blue-800 dark:border-blue-700 dark:bg-blue-950/30 dark:text-blue-200">
-              Mentor view (read-only)
-            </div>
-          </div>
-          {children}
-        </>
-      );
-    }
   }
 
   if (!authenticated) {

@@ -1,11 +1,24 @@
 ﻿import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.quiz import Question, Quiz
+from app.models.quiz import (
+    EDITORIAL_STATUS_ARCHIVED,
+    EDITORIAL_STATUS_NEEDS_EDIT,
+    EDITORIAL_STATUS_UNREVIEWED,
+    EDITORIAL_STATUS_VALIDATED,
+    QUIZ_PURPOSE_CERTIFICATION,
+    SOURCE_TYPE_AI_GENERATED,
+    SOURCE_TYPE_EXAMCOMPASS,
+    SOURCE_TYPE_MANUAL,
+    Question,
+    Quiz,
+)
 from app.schemas.quiz import QuizGenerateRequest, QuizUpdateRequest
+from app.schemas.admin_content import QuestionUpdate, QuizImportRequest, ScrapePreviewRequest
 from app.services.admin_auth import verify_admin
 from app.services.examcompass_scraper import scrape_examcompass_quiz
 from app.services.quiz_generator import generate_quiz_from_videos
@@ -49,6 +62,14 @@ async def generate_quiz(payload: QuizGenerateRequest, db: Session = Depends(get_
         question_count=payload.question_count,
         domain_id=payload.domain_id,
         lesson_id=payload.lesson_id,
+        quiz_purpose="practice",
+        is_required=False,
+        show_in_weekly_checklist=False,
+        show_in_practice_library=False,
+        editorial_status=EDITORIAL_STATUS_UNREVIEWED,
+        source_type=SOURCE_TYPE_AI_GENERATED,
+        answer_keys_validated=False,
+        explanations_complete=all(bool(q.get("explanation", "").strip()) for q in questions),
     )
     db.add(quiz)
     db.flush()
@@ -76,8 +97,35 @@ async def generate_quiz(payload: QuizGenerateRequest, db: Session = Depends(get_
 
 
 @router.get("/quizzes")
-def list_quizzes(db: Session = Depends(get_db)):
-    rows = db.query(Quiz).order_by(Quiz.created_at.desc()).limit(50).all()
+def list_quizzes(
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=1, le=100),
+    search: str | None = Query(default=None, max_length=200),
+    week: int | None = Query(default=None, ge=0, le=24),
+    purpose: str | None = None,
+    source: str | None = None,
+    editorial_status: str | None = None,
+    required: bool | None = None,
+    answer_keys_validated: bool | None = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(Quiz)
+    if search:
+        query = query.filter(func.lower(Quiz.title).like(f"%{search.strip().lower()}%"))
+    if week is not None:
+        query = query.filter(Quiz.week_number == week)
+    if purpose:
+        query = query.filter(Quiz.quiz_purpose == purpose)
+    if source:
+        query = query.filter(Quiz.source_type == source)
+    if editorial_status:
+        query = query.filter(Quiz.editorial_status == editorial_status)
+    if required is not None:
+        query = query.filter(Quiz.is_required.is_(required))
+    if answer_keys_validated is not None:
+        query = query.filter(Quiz.answer_keys_validated.is_(answer_keys_validated))
+    total = query.count()
+    rows = query.order_by(Quiz.created_at.desc(), Quiz.id.desc()).offset((page - 1) * per_page).limit(per_page).all()
     return ok(
         [
             {
@@ -89,9 +137,95 @@ def list_quizzes(db: Session = Depends(get_db)):
                 "source_urls": row.source_urls or ([row.source_url] if row.source_url else []),
                 "lesson_id": row.lesson_id,
                 "created_at": row.created_at.isoformat() if row.created_at else None,
+                "quiz_purpose": row.quiz_purpose,
+                "is_required": row.is_required,
+                "show_in_weekly_checklist": row.show_in_weekly_checklist,
+                "show_in_practice_library": row.show_in_practice_library,
+                "editorial_status": row.editorial_status,
+                "recommended_week": row.recommended_week,
+                "prerequisite_week": row.prerequisite_week,
+                "quality_score": row.quality_score,
+                "source_type": row.source_type,
+                "answer_keys_validated": row.answer_keys_validated,
+                "explanations_complete": row.explanations_complete,
+                "is_active": row.is_active,
             }
             for row in rows
-        ]
+        ], total=total, page=page, per_page=per_page
+    )
+
+
+@router.get("/quizzes/editorial-queue")
+def editorial_review_queue(
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=50, ge=1, le=100),
+    purpose: str | None = None,
+    source: str | None = None,
+    editorial_status: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Admin-only queue of quizzes that cannot be shown to students yet."""
+    missing_explanation = case(
+        (func.trim(func.coalesce(Question.explanation, "")) == "", 1),
+        else_=0,
+    )
+    query = (
+        db.query(
+            Quiz,
+            func.count(Question.id).label("actual_question_count"),
+            func.coalesce(func.sum(missing_explanation), 0).label("missing_explanations"),
+        )
+        .outerjoin(Question, Question.quiz_id == Quiz.id)
+        .filter(
+            or_(
+                Quiz.answer_keys_validated.is_(False),
+                Quiz.editorial_status != EDITORIAL_STATUS_VALIDATED,
+            )
+        )
+    )
+    if purpose:
+        query = query.filter(Quiz.quiz_purpose == purpose)
+    if source:
+        query = query.filter(Quiz.source_type == source)
+    if editorial_status:
+        query = query.filter(Quiz.editorial_status == editorial_status)
+    query = query.group_by(Quiz.id)
+    total = query.count()
+    priority = case(
+        (Quiz.editorial_status == EDITORIAL_STATUS_ARCHIVED, 5),
+        (Quiz.quiz_purpose == "practice", 1),
+        (Quiz.quiz_purpose == "remediation", 2),
+        (Quiz.quiz_purpose.in_(["cumulative", "gate"]), 3),
+        (Quiz.quiz_purpose == QUIZ_PURPOSE_CERTIFICATION, 4),
+        else_=4,
+    )
+    rows = (
+        query.order_by(priority, Quiz.recommended_week.is_(None), Quiz.recommended_week, Quiz.id)
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+    return ok(
+        [
+            {
+                "id": quiz.id,
+                "title": quiz.title,
+                "quiz_purpose": quiz.quiz_purpose,
+                "recommended_week": quiz.recommended_week,
+                "week_number": quiz.week_number,
+                "question_count": actual_question_count,
+                "missing_explanations": missing_explanations,
+                "answer_keys_validated": quiz.answer_keys_validated,
+                "quality_score": quiz.quality_score,
+                "source_type": quiz.source_type,
+                "editorial_status": quiz.editorial_status,
+                "is_active": quiz.is_active,
+            }
+            for quiz, actual_question_count, missing_explanations in rows
+        ],
+        total=total,
+        page=page,
+        per_page=per_page,
     )
 
 
@@ -111,22 +245,26 @@ def update_quiz(quiz_id: int, payload: QuizUpdateRequest, db: Session = Depends(
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
+    changes = payload.model_dump(exclude_unset=True)
+    resulting_required = changes.get("is_required", quiz.is_required)
+    resulting_checklist = changes.get("show_in_weekly_checklist", quiz.show_in_weekly_checklist)
+    resulting_validated = changes.get("answer_keys_validated", quiz.answer_keys_validated)
+    resulting_editorial_status = changes.get("editorial_status", quiz.editorial_status)
+    resulting_practice_library = changes.get("show_in_practice_library", quiz.show_in_practice_library)
+    if (resulting_required or resulting_checklist or resulting_practice_library) and (
+        not resulting_validated or resulting_editorial_status != EDITORIAL_STATUS_VALIDATED
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="A quiz must have independently validated answer keys and editorial status 'validated' before student visibility can be enabled.",
+        )
+    if resulting_checklist and not resulting_required:
+        raise HTTPException(status_code=409, detail="A weekly checklist quiz must also be required.")
+
     updated = {}
-    if payload.title is not None:
-        quiz.title = payload.title
-        updated["title"] = quiz.title
-
-    if payload.week_number is not None:
-        quiz.week_number = payload.week_number
-        updated["week_number"] = quiz.week_number
-
-    if payload.domain_id is not None:
-        quiz.domain_id = payload.domain_id
-        updated["domain_id"] = quiz.domain_id
-
-    if payload.status is not None:
-        quiz.status = payload.status
-        updated["status"] = quiz.status
+    for field, value in changes.items():
+        setattr(quiz, field, value)
+        updated[field] = value
 
     db.commit()
     return ok(
@@ -136,16 +274,26 @@ def update_quiz(quiz_id: int, payload: QuizUpdateRequest, db: Session = Depends(
             "week_number": quiz.week_number,
             "domain_id": quiz.domain_id,
             "status": quiz.status,
+            "quiz_purpose": quiz.quiz_purpose,
+            "is_required": quiz.is_required,
+            "show_in_weekly_checklist": quiz.show_in_weekly_checklist,
+            "show_in_practice_library": quiz.show_in_practice_library,
+            "editorial_status": quiz.editorial_status,
+            "recommended_week": quiz.recommended_week,
+            "prerequisite_week": quiz.prerequisite_week,
+            "quality_score": quiz.quality_score,
+            "source_type": quiz.source_type,
+            "answer_keys_validated": quiz.answer_keys_validated,
+            "explanations_complete": quiz.explanations_complete,
+            "is_active": quiz.is_active,
             **updated,
         }
     )
 
 
 @router.post("/quiz/scrape-preview")
-async def scrape_quiz_preview(payload: dict):
-    url = (payload.get("url") or "").strip()
-    if not url:
-        raise HTTPException(status_code=400, detail="URL is required")
+async def scrape_quiz_preview(payload: ScrapePreviewRequest):
+    url = str(payload.url)
 
     try:
         result = await scrape_examcompass_quiz(url)
@@ -159,40 +307,44 @@ async def scrape_quiz_preview(payload: dict):
 
 
 @router.post("/quiz/scrape-save")
-async def scrape_quiz_save(payload: dict, db: Session = Depends(get_db)):
-    questions = payload.get("questions", [])
-    if not questions:
-        raise HTTPException(status_code=400, detail="No questions provided")
+async def scrape_quiz_save(payload: QuizImportRequest, db: Session = Depends(get_db)):
+    questions = payload.questions
 
     quiz = Quiz(
-        title=payload.get("title", "Imported Quiz"),
-        source_url=payload.get("source_url"),
-        week_number=payload.get("week_number", 1),
+        title=payload.title,
+        source_url=payload.source_url,
+        week_number=payload.week_number,
         question_count=len(questions),
-        lesson_id=payload.get("lesson_id"),
-        domain_id=payload.get("domain_id", "1.0"),
+        lesson_id=payload.lesson_id,
+        domain_id=payload.domain_id,
+        quiz_purpose=QUIZ_PURPOSE_CERTIFICATION,
+        is_required=False,
+        show_in_weekly_checklist=False,
+        show_in_practice_library=False,
+        editorial_status=EDITORIAL_STATUS_UNREVIEWED,
+        source_type=SOURCE_TYPE_EXAMCOMPASS if "examcompass" in str(payload.source_url or "").lower() else SOURCE_TYPE_MANUAL,
+        answer_keys_validated=False,
+        explanations_complete=False,
     )
     db.add(quiz)
     db.flush()
 
     saved_count = 0
     for question in questions:
-        if not question.get("question_text") or not question.get("option_a"):
-            continue
         db.add(
             Question(
                 quiz_id=quiz.id,
-                question_text=question["question_text"],
-                option_a=question["option_a"],
-                option_b=question.get("option_b", ""),
-                option_c=question.get("option_c", ""),
-                option_d=question.get("option_d", ""),
-                option_e=question.get("option_e", "") or None,
-                option_f=question.get("option_f", "") or None,
-                option_g=question.get("option_g", "") or None,
-                option_h=question.get("option_h", "") or None,
-                correct_answer=question.get("correct_answer", "A"),
-                explanation=question.get("explanation", ""),
+                question_text=question.question_text,
+                option_a=question.option_a,
+                option_b=question.option_b,
+                option_c=question.option_c,
+                option_d=question.option_d,
+                option_e=question.option_e or None,
+                option_f=question.option_f or None,
+                option_g=question.option_g or None,
+                option_h=question.option_h or None,
+                correct_answer=question.correct_answer,
+                explanation=question.explanation,
             )
         )
         saved_count += 1
@@ -202,62 +354,64 @@ async def scrape_quiz_save(payload: dict, db: Session = Depends(get_db)):
 
 
 @router.post("/quiz/bookmarklet-import")
-async def bookmarklet_import(payload: dict, db: Session = Depends(get_db)):
+async def bookmarklet_import(payload: QuizImportRequest, db: Session = Depends(get_db)):
     """
     Receives questions extracted by the bookmarklet running in the user's browser.
     Payload: { title, source_url, week_number, lesson_id, questions: [...] }
     """
-    questions = payload.get("questions", [])
-    if not questions:
-        raise HTTPException(status_code=400, detail="No questions received")
+    questions = payload.questions
 
-    raw_title = (payload.get("title", "") or "").strip()
+    raw_title = payload.title.strip()
     title = _normalize_examcompass_title(raw_title) or raw_title or "ExamCompass Import"
-    source_url = payload.get("source_url", "")
+    source_url = payload.source_url or ""
 
     quiz = Quiz(
         title=title,
         source_url=source_url,
         source_urls=[source_url] if source_url else [],
-        week_number=int(payload.get("week_number", 1)),
+        week_number=payload.week_number,
         question_count=len(questions),
-        lesson_id=payload.get("lesson_id") or None,
-        domain_id=payload.get("domain_id", "1.0"),
+        lesson_id=payload.lesson_id,
+        domain_id=payload.domain_id,
+        quiz_purpose=QUIZ_PURPOSE_CERTIFICATION,
+        is_required=False,
+        show_in_weekly_checklist=False,
+        show_in_practice_library=False,
+        editorial_status=EDITORIAL_STATUS_UNREVIEWED,
+        source_type=SOURCE_TYPE_EXAMCOMPASS,
+        answer_keys_validated=False,
+        explanations_complete=False,
     )
     db.add(quiz)
     db.flush()
 
     saved = 0
     for question in questions:
-        if not question.get("question_text") or not question.get("option_a"):
-            continue
-        all_correct = question.get("all_correct_answers", [])
-        if isinstance(all_correct, str):
-            all_correct = [item.strip() for item in all_correct.split(",") if item.strip()]
+        all_correct = question.all_correct_answers
 
-        primary_correct = all_correct[0] if all_correct else question.get("correct_answer", "A")
+        primary_correct = all_correct[0] if all_correct else question.correct_answer
         allowed_answers = ["A", "B", "C", "D", "E", "F", "G", "H"]
         if primary_correct not in allowed_answers:
             primary_correct = "A"
-        if primary_correct != "A" and not question.get(f"option_{primary_correct.lower()}"):
+        if primary_correct != "A" and not getattr(question, f"option_{primary_correct.lower()}"):
             primary_correct = "A"
 
         correct_answers_str = ",".join(all_correct) if len(all_correct) > 1 else None
         db.add(
             Question(
                 quiz_id=quiz.id,
-                question_text=question["question_text"],
-                option_a=question["option_a"],
-                option_b=question.get("option_b", ""),
-                option_c=question.get("option_c", ""),
-                option_d=question.get("option_d", ""),
-                option_e=question.get("option_e", "") or None,
-                option_f=question.get("option_f", "") or None,
-                option_g=question.get("option_g", "") or None,
-                option_h=question.get("option_h", "") or None,
+                question_text=question.question_text,
+                option_a=question.option_a,
+                option_b=question.option_b,
+                option_c=question.option_c,
+                option_d=question.option_d,
+                option_e=question.option_e or None,
+                option_f=question.option_f or None,
+                option_g=question.option_g or None,
+                option_h=question.option_h or None,
                 correct_answer=primary_correct,
                 correct_answers=correct_answers_str,
-                explanation=question.get("explanation", ""),
+                explanation=question.explanation,
             )
         )
         saved += 1
@@ -279,6 +433,19 @@ def get_quiz_questions(quiz_id: int, db: Session = Depends(get_db)):
             "quiz_id": quiz.id,
             "title": quiz.title,
             "status": quiz.status,
+            "week_number": quiz.week_number,
+            "quiz_purpose": quiz.quiz_purpose,
+            "is_required": quiz.is_required,
+            "show_in_weekly_checklist": quiz.show_in_weekly_checklist,
+            "show_in_practice_library": quiz.show_in_practice_library,
+            "editorial_status": quiz.editorial_status,
+            "recommended_week": quiz.recommended_week,
+            "prerequisite_week": quiz.prerequisite_week,
+            "quality_score": quiz.quality_score,
+            "source_type": quiz.source_type,
+            "answer_keys_validated": quiz.answer_keys_validated,
+            "explanations_complete": quiz.explanations_complete,
+            "is_active": quiz.is_active,
             "questions": [
                 {
                     "id": question.id,
@@ -302,26 +469,12 @@ def get_quiz_questions(quiz_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/questions/{question_id}")
-def update_question(question_id: int, payload: dict, db: Session = Depends(get_db)):
+def update_question(question_id: int, payload: QuestionUpdate, db: Session = Depends(get_db)):
     question = db.query(Question).filter(Question.id == question_id).first()
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    for field in [
-        "correct_answer",
-        "correct_answers",
-        "explanation",
-        "question_text",
-        "option_a",
-        "option_b",
-        "option_c",
-        "option_d",
-        "option_e",
-        "option_f",
-        "option_g",
-        "option_h",
-    ]:
-        if field in payload:
-            setattr(question, field, payload[field])
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(question, field, value)
     db.commit()
     return ok({"updated": True})

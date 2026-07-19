@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.config import load_env
 from app.routers.admin_session import router as admin_session_router
 from app.services.admin_auth import verify_admin
+from app.services.auth_service import create_access_token
 
 
 class AdminSessionTests(unittest.TestCase):
@@ -68,6 +69,36 @@ class AdminSessionTests(unittest.TestCase):
         response = self.client.get("/protected", headers={"X-Admin-Key": "unit-test-api-key"})
 
         self.assertEqual(response.status_code, 200)
+
+    def test_student_jwt_does_not_authenticate_admin_session(self):
+        token = create_access_token({"sub": "1", "name": "Student", "is_mentor": True})
+
+        status = self.client.get(
+            "/api/admin/session/status",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        protected = self.client.get(
+            "/protected",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        self.assertEqual(status.status_code, 200)
+        self.assertFalse(status.json()["data"]["authenticated"])
+        self.assertEqual(protected.status_code, 403)
+
+    def test_invalid_admin_cookie_is_rejected(self):
+        status = self.client.get(
+            "/api/admin/session/status",
+            cookies={"admin_session": "forged-session"},
+        )
+        protected = self.client.get(
+            "/protected",
+            cookies={"admin_session": "forged-session"},
+        )
+
+        self.assertEqual(status.status_code, 200)
+        self.assertFalse(status.json()["data"]["authenticated"])
+        self.assertEqual(protected.status_code, 403)
 
 
 if __name__ == "__main__":

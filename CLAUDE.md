@@ -9,11 +9,11 @@ Private IT training platform. Mentor (Abdi, ~5 years help desk/network admin) pe
 | Layer | Technology |
 |---|---|
 | Frontend | React 18, Vite, React Router 6, Tailwind CSS, Axios, Lucide React, xterm.js |
-| Backend | FastAPI, SQLAlchemy 2, Alembic, SQLite → Supabase (PostgreSQL) |
-| Auth | JWT (python-jose), passlib, httpOnly cookies |
-| AI | OpenRouter (OpenAI-compatible chat completions) via `app/services/ai_service.py` — planned swap to local Ollama (see TASKS.md P2) |
-| Scraping | Playwright + BeautifulSoup (ExamCompass — permission confirmed) |
-| Deployment | Railway (backend), Supabase (DB + auth) |
+| Backend | FastAPI, SQLAlchemy 2, Alembic, SQLite in active production (PostgreSQL supported) |
+| Auth | PyJWT with an explicit HMAC allowlist, passlib, httpOnly cookies; separate server-side admin sessions |
+| AI | Local Ollama through the OpenAI-compatible API in `app/services/ai_service.py` |
+| Scraping | Playwright + BeautifulSoup as development-only dependencies |
+| Deployment | Self-hosted `nexus-services`: systemd backend, nginx frontend container, Cloudflare HTTPS |
 | Dev comms | Discord (weekly calls, methodology card, student coordination) |
 
 ---
@@ -33,9 +33,10 @@ nexus-admin-academy/
 │   │   ├── routers/           ← FastAPI route handlers
 │   │   ├── schemas/           ← Pydantic request/response schemas
 │   │   └── services/          ← business logic, AI calls, scrapers
-│   ├── alembic/versions/      ← 26 migrations — always add new ones here
-│   ├── scripts/seed_users.py  ← seeds 6 hardcoded accounts
-│   ├── seed.py                ← seeds lab/capstone/quiz content
+│   ├── alembic/versions/      ← migrations through 0028 — always add new ones here
+│   ├── scripts/seed_users.py  ← seeds 1 mentor and 6 students from env passwords
+│   ├── seed.py                ← idempotently seeds all 24 weeks
+│   ├── seed_curriculum.py     ← required idempotent Study Tracker catalog
 │   ├── tests/
 │   └── requirements.txt
 ├── frontend/
@@ -78,7 +79,7 @@ Role, PromotionGate, StudentRole, MethodologyFramework, StudentMethodologyProgre
 ```
 ai_service.py           ← OpenRouter chat-completions calls, budget cap, cost logging
 proxmox_service.py      ← VM clone/start/IP/destroy via proxmoxer
-guacamole_service.py    ← Guacamole connection create/delete, token URLs
+guacamole_service.py    ← Guacamole connection lifecycle + scoped temporary users
 fsrs_service.py         ← flashcard scheduling (SM-2 algorithm)
 auth_service.py         ← JWT issue/verify
 admin_auth.py           ← admin session auth
@@ -136,7 +137,7 @@ cve_service.py
 ### Backend — Complete
 - [x] JWT auth, student/mentor/admin separation
 - [x] Seed script for all 6 accounts (`scripts/seed_users.py`)
-- [x] 26 Alembic migrations — schema is mature (+ 3 new: lesson_notes, flashcard_reviews, quiz_attempt_timing)
+- [x] Alembic schema through revision `0028`
 - [x] Ticket system: variants, XP, plain-English explanation field
 - [x] Quiz engine: ExamCompass scraper + YouTube transcript → AI MCQ
 - [x] Multi-select questions, option E, publish/draft workflow
@@ -158,7 +159,7 @@ cve_service.py
 - [x] `StudentLessonNote` model + router (`/api/lesson-notes`)
 - [x] `FlashcardReview` model + FSRS service + router (`/api/flashcards`)
 - [x] Quiz attempt `time_per_question` JSON field (timing migration)
-- [x] Proxmox/Guacamole VM integration layer: `proxmox_template_vmid`, `VmAssignment`, VM provisioning, Guacamole URLs, lab submit teardown, and admin idle cleanup
+- [x] Proxmox/Guacamole VM integration layer: asynchronous persistent provisioning, scoped temporary Guacamole users, linked/full clone selection, refresh recovery, teardown, and admin cleanup
 
 ### Frontend — Complete
 - [x] Dark mode, shared design system (Badge, PageHeader, FilterBar, Banner)
@@ -183,10 +184,10 @@ cve_service.py
 
 ## What Is NOT Done (Build These Next)
 
-**The live backlog is `TASKS.md` — always pick from there.** Summary as of the 2026-06-11 audit:
-
-- The old P2 (speed-flag view) and P3 (Proxmox/Guacamole application layer) items are **code-complete** — but the VM layer has known P0 bugs (broken Guacamole client URL encoding, students receive the Guacamole *admin* token, provisioning blocks the request worker past the frontend timeout, iframe unrecoverable after refresh) and has never been smoke-tested against real infrastructure.
-- Remaining work, in order: TASKS.md P0 stability/data-risk fixes → P1 security/correctness → P2 perf/Ollama swap → P3 cleanup → P4 sidecar deployment (Guacamole first) → content backlog (AD lab template family is the highest-value gap).
+**The live backlog is `TASKS.md` — always pick from there.** The verified
+launch/security/dependency/VM code fixes are complete. Automated VM use remains
+disabled for cohort launch until the configured Proxmox and Guacamole 1.6.0
+deployment passes a real start/connect/isolation/expiry/destroy smoke test.
 
 ---
 
@@ -206,9 +207,10 @@ UPLOAD_DIR=
 APP_LOG_PATH=
 COOKIE_SECURE=true          # set false for local dev
 
-# AI — OpenRouter today; Ollama swap planned (TASKS.md P2)
-OPENROUTER_API_KEY=
-OPENROUTER_MODEL=           # provider/model, e.g. mistralai/mistral-large — app currently fails to boot if unset (P0 fix pending)
+# AI — local Ollama or another OpenAI-compatible endpoint; optional
+AI_BASE_URL=http://<ollama-host>:11434/v1
+AI_MODEL=deepseek-r1:32b
+AI_API_KEY=                # omit for local Ollama
 AI_ENABLED=true
 DAILY_AI_BUDGET=1.00
 COST_PER_1K_TOKENS=0.001
@@ -227,11 +229,14 @@ PROXMOX_NODE=pve
 VMID_POOL_START=200
 VMID_POOL_END=299
 PROXMOX_VERIFY_SSL=true
+PROXMOX_FULL_CLONE=false   # linked when storage is supported; otherwise safe full fallback
+LAB_VM_TTL_MINUTES=120
 
-# Guacamole (VM-backed labs)
+# Guacamole 1.6.0 (VM-backed labs)
 GUACAMOLE_URL=
-GUACAMOLE_ADMIN_USER=
-GUACAMOLE_ADMIN_PASS=
+GUACAMOLE_ADMIN_USERNAME=
+GUACAMOLE_ADMIN_PASSWORD=
+GUACAMOLE_DATASOURCE=postgresql
 ```
 
 ### Frontend `.env`
@@ -278,20 +283,21 @@ python -m pytest tests/test_labs.py tests/test_capstones.py -q
 
 ## Proxmox VM Integration — Design Reference
 
-Implemented (see `labs.py`, `proxmox_service.py`, `guacamole_service.py`, `VmAssignment`). Original design pattern — note TASKS.md P0: provisioning must become async, and the iframe currently uses the wrong URL encoding + admin token:
+Implemented (see `labs.py`, `proxmox_service.py`, `guacamole_service.py`, `VmAssignment`):
 
 ```
 Student clicks "Start Lab"
   → POST /api/labs/{lab_id}/start
-  → proxmox_service.clone_template(template_vmid, new_vmid, name)
-  → proxmox_service.start_vm(new_vmid)
-  → guacamole_service.create_connection(vm_ip, protocol="rdp")
-  → returns {guac_token_url, vmid}
-  → LabPage.jsx embeds guac_token_url in <iframe>
+  → persists one VmAssignment and returns 202 immediately
+  → worker-owned DB session clones/starts/waits/configures the connection
+  → frontend polls GET /api/labs/{lab_id}/vm-status
+  → POST /api/labs/{lab_id}/vm-access rotates a random temporary Guacamole user
+  → temporary user receives READ on only this assignment connection
+  → LabPage.jsx embeds the scoped URL; refresh restores the same assignment
 
 Student submits evidence
-  → POST /api/labs/{lab_run_id}/submit
-  → proxmox_service.destroy_vm(vmid)
+  → POST /api/labs/{lab_id}/submit
+  → asynchronous cleanup deletes temporary user, connection, and VM
   → update vm_assignments.status = "destroyed"
 ```
 
@@ -326,10 +332,10 @@ Student dashboard shows: "Today's Review (N cards due)" — flip card UI, 4 rati
 
 ## Sidecar Services — Architecture
 
-These run on your Proxmox box, NOT on Railway. They're separate from this codebase.
+These run on the Proxmox network and are separate from this codebase.
 
 ```
-[Railway — FastAPI Backend]
+[nexus-services — FastAPI Backend]
         |
         | proxmoxer (HTTPS)        | Guacamole REST API
         |                          |
@@ -352,7 +358,7 @@ These run on your Proxmox box, NOT on Railway. They're separate from this codeba
   │  win10-dns-broken, ubuntu-ssh... │
   └──────────────────────────────────┘
         |
-   Tailscale mesh (connects Proxmox ↔ Railway backend)
+   Private network (connects Proxmox ↔ nexus-services)
 ```
 
 ---
@@ -369,6 +375,7 @@ Students progress through these phases. Lab scenarios must match current phase.
 | Month 3 | Week 9-12 | Monitoring & networking | Netdata, Uptime Kuma, nmap, DNS |
 | Month 4 | Week 13-16 | Automation | Ansible playbooks, Gitea, GLPI workflows |
 | Month 5 | Week 17-20 | Capstone | Full onboarding scenario end-to-end |
+| Month 6 | Week 21-24 | Infrastructure integration | Operations, recovery, and final capstone work |
 
 ---
 
@@ -395,7 +402,7 @@ And update `TASKS.md` backlog accordingly.
 - **`datetime.utcnow()` is deprecated** — use `datetime.now(timezone.utc)` when touching time fields.
 - **Admin routes use `AdminAccessGate`, not `RequireAuth`** — they are completely separate auth flows.
 - **Do NOT add a `/auth/register` endpoint** — accounts are seeded only.
-- **SQLite locally, PostgreSQL (Supabase) in prod** — SQLAlchemy handles both but watch for SQLite-specific syntax in raw queries.
+- **SQLite is the active production database; PostgreSQL remains supported** — keep SQL portable across both dialects.
 - **AI calls must check `AIRateLimit` first** — never call `ai_service` directly from a router without rate check.
 
 ## Phase 1 session notes (2026-07-10)
@@ -405,10 +412,10 @@ And update `TASKS.md` backlog accordingly.
 - Tickets: hints (≤4, XP −5/−10/−20/−35% floor 40%), parameters ({{PLACEHOLDER}} JSON, student_id % len deterministic), five-anchor scoring (investigation/root_cause/safe_fix_or_escalation/verification/communication, sum = final 0-10).
 - Phase A content lives in backend/seed_phase_a.py (structured source; idempotent; edit there, not in DB).
 - New gate requirement types: practical_checkpoint, min_completed_lessons, min_cli_labs, no_unresolved_flags.
-- STALE sections above this note: the 5-role table and OpenRouter-only AI notes are superseded by this section.
+- This dated note records the Phase 1 transition; the current sections above are authoritative.
 
 ## Deployment reality note (2026-07-17 — Day 1 go-live on .101)
-- STALE above: the Railway/Supabase/OpenRouter rows in the Stack table. Actual deployment: self-hosted on nexus-services (.101), systemd unit `nexus-admin-academy.service` → uvicorn from `backend/.venv` on :8000, SQLite (`backend/nexus.db`, fresh DB seeded at go-live). AI = local Ollama at 192.168.0.104:11434 (deepseek-r1:32b) per `.env`.
+- Active deployment: self-hosted on nexus-services (.101), systemd unit `nexus-admin-academy.service` → uvicorn from `backend/.venv` on :8000, SQLite (`backend/nexus.db`). AI is local Ollama on the private network per `.env`.
 - Restarting the service: `systemctl restart` needs interactive sudo — use `kill -KILL $(systemctl show nexus-admin-academy -p MainPID --value)`; `Restart=on-failure` brings it back in ~8s.
 - Pre-go-live state preserved at `../nexus-admin-academy.bak-2026-07-17` and `~/nexus-pre-24wk-2026-07-17.sql`; old DB parked at `backend/nexus.db.pre24wk-2026-07-17`. Do not delete.
 - Public access is https://nexus.builtfromzero.fyi via Cloudflare tunnel (`cloudflared.service`) → nginx :80. `COOKIE_SECURE=true` since 2026-07-18: cookies are `Secure; SameSite=none` — logins over plain http:// (LAN IP) will NOT persist; always use the HTTPS domain. `.env` is CRLF — edit COOKIE_SECURE with `sed -i 's/^COOKIE_SECURE=.*\r$/COOKIE_SECURE=<val>\r/'`.
@@ -416,3 +423,44 @@ And update `TASKS.md` backlog accordingly.
 - Backups: nightly SQLite + uploads backup via `scripts/backup_sqlite.sh` → `~/backups/nexus/` (crontab 23:30, 14-day retention, restore proven 2026-07-17). The 23:59 git snapshot does NOT cover the DB (`*.db` gitignored). `scripts/backup_db.sh` is the pg_dump variant for the Docker/Postgres stack only.
 - Grader calibration vs live deepseek-r1:32b: **PASSED 5/5** (2026-07-17) after adding the verification-anchor-0 hard cap in `ticket_grader.py`. AI grading is cleared for students.
 - See NEXUS_GO_LIVE_CHECKLIST.md for Day 5 (cohort prep — human items: Discord post, kickoff call).
+
+## Deployment verification checkpoint (2026-07-19)
+
+- Source inspected and deployed from commit
+  `d15dde3ebf13210faf240f1bf1968e26c8b16b6a` plus the reviewed release-candidate
+  worktree. Backend is active under `nexus-admin-academy.service`; the built
+  frontend is active in `nexus-frontend`.
+- Pre-deployment backups are under
+  `/home/nexus/backups/nexus-deploy-20260719T093436Z/`: `application.tar.gz`,
+  `nexus.db`, and `uploads.tar.gz`. Archives are non-empty/readable and the
+  SQLite backup passed `PRAGMA integrity_check`.
+- Production requirements installed cleanly in `backend/.venv`; Alembic is at
+  `0028 (head)`; compilation passed; the complete suite is `154 passed`; npm
+  audit reports zero vulnerabilities; Vite and both networking CLI checks pass.
+- Live seed runs were idempotent and preserved all existing progress. The live
+  catalog is 25 modules, 63 lessons, 104 quizzes, 967 questions, 48 tickets,
+  5 manual lab templates, 48 networking labs, 3 capstones, and 182 videos. The
+  higher quiz/question/video totals are pre-existing imported catalog content;
+  the verified fresh-seed baseline remains 25/189/62.
+- The stale remote-AI host reference was corrected to the current private AI
+  server; no AI-server service or firewall change was required. The configured
+  model is present, calibration passed 5/5, and disposable ticket grading passed.
+- Five orphaned `student_methodology_progress` rows for deleted IDs 8–12 were
+  removed by `scripts/repair_orphaned_student_data.py` after a fresh backup and
+  dry run. `app/database.py` now enables SQLite foreign keys on every SQLAlchemy
+  connection, supported student deletion handles legacy no-FK tables, and the
+  valid-progress digest is unchanged. Foreign-key and integrity checks pass.
+- Full live smoke testing passed 25/25 with admin-created disposable accounts;
+  all test rows and files were removed. The additional catalog is inventoried at
+  `docs/PRODUCTION_CONTENT_INVENTORY.md` and was not edited.
+- Release status: **Ready for manual-VM cohort**. Automated VM testing remains
+  pending because Proxmox/Guacamole config is incomplete and zero automated labs
+  are published.
+
+## Quiz organization (2026-07-19)
+
+- Alembic head is `0029`. Quiz purpose, editorial state, checklist/library visibility, source, validation, quality, and prerequisite metadata are authoritative; `status=published` alone no longer makes a quiz required.
+- Student progression counts only active, published, answer-validated quizzes with both `is_required=true` and `show_in_weekly_checklist=true`. Optional, remediation, and certification attempts retain feedback/history but do not update workplace mastery or block progression.
+- Placement and correction scripts are dry-run by default: `backend/scripts/apply_quiz_placement_plan.py` and `backend/scripts/apply_quiz_answer_corrections.py`; both require `--confirm` to commit and preserve 104 quizzes / 967 questions.
+- Required coverage is exactly one quiz for every Week 0–24. Certification content lives in the optional library. Remediation is visible only after explicit assignment or a failed required quiz in the same week.
+- The source-of-truth implementation reports are `docs/QUIZ_IMPLEMENTATION_RESULTS.md`, `docs/QUIZ_ANSWER_CORRECTIONS.md`, and `docs/QUIZ_MERGE_LOG.md`.

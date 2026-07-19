@@ -1,4 +1,28 @@
 
+## Production deployment checkpoint (2026-07-19)
+
+The two manual-cohort launch blockers found during deployment verification are
+resolved and re-tested on `.101`. The manual/automated VM feature boundary is
+unchanged.
+
+- [x] **Restore the remote Ollama connection and re-run ticket grading.** The
+  configured endpoint referenced the retired AI host. The current remote host
+  was already reachable and serving the configured model; Nexus was corrected,
+  the five-fixture calibration passed, and a disposable ticket received live
+  grading without installing or changing Ollama on `.101`.
+- [x] **Repair legacy orphaned student references before onboarding.** A
+  backup-backed, dry-run-first repair removed only five confirmed orphaned
+  `student_methodology_progress` rows. SQLite application connections now
+  enforce foreign keys; create/login/delete/ID-reuse tests pass and valid
+  student progress retained the same digest.
+- [x] **Inventory additional production content without changing it.** The
+  79 additional quizzes, 778 questions, and 120 videos are recorded in
+  `docs/PRODUCTION_CONTENT_INVENTORY.md` with source, linkage, activity,
+  duplication, classification, and owner-review recommendations.
+- [ ] **Run real automated-lab staging acceptance.** `.101` has neither complete
+  Proxmox nor Guacamole configuration and publishes zero automated lab
+  templates. Keep the five manual labs as the only student-visible VM path.
+
 ## A+ hands-on preview gate (2026-07-18)
 DONE (verified and deployed on .101; see tasks/loop-log.md):
 - [x] **Schema reality:** live `curriculum_videos` is at Alembic `0027` and has `exam_code` in addition to free-text `section`. The catalog has 108 `220-1201` rows and 74 `220-1202` rows (137 active), so A+ is grouped by those exam codes; there is no separate certification-family column.
@@ -21,12 +45,12 @@ DONE (verified on .101, see tasks/loop-log.md):
 - [x] `seed_curriculum.py` documented in README + go-live checklist (was a silent required step); fresh-DB proof: migrate+seed.py+seed_curriculum.py → 62 curriculum_videos, idempotent
 - [x] COOKIE_SECURE actually enabled — was still `false` in .env (07-18 01:20 session set it false for http; HTTPS domain via Cloudflare tunnel now exists); flipped to true, service restarted, live Set-Cookie via https://nexus.builtfromzero.fyi shows `HttpOnly; SameSite=none; Secure`. NOTE: http:// LAN logins no longer persist the cookie — use the HTTPS domain.
 - [x] SelectProfile.jsx deleted (dead code, fake student profiles); bundle clean, build passes
-- [x] Test-count truth: 110 before this session (checklist's 98 was stale), 112 now; "slow" seed tests are inherent bcrypt work-factor (max 2.15s, suite 22s on .101); bcrypt==4.0.1 confirmed installed
+- [x] Test-count truth: current complete suite is 151 passing as of 2026-07-19; historical totals are retained only in dated loop-log entries
 - [x] "All Weeks" view with per-week collapse/expand + Expand All/Collapse All on Tickets/Quizzes/Labs/Capstones pages (Codex-implemented, reviewed; CLI Labs & Learning Path have no week filter — out of scope); deployed to nginx container
 
 ## Go-live Day-1 + grader/smoke session update (2026-07-17)
 DONE (verified on .101, see tasks/loop-log.md):
-- [x] Day 1 of NEXUS_GO_LIVE_CHECKLIST.md — 24-week build deployed, fresh DB migrated+seeded, 98/98 tests, frontend built, service restarted, admin login + 25 modules verified
+- [x] Day 1 of NEXUS_GO_LIVE_CHECKLIST.md — 24-week build deployed, fresh DB migrated+seeded, frontend built, service restarted, admin login + 25 modules verified; current suite is 151 passing
 - [x] Real-AI grader calibration RUN against live Ollama (deepseek-r1:32b): **NEEDS TUNING** — strong=10 OK, weak=2 OK, unsafe=1 OK, malicious=1 OK, incomplete=6 (expected ≤5; its verification anchor correctly 0). One band miss; prompt/model tweak pending.
 - [x] AI grader JSON parsing fixed: `extract_json_payload()` restored in ai_service (json_mode), `_strip_think_tags` belt-and-suspenders in ticket_grader — Ollama ignores `response_format: json_object`
 - [x] Calibration script: 25s spacing between fixtures + self-reset of user-0 rate counters (8/day cap made re-runs impossible)
@@ -48,56 +72,59 @@ DONE (verified, tested — see tasks/loop-log.md for evidence):
 - P1: multi-select set grading; per-attempt quiz history (uq_student_quiz dropped); study-tracker "Bearer anything" bypass closed; weak deterministic admin session replaced with random expiring sessions; evidence ownership + 10MB size cap (IDOR closed)
 - Ollama/OpenAI-compatible AI config (AI_BASE_URL/AI_MODEL/AI_API_KEY) + calibration script (NOT yet run against live AI)
 - Six-role ladder + Gate 1 & Gate 2 seeded, enforced, pass/fail tested
-- Weeks 1-8 content fully seeded: 9 modules, 24 lessons, 9 quizzes/71 questions, 26 tickets incl. Simulations 1 & 2 with hints/anchors/parameters
+- Full 24-week seed verified: 25 modules, 63 lessons, 25 quizzes/189 questions, 48 tickets, 5 lab templates, 48 networking CLI labs, and 3 capstones
 - "This Week" dashboard (API + panel), ticket hint UI, drift fix (quizzes.status)
 
 STILL OPEN (unchanged priority):
-- Proxmox/Guacamole P0 set (encoding, admin token, sync provisioning, session recovery) — still blocks AUTO-VM only; Weeks 1-8 do not depend on it
+- Proxmox/Guacamole application P0s are fixed; only a live-infrastructure isolation/lifecycle smoke test blocks AUTO-VM cohort use
 - Real-AI grader calibration run (needs the Ollama VM)
 - Weeks 9-24 content (Phase C onward)
 
 # TASKS.md — Nexus Backlog
 
-Source: full project audit 2026-06-11 (see `docs/vision-gap-review.md` for the earlier review).
+Source: full project audit 2026-06-11 (historical reviews are in `docs/archive/`).
 Priority order. Pick the top unchecked item unless told otherwise. Reference lines may drift — verify before editing.
 
 ---
 
 ## P0 — Broken / data-risk (fix before anything else)
 
-- [ ] **Fix Guacamole client URL encoding** — `guacamole_service.py:get_token_url` builds `base64("c/{conn_id}")`; Guacamole expects `base64("{identifier}\0c\0{datasource}")` (NUL-separated, datasource e.g. `postgresql`). Iframe is broken until this is fixed.
-- [ ] **Stop handing students the Guacamole admin token** — `get_token_url` authenticates as `GUACAMOLE_ADMIN_USER` and embeds that token in the student URL. Create a per-student (or per-assignment) Guacamole user via REST, grant it only its own connection, return that user's token.
-- [ ] **Make VM provisioning async** — `labs.py:_provision_vm` blocks the worker up to 120s+ (`proxmox_service.get_vm_ip` poll) vs the frontend's 30s axios timeout. Return `202 provisioning` immediately, move clone/start/IP-wait to a background task, add `GET /api/labs/{id}/vm-status` for the frontend to poll, render iframe when `running`.
-- [ ] **Return existing VM connection info from `GET /labs/{id}`** — `guacUrl` lives only in React state (`LabPage.jsx`); page refresh during `in_progress` locks the student out of their running VM.
-- [ ] **Verify Railway persistence** — uploads write to local disk (`labs.py`, `tickets.py`, `evidence.py`); Railway FS is ephemeral. Mount a Railway volume for `UPLOAD_DIR` or move to Supabase Storage. Confirm prod `DATABASE_URL` points at Supabase, not SQLite.
-- [ ] **Remove `seed_students()` from `main.py`** — creates 5 phantom students (Alex/Jordan/Sam/Taylor/Riley, no credentials) on empty DB; pollutes leaderboard/squad/cohort stats. `scripts/seed_users.py` is the only seeder. Purge ghost rows from existing DBs.
-- [ ] **Make `ai_service` import-safe** — module-level `raise` when `OPENROUTER_MODEL` unset kills app boot (import chain: main → tickets → ticket_grader → ai_service). Move the check into `call_ai()`.
+- [x] **Fix Guacamole client URL encoding** — DONE 2026-07-19: Guacamole 1.6.0 NUL-separated connection identifiers use deterministic unpadded base64url encoding and are unit-tested.
+- [x] **Stop handing students the Guacamole admin token** — DONE 2026-07-19: each access request rotates a random temporary user with READ permission on only its assignment connection; administrator credentials/tokens remain server-side and temporary users are deleted during cleanup.
+- [x] **Make VM provisioning async** — DONE 2026-07-19: start persists a duplicate-protected assignment and returns 202, a background task uses its own DB session through all provisioning states, polling reports safe failures, and cleanup is asynchronous.
+- [x] **Return existing VM connection info from `GET /labs/{id}`** — DONE 2026-07-19: persisted VM/IP/connection/status/error/start/expiry state survives refresh; the frontend resumes polling and obtains fresh scoped access without creating another VM.
+- [x] **Verify production persistence** — DONE 2026-07-17: Railway/Supabase plans were dropped; active production is self-hosted SQLite with all upload routes honoring persistent `UPLOAD_DIR`, plus nightly online SQLite and uploads backups via `scripts/backup_sqlite.sh`.
+- [x] **Remove `seed_students()` from `main.py`** — DONE 2026-07-17: only `scripts/seed_users.py` creates cohort accounts; legacy phantom rows were purged.
+- [x] **Make `ai_service` import-safe** — DONE 2026-07-10: backend boots without AI configuration and AI calls fail cleanly when disabled/unconfigured.
 
 ## P1 — Security / correctness
 
+- [x] **Organize audited quiz corpus** — DONE 2026-07-19: Alembic 0029 adds required/practice/remediation/cumulative/gate/certification metadata; progression counts only active validated checklist quizzes; 120 confirmed imported key failures and unsafe swollen-battery guidance were corrected; all 104 quizzes and 967 questions were preserved.
 - [x] **Fix `allow_admin_or_student` bearer bypass** — DONE (Part 9: JWT now verified). 2026-07-18: also accepts the httpOnly `student_session` cookie — study-tracker no longer 401s after page refresh (regression tests in test_security_part9.py).
-- [ ] **Fix multi-select grading** — `quizzes.py:submit_quiz`: single-letter answer to a multi-select question is graded `in correct_letters` → full credit for partial answer. Always compare as sets when `is_multi_select`.
-- [ ] **Harden admin session** — token is unsalted deterministic `sha256(password)` with no server-side expiry; comparisons are non-constant-time `==`; auth logs leak secret lengths. Use a random/signed token, `secrets.compare_digest`, drop the length logging.
-- [ ] **Evidence upload limits + ownership** — `labs.py` evidence and `evidence.py` have no file-size cap (tickets has 5MB); `evidence.py` lets any student attach evidence to any ticket_id. Add size cap + ownership check. Note `EvidenceArtifact.submission_id` means ticket_id for tickets but lab_run_id for labs — document or fix.
-- [ ] **Per-attempt quiz history** — retakes overwrite the single `QuizAttempt` row; "attempts" list is fiction and speed-flag evidence can be laundered by a slow retake. Insert a new row per attempt.
-- [ ] **Remove localStorage-driven mentor admin shell** — `AdminAccessGate.jsx` renders admin pages when client-writable `selected_profile.is_mentor` is true. Contradicts "mentor cannot access admin panel". Backend already blocks the APIs; clean up the gate.
+- [x] **Fix multi-select grading** — DONE 2026-07-10: multi-select answers are exact-set graded with regression coverage.
+- [x] **Harden admin session** — DONE 2026-07-10: random expiring/revocable server-side sessions, timing-safe comparisons, and no secret-length logging.
+- [x] **Evidence upload limits + ownership** — DONE 2026-07-19: lab and ticket evidence enforce a 10 MB cap, bounded reads, type checks, ownership, uploader IDs, empty-file rejection, safe names, and failed-save cleanup. `EvidenceArtifact.submission_type` disambiguates whether `submission_id` is a ticket or lab run.
+- [x] **Per-attempt quiz history** — DONE 2026-07-10: each retake inserts its own row; best-score mastery and first-attempt-only XP are preserved.
+- [x] **Remove localStorage-driven mentor admin shell** — DONE 2026-07-19: admin pages and navigation now require the protected backend admin-session status; forged mentor profiles and student JWTs do not authenticate admin routes.
 
 ## P2 — Lighter / cheaper
 
-- [ ] **Swap AI to local Ollama** — make the chat-completions base URL configurable in `ai_service.py` (`AI_BASE_URL`), point at Ollama's OpenAI-compatible endpoint over Tailscale. Keep budget/rate-limit/logging plumbing. Calibrate grading prompts against known-good writeups on the chosen local model.
-- [ ] **Move Playwright out of prod requirements** — only used for occasional admin scraping; bloats the Railway image. `requirements-dev.txt` or run locally.
-- [ ] **Linked clones** — `proxmox_service.clone_template` uses `full=1`; use linked clones for seconds-fast, disk-cheap provisioning.
-- [ ] **Lazy-load admin routes** — `React.lazy` the 11 admin pages; kills the >500kB bundle warning.
-- [ ] **`datetime.utcnow()` sweep** — rate_limiter, activity_service, admin_content, students, tickets; replace with `datetime.now(timezone.utc)` before Supabase cutover. Also `ai_service._today_window()` uses local time for the daily budget window.
+- [x] **Update vulnerable frontend dependencies** — DONE 2026-07-19: Axios and React Router patched within their existing majors; vulnerable Vite/Rollup/PostCSS/Babel/transitive packages refreshed; `npm audit` reports zero vulnerabilities and the production build passes.
+
+- [x] **Swap AI to local Ollama** — DONE 2026-07-17: configurable OpenAI-compatible endpoint targets local Ollama and the five-fixture grader calibration passed.
+- [x] **Move Playwright out of prod requirements** — DONE 2026-07-19: retained in `requirements-dev.txt`, documented Chromium setup, and proved a fresh production-only environment imports the backend with Playwright absent.
+- [x] **Linked clones** — DONE 2026-07-19: `PROXMOX_FULL_CLONE=false` requests linked clones on supported LVM-thin/ZFS/RBD/Btrfs storage, otherwise logs a full-clone fallback; Proxmox API arguments are tested.
+- [x] **Lazy-load admin routes** — DONE 2026-07-19: 12 admin pages emit as separate Vite chunks; main JS dropped from 1,083.71 kB to 976.00 kB. The remaining large-chunk warning is student/shared code, not eager admin code.
+- [x] **`datetime.utcnow()` sweep** — DONE 2026-07-19: application code uses timezone-aware UTC, the AI budget window is UTC, and legacy naive activity timestamps are normalized before comparison.
 
 ## P3 — Maintainability / cleanup
 
-- [ ] Pydantic schemas for admin CRUD (`admin_content.py` takes raw dicts everywhere)
-- [ ] Replace `python-jose` with PyJWT; delete the fallback crypto shims in `auth_service.py`
-- [ ] Delete dead code: ~~`SelectProfile.jsx`~~ (deleted 2026-07-18 — zero imports/routes confirmed, fake Alex/Jordan/Sam/Taylor/Riley profiles gone from bundle), `components/Dashboard.jsx`, `QuizList.jsx`, `Leaderboard.jsx`, `tmp_bookmarklet.js`
-- [ ] Fix hardcoded `week_number = 1` in `students.py` stats
-- [ ] Prune old `AIRateLimit` rows (unbounded growth)
-- [ ] Unify on `httpx` (guacamole_service still uses `requests`)
+- [x] Pydantic schemas for admin CRUD — DONE 2026-07-19: major create/update/import endpoints use bounded, extra-forbidden typed schemas with 1–24 week and 1–5 difficulty validation.
+- [x] Replace `python-jose` with PyJWT — DONE 2026-07-19: explicit HMAC algorithm allowlist with valid/expired/bad-signature/malformed/unsigned tests; fallback JWT shim removed.
+- [x] Delete dead code — DONE 2026-07-19 after reference searches: `SelectProfile.jsx`, `components/Dashboard.jsx`, `QuizList.jsx`, `Leaderboard.jsx`, and root `tmp_bookmarklet.js` are gone.
+- [x] Fix hardcoded `week_number = 1` in `students.py` stats — DONE 2026-07-19: stats reuse the existing progression-week derivation; Weeks 1, 2, and 5 tested with a legacy naive student timestamp.
+- [x] Prune old `AIRateLimit` rows — DONE 2026-07-19: bounded seven-day cleanup runs at most hourly per worker; active and expired records plus throttling are tested.
+- [x] Unify on `httpx` — DONE 2026-07-19: Guacamole uses one reusable client with explicit connect/read/write/pool timeouts; application imports no `requests`.
 - [ ] Weekly mentor digest: `/api/admin/weekly-summary` + scheduled Discord post (n8n or GitHub Actions)
 
 ## P4 — Sidecar deployment (on Proxmox, outside this repo)
@@ -111,6 +138,8 @@ Deploy in teaching-value order; document config in CLAUDE.md when done.
 - [ ] Netdata / Uptime Kuma — as student lab content, not maintained infra
 
 ## Content backlog (highest job-readiness value)
+
+- [ ] **Quiz editorial follow-up** — review the remaining 634 optional imported questions, add explanations in priority order, and approve any future answer-position rebalance through a stable seed/live mapping. Keep the proposed 60 scenario questions as a separate approved phase.
 
 ### CLI lesson packs (SwitchLab courses — source MD in `references/lesson-drafts/`)
 

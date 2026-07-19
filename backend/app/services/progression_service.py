@@ -81,6 +81,8 @@ def check_promotion_eligibility(student_id: int, target_role_id: int, db: Sessio
             result = _check_cli_labs_requirement(student_id, config, db)
         elif req_type == "no_unresolved_flags":
             result = _check_no_flags(student_id, config, db)
+        elif req_type == "required_quiz":
+            result = _check_required_quiz(student_id, config, db)
         else:
             # Unknown types are ignored for forward-compatibility, and must not
             # count toward the completion denominator (previously they did,
@@ -135,6 +137,24 @@ def _role_dict(role: Role | None) -> dict | None:
         "name": role.name,
         "rank_order": role.rank_order,
         "description": role.description,
+    }
+
+
+def _check_required_quiz(student_id: int, config: dict, db: Session) -> dict:
+    from app.services.quiz_progression import is_quiz_passed, required_quizzes_for_week
+
+    week = int((config or {}).get("week", -1))
+    gate_quizzes = [quiz for quiz in required_quizzes_for_week(db, week) if quiz.quiz_purpose == "gate"]
+    passed = bool(gate_quizzes) and all(is_quiz_passed(db, student_id, quiz) for quiz in gate_quizzes)
+    return {
+        "type": "required_quiz",
+        "description": f"Pass the Week {week} promotion-gate quiz",
+        "progress": {
+            "week": week,
+            "required": len(gate_quizzes),
+            "passed": sum(is_quiz_passed(db, student_id, quiz) for quiz in gate_quizzes),
+        },
+        "met": passed,
     }
 
 

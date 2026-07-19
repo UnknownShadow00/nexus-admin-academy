@@ -1,6 +1,6 @@
 import hashlib
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -46,8 +46,11 @@ def validate_evidence_artifact(
         if timestamp:
             try:
                 parsed = _parse_timestamp(timestamp)
-                if parsed and datetime.now() - parsed > timedelta(days=7):
-                    issues.append(f"Screenshot too old: {timestamp}")
+                if parsed:
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                    if datetime.now(timezone.utc) - parsed > timedelta(days=7):
+                        issues.append(f"Screenshot too old: {timestamp}")
             except Exception:
                 pass
 
@@ -107,4 +110,3 @@ def _parse_timestamp(raw: str) -> datetime | None:
         except ValueError:
             continue
     return None
-

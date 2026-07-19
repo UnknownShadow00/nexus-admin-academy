@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -11,7 +11,7 @@ def mark_student_active(db: Session, student_id: int) -> None:
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         return
-    student.last_active_at = datetime.utcnow()
+    student.last_active_at = datetime.now(timezone.utc)
     db.commit()
 
 

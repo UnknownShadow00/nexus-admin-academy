@@ -4,6 +4,26 @@ Format: small confirmatory steps. Each ☐ has a **VERIFY** line — paste that
 output back to Claude/Claude Code if anything looks off before moving on.
 Don't skip verifies; they're the difference between "deployed" and "hoping."
 
+## CURRENT RELEASE CHECKPOINT — 2026-07-19
+
+The manual-cohort release checks pass (`154 passed`, Alembic `0028`, zero npm
+vulnerabilities, successful frontend and networking CLI builds), and the
+release candidate is deployed on `.101`:
+
+- the remote Ollama model is reachable, calibrated, and live ticket grading passes;
+- `POST /api/admin/students`, login, supported deletion, and ID reuse pass after
+  the controlled five-row orphan repair;
+- SQLite application connections enforce foreign keys and both integrity checks
+  are clean;
+- all additional curriculum records are inventoried read-only in
+  `docs/PRODUCTION_CONTENT_INVENTORY.md`;
+- automated labs remain disabled (zero published automated templates, incomplete
+  Proxmox/Guacamole configuration).
+
+The repair backup is under `/home/nexus/backups/nexus-launch-fix-20260719T100246Z/`.
+The project is ready for the manual-VM cohort; do not publish automated VM labs
+until their separate real-infrastructure acceptance test passes.
+
 ---
 
 ## DAY 1 — Deploy the new repo to .101 (nexus-services)
@@ -52,7 +72,7 @@ Study Tracker shows nothing without this step.
 ```bash
 python -m pytest tests/ -q
 ```
-**VERIFY:** `112 passed, 0 failed` (count as of 2026-07-18; was 98 at go-live — +10 username-case, +2 study-tracker restore, +2 study-tracker auth regression). Anything else → stop, paste it back.
+**VERIFY:** `151 passed, 0 failed` (verified 2026-07-19). Anything else → stop and investigate the exact failure.
 
 ☐ 6. Frontend build + serve:
 ```bash
@@ -63,7 +83,7 @@ cd ../frontend && npm ci && npm run build
 ☐ 7. Restart your services (docker compose / systemd — however you run it).
 **VERIFY:** log into the web UI as admin; you can see modules MOD-000 → MOD-024.
 
-**Day 1 done when:** admin login works, 25 modules visible, 112 tests green on .101 (98 at original go-live).
+**Day 1 done when:** admin login works, 25 modules are visible, all 151 current tests are green, and Alembic reports `0028 (head)`.
 
 ---
 
@@ -128,7 +148,7 @@ AI_MODEL=llama3.1:70b
 ```
 (no AI_API_KEY needed for local Ollama). Restart the backend.
 
-☐ 4. **CALIBRATE — this has never been run against a live model:**
+☐ 4. **RE-CALIBRATE after changing the model or grader prompt:**
 ```bash
 cd backend && python scripts/calibrate_grader.py
 ```
@@ -156,6 +176,8 @@ cd backend && python scripts/calibrate_grader.py
 ☐ 3. Take the "Ticket Writing Fundamentals" quiz — deliberately retake it.
 **VERIFY:** both attempts appear in history; best score kept; XP only from
 attempt one.
+
+☐ 3a. Verify quiz organization with a disposable student: the required quiz appears in **Required This Week**, optional practice appears in **Practice This Week**, remediation is hidden until assigned/triggered, and certification banks appear only in the optional certification library. Confirm an incomplete required quiz blocks the week while optional/certification attempts do not.
 
 ☐ 4. Open the DNS ticket, reveal ONE hint.
 **VERIFY:** cost was shown BEFORE reveal; hint text has your student-specific
@@ -186,8 +208,9 @@ day-one handouts. Adjust anything that doesn't match your setup.
 ☐ 4. Schedule the Week-1 kickoff call (guide's day-one talking points:
 tickets are the product, escalation is a win, verification is mandatory,
 hints cost XP, tickets are individually parametrized).
-☐ 5. Backups: confirm nightly `pg_dump` (or Supabase backups) actually runs,
-and `UPLOAD_DIR` is on persistent storage.
+☐ 5. Backups: confirm `scripts/backup_sqlite.sh` runs nightly and both its
+SQLite online backup and uploads copy are present. (`scripts/backup_db.sh` is
+only for an intentional Docker/PostgreSQL deployment.)
 **VERIFY:** restore one table from last night's dump to a scratch DB — the
 Week-17 lesson applies to you too: an untested backup is a hope.
 ☐ 6. Update loop-log.md: deployment date, calibration results, launch date.
@@ -198,8 +221,10 @@ are proven restorable.
 ---
 
 ## PARKED (do not block launch on these)
-- Proxmox/Guacamole AUTO-VM P0s — manual-VM paths cover Weeks 13-24; revisit
-  around Week 10 of the cohort at the earliest.
+- The 60 proposed scenario-based quiz gap questions; do not create them until the quiz placement/results plan is reviewed after launch readiness.
+- Proxmox/Guacamole AUTO-VM infrastructure acceptance — application P0s are
+  fixed, but manual-VM paths remain the launch default until a real isolated
+  start/connect/refresh/expiry/destroy smoke test passes.
 - learn-routing CLI engine — Packet Tracer fallback stands for Week 11.
 - Interactive Ollama-roleplay tickets, Ludus break-fix pipeline, monthly
   research pipeline — post-launch enhancements.

@@ -1,13 +1,14 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import logging
 import os
 from pathlib import Path
 import uuid
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Response, UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import SessionLocal, get_db
 from app.models.evidence import EvidenceArtifact
 from app.models.lab import LabRun, LabTemplate
 from app.models.student import Student
@@ -22,6 +23,17 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/labs", tags=["labs"])
 ALLOWED_EVIDENCE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+ALLOWED_EVIDENCE_MIMES = {"image/jpeg", "image/png", "image/webp"}
+MAX_EVIDENCE_UPLOAD_BYTES = int(os.getenv("MAX_EVIDENCE_UPLOAD_BYTES", str(10 * 1024 * 1024)))
+UPLOAD_CHUNK_BYTES = 1024 * 1024
+ACTIVE_VM_STATUSES = {
+    "provisioning",
+    "starting",
+    "waiting_for_ip",
+    "configuring_connection",
+    "running",
+    "destroying",
+}
 
 
 def _normalize_hints(value):
@@ -64,6 +76,32 @@ def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
     }
 
 
+def _as_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _serialize_vm(assignment: VmAssignment | None) -> dict | None:
+    if assignment is None:
+        return None
+    return {
+        "assignment_id": assignment.id,
+        "vmid": assignment.vmid,
+        "status": assignment.status,
+        "ip_address": assignment.ip_address,
+        "provisioning_error": assignment.provisioning_error,
+        "started_at": assignment.started_at,
+        "expires_at": assignment.expires_at,
+    }
+
+
+def _assignment_for_run(db: Session, run_id: int) -> VmAssignment | None:
+    return db.query(VmAssignment).filter(VmAssignment.lab_run_id == run_id).first()
+
+
 def _screenshots_dir() -> Path:
     configured = os.getenv("UPLOAD_DIR")
     path = (Path(configured) / "screenshots") if configured else Path(__file__).resolve().parents[2] / "uploads" / "screenshots"
@@ -98,113 +136,139 @@ def _get_lab_run(db: Session, lab_id: int, student_id: int) -> LabRun | None:
     )
 
 
-def _provision_vm(db: Session, lab: LabTemplate, run: LabRun) -> dict:
-    existing = db.query(VmAssignment).filter(
-        VmAssignment.lab_run_id == run.id,
-        VmAssignment.status != "destroyed",
-    ).first()
-    if existing:
-        if existing.status == "failed":
-            raise HTTPException(status_code=502, detail="Lab VM provisioning previously failed. Ask an admin to clean up this VM assignment.")
-        try:
-            from app.services import guacamole_service
+def _safe_provisioning_error(exc: Exception) -> str:
+    if isinstance(exc, TimeoutError):
+        return "Lab environment provisioning timed out. Please contact an administrator."
+    return "Lab environment provisioning failed. Please contact an administrator."
 
-            if existing.guac_conn_id:
-                return {
-                    "guac_token_url": guacamole_service.get_token_url(existing.guac_conn_id),
-                    "vmid": existing.vmid,
-                    "vm_status": existing.status,
-                }
-            if existing.ip_address:
-                conn_id = guacamole_service.create_connection(existing.ip_address, existing.vmid)
-                existing.guac_conn_id = conn_id
-                existing.status = "running"
-                db.commit()
-                return {
-                    "guac_token_url": guacamole_service.get_token_url(conn_id),
-                    "vmid": existing.vmid,
-                    "vm_status": existing.status,
-                }
-        except Exception as exc:
-            logger.warning("Could not get token url for existing VM assignment %s: %s", existing.id, exc)
-        raise HTTPException(status_code=502, detail="Lab VM exists but no remote session is available yet.")
 
-    assignment = None
+def _provision_vm_task(assignment_id: int) -> None:
+    """Provision a VM using a worker-owned database session."""
+    db = SessionLocal()
     try:
-        from app.services import proxmox_service, guacamole_service
+        assignment = (
+            db.query(VmAssignment)
+            .filter(VmAssignment.id == assignment_id)
+            .with_for_update()
+            .first()
+        )
+        if not assignment or assignment.status != "provisioning" or assignment.retry_count > 0:
+            return
+        assignment.retry_count += 1
+        db.commit()
+        run = db.query(LabRun).filter(LabRun.id == assignment.lab_run_id).first()
+        lab = db.query(LabTemplate).filter(LabTemplate.id == run.lab_template_id).first() if run else None
+        if not run or not lab or not lab.proxmox_template_vmid:
+            raise RuntimeError("VM assignment is missing its lab template")
+
+        from app.services import guacamole_service, proxmox_service
 
         name = f"lab-{lab.id}-student-{run.student_id}-run-{run.id}"
         vmid = proxmox_service.clone_template(lab.proxmox_template_vmid, name)
-        assignment = VmAssignment(
-            vmid=vmid,
-            student_id=run.student_id,
-            lab_run_id=run.id,
-            status="provisioning",
-        )
-        db.add(assignment)
+        assignment.vmid = vmid
+        assignment.status = "starting"
         db.commit()
-        db.refresh(assignment)
 
         proxmox_service.start_vm(vmid)
+        assignment.status = "waiting_for_ip"
+        db.commit()
+
         ip = proxmox_service.get_vm_ip(vmid)
         if not ip:
-            assignment.status = "failed"
-            db.commit()
-            raise HTTPException(status_code=502, detail="Lab VM started but did not report an IP address.")
+            raise TimeoutError("VM did not report an IP address")
+        assignment.ip_address = ip
+        assignment.status = "configuring_connection"
+        db.commit()
 
         conn_id = guacamole_service.create_connection(ip, vmid)
-        if not conn_id:
-            assignment.status = "failed"
-            assignment.ip_address = ip
-            db.commit()
-            raise HTTPException(status_code=502, detail="Lab VM remote connection could not be created.")
-
-        assignment.status = "running"
-        assignment.ip_address = ip
+        now = datetime.now(UTC)
         assignment.guac_conn_id = conn_id
+        assignment.status = "running"
+        assignment.started_at = now
+        assignment.expires_at = now + timedelta(minutes=max(1, int(os.getenv("LAB_VM_TTL_MINUTES", "120"))))
+        assignment.provisioning_error = None
         db.commit()
-        return {
-            "guac_token_url": guacamole_service.get_token_url(conn_id),
-            "vmid": assignment.vmid,
-            "vm_status": assignment.status,
-        }
-    except HTTPException:
-        raise
     except Exception as exc:
-        if assignment is not None:
+        db.rollback()
+        assignment = db.query(VmAssignment).filter(VmAssignment.id == assignment_id).first()
+        if assignment and assignment.status != "destroyed":
             assignment.status = "failed"
+            assignment.provisioning_error = _safe_provisioning_error(exc)
             db.commit()
-        logger.error("VM provisioning failed for lab_run %s: %s", run.id, exc)
-        raise HTTPException(status_code=502, detail="Lab VM provisioning failed.")
+        logger.exception("VM provisioning failed for assignment %s", assignment_id)
+    finally:
+        db.close()
 
 
-def _destroy_vm_if_assigned(db: Session, lab_run_id: int) -> None:
-    assignment = db.query(VmAssignment).filter(
-        VmAssignment.lab_run_id == lab_run_id,
-        VmAssignment.status != "destroyed",
-    ).first()
-    if not assignment:
-        return
-
+def _destroy_vm_task(assignment_id: int) -> None:
+    db = SessionLocal()
     try:
-        from app.services import proxmox_service
-        proxmox_service.destroy_vm(assignment.vmid)
-    except Exception as exc:
-        logger.warning("Failed to destroy VM %s: %s", assignment.vmid, exc)
-        assignment.status = "failed"
+        assignment = db.query(VmAssignment).filter(VmAssignment.id == assignment_id).first()
+        if not assignment or assignment.status == "destroyed":
+            return
+        from app.services import guacamole_service, proxmox_service
+
+        cleanup_errors = []
+        if assignment.guac_username:
+            try:
+                guacamole_service.delete_user(assignment.guac_username)
+            except Exception as exc:
+                cleanup_errors.append(exc)
+        if assignment.guac_conn_id:
+            try:
+                guacamole_service.delete_connection(assignment.guac_conn_id)
+            except Exception as exc:
+                cleanup_errors.append(exc)
+        if assignment.vmid is not None:
+            try:
+                proxmox_service.destroy_vm(assignment.vmid)
+            except Exception as exc:
+                cleanup_errors.append(exc)
+
+        if cleanup_errors:
+            assignment.status = "failed"
+            assignment.provisioning_error = "Lab environment cleanup failed. Please contact an administrator."
+            db.commit()
+            logger.warning("VM cleanup failed for assignment %s", assignment_id)
+            return
+        assignment.status = "destroyed"
+        assignment.guac_username = None
+        assignment.destroyed_at = datetime.now(UTC)
         db.commit()
-        return
+    finally:
+        db.close()
 
-    if assignment.guac_conn_id:
-        try:
-            from app.services import guacamole_service
-            guacamole_service.delete_connection(assignment.guac_conn_id)
-        except Exception as exc:
-            logger.warning("Failed to delete Guacamole connection %s: %s", assignment.guac_conn_id, exc)
 
-    assignment.status = "destroyed"
-    assignment.destroyed_at = datetime.now(UTC)
-    db.commit()
+def _queue_assignment(db: Session, run: LabRun, background_tasks: BackgroundTasks) -> VmAssignment:
+    # Locks the run on databases which support row locks. The unique constraint
+    # on lab_run_id is the final duplicate-start guard.
+    db.query(LabRun).filter(LabRun.id == run.id).with_for_update().first()
+    existing = _assignment_for_run(db, run.id)
+    if existing:
+        if existing.status in ACTIVE_VM_STATUSES:
+            return existing
+        if existing.status == "failed":
+            raise HTTPException(status_code=409, detail="Lab VM provisioning failed. Ask an administrator to retry it.")
+        raise HTTPException(status_code=409, detail="This lab environment has ended and cannot be restarted.")
+
+    assignment = VmAssignment(
+        student_id=run.student_id,
+        lab_run_id=run.id,
+        status="provisioning",
+        provisioning_started_at=datetime.now(UTC),
+    )
+    db.add(assignment)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = _assignment_for_run(db, run.id)
+        if existing:
+            return existing
+        raise
+    db.refresh(assignment)
+    background_tasks.add_task(_provision_vm_task, assignment.id)
+    return assignment
 
 
 @router.get("")
@@ -251,14 +315,18 @@ def get_lab(
             .all()
         )
         data["evidence_artifacts"] = [_serialize_artifact(artifact) for artifact in artifacts]
+        data["vm_assignment"] = _serialize_vm(_assignment_for_run(db, run.id))
     else:
         data["evidence_artifacts"] = []
+        data["vm_assignment"] = None
     return ok(data)
 
 
 @router.post("/{lab_id}/start")
 def start_lab(
     lab_id: int,
+    background_tasks: BackgroundTasks,
+    response: Response,
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
@@ -290,15 +358,79 @@ def start_lab(
 
     vm_data = {}
     if lab.proxmox_template_vmid:
-        vm_data = _provision_vm(db, lab, run)
+        assignment = _queue_assignment(db, run, background_tasks)
+        response.status_code = 202
+        vm_data = {"vm_assignment": _serialize_vm(assignment)}
 
     return ok({"created": created, **vm_data, **_serialize_lab(lab, run)})
+
+
+@router.get("/{lab_id}/vm-status")
+def get_vm_status(
+    lab_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    _get_published_lab(db, lab_id)
+    run = _get_lab_run(db, lab_id, current_student.id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Lab run not found")
+    assignment = _assignment_for_run(db, run.id)
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Lab environment not found")
+    expires_at = _as_utc(assignment.expires_at)
+    if assignment.status == "running" and expires_at and expires_at <= datetime.now(UTC):
+        assignment.status = "destroying"
+        db.commit()
+        background_tasks.add_task(_destroy_vm_task, assignment.id)
+    return ok(_serialize_vm(assignment))
+
+
+@router.post("/{lab_id}/vm-access")
+def create_vm_access(
+    lab_id: int,
+    background_tasks: BackgroundTasks,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    _get_published_lab(db, lab_id)
+    run = _get_lab_run(db, lab_id, current_student.id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Lab run not found")
+    assignment = _assignment_for_run(db, run.id)
+    expires_at = _as_utc(assignment.expires_at) if assignment else None
+    if not assignment or assignment.status != "running" or not assignment.guac_conn_id:
+        raise HTTPException(status_code=409, detail="Lab environment is not ready")
+    if expires_at and expires_at <= datetime.now(UTC):
+        assignment.status = "destroying"
+        db.commit()
+        background_tasks.add_task(_destroy_vm_task, assignment.id)
+        response.status_code = 410
+        return ok({"status": "destroying", "message": "Lab environment has expired"})
+
+    try:
+        from app.services import guacamole_service
+
+        access = guacamole_service.create_scoped_access(
+            assignment.guac_conn_id,
+            assignment.id,
+            assignment.guac_username,
+        )
+    except Exception as exc:
+        logger.exception("Could not create scoped remote access for assignment %s", assignment.id)
+        raise HTTPException(status_code=502, detail="Remote lab access is temporarily unavailable") from exc
+    assignment.guac_username = access["username"]
+    db.commit()
+    return ok({"url": access["url"], "expires_at": assignment.expires_at})
 
 
 @router.post("/{lab_id}/submit")
 def submit_lab(
     lab_id: int,
     payload: LabSubmitRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
@@ -328,7 +460,11 @@ def submit_lab(
 
     db.commit()
     db.refresh(run)
-    _destroy_vm_if_assigned(db, run.id)
+    assignment = _assignment_for_run(db, run.id)
+    if assignment and assignment.status not in {"destroyed", "destroying"}:
+        assignment.status = "destroying"
+        db.commit()
+        background_tasks.add_task(_destroy_vm_task, assignment.id)
     mark_student_active(db, current_student.id)
     log_activity(db, current_student.id, "lab_submitted", lab.title, "Lab submitted")
     return ok(_serialize_lab(lab, run))
@@ -352,24 +488,45 @@ async def upload_lab_evidence(
     ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else ""
     if ext not in ALLOWED_EVIDENCE_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported file extension")
+    if file.content_type not in ALLOWED_EVIDENCE_MIMES:
+        raise HTTPException(status_code=415, detail="Unsupported MIME type")
 
     storage_name = f"{uuid.uuid4()}.{ext}"
     dest = (_screenshots_dir() / storage_name).resolve()
-    data = await file.read()
-    with open(dest, "wb") as handle:
-        handle.write(data)
+    file_size = 0
+    try:
+        with dest.open("xb") as handle:
+            while chunk := await file.read(UPLOAD_CHUNK_BYTES):
+                file_size += len(chunk)
+                if file_size > MAX_EVIDENCE_UPLOAD_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File exceeds {MAX_EVIDENCE_UPLOAD_BYTES // (1024 * 1024)} MB limit",
+                    )
+                handle.write(chunk)
+        if file_size == 0:
+            raise HTTPException(status_code=400, detail="Empty files are not allowed")
+    except Exception:
+        dest.unlink(missing_ok=True)
+        raise
 
     artifact = EvidenceArtifact(
+        student_id=current_student.id,
         submission_type="lab",
         submission_id=run.id,
         artifact_type=artifact_type or "screenshot",
         storage_key=storage_name,
         original_filename=file.filename,
-        file_size_bytes=len(data),
+        file_size_bytes=file_size,
         mime_type=file.content_type,
     )
-    db.add(artifact)
-    db.commit()
-    db.refresh(artifact)
+    try:
+        db.add(artifact)
+        db.commit()
+        db.refresh(artifact)
+    except Exception:
+        db.rollback()
+        dest.unlink(missing_ok=True)
+        raise
 
     return ok({"artifact_id": artifact.id, "storage_key": artifact.storage_key})

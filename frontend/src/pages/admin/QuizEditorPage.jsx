@@ -17,12 +17,14 @@ export default function QuizEditorPage() {
   const [titleSaved, setTitleSaved] = useState(false);
   const [titleError, setTitleError] = useState("");
   const [flaggedAttempts, setFlaggedAttempts] = useState([]);
+  const [organizationSaving, setOrganizationSaving] = useState(false);
+  const [organizationMessage, setOrganizationMessage] = useState("");
 
   useEffect(() => {
     const run = async () => {
       const res = await getQuizQuestions(quizId);
       const nextTitle = res.data?.title || "";
-      setQuiz({ title: nextTitle, status: res.data?.status || "draft" });
+      setQuiz(res.data || { title: nextTitle, status: "draft" });
       setTitleEdit(nextTitle);
       setQuestions(res.data?.questions || []);
       getAdminFlaggedAttempts({ suppressToast: true })
@@ -64,6 +66,30 @@ export default function QuizEditorPage() {
     } finally {
       setTitleSaving(false);
     }
+  };
+
+  const updateOrganization = (field, value) => setQuiz((current) => ({ ...current, [field]: value }));
+
+  const saveOrganization = async () => {
+    setOrganizationSaving(true);
+    setOrganizationMessage("");
+    try {
+      const payload = {
+        week_number: Number(quiz.week_number), quiz_purpose: quiz.quiz_purpose,
+        is_required: Boolean(quiz.is_required), show_in_weekly_checklist: Boolean(quiz.show_in_weekly_checklist),
+        show_in_practice_library: Boolean(quiz.show_in_practice_library), editorial_status: quiz.editorial_status,
+        recommended_week: quiz.recommended_week === "" ? null : Number(quiz.recommended_week),
+        prerequisite_week: quiz.prerequisite_week === "" ? null : Number(quiz.prerequisite_week),
+        quality_score: quiz.quality_score === "" ? null : Number(quiz.quality_score),
+        source_type: quiz.source_type, answer_keys_validated: Boolean(quiz.answer_keys_validated),
+        explanations_complete: Boolean(quiz.explanations_complete), is_active: Boolean(quiz.is_active),
+      };
+      const res = await updateQuiz(quizId, payload);
+      setQuiz((current) => ({ ...current, ...(res.data || {}) }));
+      setOrganizationMessage("Organization saved.");
+    } catch (error) {
+      setOrganizationMessage(error?.response?.data?.detail || "Unable to save organization.");
+    } finally { setOrganizationSaving(false); }
   };
 
   const save = async (question) => {
@@ -138,6 +164,21 @@ export default function QuizEditorPage() {
             </button>
           ) : null}
         </div>
+
+        <div className="grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-2 dark:border-slate-700">
+          <label className="text-sm">Purpose<select className="input-field mt-1" value={quiz.quiz_purpose || "practice"} onChange={(e) => updateOrganization("quiz_purpose", e.target.value)}><option value="required">Required</option><option value="practice">Practice</option><option value="remediation">Remediation</option><option value="cumulative">Cumulative</option><option value="gate">Promotion Gate</option><option value="certification">Certification</option></select></label>
+          <label className="text-sm">Editorial status<select className="input-field mt-1" value={quiz.editorial_status || "unreviewed"} onChange={(e) => updateOrganization("editorial_status", e.target.value)}><option value="unreviewed">Unreviewed</option><option value="needs_edit">Needs edit</option><option value="validated">Validated</option><option value="archived">Archived</option></select></label>
+          <label className="text-sm">Week<input className="input-field mt-1" type="number" min={0} max={24} value={quiz.week_number ?? 1} onChange={(e) => updateOrganization("week_number", e.target.value)} /></label>
+          <label className="text-sm">Recommended week<input className="input-field mt-1" type="number" min={0} max={24} value={quiz.recommended_week ?? ""} onChange={(e) => updateOrganization("recommended_week", e.target.value)} /></label>
+          <label className="text-sm">Prerequisite week<input className="input-field mt-1" type="number" min={0} max={24} value={quiz.prerequisite_week ?? ""} onChange={(e) => updateOrganization("prerequisite_week", e.target.value)} /></label>
+          <label className="text-sm">Quality score<input className="input-field mt-1" type="number" min={0} max={100} value={quiz.quality_score ?? ""} onChange={(e) => updateOrganization("quality_score", e.target.value)} /></label>
+          <label className="text-sm">Source<select className="input-field mt-1" value={quiz.source_type || "unknown"} onChange={(e) => updateOrganization("source_type", e.target.value)}><option value="seed">Seed</option><option value="examcompass">ExamCompass</option><option value="ai_generated">AI generated</option><option value="manual">Manual</option><option value="scraped">Scraped</option><option value="unknown">Unknown</option></select></label>
+          <div className="grid gap-2 text-sm sm:grid-cols-2">
+            {[['is_required','Required'],['show_in_weekly_checklist','Weekly checklist'],['show_in_practice_library','Practice library'],['answer_keys_validated','Answers validated'],['explanations_complete','Explanations complete'],['is_active','Active']].map(([field,label]) => <label key={field} className="flex items-center gap-2"><input type="checkbox" checked={Boolean(quiz[field])} onChange={(e) => updateOrganization(field, e.target.checked)} />{label}</label>)}
+          </div>
+        </div>
+        {quiz.source_type === "examcompass" && !quiz.answer_keys_validated && (quiz.is_required || quiz.show_in_weekly_checklist) ? <p className="rounded border border-amber-300 bg-amber-50 p-2 text-sm text-amber-800">This imported quiz cannot be required until its answer keys are independently validated.</p> : null}
+        <div className="flex items-center gap-3"><button className="btn-primary" onClick={saveOrganization} disabled={organizationSaving}>{organizationSaving ? "Saving…" : "Save Organization"}</button>{organizationMessage ? <span className="text-sm text-slate-600 dark:text-slate-300">{organizationMessage}</span> : null}</div>
       </div>
 
       {questions.map((q, i) => (

@@ -18,12 +18,15 @@ from app.models.evidence import EvidenceArtifact
 from app.models.quiz import QUIZ_STATUS_PUBLISHED, Question, Quiz
 from app.models.ticket import Ticket
 from app.routers.evidence import router as evidence_router
+from app.routers.labs import router as labs_router
 from app.routers.quizzes import router as quizzes_router
 from app.routers.tickets import router as tickets_router
+from app.models.lab import LabRun, LabTemplate
 
 evidence_client = make_client(evidence_router)
 tickets_client = make_client(tickets_router)
 quiz_client = make_client(quizzes_router)
+labs_client = make_client(labs_router)
 
 
 def _seed_ticket(db):
@@ -81,6 +84,107 @@ def test_upload_stamps_ownership(db, monkeypatch):
     assert r.status_code == 200, r.text
     row = db.query(EvidenceArtifact).get(r.json()["data"]["artifact_id"])
     assert row.student_id == student.id
+
+
+# ------------------------------------------------------------ lab evidence uploads
+
+def _seed_lab_run(db, student):
+    lab = LabTemplate(
+        title="Evidence lab",
+        description="Upload a screenshot",
+        lab_type="manual",
+        difficulty=1,
+        week_number=1,
+        is_published=True,
+    )
+    db.add(lab)
+    db.flush()
+    run = LabRun(lab_template_id=lab.id, student_id=student.id, status="in_progress")
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+def test_lab_evidence_rejects_other_students_run(db, tmp_path, monkeypatch):
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    owner = make_student(db)
+    other = make_student(db, username="other")
+    run = _seed_lab_run(db, owner)
+
+    response = labs_client.post(
+        f"/api/labs/{run.id}/evidence",
+        files=_png_upload(64),
+        headers=auth_headers(other),
+    )
+
+    assert response.status_code == 403
+    assert not list(tmp_path.rglob("*.*"))
+
+
+def test_lab_evidence_size_cap_returns_413_and_cleans_partial_file(db, tmp_path, monkeypatch):
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    import app.routers.labs as labs
+    monkeypatch.setattr(labs, "MAX_EVIDENCE_UPLOAD_BYTES", 1024)
+    student = make_student(db)
+    run = _seed_lab_run(db, student)
+
+    response = labs_client.post(
+        f"/api/labs/{run.id}/evidence",
+        files=_png_upload(4096),
+        headers=auth_headers(student),
+    )
+
+    assert response.status_code == 413
+    assert not list(tmp_path.rglob("*.*"))
+
+
+def test_lab_evidence_rejects_unsupported_mime(db, tmp_path, monkeypatch):
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    student = make_student(db)
+    run = _seed_lab_run(db, student)
+
+    response = labs_client.post(
+        f"/api/labs/{run.id}/evidence",
+        files={"file": ("fake.png", io.BytesIO(b"not an image"), "text/plain")},
+        headers=auth_headers(student),
+    )
+
+    assert response.status_code == 415
+
+
+def test_lab_evidence_rejects_empty_file(db, tmp_path, monkeypatch):
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    student = make_student(db)
+    run = _seed_lab_run(db, student)
+
+    response = labs_client.post(
+        f"/api/labs/{run.id}/evidence",
+        files={"file": ("empty.png", io.BytesIO(b""), "image/png")},
+        headers=auth_headers(student),
+    )
+
+    assert response.status_code == 400
+    assert not list(tmp_path.rglob("*.*"))
+
+
+def test_lab_evidence_valid_screenshot_stamps_student_id(db, tmp_path, monkeypatch):
+    monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    student = make_student(db)
+    run = _seed_lab_run(db, student)
+
+    response = labs_client.post(
+        f"/api/labs/{run.id}/evidence",
+        files=_png_upload(64),
+        headers=auth_headers(student),
+    )
+
+    assert response.status_code == 200, response.text
+    artifact = db.get(EvidenceArtifact, response.json()["data"]["artifact_id"])
+    assert artifact.student_id == student.id
+    assert artifact.submission_id == run.id
+    assert artifact.file_size_bytes == 68
+    assert (tmp_path / "screenshots" / artifact.storage_key).is_file()
 
 
 # ------------------------------------------------------------ evidence IDOR

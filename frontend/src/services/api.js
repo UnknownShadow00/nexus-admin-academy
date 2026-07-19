@@ -52,7 +52,12 @@ api.interceptors.request.use((config) => {
 
 adminApi.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject(error)
+  (error) => {
+    if (isBrowser() && [401, 403].includes(error?.response?.status)) {
+      window.dispatchEvent(new Event("nexus:admin-session-invalid"));
+    }
+    return Promise.reject(error);
+  }
 );
 
 function unwrap(response) {
@@ -183,6 +188,10 @@ export const getLabs = (weekNumber, requestOptions) =>
   request(() => api.get("/api/labs", { params: { week_number: weekNumber } }), requestOptions);
 export const getLab = (labId, requestOptions) => request(() => api.get(`/api/labs/${labId}`), requestOptions);
 export const startLab = (labId, requestOptions) => request(() => api.post(`/api/labs/${labId}/start`), requestOptions);
+export const getLabVmStatus = (labId, requestOptions) =>
+  request(() => api.get(`/api/labs/${labId}/vm-status`), requestOptions);
+export const createLabVmAccess = (labId, requestOptions) =>
+  request(() => api.post(`/api/labs/${labId}/vm-access`), requestOptions);
 export const submitLab = (labId, payload, requestOptions) =>
   request(() => api.post(`/api/labs/${labId}/submit`, payload), requestOptions);
 export const getCliLabs = (requestOptions) => request(() => api.get("/api/cli-labs"), requestOptions);
@@ -260,17 +269,20 @@ export const globalSearch = (q, requestOptions) =>
   request(() => api.get("/api/search/global", { params: { q } }), requestOptions);
 
 export const adminSessionStatus = (requestOptions) =>
-  request(() => api.get("/api/admin/session/status"), { retries: 2, warmupOnRetry: true, ...requestOptions });
+  request(() => adminApi.get("/api/admin/session/status"), { retries: 2, warmupOnRetry: true, ...requestOptions });
 export const adminSessionLogin = (credentials, requestOptions) =>
-  request(() => api.post("/api/admin/session/login", credentials), { retries: 2, warmupOnRetry: true, ...requestOptions });
+  request(() => adminApi.post("/api/admin/session/login", credentials), { retries: 2, warmupOnRetry: true, ...requestOptions });
 export const adminSessionLogout = (requestOptions) =>
-  request(() => api.post("/api/admin/session/logout"), requestOptions);
+  request(() => adminApi.post("/api/admin/session/logout"), requestOptions);
 export const getStudentTokenAsAdmin = (requestOptions) =>
-  request(() => api.get("/api/admin/session/student-token"), requestOptions);
+  request(() => adminApi.get("/api/admin/session/student-token"), requestOptions);
 
 export const generateQuiz = (payload, requestOptions) =>
   request(() => adminApi.post("/api/admin/quiz/generate", payload), requestOptions);
-export const getQuizList = (requestOptions) => request(() => adminApi.get("/api/admin/quizzes"), requestOptions);
+export const getQuizList = (params = {}, requestOptions) =>
+  request(() => adminApi.get("/api/admin/quizzes", { params }), requestOptions);
+export const getEditorialQuizQueue = (params = {}, requestOptions) =>
+  request(() => adminApi.get("/api/admin/quizzes/editorial-queue", { params }), requestOptions);
 export const deleteQuiz = (id, requestOptions) => request(() => adminApi.delete(`/api/admin/quizzes/${id}`), requestOptions);
 export const updateQuiz = (quizId, payload, requestOptions) =>
   request(() => adminApi.patch(`/api/admin/quizzes/${quizId}`, payload), requestOptions);
@@ -336,6 +348,8 @@ export const getAIUsageStats = (requestOptions) =>
   request(() => adminApi.get("/api/admin/ai-usage"), requestOptions);
 export const getAdminLabTemplates = (requestOptions) =>
   request(() => adminApi.get("/api/admin/labs/templates"), requestOptions);
+export const getAdminVmAssignments = (requestOptions) =>
+  request(() => adminApi.get("/api/admin/vms/assignments"), requestOptions);
 export const createAdminLabTemplate = (data, requestOptions) =>
   request(() => adminApi.post("/api/admin/labs/templates", data), requestOptions);
 export const updateAdminLabTemplate = (id, data, requestOptions) =>

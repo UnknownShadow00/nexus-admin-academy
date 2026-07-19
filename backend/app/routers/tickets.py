@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -366,7 +366,7 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
         existing.xp_awarded = xp_per_person
         existing.xp_granted = False
         existing.status = "pending"
-        existing.graded_at = datetime.utcnow()
+        existing.graded_at = datetime.now(timezone.utc)
         existing.verified_at = None
         existing.verified_by = None
         existing.duration_minutes = duration_minutes
@@ -391,7 +391,7 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
             xp_awarded=xp_per_person,
             xp_granted=False,
             status="pending",
-            graded_at=datetime.utcnow(),
+            graded_at=datetime.now(timezone.utc),
             duration_minutes=duration_minutes,
         )
         db.add(new_sub)

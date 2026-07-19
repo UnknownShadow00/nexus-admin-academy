@@ -1,4 +1,4 @@
-# Nexus IT Academy — Mentor Guide (Weeks 1–8)
+# Nexus IT Academy — Mentor Guide
 
 This guide is for Abdi (or any mentor) running the cohort through Phase A and B.
 It assumes you're a capable IT person but not necessarily a developer. Where a
@@ -6,12 +6,13 @@ command is needed, it's spelled out.
 
 ## What's built and ready
 
-Weeks 1–8 are fully seeded content: 8 modules, 23 lessons, 9 quizzes
-(71 questions with explanations), 26 tickets including two multi-ticket
-simulations, and both promotion gates (Support Technician I and II). Everything
-below runs **without** the Proxmox/Guacamole VM pipeline — on the students' own
-Windows machines or a VM you clone by hand. That pipeline's known issues are
-still open and are deliberately kept off the Weeks 1–8 critical path.
+The complete seed currently contains 25 modules, 63 lessons, 25 quizzes (189
+questions), 48 tickets, 5 lab templates, 48 networking CLI labs, and 3
+capstones across the 24-week curriculum. The Week 1–8 foundation includes the
+first two promotion gates. Everything below can run **without** automated VM
+provisioning—on students' own Windows machines or a VM cloned by hand. The VM
+application code is repaired, but real Proxmox/Guacamole infrastructure still
+requires an end-to-end acceptance test before cohort use.
 
 ## First-time setup (once)
 
@@ -20,12 +21,13 @@ still open and are deliberately kept off the Weeks 1–8 critical path.
 cd backend
 pip install -r requirements.txt          # first time only
 
-# point at your database (SQLite locally, Postgres/Supabase in prod)
+# point at your database (SQLite is active in production; PostgreSQL is supported)
 export DATABASE_URL="sqlite:///./nexus.db"   # example for a local trial
 
 alembic upgrade head                      # create/upgrade all tables
 python scripts/seed_users.py              # create the 5 student + mentor accounts
-python seed.py                            # load roles, gates, and all Weeks 1-8 content
+python seed.py                            # load roles, gates, and all 24 weeks
+python seed_curriculum.py                 # required Study Tracker catalog
 ```
 
 Re-running `python seed.py` is safe: it updates content in place and never

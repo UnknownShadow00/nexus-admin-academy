@@ -7,6 +7,7 @@ import {
   createAdminLabTemplate,
   deleteAdminLabTemplate,
   getAdminLabTemplates,
+  getAdminVmAssignments,
   updateAdminLabTemplate,
 } from "../../services/api";
 
@@ -46,6 +47,7 @@ function toNullableNumber(value) {
 
 export default function AdminLabsPage() {
   const [templates, setTemplates] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -56,8 +58,12 @@ export default function AdminLabsPage() {
   const loadTemplates = async () => {
     setLoading(true);
     try {
-      const res = await getAdminLabTemplates();
-      setTemplates(res.data || []);
+      const [templatesRes, assignmentsRes] = await Promise.all([
+        getAdminLabTemplates(),
+        getAdminVmAssignments(),
+      ]);
+      setTemplates(templatesRes.data || []);
+      setAssignments(assignmentsRes.data || []);
     } finally {
       setLoading(false);
     }
@@ -384,6 +390,38 @@ export default function AdminLabsPage() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="panel space-y-3 dark:border-slate-700 dark:bg-slate-900">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">VM Assignments</h2>
+        {assignments.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">No VM assignments found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">Student</th>
+                  <th className="px-3 py-2 font-semibold">Lab</th>
+                  <th className="px-3 py-2 font-semibold">VMID</th>
+                  <th className="px-3 py-2 font-semibold">Status</th>
+                  <th className="px-3 py-2 font-semibold">Failure</th>
+                </tr>
+              </thead>
+              <tbody>
+                {assignments.map((assignment) => (
+                  <tr key={assignment.id} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
+                    <td className="px-3 py-2">{assignment.student_name}</td>
+                    <td className="px-3 py-2">{assignment.lab_title}</td>
+                    <td className="px-3 py-2">{assignment.vmid || "-"}</td>
+                    <td className="px-3 py-2"><StatusBadge status={assignment.status} /></td>
+                    <td className="px-3 py-2 text-red-600 dark:text-red-300">{assignment.provisioning_error || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </main>
   );

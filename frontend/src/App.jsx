@@ -1,22 +1,11 @@
 import { LogOut, Menu, Moon, Search, Sun, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AdminAccessGate from "./components/AdminAccessGate";
 import RequireAuth from "./components/RequireAuth";
 import { clearAuthSession, getCurrentStudent, isAuthenticated } from "./hooks/useAuth";
 import { useDarkMode } from "./hooks/useDarkMode";
-import AdminHome from "./pages/AdminHome";
 import AdminLoginPage from "./pages/AdminLoginPage";
-import AdminReviewPage from "./pages/AdminReviewPage";
-import AdminStudentsPage from "./pages/AdminStudentsPage";
-import AICostDashboard from "./pages/admin/AICostDashboard";
-import AdminCapstonesPage from "./pages/admin/AdminCapstonesPage";
-import AdminLabsPage from "./pages/admin/AdminLabsPage";
-import AdminTicketReviewPage from "./pages/admin/AdminTicketReviewPage";
-import BookmarkletPage from "./pages/admin/BookmarkletPage";
-import CurriculumEditorPage from "./pages/admin/CurriculumEditorPage";
-import CurriculumTagsPage from "./pages/admin/CurriculumTagsPage";
-import QuizEditorPage from "./pages/admin/QuizEditorPage";
 import LearningPath from "./pages/LearningPath";
 import CapstonePage from "./pages/CapstonePage";
 import CapstonesPage from "./pages/CapstonesPage";
@@ -26,7 +15,6 @@ import CommandReferencePage from "./pages/CommandReferencePage";
 import LabPage from "./pages/LabPage";
 import LabsPage from "./pages/LabsPage";
 import LoginPage from "./pages/LoginPage";
-import ModuleManager from "./pages/ModuleManager";
 import QuizPage from "./pages/QuizPage";
 import QuizReviewPage from "./pages/QuizReviewPage";
 import QuizzesPage from "./pages/QuizzesPage";
@@ -37,6 +25,19 @@ import TicketFeedback from "./pages/TicketFeedback";
 import TicketPage from "./pages/TicketPage";
 import TicketsPage from "./pages/TicketsPage";
 import { authLogout, getTickets, globalSearch } from "./services/api";
+
+const AdminHome = lazy(() => import("./pages/AdminHome"));
+const AdminReviewPage = lazy(() => import("./pages/AdminReviewPage"));
+const AdminStudentsPage = lazy(() => import("./pages/AdminStudentsPage"));
+const ModuleManager = lazy(() => import("./pages/ModuleManager"));
+const AICostDashboard = lazy(() => import("./pages/admin/AICostDashboard"));
+const AdminCapstonesPage = lazy(() => import("./pages/admin/AdminCapstonesPage"));
+const AdminLabsPage = lazy(() => import("./pages/admin/AdminLabsPage"));
+const AdminTicketReviewPage = lazy(() => import("./pages/admin/AdminTicketReviewPage"));
+const BookmarkletPage = lazy(() => import("./pages/admin/BookmarkletPage"));
+const CurriculumEditorPage = lazy(() => import("./pages/admin/CurriculumEditorPage"));
+const CurriculumTagsPage = lazy(() => import("./pages/admin/CurriculumTagsPage"));
+const QuizEditorPage = lazy(() => import("./pages/admin/QuizEditorPage"));
 
 const studentNavItems = [
   { to: "/", label: "Home" },
@@ -62,13 +63,6 @@ const adminNavItems = [
   { to: "/admin/curriculum", label: "Curriculum" },
   { to: "/admin/curriculum-tags", label: "Job Tags" },
   { to: "/admin/ai-costs", label: "AI Costs" },
-];
-
-const mentorNavItems = [
-  { to: "/admin/ticket-review", label: "Ticket Review Queue" },
-  { to: "/admin/review", label: "Review Tickets" },
-  { to: "/admin/students", label: "Students" },
-  { to: "/admin/curriculum", label: "Curriculum" },
 ];
 
 const navLinkBase = "rounded-lg px-3 py-2 text-sm font-medium transition-colors";
@@ -105,24 +99,25 @@ export default function App() {
   const isAdminLoginRoute = location.pathname === "/admin-login";
   const authenticated = isAuthenticated();
   const currentStudent = authenticated ? getCurrentStudent() : null;
+  const [adminAuthenticated, setAdminAuthenticated] = useState(false);
   const [hasTicketFeedback, setHasTicketFeedback] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState({ lessons: [], commands: [] });
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const showChrome = authenticated || isAdminRoute;
+  const showChrome = (authenticated && !isAdminRoute) || (isAdminRoute && adminAuthenticated);
   const showSearch = authenticated && !isAdminRoute && !isAdminLoginRoute;
   const hasSearchResults = searchResults.lessons?.length || searchResults.commands?.length;
 
   const navItems = useMemo(() => {
     if (isAdminRoute) {
-      return currentStudent?.is_mentor ? mentorNavItems : adminNavItems;
+      return adminAuthenticated ? adminNavItems : [];
     }
     if (!currentStudent?.is_mentor && currentStudent?.has_unlocked_capstones === false) {
       return studentNavItems.filter((item) => item.to !== "/capstones");
     }
     return studentNavItems;
-  }, [isAdminRoute, currentStudent?.has_unlocked_capstones, currentStudent?.is_mentor]);
+  }, [adminAuthenticated, isAdminRoute, currentStudent?.has_unlocked_capstones, currentStudent?.is_mentor]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -275,6 +270,7 @@ export default function App() {
         </header>
       ) : null}
 
+      <Suspense fallback={<main className="mx-auto max-w-3xl p-6">Loading page...</main>}>
       <Routes>
         <Route path="/" element={<RequireAuth><StudentHome /></RequireAuth>} />
         <Route path="/login" element={<LoginPage />} />
@@ -296,19 +292,20 @@ export default function App() {
         <Route path="/terminal" element={<RequireAuth><TerminalCommandsPage /></RequireAuth>} />
         <Route path="/admin-login" element={<AdminLoginPage />} />
 
-        <Route path="/admin" element={<AdminAccessGate><AdminHome /></AdminAccessGate>} />
-        <Route path="/admin/ticket-review" element={<AdminAccessGate><AdminTicketReviewPage /></AdminAccessGate>} />
-        <Route path="/admin/review" element={<AdminAccessGate><AdminReviewPage /></AdminAccessGate>} />
-        <Route path="/admin/students" element={<AdminAccessGate><AdminStudentsPage /></AdminAccessGate>} />
-        <Route path="/admin/modules" element={<AdminAccessGate><ModuleManager /></AdminAccessGate>} />
-        <Route path="/admin/labs" element={<AdminAccessGate><AdminLabsPage /></AdminAccessGate>} />
-        <Route path="/admin/capstones" element={<AdminAccessGate><AdminCapstonesPage /></AdminAccessGate>} />
-        <Route path="/admin/bookmarklet" element={<AdminAccessGate><BookmarkletPage /></AdminAccessGate>} />
-        <Route path="/admin/curriculum" element={<AdminAccessGate><CurriculumEditorPage /></AdminAccessGate>} />
-        <Route path="/admin/curriculum-tags" element={<AdminAccessGate><CurriculumTagsPage /></AdminAccessGate>} />
-        <Route path="/admin/quizzes/:quizId/edit" element={<AdminAccessGate><QuizEditorPage /></AdminAccessGate>} />
-        <Route path="/admin/ai-costs" element={<AdminAccessGate><AICostDashboard /></AdminAccessGate>} />
+        <Route path="/admin" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminHome /></AdminAccessGate>} />
+        <Route path="/admin/ticket-review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminTicketReviewPage /></AdminAccessGate>} />
+        <Route path="/admin/review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminReviewPage /></AdminAccessGate>} />
+        <Route path="/admin/students" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminStudentsPage /></AdminAccessGate>} />
+        <Route path="/admin/modules" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><ModuleManager /></AdminAccessGate>} />
+        <Route path="/admin/labs" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminLabsPage /></AdminAccessGate>} />
+        <Route path="/admin/capstones" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminCapstonesPage /></AdminAccessGate>} />
+        <Route path="/admin/bookmarklet" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><BookmarkletPage /></AdminAccessGate>} />
+        <Route path="/admin/curriculum" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><CurriculumEditorPage /></AdminAccessGate>} />
+        <Route path="/admin/curriculum-tags" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><CurriculumTagsPage /></AdminAccessGate>} />
+        <Route path="/admin/quizzes/:quizId/edit" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><QuizEditorPage /></AdminAccessGate>} />
+        <Route path="/admin/ai-costs" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AICostDashboard /></AdminAccessGate>} />
       </Routes>
+      </Suspense>
     </div>
   );
 }

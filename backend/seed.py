@@ -17,6 +17,7 @@ from seed_phase_d import seed_phase_d
 from seed_phase_e import seed_phase_e
 from seed_phase_f import seed_phase_f
 from seed_phase_g import seed_phase_g
+from seed_quiz_organization import rebalance_seed_answer_positions, seed_quiz_organization
 load_env()
 
 # TB-01: seed.py must NEVER create login-able accounts. The 6 real accounts
@@ -45,6 +46,11 @@ ROLE_RENAME_MAP = {
 
 PROMOTION_GATES = [
     # ---- GATE 1: Trainee → Support Technician I (end of Week 4) ----
+    {
+        "role": "Support Technician I",
+        "requirement_type": "required_quiz",
+        "config": {"week": 4},
+    },
     {
         "role": "Support Technician I",
         "requirement_type": "min_completed_lessons",
@@ -79,6 +85,11 @@ PROMOTION_GATES = [
     # Ticket/mastery thresholds per the master doc; checkpoint is Simulation 2.
     {
         "role": "Support Technician II",
+        "requirement_type": "required_quiz",
+        "config": {"week": 8},
+    },
+    {
+        "role": "Support Technician II",
         "requirement_type": "min_completed_lessons",
         "config": {"module_codes": ["MOD-005", "MOD-006", "MOD-007", "MOD-008"]},
     },
@@ -103,6 +114,11 @@ PROMOTION_GATES = [
         "config": {},
     },
     # ---- GATE 3: Support Technician II → Network Support Technician (end of Week 12) ----
+    {
+        "role": "Network Support Technician",
+        "requirement_type": "required_quiz",
+        "config": {"week": 12},
+    },
     {
         "role": "Network Support Technician",
         "requirement_type": "min_completed_lessons",
@@ -131,6 +147,11 @@ PROMOTION_GATES = [
     # ---- GATE 4: Network Support Technician → Junior Systems Technician (end of Week 17) ----
     {
         "role": "Junior Systems Technician",
+        "requirement_type": "required_quiz",
+        "config": {"week": 17},
+    },
+    {
+        "role": "Junior Systems Technician",
         "requirement_type": "min_completed_lessons",
         "config": {"module_codes": ["MOD-013", "MOD-014", "MOD-015", "MOD-016", "MOD-017"]},
     },
@@ -150,6 +171,11 @@ PROMOTION_GATES = [
         "config": {},
     },
     # ---- GATE 5 (GRADUATION): Junior Systems Technician → Junior Infrastructure Administrator (end of Week 24) ----
+    {
+        "role": "Junior Infrastructure Administrator",
+        "requirement_type": "required_quiz",
+        "config": {"week": 24},
+    },
     {
         "role": "Junior Infrastructure Administrator",
         "requirement_type": "min_completed_lessons",
@@ -981,8 +1007,10 @@ def run_seed() -> None:
         phase_f = seed_phase_f(db)
         db.commit()
         phase_g = seed_phase_g(db)
+        quiz_organization = seed_quiz_organization(db)
+        answer_positions = rebalance_seed_answer_positions(db)
         db.commit()
-        print(f"Seed complete: roles(6), gates, module0+methodology, base tickets(8), labs(4), capstones(2), commands(50), phase_a={phase_a}, phase_b={phase_b}, phase_c={phase_c}, phase_d={phase_d}, phase_e={phase_e}, phase_f={phase_f}, phase_g={phase_g}")
+        print(f"Seed complete: roles(6), gates, module0+methodology, base tickets(8), labs(4), capstones(2), commands(50), phase_a={phase_a}, phase_b={phase_b}, phase_c={phase_c}, phase_d={phase_d}, phase_e={phase_e}, phase_f={phase_f}, phase_g={phase_g}, quiz_organization={quiz_organization}, answer_positions={answer_positions}")
     except Exception:
         db.rollback()
         raise

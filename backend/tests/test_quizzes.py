@@ -1,5 +1,5 @@
 from conftest import auth_headers, make_client, make_student
-from app.models.quiz import QUIZ_STATUS_PUBLISHED, Question, Quiz, QuizAttempt
+from app.models.quiz import EDITORIAL_STATUS_VALIDATED, QUIZ_STATUS_PUBLISHED, Question, Quiz, QuizAttempt
 from app.routers.admin_quiz import router as admin_quiz_router
 from app.routers.quizzes import router
 
@@ -7,7 +7,13 @@ client = make_client(router, admin_quiz_router)
 
 
 def _seed_quiz(db, title="Networks 101", week_number=1, status=QUIZ_STATUS_PUBLISHED):
-    quiz = Quiz(title=title, week_number=week_number, status=status)
+    quiz = Quiz(
+        title=title,
+        week_number=week_number,
+        status=status,
+        editorial_status=EDITORIAL_STATUS_VALIDATED,
+        answer_keys_validated=True,
+    )
     db.add(quiz)
     db.commit()
     db.refresh(quiz)
@@ -128,6 +134,33 @@ def test_get_quiz_not_found(db):
     student = make_student(db)
     res = client.get("/api/quizzes/9999", headers=auth_headers(student))
     assert res.status_code == 404
+
+
+def test_unvalidated_quiz_is_hidden_from_student_list_detail_and_submit(db):
+    student = make_student(db)
+    quiz = Quiz(
+        title="Needs validation",
+        week_number=1,
+        status=QUIZ_STATUS_PUBLISHED,
+        editorial_status="needs_edit",
+        answer_keys_validated=False,
+        is_active=True,
+    )
+    db.add(quiz)
+    db.flush()
+    question = _seed_question(db, quiz.id)
+
+    listed = client.get("/api/quizzes", headers=auth_headers(student))
+    detail = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student))
+    submitted = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={"student_id": student.id, "answers": {str(question.id): "A"}},
+        headers=auth_headers(student),
+    )
+
+    assert quiz.id not in {row["id"] for row in listed.json()["data"]}
+    assert detail.status_code == 404
+    assert submitted.status_code == 404
 
 
 def test_get_quiz_detail_preserves_legacy_options_f_through_h(db):

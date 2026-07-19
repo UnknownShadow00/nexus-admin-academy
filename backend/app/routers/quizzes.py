@@ -5,13 +5,15 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
+from app.models.quiz import QUIZ_PURPOSE_REMEDIATION, Quiz, QuizAttempt
 from app.models.student import Student
 from app.schemas.quiz import QuizSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import ensure_student_access, get_current_student
 from app.services.fsrs_service import create_cards_for_wrong_answers
 from app.services.mastery_service import record_quiz_mastery
+from app.services.quiz_progression import assigned_remediation_ids, triggered_remediation_ids
+from app.services.quiz_visibility import student_visible_quiz_filters
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
 
@@ -32,10 +34,15 @@ def _avg_seconds_per_question(time_per_question: dict | None) -> float | None:
 def get_quizzes(week_number: int | None = None, student_id: int | None = None, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
     scoped_student_id = student_id or current_student.id
     ensure_student_access(current_student, scoped_student_id)
-    query = db.query(Quiz).options(selectinload(Quiz.questions)).filter(Quiz.status == QUIZ_STATUS_PUBLISHED)
+    remediation_ids = assigned_remediation_ids(db, scoped_student_id) | triggered_remediation_ids(db, scoped_student_id)
+    query = db.query(Quiz).options(selectinload(Quiz.questions)).filter(*student_visible_quiz_filters())
     if week_number is not None:
         query = query.filter(Quiz.week_number == week_number)
     quizzes = query.order_by(Quiz.created_at.desc()).all()
+    quizzes = [
+        quiz for quiz in quizzes
+        if quiz.quiz_purpose != QUIZ_PURPOSE_REMEDIATION or quiz.id in remediation_ids
+    ]
 
     attempts_by_quiz = {}
     attempt_counts_by_quiz = {}
@@ -68,6 +75,16 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
                 "first_attempt_xp": attempt.first_attempt_xp if attempt else None,
                 "attempt_count": attempt_count,
                 "retake_available": attempt is not None,
+                "quiz_purpose": quiz.quiz_purpose,
+                "is_required": quiz.is_required,
+                "show_in_weekly_checklist": quiz.show_in_weekly_checklist,
+                "show_in_practice_library": quiz.show_in_practice_library,
+                "editorial_status": quiz.editorial_status,
+                "recommended_week": quiz.recommended_week,
+                "quality_score": quiz.quality_score,
+                "source_type": quiz.source_type,
+                "answer_keys_validated": quiz.answer_keys_validated,
+                "explanations_complete": quiz.explanations_complete,
             }
         )
 
@@ -81,7 +98,10 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
     quiz = (
         db.query(Quiz)
         .options(selectinload(Quiz.questions))
-        .filter(Quiz.id == quiz_id, Quiz.status == QUIZ_STATUS_PUBLISHED)
+        .filter(
+            Quiz.id == quiz_id,
+            *student_visible_quiz_filters(),
+        )
         .first()
     )
     if not quiz:
@@ -133,6 +153,9 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
                 for question in quiz.questions
             ],
             "attempts": attempts,
+            "quiz_purpose": quiz.quiz_purpose,
+            "is_required": quiz.is_required,
+            "show_in_weekly_checklist": quiz.show_in_weekly_checklist,
         }
     )
 
@@ -148,7 +171,10 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     quiz = (
         db.query(Quiz)
         .options(selectinload(Quiz.questions))
-        .filter(Quiz.id == quiz_id, Quiz.status == QUIZ_STATUS_PUBLISHED)
+        .filter(
+            Quiz.id == quiz_id,
+            *student_visible_quiz_filters(),
+        )
         .first()
     )
     if not quiz:
@@ -255,7 +281,8 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
         )
     # Mastery uses best-known score across attempts (documented rule: mastery=best,
     # speed-flags evaluate every attempt individually).
-    record_quiz_mastery(db, student_id, quiz.domain_id, max(prior_best, score))
+    if quiz.is_required and quiz.show_in_weekly_checklist:
+        record_quiz_mastery(db, student_id, quiz.domain_id, max(prior_best, score))
     log_activity(db, student_id, "quiz_passed", quiz.title, f"Score {score}/{total_questions}")
     create_cards_for_wrong_answers(db, student.id, wrong_question_ids)
     db.commit()
@@ -289,7 +316,7 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
     quiz = (
         db.query(Quiz)
         .options(selectinload(Quiz.questions))
-        .filter(Quiz.id == quiz_id, Quiz.status == QUIZ_STATUS_PUBLISHED)
+        .filter(Quiz.id == quiz_id, *student_visible_quiz_filters())
         .first()
     )
     if not quiz:

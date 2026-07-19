@@ -5,135 +5,106 @@ import EmptyState from "../components/EmptyState";
 import { StatusBadge } from "../components/ui/Badge";
 import FilterBar from "../components/ui/FilterBar";
 import PageHeader from "../components/ui/PageHeader";
-import WeekAccordion from "../components/ui/WeekAccordion";
 import { getCurrentStudent } from "../hooks/useAuth";
 import { getQuizzes } from "../services/api";
+
+const PURPOSE_LABELS = {
+  required: "Required",
+  practice: "Optional",
+  remediation: "Remediation",
+  cumulative: "Cumulative Review",
+  gate: "Promotion Gate",
+  certification: "Certification Practice",
+};
+
+function QuizCard({ quiz }) {
+  const label = PURPOSE_LABELS[quiz.quiz_purpose] || (quiz.is_required ? "Required" : "Optional");
+  return (
+    <article className={`panel ${quiz.status === "completed" ? "border-green-300" : "border-slate-200"} dark:border-slate-700 dark:bg-slate-900`}>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <BookOpen size={18} className="text-blue-600" />
+        <h3 className="min-w-0 flex-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{quiz.title}</h3>
+        <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">{label}</span>
+        <StatusBadge status={quiz.status || "not_started"} />
+      </div>
+      <p className="text-sm text-slate-600 dark:text-slate-300">Week {quiz.week_number}{" · "}{quiz.question_count} questions</p>
+      {quiz.status === "completed" ? (
+        <p className="mt-2 text-sm text-green-700 dark:text-green-300">
+          Best: {quiz.best_score || 0}/{quiz.question_count} ({Math.round(((quiz.best_score || 0) / Math.max(quiz.question_count || 1, 1)) * 100)}%)
+        </p>
+      ) : <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Not started</p>}
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        {quiz.status === "completed" ? <Link className="btn-secondary flex-1 text-center" to={`/quizzes/${quiz.id}/review`}>Review</Link> : null}
+        <Link className="btn-primary flex-1 text-center" to={`/quizzes/${quiz.id}`}>{quiz.status === "completed" ? "Retake" : "Take Quiz"}</Link>
+      </div>
+    </article>
+  );
+}
+
+function QuizSection({ title, description, quizzes }) {
+  if (!quizzes.length) return null;
+  return (
+    <section className="space-y-3" aria-label={title}>
+      <div>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{title}</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{description}</p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{quizzes.map((quiz) => <QuizCard key={quiz.id} quiz={quiz} />)}</div>
+    </section>
+  );
+}
 
 export default function QuizzesPage() {
   const studentId = getCurrentStudent()?.id;
   const [week, setWeek] = useState(1);
   const [allWeeks, setAllWeeks] = useState(false);
-  const [status, setStatus] = useState("all");
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    getQuizzes(undefined, studentId, { suppressToast: true })
+      .then((res) => { if (!cancelled) setItems(res.data || []); })
+      .catch((err) => { if (!cancelled) { setItems([]); setError(err?.userMessage || "Unable to load quizzes right now."); } })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [studentId]);
 
-    const run = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await getQuizzes(allWeeks ? undefined : week, studentId, { suppressToast: true });
-        if (!cancelled) setItems(res.data || []);
-      } catch (err) {
-        if (!cancelled) {
-          setItems([]);
-          setError(err?.userMessage || "Unable to load quizzes right now.");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const sections = useMemo(() => {
+    const inScope = (quiz) => allWeeks || quiz.week_number === week;
+    return {
+      required: items.filter((q) => inScope(q) && q.is_required && !["cumulative", "gate"].includes(q.quiz_purpose)),
+      practice: items.filter((q) => inScope(q) && q.quiz_purpose === "practice"),
+      remediation: items.filter((q) => q.quiz_purpose === "remediation"),
+      cumulative: items.filter((q) => inScope(q) && ["cumulative", "gate"].includes(q.quiz_purpose)),
+      certification: items.filter((q) => q.quiz_purpose === "certification" && q.show_in_practice_library),
+      history: items.filter((q) => q.status === "completed"),
     };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [week, allWeeks, studentId]);
-
-  const filtered = useMemo(() => {
-    if (status === "all") return items;
-    return items.filter((q) => q.status === status);
-  }, [items, status]);
-
-  const renderQuiz = (quiz) => (
-    <article key={quiz.id} className={`panel ${quiz.status === "completed" ? "border-green-300" : "border-slate-200"} dark:border-slate-700 dark:bg-slate-900`}>
-      <div className="mb-2 flex items-center gap-2">
-        <BookOpen size={18} className="text-blue-600" />
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{quiz.title}</h3>
-        <StatusBadge status={quiz.status || "not_started"} />
-      </div>
-      <p className="text-sm text-slate-600 dark:text-slate-300">Week {quiz.week_number}{" \u00b7 "}{quiz.video_count || 1} video(s){" \u00b7 "}{quiz.question_count} questions</p>
-      {quiz.status === "completed" ? (
-        <div className="mt-2 text-sm text-green-700 dark:text-green-300">
-          <p>Completed{" \u00b7 "}Best: {quiz.best_score || 0}/{quiz.question_count} ({Math.round(((quiz.best_score || 0) / (quiz.question_count || 10)) * 100)}%)</p>
-          <p>First Attempt XP: {quiz.first_attempt_xp}</p>
-          <p className="text-xs">Retakes allowed (no extra XP).</p>
-        </div>
-      ) : (
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Not started</p>
-      )}
-      <div className="mt-3 space-y-2">
-        {quiz.status === "completed" ? (
-          <Link className="btn-secondary block w-full text-center" to={`/quizzes/${quiz.id}/review`}>
-            Review Last Attempt
-          </Link>
-        ) : null}
-        <Link className="btn-primary block w-full text-center" to={`/quizzes/${quiz.id}`}>
-          {quiz.status === "completed" ? "Retake Quiz" : "Take Quiz"}
-        </Link>
-      </div>
-    </article>
-  );
+  }, [items, week, allWeeks]);
 
   return (
-    <main className="mx-auto max-w-7xl space-y-4 p-6">
+    <main className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6">
       <PageHeader title="Quizzes" />
       <FilterBar>
-        <label className="flex items-center gap-1 text-sm font-medium text-slate-700 dark:text-slate-300">
-          Week:
-          <input
-            className="input-field max-w-24 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
-            type="number"
-            value={week}
-            min={1}
-            disabled={allWeeks}
-            onChange={(e) => setWeek(Number(e.target.value || 1))}
-          />
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">Week
+          <input className="input-field max-w-24" type="number" min={0} max={24} value={week} disabled={allWeeks} onChange={(event) => setWeek(Number(event.target.value || 0))} />
         </label>
-        <button
-          type="button"
-          className={`rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium dark:border-slate-700 ${
-            allWeeks
-              ? "bg-blue-600 text-white"
-              : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-          }`}
-          onClick={() => setAllWeeks((current) => !current)}
-        >
-          All Weeks
-        </button>
-        <select className="input-field max-w-52" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="all">All status</option>
-          <option value="not_started">Not Started</option>
-          <option value="completed">Completed</option>
-        </select>
+        <button type="button" className={`rounded-lg border px-3 py-2 text-sm font-medium ${allWeeks ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 dark:border-slate-700"}`} onClick={() => setAllWeeks((value) => !value)}>All Weeks</button>
       </FilterBar>
 
-      {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="panel">
-              <div className="animate-pulse bg-slate-200 dark:bg-slate-700 rounded h-4 mb-2" />
-              <div className="animate-pulse bg-slate-100 dark:bg-slate-800 rounded h-16" />
-            </div>
-          ))}
-        </div>
-      ) : error ? (
-        <EmptyState icon={<BookOpen size={40} className="text-slate-300" />} title="Quizzes are unavailable" message={error} />
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={<BookOpen size={40} className="text-slate-300" />}
-          title="No quizzes yet"
-          message={allWeeks ? "Your instructor hasn't created any quizzes yet." : "Your instructor hasn't created quizzes for this week yet."}
-        />
-      ) : allWeeks ? (
-        <WeekAccordion items={filtered} renderItem={renderQuiz} gridClassName="grid gap-4 md:grid-cols-2 xl:grid-cols-3" />
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map(renderQuiz)}
-        </div>
-      )}
+      {loading ? <div className="panel animate-pulse">Loading quiz sections…</div> : null}
+      {!loading && error ? <EmptyState icon={<BookOpen size={40} />} title="Quizzes are unavailable" message={error} /> : null}
+      {!loading && !error && !items.length ? <EmptyState icon={<BookOpen size={40} />} title="No quizzes yet" message="Your mentor has not published quiz content yet." /> : null}
+      {!loading && !error ? <>
+        <QuizSection title="Required This Week" description="These validated assessments count toward weekly completion." quizzes={sections.required} />
+        <QuizSection title="Practice This Week" description="Optional topic practice; attempts do not block progression." quizzes={sections.practice} />
+        <QuizSection title="Remediation" description="Shown only when assigned by a mentor or triggered by a missed required assessment." quizzes={sections.remediation} />
+        <QuizSection title="Cumulative and Gate Assessments" description="Reviews and promotion gates apply only at their assigned checkpoint." quizzes={sections.cumulative} />
+        <QuizSection title="Certification Practice Library" description="Optional certification preparation; these banks never block Nexus progression." quizzes={sections.certification} />
+        <QuizSection title="Completed Quiz History" description="Review prior required and optional attempts." quizzes={sections.history} />
+      </> : null}
     </main>
   );
 }

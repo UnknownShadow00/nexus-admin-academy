@@ -2,12 +2,13 @@ import os
 import base64
 import hashlib
 import hmac
-import json
 import secrets
 from datetime import datetime, timedelta, timezone
 
+import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
+from jwt import InvalidTokenError
 from sqlalchemy.orm import Session
 
 from app.config import load_env
@@ -23,49 +24,7 @@ def _b64url_decode(value: str) -> bytes:
     return base64.urlsafe_b64decode((value + padding).encode("utf-8"))
 
 
-try:
-    from jose import JWTError, jwt
-except ImportError:
-    class JWTError(Exception):
-        pass
-
-    class _FallbackJWT:
-        @staticmethod
-        def encode(payload: dict, secret_key: str, algorithm: str = "HS256") -> str:
-            if algorithm != "HS256":
-                raise JWTError("Unsupported algorithm")
-            header = {"alg": algorithm, "typ": "JWT"}
-            prepared = dict(payload)
-            if isinstance(prepared.get("exp"), datetime):
-                prepared["exp"] = int(prepared["exp"].timestamp())
-            header_segment = _b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
-            payload_segment = _b64url_encode(json.dumps(prepared, separators=(",", ":")).encode("utf-8"))
-            signing_input = f"{header_segment}.{payload_segment}".encode("utf-8")
-            signature = hmac.new(secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
-            return f"{header_segment}.{payload_segment}.{_b64url_encode(signature)}"
-
-        @staticmethod
-        def decode(token: str, secret_key: str, algorithms: list[str]) -> dict:
-            if "HS256" not in algorithms:
-                raise JWTError("Unsupported algorithm")
-            try:
-                header_segment, payload_segment, signature_segment = token.split(".")
-            except ValueError as exc:
-                raise JWTError("Invalid token") from exc
-
-            signing_input = f"{header_segment}.{payload_segment}".encode("utf-8")
-            expected_signature = hmac.new(secret_key.encode("utf-8"), signing_input, hashlib.sha256).digest()
-            provided_signature = _b64url_decode(signature_segment)
-            if not hmac.compare_digest(expected_signature, provided_signature):
-                raise JWTError("Invalid signature")
-
-            payload = json.loads(_b64url_decode(payload_segment).decode("utf-8"))
-            exp = payload.get("exp")
-            if exp is not None and int(exp) <= int(datetime.now(timezone.utc).timestamp()):
-                raise JWTError("Token expired")
-            return payload
-
-    jwt = _FallbackJWT()
+ALLOWED_JWT_ALGORITHMS = {"HS256", "HS384", "HS512"}
 
 try:
     from passlib.context import CryptContext
@@ -125,6 +84,8 @@ def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     load_env()
     secret_key = os.environ["JWT_SECRET_KEY"]
     algorithm = os.environ["JWT_ALGORITHM"]
+    if algorithm not in ALLOWED_JWT_ALGORITHMS:
+        raise RuntimeError("JWT_ALGORITHM must be HS256, HS384, or HS512")
     expire_minutes = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=expire_minutes))
@@ -137,13 +98,18 @@ def decode_token(token: str) -> dict:
         load_env()
         secret_key = os.environ["JWT_SECRET_KEY"]
         algorithm = os.environ["JWT_ALGORITHM"]
-        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
-        if "sub" not in payload:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication token")
+        if algorithm not in ALLOWED_JWT_ALGORITHMS:
+            raise RuntimeError("JWT_ALGORITHM must be HS256, HS384, or HS512")
+        payload = jwt.decode(
+            token,
+            secret_key,
+            algorithms=[algorithm],
+            options={"require": ["exp", "sub"]},
+        )
         return payload
     except HTTPException:
         raise
-    except (JWTError, KeyError, ValueError, TypeError):
+    except (InvalidTokenError, KeyError, ValueError, TypeError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication token")
 
 

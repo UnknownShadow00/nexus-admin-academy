@@ -19,7 +19,17 @@ def _seed_week1(db):
     l1 = Lesson(module_id=module.id, title="Anatomy of a Good Ticket", lesson_order=1, status="published")
     l2 = Lesson(module_id=module.id, title="Meet the Command Line", lesson_order=2, status="published")
     draft = Lesson(module_id=module.id, title="Unpublished Draft", lesson_order=3, status="draft")
-    quiz = Quiz(title="Ticket Writing Quiz", week_number=1, status=QUIZ_STATUS_PUBLISHED)
+    quiz = Quiz(
+        title="Ticket Writing Quiz",
+        week_number=1,
+        status=QUIZ_STATUS_PUBLISHED,
+        quiz_purpose="required",
+        is_required=True,
+        show_in_weekly_checklist=True,
+        answer_keys_validated=True,
+        editorial_status="validated",
+        is_active=True,
+    )
     ticket = Ticket(title="DNS resolution failing", description="d", difficulty=1, week_number=1)
     cli = CliLab(id="mtc-01", title="First Commands", compartment_id="meet-the-cli", vendor_id="cisco", content={}, order_index=1)
     db.add_all([l1, l2, draft, quiz, ticket, cli])

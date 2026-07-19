@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -10,7 +10,7 @@ from app.services.mastery_service import DOMAIN_LABELS
 
 
 def _week_key() -> str:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     year, week, _ = now.isocalendar()
     return f"{year}-W{week:02d}"
 

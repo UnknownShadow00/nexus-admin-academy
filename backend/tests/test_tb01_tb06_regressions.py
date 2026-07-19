@@ -9,7 +9,7 @@ Every test here pins a bug that previously existed:
 import importlib
 
 from conftest import auth_headers, make_client, make_student
-from app.models.quiz import QUIZ_STATUS_PUBLISHED, Question, Quiz, QuizAttempt
+from app.models.quiz import EDITORIAL_STATUS_VALIDATED, QUIZ_STATUS_PUBLISHED, Question, Quiz, QuizAttempt
 from app.routers.quizzes import router as quizzes_router
 
 client = make_client(quizzes_router)
@@ -57,7 +57,13 @@ def test_ai_base_url_configurable(monkeypatch):
 # ---------------------------------------------------------------- TB-06 helpers
 
 def _seed_multi_quiz(db):
-    quiz = Quiz(title="Multi Select Quiz", week_number=1, status=QUIZ_STATUS_PUBLISHED)
+    quiz = Quiz(
+        title="Multi Select Quiz",
+        week_number=1,
+        status=QUIZ_STATUS_PUBLISHED,
+        editorial_status=EDITORIAL_STATUS_VALIDATED,
+        answer_keys_validated=True,
+    )
     db.add(quiz)
     db.commit()
     db.refresh(quiz)

@@ -32,6 +32,7 @@ def _settings() -> dict:
         "pool_start": int(os.getenv("VMID_POOL_START", "200")),
         "pool_end": int(os.getenv("VMID_POOL_END", "299")),
         "verify_ssl": _bool_env("PROXMOX_VERIFY_SSL", is_production_environment()),
+        "full_clone": _bool_env("PROXMOX_FULL_CLONE", False),
     }
 
 
@@ -56,16 +57,70 @@ def _find_free_vmid(proxmox) -> int:
     raise RuntimeError("No free VMIDs available in pool")
 
 
+def _template_storage_types(proxmox, node: str, template_vmid: int) -> set[str]:
+    config = proxmox.nodes(node).qemu(template_vmid).config.get()
+    volume_storages = {
+        value.split(":", 1)[0]
+        for key, value in config.items()
+        if key.startswith(("scsi", "sata", "virtio", "ide")) and isinstance(value, str) and ":" in value
+    }
+    storage_rows = proxmox.nodes(node).storage.get()
+    return {str(row.get("type", "")) for row in storage_rows if row.get("storage") in volume_storages}
+
+
+def _linked_clone_supported(proxmox, node: str, template_vmid: int) -> bool:
+    storage_types = _template_storage_types(proxmox, node, template_vmid)
+    return bool(storage_types) and storage_types.issubset({"lvmthin", "zfspool", "rbd", "btrfs"})
+
+
+def _wait_for_task(proxmox, node: str, upid: str | None, timeout: int = 300) -> None:
+    if not upid:
+        return
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        status = proxmox.nodes(node).tasks(upid).status.get()
+        if status.get("status") == "stopped":
+            if status.get("exitstatus") != "OK":
+                raise RuntimeError(f"Proxmox clone task failed: {status.get('exitstatus', 'unknown error')}")
+            return
+        time.sleep(2)
+    raise TimeoutError("Proxmox clone task did not finish before the timeout")
+
+
 def clone_template(template_vmid: int, name: str) -> int:
     proxmox = _get_proxmox()
     settings = _settings()
     new_vmid = _find_free_vmid(proxmox)
-    proxmox.nodes(settings["node"]).qemu(template_vmid).clone.post(
-        newid=new_vmid,
-        name=name,
-        full=1,
-    )
-    logger.info("Cloned template %s -> vmid %s (%s)", template_vmid, new_vmid, name)
+    full_clone = settings["full_clone"]
+    if not full_clone:
+        try:
+            linked_supported = _linked_clone_supported(proxmox, settings["node"], template_vmid)
+        except Exception:
+            linked_supported = False
+            logger.warning(
+                "Could not verify linked-clone support for template %s; falling back to full clone",
+                template_vmid,
+            )
+        else:
+            if not linked_supported:
+                logger.warning(
+                    "Template %s storage does not support linked clones; falling back to full clone",
+                    template_vmid,
+                )
+        if not linked_supported:
+            full_clone = True
+
+    mode = "full" if full_clone else "linked"
+    try:
+        upid = proxmox.nodes(settings["node"]).qemu(template_vmid).clone.post(
+            newid=new_vmid,
+            name=name,
+            full=1 if full_clone else 0,
+        )
+        _wait_for_task(proxmox, settings["node"], upid)
+    except Exception as exc:
+        raise RuntimeError(f"Proxmox {mode} clone failed for template {template_vmid}") from exc
+    logger.info("Cloned template %s -> vmid %s using %s clone", template_vmid, new_vmid, mode)
     return new_vmid
 
 

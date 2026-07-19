@@ -6,10 +6,10 @@ import {
   createLesson,
   createModule,
   deleteAdminCommand,
-  deleteQuiz,
   generateQuiz,
   getAdminCommands,
   getLessons,
+  getEditorialQuizQueue,
   getModules,
   getQuizList,
   scrapeQuizPreview,
@@ -57,6 +57,9 @@ export default function ModuleManager() {
   const [csvSaving, setCsvSaving] = useState(false);
 
   const [recentQuizzes, setRecentQuizzes] = useState([]);
+  const [quizTotal, setQuizTotal] = useState(0);
+  const [editorialQueue, setEditorialQueue] = useState(false);
+  const [quizQuery, setQuizQuery] = useState({ page: 1, per_page: 25, search: "", week: "", purpose: "", source: "", editorial_status: "", required: "", answer_keys_validated: "" });
   const lessonOptions = quizLessons.length ? quizLessons : lessons;
 
   const loadModules = async () => {
@@ -64,20 +67,25 @@ export default function ModuleManager() {
     setModules(res.data || []);
   };
 
-  const loadRecentQuizzes = async () => {
-    const res = await getQuizList();
-    setRecentQuizzes((res.data || []).slice(0, 10));
+  const loadRecentQuizzes = async (params = quizQuery) => {
+    const cleanParams = Object.fromEntries(Object.entries(params).filter(([, value]) => value !== ""));
+    const res = await (editorialQueue ? getEditorialQuizQueue(cleanParams) : getQuizList(cleanParams));
+    setRecentQuizzes(res.data || []);
+    setQuizTotal(res.total || 0);
   };
 
   useEffect(() => {
     loadModules();
-    loadRecentQuizzes();
     const loadCommands = async () => {
       const res = await getAdminCommands();
       setCommands(res.data || []);
     };
     loadCommands();
   }, []);
+
+  useEffect(() => {
+    loadRecentQuizzes(quizQuery);
+  }, [quizQuery, editorialQueue]);
 
   useEffect(() => {
     const run = async () => {
@@ -430,26 +438,33 @@ export default function ModuleManager() {
         ) : null}
 
         <div className="border-t border-slate-200 pt-4 dark:border-slate-700">
-          <h3 className="mb-2 text-lg font-semibold">Recent Quizzes</h3>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div><h3 className="text-lg font-semibold">{editorialQueue ? "Editorial Review Queue" : "Quiz Inventory"}</h3><p className="text-xs text-slate-500">{quizTotal} quizzes match the current filters.</p></div>
+            <div className="flex gap-2"><button className="btn-secondary" disabled={quizQuery.page <= 1} onClick={() => setQuizQuery((q) => ({ ...q, page: q.page - 1 }))}>Previous</button><span className="self-center text-sm">Page {quizQuery.page} of {Math.max(1, Math.ceil(quizTotal / quizQuery.per_page))}</span><button className="btn-secondary" disabled={quizQuery.page * quizQuery.per_page >= quizTotal} onClick={() => setQuizQuery((q) => ({ ...q, page: q.page + 1 }))}>Next</button></div>
+          </div>
+          <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <input className="input-field" placeholder="Search title" value={quizQuery.search} onChange={(e) => setQuizQuery((q) => ({ ...q, page: 1, search: e.target.value }))} />
+            <input className="input-field" type="number" min={0} max={24} placeholder="Week" value={quizQuery.week} onChange={(e) => setQuizQuery((q) => ({ ...q, page: 1, week: e.target.value }))} />
+            <select className="input-field" value={quizQuery.purpose} onChange={(e) => setQuizQuery((q) => ({ ...q, page: 1, purpose: e.target.value }))}><option value="">All purposes</option><option value="required">Required</option><option value="practice">Practice</option><option value="remediation">Remediation</option><option value="cumulative">Cumulative</option><option value="gate">Gate</option><option value="certification">Certification</option></select>
+            <select className="input-field" value={quizQuery.source} onChange={(e) => setQuizQuery((q) => ({ ...q, page: 1, source: e.target.value }))}><option value="">All sources</option><option value="seed">Seed</option><option value="examcompass">ExamCompass</option><option value="ai_generated">AI generated</option><option value="manual">Manual</option><option value="scraped">Scraped</option><option value="unknown">Unknown</option></select>
+            <select className="input-field" value={quizQuery.editorial_status} onChange={(e) => setQuizQuery((q) => ({ ...q, page: 1, editorial_status: e.target.value }))}><option value="">All editorial states</option><option value="unreviewed">Unreviewed</option><option value="needs_edit">Needs edit</option><option value="validated">Validated</option><option value="archived">Archived</option></select>
+            <select className="input-field" value={quizQuery.required} onChange={(e) => setQuizQuery((q) => ({ ...q, page: 1, required: e.target.value }))}><option value="">Required and optional</option><option value="true">Required</option><option value="false">Optional</option></select>
+            <select className="input-field" value={quizQuery.answer_keys_validated} onChange={(e) => setQuizQuery((q) => ({ ...q, page: 1, answer_keys_validated: e.target.value }))}><option value="">All validation states</option><option value="true">Answers validated</option><option value="false">Answers unvalidated</option></select>
+          </div>
+          <button className="btn-secondary mb-3" onClick={() => setEditorialQueue((enabled) => !enabled)}>{editorialQueue ? "Show all quizzes" : "Show needs-validation queue"}</button>
           <div className="space-y-2">
             {recentQuizzes.length === 0 ? <p className="text-sm text-slate-500">No quizzes created yet.</p> : null}
             {recentQuizzes.map((quiz) => (
               <div key={quiz.id} className="flex items-center justify-between rounded border border-slate-200 p-3 text-sm dark:border-slate-700">
                 <div>
                   <p className="font-medium">Week {quiz.week_number} - {quiz.title} ({quiz.question_count} questions)</p>
-                  <p className="text-xs text-slate-500">created {quiz.created_at ? new Date(quiz.created_at).toLocaleDateString() : "-"}</p>
+                  <p className="text-xs text-slate-500">{quiz.quiz_purpose} · {quiz.source_type} · {quiz.editorial_status} · {quiz.is_required ? "required" : "optional"}{editorialQueue ? ` · ${quiz.missing_explanations} explanations missing` : ""}</p>
+                  {!quiz.answer_keys_validated || quiz.editorial_status !== "validated" ? <p className="mt-1 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Needs validation — admin only</p> : null}
                 </div>
                 <div className="flex items-center gap-2">
                   <Link to={`/admin/quizzes/${quiz.id}/edit`} className="btn-secondary text-xs">
                     Edit Answers
                   </Link>
-                  <button className="btn-secondary" onClick={async () => {
-                    if (!window.confirm("Delete this quiz?")) return;
-                    await deleteQuiz(quiz.id);
-                    await loadRecentQuizzes();
-                  }}>
-                    Delete
-                  </button>
                 </div>
               </div>
             ))}
@@ -459,6 +474,4 @@ export default function ModuleManager() {
     </main>
   );
 }
-
-
 

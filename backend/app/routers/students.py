@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
@@ -9,7 +9,17 @@ from app.models.comptia import ComptiaObjective, StudentObjectiveProgress
 from app.models.learning import Lesson, Module
 from app.models.login_streak import LoginStreak
 from app.models.progression import MethodologyFramework, StudentMethodologyProgress
-from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
+from app.models.quiz import (
+    EDITORIAL_STATUS_ARCHIVED,
+    QUIZ_PURPOSE_CERTIFICATION,
+    QUIZ_PURPOSE_CUMULATIVE,
+    QUIZ_PURPOSE_GATE,
+    QUIZ_PURPOSE_PRACTICE,
+    QUIZ_PURPOSE_REMEDIATION,
+    QUIZ_STATUS_PUBLISHED,
+    Quiz,
+    QuizAttempt,
+)
 from app.models.student import Student
 from app.models.squad_activity import SquadActivity
 from app.models.ticket import Ticket, TicketSubmission
@@ -19,6 +29,13 @@ from app.services.auth_service import ensure_student_access, get_current_student
 from app.services.mastery_service import list_student_mastery
 from app.services.methodology_enforcer import can_access_tickets
 from app.services.progression_service import check_module_unlock, get_module_mastery, get_promotion_status
+from app.services.quiz_progression import (
+    assigned_remediation_ids,
+    is_quiz_passed,
+    required_quizzes_for_week,
+    triggered_remediation_ids,
+)
+from app.services.quiz_visibility import student_visible_quiz_filters
 from app.services.squad_service import get_weekly_domain_leads
 from app.services.xp_calculator import level_from_xp
 from app.utils.responses import ok
@@ -149,12 +166,17 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
     streak = update_login_streak(db, student_id)
     level, level_name = level_from_xp(student.total_xp)
 
-    quiz_stats = (
-        db.query(func.count(QuizAttempt.id).label("completed"), func.coalesce(func.avg(QuizAttempt.score), 0).label("avg_score"))
-        .filter(QuizAttempt.student_id == student_id)
-        .first()
-    )
-    total_quizzes = db.query(func.count(Quiz.id)).filter(Quiz.status == QUIZ_STATUS_PUBLISHED).scalar() or 0
+    required_quizzes = [quiz for week in range(25) for quiz in required_quizzes_for_week(db, week)]
+    completed_required = [quiz for quiz in required_quizzes if is_quiz_passed(db, student_id, quiz)]
+    required_scores = [
+        max((attempt.score or 0) for attempt in quiz.attempts if attempt.student_id == student_id)
+        for quiz in completed_required
+    ]
+    quiz_stats = type("QuizStats", (), {
+        "completed": len(completed_required),
+        "avg_score": (sum(required_scores) / len(required_scores)) if required_scores else 0,
+    })()
+    total_quizzes = len(required_quizzes)
 
     ticket_stats = (
         db.query(func.count(TicketSubmission.id).label("completed"), func.coalesce(func.avg(TicketSubmission.ai_score), 0).label("avg_score"))
@@ -163,10 +185,11 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
     )
     total_tickets = db.query(func.count(Ticket.id)).scalar() or 0
 
-    week_number = 1
-    week_quizzes = db.query(func.count(Quiz.id)).filter(Quiz.week_number == week_number, Quiz.status == QUIZ_STATUS_PUBLISHED).scalar() or 0
+    week_number = _derive_current_week(student_id, db)
+    week_required_quizzes = required_quizzes_for_week(db, week_number)
+    week_quizzes = len(week_required_quizzes)
     week_tickets = db.query(func.count(Ticket.id)).filter(Ticket.week_number == week_number).scalar() or 0
-    week_completed_q = db.query(func.count(QuizAttempt.id)).join(Quiz, QuizAttempt.quiz_id == Quiz.id).filter(QuizAttempt.student_id == student_id, Quiz.week_number == week_number).scalar() or 0
+    week_completed_q = sum(is_quiz_passed(db, student_id, quiz) for quiz in week_required_quizzes)
     week_completed_t = (
         db.query(func.count(TicketSubmission.id))
         .join(Ticket, TicketSubmission.ticket_id == Ticket.id)
@@ -323,12 +346,15 @@ def get_student_mastery(student_id: int, db: Session = Depends(get_db), current_
 def squad_dashboard(student_id: int | None = None, limit: int = 30, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
     if student_id is not None:
         ensure_student_access(current_student, student_id)
-    cutoff = datetime.utcnow() - timedelta(hours=48)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
 
     members = db.query(Student).order_by(Student.total_xp.desc(), Student.name.asc()).all()
     member_rows = []
     for member in members:
-        active = member.last_active_at and member.last_active_at >= cutoff
+        last_active = member.last_active_at
+        if last_active and last_active.tzinfo is None:
+            last_active = last_active.replace(tzinfo=timezone.utc)
+        active = bool(last_active and last_active >= cutoff)
         member_rows.append(
             {
                 "student_id": member.id,
@@ -521,27 +547,33 @@ def _derive_current_week(student_id: int, db: Session) -> int:
     from app.models.lesson_notes import StudentLessonNote
     from app.models.learning import Lesson, Module
 
-    for code in sorted(MODULE_WEEKS, key=lambda c: MODULE_WEEKS[c]):
-        module = db.query(Module).filter(Module.code == code).first()
-        if not module:
-            continue
-        lesson_ids = {
-            row.id
-            for row in db.query(Lesson.id).filter(
-                Lesson.module_id == module.id, Lesson.status == "published"
-            )
-        }
-        if not lesson_ids:
-            continue
-        done = {
-            row.lesson_id
-            for row in db.query(StudentLessonNote.lesson_id).filter(
-                StudentLessonNote.student_id == student_id,
-                StudentLessonNote.lesson_id.in_(lesson_ids),
-            )
-        }
-        if lesson_ids - done:
-            return MODULE_WEEKS[code]
+    for week in range(25):
+        codes = [code for code, mapped_week in MODULE_WEEKS.items() if mapped_week == week]
+        lesson_ids = set()
+        if codes:
+            module_ids = {row.id for row in db.query(Module.id).filter(Module.code.in_(codes))}
+            if module_ids:
+                lesson_ids = {
+                    row.id
+                    for row in db.query(Lesson.id).filter(
+                        Lesson.module_id.in_(module_ids), Lesson.status == "published"
+                    )
+                }
+        done = set()
+        if lesson_ids:
+            done = {
+                row.lesson_id
+                for row in db.query(StudentLessonNote.lesson_id).filter(
+                    StudentLessonNote.student_id == student_id,
+                    StudentLessonNote.lesson_id.in_(lesson_ids),
+                )
+            }
+        required_incomplete = any(
+            not is_quiz_passed(db, student_id, quiz)
+            for quiz in required_quizzes_for_week(db, week)
+        )
+        if lesson_ids - done or required_incomplete:
+            return week
     return max(MODULE_WEEKS.values())
 
 
@@ -597,23 +629,42 @@ def get_week_plan(
                     }
                 )
 
-    # Quizzes by week_number; done = any attempt
-    attempted_quiz_ids = {
-        row.quiz_id
-        for row in db.query(QuizAttempt.quiz_id).filter(QuizAttempt.student_id == student_id)
-    }
-    quizzes_out = [
-        {
-            "id": q.id,
-            "title": q.title,
-            "status": "done" if q.id in attempted_quiz_ids else "available",
-            "route": f"/quizzes/{q.id}",
-        }
-        for q in db.query(Quiz)
-        .filter(Quiz.week_number == current_week, Quiz.status == QUIZ_STATUS_PUBLISHED)
+    visible_quizzes = (
+        db.query(Quiz)
+        .filter(
+            Quiz.week_number == current_week,
+            *student_visible_quiz_filters(),
+        )
         .order_by(Quiz.id)
         .all()
+    )
+    remediation_ids = assigned_remediation_ids(db, student_id) | triggered_remediation_ids(db, student_id)
+
+    def quiz_item(quiz):
+        passed = is_quiz_passed(db, student_id, quiz)
+        attempted = any(attempt.student_id == student_id for attempt in quiz.attempts)
+        return {
+            "id": quiz.id,
+            "title": quiz.title,
+            "status": "done" if passed else ("in_progress" if attempted else "available"),
+            "route": f"/quizzes/{quiz.id}",
+            "quiz_purpose": quiz.quiz_purpose,
+            "is_required": quiz.is_required,
+            "label": {
+                QUIZ_PURPOSE_REMEDIATION: "Remediation",
+                QUIZ_PURPOSE_CERTIFICATION: "Certification Practice",
+                QUIZ_PURPOSE_CUMULATIVE: "Cumulative Review",
+                QUIZ_PURPOSE_GATE: "Promotion Gate",
+            }.get(quiz.quiz_purpose, "Required" if quiz.is_required else "Optional"),
+        }
+
+    quizzes_out = [
+        quiz_item(q) for q in visible_quizzes
+        if q.is_required and q.show_in_weekly_checklist and q.quiz_purpose not in {QUIZ_PURPOSE_CUMULATIVE, QUIZ_PURPOSE_GATE}
     ]
+    practice_out = [quiz_item(q) for q in visible_quizzes if q.quiz_purpose == QUIZ_PURPOSE_PRACTICE and q.show_in_practice_library]
+    remediation_out = [quiz_item(q) for q in visible_quizzes if q.quiz_purpose == QUIZ_PURPOSE_REMEDIATION and q.id in remediation_ids]
+    cumulative_gate_out = [quiz_item(q) for q in visible_quizzes if q.quiz_purpose in {QUIZ_PURPOSE_CUMULATIVE, QUIZ_PURPOSE_GATE}]
 
     # CLI labs by pack mapping
     week_packs = [p for p, w in CLI_PACK_WEEKS.items() if w == current_week]
@@ -680,7 +731,7 @@ def get_week_plan(
         .all()
     ]
 
-    all_items = lessons_out + quizzes_out + cli_out + labs_out + tickets_out
+    all_items = lessons_out + quizzes_out + cumulative_gate_out + cli_out + labs_out + tickets_out
     done_count = sum(1 for item in all_items if item["status"] == "done")
 
     # Recommended next action: first non-done item in pedagogical order
@@ -697,6 +748,9 @@ def get_week_plan(
             "next_action": next_action,
             "lessons": lessons_out,
             "quizzes": quizzes_out,
+            "practice_quizzes": practice_out,
+            "remediation_quizzes": remediation_out,
+            "cumulative_gate_quizzes": cumulative_gate_out,
             "cli_labs": cli_out,
             "labs": labs_out,
             "tickets": tickets_out,

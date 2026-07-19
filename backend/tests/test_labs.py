@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+import importlib
+import time
 
 from conftest import auth_headers, make_client, make_student
 from app.models.lab import LabRun, LabTemplate
@@ -6,6 +8,10 @@ from app.models.vm_assignment import VmAssignment
 from app.routers.admin_content import router as admin_content_router
 from app.routers.labs import router
 from app.services import guacamole_service, proxmox_service
+from sqlalchemy.orm import sessionmaker
+
+labs_module = importlib.import_module("app.routers.labs")
+provision_worker = labs_module._provision_vm_task
 
 client = make_client(router)
 admin_client = make_client(admin_content_router)
@@ -77,41 +83,75 @@ def test_get_lab_unauthenticated(db):
 def test_start_vm_backed_lab_provisions_guacamole_session(monkeypatch, db):
     student = make_student(db)
     lab = _seed_lab(db, proxmox_template_vmid=900)
+    queued = []
+    monkeypatch.setattr(labs_module, "_provision_vm_task", lambda assignment_id: queued.append(assignment_id))
 
-    monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 210)
-    monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
-    monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: "10.0.0.25")
-    monkeypatch.setattr(guacamole_service, "create_connection", lambda vm_ip, vmid: "conn-210")
-    monkeypatch.setattr(guacamole_service, "get_token_url", lambda conn_id: f"https://guac.local/{conn_id}")
-
+    before = time.monotonic()
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
+    elapsed = time.monotonic() - before
 
-    assert started.status_code == 200
+    assert started.status_code == 202
+    assert elapsed < 1
     data = started.json()["data"]
     assert data["status"] == "in_progress"
-    assert data["vmid"] == 210
-    assert data["vm_status"] == "running"
-    assert data["guac_token_url"] == "https://guac.local/conn-210"
+    assert data["vm_assignment"]["status"] == "provisioning"
+    assert data["vm_assignment"]["vmid"] is None
 
     assignment = db.query(VmAssignment).filter(VmAssignment.lab_run_id == data["run_id"]).one()
-    assert assignment.status == "running"
-    assert assignment.ip_address == "10.0.0.25"
-    assert assignment.guac_conn_id == "conn-210"
+    assert queued == [assignment.id]
+
+    second = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
+    assert second.status_code == 202
+    assert db.query(VmAssignment).filter(VmAssignment.lab_run_id == data["run_id"]).count() == 1
+    assert queued == [assignment.id]
 
 
 def test_start_vm_backed_lab_marks_assignment_failed_without_ip(monkeypatch, db):
     student = make_student(db)
     lab = _seed_lab(db, proxmox_template_vmid=900)
 
+    worker_session = sessionmaker(bind=db.get_bind(), autocommit=False, autoflush=False)
+    monkeypatch.setattr(labs_module, "SessionLocal", worker_session)
+    monkeypatch.setattr(labs_module, "_provision_vm_task", lambda assignment_id: None)
+
+    started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
+    assignment_id = started.json()["data"]["vm_assignment"]["assignment_id"]
+
     monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 211)
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: None)
+    provision_worker(assignment_id)
 
-    started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
-
-    assert started.status_code == 502
-    assignment = db.query(VmAssignment).filter(VmAssignment.vmid == 211).one()
+    db.expire_all()
+    assignment = db.query(VmAssignment).filter(VmAssignment.id == assignment_id).one()
     assert assignment.status == "failed"
+    assert assignment.vmid == 211
+    assert assignment.provisioning_error == "Lab environment provisioning timed out. Please contact an administrator."
+
+
+def test_provisioning_worker_persists_each_resource(monkeypatch, db):
+    student = make_student(db)
+    lab = _seed_lab(db, proxmox_template_vmid=900)
+    worker_session = sessionmaker(bind=db.get_bind(), autocommit=False, autoflush=False)
+    monkeypatch.setattr(labs_module, "SessionLocal", worker_session)
+    monkeypatch.setattr(labs_module, "_provision_vm_task", lambda assignment_id: None)
+    started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
+    assignment_id = started.json()["data"]["vm_assignment"]["assignment_id"]
+
+    monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 215)
+    monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
+    monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: "10.0.0.29")
+    monkeypatch.setattr(guacamole_service, "create_connection", lambda vm_ip, vmid: "conn-215")
+    provision_worker(assignment_id)
+
+    db.expire_all()
+    assignment = db.query(VmAssignment).filter_by(id=assignment_id).one()
+    assert assignment.status == "running"
+    assert assignment.vmid == 215
+    assert assignment.ip_address == "10.0.0.29"
+    assert assignment.guac_conn_id == "conn-215"
+    assert assignment.started_at is not None
+    assert assignment.expires_at is not None
 
 
 def test_submit_vm_backed_lab_destroys_assignment(monkeypatch, db):
@@ -120,16 +160,23 @@ def test_submit_vm_backed_lab_destroys_assignment(monkeypatch, db):
     destroyed = []
     deleted = []
 
-    monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 212)
-    monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
-    monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: "10.0.0.26")
-    monkeypatch.setattr(guacamole_service, "create_connection", lambda vm_ip, vmid: "conn-212")
-    monkeypatch.setattr(guacamole_service, "get_token_url", lambda conn_id: f"https://guac.local/{conn_id}")
+    monkeypatch.setattr(labs_module, "_provision_vm_task", lambda assignment_id: None)
+    started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
+    assignment_id = started.json()["data"]["vm_assignment"]["assignment_id"]
+    assignment = db.query(VmAssignment).filter(VmAssignment.id == assignment_id).one()
+    assignment.vmid = 212
+    assignment.status = "running"
+    assignment.ip_address = "10.0.0.26"
+    assignment.guac_conn_id = "conn-212"
+    assignment.guac_username = "temporary-student"
+    db.commit()
+
+    worker_session = sessionmaker(bind=db.get_bind(), autocommit=False, autoflush=False)
+    monkeypatch.setattr(labs_module, "SessionLocal", worker_session)
     monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid: destroyed.append(vmid))
     monkeypatch.setattr(guacamole_service, "delete_connection", lambda conn_id: deleted.append(conn_id))
-
-    started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
-    assert started.status_code == 200
+    deleted_users = []
+    monkeypatch.setattr(guacamole_service, "delete_user", lambda username: deleted_users.append(username))
 
     submitted = client.post(
         f"/api/labs/{lab.id}/submit",
@@ -138,11 +185,82 @@ def test_submit_vm_backed_lab_destroys_assignment(monkeypatch, db):
     )
 
     assert submitted.status_code == 200
+    db.expire_all()
     assignment = db.query(VmAssignment).filter(VmAssignment.vmid == 212).one()
     assert assignment.status == "destroyed"
     assert assignment.destroyed_at is not None
     assert destroyed == [212]
     assert deleted == ["conn-212"]
+    assert deleted_users == ["temporary-student"]
+
+
+def test_running_assignment_survives_refresh_and_issues_scoped_access(monkeypatch, db):
+    student = make_student(db)
+    other = make_student(db, username="student2")
+    lab = _seed_lab(db, proxmox_template_vmid=900)
+    run = LabRun(lab_template_id=lab.id, student_id=student.id, status="in_progress")
+    db.add(run)
+    db.flush()
+    assignment = VmAssignment(
+        vmid=214,
+        student_id=student.id,
+        lab_run_id=run.id,
+        status="running",
+        ip_address="10.0.0.28",
+        guac_conn_id="conn-214",
+        started_at=datetime.now(timezone.utc),
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+    )
+    db.add(assignment)
+    db.commit()
+
+    refreshed = client.get(f"/api/labs/{lab.id}", headers=auth_headers(student))
+    assert refreshed.status_code == 200
+    assert refreshed.json()["data"]["vm_assignment"]["vmid"] == 214
+
+    monkeypatch.setattr(
+        guacamole_service,
+        "create_scoped_access",
+        lambda conn_id, assignment_id, previous_username: {
+            "username": "scoped-user",
+            "url": "https://guac.local/#/client/safe?token=student-token",
+        },
+    )
+    access = client.post(f"/api/labs/{lab.id}/vm-access", headers=auth_headers(student))
+    assert access.status_code == 200
+    assert access.json()["data"]["url"].endswith("token=student-token")
+    db.expire_all()
+    assert db.query(VmAssignment).filter_by(id=assignment.id).one().guac_username == "scoped-user"
+
+    denied = client.post(f"/api/labs/{lab.id}/vm-access", headers=auth_headers(other))
+    assert denied.status_code == 404
+
+
+def test_expired_assignment_cannot_reconnect_and_is_queued_for_destroy(monkeypatch, db):
+    student = make_student(db)
+    lab = _seed_lab(db, proxmox_template_vmid=900)
+    run = LabRun(lab_template_id=lab.id, student_id=student.id, status="in_progress")
+    db.add(run)
+    db.flush()
+    assignment = VmAssignment(
+        vmid=216,
+        student_id=student.id,
+        lab_run_id=run.id,
+        status="running",
+        guac_conn_id="conn-216",
+        expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+    )
+    db.add(assignment)
+    db.commit()
+    queued = []
+    monkeypatch.setattr(labs_module, "_destroy_vm_task", lambda assignment_id: queued.append(assignment_id))
+
+    access = client.post(f"/api/labs/{lab.id}/vm-access", headers=auth_headers(student))
+    assert access.status_code == 410
+    status = client.get(f"/api/labs/{lab.id}/vm-status", headers=auth_headers(student))
+    assert status.status_code == 200
+    assert status.json()["data"]["status"] == "destroying"
+    assert queued == [assignment.id]
 
 
 def test_admin_cleanup_destroys_idle_vm_assignments(monkeypatch, db):
@@ -178,3 +296,30 @@ def test_admin_cleanup_destroys_idle_vm_assignments(monkeypatch, db):
     assert assignment.destroyed_at is not None
     assert destroyed == [213]
     assert deleted == ["conn-213"]
+
+
+def test_admin_can_see_safe_provisioning_failure(db, monkeypatch):
+    monkeypatch.setenv("ADMIN_API_KEY", "unit-test-admin")
+    student = make_student(db)
+    lab = _seed_lab(db, proxmox_template_vmid=900)
+    run = LabRun(lab_template_id=lab.id, student_id=student.id, status="in_progress")
+    db.add(run)
+    db.flush()
+    assignment = VmAssignment(
+        student_id=student.id,
+        lab_run_id=run.id,
+        status="failed",
+        provisioning_error="Lab environment provisioning failed. Please contact an administrator.",
+    )
+    db.add(assignment)
+    db.commit()
+
+    res = admin_client.get("/api/admin/vms/assignments", headers={"X-Admin-Key": "unit-test-admin"})
+
+    assert res.status_code == 200
+    row = res.json()["data"][0]
+    assert row["student_name"] == student.name
+    assert row["lab_title"] == lab.title
+    assert row["status"] == "failed"
+    assert row["provisioning_error"] == assignment.provisioning_error
+    assert "guac_username" not in row

@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -102,7 +102,7 @@ class AIServiceError(Exception):
 
 
 def _today_window() -> tuple[datetime, datetime]:
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     tomorrow_start = today_start + timedelta(days=1)
     return today_start, tomorrow_start

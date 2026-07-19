@@ -7,13 +7,14 @@ variable, and the security posture after the Phase 1 audit.
 
 # Part 1 — Content Authoring Guide
 
-All Weeks 1–8 content lives in structured Python seed sources, not in the
+All 24 weeks of content live in structured Python seed sources, not in the
 database directly. Edit the source, re-run `python seed.py`, and the change
 propagates. Seeds are idempotent — matched by stable keys — so student work is
 never touched.
 
 - **Weeks 1–4:** `backend/seed_phase_a.py`
 - **Weeks 5–8:** `backend/seed_phase_b.py`
+- **Weeks 9–24:** `backend/seed_phase_c.py` through `backend/seed_phase_g.py`
 - **Roles, gates, base tickets, labs, capstones, methodology:** `backend/seed.py`
 
 ## Adding or editing a lesson
@@ -124,13 +125,13 @@ Do not build a second progression system — extend this one.
 
 | Variable | Purpose | Default | Notes |
 |---|---|---|---|
-| `DATABASE_URL` | DB connection | (required) | SQLite locally, Postgres/Supabase in prod |
+| `DATABASE_URL` | DB connection | `sqlite:///./nexus.db` | SQLite is active in production; PostgreSQL is supported |
 | `JWT_SECRET_KEY` | Signs student tokens | (required in prod) | keep secret; rotating it logs everyone out |
 | `ADMIN_USERNAME` | Mentor/admin login | (required for admin) | |
 | `ADMIN_PASSWORD` | Mentor/admin login | (required for admin) | also used to derive nothing now — sessions are random |
 | `ADMIN_API_KEY` | Header auth for admin API | falls back to `ADMIN_SECRET_KEY` | |
 | `ADMIN_SESSION_TTL_SECONDS` | Admin session lifetime | `43200` (12h) | |
-| `AI_BASE_URL` | AI endpoint (OpenAI-compatible) | OpenRouter URL | e.g. `http://<ollama>:11434/v1` |
+| `AI_BASE_URL` | AI endpoint (OpenAI-compatible) | OpenRouter compatibility fallback | active deployment uses local Ollama |
 | `AI_MODEL` | Model name | (falls back to `OPENROUTER_MODEL`) | `provider/model` for hosted; bare name for Ollama |
 | `AI_API_KEY` | AI auth | (falls back to `OPENROUTER_API_KEY`) | omit for local Ollama |
 | `AI_ENABLED` | Master AI switch | `true` | set `false` to force manual grading |
@@ -138,6 +139,9 @@ Do not build a second progression system — extend this one.
 | `MAX_EVIDENCE_UPLOAD_BYTES` | Upload size cap | `10485760` (10 MB) | Part 9 hardening |
 | `UPLOAD_DIR` | Evidence storage path | repo `uploads/screenshots` | **use a persistent volume in prod** |
 | `DAILY_AI_BUDGET` | Soft AI spend cap | `1.00` | |
+| `PROXMOX_FULL_CLONE` | Clone mode | `false` | linked on supported storage, otherwise logged full fallback |
+| `LAB_VM_TTL_MINUTES` | Assignment lifetime | `120` | access is denied after expiry |
+| `GUACAMOLE_DATASOURCE` | Guacamole JDBC datasource | `postgresql` | Guacamole 1.6.0 contract |
 
 Legacy `OPENROUTER_*` variables still work as fallbacks so existing deployments
 keep running. The app **boots even with no AI variables set** — AI endpoints
@@ -177,17 +181,15 @@ Fixes applied and verified with regression tests (`tests/test_security_part9.py`
 
 ## Known open items (honest limitations)
 
-- **Proxmox/Guacamole automated VM provisioning** remains unfixed and is
-  intentionally off the Weeks 1–8 path. Its own P0s (connection-string
-  encoding, admin-token exposure, sync provisioning, session recovery) are
-  tracked separately and must pass a real smoke test before any curriculum
-  depends on them. Use manual VMs meanwhile.
+- **Proxmox/Guacamole application fixes are complete**, including scoped
+  temporary users and asynchronous persistent assignment state. A real
+  infrastructure isolation/lifecycle smoke test is still required before any
+  cohort depends on automated VMs. Use manual VMs until that passes.
 - **Admin session store is in-process.** Correct for the single-container,
   single-mentor deployment here; would need shared storage (Redis/DB) if the
   backend were ever horizontally scaled.
-- **AI grader calibration against a live model has not been run in this
-  environment** (no AI endpoint available during development). Run
-  `scripts/calibrate_grader.py` against your Ollama VM before relying on
-  automated grading.
-- **`UPLOAD_DIR` on ephemeral hosting** (e.g. Railway) loses evidence on redeploy
-  — mount a persistent volume.
+- **AI model changes require recalibration.** The current Ollama model passed
+  the five-fixture calibration on 2026-07-17; rerun
+  `scripts/calibrate_grader.py` after changing the model or prompt.
+- **`UPLOAD_DIR` must remain persistent.** The active self-hosted deployment is
+  covered by `scripts/backup_sqlite.sh`; do not move it to ephemeral storage.

@@ -7,7 +7,7 @@ class ResourceCreateRequest(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     url: HttpUrl
     resource_type: str = Field(min_length=3, max_length=50)
-    week_number: int = Field(ge=1)
+    week_number: int = Field(ge=1, le=24)
     category: str | None = Field(default=None, max_length=100)
 
 

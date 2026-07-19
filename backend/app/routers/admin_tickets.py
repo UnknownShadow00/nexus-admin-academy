@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from statistics import mean
 
@@ -226,7 +226,7 @@ def verify_proof(submission_id: int, comment: str | None = None, db: Session = D
     submission.status = "passed"
     submission.admin_reviewed = True
     submission.admin_comment = comment or submission.admin_comment
-    submission.verified_at = datetime.utcnow()
+    submission.verified_at = datetime.now(timezone.utc)
     submission.verified_by = 0
     db.commit()
 

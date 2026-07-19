@@ -5,7 +5,7 @@ class TicketCreateRequest(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     description: str = Field(min_length=10)
     difficulty: int = Field(ge=1, le=5)
-    week_number: int = Field(ge=1)
+    week_number: int = Field(ge=1, le=24)
     category: str | None = Field(default="general", max_length=100)
     domain_id: str = Field(default="1.0", max_length=10)
     lesson_id: int | None = Field(default=None, ge=1)

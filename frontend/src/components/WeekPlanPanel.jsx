@@ -6,7 +6,10 @@ import { iconSizes } from "../utils/theme";
 
 const SECTIONS = [
   { key: "lessons", label: "Lessons", Icon: BookOpen },
-  { key: "quizzes", label: "Quizzes", Icon: ClipboardList },
+  { key: "quizzes", label: "Required Quizzes", Icon: ClipboardList },
+  { key: "practice_quizzes", label: "Optional Practice", Icon: ClipboardList },
+  { key: "remediation_quizzes", label: "Remediation", Icon: ClipboardList },
+  { key: "cumulative_gate_quizzes", label: "Cumulative / Gate", Icon: ClipboardList },
   { key: "cli_labs", label: "Networking Labs", Icon: TerminalSquare },
   { key: "labs", label: "Labs", Icon: FlaskConical },
   { key: "tickets", label: "Tickets", Icon: TicketIcon },
@@ -15,6 +18,7 @@ const SECTIONS = [
 const STATUS_STYLES = {
   done: "text-emerald-600 dark:text-emerald-400",
   in_review: "text-amber-600 dark:text-amber-400",
+  in_progress: "text-amber-600 dark:text-amber-400",
   available: "text-slate-400 dark:text-slate-500",
 };
 
@@ -88,6 +92,7 @@ export default function WeekPlanPanel() {
                     <Link to={item.route || "#"} className="flex items-center gap-2 rounded-lg p-1.5 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
                       <StatusIcon status={item.status} />
                       <span className="truncate">{item.title}</span>
+                      {item.label ? <span className="ml-auto shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] dark:bg-slate-800">{item.label}</span> : null}
                       {item.status === "in_review" && <span className="ml-auto shrink-0 text-xs text-amber-600 dark:text-amber-400">in review</span>}
                     </Link>
                   </li>
