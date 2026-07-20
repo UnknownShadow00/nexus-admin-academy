@@ -24,6 +24,30 @@ The repair backup is under `/home/nexus/backups/nexus-launch-fix-20260719T100246
 The project is ready for the manual-VM cohort; do not publish automated VM labs
 until their separate real-infrastructure acceptance test passes.
 
+## FINAL QUIZ-PROTECTION LIVE VERIFICATION — 2026-07-20 UTC
+
+- `nexus-admin-academy.service` was restarted by an authorized operator and is
+  active. `http://127.0.0.1/health` returned HTTP 200 both before and after
+  the live smoke test.
+- The current restart log shows a clean application startup with no startup,
+  migration, database, or import errors.
+- A disposable student confirmed a validated required Week 3 quiz in Required
+  and a validated optional Week 3 quiz in Practice. The required quiz changed
+  from `available` to `done` after a correct submission and recorded mastery.
+  The optional quiz submitted successfully, left the required quiz
+  `available`, and created no mastery row.
+- An unvalidated Week 3 quiz was absent from This Week, All Weeks, Practice,
+  Remediation, and Certification Library student surfaces. Its direct detail
+  and submission requests both returned HTTP 404.
+- Admin editorial review returned HTTP 200, contained that quiz, and reported
+  all 76 pending quizzes.
+- The disposable account was deleted through the supported admin endpoint;
+  the readback found zero owned attempts, progress, or related rows. SQLite
+  `integrity_check` returned `ok` and `foreign_key_check` returned no rows.
+
+**Status:** Ready for manual-VM cohort. No quiz-content review, scenario
+authoring, or automated-VM work was performed in this verification.
+
 ---
 
 ## DAY 1 — Deploy the new repo to .101 (nexus-services)

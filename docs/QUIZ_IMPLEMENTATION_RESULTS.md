@@ -81,3 +81,28 @@ Implementation date: 2026-07-19 UTC
 - The admin editorial queue is paginated and prioritizes practice, remediation, cumulative/gate, certification, then archived merge sources. It contains 76 pending/archived imported banks and reports actual question counts and missing explanations.
 - No additional imported question was marked validated in this safety pass. Pending editorial work remains source-backed, question-by-question review; see `QUIZ_EDITORIAL_REVIEW_LOG.md` and `QUIZ_WEAK_WEEK_EXPANSION_PLAN.md`.
 - Backend compile and full test suite passed: **164 passed**. Alembic remains `0029 (head)`. `npm audit` reported **0 vulnerabilities** and the production frontend build passed.
+
+## Final live verification — 2026-07-20 UTC
+
+- After the authorized service restart, `nexus-admin-academy.service` was
+  active and `http://127.0.0.1/health` returned HTTP 200 before and after
+  testing. The restart log contained no startup, migration, database, or
+  import errors.
+- With one disposable student, validated required quiz #2 appeared in Required
+  for Week 3 and validated optional practice quiz #3 appeared in Practice.
+  The required quiz moved from `available` to `done` after a correct
+  submission and produced one mastery attempt. The optional submission left
+  the required quiz `available` and produced zero mastery rows.
+- Unvalidated quiz #65 was absent from This Week, All Weeks, Practice,
+  Remediation, and Certification Library. Direct student detail and submission
+  requests each returned HTTP 404.
+- The admin editorial queue returned HTTP 200, included quiz #65, and reported
+  76 pending quizzes. Admin visibility is preserved while student access is
+  blocked.
+- The disposable account was deleted through the supported admin endpoint.
+  A complete table readback found no records remaining with its `student_id`
+  or `user_id`, including attempts and progress rows. SQLite `integrity_check`
+  returned `ok`; `foreign_key_check` returned no violations.
+
+Final status: **Ready for manual-VM cohort**. The 76 pending quizzes remain
+admin-only editorial work and were neither reviewed nor changed here.
