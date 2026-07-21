@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -36,6 +37,7 @@ from app.routers import (
 from app.routers.admin_curriculum import router as admin_curriculum_router
 from app.services.cli_lab_seed import seed_cli_labs
 from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
+from app.services.auth_service import STUDENT_SESSION_COOKIE
 
 load_env()
 LOG_PATH = os.getenv("APP_LOG_PATH", "/var/log/nexus/app.log")
@@ -81,6 +83,40 @@ def _cors_origins() -> list[str]:
     return origins
 
 
+_EXAMCOMPASS_ORIGINS = {"https://www.examcompass.com", "https://examcompass.com"}
+_STATE_CHANGING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+_SECURITY_CSP = (
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data:; connect-src 'self'; "
+    "frame-src https://www.youtube.com https://www.youtube-nocookie.com; "
+    "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+)
+
+
+def _origin_from_url(value: str | None) -> str | None:
+    """Return a normalized http(s) origin from an Origin or Referer value."""
+    if not value:
+        return None
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}".lower()
+
+
+def _csrf_trusted_origins(request: Request) -> set[str]:
+    trusted = {
+        origin
+        for raw_origin in _cors_origins()
+        if raw_origin not in _EXAMCOMPASS_ORIGINS
+        if (origin := _origin_from_url(raw_origin)) is not None
+    }
+    scheme = request.headers.get("X-Forwarded-Proto", request.url.scheme).split(",", 1)[0].strip()
+    own_origin = _origin_from_url(f"{scheme}://{request.headers.get('host', '')}")
+    if own_origin:
+        trusted.add(own_origin)
+    return trusted
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     db = SessionLocal()
@@ -105,6 +141,41 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def csrf_origin_validation(request: Request, call_next):
+        has_session_cookie = (
+            STUDENT_SESSION_COOKIE in request.cookies
+            or "admin_session" in request.cookies
+        )
+        if request.method in _STATE_CHANGING_METHODS and has_session_cookie:
+            origin_header = request.headers.get("origin")
+            origin = _origin_from_url(origin_header)
+            if origin_header is None:
+                origin = _origin_from_url(request.headers.get("referer"))
+            if origin not in _csrf_trusted_origins(request):
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "success": False,
+                        "error": "Cross-site request blocked",
+                        "code": "CSRF_REJECTED",
+                    },
+                )
+        return await call_next(request)
+
+    @app.middleware("http")
+    async def security_response_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+        response.headers["Content-Security-Policy"] = _SECURITY_CSP
+        if request.headers.get("X-Forwarded-Proto", "").split(",", 1)[0].strip() == "https" or request.url.scheme == "https":
+            response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+        if request.url.path.startswith(("/api/", "/auth/")):
+            response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.exception_handler(APIError)
     async def api_error_handler(_: Request, exc: APIError):

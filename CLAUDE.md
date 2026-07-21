@@ -457,6 +457,51 @@ And update `TASKS.md` backlog accordingly.
   pending because Proxmox/Guacamole config is incomplete and zero automated labs
   are published.
 
+## Security review reconciliation (2026-07-21)
+
+- An external Deep Research report (written without repo/ZIP access or live
+  auth testing) was reconciled against current code and the live `.101`
+  deployment. Full detail in `docs/DEEP_RESEARCH_FINDINGS_RECONCILIATION.md`,
+  `docs/SECURITY_ROUTE_AUTHORIZATION_AUDIT.md`, and
+  `docs/SECURITY_HEADERS_AND_SESSION_REVIEW.md`.
+- Its three critical/high findings (Guacamole admin-token-in-student-URL,
+  `allow_admin_or_student` bearer bypass, deterministic `sha256(password)`
+  admin session) were already fixed before this review — confirmed via
+  `guacamole_service.py`'s scoped per-student temp users, `admin_auth.py`'s
+  JWT-verifying bearer check, and the random/expiring/revocable admin session.
+  Route-by-route authorization across all routers is clean.
+- Fixed during this review, code-complete but **not yet deployed** to `.101`:
+  cookies now `SameSite=Lax` unconditionally (was `None` in production with no
+  same-origin need); a new Origin/Referer CSRF-validation middleware in
+  `app/main.py` for cookie-authenticated state-changing requests; security
+  response headers (CSP, HSTS, X-Content-Type-Options, Referrer-Policy,
+  Permissions-Policy, `Cache-Control: no-store` on `/api/`+`/auth/`) added in
+  both the FastAPI backend and `frontend/nginx.conf`/`nginx.host.conf`; and a
+  bounded-read + aggregate-size fix on `POST /api/tickets/uploads` (previously
+  read entire uploads into memory before the size check, unlike the already
+  bounded `evidence.py` upload path).
+- Still pending, not launch-blocking: Cloudflare's `builtfromzero.fyi` zone
+  doesn't redirect plain `http://` to `https://` (dashboard-only fix, no
+  code lever exists in this repo); confirm intent on `GET /api/students`
+  exposing all student emails to any authenticated student.
+- **Resolved (2026-07-21):** the leftover temporary "Claude" student account
+  (live, id 8, zero owned rows) was removed via the supported
+  `DELETE /api/admin/students/{id}` workflow; `SEED_PASSWORD_CLAUDE` was
+  removed from `.env`; the temporary `ACCOUNTS` entry in `seed_users.py` was
+  reverted. `ADMIN_USERNAME` was found to literally be the temporary `codex`
+  value (confirmed via a boolean-only check, no secret ever printed) and was
+  replaced with the real mentor credentials by the operator directly. Post-
+  cleanup: 7 real cohort accounts remain, zero orphan rows, integrity `ok`,
+  zero FK violations, 176/176 tests pass.
+- **Deployed 2026-07-21:** all hardening changes above are live on `.101` —
+  backend restarted, frontend rebuilt/redeployed to the `nexus-frontend`
+  container. 41/41 live smoke tests passed (auth, CSRF, email privacy,
+  uploads, security headers, core workflows, live ticket grading via Ollama).
+  Cloudflare "Always Use HTTPS" remains **not enabled** — confirmed live,
+  dashboard-only action pending. Minor follow-up: nginx's security headers
+  are duplicated (identical values) on proxied backend paths since both nginx
+  and FastAPI set them — cosmetic, not a security issue.
+
 ## Quiz organization (2026-07-19)
 
 - Alembic head is `0029`. Quiz purpose, editorial state, checklist/library visibility, source, validation, quality, and prerequisite metadata are authoritative; `status=published` alone no longer makes a quiz required.

@@ -1,4 +1,57 @@
 
+## Security review reconciliation (2026-07-21)
+
+An external Deep Research report (written without repo/ZIP access or live
+auth, from older handoff docs) was reconciled against current code and the
+live `.101` deployment. Full detail: `docs/DEEP_RESEARCH_FINDINGS_RECONCILIATION.md`,
+`docs/SECURITY_ROUTE_AUTHORIZATION_AUDIT.md`,
+`docs/SECURITY_HEADERS_AND_SESSION_REVIEW.md`.
+
+- [x] **Confirmed already fixed, pre-dating this review:** Guacamole admin-token
+  exposure, `allow_admin_or_student` bearer bypass, deterministic admin
+  session, client-only `AdminAccessGate`, evidence upload cap/ownership,
+  SQLite FK enforcement + admin student-creation 500, synchronous VM
+  provisioning. See reconciliation doc for evidence per item.
+- [x] **Fixed during this review (code-complete, not yet deployed):** cookies
+  tightened from `SameSite=None` to `SameSite=Lax`; new Origin/Referer CSRF
+  middleware on cookie-authenticated state-changing routes; security response
+  headers (CSP/HSTS/X-Content-Type-Options/Referrer-Policy/Permissions-Policy/
+  Cache-Control) added in both FastAPI and nginx; unbounded file read fixed on
+  `POST /api/tickets/uploads` (now bounded + 20MB aggregate cap). 10 new
+  regression tests in `backend/tests/test_security_hardening.py`; full suite
+  172 passed / 2 pre-existing unrelated failures (see below).
+- [ ] **Deploy the above to `.101`** — requires a frontend rebuild/redeploy and
+  a backend service restart. Not done as part of this review; needs an
+  explicit go-ahead since it touches the live site.
+- [ ] **Cloudflare dashboard: enable "Always Use HTTPS"** on the
+  `builtfromzero.fyi` zone — plain `http://` currently serves `200` with no
+  redirect. Not a code fix; dashboard-only.
+- [x] **`GET /api/students` no longer returns email/`last_active_at`** — now
+  returns only `id`/`name` (the only fields the ticket-collaborator picker
+  reads). Admins still see email via the existing admin-only
+  `/api/admin/students/overview`. Tests added.
+- [x] **Test suite failures resolved** — the uncommitted temporary "Claude"
+  entry in `backend/scripts/seed_users.py`'s `ACCOUNTS` list was reverted
+  (code only). Full suite now **176 passed, 0 failed**.
+- [x] **Temporary review-account cleanup complete (2026-07-21)** — live
+  "Claude" student (id 8, zero owned rows) removed via the supported
+  `DELETE /api/admin/students/{id}` workflow; `SEED_PASSWORD_CLAUDE` removed
+  from `.env`; `ADMIN_USERNAME` (found to literally be the temporary `codex`
+  value) replaced with the real mentor credentials by the operator. Verified:
+  7 real cohort accounts remain, zero orphan rows, integrity `ok`, zero FK
+  violations, live admin login round-trip succeeds with new credentials.
+- [x] **Hardening changes deployed to `.101`** — backend restarted, frontend
+  rebuilt and redeployed to the `nexus-frontend` container. 41/41 live smoke
+  tests passed. See `docs/DEEP_RESEARCH_FINDINGS_RECONCILIATION.md`'s
+  deployment record for full detail.
+- [ ] **Cloudflare dashboard: enable "Always Use HTTPS"** — confirmed still
+  not enabled as of this deploy (plain `http://` still returns 200, no
+  redirect). Operator-only action, no code lever exists.
+- [ ] **Minor follow-up:** nginx's new security headers are set at the
+  `server` block level, so proxied backend paths get them twice (once from
+  nginx, once from FastAPI) — same values, no security impact, but untidy.
+  Scope `add_header` to `location /`/`location /assets/` only.
+
 ## Production deployment checkpoint (2026-07-19)
 
 The two manual-cohort launch blockers found during deployment verification are

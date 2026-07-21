@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 ALLOWED_MIMES = {"image/jpeg", "image/png", "image/webp"}
 MAX_FILE_SIZE = 5 * 1024 * 1024
+MAX_TOTAL_UPLOAD_BYTES = 20 * 1024 * 1024
 
 
 def _get_upload_dir() -> Path:
@@ -79,6 +80,7 @@ async def upload_screenshots(
     require_a_plus_unlocked(db, current_student)
     upload_dir = _get_upload_dir()
     saved = []
+    total_size = 0
 
     for file in files:
         ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else ""
@@ -87,9 +89,12 @@ async def upload_screenshots(
         if file.content_type not in ALLOWED_MIMES:
             raise HTTPException(status_code=400, detail="Invalid MIME type")
 
-        contents = await file.read()
+        contents = await file.read(MAX_FILE_SIZE + 1)
         if len(contents) > MAX_FILE_SIZE:
             raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+        if total_size + len(contents) > MAX_TOTAL_UPLOAD_BYTES:
+            raise HTTPException(status_code=400, detail="Too many files or combined size too large")
+        total_size += len(contents)
 
         safe_name = f"{uuid.uuid4()}.{ext}"
         destination = (upload_dir / safe_name).resolve()

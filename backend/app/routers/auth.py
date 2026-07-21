@@ -39,7 +39,7 @@ def _set_student_cookie(response: Response, token: str) -> None:
         value=token,
         httponly=True,
         secure=secure_cookie,
-        samesite="none" if secure_cookie else "lax",
+        samesite="lax",
         max_age=60 * 60 * 24,
         path="/",
     )

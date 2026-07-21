@@ -328,8 +328,10 @@ def get_leaderboard(db: Session = Depends(get_db), current_student: Student = De
 
 @router.get("/api/students")
 def get_students(db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    # Student-facing roster (e.g. the ticket collaborator picker) — no email or
+    # other private profile data. Admins use /api/admin/students/overview for that.
     rows = db.query(Student).order_by(Student.name.asc()).all()
-    data = [{"id": row.id, "name": row.name, "email": row.email, "last_active_at": row.last_active_at} for row in rows]
+    data = [{"id": row.id, "name": row.name} for row in rows]
     return ok(data, total=len(data), page=1, per_page=len(data) or 1)
 
 

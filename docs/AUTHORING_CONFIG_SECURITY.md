@@ -179,6 +179,19 @@ Fixes applied and verified with regression tests (`tests/test_security_part9.py`
   loophole); every attempt is preserved as its own row (retakes no longer
   overwrite history), so mastery and gate math read real data.
 
+## Phase 2 addendum (2026-07-21 Deep Research reconciliation)
+
+Full detail in `docs/DEEP_RESEARCH_FINDINGS_RECONCILIATION.md`,
+`docs/SECURITY_ROUTE_AUTHORIZATION_AUDIT.md`, and
+`docs/SECURITY_HEADERS_AND_SESSION_REVIEW.md`. Summary: an external report's
+critical/high findings were already covered by the Part 9 fixes above. This
+pass additionally tightened cookie `SameSite` to `Lax`, added an Origin/
+Referer CSRF-validation middleware, added security response headers (CSP,
+HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`,
+`Cache-Control: no-store`) in both FastAPI and nginx, and closed an unbounded-
+read gap on the ticket screenshot upload route that had been missed by the
+original Part 9 pass.
+
 ## Known open items (honest limitations)
 
 - **Proxmox/Guacamole application fixes are complete**, including scoped

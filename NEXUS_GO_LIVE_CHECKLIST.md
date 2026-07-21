@@ -244,6 +244,60 @@ are proven restorable.
 
 ---
 
+## SECURITY REVIEW CHECKPOINT — 2026-07-21
+
+An external Deep Research report was reconciled against current code and the
+live deployment (`docs/DEEP_RESEARCH_FINDINGS_RECONCILIATION.md`,
+`docs/SECURITY_ROUTE_AUTHORIZATION_AUDIT.md`,
+`docs/SECURITY_HEADERS_AND_SESSION_REVIEW.md`). Its three critical/high
+findings (Guacamole admin-token exposure, bearer-bypass, deterministic admin
+session) were already fixed before this review — all confirmed and
+regression-tested. Route-by-route authorization across all ~20 routers is
+clean; no foreign-resource-ID route was found skipping an ownership check.
+
+Fixed during this review (code-complete on `.101`'s working tree, **not yet
+deployed**): cookies tightened to `SameSite=Lax`, a new Origin/Referer CSRF
+middleware, security response headers (CSP/HSTS/nosniff/Referrer-Policy/
+Permissions-Policy/no-store) added to both the FastAPI backend and both nginx
+configs, an unbounded-file-read fix on the ticket screenshot upload route, and
+`GET /api/students` trimmed to `id`/`name` only (email/`last_active_at`
+removed — admins keep email access via the existing admin-only overview
+endpoint). Backend suite: **176 passed, 0 failed**, `python -m py_compile`
+clean, `alembic current` at `0029 (head)`, live and backup SQLite both pass
+integrity + foreign-key checks, frontend `npm run build` and `npm audit`
+(0 vulnerabilities) both clean.
+
+The prior 2 failing tests (`test_username_case.py`) were caused by an
+uncommitted temporary "Claude" entry in `seed_users.py`'s `ACCOUNTS` list —
+reverted (code only; the live DB row and `.env` were not touched).
+
+- [x] **Deployed 2026-07-21** — backend restarted (`kill -KILL $MAINPID`,
+  `Restart=on-failure`, since interactive `sudo` is unavailable here), health
+  200 before/after, clean startup logs. Frontend rebuilt and redeployed to the
+  `nexus-frontend` container (`docker cp` + `nginx -s reload`, `nginx -t`
+  passed first). 41/41 live smoke-test checks passed.
+- [x] **Temporary review-account cleanup done** — live "Claude" account
+  (id 8, zero owned rows) removed via the supported deletion workflow;
+  `SEED_PASSWORD_CLAUDE` removed from `.env`; `ADMIN_USERNAME` (found to
+  literally be the temporary `codex` value) replaced with the real mentor
+  credentials by the operator. Verified: 7 real accounts remain, zero orphans,
+  integrity `ok`, zero FK violations, live admin login round-trip succeeds.
+☐ **Cloudflare dashboard:** enable "Always Use HTTPS" on `builtfromzero.fyi` —
+confirmed still not enabled post-deploy; plain `http://` serves `200` with no
+redirect. Dashboard-only, no code lever exists. See
+`docs/DEEP_RESEARCH_FINDINGS_RECONCILIATION.md` for exact steps.
+☐ **Minor follow-up (not blocking):** nginx's new security headers are set at
+the `server` block level, so proxied backend paths get duplicate (identical)
+headers from both nginx and FastAPI — cosmetic only, scope `add_header` to
+`location /`/`location /assets/` when convenient.
+
+**Not launch-blocking:** the residual ExamCompass CORS/credentials note, the
+public (UUID-obscured) evidence file mount, and the `verified_by=0` audit-trail
+gap — all documented, none exploitable in a way that changes the "ready for
+manual-VM cohort" status.
+
+---
+
 ## PARKED (do not block launch on these)
 - The 60 proposed scenario-based quiz gap questions; do not create them until the quiz placement/results plan is reviewed after launch readiness.
 - Proxmox/Guacamole AUTO-VM infrastructure acceptance — application P0s are

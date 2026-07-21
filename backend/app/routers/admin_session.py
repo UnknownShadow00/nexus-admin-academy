@@ -53,7 +53,7 @@ def admin_session_login(payload: AdminLoginRequest, response: Response):
         value=issue_admin_session(),
         httponly=True,
         secure=secure_cookie,
-        samesite="none" if secure_cookie else "lax",
+        samesite="lax",
         expires=int(expiry.timestamp()),
         max_age=60 * 60 * 12,
         path="/",
@@ -93,7 +93,7 @@ def get_student_token(request: Request, response: Response, db: Session = Depend
         value=token,
         httponly=True,
         secure=secure_cookie,
-        samesite="none" if secure_cookie else "lax",
+        samesite="lax",
         max_age=60 * 60 * 24,
         path="/",
     )
