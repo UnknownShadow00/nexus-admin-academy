@@ -1,4 +1,87 @@
 
+## Pre-Week-0 Launch Readiness Sprint (2026-07-21)
+
+Fixed the P0/P1 findings below before the five real students begin. Full
+detail: `docs/reviews/PRE_WEEK_ZERO_IMPLEMENTATION_REPORT.md`,
+`docs/reviews/PRE_WEEK_ZERO_BROWSER_ACCEPTANCE.md`,
+`docs/reviews/PRE_WEEK_ZERO_FINAL_READINESS.md`.
+
+- [x] **A+ gate replaced** with week-based prerequisite gating
+  (`require_week_reached`, reusing existing week-derivation logic). Optional
+  A+ video progress no longer blocks any hands-on work. Structured 403s,
+  `PrerequisiteLock` UI component, tests in `test_week_prerequisite_gating.py`.
+- [x] **Week 0 onboarding added**: new "Welcome to Nexus" lesson + guided
+  zero-stakes practice walkthrough (`onboarding_service.py`, `onboarding.py`,
+  `OrientationPracticePanel.jsx`). Fixed a bug found during live testing
+  where completing onboarding claimed Week 1 readiness the real gate didn't
+  agree with (`week_one_unlocked` field now reconciles the two).
+- [x] **Capstone role-gate fixed** — 3 live templates now have correct
+  `role_level` (Support Technician I/II, Junior Systems Technician) instead
+  of `NULL`.
+- [x] **MOD-001 false-lock fixed** — cosmetic-only Learning Path lock caused
+  by an unsatisfiable `MOD-000` mastery prerequisite; nulled via migration.
+  (LESSON-001's original "0 lessons" premise was found false during
+  reconciliation — no new lesson was needed there.)
+- [x] **Mentor activity filtered from student squad feed** (role-based
+  filter, both roster and activity queries).
+- [x] **Quiz visibility reconciled** — QUIZ-001's original finding
+  (unvalidated quizzes visible/attemptable) was found false; live testing
+  confirmed the existing filter already excludes them everywhere.
+- [x] **Admin onboarding visibility added** to the existing student-activity
+  admin endpoint.
+- [x] Findings inventory normalized (`NEXUS_FINDINGS.csv`: 44 primary + 4
+  alias rows); account-count reconciled (7 total: 1 mentor + 6 students).
+- [x] Full verification: 188/188 backend tests, Alembic head `0031`, DB
+  integrity/FK clean, `npm audit` 0 vulnerabilities, `npm run build` clean.
+  No rendered-browser check was possible in this sandbox (see acceptance
+  doc) — recommend a human click-through on desktop/mobile after deploy.
+- [ ] **Phase 11 deploy** — not yet executed; pending explicit go-ahead
+  (production action on shared infrastructure). Once approved: backup,
+  deploy, restart, live re-verify, remove the disposable review account,
+  confirm the 6 real students unchanged, tag the release.
+
+## Full platform review — beginner readiness, curriculum, technical (2026-07-21)
+
+A 17-phase product/curriculum/UX/technical review, led by Claude with Codex
+used for static system mapping and content extraction, plus live testing
+(site walkthrough, admin actions, real ticket submission/grading, DB
+verification) performed directly by Claude. Full detail in
+`docs/reviews/NEXUS_FULL_REVIEW.md` and its 17 supporting documents;
+prioritized fix sequencing in `docs/reviews/NEXUS_PRIORITIZED_ACTION_PLAN.md`;
+per-area go/no-go in `docs/reviews/NEXUS_PUBLISH_READINESS.md`. **No
+production code was changed as part of this review** — awaiting
+project-owner approval of the action plan before any fix is implemented.
+
+- [ ] **P0 — fix before Week 0:** the A+ Study Tracker 40%-unlock gate
+  silently blocks all ticket/lab/capstone/CLI-lab actions for every student
+  (confirmed live: a fresh 0%-progress student gets a 403 on their very
+  first ticket submission) — contradicts Week 1's designed ticket
+  assignments. See `NEXUS_TICKET_REVIEW.md` (TICKET-001) and
+  `NEXUS_TECHNICAL_REVIEW.md` (TECH-001).
+- [ ] **P1 — fix before Week 0:** no platform-onboarding content exists
+  anywhere (ONBOARD-001); the capstone role-gate is a no-op because all 3
+  live templates have `role_level = NULL` so Capstones is fully visible/
+  usable at 0 XP (CUR-002); Week 1 has zero lessons despite two graded
+  tickets (LESSON-001). See `NEXUS_WEEK_ZERO_REVIEW.md`,
+  `NEXUS_BEGINNER_NAVIGATION_REVIEW.md`, `NEXUS_LESSON_REVIEW.md`.
+- [ ] **P2/P3 — during Weeks 1-4 or after cohort start:** ~30 further
+  findings (labs award no XP/no mentor gate, screenshot evidence has no
+  content validation, Terminal Practice duplicates Command Library with a
+  non-functional terminal widget, optional/certification quizzes with
+  unvalidated answer keys are visible to students, accessibility gaps,
+  mentor-workload reductions) — full list with severity/evidence/fix
+  complexity in `docs/reviews/NEXUS_FINDINGS.csv`.
+- [x] **Live re-verification of platform health (2026-07-21):** 176/176
+  backend tests, Alembic head 0029, SQLite integrity/FK clean, npm audit 0
+  vulnerabilities, clean frontend build, HTTPS redirect + security headers
+  live, CSRF/rate-limiting confirmed via real rejected requests, full
+  ticket-grading lifecycle (submit → AI grade → mentor reject/revise/verify
+  → XP) live-tested end to end on a disposable account, disposable account
+  and all owned rows fully removed afterward with zero orphans.
+- [ ] **Automated Proxmox/Guacamole VM labs** — confirmed still correctly
+  disabled; no action recommended until a real infrastructure smoke test
+  passes (unchanged from prior status).
+
 ## Security review reconciliation (2026-07-21)
 
 An external Deep Research report (written without repo/ZIP access or live
@@ -44,9 +127,9 @@ live `.101` deployment. Full detail: `docs/DEEP_RESEARCH_FINDINGS_RECONCILIATION
   rebuilt and redeployed to the `nexus-frontend` container. 41/41 live smoke
   tests passed. See `docs/DEEP_RESEARCH_FINDINGS_RECONCILIATION.md`'s
   deployment record for full detail.
-- [ ] **Cloudflare dashboard: enable "Always Use HTTPS"** — confirmed still
-  not enabled as of this deploy (plain `http://` still returns 200, no
-  redirect). Operator-only action, no code lever exists.
+- [x] **Cloudflare dashboard: enable "Always Use HTTPS"** — confirmed live
+  during the 2026-07-21 full platform review: `http://nexus.builtfromzero.fyi/`
+  now returns `301` to the HTTPS origin. Resolved since the last deploy note.
 - [ ] **Minor follow-up:** nginx's new security headers are set at the
   `server` block level, so proxied backend paths get them twice (once from
   nginx, once from FastAPI) — same values, no security impact, but untidy.

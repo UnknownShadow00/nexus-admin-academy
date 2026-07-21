@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Spinner from "../components/Spinner";
-import APlusPreviewLock, { getAPlusPreviewAccess } from "../components/APlusPreviewLock";
+import PrerequisiteLock, { getPrerequisiteLock } from "../components/PrerequisiteLock";
 import PageHeader from "../components/ui/PageHeader";
 import { getCapstone, startCapstone, submitCapstone } from "../services/api";
 
@@ -13,11 +13,11 @@ const statusConfig = {
 
 export default function CapstonePage() {
   const { capstoneId } = useParams();
-  const previewAccess = getAPlusPreviewAccess();
   const [capstone, setCapstone] = useState(null);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [prerequisiteLock, setPrerequisiteLock] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +45,8 @@ export default function CapstonePage() {
       const res = await startCapstone(capstoneId);
       setCapstone(res.data);
       setNotes(res.data?.notes || "");
+    } catch (err) {
+      setPrerequisiteLock(getPrerequisiteLock(err));
     } finally {
       setBusy(false);
     }
@@ -56,6 +58,8 @@ export default function CapstonePage() {
       const res = await submitCapstone(capstoneId, { notes });
       setCapstone(res.data);
       setNotes(res.data?.notes || "");
+    } catch (err) {
+      setPrerequisiteLock(getPrerequisiteLock(err));
     } finally {
       setBusy(false);
     }
@@ -85,7 +89,7 @@ export default function CapstonePage() {
         subtitle={`Week ${capstone.week_number} | ${capstone.estimated_hours} hours`}
       />
 
-      <APlusPreviewLock access={previewAccess} />
+      <PrerequisiteLock lock={prerequisiteLock} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <article className="space-y-4">
@@ -143,10 +147,10 @@ export default function CapstonePage() {
             placeholder="Document your capstone approach, findings, deliverables, and reflection here."
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            readOnly={previewAccess.locked || busy || capstone.status === "submitted"}
+            readOnly={Boolean(prerequisiteLock) || busy || capstone.status === "submitted"}
           />
 
-          {!previewAccess.locked ? (
+          {!prerequisiteLock ? (
             <div className="flex flex-wrap gap-3">
               {capstone.status === "not_started" ? (
                 <button className="btn-secondary" onClick={handleStart} disabled={busy} type="button">

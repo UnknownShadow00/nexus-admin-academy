@@ -136,7 +136,7 @@ def _ticket_payload(student_id):
     }
 
 
-def test_below_threshold_can_browse_but_all_hands_on_mutations_are_blocked(db):
+def test_below_threshold_can_browse_hands_on_content(db):
     student = make_student(db)
     videos = _seed_a_plus_catalog(db)
     _watch(db, student.id, videos[:3])
@@ -157,40 +157,16 @@ def test_below_threshold_can_browse_but_all_hands_on_mutations_are_blocked(db):
         response = client.get(path, params=params, headers=headers)
         assert response.status_code == 200, path
 
-    blocked_requests = [
-        client.post(
-            "/api/tickets/uploads",
-            files=[("files", ("ticket.png", b"preview", "image/png"))],
-            headers=headers,
-        ),
-        client.post(f"/api/tickets/{ticket.id}/hint", headers=headers),
-        client.post(f"/api/tickets/{ticket.id}/submit", json=_ticket_payload(student.id), headers=headers),
-        client.post(
-            "/api/evidence/upload",
-            data={"ticket_id": ticket.id, "artifact_type": "screenshot"},
-            files={"file": ("evidence.png", b"preview", "image/png")},
-            headers=headers,
-        ),
-        client.post(f"/api/labs/{lab.id}/start", headers=headers),
-        client.post(f"/api/labs/{lab.id}/submit", json={"notes": "Done"}, headers=headers),
-        client.post(
-            "/api/labs/999999/evidence",
-            data={"artifact_type": "screenshot"},
-            files={"file": ("lab.png", b"preview", "image/png")},
-            headers=headers,
-        ),
-        client.post(
-            f"/api/cli-labs/{cli_lab.id}/complete",
-            json={"commandLog": [], "durationMs": 1000},
-            headers=headers,
-        ),
-        client.post(f"/api/capstones/{capstone.id}/start", headers=headers),
-        client.post(f"/api/capstones/{capstone.id}/submit", json={"notes": "Done"}, headers=headers),
-    ]
-    for response in blocked_requests:
-        assert response.status_code == 403
-        assert "Complete 40% of A+ Study Tracker" in response.json()["detail"]
-        assert "you're at 30%" in response.json()["detail"]
+    # The tracker remains available for study progress, but its percentage no
+    # longer changes which hands-on content a student can open.
+    assert client.post(f"/api/tickets/{ticket.id}/hint", headers=headers).status_code == 200
+    assert client.post(f"/api/labs/{lab.id}/start", headers=headers).status_code == 200
+    assert client.post(
+        f"/api/cli-labs/{cli_lab.id}/complete",
+        json={"commandLog": [], "durationMs": 1000},
+        headers=headers,
+    ).status_code == 200
+    assert client.post(f"/api/capstones/{capstone.id}/start", headers=headers).status_code == 200
 
 
 def test_at_threshold_all_hands_on_mutations_keep_existing_behavior(monkeypatch, db):

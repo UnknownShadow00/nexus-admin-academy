@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.comptia import ComptiaObjective, StudentObjectiveProgress
 from app.models.learning import Lesson, Module
+from app.models.lesson_notes import StudentLessonNote
 from app.models.login_streak import LoginStreak
 from app.models.progression import MethodologyFramework, StudentMethodologyProgress
 from app.models.quiz import (
@@ -28,7 +29,15 @@ from app.services.activity_service import mark_student_active
 from app.services.auth_service import ensure_student_access, get_current_student
 from app.services.mastery_service import list_student_mastery
 from app.services.methodology_enforcer import can_access_tickets
-from app.services.progression_service import check_module_unlock, get_module_mastery, get_promotion_status
+from app.services.onboarding_service import get_orientation_state
+from app.services.progression_service import (
+    CLI_PACK_WEEKS,
+    MODULE_WEEKS,
+    check_module_unlock,
+    derive_current_week,
+    get_module_mastery,
+    get_promotion_status,
+)
 from app.services.quiz_progression import (
     assigned_remediation_ids,
     is_quiz_passed,
@@ -185,7 +194,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
     )
     total_tickets = db.query(func.count(Ticket.id)).scalar() or 0
 
-    week_number = _derive_current_week(student_id, db)
+    week_number = derive_current_week(student_id, db)
     week_required_quizzes = required_quizzes_for_week(db, week_number)
     week_quizzes = len(week_required_quizzes)
     week_tickets = db.query(func.count(Ticket.id)).filter(Ticket.week_number == week_number).scalar() or 0
@@ -296,6 +305,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
             "cohort_quiz_avg": round(float(cohort_quiz_avg), 1),
         },
         "cert_readiness": cert,
+        "onboarding": get_orientation_state(db, student),
     }
 
 
@@ -350,7 +360,12 @@ def squad_dashboard(student_id: int | None = None, limit: int = 30, db: Session 
         ensure_student_access(current_student, student_id)
     cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
 
-    members = db.query(Student).order_by(Student.total_xp.desc(), Student.name.asc()).all()
+    members = (
+        db.query(Student)
+        .filter(Student.is_mentor.is_(False))
+        .order_by(Student.total_xp.desc(), Student.name.asc())
+        .all()
+    )
     member_rows = []
     for member in members:
         last_active = member.last_active_at
@@ -369,6 +384,8 @@ def squad_dashboard(student_id: int | None = None, limit: int = 30, db: Session 
 
     activities = (
         db.query(SquadActivity)
+        .join(Student, Student.id == SquadActivity.student_id)
+        .filter(Student.is_mentor.is_(False))
         .order_by(SquadActivity.created_at.desc())
         .limit(max(1, min(limit, 100)))
         .all()
@@ -434,7 +451,12 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db), current_st
             )
             total_parts = int(quiz_count + ticket_count)
             done_parts = int(completed_quiz + completed_ticket)
-            completion_percent = round((done_parts / total_parts) * 100, 1) if total_parts else 0
+            lesson_note_exists = bool(
+                db.query(StudentLessonNote.id)
+                .filter(StudentLessonNote.student_id == student_id, StudentLessonNote.lesson_id == lesson.id)
+                .first()
+            )
+            completion_percent = round((done_parts / total_parts) * 100, 1) if total_parts else (100 if lesson_note_exists else 0)
 
             lesson_items.append(
                 {
@@ -444,6 +466,7 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db), current_st
                     "summary": lesson.summary,
                     "lesson_order": lesson.lesson_order,
                     "completion_percent": completion_percent,
+                    "is_orientation": module.code == "MOD-000" and lesson.title == "Welcome to Nexus: Your First Week",
                 }
             )
 
@@ -505,80 +528,6 @@ def methodology_status(student_id: int, db: Session = Depends(get_db), current_s
 
 # ---------------------------------------------------------------- TB-03: week plan
 
-# CLI packs → week mapping (CliLab has no week column by design; packs are the
-# unit of assignment). Documented in NEXUS_WEEKS_1-4_PACKAGE.md.
-CLI_PACK_WEEKS = {
-    "meet-the-cli": 1,
-    "network-foundations": 9,
-    "learn-switching": 10,
-}
-
-# Module code → week mapping for Phase A (modules carry order, not weeks).
-MODULE_WEEKS = {
-    "MOD-000": 1,
-    "MOD-001": 1,
-    "MOD-002": 2,
-    "MOD-003": 3,
-    "MOD-004": 4,
-    "MOD-005": 5,
-    "MOD-006": 6,
-    "MOD-007": 7,
-    "MOD-008": 8,
-    "MOD-009": 9,
-    "MOD-010": 10,
-    "MOD-011": 11,
-    "MOD-012": 12,
-    "MOD-013": 13,
-    "MOD-014": 14,
-    "MOD-015": 15,
-    "MOD-016": 16,
-    "MOD-017": 17,
-    "MOD-018": 18,
-    "MOD-019": 19,
-    "MOD-020": 20,
-    "MOD-021": 21,
-    "MOD-022": 22,
-    "MOD-023": 23,
-    "MOD-024": 24,
-}
-
-
-def _derive_current_week(student_id: int, db: Session) -> int:
-    """Simplest correct rule (documented in backlog TB-03): the earliest week
-    with an incomplete required item; falls back to the highest week touched."""
-    from app.models.lesson_notes import StudentLessonNote
-    from app.models.learning import Lesson, Module
-
-    for week in range(25):
-        codes = [code for code, mapped_week in MODULE_WEEKS.items() if mapped_week == week]
-        lesson_ids = set()
-        if codes:
-            module_ids = {row.id for row in db.query(Module.id).filter(Module.code.in_(codes))}
-            if module_ids:
-                lesson_ids = {
-                    row.id
-                    for row in db.query(Lesson.id).filter(
-                        Lesson.module_id.in_(module_ids), Lesson.status == "published"
-                    )
-                }
-        done = set()
-        if lesson_ids:
-            done = {
-                row.lesson_id
-                for row in db.query(StudentLessonNote.lesson_id).filter(
-                    StudentLessonNote.student_id == student_id,
-                    StudentLessonNote.lesson_id.in_(lesson_ids),
-                )
-            }
-        required_incomplete = any(
-            not is_quiz_passed(db, student_id, quiz)
-            for quiz in required_quizzes_for_week(db, week)
-        )
-        if lesson_ids - done or required_incomplete:
-            return week
-    return max(MODULE_WEEKS.values())
-
-
 @router.get("/api/students/me/week-plan")
 def get_week_plan(
     week: int | None = None,
@@ -596,7 +545,7 @@ def get_week_plan(
     from app.services.progression_service import get_promotion_status
 
     student_id = current_student.id
-    current_week = week or _derive_current_week(student_id, db)
+    current_week = week or derive_current_week(student_id, db)
 
     # Lessons for this week's modules
     week_module_codes = [c for c, w in MODULE_WEEKS.items() if w == current_week]
@@ -627,7 +576,7 @@ def get_week_plan(
                         "title": lesson.title,
                         "module": module.code,
                         "status": "done" if lesson.id in done_lessons else "available",
-                        "route": "/learning-path",
+                        "route": f"/learning-path?lesson={lesson.id}",
                     }
                 )
 
@@ -756,5 +705,6 @@ def get_week_plan(
             "cli_labs": cli_out,
             "labs": labs_out,
             "tickets": tickets_out,
+            "onboarding": get_orientation_state(db, current_student),
         }
     )

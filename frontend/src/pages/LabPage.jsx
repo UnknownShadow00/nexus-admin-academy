@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Spinner from "../components/Spinner";
-import APlusPreviewLock, { getAPlusPreviewAccess } from "../components/APlusPreviewLock";
+import PrerequisiteLock, { getPrerequisiteLock } from "../components/PrerequisiteLock";
 import { DifficultyBadge } from "../components/ui/Badge";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
@@ -18,7 +18,6 @@ const statusConfig = {
 
 export default function LabPage() {
   const { labId } = useParams();
-  const previewAccess = getAPlusPreviewAccess();
   const [lab, setLab] = useState(null);
   const [guacUrl, setGuacUrl] = useState(null);
   const [vmAssignment, setVmAssignment] = useState(null);
@@ -31,6 +30,7 @@ export default function LabPage() {
   const [evidenceMessage, setEvidenceMessage] = useState("");
   const [evidenceBusy, setEvidenceBusy] = useState(false);
   const [evidenceInputKey, setEvidenceInputKey] = useState(0);
+  const [prerequisiteLock, setPrerequisiteLock] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,7 +97,9 @@ export default function LabPage() {
       setEvidenceArtifacts(res.data?.evidence_artifacts || []);
       setVmAssignment(res.data?.vm_assignment || null);
     } catch (err) {
-      setVmError(err?.userMessage || "Unable to start the lab environment.");
+      const lock = getPrerequisiteLock(err);
+      if (lock) setPrerequisiteLock(lock);
+      else setVmError(err?.userMessage || "Unable to start the lab environment.");
     } finally {
       setBusy(false);
     }
@@ -111,6 +113,10 @@ export default function LabPage() {
       setNotes(res.data?.notes || "");
       setVmAssignment(null);
       setGuacUrl(null);
+    } catch (err) {
+      const lock = getPrerequisiteLock(err);
+      if (lock) setPrerequisiteLock(lock);
+      else setVmError(err?.userMessage || "Unable to submit the lab.");
     } finally {
       setBusy(false);
     }
@@ -131,6 +137,10 @@ export default function LabPage() {
       setEvidenceFile(null);
       setEvidenceInputKey((key) => key + 1);
       setEvidenceMessage("Screenshot uploaded");
+    } catch (err) {
+      const lock = getPrerequisiteLock(err);
+      if (lock) setPrerequisiteLock(lock);
+      else setEvidenceMessage(err?.userMessage || "Unable to upload evidence.");
     } finally {
       setEvidenceBusy(false);
     }
@@ -161,7 +171,7 @@ export default function LabPage() {
         actions={<DifficultyBadge level={lab.difficulty} />}
       />
 
-      <APlusPreviewLock access={previewAccess} />
+      <PrerequisiteLock lock={prerequisiteLock} />
 
       {vmError ? <Banner variant="error">{vmError}</Banner> : null}
 
@@ -200,7 +210,7 @@ export default function LabPage() {
             <p className="text-sm text-slate-600 dark:text-slate-300">{lab.setup_instructions}</p>
           </div>
 
-          {canUploadEvidence && !previewAccess.locked ? (
+          {canUploadEvidence && !prerequisiteLock ? (
             <div className="panel space-y-3 dark:border-slate-700 dark:bg-slate-900">
               <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Evidence Upload</h2>
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -265,10 +275,10 @@ export default function LabPage() {
             placeholder="Document your answers, steps, findings, and verification notes here."
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            readOnly={previewAccess.locked || busy || lab.status === "submitted"}
+            readOnly={Boolean(prerequisiteLock) || busy || lab.status === "submitted"}
           />
 
-          {!previewAccess.locked ? (
+          {!prerequisiteLock ? (
             <div className="flex flex-wrap gap-3">
               {["not_started", "assigned"].includes(lab.status) ? (
                 <button className="btn-secondary" onClick={handleStart} disabled={busy} type="button">

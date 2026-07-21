@@ -2,7 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import EmptyState from "../components/EmptyState";
-import APlusPreviewLock, { getAPlusPreviewAccess } from "../components/APlusPreviewLock";
+import PrerequisiteLock from "../components/PrerequisiteLock";
 import PageHeader from "../components/ui/PageHeader";
 import LabRunner from "../features/cli-labs/components/LabRunner";
 import { findCliLesson, nextCliLesson } from "../features/cli-labs/data/lessonCatalog";
@@ -10,10 +10,10 @@ import { getCliLab } from "../services/api";
 
 export default function CliLabPage() {
   const { labId } = useParams();
-  const previewAccess = getAPlusPreviewAccess();
   const lesson = findCliLesson(labId);
   const nextLesson = nextCliLesson(labId);
   const [completed, setCompleted] = useState(false);
+  const [prerequisiteLock, setPrerequisiteLock] = useState(null);
 
   useEffect(() => {
     if (!labId) return;
@@ -62,8 +62,8 @@ export default function CliLabPage() {
           ) : null
         }
       />
-      <APlusPreviewLock access={previewAccess} />
-      <LabRunner key={lesson.id} lesson={lesson} initialCompleted={completed} previewLocked={previewAccess.locked} />
+      <PrerequisiteLock lock={prerequisiteLock} />
+      <LabRunner key={lesson.id} lesson={lesson} initialCompleted={completed} onPrerequisiteLocked={setPrerequisiteLock} />
     </main>
   );
 }

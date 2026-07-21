@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { AlertCircle, CheckCircle, Upload } from "lucide-react";
 import { uploadEvidence } from "../services/api";
+import { getPrerequisiteLock } from "./PrerequisiteLock";
 
 function UploadPreview({ upload }) {
   const isValid = upload.validation?.valid;
@@ -25,7 +26,7 @@ function UploadPreview({ upload }) {
   );
 }
 
-export default function EvidenceUploader({ ticketId, requiredEvidence = [], onComplete }) {
+export default function EvidenceUploader({ ticketId, requiredEvidence = [], onComplete, onPrerequisiteLocked }) {
   const [uploads, setUploads] = useState([]);
 
   const handleFileSelect = async (event, evidenceType) => {
@@ -47,7 +48,9 @@ export default function EvidenceUploader({ ticketId, requiredEvidence = [], onCo
               : u
           )
         );
-      } catch {
+      } catch (error) {
+        const lock = getPrerequisiteLock(error);
+        if (lock) onPrerequisiteLocked?.(lock);
         setUploads((prev) => prev.map((u) => (u.id === preview.id ? { ...u, status: "error", error: "Upload failed" } : u)));
       }
     }
@@ -95,4 +98,3 @@ export default function EvidenceUploader({ ticketId, requiredEvidence = [], onCo
     </div>
   );
 }
-

@@ -33,6 +33,11 @@ export default function StudentHome() {
 
   const continueTarget = useMemo(() => {
     if (!stats) return { label: "Open learning path", to: "/learning-path", detail: "Pick up where you left off in your training plan." };
+    if (stats.onboarding?.is_fresh) return {
+      label: "Start Week 0",
+      to: stats.onboarding.lesson_route || "/learning-path",
+      detail: "Start with your Week 0 welcome lesson to learn how Nexus works.",
+    };
     if (stats.quizzes_completed < stats.total_quizzes) return { label: "Continue quizzes", to: "/quizzes", detail: "You still have quiz checkpoints ready to complete." };
     if (stats.tickets_completed < stats.total_tickets) return { label: "Continue tickets", to: "/tickets", detail: "Your ticket queue still has hands-on work waiting." };
     return { label: "Review learning path", to: "/learning-path", detail: "Core work is complete. Review the path and reinforce weak spots." };
@@ -49,6 +54,7 @@ export default function StudentHome() {
   }
 
   const recent = (stats.recent_activity || []).slice(0, 5);
+  const isFresh = Boolean(stats.onboarding?.is_fresh);
   const statCards = [
     { label: "Total XP", value: stats.total_xp || 0, to: "/learning-path", Icon: Zap, accent: "text-blue-600 dark:text-blue-400", card: "sm:col-span-2 lg:col-span-1" },
     { label: "Day Streak", value: stats.streak || 0, to: "/study-tracker", Icon: Flame, accent: "text-orange-500 dark:text-orange-300" },
@@ -59,6 +65,16 @@ export default function StudentHome() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <PageHeader title={stats.name || "Student Home"} subtitle="Stay on track with your next lesson, quiz, and support ticket milestone." />
+
+      {isFresh ? (
+        <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/30">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700 dark:text-blue-300">Welcome to Nexus</p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">Your 24-week IT-support training path starts here.</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700 dark:text-slate-300">Nexus gives you lessons, quizzes, labs, and realistic support tickets in small weekly steps. Week 0 teaches both how to use the platform and the CompTIA troubleshooting method.</p>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300"><strong>Required</strong> items move your path forward. <strong>Optional</strong> practice gives you extra repetition and never blocks your next required step.</p>
+          <Link className="btn-primary mt-4" to={stats.onboarding?.lesson_route || "/learning-path"}>Start Week 0</Link>
+        </section>
+      ) : null}
 
       <WeekPlanPanel />
 

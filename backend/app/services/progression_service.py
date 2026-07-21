@@ -1,3 +1,4 @@
+from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -6,6 +7,126 @@ from app.models.learning import Lesson, Module
 from app.models.progression import PromotionGate, Role
 from app.models.quiz import Quiz, QuizAttempt
 from app.models.ticket import Ticket, TicketSubmission
+from app.services.quiz_progression import is_quiz_passed, required_quizzes_for_week
+
+
+# CLI packs and modules carry curriculum timing outside their database models.
+# Keep this mapping alongside the derived-week rule so all progression checks
+# use one source of truth.
+CLI_PACK_WEEKS = {
+    "meet-the-cli": 1,
+    "network-foundations": 9,
+    "learn-switching": 10,
+}
+
+MODULE_WEEKS = {
+    "MOD-000": 0,
+    "MOD-001": 1,
+    "MOD-002": 2,
+    "MOD-003": 3,
+    "MOD-004": 4,
+    "MOD-005": 5,
+    "MOD-006": 6,
+    "MOD-007": 7,
+    "MOD-008": 8,
+    "MOD-009": 9,
+    "MOD-010": 10,
+    "MOD-011": 11,
+    "MOD-012": 12,
+    "MOD-013": 13,
+    "MOD-014": 14,
+    "MOD-015": 15,
+    "MOD-016": 16,
+    "MOD-017": 17,
+    "MOD-018": 18,
+    "MOD-019": 19,
+    "MOD-020": 20,
+    "MOD-021": 21,
+    "MOD-022": 22,
+    "MOD-023": 23,
+    "MOD-024": 24,
+}
+
+
+def derive_current_week(student_id: int, db: Session) -> int:
+    """Return the earliest curriculum week with incomplete required work."""
+    from app.models.lesson_notes import StudentLessonNote
+
+    for week in range(25):
+        codes = [code for code, mapped_week in MODULE_WEEKS.items() if mapped_week == week]
+        lesson_ids = set()
+        if codes:
+            module_ids = {row.id for row in db.query(Module.id).filter(Module.code.in_(codes))}
+            if module_ids:
+                lesson_ids = {
+                    row.id
+                    for row in db.query(Lesson.id).filter(
+                        Lesson.module_id.in_(module_ids), Lesson.status == "published"
+                    )
+                }
+        done = set()
+        if lesson_ids:
+            done = {
+                row.lesson_id
+                for row in db.query(StudentLessonNote.lesson_id).filter(
+                    StudentLessonNote.student_id == student_id,
+                    StudentLessonNote.lesson_id.in_(lesson_ids),
+                )
+            }
+        required_incomplete = any(
+            not is_quiz_passed(db, student_id, quiz)
+            for quiz in required_quizzes_for_week(db, week)
+        )
+        if lesson_ids - done or required_incomplete:
+            return week
+    return max(MODULE_WEEKS.values())
+
+
+def require_week_reached(db: Session, student, required_week: int) -> dict:
+    """Require the student to have reached an item's curriculum week.
+
+    The raised detail is deliberately a complete API contract; the application
+    HTTP exception handler returns it as the JSON response body.
+    """
+    required_week = int(required_week or 0)
+    if student.is_mentor:
+        return {"required_week": required_week, "current_week": required_week}
+
+    current_week = derive_current_week(student.id, db)
+    if required_week <= current_week:
+        return {"required_week": required_week, "current_week": current_week}
+
+    incomplete_quiz = next(
+        (
+            quiz
+            for quiz in required_quizzes_for_week(db, current_week)
+            if not is_quiz_passed(db, student.id, quiz)
+        ),
+        None,
+    )
+    if incomplete_quiz is not None:
+        error = f"Complete Week {current_week}'s required quiz first."
+        next_action_route = f"/quizzes/{incomplete_quiz.id}"
+    elif required_week > current_week + 1:
+        error = f"You'll unlock this once you reach Week {required_week}."
+        next_action_route = "/learning-path"
+    else:
+        error = f"Complete Week {current_week}'s required lesson first."
+        next_action_route = "/learning-path"
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "success": False,
+            "code": "PREREQUISITE_NOT_MET",
+            "error": error,
+            "data": {
+                "required_week": required_week,
+                "current_week": current_week,
+                "next_action_route": next_action_route,
+            },
+        },
+    )
 
 
 def check_module_unlock(student_id: int, module_id: int, db: Session) -> dict:

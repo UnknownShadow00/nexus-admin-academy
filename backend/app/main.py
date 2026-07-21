@@ -26,6 +26,7 @@ from app.routers import (
     flashcards,
     labs,
     lesson_notes,
+    onboarding,
     quizzes,
     resources,
     search,
@@ -232,6 +233,7 @@ def create_app() -> FastAPI:
     app.include_router(resources.router)
     app.include_router(students.router)
     app.include_router(lesson_notes.router)
+    app.include_router(onboarding.router)
     app.include_router(study_tracker.router)
 
     upload_dir = os.getenv("UPLOAD_DIR")

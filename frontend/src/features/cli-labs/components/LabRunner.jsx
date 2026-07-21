@@ -2,6 +2,7 @@ import { RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { completeCliLab } from "../../../services/api";
+import { getPrerequisiteLock } from "../../../components/PrerequisiteLock";
 import { cloneState, completeCommand, getPrompt, initialState, redactCommandLog, runCommand, runPcCommand } from "../engine/commandEngine";
 import { aggregateDeviceState, cloneDeviceStates, initialDeviceStates, isMultiSwitchTopology, switchDevices } from "../engine/multiDeviceState";
 import { runMultiPcCommand } from "../engine/networkSim";
@@ -41,7 +42,7 @@ function mapInitialLines(lesson, devices) {
   return Object.fromEntries(devices.map((device) => [device.id, initialLines({ ...lesson, title: `${lesson.title} | ${device.id}` })]));
 }
 
-export default function LabRunner({ lesson, initialCompleted = false, previewLocked = false }) {
+export default function LabRunner({ lesson, initialCompleted = false, onPrerequisiteLocked }) {
   const topology = lesson.topology || {};
   const devices = useMemo(() => switchDevices(topology), [topology]);
   const isMultiSwitch = isMultiSwitchTopology(topology);
@@ -88,7 +89,6 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
   }
 
   useEffect(() => {
-    if (previewLocked) return;
     if (!hasSteps) return;
     const currentStep = lesson.steps[currentStepIndex];
     if (currentStep?.type !== "observe") return;
@@ -98,10 +98,10 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
     const nextStepIds = [...completedStepIds, currentStep.id];
     setCompletedStepIds(nextStepIds);
     updateCompletionState(isMultiSwitch ? deviceStates : switchState, progress, nextStepIds);
-  }, [completedStepIds, currentStepIndex, deviceStates, hasSteps, isMultiSwitch, lesson, previewLocked, progress, switchState]);
+  }, [completedStepIds, currentStepIndex, deviceStates, hasSteps, isMultiSwitch, lesson, progress, switchState]);
 
   async function postCompletion(state, done) {
-    if (previewLocked || !done || completionPostedRef.current) return;
+    if (!done || completionPostedRef.current) return;
     completionPostedRef.current = true;
     setPosting(true);
     try {
@@ -114,7 +114,9 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
       toast.success(response.data?.xp_awarded ? `CLI lab complete: +${response.data.xp_awarded} XP` : "CLI lab complete");
     } catch (error) {
       completionPostedRef.current = false;
-      toast.error(error?.userMessage || "CLI lab complete locally, but progress could not be saved.");
+      const lock = getPrerequisiteLock(error);
+      if (lock) onPrerequisiteLocked?.(lock);
+      else toast.error(error?.userMessage || "CLI lab complete locally, but progress could not be saved.");
     } finally {
       setPosting(false);
     }
@@ -129,7 +131,6 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
   }
 
   function completeStep(stepId) {
-    if (previewLocked) return;
     if (!stepId || completedStepIds.includes(stepId)) return;
     const nextStepIds = [...completedStepIds, stepId];
     setCompletedStepIds(nextStepIds);
@@ -137,12 +138,10 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
   }
 
   function continueStep() {
-    if (previewLocked) return;
     setCurrentStepIndex((index) => Math.min(index + 1, Math.max((lesson.steps || []).length - 1, 0)));
   }
 
   function handleCommand(command) {
-    if (previewLocked) return;
     const currentState = isMultiSwitch ? deviceStates[activeDeviceId] : switchState;
     const beforePrompt = getPrompt(currentState);
     const working = cloneState(currentState);
@@ -163,7 +162,6 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
   }
 
   function handleTabComplete(input) {
-    if (previewLocked) return { value: input };
     const completed = completeCommand(activeSwitchState, input);
     if (completed.event) {
       const result = { events: [isMultiSwitch ? { ...completed.event, device: activeDeviceId } : completed.event], output: [] };
@@ -173,7 +171,6 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
   }
 
   function handlePcCommand(command, pcId) {
-    if (previewLocked) return;
     const working = isMultiSwitch ? cloneDeviceStates(deviceStates) : cloneState(switchState);
     const result = isMultiSwitch ? runMultiPcCommand(working, topology, command, pcId) : runPcCommand(working, command, pcId);
     setPcLines((current) => [...current, `${pcId || "PC-A"}> ${command}`, ...(result.output || [])]);
@@ -181,7 +178,6 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
   }
 
   function resetSession() {
-    if (previewLocked) return;
     const fresh = initialState(lesson);
     const freshDevices = isMultiSwitch ? initialDeviceStates(lesson) : {};
     startedAtRef.current = Date.now();
@@ -208,7 +204,7 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
               <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Scenario</h2>
               <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600 dark:text-slate-300">{scenario}</p>
             </div>
-            <button className="btn-secondary gap-2" type="button" onClick={resetSession} disabled={previewLocked}>
+            <button className="btn-secondary gap-2" type="button" onClick={resetSession}>
               <RotateCcw size={16} />
               Restart
             </button>
@@ -231,7 +227,6 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
             completedStepIds={completedStepIds}
             onCompleteStep={completeStep}
             onContinue={continueStep}
-            disabled={previewLocked}
           />
         ) : null}
 
@@ -242,7 +237,6 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
                 key={device.id}
                 type="button"
                 onClick={() => setActiveDeviceId(device.id)}
-                disabled={previewLocked}
                 className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
                   activeDeviceId === device.id
                     ? "border-blue-500 bg-blue-600 text-white dark:border-blue-400 dark:bg-blue-500"
@@ -260,10 +254,10 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
           lines={isMultiSwitch ? deviceLines[activeDeviceId] || [] : lines}
           onSubmit={handleCommand}
           onTabComplete={handleTabComplete}
-          disabled={previewLocked || posting}
+          disabled={posting}
         />
 
-        {requiresPcTerminal ? <PcTerminal lines={pcLines} onSubmit={handlePcCommand} disabled={previewLocked || posting} devices={pcDevices} /> : null}
+        {requiresPcTerminal ? <PcTerminal lines={pcLines} onSubmit={handlePcCommand} disabled={posting} devices={pcDevices} /> : null}
       </section>
 
       <aside className="space-y-4">
@@ -272,9 +266,7 @@ export default function LabRunner({ lesson, initialCompleted = false, previewLoc
         <section className="panel space-y-2 dark:border-slate-700 dark:bg-slate-900">
           <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Progress</h2>
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            {previewLocked
-              ? "Preview only. Complete the A+ Study Tracker requirement to save lab completion."
-              : completion
+            {completion
               ? completion.xp_awarded
                 ? `Saved with ${completion.xp_awarded} XP awarded.`
                 : "Completion saved. XP was already awarded for this lab."

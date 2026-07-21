@@ -142,7 +142,6 @@ def test_ticket_upload_is_bounded_and_valid_upload_still_succeeds(db, monkeypatc
     monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
     monkeypatch.setattr(ticket_module, "MAX_FILE_SIZE", 1024)
     monkeypatch.setattr(ticket_module, "MAX_TOTAL_UPLOAD_BYTES", 2048)
-    monkeypatch.setattr(ticket_module, "require_a_plus_unlocked", lambda *_: None)
     student = make_student(db, username="upload-student")
 
     too_large = tickets_client.post(
@@ -168,7 +167,6 @@ def test_ticket_upload_rejects_combined_size_and_invalid_mime(db, monkeypatch, t
     monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
     monkeypatch.setattr(ticket_module, "MAX_FILE_SIZE", 1024)
     monkeypatch.setattr(ticket_module, "MAX_TOTAL_UPLOAD_BYTES", 10)
-    monkeypatch.setattr(ticket_module, "require_a_plus_unlocked", lambda *_: None)
     student = make_student(db, username="aggregate-student")
 
     aggregate = tickets_client.post(

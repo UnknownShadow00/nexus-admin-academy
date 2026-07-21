@@ -11,7 +11,8 @@ from app.models.student import Student
 from app.models.ticket import Ticket
 from app.services.auth_service import get_current_student
 from app.services.evidence_validator import validate_evidence_artifact
-from app.services.a_plus_access import require_a_plus_unlocked
+from app.services.onboarding_service import get_orientation_lesson
+from app.services.progression_service import require_week_reached
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/evidence", tags=["evidence"])
@@ -36,7 +37,6 @@ async def upload_evidence(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
-    require_a_plus_unlocked(db, current_student)
     ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else ""
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Unsupported file extension")
@@ -47,6 +47,7 @@ async def upload_evidence(
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
+    require_week_reached(db, current_student, ticket.week_number)
 
     storage_name = f"{uuid.uuid4()}.{ext}"
     dest = (_upload_dir() / storage_name).resolve()
@@ -89,5 +90,66 @@ async def upload_evidence(
             "validation": validation,
             "storage_key": row.storage_key,
             "validation_status": row.validation_status,
+        }
+    )
+
+
+@router.post("/orientation-upload")
+async def upload_orientation_evidence(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    """Store an optional sample artifact without creating ticket evidence.
+
+    This deliberately bypasses ticket access and ticket-grading paths. The
+    artifact remains visible only as a clearly scoped orientation upload.
+    """
+    lesson = get_orientation_lesson(db)
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Orientation lesson not found")
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported file extension")
+    if file.content_type and file.content_type not in ALLOWED_MIMES:
+        if not (ext in {"txt", "log"} and file.content_type == "application/octet-stream"):
+            raise HTTPException(status_code=400, detail="Unsupported MIME type")
+
+    storage_name = f"{uuid.uuid4()}.{ext}"
+    dest = (_upload_dir() / storage_name).resolve()
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"File exceeds {MAX_UPLOAD_BYTES // (1024*1024)} MB limit")
+    with open(dest, "wb") as handle:
+        handle.write(data)
+
+    validation = validate_evidence_artifact(
+        file_path=str(dest),
+        artifact_type="orientation_screenshot",
+        validation_rules={},
+        db=db,
+    )
+    row = EvidenceArtifact(
+        student_id=current_student.id,
+        submission_type="orientation",
+        submission_id=lesson.id,
+        artifact_type="orientation_screenshot",
+        storage_key=storage_name,
+        original_filename=file.filename,
+        file_size_bytes=len(data),
+        mime_type=file.content_type,
+        checksum=validation["checksum"],
+        metadata_json={"scope": "orientation-practice", **validation["metadata"]},
+        validation_status="valid" if validation["valid"] else "suspicious",
+        validation_notes="; ".join(validation["issues"]) if validation["issues"] else None,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return ok(
+        {
+            "artifact_id": row.id,
+            "validation_status": row.validation_status,
+            "message": "Sample evidence saved. It is only for orientation and is not ticket evidence.",
         }
     )

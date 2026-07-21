@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import toast from "react-hot-toast";
 import EvidenceUploader from "./EvidenceUploader";
+import { getPrerequisiteLock } from "./PrerequisiteLock";
 import Spinner from "./Spinner";
 import { getStudents, submitTicket } from "../services/api";
 
-export default function TicketSubmit({ ticket, studentId }) {
+export default function TicketSubmit({ ticket, studentId, onPrerequisiteLocked }) {
   const navigate = useNavigate();
   const draftKey = `ticket_draft_${ticket.id}_${studentId}`;
   const [symptom, setSymptom] = useState("");
@@ -97,6 +98,9 @@ export default function TicketSubmit({ ticket, studentId }) {
       localStorage.removeItem(draftKey);
       toast.success("Ticket graded and queued for instructor verification");
       navigate(`/tickets/${res.data?.submission_id}/feedback`);
+    } catch (error) {
+      const lock = getPrerequisiteLock(error);
+      if (lock) onPrerequisiteLocked?.(lock);
     } finally {
       toast.dismiss(loadingToast);
       setLoading(false);
@@ -145,6 +149,7 @@ export default function TicketSubmit({ ticket, studentId }) {
         ticketId={ticket.id}
         requiredEvidence={(ticket.required_evidence?.evidence_types || []).map((e) => ({ type: e.type, description: e.description, ...(e.validation || {}) }))}
         onComplete={setEvidenceUploads}
+        onPrerequisiteLocked={onPrerequisiteLocked}
       />
 
       <label className="text-sm font-semibold">Collaborators (optional)</label>

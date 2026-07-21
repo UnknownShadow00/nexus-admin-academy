@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getCurrentStudent } from "../hooks/useAuth";
 import TicketSubmit from "../components/TicketSubmit";
-import APlusPreviewLock, { getAPlusPreviewAccess } from "../components/APlusPreviewLock";
+import PrerequisiteLock, { getPrerequisiteLock } from "../components/PrerequisiteLock";
 import Spinner from "../components/Spinner";
 import { DifficultyBadge } from "../components/ui/Badge";
 import PageHeader from "../components/ui/PageHeader";
@@ -10,20 +10,17 @@ import { getTicket, revealTicketHint } from "../services/api";
 
 export default function TicketPage() {
   const { ticketId } = useParams();
-  const currentStudent = getCurrentStudent();
-  const studentId = currentStudent?.id;
-  const previewAccess = getAPlusPreviewAccess(currentStudent);
+  const studentId = getCurrentStudent()?.id;
   const [ticket, setTicket] = useState(null);
   const [error, setError] = useState("");
   const [hints, setHints] = useState({ revealed: [], used: 0, total: 0, nextCost: null });
   const [hintBusy, setHintBusy] = useState(false);
+  const [prerequisiteLock, setPrerequisiteLock] = useState(null);
 
   const HINT_COSTS = [5, 10, 20, 35]; // % XP penalty per ladder step (TB-04)
 
   useEffect(() => {
-    if (!previewAccess.locked) {
-      localStorage.setItem(`ticket_${ticketId}_started`, String(Date.now()));
-    }
+    localStorage.setItem(`ticket_${ticketId}_started`, String(Date.now()));
     let cancelled = false;
 
     getTicket(ticketId, { suppressToast: true })
@@ -47,7 +44,7 @@ export default function TicketPage() {
     return () => {
       cancelled = true;
     };
-  }, [previewAccess.locked, ticketId]);
+  }, [ticketId]);
 
   if (!ticket && !error) {
     return <main className="mx-auto max-w-4xl p-6"><Spinner text="Loading ticket..." /></main>;
@@ -62,8 +59,8 @@ export default function TicketPage() {
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
       <PageHeader title={ticket.title} />
-      <APlusPreviewLock access={previewAccess} />
-      <div className={`grid gap-6 ${previewAccess.locked ? "" : "lg:grid-cols-2"}`}>
+      <PrerequisiteLock lock={prerequisiteLock} />
+      <div className="grid gap-6 lg:grid-cols-2">
         <article className="space-y-4 h-fit">
           <div className="panel dark:border-slate-700 dark:bg-slate-900">
             <p className="text-sm text-slate-600 dark:text-slate-300">{ticket.description}</p>
@@ -112,7 +109,7 @@ export default function TicketPage() {
                 <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                   Hints ({hints.used}/{hints.total} used)
                 </h3>
-                {hints.nextCost != null && !previewAccess.locked ? (
+                {hints.nextCost != null && !prerequisiteLock ? (
                   <button
                     type="button"
                     disabled={hintBusy}
@@ -127,8 +124,8 @@ export default function TicketPage() {
                           total: d.hints_total || hints.total,
                           nextCost: d.next_hint_xp_penalty_percent ?? null,
                         });
-                      } catch {
-                        /* toast suppressed; button re-enables */
+                      } catch (err) {
+                        setPrerequisiteLock(getPrerequisiteLock(err));
                       } finally {
                         setHintBusy(false);
                       }
@@ -158,7 +155,7 @@ export default function TicketPage() {
             </div>
           )}
         </article>
-        {!previewAccess.locked ? <TicketSubmit ticket={ticket} studentId={studentId} /> : null}
+        {!prerequisiteLock ? <TicketSubmit ticket={ticket} studentId={studentId} onPrerequisiteLocked={setPrerequisiteLock} /> : null}
       </div>
     </main>
   );

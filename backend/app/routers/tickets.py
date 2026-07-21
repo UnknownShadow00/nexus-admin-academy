@@ -16,7 +16,7 @@ from app.services.activity_service import log_activity, mark_student_active
 from app.services.ticket_params import resolve_parameters, substitute, substitute_list
 from app.services.auth_service import ensure_student_access, get_current_student
 from app.services.ticket_grader import grade_ticket_submission, grade_ticket_with_answer_key
-from app.services.a_plus_access import require_a_plus_unlocked
+from app.services.progression_service import require_week_reached
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/tickets", tags=["tickets"])
@@ -77,7 +77,6 @@ async def upload_screenshots(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
-    require_a_plus_unlocked(db, current_student)
     upload_dir = _get_upload_dir()
     saved = []
     total_size = 0
@@ -229,10 +228,10 @@ def reveal_hint(ticket_id: int, db: Session = Depends(get_db), current_student: 
     so the penalty survives refreshes and applies at grading time. The response
     always states the XP cost BEFORE the next hint can be requested.
     """
-    require_a_plus_unlocked(db, current_student)
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
+    require_week_reached(db, current_student, ticket.week_number)
     hints = list(ticket.hints or [])
     if not hints:
         raise HTTPException(status_code=404, detail="This ticket has no hints")
@@ -296,7 +295,6 @@ def _verify_evidence_ownership(db: Session, student_id: int, *artifact_ids: int 
 
 @router.post("/{ticket_id}/submit")
 async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
-    require_a_plus_unlocked(db, current_student)
     student_id = payload.student_id
     ensure_student_access(current_student, student_id)
     collaborators = _validate_collaborators(db, student_id, payload.collaborator_ids or [])
@@ -307,6 +305,7 @@ async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Sessio
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
+    require_week_reached(db, current_student, ticket.week_number)
 
     mark_student_active(db, student_id)
 

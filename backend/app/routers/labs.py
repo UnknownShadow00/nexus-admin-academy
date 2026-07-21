@@ -16,7 +16,7 @@ from app.models.vm_assignment import VmAssignment
 from app.schemas.lab import LabSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import get_current_student
-from app.services.a_plus_access import require_a_plus_unlocked
+from app.services.progression_service import require_week_reached
 from app.utils.responses import ok
 
 logger = logging.getLogger(__name__)
@@ -330,8 +330,8 @@ def start_lab(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
-    require_a_plus_unlocked(db, current_student)
     lab = _get_published_lab(db, lab_id)
+    require_week_reached(db, current_student, lab.week_number)
     run = _get_lab_run(db, lab_id, current_student.id)
     created = False
 
@@ -434,8 +434,8 @@ def submit_lab(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
-    require_a_plus_unlocked(db, current_student)
     lab = _get_published_lab(db, lab_id)
+    require_week_reached(db, current_student, lab.week_number)
     run = _get_lab_run(db, lab_id, current_student.id)
     now = datetime.now(UTC)
 
@@ -478,12 +478,13 @@ async def upload_lab_evidence(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
-    require_a_plus_unlocked(db, current_student)
     run = db.query(LabRun).filter(LabRun.id == lab_run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Lab run not found")
     if run.student_id != current_student.id:
         raise HTTPException(status_code=403, detail="Not allowed to upload evidence for this lab run")
+    lab = _get_published_lab(db, run.lab_template_id)
+    require_week_reached(db, current_student, lab.week_number)
 
     ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else ""
     if ext not in ALLOWED_EVIDENCE_EXTENSIONS:

@@ -1,11 +1,12 @@
 ﻿import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle, ChevronDown, ChevronUp, Circle, Lock } from "lucide-react";
 
 import { getCurrentStudent } from "../hooks/useAuth";
 import { getLearningPath, getLessonNote, saveLessonNote } from "../services/api";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
+import OrientationPracticePanel from "../components/OrientationPracticePanel";
 
 function getYouTubeEmbedUrl(url) {
   if (!url) return null;
@@ -24,7 +25,7 @@ function SkeletonCard() {
   );
 }
 
-function LessonNotes({ lessonId }) {
+function LessonNotes({ lessonId, onSaved, placeholder = "Your notes for this lesson..." }) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
@@ -56,6 +57,7 @@ function LessonNotes({ lessonId }) {
         await saveLessonNote(lessonId, content, { suppressToast: true });
         editedRef.current = false;
         setSaved(true);
+        onSaved?.();
         setTimeout(() => setSaved(false), 2000);
       } catch {
         editedRef.current = true;
@@ -73,7 +75,7 @@ function LessonNotes({ lessonId }) {
           editedRef.current = true;
           setContent(event.target.value);
         }}
-        placeholder="Your notes for this lesson..."
+        placeholder={placeholder}
         rows={4}
         value={content}
       />
@@ -84,8 +86,9 @@ function LessonNotes({ lessonId }) {
   );
 }
 
-function LessonRow({ lesson, moduleUnlocked }) {
-  const [expanded, setExpanded] = useState(false);
+function LessonRow({ lesson, moduleUnlocked, initiallyExpanded = false }) {
+  const [expanded, setExpanded] = useState(initiallyExpanded);
+  const [orientationRefresh, setOrientationRefresh] = useState(0);
   const embedUrl = getYouTubeEmbedUrl(lesson.video_url);
 
   return (
@@ -113,7 +116,7 @@ function LessonRow({ lesson, moduleUnlocked }) {
           )}
           <div>
             <p className="font-semibold text-slate-900 dark:text-slate-100">{lesson.title}</p>
-            {lesson.summary ? <p className="text-sm text-slate-500 dark:text-slate-400">{lesson.summary}</p> : null}
+            {lesson.summary ? <p className="text-sm text-slate-500 dark:text-slate-400">{lesson.is_orientation ? "A short first-day guide to using Nexus and finding your next task." : lesson.summary}</p> : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
@@ -131,7 +134,7 @@ function LessonRow({ lesson, moduleUnlocked }) {
 
       {expanded ? (
         <div className="space-y-4 border-t border-slate-200 p-4 dark:border-slate-700">
-          {embedUrl ? (
+          {lesson.is_orientation ? <div className="whitespace-pre-line rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700 dark:bg-slate-900/70 dark:text-slate-300">{lesson.summary}</div> : embedUrl ? (
             <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
               <iframe src={embedUrl} className="h-full w-full" allowFullScreen title={lesson.title} />
             </div>
@@ -140,18 +143,24 @@ function LessonRow({ lesson, moduleUnlocked }) {
               <p className="text-sm text-slate-400">No video yet - admin can add a YouTube URL in Module Manager.</p>
             </div>
           )}
-          <LessonNotes lessonId={lesson.id} />
-          <div className="flex gap-2">
-            <Link to="/quizzes" className="btn-primary text-sm">Take Quizzes →</Link>
-            <Link to="/tickets" className="btn-secondary text-sm">Practice Tickets →</Link>
-          </div>
+          <LessonNotes
+            lessonId={lesson.id}
+            onSaved={() => setOrientationRefresh((value) => value + 1)}
+            placeholder={lesson.is_orientation ? "Write one sentence: Where will you look when you are unsure what comes next?" : undefined}
+          />
+          {lesson.is_orientation ? <OrientationPracticePanel refreshKey={orientationRefresh} /> : (
+            <div className="flex gap-2">
+              <Link to="/quizzes" className="btn-primary text-sm">Take Quizzes →</Link>
+              <Link to="/tickets" className="btn-secondary text-sm">Practice Tickets →</Link>
+            </div>
+          )}
         </div>
       ) : null}
     </div>
   );
 }
 
-function ModuleCard({ module }) {
+function ModuleCard({ module, orientationLessonId }) {
   const borderClass = module.mastery_percent === 100 ? "border-green-500 bg-green-50 dark:bg-green-950/20" : module.unlocked ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20" : "border-slate-300 bg-slate-50 dark:bg-slate-900";
 
   const Icon = module.mastery_percent === 100 ? CheckCircle : module.unlocked ? Circle : Lock;
@@ -182,7 +191,7 @@ function ModuleCard({ module }) {
           ) : null}
           <div className="space-y-2">
             {(module.lessons || []).map((lesson) => (
-              <LessonRow key={lesson.id} lesson={lesson} moduleUnlocked={module.unlocked} />
+              <LessonRow key={lesson.id} lesson={lesson} moduleUnlocked={module.unlocked} initiallyExpanded={lesson.id === orientationLessonId} />
             ))}
           </div>
         </div>
@@ -196,6 +205,8 @@ export default function LearningPath() {
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchParams] = useSearchParams();
+  const orientationLessonId = Number(searchParams.get("lesson")) || null;
 
   useEffect(() => {
     let cancelled = false;
@@ -229,7 +240,7 @@ export default function LearningPath() {
           ? [1, 2, 3].map((id) => <SkeletonCard key={id} />)
           : error
             ? <div className="panel text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">{error}</div>
-          : modules.map((module) => <ModuleCard key={module.id} module={module} />)}
+            : modules.map((module) => <ModuleCard key={module.id} module={module} orientationLessonId={orientationLessonId} />)}
       </div>
     </main>
   );

@@ -1,13 +1,11 @@
 import { CheckCircle2, ChevronDown, ChevronRight, Clock, Network } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import APlusPreviewLock, { getAPlusPreviewAccess } from "../components/APlusPreviewLock";
 import PageHeader from "../components/ui/PageHeader";
 import { cliLabCompartments, cliLessons } from "../features/cli-labs/data/lessonCatalog";
 import { getCliLabs } from "../services/api";
 
 export default function CliLabsPage() {
-  const previewAccess = getAPlusPreviewAccess();
   const [completionById, setCompletionById] = useState({});
   const [expandedCompartmentIds, setExpandedCompartmentIds] = useState(() => new Set());
 
@@ -51,8 +49,6 @@ export default function CliLabsPage() {
           }
         />
       </div>
-
-      <APlusPreviewLock access={previewAccess} />
 
       {cliLabCompartments.map((compartment) => {
         const lessons = compartment.lessons || [];

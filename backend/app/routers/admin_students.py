@@ -19,6 +19,7 @@ from app.models.ticket import Ticket, TicketSubmission
 from app.models.weekly_lead import WeeklyDomainLead
 from app.models.xp_ledger import XPLedger
 from app.services.activity_service import get_recent_activity
+from app.services.onboarding_service import get_orientation_state
 from app.services.quiz_progression import is_quiz_passed
 from app.services.admin_auth import verify_admin
 from app.services.auth_service import hash_password, normalize_username
@@ -97,6 +98,7 @@ def student_activity(student_id: int, db: Session = Depends(get_db)):
     return ok(
         {
             "student": {"id": student.id, "name": student.name, "total_xp": student.total_xp},
+            "onboarding": get_orientation_state(db, student),
             "activity": [
                 {
                     "id": e.id,

@@ -45,12 +45,13 @@ export default function WeekPlanPanel() {
 
   const sections = SECTIONS.map((s) => ({ ...s, items: plan[s.key] || [] })).filter((s) => s.items.length);
   const hasContent = sections.length > 0;
+  const isFresh = Boolean(plan.onboarding?.is_fresh);
 
   return (
     <section className="panel space-y-4 dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">This Week</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{isFresh ? "Start Here" : "This Week"}</p>
           <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
             Week {plan.week}{plan.role ? ` · ${plan.role}` : ""}
           </h2>
@@ -66,7 +67,7 @@ export default function WeekPlanPanel() {
           to={plan.next_action.route || "/learning-path"}
           className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-sm font-medium text-blue-800 hover:border-blue-300 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200"
         >
-          <span>Next up: {plan.next_action.title}</span>
+          <span>{isFresh ? "Your first step: " : "Next up: "}{plan.next_action.title}</span>
           <span aria-hidden="true">→</span>
         </Link>
       ) : hasContent ? (
@@ -103,7 +104,7 @@ export default function WeekPlanPanel() {
         </div>
       ) : (
         <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
-          No content is scheduled for week {plan.week} yet.
+          {isFresh ? "Your first learning items will appear here as your Week 0 path begins." : `No content is scheduled for week ${plan.week} yet.`}
         </p>
       )}
     </section>

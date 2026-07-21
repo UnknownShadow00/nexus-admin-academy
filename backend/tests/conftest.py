@@ -8,8 +8,10 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ["COOKIE_SECURE"] = "false"
 
 import pytest  # noqa: E402
-from fastapi import FastAPI  # noqa: E402
+from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
@@ -53,6 +55,14 @@ def _override_get_db():
 
 def make_client(*routers):
     app = FastAPI()
+
+    @app.exception_handler(StarletteHTTPException)
+    async def structured_prerequisite_handler(_: Request, exc: StarletteHTTPException):
+        detail = exc.detail
+        if isinstance(detail, dict) and detail.get("code") == "PREREQUISITE_NOT_MET":
+            return JSONResponse(status_code=exc.status_code, content=detail)
+        return JSONResponse(status_code=exc.status_code, content={"detail": detail})
+
     for router in routers:
         app.include_router(router)
     app.dependency_overrides[get_db] = _override_get_db

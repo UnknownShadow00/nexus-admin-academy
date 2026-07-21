@@ -1,4 +1,3 @@
-from fastapi import HTTPException, status
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
@@ -74,18 +73,3 @@ def get_a_plus_progress(db: Session, student: Student) -> dict:
         "a_plus_unlock_threshold_pct": threshold,
         "a_plus_unlocked": progress_pct >= threshold,
     }
-
-
-def require_a_plus_unlocked(db: Session, student: Student) -> dict:
-    progress = get_a_plus_progress(db, student)
-    if progress["a_plus_unlocked"]:
-        return progress
-    threshold = progress["a_plus_unlock_threshold_pct"]
-    current = progress["a_plus_progress_pct"]
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail=(
-            f"Complete {threshold}% of A+ Study Tracker to unlock hands-on work "
-            f"— you're at {current}%."
-        ),
-    )

@@ -298,6 +298,39 @@ manual-VM cohort" status.
 
 ---
 
+## PRE-WEEK-0 LAUNCH READINESS SPRINT — 2026-07-21
+
+Full detail: `docs/reviews/PRE_WEEK_ZERO_IMPLEMENTATION_REPORT.md`,
+`docs/reviews/PRE_WEEK_ZERO_BROWSER_ACCEPTANCE.md`,
+`docs/reviews/PRE_WEEK_ZERO_FINAL_READINESS.md`.
+
+- [x] A+ Study Tracker gate (the sprint's P0) replaced with week-based
+  prerequisite gating; no longer blocks any hands-on work.
+- [x] Week 0 platform onboarding added, including a bug found and fixed
+  during live testing where the onboarding "complete" state didn't agree
+  with the real Week 1 unlock gate.
+- [x] Capstone role-gate data fixed (all 3 templates were `NULL`, open to
+  everyone; now correctly role-gated).
+- [x] Mentor activity filtered from the student squad feed.
+- [x] Two of the original review's findings (LESSON-001, QUIZ-001) were
+  reconciled and found not to hold — corrected in `NEXUS_FINDINGS.csv` and
+  the relevant detail docs, not silently dropped.
+- [x] Full verification: 188/188 backend tests, Alembic head `0031`, DB
+  integrity/FK clean, `npm audit` 0 vulnerabilities, `npm run build` clean.
+- ☐ **No rendered-browser check was possible in this sandbox** (unsupported
+  Chromium build for this Ubuntu version, no system browser, sandbox blocks
+  localhost binding). Do a quick desktop + ~375px mobile click-through on
+  the live/staging site after deploying this sprint's changes, covering:
+  Home welcome banner, Week Plan panel, orientation practice panel, and
+  locked-state banners.
+- ☐ **Deploy not yet executed** — pending explicit go-ahead. Once approved,
+  follow the existing deploy procedure (fresh timestamped backup first,
+  backend restart via `kill -KILL $MAINPID`, frontend rebuild + `docker cp`
+  to `nexus-frontend`, live re-verify, remove the disposable review account,
+  confirm the 6 real students unchanged, tag the release).
+
+---
+
 ## PARKED (do not block launch on these)
 - The 60 proposed scenario-based quiz gap questions; do not create them until the quiz placement/results plan is reviewed after launch readiness.
 - Proxmox/Guacamole AUTO-VM infrastructure acceptance — application P0s are

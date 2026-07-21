@@ -4,7 +4,6 @@ import { Ticket } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import EmptyState from "../components/EmptyState";
-import APlusPreviewLock, { getAPlusPreviewAccess } from "../components/APlusPreviewLock";
 import WeekAccordion from "../components/ui/WeekAccordion";
 import { getCurrentStudent } from "../hooks/useAuth";
 import { getTickets } from "../services/api";
@@ -28,7 +27,6 @@ const statusConfig = {
 export default function TicketsPage() {
   const currentStudent = getCurrentStudent();
   const studentId = currentStudent?.id;
-  const previewAccess = getAPlusPreviewAccess(currentStudent);
   const [week, setWeek] = useState(1);
   const [allWeeks, setAllWeeks] = useState(false);
   const [status, setStatus] = useState("all");
@@ -90,9 +88,7 @@ export default function TicketsPage() {
         >
           {["passed", "needs_revision", "pending", "in_review"].includes(ticket.status) && ticket.submission_id
             ? "View Feedback"
-            : previewAccess.locked
-              ? "Preview Ticket"
-              : "Start Ticket"}
+            : "Start Ticket"}
         </Link>
       </div>
     </article>
@@ -153,8 +149,6 @@ export default function TicketsPage() {
           </select>
         </div>
       </div>
-
-      <APlusPreviewLock access={previewAccess} />
 
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2">

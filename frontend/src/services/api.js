@@ -256,6 +256,14 @@ export const uploadEvidence = ({ file, ticketId, artifactType }, requestOptions)
     requestOptions
   );
 };
+export const uploadOrientationEvidence = (file, requestOptions) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  return request(
+    () => api.post("/api/evidence/orientation-upload", formData, { headers: { "Content-Type": "multipart/form-data" } }),
+    requestOptions
+  );
+};
 
 export const searchCommands = (q, requestOptions) =>
   request(() => api.get("/api/commands/search", { params: { q } }), requestOptions);
@@ -265,6 +273,10 @@ export const getLessonNote = (lessonId, requestOptions) =>
   request(() => api.get(`/api/lessons/${lessonId}/notes`), requestOptions);
 export const saveLessonNote = (lessonId, content, requestOptions) =>
   request(() => api.put(`/api/lessons/${lessonId}/notes`, { content }), requestOptions);
+export const getOrientationProgress = (requestOptions) =>
+  request(() => api.get("/api/onboarding"), requestOptions);
+export const saveOrientationPractice = (response, requestOptions) =>
+  request(() => api.put("/api/onboarding/practice-response", { response }), requestOptions);
 export const globalSearch = (q, requestOptions) =>
   request(() => api.get("/api/search/global", { params: { q } }), requestOptions);
 

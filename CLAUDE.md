@@ -509,3 +509,88 @@ And update `TASKS.md` backlog accordingly.
 - Placement and correction scripts are dry-run by default: `backend/scripts/apply_quiz_placement_plan.py` and `backend/scripts/apply_quiz_answer_corrections.py`; both require `--confirm` to commit and preserve 104 quizzes / 967 questions.
 - Required coverage is exactly one quiz for every Week 0–24. Certification content lives in the optional library. Remediation is visible only after explicit assignment or a failed required quiz in the same week.
 - The source-of-truth implementation reports are `docs/QUIZ_IMPLEMENTATION_RESULTS.md`, `docs/QUIZ_ANSWER_CORRECTIONS.md`, and `docs/QUIZ_MERGE_LOG.md`.
+
+## Full platform review (2026-07-21)
+
+- A 17-phase product/curriculum/UX/technical review is complete; all 18
+  documents live in `docs/reviews/` (start at `NEXUS_FULL_REVIEW.md`; fix
+  sequencing in `NEXUS_PRIORITIZED_ACTION_PLAN.md`; every finding with
+  severity/evidence in `NEXUS_FINDINGS.csv`). No production code was changed
+  as part of this review.
+- **Confirmed live, not yet fixed:** the A+ Study Tracker unlock gate
+  (`a_plus_unlock_threshold_pct`, default/live value 40%, in
+  `app/services/a_plus_access.py`) blocks ticket/lab/capstone/CLI-lab
+  submission for **every** student until 40% of 137 A+-tagged videos are
+  watched (~9 hours) — this silently contradicts Week 1's designed ticket
+  assignments and has no in-app explanation anywhere. This is the review's
+  single P0 finding; see `NEXUS_TICKET_REVIEW.md`.
+- Cloudflare "Always Use HTTPS" is now confirmed **enabled** (`http://`
+  returns a live `301`) — the prior "not enabled" status noted above and in
+  `TASKS.md` is stale as of this review.
+- Capstone unlock is currently a no-op for every student: all 3 live
+  `CapstoneTemplate` rows have `role_level = NULL`, so `has_unlocked_
+  capstones` is `true` regardless of real progress. Fix by setting each
+  template's intended `role_level`.
+- Lab submission (`app/routers/labs.py`, `submit_lab`) awards no XP and has
+  no mentor-review gate, unlike tickets — an intentional-looking asymmetry
+  that isn't explained anywhere and should be reconciled.
+
+## Pre-Week-0 Launch Readiness Sprint (2026-07-21)
+
+Full detail: `docs/reviews/PRE_WEEK_ZERO_IMPLEMENTATION_REPORT.md`,
+`docs/reviews/PRE_WEEK_ZERO_BROWSER_ACCEPTANCE.md`,
+`docs/reviews/PRE_WEEK_ZERO_FINAL_READINESS.md`.
+
+- **A+ gate replaced.** `require_a_plus_unlocked()` is gone (dead code
+  removed, along with the orphaned frontend `APlusPreviewLock.jsx`).
+  `require_week_reached()` in `progression_service.py` is now the single
+  gating primitive for ticket/lab/CLI-lab/capstone actions, reusing
+  `derive_current_week()` (also now centralized there, previously
+  duplicated in `students.py`). Optional A+ video progress no longer
+  affects hands-on access at all; the Study Tracker's own progress display
+  (`get_a_plus_progress`) is unrelated and unaffected.
+- **Two of the original 17-phase review's findings were wrong,
+  reconciled this sprint:** LESSON-001 ("Week 1 has 0 lessons") — false;
+  `MOD-001`'s two lessons were already served as Week 1 content, the real
+  bug was a cosmetic-only Learning Path lock from `MOD-000`'s permanently-0%
+  mastery, fixed via migration `0030`. QUIZ-001 ("unvalidated quizzes
+  visible/attemptable") — false; live testing confirmed
+  `student_visible_quiz_filters()` already excludes them everywhere. Both
+  corrected (not deleted) in `NEXUS_FINDINGS.csv` and the relevant detail
+  docs — **do not re-attempt either "fix" if it resurfaces in a future
+  review without re-verifying live first.**
+- **Capstone role-gate fixed** — 3 live templates now have `role_level` set
+  (Support Technician I/II, Junior Systems Technician) instead of `NULL`.
+- **Week 0 onboarding added**: new lesson "Welcome to Nexus: Your First
+  Week" (`MOD-000`, `lesson_order=1`; the pre-existing "CompTIA 6-Step
+  Process" lesson moved to `lesson_order=2`, unchanged in substance) plus a
+  guided zero-stakes practice walkthrough
+  (`onboarding_service.py`/`onboarding.py`/`OrientationPracticePanel.jsx`,
+  new minimal `StudentOnboardingPractice` model). Reuses the existing Week 0
+  "Ticketing Systems Quiz" — no new quiz was created.
+- **Bug found and fixed by live testing, not by the unit test suite**:
+  because `derive_current_week()` requires a lesson note on every published
+  lesson in a week's module, and `MOD-000` now has two lessons, completing
+  only the onboarding walkthrough (which only touched the first lesson)
+  left the real Week-1 gate still closed while the onboarding UI claimed
+  readiness. Fixed via a `week_one_unlocked` field on
+  `get_orientation_state()` that reuses the real gate directly, plus an
+  honest fallback message. **If a fixture-only regression test doesn't seed
+  both `MOD-000` lessons, it will not catch this class of bug** — see
+  `test_orientation_completion_reports_the_remaining_week_zero_lesson_until_week_one_unlocks`
+  for the pattern that does.
+- **Squad feed** now filters mentor accounts from the student-facing roster
+  and activity queries by `Student.is_mentor` (role-based, not hardcoded).
+- Full verification: 188/188 backend tests (176 before this sprint),
+  Alembic head `0031`, DB integrity/FK clean, `npm audit` 0 vulnerabilities,
+  clean frontend build.
+- **No rendered-browser verification was possible in this sandbox** —
+  Playwright's Chromium doesn't support this Ubuntu version, no system
+  browser is installed, and the sandbox blocks localhost binding. All
+  verification was API-level (in-process ASGI client against a copied
+  DB). A human desktop + ~375px mobile click-through on the live/staging
+  site is recommended before/soon after the five students begin.
+- **Deployment not yet executed** — held pending explicit approval since it
+  is a production action on shared infrastructure; everything needed to
+  deploy quickly is ready (see `NEXUS_GO_LIVE_CHECKLIST.md`'s corresponding
+  section).

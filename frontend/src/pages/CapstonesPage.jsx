@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { ClipboardCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import EmptyState from "../components/EmptyState";
-import APlusPreviewLock, { getAPlusPreviewAccess } from "../components/APlusPreviewLock";
 import Spinner from "../components/Spinner";
 import PageHeader from "../components/ui/PageHeader";
 import WeekAccordion from "../components/ui/WeekAccordion";
@@ -15,7 +14,6 @@ const statusConfig = {
 };
 
 export default function CapstonesPage() {
-  const previewAccess = getAPlusPreviewAccess();
   const [week, setWeek] = useState("");
   const [allWeeks, setAllWeeks] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -106,8 +104,6 @@ export default function CapstonesPage() {
           </button>
         </div>
       </div>
-
-      <APlusPreviewLock access={previewAccess} />
 
       {loading ? (
         <div className="panel dark:border-slate-700 dark:bg-slate-900">
