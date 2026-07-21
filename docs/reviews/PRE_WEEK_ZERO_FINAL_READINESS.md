@@ -171,29 +171,42 @@ leaderboard evaluation for a small cohort (ENGAGE-001), mentor digest.
 disabled — unchanged this sprint), full axe/screen-reader accessibility
 audit (ACCESS-005), broader nav consolidation, frontend bundle splitting.
 
-## Phase 11 status — not executed
+## Phase 11 status — executed 2026-07-21
 
-Deployment to the live environment (backup, deploy, restart, live
-re-verification, disposable-account cleanup on production, one commit + new
-release tag) has **not** been performed. This is a production action
-affecting the platform the five students will imminently use, on shared
-infrastructure outside this sandbox — it is held pending the project
-owner's explicit go-ahead rather than executed unilaterally. Everything
-required to proceed quickly once approved is ready: all tests pass, the
-diff has been fully reviewed, and the exact deploy procedure is already
-documented in `CLAUDE.md`'s deployment-reality notes.
+Deployed to the live `nexus-services` environment following explicit
+project-owner approval. Fresh timestamped backup taken first
+(`~/backups/nexus-pre-week0-deploy-20260721T235052Z/`, DB integrity
+verified `ok`). Backend restarted (`kill -KILL` + `Restart=on-failure`,
+clean startup, health 200 before/after). Frontend rebuilt and redeployed to
+the `nexus-frontend` container (`docker cp` + `nginx -s reload`, `nginx -t`
+passed). Full production smoke test run against a disposable account
+created via the supported admin endpoint, covering onboarding-state
+correctness (including the exact fix verified live: `is_complete: true` +
+`week_one_unlocked: false` before the second Week 0 lesson, flipping to
+`true` immediately after; Week 1 ticket action blocked/unblocked to
+match), zero-A+-video-progress hands-on access, later-week direct-API
+locking, capstone locking for a fresh student, mentor-activity absence from
+the student squad feed, and unvalidated-quiz continued exclusion. All
+disposable accounts (the new smoke-test account and one leftover from
+earlier reconciliation work) were deleted afterward with a confirmed
+zero-orphan-row check across every relevant table. Committed as `ca28d6e`
+and tagged `manual-cohort-v1.2` (does not overwrite `manual-cohort-v1` or
+`manual-cohort-v1.1`).
 
 ## Final decision
 
-**Ready for five-student Week 0 launch**, contingent on: (1) explicit
-approval to execute Phase 11's deployment steps against the live
-environment, and (2) a brief human click-through on the live/staging site
-after deployment to cover the desktop/mobile visual checks this sandbox
-could not perform, before telling the five students to begin. No blocking
-defect remains open; the two real defects found during this sprint's own
-live verification were fixed and independently re-verified, and the one
-non-blocking gap found (ticket-detail pre-lock content exposure) is
-correctly categorized as deferred, not launch-blocking.
+**Ready for five-student Week 0 launch.** All code, data, and deployment
+verification is complete: 188/188 backend tests, clean frontend build, 0
+npm vulnerabilities, DB integrity/FK clean, production health 200, and a
+full live production smoke test all pass. No blocking defect remains open;
+the two real defects found during this sprint's own live verification were
+fixed and independently re-verified (including live, in production, after
+this deploy), and the one non-blocking gap found (ticket-detail pre-lock
+content exposure) is correctly categorized as deferred, not launch-blocking.
+The one remaining condition is non-code: a short human desktop/mobile
+click-through to cover the visual checks this sandbox's browser limitation
+prevented — see the checklist at the end of this sprint's final message to
+the project owner.
 
 Per the brief: this sprint stops here. The broader Weeks 1-4 roadmap is not
 started and awaits the project owner's next instruction.
