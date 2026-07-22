@@ -8,6 +8,7 @@
     "cli:validate": "node scripts/validate-cli-labs.mjs",
     "dev": "vite",
     "build": "vite build",
+    "test:e2e": "playwright test",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -25,6 +26,7 @@
     "yet-another-react-lightbox": "^3.32.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.5.4",
     "postcss": "^8.5.19",
