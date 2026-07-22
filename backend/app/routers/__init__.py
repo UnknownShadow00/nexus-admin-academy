@@ -7,6 +7,7 @@ from app.routers import (
     admin_session,
     admin_students,
     admin_tickets,
+    admin_training,
     commands,
     evidence,
     flashcards,
@@ -18,6 +19,7 @@ from app.routers import (
     students,
     submissions,
     tickets,
+    training,
 )
 
 __all__ = [
@@ -29,6 +31,7 @@ __all__ = [
     "admin_session",
     "admin_students",
     "admin_tickets",
+    "admin_training",
     "commands",
     "evidence",
     "flashcards",
@@ -40,4 +43,5 @@ __all__ = [
     "students",
     "submissions",
     "tickets",
+    "training",
 ]

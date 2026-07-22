@@ -17,6 +17,7 @@ from app.config import is_production_environment, load_env
 from app.routers import (
     admin,
     admin_session,
+    admin_training,
     auth,
     capstones,
     cli_labs,
@@ -33,6 +34,7 @@ from app.routers import (
     study_tracker,
     submissions,
     tickets,
+    training,
 )
 from app.routers.admin_curriculum import router as admin_curriculum_router
 from app.services.cli_lab_seed import seed_cli_labs
@@ -218,6 +220,7 @@ def create_app() -> FastAPI:
     app.include_router(admin.router)
     app.include_router(admin_curriculum_router)
     app.include_router(admin_session.router)
+    app.include_router(admin_training.router)
     app.include_router(auth.router)
     app.include_router(quizzes.router)
     app.include_router(labs.router)
@@ -234,6 +237,7 @@ def create_app() -> FastAPI:
     app.include_router(lesson_notes.router)
     app.include_router(onboarding.router)
     app.include_router(study_tracker.router)
+    app.include_router(training.router)
 
     upload_dir = os.getenv("UPLOAD_DIR")
     directory = Path(upload_dir) if upload_dir else (Path(__file__).resolve().parents[1] / "uploads" / "screenshots")
