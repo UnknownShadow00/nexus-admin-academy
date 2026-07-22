@@ -10,6 +10,7 @@ import {
 import { getCurrentStudent } from "../hooks/useAuth";
 import { setSelectedProfile } from "../services/profile";
 import { scoreBand } from "../utils/theme";
+import TrainingSubnav from "../components/TrainingSubnav";
 
 const JOB_TAGS = {
   job_critical: { label: "Job Critical", shortLabel: "Job Critical", cls: "bg-indigo-600 text-white border-indigo-600" },
@@ -71,12 +72,12 @@ function SectionBlock({ section, videos, watched, scores, quizMap, onToggleWatch
           {videos.map((video, idx) => {
             const isWatched = !!watched[video.key];
             const quizScore = video.quiz_title ? scores[video.quiz_title] : null;
-            const quizId = quizScore?.quiz_id || (video.quiz_title ? quizMap[video.quiz_title] : null);
+            const quizId = video.quiz_title ? quizMap[video.quiz_title] : null;
 
             return (
               <div
                 key={video.key}
-                className={`flex items-center gap-3 px-4 py-3 ${
+                className={`flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap ${
                   idx < videos.length - 1
                     ? "border-b border-slate-100 dark:border-slate-800"
                     : ""
@@ -124,14 +125,7 @@ function SectionBlock({ section, videos, watched, scores, quizMap, onToggleWatch
                   {quizScore ? (
                     <div className="flex items-center gap-2">
                       <ScoreBadge pct={quizScore.pct} />
-                      {quizId && (
-                        <Link
-                          to={`/quizzes/${quizId}`}
-                          className="text-xs text-slate-400 hover:text-blue-500"
-                        >
-                          Retake
-                        </Link>
-                      )}
+                      {quizId ? <><Link to={`/quizzes/${quizId}/review`} className="text-xs font-medium text-blue-600 hover:text-blue-700">Review</Link><Link to={`/quizzes/${quizId}`} className="text-xs text-slate-500 hover:text-blue-600">Retake</Link></> : null}
                     </div>
                   ) : quizId ? (
                     <Link
@@ -141,8 +135,8 @@ function SectionBlock({ section, videos, watched, scores, quizMap, onToggleWatch
                       Take Quiz →
                     </Link>
                   ) : video.quiz_title ? (
-                    <span className="text-xs text-amber-500" title="Quiz not imported yet">
-                      Quiz pending
+                    <span className="text-xs text-slate-500" title="No approved quiz is currently available">
+                      Quiz unavailable
                     </span>
                   ) : null}
                 </div>
@@ -161,6 +155,7 @@ export default function StudyTrackerPage() {
   const [trackerData, setTrackerData] = useState({ watched: {}, scores: {} });
   const [quizMap, setQuizMap] = useState({});
   const [tagFilter, setTagFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -250,18 +245,20 @@ export default function StudyTrackerPage() {
   const totalVideos = curriculum.reduce((s, sec) => s + sec.videos.length, 0);
   const totalWatched = Object.keys(trackerData.watched).length;
   const overallPct = totalVideos ? Math.round((totalWatched / totalVideos) * 100) : 0;
-  const filteredCurriculum =
-    tagFilter === "all"
-      ? curriculum
-      : curriculum
-          .map((sec) => ({ ...sec, videos: sec.videos.filter((video) => video.job_relevance === tagFilter) }))
-          .filter((sec) => sec.videos.length > 0);
+  const query = searchQuery.trim().toLowerCase();
+  const filteredCurriculum = curriculum
+    .map((sec) => ({ ...sec, videos: sec.videos.filter((video) =>
+      (tagFilter === "all" || video.job_relevance === tagFilter) &&
+      (!query || video.title.toLowerCase().includes(query) || sec.section.toLowerCase().includes(query))
+    ) }))
+    .filter((sec) => sec.videos.length > 0);
 
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-4 pb-20">
+      <TrainingSubnav />
       <div className="rounded-xl bg-blue-600 p-6 text-white shadow">
-        <h1 className="text-2xl font-bold">CompTIA A+ Study Tracker</h1>
-        <p className="mt-0.5 text-sm text-blue-200">220-1201 Core 1 · Professor Messer</p>
+        <h1 className="text-2xl font-bold">All Course Content</h1>
+        <p className="mt-0.5 text-sm text-blue-200">Browse, watch ahead, or review all CompTIA A+ videos.</p>
         <div className="mt-4">
           <div className="mb-1 flex justify-between text-sm">
             <span>{totalWatched} of {totalVideos} videos watched</span>
@@ -280,6 +277,8 @@ export default function StudyTrackerPage() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <label className="block text-xs font-bold uppercase tracking-wide text-slate-500" htmlFor="content-search">Search course content</label>
+        <input id="content-search" className="input-field mt-2 w-full" type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search videos or sections" />
         <div className="flex flex-wrap gap-2">
           {[
             { value: "all", label: "All" },

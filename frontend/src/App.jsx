@@ -20,6 +20,9 @@ import QuizReviewPage from "./pages/QuizReviewPage";
 import QuizzesPage from "./pages/QuizzesPage";
 import StudentHome from "./pages/StudentHome";
 import StudyTrackerPage from "./pages/StudyTrackerPage";
+import TrainingDashboardPage from "./pages/TrainingDashboardPage";
+import TrainingProgressPage from "./pages/TrainingProgressPage";
+import TrainingWeekPage from "./pages/TrainingWeekPage";
 import TerminalCommandsPage from "./pages/TerminalCommandsPage";
 import TicketFeedback from "./pages/TicketFeedback";
 import TicketPage from "./pages/TicketPage";
@@ -37,18 +40,13 @@ const BookmarkletPage = lazy(() => import("./pages/admin/BookmarkletPage"));
 const CurriculumEditorPage = lazy(() => import("./pages/admin/CurriculumEditorPage"));
 const CurriculumTagsPage = lazy(() => import("./pages/admin/CurriculumTagsPage"));
 const QuizEditorPage = lazy(() => import("./pages/admin/QuizEditorPage"));
+const AdminTrainingPage = lazy(() => import("./pages/admin/AdminTrainingPage"));
 
 const studentNavItems = [
   { to: "/", label: "Home" },
+  { to: "/training", label: "My Training" },
   {
-    label: "Learn",
-    children: [
-      { to: "/learning-path", label: "Learning Path" },
-      { to: "/quizzes", label: "Quizzes" },
-    ],
-  },
-  {
-    label: "Practice",
+    label: "Practice Library",
     children: [
       { to: "/tickets", label: "Support Tickets" },
       { to: "/labs", label: "Guided Labs" },
@@ -58,7 +56,7 @@ const studentNavItems = [
       { to: "/terminal", label: "Terminal Practice" },
     ],
   },
-  { to: "/study-tracker", label: "Progress" },
+  { to: "/progress", label: "Progress" },
 ];
 
 const adminNavItems = [
@@ -67,6 +65,7 @@ const adminNavItems = [
     label: "Learning Content",
     children: [
       { to: "/admin/modules", label: "Modules, Lessons & Quizzes" },
+      { to: "/admin/training", label: "Weekly Training" },
       { to: "/admin/curriculum", label: "Study Curriculum" },
       { to: "/admin/curriculum-tags", label: "Job Relevance Tags" },
       { to: "/admin/bookmarklet", label: "ExamCompass Import" },
@@ -386,8 +385,12 @@ export default function App() {
         <Route path="/" element={<RequireAuth><StudentHome /></RequireAuth>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/learning-path" element={<RequireAuth><LearningPath /></RequireAuth>} />
+        <Route path="/training" element={<RequireAuth><TrainingDashboardPage /></RequireAuth>} />
+        <Route path="/training/week/:weekId" element={<RequireAuth><TrainingWeekPage /></RequireAuth>} />
+        <Route path="/training/content" element={<RequireAuth><StudyTrackerPage /></RequireAuth>} />
+        <Route path="/progress" element={<RequireAuth><TrainingProgressPage /></RequireAuth>} />
         <Route path="/quizzes" element={<RequireAuth><QuizzesPage /></RequireAuth>} />
-        <Route path="/study-tracker" element={<RequireAuth><StudyTrackerPage /></RequireAuth>} />
+        <Route path="/study-tracker" element={<Navigate to="/training/content" replace />} />
         <Route path="/quizzes/:quizId" element={<RequireAuth><QuizPage /></RequireAuth>} />
         <Route path="/quizzes/:quizId/review" element={<RequireAuth><QuizReviewPage /></RequireAuth>} />
         <Route path="/tickets" element={<RequireAuth><TicketsPage /></RequireAuth>} />
@@ -408,6 +411,7 @@ export default function App() {
         <Route path="/admin/review" element={<Navigate to="/admin/ticket-review" replace />} />
         <Route path="/admin/students" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminStudentsPage /></AdminAccessGate>} />
         <Route path="/admin/modules" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><ModuleManager /></AdminAccessGate>} />
+        <Route path="/admin/training" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminTrainingPage /></AdminAccessGate>} />
         <Route path="/admin/labs" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminLabsPage /></AdminAccessGate>} />
         <Route path="/admin/capstones" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminCapstonesPage /></AdminAccessGate>} />
         <Route path="/admin/bookmarklet" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><BookmarkletPage /></AdminAccessGate>} />

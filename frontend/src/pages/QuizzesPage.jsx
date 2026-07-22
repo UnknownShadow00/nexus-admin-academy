@@ -7,6 +7,7 @@ import FilterBar from "../components/ui/FilterBar";
 import PageHeader from "../components/ui/PageHeader";
 import { getCurrentStudent } from "../hooks/useAuth";
 import { getQuizzes } from "../services/api";
+import TrainingSubnav from "../components/TrainingSubnav";
 
 const PURPOSE_LABELS = {
   required: "Required",
@@ -86,7 +87,8 @@ export default function QuizzesPage() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6">
-      <PageHeader title="Quizzes" />
+      <TrainingSubnav />
+      <PageHeader title="Quiz Library" subtitle="Browse, review, or retake all available quizzes." />
       <FilterBar>
         <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">Week
           <input className="input-field max-w-24" type="number" min={0} max={24} value={week} disabled={allWeeks} onChange={(event) => setWeek(Number(event.target.value || 0))} />

@@ -2,11 +2,10 @@ import { BookOpen, Brain, Flame, Ticket, Trophy, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import FlashcardReviewPanel from "../components/FlashcardReviewPanel";
-import WeekPlanPanel from "../components/WeekPlanPanel";
 import { XPBadge } from "../components/ui/Badge";
 import PageHeader from "../components/ui/PageHeader";
 import { getCurrentStudent } from "../hooks/useAuth";
-import { checkInStudent, getStudentStats } from "../services/api";
+import { checkInStudent, getStudentStats, getTrainingDashboard } from "../services/api";
 import { iconSizes, scoreBand } from "../utils/theme";
 
 function SkeletonCard() {
@@ -16,14 +15,19 @@ function SkeletonCard() {
 export default function StudentHome() {
   const studentId = getCurrentStudent()?.id;
   const [stats, setStats] = useState(null);
+  const [training, setTraining] = useState(null);
 
   useEffect(() => {
     if (!studentId) return setStats(null);
     const run = async () => {
       try {
         await checkInStudent(studentId, { suppressToast: true });
-        const res = await getStudentStats(studentId, { suppressToast: true });
+        const [res, trainingRes] = await Promise.all([
+          getStudentStats(studentId, { suppressToast: true }),
+          getTrainingDashboard({ suppressToast: true }),
+        ]);
         setStats(res?.data || null);
+        setTraining(trainingRes?.data || null);
       } catch {
         setStats(null);
       }
@@ -32,16 +36,18 @@ export default function StudentHome() {
   }, [studentId]);
 
   const continueTarget = useMemo(() => {
-    if (!stats) return { label: "Open learning path", to: "/learning-path", detail: "Pick up where you left off in your training plan." };
-    if (stats.onboarding?.is_fresh) return {
-      label: "Start Week 0",
-      to: stats.onboarding.lesson_route || "/learning-path",
-      detail: "Start with your Week 0 welcome lesson to learn how Nexus works.",
+    const week = training?.current_week;
+    const next = training?.next_activity;
+    if (!week) return { label: "Open My Training", to: "/training", title: "My Training", detail: "Open your weekly training plan." };
+    if (training.training_complete) return { label: "Review Training", to: "/training", title: "Training Complete", detail: "Review completed weeks or revisit course content." };
+    const fresh = week.required_complete === 0;
+    return {
+      label: fresh ? "Start Training" : "Continue Training",
+      to: next?.destination_route || `/training/week/${week.week_number}`,
+      title: fresh ? "Begin Your IT Training" : "Continue Your Training",
+      detail: `Week ${week.week_number} — ${week.title}`,
     };
-    if (stats.quizzes_completed < stats.total_quizzes) return { label: "Continue quizzes", to: "/quizzes", detail: "You still have quiz checkpoints ready to complete." };
-    if (stats.tickets_completed < stats.total_tickets) return { label: "Continue tickets", to: "/tickets", detail: "Your ticket queue still has hands-on work waiting." };
-    return { label: "Review learning path", to: "/learning-path", detail: "Core work is complete. Review the path and reinforce weak spots." };
-  }, [stats]);
+  }, [training]);
 
   if (!stats) {
     return (
@@ -54,10 +60,9 @@ export default function StudentHome() {
   }
 
   const recent = (stats.recent_activity || []).slice(0, 5);
-  const isFresh = Boolean(stats.onboarding?.is_fresh);
   const statCards = [
     { label: "Total XP", value: stats.total_xp || 0, to: "/learning-path", Icon: Zap, accent: "text-blue-600 dark:text-blue-400", card: "sm:col-span-2 lg:col-span-1" },
-    { label: "Day Streak", value: stats.streak || 0, to: "/study-tracker", Icon: Flame, accent: "text-orange-500 dark:text-orange-300" },
+    { label: "Day Streak", value: stats.streak || 0, to: "/progress", Icon: Flame, accent: "text-orange-500 dark:text-orange-300" },
     { label: "Quizzes Done", value: stats.quizzes_completed || 0, to: "/quizzes", Icon: Trophy, accent: "text-emerald-600 dark:text-emerald-400" },
     { label: "Tickets Passed", value: stats.tickets_completed || 0, to: "/tickets", Icon: Ticket, accent: "text-violet-600 dark:text-violet-400" },
   ];
@@ -66,17 +71,13 @@ export default function StudentHome() {
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <PageHeader title={stats.name || "Student Home"} subtitle="Stay on track with your next lesson, quiz, and support ticket milestone." />
 
-      {isFresh ? (
-        <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/30">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700 dark:text-blue-300">Welcome to Nexus</p>
-          <h2 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">Your 24-week IT-support training path starts here.</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700 dark:text-slate-300">Nexus gives you lessons, quizzes, labs, and realistic support tickets in small weekly steps. Week 0 teaches both how to use the platform and the CompTIA troubleshooting method.</p>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300"><strong>Required</strong> items move your path forward. <strong>Optional</strong> practice gives you extra repetition and never blocks your next required step.</p>
-          <Link className="btn-primary mt-4" to={stats.onboarding?.lesson_route || "/learning-path"}>Start Week 0</Link>
-        </section>
-      ) : null}
-
-      <WeekPlanPanel />
+      <section className="rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-700 p-5 text-white shadow-lg sm:p-7">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">My Training</p>
+        <h2 className="mt-2 text-2xl font-bold sm:text-3xl">{continueTarget.title}</h2>
+        <p className="mt-2 text-blue-100">{continueTarget.detail}</p>
+        {training?.current_week ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{training.current_week.required_complete} of {training.current_week.required_total} required activities complete</span><strong>{training.current_week.completion_percent}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${training.current_week.completion_percent}%` }} /></div></div> : null}
+        <Link className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 font-bold text-blue-700 hover:bg-blue-50" to={continueTarget.to}>{continueTarget.label}</Link>
+      </section>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map(({ label, value, to, Icon, accent, card }) => (
@@ -122,7 +123,7 @@ export default function StudentHome() {
       <section className="panel space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Recent Activity</h2>
-          <Link className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" to="/study-tracker">View tracker</Link>
+          <Link className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" to="/progress">View progress</Link>
         </div>
         {recent.length ? recent.map((item, index) => {
           const Icon = item.type === "ticket" ? Ticket : BookOpen;
