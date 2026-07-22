@@ -3,7 +3,7 @@
 Nexus IT Academy (Nexus Admin Academy) is a private, self-hosted training platform that runs like a simulated IT workplace. Complete-beginner students progress through a six-role career ladder (Trainee → Support Technician I/II → Network Support Technician → Junior Systems Technician → Junior Infrastructure Administrator) by working realistic tickets, labs, and simulations — not by memorizing exam objectives. The 24-week curriculum is seeded; see `docs/STUDENT_GUIDE.md` and `docs/MENTOR_GUIDE.md`.
 
 
-> **Documentation verified 2026-07-19.** The active production architecture is
+> **Documentation verified 2026-07-22.** The active production architecture is
 > self-hosted on `nexus-services`: a systemd-managed FastAPI backend using
 > SQLite, an nginx frontend container, Cloudflare HTTPS, persistent local
 > uploads/backups, and local Ollama AI. Railway/Supabase plans are historical.
@@ -79,19 +79,20 @@ The admin bookmarklet runs on ExamCompass quiz pages, extracts questions/answers
 
 ## Verified Fresh Seed
 
-On 2026-07-19, a fresh migration through `0028` followed by both seeders
-produced 25 modules, 63 lessons, 25 quizzes, 189 questions, 48 tickets, 5 lab
-templates, 48 networking CLI labs, 3 capstones, and 62 Study Tracker videos.
-Running all seed commands a second time left every count unchanged.
+The migration chain is preserved through `0031_week0_orientation`. Both
+`seed.py` and `seed_curriculum.py` are idempotent, and the release verification
+checks a fresh schema plus a second seed pass for duplicate creation.
 
-## Production release status
+The current release is ready for a manual-VM cohort. Automated VM delivery
+remains disabled until a real Proxmox/Guacamole isolation and lifecycle test
+passes.
 
-The 2026-07-19 verification on `.101` passed 154 backend tests, the frontend
-build/audit, migrations, seeds, networking CLI checks, remote-AI calibration,
-student onboarding, ticket grading, evidence security, and the complete
-manual-lab smoke path. Five legacy orphaned methodology rows were repaired with
-the dry-run-first script in `backend/scripts/repair_orphaned_student_data.py`;
-SQLite application connections now enforce foreign keys. Additional production
-content is documented read-only in `docs/PRODUCTION_CONTENT_INVENTORY.md`.
-The project is ready for a manual-VM cohort. Automated VM labs remain disabled
-pending a real Proxmox/Guacamole staging test.
+## Documentation
+
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — production deployment, backup,
+  restore, and smoke checks.
+- [`docs/AUTHORING_CONFIG_SECURITY.md`](docs/AUTHORING_CONFIG_SECURITY.md) —
+  content authoring, environment variables, and security controls.
+- [`docs/MENTOR_GUIDE.md`](docs/MENTOR_GUIDE.md) — mentor operations.
+- [`docs/STUDENT_GUIDE.md`](docs/STUDENT_GUIDE.md) — student workflow.
+- [`TASKS.md`](TASKS.md) — current roadmap only.
