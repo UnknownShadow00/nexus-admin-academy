@@ -10,13 +10,22 @@ function monitorPage(page) {
   const failedRequests = [];
   const httpErrors = [];
   page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text());
+    const text = message.text();
+    const isBlockedCloudflareBeacon =
+      text.includes("static.cloudflareinsights.com/beacon.min.js") &&
+      text.includes("violates the following Content Security Policy directive");
+    if (message.type() === "error" && !isBlockedCloudflareBeacon) consoleErrors.push(text);
   });
   page.on("requestfailed", (request) => {
     const reason = request.failure()?.errorText || "unknown error";
+    const isBlockedCloudflareBeacon =
+      request.url().includes("static.cloudflareinsights.com/beacon.min.js") && reason === "csp";
     // SPA navigation intentionally cancels in-flight reads from the page being
-    // left. Record real transport failures, not Chromium's navigation aborts.
-    if (!reason.includes("ERR_ABORTED")) failedRequests.push(`${request.method()} ${request.url()}: ${reason}`);
+    // left. Cloudflare's optional injected analytics beacon is also rejected
+    // by the application's deliberate same-origin CSP. Record other failures.
+    if (!reason.includes("ERR_ABORTED") && !isBlockedCloudflareBeacon) {
+      failedRequests.push(`${request.method()} ${request.url()}: ${reason}`);
+    }
   });
   page.on("response", (response) => {
     if (response.status() >= 400) httpErrors.push(`${response.status()} ${response.url()}`);
@@ -91,6 +100,29 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await page.getByRole("link", { name: "Progress", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
 
+  const studentRoutes = [
+    ["/learning-path", "Your Learning Path"],
+    ["/quizzes", "Quiz Library"],
+    ["/tickets", "Available Tickets"],
+    ["/labs", "Lab Exercises"],
+    ["/cli-labs", "Networking Labs"],
+    ["/commands", "Command Library"],
+    ["/terminal", "Terminal Practice"],
+  ];
+  for (const [route, heading] of studentRoutes) {
+    await page.goto(route);
+    await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+    await assertNoHorizontalOverflow(page);
+  }
+  await page.goto("/quizzes/42");
+  await expect(page.locator("main")).toContainText("A technician is logging a new support ticket");
+  await page.goto("/tickets/1");
+  await expect(page.locator("main")).toContainText("DNS resolution failing");
+  await page.goto("/labs/4");
+  await expect(page.locator("main")).toContainText("Hardware Component Identification");
+  await page.goto("/cli-labs/meet-cli-001");
+  await expect(page.locator("main")).toContainText("First Contact");
+
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/training");
   await page.getByRole("button", { name: "Toggle menu" }).click();
@@ -99,6 +131,10 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await assertNoHorizontalOverflow(page);
   await page.goto("/training/week/0");
   await assertNoHorizontalOverflow(page);
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("button", { name: "Browser Training Student" }).click();
+  await expect(page).toHaveURL(/\/login$/);
 
   expect(monitor.consoleErrors).toEqual([]);
   expect(monitor.failedRequests).toEqual([]);
@@ -122,10 +158,28 @@ test("admin can open Weekly Training under Learning Content", async ({ page }) =
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "Weekly Training" })).toBeVisible();
+  const adminRoutes = [
+    ["/admin/modules", "Module Manager"],
+    ["/admin/students", "Student Activity Overview"],
+    ["/admin/labs", "Lab Templates"],
+    ["/admin/capstones", "Capstone Templates"],
+    ["/admin/ai-costs", "AI Cost Dashboard"],
+  ];
+  for (const [route, heading] of adminRoutes) {
+    await page.goto(route);
+    await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+  }
+  await page.goto("/admin/review");
+  await expect(page).toHaveURL(/\/admin\/ticket-review$/);
+  await expect(page.getByRole("heading", { name: "Ticket Review Queue" })).toBeVisible();
   await page.setViewportSize({ width: 375, height: 812 });
   await page.getByRole("button", { name: "Toggle menu" }).click();
   await expect(page.getByRole("navigation").getByText("Learning Content", { exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
+
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("button", { name: "Admin Sign Out" }).click();
+  await expect(page).toHaveURL(/\/admin-login/);
 
   expect(monitor.consoleErrors).toEqual([]);
   expect(monitor.failedRequests).toEqual([]);
