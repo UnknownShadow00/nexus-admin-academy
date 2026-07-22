@@ -31,7 +31,7 @@ export default function AICostDashboard() {
         <button className="btn-secondary" onClick={load}>Refresh</button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
           { label: "Today", value: fmt(data.summary?.daily_cost) },
           { label: "Last 30 Days", value: fmt(data.summary?.monthly_cost) },
@@ -44,7 +44,7 @@ export default function AICostDashboard() {
         ))}
       </div>
 
-      <div className="panel dark:bg-slate-900 dark:border-slate-700">
+      <div className="panel overflow-x-auto dark:bg-slate-900 dark:border-slate-700">
         <h2 className="text-lg font-bold mb-3">By Feature</h2>
         <table className="min-w-full text-sm text-left">
           <thead>
@@ -70,7 +70,7 @@ export default function AICostDashboard() {
         </table>
       </div>
 
-      <div className="panel dark:bg-slate-900 dark:border-slate-700">
+      <div className="panel overflow-x-auto dark:bg-slate-900 dark:border-slate-700">
         <h2 className="text-lg font-bold mb-3">Recent Calls</h2>
         <table className="min-w-full text-sm text-left">
           <thead>

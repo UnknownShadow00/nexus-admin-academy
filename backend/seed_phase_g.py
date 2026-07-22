@@ -380,6 +380,7 @@ def seed_phase_g(db) -> dict:
     from app.models.capstone import CapstoneTemplate
     from app.models.learning import Lesson, Module
     from app.models.quiz import QUIZ_STATUS_PUBLISHED, Question, Quiz
+    from app.models.progression import Role
     from app.models.ticket import Ticket
 
     counts = {"modules": 0, "lessons": 0, "quizzes": 0, "questions": 0, "tickets": 0, "capstones": 0}
@@ -445,12 +446,18 @@ def seed_phase_g(db) -> dict:
                 setattr(ticket, k, v)
     db.flush()
 
+    capstone_role = (
+        db.query(Role)
+        .filter(Role.name == "Junior Systems Technician", Role.rank_order == 5)
+        .one()
+    )
+    capstone_fields = {**CAPSTONE_G, "role_level": capstone_role.id}
     cap = db.query(CapstoneTemplate).filter(CapstoneTemplate.title == CAPSTONE_G["title"]).first()
     if cap is None:
-        db.add(CapstoneTemplate(**CAPSTONE_G))
+        db.add(CapstoneTemplate(**capstone_fields))
         counts["capstones"] += 1
     else:
-        for k, v in CAPSTONE_G.items():
+        for k, v in capstone_fields.items():
             setattr(cap, k, v)
     db.flush()
     return counts

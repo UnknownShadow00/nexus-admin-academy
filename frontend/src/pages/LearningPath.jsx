@@ -106,7 +106,7 @@ function LessonRow({ lesson, moduleUnlocked, initiallyExpanded = false }) {
         disabled={!moduleUnlocked}
         onClick={() => moduleUnlocked && setExpanded((v) => !v)}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           {lesson.completion_percent === 100 ? (
             <CheckCircle className="shrink-0 text-green-600" size={20} />
           ) : moduleUnlocked ? (
@@ -114,9 +114,9 @@ function LessonRow({ lesson, moduleUnlocked, initiallyExpanded = false }) {
           ) : (
             <Lock className="shrink-0 text-slate-400" size={20} />
           )}
-          <div>
-            <p className="font-semibold text-slate-900 dark:text-slate-100">{lesson.title}</p>
-            {lesson.summary ? <p className="text-sm text-slate-500 dark:text-slate-400">{lesson.is_orientation ? "A short first-day guide to using Nexus and finding your next task." : lesson.summary}</p> : null}
+          <div className="min-w-0">
+            <p className="break-words font-semibold text-slate-900 dark:text-slate-100">{lesson.title}</p>
+            {lesson.summary ? <p className="break-words text-sm text-slate-500 dark:text-slate-400">{lesson.is_orientation ? "A short first-day guide to using Nexus and finding your next task." : lesson.summary}</p> : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-3">
@@ -170,11 +170,11 @@ function ModuleCard({ module, orientationLessonId }) {
     <div className={`rounded-lg border-l-4 p-6 ${borderClass}`}>
       <div className="flex items-start gap-4">
         <Icon className={iconClass} size={30} />
-        <div className="flex-1">
-          <div className="mb-2 flex items-center justify-between">
-            <div>
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <div className="text-xs text-slate-500">{module.code}</div>
-              <h3 className="text-2xl font-bold">{module.title}</h3>
+              <h3 className="break-words text-2xl font-bold">{module.title}</h3>
             </div>
             <div className="text-right">
               <div className="text-3xl font-bold text-blue-600">{module.mastery_percent}%</div>

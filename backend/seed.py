@@ -549,6 +549,7 @@ LABS = [
 CAPSTONES = [
     {
         "title": "CompTIA A+ Module 1 Capstone: Hardware & Troubleshooting",
+        "required_role": {"name": "Support Technician I", "rank_order": 2},
         "description": "Demonstrate your knowledge of PC hardware components, assembly, and systematic troubleshooting by completing all required deliverables.",
         "week_number": 4,
         "is_published": True,
@@ -576,6 +577,7 @@ CAPSTONES = [
     },
     {
         "title": "CompTIA A+ Module 2 Capstone: Networking & OS",
+        "required_role": {"name": "Support Technician II", "rank_order": 3},
         "description": "Apply your understanding of networking concepts and Windows/Linux administration by completing a full scenario-based capstone project.",
         "week_number": 8,
         "is_published": True,
@@ -910,12 +912,16 @@ def seed_labs(db):
 
 
 def seed_capstones(db):
-    existing_titles = {row.title for row in db.query(CapstoneTemplate).all()}
     for capstone in CAPSTONES:
-        if capstone["title"] in existing_titles:
-            continue
-        db.add(
-            CapstoneTemplate(
+        role_spec = capstone["required_role"]
+        required_role = (
+            db.query(Role)
+            .filter(Role.name == role_spec["name"], Role.rank_order == role_spec["rank_order"])
+            .one()
+        )
+        existing = db.query(CapstoneTemplate).filter(CapstoneTemplate.title == capstone["title"]).first()
+        if existing is None:
+            existing = CapstoneTemplate(
                 title=capstone["title"],
                 description=capstone["description"],
                 week_number=capstone["week_number"],
@@ -925,7 +931,8 @@ def seed_capstones(db):
                 estimated_hours=capstone["estimated_hours"],
                 rubric=capstone["rubric"],
             )
-        )
+            db.add(existing)
+        existing.role_level = required_role.id
 
 
 def seed_answer_keys(db, limit: int = 10):

@@ -301,9 +301,9 @@ export default function TerminalWidget({ prefillCommand, onSessionChange }) {
   }, [prefillCommand]);
 
   return (
-    <div className="rounded-lg border border-slate-300 bg-white p-4 shadow dark:border-slate-700 dark:bg-slate-900">
+    <div className="min-w-0 overflow-hidden rounded-lg border border-slate-300 bg-white p-4 shadow dark:border-slate-700 dark:bg-slate-900">
       <div className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Practice Terminal</div>
-      <div ref={terminalRef} style={{ height: "400px" }} className="rounded border border-slate-300 dark:border-slate-700" />
+      <div ref={terminalRef} style={{ height: "400px" }} className="min-w-0 overflow-hidden rounded border border-slate-300 dark:border-slate-700" />
     </div>
   );
 }
