@@ -120,9 +120,8 @@ npm run cli:sanity
 npm audit --audit-level=high
 ```
 
-The frontend currently has no lint or typecheck script. Ruff is listed in
-`backend/requirements-dev.txt` but may not be installed in every local virtual
-environment. Treat missing tooling as an explicit validation gap, not a pass.
+The frontend currently has no lint or typecheck script. Install
+`backend/requirements-dev.txt` before running Ruff in a fresh environment.
 
 ## Continuing documentation
 

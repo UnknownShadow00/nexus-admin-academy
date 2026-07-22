@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -46,7 +46,7 @@ def get_curriculum(db: Session = Depends(get_db), _: bool = Depends(_get_student
     """Return all curriculum videos grouped by section."""
     videos = (
         db.query(CurriculumVideo)
-        .filter(CurriculumVideo.active == True)
+        .filter(CurriculumVideo.active.is_(True))
         .order_by(CurriculumVideo.section_order, CurriculumVideo.video_order)
         .all()
     )
@@ -75,7 +75,7 @@ def get_curriculum(db: Session = Depends(get_db), _: bool = Depends(_get_student
 def get_curriculum_link_status(db: Session = Depends(get_db), _: bool = Depends(verify_admin)):
     videos = (
         db.query(CurriculumVideo)
-        .filter(CurriculumVideo.active == True)
+        .filter(CurriculumVideo.active.is_(True))
         .order_by(CurriculumVideo.section_order, CurriculumVideo.video_order)
         .all()
     )
@@ -135,7 +135,11 @@ def get_study_tracker(student_id: int, db: Session = Depends(get_db), current_st
 
     curriculum_rows = (
         db.query(CurriculumVideo.quiz_title)
-        .filter(CurriculumVideo.active == True, CurriculumVideo.quiz_title.isnot(None), CurriculumVideo.quiz_title != "")
+        .filter(
+            CurriculumVideo.active.is_(True),
+            CurriculumVideo.quiz_title.isnot(None),
+            CurriculumVideo.quiz_title != "",
+        )
         .all()
     )
     curriculum_titles = [row.quiz_title for row in curriculum_rows]

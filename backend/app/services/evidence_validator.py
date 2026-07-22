@@ -1,5 +1,4 @@
 import hashlib
-import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 

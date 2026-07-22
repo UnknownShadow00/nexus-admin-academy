@@ -14,7 +14,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import SessionLocal
 from app.config import is_production_environment, load_env
-from app.models import Student
 from app.routers import (
     admin,
     admin_session,

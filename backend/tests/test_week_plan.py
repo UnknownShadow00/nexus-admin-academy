@@ -50,7 +50,7 @@ def test_week_plan_statuses_and_progress(db):
     data = r.json()["data"]
     assert data["week"] == 1
 
-    lessons = {l["title"]: l["status"] for l in data["lessons"]}
+    lessons = {lesson["title"]: lesson["status"] for lesson in data["lessons"]}
     assert lessons["Anatomy of a Good Ticket"] == "done"
     assert lessons["Meet the Command Line"] == "available"
     assert "Unpublished Draft" not in lessons  # drafts hidden
@@ -81,7 +81,7 @@ def test_week_plan_scoped_to_own_data(db):
     db.add(StudentLessonNote(student_id=s2.id, lesson_id=l1.id, content="s2 notes"))
     db.commit()
     r = client.get("/api/students/me/week-plan?week=1", headers=auth_headers(s1))
-    lessons = {l["title"]: l["status"] for l in r.json()["data"]["lessons"]}
+    lessons = {lesson["title"]: lesson["status"] for lesson in r.json()["data"]["lessons"]}
     assert lessons["Anatomy of a Good Ticket"] == "available"  # s2's note is not mine
 
 

@@ -557,10 +557,14 @@ QUIZZES.append({
 })
 
 
-ANCHORS = lambda inv, rc, fix, ver, com: {
-    "investigation": inv, "root_cause": rc, "safe_fix_or_escalation": fix,
-    "verification": ver, "communication": com,
-}
+def ANCHORS(inv, rc, fix, ver, com):
+    return {
+        "investigation": inv,
+        "root_cause": rc,
+        "safe_fix_or_escalation": fix,
+        "verification": ver,
+        "communication": com,
+    }
 
 NEW_TICKETS = [
     {

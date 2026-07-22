@@ -1,36 +1,17 @@
 import logging
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
-from statistics import mean
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.models.ai_usage_log import AIUsageLog
-from app.models.capstone import CapstoneRun, CapstoneTemplate
-from app.models.command_reference import CommandReference
-from app.models.evidence import EvidenceArtifact
-from app.models.incident import Incident, IncidentParticipant, IncidentTicket, RCASubmission, RootCause
-from app.models.lab import LabRun, LabTemplate
-from app.models.learning import Lesson, Module
-from app.models.quiz import Question, Quiz, QuizAttempt
-from app.models.progression import MethodologyFramework, PromotionGate, Role
-from app.models.resource import Resource
-from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
-from app.models.xp_ledger import XPLedger
-from app.schemas.quiz import BulkTicketGenerateRequest, QuizGenerateRequest
-from app.schemas.resource import ResourceCreateRequest
+from app.schemas.quiz import BulkTicketGenerateRequest
 from app.schemas.ticket import FlagRequest, OverrideRequest, TicketCreateRequest
-from app.services.activity_service import get_recent_activity, log_activity
+from app.services.activity_service import log_activity
 from app.services.admin_auth import verify_admin
-from app.services.ai_service import ai_health_test
 from app.services.cve_service import fetch_recent_cves, generate_security_ticket_from_cve
 from app.services.mastery_service import record_ticket_mastery_verified
-from app.services.quiz_generator import generate_quiz_from_video
-from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
 from app.services.ticket_generator import generate_ticket_description
 from app.services.xp_service import award_xp
 from app.utils.responses import ok

@@ -8,7 +8,6 @@ Each test pins a fixed vulnerability:
 - quiz answers/explanations leaking before submission
 """
 import io
-import os
 
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
