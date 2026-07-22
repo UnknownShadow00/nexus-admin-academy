@@ -10,7 +10,8 @@ Nexus IT Academy (Nexus Admin Academy) is a private, self-hosted training platfo
 > Key guides:
 > [Student Guide](docs/STUDENT_GUIDE.md) ·
 > [Mentor Guide](docs/MENTOR_GUIDE.md) ·
-> [Authoring / Config / Security](docs/AUTHORING_CONFIG_SECURITY.md).
+> [Authoring / Config / Security](docs/AUTHORING_CONFIG_SECURITY.md) ·
+> [My Training Architecture](docs/MY_TRAINING.md).
 
 ## Prerequisites
 - Python 3.11+
@@ -37,7 +38,7 @@ Run database setup and seed data:
 alembic upgrade head
 python scripts/seed_users.py
 python seed.py            # roles, gates, and all 24 weeks of content (idempotent)
-python seed_curriculum.py # Study Tracker video/quiz curriculum (required — Study Tracker is empty without it; idempotent)
+python seed_curriculum.py # All Course Content video/quiz catalog (required; idempotent)
 ```
 
 Start the backend:
@@ -79,7 +80,7 @@ The admin bookmarklet runs on ExamCompass quiz pages, extracts questions/answers
 
 ## Verified Fresh Seed
 
-The migration chain is preserved through `0031_week0_orientation`. Both
+The migration chain is preserved through `0032_my_training`. Both
 `seed.py` and `seed_curriculum.py` are idempotent, and the release verification
 checks a fresh schema plus a second seed pass for duplicate creation.
 
@@ -95,4 +96,6 @@ passes.
   content authoring, environment variables, and security controls.
 - [`docs/MENTOR_GUIDE.md`](docs/MENTOR_GUIDE.md) — mentor operations.
 - [`docs/STUDENT_GUIDE.md`](docs/STUDENT_GUIDE.md) — student workflow.
+- [`docs/MY_TRAINING.md`](docs/MY_TRAINING.md) — weekly curriculum architecture,
+  completion rules, administration, and deployment notes.
 - [`TASKS.md`](TASKS.md) — current roadmap only.
