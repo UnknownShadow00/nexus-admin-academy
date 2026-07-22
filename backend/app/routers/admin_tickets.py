@@ -23,7 +23,7 @@ from app.models.ticket import Ticket, TicketSubmission
 from app.models.xp_ledger import XPLedger
 from app.schemas.quiz import BulkTicketGenerateRequest, QuizGenerateRequest
 from app.schemas.resource import ResourceCreateRequest
-from app.schemas.ticket import FlagRequest, ManualReviewRequest, OverrideRequest, TicketCreateRequest
+from app.schemas.ticket import FlagRequest, OverrideRequest, TicketCreateRequest
 from app.services.activity_service import get_recent_activity, log_activity
 from app.services.admin_auth import verify_admin
 from app.services.ai_service import ai_health_test
@@ -190,10 +190,6 @@ def review_queue(db: Session = Depends(get_db)):
         for row in rows
     ]
     return ok(data, total=len(data), page=1, per_page=len(data) or 1)
-
-@router.put("/review/{submission_id}")
-def manual_review(submission_id: int, payload: ManualReviewRequest, db: Session = Depends(get_db)):
-    return override_grade(submission_id, OverrideRequest(new_score=payload.new_score, comment=payload.comment), db)
 
 @router.put("/submissions/{submission_id}/verify-proof")
 def verify_proof(submission_id: int, comment: str | None = None, db: Session = Depends(get_db)):
