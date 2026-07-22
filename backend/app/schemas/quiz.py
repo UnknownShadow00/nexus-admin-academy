@@ -112,10 +112,10 @@ class QuizSubmitRequest(BaseModel):
         normalized: dict[str, str] = {}
         for key, answer in value.items():
             # Allow multi-select like "A,C" or "a, c" — normalize to uppercase.
-            letters = [l.strip().upper() for l in str(answer).split(",")]
-            if not all(l in valid for l in letters if l):
+            letters = [letter.strip().upper() for letter in str(answer).split(",")]
+            if not all(letter in valid for letter in letters if letter):
                 raise ValueError("Quiz answers must use option letters A through H only")
-            normalized[key] = ",".join(l for l in letters if l)
+            normalized[key] = ",".join(letter for letter in letters if letter)
         return normalized
 
 

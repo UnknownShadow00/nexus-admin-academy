@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.quiz import (
     EDITORIAL_STATUS_ARCHIVED,
-    EDITORIAL_STATUS_NEEDS_EDIT,
     EDITORIAL_STATUS_UNREVIEWED,
     EDITORIAL_STATUS_VALIDATED,
     QUIZ_PURPOSE_CERTIFICATION,

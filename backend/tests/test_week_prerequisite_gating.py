@@ -16,6 +16,8 @@ from app.routers.cli_labs import router as cli_labs_router
 from app.routers.labs import router as labs_router
 from app.routers.students import router as students_router
 from app.routers.tickets import router as tickets_router
+from seed import seed_capstones
+from seed_phase_g import seed_phase_g
 
 
 client = make_client(tickets_router, labs_router, cli_labs_router, capstones_router, students_router)
@@ -258,3 +260,27 @@ def test_capstone_role_levels_block_fresh_trainee_and_allow_required_rank(db):
     assert qualified_response.status_code == 200
     assert {row["id"] for row in qualified_response.json()["data"]} == {1, 2, 3}
     assert has_unlocked_capstones(db, qualified) is True
+
+
+def test_fresh_database_seeds_assign_all_capstone_role_levels(db):
+    roles = [
+        Role(name="Support Technician I", rank_order=2),
+        Role(name="Support Technician II", rank_order=3),
+        Role(name="Junior Systems Technician", rank_order=5),
+    ]
+    db.add_all(roles)
+    db.flush()
+
+    seed_capstones(db)
+    seed_phase_g(db)
+    db.commit()
+
+    role_by_title = {
+        capstone.title: db.get(Role, capstone.role_level).rank_order
+        for capstone in db.query(CapstoneTemplate).all()
+    }
+    assert role_by_title == {
+        "CompTIA A+ Module 1 Capstone: Hardware & Troubleshooting": 2,
+        "CompTIA A+ Module 2 Capstone: Networking & OS": 3,
+        "Take Over Maple & Finch Co.": 5,
+    }

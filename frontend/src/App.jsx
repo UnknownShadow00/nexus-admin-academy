@@ -1,6 +1,6 @@
-import { LogOut, Menu, Moon, Search, Sun, X } from "lucide-react";
+import { ChevronDown, LogOut, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { Link, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AdminAccessGate from "./components/AdminAccessGate";
 import RequireAuth from "./components/RequireAuth";
 import { clearAuthSession, getCurrentStudent, isAuthenticated } from "./hooks/useAuth";
@@ -27,7 +27,6 @@ import TicketsPage from "./pages/TicketsPage";
 import { authLogout, getTickets, globalSearch } from "./services/api";
 
 const AdminHome = lazy(() => import("./pages/AdminHome"));
-const AdminReviewPage = lazy(() => import("./pages/AdminReviewPage"));
 const AdminStudentsPage = lazy(() => import("./pages/AdminStudentsPage"));
 const ModuleManager = lazy(() => import("./pages/ModuleManager"));
 const AICostDashboard = lazy(() => import("./pages/admin/AICostDashboard"));
@@ -41,28 +40,51 @@ const QuizEditorPage = lazy(() => import("./pages/admin/QuizEditorPage"));
 
 const studentNavItems = [
   { to: "/", label: "Home" },
-  { to: "/learning-path", label: "Learning Path" },
-  { to: "/study-tracker", label: "Study Tracker" },
-  { to: "/tickets", label: "Tickets" },
-  { to: "/labs", label: "Labs" },
-  { to: "/cli-labs", label: "Networking Labs" },
-  { to: "/capstones", label: "Capstones" },
-  { to: "/commands", label: "Command Library" },
-  { to: "/terminal", label: "Terminal Practice" },
+  {
+    label: "Learn",
+    children: [
+      { to: "/learning-path", label: "Learning Path" },
+      { to: "/quizzes", label: "Quizzes" },
+    ],
+  },
+  {
+    label: "Practice",
+    children: [
+      { to: "/tickets", label: "Support Tickets" },
+      { to: "/labs", label: "Guided Labs" },
+      { to: "/cli-labs", label: "Networking Labs" },
+      { to: "/capstones", label: "Capstones" },
+      { to: "/commands", label: "Command Library" },
+      { to: "/terminal", label: "Terminal Practice" },
+    ],
+  },
+  { to: "/study-tracker", label: "Progress" },
 ];
 
 const adminNavItems = [
-  { to: "/admin", label: "Admin Home" },
-  { to: "/admin/ticket-review", label: "Ticket Review Queue" },
-  { to: "/admin/review", label: "Review Tickets" },
+  { to: "/admin", label: "Dashboard" },
+  {
+    label: "Learning Content",
+    children: [
+      { to: "/admin/modules", label: "Modules, Lessons & Quizzes" },
+      { to: "/admin/curriculum", label: "Study Curriculum" },
+      { to: "/admin/curriculum-tags", label: "Job Relevance Tags" },
+      { to: "/admin/bookmarklet", label: "ExamCompass Import" },
+    ],
+  },
   { to: "/admin/students", label: "Students" },
-  { to: "/admin/modules", label: "Modules" },
-  { to: "/admin/labs", label: "Labs" },
-  { to: "/admin/capstones", label: "Capstones" },
-  { to: "/admin/bookmarklet", label: "ExamCompass Import" },
-  { to: "/admin/curriculum", label: "Curriculum" },
-  { to: "/admin/curriculum-tags", label: "Job Tags" },
-  { to: "/admin/ai-costs", label: "AI Costs" },
+  {
+    label: "Assessments & Labs",
+    children: [
+      { to: "/admin/ticket-review", label: "Ticket Review" },
+      { to: "/admin/labs", label: "Labs & VM Assignments" },
+      { to: "/admin/capstones", label: "Capstones" },
+    ],
+  },
+  {
+    label: "System",
+    children: [{ to: "/admin/ai-costs", label: "AI Usage & Costs" }],
+  },
 ];
 
 const navLinkBase = "rounded-lg px-3 py-2 text-sm font-medium transition-colors";
@@ -71,22 +93,107 @@ const navLinkActive = "bg-blue-600 text-white";
 const iconButtonClass = "rounded-lg border border-slate-300 p-2 text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800";
 
 function AppNav({ items, hasTicketFeedback, isAdminRoute, onNavigate, mobile = false }) {
+  const location = useLocation();
+  const [openGroup, setOpenGroup] = useState(null);
+
+  useEffect(() => {
+    setOpenGroup(null);
+  }, [location.pathname]);
+
+  const isPathActive = (path) => {
+    if (path === "/" || path === "/admin") return location.pathname === path;
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
+
+  const linkContent = (item) => (
+    <>
+      {item.label}
+      {!isAdminRoute && item.to === "/tickets" && hasTicketFeedback ? (
+        <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-orange-400" title="New feedback" />
+      ) : null}
+    </>
+  );
+
   return (
     <nav className={mobile ? "flex flex-col gap-2" : "hidden items-center gap-3 md:flex"}>
-      {items.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.to === "/"}
-          onClick={onNavigate}
-          className={({ isActive }) => `${navLinkBase} ${isActive ? navLinkActive : navLinkInactive}`}
-        >
-          {item.label}
-          {!isAdminRoute && item.to === "/tickets" && hasTicketFeedback ? (
-            <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-orange-400" title="New feedback" />
-          ) : null}
-        </NavLink>
-      ))}
+      {items.map((item) => {
+        if (!item.children) {
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === "/" || item.to === "/admin"}
+              onClick={onNavigate}
+              className={({ isActive }) => `${navLinkBase} ${isActive ? navLinkActive : navLinkInactive}`}
+            >
+              {linkContent(item)}
+            </NavLink>
+          );
+        }
+
+        const groupActive = item.children.some((child) => isPathActive(child.to));
+        if (mobile) {
+          return (
+            <div key={item.label} className="rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+              <p className={`px-2 pb-1 text-xs font-semibold uppercase tracking-wide ${groupActive ? "text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400"}`}>
+                {item.label}
+              </p>
+              <div className="flex flex-col gap-1">
+                {item.children.map((child) => (
+                  <NavLink
+                    key={child.to}
+                    to={child.to}
+                    onClick={onNavigate}
+                    className={({ isActive }) => `${navLinkBase} ${isActive ? navLinkActive : navLinkInactive}`}
+                  >
+                    {linkContent(child)}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
+        const isOpen = openGroup === item.label;
+        return (
+          <div
+            key={item.label}
+            className="relative"
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) setOpenGroup(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setOpenGroup(null);
+            }}
+          >
+            <button
+              type="button"
+              className={`${navLinkBase} inline-flex items-center gap-1 ${groupActive ? navLinkActive : navLinkInactive}`}
+              aria-expanded={isOpen}
+              aria-haspopup="menu"
+              onClick={() => setOpenGroup(isOpen ? null : item.label)}
+            >
+              {item.label}
+              <ChevronDown size={15} aria-hidden="true" />
+            </button>
+            {isOpen ? (
+              <div className="absolute left-0 top-full z-40 mt-2 min-w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-900" role="menu">
+                {item.children.map((child) => (
+                  <NavLink
+                    key={child.to}
+                    to={child.to}
+                    onClick={onNavigate}
+                    className={({ isActive }) => `block ${navLinkBase} ${isActive ? navLinkActive : navLinkInactive}`}
+                    role="menuitem"
+                  >
+                    {linkContent(child)}
+                  </NavLink>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
     </nav>
   );
 }
@@ -114,7 +221,11 @@ export default function App() {
       return adminAuthenticated ? adminNavItems : [];
     }
     if (!currentStudent?.is_mentor && currentStudent?.has_unlocked_capstones === false) {
-      return studentNavItems.filter((item) => item.to !== "/capstones");
+      return studentNavItems.map((item) =>
+        item.children
+          ? { ...item, children: item.children.filter((child) => child.to !== "/capstones") }
+          : item
+      );
     }
     return studentNavItems;
   }, [adminAuthenticated, isAdminRoute, currentStudent?.has_unlocked_capstones, currentStudent?.is_mentor]);
@@ -294,7 +405,7 @@ export default function App() {
 
         <Route path="/admin" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminHome /></AdminAccessGate>} />
         <Route path="/admin/ticket-review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminTicketReviewPage /></AdminAccessGate>} />
-        <Route path="/admin/review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminReviewPage /></AdminAccessGate>} />
+        <Route path="/admin/review" element={<Navigate to="/admin/ticket-review" replace />} />
         <Route path="/admin/students" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminStudentsPage /></AdminAccessGate>} />
         <Route path="/admin/modules" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><ModuleManager /></AdminAccessGate>} />
         <Route path="/admin/labs" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminLabsPage /></AdminAccessGate>} />

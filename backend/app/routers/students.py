@@ -11,13 +11,11 @@ from app.models.lesson_notes import StudentLessonNote
 from app.models.login_streak import LoginStreak
 from app.models.progression import MethodologyFramework, StudentMethodologyProgress
 from app.models.quiz import (
-    EDITORIAL_STATUS_ARCHIVED,
     QUIZ_PURPOSE_CERTIFICATION,
     QUIZ_PURPOSE_CUMULATIVE,
     QUIZ_PURPOSE_GATE,
     QUIZ_PURPOSE_PRACTICE,
     QUIZ_PURPOSE_REMEDIATION,
-    QUIZ_STATUS_PUBLISHED,
     Quiz,
     QuizAttempt,
 )
@@ -540,7 +538,7 @@ def get_week_plan(
     from app.models.lab import LabRun, LabTemplate
     from app.models.learning import Lesson, Module
     from app.models.lesson_notes import StudentLessonNote
-    from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
+    from app.models.quiz import Quiz
     from app.models.ticket import Ticket, TicketSubmission
     from app.services.progression_service import get_promotion_status
 

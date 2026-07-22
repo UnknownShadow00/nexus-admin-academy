@@ -315,18 +315,10 @@ export const createTicket = (payload, requestOptions) =>
 export const getSubmissions = (requestOptions) => request(() => adminApi.get("/api/admin/submissions"), requestOptions);
 export const getSubmissionDetail = (id, requestOptions) =>
   request(() => adminApi.get(`/api/admin/submissions/${id}`), requestOptions);
-export const overrideSubmission = (id, payload, requestOptions) =>
-  request(() => adminApi.put(`/api/admin/submissions/${id}/override`, payload), requestOptions);
-export const verifyProof = (id, comment = "", requestOptions) =>
-  request(() => adminApi.put(`/api/admin/submissions/${id}/verify-proof`, null, { params: { comment } }), requestOptions);
-export const rejectProof = (id, comment = "", requestOptions) =>
-  request(() => adminApi.put(`/api/admin/submissions/${id}/reject-proof`, null, { params: { comment } }), requestOptions);
-
 export const createResource = (payload, requestOptions) =>
   request(() => adminApi.post("/api/admin/resources", payload), requestOptions);
 export const deleteResource = (id, requestOptions) =>
   request(() => adminApi.delete(`/api/admin/resources/${id}`), requestOptions);
-export const getReviewQueue = (requestOptions) => request(() => adminApi.get("/api/admin/review"), requestOptions);
 export const getAdminReviewQueue = (requestOptions) => request(() => adminApi.get("/api/admin/review"), requestOptions);
 export const getAdminSubmission = (id, requestOptions) =>
   request(() => adminApi.get(`/api/admin/submissions/${id}`), requestOptions);
@@ -341,7 +333,7 @@ export const rejectSubmission = (id, comment, requestOptions) =>
     requestOptions
   );
 export const overrideScore = (id, new_score, comment, requestOptions) =>
-  request(() => adminApi.put(`/api/admin/review/${id}`, { new_score, comment }), requestOptions);
+  request(() => adminApi.put(`/api/admin/submissions/${id}/override`, { new_score, comment }), requestOptions);
 export const getStudentsOverview = (requestOptions) =>
   request(() => adminApi.get("/api/admin/students/overview"), requestOptions);
 export const getStudentActivity = (id, requestOptions) =>

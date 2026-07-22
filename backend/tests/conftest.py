@@ -1,6 +1,6 @@
 import os
 
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-pytest")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-pytest-at-least-32-bytes")
 os.environ.setdefault("JWT_ALGORITHM", "HS256")
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 # Force, don't setdefault: TestClient talks plain http, so a Secure cookie

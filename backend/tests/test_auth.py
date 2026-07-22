@@ -1,4 +1,4 @@
-from conftest import auth_headers, make_client, make_student
+from conftest import make_client, make_student
 from app.routers.auth import router
 
 client = make_client(router)

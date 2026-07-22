@@ -26,7 +26,11 @@ def test_expired_token_is_rejected():
 
 
 def test_token_with_invalid_signature_is_rejected():
-    token = jwt.encode({"sub": "42", "exp": 4102444800}, "wrong-secret", algorithm="HS256")
+    token = jwt.encode(
+        {"sub": "42", "exp": 4102444800},
+        "wrong-secret-that-is-at-least-32-bytes",
+        algorithm="HS256",
+    )
 
     with pytest.raises(HTTPException) as exc_info:
         decode_token(token)

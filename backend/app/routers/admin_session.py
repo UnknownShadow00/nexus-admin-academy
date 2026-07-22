@@ -75,7 +75,7 @@ def get_student_token(request: Request, response: Response, db: Session = Depend
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     # Get first mentor account
-    mentor = db.query(Student).filter(Student.is_mentor == True).first()
+    mentor = db.query(Student).filter(Student.is_mentor.is_(True)).first()
     if not mentor:
         raise HTTPException(status_code=404, detail="No mentor account found")
 

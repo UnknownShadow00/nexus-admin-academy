@@ -41,7 +41,10 @@ def global_search(q: str = "", db: Session = Depends(get_db), current_student: S
     return {
         "success": True,
         "data": {
-            "lessons": [{"id": l.id, "title": l.title, "summary": l.summary} for l in lessons],
+            "lessons": [
+                {"id": lesson.id, "title": lesson.title, "summary": lesson.summary}
+                for lesson in lessons
+            ],
             "commands": [
                 {
                     "id": c.id,
@@ -54,4 +57,3 @@ def global_search(q: str = "", db: Session = Depends(get_db), current_student: S
             ],
         },
     }
-

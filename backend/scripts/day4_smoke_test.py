@@ -82,13 +82,16 @@ def main() -> int:
         return finish()
 
     # ---- 3. lesson notes flips lesson to done ------------------------------
-    target_lesson = next((l for l in lessons if l["status"] != "done"), lessons[0])
+    target_lesson = next((lesson for lesson in lessons if lesson["status"] != "done"), lessons[0])
     r = student.put(
         f"/api/lessons/{target_lesson['id']}/notes",
         json={"content": "Smoke test note: symptom vs root cause distinction, ticket structure."},
     )
     r2 = student.get("/api/students/me/week-plan", params={"week": 1})
-    after = next((l for l in r2.json()["data"]["lessons"] if l["id"] == target_lesson["id"]), {})
+    after = next(
+        (lesson for lesson in r2.json()["data"]["lessons"] if lesson["id"] == target_lesson["id"]),
+        {},
+    )
     ok3 = r.status_code == 200 and after.get("status") == "done"
     report(
         "3. lesson → done",

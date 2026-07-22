@@ -31,7 +31,7 @@ export default function TerminalCommandsPage() {
     <main className="mx-auto max-w-7xl p-6">
       <PageHeader title="Terminal Practice" />
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="panel dark:border-slate-700 dark:bg-slate-900">
+        <section className="panel min-w-0 dark:border-slate-700 dark:bg-slate-900">
           <input
             className="input-field mb-3"
             placeholder="Search command name or category..."
@@ -62,7 +62,7 @@ export default function TerminalCommandsPage() {
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className="min-w-0 space-y-3">
           <TerminalWidget prefillCommand={selectedCommand} onSessionChange={setSessionText} />
           <button
             className="btn-secondary w-full"
@@ -78,4 +78,3 @@ export default function TerminalCommandsPage() {
     </main>
   );
 }
-

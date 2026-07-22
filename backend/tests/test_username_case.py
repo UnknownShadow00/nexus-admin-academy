@@ -9,7 +9,6 @@ idempotent.
 
 import importlib.util
 import os
-import sys
 
 import pytest
 from sqlalchemy import func
