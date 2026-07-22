@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -57,7 +58,17 @@ def update_login_streak(db: Session, student_id: int) -> LoginStreak:
     if streak is None:
         streak = LoginStreak(student_id=student_id, current_streak=1, longest_streak=1, last_login=today)
         db.add(streak)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # Two Home requests can arrive together (for example React strict
+            # mode or two tabs). The unique student row may be created by the
+            # other request after our initial read; recover by loading it.
+            db.rollback()
+            concurrent = db.query(LoginStreak).filter(LoginStreak.student_id == student_id).first()
+            if concurrent is None:
+                raise
+            return concurrent
         db.refresh(streak)
         return streak
 
