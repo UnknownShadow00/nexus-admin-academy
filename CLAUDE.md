@@ -96,7 +96,6 @@ progression_service.py
 rate_limiter.py
 evidence_validator.py
 methodology_enforcer.py
-content_extractor.py
 cve_service.py
 ```
 
