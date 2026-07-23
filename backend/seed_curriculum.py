@@ -6,6 +6,7 @@ sys.path.insert(0, ".")
 from app.database import SessionLocal
 from app.models.curriculum_video import CurriculumVideo
 from app.services.training_curriculum_seed import sync_initial_training_activities
+from app.services.training_reference_seed import ensure_training_reference_content
 
 CURRICULUM = [
     # (section, section_order, title, duration, url, quiz_title, video_order)
@@ -152,7 +153,9 @@ try:
             existing.video_order = video_order
             existing.job_relevance = job_relevance
     db.commit()
+    reference_result = ensure_training_reference_content(db)
+    db.commit()
     training_result = sync_initial_training_activities(db)
-    print(f"Curriculum seeded successfully; weekly activities: {training_result}")
+    print(f"Curriculum seeded successfully; references: {reference_result}; weekly activities: {training_result}")
 finally:
     db.close()

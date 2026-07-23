@@ -8,6 +8,7 @@ import {
   createAdminTrainingWeek,
   deleteAdminTrainingActivity,
   getAdminTrainingValidation,
+  getAdminTrainingQuizOptions,
   getAdminTrainingWeeks,
   reorderAdminTrainingActivities,
   reorderAdminTrainingWeeks,
@@ -22,6 +23,13 @@ const activityTypes = [
 const emptyActivity = {
   activity_type: "video", content_ref: "", is_required: true,
   estimated_minutes: "", prerequisite_activity_id: "", prerequisite_mode: "soft",
+  quiz_id: "", quiz_mapping_basis: "topic_group",
+};
+
+const mappingLabels = {
+  exact: "Exact",
+  topic_group: "Strong topical",
+  week_fallback: "Week-level fallback",
 };
 
 function moveItem(items, index, direction) {
@@ -35,17 +43,19 @@ function moveItem(items, index, direction) {
 export default function AdminTrainingPage() {
   const [weeks, setWeeks] = useState([]);
   const [validation, setValidation] = useState(null);
+  const [quizOptions, setQuizOptions] = useState([]);
   const [openWeek, setOpenWeek] = useState(null);
   const [draft, setDraft] = useState(emptyActivity);
   const [newWeek, setNewWeek] = useState({ week_number: "", title: "", description: "" });
   const [message, setMessage] = useState("");
 
   const load = async () => {
-    const [weekRes, validationRes] = await Promise.all([
-      getAdminTrainingWeeks(), getAdminTrainingValidation(),
+    const [weekRes, validationRes, quizRes] = await Promise.all([
+      getAdminTrainingWeeks(), getAdminTrainingValidation(), getAdminTrainingQuizOptions(),
     ]);
     setWeeks(weekRes.data || []);
     setValidation(validationRes.data);
+    setQuizOptions(quizRes.data || []);
   };
   useEffect(() => { load().catch(() => setMessage("Training curriculum could not be loaded.")); }, []);
 
@@ -79,14 +89,31 @@ export default function AdminTrainingPage() {
   };
 
   const addActivity = async (week) => {
+    const { quiz_id: quizId, quiz_mapping_basis: mappingBasis, ...activityDraft } = draft;
     await addAdminTrainingActivity(week.id, {
-      ...draft,
+      ...activityDraft,
       stable_id: `week-${week.week_number}-${draft.activity_type}-${draft.content_ref}`,
       estimated_minutes: draft.estimated_minutes ? Number(draft.estimated_minutes) : null,
       prerequisite_activity_id: draft.prerequisite_activity_id ? Number(draft.prerequisite_activity_id) : null,
+      metadata_json: draft.activity_type === "video" ? {
+        quiz_id: Number(quizId),
+        quiz_mapping_basis: mappingBasis,
+        quiz_mapping_confidence: mappingLabels[mappingBasis],
+        quiz_mapping_evidence: "Administrator-reviewed curriculum mapping.",
+      } : {},
     });
     setDraft(emptyActivity);
     setMessage("Activity added.");
+    await load();
+  };
+
+  const updateVideoMapping = async (activity, values) => {
+    const metadata = { ...(activity.metadata_json || {}), ...values };
+    metadata.quiz_id = Number(metadata.quiz_id);
+    metadata.quiz_mapping_confidence = mappingLabels[metadata.quiz_mapping_basis];
+    metadata.quiz_mapping_evidence = "Administrator-reviewed curriculum mapping.";
+    await updateAdminTrainingActivity(activity.id, { metadata_json: metadata });
+    setMessage(`Saved quiz mapping for ${activity.stable_id}.`);
     await load();
   };
 
@@ -121,6 +148,8 @@ export default function AdminTrainingPage() {
       </div>
 
       {message ? <p role="status" className="rounded-xl bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-950/30 dark:text-blue-200">{message}</p> : null}
+
+      {validation ? <section className="panel flex flex-wrap gap-x-6 gap-y-2 text-sm"><span><strong>{validation.mapped_video_count} of {validation.enabled_video_count}</strong> enabled videos mapped</span><span><strong>{validation.mapping_summary?.Exact || 0}</strong> exact</span><span><strong>{validation.mapping_summary?.["Strong topical"] || 0}</strong> topic-group</span><span><strong>{validation.mapping_summary?.["Week-level fallback"] || 0}</strong> week fallback</span></section> : null}
 
       <section className="panel">
         <h2 className="font-bold">Create a week</h2>
@@ -172,11 +201,12 @@ export default function AdminTrainingPage() {
                   <h3 className="font-bold">Activities</h3>
                   <div className="mt-2 overflow-x-auto">
                     <table className="min-w-full text-sm">
-                      <thead><tr className="border-b text-left text-slate-500"><th className="p-2">Order</th><th className="p-2">Type</th><th className="p-2">Referenced ID</th><th className="p-2">Required</th><th className="p-2">Prerequisite</th><th className="p-2"><span className="sr-only">Actions</span></th></tr></thead>
+                      <thead><tr className="border-b text-left text-slate-500"><th className="p-2">Order</th><th className="p-2">Type</th><th className="p-2">Referenced ID</th><th className="p-2">Mapped quiz</th><th className="p-2">Required</th><th className="p-2">Prerequisite</th><th className="p-2"><span className="sr-only">Actions</span></th></tr></thead>
                       <tbody>{week.activities.map((activity, activityIndex) => (
                         <tr key={activity.id} className="border-b border-slate-100 dark:border-slate-800">
                           <td className="whitespace-nowrap p-2"><button aria-label="Move activity up" disabled={activityIndex === 0} onClick={() => moveActivity(week, activityIndex, -1)} className="p-1 disabled:opacity-30" type="button">↑</button><button aria-label="Move activity down" disabled={activityIndex === week.activities.length - 1} onClick={() => moveActivity(week, activityIndex, 1)} className="p-1 disabled:opacity-30" type="button">↓</button> {activity.display_order}</td>
                           <td className="p-2">{activity.activity_type}</td><td className="p-2 font-mono">{activity.content_ref}</td>
+                          <td className="p-2">{activity.activity_type === "video" ? <div className="grid min-w-56 gap-1"><select aria-label={`Quiz for ${activity.stable_id}`} className="input-field text-xs" value={activity.metadata_json?.quiz_id || ""} onChange={(event) => updateVideoMapping(activity, { quiz_id: event.target.value })}><option value="" disabled>Select approved quiz</option>{quizOptions.map((quiz) => <option key={quiz.id} value={quiz.id}>W{quiz.week_number}: {quiz.title}</option>)}</select><select aria-label={`Mapping basis for ${activity.stable_id}`} className="input-field text-xs" value={activity.metadata_json?.quiz_mapping_basis || "topic_group"} onChange={(event) => updateVideoMapping(activity, { quiz_mapping_basis: event.target.value })}><option value="exact">Exact</option><option value="topic_group">Topic group</option><option value="week_fallback">Week fallback</option></select></div> : <span className="text-slate-400">—</span>}</td>
                           <td className="p-2"><input aria-label={`Required ${activity.stable_id}`} type="checkbox" checked={activity.is_required} onChange={async (event) => { await updateAdminTrainingActivity(activity.id, { is_required: event.target.checked }); await load(); }} /></td>
                           <td className="p-2"><input aria-label={`Prerequisite for ${activity.stable_id}`} className="input-field w-24" type="number" placeholder="Activity ID" value={activity.prerequisite_activity_id || ""} onChange={async (event) => { await updateAdminTrainingActivity(activity.id, { prerequisite_activity_id: event.target.value ? Number(event.target.value) : null }); await load(); }} /></td>
                           <td className="p-2 text-right"><button aria-label={`Remove ${activity.stable_id}`} className="rounded p-2 text-red-600 hover:bg-red-50" type="button" onClick={async () => { await deleteAdminTrainingActivity(activity.id); await load(); }}><Trash2 size={15} /></button></td>
@@ -194,8 +224,9 @@ export default function AdminTrainingPage() {
                     <input className="input-field" type="number" min="0" placeholder="Minutes" value={draft.estimated_minutes} onChange={(event) => setDraft({ ...draft, estimated_minutes: event.target.value })} />
                     <input className="input-field" type="number" placeholder="Prerequisite activity ID" value={draft.prerequisite_activity_id} onChange={(event) => setDraft({ ...draft, prerequisite_activity_id: event.target.value })} />
                     <select className="input-field" value={draft.prerequisite_mode} onChange={(event) => setDraft({ ...draft, prerequisite_mode: event.target.value })}><option value="soft">Soft prerequisite</option><option value="hard">Hard prerequisite</option></select>
-                    <button disabled={!draft.content_ref} className="btn-primary disabled:opacity-50" type="button" onClick={() => addActivity(week)}><Plus size={15} />Add</button>
+                    <button disabled={!draft.content_ref || (draft.activity_type === "video" && !draft.quiz_id)} className="btn-primary disabled:opacity-50" type="button" onClick={() => addActivity(week)}><Plus size={15} />Add</button>
                   </div>
+                  {draft.activity_type === "video" ? <div className="mt-2 grid gap-2 sm:grid-cols-2"><label className="text-sm font-semibold">Mapped quiz<select className="input-field mt-1 w-full" value={draft.quiz_id} onChange={(event) => setDraft({ ...draft, quiz_id: event.target.value })}><option value="">Select an approved quiz</option>{quizOptions.map((quiz) => <option key={quiz.id} value={quiz.id}>Week {quiz.week_number} — {quiz.title}</option>)}</select></label><label className="text-sm font-semibold">Mapping basis<select className="input-field mt-1 w-full" value={draft.quiz_mapping_basis} onChange={(event) => setDraft({ ...draft, quiz_mapping_basis: event.target.value })}><option value="exact">Exact</option><option value="topic_group">Topic group</option><option value="week_fallback">Week fallback</option></select></label></div> : null}
                   <label className="mt-2 inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.is_required} onChange={(event) => setDraft({ ...draft, is_required: event.target.checked })} />Required</label>
                 </div>
               </div>

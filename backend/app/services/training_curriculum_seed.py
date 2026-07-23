@@ -20,6 +20,7 @@ from app.models.quiz import Quiz
 from app.models.ticket import Ticket
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.quiz_visibility import student_visible_quiz_filters
+from app.services.training_quiz_mapping import OPTIONAL_LESSON_IDS, mapping_metadata, video_is_required
 
 
 VIDEO_WEEKS = {
@@ -76,7 +77,7 @@ def sync_initial_training_activities(db: Session) -> dict:
 
     rows_by_week: dict[int, list[TrainingWeekActivity]] = defaultdict(list)
 
-    def add(week_number, activity_type, content_ref, required, minutes=None):
+    def add(week_number, activity_type, content_ref, required, minutes=None, metadata=None):
         week = weeks.get(week_number)
         if week is None:
             return
@@ -89,7 +90,7 @@ def sync_initial_training_activities(db: Session) -> dict:
             is_required=required,
             estimated_minutes=minutes,
             prerequisite_mode="soft",
-            metadata_json={},
+            metadata_json=metadata or {},
         )
         rows_by_week[week_number].append(row)
         db.add(row)
@@ -105,14 +106,26 @@ def sync_initial_training_activities(db: Session) -> dict:
         .all()
     )
     for lesson, module_order in lessons:
-        add(0 if module_order == 0 else module_order - 1, "lesson", lesson.id, True, lesson.estimated_minutes)
+        add(
+            0 if module_order == 0 else module_order - 1,
+            "lesson",
+            lesson.id,
+            lesson.id not in OPTIONAL_LESSON_IDS,
+            lesson.estimated_minutes,
+        )
 
     videos = {row.id: row for row in db.query(CurriculumVideo).filter(CurriculumVideo.active.is_(True)).all()}
     for week_number, video_ids in VIDEO_WEEKS.items():
         for video_id in video_ids:
             video = videos.get(video_id)
             if video:
-                add(week_number, "video", video.id, video.job_relevance == "job_critical")
+                add(
+                    week_number,
+                    "video",
+                    video.id,
+                    video_is_required(week_number, video.id, video.job_relevance),
+                    metadata=mapping_metadata(video.id),
+                )
 
     quizzes = (
         db.query(Quiz)

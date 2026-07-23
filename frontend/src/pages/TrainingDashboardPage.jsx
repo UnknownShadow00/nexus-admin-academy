@@ -69,7 +69,7 @@ export default function TrainingDashboardPage() {
                   <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${item.locked ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" : item.is_complete ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300" : "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"}`}>{item.locked ? <Lock size={12} /> : item.is_complete ? <Check size={12} /> : null}{statusLabels[item.status]}</span>
                 </div>
                 <p className="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{item.description}</p>
-                <div className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400"><span>{item.required_complete} of {item.required_total} required</span>{item.estimated_minutes ? <span className="inline-flex items-center gap-1"><Clock size={13} />About {Math.ceil(item.estimated_minutes / 60)} hr</span> : null}</div>
+                <div className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400"><span>{item.required_complete} of {item.required_total} required</span>{item.required_estimated_minutes ? <span className="inline-flex items-center gap-1"><Clock size={13} />About {Math.ceil(item.required_estimated_minutes / 60)} hr</span> : null}</div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full rounded-full bg-blue-600" style={{ width: `${item.completion_percent}%` }} /></div>
                 {item.lock_reason ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{item.lock_reason}</p> : null}
               </div>

@@ -298,6 +298,8 @@ export const getStudentTokenAsAdmin = (requestOptions) =>
   request(() => adminApi.get("/api/admin/session/student-token"), requestOptions);
 export const getAdminTrainingWeeks = (requestOptions) =>
   request(() => adminApi.get("/api/admin/training/weeks"), requestOptions);
+export const getAdminTrainingQuizOptions = (requestOptions) =>
+  request(() => adminApi.get("/api/admin/training/quiz-options"), requestOptions);
 export const createAdminTrainingWeek = (payload, requestOptions) =>
   request(() => adminApi.post("/api/admin/training/weeks", payload), requestOptions);
 export const updateAdminTrainingWeek = (weekId, payload, requestOptions) =>

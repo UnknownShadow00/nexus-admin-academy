@@ -21,6 +21,7 @@ from app.models.video_watch import VideoWatch
 from app.services.mastery_service import list_student_mastery
 from app.services.progression_service import get_promotion_status
 from app.services.quiz_visibility import student_visible_quiz_filters
+from app.services.training_quiz_mapping import CONFIDENCE_BY_BASIS, EXACT, TOPIC_GROUP, WEEK_FALLBACK
 
 
 PRACTICE_ACTIVITY_TYPES = {
@@ -99,19 +100,27 @@ class _TrainingContext:
         def integer_refs(activity_type):
             return {value for ref in refs[activity_type] if (value := _int_ref(ref)) is not None}
 
+        mapped_quiz_ids = {
+            quiz_id
+            for activity in activities
+            if activity.activity_type == "video"
+            and (quiz_id := _int_ref((activity.metadata_json or {}).get("quiz_id"))) is not None
+        }
+
         self.videos = {
             row.id: row
             for row in db.query(CurriculumVideo)
             .filter(CurriculumVideo.id.in_(integer_refs("video")), CurriculumVideo.active.is_(True))
             .all()
         } if refs["video"] else {}
+        requested_quiz_ids = integer_refs("quiz") | mapped_quiz_ids
         self.quizzes = {
             row.id: row
             for row in db.query(Quiz)
             .options(selectinload(Quiz.questions))
-            .filter(Quiz.id.in_(integer_refs("quiz")), *student_visible_quiz_filters())
+            .filter(Quiz.id.in_(requested_quiz_ids), *student_visible_quiz_filters())
             .all()
-        } if refs["quiz"] else {}
+        } if requested_quiz_ids else {}
         visible_quizzes = (
             db.query(Quiz)
             .options(selectinload(Quiz.questions))
@@ -228,25 +237,31 @@ class _TrainingContext:
             video = self.videos.get(ref)
             if not video:
                 return None
-            linked_quiz = None
-            if video.quiz_title:
+            metadata = activity.metadata_json or {}
+            mapped_quiz_id = _int_ref(metadata.get("quiz_id"))
+            quiz = self.quizzes.get(mapped_quiz_id)
+            # Compatibility only for pre-0033 databases while an operator is
+            # applying the additive mapping migration. New mappings never rely
+            # on mutable title matching.
+            if quiz is None and mapped_quiz_id is None and video.quiz_title:
                 quiz = self.visible_quizzes_by_title.get(video.quiz_title)
-                if quiz:
-                    progress = self._quiz_progress(quiz)
-                    linked_quiz = {
-                        "available": True,
-                        "id": quiz.id,
-                        "title": quiz.title,
-                        "route": f"/quizzes/{quiz.id}",
-                        "review_route": f"/quizzes/{quiz.id}/review" if progress["attempted"] else None,
-                        "action": "review" if progress["attempted"] else "take",
-                        "score": progress["score"],
-                        "total": progress["total"],
-                        "score_percent": progress["score_percent"],
-                        "passed": progress["passed"],
-                    }
-                else:
-                    linked_quiz = {"available": False, "label": "Quiz unavailable"}
+            linked_quiz = None
+            if quiz:
+                progress = self._quiz_progress(quiz)
+                linked_quiz = {
+                    "available": True,
+                    "id": quiz.id,
+                    "title": quiz.title,
+                    "route": f"/quizzes/{quiz.id}",
+                    "review_route": f"/quizzes/{quiz.id}/review" if progress["attempted"] else None,
+                    "action": "review" if progress["attempted"] else "take",
+                    "score": progress["score"],
+                    "total": progress["total"],
+                    "score_percent": progress["score_percent"],
+                    "passed": progress["passed"],
+                    "mapping_basis": metadata.get("quiz_mapping_basis"),
+                    "mapping_confidence": metadata.get("quiz_mapping_confidence"),
+                }
             return _ResolvedContent(
                 title=video.title,
                 description=video.section,
@@ -373,7 +388,14 @@ class _TrainingContext:
             }
         if activity.activity_type == "support_ticket":
             submission = self.ticket_submissions.get(ref)
-            complete = bool(submission and submission.status == "passed")
+            # Weekly progression requires a real server-graded submission, but
+            # does not wait indefinitely for an instructor to award XP. Mentor
+            # verification remains authoritative for rank/mastery credit.
+            complete = bool(
+                submission
+                and submission.status in {"pending", "in_review", "passed"}
+                and (submission.graded_at is not None or submission.status == "passed")
+            )
             return {
                 "complete": complete,
                 "in_progress": bool(submission and not complete),
@@ -449,6 +471,7 @@ def _serialize_week(week: TrainingWeek, activities: list[dict], *, locked: bool,
     optional_complete = sum(1 for item in optional if item["complete"])
     is_complete = required_complete == len(required)
     percent = round(required_complete / len(required) * 100) if required else 100
+    required_estimated_minutes = sum(int(item.get("estimated_minutes") or 0) for item in required)
     if locked:
         status = "locked"
     elif is_complete:
@@ -465,6 +488,7 @@ def _serialize_week(week: TrainingWeek, activities: list[dict], *, locked: bool,
         "description": week.description,
         "learning_goals": week.learning_goals or [],
         "estimated_minutes": week.estimated_minutes,
+        "required_estimated_minutes": required_estimated_minutes,
         "required_complete": required_complete,
         "required_total": len(required),
         "optional_complete": optional_complete,
@@ -657,6 +681,91 @@ def validate_training_activity_reference(db: Session, activity: TrainingWeekActi
     return None
 
 
+def validate_video_quiz_mapping(db: Session, activity: TrainingWeekActivity) -> dict | None:
+    metadata = activity.metadata_json or {}
+    quiz_id = _int_ref(metadata.get("quiz_id"))
+    if quiz_id is None:
+        return {
+            "code": "VIDEO_QUIZ_MAPPING_MISSING",
+            "severity": "error",
+            "message": "Video does not have an explicit quiz mapping.",
+        }
+    quiz = db.query(Quiz.id).filter(Quiz.id == quiz_id, *student_visible_quiz_filters()).first()
+    if not quiz:
+        return {
+            "code": "VIDEO_QUIZ_MAPPING_INVALID",
+            "severity": "error",
+            "message": "Mapped quiz does not exist or is not approved for students.",
+        }
+    basis = metadata.get("quiz_mapping_basis")
+    if basis not in {EXACT, TOPIC_GROUP, WEEK_FALLBACK}:
+        return {
+            "code": "VIDEO_QUIZ_MAPPING_BASIS_INVALID",
+            "severity": "error",
+            "message": "Video quiz mapping must record exact, topic-group, or week-level basis.",
+        }
+    if metadata.get("quiz_mapping_confidence") != CONFIDENCE_BY_BASIS[basis]:
+        return {
+            "code": "VIDEO_QUIZ_MAPPING_CONFIDENCE_INVALID",
+            "severity": "error",
+            "message": "Video quiz mapping confidence does not match its reviewed basis.",
+        }
+    if not str(metadata.get("quiz_mapping_evidence", "")).strip():
+        return {
+            "code": "VIDEO_QUIZ_MAPPING_EVIDENCE_MISSING",
+            "severity": "error",
+            "message": "Video quiz mapping must record review evidence.",
+        }
+    return None
+
+
+def _hard_prerequisite_cycles(activities: list[TrainingWeekActivity]) -> set[int]:
+    by_id = {activity.id: activity for activity in activities}
+    cycles = set()
+    for activity in activities:
+        seen = set()
+        current = activity
+        while current and current.prerequisite_mode == "hard" and current.prerequisite_activity_id:
+            if current.id in seen:
+                cycles.update(seen)
+                break
+            seen.add(current.id)
+            current = by_id.get(current.prerequisite_activity_id)
+    return cycles
+
+
+def _workload_row(db: Session, week: TrainingWeek) -> dict:
+    required = [activity for activity in week.activities if activity.is_required]
+    by_type: dict[str, int] = defaultdict(int)
+    for activity in required:
+        by_type[activity.activity_type] += 1
+    video_ids = [_int_ref(activity.content_ref) for activity in required if activity.activity_type == "video"]
+    video_minutes = sum(
+        _duration_minutes(row.duration) or 0
+        for row in db.query(CurriculumVideo).filter(CurriculumVideo.id.in_(video_ids)).all()
+    ) if video_ids else 0
+    non_video_minutes = sum(
+        int(activity.estimated_minutes or 0)
+        for activity in required
+        if activity.activity_type != "video"
+    )
+    return {
+        "week_number": week.week_number,
+        "topic": week.title,
+        "required_items": len(required),
+        "required_videos": by_type["video"],
+        "required_video_minutes": video_minutes,
+        "required_lessons": by_type["lesson"],
+        "required_quizzes": by_type["quiz"],
+        "required_guided_labs": by_type["guided_lab"],
+        "required_networking_labs": by_type["networking_lab"],
+        "required_support_tickets": by_type["support_ticket"],
+        "required_capstones": by_type["capstone"],
+        "estimated_minutes": video_minutes + non_video_minutes,
+        "optional_items": sum(1 for activity in week.activities if not activity.is_required),
+    }
+
+
 def validate_training_curriculum(db: Session) -> dict:
     weeks = (
         db.query(TrainingWeek)
@@ -665,10 +774,21 @@ def validate_training_curriculum(db: Session) -> dict:
         .all()
     )
     issues = []
+    activities = [activity for week in weeks for activity in week.activities]
+    active_weeks = [week for week in weeks if week.is_active]
+    active_activities = [activity for week in active_weeks for activity in week.activities]
+    cycle_ids = _hard_prerequisite_cycles(activities)
+    activity_by_id = {activity.id: activity for activity in activities}
+    mapping_counts = defaultdict(int)
+    if active_weeks and active_weeks[0].requires_previous_week:
+        issues.append({"code": "FIRST_WEEK_LOCKED", "severity": "error", "week_number": active_weeks[0].week_number, "message": "The first active week cannot require a previous week."})
     for week in weeks:
         if week.is_active and not week.activities:
-            issues.append({"code": "EMPTY_WEEK", "severity": "warning", "week_number": week.week_number, "message": "Active week has no activities."})
+            issues.append({"code": "EMPTY_WEEK", "severity": "error", "week_number": week.week_number, "message": "Active week has no activities and no completion path."})
+        if week.is_active and week.activities and not any(item.is_required for item in week.activities):
+            issues.append({"code": "NO_REQUIRED_PATH", "severity": "error", "week_number": week.week_number, "message": "Active week has no required activity to define a completion path."})
         seen_orders = set()
+        seen_required_refs = set()
         for activity in week.activities:
             if activity.display_order in seen_orders:
                 issues.append({"code": "DUPLICATE_ACTIVITY_ORDER", "severity": "warning", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "Two activities share a display order."})
@@ -676,11 +796,43 @@ def validate_training_curriculum(db: Session) -> dict:
             issue = validate_training_activity_reference(db, activity)
             if issue:
                 issues.append({**issue, "week_number": week.week_number, "stable_id": activity.stable_id})
+            if activity.activity_type == "video" and week.is_active:
+                mapping_issue = validate_video_quiz_mapping(db, activity)
+                if mapping_issue:
+                    issues.append({**mapping_issue, "week_number": week.week_number, "stable_id": activity.stable_id})
+                else:
+                    mapping_counts[(activity.metadata_json or {}).get("quiz_mapping_confidence")] += 1
             if activity.activity_type in UNTRACKED_ACTIVITY_TYPES and activity.is_required:
                 issues.append({"code": "UNTRACKED_REQUIRED_ACTIVITY", "severity": "error", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "This activity type has no trustworthy completion record and must remain optional."})
+            if activity.is_required:
+                canonical_ref = (activity.activity_type, activity.content_ref)
+                if canonical_ref in seen_required_refs:
+                    issues.append({"code": "DUPLICATE_REQUIRED_ACTIVITY", "severity": "error", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "The same required content is counted more than once in this week."})
+                seen_required_refs.add(canonical_ref)
+                prerequisite = activity_by_id.get(activity.prerequisite_activity_id)
+                if activity.prerequisite_mode == "hard" and prerequisite and not prerequisite.is_required:
+                    issues.append({"code": "REQUIRED_DEPENDS_ON_OPTIONAL", "severity": "error", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "A required activity cannot hard-require optional work."})
+            if activity.id in cycle_ids:
+                issues.append({"code": "PREREQUISITE_CYCLE", "severity": "error", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "Hard prerequisites contain a cycle."})
+
+    active_video_counts: dict[int | None, int] = defaultdict(int)
+    for activity in active_activities:
+        if activity.activity_type == "video":
+            active_video_counts[_int_ref(activity.content_ref)] += 1
+    active_video_ids = set(active_video_counts)
+    enabled_video_ids = {row.id for row in db.query(CurriculumVideo.id).filter(CurriculumVideo.active.is_(True)).all()}
+    for video_id, count in active_video_counts.items():
+        if video_id is not None and count > 1:
+            issues.append({"code": "ACTIVE_VIDEO_ASSIGNED_MULTIPLE_TIMES", "severity": "error", "week_number": None, "message": f"Active video {video_id} is assigned to {count} enabled activities."})
+    for video_id in sorted(enabled_video_ids - active_video_ids):
+        issues.append({"code": "ACTIVE_VIDEO_UNASSIGNED", "severity": "error", "week_number": None, "message": f"Active video {video_id} is not assigned to an enabled training week."})
     return {
         "valid": not any(issue["severity"] == "error" for issue in issues),
         "week_count": len(weeks),
         "activity_count": sum(len(week.activities) for week in weeks),
+        "enabled_video_count": len(enabled_video_ids),
+        "mapped_video_count": sum(mapping_counts.values()),
+        "mapping_summary": dict(mapping_counts),
+        "workload": [_workload_row(db, week) for week in active_weeks],
         "issues": issues,
     }

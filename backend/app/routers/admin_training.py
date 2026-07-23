@@ -7,12 +7,15 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
 from app.models.training import TRAINING_ACTIVITY_TYPES, TrainingWeek, TrainingWeekActivity
+from app.models.quiz import Quiz
 from app.services.admin_auth import verify_admin
 from app.services.training_service import (
     UNTRACKED_ACTIVITY_TYPES,
     validate_training_activity_reference,
     validate_training_curriculum,
+    validate_video_quiz_mapping,
 )
+from app.services.quiz_visibility import student_visible_quiz_filters
 from app.utils.responses import ok
 
 
@@ -113,6 +116,17 @@ def list_weeks(db: Session = Depends(get_db)):
     return ok([_serialize_week(row) for row in rows])
 
 
+@router.get("/quiz-options")
+def list_quiz_options(db: Session = Depends(get_db)):
+    rows = (
+        db.query(Quiz)
+        .filter(*student_visible_quiz_filters())
+        .order_by(Quiz.week_number, Quiz.title, Quiz.id)
+        .all()
+    )
+    return ok([{"id": row.id, "title": row.title, "week_number": row.week_number} for row in rows])
+
+
 @router.post("/weeks", status_code=201)
 def create_week(payload: WeekCreate, db: Session = Depends(get_db)):
     if db.query(TrainingWeek.id).filter(TrainingWeek.week_number == payload.week_number).first():
@@ -162,6 +176,11 @@ def add_activity(week_id: int, payload: ActivityCreate, db: Session = Depends(ge
     if reference_issue and reference_issue["severity"] == "error":
         db.rollback()
         raise HTTPException(status_code=400, detail=reference_issue["message"])
+    if row.activity_type == "video":
+        mapping_issue = validate_video_quiz_mapping(db, row)
+        if mapping_issue:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=mapping_issue["message"])
     db.commit()
     db.refresh(row)
     return ok(_serialize_activity(row))
@@ -182,6 +201,13 @@ def update_activity(activity_id: int, payload: ActivityPatch, db: Session = Depe
         raise HTTPException(status_code=400, detail="Prerequisite activity does not exist")
     for key, value in changes.items():
         setattr(row, key, value)
+    db.flush()
+    reference_issue = validate_training_activity_reference(db, row)
+    mapping_issue = validate_video_quiz_mapping(db, row) if row.activity_type == "video" else None
+    if reference_issue or mapping_issue:
+        db.rollback()
+        issue = reference_issue or mapping_issue
+        raise HTTPException(status_code=400, detail=issue["message"])
     db.commit()
     db.refresh(row)
     return ok(_serialize_activity(row))
