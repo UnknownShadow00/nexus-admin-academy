@@ -288,6 +288,23 @@ export const getTrainingProgress = (requestOptions) =>
 export const markTrainingVideoWatched = (activityId, requestOptions) =>
   request(() => api.post(`/api/training/activities/${activityId}/video-watch`), requestOptions);
 
+// Private-beta Service Desk Lab. These are kept separate from legacy Support Tickets.
+export const getServiceDeskAccess = (requestOptions) => request(() => api.get("/api/service-desk/access"), requestOptions);
+export const getServiceDeskOverview = (requestOptions) => request(() => api.get("/api/service-desk/overview"), requestOptions);
+export const getServiceDeskQueue = (requestOptions) => request(() => api.get("/api/service-desk/queue"), requestOptions);
+export const getServiceDeskPerformance = (requestOptions) => request(() => api.get("/api/service-desk/performance"), requestOptions);
+export const getServiceDeskKnowledge = (q = "", requestOptions) => request(() => api.get("/api/service-desk/knowledge", { params: { q } }), requestOptions);
+export const createServiceDeskAttempt = (scenarioId, mode, requestOptions) => request(() => api.post(`/api/service-desk/scenarios/${scenarioId}/attempts`, { mode }), requestOptions);
+export const getServiceDeskAttempt = (attemptId, requestOptions) => request(() => api.get(`/api/service-desk/attempts/${attemptId}`), requestOptions);
+export const serviceDeskAction = (attemptId, payload, requestOptions) => request(() => api.post(`/api/service-desk/attempts/${attemptId}/actions`, payload), requestOptions);
+export const getAdminServiceDeskScenarios = (requestOptions) => request(() => adminApi.get("/api/admin/service-desk/scenarios"), requestOptions);
+export const getAdminServiceDeskAttempts = (requestOptions) => request(() => adminApi.get("/api/admin/service-desk/attempts"), requestOptions);
+export const getAdminServiceDeskHealth = (requestOptions) => request(() => adminApi.get("/api/admin/service-desk/health"), requestOptions);
+export const getAdminServiceDeskAssignments = (requestOptions) => request(() => adminApi.get("/api/admin/service-desk/assignments"), requestOptions);
+export const saveAdminServiceDeskAssignment = (payload, requestOptions) => request(() => adminApi.post("/api/admin/service-desk/assignments", payload), requestOptions);
+export const getAdminServiceDeskEvents = (attemptId, requestOptions) => request(() => adminApi.get(`/api/admin/service-desk/attempts/${attemptId}/events`), requestOptions);
+export const resetAdminServiceDeskAttempt = (attemptId, requestOptions) => request(() => adminApi.post(`/api/admin/service-desk/attempts/${attemptId}/reset`), requestOptions);
+
 export const adminSessionStatus = (requestOptions) =>
   request(() => adminApi.get("/api/admin/session/status"), { retries: 2, warmupOnRetry: true, ...requestOptions });
 export const adminSessionLogin = (credentials, requestOptions) =>

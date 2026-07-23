@@ -41,6 +41,8 @@ const CurriculumEditorPage = lazy(() => import("./pages/admin/CurriculumEditorPa
 const CurriculumTagsPage = lazy(() => import("./pages/admin/CurriculumTagsPage"));
 const QuizEditorPage = lazy(() => import("./pages/admin/QuizEditorPage"));
 const AdminTrainingPage = lazy(() => import("./pages/admin/AdminTrainingPage"));
+const ServiceDeskPage = lazy(() => import("./pages/ServiceDeskPage"));
+const AdminServiceDeskPage = lazy(() => import("./pages/admin/AdminServiceDeskPage"));
 
 const studentNavItems = [
   { to: "/", label: "Home" },
@@ -76,6 +78,7 @@ const adminNavItems = [
     label: "Assessments & Labs",
     children: [
       { to: "/admin/ticket-review", label: "Ticket Review" },
+      { to: "/admin/service-desk", label: "Service Desk Lab" },
       { to: "/admin/labs", label: "Labs & VM Assignments" },
       { to: "/admin/capstones", label: "Capstones" },
     ],
@@ -404,10 +407,12 @@ export default function App() {
         <Route path="/capstones/:capstoneId" element={<RequireAuth><CapstonePage /></RequireAuth>} />
         <Route path="/commands" element={<RequireAuth><CommandReferencePage /></RequireAuth>} />
         <Route path="/terminal" element={<RequireAuth><TerminalCommandsPage /></RequireAuth>} />
+        <Route path="/service-desk" element={<RequireAuth><ServiceDeskPage /></RequireAuth>} />
         <Route path="/admin-login" element={<AdminLoginPage />} />
 
         <Route path="/admin" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminHome /></AdminAccessGate>} />
         <Route path="/admin/ticket-review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminTicketReviewPage /></AdminAccessGate>} />
+        <Route path="/admin/service-desk" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminServiceDeskPage /></AdminAccessGate>} />
         <Route path="/admin/review" element={<Navigate to="/admin/ticket-review" replace />} />
         <Route path="/admin/students" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminStudentsPage /></AdminAccessGate>} />
         <Route path="/admin/modules" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><ModuleManager /></AdminAccessGate>} />
