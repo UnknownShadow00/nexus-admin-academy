@@ -1,0 +1,226 @@
+{
+  "stable_key": "locked-user-account",
+  "version": 1,
+  "title": "Locked User Account",
+  "description": "Taylor Nguyen reports being unable to sign in after several unsuccessful password attempts. Follow the support process, verify identity, restore access safely, and document the outcome.",
+  "category": "Identity and Access",
+  "difficulty": 1,
+  "supported_modes": ["learning", "simulation"],
+  "learning_objectives": [
+    "Verify identity before changing account access.",
+    "Confirm account state before applying a minimal safe change.",
+    "Document and verify the resolution."
+  ],
+  "skill_tags": ["identity_verification", "account_lockout", "safe_access_change", "documentation"],
+  "student_facts": {
+    "requester": {
+      "name": "Taylor Nguyen",
+      "username": "tnguyen",
+      "department": "Operations",
+      "location": "North Office",
+      "verification_policy": "Confirm the employee ID last four digits before changing account access."
+    },
+    "ticket_number": "SDL-1001"
+  },
+  "hidden_facts": {
+    "root_cause": "The account is locked after repeated failed sign-in attempts.",
+    "correct_account_id": "tnguyen",
+    "critical_failure_definitions": ["unlocking an account before identity verification", "unlocking any account other than the verified requester"],
+    "instructor_notes": "Use this only to validate the Phase 0 deterministic transition contract."
+  },
+  "state_schema": {
+    "ticket_opened": [false, true],
+    "requester_inspected": [false, true],
+    "identity_verified": [false, true],
+    "account_searched": [false, true],
+    "account_found": [false, true],
+    "account_inspected": [false, true],
+    "account_unlocked": [false, true],
+    "resolution_documented": [false, true],
+    "ticket_resolved": [false, true],
+    "critical_failure": [false, true]
+  },
+  "initial_state": {
+    "ticket_opened": false,
+    "requester_inspected": false,
+    "identity_verified": false,
+    "account_searched": false,
+    "account_found": false,
+    "account_inspected": false,
+    "account_unlocked": false,
+    "resolution_documented": false,
+    "ticket_resolved": false,
+    "critical_failure": false
+  },
+  "student_visible_state_fields": [
+    "ticket_opened",
+    "requester_inspected",
+    "identity_verified",
+    "account_searched",
+    "account_found",
+    "account_inspected",
+    "account_unlocked",
+    "resolution_documented",
+    "ticket_resolved"
+  ],
+  "actions": [
+    {
+      "key": "open_ticket",
+      "tool": "ticket",
+      "branches": [{
+        "mutations": [{"field": "ticket_opened", "value": true}],
+        "score_key": "open_ticket",
+        "student_feedback": "Ticket details are available."
+      }]
+    },
+    {
+      "key": "inspect_requester",
+      "tool": "ticket",
+      "preconditions": [{"field": "ticket_opened", "equals": true}],
+      "branches": [{
+        "mutations": [{"field": "requester_inspected", "value": true}],
+        "score_key": "inspect_requester",
+        "student_feedback": "Requester information is available."
+      }]
+    },
+    {
+      "key": "verify_identity",
+      "tool": "identity",
+      "required_payload_fields": ["verification_method"],
+      "preconditions": [{"field": "requester_inspected", "equals": true}],
+      "branches": [
+        {
+          "match_payload": {"verification_method": "employee_id_last4"},
+          "mutations": [{"field": "identity_verified", "value": true}],
+          "score_key": "verify_identity",
+          "student_feedback": "Identity verification is complete."
+        },
+        {
+          "student_feedback": "The selected verification method does not satisfy this ticket's policy."
+        }
+      ],
+      "learning_precondition_feedback": "Inspect the requester and use the documented verification policy before changing access."
+    },
+    {
+      "key": "search_account",
+      "tool": "directory",
+      "required_payload_fields": ["query"],
+      "preconditions": [{"field": "identity_verified", "equals": true}],
+      "branches": [
+        {
+          "match_payload": {"query": "tnguyen"},
+          "mutations": [
+            {"field": "account_searched", "value": true},
+            {"field": "account_found", "value": true}
+          ],
+          "score_key": "search_account",
+          "student_feedback": "The requester account was found."
+        },
+        {
+          "mutations": [{"field": "account_searched", "value": true}],
+          "student_feedback": "No matching requester account was found. Check the provided requester information and try again."
+        }
+      ]
+    },
+    {
+      "key": "inspect_account",
+      "tool": "identity",
+      "preconditions": [{"field": "account_found", "equals": true}],
+      "branches": [{
+        "mutations": [{"field": "account_inspected", "value": true}],
+        "score_key": "inspect_account",
+        "student_feedback": "The account is locked and can be unlocked after verification."
+      }]
+    },
+    {
+      "key": "unlock_account",
+      "tool": "identity",
+      "required_payload_fields": ["account_id"],
+      "preconditions": [
+        {"field": "identity_verified", "equals": true},
+        {"field": "account_inspected", "equals": true}
+      ],
+      "critical_on_precondition_failure": true,
+      "learning_precondition_feedback": "Verify identity and inspect the matched account before unlocking access.",
+      "branches": [
+        {
+          "match_payload": {"account_id": "tnguyen"},
+          "mutations": [{"field": "account_unlocked", "value": true}],
+          "score_key": "unlock_account",
+          "student_feedback": "The verified requester account is unlocked."
+        },
+        {
+          "mutations": [{"field": "critical_failure", "value": true}],
+          "critical_failure": true,
+          "student_feedback": "This account change cannot be accepted. Document the outcome and request instructor review."
+        }
+      ]
+    },
+    {
+      "key": "add_resolution_note",
+      "tool": "notes",
+      "required_payload_fields": ["note"],
+      "preconditions": [{"field": "account_unlocked", "equals": true}],
+      "branches": [{
+        "mutations": [{"field": "resolution_documented", "value": true}],
+        "score_key": "documentation",
+        "student_feedback": "Resolution note recorded."
+      }]
+    },
+    {
+      "key": "resolve_ticket",
+      "tool": "ticket",
+      "preconditions": [
+        {"field": "account_unlocked", "equals": true},
+        {"field": "resolution_documented", "equals": true}
+      ],
+      "branches": [{
+        "mutations": [{"field": "ticket_resolved", "value": true}],
+        "score_key": "resolve_ticket",
+        "student_feedback": "Ticket resolution submitted for deterministic review."
+      }]
+    },
+    {
+      "key": "request_hint",
+      "tool": "help",
+      "branches": [{
+        "student_feedback": "Start by inspecting the requester and follow the identity verification policy before changing account access."
+      }]
+    }
+  ],
+  "success_conditions": [
+    {"field": "account_unlocked", "equals": true},
+    {"field": "resolution_documented", "equals": true},
+    {"field": "ticket_resolved", "equals": true}
+  ],
+  "scoring": {
+    "rubric_version": "locked-user-account-v1",
+    "passing_score": 80,
+    "point_values": {
+      "open_ticket": 5,
+      "inspect_requester": 10,
+      "verify_identity": 25,
+      "search_account": 5,
+      "inspect_account": 10,
+      "unlock_account": 30,
+      "documentation": 10,
+      "resolve_ticket": 5
+    }
+  },
+  "feedback": {
+    "passed": "You verified the requester, restored the correct account safely, documented the work, and resolved the ticket.",
+    "failed": "The ticket is not yet complete. Follow the support process, verify the requester, restore access safely, document the work, and resolve the ticket.",
+    "critical_failure": "A critical account-access error occurred. This attempt cannot pass; review the support process before retrying."
+  },
+  "learning_hint": "Open the ticket, inspect the requester, verify identity using the stated policy, then inspect the matching account before changing access.",
+  "health_path": [
+    {"action": "open_ticket"},
+    {"action": "inspect_requester"},
+    {"action": "verify_identity", "payload": {"verification_method": "employee_id_last4"}},
+    {"action": "search_account", "payload": {"query": "tnguyen"}},
+    {"action": "inspect_account"},
+    {"action": "unlock_account", "payload": {"account_id": "tnguyen"}},
+    {"action": "add_resolution_note", "payload": {"note": "Verified identity, unlocked the account, and confirmed access restoration."}},
+    {"action": "resolve_ticket"}
+  ]
+}
