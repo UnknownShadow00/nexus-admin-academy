@@ -95,10 +95,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-xs text-slate-400">
-          First load can take up to 30 seconds while the backend wakes on Render.
-        </p>
-
         <div className="mt-6 border-t border-slate-800 pt-6">
           <Link
             className="btn-secondary flex w-full items-center justify-center border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800"
