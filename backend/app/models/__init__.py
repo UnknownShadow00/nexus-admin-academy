@@ -32,6 +32,10 @@ from app.models.service_desk import (
     ServiceDeskAttempt,
     ServiceDeskAttemptEvent,
     ServiceDeskAttemptGrade,
+    ServiceDeskBetaEnrollment,
+    ServiceDeskAssignment,
+    ServiceDeskKnowledgeArticle,
+    ServiceDeskAuditLog,
 )
 
 __all__ = [
@@ -86,4 +90,8 @@ __all__ = [
     "ServiceDeskAttempt",
     "ServiceDeskAttemptEvent",
     "ServiceDeskAttemptGrade",
+    "ServiceDeskBetaEnrollment",
+    "ServiceDeskAssignment",
+    "ServiceDeskKnowledgeArticle",
+    "ServiceDeskAuditLog",
 ]

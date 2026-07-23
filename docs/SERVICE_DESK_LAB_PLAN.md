@@ -8,7 +8,7 @@ Starting commit: `b47f9b1df1ebb811a79bfc14382d727dc20d1f57`
 
 Scope: architecture and integration planning only; no Service Desk Lab implementation, migrations, routes, dependencies, infrastructure, or production changes are included.
 
-> **Implementation status (2026-07-23):** Phase 0 Scenario Foundation has been implemented on the separate `feature/service-desk-scenario-foundation` branch. The disabled-by-default backend-only slice follows Sections 9–13 and 29–30: one Locked User Account scenario, immutable published version, attempts/events/grade, safe student APIs, administrator validation/inspection, and health tests. It does not implement the broader workspace, tools, AI, VM broker, migration of Support Tickets, or My Training integration. See `docs/SERVICE_DESK_FOUNDATION.md` for the current contract.
+> **Implementation status (2026-07-23):** Phase 1A is implemented on `feature/service-desk-browser-mvp`: a disabled-by-default private-beta browser workspace, five immutable JSON scenarios, shared contextual simulated tools, assignments, basic performance/Knowledge Base, admin review, and a future `service_desk_scenario` My Training capability. Existing Support Tickets and seeded weekly curriculum remain unchanged. AI, VM broker, Proxmox, Guacamole, Active Directory, calls, voicemail, and organization features remain deferred. See `docs/SERVICE_DESK_FOUNDATION.md` for the current contract.
 
 ## Planning baseline
 

@@ -33,7 +33,10 @@ class ScenarioDefinitionError(ValueError):
 
 
 def canonical_definition(definition: ScenarioDefinition | dict) -> dict:
-    value = definition.model_dump(mode="json") if isinstance(definition, ScenarioDefinition) else definition
+    # Keep sets intact until ``normalize`` handles them. ``mode="json"`` turns
+    # a set into a list first, preserving process-randomized iteration order and
+    # producing different hashes after a restart.
+    value = definition.model_dump(mode="python") if isinstance(definition, ScenarioDefinition) else definition
     # Normalize unordered sets before JSON serialization. Pydantic models use a
     # set for supported modes, and a hash must never depend on process hash
     # randomization or set iteration order.
@@ -171,9 +174,15 @@ def publish_definition(
     )
     if existing:
         if existing.definition_hash != checksum:
-            raise ScenarioDefinitionError(
-                "Published scenario versions are immutable; publish a new version number."
-            )
+            # Early Service Desk hashes could vary across processes because a
+            # set was serialized before sorting. Accept only a semantically
+            # identical stored definition; genuine published changes still
+            # require a new version.
+            stored = canonical_definition(validate_scenario_definition(existing.definition_json))
+            if stored != canonical:
+                raise ScenarioDefinitionError(
+                    "Published scenario versions are immutable; publish a new version number."
+                )
         return existing
 
     version = ServiceDeskScenarioVersion(
@@ -192,10 +201,11 @@ def publish_definition(
 
 
 def seed_service_desk_scenarios(db: Session) -> dict:
-    """Idempotently publish reviewed Phase 0 definitions; never touch attempts."""
-    definition = load_definition_file("locked_user_account")
-    version = publish_definition(db, definition, published_by="seed")
-    return {"published": 1, "scenario_id": version.scenario_id, "version_id": version.id}
+    """Idempotently publish reviewed browser-MVP definitions; never touch attempts."""
+    versions = [publish_definition(db, load_definition_file(key), published_by="seed") for key in (
+        "locked_user_account", "password_reset", "mfa_reset", "bitlocker_recovery", "new_employee_onboarding",
+    )]
+    return {"published": len(versions), "scenario_id": versions[0].scenario_id, "version_id": versions[0].id, "version_ids": [item.id for item in versions]}
 
 
 def published_definition(version: ServiceDeskScenarioVersion) -> ScenarioDefinition:

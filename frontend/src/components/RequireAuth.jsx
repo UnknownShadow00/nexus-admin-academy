@@ -1,15 +1,23 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { clearAuthSession, getToken, isAuthenticated } from "../hooks/useAuth";
+import { clearAuthSession, getToken, isAuthenticated, wasExplicitlyLoggedOut } from "../hooks/useAuth";
 import { authMe } from "../services/api";
 import { setSelectedProfile } from "../services/profile";
 
 export default function RequireAuth({ children }) {
-  const [checking, setChecking] = useState(!getToken());
-  const [authorized, setAuthorized] = useState(isAuthenticated());
+  const [checking, setChecking] = useState(!getToken() && !wasExplicitlyLoggedOut());
+  const [authorized, setAuthorized] = useState(!wasExplicitlyLoggedOut() && isAuthenticated());
 
   useEffect(() => {
     let cancelled = false;
+
+    if (wasExplicitlyLoggedOut()) {
+      setAuthorized(false);
+      setChecking(false);
+      return () => {
+        cancelled = true;
+      };
+    }
 
     if (getToken()) {
       setAuthorized(isAuthenticated());
@@ -21,7 +29,7 @@ export default function RequireAuth({ children }) {
 
     authMe({ suppressToast: true })
       .then((res) => {
-        if (cancelled) return;
+        if (cancelled || wasExplicitlyLoggedOut()) return;
         const student = res.data;
         setSelectedProfile({
           id: student.student_id,

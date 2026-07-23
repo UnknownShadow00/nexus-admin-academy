@@ -27,7 +27,7 @@ import TerminalCommandsPage from "./pages/TerminalCommandsPage";
 import TicketFeedback from "./pages/TicketFeedback";
 import TicketPage from "./pages/TicketPage";
 import TicketsPage from "./pages/TicketsPage";
-import { authLogout, getTickets, globalSearch } from "./services/api";
+import { authLogout, getAdminServiceDeskScenarios, getServiceDeskAccess, getTickets, globalSearch } from "./services/api";
 
 const AdminHome = lazy(() => import("./pages/AdminHome"));
 const AdminStudentsPage = lazy(() => import("./pages/AdminStudentsPage"));
@@ -41,6 +41,8 @@ const CurriculumEditorPage = lazy(() => import("./pages/admin/CurriculumEditorPa
 const CurriculumTagsPage = lazy(() => import("./pages/admin/CurriculumTagsPage"));
 const QuizEditorPage = lazy(() => import("./pages/admin/QuizEditorPage"));
 const AdminTrainingPage = lazy(() => import("./pages/admin/AdminTrainingPage"));
+const ServiceDeskPage = lazy(() => import("./pages/ServiceDeskPage"));
+const AdminServiceDeskPage = lazy(() => import("./pages/admin/AdminServiceDeskPage"));
 
 const studentNavItems = [
   { to: "/", label: "Home" },
@@ -76,6 +78,7 @@ const adminNavItems = [
     label: "Assessments & Labs",
     children: [
       { to: "/admin/ticket-review", label: "Ticket Review" },
+      { to: "/admin/service-desk", label: "Service Desk Lab" },
       { to: "/admin/labs", label: "Labs & VM Assignments" },
       { to: "/admin/capstones", label: "Capstones" },
     ],
@@ -86,10 +89,10 @@ const adminNavItems = [
   },
 ];
 
-const navLinkBase = "rounded-lg px-3 py-2 text-sm font-medium transition-colors";
+const navLinkBase = "rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900";
 const navLinkInactive = "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100";
 const navLinkActive = "bg-blue-600 text-white";
-const iconButtonClass = "rounded-lg border border-slate-300 p-2 text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800";
+const iconButtonClass = "rounded-lg border border-slate-300 p-2 text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus-visible:ring-offset-slate-900";
 
 function AppNav({ items, hasTicketFeedback, isAdminRoute, onNavigate, mobile = false }) {
   const location = useLocation();
@@ -207,6 +210,8 @@ export default function App() {
   const currentStudent = authenticated ? getCurrentStudent() : null;
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
   const [hasTicketFeedback, setHasTicketFeedback] = useState(false);
+  const [serviceDeskAvailable, setServiceDeskAvailable] = useState(false);
+  const [serviceDeskAdminAvailable, setServiceDeskAdminAvailable] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState({ lessons: [], commands: [] });
   const [searchOpen, setSearchOpen] = useState(false);
@@ -217,17 +222,51 @@ export default function App() {
 
   const navItems = useMemo(() => {
     if (isAdminRoute) {
-      return adminAuthenticated ? adminNavItems : [];
+      if (!adminAuthenticated) return [];
+      return serviceDeskAdminAvailable
+        ? adminNavItems
+        : adminNavItems.map((item) => item.children
+          ? { ...item, children: item.children.filter((child) => child.to !== "/admin/service-desk") }
+          : item);
+    }
+    const items = studentNavItems.map((item) => item.children ? { ...item, children: [...item.children] } : item);
+    if (serviceDeskAvailable) {
+      const practiceLibrary = items.find((item) => item.label === "Practice Library");
+      practiceLibrary?.children?.splice(1, 0, { to: "/service-desk", label: "Service Desk Lab" });
     }
     if (!currentStudent?.is_mentor && currentStudent?.has_unlocked_capstones === false) {
-      return studentNavItems.map((item) =>
+      return items.map((item) =>
         item.children
           ? { ...item, children: item.children.filter((child) => child.to !== "/capstones") }
           : item
       );
     }
-    return studentNavItems;
-  }, [adminAuthenticated, isAdminRoute, currentStudent?.has_unlocked_capstones, currentStudent?.is_mentor]);
+    return items;
+  }, [adminAuthenticated, currentStudent?.has_unlocked_capstones, currentStudent?.is_mentor, isAdminRoute, serviceDeskAdminAvailable, serviceDeskAvailable]);
+
+  useEffect(() => {
+    let current = true;
+    if (!authenticated || isAdminRoute || isAdminLoginRoute) {
+      setServiceDeskAvailable(false);
+      return () => { current = false; };
+    }
+    getServiceDeskAccess({ suppressToast: true })
+      .then((response) => { if (current) setServiceDeskAvailable(response.data?.available === true); })
+      .catch(() => { if (current) setServiceDeskAvailable(false); });
+    return () => { current = false; };
+  }, [authenticated, isAdminLoginRoute, isAdminRoute, currentStudent?.id]);
+
+  useEffect(() => {
+    let current = true;
+    if (!adminAuthenticated || !isAdminRoute) {
+      setServiceDeskAdminAvailable(false);
+      return () => { current = false; };
+    }
+    getAdminServiceDeskScenarios({ suppressToast: true })
+      .then(() => { if (current) setServiceDeskAdminAvailable(true); })
+      .catch(() => { if (current) setServiceDeskAdminAvailable(false); });
+    return () => { current = false; };
+  }, [adminAuthenticated, isAdminRoute]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -404,10 +443,12 @@ export default function App() {
         <Route path="/capstones/:capstoneId" element={<RequireAuth><CapstonePage /></RequireAuth>} />
         <Route path="/commands" element={<RequireAuth><CommandReferencePage /></RequireAuth>} />
         <Route path="/terminal" element={<RequireAuth><TerminalCommandsPage /></RequireAuth>} />
+        <Route path="/service-desk" element={<RequireAuth><ServiceDeskPage /></RequireAuth>} />
         <Route path="/admin-login" element={<AdminLoginPage />} />
 
         <Route path="/admin" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminHome /></AdminAccessGate>} />
         <Route path="/admin/ticket-review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminTicketReviewPage /></AdminAccessGate>} />
+        <Route path="/admin/service-desk" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminServiceDeskPage /></AdminAccessGate>} />
         <Route path="/admin/review" element={<Navigate to="/admin/ticket-review" replace />} />
         <Route path="/admin/students" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminStudentsPage /></AdminAccessGate>} />
         <Route path="/admin/modules" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><ModuleManager /></AdminAccessGate>} />

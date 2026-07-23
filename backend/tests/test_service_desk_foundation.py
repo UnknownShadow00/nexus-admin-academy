@@ -1,16 +1,21 @@
 import copy
 
 import pytest
+from sqlalchemy import update
 
 from app.models.service_desk import (
     ServiceDeskAttempt,
     ServiceDeskAttemptEvent,
+    ServiceDeskAuditLog,
+    ServiceDeskScenario,
     ServiceDeskScenarioVersion,
+    ServiceDeskBetaEnrollment,
 )
 from app.routers import admin_service_desk, service_desk
 from app.services.admin_auth import verify_admin
 from app.services.service_desk_definitions import (
     ScenarioDefinitionError,
+    canonical_definition,
     load_definition_file,
     publish_definition,
     seed_service_desk_scenarios,
@@ -35,6 +40,33 @@ def seed_scenario(db):
     result = seed_service_desk_scenarios(db)
     db.commit()
     return result
+
+
+def test_scenario_canonicalization_sorts_unordered_supported_modes():
+    definition = load_definition_file("locked_user_account")
+
+    canonical = canonical_definition(definition)
+
+    assert canonical["supported_modes"] == ["learning", "simulation"]
+
+
+def test_seed_accepts_legacy_order_dependent_hash_for_identical_definition(db):
+    seeded = seed_scenario(db)
+    db.execute(
+        update(ServiceDeskScenarioVersion)
+        .where(ServiceDeskScenarioVersion.id == seeded["version_id"])
+        .values(definition_hash="legacy-order-dependent-hash")
+    )
+    db.commit()
+
+    repeated = seed_service_desk_scenarios(db)
+
+    assert repeated["version_id"] == seeded["version_id"]
+
+
+def enroll_beta(db, student):
+    db.add(ServiceDeskBetaEnrollment(student_id=student.id, enabled=True, enrolled_by="test"))
+    db.commit()
 
 
 def start_learning(client, student, scenario_id):
@@ -70,15 +102,40 @@ def test_student_feature_is_disabled_by_default(db, monkeypatch):
 
     response = student_client().get("/api/service-desk/scenarios", headers=auth_headers(student))
 
-    assert seeded["published"] == 1
+    assert seeded["published"] == 5
     assert response.status_code == 404
     assert response.json()["detail"]["code"] == "SERVICE_DESK_UNAVAILABLE"
+    assert response.json()["detail"]["message"] == "Service Desk Lab is unavailable."
+
+
+def test_admin_feature_is_disabled_by_default(db, monkeypatch):
+    seed_scenario(db)
+    monkeypatch.delenv("SERVICE_DESK_LAB_ADMIN_ENABLED", raising=False)
+
+    response = admin_client().get("/api/admin/service-desk/scenarios")
+
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "SERVICE_DESK_ADMIN_UNAVAILABLE"
+
+
+def test_enabled_feature_still_requires_explicit_beta_enrollment(db, monkeypatch):
+    monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
+    seeded = seed_scenario(db)
+    student = make_student(db, "service-non-beta")
+
+    denied = student_client().get("/api/service-desk/scenarios", headers=auth_headers(student))
+    assert denied.status_code == 404
+    enroll_beta(db, student)
+    allowed = student_client().get("/api/service-desk/scenarios", headers=auth_headers(student))
+    assert allowed.status_code == 200
+    assert len(allowed.json()["data"]) == seeded["published"]
 
 
 def test_locked_user_account_health_path_persists_ordered_events_and_safe_projection(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student = make_student(db, "service-health")
+    enroll_beta(db, student)
     client = student_client()
     attempt = start_learning(client, student, seeded["scenario_id"])
 
@@ -127,6 +184,7 @@ def test_recoverable_wrong_search_can_be_corrected(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student = make_student(db, "service-recoverable")
+    enroll_beta(db, student)
     client = student_client()
     attempt = start_learning(client, student, seeded["scenario_id"])
     for name, payload in [
@@ -150,6 +208,7 @@ def test_critical_unlock_before_identity_fails_and_cannot_pass(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student = make_student(db, "service-critical")
+    enroll_beta(db, student)
     client = student_client()
     attempt = start_learning(client, student, seeded["scenario_id"])
 
@@ -164,10 +223,57 @@ def test_critical_unlock_before_identity_fails_and_cannot_pass(db, monkeypatch):
     assert "critical_failure" not in str(failed["visible_state"])
 
 
+@pytest.mark.parametrize(("definition_key", "critical_action", "wrong_payload"), [
+    ("locked_user_account", "unlock_account", {"account_id": "wrong-account"}),
+    ("password_reset", "reset_password", {"account_id": "wrong-account"}),
+    ("mfa_reset", "reset_mfa", {"account_id": "wrong-account"}),
+    ("bitlocker_recovery", "lookup_recovery_key", {"device_id": "WRONG-DEVICE"}),
+    ("new_employee_onboarding", "create_account", {"account_id": "wrong-account"}),
+])
+def test_wrong_account_or_device_is_critical_for_every_scenario(
+    db, monkeypatch, definition_key, critical_action, wrong_payload
+):
+    monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
+    seed_scenario(db)
+    definition = load_definition_file(definition_key)
+    scenario = db.query(ServiceDeskScenario).filter_by(stable_key=definition.stable_key).one()
+    student = make_student(db, f"critical-{definition_key}")
+    enroll_beta(db, student)
+    attempt = start_learning(student_client(), student, scenario.id)
+
+    for index, step in enumerate(definition.health_path, start=1):
+        if step.action.value == critical_action:
+            rejected = action(
+                student_client(), student, attempt, critical_action, wrong_payload,
+                key=f"wrong-target-{definition_key}",
+            )
+            assert rejected["action_success"] is False
+            attempt = rejected["attempt"]
+            break
+        attempt = action(
+            student_client(), student, attempt, step.action.value, step.payload,
+            key=f"correct-{definition_key}-{index}",
+        )["attempt"]
+
+    assert attempt["status"] == "failed"
+    assert attempt["result"]["passed"] is False
+    assert "critical_failure" not in str(attempt["visible_state"])
+
+    retry = start_learning(student_client(), student, scenario.id)
+    for index, step in enumerate(definition.health_path, start=1):
+        retry = action(
+            student_client(), student, retry, step.action.value, step.payload,
+            key=f"retry-{definition_key}-{index}",
+        )["attempt"]
+    assert retry["status"] == "completed"
+    assert retry["result"]["passed"] is True
+
+
 def test_attempt_isolated_and_client_cannot_inject_state_score_or_unknown_action(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student_a = make_student(db, "service-owner")
+    enroll_beta(db, student_a)
     student_b = make_student(db, "service-other")
     client = student_client()
     attempt = start_learning(client, student_a, seeded["scenario_id"])
@@ -199,6 +305,7 @@ def test_idempotency_and_stale_actions_preserve_event_order(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student = make_student(db, "service-idempotent")
+    enroll_beta(db, student)
     client = student_client()
     attempt = start_learning(client, student, seeded["scenario_id"])
     payload = {"action": "open_ticket", "idempotency_key": "open-ticket-once", "expected_state_version": 0, "payload": {}}
@@ -227,6 +334,7 @@ def test_simulation_is_limited_to_three_scored_attempts(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student = make_student(db, "service-simulation-limit")
+    enroll_beta(db, student)
     client = student_client()
     for index in range(3):
         started = client.post(
@@ -252,6 +360,10 @@ def test_simulation_is_limited_to_three_scored_attempts(db, monkeypatch):
     assert reset.status_code == 200, reset.text
     assert reset.json()["data"]["attempt"]["admin_reset_at"] is not None
     assert reset.json()["data"]["events"][-1]["event_type"] == "admin_reset"
+    assert db.query(ServiceDeskAuditLog).filter(
+        ServiceDeskAuditLog.action == "attempt_reset",
+        ServiceDeskAuditLog.target_id == str(attempt["id"]),
+    ).count() == 1
     released = client.post(
         f"/api/service-desk/scenarios/{seeded['scenario_id']}/attempts",
         json={"mode": "simulation"}, headers=auth_headers(student),
@@ -263,6 +375,7 @@ def test_learning_attempts_remain_unlimited(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student = make_student(db, "service-learning-unlimited")
+    enroll_beta(db, student)
     client = student_client()
     for index in range(4):
         started = client.post(
@@ -307,12 +420,72 @@ def test_admin_validation_inspection_and_immutable_publication_are_protected(db,
     db.rollback()
 
 
-def test_published_scenario_health_count_is_one(db):
-    seeded = seed_scenario(db)
+def test_published_scenario_health_count_is_five(db):
+    seed_scenario(db)
     repeated = seed_service_desk_scenarios(db)
     db.commit()
     versions = db.query(ServiceDeskScenarioVersion).filter(ServiceDeskScenarioVersion.status == "published").all()
-    assert len(versions) == 1
-    assert versions[0].id == seeded["version_id"]
-    assert repeated["version_id"] == seeded["version_id"]
-    assert run_published_scenario_health(versions[0])["valid"] is True
+    assert len(versions) == 5
+    assert repeated["published"] == 5
+    assert all(run_published_scenario_health(version)["valid"] is True for version in versions)
+
+
+def test_admin_scenario_list_includes_version_health(db, monkeypatch):
+    monkeypatch.setenv("SERVICE_DESK_LAB_ADMIN_ENABLED", "true")
+    seed_scenario(db)
+
+    response = admin_client().get("/api/admin/service-desk/scenarios")
+
+    assert response.status_code == 200
+    assert len(response.json()["data"]) == 5
+    assert all(item["versions"] == [{
+        "version_number": 1,
+        "status": "published",
+        "validation_status": "valid",
+        "health_valid": True,
+    }] for item in response.json()["data"])
+
+
+def test_student_action_metadata_exposes_fields_not_accepted_values(db, monkeypatch):
+    monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
+    seeded = seed_scenario(db)
+    student = make_student(db, "service-safe-tool-metadata")
+    enroll_beta(db, student)
+
+    attempt = start_learning(student_client(), student, seeded["scenario_id"])
+    action_metadata = {item["key"]: item for item in attempt["allowed_actions"]}
+
+    assert action_metadata["verify_identity"]["payload_fields"] == ["verification_method"]
+    assert "employee_id_last4" not in str(attempt)
+    assert "correct_account_id" not in str(attempt)
+
+
+def test_admin_can_manage_beta_assignments_and_knowledge_with_audit(db, monkeypatch):
+    monkeypatch.setenv("SERVICE_DESK_LAB_ADMIN_ENABLED", "true")
+    seeded = seed_scenario(db)
+    student = make_student(db, "service-admin-controls")
+    client = admin_client()
+
+    enrolled = client.post("/api/admin/service-desk/beta-enrollments", json={"student_id": student.id, "note": "local review"})
+    listed_enrollments = client.get("/api/admin/service-desk/beta-enrollments")
+    assignment = client.post("/api/admin/service-desk/assignments", json={"student_id": student.id, "scenario_id": seeded["scenario_id"], "mode": "learning", "is_required": True})
+    listed_assignments = client.get("/api/admin/service-desk/assignments")
+    knowledge = client.get("/api/admin/service-desk/knowledge")
+    saved_article = client.post("/api/admin/service-desk/knowledge", json={
+        "stable_id": "local-review-article", "title": "Local review article", "category": "Review",
+        "content": "This temporary local article verifies administrator knowledge management.", "status": "draft", "skill_tags": ["review"],
+    })
+    removed_assignment = client.delete(f"/api/admin/service-desk/assignments/{assignment.json()['data']['id']}")
+    removed_enrollment = client.delete(f"/api/admin/service-desk/beta-enrollments/{student.id}")
+
+    assert enrolled.status_code == 201
+    assert any(row["student_id"] == student.id for row in listed_enrollments.json()["data"])
+    assert assignment.status_code == 201
+    assert any(row["id"] == assignment.json()["data"]["id"] for row in listed_assignments.json()["data"])
+    assert knowledge.status_code == 200
+    assert len(knowledge.json()["data"]) == 7
+    assert saved_article.status_code == 201
+    assert removed_assignment.status_code == 200
+    assert removed_enrollment.status_code == 200
+    actions = {row.action for row in db.query(ServiceDeskAuditLog).all()}
+    assert {"beta_enrolled", "beta_removed", "assignment_saved", "assignment_removed", "knowledge_saved"}.issubset(actions)

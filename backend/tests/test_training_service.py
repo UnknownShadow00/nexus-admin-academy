@@ -14,6 +14,7 @@ from app.models.quiz import (
     QuizAttempt,
 )
 from app.models.ticket import Ticket, TicketSubmission
+from app.models.service_desk import ServiceDeskAttempt, ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.training_service import (
@@ -136,6 +137,28 @@ def test_week_and_activity_ordering_and_optional_items(db, student):
     assert [item["stable_id"] for item in detail["activities"]] == ["w1-missing", "w1-video", "w1-optional-review"]
     assert detail["required_total"] == 2
     assert detail["optional_total"] == 1
+
+
+def test_service_desk_activity_is_validated_and_completed_only_by_passed_attempt(db, student):
+    week = add_week(db, 1, requires_previous=False)
+    scenario = ServiceDeskScenario(stable_key="training-service-desk", title="Training Service Desk", description="A test scenario for curriculum integration.", category="Identity", difficulty=1, status="active")
+    db.add(scenario)
+    db.flush()
+    version = ServiceDeskScenarioVersion(scenario_id=scenario.id, version_number=1, definition_json={}, definition_hash="a" * 64, validation_status="valid", status="published")
+    db.add(version)
+    db.flush()
+    add_activity(db, week, "w1-service-desk", "service_desk_scenario", scenario.stable_key, 1)
+    db.commit()
+
+    assert validate_training_curriculum(db)["valid"] is True
+    before = build_training_week(db, student, 1)["activities"][0]
+    assert before["complete"] is False
+    assert before["destination_route"] == "/service-desk"
+
+    db.add(ServiceDeskAttempt(student_id=student.id, scenario_version_id=version.id, mode="learning", status="completed", current_state={}, current_state_hash="b" * 64, state_version=0, attempt_number=1, score=100, passed=True))
+    db.commit()
+    after = build_training_week(db, student, 1)["activities"][0]
+    assert after["complete"] is True
 
 
 def test_required_activity_blocks_next_week_but_optional_does_not(db, student):

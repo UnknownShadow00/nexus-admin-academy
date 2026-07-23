@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from datetime import datetime
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -20,6 +21,16 @@ class ScenarioActionKey(str, Enum):
     SEARCH_ACCOUNT = "search_account"
     INSPECT_ACCOUNT = "inspect_account"
     UNLOCK_ACCOUNT = "unlock_account"
+    RESET_PASSWORD = "reset_password"
+    INSPECT_MFA = "inspect_mfa"
+    RESET_MFA = "reset_mfa"
+    VERIFY_DEVICE = "verify_device"
+    LOOKUP_RECOVERY_KEY = "lookup_recovery_key"
+    VERIFY_ONBOARDING_REQUEST = "verify_onboarding_request"
+    CREATE_ACCOUNT = "create_account"
+    ASSIGN_GROUP = "assign_group"
+    ASSIGN_DEVICE = "assign_device"
+    SEND_REPLY = "send_reply"
     ADD_RESOLUTION_NOTE = "add_resolution_note"
     RESOLVE_TICKET = "resolve_ticket"
     REQUEST_HINT = "request_hint"
@@ -153,6 +164,8 @@ class ScenarioDefinition(BaseModel):
             seen_actions.add(action.key)
             if len(set(action.required_payload_fields)) != len(action.required_payload_fields):
                 raise ValueError(f"Action {action.key.value} repeats a payload field")
+            if action.tool not in {"ticket", "directory", "identity", "bitlocker", "onboarding", "notes", "help"}:
+                raise ValueError(f"Action {action.key.value} uses an unknown tool")
             for condition in action.preconditions:
                 self._validate_condition(condition, state_fields)
             for branch in action.branches:
@@ -207,3 +220,29 @@ class ValidateScenarioRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     definition: ScenarioDefinition
+
+
+class BetaEnrollmentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    student_id: int = Field(ge=1)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class AssignmentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    student_id: int = Field(ge=1)
+    scenario_id: int = Field(ge=1)
+    mode: ScenarioMode = ScenarioMode.LEARNING
+    is_required: bool = False
+    due_at: datetime | None = None
+    maximum_attempts: int | None = Field(default=None, ge=1, le=20)
+
+
+class KnowledgeArticleRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    stable_id: str = Field(min_length=3, max_length=120, pattern=r"^[a-z0-9-]+$")
+    title: str = Field(min_length=3, max_length=240)
+    category: str = Field(min_length=2, max_length=100)
+    content: str = Field(min_length=20, max_length=30000)
+    status: Literal["draft", "published"] = "draft"
+    skill_tags: list[str] = Field(default_factory=list, max_length=20)

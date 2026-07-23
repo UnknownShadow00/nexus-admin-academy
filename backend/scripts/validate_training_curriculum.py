@@ -2,14 +2,20 @@
 
 import argparse
 import json
+import sys
+from pathlib import Path
 
-from sqlalchemy import Integer, cast
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
 
-from app.database import SessionLocal
-from app.models.curriculum_video import CurriculumVideo
-from app.models.quiz import Quiz
-from app.models.training import TrainingWeek, TrainingWeekActivity
-from app.services.training_service import validate_training_curriculum
+from sqlalchemy import Integer, cast  # noqa: E402
+
+from app.database import SessionLocal  # noqa: E402
+from app.models.curriculum_video import CurriculumVideo  # noqa: E402
+from app.models.quiz import Quiz  # noqa: E402
+from app.models.training import TrainingWeek, TrainingWeekActivity  # noqa: E402
+from app.services.training_service import validate_training_curriculum  # noqa: E402
 
 
 def _cell(value) -> str:

@@ -16,6 +16,7 @@ from app.models.progression import Role, StudentRole
 from app.models.quiz import Quiz, QuizAttempt
 from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
+from app.models.service_desk import ServiceDeskAttempt, ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.mastery_service import list_student_mastery
@@ -31,6 +32,7 @@ PRACTICE_ACTIVITY_TYPES = {
     "command_exercise",
     "terminal_exercise",
     "capstone",
+    "service_desk_scenario",
 }
 UNTRACKED_ACTIVITY_TYPES = {"command_exercise", "terminal_exercise"}
 ACTIVITY_LABELS = {
@@ -44,6 +46,7 @@ ACTIVITY_LABELS = {
     "terminal_exercise": "Terminal Exercise",
     "review": "Weekly Review",
     "capstone": "Capstone",
+    "service_desk_scenario": "Service Desk Scenario",
 }
 
 
@@ -153,6 +156,18 @@ class _TrainingContext:
             .filter(CapstoneTemplate.id.in_(integer_refs("capstone")), CapstoneTemplate.is_published.is_(True))
             .all()
         } if refs["capstone"] else {}
+        self.service_desk_scenarios = {
+            row.stable_key: row
+            for row in db.query(ServiceDeskScenario).filter(ServiceDeskScenario.stable_key.in_(refs["service_desk_scenario"])).all()
+        } if refs["service_desk_scenario"] else {}
+        service_version_ids = [
+            row.id for row in db.query(ServiceDeskScenarioVersion.id)
+            .join(ServiceDeskScenario, ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id)
+            .filter(ServiceDeskScenario.stable_key.in_(set(self.service_desk_scenarios)), ServiceDeskScenarioVersion.status == "published")
+            .all()
+        ]
+        service_attempts = db.query(ServiceDeskAttempt).filter(ServiceDeskAttempt.student_id == student.id, ServiceDeskAttempt.scenario_version_id.in_(service_version_ids), ServiceDeskAttempt.passed.is_(True)).order_by(ServiceDeskAttempt.completed_at.desc()).all() if service_version_ids else []
+        self.service_desk_completed_versions = {row.scenario_version_id for row in service_attempts}
 
         video_keys = [row.video_key for row in self.videos.values()]
         self.watches = {
@@ -322,6 +337,11 @@ class _TrainingContext:
                 destination_route=f"/tickets/{ticket.id}",
                 estimated_minutes=activity.estimated_minutes,
             )
+        if activity.activity_type == "service_desk_scenario":
+            scenario = self.service_desk_scenarios.get(activity.content_ref)
+            if not scenario:
+                return None
+            return _ResolvedContent(title=scenario.title, description=scenario.description, destination_route="/service-desk", estimated_minutes=activity.estimated_minutes)
         if activity.activity_type == "capstone":
             capstone = self.capstones.get(ref)
             if not capstone:
@@ -402,6 +422,13 @@ class _TrainingContext:
                 "completed_at": (submission.verified_at or submission.submitted_at) if complete else None,
                 "score": (submission.final_score if submission and submission.final_score is not None else submission.ai_score if submission else None),
             }
+        if activity.activity_type == "service_desk_scenario":
+            scenario = self.service_desk_scenarios.get(activity.content_ref)
+            if not scenario:
+                return {"complete": False, "in_progress": False, "completed_at": None}
+            versions = self.db.query(ServiceDeskScenarioVersion.id).filter(ServiceDeskScenarioVersion.scenario_id == scenario.id, ServiceDeskScenarioVersion.status == "published").all()
+            complete = any(version_id in self.service_desk_completed_versions for (version_id,) in versions)
+            return {"complete": complete, "in_progress": False, "completed_at": None}
         if activity.activity_type == "networking_lab":
             attempt = self.cli_attempts.get(activity.content_ref)
             complete = bool(attempt and attempt.completed_at)
@@ -653,6 +680,11 @@ def validate_training_activity_reference(db: Session, activity: TrainingWeekActi
         "command_exercise": (CommandReference, CommandReference.id == ref, None),
         "capstone": (CapstoneTemplate, CapstoneTemplate.id == ref, CapstoneTemplate.is_published.is_(True)),
     }
+    if activity.activity_type == "service_desk_scenario":
+        scenario = db.query(ServiceDeskScenario).filter(ServiceDeskScenario.stable_key == activity.content_ref, ServiceDeskScenario.status == "active").first()
+        if not scenario or not db.query(ServiceDeskScenarioVersion.id).filter(ServiceDeskScenarioVersion.scenario_id == scenario.id, ServiceDeskScenarioVersion.status == "published", ServiceDeskScenarioVersion.validation_status == "valid").first():
+            return {"code": "BROKEN_REFERENCE", "severity": "error", "message": "Referenced published Service Desk scenario does not exist."}
+        return None
     if activity.activity_type == "quiz":
         quiz = db.query(Quiz).filter(Quiz.id == ref).first()
         if quiz and not db.query(Quiz.id).filter(Quiz.id == ref, *student_visible_quiz_filters()).first():

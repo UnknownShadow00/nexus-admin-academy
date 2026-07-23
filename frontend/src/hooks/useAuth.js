@@ -1,6 +1,7 @@
 import { clearSelectedProfile, getSelectedProfile } from "../services/profile";
 
 const LEGACY_TOKEN_KEY = "nexus_auth_token";
+const EXPLICIT_LOGOUT_KEY = "nexus_explicit_logout";
 
 let memoryToken = null;
 
@@ -22,6 +23,7 @@ export function getToken() {
 export function setToken(token) {
   memoryToken = token || null;
   localStorage.removeItem(LEGACY_TOKEN_KEY);
+  if (token) localStorage.removeItem(EXPLICIT_LOGOUT_KEY);
 }
 
 export function clearToken() {
@@ -55,4 +57,9 @@ export function getCurrentStudent() {
 export function clearAuthSession() {
   clearToken();
   clearSelectedProfile();
+  localStorage.setItem(EXPLICIT_LOGOUT_KEY, "true");
+}
+
+export function wasExplicitlyLoggedOut() {
+  return localStorage.getItem(EXPLICIT_LOGOUT_KEY) === "true";
 }
