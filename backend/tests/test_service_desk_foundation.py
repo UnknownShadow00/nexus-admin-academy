@@ -7,6 +7,7 @@ from app.models.service_desk import (
     ServiceDeskAttempt,
     ServiceDeskAttemptEvent,
     ServiceDeskAuditLog,
+    ServiceDeskKnowledgeArticle,
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
     ServiceDeskBetaEnrollment,
@@ -446,6 +447,60 @@ def test_admin_scenario_list_includes_version_health(db, monkeypatch):
     }] for item in response.json()["data"])
 
 
+def test_admin_scenario_details_are_useful_without_exposing_hidden_definition(db, monkeypatch):
+    monkeypatch.setenv("SERVICE_DESK_LAB_ADMIN_ENABLED", "true")
+    seeded = seed_scenario(db)
+
+    response = admin_client().get(
+        f"/api/admin/service-desk/scenarios/{seeded['scenario_id']}"
+    )
+
+    assert response.status_code == 200
+    details = response.json()["data"]
+    assert details["name"] == "Locked User Account"
+    assert details["stable_id"] == "locked-user-account"
+    assert details["active"] is True
+    assert details["difficulty"] == 1
+    version = details["versions"][0]
+    assert version["version"] == 1
+    assert version["published"] is True
+    assert version["active"] is True
+    assert version["health_status"] == "passing"
+    assert version["learning_mode_available"] is True
+    assert version["simulation_mode_available"] is True
+    assert version["validation_result"] == {"status": "valid", "valid": True}
+    assert version["skill_tags"]
+    assert set(version["allowed_tools"]) == {
+        "directory",
+        "help",
+        "identity",
+        "notes",
+        "ticket",
+    }
+    assert version["metadata"]["definition_hash"]
+
+    serialized = str(details).lower()
+    for hidden_value in (
+        "hidden_facts",
+        "root_cause",
+        "correct_action_sequence",
+        "critical_failure_definitions",
+        "student_facts",
+        "health_path",
+        "correct_account_id",
+        "tnguyen",
+    ):
+        assert hidden_value not in serialized
+
+
+def test_admin_scenario_details_return_not_found(db, monkeypatch):
+    monkeypatch.setenv("SERVICE_DESK_LAB_ADMIN_ENABLED", "true")
+
+    response = admin_client().get("/api/admin/service-desk/scenarios/999999")
+
+    assert response.status_code == 404
+
+
 def test_student_action_metadata_exposes_fields_not_accepted_values(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
@@ -475,6 +530,10 @@ def test_admin_can_manage_beta_assignments_and_knowledge_with_audit(db, monkeypa
         "stable_id": "local-review-article", "title": "Local review article", "category": "Review",
         "content": "This temporary local article verifies administrator knowledge management.", "status": "draft", "skill_tags": ["review"],
     })
+    updated_article = client.post("/api/admin/service-desk/knowledge", json={
+        "stable_id": "local-review-article", "title": "Updated local review article", "category": "Operations",
+        "content": "Updated administrator-safe content.", "status": "published", "skill_tags": ["review", "updated"],
+    })
     removed_assignment = client.delete(f"/api/admin/service-desk/assignments/{assignment.json()['data']['id']}")
     removed_enrollment = client.delete(f"/api/admin/service-desk/beta-enrollments/{student.id}")
 
@@ -485,6 +544,17 @@ def test_admin_can_manage_beta_assignments_and_knowledge_with_audit(db, monkeypa
     assert knowledge.status_code == 200
     assert len(knowledge.json()["data"]) == 7
     assert saved_article.status_code == 201
+    assert updated_article.status_code == 201
+    updated_data = updated_article.json()["data"]
+    assert updated_data["id"] == saved_article.json()["data"]["id"]
+    assert updated_data["title"] == "Updated local review article"
+    assert updated_data["category"] == "Operations"
+    assert updated_data["content"] == "Updated administrator-safe content."
+    assert updated_data["status"] == "published"
+    assert updated_data["skill_tags"] == ["review", "updated"]
+    assert db.query(ServiceDeskKnowledgeArticle).filter(
+        ServiceDeskKnowledgeArticle.stable_id == "local-review-article"
+    ).count() == 1
     assert removed_assignment.status_code == 200
     assert removed_enrollment.status_code == 200
     actions = {row.action for row in db.query(ServiceDeskAuditLog).all()}

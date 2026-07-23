@@ -13,6 +13,7 @@ from app.services.admin_auth import verify_admin
 from app.services.service_desk_definitions import (
     ScenarioDefinitionError,
     publish_definition,
+    validate_scenario_definition,
     validation_report,
 )
 from app.services.service_desk_engine import (
@@ -80,6 +81,72 @@ def list_scenarios(db: Session = Depends(get_db)):
             ],
         })
     return ok(result)
+
+
+def _safe_scenario_version_details(
+    scenario: ServiceDeskScenario,
+    version: ServiceDeskScenarioVersion,
+) -> dict:
+    """Project administrator-useful metadata without scenario answers or secrets."""
+    definition = validate_scenario_definition(version.definition_json)
+    health_valid = (
+        run_published_scenario_health(version)["valid"]
+        if version.status == "published"
+        else None
+    )
+    supported_modes = {mode.value for mode in definition.supported_modes}
+    return {
+        "version": version.version_number,
+        "status": version.status,
+        "published": version.status == "published",
+        "active": scenario.status == "active" and version.status == "published",
+        "health_status": (
+            "passing" if health_valid is True else "failing" if health_valid is False else "not run"
+        ),
+        "learning_mode_available": "learning" in supported_modes,
+        "simulation_mode_available": "simulation" in supported_modes,
+        "difficulty": definition.difficulty,
+        "skill_tags": definition.skill_tags,
+        "allowed_tools": sorted({action.tool for action in definition.actions}),
+        "validation_result": {
+            "status": version.validation_status,
+            "valid": version.validation_status == "valid",
+        },
+        "metadata": {
+            "category": definition.category,
+            "learning_objectives": definition.learning_objectives,
+            "definition_hash": version.definition_hash,
+            "published_at": version.published_at.isoformat() if version.published_at else None,
+            "published_by": version.published_by,
+        },
+    }
+
+
+@router.get("/scenarios/{scenario_id}")
+def get_scenario_details(scenario_id: int, db: Session = Depends(get_db)):
+    require_service_desk_admin_enabled()
+    scenario = db.query(ServiceDeskScenario).filter(ServiceDeskScenario.id == scenario_id).first()
+    if scenario is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    versions = (
+        db.query(ServiceDeskScenarioVersion)
+        .filter(ServiceDeskScenarioVersion.scenario_id == scenario.id)
+        .order_by(ServiceDeskScenarioVersion.version_number)
+        .all()
+    )
+    return ok({
+        "id": scenario.id,
+        "name": scenario.title,
+        "stable_id": scenario.stable_key,
+        "description": scenario.description,
+        "category": scenario.category,
+        "difficulty": scenario.difficulty,
+        "status": scenario.status,
+        "active": scenario.status == "active",
+        "versions": [
+            _safe_scenario_version_details(scenario, version) for version in versions
+        ],
+    })
 
 
 @router.get("/scenarios/{scenario_id}/versions")

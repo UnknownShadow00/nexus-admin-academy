@@ -301,6 +301,7 @@ export const createServiceDeskAttempt = (scenarioId, mode, requestOptions) => re
 export const getServiceDeskAttempt = (attemptId, requestOptions) => request(() => api.get(`/api/service-desk/attempts/${attemptId}`), requestOptions);
 export const serviceDeskAction = (attemptId, payload, requestOptions) => request(() => api.post(`/api/service-desk/attempts/${attemptId}/actions`, payload), requestOptions);
 export const getAdminServiceDeskScenarios = (requestOptions) => request(() => adminApi.get("/api/admin/service-desk/scenarios"), requestOptions);
+export const getAdminServiceDeskScenarioDetails = (scenarioId, requestOptions) => request(() => adminApi.get(`/api/admin/service-desk/scenarios/${scenarioId}`), requestOptions);
 export const getAdminServiceDeskAttempts = (requestOptions) => request(() => adminApi.get("/api/admin/service-desk/attempts"), requestOptions);
 export const getAdminServiceDeskHealth = (requestOptions) => request(() => adminApi.get("/api/admin/service-desk/health"), requestOptions);
 export const getAdminServiceDeskAssignments = (requestOptions) => request(() => adminApi.get("/api/admin/service-desk/assignments"), requestOptions);
