@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from app.models.learning import Lesson, Module
-from seed import seed_module0_and_methodology
+from seed import ORIENTATION_SUMMARY, seed_module0_and_methodology
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -108,6 +108,11 @@ def test_completely_fresh_seed_contains_orientation_and_is_idempotent(tmp_path):
     assert second == first
     assert '"valid": true' in validation.stdout
     assert '"mapped_video_count": 137' in validation.stdout
+
+
+def test_orientation_summary_describes_the_full_25_week_program():
+    assert "24-week" not in ORIENTATION_SUMMARY
+    assert "25-week" in ORIENTATION_SUMMARY
 
 
 def test_seed_does_not_rewrite_existing_production_style_orientation(db):

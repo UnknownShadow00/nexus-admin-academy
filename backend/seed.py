@@ -200,7 +200,7 @@ PROMOTION_GATES = [
 ]
 
 ORIENTATION_TITLE = "Welcome to Nexus: Your First Week"
-ORIENTATION_SUMMARY = """Nexus is your 24-week practice space for becoming an IT-support technician. You will learn the habits, tools, and communication that help real people when technology gets in their way. You do not need an IT background to begin.
+ORIENTATION_SUMMARY = """Nexus is your 25-week practice space (Week 0 through Week 24) for becoming an IT-support technician. You will learn the habits, tools, and communication that help real people when technology gets in their way. You do not need an IT background to begin.
 
 WHAT A WEEK MEANS: each week is a small, guided set of learning and practice. Finish the required items in the order shown, then use optional practice when you want more repetition. You are not expected to know everything before you start.
 

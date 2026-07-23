@@ -4,8 +4,9 @@ Welcome. Nexus is a simulated IT workplace, not a video course. You learn by
 investigating, fixing, documenting, and communicating — the same things a real
 technician is paid to do. This guide covers everything you need for Phase A
 (Weeks 1–4, Trainee → Support Technician I) and Phase B (Weeks 5–8, → Support
-Technician II). The application also contains the later 24-week curriculum;
-your mentor will introduce those phases as your cohort advances.
+Technician II). The application also contains the full 25-week curriculum
+(Week 0 through Week 24); your mentor will introduce those phases as your
+cohort advances.
 
 ## How to log in
 

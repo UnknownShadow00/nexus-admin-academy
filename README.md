@@ -1,6 +1,6 @@
 ﻿# Nexus Admin Academy
 
-Nexus IT Academy (Nexus Admin Academy) is a private, self-hosted training platform that runs like a simulated IT workplace. Complete-beginner students progress through a six-role career ladder (Trainee → Support Technician I/II → Network Support Technician → Junior Systems Technician → Junior Infrastructure Administrator) by working realistic tickets, labs, and simulations — not by memorizing exam objectives. The 24-week curriculum is seeded; see `docs/STUDENT_GUIDE.md` and `docs/MENTOR_GUIDE.md`.
+Nexus IT Academy (Nexus Admin Academy) is a private, self-hosted training platform that runs like a simulated IT workplace. Complete-beginner students progress through a six-role career ladder (Trainee → Support Technician I/II → Network Support Technician → Junior Systems Technician → Junior Infrastructure Administrator) by working realistic tickets, labs, and simulations — not by memorizing exam objectives. The 25-week curriculum (Week 0 through Week 24) is seeded; see `docs/STUDENT_GUIDE.md` and `docs/MENTOR_GUIDE.md`.
 
 
 > **Documentation verified 2026-07-22.** The active production architecture is
@@ -37,7 +37,7 @@ Run database setup and seed data:
 ```bash
 alembic upgrade head
 python scripts/seed_users.py
-python seed.py            # roles, gates, and all 24 weeks of content (idempotent)
+python seed.py            # roles, gates, and all 25 weeks of content (idempotent)
 python seed_curriculum.py # All Course Content video/quiz catalog (required; idempotent)
 ```
 
