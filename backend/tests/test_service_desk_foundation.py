@@ -6,6 +6,7 @@ from app.models.service_desk import (
     ServiceDeskAttempt,
     ServiceDeskAttemptEvent,
     ServiceDeskScenarioVersion,
+    ServiceDeskBetaEnrollment,
 )
 from app.routers import admin_service_desk, service_desk
 from app.services.admin_auth import verify_admin
@@ -35,6 +36,11 @@ def seed_scenario(db):
     result = seed_service_desk_scenarios(db)
     db.commit()
     return result
+
+
+def enroll_beta(db, student):
+    db.add(ServiceDeskBetaEnrollment(student_id=student.id, enabled=True, enrolled_by="test"))
+    db.commit()
 
 
 def start_learning(client, student, scenario_id):
@@ -70,15 +76,29 @@ def test_student_feature_is_disabled_by_default(db, monkeypatch):
 
     response = student_client().get("/api/service-desk/scenarios", headers=auth_headers(student))
 
-    assert seeded["published"] == 1
+    assert seeded["published"] == 5
     assert response.status_code == 404
     assert response.json()["detail"]["code"] == "SERVICE_DESK_UNAVAILABLE"
+
+
+def test_enabled_feature_still_requires_explicit_beta_enrollment(db, monkeypatch):
+    monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
+    seeded = seed_scenario(db)
+    student = make_student(db, "service-non-beta")
+
+    denied = student_client().get("/api/service-desk/scenarios", headers=auth_headers(student))
+    assert denied.status_code == 404
+    enroll_beta(db, student)
+    allowed = student_client().get("/api/service-desk/scenarios", headers=auth_headers(student))
+    assert allowed.status_code == 200
+    assert len(allowed.json()["data"]) == seeded["published"]
 
 
 def test_locked_user_account_health_path_persists_ordered_events_and_safe_projection(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student = make_student(db, "service-health")
+    enroll_beta(db, student)
     client = student_client()
     attempt = start_learning(client, student, seeded["scenario_id"])
 
@@ -127,6 +147,7 @@ def test_recoverable_wrong_search_can_be_corrected(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student = make_student(db, "service-recoverable")
+    enroll_beta(db, student)
     client = student_client()
     attempt = start_learning(client, student, seeded["scenario_id"])
     for name, payload in [
@@ -150,6 +171,7 @@ def test_critical_unlock_before_identity_fails_and_cannot_pass(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student = make_student(db, "service-critical")
+    enroll_beta(db, student)
     client = student_client()
     attempt = start_learning(client, student, seeded["scenario_id"])
 
@@ -168,6 +190,7 @@ def test_attempt_isolated_and_client_cannot_inject_state_score_or_unknown_action
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student_a = make_student(db, "service-owner")
+    enroll_beta(db, student_a)
     student_b = make_student(db, "service-other")
     client = student_client()
     attempt = start_learning(client, student_a, seeded["scenario_id"])
@@ -199,6 +222,7 @@ def test_idempotency_and_stale_actions_preserve_event_order(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student = make_student(db, "service-idempotent")
+    enroll_beta(db, student)
     client = student_client()
     attempt = start_learning(client, student, seeded["scenario_id"])
     payload = {"action": "open_ticket", "idempotency_key": "open-ticket-once", "expected_state_version": 0, "payload": {}}
@@ -227,6 +251,7 @@ def test_simulation_is_limited_to_three_scored_attempts(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student = make_student(db, "service-simulation-limit")
+    enroll_beta(db, student)
     client = student_client()
     for index in range(3):
         started = client.post(
@@ -263,6 +288,7 @@ def test_learning_attempts_remain_unlimited(db, monkeypatch):
     monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
     seeded = seed_scenario(db)
     student = make_student(db, "service-learning-unlimited")
+    enroll_beta(db, student)
     client = student_client()
     for index in range(4):
         started = client.post(
@@ -307,12 +333,11 @@ def test_admin_validation_inspection_and_immutable_publication_are_protected(db,
     db.rollback()
 
 
-def test_published_scenario_health_count_is_one(db):
-    seeded = seed_scenario(db)
+def test_published_scenario_health_count_is_five(db):
+    seed_scenario(db)
     repeated = seed_service_desk_scenarios(db)
     db.commit()
     versions = db.query(ServiceDeskScenarioVersion).filter(ServiceDeskScenarioVersion.status == "published").all()
-    assert len(versions) == 1
-    assert versions[0].id == seeded["version_id"]
-    assert repeated["version_id"] == seeded["version_id"]
-    assert run_published_scenario_health(versions[0])["valid"] is True
+    assert len(versions) == 5
+    assert repeated["published"] == 5
+    assert all(run_published_scenario_health(version)["valid"] is True for version in versions)

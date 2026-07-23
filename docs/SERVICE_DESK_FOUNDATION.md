@@ -1,10 +1,10 @@
 # Service Desk Lab Scenario Foundation
 
-Status: Phase 0 foundation. The feature is disabled by default and has no student navigation or general rollout.
+Status: Phase 1A browser MVP/private beta. The feature remains disabled by default and has no general rollout.
 
 ## What exists
 
-The foundation provides one reviewed, browser-simulated scenario: **Locked User Account**. It establishes immutable scenario versions, server-owned attempts, ordered events, deterministic grading, safe student projections, admin inspection APIs, and executable health validation. It does not replace Support Tickets or affect XP, ranks, My Training, progress, capstones, AI, Proxmox, Guacamole, calls, or voicemail.
+The browser MVP provides five reviewed, browser-simulated scenarios: **Locked User Account**, **Password Reset**, **MFA Reset**, **BitLocker Recovery**, and **New Employee Onboarding**. It adds an explicit beta allow-list, assignments, a safe Knowledge Base, workspace/queue/performance APIs, and administrator review. It does not replace Support Tickets, add AI, provision VMs, make calls, or use voicemail.
 
 ## Feature gates
 
@@ -15,7 +15,17 @@ Both environment variables default to `false`:
 | `SERVICE_DESK_LAB_ENABLED` | Enables student Service Desk APIs. Normal students receive a controlled `404 SERVICE_DESK_UNAVAILABLE` while false. |
 | `SERVICE_DESK_LAB_ADMIN_ENABLED` | Enables administrator inspection/validation APIs for controlled testing. It does not enable student APIs. |
 
-No frontend navigation is introduced in this phase. Enable only in a controlled non-production environment until the implementation is reviewed and approved for a later rollout.
+Normal students never receive a Service Desk navigation item. A direct `/service-desk` visit still calls server-side access checks and returns only a controlled unavailable state unless both the student flag and an active explicit `service_desk_beta_enrollments` row permit access. Mentors have no implicit access. Administrators use `/admin/service-desk` under Assessments & Labs only when the separate admin flag is enabled.
+
+## Phase 1A workspace and beta controls
+
+The lazy `/service-desk` bundle has internal **Overview**, **Work Queue**, **Performance**, **Knowledge Base**, and Exit-to-Nexus navigation. A ticket workspace exposes only pinned student-safe facts and contextual tools: Ticket/notes, Employee Directory, Identity & Access, BitLocker Recovery, Onboarding, and Learning Help. It contains no hidden rubric, root cause, critical definition, future hint, or credential/key material.
+
+Beta enrollment is an explicit database allow-list managed by administrator APIs. Enrollment/removal, assignment changes, knowledge edits, and resets create Service Desk audit records. Assignments target one student/scenario/mode with optional required status, due date, and simulation-attempt override. Learning Mode exposes versioned deterministic hints and remains unlimited; Simulation Mode has no hint action and defaults to three terminal attempts. Both use the same server-owned transition engine and deterministic grade.
+
+Published Knowledge Base articles provide general process guidance. Opening/searching articles never exposes scenario-specific answers. Event payloads redact resolution text and never persist client password or recovery-key values. BitLocker key access is modeled as a state transition, not material returned to a browser or event log.
+
+`service_desk_scenario` is a future My Training activity type. It references a published scenario stable key and completes only from a passed authoritative attempt. No seeded production week includes this type, and it remains distinct from `support_ticket`, so it cannot duplicate legacy ticket XP or completion credit.
 
 ## Scenario definition format
 
@@ -31,7 +41,7 @@ Each definition includes a stable key, integer version, public metadata, modes, 
 
 Existing attempts pin their `scenario_version_id`, so later scenario edits cannot change historical facts, rules, events, or grades. Published definitions may later be disabled for new starts, but their historical content remains available for replay and review.
 
-The only seeded scenario is loaded idempotently by `backend/seed.py`. Do not run production seed commands merely to deploy this foundation.
+All five reviewed JSON definitions and seven published Knowledge Base articles seed idempotently at application startup. Deployment still requires migration first and must keep both feature flags false until human rollout approval.
 
 ## Transition engine and events
 
@@ -49,13 +59,15 @@ The Locked User Account scenario scores these server-recorded actions once each:
 
 ## APIs
 
-Student APIs, gated by `SERVICE_DESK_LAB_ENABLED`:
+Student APIs, gated by `SERVICE_DESK_LAB_ENABLED` **and explicit beta enrollment**:
 
 - `GET /api/service-desk/scenarios`
 - `POST /api/service-desk/scenarios/{scenario_id}/attempts`
 - `GET /api/service-desk/attempts/{attempt_id}`
 - `POST /api/service-desk/attempts/{attempt_id}/actions`
 - `GET /api/service-desk/attempts/{attempt_id}/result`
+- `GET /api/service-desk/overview`, `/queue`, `/performance`
+- `GET /api/service-desk/knowledge`
 
 Admin APIs, protected by current admin authentication and `SERVICE_DESK_LAB_ADMIN_ENABLED`:
 
@@ -65,6 +77,7 @@ Admin APIs, protected by current admin authentication and `SERVICE_DESK_LAB_ADMI
 - `POST /api/admin/service-desk/scenarios/publish`
 - `GET /api/admin/service-desk/attempts/{attempt_id}/events`
 - `POST /api/admin/service-desk/attempts/{attempt_id}/reset`
+- assignments, beta enrollment/removal, Knowledge Base, attempt list, and five-scenario health status
 
 Mentor APIs are intentionally absent until explicit mentor-to-student assignments exist.
 
@@ -80,4 +93,6 @@ To add a scenario in a later approved phase:
 4. Publish a new immutable version under administrator authorization.
 5. Add a separate reviewed integration decision before connecting it to My Training, XP, mastery, or Support Ticket migration.
 
-AI and VM-backed environments remain deferred because deterministic browser simulation, safe projections, and replayable events must be stable first.
+## Rollout and rollback
+
+Deploy the additive `0035_service_desk_browser_mvp` migration with both flags false; verify normal student denial, then optionally enable admin review, then enroll specific approved students before enabling student access. Back up database/uploads and verify integrity before migration. Roll back code/flag activation for authorization, hidden-data, Support Ticket, or migration regressions; downgrade `0035` only after confirming no Phase 1A records must be retained. AI, Proxmox, Guacamole, Active Directory, calls, voicemail, and organization work remain intentionally deferred because deterministic browser simulation and safe replay are the Phase 1A boundary.

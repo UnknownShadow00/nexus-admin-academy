@@ -159,6 +159,10 @@ the smoke checklist below.
   at the edge; Nexus's strict CSP remains unchanged.
 - Both desktop and mobile navigation expose the same grouped destinations.
 
+## Service Desk Lab private beta
+
+Run `alembic upgrade head` before restarting the backend. Keep `SERVICE_DESK_LAB_ENABLED=false` and `SERVICE_DESK_LAB_ADMIN_ENABLED=false` in `backend/.env` for the first deployment. After health/authentication validation, an operator may enable administrator review only; student access additionally requires an audited explicit beta enrollment through the supported administrator API. Do not enable the student flag globally or use unapproved browser credentials. Service Desk Lab is separate from legacy Support Tickets, which must be included in the normal smoke checklist unchanged.
+
 Automated Proxmox/Guacamole delivery remains opt-in until a staging test proves
 start, scoped student access, isolation, refresh recovery, expiry, and cleanup.
 Manual VM delivery remains the safe fallback.

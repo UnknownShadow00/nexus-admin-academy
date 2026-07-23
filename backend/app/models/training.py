@@ -17,6 +17,7 @@ TRAINING_ACTIVITY_TYPES = {
     "terminal_exercise",
     "review",
     "capstone",
+    "service_desk_scenario",
 }
 
 
@@ -56,7 +57,7 @@ class TrainingWeekActivity(Base):
         CheckConstraint("display_order >= 0", name="ck_training_activities_order_non_negative"),
         CheckConstraint("estimated_minutes IS NULL OR estimated_minutes >= 0", name="ck_training_activities_minutes_non_negative"),
         CheckConstraint(
-            "activity_type IN ('video','quiz','lesson','guided_lab','networking_lab','support_ticket','command_exercise','terminal_exercise','review','capstone')",
+            "activity_type IN ('video','quiz','lesson','guided_lab','networking_lab','support_ticket','command_exercise','terminal_exercise','review','capstone','service_desk_scenario')",
             name="ck_training_activities_type",
         ),
         CheckConstraint("prerequisite_mode IN ('soft','hard')", name="ck_training_activities_prerequisite_mode"),
