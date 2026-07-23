@@ -4,8 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
-from app.schemas.service_desk import ValidateScenarioRequest
+from datetime import datetime, timezone
+
+from app.models.service_desk import ServiceDeskAssignment, ServiceDeskAttempt, ServiceDeskBetaEnrollment, ServiceDeskKnowledgeArticle, ServiceDeskScenario, ServiceDeskScenarioVersion
+from app.models.student import Student
+from app.schemas.service_desk import AssignmentRequest, BetaEnrollmentRequest, KnowledgeArticleRequest, ValidateScenarioRequest
 from app.services.admin_auth import verify_admin
 from app.services.service_desk_definitions import (
     ScenarioDefinitionError,
@@ -19,6 +22,7 @@ from app.services.service_desk_engine import (
 )
 from app.services.service_desk_features import require_service_desk_admin_enabled
 from app.services.service_desk_health import run_published_scenario_health
+from app.services.service_desk_lab import audit, public_article, seed_knowledge_articles
 from app.utils.responses import ok
 
 
@@ -108,3 +112,109 @@ def reset_attempt(attempt_id: int, db: Session = Depends(get_db)):
         return ok(admin_attempt_inspection(db, reset_simulation_attempt(db, attempt_id).id))
     except ScenarioTransitionError as exc:
         raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
+@router.get("/attempts")
+def list_attempts(db: Session = Depends(get_db)):
+    require_service_desk_admin_enabled()
+    rows = db.query(ServiceDeskAttempt).order_by(ServiceDeskAttempt.id.desc()).limit(200).all()
+    return ok([{"id": row.id, "student_id": row.student_id, "scenario_version_id": row.scenario_version_id, "mode": row.mode, "status": row.status, "score": row.score, "passed": row.passed} for row in rows])
+
+
+@router.get("/health")
+def health(db: Session = Depends(get_db)):
+    require_service_desk_admin_enabled()
+    versions = db.query(ServiceDeskScenarioVersion).filter(ServiceDeskScenarioVersion.status == "published").all()
+    reports = [{"version_id": version.id, "stable_key": db.query(ServiceDeskScenario).filter(ServiceDeskScenario.id == version.scenario_id).one().stable_key, **run_published_scenario_health(version)} for version in versions]
+    return ok({"published_count": len(reports), "valid": all(row["valid"] for row in reports), "scenarios": reports})
+
+
+@router.get("/beta-enrollments")
+def list_beta_enrollments(db: Session = Depends(get_db)):
+    require_service_desk_admin_enabled()
+    rows = db.query(ServiceDeskBetaEnrollment).order_by(ServiceDeskBetaEnrollment.enrolled_at.desc()).all()
+    return ok([{"id": row.id, "student_id": row.student_id, "enabled": row.enabled, "enrolled_by": row.enrolled_by, "removed_at": row.removed_at.isoformat() if row.removed_at else None, "note": row.note} for row in rows])
+
+
+@router.post("/beta-enrollments", status_code=201)
+def add_beta_enrollment(payload: BetaEnrollmentRequest, db: Session = Depends(get_db)):
+    require_service_desk_admin_enabled()
+    if not db.query(Student.id).filter(Student.id == payload.student_id).first():
+        raise HTTPException(status_code=404, detail="Student not found")
+    row = db.query(ServiceDeskBetaEnrollment).filter(ServiceDeskBetaEnrollment.student_id == payload.student_id).first()
+    if row is None:
+        row = ServiceDeskBetaEnrollment(student_id=payload.student_id, enabled=True, enrolled_by="admin", note=payload.note)
+        db.add(row)
+    else:
+        row.enabled, row.removed_at, row.removed_by, row.note = True, None, None, payload.note
+    audit(db, actor="admin", action="beta_enrolled", target_type="student", target_id=payload.student_id)
+    db.commit()
+    return ok({"student_id": row.student_id, "enabled": row.enabled})
+
+
+@router.delete("/beta-enrollments/{student_id}")
+def remove_beta_enrollment(student_id: int, db: Session = Depends(get_db)):
+    require_service_desk_admin_enabled()
+    row = db.query(ServiceDeskBetaEnrollment).filter(ServiceDeskBetaEnrollment.student_id == student_id).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Beta enrollment not found")
+    row.enabled, row.removed_at, row.removed_by = False, datetime.now(timezone.utc), "admin"
+    audit(db, actor="admin", action="beta_removed", target_type="student", target_id=student_id)
+    db.commit()
+    return ok({"student_id": student_id, "enabled": False})
+
+
+@router.get("/assignments")
+def list_assignments(db: Session = Depends(get_db)):
+    require_service_desk_admin_enabled()
+    rows = db.query(ServiceDeskAssignment).order_by(ServiceDeskAssignment.assigned_at.desc()).all()
+    return ok([{"id": row.id, "student_id": row.student_id, "scenario_id": row.scenario_id, "mode": row.mode, "is_required": row.is_required, "due_at": row.due_at.isoformat() if row.due_at else None, "maximum_attempts": row.maximum_attempts} for row in rows])
+
+
+@router.post("/assignments", status_code=201)
+def create_assignment(payload: AssignmentRequest, db: Session = Depends(get_db)):
+    require_service_desk_admin_enabled()
+    if not db.query(Student.id).filter(Student.id == payload.student_id).first() or not db.query(ServiceDeskScenario.id).filter(ServiceDeskScenario.id == payload.scenario_id).first():
+        raise HTTPException(status_code=404, detail="Student or scenario not found")
+    row = db.query(ServiceDeskAssignment).filter(ServiceDeskAssignment.student_id == payload.student_id, ServiceDeskAssignment.scenario_id == payload.scenario_id, ServiceDeskAssignment.mode == payload.mode.value).first()
+    if row is None:
+        row = ServiceDeskAssignment(student_id=payload.student_id, scenario_id=payload.scenario_id, mode=payload.mode.value, is_required=payload.is_required, due_at=payload.due_at, maximum_attempts=payload.maximum_attempts, assigned_by="admin")
+        db.add(row)
+    else:
+        row.is_required, row.due_at, row.maximum_attempts = payload.is_required, payload.due_at, payload.maximum_attempts
+    audit(db, actor="admin", action="assignment_saved", target_type="assignment", target_id=f"{payload.student_id}:{payload.scenario_id}:{payload.mode.value}")
+    db.commit()
+    return ok({"id": row.id})
+
+
+@router.delete("/assignments/{assignment_id}")
+def delete_assignment(assignment_id: int, db: Session = Depends(get_db)):
+    require_service_desk_admin_enabled()
+    row = db.query(ServiceDeskAssignment).filter(ServiceDeskAssignment.id == assignment_id).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    audit(db, actor="admin", action="assignment_removed", target_type="assignment", target_id=assignment_id)
+    db.delete(row)
+    db.commit()
+    return ok({"removed": assignment_id})
+
+
+@router.get("/knowledge")
+def list_knowledge(db: Session = Depends(get_db)):
+    require_service_desk_admin_enabled()
+    seed_knowledge_articles(db)
+    db.commit()
+    return ok([public_article(row) for row in db.query(ServiceDeskKnowledgeArticle).order_by(ServiceDeskKnowledgeArticle.title).all()])
+
+
+@router.post("/knowledge", status_code=201)
+def save_knowledge(payload: KnowledgeArticleRequest, db: Session = Depends(get_db)):
+    require_service_desk_admin_enabled()
+    row = db.query(ServiceDeskKnowledgeArticle).filter(ServiceDeskKnowledgeArticle.stable_id == payload.stable_id).first()
+    if row is None:
+        row = ServiceDeskKnowledgeArticle(**payload.model_dump())
+        db.add(row)
+    else:
+        for key, value in payload.model_dump().items():
+            setattr(row, key, value)
+    audit(db, actor="admin", action="knowledge_saved", target_type="knowledge_article", target_id=payload.stable_id)
+    db.commit()
+    return ok(public_article(row))

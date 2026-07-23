@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
+from app.models.service_desk import ServiceDeskKnowledgeArticle, ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.student import Student
 from app.schemas.service_desk import AttemptActionRequest, StartAttemptRequest
 from app.services.auth_service import get_current_student
@@ -15,8 +15,9 @@ from app.services.service_desk_engine import (
     start_attempt,
     student_projection,
 )
-from app.services.service_desk_features import require_service_desk_student_enabled
+from app.services.service_desk_features import require_service_desk_student_access, service_desk_student_enabled, student_has_service_desk_beta_access
 from app.services.service_desk_definitions import published_definition
+from app.services.service_desk_lab import overview, performance, public_article, queue
 from app.utils.responses import ok
 
 
@@ -27,12 +28,55 @@ def _raise_transition(error: ScenarioTransitionError):
     raise HTTPException(status_code=error.status_code, detail={"code": error.code, "message": error.message})
 
 
+@router.get("/access")
+def service_desk_access(db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    """A safe navigation capability probe; all workspace endpoints remain gated."""
+    return ok({"available": service_desk_student_enabled() and student_has_service_desk_beta_access(db, current_student)})
+
+
+@router.get("/overview")
+def get_overview(db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    require_service_desk_student_access(db, current_student)
+    return ok(overview(db, current_student))
+
+
+@router.get("/queue")
+def get_queue(db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    require_service_desk_student_access(db, current_student)
+    return ok(queue(db, current_student))
+
+
+@router.get("/performance")
+def get_performance(db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    require_service_desk_student_access(db, current_student)
+    return ok(performance(db, current_student))
+
+
+@router.get("/knowledge")
+def search_knowledge(q: str = "", db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    require_service_desk_student_access(db, current_student)
+    query = db.query(ServiceDeskKnowledgeArticle).filter(ServiceDeskKnowledgeArticle.status == "published")
+    if q.strip():
+        pattern = f"%{q.strip()}%"
+        query = query.filter((ServiceDeskKnowledgeArticle.title.ilike(pattern)) | (ServiceDeskKnowledgeArticle.content.ilike(pattern)))
+    return ok([public_article(row) for row in query.order_by(ServiceDeskKnowledgeArticle.title).all()])
+
+
+@router.get("/knowledge/{article_id}")
+def get_knowledge(article_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+    require_service_desk_student_access(db, current_student)
+    article = db.query(ServiceDeskKnowledgeArticle).filter(ServiceDeskKnowledgeArticle.id == article_id, ServiceDeskKnowledgeArticle.status == "published").first()
+    if article is None:
+        raise HTTPException(status_code=404, detail="Knowledge article not found")
+    return ok(public_article(article))
+
+
 @router.get("/scenarios")
 def list_scenarios(
     db: Session = Depends(get_db),
     _: Student = Depends(get_current_student),
 ):
-    require_service_desk_student_enabled()
+    require_service_desk_student_access(db, _)
     rows = (
         db.query(ServiceDeskScenario, ServiceDeskScenarioVersion)
         .join(ServiceDeskScenarioVersion, ServiceDeskScenarioVersion.scenario_id == ServiceDeskScenario.id)

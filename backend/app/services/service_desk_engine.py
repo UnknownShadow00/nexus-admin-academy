@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import (
+    ServiceDeskAssignment,
     ServiceDeskAttempt,
     ServiceDeskAttemptEvent,
     ServiceDeskAttemptGrade,
@@ -27,7 +28,7 @@ from app.schemas.service_desk import (
     ScenarioMode,
 )
 from app.services.service_desk_definitions import published_definition
-from app.services.service_desk_features import require_service_desk_student_enabled
+from app.services.service_desk_features import require_service_desk_student_access
 
 
 class ScenarioTransitionError(Exception):
@@ -158,6 +159,9 @@ def _safe_event_payload(action: ScenarioActionKey, payload: dict, outcome: Trans
         if key == "note":
             safe["note_recorded"] = bool(str(value).strip())
             safe["note_length"] = len(str(value))
+        elif key in {"password", "recovery_key", "verification_value"}:
+            # Scenarios model state transitions, never client-supplied secrets.
+            safe[f"{key}_recorded"] = bool(str(value).strip())
         else:
             safe[key] = value
     return safe
@@ -255,8 +259,8 @@ def _scenario_or_404(db: Session, scenario_id: int) -> tuple[ServiceDeskScenario
 
 
 def start_attempt(db: Session, student: Student, scenario_id: int, mode: ScenarioMode) -> ServiceDeskAttempt:
-    require_service_desk_student_enabled()
-    _, version, definition = _scenario_or_404(db, scenario_id)
+    require_service_desk_student_access(db, student)
+    scenario, version, definition = _scenario_or_404(db, scenario_id)
     if mode not in definition.supported_modes:
         raise ScenarioTransitionError("Scenario mode is not supported.", code="MODE_NOT_SUPPORTED")
     active = (
@@ -284,7 +288,9 @@ def start_attempt(db: Session, student: Student, scenario_id: int, mode: Scenari
             .scalar()
             or 0
         )
-        if scored_attempts >= 3:
+        assignment = db.query(ServiceDeskAssignment).filter(ServiceDeskAssignment.student_id == student.id, ServiceDeskAssignment.scenario_id == scenario.id, ServiceDeskAssignment.mode == mode.value).first()
+        limit = assignment.maximum_attempts if assignment and assignment.maximum_attempts is not None else 3
+        if scored_attempts >= limit:
             raise ScenarioTransitionError("Simulation attempt limit reached.", code="SIMULATION_ATTEMPT_LIMIT", status_code=403)
     next_attempt_number = (
         db.query(func.coalesce(func.max(ServiceDeskAttempt.attempt_number), 0))
@@ -343,12 +349,12 @@ def _attempt_and_definition(db: Session, student: Student, attempt_id: int) -> t
 
 
 def get_owned_attempt(db: Session, student: Student, attempt_id: int) -> tuple[ServiceDeskAttempt, ScenarioDefinition]:
-    require_service_desk_student_enabled()
+    require_service_desk_student_access(db, student)
     return _attempt_and_definition(db, student, attempt_id)
 
 
 def apply_attempt_action(db: Session, student: Student, attempt_id: int, request: AttemptActionRequest) -> tuple[ServiceDeskAttempt, TransitionOutcome, bool]:
-    require_service_desk_student_enabled()
+    require_service_desk_student_access(db, student)
     attempt, definition = _attempt_and_definition(db, student, attempt_id)
     existing = (
         db.query(ServiceDeskAttemptEvent)

@@ -192,10 +192,11 @@ def publish_definition(
 
 
 def seed_service_desk_scenarios(db: Session) -> dict:
-    """Idempotently publish reviewed Phase 0 definitions; never touch attempts."""
-    definition = load_definition_file("locked_user_account")
-    version = publish_definition(db, definition, published_by="seed")
-    return {"published": 1, "scenario_id": version.scenario_id, "version_id": version.id}
+    """Idempotently publish reviewed browser-MVP definitions; never touch attempts."""
+    versions = [publish_definition(db, load_definition_file(key), published_by="seed") for key in (
+        "locked_user_account", "password_reset", "mfa_reset", "bitlocker_recovery", "new_employee_onboarding",
+    )]
+    return {"published": len(versions), "scenario_id": versions[0].scenario_id, "version_id": versions[0].id, "version_ids": [item.id for item in versions]}
 
 
 def published_definition(version: ServiceDeskScenarioVersion) -> ScenarioDefinition:

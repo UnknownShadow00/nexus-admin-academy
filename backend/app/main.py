@@ -40,6 +40,8 @@ from app.routers import (
 )
 from app.routers.admin_curriculum import router as admin_curriculum_router
 from app.services.cli_lab_seed import seed_cli_labs
+from app.services.service_desk_definitions import seed_service_desk_scenarios
+from app.services.service_desk_lab import seed_knowledge_articles
 from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
 from app.services.auth_service import STUDENT_SESSION_COOKIE
 
@@ -126,6 +128,10 @@ async def lifespan(_: FastAPI):
     db = SessionLocal()
     try:
         seed_cli_labs(db)
+        # Content is declarative and idempotent. Flags still keep it unavailable
+        # until an administrator explicitly enrolls a private-beta student.
+        seed_service_desk_scenarios(db)
+        seed_knowledge_articles(db)
         if not get_weekly_domain_leads(db):
             recompute_weekly_domain_leads(db)
         db.commit()

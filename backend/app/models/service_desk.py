@@ -21,6 +21,67 @@ SERVICE_DESK_ATTEMPT_MODES = {"learning", "simulation"}
 SERVICE_DESK_ATTEMPT_STATUSES = {"in_progress", "completed", "failed"}
 
 
+class ServiceDeskBetaEnrollment(Base):
+    """An explicit, auditable allow-list entry for the private beta."""
+
+    __tablename__ = "service_desk_beta_enrollments"
+    __table_args__ = (UniqueConstraint("student_id", name="uq_service_desk_beta_enrollment_student"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="RESTRICT"), nullable=False, index=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    enrolled_by: Mapped[str] = mapped_column(String(120), nullable=False)
+    enrolled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    removed_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+
+class ServiceDeskAssignment(Base):
+    __tablename__ = "service_desk_assignments"
+    __table_args__ = (
+        UniqueConstraint("student_id", "scenario_id", "mode", name="uq_service_desk_assignment_student_scenario_mode"),
+        CheckConstraint("mode IN ('learning','simulation')", name="ck_service_desk_assignments_mode"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("students.id", ondelete="RESTRICT"), nullable=False, index=True)
+    scenario_id: Mapped[int] = mapped_column(ForeignKey("service_desk_scenarios.id", ondelete="RESTRICT"), nullable=False, index=True)
+    mode: Mapped[str] = mapped_column(String(20), nullable=False, default="learning")
+    is_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    maximum_attempts: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    assigned_by: Mapped[str] = mapped_column(String(120), nullable=False)
+    assigned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ServiceDeskKnowledgeArticle(Base):
+    __tablename__ = "service_desk_knowledge_articles"
+    __table_args__ = (UniqueConstraint("stable_id", name="uq_service_desk_knowledge_article_stable_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    stable_id: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(240), nullable=False)
+    category: Mapped[str] = mapped_column(String(100), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft", index=True)
+    skill_tags: Mapped[list] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class ServiceDeskAuditLog(Base):
+    __tablename__ = "service_desk_audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    actor: Mapped[str] = mapped_column(String(120), nullable=False)
+    action: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    target_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    details_json: Mapped[dict] = mapped_column("details", JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+
 class ServiceDeskScenario(Base):
     __tablename__ = "service_desk_scenarios"
     __table_args__ = (
