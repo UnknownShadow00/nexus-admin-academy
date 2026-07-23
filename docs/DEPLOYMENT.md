@@ -23,6 +23,25 @@ container serves the Vite build on port 80 and proxies `/api`, `/auth`,
 `/uploads`, and `/health` to the host backend. Public traffic arrives through
 Cloudflare HTTPS.
 
+### Cloudflare browser analytics
+
+Nexus does not embed Cloudflare Web Analytics and its production Content
+Security Policy intentionally keeps `script-src 'self'`. If Cloudflare's edge
+injects `static.cloudflareinsights.com/beacon.min.js`, do not add that host (or
+a wildcard) to the application CSP merely to silence the warning. Unless RUM
+has been explicitly approved, create a Cloudflare **Configuration Rule** for
+`nexus.builtfromzero.fyi` and set **Disable Real User Monitoring (RUM)** to
+enabled (`action_parameters.disable_rum = true`). A zone-scoped Cloudflare API
+credential is required to automate that account setting; the tunnel
+credential on the host is not sufficient.
+
+Production browser validation may set
+`NEXUS_E2E_ALLOW_CLOUDFLARE_BEACON_WARNING=true` while that operator action is
+pending. The test exemption recognizes only the exact Cloudflare Insights
+script plus the matching `csp` request failure; all other console and network
+errors still fail the suite. Remove the flag after the configuration rule is
+active and confirm the beacon no longer appears.
+
 Before every deployment:
 
 1. Confirm the intended commit and a clean worktree.
@@ -128,6 +147,8 @@ the smoke checklist below.
 - Student credentials cannot open admin APIs or admin pages.
 - New migrations are at head and database integrity checks pass.
 - Browser console and network panels show no new errors.
+- Cloudflare RUM is either intentionally approved by the operator or disabled
+  at the edge; Nexus's strict CSP remains unchanged.
 - Both desktop and mobile navigation expose the same grouped destinations.
 
 Automated Proxmox/Guacamole delivery remains opt-in until a staging test proves
