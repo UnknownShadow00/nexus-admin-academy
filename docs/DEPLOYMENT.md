@@ -15,6 +15,14 @@ credentials, allowed frontend origin, persistent upload directory, and cookie
 settings appropriate to HTTPS. AI and automated-VM integrations may remain
 disabled until configured and tested.
 
+The Service Desk Scenario Foundation is also disabled by default. Keep
+`SERVICE_DESK_LAB_ENABLED=false` in production until a separately approved
+student rollout. `SERVICE_DESK_LAB_ADMIN_ENABLED=true` may be used only for a
+controlled administrator validation session; it does not enable student APIs
+or add navigation. The additive Scenario Foundation migration does not seed
+scenarios automatically—do not run seed commands in production merely to
+deploy it.
+
 ## Active self-hosted deployment
 
 The backend runs from `backend/.venv` under
