@@ -52,17 +52,34 @@ def _admin_definition(version: ServiceDeskScenarioVersion) -> dict:
 def list_scenarios(db: Session = Depends(get_db)):
     require_service_desk_admin_enabled()
     rows = db.query(ServiceDeskScenario).order_by(ServiceDeskScenario.stable_key).all()
-    return ok([
-        {
+    result = []
+    for row in rows:
+        versions = (
+            db.query(ServiceDeskScenarioVersion)
+            .filter(ServiceDeskScenarioVersion.scenario_id == row.id)
+            .order_by(ServiceDeskScenarioVersion.version_number)
+            .all()
+        )
+        result.append({
             "id": row.id,
             "stable_key": row.stable_key,
             "title": row.title,
             "category": row.category,
             "difficulty": row.difficulty,
             "status": row.status,
-        }
-        for row in rows
-    ])
+            "versions": [
+                {
+                    "version_number": version.version_number,
+                    "status": version.status,
+                    "validation_status": version.validation_status,
+                    "health_valid": run_published_scenario_health(version)["valid"]
+                    if version.status == "published"
+                    else None,
+                }
+                for version in versions
+            ],
+        })
+    return ok(result)
 
 
 @router.get("/scenarios/{scenario_id}/versions")

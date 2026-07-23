@@ -27,7 +27,7 @@ def require_service_desk_student_enabled() -> None:
     if not service_desk_student_enabled():
         raise HTTPException(
             status_code=404,
-            detail={"code": "SERVICE_DESK_UNAVAILABLE", "message": "Service Desk Lab is not available."},
+            detail={"code": "SERVICE_DESK_UNAVAILABLE", "message": "Service Desk Lab is unavailable."},
         )
 
 
@@ -35,7 +35,7 @@ def require_service_desk_admin_enabled() -> None:
     if not service_desk_admin_enabled():
         raise HTTPException(
             status_code=404,
-            detail={"code": "SERVICE_DESK_ADMIN_UNAVAILABLE", "message": "Service Desk Lab administration is not available."},
+            detail={"code": "SERVICE_DESK_ADMIN_UNAVAILABLE", "message": "Service Desk Lab administration is unavailable."},
         )
 
 
@@ -58,5 +58,5 @@ def require_service_desk_student_access(db: Session, student: Student) -> None:
         # A 404 prevents route probing from becoming a beta roster oracle.
         raise HTTPException(
             status_code=404,
-            detail={"code": "SERVICE_DESK_UNAVAILABLE", "message": "Service Desk Lab is not available."},
+            detail={"code": "SERVICE_DESK_UNAVAILABLE", "message": "Service Desk Lab is unavailable."},
         )

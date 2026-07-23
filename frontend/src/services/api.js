@@ -82,7 +82,10 @@ function isRetriableError(error) {
 function getErrorMessage(error) {
   const detail = error?.response?.data?.detail;
   if (error?.response) {
-    return error.response.data?.error || (typeof detail === "string" ? detail : detail?.error) || "Request failed";
+    return error.response.data?.error
+      || error.response.data?.message
+      || (typeof detail === "string" ? detail : detail?.error || detail?.message)
+      || "Request failed";
   }
   if (error?.code === "ECONNABORTED") {
     return "The server is taking too long to respond. If the backend is waking up, wait a few seconds and try again.";
