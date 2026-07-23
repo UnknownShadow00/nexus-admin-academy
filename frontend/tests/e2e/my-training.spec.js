@@ -83,6 +83,12 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "All Course Content" })).toBeVisible();
   await page.getByRole("searchbox", { name: "Search course content" }).fill("Ticketing Systems");
   await expect(page.getByText("Ticketing Systems", { exact: true }).first()).toBeVisible();
+  await page.getByRole("searchbox", { name: "Search course content" }).fill("");
+  const catalogVideos = page.locator("[data-video-row]");
+  await expect(catalogVideos).toHaveCount(137);
+  for (const row of await catalogVideos.all()) {
+    await expect(row.locator('a[href^="/quizzes/"]').first()).toBeVisible();
+  }
 
   await page.getByRole("link", { name: "Quiz Library" }).click();
   await expect(page.getByRole("heading", { name: "Quiz Library" })).toBeVisible();
@@ -153,7 +159,10 @@ test("admin can open Weekly Training under Learning Content", async ({ page }) =
   await page.getByRole("menuitem", { name: "Weekly Training" }).click();
   await expect(page.getByRole("heading", { name: "Weekly Training" })).toBeVisible();
   await expect(page.getByText("References valid")).toBeVisible();
+  await expect(page.getByText("137 of 137", { exact: false })).toBeVisible();
   await expect(page.getByText(/Week 0 ·/).first()).toBeVisible();
+  await page.getByText(/Week 0 ·/).first().click();
+  await expect(page.getByLabel(/Quiz for week-0-video-/).first()).toBeVisible();
   await assertNoHorizontalOverflow(page);
 
   await page.reload();
