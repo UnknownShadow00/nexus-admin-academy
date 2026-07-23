@@ -15,11 +15,11 @@ Both environment variables default to `false`:
 | `SERVICE_DESK_LAB_ENABLED` | Enables student Service Desk APIs. Normal students receive a controlled `404 SERVICE_DESK_UNAVAILABLE` while false. |
 | `SERVICE_DESK_LAB_ADMIN_ENABLED` | Enables administrator inspection/validation APIs for controlled testing. It does not enable student APIs. |
 
-Normal students never receive a Service Desk navigation item. A direct `/service-desk` visit still calls server-side access checks and returns only a controlled unavailable state unless both the student flag and an active explicit `service_desk_beta_enrollments` row permit access. Mentors have no implicit access. Administrators use `/admin/service-desk` under Assessments & Labs only when the separate admin flag is enabled.
+Normal students never receive a Service Desk navigation item. An explicitly enrolled student sees **Service Desk Lab** inside Practice Library only when the student flag is enabled. A direct `/service-desk` visit still calls server-side access checks and returns only a controlled unavailable state unless both controls permit access. Mentors have no implicit access. Administrators see `/admin/service-desk` under Assessments & Labs only when the separate admin flag is enabled.
 
 ## Phase 1A workspace and beta controls
 
-The lazy `/service-desk` bundle has internal **Overview**, **Work Queue**, **Performance**, **Knowledge Base**, and Exit-to-Nexus navigation. A ticket workspace exposes only pinned student-safe facts and contextual tools: Ticket/notes, Employee Directory, Identity & Access, BitLocker Recovery, Onboarding, and Learning Help. It contains no hidden rubric, root cause, critical definition, future hint, or credential/key material.
+The lazy `/service-desk` bundle has internal **Overview**, **Work Queue**, **Performance**, **Knowledge Base**, and Exit-to-Nexus navigation. The queue and overview make Learning and Simulation starts explicit. A ticket workspace exposes only pinned student-safe facts and contextual tools: Ticket/notes, Employee Directory, Identity & Access, BitLocker Recovery, Onboarding, and Learning Help. Contextual forms expose action field names but never accepted values, branch rules, credentials, recovery keys, or hidden rubrics; this lets a student make and learn from a wrong-account or wrong-device choice instead of merely clicking a pre-filled action.
 
 Beta enrollment is an explicit database allow-list managed by administrator APIs. Enrollment/removal, assignment changes, knowledge edits, and resets create Service Desk audit records. Assignments target one student/scenario/mode with optional required status, due date, and simulation-attempt override. Learning Mode exposes versioned deterministic hints and remains unlimited; Simulation Mode has no hint action and defaults to three terminal attempts. Both use the same server-owned transition engine and deterministic grade.
 
@@ -53,7 +53,7 @@ Events are append-only and unique by `(attempt_id, sequence_number)` and `(attem
 
 ## Safe projection and scoring
 
-Student APIs return only the ticket information intentionally provided, allowed action keys/tools, visible state fields, mode, status, student-safe feedback, and score/result. They never serialize `hidden_facts`, root causes, expected sequences, critical definitions, hidden rubrics, instructor notes, or validation metadata.
+Student APIs return only the ticket information intentionally provided, allowed action keys/tools and required field names, visible state fields, mode, status, student-safe feedback, and score/result. They never serialize accepted field values, `hidden_facts`, root causes, expected sequences, critical definitions, hidden rubrics, instructor notes, or validation metadata.
 
 The Locked User Account scenario scores these server-recorded actions once each: open ticket (5), inspect requester (10), verify identity (25), search account (5), inspect account (10), unlock correct account (30), document (10), and resolve (5). A pass requires all technical success conditions, no critical error, and score at least 80. Unlocking before identity verification or unlocking a wrong account is a critical failure and cannot pass. Learning Mode allows unlimited retries and a deterministic hint; Simulation Mode allows three scored attempts. An administrator may release a completed simulation attempt from that cap through the reset endpoint; the original attempt, grade, and ordered event log remain intact.
 

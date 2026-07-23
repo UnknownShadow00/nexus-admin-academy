@@ -302,6 +302,12 @@ export const getAdminServiceDeskAttempts = (requestOptions) => request(() => adm
 export const getAdminServiceDeskHealth = (requestOptions) => request(() => adminApi.get("/api/admin/service-desk/health"), requestOptions);
 export const getAdminServiceDeskAssignments = (requestOptions) => request(() => adminApi.get("/api/admin/service-desk/assignments"), requestOptions);
 export const saveAdminServiceDeskAssignment = (payload, requestOptions) => request(() => adminApi.post("/api/admin/service-desk/assignments", payload), requestOptions);
+export const deleteAdminServiceDeskAssignment = (assignmentId, requestOptions) => request(() => adminApi.delete(`/api/admin/service-desk/assignments/${assignmentId}`), requestOptions);
+export const getAdminServiceDeskBetaEnrollments = (requestOptions) => request(() => adminApi.get("/api/admin/service-desk/beta-enrollments"), requestOptions);
+export const saveAdminServiceDeskBetaEnrollment = (payload, requestOptions) => request(() => adminApi.post("/api/admin/service-desk/beta-enrollments", payload), requestOptions);
+export const removeAdminServiceDeskBetaEnrollment = (studentId, requestOptions) => request(() => adminApi.delete(`/api/admin/service-desk/beta-enrollments/${studentId}`), requestOptions);
+export const getAdminServiceDeskKnowledge = (requestOptions) => request(() => adminApi.get("/api/admin/service-desk/knowledge"), requestOptions);
+export const saveAdminServiceDeskKnowledge = (payload, requestOptions) => request(() => adminApi.post("/api/admin/service-desk/knowledge", payload), requestOptions);
 export const getAdminServiceDeskEvents = (attemptId, requestOptions) => request(() => adminApi.get(`/api/admin/service-desk/attempts/${attemptId}/events`), requestOptions);
 export const resetAdminServiceDeskAttempt = (attemptId, requestOptions) => request(() => adminApi.post(`/api/admin/service-desk/attempts/${attemptId}/reset`), requestOptions);
 

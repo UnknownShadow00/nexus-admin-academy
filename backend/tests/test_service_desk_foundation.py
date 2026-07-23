@@ -5,6 +5,7 @@ import pytest
 from app.models.service_desk import (
     ServiceDeskAttempt,
     ServiceDeskAttemptEvent,
+    ServiceDeskAuditLog,
     ServiceDeskScenarioVersion,
     ServiceDeskBetaEnrollment,
 )
@@ -79,6 +80,16 @@ def test_student_feature_is_disabled_by_default(db, monkeypatch):
     assert seeded["published"] == 5
     assert response.status_code == 404
     assert response.json()["detail"]["code"] == "SERVICE_DESK_UNAVAILABLE"
+
+
+def test_admin_feature_is_disabled_by_default(db, monkeypatch):
+    seed_scenario(db)
+    monkeypatch.delenv("SERVICE_DESK_LAB_ADMIN_ENABLED", raising=False)
+
+    response = admin_client().get("/api/admin/service-desk/scenarios")
+
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "SERVICE_DESK_ADMIN_UNAVAILABLE"
 
 
 def test_enabled_feature_still_requires_explicit_beta_enrollment(db, monkeypatch):
@@ -277,6 +288,10 @@ def test_simulation_is_limited_to_three_scored_attempts(db, monkeypatch):
     assert reset.status_code == 200, reset.text
     assert reset.json()["data"]["attempt"]["admin_reset_at"] is not None
     assert reset.json()["data"]["events"][-1]["event_type"] == "admin_reset"
+    assert db.query(ServiceDeskAuditLog).filter(
+        ServiceDeskAuditLog.action == "attempt_reset",
+        ServiceDeskAuditLog.target_id == str(attempt["id"]),
+    ).count() == 1
     released = client.post(
         f"/api/service-desk/scenarios/{seeded['scenario_id']}/attempts",
         json={"mode": "simulation"}, headers=auth_headers(student),
@@ -341,3 +356,48 @@ def test_published_scenario_health_count_is_five(db):
     assert len(versions) == 5
     assert repeated["published"] == 5
     assert all(run_published_scenario_health(version)["valid"] is True for version in versions)
+
+
+def test_student_action_metadata_exposes_fields_not_accepted_values(db, monkeypatch):
+    monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
+    seeded = seed_scenario(db)
+    student = make_student(db, "service-safe-tool-metadata")
+    enroll_beta(db, student)
+
+    attempt = start_learning(student_client(), student, seeded["scenario_id"])
+    action_metadata = {item["key"]: item for item in attempt["allowed_actions"]}
+
+    assert action_metadata["verify_identity"]["payload_fields"] == ["verification_method"]
+    assert "employee_id_last4" not in str(attempt)
+    assert "correct_account_id" not in str(attempt)
+
+
+def test_admin_can_manage_beta_assignments_and_knowledge_with_audit(db, monkeypatch):
+    monkeypatch.setenv("SERVICE_DESK_LAB_ADMIN_ENABLED", "true")
+    seeded = seed_scenario(db)
+    student = make_student(db, "service-admin-controls")
+    client = admin_client()
+
+    enrolled = client.post("/api/admin/service-desk/beta-enrollments", json={"student_id": student.id, "note": "local review"})
+    listed_enrollments = client.get("/api/admin/service-desk/beta-enrollments")
+    assignment = client.post("/api/admin/service-desk/assignments", json={"student_id": student.id, "scenario_id": seeded["scenario_id"], "mode": "learning", "is_required": True})
+    listed_assignments = client.get("/api/admin/service-desk/assignments")
+    knowledge = client.get("/api/admin/service-desk/knowledge")
+    saved_article = client.post("/api/admin/service-desk/knowledge", json={
+        "stable_id": "local-review-article", "title": "Local review article", "category": "Review",
+        "content": "This temporary local article verifies administrator knowledge management.", "status": "draft", "skill_tags": ["review"],
+    })
+    removed_assignment = client.delete(f"/api/admin/service-desk/assignments/{assignment.json()['data']['id']}")
+    removed_enrollment = client.delete(f"/api/admin/service-desk/beta-enrollments/{student.id}")
+
+    assert enrolled.status_code == 201
+    assert any(row["student_id"] == student.id for row in listed_enrollments.json()["data"])
+    assert assignment.status_code == 201
+    assert any(row["id"] == assignment.json()["data"]["id"] for row in listed_assignments.json()["data"])
+    assert knowledge.status_code == 200
+    assert len(knowledge.json()["data"]) == 7
+    assert saved_article.status_code == 201
+    assert removed_assignment.status_code == 200
+    assert removed_enrollment.status_code == 200
+    actions = {row.action for row in db.query(ServiceDeskAuditLog).all()}
+    assert {"beta_enrolled", "beta_removed", "assignment_saved", "assignment_removed", "knowledge_saved"}.issubset(actions)

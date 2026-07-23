@@ -27,7 +27,7 @@ import TerminalCommandsPage from "./pages/TerminalCommandsPage";
 import TicketFeedback from "./pages/TicketFeedback";
 import TicketPage from "./pages/TicketPage";
 import TicketsPage from "./pages/TicketsPage";
-import { authLogout, getTickets, globalSearch } from "./services/api";
+import { authLogout, getAdminServiceDeskScenarios, getServiceDeskAccess, getTickets, globalSearch } from "./services/api";
 
 const AdminHome = lazy(() => import("./pages/AdminHome"));
 const AdminStudentsPage = lazy(() => import("./pages/AdminStudentsPage"));
@@ -210,6 +210,8 @@ export default function App() {
   const currentStudent = authenticated ? getCurrentStudent() : null;
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
   const [hasTicketFeedback, setHasTicketFeedback] = useState(false);
+  const [serviceDeskAvailable, setServiceDeskAvailable] = useState(false);
+  const [serviceDeskAdminAvailable, setServiceDeskAdminAvailable] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState({ lessons: [], commands: [] });
   const [searchOpen, setSearchOpen] = useState(false);
@@ -220,17 +222,51 @@ export default function App() {
 
   const navItems = useMemo(() => {
     if (isAdminRoute) {
-      return adminAuthenticated ? adminNavItems : [];
+      if (!adminAuthenticated) return [];
+      return serviceDeskAdminAvailable
+        ? adminNavItems
+        : adminNavItems.map((item) => item.children
+          ? { ...item, children: item.children.filter((child) => child.to !== "/admin/service-desk") }
+          : item);
+    }
+    const items = studentNavItems.map((item) => item.children ? { ...item, children: [...item.children] } : item);
+    if (serviceDeskAvailable) {
+      const practiceLibrary = items.find((item) => item.label === "Practice Library");
+      practiceLibrary?.children?.splice(1, 0, { to: "/service-desk", label: "Service Desk Lab" });
     }
     if (!currentStudent?.is_mentor && currentStudent?.has_unlocked_capstones === false) {
-      return studentNavItems.map((item) =>
+      return items.map((item) =>
         item.children
           ? { ...item, children: item.children.filter((child) => child.to !== "/capstones") }
           : item
       );
     }
-    return studentNavItems;
-  }, [adminAuthenticated, isAdminRoute, currentStudent?.has_unlocked_capstones, currentStudent?.is_mentor]);
+    return items;
+  }, [adminAuthenticated, currentStudent?.has_unlocked_capstones, currentStudent?.is_mentor, isAdminRoute, serviceDeskAdminAvailable, serviceDeskAvailable]);
+
+  useEffect(() => {
+    let current = true;
+    if (!authenticated || isAdminRoute || isAdminLoginRoute) {
+      setServiceDeskAvailable(false);
+      return () => { current = false; };
+    }
+    getServiceDeskAccess({ suppressToast: true })
+      .then((response) => { if (current) setServiceDeskAvailable(response.data?.available === true); })
+      .catch(() => { if (current) setServiceDeskAvailable(false); });
+    return () => { current = false; };
+  }, [authenticated, isAdminLoginRoute, isAdminRoute, currentStudent?.id]);
+
+  useEffect(() => {
+    let current = true;
+    if (!adminAuthenticated || !isAdminRoute) {
+      setServiceDeskAdminAvailable(false);
+      return () => { current = false; };
+    }
+    getAdminServiceDeskScenarios({ suppressToast: true })
+      .then(() => { if (current) setServiceDeskAdminAvailable(true); })
+      .catch(() => { if (current) setServiceDeskAdminAvailable(false); });
+    return () => { current = false; };
+  }, [adminAuthenticated, isAdminRoute]);
 
   useEffect(() => {
     setMobileOpen(false);

@@ -109,7 +109,10 @@ def inspect_attempt_events(attempt_id: int, db: Session = Depends(get_db)):
 def reset_attempt(attempt_id: int, db: Session = Depends(get_db)):
     require_service_desk_admin_enabled()
     try:
-        return ok(admin_attempt_inspection(db, reset_simulation_attempt(db, attempt_id).id))
+        attempt = reset_simulation_attempt(db, attempt_id)
+        audit(db, actor="admin", action="attempt_reset", target_type="attempt", target_id=attempt.id)
+        db.commit()
+        return ok(admin_attempt_inspection(db, attempt.id))
     except ScenarioTransitionError as exc:
         raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message}) from exc
 @router.get("/attempts")

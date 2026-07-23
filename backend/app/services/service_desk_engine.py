@@ -445,7 +445,13 @@ def student_projection(db: Session, attempt: ServiceDeskAttempt, definition: Sce
         for action in definition.actions:
             if action.key == ScenarioActionKey.REQUEST_HINT and attempt.mode != ScenarioMode.LEARNING.value:
                 continue
-            allowed_actions.append({"key": action.key.value, "tool": action.tool})
+            # Field names are necessary for the simulated tool form, but the
+            # accepted values and branch rules remain server-only.
+            allowed_actions.append({
+                "key": action.key.value,
+                "tool": action.tool,
+                "payload_fields": action.required_payload_fields,
+            })
     return {
         "id": attempt.id,
         "scenario": {

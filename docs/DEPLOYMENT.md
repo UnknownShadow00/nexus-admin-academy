@@ -163,6 +163,8 @@ the smoke checklist below.
 
 Run `alembic upgrade head` before restarting the backend. Keep `SERVICE_DESK_LAB_ENABLED=false` and `SERVICE_DESK_LAB_ADMIN_ENABLED=false` in `backend/.env` for the first deployment. After health/authentication validation, an operator may enable administrator review only; student access additionally requires an audited explicit beta enrollment through the supported administrator API. Do not enable the student flag globally or use unapproved browser credentials. Service Desk Lab is separate from legacy Support Tickets, which must be included in the normal smoke checklist unchanged.
 
+For an administrator-only review, leave `SERVICE_DESK_LAB_ENABLED=false`, set only `SERVICE_DESK_LAB_ADMIN_ENABLED=true`, restart the backend, and use an approved administrator account to inspect the five published versions, health status, Knowledge Base, replay, assignments, and beta-enrollment controls. Confirm student `/service-desk` navigation and APIs remain unavailable. Return the administrator flag to `false` and restart after the approved review session unless continued review has been explicitly authorized. Do not enroll production students or set the student flag during this step.
+
 Automated Proxmox/Guacamole delivery remains opt-in until a staging test proves
 start, scoped student access, isolation, refresh recovery, expiry, and cleanup.
 Manual VM delivery remains the safe fallback.
