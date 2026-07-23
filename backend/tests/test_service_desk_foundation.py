@@ -109,6 +109,22 @@ def test_student_feature_is_disabled_by_default(db, monkeypatch):
     assert response.json()["detail"]["message"] == "Service Desk Lab is unavailable."
 
 
+def test_service_desk_access_requires_authentication():
+    response = student_client().get("/api/service-desk/access")
+
+    assert response.status_code == 401
+
+
+def test_service_desk_access_is_unavailable_when_feature_is_disabled(db, monkeypatch):
+    student = make_student(db, "service-access-disabled")
+    monkeypatch.delenv("SERVICE_DESK_LAB_ENABLED", raising=False)
+
+    response = student_client().get("/api/service-desk/access", headers=auth_headers(student))
+
+    assert response.status_code == 200
+    assert response.json() == {"success": True, "data": {"available": False}}
+
+
 def test_admin_feature_is_disabled_by_default(db, monkeypatch):
     seed_scenario(db)
     monkeypatch.delenv("SERVICE_DESK_LAB_ADMIN_ENABLED", raising=False)
@@ -130,6 +146,21 @@ def test_enabled_feature_still_requires_explicit_beta_enrollment(db, monkeypatch
     allowed = student_client().get("/api/service-desk/scenarios", headers=auth_headers(student))
     assert allowed.status_code == 200
     assert len(allowed.json()["data"]) == seeded["published"]
+
+
+def test_service_desk_access_requires_beta_enrollment_when_feature_is_enabled(db, monkeypatch):
+    monkeypatch.setenv("SERVICE_DESK_LAB_ENABLED", "true")
+    student = make_student(db, "service-access-beta")
+    client = student_client()
+
+    denied = client.get("/api/service-desk/access", headers=auth_headers(student))
+    assert denied.status_code == 200
+    assert denied.json() == {"success": True, "data": {"available": False}}
+
+    enroll_beta(db, student)
+    allowed = client.get("/api/service-desk/access", headers=auth_headers(student))
+    assert allowed.status_code == 200
+    assert allowed.json() == {"success": True, "data": {"available": True}}
 
 
 def test_locked_user_account_health_path_persists_ordered_events_and_safe_projection(db, monkeypatch):

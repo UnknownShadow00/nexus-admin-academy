@@ -420,7 +420,13 @@ def test_shared_quiz_updates_each_video_but_counts_once(db, student):
     assert {item["linked_quiz"]["action"] for item in video_rows} == {"review"}
     assert {item["linked_quiz"]["score_percent"] for item in video_rows} == {100}
     progress = build_training_progress(db, student)
-    assert progress["quizzes"] == {"completed": 1, "total": 1, "percent": 100, "average_score_percent": 100}
+    assert progress["quizzes"] == {
+        "completed": 1,
+        "total": 1,
+        "percent": 100,
+        "average_score_percent": 100,
+        "best_score_percent": 100,
+    }
     assert progress["overall_training"]["total"] == 3
 
 

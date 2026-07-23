@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
-  createServiceDeskAttempt, getServiceDeskAttempt, getServiceDeskKnowledge,
+  createServiceDeskAttempt, getServiceDeskAccess, getServiceDeskAttempt, getServiceDeskKnowledge,
   getServiceDeskOverview, getServiceDeskPerformance, getServiceDeskQueue, serviceDeskAction,
 } from "../services/api";
 
@@ -12,12 +12,37 @@ function Status({ children }) { return <span className="rounded-full bg-blue-100
 
 export default function ServiceDeskPage() {
   const [params, setParams] = useSearchParams();
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
   const [tab, setTab] = useState(params.get("tab") || "Overview");
   const [overview, setOverview] = useState(null); const [queue, setQueue] = useState([]); const [performance, setPerformance] = useState(null); const [articles, setArticles] = useState([]);
   const [attempt, setAttempt] = useState(null); const [tool, setTool] = useState("ticket"); const [actionValues, setActionValues] = useState({}); const [message, setMessage] = useState(""); const [loading, setLoading] = useState(true); const [error, setError] = useState("");
+  const serviceDeskAvailable = useRef(false);
   const refresh = async () => { setLoading(true); setError(""); try { const [o, q, p, k] = await Promise.all([getServiceDeskOverview({ suppressToast: true }), getServiceDeskQueue({ suppressToast: true }), getServiceDeskPerformance({ suppressToast: true }), getServiceDeskKnowledge("", { suppressToast: true })]); setOverview(o.data); setQueue(q.data); setPerformance(p.data); setArticles(k.data); } catch (err) { setError(err.userMessage || "Service Desk Lab is unavailable."); } finally { setLoading(false); } };
-  useEffect(() => { refresh(); }, []);
-  useEffect(() => { const id = params.get("attempt"); if (id) getServiceDeskAttempt(id, { suppressToast: true }).then((res) => { setAttempt(res.data); setTab("Workspace"); }).catch(() => setError("This attempt is unavailable.")); }, [params]);
+  const loadAttempt = (id) => getServiceDeskAttempt(id, { suppressToast: true }).then((res) => { setAttempt(res.data); setTab("Workspace"); }).catch(() => setError("This attempt is unavailable."));
+  useEffect(() => {
+    let current = true;
+    getServiceDeskAccess({ suppressToast: true })
+      .then((response) => {
+        if (!current) return;
+        if (response.data?.available !== true) {
+          setError("Service Desk Lab is unavailable.");
+          setLoading(false);
+          return;
+        }
+        serviceDeskAvailable.current = true;
+        refresh();
+        const id = paramsRef.current.get("attempt");
+        if (id) loadAttempt(id);
+      })
+      .catch(() => {
+        if (!current) return;
+        setError("Service Desk Lab is unavailable.");
+        setLoading(false);
+      });
+    return () => { current = false; };
+  }, []);
+  useEffect(() => { const id = params.get("attempt"); if (serviceDeskAvailable.current && id) loadAttempt(id); }, [params]);
   const setWorkspaceTab = (next) => { setTab(next); setParams(next === "Workspace" && attempt ? { attempt: attempt.id } : { tab: next }); };
   const start = async (item, mode = "learning") => { try { const res = await createServiceDeskAttempt(item.id, mode); setAttempt(res.data); setTool("ticket"); setTab("Workspace"); setParams({ attempt: String(res.data.id) }); } catch (err) { setMessage(err.userMessage || "Unable to start this scenario."); } };
   const submit = async (action) => { if (!attempt) return; try { const res = await serviceDeskAction(attempt.id, { action: action.key, payload: actionValues[action.key] || {}, expected_state_version: attempt.state_version, idempotency_key: `${action.key}-${attempt.state_version}-${Date.now()}` }); setAttempt(res.data.attempt); setMessage(res.data.feedback); if (action.key === "add_resolution_note") setActionValues((values) => ({ ...values, [action.key]: {} })); if (res.data.attempt.status !== "in_progress") refresh(); } catch (err) { setMessage(err.userMessage || "Action could not be completed."); } };

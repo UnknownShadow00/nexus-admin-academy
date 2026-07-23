@@ -94,6 +94,14 @@ export default function LessonPage() {
         <h1 className="mt-2 text-3xl font-bold">{lesson.title}</h1>
         {lesson.summary ? <div className="mt-4 whitespace-pre-line leading-7 text-slate-700 dark:text-slate-300">{lesson.summary}</div> : null}
       </header>
+      {Array.isArray(lesson.outcomes) && lesson.outcomes.length > 0 ? (
+        <section className="panel">
+          <h2 className="text-xl font-bold">In this lesson, you'll learn</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-700 dark:text-slate-300">
+            {lesson.outcomes.map((outcome, index) => <li className="break-words" key={`${index}-${outcome}`}>{outcome}</li>)}
+          </ul>
+        </section>
+      ) : null}
       {embedUrl ? <section className="aspect-video overflow-hidden rounded-xl bg-black"><iframe src={embedUrl} className="h-full w-full" allowFullScreen title={lesson.title} /></section> : null}
       <LessonNotes lessonId={lesson.id} orientation={lesson.is_orientation} onSaved={() => setOrientationRefresh((value) => value + 1)} />
       {lesson.is_orientation ? <OrientationPracticePanel refreshKey={orientationRefresh} /> : null}

@@ -7,7 +7,7 @@ variable, and the security posture after the Phase 1 audit.
 
 # Part 1 — Content Authoring Guide
 
-All 24 weeks of content live in structured Python seed sources, not in the
+All 25 weeks of content (Week 0 through Week 24) live in structured Python seed sources, not in the
 database directly. Edit the source, re-run `python seed.py`, and the change
 propagates. Seeds are idempotent — matched by stable keys — so student work is
 never touched.

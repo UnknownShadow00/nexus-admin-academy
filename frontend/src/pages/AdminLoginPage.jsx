@@ -123,10 +123,6 @@ export default function AdminLoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-xs text-slate-500 dark:text-slate-400">
-          First admin request can take up to 30 seconds while Render wakes the backend.
-        </p>
-
         <div className="mt-6 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
           <span>Student login stays at `/login`.</span>
           <Link className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-300 dark:hover:text-blue-200" to="/login">
