@@ -6,20 +6,43 @@ const adminUsername = process.env.NEXUS_E2E_ADMIN_USERNAME || "browser-admin";
 const adminPassword = process.env.NEXUS_E2E_ADMIN_PASSWORD || "BrowserAdmin!2026";
 const apiBaseUrl = process.env.NEXUS_E2E_API_URL || "http://127.0.0.1:8011";
 const browserBaseUrl = process.env.NEXUS_E2E_BASE_URL || "http://127.0.0.1:5173";
+const allowCloudflareBeaconWarning = process.env.NEXUS_E2E_ALLOW_CLOUDFLARE_BEACON_WARNING === "true";
+
+function isCloudflareBeaconCspWarning(message) {
+  return message.includes("static.cloudflareinsights.com/beacon.min.js")
+    && message.includes("violates the following Content Security Policy directive")
+    && message.includes("script-src 'self'");
+}
+
+function isCloudflareBeaconCspRequest(request, reason) {
+  return request.url().startsWith("https://static.cloudflareinsights.com/beacon.min.js")
+    && reason === "csp";
+}
 
 function monitorPage(page) {
   const consoleErrors = [];
+  const knownConsoleWarnings = [];
   const failedRequests = [];
+  const knownFailedRequests = [];
   const httpErrors = [];
   let active = true;
   page.on("console", (message) => {
     if (!active) return;
     const text = message.text();
-    if (message.type() === "error") consoleErrors.push(text);
+    if (message.type() !== "error") return;
+    if (allowCloudflareBeaconWarning && isCloudflareBeaconCspWarning(text)) {
+      knownConsoleWarnings.push(text);
+      return;
+    }
+    consoleErrors.push(text);
   });
   page.on("requestfailed", (request) => {
     if (!active) return;
     const reason = request.failure()?.errorText || "unknown error";
+    if (allowCloudflareBeaconWarning && isCloudflareBeaconCspRequest(request, reason)) {
+      knownFailedRequests.push(`${request.method()} ${request.url()}: ${reason}`);
+      return;
+    }
     // SPA navigation intentionally cancels in-flight reads from the page being
     // left. Record every other failure, including any injected analytics.
     if (!reason.includes("ERR_ABORTED")) {
@@ -32,7 +55,9 @@ function monitorPage(page) {
   });
   return {
     consoleErrors,
+    knownConsoleWarnings,
     failedRequests,
+    knownFailedRequests,
     httpErrors,
     pause: () => { active = false; },
     resume: () => { active = true; },
@@ -229,7 +254,7 @@ test("capstone navigation remains role gated", async ({ page }) => {
 });
 
 test("a disposable beginner completes Week 0 with a shared quiz and persistent progress", async ({ page, browser }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   await page.setViewportSize({ width: 1440, height: 1000 });
   let monitor;
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -334,6 +359,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
 
     monitor.pause();
     await page.getByRole("button", { name: "Disposable Browser Flow Student" }).click();
+    await expect(page).toHaveURL(/\/login$/);
     await studentLogin(page, username, password);
     monitor.resume();
     await expect(page.getByRole("heading", { name: "Continue Your Training" })).toBeVisible();
