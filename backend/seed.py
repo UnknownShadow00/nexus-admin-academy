@@ -9,6 +9,7 @@ from app.models.learning import Lesson, Module
 from app.models.progression import MethodologyFramework, PromotionGate, Role
 from app.models.student import Student
 from app.models.ticket import Ticket
+from app.services.service_desk_definitions import seed_service_desk_scenarios
 from app.services.cli_lab_seed import seed_cli_labs
 from seed_phase_a import seed_phase_a
 from seed_phase_b import seed_phase_b
@@ -1000,6 +1001,7 @@ def run_seed() -> None:
         db.flush()
         seed_answer_keys(db, limit=10)
         seed_commands(db)
+        service_desk = seed_service_desk_scenarios(db)
         db.commit()
         phase_a = seed_phase_a(db)
         db.commit()
@@ -1017,7 +1019,7 @@ def run_seed() -> None:
         quiz_organization = seed_quiz_organization(db)
         answer_positions = rebalance_seed_answer_positions(db)
         db.commit()
-        print(f"Seed complete: roles(6), gates, module0+methodology, base tickets(8), labs(4), capstones(2), commands(50), phase_a={phase_a}, phase_b={phase_b}, phase_c={phase_c}, phase_d={phase_d}, phase_e={phase_e}, phase_f={phase_f}, phase_g={phase_g}, quiz_organization={quiz_organization}, answer_positions={answer_positions}")
+        print(f"Seed complete: roles(6), gates, module0+methodology, base tickets(8), labs(4), capstones(2), commands(50), service_desk={service_desk}, phase_a={phase_a}, phase_b={phase_b}, phase_c={phase_c}, phase_d={phase_d}, phase_e={phase_e}, phase_f={phase_f}, phase_g={phase_g}, quiz_organization={quiz_organization}, answer_positions={answer_positions}")
     except Exception:
         db.rollback()
         raise

@@ -26,6 +26,13 @@ from app.models.vm_assignment import VmAssignment
 from app.models.app_setting import AppSetting
 from app.models.onboarding import StudentOnboardingPractice
 from app.models.training import TrainingWeek, TrainingWeekActivity
+from app.models.service_desk import (
+    ServiceDeskScenario,
+    ServiceDeskScenarioVersion,
+    ServiceDeskAttempt,
+    ServiceDeskAttemptEvent,
+    ServiceDeskAttemptGrade,
+)
 
 __all__ = [
     "Student",
@@ -74,4 +81,9 @@ __all__ = [
     "StudentOnboardingPractice",
     "TrainingWeek",
     "TrainingWeekActivity",
+    "ServiceDeskScenario",
+    "ServiceDeskScenarioVersion",
+    "ServiceDeskAttempt",
+    "ServiceDeskAttemptEvent",
+    "ServiceDeskAttemptGrade",
 ]

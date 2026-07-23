@@ -20,6 +20,8 @@ from app.routers import (
     submissions,
     tickets,
     training,
+    service_desk,
+    admin_service_desk,
 )
 
 __all__ = [
@@ -44,4 +46,6 @@ __all__ = [
     "submissions",
     "tickets",
     "training",
+    "service_desk",
+    "admin_service_desk",
 ]
