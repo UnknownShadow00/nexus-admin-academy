@@ -157,7 +157,7 @@ def test_fresh_student_can_resume_and_complete_orientation_without_ticket_gradin
     week_one = get_week_plan(week=1, db=db, current_student=student)
     next_action = week_one["data"]["next_action"]
     assert next_action["title"] == first_week_one_lesson.title
-    assert next_action["route"] == f"/learning-path?lesson={first_week_one_lesson.id}"
+    assert next_action["route"] == f"/lessons/{first_week_one_lesson.id}"
 
 
 def test_orientation_completion_reports_the_remaining_week_zero_lesson_until_week_one_unlocks(db):
@@ -197,7 +197,7 @@ def test_orientation_completion_reports_the_remaining_week_zero_lesson_until_wee
         {
             "id": methodology.id,
             "title": methodology.title,
-            "route": f"/learning-path?lesson={methodology.id}",
+            "route": f"/lessons/{methodology.id}",
         }
     ]
 
@@ -221,7 +221,7 @@ def test_orientation_completion_reports_the_remaining_week_zero_lesson_until_wee
         "data": {
             "required_week": 1,
             "current_week": 0,
-            "next_action_route": "/learning-path",
+            "next_action_route": "/training",
         },
     }
 

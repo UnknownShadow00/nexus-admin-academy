@@ -61,7 +61,7 @@ export default function StudentHome() {
 
   const recent = (stats.recent_activity || []).slice(0, 5);
   const statCards = [
-    { label: "Total XP", value: stats.total_xp || 0, to: "/learning-path", Icon: Zap, accent: "text-blue-600 dark:text-blue-400", card: "sm:col-span-2 lg:col-span-1" },
+    { label: "Total XP", value: stats.total_xp || 0, to: "/progress", Icon: Zap, accent: "text-blue-600 dark:text-blue-400", card: "sm:col-span-2 lg:col-span-1" },
     { label: "Day Streak", value: stats.streak || 0, to: "/progress", Icon: Flame, accent: "text-orange-500 dark:text-orange-300" },
     { label: "Quizzes Done", value: stats.quizzes_completed || 0, to: "/quizzes", Icon: Trophy, accent: "text-emerald-600 dark:text-emerald-400" },
     { label: "Tickets Passed", value: stats.tickets_completed || 0, to: "/tickets", Icon: Ticket, accent: "text-violet-600 dark:text-violet-400" },

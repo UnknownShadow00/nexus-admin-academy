@@ -6,7 +6,7 @@ import RequireAuth from "./components/RequireAuth";
 import { clearAuthSession, getCurrentStudent, isAuthenticated } from "./hooks/useAuth";
 import { useDarkMode } from "./hooks/useDarkMode";
 import AdminLoginPage from "./pages/AdminLoginPage";
-import LearningPath from "./pages/LearningPath";
+import LessonPage from "./pages/LessonPage";
 import CapstonePage from "./pages/CapstonePage";
 import CapstonesPage from "./pages/CapstonesPage";
 import CliLabPage from "./pages/CliLabPage";
@@ -359,7 +359,7 @@ export default function App() {
                         <div className="mt-3 max-h-80 overflow-auto">
                           {searchResults.lessons?.length ? <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Lessons</p> : null}
                           {(searchResults.lessons || []).map((lesson) => (
-                            <Link key={`lesson-${lesson.id}`} to="/learning-path" className="block rounded-lg px-2 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">
+                            <Link key={`lesson-${lesson.id}`} to={`/lessons/${lesson.id}`} className="block rounded-lg px-2 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-slate-800">
                               {lesson.title}
                             </Link>
                           ))}
@@ -423,7 +423,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<RequireAuth><StudentHome /></RequireAuth>} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/learning-path" element={<RequireAuth><LearningPath /></RequireAuth>} />
+        <Route path="/learning-path" element={<Navigate to="/training" replace />} />
+        <Route path="/lessons/:lessonId" element={<RequireAuth><LessonPage /></RequireAuth>} />
         <Route path="/training" element={<RequireAuth><TrainingDashboardPage /></RequireAuth>} />
         <Route path="/training/week/:weekId" element={<RequireAuth><TrainingWeekPage /></RequireAuth>} />
         <Route path="/training/content" element={<RequireAuth><StudyTrackerPage /></RequireAuth>} />

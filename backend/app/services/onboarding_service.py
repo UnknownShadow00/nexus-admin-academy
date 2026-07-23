@@ -75,7 +75,7 @@ def get_orientation_state(db: Session, student: Student) -> dict:
             {
                 "id": row.id,
                 "title": row.title,
-                "route": f"/learning-path?lesson={row.id}",
+                "route": f"/lessons/{row.id}",
             }
             for row in (
                 db.query(Lesson)
@@ -107,7 +107,7 @@ def get_orientation_state(db: Session, student: Student) -> dict:
         "available_later": bool(lesson),
         "lesson_id": lesson.id if lesson else None,
         "lesson_title": lesson.title if lesson else None,
-        "lesson_route": f"/learning-path?lesson={lesson.id}" if lesson else "/learning-path",
+        "lesson_route": f"/lessons/{lesson.id}" if lesson else "/training",
         "quiz_id": quiz.id if quiz else None,
         "quiz_route": f"/quizzes/{quiz.id}" if quiz else "/quizzes",
         "next_week_plan_url": "/api/students/me/week-plan?week=1",

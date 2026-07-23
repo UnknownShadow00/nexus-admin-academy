@@ -304,7 +304,7 @@ class _TrainingContext:
             return _ResolvedContent(
                 title=lesson.title,
                 description=lesson.summary,
-                destination_route=f"/learning-path?lesson={lesson.id}",
+                destination_route=f"/lessons/{lesson.id}",
                 estimated_minutes=lesson.estimated_minutes,
             )
         if activity.activity_type == "guided_lab":
