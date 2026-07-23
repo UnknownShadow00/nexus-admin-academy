@@ -168,7 +168,7 @@ def test_later_week_ticket_remains_locked_by_general_week_rule(db):
     assert response.json()["data"] == {
         "required_week": 3,
         "current_week": 1,
-        "next_action_route": "/learning-path",
+        "next_action_route": "/training",
     }
     assert response.json()["error"] == "You'll unlock this once you reach Week 3."
 

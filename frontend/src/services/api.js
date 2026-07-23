@@ -174,8 +174,6 @@ export const getCertReadiness = (studentId, requestOptions) =>
 export const getStudents = (requestOptions) => request(() => api.get("/api/students"), requestOptions);
 export const getStudentMastery = (studentId, requestOptions) =>
   request(() => api.get(`/api/students/${studentId}/mastery`), requestOptions);
-export const getLearningPath = (studentId, requestOptions) =>
-  request(() => api.get(`/api/students/${studentId}/learning-path`), requestOptions);
 export const getPromotionStatus = (studentId, requestOptions) =>
   request(() => api.get(`/api/students/${studentId}/promotion-status`), requestOptions);
 
@@ -274,6 +272,8 @@ export const getCommands = (params, requestOptions) =>
   request(() => api.get("/api/commands", { params }), requestOptions);
 export const getLessonNote = (lessonId, requestOptions) =>
   request(() => api.get(`/api/lessons/${lessonId}/notes`), requestOptions);
+export const getLesson = (lessonId, requestOptions) =>
+  request(() => api.get(`/api/lessons/${lessonId}`), requestOptions);
 export const saveLessonNote = (lessonId, content, requestOptions) =>
   request(() => api.put(`/api/lessons/${lessonId}/notes`, { content }), requestOptions);
 export const getOrientationProgress = (requestOptions) =>

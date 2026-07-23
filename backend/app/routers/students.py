@@ -585,7 +585,7 @@ def get_week_plan(
                         "title": lesson.title,
                         "module": module.code,
                         "status": "done" if lesson.id in done_lessons else "available",
-                        "route": f"/learning-path?lesson={lesson.id}",
+                        "route": f"/lessons/{lesson.id}",
                     }
                 )
 

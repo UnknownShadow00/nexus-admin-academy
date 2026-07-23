@@ -126,7 +126,7 @@ export default function OrientationPracticePanel({ onProgressChange, refreshKey 
                 <li key={lesson.id}><Link className="font-medium underline" to={lesson.route}>Complete {lesson.title}</Link></li>
               ))}
             </ul>
-          ) : <Link className="mt-2 inline-block font-medium underline" to="/learning-path">Open your Learning Path</Link>}
+          ) : <Link className="mt-2 inline-block font-medium underline" to="/training">Return to My Training</Link>}
         </div>
       ) : null}
     </section>

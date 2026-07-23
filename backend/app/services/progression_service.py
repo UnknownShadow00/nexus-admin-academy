@@ -109,10 +109,10 @@ def require_week_reached(db: Session, student, required_week: int) -> dict:
         next_action_route = f"/quizzes/{incomplete_quiz.id}"
     elif required_week > current_week + 1:
         error = f"You'll unlock this once you reach Week {required_week}."
-        next_action_route = "/learning-path"
+        next_action_route = "/training"
     else:
         error = f"Complete Week {current_week}'s required lesson first."
-        next_action_route = "/learning-path"
+        next_action_route = "/training"
 
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,

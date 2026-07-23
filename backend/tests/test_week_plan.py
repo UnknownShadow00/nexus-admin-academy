@@ -62,6 +62,7 @@ def test_week_plan_statuses_and_progress(db):
     assert data["progress_percent"] == 40.0
     # next action is the first incomplete item in pedagogical order (a lesson)
     assert data["next_action"]["title"] == "Meet the Command Line"
+    assert data["next_action"]["route"] == f"/lessons/{l2.id}"
 
 
 def test_week_plan_ticket_in_review_status(db):

@@ -94,6 +94,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("link", { name: "My Training", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Practice Library/ })).toBeVisible();
   await expect(page.getByRole("link", { name: "Progress", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Learning Path/i })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /Begin Your IT Training|Continue Your Training/ })).toBeVisible();
   await assertNoHorizontalOverflow(page);
 
@@ -155,7 +156,6 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
 
   const studentRoutes = [
-    ["/learning-path", "Your Learning Path"],
     ["/quizzes", "Quiz Library"],
     ["/tickets", "Available Tickets"],
     ["/labs", "Lab Exercises"],
@@ -168,6 +168,15 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
     await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
     await assertNoHorizontalOverflow(page);
   }
+  await page.goto("/training");
+  await page.goto("/learning-path");
+  await expect(page).toHaveURL(/\/training$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/training$/);
+  await expect(page.getByRole("heading", { name: "My Training", exact: true })).toBeVisible();
+  await page.goto("/lessons/1");
+  await expect(page.getByRole("heading", { name: "CompTIA 6-Step Process", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Lesson notes", exact: true })).toBeVisible();
   await page.goto("/quizzes/42");
   await expect(page.locator("main")).toContainText("Question 1 of 4");
   await page.goto("/tickets/1");
@@ -181,6 +190,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await page.goto("/training");
   await page.getByRole("button", { name: "Toggle menu" }).click();
   await expect(page.getByRole("link", { name: "My Training", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Learning Path/i })).toHaveCount(0);
   await expect(page.getByRole("paragraph").filter({ hasText: /^Practice Library$/ })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await page.goto("/training/week/0");
@@ -283,7 +293,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     await expect(page.getByRole("heading", { name: "Disposable Browser Flow Student" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Begin Your IT Training" })).toBeVisible();
     await page.getByRole("link", { name: "Start Training" }).first().click();
-    await expect(page).toHaveURL(/\/learning-path\?lesson=64$/);
+    await expect(page).toHaveURL(/\/lessons\/64$/);
 
     const orientationNote = page.getByPlaceholder("Write one sentence: Where will you look when you are unsure what comes next?");
     const orientationSaved = page.waitForResponse((response) => response.url().endsWith("/api/lessons/64/notes") && response.request().method() === "PUT" && response.ok());
@@ -331,7 +341,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     }
     await expect(page.locator('article[data-activity-type="video"]').filter({ hasText: "Ticketing Systems" }).first().getByRole("button", { name: "Mark Watched" })).toBeVisible();
 
-    await page.goto("/learning-path?lesson=1");
+    await page.goto("/lessons/1");
     const methodologyNote = page.getByPlaceholder("Your notes for this lesson...");
     const methodologySaved = page.waitForResponse((response) => response.url().endsWith("/api/lessons/1/notes") && response.request().method() === "PUT" && response.ok());
     await methodologyNote.fill("I will identify the problem before testing a theory and document the result.");

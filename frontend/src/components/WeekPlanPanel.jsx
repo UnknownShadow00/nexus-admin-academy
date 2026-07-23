@@ -64,7 +64,7 @@ export default function WeekPlanPanel() {
 
       {plan.next_action ? (
         <Link
-          to={plan.next_action.route || "/learning-path"}
+          to={plan.next_action.route || "/training"}
           className="flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-sm font-medium text-blue-800 hover:border-blue-300 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200"
         >
           <span>{isFresh ? "Your first step: " : "Next up: "}{plan.next_action.title}</span>
