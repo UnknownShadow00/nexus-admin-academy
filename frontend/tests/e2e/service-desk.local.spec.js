@@ -53,6 +53,20 @@ async function login(page, username) {
   await expect(page).toHaveURL(/\/$/);
 }
 
+async function browserApi(page, url, options = {}) {
+  return page.evaluate(async ({ requestUrl, requestOptions }) => {
+    const response = await fetch(requestUrl, {
+      credentials: "include",
+      ...requestOptions,
+      headers: {
+        "Content-Type": "application/json",
+        ...(requestOptions.headers || {}),
+      },
+    });
+    return { status: response.status, body: await response.json() };
+  }, { requestUrl: url, requestOptions: options });
+}
+
 async function complete(page, title, mode) {
   await page.goto("/service-desk?tab=Work+Queue");
   const row = page.locator("tr").filter({ hasText: title });
@@ -98,12 +112,12 @@ async function complete(page, title, mode) {
     await form.getByRole("button", { name: action, exact: true }).click();
     const actionResponse = await actionResponsePromise;
     if (action === "open ticket") {
-      const duplicate = await page.request.post(actionResponse.url(), {
-        data: actionResponse.request().postDataJSON(),
-        headers: { Origin: new URL(page.url()).origin },
+      const duplicate = await browserApi(page, actionResponse.url(), {
+        method: "POST",
+        body: JSON.stringify(actionResponse.request().postDataJSON()),
       });
-      expect(duplicate.status()).toBe(200);
-      expect((await duplicate.json()).data.idempotent).toBe(true);
+      expect(duplicate.status).toBe(200);
+      expect(duplicate.body.data.idempotent).toBe(true);
       if (title === "Locked User Account" && mode === "learning") {
         await page.reload();
         await expect(page.getByText("Learning Mode", { exact: true })).toBeVisible();
@@ -144,13 +158,13 @@ test("Service Desk private beta renders safely on desktop and mobile", async ({ 
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
   await page.goto("/tickets");
   await expect(page.locator("main")).toContainText(/Available Tickets|Complete methodology training first/);
-  const access = await page.request.get(`${apiBaseUrl}/api/service-desk/access`);
-  expect(access.status()).toBe(200);
-  expect((await access.json()).data.available).toBe(false);
+  const access = await browserApi(page, `${apiBaseUrl}/api/service-desk/access`);
+  expect(access.status).toBe(200);
+  expect(access.body.data.available).toBe(false);
   for (const path of ["overview", "queue", "performance", "knowledge"]) {
-    const denied = await page.request.get(`${apiBaseUrl}/api/service-desk/${path}`);
-    expect(denied.status()).toBe(404);
-    expect((await denied.json()).code).toBe("SERVICE_DESK_UNAVAILABLE");
+    const denied = await browserApi(page, `${apiBaseUrl}/api/service-desk/${path}`);
+    expect(denied.status).toBe(404);
+    expect(denied.body.code).toBe("SERVICE_DESK_UNAVAILABLE");
   }
   await page.goto("/service-desk");
   await expect(page.getByText("Service Desk Lab is unavailable.", { exact: true })).toBeVisible();
@@ -186,8 +200,8 @@ test("Service Desk private beta renders safely on desktop and mobile", async ({ 
     await complete(page, title, "learning");
     if (index === 0) {
       const attemptId = new URL(page.url()).searchParams.get("attempt");
-      const projection = await page.request.get(`${apiBaseUrl}/api/service-desk/attempts/${attemptId}`);
-      const projectionText = JSON.stringify(await projection.json());
+      const projection = await browserApi(page, `${apiBaseUrl}/api/service-desk/attempts/${attemptId}`);
+      const projectionText = JSON.stringify(projection.body);
       for (const hidden of ["hidden_facts", "correct_account_id", "critical_failure_definitions", "expected_action_sequence"]) {
         expect(projectionText).not.toContain(hidden);
       }
@@ -212,8 +226,8 @@ test("Service Desk private beta renders safely on desktop and mobile", async ({ 
   await page.getByRole("button", { name: "Local Beta" }).click();
   await expect(page).toHaveURL(/\/login$/);
   expect(await page.evaluate(() => localStorage.getItem("nexus_explicit_logout"))).toBe("true");
-  const logoutDenied = await page.request.get(`${apiBaseUrl}/api/service-desk/overview`);
-  expect(logoutDenied.status()).toBe(401);
+  const logoutDenied = await browserApi(page, `${apiBaseUrl}/api/service-desk/overview`);
+  expect(logoutDenied.status).toBe(401);
   const browserContext = page.context();
   await page.close();
   const loggedOutPage = await browserContext.newPage();
@@ -228,9 +242,15 @@ test("Service Desk administrator controls and replay render safely", async ({ pa
   const consoleErrors = [];
   const pageErrors = [];
   const failures = [];
+  const httpErrors = [];
   page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
   page.on("pageerror", (error) => pageErrors.push(error.message));
   page.on("requestfailed", (request) => { if (!request.failure()?.errorText?.includes("ERR_ABORTED")) failures.push(request.url()); });
+  page.on("response", (response) => {
+    if (response.status() >= 400 && response.url().includes("/api/")) {
+      httpErrors.push(`${response.status()} ${response.url()}`);
+    }
+  });
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/admin/service-desk");
@@ -244,13 +264,38 @@ test("Service Desk administrator controls and replay render safely", async ({ pa
   for (const [title] of scenarios) {
     const scenario = page.locator("li").filter({ has: page.getByText(title, { exact: true }) }).first();
     await expect(scenario.getByText("Version 1 · published · Health passing", { exact: true })).toBeVisible();
+    await expect(scenario.getByRole("button", { name: "View details" })).toBeVisible();
   }
+
+  const lockedScenario = page.locator("li").filter({ has: page.getByText("Locked User Account", { exact: true }) }).first();
+  const viewScenario = lockedScenario.getByRole("button", { name: "View details" });
+  await viewScenario.focus();
+  await viewScenario.press("Space");
+  await expect(page).toHaveURL(/scenario=locked-user-account/);
+  await expect(page.getByRole("heading", { name: "Locked User Account" })).toBeVisible();
+  await expect(page.getByText("Stable ID")).toBeVisible();
+  await expect(page.getByText("Learning Mode availability")).toBeVisible();
+  await expect(page.getByText("Simulation Mode availability")).toBeVisible();
+  await expect(page.getByText("Administrator-safe metadata")).toBeVisible();
+  if (screenshotDir) await page.screenshot({ path: `${screenshotDir}/admin-scenario-details-desktop.png`, fullPage: true });
+
+  const scenarioResponse = await browserApi(page, `${apiBaseUrl}/api/admin/service-desk/scenarios/1`);
+  expect(scenarioResponse.status).toBe(200);
+  const serializedScenario = JSON.stringify(scenarioResponse.body).toLowerCase();
+  for (const hiddenValue of ["hidden_facts", "root_cause", "critical_failure_definitions", "correct_account_id", "tnguyen"]) {
+    expect(serializedScenario).not.toContain(hiddenValue);
+  }
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Locked User Account" })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin\/service-desk$/);
+  await expect(page.getByRole("heading", { name: "Scenarios and validation" })).toBeVisible();
 
   await page.getByLabel("Student ID").first().fill("1");
   await page.getByRole("button", { name: "Add beta student" }).click();
   const enrollment = page.locator("li").filter({ hasText: "Student 1 · Active" });
   await expect(enrollment).toBeVisible();
-  await enrollment.getByRole("button", { name: "Remove" }).click();
+  await enrollment.getByRole("button", { name: "Remove enrollment" }).click();
   await expect(page.getByText("Student 1 · Removed", { exact: true })).toBeVisible();
 
   await page.getByLabel("Student ID").nth(1).fill("2");
@@ -259,36 +304,77 @@ test("Service Desk administrator controls and replay render safely", async ({ pa
   const assignmentPanel = page.getByRole("heading", { name: "Assign scenario" }).locator("..");
   const assignment = assignmentPanel.locator("li").filter({ hasText: "Student 2" });
   await expect(assignment).toBeVisible();
-  await assignment.getByRole("button", { name: "Remove" }).click();
+  await assignment.getByRole("button", { name: "Remove assignment" }).click();
   await expect(assignment).toHaveCount(0);
 
   await page.getByLabel("Knowledge article stable ID").fill("browser-release-review");
   await page.getByLabel("Knowledge article title").fill("Browser release review");
   await page.getByLabel("Knowledge article category").fill("Validation");
   await page.getByLabel("Knowledge article content").fill("Temporary administrator browser validation article.");
-  await page.getByRole("button", { name: "Save article" }).click();
-  await expect(page.getByText("Browser release review", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Create article" }).click();
+  await expect(page).toHaveURL(/article=browser-release-review/);
+  await expect(page.getByRole("heading", { name: "Browser release review" })).toBeVisible();
+  await expect(page.getByText("Temporary administrator browser validation article.", { exact: true })).toBeVisible();
+  if (screenshotDir) await page.screenshot({ path: `${screenshotDir}/admin-knowledge-article-desktop.png`, fullPage: true });
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin\/service-desk$/);
+
+  const articleCard = page.locator("li").filter({ has: page.getByText("Browser release review", { exact: true }) });
+  const viewArticle = articleCard.getByRole("button", { name: "View article" });
+  await viewArticle.focus();
+  await viewArticle.press("Enter");
+  await expect(page.getByRole("heading", { name: "Browser release review" })).toBeVisible();
+  await page.getByRole("button", { name: "Edit article" }).click();
+  await page.getByLabel("Title").fill("Unsaved article title");
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("heading", { name: "Browser release review" })).toBeVisible();
+  await expect(page.getByText("Unsaved article title", { exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Edit article" }).click();
+  await page.getByLabel("Title").fill("Browser release review updated");
+  await page.getByLabel("Category").fill("Operations");
+  await page.getByLabel("Content").fill("Updated temporary administrator browser validation article.");
+  await page.getByLabel("Article state").selectOption("published");
+  if (screenshotDir) await page.screenshot({ path: `${screenshotDir}/admin-knowledge-edit-desktop.png`, fullPage: true });
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByRole("heading", { name: "Browser release review updated" })).toBeVisible();
+  await expect(page.getByText("Operations", { exact: true })).toBeVisible();
+  await expect(page.getByText("Status: published", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Browser release review updated" })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin\/service-desk$/);
 
   const simulationRow = page.locator("tbody tr").filter({ hasText: "simulation" }).first();
-  await simulationRow.getByRole("button", { name: "Replay" }).click();
+  await expect(simulationRow.getByRole("button", { name: "View replay" })).toBeVisible();
+  await expect(simulationRow.getByRole("button", { name: "Grade details" })).toBeVisible();
+  await expect(simulationRow.getByRole("button", { name: "Reset attempt" })).toBeVisible();
+  await simulationRow.getByRole("button", { name: "View replay" }).click();
+  await expect(page).toHaveURL(/panel=replay/);
   await expect(page.getByRole("heading", { name: /Attempt \d+ event replay/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Grade breakdown" })).toBeVisible();
   await expect(page.getByText("Technical completion")).toBeVisible();
   if (screenshotDir) await page.screenshot({ path: `${screenshotDir}/admin-attempt-replay-desktop.png`, fullPage: true });
-  const replay = await page.request.get(`${apiBaseUrl}/api/admin/service-desk/attempts/${await simulationRow.locator("td").first().textContent()}/events`);
-  expect(replay.ok()).toBeTruthy();
-  const replayBody = await replay.json();
+  const replay = await browserApi(page, `${apiBaseUrl}/api/admin/service-desk/attempts/${await simulationRow.locator("td").first().textContent()}/events`);
+  expect(replay.status).toBe(200);
+  const replayBody = replay.body;
   const sequence = replayBody.data.events.map((event) => event.sequence_number);
   expect(sequence).toEqual([...sequence].sort((a, b) => a - b));
   expect(replayBody.data.grade.details.earned_score_keys.length).toBeGreaterThan(0);
 
-  await simulationRow.getByRole("button", { name: "Reset" }).click();
+  await simulationRow.getByRole("button", { name: "Reset attempt" }).click();
   await expect(page.getByText("admin · admin_reset · accepted", { exact: true })).toBeVisible();
 
   await page.setViewportSize({ width: 375, height: 812 });
+  await page.getByRole("button", { name: "Close attempt details" }).click();
+  const mobileScenario = page.locator("li").filter({ has: page.getByText("Locked User Account", { exact: true }) }).first();
+  await mobileScenario.getByRole("button", { name: "View details" }).click();
+  await expect(page.getByRole("heading", { name: "Locked User Account" })).toBeVisible();
   const dimensions = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
   expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width + 1);
+  if (screenshotDir) await page.screenshot({ path: `${screenshotDir}/admin-scenario-details-mobile.png`, fullPage: true });
   expect(consoleErrors).toEqual([]);
   expect(pageErrors).toEqual([]);
   expect(failures).toEqual([]);
+  expect(httpErrors).toEqual([]);
 });
