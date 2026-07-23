@@ -279,6 +279,14 @@ export const saveOrientationPractice = (response, requestOptions) =>
   request(() => api.put("/api/onboarding/practice-response", { response }), requestOptions);
 export const globalSearch = (q, requestOptions) =>
   request(() => api.get("/api/search/global", { params: { q } }), requestOptions);
+export const getTrainingDashboard = (requestOptions) =>
+  request(() => api.get("/api/training"), requestOptions);
+export const getTrainingWeek = (weekNumber, requestOptions) =>
+  request(() => api.get(`/api/training/weeks/${weekNumber}`), requestOptions);
+export const getTrainingProgress = (requestOptions) =>
+  request(() => api.get("/api/training/progress"), requestOptions);
+export const markTrainingVideoWatched = (activityId, requestOptions) =>
+  request(() => api.post(`/api/training/activities/${activityId}/video-watch`), requestOptions);
 
 export const adminSessionStatus = (requestOptions) =>
   request(() => adminApi.get("/api/admin/session/status"), { retries: 2, warmupOnRetry: true, ...requestOptions });
@@ -288,6 +296,26 @@ export const adminSessionLogout = (requestOptions) =>
   request(() => adminApi.post("/api/admin/session/logout"), requestOptions);
 export const getStudentTokenAsAdmin = (requestOptions) =>
   request(() => adminApi.get("/api/admin/session/student-token"), requestOptions);
+export const getAdminTrainingWeeks = (requestOptions) =>
+  request(() => adminApi.get("/api/admin/training/weeks"), requestOptions);
+export const getAdminTrainingQuizOptions = (requestOptions) =>
+  request(() => adminApi.get("/api/admin/training/quiz-options"), requestOptions);
+export const createAdminTrainingWeek = (payload, requestOptions) =>
+  request(() => adminApi.post("/api/admin/training/weeks", payload), requestOptions);
+export const updateAdminTrainingWeek = (weekId, payload, requestOptions) =>
+  request(() => adminApi.patch(`/api/admin/training/weeks/${weekId}`, payload), requestOptions);
+export const addAdminTrainingActivity = (weekId, payload, requestOptions) =>
+  request(() => adminApi.post(`/api/admin/training/weeks/${weekId}/activities`, payload), requestOptions);
+export const updateAdminTrainingActivity = (activityId, payload, requestOptions) =>
+  request(() => adminApi.patch(`/api/admin/training/activities/${activityId}`, payload), requestOptions);
+export const deleteAdminTrainingActivity = (activityId, requestOptions) =>
+  request(() => adminApi.delete(`/api/admin/training/activities/${activityId}`), requestOptions);
+export const getAdminTrainingValidation = (requestOptions) =>
+  request(() => adminApi.get("/api/admin/training/validation"), requestOptions);
+export const reorderAdminTrainingWeeks = (items, requestOptions) =>
+  request(() => adminApi.post("/api/admin/training/weeks/reorder", { items }), requestOptions);
+export const reorderAdminTrainingActivities = (items, requestOptions) =>
+  request(() => adminApi.post("/api/admin/training/activities/reorder", { items }), requestOptions);
 
 export const generateQuiz = (payload, requestOptions) =>
   request(() => adminApi.post("/api/admin/quiz/generate", payload), requestOptions);

@@ -120,10 +120,11 @@ the smoke checklist below.
 ## Post-deployment smoke checklist
 
 - Health endpoint and backend startup logs are clean.
-- Student login, Home, Learn, quiz, ticket, lab, Progress, and logout work.
+- Student login, Home, My Training, a week, All Course Content, Quiz Library,
+  Practice Library, Progress, and logout work.
 - A student cannot access another student's submissions or evidence.
-- Admin login, Dashboard, Learning Content, Students, Ticket Review, labs, and
-  logout work.
+- Admin login, Dashboard, Learning Content (including Weekly Training and its
+  validator), Students, Ticket Review, labs, and logout work.
 - Student credentials cannot open admin APIs or admin pages.
 - New migrations are at head and database integrity checks pass.
 - Browser console and network panels show no new errors.

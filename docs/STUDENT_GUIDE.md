@@ -14,15 +14,22 @@ and password you were given at the login screen. If you're locked out, message
 your mentor — you can't reset it yourself (that's by design; it's the same in a
 real workplace).
 
-## Your home screen: "This Week"
+## Your home screen and My Training
 
-When you log in, the **This Week** panel is the map. It shows, for your current
-week, everything you need to do — lessons, quizzes, CLI labs, labs, and
-tickets — each marked done, available, or in review. The **Next up** button
-always points at the single most useful thing to do next. Follow it when you're
-not sure where to go.
+When you log in, **Continue Your Training** is the main card. It shows your
+current week, required activity count, completion percentage, and the single
+best next action. Follow it whenever you are not sure what to do.
 
-Progress percent on that panel is your week, not your life — 100% means this
+**My Training** opens the full Weekly Plan. Open a week to work through its
+lessons and assigned videos, take the linked quiz beside a video, and then do
+the related practice. **All Course Content** remains available inside My
+Training when you want to search, review, or watch ahead. **Quiz Library** is
+for browsing and retakes. **Practice Library** contains all tickets, guided
+labs, networking labs, commands, terminal practice, and any capstones allowed
+for your current role. **Progress** reports results and readiness rather than
+showing the full video catalog.
+
+Weekly progress is your week, not your whole training plan — 100% means this
 week's required items are complete, and you can review flashcards or work ahead.
 
 ## The learning cycle (do it in this order)

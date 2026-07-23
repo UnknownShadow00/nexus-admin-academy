@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getCurrentStudent } from "../hooks/useAuth";
 import Spinner from "../components/Spinner";
@@ -61,6 +61,7 @@ function OptionRow({ letter, text, correctAnswers, studentAnswers }) {
 export default function QuizReviewPage() {
   const { quizId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const studentId = getCurrentStudent()?.id;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -142,7 +143,7 @@ export default function QuizReviewPage() {
           <div
             key={question.id}
             className={`rounded-xl border p-5 ${
-              isCorrect ? "border-green-200 dark:border-green-900" : studentAnswer ? "border-red-200 dark:border-red-900" : "border-slate-200 dark:border-slate-700"
+              isCorrect ? "border-green-200 dark:border-green-900" : studentAnswers.length ? "border-red-200 dark:border-red-900" : "border-slate-200 dark:border-slate-700"
             }`}
           >
             <div className="mb-3 flex items-start justify-between gap-3">
@@ -176,8 +177,8 @@ export default function QuizReviewPage() {
         <Link to={`/quizzes/${quizId}`} className="btn-primary flex-1 text-center">
           Retake Quiz
         </Link>
-        <Link to="/quizzes" className="btn-secondary flex-1 text-center">
-          Back to Quizzes
+        <Link to={location.state?.returnTo || "/quizzes"} className="btn-secondary flex-1 text-center">
+          {location.state?.returnTo ? "Return to This Week" : "Back to Quizzes"}
         </Link>
       </div>
     </main>

@@ -6,10 +6,12 @@ from app.database import get_db
 from app.models.curriculum_video import CurriculumVideo
 from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
 from app.models.student import Student
+from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.admin_auth import allow_admin_or_student, verify_admin
 from app.services.a_plus_access import get_a_plus_progress
 from app.services.auth_service import ensure_student_access, get_current_student
+from app.services.quiz_visibility import student_visible_quiz_filters
 from app.utils.responses import ok
 
 
@@ -51,10 +53,34 @@ def get_curriculum(db: Session = Depends(get_db), _: bool = Depends(_get_student
         .all()
     )
 
+    mapped_rows = (
+        db.query(TrainingWeekActivity)
+        .join(TrainingWeek, TrainingWeek.id == TrainingWeekActivity.training_week_id)
+        .filter(TrainingWeek.is_active.is_(True), TrainingWeekActivity.activity_type == "video")
+        .all()
+    )
+    mapping_by_video_id = {
+        int(row.content_ref): row.metadata_json or {}
+        for row in mapped_rows
+        if row.content_ref.isdigit()
+    }
+    mapped_quiz_ids = {
+        int(metadata["quiz_id"])
+        for metadata in mapping_by_video_id.values()
+        if str(metadata.get("quiz_id", "")).isdigit()
+    }
+    quizzes = {
+        row.id: row
+        for row in db.query(Quiz).filter(Quiz.id.in_(mapped_quiz_ids), *student_visible_quiz_filters()).all()
+    } if mapped_quiz_ids else {}
+
     sections = {}
     for video in videos:
         if video.section not in sections:
             sections[video.section] = {"section": video.section, "videos": []}
+        mapping = mapping_by_video_id.get(video.id, {})
+        quiz_id = int(mapping["quiz_id"]) if str(mapping.get("quiz_id", "")).isdigit() else None
+        quiz = quizzes.get(quiz_id)
         sections[video.section]["videos"].append(
             {
                 "id": video.id,
@@ -63,6 +89,10 @@ def get_curriculum(db: Session = Depends(get_db), _: bool = Depends(_get_student
                 "duration": video.duration,
                 "url": video.url,
                 "quiz_title": video.quiz_title,
+                "quiz_id": quiz.id if quiz else None,
+                "mapped_quiz_title": quiz.title if quiz else None,
+                "quiz_mapping_basis": mapping.get("quiz_mapping_basis"),
+                "quiz_mapping_confidence": mapping.get("quiz_mapping_confidence"),
                 "exam_code": video.exam_code,
                 "job_relevance": video.job_relevance,
             }
@@ -80,17 +110,31 @@ def get_curriculum_link_status(db: Session = Depends(get_db), _: bool = Depends(
         .all()
     )
 
-    linked_rows = (
-        db.query(Quiz.id, Quiz.title)
-        .filter(Quiz.title.isnot(None), Quiz.title != "", Quiz.status == QUIZ_STATUS_PUBLISHED)
+    activity_rows = (
+        db.query(TrainingWeekActivity)
+        .join(TrainingWeek, TrainingWeek.id == TrainingWeekActivity.training_week_id)
+        .filter(TrainingWeek.is_active.is_(True), TrainingWeekActivity.activity_type == "video")
         .all()
     )
-    quiz_by_title = {title: quiz_id for quiz_id, title in linked_rows}
+    mapping_by_video_id = {
+        int(row.content_ref): row.metadata_json or {}
+        for row in activity_rows
+        if row.content_ref.isdigit()
+    }
+    quiz_ids = {
+        int(metadata["quiz_id"])
+        for metadata in mapping_by_video_id.values()
+        if str(metadata.get("quiz_id", "")).isdigit()
+    }
+    approved_quiz_ids = {
+        row.id for row in db.query(Quiz.id).filter(Quiz.id.in_(quiz_ids), *student_visible_quiz_filters()).all()
+    } if quiz_ids else set()
 
     data = []
     for video in videos:
-        expected_title = video.quiz_title or ""
-        matched_quiz_id = quiz_by_title.get(expected_title) if expected_title else None
+        mapping = mapping_by_video_id.get(video.id, {})
+        mapped_quiz_id = int(mapping["quiz_id"]) if str(mapping.get("quiz_id", "")).isdigit() else None
+        matched_quiz_id = mapped_quiz_id if mapped_quiz_id in approved_quiz_ids else None
         data.append(
             {
                 "id": video.id,
@@ -98,6 +142,8 @@ def get_curriculum_link_status(db: Session = Depends(get_db), _: bool = Depends(
                 "quiz_title": video.quiz_title,
                 "linked": matched_quiz_id is not None,
                 "quiz_id": matched_quiz_id,
+                "mapping_basis": mapping.get("quiz_mapping_basis"),
+                "mapping_confidence": mapping.get("quiz_mapping_confidence"),
             }
         )
 
@@ -119,6 +165,7 @@ def get_study_tracker(student_id: int, db: Session = Depends(get_db), current_st
     )
     scores_by_title = {}
     scores_by_title_key = {}
+    scores_by_quiz_id = {}
     for attempt, quiz in attempts:
         qcount = quiz.question_count or len(quiz.questions) or 10
         pct = round((attempt.best_score / qcount) * 100) if attempt.best_score is not None else None
@@ -132,6 +179,7 @@ def get_study_tracker(student_id: int, db: Session = Depends(get_db), current_st
             }
             scores_by_title[quiz.title] = entry
             scores_by_title_key[_title_key(quiz.title)] = entry
+            scores_by_quiz_id[str(quiz.id)] = entry
 
     curriculum_rows = (
         db.query(CurriculumVideo.quiz_title)
@@ -145,7 +193,7 @@ def get_study_tracker(student_id: int, db: Session = Depends(get_db), current_st
     curriculum_titles = [row.quiz_title for row in curriculum_rows]
     merged_scores = _merge_scores_with_curriculum_titles(scores_by_title, scores_by_title_key, curriculum_titles)
 
-    return ok({"watched": watched, "scores": merged_scores})
+    return ok({"watched": watched, "scores": merged_scores, "quiz_scores": scores_by_quiz_id})
 
 
 @router.post("/{student_id}/watch/{video_key:path}")

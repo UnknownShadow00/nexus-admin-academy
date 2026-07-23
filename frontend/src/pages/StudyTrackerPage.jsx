@@ -2,7 +2,6 @@
 import { Link } from "react-router-dom";
 import {
   getCurriculum,
-  getQuizzes,
   getStudyTracker,
   markVideoWatched,
   unmarkVideoWatched,
@@ -10,6 +9,7 @@ import {
 import { getCurrentStudent } from "../hooks/useAuth";
 import { setSelectedProfile } from "../services/profile";
 import { scoreBand } from "../utils/theme";
+import TrainingSubnav from "../components/TrainingSubnav";
 
 const JOB_TAGS = {
   job_critical: { label: "Job Critical", shortLabel: "Job Critical", cls: "bg-indigo-600 text-white border-indigo-600" },
@@ -32,7 +32,7 @@ function JobRelevanceBadge({ value }) {
   return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${tag.cls}`}>{tag.label}</span>;
 }
 
-function SectionBlock({ section, videos, watched, scores, quizMap, onToggleWatch }) {
+function SectionBlock({ section, videos, watched, quizScores, onToggleWatch }) {
   const [open, setOpen] = useState(true);
 
   const watchedCount = videos.filter((v) => watched[v.key]).length;
@@ -70,13 +70,14 @@ function SectionBlock({ section, videos, watched, scores, quizMap, onToggleWatch
         <div className="border-t border-slate-100 dark:border-slate-800">
           {videos.map((video, idx) => {
             const isWatched = !!watched[video.key];
-            const quizScore = video.quiz_title ? scores[video.quiz_title] : null;
-            const quizId = quizScore?.quiz_id || (video.quiz_title ? quizMap[video.quiz_title] : null);
+            const quizId = video.quiz_id;
+            const quizScore = quizId ? quizScores[String(quizId)] : null;
 
             return (
               <div
                 key={video.key}
-                className={`flex items-center gap-3 px-4 py-3 ${
+                data-video-row
+                className={`flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap ${
                   idx < videos.length - 1
                     ? "border-b border-slate-100 dark:border-slate-800"
                     : ""
@@ -85,7 +86,7 @@ function SectionBlock({ section, videos, watched, scores, quizMap, onToggleWatch
                 <button
                   onClick={() => onToggleWatch(video.key, isWatched)}
                   title={isWatched ? "Unmark watched" : "Mark as watched"}
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-all ${
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                     isWatched
                       ? "border-green-500 bg-green-500 text-white"
                       : "border-slate-300 text-transparent hover:border-green-400 dark:border-slate-600"
@@ -124,26 +125,15 @@ function SectionBlock({ section, videos, watched, scores, quizMap, onToggleWatch
                   {quizScore ? (
                     <div className="flex items-center gap-2">
                       <ScoreBadge pct={quizScore.pct} />
-                      {quizId && (
-                        <Link
-                          to={`/quizzes/${quizId}`}
-                          className="text-xs text-slate-400 hover:text-blue-500"
-                        >
-                          Retake
-                        </Link>
-                      )}
+                      {quizId ? <><Link to={`/quizzes/${quizId}/review`} className="rounded text-xs font-medium text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Review Quiz</Link><Link to={`/quizzes/${quizId}`} className="rounded text-xs text-slate-500 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Retake Quiz</Link></> : null}
                     </div>
                   ) : quizId ? (
                     <Link
                       to={`/quizzes/${quizId}`}
-                      className="inline-flex items-center rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                      className="inline-flex items-center rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                     >
                       Take Quiz →
                     </Link>
-                  ) : video.quiz_title ? (
-                    <span className="text-xs text-amber-500" title="Quiz not imported yet">
-                      Quiz pending
-                    </span>
                   ) : null}
                 </div>
               </div>
@@ -158,9 +148,9 @@ function SectionBlock({ section, videos, watched, scores, quizMap, onToggleWatch
 export default function StudyTrackerPage() {
   const studentId = getCurrentStudent()?.id;
   const [curriculum, setCurriculum] = useState([]);
-  const [trackerData, setTrackerData] = useState({ watched: {}, scores: {} });
-  const [quizMap, setQuizMap] = useState({});
+  const [trackerData, setTrackerData] = useState({ watched: {}, scores: {}, quiz_scores: {} });
   const [tagFilter, setTagFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -169,26 +159,18 @@ export default function StudyTrackerPage() {
     async function load() {
       setLoading(true);
       try {
-        const [currRes, trackerRes, quizRes] = await Promise.all([
+        const [currRes, trackerRes] = await Promise.all([
           getCurriculum(),
           getStudyTracker(studentId),
-          getQuizzes(undefined, studentId),
         ]);
         if (cancelled) return;
 
         setCurriculum(currRes.data || []);
-        setTrackerData(trackerRes.data || { watched: {}, scores: {} });
-
-        const map = {};
-        (quizRes.data || []).forEach((q) => {
-          map[q.title] = q.id;
-        });
-        setQuizMap(map);
+        setTrackerData(trackerRes.data || { watched: {}, scores: {}, quiz_scores: {} });
       } catch {
         if (cancelled) return;
         setCurriculum([]);
-        setTrackerData({ watched: {}, scores: {} });
-        setQuizMap({});
+        setTrackerData({ watched: {}, scores: {}, quiz_scores: {} });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -250,18 +232,20 @@ export default function StudyTrackerPage() {
   const totalVideos = curriculum.reduce((s, sec) => s + sec.videos.length, 0);
   const totalWatched = Object.keys(trackerData.watched).length;
   const overallPct = totalVideos ? Math.round((totalWatched / totalVideos) * 100) : 0;
-  const filteredCurriculum =
-    tagFilter === "all"
-      ? curriculum
-      : curriculum
-          .map((sec) => ({ ...sec, videos: sec.videos.filter((video) => video.job_relevance === tagFilter) }))
-          .filter((sec) => sec.videos.length > 0);
+  const query = searchQuery.trim().toLowerCase();
+  const filteredCurriculum = curriculum
+    .map((sec) => ({ ...sec, videos: sec.videos.filter((video) =>
+      (tagFilter === "all" || video.job_relevance === tagFilter) &&
+      (!query || video.title.toLowerCase().includes(query) || sec.section.toLowerCase().includes(query))
+    ) }))
+    .filter((sec) => sec.videos.length > 0);
 
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-4 pb-20">
+      <TrainingSubnav />
       <div className="rounded-xl bg-blue-600 p-6 text-white shadow">
-        <h1 className="text-2xl font-bold">CompTIA A+ Study Tracker</h1>
-        <p className="mt-0.5 text-sm text-blue-200">220-1201 Core 1 · Professor Messer</p>
+        <h1 className="text-2xl font-bold">All Course Content</h1>
+        <p className="mt-0.5 text-sm text-blue-200">Browse, watch ahead, or review all CompTIA A+ videos.</p>
         <div className="mt-4">
           <div className="mb-1 flex justify-between text-sm">
             <span>{totalWatched} of {totalVideos} videos watched</span>
@@ -280,6 +264,8 @@ export default function StudyTrackerPage() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+        <label className="block text-xs font-bold uppercase tracking-wide text-slate-500" htmlFor="content-search">Search course content</label>
+        <input id="content-search" className="input-field mt-2 w-full" type="search" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search videos or sections" />
         <div className="flex flex-wrap gap-2">
           {[
             { value: "all", label: "All" },
@@ -318,8 +304,7 @@ export default function StudyTrackerPage() {
           section={sec.section}
           videos={sec.videos}
           watched={trackerData.watched}
-          scores={trackerData.scores}
-          quizMap={quizMap}
+          quizScores={trackerData.quiz_scores || {}}
           onToggleWatch={handleToggleWatch}
         />
       ))}
