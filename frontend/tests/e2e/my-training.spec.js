@@ -176,6 +176,8 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "My Training", exact: true })).toBeVisible();
   await page.goto("/lessons/1");
   await expect(page.getByRole("heading", { name: "CompTIA 6-Step Process", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "In this lesson, you'll learn", exact: true })).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: /^Can identify symptoms$/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Lesson notes", exact: true })).toBeVisible();
   await page.goto("/quizzes/42");
   await expect(page.locator("main")).toContainText("Question 1 of 4");

@@ -14,6 +14,7 @@ def _seed_lessons(db):
         module_id=module.id,
         title="Ticket Triage",
         summary="Read the ticket and identify the next safe action.",
+        outcomes=["Identify the reported symptoms", "  Verify the safe next action  ", " ", None, 42],
         lesson_order=1,
         status="published",
     )
@@ -34,6 +35,7 @@ def test_direct_lesson_and_notes_remain_student_scoped(db):
         "id": lesson.id,
         "title": lesson.title,
         "summary": lesson.summary,
+        "outcomes": ["Identify the reported symptoms", "Verify the safe next action"],
         "video_url": None,
         "module_code": module.code,
         "module_title": module.title,
@@ -48,6 +50,26 @@ def test_direct_lesson_and_notes_remain_student_scoped(db):
     assert saved.status_code == 200
     assert client.get(f"/api/lessons/{lesson.id}/notes", headers=auth_headers(student)).json()["data"]["content"] == "Verify impact before changing anything."
     assert client.get(f"/api/lessons/{lesson.id}/notes", headers=auth_headers(other)).json()["data"]["content"] == ""
+
+
+def test_direct_lesson_returns_empty_outcomes_list_by_default(db):
+    student = make_student(db)
+    module = Module(code="MOD-002", title="Hardware Basics", module_order=2, active=True)
+    db.add(module)
+    db.flush()
+    lesson = Lesson(
+        module_id=module.id,
+        title="Hardware Overview",
+        lesson_order=1,
+        status="published",
+    )
+    db.add(lesson)
+    db.commit()
+
+    response = client.get(f"/api/lessons/{lesson.id}", headers=auth_headers(student))
+
+    assert response.status_code == 200
+    assert response.json()["data"]["outcomes"] == []
 
 
 def test_direct_lesson_requires_auth_and_hides_drafts(db):

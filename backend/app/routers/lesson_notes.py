@@ -30,10 +30,17 @@ def get_lesson(lesson_id: int, db: Session = Depends(get_db), current_student: S
     lesson, module = row
     if not check_module_unlock(current_student.id, module.id, db)["unlocked"]:
         raise HTTPException(status_code=403, detail="Lesson is locked")
+    raw_outcomes = lesson.outcomes or []
+    outcomes = (
+        [outcome.strip() for outcome in raw_outcomes if isinstance(outcome, str) and outcome.strip()]
+        if isinstance(raw_outcomes, list)
+        else []
+    )
     return ok({
         "id": lesson.id,
         "title": lesson.title,
         "summary": lesson.summary,
+        "outcomes": outcomes,
         "video_url": lesson.video_url,
         "module_code": module.code,
         "module_title": module.title,
