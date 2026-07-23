@@ -154,6 +154,8 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("menuitem", { name: "Capstones", exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "Progress", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+  await expect(page.getByText("Course progress", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Average quiz score: .*Best quiz score:/)).toBeVisible();
 
   const studentRoutes = [
     ["/quizzes", "Quiz Library"],
@@ -332,6 +334,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
       await page.getByRole("button", { name: action, exact: true }).click();
     }
     await expect(page.getByRole("heading", { name: "Ticketing Systems Quiz" })).toBeVisible();
+    await expect(page.getByText("Passed", { exact: true })).toBeVisible();
     await expect(page.getByText("Answer Review", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Return to This Week" }).click();
     await expect(page).toHaveURL(/\/training\/week\/0$/);

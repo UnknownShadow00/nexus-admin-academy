@@ -244,6 +244,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
         )
 
     score = correct_count
+    passed = bool(total_questions and score * 100 >= total_questions * 70)
     # TB-06: every attempt is a new row (migration c2d3e4f5a6b7 dropped uq_student_quiz).
     prior_attempts = (
         db.query(QuizAttempt)
@@ -293,10 +294,17 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
             "total": total_questions,
             "xp_awarded": xp_awarded,
             "is_first_attempt": is_first_attempt,
+            "passed": passed,
             "avg_seconds_per_question": round(avg_seconds, 1) if avg_seconds is not None else None,
             "is_speed_flagged": avg_seconds is not None and avg_seconds < 8,
             "results": results,
-            "message": "Great work!" if is_first_attempt else "Score updated (no XP for retakes)",
+            "message": (
+                "Nice work — you passed!"
+                if passed and is_first_attempt
+                else "This attempt passed. Retakes don't earn XP."
+                if passed
+                else "Attempt recorded. Review the explanations below, then retake when you're ready."
+            ),
         }
     )
 

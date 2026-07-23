@@ -633,6 +633,12 @@ def _metric(states: list[dict], activity_types: set[str], *, complete_key="compl
 
 
 def build_training_progress(db: Session, student: Student) -> dict:
+    """Build course metrics using required-activity completion and best quiz attempts.
+
+    Overall percent is completed required activities divided by all required
+    activities. Quiz average is the mean of each attempted quiz's best score
+    percent; quiz best is the highest of those per-quiz best percentages.
+    """
     _, _, week_states = _build_state(db, student)
     states = [item for _, _, items in week_states for item in items]
     required = [item for item in states if item["is_required"]]
@@ -655,7 +661,11 @@ def build_training_progress(db: Session, student: Student) -> dict:
             "percent": round(required_complete / len(required) * 100) if required else 100,
         },
         "videos": {"completed": video_metric["completed"], "watched": video_metric["completed"], "total": video_metric["total"], "percent": video_metric["percent"]},
-        "quizzes": {**quiz_metric, "average_score_percent": round(sum(quiz_scores) / len(quiz_scores)) if quiz_scores else 0},
+        "quizzes": {
+            **quiz_metric,
+            "average_score_percent": round(sum(quiz_scores) / len(quiz_scores)) if quiz_scores else 0,
+            "best_score_percent": max(quiz_scores) if quiz_scores else 0,
+        },
         "practice": practice_metric,
         "guided_labs": _metric(states, {"guided_lab"}),
         "networking_labs": _metric(states, {"networking_lab"}),

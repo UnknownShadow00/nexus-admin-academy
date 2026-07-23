@@ -248,6 +248,79 @@ def test_submit_quiz_scores_legacy_f_and_g_answers(db):
     assert payload["results"][1]["options"]["G"] == "Correct G answer"
 
 
+def test_submit_quiz_reports_passing_attempt_with_distinct_message(db):
+    student = make_student(db)
+    quiz = _seed_quiz(db, title="Passing Result Copy", week_number=1)
+    questions = [
+        Question(
+            quiz_id=quiz.id,
+            question_text=f"Passing threshold question {index}",
+            option_a="Correct",
+            option_b="Wrong",
+            option_c="Wrong",
+            option_d="Wrong",
+            correct_answer="A",
+        )
+        for index in range(10)
+    ]
+    db.add_all(questions)
+    quiz.question_count = len(questions)
+    db.commit()
+    for question in questions:
+        db.refresh(question)
+
+    passing = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={
+            "student_id": student.id,
+            "answers": {
+                str(question.id): "A" if index < 7 else "B"
+                for index, question in enumerate(questions)
+            },
+        },
+        headers=auth_headers(student),
+    )
+    failing = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={
+            "student_id": student.id,
+            "answers": {str(question.id): "B" for question in questions},
+        },
+        headers=auth_headers(student),
+    )
+
+    assert passing.status_code == 200
+    assert failing.status_code == 200
+    passing_payload = passing.json()["data"]
+    failing_payload = failing.json()["data"]
+    assert passing_payload["score"] == 7
+    assert passing_payload["total"] == 10
+    assert passing_payload["passed"] is True
+    assert isinstance(passing_payload["message"], str)
+    assert passing_payload["message"].strip()
+    assert passing_payload["message"] != failing_payload["message"]
+
+
+def test_submit_quiz_reports_non_passing_attempt_with_guidance(db):
+    student = make_student(db)
+    quiz = _seed_quiz(db, title="Non-Passing Result Copy", week_number=1)
+    question = _seed_question(db, quiz.id)
+    quiz.question_count = 1
+    db.commit()
+
+    res = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={"student_id": student.id, "answers": {str(question.id): "B"}},
+        headers=auth_headers(student),
+    )
+
+    assert res.status_code == 200
+    payload = res.json()["data"]
+    assert payload["passed"] is False
+    assert isinstance(payload["message"], str)
+    assert payload["message"].strip()
+
+
 def test_list_quizzes_unauthenticated(db):
     res = client.get("/api/quizzes")
     assert res.status_code == 401

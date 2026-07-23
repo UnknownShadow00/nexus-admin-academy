@@ -154,12 +154,13 @@ export default function QuizTaker({ quizId, studentId }) {
         time_per_question: finalTimings,
       });
       toast.dismiss(toastId);
-      toast.success(
+      const message =
         res.data?.message ||
-          (res.data?.xp_awarded > 0
-            ? `+${res.data.xp_awarded} XP earned!`
-            : "Quiz submitted")
-      );
+        (res.data?.xp_awarded > 0
+          ? `+${res.data.xp_awarded} XP earned!`
+          : "Quiz submitted");
+      if (res.data?.passed) toast.success(message);
+      else toast(message);
       setResult(res.data);
       localStorage.removeItem(progressKey(quizId));
     } catch {
