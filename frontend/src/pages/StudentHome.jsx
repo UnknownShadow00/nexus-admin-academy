@@ -40,7 +40,7 @@ export default function StudentHome() {
     const next = training?.next_activity;
     if (!week) return { label: "Open My Training", to: "/training", title: "My Training", detail: "Open your weekly training plan." };
     if (training.training_complete) return { label: "Review Training", to: "/training", title: "Training Complete", detail: "Review completed weeks or revisit course content." };
-    const fresh = week.required_complete === 0;
+    const fresh = week.week_number === 0 && week.required_complete === 0;
     return {
       label: fresh ? "Start Training" : "Continue Training",
       to: next?.destination_route || `/training/week/${week.week_number}`,
