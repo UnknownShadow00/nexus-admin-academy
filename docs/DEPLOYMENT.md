@@ -198,11 +198,11 @@ cd backend
 pip check
 ruff check app tests seed.py seed_curriculum.py
 python -m compileall -q app tests seed.py seed_curriculum.py
-pytest -q
+python -m pytest -q
 pip install pip-audit && pip-audit -r requirements.txt
 
 # Database, migrations, and seeds (idempotency proof)
-cd backend && pytest -q tests/test_orientation_seed.py
+cd backend && python -m pytest -q tests/test_orientation_seed.py
 
 # Frontend validation
 cd frontend

@@ -63,7 +63,7 @@ export SEED_PASSWORD_WALO="$(rand)"
 export SEED_PASSWORD_HUDAYFA="$(rand)"
 
 echo "== Seeding throwaway database at $DATABASE_URL =="
-"$REPO_ROOT/scripts/e2e/seed_fresh_db.sh"
+bash "$REPO_ROOT/scripts/e2e/seed_fresh_db.sh"
 
 if [[ -x "$BACKEND_DIR/.venv/bin/uvicorn" ]]; then
     UVICORN="$BACKEND_DIR/.venv/bin/uvicorn"

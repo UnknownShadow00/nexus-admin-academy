@@ -52,7 +52,9 @@ jobs:
         working-directory: backend
         # conftest.py self-configures JWT_SECRET_KEY, an in-memory SQLite
         # DATABASE_URL, and COOKIE_SECURE — no extra env needed here.
-        run: pytest -q
+        # `python -m pytest` (not the bare `pytest` script) so cwd is on
+        # sys.path and `import app.models` resolves.
+        run: python -m pytest -q
 
       - name: pip-audit (manifest-based)
         working-directory: backend
@@ -96,7 +98,7 @@ jobs:
         # required Week 0 orientation activity / curriculum validation
         # valid:true. Reusing it here avoids re-implementing that diff
         # logic in the workflow.
-        run: pytest -q tests/test_orientation_seed.py
+        run: python -m pytest -q tests/test_orientation_seed.py
 
       - name: Generate ephemeral database credentials for this run
         run: |
