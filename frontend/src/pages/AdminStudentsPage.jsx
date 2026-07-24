@@ -1,8 +1,10 @@
-﻿import { useEffect, useState } from "react";
+﻿import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { createStudent, deleteStudent, getStudentsOverview, updateStudent } from "../services/api";
+import StudentTrainingDetail from "../components/StudentTrainingDetail";
 import toast from "react-hot-toast";
 
 export default function AdminStudentsPage() {
+  const scrollContainerRef = useRef(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -18,6 +20,8 @@ export default function AdminStudentsPage() {
   const [editPassword, setEditPassword] = useState("");
   const [editIsMentor, setEditIsMentor] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [expandedStudentId, setExpandedStudentId] = useState(null);
+  const [trainingProgressByStudent, setTrainingProgressByStudent] = useState({});
 
   const load = async () => {
     setLoading(true);
@@ -28,6 +32,12 @@ export default function AdminStudentsPage() {
 
   useEffect(() => {
     load();
+  }, []);
+
+  const cacheStudentProgress = useCallback((studentId, progress) => {
+    setTrainingProgressByStudent((current) => (
+      current[studentId] ? current : { ...current, [studentId]: progress }
+    ));
   }, []);
 
   const onCreate = async () => {
@@ -121,7 +131,7 @@ export default function AdminStudentsPage() {
       ) : null}
 
       {!loading ? (
-      <div className="panel overflow-x-auto dark:bg-slate-900 dark:border-slate-700">
+      <div ref={scrollContainerRef} className="panel overflow-x-auto dark:bg-slate-900 dark:border-slate-700">
         <table className="min-w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200 dark:border-slate-700">
@@ -142,8 +152,10 @@ export default function AdminStudentsPage() {
           <tbody>
             {rows.map((r) => {
               const editing = editingId === r.student_id;
+              const expanded = expandedStudentId === r.student_id;
               return (
-                <tr key={r.student_id} className="border-b border-slate-100 dark:border-slate-800">
+                <Fragment key={r.student_id}>
+                <tr className="border-b border-slate-100 dark:border-slate-800">
                   <td className="px-2 py-2">{r.rank}</td>
                   <td className="px-2 py-2">
                     {editing ? <input className="input-field" value={editName} onChange={(e) => setEditName(e.target.value)} /> : r.name}
@@ -193,12 +205,42 @@ export default function AdminStudentsPage() {
                       </div>
                     ) : (
                       <div className="flex gap-2">
+                        <button
+                          className="btn-secondary"
+                          onClick={() => {
+                            // The table scrolls horizontally on narrow viewports; this
+                            // button lives in the last column, so reset scroll on expand
+                            // or the detail content renders off-screen to the left.
+                            if (!expanded) scrollContainerRef.current?.scrollTo({ left: 0 });
+                            setExpandedStudentId(expanded ? null : r.student_id);
+                          }}
+                          aria-expanded={expanded}
+                        >
+                          {expanded ? "Hide details" : "Details"}
+                        </button>
                         <button className="btn-secondary" onClick={() => onStartEdit(r)}>Edit</button>
                         <button className="btn-secondary" onClick={() => onDelete(r.student_id)}>Delete</button>
                       </div>
                     )}
                   </td>
                 </tr>
+                {expanded ? (
+                  <tr className="border-b border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-950/40">
+                    <td className="px-4 py-4" colSpan={12}>
+                      {/* Bounded width for readability; the "Details" click above resets
+                          scrollContainerRef to the left so this is visible without the
+                          admin needing to scroll back manually. */}
+                      <div className="w-[92vw] max-w-3xl">
+                        <StudentTrainingDetail
+                          studentId={r.student_id}
+                          cachedProgress={trainingProgressByStudent[r.student_id]}
+                          onProgressLoaded={cacheStudentProgress}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+                </Fragment>
               );
             })}
           </tbody>
