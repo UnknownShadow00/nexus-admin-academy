@@ -1,8 +1,10 @@
+import os
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import event
 
+from app.config import load_env
 from app.models.curriculum_video import CurriculumVideo
 from app.models.mastery import StudentDomainMastery
 from app.models.quiz import (
@@ -20,6 +22,26 @@ from app.services.admin_auth import verify_admin
 from app.services.auth_service import create_access_token
 from app.services.training_service import build_cohort_summary, build_training_progress
 from conftest import make_client
+
+
+@contextmanager
+def configured_admin_auth():
+    """verify_admin's own "not configured" check (500) runs before its
+    credential checks (403); CI has neither ADMIN_API_KEY nor ADMIN_PASSWORD
+    set, so tests exercising real (non-overridden) verify_admin must set one,
+    matching the convention in test_admin_session.py.
+    """
+    previous = os.environ.get("ADMIN_API_KEY")
+    os.environ["ADMIN_API_KEY"] = "unit-test-api-key"
+    load_env.cache_clear()
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("ADMIN_API_KEY", None)
+        else:
+            os.environ["ADMIN_API_KEY"] = previous
+        load_env.cache_clear()
 
 
 def admin_client():
@@ -270,19 +292,20 @@ def test_admin_cohort_summary_and_student_training_progress(db):
 
 
 def test_cohort_endpoints_reject_no_credentials_and_student_jwt(db):
-    client = unauthenticated_client()
+    with configured_admin_auth():
+        client = unauthenticated_client()
 
-    no_creds_summary = client.get("/api/admin/students/cohort-summary")
-    no_creds_detail = client.get("/api/admin/students/1/training-progress")
-    assert no_creds_summary.status_code == 403
-    assert no_creds_detail.status_code == 403
+        no_creds_summary = client.get("/api/admin/students/cohort-summary")
+        no_creds_detail = client.get("/api/admin/students/1/training-progress")
+        assert no_creds_summary.status_code == 403
+        assert no_creds_detail.status_code == 403
 
-    student_token = create_access_token({"sub": "1", "name": "Student", "is_mentor": False})
-    headers = {"Authorization": f"Bearer {student_token}"}
-    student_summary = client.get("/api/admin/students/cohort-summary", headers=headers)
-    student_detail = client.get("/api/admin/students/1/training-progress", headers=headers)
-    assert student_summary.status_code == 403
-    assert student_detail.status_code == 403
+        student_token = create_access_token({"sub": "1", "name": "Student", "is_mentor": False})
+        headers = {"Authorization": f"Bearer {student_token}"}
+        student_summary = client.get("/api/admin/students/cohort-summary", headers=headers)
+        student_detail = client.get("/api/admin/students/1/training-progress", headers=headers)
+        assert student_summary.status_code == 403
+        assert student_detail.status_code == 403
 
 
 def test_admin_student_training_progress_returns_404(db):
