@@ -1,11 +1,14 @@
 # Nexus Current Roadmap
 
-Last reviewed: 2026-07-22.
+Last reviewed: 2026-07-24.
 
 This file contains only active work. Completed implementation history is in
 Git. The current manual-VM cohort release is deployed and the backend test
 suite, frontend build, database migration head, and production smoke checks
-were green at the last release checkpoint.
+were green at the last release checkpoint. `.github/workflows/ci.yml` now
+runs the backend suite, a fresh-database migration/seed proof, frontend
+validation, and real-browser Playwright coverage automatically on every PR
+and push to main (see `docs/DEPLOYMENT.md`).
 
 ## Operations
 
@@ -36,8 +39,8 @@ were green at the last release checkpoint.
 - [ ] Add consistent locked-state messaging to future-week ticket and lab
   detail pages; mutation endpoints already enforce the gate.
 - [ ] Add explicit rate-limit messaging for HTTP 429 responses.
-- [ ] Add a frontend lint/test harness and a focused navigation/auth browser
-  suite when maintenance scope permits.
+- [ ] Add a frontend lint/typecheck script (the navigation/auth browser suite
+  now runs automatically in CI; frontend lint/typecheck is the remaining gap).
 - [ ] Complete a keyboard, screen-reader, and automated accessibility pass.
 
 ## Deferred product work

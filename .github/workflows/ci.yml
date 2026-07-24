@@ -1,0 +1,318 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "22"
+
+jobs:
+  backend:
+    name: Backend quality and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: pip check
+        working-directory: backend
+        run: pip check
+
+      - name: Ruff
+        working-directory: backend
+        run: ruff check app tests seed.py seed_curriculum.py
+
+      - name: Python compilation
+        working-directory: backend
+        run: python -m compileall -q app tests seed.py seed_curriculum.py
+
+      - name: Backend test suite
+        working-directory: backend
+        # conftest.py self-configures JWT_SECRET_KEY, an in-memory SQLite
+        # DATABASE_URL, and COOKIE_SECURE — no extra env needed here.
+        # `python -m pytest` (not the bare `pytest` script) so cwd is on
+        # sys.path and `import app.models` resolves.
+        run: python -m pytest -q
+
+      - name: pip-audit (manifest-based)
+        working-directory: backend
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+
+  db-migrations-seeds:
+    name: Database, migrations, and seeds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Fresh-seed idempotency and curriculum regression (pytest)
+        working-directory: backend
+        # test_orientation_seed.py already runs: migrate an empty DB to
+        # head, seed twice, diff the two snapshots for exact equality, and
+        # assert 25 weeks / 296 activities / 137 mapped videos / the single
+        # required Week 0 orientation activity / curriculum validation
+        # valid:true. Reusing it here avoids re-implementing that diff
+        # logic in the workflow.
+        run: python -m pytest -q tests/test_orientation_seed.py
+
+      - name: Generate ephemeral database credentials for this run
+        run: |
+          rand() { openssl rand -hex 16; }
+          {
+            echo "DATABASE_URL=sqlite:///${{ runner.temp }}/nexus-ci.db"
+            echo "JWT_SECRET_KEY=$(rand)$(rand)"
+            echo "JWT_ALGORITHM=HS256"
+            echo "ADMIN_USERNAME=ci-admin"
+            echo "ADMIN_PASSWORD=$(rand)"
+            echo "ADMIN_API_KEY=$(rand)"
+            echo "ADMIN_SECRET_KEY=$(rand)"
+            echo "UPLOAD_DIR=${{ runner.temp }}/uploads"
+            echo "APP_LOG_PATH=${{ runner.temp }}/app.log"
+            echo "COOKIE_SECURE=false"
+            echo "SERVICE_DESK_LAB_ENABLED=false"
+            echo "SERVICE_DESK_LAB_ADMIN_ENABLED=false"
+            echo "AI_ENABLED=false"
+            echo "SEED_PASSWORD_MENTOR=$(rand)"
+            echo "SEED_PASSWORD_SHAK=$(rand)"
+            echo "SEED_PASSWORD_RAKIB=$(rand)"
+            echo "SEED_PASSWORD_AHMED=$(rand)"
+            echo "SEED_PASSWORD_EMRAN=$(rand)"
+            echo "SEED_PASSWORD_WALO=$(rand)"
+            echo "SEED_PASSWORD_HUDAYFA=$(rand)"
+          } >> "$GITHUB_ENV"
+
+      - name: Migrate an empty database to head
+        working-directory: backend
+        run: python -m alembic upgrade head
+
+      - name: Confirm migration head is 0035_service_desk_browser_mvp
+        working-directory: backend
+        run: python -m alembic current | tee /tmp/alembic-current.txt | grep -q "0035_service_desk_browser_mvp (head)"
+
+      - name: Seed application and curriculum content
+        run: bash scripts/e2e/seed_fresh_db.sh
+
+      - name: Run curriculum validation
+        working-directory: backend
+        run: |
+          python scripts/validate_training_curriculum.py | tee /tmp/curriculum-validation.json
+          python - <<'PY'
+          import json
+          with open("/tmp/curriculum-validation.json") as f:
+              data = json.load(f)
+          assert data["valid"] is True, data
+          assert data["week_count"] == 25, data["week_count"]
+          assert data["activity_count"] == 296, data["activity_count"]
+          assert data["enabled_video_count"] == 137, data["enabled_video_count"]
+          assert data["mapped_video_count"] == 137, data["mapped_video_count"]
+          print("curriculum validation counts confirmed: 25 weeks, 296 activities, 137/137 videos mapped")
+          PY
+
+      - name: Run CLI validate and sanity
+        working-directory: frontend
+        run: |
+          npm run cli:validate
+          npm run cli:sanity
+
+      - name: Confirm one required Week 0 orientation activity and no duplicate seed records
+        run: |
+          python - <<'PY'
+          import os
+          import sqlite3
+
+          db_path = os.environ["DATABASE_URL"].removeprefix("sqlite:///")
+          db = sqlite3.connect(db_path)
+
+          # Week 0 legitimately has two required lesson activities
+          # (orientation + the CompTIA methodology lesson) — identify the
+          # orientation one specifically by its lesson title, not just
+          # "any required lesson in Week 0".
+          orientation = db.execute(
+              """
+              SELECT COUNT(*) FROM training_week_activities AS activities
+              JOIN training_weeks AS weeks ON weeks.id = activities.training_week_id
+              JOIN lessons ON lessons.id = CAST(activities.content_ref AS INTEGER)
+              WHERE weeks.week_number = 0
+                AND activities.activity_type = 'lesson'
+                AND activities.is_required = 1
+                AND lessons.title = 'Welcome to Nexus: Your First Week'
+              """
+          ).fetchone()[0]
+          assert orientation == 1, f"expected exactly one required Week 0 orientation activity, found {orientation}"
+
+          duplicates = db.execute(
+              """
+              SELECT stable_id, COUNT(*) c FROM training_week_activities
+              GROUP BY stable_id HAVING c > 1
+              """
+          ).fetchall()
+          assert duplicates == [], f"duplicate seed records found: {duplicates}"
+
+          print("confirmed: one required Week 0 orientation activity, no duplicate seed records")
+          PY
+
+      - name: SQLite integrity and foreign-key checks
+        run: |
+          python - <<'PY'
+          import os
+          import sqlite3
+
+          db_path = os.environ["DATABASE_URL"].removeprefix("sqlite:///")
+          db = sqlite3.connect(db_path)
+          integrity = db.execute("PRAGMA integrity_check").fetchone()[0]
+          assert integrity == "ok", integrity
+          violations = db.execute("PRAGMA foreign_key_check").fetchall()
+          assert violations == [], violations
+          print("SQLite integrity ok, no foreign-key violations")
+          PY
+
+  frontend:
+    name: Frontend validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: npm audit (high severity and above)
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+      - name: Production build
+        working-directory: frontend
+        run: npm run build
+
+      - name: CLI validate
+        working-directory: frontend
+        run: npm run cli:validate
+
+      - name: CLI sanity
+        working-directory: frontend
+        run: npm run cli:sanity
+
+      - name: Browser tests note
+        run: echo "No npm test script exists yet, and none is invented here. Real-browser coverage runs in the playwright job."
+
+  playwright:
+    name: Playwright browser tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Start isolated local stack
+        # Fresh throwaway SQLite database, non-production ports, and
+        # fixture accounts with passwords generated for this run only.
+        # Writes NEXUS_E2E_* into $GITHUB_ENV for the test step below.
+        run: bash scripts/e2e/start_local_stack.sh
+
+      - name: Run Playwright (desktop + mobile viewports)
+        working-directory: frontend
+        # my-training.spec.js exercises both the 1440x1000 desktop and
+        # 375x812 mobile viewports within its own tests; service-desk-
+        # disabled.spec.js covers the disabled-state regression from
+        # Sprint 1. Both run in well under a minute, so the full pair
+        # runs on every PR rather than splitting a "critical" subset out
+        # to a nightly job.
+        run: npx playwright test tests/e2e/my-training.spec.js tests/e2e/service-desk-disabled.spec.js --reporter=list
+
+      - name: Stop isolated local stack
+        if: always()
+        run: bash scripts/e2e/stop_local_stack.sh
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          # The scratch database, uploads dir, and generated credentials
+          # live under the stack's own scratch dir (already deleted by the
+          # stop step above) and are never part of this path — only
+          # Playwright's own HTML report, traces, and screenshots.
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 5
+          if-no-files-found: ignore

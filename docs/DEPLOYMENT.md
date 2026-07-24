@@ -159,6 +159,104 @@ the smoke checklist below.
   at the edge; Nexus's strict CSP remains unchanged.
 - Both desktop and mobile navigation expose the same grouped destinations.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every pull request targeting `main` and on
+every push to `main`. It never touches production — every job uses a
+throwaway SQLite database and generated-per-run credentials, never the real
+`backend/nexus.db` or `backend/.env`. An older run for the same branch is
+cancelled automatically when a newer commit arrives.
+
+Four independent jobs, so a failure is easy to attribute:
+
+- **Backend quality and tests** — `pip check`, Ruff, `python -m compileall`,
+  the full `pytest` suite, and a manifest-based `pip-audit` against
+  `backend/requirements.txt`.
+- **Database, migrations, and seeds** — migrates an empty database to head,
+  confirms the head revision, seeds it, and confirms 25 weeks / 296
+  activities / 137 mapped videos / one required Week 0 orientation activity /
+  no duplicate seed records / clean SQLite integrity and foreign-key checks.
+  `backend/tests/test_orientation_seed.py` (also run here) is the source of
+  truth for the seed-idempotency proof.
+- **Frontend validation** — `npm audit --audit-level=high`, `npm run build`,
+  `npm run cli:validate`, `npm run cli:sanity`. There is no frontend unit
+  test script; real-browser coverage runs in the Playwright job instead.
+- **Playwright browser tests** — real Chromium against an isolated local
+  stack (see below), covering My Training, lesson objectives, quiz pass/fail
+  messaging, Progress labels, the Service Desk disabled state, and
+  authentication/navigation regressions, at both the 1440x1000 desktop and
+  375x812 mobile viewports. Both specs currently run in under 20 seconds
+  combined, so the full pair runs on every PR rather than splitting a
+  "critical" subset out to a nightly job — revisit that split only if the
+  suite grows slow enough to justify it.
+
+### Reproducing each job locally
+
+```bash
+# Backend quality and tests
+cd backend
+pip check
+ruff check app tests seed.py seed_curriculum.py
+python -m compileall -q app tests seed.py seed_curriculum.py
+python -m pytest -q
+pip install pip-audit && pip-audit -r requirements.txt
+
+# Database, migrations, and seeds (idempotency proof)
+cd backend && python -m pytest -q tests/test_orientation_seed.py
+
+# Frontend validation
+cd frontend
+npm audit --audit-level=high
+npm run build
+npm run cli:validate
+npm run cli:sanity
+
+# Playwright browser tests — see "Browser test fixture harness" below
+```
+
+### Browser test fixture harness
+
+`scripts/e2e/` holds the reusable local-stack harness both CI and developers
+use for real-browser testing:
+
+- `seed_fresh_db.sh` — migrates and seeds a throwaway SQLite database. Refuses
+  to run against anything other than a `sqlite:///` URL, and refuses the
+  production `backend/nexus.db` path specifically.
+- `start_local_stack.sh` — generates fresh random credentials (never
+  hard-coded, never logged), seeds a scratch database, starts an isolated
+  backend (default port 8011) and frontend (default port 5173), creates the
+  `browser-training-student` and `browser-qualified-student` fixture
+  accounts, and writes the resulting `NEXUS_E2E_*` variables to
+  `<scratch dir>/stack.env` (and to `$GITHUB_ENV` under GitHub Actions).
+- `stop_local_stack.sh` — kills both processes and deletes the scratch
+  directory (database, uploads, logs, generated credentials). Always run
+  this from an `if: always()` step (or after a local run, success or not) so
+  cleanup happens even when a test fails.
+
+Local usage:
+
+```bash
+bash scripts/e2e/start_local_stack.sh
+set -a && source /tmp/nexus-e2e-XXXXXX/stack.env && set +a   # path printed by start_local_stack.sh
+cd frontend && npx playwright test tests/e2e/my-training.spec.js tests/e2e/service-desk-disabled.spec.js --reporter=list
+cd .. && bash scripts/e2e/stop_local_stack.sh
+```
+
+Expected runtime: each of the four CI jobs finishes in well under two
+minutes; the Playwright job's browser-test step itself takes under 20
+seconds once the stack is up.
+
+### Inspecting a failed CI run
+
+The Playwright job uploads its HTML report, traces, and screenshots as a
+`playwright-report` artifact only when the job fails (5-day retention). It
+never includes the scratch database, uploads directory, or generated
+credentials — those live under the stack's scratch directory, which is
+deleted by `stop_local_stack.sh` before the artifact step runs. Download the
+artifact from the failed run's Summary page and open
+`playwright-report/index.html`, or run `npx playwright show-trace
+<trace.zip>` on a downloaded trace.
+
 ## Service Desk Lab private beta
 
 Run `alembic upgrade head` before restarting the backend. Keep `SERVICE_DESK_LAB_ENABLED=false` and `SERVICE_DESK_LAB_ADMIN_ENABLED=false` in `backend/.env` for the first deployment. After health/authentication validation, an operator may enable administrator review only; student access additionally requires an audited explicit beta enrollment through the supported administrator API. Do not enable the student flag globally or use unapproved browser credentials. Service Desk Lab is separate from legacy Support Tickets, which must be included in the normal smoke checklist unchanged.
