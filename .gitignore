@@ -33,3 +33,6 @@ test-results/
 # deployment artifacts — never commit
 content-pack/
 backend/nexus.db.*
+
+# local e2e stack scratch state (throwaway DB, fixture credentials, PIDs)
+/.e2e-stack-dir
