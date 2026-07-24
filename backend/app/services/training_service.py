@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
@@ -13,7 +13,7 @@ from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson
 from app.models.lesson_notes import StudentLessonNote
 from app.models.progression import Role, StudentRole
-from app.models.quiz import Quiz, QuizAttempt
+from app.models.quiz import Question, Quiz, QuizAttempt
 from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
 from app.models.service_desk import ServiceDeskAttempt, ServiceDeskScenario, ServiceDeskScenarioVersion
@@ -34,6 +34,7 @@ PRACTICE_ACTIVITY_TYPES = {
     "capstone",
     "service_desk_scenario",
 }
+AT_RISK_INACTIVITY_HOURS = 72
 UNTRACKED_ACTIVITY_TYPES = {"command_exercise", "terminal_exercise"}
 ACTIVITY_LABELS = {
     "video": "Video",
@@ -630,6 +631,269 @@ def _metric(states: list[dict], activity_types: set[str], *, complete_key="compl
     rows = list(unique.values())
     completed = sum(1 for item in rows if item.get(complete_key))
     return {"completed": completed, "total": len(rows), "percent": round(completed / len(rows) * 100) if rows else 0}
+
+
+def _group_cohort_rows(rows, student_id):
+    grouped = defaultdict(list)
+    for row in rows:
+        grouped[student_id(row)].append(row)
+    return grouped
+
+
+def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
+    """Build fixed-query training summaries for an administrator's cohort."""
+    if not students:
+        return []
+
+    cohort_ids = [student.id for student in students]
+    weeks = _active_weeks(db)
+    ordered_activities = {
+        week.id: sorted(week.activities, key=lambda item: (item.display_order, item.id))
+        for week in weeks
+    }
+
+    video_rows = (
+        db.query(VideoWatch, CurriculumVideo.id)
+        .join(CurriculumVideo, CurriculumVideo.video_key == VideoWatch.video_key)
+        .filter(VideoWatch.student_id.in_(cohort_ids))
+        .all()
+    )
+    question_counts = (
+        db.query(Question.quiz_id.label("quiz_id"), func.count(Question.id).label("total"))
+        .group_by(Question.quiz_id)
+        .subquery()
+    )
+    quiz_rows = (
+        db.query(
+            QuizAttempt,
+            func.coalesce(question_counts.c.total, Quiz.question_count).label("question_total"),
+        )
+        .join(Quiz, Quiz.id == QuizAttempt.quiz_id)
+        .outerjoin(question_counts, question_counts.c.quiz_id == Quiz.id)
+        .filter(QuizAttempt.student_id.in_(cohort_ids))
+        .order_by(QuizAttempt.completed_at.desc(), QuizAttempt.id.desc())
+        .all()
+    )
+    note_rows = db.query(StudentLessonNote).filter(
+        StudentLessonNote.student_id.in_(cohort_ids)
+    ).all()
+    lab_rows = (
+        db.query(LabRun)
+        .filter(LabRun.student_id.in_(cohort_ids))
+        .order_by(LabRun.created_at.desc(), LabRun.id.desc())
+        .all()
+    )
+    ticket_rows = (
+        db.query(TicketSubmission)
+        .filter(TicketSubmission.student_id.in_(cohort_ids))
+        .order_by(TicketSubmission.submitted_at.desc(), TicketSubmission.id.desc())
+        .all()
+    )
+    cli_rows = (
+        db.query(CliLabAttempt)
+        .filter(CliLabAttempt.student_id.in_(cohort_ids))
+        .order_by(CliLabAttempt.completed_at.desc(), CliLabAttempt.id.desc())
+        .all()
+    )
+    capstone_rows = (
+        db.query(CapstoneRun)
+        .filter(CapstoneRun.student_id.in_(cohort_ids))
+        .order_by(CapstoneRun.created_at.desc(), CapstoneRun.id.desc())
+        .all()
+    )
+    service_desk_rows = (
+        db.query(ServiceDeskAttempt, ServiceDeskScenario.stable_key)
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+        )
+        .join(ServiceDeskScenario, ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id)
+        .filter(
+            ServiceDeskAttempt.student_id.in_(cohort_ids),
+            ServiceDeskScenarioVersion.status == "published",
+        )
+        .order_by(ServiceDeskAttempt.completed_at.desc(), ServiceDeskAttempt.id.desc())
+        .all()
+    )
+
+    videos_by_student = _group_cohort_rows(video_rows, lambda row: row[0].student_id)
+    quizzes_by_student = _group_cohort_rows(quiz_rows, lambda row: row[0].student_id)
+    notes_by_student = _group_cohort_rows(note_rows, lambda row: row.student_id)
+    labs_by_student = _group_cohort_rows(lab_rows, lambda row: row.student_id)
+    tickets_by_student = _group_cohort_rows(ticket_rows, lambda row: row.student_id)
+    cli_by_student = _group_cohort_rows(cli_rows, lambda row: row.student_id)
+    capstones_by_student = _group_cohort_rows(capstone_rows, lambda row: row.student_id)
+    service_desk_by_student = _group_cohort_rows(
+        service_desk_rows, lambda row: row[0].student_id
+    )
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=AT_RISK_INACTIVITY_HOURS)
+    summaries = []
+    for student in students:
+        watched_video_ids = {str(content_id) for _, content_id in videos_by_student[student.id]}
+        quiz_attempts = defaultdict(list)
+        for attempt, total in quizzes_by_student[student.id]:
+            quiz_attempts[str(attempt.quiz_id)].append((attempt, int(total or 0)))
+        lesson_ids = {str(note.lesson_id) for note in notes_by_student[student.id]}
+        lab_runs = _latest_by(labs_by_student[student.id], lambda row: str(row.lab_template_id))
+        ticket_submissions = _latest_by(
+            tickets_by_student[student.id], lambda row: str(row.ticket_id)
+        )
+        cli_attempts = _latest_by(cli_by_student[student.id], lambda row: row.lab_id)
+        capstone_runs = _latest_by(
+            capstones_by_student[student.id], lambda row: str(row.capstone_template_id)
+        )
+        passed_service_desk = {
+            stable_key
+            for attempt, stable_key in service_desk_by_student[student.id]
+            if attempt.passed is True
+        }
+
+        def progress_for(activity: TrainingWeekActivity) -> tuple[bool, bool]:
+            content_ref = activity.content_ref
+            if activity.activity_type == "video":
+                complete = content_ref in watched_video_ids
+                return complete, False
+            if activity.activity_type == "quiz":
+                attempts = quiz_attempts[content_ref]
+                attempted = bool(attempts)
+                best = max(
+                    (max(int(attempt.score or 0), int(attempt.best_score or 0)) for attempt, _ in attempts),
+                    default=0,
+                )
+                total = max((total for _, total in attempts), default=0)
+                complete = bool(
+                    attempted
+                    and (
+                        bool(total and best * 100 >= total * 70)
+                        if activity.is_required
+                        else True
+                    )
+                )
+                return complete, attempted and not complete
+            if activity.activity_type == "lesson":
+                return content_ref in lesson_ids, False
+            if activity.activity_type == "guided_lab":
+                run = lab_runs.get(content_ref)
+                complete = bool(run and run.status in {"submitted", "verified"})
+                return complete, bool(run and not complete)
+            if activity.activity_type == "support_ticket":
+                submission = ticket_submissions.get(content_ref)
+                complete = bool(
+                    submission
+                    and submission.status in {"pending", "in_review", "passed"}
+                    and (submission.graded_at is not None or submission.status == "passed")
+                )
+                return complete, bool(submission and not complete)
+            if activity.activity_type == "networking_lab":
+                attempt = cli_attempts.get(content_ref)
+                complete = bool(attempt and attempt.completed_at)
+                return complete, bool(attempt and not complete)
+            if activity.activity_type == "capstone":
+                run = capstone_runs.get(content_ref)
+                complete = bool(
+                    run and (run.passed or run.status in {"submitted", "reviewed", "passed"})
+                )
+                return complete, bool(run and not complete)
+            if activity.activity_type == "service_desk_scenario":
+                return content_ref in passed_service_desk, False
+            return False, False
+
+        week_states = []
+        prior_required_complete = True
+        prior_title = None
+        all_activity_states = []
+        for week in weeks:
+            activity_states = []
+            for activity in ordered_activities[week.id]:
+                complete, in_progress = progress_for(activity)
+                activity_states.append(
+                    {
+                        "activity_type": activity.activity_type,
+                        "content_ref": activity.content_ref,
+                        "display_order": activity.display_order,
+                        "is_required": activity.is_required,
+                        "estimated_minutes": activity.estimated_minutes,
+                        "complete": complete,
+                        "status": "complete"
+                        if complete
+                        else ("in_progress" if in_progress else "not_started"),
+                    }
+                )
+            for item in activity_states:
+                if item["activity_type"] != "review":
+                    continue
+                prior_required = [
+                    candidate
+                    for candidate in activity_states
+                    if candidate["is_required"]
+                    and candidate["display_order"] < item["display_order"]
+                    and candidate["activity_type"] != "review"
+                ]
+                item["complete"] = all(candidate["complete"] for candidate in prior_required)
+                item["status"] = "complete" if item["complete"] else "not_started"
+
+            locked = bool(
+                not student.is_mentor and week.requires_previous_week and not prior_required_complete
+            )
+            lock_reason = f"Complete {prior_title} first." if locked and prior_title else None
+            week_state = _serialize_week(
+                week, activity_states, locked=locked, lock_reason=lock_reason
+            )
+            week_states.append(week_state)
+            all_activity_states.extend(activity_states)
+            prior_required_complete = prior_required_complete and week_state["is_complete"]
+            prior_title = f"Week {week.week_number} — {week.title}"
+
+        training_complete = bool(week_states) and all(
+            week_state["is_complete"] for week_state in week_states
+        )
+        current_week = next(
+            (
+                week_state
+                for week_state in week_states
+                if not week_state["locked"] and not week_state["is_complete"]
+            ),
+            None,
+        )
+        if current_week is None and week_states and not training_complete:
+            current_week = next(
+                (week_state for week_state in week_states if not week_state["locked"]),
+                week_states[0],
+            )
+        if current_week and current_week["status"] == "not_started":
+            current_week["status"] = "in_progress"
+        if current_week is None and week_states:
+            current_week = week_states[-1]
+
+        required = [item for item in all_activity_states if item["is_required"]]
+        required_complete = sum(1 for item in required if item["complete"])
+        last_active = student.last_active_at
+        comparable_last_active = last_active
+        if comparable_last_active and comparable_last_active.tzinfo is None:
+            comparable_last_active = comparable_last_active.replace(tzinfo=timezone.utc)
+        summaries.append(
+            {
+                "student_id": student.id,
+                "name": student.name,
+                "current_week": (
+                    {
+                        "week_number": current_week["week_number"],
+                        "status": current_week["status"],
+                    }
+                    if current_week
+                    else None
+                ),
+                "overall_percent": (
+                    round(required_complete / len(required) * 100) if required else 100
+                ),
+                "last_active_at": last_active,
+                "is_at_risk": (
+                    comparable_last_active is None or comparable_last_active < cutoff
+                ),
+            }
+        )
+    return summaries
 
 
 def build_training_progress(db: Session, student: Student) -> dict:

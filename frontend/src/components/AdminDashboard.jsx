@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import CohortPanel from "./CohortPanel";
 import EmptyState from "./EmptyState";
 import { bulkGenerateTickets, bulkPublishTickets, createResource, createTicket, generateQuiz, getSubmissions } from "../services/api";
 
@@ -35,6 +36,8 @@ export default function AdminDashboard() {
         <article className="panel dark:border-slate-700 dark:bg-slate-900"><p className="text-sm">Average score</p><p className="text-2xl font-bold">{avgScore}/10</p></article>
         <article className="panel dark:border-slate-700 dark:bg-slate-900"><p className="text-sm">Completion rate</p><p className="text-2xl font-bold">{Math.min(100, Math.round((new Set(submissions.map((x) => x.student_name)).size / 5) * 100))}%</p></article>
       </section>
+
+      <CohortPanel />
 
       <section className="grid gap-4 xl:grid-cols-2">
         <article className="panel space-y-2 dark:border-slate-700 dark:bg-slate-900">

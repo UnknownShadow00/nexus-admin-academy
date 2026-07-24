@@ -23,6 +23,7 @@ from app.services.onboarding_service import get_orientation_state
 from app.services.quiz_progression import is_quiz_passed
 from app.services.admin_auth import verify_admin
 from app.services.auth_service import hash_password, normalize_username
+from app.services.training_service import build_cohort_summary, build_training_progress
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(verify_admin)])
@@ -86,6 +87,20 @@ def student_overview(db: Session = Depends(get_db)):
             }
         )
     return ok(data, total=len(data), page=1, per_page=len(data) or 1)
+
+
+@router.get("/students/cohort-summary")
+def cohort_summary(db: Session = Depends(get_db)):
+    students = db.query(Student).order_by(Student.id.asc()).all()
+    return ok(build_cohort_summary(db, students))
+
+
+@router.get("/students/{student_id}/training-progress")
+def student_training_progress(student_id: int, db: Session = Depends(get_db)):
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return ok(build_training_progress(db, student))
 
 
 @router.get("/students/{student_id}/activity")

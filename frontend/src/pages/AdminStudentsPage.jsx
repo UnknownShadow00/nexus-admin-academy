@@ -1,5 +1,6 @@
-﻿import { useEffect, useState } from "react";
+﻿import { Fragment, useCallback, useEffect, useState } from "react";
 import { createStudent, deleteStudent, getStudentsOverview, updateStudent } from "../services/api";
+import StudentTrainingDetail from "../components/StudentTrainingDetail";
 import toast from "react-hot-toast";
 
 export default function AdminStudentsPage() {
@@ -18,6 +19,8 @@ export default function AdminStudentsPage() {
   const [editPassword, setEditPassword] = useState("");
   const [editIsMentor, setEditIsMentor] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [expandedStudentId, setExpandedStudentId] = useState(null);
+  const [trainingProgressByStudent, setTrainingProgressByStudent] = useState({});
 
   const load = async () => {
     setLoading(true);
@@ -28,6 +31,12 @@ export default function AdminStudentsPage() {
 
   useEffect(() => {
     load();
+  }, []);
+
+  const cacheStudentProgress = useCallback((studentId, progress) => {
+    setTrainingProgressByStudent((current) => (
+      current[studentId] ? current : { ...current, [studentId]: progress }
+    ));
   }, []);
 
   const onCreate = async () => {
@@ -142,8 +151,10 @@ export default function AdminStudentsPage() {
           <tbody>
             {rows.map((r) => {
               const editing = editingId === r.student_id;
+              const expanded = expandedStudentId === r.student_id;
               return (
-                <tr key={r.student_id} className="border-b border-slate-100 dark:border-slate-800">
+                <Fragment key={r.student_id}>
+                <tr className="border-b border-slate-100 dark:border-slate-800">
                   <td className="px-2 py-2">{r.rank}</td>
                   <td className="px-2 py-2">
                     {editing ? <input className="input-field" value={editName} onChange={(e) => setEditName(e.target.value)} /> : r.name}
@@ -193,12 +204,36 @@ export default function AdminStudentsPage() {
                       </div>
                     ) : (
                       <div className="flex gap-2">
+                        <button
+                          className="btn-secondary"
+                          onClick={() => setExpandedStudentId(expanded ? null : r.student_id)}
+                          aria-expanded={expanded}
+                        >
+                          {expanded ? "Hide details" : "Details"}
+                        </button>
                         <button className="btn-secondary" onClick={() => onStartEdit(r)}>Edit</button>
                         <button className="btn-secondary" onClick={() => onDelete(r.student_id)}>Delete</button>
                       </div>
                     )}
                   </td>
                 </tr>
+                {expanded ? (
+                  <tr className="border-b border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-950/40">
+                    <td className="px-4 py-4" colSpan={12}>
+                      {/* sticky + bounded width: this row lives inside the table's own
+                          horizontal scroll container, so without this the content renders
+                          off-screen whenever the admin scrolled right to reach "Details" */}
+                      <div className="sticky left-0 w-[92vw] max-w-3xl">
+                        <StudentTrainingDetail
+                          studentId={r.student_id}
+                          cachedProgress={trainingProgressByStudent[r.student_id]}
+                          onProgressLoaded={cacheStudentProgress}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+                </Fragment>
               );
             })}
           </tbody>

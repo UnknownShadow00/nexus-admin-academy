@@ -391,6 +391,10 @@ export const overrideScore = (id, new_score, comment, requestOptions) =>
   request(() => adminApi.put(`/api/admin/submissions/${id}/override`, { new_score, comment }), requestOptions);
 export const getStudentsOverview = (requestOptions) =>
   request(() => adminApi.get("/api/admin/students/overview"), requestOptions);
+export const getCohortSummary = (requestOptions) =>
+  request(() => adminApi.get("/api/admin/students/cohort-summary"), requestOptions);
+export const getStudentTrainingProgress = (id, requestOptions) =>
+  request(() => adminApi.get(`/api/admin/students/${id}/training-progress`), requestOptions);
 export const getStudentActivity = (id, requestOptions) =>
   request(() => adminApi.get(`/api/admin/students/${id}/activity`), requestOptions);
 export const createStudent = (payload, requestOptions) =>
