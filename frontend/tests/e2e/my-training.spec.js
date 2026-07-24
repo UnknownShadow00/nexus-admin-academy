@@ -176,7 +176,11 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await page.goBack();
   await expect(page).toHaveURL(/\/training$/);
   await expect(page.getByRole("heading", { name: "My Training", exact: true })).toBeVisible();
-  await page.goto("/lessons/1");
+  // Lesson IDs are not stable across a fresh seed vs. production's
+  // accumulated history, so reach the CompTIA lesson through the UI rather
+  // than a hard-coded /lessons/{id} route.
+  await page.goto("/training/week/0");
+  await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "CompTIA 6-Step Process" }).getByRole("link").click();
   await expect(page.getByRole("heading", { name: "CompTIA 6-Step Process", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "In this lesson, you'll learn", exact: true })).toBeVisible();
   await expect(page.getByRole("listitem").filter({ hasText: /^Can identify symptoms$/ })).toBeVisible();
@@ -297,10 +301,14 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     await expect(page.getByRole("heading", { name: "Disposable Browser Flow Student" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Begin Your IT Training" })).toBeVisible();
     await page.getByRole("link", { name: "Start Training" }).first().click();
-    await expect(page).toHaveURL(/\/lessons\/64$/);
+    // Orientation's lesson ID is not stable across a fresh seed vs.
+    // production's accumulated history — match any lesson ID and read the
+    // real one back off the URL.
+    await expect(page).toHaveURL(/\/lessons\/\d+$/);
+    const orientationLessonId = new URL(page.url()).pathname.split("/").pop();
 
     const orientationNote = page.getByPlaceholder("Write one sentence: Where will you look when you are unsure what comes next?");
-    const orientationSaved = page.waitForResponse((response) => response.url().endsWith("/api/lessons/64/notes") && response.request().method() === "PUT" && response.ok());
+    const orientationSaved = page.waitForResponse((response) => response.url().endsWith(`/api/lessons/${orientationLessonId}/notes`) && response.request().method() === "PUT" && response.ok());
     await orientationNote.fill("I will open Home and follow the next My Training activity.");
     await orientationSaved;
     await expect(page.locator("p.opacity-100").getByText("Saved", { exact: true })).toBeVisible();
@@ -346,9 +354,13 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     }
     await expect(page.locator('article[data-activity-type="video"]').filter({ hasText: "Ticketing Systems" }).first().getByRole("button", { name: "Mark Watched" })).toBeVisible();
 
-    await page.goto("/lessons/1");
+    // Already back on /training/week/0 — reach the CompTIA lesson through
+    // its activity card rather than a hard-coded /lessons/{id} route.
+    await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "CompTIA 6-Step Process" }).getByRole("link").click();
+    await expect(page).toHaveURL(/\/lessons\/\d+$/);
+    const methodologyLessonId = new URL(page.url()).pathname.split("/").pop();
     const methodologyNote = page.getByPlaceholder("Your notes for this lesson...");
-    const methodologySaved = page.waitForResponse((response) => response.url().endsWith("/api/lessons/1/notes") && response.request().method() === "PUT" && response.ok());
+    const methodologySaved = page.waitForResponse((response) => response.url().endsWith(`/api/lessons/${methodologyLessonId}/notes`) && response.request().method() === "PUT" && response.ok());
     await methodologyNote.fill("I will identify the problem before testing a theory and document the result.");
     await methodologySaved;
     await expect(page.locator("p.opacity-100").getByText("Saved", { exact: true })).toBeVisible();
