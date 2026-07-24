@@ -123,10 +123,16 @@ npm audit --audit-level=high
 The frontend currently has no lint or typecheck script. Install
 `backend/requirements-dev.txt` before running Ruff in a fresh environment.
 
+`.github/workflows/ci.yml` runs the same checks (plus a fresh-database
+migration/seed proof and real-browser Playwright coverage) on every PR and
+push to main. Reproduce any CI job locally with the commands and
+`scripts/e2e/` fixture harness documented in `docs/DEPLOYMENT.md` under
+"Continuous integration" — don't duplicate that section here.
+
 ## Continuing documentation
 
 - `README.md`: local setup and entry points.
-- `docs/DEPLOYMENT.md`: deploy, backup, restore, and health checks.
+- `docs/DEPLOYMENT.md`: deploy, backup, restore, health checks, and CI.
 - `docs/AUTHORING_CONFIG_SECURITY.md`: content authoring, environment variables,
   and current security controls.
 - `docs/MENTOR_GUIDE.md` and `docs/STUDENT_GUIDE.md`: operating guides.
