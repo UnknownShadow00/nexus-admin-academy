@@ -1,9 +1,10 @@
-﻿import { Fragment, useCallback, useEffect, useState } from "react";
+﻿import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { createStudent, deleteStudent, getStudentsOverview, updateStudent } from "../services/api";
 import StudentTrainingDetail from "../components/StudentTrainingDetail";
 import toast from "react-hot-toast";
 
 export default function AdminStudentsPage() {
+  const scrollContainerRef = useRef(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -130,7 +131,7 @@ export default function AdminStudentsPage() {
       ) : null}
 
       {!loading ? (
-      <div className="panel overflow-x-auto dark:bg-slate-900 dark:border-slate-700">
+      <div ref={scrollContainerRef} className="panel overflow-x-auto dark:bg-slate-900 dark:border-slate-700">
         <table className="min-w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200 dark:border-slate-700">
@@ -206,7 +207,13 @@ export default function AdminStudentsPage() {
                       <div className="flex gap-2">
                         <button
                           className="btn-secondary"
-                          onClick={() => setExpandedStudentId(expanded ? null : r.student_id)}
+                          onClick={() => {
+                            // The table scrolls horizontally on narrow viewports; this
+                            // button lives in the last column, so reset scroll on expand
+                            // or the detail content renders off-screen to the left.
+                            if (!expanded) scrollContainerRef.current?.scrollTo({ left: 0 });
+                            setExpandedStudentId(expanded ? null : r.student_id);
+                          }}
                           aria-expanded={expanded}
                         >
                           {expanded ? "Hide details" : "Details"}
@@ -220,10 +227,10 @@ export default function AdminStudentsPage() {
                 {expanded ? (
                   <tr className="border-b border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-950/40">
                     <td className="px-4 py-4" colSpan={12}>
-                      {/* sticky + bounded width: this row lives inside the table's own
-                          horizontal scroll container, so without this the content renders
-                          off-screen whenever the admin scrolled right to reach "Details" */}
-                      <div className="sticky left-0 w-[92vw] max-w-3xl">
+                      {/* Bounded width for readability; the "Details" click above resets
+                          scrollContainerRef to the left so this is visible without the
+                          admin needing to scroll back manually. */}
+                      <div className="w-[92vw] max-w-3xl">
                         <StudentTrainingDetail
                           studentId={r.student_id}
                           cachedProgress={trainingProgressByStudent[r.student_id]}

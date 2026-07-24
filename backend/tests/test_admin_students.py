@@ -17,7 +17,8 @@ from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.routers import admin_students
 from app.services.admin_auth import verify_admin
-from app.services.training_service import build_cohort_summary
+from app.services.auth_service import create_access_token
+from app.services.training_service import build_cohort_summary, build_training_progress
 from conftest import make_client
 
 
@@ -25,6 +26,10 @@ def admin_client():
     client = make_client(admin_students.router)
     client.app.dependency_overrides[verify_admin] = lambda: True
     return client
+
+
+def unauthenticated_client():
+    return make_client(admin_students.router)
 
 
 def add_student(db, suffix, last_active_at):
@@ -264,11 +269,54 @@ def test_admin_cohort_summary_and_student_training_progress(db):
     ]
 
 
+def test_cohort_endpoints_reject_no_credentials_and_student_jwt(db):
+    client = unauthenticated_client()
+
+    no_creds_summary = client.get("/api/admin/students/cohort-summary")
+    no_creds_detail = client.get("/api/admin/students/1/training-progress")
+    assert no_creds_summary.status_code == 403
+    assert no_creds_detail.status_code == 403
+
+    student_token = create_access_token({"sub": "1", "name": "Student", "is_mentor": False})
+    headers = {"Authorization": f"Bearer {student_token}"}
+    student_summary = client.get("/api/admin/students/cohort-summary", headers=headers)
+    student_detail = client.get("/api/admin/students/1/training-progress", headers=headers)
+    assert student_summary.status_code == 403
+    assert student_detail.status_code == 403
+
+
 def test_admin_student_training_progress_returns_404(db):
     response = admin_client().get("/api/admin/students/999/training-progress")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Student not found"
+
+
+def test_cohort_summary_matches_authoritative_per_student_progress(db):
+    """build_cohort_summary re-derives completion rules in bulk (to avoid the
+    N+1 pattern _TrainingContext's per-student queries would cause at cohort
+    scale), instead of calling build_training_progress per student. That is a
+    deliberate duplication of quiz/ticket/lab/capstone/service-desk completion
+    logic and week-locking rules across two code paths. This test pins the two
+    paths together: if a future change to one set of rules (e.g. the quiz pass
+    threshold) is not mirrored in the other, this test fails instead of the
+    drift going unnoticed.
+    """
+    now = datetime.now(timezone.utc)
+    student_a = add_student(db, "parity-a", now)
+    student_b = add_student(db, "parity-b", now - timedelta(days=10))
+    video, quiz_one, quiz_two = seed_curriculum(db)
+    db.add(VideoWatch(student_id=student_a.id, video_key=video.video_key))
+    add_passed_attempt(db, student_a, quiz_one)
+    db.commit()
+
+    for student in (student_a, student_b):
+        [summary] = build_cohort_summary(db, [student])
+        authoritative = build_training_progress(db, student)
+
+        assert summary["current_week"]["week_number"] == authoritative["current_week"]["week_number"]
+        assert summary["current_week"]["status"] == authoritative["current_week"]["status"]
+        assert summary["overall_percent"] == authoritative["overall_training"]["percent"]
 
 
 def test_cohort_summary_query_count_does_not_scale_with_student_count(db):

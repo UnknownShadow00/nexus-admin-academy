@@ -641,7 +641,18 @@ def _group_cohort_rows(rows, student_id):
 
 
 def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
-    """Build fixed-query training summaries for an administrator's cohort."""
+    """Build fixed-query training summaries for an administrator's cohort.
+
+    Deliberately does not call build_training_progress/_build_state per
+    student: _TrainingContext issues per-student queries, which would make
+    this endpoint's query count scale with cohort size. Instead this
+    re-derives the same completion rules (quiz pass threshold, ticket/lab/
+    capstone/service-desk status checks, week-locking) against bulk,
+    cohort-wide query results. Any change to those rules must be mirrored
+    here — test_admin_students.py::test_cohort_summary_matches_authoritative_per_student_progress
+    pins the two paths together so a rule change to one without the other
+    fails a test instead of silently diverging.
+    """
     if not students:
         return []
 
