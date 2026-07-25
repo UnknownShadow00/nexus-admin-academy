@@ -103,6 +103,14 @@ class Question(Base):
     correct_answer: Mapped[str] = mapped_column(CHAR(1), nullable=False)
     correct_answers: Mapped[str | None] = mapped_column(Text, nullable=True)
     explanation: Mapped[str] = mapped_column(Text, nullable=True)
+    difficulty: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tags: Mapped[list | None] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    source: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    imported_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    import_filename: Mapped[str | None] = mapped_column(Text, nullable=True)
+    flagged_for_review: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0", default=False, index=True)
+    flag_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     quiz = relationship("Quiz", back_populates="questions")
 
