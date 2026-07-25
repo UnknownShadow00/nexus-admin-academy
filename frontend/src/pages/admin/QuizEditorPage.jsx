@@ -43,7 +43,7 @@ export default function QuizEditorPage() {
       await updateQuiz(quizId, { status: "published" }, { suppressToast: true });
       setQuiz((prev) => ({ ...(prev || {}), status: "published" }));
     } catch (error) {
-      setPublishError(error?.response?.data?.detail || "Unable to publish this quiz.");
+      setPublishError(error?.userMessage || "Unable to publish this quiz.");
     } finally {
       setPublishSaving(false);
     }
@@ -64,7 +64,7 @@ export default function QuizEditorPage() {
       setTitleSaved(true);
       setTimeout(() => setTitleSaved(false), 1500);
     } catch (error) {
-      setTitleError(error?.response?.data?.detail || "Failed to save title");
+      setTitleError(error?.userMessage || "Failed to save title");
     } finally {
       setTitleSaving(false);
     }
@@ -90,7 +90,7 @@ export default function QuizEditorPage() {
       setQuiz((current) => ({ ...current, ...(res.data || {}) }));
       setOrganizationMessage("Organization saved.");
     } catch (error) {
-      setOrganizationMessage(error?.response?.data?.detail || "Unable to save organization.");
+      setOrganizationMessage(error?.userMessage || "Unable to save organization.");
     } finally { setOrganizationSaving(false); }
   };
 

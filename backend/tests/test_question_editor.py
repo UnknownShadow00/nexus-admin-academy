@@ -121,3 +121,25 @@ def test_update_question_auto_flags_when_edit_breaks_it(monkeypatch, db):
     db.refresh(question)
     assert question.flagged_for_review is True
     assert question.flag_reason
+
+
+def test_get_quiz_questions_reports_flagged_state(monkeypatch, db):
+    """The editor's "Flagged for review" badge reads question.flagged_for_review
+    from this endpoint's response — if the field is missing here, a page reload
+    silently hides the flag from the admin even though publish is still blocked."""
+    monkeypatch.setenv("ADMIN_API_KEY", "test-admin-key")
+    headers = {"X-Admin-Key": "test-admin-key"}
+    quiz = _seed_quiz(db)
+    _seed_question(
+        db,
+        quiz.id,
+        flagged_for_review=True,
+        flag_reason="Correct answer reference 'H' does not match a valid option.",
+    )
+
+    res = client.get(f"/api/admin/quizzes/{quiz.id}/questions", headers=headers)
+
+    assert res.status_code == 200
+    question = res.json()["data"]["questions"][0]
+    assert question["flagged_for_review"] is True
+    assert question["flag_reason"] == "Correct answer reference 'H' does not match a valid option."

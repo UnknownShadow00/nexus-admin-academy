@@ -523,6 +523,8 @@ def get_quiz_questions(quiz_id: int, db: Session = Depends(get_db)):
                     "correct_answer": question.correct_answer,
                     "correct_answers": question.correct_answers,
                     "explanation": question.explanation or "",
+                    "flagged_for_review": question.flagged_for_review,
+                    "flag_reason": question.flag_reason,
                 }
                 for question in questions
             ],

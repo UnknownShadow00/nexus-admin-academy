@@ -29,6 +29,7 @@ export default function QuestionEditorCard({ question, index, onSaved }) {
   const [validation, setValidation] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const nextAddableLetter = LETTERS.find((letter) => !options.some((o) => o.letter === letter));
   const isMulti = correctSet.size > 1;
@@ -94,6 +95,7 @@ export default function QuestionEditorCard({ question, index, onSaved }) {
 
   const save = async () => {
     setSaving(true);
+    setSaveError("");
     try {
       const sortedCorrect = Array.from(correctSet).sort();
       const patch = { question_text: questionText, explanation };
@@ -107,6 +109,8 @@ export default function QuestionEditorCard({ question, index, onSaved }) {
       onSaved?.(question.id, { ...patch, flagged_for_review: !res.data?.valid });
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
+    } catch (error) {
+      setSaveError(error?.userMessage || "Unable to save this question.");
     } finally {
       setSaving(false);
     }
@@ -223,6 +227,11 @@ export default function QuestionEditorCard({ question, index, onSaved }) {
       <button type="button" className="btn-primary" onClick={save} disabled={saving}>
         {saving ? "Saving..." : saved ? "Saved" : "Save"}
       </button>
+      {saveError ? (
+        <p className="rounded border border-red-300 bg-red-50 p-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+          {saveError}
+        </p>
+      ) : null}
     </div>
   );
 }

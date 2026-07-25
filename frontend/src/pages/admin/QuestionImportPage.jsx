@@ -51,7 +51,7 @@ export default function QuestionImportPage() {
       const res = await previewQuestionImport(selectedFile, { suppressToast: true });
       setPreview(res.data);
     } catch (err) {
-      setError(err?.response?.data?.detail || err?.userMessage || "Preview failed.");
+      setError(err?.userMessage || "Preview failed.");
       setPreview(null);
     } finally {
       setPreviewing(false);
@@ -76,7 +76,7 @@ export default function QuestionImportPage() {
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (err) {
-      setError(err?.response?.data?.detail || err?.userMessage || "Import failed and was rolled back.");
+      setError(err?.userMessage || "Import failed and was rolled back.");
     } finally {
       setConfirming(false);
     }
