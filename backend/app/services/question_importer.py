@@ -21,6 +21,7 @@ from app.models.quiz import (
     QUIZ_STATUS_DRAFT,
     QUIZ_STATUS_PUBLISHED,
     SOURCE_TYPE_MANUAL,
+    SOURCE_TYPE_SPREADSHEET_IMPORT,
     Question,
     Quiz,
 )
@@ -28,7 +29,6 @@ from app.services.question_validation import validate_question
 
 MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_ROWS = 2000
-SOURCE_TYPE_SPREADSHEET_IMPORT = "spreadsheet_import"
 
 TEMPLATE_COLUMNS = [
     "quiz_title",

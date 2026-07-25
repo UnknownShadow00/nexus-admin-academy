@@ -253,3 +253,24 @@ def test_template_download():
     assert res.status_code == 200
     assert "quiz_title" in res.text
     assert "correct_answers" in res.text
+
+
+def test_imported_quiz_organization_panel_can_be_saved(db):
+    """A quiz created by the CSV/XLSX importer must be editable afterward —
+    its source_type ("spreadsheet_import") has to be a value the admin
+    quiz-update schema actually accepts."""
+    from app.routers import admin_quiz
+
+    client = make_client(admin_question_import.router, admin_quiz.router)
+    client.app.dependency_overrides[verify_admin] = lambda: True
+
+    content = CSV_HEADER + 'Org Panel Quiz,single,Pick one?,Yes,No,,,,,,,A,exp,,,,false\n'
+    rows = parse_csv_file(content.encode("utf-8"))
+    summary = confirm_import(db, rows, duplicate_policy="skip", source_filename="org.csv")
+    quiz_id = summary["quiz_ids"][0]
+
+    res = client.patch(
+        f"/api/admin/quizzes/{quiz_id}",
+        json={"editorial_status": "validated", "answer_keys_validated": True, "source_type": "spreadsheet_import"},
+    )
+    assert res.status_code == 200, res.text
