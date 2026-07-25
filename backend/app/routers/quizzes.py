@@ -21,6 +21,24 @@ router = APIRouter(prefix="/api/quizzes", tags=["quizzes"])
 logger = logging.getLogger(__name__)
 
 
+def _grade_answer(question, raw_answer) -> tuple[object, bool]:
+    """Grade a single question. Multi-select uses exact-set matching (all correct,
+    no incorrect) so a partial or over-broad selection never earns credit."""
+    correct_letters = question.all_correct_answers
+    if question.is_multi_select:
+        student_letters = sorted(
+            letter.strip().upper()
+            for letter in str(raw_answer or "").split(",")
+            if letter.strip()
+        )
+        is_correct = bool(student_letters) and student_letters == sorted(
+            letter.strip().upper() for letter in correct_letters
+        )
+        return raw_answer, is_correct
+    is_correct = raw_answer in correct_letters
+    return raw_answer, is_correct
+
+
 def _avg_seconds_per_question(time_per_question: dict | None) -> float | None:
     if not time_per_question:
         return None
@@ -193,31 +211,15 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
 
     results = []
     correct_count = 0
-    wrong_question_ids = []
+    wrong_answers = {}
 
     for i, question in enumerate(questions, start=1):
         raw_answer = answers.get(str(question.id)) or answers.get(str(i))
-        correct_letters = question.all_correct_answers
-        if question.is_multi_select:
-            # TB-06 fix: ALWAYS compare as sets for multi-select. Previously a
-            # single-letter answer (no comma) fell through to `in correct_letters`
-            # and earned full credit for a partial answer.
-            student_letters = sorted(
-                letter.strip().upper()
-                for letter in str(raw_answer or "").split(",")
-                if letter.strip()
-            )
-            is_correct = bool(student_letters) and student_letters == sorted(
-                letter.strip().upper() for letter in correct_letters
-            )
-            student_answer = raw_answer
-        else:
-            student_answer = raw_answer
-            is_correct = student_answer in correct_letters
+        student_answer, is_correct = _grade_answer(question, raw_answer)
         if is_correct:
             correct_count += 1
         else:
-            wrong_question_ids.append(question.id)
+            wrong_answers[question.id] = student_answer
 
         results.append(
             {
@@ -285,7 +287,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     if quiz.is_required and quiz.show_in_weekly_checklist:
         record_quiz_mastery(db, student_id, quiz.domain_id, max(prior_best, score))
     log_activity(db, student_id, "quiz_passed", quiz.title, f"Score {score}/{total_questions}")
-    create_cards_for_wrong_answers(db, student.id, wrong_question_ids)
+    create_cards_for_wrong_answers(db, student.id, wrong_answers)
     db.commit()
 
     return ok(
@@ -369,7 +371,8 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
     questions = sorted(quiz.questions, key=lambda q: q.id)
     results = []
     for i, question in enumerate(questions, start=1):
-        student_answer = stored_answers.get(str(question.id)) or stored_answers.get(str(i))
+        raw_answer = stored_answers.get(str(question.id)) or stored_answers.get(str(i))
+        student_answer, is_correct = _grade_answer(question, raw_answer)
         results.append(
             {
                 "question_id": question.id,
@@ -379,7 +382,7 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
                 "correct_answer": question.correct_answer,
                 "correct_answers": question.all_correct_answers,
                 "is_multi_select": question.is_multi_select,
-                "is_correct": student_answer in question.all_correct_answers,
+                "is_correct": is_correct,
                 "explanation": question.explanation or "",
                 "options": {
                     "A": question.option_a,
