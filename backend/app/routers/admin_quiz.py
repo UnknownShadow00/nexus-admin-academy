@@ -10,6 +10,7 @@ from app.models.quiz import (
     EDITORIAL_STATUS_UNREVIEWED,
     EDITORIAL_STATUS_VALIDATED,
     QUIZ_PURPOSE_CERTIFICATION,
+    QUIZ_STATUS_PUBLISHED,
     SOURCE_TYPE_AI_GENERATED,
     SOURCE_TYPE_EXAMCOMPASS,
     SOURCE_TYPE_MANUAL,
@@ -20,7 +21,7 @@ from app.schemas.quiz import QuizGenerateRequest, QuizUpdateRequest
 from app.schemas.admin_content import QuestionUpdate, QuizImportRequest, ScrapePreviewRequest
 from app.services.admin_auth import verify_admin
 from app.services.examcompass_scraper import scrape_examcompass_quiz
-from app.services.question_validation import validate_question
+from app.services.question_validation import validate_question, validate_question_row
 from app.services.quiz_generator import generate_quiz_from_videos
 from app.utils.responses import ok
 
@@ -260,6 +261,18 @@ def update_quiz(quiz_id: int, payload: QuizUpdateRequest, db: Session = Depends(
         )
     if resulting_checklist and not resulting_required:
         raise HTTPException(status_code=409, detail="A weekly checklist quiz must also be required.")
+
+    if changes.get("status") == QUIZ_STATUS_PUBLISHED and quiz.status != QUIZ_STATUS_PUBLISHED:
+        questions = db.query(Question).filter(Question.quiz_id == quiz.id).all()
+        broken = [q for q in questions if q.flagged_for_review or not validate_question_row(q).valid]
+        if broken:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Cannot publish: {len(broken)} question(s) fail validation or are flagged for "
+                    f"review (first: question id {broken[0].id}). Fix or unflag them before publishing."
+                ),
+            )
 
     updated = {}
     for field, value in changes.items():

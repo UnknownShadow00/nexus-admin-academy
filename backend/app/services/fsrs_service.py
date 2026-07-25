@@ -3,6 +3,8 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from app.models.flashcard import FlashcardReview
+from app.models.quiz import Question
+from app.services.question_validation import validate_question_row
 
 
 def schedule_next(interval_days: int, ease_factor: float, rating: int) -> tuple[int, float]:
@@ -18,8 +20,17 @@ def schedule_next(interval_days: int, ease_factor: float, rating: int) -> tuple[
 
 
 def create_cards_for_wrong_answers(db: Session, student_id: int, wrong_answers: dict[int, str | None]) -> None:
+    """Creates/refreshes a Daily Review card for each wrong answer, except
+    for questions that are flagged for review or fail validation — a broken
+    question (blank options, missing/ambiguous answer key) must never be
+    turned into a flashcard a student is asked to memorize."""
     today = date.today()
     for question_id in sorted(wrong_answers):
+        question = db.get(Question, question_id)
+        if question is None:
+            continue
+        if question.flagged_for_review or not validate_question_row(question).valid:
+            continue
         student_answer = wrong_answers[question_id]
         card = (
             db.query(FlashcardReview)
