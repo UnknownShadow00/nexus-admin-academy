@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { getAdminFlaggedAttempts, getQuizQuestions, updateQuestion, updateQuiz } from "../../services/api";
+import { getAdminFlaggedAttempts, getQuizQuestions, updateQuiz } from "../../services/api";
+import QuestionEditorCard from "../../components/admin/QuestionEditorCard";
 
 export default function QuizEditorPage() {
   const { quizId } = useParams();
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
-  const [edits, setEdits] = useState({});
-  const [saving, setSaving] = useState({});
-  const [saved, setSaved] = useState({});
   const [publishSaving, setPublishSaving] = useState(false);
+  const [publishError, setPublishError] = useState("");
 
   const [titleEdit, setTitleEdit] = useState("");
   const [titleSaving, setTitleSaving] = useState(false);
@@ -39,9 +38,12 @@ export default function QuizEditorPage() {
 
   const publishQuiz = async () => {
     setPublishSaving(true);
+    setPublishError("");
     try {
-      await updateQuiz(quizId, { status: "published" });
+      await updateQuiz(quizId, { status: "published" }, { suppressToast: true });
       setQuiz((prev) => ({ ...(prev || {}), status: "published" }));
+    } catch (error) {
+      setPublishError(error?.response?.data?.detail || "Unable to publish this quiz.");
     } finally {
       setPublishSaving(false);
     }
@@ -92,23 +94,8 @@ export default function QuizEditorPage() {
     } finally { setOrganizationSaving(false); }
   };
 
-  const save = async (question) => {
-    setSaving((s) => ({ ...s, [question.id]: true }));
-    const patch = edits[question.id] || {};
-    await updateQuestion(question.id, {
-      correct_answer: patch.correct_answer ?? question.correct_answer,
-      correct_answers: patch.correct_answers ?? question.correct_answers ?? "",
-      explanation: patch.explanation ?? question.explanation,
-    });
-    setSaving((s) => ({ ...s, [question.id]: false }));
-    setSaved((s) => ({ ...s, [question.id]: true }));
-    setTimeout(() => setSaved((s) => ({ ...s, [question.id]: false })), 1500);
-    setEdits((prev) => ({ ...prev, [question.id]: {} }));
-  };
-
-  const update = (id, field, value) => {
-    setQuestions((rows) => rows.map((q) => (q.id === id ? { ...q, [field]: value } : q)));
-    setEdits((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: value } }));
+  const handleQuestionSaved = (questionId, patch) => {
+    setQuestions((rows) => rows.map((q) => (q.id === questionId ? { ...q, ...patch } : q)));
   };
 
   if (!quiz) return <main className="p-6">Loading...</main>;
@@ -164,6 +151,11 @@ export default function QuizEditorPage() {
             </button>
           ) : null}
         </div>
+        {publishError ? (
+          <p className="rounded border border-red-300 bg-red-50 p-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+            {publishError}
+          </p>
+        ) : null}
 
         <div className="grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-2 dark:border-slate-700">
           <label className="text-sm">Purpose<select className="input-field mt-1" value={quiz.quiz_purpose || "practice"} onChange={(e) => updateOrganization("quiz_purpose", e.target.value)}><option value="required">Required</option><option value="practice">Practice</option><option value="remediation">Remediation</option><option value="cumulative">Cumulative</option><option value="gate">Promotion Gate</option><option value="certification">Certification</option></select></label>
@@ -182,58 +174,7 @@ export default function QuizEditorPage() {
       </div>
 
       {questions.map((q, i) => (
-        <div key={q.id} className="panel space-y-3 dark:border-slate-700 dark:bg-slate-900">
-          <p className="font-semibold text-slate-900 dark:text-slate-100">{i + 1}. {q.question_text}</p>
-
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            {["a", "b", "c", "d", "e", "f", "g", "h"].filter((opt) => (q[`option_${opt}`] || "").trim()).map((opt) => (
-              <div
-                key={opt}
-                className={`rounded border p-2 dark:border-slate-700 ${
-                  q.correct_answer === opt.toUpperCase() ? "border-green-400 bg-green-50 dark:bg-green-950/20" : ""
-                }`}
-              >
-                <span className="font-bold uppercase text-slate-500">{opt}.</span>{" "}
-                <span className="text-slate-700 dark:text-slate-300">{q[`option_${opt}`]}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Correct:</label>
-            <select className="input-field max-w-24" value={q.correct_answer} onChange={(e) => update(q.id, "correct_answer", e.target.value)}>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
-              <option value="E">E</option>
-              <option value="F">F</option>
-              <option value="G">G</option>
-              <option value="H">H</option>
-            </select>
-            <input className="input-field flex-1" placeholder="Explanation (optional)" value={q.explanation} onChange={(e) => update(q.id, "explanation", e.target.value)} />
-            <button className="btn-primary shrink-0" onClick={() => save(q)} disabled={saving[q.id]}>
-              {saving[q.id] ? "Saving..." : saved[q.id] ? "Saved" : "Save"}
-            </button>
-          </div>
-
-          <div className="mt-2">
-            <label className="mb-1 block text-xs text-slate-500 dark:text-slate-400">
-              All correct answers for multi-select (comma-separated e.g. "A,C,D" - leave blank for single answer)
-            </label>
-            <input
-              className="input-field w-full text-sm"
-              value={edits[q.id]?.correct_answers ?? q.correct_answers ?? ""}
-              placeholder="e.g. A,C,D"
-              onChange={(e) =>
-                setEdits((prev) => ({
-                  ...prev,
-                  [q.id]: { ...prev[q.id], correct_answers: e.target.value.toUpperCase().replace(/[^A-H,]/g, "") },
-                }))
-              }
-            />
-          </div>
-        </div>
+        <QuestionEditorCard key={q.id} question={q} index={i} onSaved={handleQuestionSaved} />
       ))}
 
       {flaggedAttempts.length > 0 && (
