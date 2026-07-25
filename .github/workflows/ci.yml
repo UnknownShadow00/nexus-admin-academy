@@ -130,9 +130,9 @@ jobs:
         working-directory: backend
         run: python -m alembic upgrade head
 
-      - name: Confirm migration head is 0035_service_desk_browser_mvp
+      - name: Confirm migration head is ba877d258c82
         working-directory: backend
-        run: python -m alembic current | tee /tmp/alembic-current.txt | grep -q "0035_service_desk_browser_mvp (head)"
+        run: python -m alembic current | tee /tmp/alembic-current.txt | grep -q "ba877d258c82 (head)"
 
       - name: Seed application and curriculum content
         run: bash scripts/e2e/seed_fresh_db.sh
