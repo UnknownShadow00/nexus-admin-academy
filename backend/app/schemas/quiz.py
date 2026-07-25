@@ -123,3 +123,16 @@ class BulkTicketGenerateRequest(BaseModel):
     titles: list[str]
     week_number: int = Field(ge=1, le=24)
     difficulty: int = Field(ge=1, le=5)
+
+
+class QuestionImportConfirmRequest(BaseModel):
+    rows: list[dict] = Field(min_length=1, max_length=2000)
+    duplicate_policy: str = Field(default="skip")
+    source_filename: str = Field(default="", max_length=255)
+
+    @field_validator("duplicate_policy")
+    @classmethod
+    def duplicate_policy_must_be_valid(cls, value: str) -> str:
+        if value not in {"skip", "update_draft"}:
+            raise ValueError("duplicate_policy must be 'skip' or 'update_draft'")
+        return value
