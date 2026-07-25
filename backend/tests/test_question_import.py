@@ -106,6 +106,28 @@ def test_confirm_import_creates_quiz_and_questions(db):
     assert question.fingerprint == compute_fingerprint("Networking Basics", "What port does HTTPS use?", ["443", "80", "21", "25"])
 
 
+def test_confirm_import_handles_true_false_two_option_question(db):
+    """A question with only 2 options (e.g. true/false) must import cleanly —
+    option_b/c/d are not NOT-NULL-required at the DB level, only option_a is;
+    the shared validator enforces the real "at least 2" floor."""
+    content = (
+        CSV_HEADER
+        + 'True/False Quiz,single,Is TCP connection-oriented?,True,False,,,,,,,A,TCP is connection-oriented.,1,networking,manual,false\n'
+    )
+    rows = parse_csv_file(content.encode("utf-8"))
+
+    summary = confirm_import(db, rows, duplicate_policy="skip", source_filename="tf.csv")
+
+    assert summary["created"] == 1
+    assert summary["skipped_invalid"] == 0
+    question = db.query(Question).filter(Question.question_text == "Is TCP connection-oriented?").first()
+    assert question is not None
+    assert question.option_a == "True"
+    assert question.option_b == "False"
+    assert question.option_c is None
+    assert question.option_d is None
+
+
 def test_confirm_import_skips_invalid_rows_without_failing_whole_batch(db):
     content = CSV_HEADER + _csv_row() + _csv_row(text="No answer here", correct="")
     rows = parse_csv_file(content.encode("utf-8"))

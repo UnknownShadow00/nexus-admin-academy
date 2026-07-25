@@ -92,10 +92,13 @@ class Question(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     quiz_id: Mapped[int] = mapped_column(ForeignKey("quizzes.id", ondelete="CASCADE"), nullable=False, index=True)
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
+    # Only option_a is structurally required; the validator enforces "at
+    # least 2 non-blank options" at the application layer, so a true/false
+    # or 3-option question is not forced to fabricate a 4th one.
     option_a: Mapped[str] = mapped_column(Text, nullable=False)
-    option_b: Mapped[str] = mapped_column(Text, nullable=False)
-    option_c: Mapped[str] = mapped_column(Text, nullable=False)
-    option_d: Mapped[str] = mapped_column(Text, nullable=False)
+    option_b: Mapped[str | None] = mapped_column(Text, nullable=True)
+    option_c: Mapped[str | None] = mapped_column(Text, nullable=True)
+    option_d: Mapped[str | None] = mapped_column(Text, nullable=True)
     option_e: Mapped[str | None] = mapped_column(Text, nullable=True)
     option_f: Mapped[str | None] = mapped_column(Text, nullable=True)
     option_g: Mapped[str | None] = mapped_column(Text, nullable=True)

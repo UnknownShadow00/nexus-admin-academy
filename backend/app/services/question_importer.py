@@ -238,7 +238,12 @@ def confirm_import(
                         editorial_status=EDITORIAL_STATUS_UNREVIEWED,
                         source_type=SOURCE_TYPE_SPREADSHEET_IMPORT,
                         quiz_purpose="practice",
-                        show_in_practice_library=True,
+                        # Matches the ExamCompass import convention: freshly
+                        # imported, unreviewed content starts invisible to
+                        # students. update_quiz() requires answer_keys_validated
+                        # + editorial_status="validated" before any visibility
+                        # flag (including practice library) can be enabled.
+                        show_in_practice_library=False,
                         answer_keys_validated=False,
                     )
                     db.add(quiz)
