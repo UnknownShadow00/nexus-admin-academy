@@ -19,8 +19,24 @@ class FlashcardRatingRequest(BaseModel):
     rating: int = Field(ge=1, le=4)
 
 
+def _non_blank_options(question: Question) -> dict:
+    letters = "ABCDEFGH"
+    raw = [
+        question.option_a,
+        question.option_b,
+        question.option_c,
+        question.option_d,
+        question.option_e,
+        question.option_f,
+        question.option_g,
+        question.option_h,
+    ]
+    return {letter: text.strip() for letter, text in zip(letters, raw) if text and text.strip()}
+
+
 def _serialize_card(card: FlashcardReview, question: Question | None = None) -> dict:
     question = question or card.question
+    quiz = question.quiz if question else None
     return {
         "id": card.id,
         "student_id": card.student_id,
@@ -30,20 +46,15 @@ def _serialize_card(card: FlashcardReview, question: Question | None = None) -> 
         "ease_factor": card.ease_factor,
         "review_count": card.review_count,
         "last_rating": card.last_rating,
+        "last_wrong_answer": card.last_wrong_answer,
         "question_text": question.question_text if question else None,
-        "options": {
-            "A": question.option_a,
-            "B": question.option_b,
-            "C": question.option_c,
-            "D": question.option_d,
-            "E": question.option_e or "",
-            "F": question.option_f or "",
-            "G": question.option_g or "",
-            "H": question.option_h or "",
-        }
-        if question
-        else {},
+        "is_multi_select": question.is_multi_select if question else False,
+        "options": _non_blank_options(question) if question else {},
         "correct_answer": question.correct_answer if question else None,
+        "correct_answers": question.all_correct_answers if question else [],
+        "explanation": (question.explanation or "") if question else "",
+        "quiz_id": question.quiz_id if question else None,
+        "quiz_title": quiz.title if quiz else None,
     }
 
 

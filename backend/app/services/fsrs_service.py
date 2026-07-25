@@ -3,6 +3,8 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from app.models.flashcard import FlashcardReview
+from app.models.quiz import Question
+from app.services.question_validation import validate_question_row
 
 
 def schedule_next(interval_days: int, ease_factor: float, rating: int) -> tuple[int, float]:
@@ -17,15 +19,33 @@ def schedule_next(interval_days: int, ease_factor: float, rating: int) -> tuple[
     raise ValueError("Rating must be between 1 and 4")
 
 
-def create_cards_for_wrong_answers(db: Session, student_id: int, wrong_question_ids: list[int]) -> None:
+def create_cards_for_wrong_answers(db: Session, student_id: int, wrong_answers: dict[int, str | None]) -> None:
+    """Creates/refreshes a Daily Review card for each wrong answer, except
+    for questions that are flagged for review or fail validation — a broken
+    question (blank options, missing/ambiguous answer key) must never be
+    turned into a flashcard a student is asked to memorize."""
     today = date.today()
-    for question_id in sorted(set(wrong_question_ids)):
+    for question_id in sorted(wrong_answers):
+        question = db.get(Question, question_id)
+        if question is None:
+            continue
+        if question.flagged_for_review or not validate_question_row(question).valid:
+            continue
+        student_answer = wrong_answers[question_id]
         card = (
             db.query(FlashcardReview)
             .filter(FlashcardReview.student_id == student_id, FlashcardReview.question_id == question_id)
             .first()
         )
         if card is None:
-            db.add(FlashcardReview(student_id=student_id, question_id=question_id, due_date=today))
+            db.add(
+                FlashcardReview(
+                    student_id=student_id,
+                    question_id=question_id,
+                    due_date=today,
+                    last_wrong_answer=student_answer,
+                )
+            )
         else:
             card.due_date = today
+            card.last_wrong_answer = student_answer

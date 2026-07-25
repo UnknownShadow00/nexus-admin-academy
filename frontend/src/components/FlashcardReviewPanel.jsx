@@ -16,14 +16,21 @@ function normalizeCards(response) {
 }
 
 function optionEntries(card) {
-  return Object.entries(card?.options || {}).filter(([key, value]) => key !== "E" || String(value || "").trim());
+  return Object.entries(card?.options || {}).filter(([, value]) => String(value || "").trim());
 }
 
 function isCorrectOption(card, key) {
-  return String(card?.correct_answer || "")
+  const correctAnswers = Array.isArray(card?.correct_answers) && card.correct_answers.length
+    ? card.correct_answers
+    : String(card?.correct_answer || "").split(",");
+  return correctAnswers.map((part) => String(part).trim().toUpperCase()).includes(key);
+}
+
+function studentPickedOptions(card) {
+  return String(card?.last_wrong_answer || "")
     .split(",")
     .map((part) => part.trim().toUpperCase())
-    .includes(key);
+    .filter(Boolean);
 }
 
 export default function FlashcardReviewPanel() {
@@ -61,6 +68,7 @@ export default function FlashcardReviewPanel() {
 
   const card = cards[index];
   const options = useMemo(() => optionEntries(card), [card]);
+  const studentPicked = useMemo(() => studentPickedOptions(card), [card]);
   const isSessionComplete = cards.length > 0 && index >= cards.length;
 
   const handleRating = async (value) => {
@@ -116,24 +124,39 @@ export default function FlashcardReviewPanel() {
         ) : (
           <div className="space-y-4">
             <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">{card.question_text || "Review question"}</p>
+            {card.is_multi_select ? (
+              <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">Select all that apply</p>
+            ) : null}
             <div className="space-y-2">
               {options.map(([key, value]) => {
                 const correct = isCorrectOption(card, key);
+                const picked = studentPicked.includes(key);
+                const wrong = picked && !correct;
                 return (
                   <div
                     key={key}
                     className={`flex gap-3 rounded-lg border p-3 text-sm ${
                       correct
                         ? "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100"
-                        : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                        : wrong
+                          ? "border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/30 dark:text-red-100"
+                          : "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                     }`}
                   >
                     <span className="font-semibold">{key}</span>
-                    <span>{value}</span>
+                    <span className="flex-1">{value}</span>
+                    {correct ? <span className="text-xs font-bold uppercase">Correct</span> : null}
+                    {wrong ? <span className="text-xs font-bold uppercase">Your answer</span> : null}
                   </div>
                 );
               })}
             </div>
+            {card.explanation ? (
+              <p className="rounded bg-slate-50 p-2 text-sm italic text-slate-600 dark:bg-slate-800 dark:text-slate-300">{card.explanation}</p>
+            ) : null}
+            {card.quiz_title ? (
+              <p className="text-xs text-slate-400 dark:text-slate-500">From: {card.quiz_title}</p>
+            ) : null}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {RATINGS.map((item) => (
                 <button

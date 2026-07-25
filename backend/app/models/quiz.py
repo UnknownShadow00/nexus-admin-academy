@@ -39,6 +39,7 @@ SOURCE_TYPE_AI_GENERATED = "ai_generated"
 SOURCE_TYPE_MANUAL = "manual"
 SOURCE_TYPE_SCRAPED = "scraped"
 SOURCE_TYPE_UNKNOWN = "unknown"
+SOURCE_TYPE_SPREADSHEET_IMPORT = "spreadsheet_import"
 SOURCE_TYPES = {
     SOURCE_TYPE_SEED,
     SOURCE_TYPE_EXAMCOMPASS,
@@ -46,6 +47,7 @@ SOURCE_TYPES = {
     SOURCE_TYPE_MANUAL,
     SOURCE_TYPE_SCRAPED,
     SOURCE_TYPE_UNKNOWN,
+    SOURCE_TYPE_SPREADSHEET_IMPORT,
 }
 
 
@@ -92,10 +94,13 @@ class Question(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     quiz_id: Mapped[int] = mapped_column(ForeignKey("quizzes.id", ondelete="CASCADE"), nullable=False, index=True)
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
+    # Only option_a is structurally required; the validator enforces "at
+    # least 2 non-blank options" at the application layer, so a true/false
+    # or 3-option question is not forced to fabricate a 4th one.
     option_a: Mapped[str] = mapped_column(Text, nullable=False)
-    option_b: Mapped[str] = mapped_column(Text, nullable=False)
-    option_c: Mapped[str] = mapped_column(Text, nullable=False)
-    option_d: Mapped[str] = mapped_column(Text, nullable=False)
+    option_b: Mapped[str | None] = mapped_column(Text, nullable=True)
+    option_c: Mapped[str | None] = mapped_column(Text, nullable=True)
+    option_d: Mapped[str | None] = mapped_column(Text, nullable=True)
     option_e: Mapped[str | None] = mapped_column(Text, nullable=True)
     option_f: Mapped[str | None] = mapped_column(Text, nullable=True)
     option_g: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -103,6 +108,14 @@ class Question(Base):
     correct_answer: Mapped[str] = mapped_column(CHAR(1), nullable=False)
     correct_answers: Mapped[str | None] = mapped_column(Text, nullable=True)
     explanation: Mapped[str] = mapped_column(Text, nullable=True)
+    difficulty: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tags: Mapped[list | None] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    source: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    imported_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    import_filename: Mapped[str | None] = mapped_column(Text, nullable=True)
+    flagged_for_review: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0", default=False, index=True)
+    flag_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     quiz = relationship("Quiz", back_populates="questions")
 

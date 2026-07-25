@@ -363,6 +363,25 @@ export const getQuizQuestions = (quizId, requestOptions) =>
   request(() => adminApi.get(`/api/admin/quizzes/${quizId}/questions`), requestOptions);
 export const getAdminFlaggedAttempts = (requestOptions) =>
   request(() => adminApi.get("/api/admin/quiz-attempts/flagged"), requestOptions);
+export const validateQuestionDraft = (payload, requestOptions) =>
+  request(() => adminApi.post("/api/admin/questions/validate", payload), requestOptions);
+
+export const downloadQuestionImportTemplate = () =>
+  adminApi.get("/api/admin/quiz/import/template", { responseType: "blob" }).then((res) => res.data);
+export const previewQuestionImport = (file, requestOptions) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  return request(
+    () => adminApi.post("/api/admin/quiz/import/preview", formData, { headers: { "Content-Type": "multipart/form-data" } }),
+    requestOptions
+  );
+};
+export const confirmQuestionImport = (payload, requestOptions) =>
+  request(() => adminApi.post("/api/admin/quiz/import/confirm", payload), requestOptions);
+export const downloadQuestionImportErrorReport = (invalidRows) =>
+  adminApi
+    .post("/api/admin/quiz/import/preview/error-report", { invalid_rows: invalidRows }, { responseType: "blob" })
+    .then((res) => res.data);
 export const updateQuestion = (questionId, payload, requestOptions) =>
   request(() => adminApi.put(`/api/admin/questions/${questionId}`, payload), requestOptions);
 export const createTicket = (payload, requestOptions) =>

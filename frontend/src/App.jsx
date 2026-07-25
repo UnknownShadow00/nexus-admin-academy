@@ -37,6 +37,7 @@ const AdminCapstonesPage = lazy(() => import("./pages/admin/AdminCapstonesPage")
 const AdminLabsPage = lazy(() => import("./pages/admin/AdminLabsPage"));
 const AdminTicketReviewPage = lazy(() => import("./pages/admin/AdminTicketReviewPage"));
 const BookmarkletPage = lazy(() => import("./pages/admin/BookmarkletPage"));
+const QuestionImportPage = lazy(() => import("./pages/admin/QuestionImportPage"));
 const CurriculumEditorPage = lazy(() => import("./pages/admin/CurriculumEditorPage"));
 const CurriculumTagsPage = lazy(() => import("./pages/admin/CurriculumTagsPage"));
 const QuizEditorPage = lazy(() => import("./pages/admin/QuizEditorPage"));
@@ -71,6 +72,7 @@ const adminNavItems = [
       { to: "/admin/curriculum", label: "Study Curriculum" },
       { to: "/admin/curriculum-tags", label: "Job Relevance Tags" },
       { to: "/admin/bookmarklet", label: "ExamCompass Import" },
+      { to: "/admin/question-import", label: "Import Questions (CSV/XLSX)" },
     ],
   },
   { to: "/admin/students", label: "Students" },
@@ -457,6 +459,7 @@ export default function App() {
         <Route path="/admin/labs" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminLabsPage /></AdminAccessGate>} />
         <Route path="/admin/capstones" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminCapstonesPage /></AdminAccessGate>} />
         <Route path="/admin/bookmarklet" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><BookmarkletPage /></AdminAccessGate>} />
+        <Route path="/admin/question-import" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><QuestionImportPage /></AdminAccessGate>} />
         <Route path="/admin/curriculum" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><CurriculumEditorPage /></AdminAccessGate>} />
         <Route path="/admin/curriculum-tags" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><CurriculumTagsPage /></AdminAccessGate>} />
         <Route path="/admin/quizzes/:quizId/edit" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><QuizEditorPage /></AdminAccessGate>} />
