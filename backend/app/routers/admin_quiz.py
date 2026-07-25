@@ -20,6 +20,7 @@ from app.schemas.quiz import QuizGenerateRequest, QuizUpdateRequest
 from app.schemas.admin_content import QuestionUpdate, QuizImportRequest, ScrapePreviewRequest
 from app.services.admin_auth import verify_admin
 from app.services.examcompass_scraper import scrape_examcompass_quiz
+from app.services.question_validation import validate_question
 from app.services.quiz_generator import generate_quiz_from_videos
 from app.utils.responses import ok
 
@@ -329,7 +330,25 @@ async def scrape_quiz_save(payload: QuizImportRequest, db: Session = Depends(get
     db.flush()
 
     saved_count = 0
+    flagged_count = 0
     for question in questions:
+        result = validate_question(
+            {
+                "question_text": question.question_text,
+                "option_a": question.option_a,
+                "option_b": question.option_b,
+                "option_c": question.option_c,
+                "option_d": question.option_d,
+                "option_e": question.option_e,
+                "option_f": question.option_f,
+                "option_g": question.option_g,
+                "option_h": question.option_h,
+                "correct_answers": question.correct_answer,
+                "explanation": question.explanation,
+            }
+        )
+        if not result.valid:
+            flagged_count += 1
         db.add(
             Question(
                 quiz_id=quiz.id,
@@ -344,12 +363,21 @@ async def scrape_quiz_save(payload: QuizImportRequest, db: Session = Depends(get
                 option_h=question.option_h or None,
                 correct_answer=question.correct_answer,
                 explanation=question.explanation,
+                flagged_for_review=not result.valid,
+                flag_reason="; ".join(i.message for i in result.errors) if not result.valid else None,
             )
         )
         saved_count += 1
 
     db.commit()
-    return ok({"quiz_id": quiz.id, "question_count": saved_count, "title": quiz.title})
+    return ok(
+        {
+            "quiz_id": quiz.id,
+            "question_count": saved_count,
+            "title": quiz.title,
+            "flagged_for_review_count": flagged_count,
+        }
+    )
 
 
 @router.post("/quiz/bookmarklet-import")
@@ -385,6 +413,7 @@ async def bookmarklet_import(payload: QuizImportRequest, db: Session = Depends(g
     db.flush()
 
     saved = 0
+    flagged = 0
     for question in questions:
         all_correct = question.all_correct_answers
 
@@ -396,6 +425,23 @@ async def bookmarklet_import(payload: QuizImportRequest, db: Session = Depends(g
             primary_correct = "A"
 
         correct_answers_str = ",".join(all_correct) if len(all_correct) > 1 else None
+        result = validate_question(
+            {
+                "question_text": question.question_text,
+                "option_a": question.option_a,
+                "option_b": question.option_b,
+                "option_c": question.option_c,
+                "option_d": question.option_d,
+                "option_e": question.option_e,
+                "option_f": question.option_f,
+                "option_g": question.option_g,
+                "option_h": question.option_h,
+                "correct_answers": correct_answers_str or primary_correct,
+                "explanation": question.explanation,
+            }
+        )
+        if not result.valid:
+            flagged += 1
         db.add(
             Question(
                 quiz_id=quiz.id,
@@ -411,13 +457,17 @@ async def bookmarklet_import(payload: QuizImportRequest, db: Session = Depends(g
                 correct_answer=primary_correct,
                 correct_answers=correct_answers_str,
                 explanation=question.explanation,
+                flagged_for_review=not result.valid,
+                flag_reason="; ".join(i.message for i in result.errors) if not result.valid else None,
             )
         )
         saved += 1
 
     db.commit()
-    logger.info("bookmarklet_import quiz_id=%s questions=%s title=%s", quiz.id, saved, title)
-    return ok({"quiz_id": quiz.id, "question_count": saved, "title": title})
+    logger.info(
+        "bookmarklet_import quiz_id=%s questions=%s flagged=%s title=%s", quiz.id, saved, flagged, title
+    )
+    return ok({"quiz_id": quiz.id, "question_count": saved, "title": title, "flagged_for_review_count": flagged})
 
 
 @router.get("/quizzes/{quiz_id}/questions")
