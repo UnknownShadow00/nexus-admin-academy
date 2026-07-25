@@ -1,6 +1,6 @@
 ﻿import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
@@ -530,6 +530,14 @@ def get_quiz_questions(quiz_id: int, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/questions/validate")
+def validate_question_draft(payload: dict = Body(...)):
+    """Stateless validation for the editor's live "errors before saving" and
+    "preview exactly what students will see" views. Never touches the database."""
+    result = validate_question(payload, require_explanation=bool(payload.get("require_explanation")))
+    return ok(result.to_dict())
+
+
 @router.put("/questions/{question_id}")
 def update_question(question_id: int, payload: QuestionUpdate, db: Session = Depends(get_db)):
     question = db.query(Question).filter(Question.id == question_id).first()
@@ -538,5 +546,13 @@ def update_question(question_id: int, payload: QuestionUpdate, db: Session = Dep
 
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(question, field, value)
+
+    # Re-validate after the edit so a fixed question is automatically
+    # un-flagged, and a newly-broken edit is automatically caught, instead of
+    # flagged_for_review drifting out of sync with the question's actual content.
+    result = validate_question_row(question)
+    question.flagged_for_review = not result.valid
+    question.flag_reason = "; ".join(i.message for i in result.errors) if not result.valid else None
+
     db.commit()
-    return ok({"updated": True})
+    return ok({"updated": True, "valid": result.valid, "errors": [i.message for i in result.errors]})
