@@ -15,14 +15,6 @@ credentials, allowed frontend origin, persistent upload directory, and cookie
 settings appropriate to HTTPS. AI and automated-VM integrations may remain
 disabled until configured and tested.
 
-The Service Desk Scenario Foundation is also disabled by default. Keep
-`SERVICE_DESK_LAB_ENABLED=false` in production until a separately approved
-student rollout. `SERVICE_DESK_LAB_ADMIN_ENABLED=true` may be used only for a
-controlled administrator validation session; it does not enable student APIs
-or add navigation. The additive Scenario Foundation migration does not seed
-scenarios automatically—do not run seed commands in production merely to
-deploy it.
-
 ## Active self-hosted deployment
 
 The backend runs from `backend/.venv` under
@@ -183,7 +175,7 @@ Four independent jobs, so a failure is easy to attribute:
   test script; real-browser coverage runs in the Playwright job instead.
 - **Playwright browser tests** — real Chromium against an isolated local
   stack (see below), covering My Training, lesson objectives, quiz pass/fail
-  messaging, Progress labels, the Service Desk disabled state, and
+  messaging, Progress labels, and
   authentication/navigation regressions, at both the 1440x1000 desktop and
   375x812 mobile viewports. Both specs currently run in under 20 seconds
   combined, so the full pair runs on every PR rather than splitting a
@@ -257,11 +249,14 @@ artifact from the failed run's Summary page and open
 `playwright-report/index.html`, or run `npx playwright show-trace
 <trace.zip>` on a downloaded trace.
 
-## Service Desk Lab private beta
+## Service Desk Simulator
 
-Run `alembic upgrade head` before restarting the backend. Keep `SERVICE_DESK_LAB_ENABLED=false` and `SERVICE_DESK_LAB_ADMIN_ENABLED=false` in `backend/.env` for the first deployment. After health/authentication validation, an operator may enable administrator review only; student access additionally requires an audited explicit beta enrollment through the supported administrator API. Do not enable the student flag globally or use unapproved browser credentials. Service Desk Lab is separate from legacy Support Tickets, which must be included in the normal smoke checklist unchanged.
-
-For an administrator-only review, leave `SERVICE_DESK_LAB_ENABLED=false`, set only `SERVICE_DESK_LAB_ADMIN_ENABLED=true`, restart the backend, and use an approved administrator account to inspect the five published versions, health status, Knowledge Base, replay, assignments, and beta-enrollment controls. Confirm student `/service-desk` navigation and APIs remain unavailable. Return the administrator flag to `false` and restart after the approved review session unless continued review has been explicitly authorized. Do not enroll production students or set the student flag during this step.
+The simulator is a separate Next.js application reverse-proxied at
+`/service-desk`. The root compose file expects its repository at
+`../Nexus dupe/service-desk-app`, alongside this repository, and proxies it
+through the frontend nginx container. For standalone-host deployments, update
+the `service-desk-host:3000` placeholder in `frontend/nginx.host.conf` to the
+simulator's deployed host and port.
 
 Automated Proxmox/Guacamole delivery remains opt-in until a staging test proves
 start, scoped student access, isolation, refresh recovery, expiry, and cleanup.

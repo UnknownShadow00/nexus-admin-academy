@@ -114,8 +114,6 @@ jobs:
             echo "UPLOAD_DIR=${{ runner.temp }}/uploads"
             echo "APP_LOG_PATH=${{ runner.temp }}/app.log"
             echo "COOKIE_SECURE=false"
-            echo "SERVICE_DESK_LAB_ENABLED=false"
-            echo "SERVICE_DESK_LAB_ADMIN_ENABLED=false"
             echo "AI_ENABLED=false"
             echo "SEED_PASSWORD_MENTOR=$(rand)"
             echo "SEED_PASSWORD_SHAK=$(rand)"

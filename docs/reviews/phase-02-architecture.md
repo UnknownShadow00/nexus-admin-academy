@@ -38,12 +38,12 @@ in-process. Production sits behind **Cloudflare** with the backend apparently on
   forwarded headers), and a `validation_error_handler`.
 - **Routers (28 files, all mounted):** auth, students, onboarding, training, study_tracker,
   quizzes, lesson_notes, tickets, submissions, evidence, labs, cli_labs, capstones, commands,
-  resources, flashcards, search, service_desk; admin aggregate (`admin.py` includes
+  resources, flashcards, search, and the legacy Service Desk router; admin aggregate (`admin.py` includes
   admin_content, admin_quiz, admin_students, admin_tickets) + admin_curriculum, admin_session,
-  admin_training, admin_service_desk. **No unmounted/orphan routers.**
+  and admin training routers. **No unmounted/orphan routers.**
 - **Services (37):** domain logic — training_service, progression_service, xp_service/
   xp_calculator, mastery_service, quiz_generator/quiz_progression/quiz_visibility, ticket_
-  generator/ticket_grader/ticket_params, service_desk_engine/lab/features/definitions/health,
+  generator/ticket_grader/ticket_params, the legacy Service Desk service bundle,
   onboarding_service, activity_service, squad_service, fsrs_service, a_plus_access,
   methodology_enforcer, auth_service, admin_auth, rate_limiter, ai_service, plus
   **deferred-feature services** (guacamole_service, proxmox_service, cve_service, discord_service).
@@ -75,8 +75,7 @@ in-process. Production sits behind **Cloudflare** with the backend apparently on
    backend learning-path API in Phase 6.
 2. **Support Tickets vs. Service Desk.** Two parallel simulated-support subsystems:
    tickets (`tickets.py`, `ticket_generator`, `ticket_grader`, `ticket_params`, `submissions.py`,
-   `admin_tickets.py`) and Service Desk (`service_desk_engine` 558 LOC, `service_desk_lab`,
-   `service_desk_features`, `service_desk_definitions`, `service_desk_health`, admin_service_desk).
+   `admin_tickets.py`) and the legacy Service Desk service bundle.
    Distinct data + grading + XP + admin workflows → deep-dived in Phase 9.
 3. **Progress / XP / mastery — several calculators.** `progression_service` (491),
    `quiz_progression`, `xp_service` + `xp_calculator` + `xp_ledger`, `mastery_service`,

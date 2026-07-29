@@ -142,9 +142,6 @@ Do not build a second progression system — extend this one.
 | `PROXMOX_FULL_CLONE` | Clone mode | `false` | linked on supported storage, otherwise logged full fallback |
 | `LAB_VM_TTL_MINUTES` | Assignment lifetime | `120` | access is denied after expiry |
 | `GUACAMOLE_DATASOURCE` | Guacamole JDBC datasource | `postgresql` | Guacamole 1.6.0 contract |
-| `SERVICE_DESK_LAB_ENABLED` | Enable Service Desk student APIs | `false` | Disabled-by-default Phase 1A private-beta gate; only explicitly enrolled students receive navigation |
-| `SERVICE_DESK_LAB_ADMIN_ENABLED` | Enable Service Desk admin inspection APIs | `false` | Separate controlled-validation gate; does not enable student APIs |
-
 Legacy `OPENROUTER_*` variables still work as fallbacks so existing deployments
 keep running. The app **boots even with no AI variables set** — AI endpoints
 return a clear 503 and grading falls back to manual.

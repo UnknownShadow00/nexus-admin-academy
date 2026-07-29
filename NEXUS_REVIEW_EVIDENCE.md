@@ -35,7 +35,7 @@ No secrets/credentials appear in this file.
   `/terminal`, `/service-desk` (gated "unavailable"), `/lessons/{id}` (gated 403 for locked).
 - **Admin (all HTTP 200, 0 console errors):** `/admin`, `/admin/students`, `/admin/modules`,
   `/admin/training`, `/admin/curriculum`, `/admin/curriculum-tags`, `/admin/bookmarklet`,
-  `/admin/ticket-review`, `/admin/service-desk`, `/admin/labs`, `/admin/capstones`, `/admin/ai-costs`.
+  `/admin/ticket-review`, `/admin/labs`, `/admin/capstones`, `/admin/ai-costs`.
 - **Redirects verified:** `/learning-path→/training`, `/study-tracker→/training/content`,
   `/admin/review→/admin/ticket-review`.
 

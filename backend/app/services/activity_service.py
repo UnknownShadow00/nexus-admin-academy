@@ -15,9 +15,18 @@ def mark_student_active(db: Session, student_id: int) -> None:
     db.commit()
 
 
-def log_activity(db: Session, student_id: int, activity_type: str, title: str, detail: str | None = None) -> None:
+def log_activity(
+    db: Session,
+    student_id: int,
+    activity_type: str,
+    title: str,
+    detail: str | None = None,
+    *,
+    commit: bool = True,
+) -> None:
     db.add(SquadActivity(student_id=student_id, activity_type=activity_type, title=title[:200], detail=(detail or "")[:500] or None))
-    db.commit()
+    if commit:
+        db.commit()
 
 
 def get_recent_activity(db: Session, limit: int = 50) -> list[SquadActivity]:

@@ -18,8 +18,6 @@ def _run(command: list[str], database_url: str) -> subprocess.CompletedProcess[s
     environment.update(
         {
             "DATABASE_URL": database_url,
-            "SERVICE_DESK_LAB_ENABLED": "false",
-            "SERVICE_DESK_LAB_ADMIN_ENABLED": "false",
         }
     )
     return subprocess.run(

@@ -42,6 +42,22 @@ services:
       - "8081:80"
     depends_on:
       - backend
+      - service-desk-web
+
+  # Build context is a sibling directory outside this repository; both repos must be checked out side by side on the same host.
+  service-desk-web:
+    build:
+      context: ../Nexus dupe/service-desk-app
+      dockerfile: docker/web.Dockerfile
+    environment:
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - NEXUS_ADMIN_CHECK_URL=http://backend:8000
+      - SERVICE_DESK_BASE_PATH=/service-desk
+      - NEXUS_INTEGRATION=1
+    restart: unless-stopped
+    depends_on:
+      - backend
 
   postgres:
     image: postgres:16-alpine

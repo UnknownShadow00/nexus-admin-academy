@@ -23,7 +23,6 @@ Service Desk Lab, Labs & VM Assignments, Capstones) · System ▾ (AI Usage & Co
 | Job Relevance Tags `/admin/curriculum-tags` | Tag mgmt | ✅ | Job-relevance tagging surface. |
 | ExamCompass Import `/admin/bookmarklet` | Quiz import | ✅ | Bookmarklet workflow. |
 | Ticket Review `/admin/ticket-review` | Grade queue | ✅ | Master-detail; clean "No graded submissions" empty state. |
-| Service Desk Lab `/admin/service-desk` | SD admin | ✅✅ | 5 published scenarios, **Health: Passing** (per-scenario health), Assignments 0, Private-beta enrollment (with explicit note enrollment ≠ access without the student feature flag), Assign scenario, per-scenario View details / replay. |
 | Labs & VM Assignments `/admin/labs` | Lab templates | ✅ | "Lab Templates" (note: **VM Assignments** references the deferred VM feature). |
 | Capstones `/admin/capstones` | Capstone templates | ✅ | Template mgmt. |
 | AI Usage & Costs `/admin/ai-costs` | AI cost dash | ✅ | Present though AI is "deferred" — tracks usage/budget. |

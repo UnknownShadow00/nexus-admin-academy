@@ -5,7 +5,7 @@
 
 ## Frontend delivery
 - **Code splitting: yes.** 17 `React.lazy` routes; admin pages ship as separate chunks
-  (ModuleManager 38 kB, AdminServiceDeskPage 17.6 kB, BookmarkletPage 17.2 kB, etc.).
+  (ModuleManager 38 kB, the former Service Desk admin chunk 17.6 kB, BookmarkletPage 17.2 kB, etc.).
 - **But the main chunk is large:** `index-*.js` **1,006 kB raw / 282 kB gzip** (Vite warns >500 kB).
   Student-facing pages + vendor libs are eager-loaded in the entry bundle; only admin/some heavy
   pages are lazy. 282 kB gzip is acceptable for a training app but trimmable.
