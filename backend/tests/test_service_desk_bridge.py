@@ -2,6 +2,7 @@ from app.models.squad_activity import SquadActivity
 from app.models.xp_ledger import XPLedger
 from app.routers import service_desk_bridge
 from app.services.admin_auth import issue_admin_session, revoke_admin_session
+from app.services.auth_service import STUDENT_SESSION_COOKIE, create_access_token
 from conftest import auth_headers, make_client, make_student
 
 
@@ -80,3 +81,33 @@ def test_admin_check_accepts_api_key_or_active_admin_session(monkeypatch):
         assert client.get("/api/service-desk/admin-check").json() == {"is_admin": True}
     finally:
         revoke_admin_session(token)
+
+
+def test_admin_authorize_requires_mentor_or_active_admin_session(db):
+    student = make_student(db, username="not-a-mentor")
+    mentor = make_student(db, username="mentor")
+    mentor.is_mentor = True
+    db.commit()
+    client = make_client(service_desk_bridge.router)
+
+    assert client.get("/api/service-desk/admin-authorize").status_code == 403
+
+    student_token = create_access_token(
+        {"sub": str(student.id), "name": student.name, "is_mentor": False}
+    )
+    client.cookies.set(STUDENT_SESSION_COOKIE, student_token)
+    assert client.get("/api/service-desk/admin-authorize").status_code == 403
+
+    mentor_token = create_access_token(
+        {"sub": str(mentor.id), "name": mentor.name, "is_mentor": True}
+    )
+    client.cookies.set(STUDENT_SESSION_COOKIE, mentor_token)
+    assert client.get("/api/service-desk/admin-authorize").status_code == 204
+
+    client.cookies.clear()
+    admin_token = issue_admin_session()
+    try:
+        client.cookies.set("admin_session", admin_token)
+        assert client.get("/api/service-desk/admin-authorize").status_code == 204
+    finally:
+        revoke_admin_session(admin_token)

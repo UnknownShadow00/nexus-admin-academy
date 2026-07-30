@@ -2,7 +2,7 @@ import hmac
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Header, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -13,7 +13,7 @@ from app.models.student import Student
 from app.models.xp_ledger import XPLedger
 from app.services.activity_service import log_activity
 from app.services.admin_auth import get_admin_api_key, has_valid_admin_session
-from app.services.auth_service import get_current_student
+from app.services.auth_service import STUDENT_SESSION_COOKIE, decode_token, get_current_student
 
 router = APIRouter(prefix="/api/service-desk", tags=["service-desk-bridge"])
 
@@ -145,3 +145,32 @@ def get_service_desk_admin_check(
             expected_api_key,
         )
     return {"is_admin": is_admin}
+
+
+@router.get("/admin-authorize", status_code=status.HTTP_204_NO_CONTENT)
+def authorize_service_desk_admin(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Response:
+    """Authorize the nginx auth subrequest for simulator builder routes."""
+    if has_valid_admin_session(request):
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    token = request.cookies.get(STUDENT_SESSION_COOKIE)
+    if token:
+        try:
+            payload = decode_token(token)
+            student_id = int(payload["sub"])
+        except (HTTPException, KeyError, TypeError, ValueError):
+            student_id = None
+
+        if student_id is not None:
+            mentor = (
+                db.query(Student)
+                .filter(Student.id == student_id, Student.is_mentor.is_(True))
+                .first()
+            )
+            if mentor:
+                return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
