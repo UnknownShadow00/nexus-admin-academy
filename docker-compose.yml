@@ -61,6 +61,8 @@ services:
       - NEXUS_ADMIN_CHECK_URL=http://backend:8000
       - SERVICE_DESK_BASE_PATH=/service-desk
       - NEXUS_INTEGRATION=1
+      - NEXT_PUBLIC_BASE_PATH=/service-desk
+      - NEXT_PUBLIC_NEXUS_INTEGRATION=1
     restart: unless-stopped
     depends_on:
       - backend
