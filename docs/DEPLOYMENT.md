@@ -121,8 +121,9 @@ VITE_API_URL=
 ```
 
 Then deploy with both Compose files. The staging override disables secure
-cookies only because the LAN staging endpoint is HTTP; production continues to
-use `COOKIE_SECURE=true` from `backend/.env`.
+cookies only because the LAN staging endpoint is HTTP and permits only the LAN
+staging frontend as a CORS origin; production continues to use
+`COOKIE_SECURE=true` and its own CORS configuration from `backend/.env`.
 
 ```bash
 docker compose -p nexus-staging --env-file .env.staging \
