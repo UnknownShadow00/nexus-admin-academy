@@ -1,0 +1,11 @@
+# Staging-only overrides. Use with:
+#   docker compose -p nexus-staging --env-file .env.staging \
+#     -f docker-compose.yml -f docker-compose.staging.yml <command>
+
+services:
+  backend:
+    environment:
+      APP_ENV: staging
+      # The staging URL is LAN HTTP. Production keeps backend/.env's secure
+      # cookie setting and is not changed by this override.
+      COOKIE_SECURE: "false"

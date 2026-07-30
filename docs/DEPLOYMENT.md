@@ -107,6 +107,34 @@ docker compose ps
 curl --fail http://127.0.0.1:8000/health
 ```
 
+### Isolated staging deployment
+
+Staging uses the same production Dockerfiles with separate Compose resources,
+ports, and PostgreSQL volume. Create a gitignored `.env.staging` with
+`POSTGRES_PASSWORD`, the exact `JWT_SECRET_KEY` and `JWT_ALGORITHM` values from
+`backend/.env`, and these non-secret bindings:
+
+```dotenv
+NEXUS_BACKEND_BIND=127.0.0.1:18000
+NEXUS_FRONTEND_BIND=18081
+VITE_API_URL=
+```
+
+Then deploy with both Compose files. The staging override disables secure
+cookies only because the LAN staging endpoint is HTTP; production continues to
+use `COOKIE_SECURE=true` from `backend/.env`.
+
+```bash
+docker compose -p nexus-staging --env-file .env.staging \
+  -f docker-compose.yml -f docker-compose.staging.yml build --pull
+docker compose -p nexus-staging --env-file .env.staging \
+  -f docker-compose.yml -f docker-compose.staging.yml up -d
+```
+
+The staging frontend is available at `http://192.168.0.101:18081`, and the
+simulator is mounted at `/service-desk`. Never use the `nexus-staging` project
+name or `.env.staging` file for production deployment commands.
+
 The compose services use named `pgdata` and `uploads` volumes. Do not delete or
 recreate those volumes during an ordinary deployment.
 
