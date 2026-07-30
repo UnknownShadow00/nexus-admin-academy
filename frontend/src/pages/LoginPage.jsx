@@ -14,10 +14,10 @@ function getErrorMessage(error) {
   return "Request failed";
 }
 
-// Only same-origin relative paths are honored; a leading "//" would be a
-// protocol-relative URL and could redirect off-site, so it's rejected here.
+// Only same-origin relative paths are honored. Protocol-relative URLs and
+// backslash-based browser path confusion can redirect off-site, so reject both.
 function safeNextPath(rawNext) {
-  return typeof rawNext === "string" && rawNext.startsWith("/") && !rawNext.startsWith("//")
+  return typeof rawNext === "string" && rawNext.startsWith("/") && !rawNext.startsWith("//") && !rawNext.includes("\\")
     ? rawNext
     : "/";
 }

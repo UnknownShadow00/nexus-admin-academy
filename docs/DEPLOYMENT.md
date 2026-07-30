@@ -80,6 +80,62 @@ docker exec nexus-frontend nginx -s reload
 curl --fail http://127.0.0.1/health
 ```
 
+### Service Desk Simulator on the active host deployment
+
+The active systemd/SQLite topology runs the separate Next.js simulator in its
+own container on host loopback port `13000`. `frontend/nginx.host.conf`
+performs Nexus authentication before proxying `/service-desk` to that port.
+The container does not receive the full backend environment; pass only the
+shared JWT settings it needs:
+
+```bash
+SERVICE_DESK_IMAGE="nexus-service-desk:$(git -C '../Nexus dupe' rev-parse --short=12 HEAD)"
+docker build \
+  --build-arg NEXUS_INTEGRATION=1 \
+  --build-arg NEXT_PUBLIC_NEXUS_INTEGRATION=1 \
+  --build-arg SERVICE_DESK_BASE_PATH=/service-desk \
+  -f '../Nexus dupe/service-desk-app/docker/web.Dockerfile' \
+  -t "$SERVICE_DESK_IMAGE" '../Nexus dupe/service-desk-app'
+
+export JWT_SECRET_KEY="$(sed -n 's/^JWT_SECRET_KEY=//p' backend/.env | head -n1)"
+export JWT_ALGORITHM="$(sed -n 's/^JWT_ALGORITHM=//p' backend/.env | head -n1)"
+docker run -d --name nexus-service-desk --restart unless-stopped \
+  --add-host=backend-host:host-gateway \
+  --publish 127.0.0.1:13000:3000 \
+  --env JWT_SECRET_KEY --env JWT_ALGORITHM \
+  --env NEXUS_ADMIN_CHECK_URL=http://backend-host:8000 \
+  --env SERVICE_DESK_BASE_PATH=/service-desk \
+  --env NEXUS_INTEGRATION=1 \
+  --env NEXT_PUBLIC_BASE_PATH=/service-desk \
+  --env NEXT_PUBLIC_NEXUS_INTEGRATION=1 \
+  --health-cmd="node -e \"fetch('http://127.0.0.1:3000/service-desk/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"" \
+  --health-interval=30s --health-timeout=10s --health-retries=3 \
+  --health-start-period=15s \
+  "$SERVICE_DESK_IMAGE"
+unset JWT_SECRET_KEY JWT_ALGORITHM
+
+curl --fail http://127.0.0.1:13000/service-desk/api/health
+docker inspect nexus-service-desk --format '{{.State.Health.Status}}'
+docker cp frontend/nginx.host.conf nexus-frontend:/etc/nginx/conf.d/default.conf
+docker exec nexus-frontend nginx -t
+docker exec nexus-frontend nginx -s reload
+curl --fail http://127.0.0.1/service-desk/api/health
+```
+
+Before replacing an existing simulator container, record its immutable image
+ID and save the live nginx configuration in the release backup directory. A
+rollback restores that nginx file, reloads nginx, and starts a container from
+the recorded image ID on the same loopback port. Never publish port `13000` on
+a LAN or public interface.
+
+The frontend is a Vite SPA and does not use React Router data routers, SSR,
+hydration serialization, actions, or RSC mode. The current version therefore
+retains the last compatible v6 release while `safeNextPath()` rejects both
+protocol-relative and backslash-confused redirects. `npm audit
+--audit-level=high` is the release gate; review the two documented moderate
+React Router advisories again when a non-conflicting upstream patch is
+available.
+
 The project directory permissions protect `backend/.env`; do not replace the
 copy-based frontend deployment with a bind mount that requires making the
 repository world-traversable.
