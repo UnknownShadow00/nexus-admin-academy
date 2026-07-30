@@ -23,7 +23,7 @@ def upgrade() -> None:
     op.add_column('questions', sa.Column('import_filename', sa.Text(), nullable=True))
     op.add_column(
         'questions',
-        sa.Column('flagged_for_review', sa.Boolean(), nullable=False, server_default=sa.text('0')),
+        sa.Column('flagged_for_review', sa.Boolean(), nullable=False, server_default=sa.false()),
     )
     op.add_column('questions', sa.Column('flag_reason', sa.Text(), nullable=True))
     op.create_index(op.f('ix_questions_fingerprint'), 'questions', ['fingerprint'], unique=False)

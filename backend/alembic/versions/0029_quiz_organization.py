@@ -44,15 +44,15 @@ def upgrade() -> None:
             """
             UPDATE quizzes
                SET quiz_purpose = 'required',
-                   is_required = 1,
-                   show_in_weekly_checklist = 1,
-                   show_in_practice_library = 0,
+                   is_required = true,
+                   show_in_weekly_checklist = true,
+                   show_in_practice_library = false,
                    editorial_status = 'validated',
                    recommended_week = week_number,
                    prerequisite_week = CASE WHEN week_number > 0 THEN week_number - 1 ELSE 0 END,
                    source_type = 'seed',
-                   answer_keys_validated = 1,
-                   explanations_complete = 1
+                   answer_keys_validated = true,
+                   explanations_complete = true
              WHERE source_url IS NULL
             """
         )
@@ -62,17 +62,17 @@ def upgrade() -> None:
             """
             UPDATE quizzes
                SET quiz_purpose = 'certification',
-                   is_required = 0,
-                   show_in_weekly_checklist = 0,
-                   show_in_practice_library = 1,
+                   is_required = false,
+                   show_in_weekly_checklist = false,
+                   show_in_practice_library = true,
                    editorial_status = 'unreviewed',
                    source_type = CASE
                        WHEN lower(coalesce(source_url, '')) LIKE '%examcompass%' THEN 'examcompass'
                        WHEN lower(coalesce(source_url, '')) = 'csv_import' THEN 'manual'
                        ELSE 'scraped'
                    END,
-                   answer_keys_validated = 0,
-                   explanations_complete = 0
+                   answer_keys_validated = false,
+                   explanations_complete = false
              WHERE source_url IS NOT NULL
             """
         )
