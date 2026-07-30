@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { clearToken, isAuthenticated, setToken } from "../hooks/useAuth";
 import { authLogin } from "../services/api";
 import { clearSelectedProfile, setSelectedProfile } from "../services/profile";
@@ -14,14 +14,24 @@ function getErrorMessage(error) {
   return "Request failed";
 }
 
+// Only same-origin relative paths are honored; a leading "//" would be a
+// protocol-relative URL and could redirect off-site, so it's rejected here.
+function safeNextPath(rawNext) {
+  return typeof rawNext === "string" && rawNext.startsWith("/") && !rawNext.startsWith("//")
+    ? rawNext
+    : "/";
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = safeNextPath(searchParams.get("next"));
   const [loginForm, setLoginForm] = useState(initialLoginForm);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   if (isAuthenticated()) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={nextPath} replace />;
   }
 
   async function handleSuccess(response) {
@@ -38,7 +48,7 @@ export default function LoginPage() {
       a_plus_unlocked: response.a_plus_unlocked,
       a_plus_unlock_threshold_pct: response.a_plus_unlock_threshold_pct,
     });
-    navigate("/");
+    navigate(nextPath);
   }
 
   async function handleSubmit(event) {

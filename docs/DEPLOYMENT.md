@@ -87,7 +87,15 @@ repository world-traversable.
 ## Docker Compose deployment
 
 Root `.env` supplies `POSTGRES_PASSWORD` and optional `VITE_API_URL` compose
-variables. Application settings still come from `backend/.env`.
+variables. Application settings still come from `backend/.env`, **except**
+`JWT_SECRET_KEY` and `JWT_ALGORITHM`, which the `service-desk-web` service
+reads from root `.env` (see `docker-compose.yml`). These two values MUST be
+identical to the `JWT_SECRET_KEY`/`JWT_ALGORITHM` set in `backend/.env` —
+the backend signs the `student_session` cookie with its copy and
+service-desk-app verifies it with its own, so a mismatch (or an unset root
+`.env` value) silently breaks the Service Desk Simulator login bridge:
+every request looks unauthenticated and users are bounced back to
+`/login` in a loop, with no error logged on either side.
 
 ```bash
 docker compose build
