@@ -1,3 +1,4 @@
+import logging
 import os
 import base64
 import hashlib
@@ -15,6 +16,8 @@ from app.config import load_env
 from app.database import get_db
 from app.models.student import Student
 
+logger = logging.getLogger("app.startup")
+
 def _b64url_encode(value: bytes) -> str:
     return base64.urlsafe_b64encode(value).rstrip(b"=").decode("utf-8")
 
@@ -25,6 +28,36 @@ def _b64url_decode(value: str) -> bytes:
 
 
 ALLOWED_JWT_ALGORITHMS = {"HS256", "HS384", "HS512"}
+
+
+def validate_jwt_startup_config() -> None:
+    """Fail loudly at process startup if JWT config is missing or invalid.
+
+    create_access_token/decode_token already guard against this, but only
+    when the first token is issued or verified — an operator could run a
+    misconfigured deployment for a while before anyone logs in and notices.
+    This surfaces the same problem immediately in the startup logs instead.
+    Never logs the secret value itself, only whether one is present.
+    """
+    load_env()
+    secret_key = os.environ.get("JWT_SECRET_KEY")
+    algorithm = os.environ.get("JWT_ALGORITHM")
+
+    if not secret_key:
+        logger.error(
+            "Nexus JWT configuration invalid: JWT_SECRET_KEY is not set. "
+            "Student login and the service-desk identity bridge will fail "
+            "until JWT_SECRET_KEY is configured in backend/.env."
+        )
+
+    if algorithm not in ALLOWED_JWT_ALGORITHMS:
+        logger.error(
+            "Nexus JWT configuration invalid: JWT_ALGORITHM=%r is not one of "
+            "%s. Student login and the service-desk identity bridge will "
+            "fail until JWT_ALGORITHM is corrected in backend/.env.",
+            algorithm,
+            sorted(ALLOWED_JWT_ALGORITHMS),
+        )
 
 try:
     from passlib.context import CryptContext

@@ -40,7 +40,7 @@ from app.routers import (
 from app.routers.admin_curriculum import router as admin_curriculum_router
 from app.services.cli_lab_seed import seed_cli_labs
 from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
-from app.services.auth_service import STUDENT_SESSION_COOKIE
+from app.services.auth_service import STUDENT_SESSION_COOKIE, validate_jwt_startup_config
 
 load_env()
 LOG_PATH = os.getenv("APP_LOG_PATH", "/var/log/nexus/app.log")
@@ -135,6 +135,7 @@ async def lifespan(_: FastAPI):
 
 def create_app() -> FastAPI:
     configure_logging()
+    validate_jwt_startup_config()
     app = FastAPI(title="Nexus Admin Academy API", version="1.0.0", lifespan=lifespan)
 
     app.add_middleware(
