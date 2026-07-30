@@ -83,8 +83,11 @@ curl --fail http://127.0.0.1/health
 ### Service Desk Simulator on the active host deployment
 
 The active systemd/SQLite topology runs the separate Next.js simulator in its
-own container on host loopback port `13000`. `frontend/nginx.host.conf`
-performs Nexus authentication before proxying `/service-desk` to that port.
+own container on the private `nexus-production` Docker network, with host
+loopback port `13000` retained for local diagnostics. `frontend/nginx.host.conf`
+performs Nexus authentication before proxying `/service-desk` to the container
+by its Docker DNS name. The existing `nexus-frontend` container must join the
+same private network.
 The container does not receive the full backend environment; pass only the
 shared JWT settings it needs:
 
@@ -99,7 +102,11 @@ docker build \
 
 export JWT_SECRET_KEY="$(sed -n 's/^JWT_SECRET_KEY=//p' backend/.env | head -n1)"
 export JWT_ALGORITHM="$(sed -n 's/^JWT_ALGORITHM=//p' backend/.env | head -n1)"
+docker network inspect nexus-production >/dev/null 2>&1 || docker network create nexus-production
+docker network inspect nexus-production --format '{{json .Containers}}' | grep -q 'nexus-frontend' || \
+  docker network connect nexus-production nexus-frontend
 docker run -d --name nexus-service-desk --restart unless-stopped \
+  --network nexus-production \
   --add-host=backend-host:host-gateway \
   --publish 127.0.0.1:13000:3000 \
   --env JWT_SECRET_KEY --env JWT_ALGORITHM \
@@ -125,8 +132,8 @@ curl --fail http://127.0.0.1/service-desk/api/health
 Before replacing an existing simulator container, record its immutable image
 ID and save the live nginx configuration in the release backup directory. A
 rollback restores that nginx file, reloads nginx, and starts a container from
-the recorded image ID on the same loopback port. Never publish port `13000` on
-a LAN or public interface.
+the recorded image ID on the same private Docker network and loopback port.
+Never publish port `13000` on a LAN or public interface.
 
 The frontend is a Vite SPA and does not use React Router data routers, SSR,
 hydration serialization, actions, or RSC mode. The current version therefore
