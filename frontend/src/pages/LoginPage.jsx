@@ -48,6 +48,10 @@ export default function LoginPage() {
       a_plus_unlocked: response.a_plus_unlocked,
       a_plus_unlock_threshold_pct: response.a_plus_unlock_threshold_pct,
     });
+    if (nextPath === "/service-desk" || nextPath.startsWith("/service-desk/")) {
+      window.location.assign(nextPath);
+      return;
+    }
     navigate(nextPath);
   }
 
