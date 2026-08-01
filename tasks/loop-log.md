@@ -805,3 +805,15 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/routers/service_desk.py; tasks/loop-log.md
 - Result: pass — additive field, no existing test asserted the prior shape, full targeted suite (13 tests) still passes.
 - Next: dispatch (1) a Nexus backend seed script creating 8 published scenario versions mirroring the ticket-fixtures.ts content plus a simulation-mode assignment per student, and (2) the service-desk-app frontend wiring itself (Nexus API client + per-ticket attempt start/resume/hydrate/event-sync/complete in TicketSessionProvider.tsx), in parallel.
+
+## [2026-08-01T11:44:50Z] Task Completed
+- Task: Added idempotent Service Desk simulator scenario/version seeds for INC2401–INC2408 and simulation assignments for every non-mentor student.
+- Files changed: backend/seed.py; tasks/loop-log.md
+- Result: pass — compileall passed; both seed runs completed; paired post-run counts were identical at 13 scenarios, 13 versions, and 56 assignments.
+- Next: None.
+
+## [2026-08-01T13:05:00Z] Task Completed
+- Task: Claude independently reviewed and re-verified the seed.py diff above. Read the diff in full (idempotent lookups by stable_key/(scenario_id,version_number)/(student_id,scenario_id,mode) before every insert, correctly scoped to only the newly-seeded scenarios rather than touching pre-existing rows), re-ran compileall, re-ran seed.py a third time and confirmed counts stayed identical (13/13/56), and ran the full backend suite (289/289 pass, no regressions).
+- Files changed: none (verification only)
+- Result: pass. Notable discovery: `ServiceDeskScenario` ids 1-5 (locked-user-account, password-reset, mfa-reset, bitlocker-recovery, new-employee-onboarding) already existed in this local dev DB (backend/nexus.db) before this seed ran — stale leftover data from the deleted in-house "Service Desk Lab" (commit bf7cbb1 removed the code but never cleaned up rows already written to this local dev database file). Harmless (no code references them, the new assignment seed correctly ignored them), but worth knowing this local DB isn't a clean baseline — do not assume its state matches what a fresh production database would look like when reasoning about "what's already there."
+- Next: Phase 2b frontend half (wiring TicketSessionProvider.tsx in service-desk-app) hit a sandbox limitation — that repo is mounted read-only in the current Codex sandbox (only nexus-admin-academy is writable). Needs a different execution path before it can proceed.
