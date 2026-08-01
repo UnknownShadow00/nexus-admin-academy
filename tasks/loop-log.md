@@ -793,3 +793,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/src/services/api.js; frontend/src/pages/admin/AdminServiceDeskReviewPage.jsx; frontend/src/App.jsx; tasks/loop-log.md
 - Result: pass against acceptance criteria; `cd frontend && npm run build` completed successfully with Vite 7.3.6, 1992 modules transformed, and the production bundle generated. `git diff --check` also passed.
 - Next: Backend detail does not provide scenario title or human version number, so the page uses the list scenario title and displays `scenario_version_id`; no backend changes were made.
+
+## [2026-08-01T12:30:00Z] Task Completed
+- Task: Phase 5 — wrote docs/SERVICE_DESK_TICKET_MIGRATION_MAP.md, a field-by-field map from the old Ticket/TicketSubmission/EvidenceArtifact models to the new Service Desk attempt model. Headline recommendation: do not physically migrate historical submissions — they stay in place, read-only, via the existing untouched admin ticket-review page. Identified two real capability gaps (numeric grade override, evidence/screenshot upload — both cheap to add later, neither required for the 5-student pilot) and one open product decision (whether multi-axis structure/technical/communication scoring is still wanted, since the new deterministic engine is currently single-score).
+- Files changed: docs/SERVICE_DESK_TICKET_MIGRATION_MAP.md; tasks/loop-log.md
+- Result: pass — documentation/analysis only, no code changed, no historical data touched. Row counts cited are explicitly labeled as local-dev-only, not production.
+- Next: Phase 6-9 — simplify student navigation (Today/Service Desk/Progress), beginner Learning vs Simulation modes, hide unfinished placeholder features (Calls/Voicemail/Mock Interview/Classroom/Get Pro — call sites already identified in NavCluster.tsx/Header.tsx during Phase 0), UI cleanup.
