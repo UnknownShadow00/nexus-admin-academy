@@ -787,3 +787,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/tests/test_service_desk_attempts.py; tasks/loop-log.md
 - Result: pass — full backend suite 289/289 passes, compileall clean. Genuine concurrent-transaction testing would require a file-backed SQLite or Postgres test fixture instead of the current in-memory StaticPool setup; flagged as a test-infrastructure gap, not attempted further in this phase.
 - Next: Phase 4 — mentor attempt review page (admin timeline UI), using the GET /api/admin/service-desk/attempts/{id} endpoint already built in 3a56c30.
+
+## [2026-08-01T00:00:00Z] Task Completed
+- Task: Built the mentor-facing admin Service Desk attempt review page with API helpers, selectable list/detail review layout, student filter, grading details, opaque JSON inspection, event timeline, mentor feedback, admin navigation, and protected route.
+- Files changed: frontend/src/services/api.js; frontend/src/pages/admin/AdminServiceDeskReviewPage.jsx; frontend/src/App.jsx; tasks/loop-log.md
+- Result: pass against acceptance criteria; `cd frontend && npm run build` completed successfully with Vite 7.3.6, 1992 modules transformed, and the production bundle generated. `git diff --check` also passed.
+- Next: Backend detail does not provide scenario title or human version number, so the page uses the list scenario title and displays `scenario_version_id`; no backend changes were made.

@@ -36,6 +36,7 @@ const AICostDashboard = lazy(() => import("./pages/admin/AICostDashboard"));
 const AdminCapstonesPage = lazy(() => import("./pages/admin/AdminCapstonesPage"));
 const AdminLabsPage = lazy(() => import("./pages/admin/AdminLabsPage"));
 const AdminTicketReviewPage = lazy(() => import("./pages/admin/AdminTicketReviewPage"));
+const AdminServiceDeskReviewPage = lazy(() => import("./pages/admin/AdminServiceDeskReviewPage"));
 const BookmarkletPage = lazy(() => import("./pages/admin/BookmarkletPage"));
 const QuestionImportPage = lazy(() => import("./pages/admin/QuestionImportPage"));
 const CurriculumEditorPage = lazy(() => import("./pages/admin/CurriculumEditorPage"));
@@ -78,6 +79,7 @@ const adminNavItems = [
     label: "Assessments & Labs",
     children: [
       { to: "/admin/ticket-review", label: "Ticket Review" },
+      { to: "/admin/service-desk-review", label: "Service Desk Review" },
       { to: "/admin/labs", label: "Labs & VM Assignments" },
       { to: "/admin/capstones", label: "Capstones" },
     ],
@@ -425,6 +427,7 @@ export default function App() {
 
         <Route path="/admin" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminHome /></AdminAccessGate>} />
         <Route path="/admin/ticket-review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminTicketReviewPage /></AdminAccessGate>} />
+        <Route path="/admin/service-desk-review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminServiceDeskReviewPage /></AdminAccessGate>} />
         <Route path="/admin/review" element={<Navigate to="/admin/ticket-review" replace />} />
         <Route path="/admin/students" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminStudentsPage /></AdminAccessGate>} />
         <Route path="/admin/modules" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><ModuleManager /></AdminAccessGate>} />
