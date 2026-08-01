@@ -19,6 +19,7 @@ from app.schemas.service_desk import (
     ServiceDeskCompleteCreate, ServiceDeskEventCreate, ServiceDeskHintCreate,
 )
 from app.services.auth_service import ensure_student_access, get_current_student
+from app.services.xp_service import award_xp
 
 router = APIRouter(prefix="/api/service-desk", tags=["service-desk"])
 
@@ -187,6 +188,14 @@ def complete_attempt(attempt_id: int, body: ServiceDeskCompleteCreate, current_s
                                     critical_failure=body.critical_failure, overall_score=body.overall_score,
                                     passed=body.passed, feedback_summary=body.feedback_summary, details_json=body.details)
     db.add(grade)
+    award_xp(
+        db,
+        student_id=attempt.student_id,
+        delta=body.overall_score,
+        source_type="service_desk_attempt",
+        source_id=attempt.id,
+        description=f"Service Desk attempt {attempt.id}",
+    )
     attempt.status = "completed" if body.passed else "failed"
     attempt.completed_at = datetime.now(timezone.utc)
     attempt.score = body.overall_score
