@@ -799,3 +799,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: docs/SERVICE_DESK_TICKET_MIGRATION_MAP.md; tasks/loop-log.md
 - Result: pass — documentation/analysis only, no code changed, no historical data touched. Row counts cited are explicitly labeled as local-dev-only, not production.
 - Next: Phase 6-9 — simplify student navigation (Today/Service Desk/Progress), beginner Learning vs Simulation modes, hide unfinished placeholder features (Calls/Voicemail/Mock Interview/Classroom/Get Pro — call sites already identified in NavCluster.tsx/Header.tsx during Phase 0), UI cleanup.
+
+## [2026-08-01T12:45:00Z] Task Completed
+- Task: Discovered the new Service Desk APIs were still unwired to anything (localStorage-only frontend, unused backend). User chose to wire it up next, and to model Nexus attempts per-ticket (matching the schema as already built, rather than the TS app's actual one-big-session data model — a deliberate, confirmed scope decision, not an oversight). Added `stable_key` to the `GET /api/service-desk/assignments` scenario payload so the frontend can map ticket IDs (INC2401 etc) to Nexus assignments without guessing from title text.
+- Files changed: backend/app/routers/service_desk.py; tasks/loop-log.md
+- Result: pass — additive field, no existing test asserted the prior shape, full targeted suite (13 tests) still passes.
+- Next: dispatch (1) a Nexus backend seed script creating 8 published scenario versions mirroring the ticket-fixtures.ts content plus a simulation-mode assignment per student, and (2) the service-desk-app frontend wiring itself (Nexus API client + per-ticket attempt start/resume/hydrate/event-sync/complete in TicketSessionProvider.tsx), in parallel.
