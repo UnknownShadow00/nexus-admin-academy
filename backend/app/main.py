@@ -36,6 +36,8 @@ from app.routers import (
     tickets,
     training,
     service_desk_bridge,
+    service_desk,
+    admin_service_desk,
 )
 from app.routers.admin_curriculum import router as admin_curriculum_router
 from app.services.cli_lab_seed import seed_cli_labs
@@ -241,6 +243,8 @@ def create_app() -> FastAPI:
     app.include_router(study_tracker.router)
     app.include_router(training.router)
     app.include_router(service_desk_bridge.router)
+    app.include_router(service_desk.router)
+    app.include_router(admin_service_desk.router)
 
     upload_dir = os.getenv("UPLOAD_DIR")
     directory = Path(upload_dir) if upload_dir else (Path(__file__).resolve().parents[1] / "uploads" / "screenshots")

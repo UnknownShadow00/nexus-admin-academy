@@ -207,6 +207,9 @@ class ServiceDeskAttemptGrade(Base):
         "details", JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict
     )
     calculated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    mentor_feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mentor_feedback_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    mentor_feedback_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 @event.listens_for(ServiceDeskScenarioVersion, "before_update")

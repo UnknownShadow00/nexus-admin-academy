@@ -751,3 +751,21 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/nginx.host.conf; frontend/src/pages/LoginPage.jsx; docs/DEPLOYMENT.md; tasks/loop-log.md
 - Result: pass against production acceptance criteria — systemd restarted cleanly with the bridge endpoints active, the frontend and nginx files match the verified source build, public Nexus and Service Desk health return 200, protected routes enforce Nexus authentication and admin authorization, real authenticated HTTP and desktop/mobile browser matrices pass without application errors or overflow, production logs are clean, staging remains healthy, and the logical SQLite dataset is unchanged from the restore-tested pre-deploy backup with integrity ok and zero foreign-key violations; the tested rollback restored the previous frontend after the initial loopback-host proxy could not be reached from nginx, and the corrected private Docker network rollout then passed.
 - Next: Monitor normal production telemetry; billing, voice, and AI roadmap phases remain intentionally deferred and were not included in this deployment.
+
+## [2026-08-01T00:00:00Z] Task Completed
+- Task: Built the student and admin Service Desk persistence REST APIs, mentor feedback migration, router mounts, and real-DB focused tests without touching the legacy ticket system or XP bridge.
+- Files changed: backend/app/schemas/service_desk.py; backend/app/routers/service_desk.py; backend/app/routers/admin_service_desk.py; backend/app/models/service_desk.py; backend/alembic/versions/0036_service_desk_mentor_feedback.py; backend/app/main.py; backend/app/routers/__init__.py; backend/tests/test_service_desk_attempts.py; backend/tests/test_admin_service_desk.py; tasks/loop-log.md
+- Result: compileall passed; Alembic upgrade head passed; pytest could not complete because the installed Starlette/httpx TestClient hangs even for a trivial FastAPI app and the untouched bridge test, so test acceptance is not verified in this environment.
+- Next: Re-run the required focused pytest command in an environment with the repository-compatible TestClient/httpx stack.
+
+## [2026-08-01T00:00:00Z] Task Completed
+- Task: Corrected Service Desk datetime response serialization and linearized migration 0036 onto the actual Alembic head.
+- Files changed: backend/app/routers/service_desk.py; backend/app/routers/admin_service_desk.py; backend/alembic/versions/0036_service_desk_mentor_feedback.py; tasks/loop-log.md
+- Result: compileall passed; Alembic shows exactly one head and a linear history; pytest remains unable to emit results in this environment because TestClient hangs before test execution completes.
+- Next: Re-run the focused pytest suite in the environment that produced the reported five datetime failures.
+
+## [2026-08-01T10:50:00Z] Task Completed
+- Task: Claude independently reviewed the Service Desk persistence API (Phase 1 of the Nexus/Service Desk integration) — read both new routers and the migration in full, then ran the test suite directly (the TestClient hang Codex hit did not reproduce here).
+- Files changed: none (verification only)
+- Result: pass — 11/11 new Service Desk tests pass, full backend suite 287/287 passes, `alembic heads` shows exactly one head with a clean linear chain. Code review found two minor, non-blocking gaps to fold into the next phase: attempt ownership check returns 403 instead of the spec'd 404 (low-severity ID-existence disclosure), and an invalid `mode` on assignment creation surfaces as a misleading 409 via the generic IntegrityError handler instead of a 422. Confirmed no XPLedger/total_xp writes anywhere in this diff, matching the intended scope boundary — XP wiring is deferred to a later phase.
+- Next: Phase 2 — turn on and harden the dormant Nexus JWT bridge in service-desk-app, and close the trust-boundary gap where /complete currently stores a fully client-asserted grade.
