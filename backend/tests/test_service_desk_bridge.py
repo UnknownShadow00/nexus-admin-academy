@@ -19,7 +19,7 @@ def test_progress_events_are_recorded_and_summarized(db):
             "ticket_id": "ticket-123",
             "title": "Resolved locked account",
             "detail": "Verified the requester and restored access.",
-            "xp_delta": 25,
+            "xp_delta": 999999999,
         },
     )
     achievement_response = client.post(
@@ -28,14 +28,18 @@ def test_progress_events_are_recorded_and_summarized(db):
         json={
             "event_type": "achievement_unlocked",
             "title": "Identity verifier",
-            "xp_delta": 0,
+            "xp_delta": -999999999,
         },
     )
 
     assert ticket_response.status_code == 204
     assert achievement_response.status_code == 204
     assert db.query(SquadActivity).filter_by(student_id=student.id).count() == 2
-    assert db.query(XPLedger).filter_by(student_id=student.id, source_type="service_desk").count() == 1
+    ledger_rows = db.query(XPLedger).filter_by(
+        student_id=student.id,
+        source_type="service_desk",
+    ).order_by(XPLedger.id).all()
+    assert [row.delta for row in ledger_rows] == [25, 10]
 
     summary_response = client.get("/api/service-desk/progress-summary", headers=headers)
 
@@ -43,12 +47,35 @@ def test_progress_events_are_recorded_and_summarized(db):
     summary = summary_response.json()
     assert summary["tickets_completed"] == 1
     assert summary["achievements_unlocked"] == 1
-    assert summary["total_xp"] == 25
+    assert summary["total_xp"] == 35
     assert [item["title"] for item in summary["recent_activity"]] == [
         "Identity verifier",
         "Resolved locked account",
     ]
     assert all(item["created_at"] for item in summary["recent_activity"])
+
+
+def test_progress_events_use_fixed_server_defined_xp_rewards(db):
+    student = make_student(db, username="fixed-rewards")
+    client = make_client(service_desk_bridge.router)
+    headers = auth_headers(student)
+
+    assert client.post(
+        "/api/service-desk/progress",
+        headers=headers,
+        json={"event_type": "ticket_resolved", "title": "Resolved ticket", "xp_delta": -1},
+    ).status_code == 204
+    assert client.post(
+        "/api/service-desk/progress",
+        headers=headers,
+        json={"event_type": "achievement_unlocked", "title": "Unlocked achievement", "xp_delta": 999999999},
+    ).status_code == 204
+
+    ledger_rows = db.query(XPLedger).filter_by(
+        student_id=student.id,
+        source_type="service_desk",
+    ).order_by(XPLedger.id).all()
+    assert [row.delta for row in ledger_rows] == [25, 10]
 
 
 def test_progress_endpoints_require_student_authentication():

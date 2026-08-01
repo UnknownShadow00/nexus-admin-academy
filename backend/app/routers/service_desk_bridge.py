@@ -20,6 +20,10 @@ router = APIRouter(prefix="/api/service-desk", tags=["service-desk-bridge"])
 SERVICE_DESK_TICKET = "service_desk_ticket"
 SERVICE_DESK_ACHIEVEMENT = "service_desk_achievement"
 SERVICE_DESK_ACTIVITY_TYPES = (SERVICE_DESK_TICKET, SERVICE_DESK_ACHIEVEMENT)
+SERVICE_DESK_XP_REWARDS = {
+    "ticket_resolved": 25,
+    "achievement_unlocked": 10,
+}
 
 
 class ServiceDeskProgressEvent(BaseModel):
@@ -27,11 +31,6 @@ class ServiceDeskProgressEvent(BaseModel):
     ticket_id: str | None = Field(default=None, max_length=200)
     title: str = Field(min_length=1, max_length=200)
     detail: str | None = Field(default=None, max_length=500)
-    xp_delta: int | None = Field(
-        default=None,
-        ge=-(2**31),
-        le=2**31 - 1,
-    )
 
 
 class RecentServiceDeskActivity(BaseModel):
@@ -70,16 +69,15 @@ def record_service_desk_progress(
         body.detail,
         commit=False,
     )
-    if body.xp_delta is not None and body.xp_delta != 0:
-        db.add(
-            XPLedger(
-                student_id=current_student.id,
-                source_type="service_desk",
-                source_id=None,
-                delta=body.xp_delta,
-                description=body.title,
-            )
+    db.add(
+        XPLedger(
+            student_id=current_student.id,
+            source_type="service_desk",
+            source_id=None,
+            delta=SERVICE_DESK_XP_REWARDS[body.event_type],
+            description=body.title,
         )
+    )
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
