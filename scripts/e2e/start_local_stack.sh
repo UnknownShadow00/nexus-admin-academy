@@ -26,8 +26,11 @@ mkdir -p "$SCRATCH_DIR/uploads"
 
 BACKEND_PORT="${E2E_BACKEND_PORT:-8011}"
 FRONTEND_PORT="${E2E_FRONTEND_PORT:-5173}"
+SERVICE_DESK_PORT="${E2E_SERVICE_DESK_PORT:-3001}"
 BACKEND_HOST="127.0.0.1"
 FRONTEND_HOST="127.0.0.1"
+SERVICE_DESK_DIR="$REPO_ROOT/../Nexus dupe/service-desk-app"
+API_BASE="http://$BACKEND_HOST:$BACKEND_PORT"
 
 rand() { openssl rand -hex 16; }
 
@@ -91,8 +94,33 @@ if ! curl -sf "http://$BACKEND_HOST:$BACKEND_PORT/health" > /dev/null 2>&1; then
 fi
 
 echo "== Starting isolated frontend on $FRONTEND_HOST:$FRONTEND_PORT =="
+echo "== Starting isolated Service Desk on $BACKEND_HOST:$SERVICE_DESK_PORT =="
+(
+    cd "$SERVICE_DESK_DIR"
+    NEXUS_INTEGRATION=1 NEXT_PUBLIC_NEXUS_INTEGRATION=1 \
+    SERVICE_DESK_BASE_PATH=/service-desk NEXT_PUBLIC_BASE_PATH=/service-desk \
+    JWT_SECRET_KEY="$JWT_SECRET_KEY" JWT_ALGORITHM="$JWT_ALGORITHM" \
+    NEXUS_ADMIN_CHECK_URL="$API_BASE" \
+    setsid pnpm --filter @service-desk/web exec next dev --hostname "$BACKEND_HOST" --port "$SERVICE_DESK_PORT" \
+        > "$SCRATCH_DIR/service-desk.log" 2>&1 < /dev/null &
+    echo $! > "$SCRATCH_DIR/service-desk.pid"
+)
+for _ in $(seq 1 45); do
+    if curl -sf "http://$BACKEND_HOST:$SERVICE_DESK_PORT/service-desk/api/health" > /dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+if ! curl -sf "http://$BACKEND_HOST:$SERVICE_DESK_PORT/service-desk/api/health" > /dev/null 2>&1; then
+    echo "Service Desk did not become ready in time. Log:" >&2
+    cat "$SCRATCH_DIR/service-desk.log" >&2 || true
+    exit 1
+fi
+
 (
     cd "$FRONTEND_DIR"
+    E2E_API_PROXY_URL="http://$BACKEND_HOST:$BACKEND_PORT" \
+    E2E_SERVICE_DESK_URL="http://$BACKEND_HOST:$SERVICE_DESK_PORT" \
     VITE_API_URL="http://$BACKEND_HOST:$BACKEND_PORT" setsid npm run dev -- \
         --port "$FRONTEND_PORT" --host "$FRONTEND_HOST" \
         > "$SCRATCH_DIR/vite.log" 2>&1 < /dev/null &
@@ -111,8 +139,6 @@ if ! curl -sf "http://$FRONTEND_HOST:$FRONTEND_PORT/" > /dev/null 2>&1; then
     cat "$SCRATCH_DIR/vite.log" >&2 || true
     exit 1
 fi
-
-API_BASE="http://$BACKEND_HOST:$BACKEND_PORT"
 
 echo "== Creating fixture student accounts =="
 ADMIN_COOKIES="$SCRATCH_DIR/admin_cookies.txt"
@@ -154,6 +180,27 @@ if row:
     db.commit()
 PY
 
+# Give each disposable browser account the published Service Desk fixtures.
+# This mirrors the seeded training accounts but never changes a persistent DB.
+"$PYTHON" - "$SCRATCH_DIR/e2e.db" "$STUDENT_USERNAME_GEN" "$QUALIFIED_USERNAME_GEN" <<'PY'
+import sqlite3
+import sys
+
+db = sqlite3.connect(sys.argv[1])
+scenario_ids = [row[0] for row in db.execute("SELECT id FROM service_desk_scenarios WHERE status = 'active'")]
+for username in sys.argv[2:]:
+    row = db.execute("SELECT id FROM students WHERE username = ?", (username,)).fetchone()
+    if row:
+        for scenario_id in scenario_ids:
+            db.execute(
+                "INSERT INTO service_desk_assignments (student_id, scenario_id, mode, is_required, assigned_by) "
+                "SELECT ?, ?, 'simulation', 1, 'e2e' WHERE NOT EXISTS "
+                "(SELECT 1 FROM service_desk_assignments WHERE student_id = ? AND scenario_id = ? AND mode = 'simulation')",
+                (row[0], scenario_id, row[0], scenario_id),
+            )
+db.commit()
+PY
+
 STACK_ENV="$SCRATCH_DIR/stack.env"
 {
     echo "NEXUS_E2E_BASE_URL=http://$FRONTEND_HOST:$FRONTEND_PORT"
@@ -162,6 +209,10 @@ STACK_ENV="$SCRATCH_DIR/stack.env"
     echo "NEXUS_E2E_ADMIN_PASSWORD=$ADMIN_PASSWORD_GEN"
     echo "NEXUS_E2E_STUDENT_USERNAME=$STUDENT_USERNAME_GEN"
     echo "NEXUS_E2E_STUDENT_PASSWORD=$STUDENT_PASSWORD_GEN"
+    echo "NEXUS_E2E_STUDENT_A_USERNAME=$STUDENT_USERNAME_GEN"
+    echo "NEXUS_E2E_STUDENT_A_PASSWORD=$STUDENT_PASSWORD_GEN"
+    echo "NEXUS_E2E_STUDENT_B_USERNAME=$QUALIFIED_USERNAME_GEN"
+    echo "NEXUS_E2E_STUDENT_B_PASSWORD=$QUALIFIED_PASSWORD_GEN"
     echo "NEXUS_E2E_QUALIFIED_USERNAME=$QUALIFIED_USERNAME_GEN"
     echo "NEXUS_E2E_QUALIFIED_PASSWORD=$QUALIFIED_PASSWORD_GEN"
 } > "$STACK_ENV"

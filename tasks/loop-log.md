@@ -876,3 +876,13 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/routers/service_desk.py; backend/app/schemas/service_desk.py; backend/tests/test_service_desk_attempts.py; docs/SERVICE_DESK_LAUNCH_READINESS.md; tasks/loop-log.md
 - Result: pass - focused backend persistence tests and migration-head check pass; staging backup integrity was verified.
 - Next: Run isolated cross-device browser recovery and three clean browser-suite repetitions before expanding access.
+## [2026-08-02T12:20:00Z] Task Completed
+- Task: Prepared the isolated Nexus + Service Desk Playwright harness and corrected the existing Directory launch-flow locator while beginning launch-verification coverage.
+- Files changed: frontend/vite.config.js; scripts/e2e/start_local_stack.sh; scripts/e2e/stop_local_stack.sh; frontend/tests/e2e/service-desk-integration.spec.js
+- Result: fail against acceptance criteria — the three requested new browser-test groups, full verification matrix, and commits are not complete.
+- Next: Complete the three new launch-verification tests, then run and commit the full requested verification sequence.
+## [2026-08-02T12:30:00Z] Task Completed
+- Task: Fixed and regression-tested the Service Desk Directory action integration flow in the isolated Playwright harness.
+- Files changed: frontend/tests/e2e/service-desk-integration.spec.js; frontend/vite.config.js; scripts/e2e/start_local_stack.sh; scripts/e2e/stop_local_stack.sh; tasks/loop-log.md
+- Result: pass against acceptance criteria — a confirmed Directory action is persisted as directory.unlock_account, returned by the admin timeline API, and rendered in the admin review UI.
+- Next: Resume the remaining launch-verification browser-test groups.

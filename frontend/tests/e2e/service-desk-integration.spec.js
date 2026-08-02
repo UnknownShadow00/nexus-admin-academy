@@ -88,19 +88,24 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     // modal; the modal's confirm button has the SAME accessible name as the
     // trigger, so it must be clicked twice (open, then confirm-scoped-to-dialog).
     await pageA1.getByRole("link", { name: /Directory/ }).click();
-    await pageA1.waitForTimeout(1000);
+    await expect(pageA1.getByRole("heading", { name: "Directory", exact: true })).toBeVisible();
     await pageA1.getByText("Avery Brooks", { exact: true }).click();
-    await pageA1.waitForTimeout(500);
     const unlockTrigger = pageA1.getByRole("button", { name: "Unlock account" });
-    if (await unlockTrigger.count()) {
-      await unlockTrigger.first().click();
-      await pageA1.waitForTimeout(500);
-      await pageA1
-        .getByRole("dialog")
-        .getByRole("button", { name: "Unlock account" })
-        .click();
-      await pageA1.waitForTimeout(500);
-    }
+    await expect(unlockTrigger.first()).toBeVisible();
+    await unlockTrigger.first().click();
+    const directoryEventResponse = pageA1.waitForResponse(async (response) => {
+      if (!response.url().includes("/api/service-desk/attempts/") || !response.url().endsWith("/events") || response.request().method() !== "POST") {
+        return false;
+      }
+      return (await response.request().postDataJSON()).event_type === "directory.unlock_account";
+    });
+    await pageA1
+      .getByRole("dialog")
+      .getByRole("button", { name: "Unlock account" })
+      .click();
+    await expect(pageA1.getByText(/Account unlocked\. New sign-in attempts/)).toBeVisible();
+    expect((await directoryEventResponse).status()).toBe(201);
+    await expect(pageA1.getByText("Saving…")).toBeHidden();
 
     // Add an internal note, then resolve and close the ticket.
     await pageA1.goto(`/service-desk/tickets/${TICKET_ID}`);
@@ -195,6 +200,10 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const eventTypes = timeline.events.map((event) => event.event_type);
     expect(eventTypes).toContain("ticket.close");
     expect(eventTypes.some((type) => type.startsWith("directory."))).toBe(true);
+
+    await pageAdmin.goto("/admin/service-desk-review");
+    await expect(pageAdmin.getByRole("heading", { name: "Event timeline" })).toBeVisible();
+    await expect(pageAdmin.getByText(/#\d+ directory\.unlock_account/)).toBeVisible();
 
     const feedbackResponse = await pageAdmin.request.post(
       `/api/admin/service-desk/attempts/${attemptId}/feedback`,
