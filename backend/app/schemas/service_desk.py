@@ -17,6 +17,7 @@ class ServiceDeskHintCreate(BaseModel):
     idempotency_key: str = Field(min_length=1, max_length=120)
     tool: str = Field(min_length=1, max_length=80)
     payload: dict[str, Any] = Field(default_factory=dict)
+    resulting_state: dict[str, Any] | None = None
 
 
 class ServiceDeskCompleteCreate(BaseModel):

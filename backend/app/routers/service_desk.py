@@ -142,12 +142,12 @@ def _record_event(db: Session, attempt: ServiceDeskAttempt, *, key: str, event_t
                                     previous_state_hash=attempt.current_state_hash,
                                     resulting_state_hash=_hash_state(resulting_state), success=success)
     db.add(event)
-    # current_state is the client's resumable ticket-session snapshot. Only
-    # ticket-tool events describe that snapshot; directory/remote_desktop
-    # evidence events carry a differently-shaped resulting_state (that tool's
-    # own overlay) and must not overwrite it, or a resumed session will merge
-    # the wrong shape into its ticket state and crash on render.
-    if tool == "ticket":
+    # Versioned full snapshots are safe to restore across devices. Legacy
+    # tool overlays remain evidence only, except for old ticket clients.
+    if resulting_state.get("schema_version") == 1 and isinstance(resulting_state.get("nexus_service_desk_attempt"), dict):
+        attempt.current_state = resulting_state
+        attempt.current_state_hash = event.resulting_state_hash
+    elif tool == "ticket":
         attempt.current_state = resulting_state
         attempt.current_state_hash = event.resulting_state_hash
     attempt.state_version += 1
@@ -179,7 +179,7 @@ def record_hint(attempt_id: int, body: ServiceDeskHintCreate, current_student: S
     if attempt.status != "in_progress":
         raise HTTPException(409, "Attempt is no longer in progress")
     data, code = _record_event(db, attempt, key=body.idempotency_key, event_type="hint_requested", tool=body.tool,
-                            payload=body.payload, resulting_state=attempt.current_state, success=True)
+                            payload=body.payload, resulting_state=body.resulting_state or attempt.current_state, success=True)
     return _json_response(data, code)
 
 

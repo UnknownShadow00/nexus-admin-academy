@@ -207,6 +207,23 @@ def test_client_grade_fields_are_ignored_and_repeat_is_identical(db):
     assert first.json()["overall_score"] == 100 and first.json()["passed"] is True and first.json()["rubric_version"] == "sim-engine-v1"
 
 
+def test_versioned_full_snapshot_restores_all_tool_state(db):
+    student = make_student(db, username="snapshot-resume"); assignment = setup_assignment(db, student)
+    client = make_client(service_desk.router); attempt_id = start(client, student, assignment).json()["id"]
+    snapshot = {"schema_version": 1, "nexus_service_desk_attempt": {
+        "directoryOverlays": {"directory-user-avery-brooks": {"locked": False}},
+        "remoteDesktopOverlays": {"NX-2047": {"terminal": ["ipconfig"]}},
+        "assetOverlays": {"NX-2047": {"status": "active"}},
+        "deploymentRuns": {"run-1": {"hostname": "NX-2047"}},
+        "ticketOverlays": {"INC2401": {"notes": ["restored"]}},
+    }}
+    event = {"idempotency_key": "snapshot-1", "event_type": "directory.unlock_account", "tool": "directory",
+             "payload": {"directoryUserId": "directory-user-avery-brooks"}, "resulting_state": snapshot, "success": True}
+    assert client.post(f"/api/service-desk/attempts/{attempt_id}/events", headers=auth_headers(student), json=event).status_code == 201
+    resumed = client.get(f"/api/service-desk/attempts/{attempt_id}", headers=auth_headers(student)).json()
+    assert resumed["current_state"] == snapshot
+
+
 def test_complete_before_close_returns_409(db):
     student = make_student(db, username="not-closed"); assignment = setup_assignment(db, student)
     client = make_client(service_desk.router); attempt_id = start(client, student, assignment).json()["id"]
