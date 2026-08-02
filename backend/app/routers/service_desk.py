@@ -142,8 +142,14 @@ def _record_event(db: Session, attempt: ServiceDeskAttempt, *, key: str, event_t
                                     previous_state_hash=attempt.current_state_hash,
                                     resulting_state_hash=_hash_state(resulting_state), success=success)
     db.add(event)
-    attempt.current_state = resulting_state
-    attempt.current_state_hash = event.resulting_state_hash
+    # current_state is the client's resumable ticket-session snapshot. Only
+    # ticket-tool events describe that snapshot; directory/remote_desktop
+    # evidence events carry a differently-shaped resulting_state (that tool's
+    # own overlay) and must not overwrite it, or a resumed session will merge
+    # the wrong shape into its ticket state and crash on render.
+    if tool == "ticket":
+        attempt.current_state = resulting_state
+        attempt.current_state_hash = event.resulting_state_hash
     attempt.state_version += 1
     try:
         db.commit()

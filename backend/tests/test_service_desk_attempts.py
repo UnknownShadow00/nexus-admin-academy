@@ -149,6 +149,28 @@ def test_wrong_directory_user_does_not_satisfy_inc2401_objective(db):
     assert response.json()["details"]["directory_objective_satisfied"] is False
 
 
+def test_non_ticket_tool_events_do_not_overwrite_resumable_ticket_state(db):
+    student = make_student(db, username="state-shape"); assignment = setup_assignment(db, student, stable_key="inc2401", priority="high")
+    client = make_client(service_desk.router); headers = auth_headers(student)
+    attempt_id = start(client, student, assignment).json()["id"]
+
+    ticket_event = {"idempotency_key": "ticket-1", "event_type": "ticket.assign", "tool": "ticket",
+                    "payload": {"ticketId": "INC2401"}, "resulting_state": {"notes": ["assigned"]}, "success": True}
+    assert client.post(f"/api/service-desk/attempts/{attempt_id}/events", headers=headers, json=ticket_event).status_code == 201
+    assert client.get(f"/api/service-desk/attempts/{attempt_id}", headers=headers).json()["current_state"] == {"notes": ["assigned"]}
+
+    # A directory-tool event's resulting_state describes that directory user's
+    # overlay, not the ticket - it must not clobber the ticket snapshot a
+    # resumed session hydrates from (see service_desk.py's _record_event).
+    directory_event = {"idempotency_key": "unlock", "event_type": "directory.unlock_account", "tool": "directory",
+                        "payload": {"directoryUserId": "directory-user-avery-brooks"},
+                        "resulting_state": {"locked": False, "mfaEnrolled": True}, "success": True}
+    assert client.post(f"/api/service-desk/attempts/{attempt_id}/events", headers=headers, json=directory_event).status_code == 201
+    resumed = client.get(f"/api/service-desk/attempts/{attempt_id}", headers=headers).json()
+    assert resumed["current_state"] == {"notes": ["assigned"]}
+    assert resumed["state_version"] == 2
+
+
 def test_client_grade_fields_are_ignored_and_repeat_is_identical(db):
     student = make_student(db, username="untrusted-fields"); assignment = setup_assignment(db, student, priority="high")
     client = make_client(service_desk.router); attempt_id = start(client, student, assignment).json()["id"]
