@@ -112,14 +112,6 @@ export default function StudentHome() {
         </div>
       </section>
 
-      <section className="panel flex flex-col gap-4 border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/70 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Up Next</p>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{continueTarget.detail}</h2>
-        </div>
-        <Link className="btn-primary shrink-0" to={continueTarget.to}>{continueTarget.label}</Link>
-      </section>
-
       <section className="panel space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Recent Activity</h2>
