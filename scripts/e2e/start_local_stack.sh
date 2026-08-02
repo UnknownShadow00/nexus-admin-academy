@@ -41,6 +41,8 @@ STUDENT_USERNAME_GEN="browser-training-student"
 STUDENT_PASSWORD_GEN="$(rand)"
 QUALIFIED_USERNAME_GEN="browser-qualified-student"
 QUALIFIED_PASSWORD_GEN="$(rand)"
+STUDENT_C_USERNAME_GEN="browser-training-student-c"
+STUDENT_C_PASSWORD_GEN="$(rand)"
 
 export DATABASE_URL="sqlite:///$SCRATCH_DIR/e2e.db"
 export JWT_SECRET_KEY="$(rand)$(rand)"
@@ -157,6 +159,7 @@ create_student() {
 
 create_student "$STUDENT_USERNAME_GEN" "$STUDENT_PASSWORD_GEN" "Browser Training Student"
 create_student "$QUALIFIED_USERNAME_GEN" "$QUALIFIED_PASSWORD_GEN" "Qualified Browser Student"
+create_student "$STUDENT_C_USERNAME_GEN" "$STUDENT_C_PASSWORD_GEN" "Browser Training Student C"
 
 # There is no admin API for directly granting a role — promotion is normally
 # earned by completing gates. For the capstone-visibility fixture we grant a
@@ -182,7 +185,7 @@ PY
 
 # Give each disposable browser account the published Service Desk fixtures.
 # This mirrors the seeded training accounts but never changes a persistent DB.
-"$PYTHON" - "$SCRATCH_DIR/e2e.db" "$STUDENT_USERNAME_GEN" "$QUALIFIED_USERNAME_GEN" <<'PY'
+"$PYTHON" - "$SCRATCH_DIR/e2e.db" "$STUDENT_USERNAME_GEN" "$QUALIFIED_USERNAME_GEN" "$STUDENT_C_USERNAME_GEN" <<'PY'
 import sqlite3
 import sys
 
@@ -213,6 +216,8 @@ STACK_ENV="$SCRATCH_DIR/stack.env"
     echo "NEXUS_E2E_STUDENT_A_PASSWORD=$STUDENT_PASSWORD_GEN"
     echo "NEXUS_E2E_STUDENT_B_USERNAME=$QUALIFIED_USERNAME_GEN"
     echo "NEXUS_E2E_STUDENT_B_PASSWORD=$QUALIFIED_PASSWORD_GEN"
+    echo "NEXUS_E2E_STUDENT_C_USERNAME=$STUDENT_C_USERNAME_GEN"
+    echo "NEXUS_E2E_STUDENT_C_PASSWORD=$STUDENT_C_PASSWORD_GEN"
     echo "NEXUS_E2E_QUALIFIED_USERNAME=$QUALIFIED_USERNAME_GEN"
     echo "NEXUS_E2E_QUALIFIED_PASSWORD=$QUALIFIED_PASSWORD_GEN"
 } > "$STACK_ENV"

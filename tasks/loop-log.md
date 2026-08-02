@@ -896,3 +896,13 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/tests/e2e/service-desk-integration.spec.js; tasks/loop-log.md
 - Result: pass against acceptance criteria — focused completion test passed on a fresh local stack.
 - Next: Run requested regression and focused backend checks.
+## [2026-08-02T13:15:00Z] Task Completed
+- Task: Added a rerunnable disposable-stack launcher for the integrated Service Desk browser verification suite.
+- Files changed: scripts/e2e/run_launch_verification.sh; tasks/loop-log.md
+- Result: pass against acceptance criteria — script syntax validated; execution intentionally deferred by request.
+- Next: Run the script inside tmux for the full launch verification matrix.
+## [2026-08-02T13:20:00Z] Task Completed
+- Task: Isolated the three integrated browser flows by student and added the reusable launch-verification runner.
+- Files changed: frontend/tests/e2e/service-desk-integration.spec.js; scripts/e2e/start_local_stack.sh; scripts/e2e/run_launch_verification.sh; .gitignore; tasks/loop-log.md
+- Result: pass against acceptance criteria — all three integrated browser tests passed together on a fresh disposable stack.
+- Next: Run remaining backend/frontend/Service Desk validation and implement all-tool clean-context restoration.

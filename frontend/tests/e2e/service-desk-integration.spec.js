@@ -28,6 +28,8 @@ const studentAUsername = requireEnv("NEXUS_E2E_STUDENT_A_USERNAME");
 const studentAPassword = requireEnv("NEXUS_E2E_STUDENT_A_PASSWORD");
 const studentBUsername = requireEnv("NEXUS_E2E_STUDENT_B_USERNAME");
 const studentBPassword = requireEnv("NEXUS_E2E_STUDENT_B_PASSWORD");
+const studentCUsername = requireEnv("NEXUS_E2E_STUDENT_C_USERNAME");
+const studentCPassword = requireEnv("NEXUS_E2E_STUDENT_C_PASSWORD");
 const adminUsername = requireEnv("NEXUS_E2E_ADMIN_USERNAME");
 const adminPassword = requireEnv("NEXUS_E2E_ADMIN_PASSWORD");
 
@@ -157,7 +159,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
   test("completion waits for pending Service Desk evidence", async ({ browser }) => {
     const context = await browser.newContext();
     const page = await context.newPage();
-    await studentLogin(page, studentAUsername, studentAPassword);
+    await studentLogin(page, studentBUsername, studentBPassword);
     const assignment = await getMyAssignment(page, SCENARIO_STABLE_KEY);
     const started = await page.request.post(`/api/service-desk/assignments/${assignment.id}/attempts`, withOrigin({}));
     const attemptId = (await started.json()).id;
@@ -208,7 +210,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     // --- Student A: work the ticket through the real Service Desk UI ---
     const contextA1 = await browser.newContext();
     const pageA1 = await contextA1.newPage();
-    await studentLogin(pageA1, studentAUsername, studentAPassword);
+    await studentLogin(pageA1, studentCUsername, studentCPassword);
 
     const assignmentBefore = await getMyAssignment(pageA1, SCENARIO_STABLE_KEY);
     const hadPriorAttempt = assignmentBefore.most_recent_attempt !== null;
@@ -285,7 +287,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     // --- Idempotent completion: replaying the same complete call must not double-award XP ---
     const contextIdem = await browser.newContext();
     const pageIdem = await contextIdem.newPage();
-    await studentLogin(pageIdem, studentAUsername, studentAPassword);
+    await studentLogin(pageIdem, studentCUsername, studentCPassword);
     const beforeXp = await pageIdem.request.get("/api/service-desk/assignments");
     const repeatResponse = await pageIdem.request.post(
       `/api/service-desk/attempts/${attemptId}/complete`,
@@ -306,7 +308,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     // --- Resume/cross-device: a completely clean second browser context, same student ---
     const contextA2 = await browser.newContext();
     const pageA2 = await contextA2.newPage();
-    await studentLogin(pageA2, studentAUsername, studentAPassword);
+    await studentLogin(pageA2, studentCUsername, studentCPassword);
     const resumedAttempt = await (
       await pageA2.request.get(`/api/service-desk/attempts/${attemptId}`)
     ).json();
@@ -349,7 +351,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     // --- Student sees the mentor feedback ---
     const contextA3 = await browser.newContext();
     const pageA3 = await contextA3.newPage();
-    await studentLogin(pageA3, studentAUsername, studentAPassword);
+    await studentLogin(pageA3, studentCUsername, studentCPassword);
     const withFeedback = await (
       await pageA3.request.get(`/api/service-desk/attempts/${attemptId}`)
     ).json();
