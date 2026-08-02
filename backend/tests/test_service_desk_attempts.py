@@ -6,12 +6,12 @@ from app.services.service_desk_grading import compute_grade
 from conftest import auth_headers, make_client, make_student
 
 
-def setup_assignment(db, student, *, published=True, maximum_attempts=None, stable_key=None, priority="high"):
+def setup_assignment(db, student, *, published=True, maximum_attempts=None, stable_key=None, priority="high", mode="simulation"):
     scenario = ServiceDeskScenario(stable_key=stable_key or f"scenario-{student.id}-{published}", title="VPN outage", description="desc", category="network", difficulty=2)
     db.add(scenario); db.flush()
     version = ServiceDeskScenarioVersion(scenario_id=scenario.id, version_number=1, definition_json={"steps": [], "priority": priority}, definition_hash=f"hash-{student.id}-{published}-{stable_key or priority}", status="published" if published else "draft")
     db.add(version); db.flush()
-    assignment = ServiceDeskAssignment(student_id=student.id, scenario_id=scenario.id, mode="learning", assigned_by="admin", maximum_attempts=maximum_attempts)
+    assignment = ServiceDeskAssignment(student_id=student.id, scenario_id=scenario.id, mode=mode, assigned_by="admin", maximum_attempts=maximum_attempts)
     db.add(assignment); db.commit(); db.refresh(assignment)
     return assignment
 
@@ -124,6 +124,31 @@ def test_unresolved_close_applies_penalty_and_fails(db):
     close(client, student, attempt_id, verified=False)
     response = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=auth_headers(student), json={"idempotency_key": "grade"})
     assert response.json()["passed"] is False and response.json()["details"]["penalty_points"] == 40 and response.json()["overall_score"] == 75
+
+
+def test_learning_mode_waives_hint_penalty(db):
+    student = make_student(db, username="learning-hint-score"); assignment = setup_assignment(db, student, priority="critical", mode="learning")
+    client = make_client(service_desk.router); attempt_id = start(client, student, assignment).json()["id"]
+    for key in ("hint-1", "hint-2", "hint-3"):
+        assert client.post(f"/api/service-desk/attempts/{attempt_id}/hints", headers=auth_headers(student), json={"idempotency_key": key, "tool": "ticket", "payload": {}}).status_code == 201
+    close(client, student, attempt_id)
+    response = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=auth_headers(student), json={"idempotency_key": "grade"})
+    body = response.json()
+    assert body["details"]["penalty_points"] == 0 and body["overall_score"] == 100
+    assert body["details"]["hints_used"] == 3 and body["details"]["is_learning_mode"] is True
+    assert "Learning Mode" in body["feedback_summary"]
+
+
+def test_learning_mode_waives_unresolved_close_penalty(db):
+    student = make_student(db, username="learning-unresolved"); assignment = setup_assignment(db, student, priority="critical", mode="learning")
+    client = make_client(service_desk.router); attempt_id = start(client, student, assignment).json()["id"]
+    close(client, student, attempt_id, verified=False)
+    response = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=auth_headers(student), json={"idempotency_key": "grade"})
+    body = response.json()
+    # Learning Mode waives the score penalty for an unresolved close, but
+    # does not pretend the ticket was actually resolved.
+    assert body["passed"] is False and body["details"]["penalty_points"] == 0 and body["overall_score"] == 100
+    assert "Learning Mode" in body["feedback_summary"]
 
 
 def test_inc2401_directory_replay_reduces_then_restores_objective_points(db):

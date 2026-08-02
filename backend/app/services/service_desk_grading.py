@@ -92,13 +92,21 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     resolved = close_event.success is True and close_payload.get("verifiedResolved") is True
     hints_used = sum(event.event_type == "hint_requested" for event in events)
     directory_satisfied = _directory_objective_satisfied(scenario.stable_key, events)
+    # Learning Mode is for practicing without penalty: hint use and an
+    # unresolved close still get recorded and shown to the student, but do
+    # not reduce the score. Simulation Mode is unaffected.
+    is_learning_mode = attempt.mode == "learning"
 
     unresolved_penalty = (
         _js_round(points_possible * UNRESOLVED_CLOSE_PENALTY_RATE)
-        if was_closed and not resolved
+        if was_closed and not resolved and not is_learning_mode
         else 0
     )
-    hint_penalty = max(0, hints_used - FREE_HINT_COUNT) * HINT_PENALTY_POINTS
+    hint_penalty = (
+        0
+        if is_learning_mode
+        else max(0, hints_used - FREE_HINT_COUNT) * HINT_PENALTY_POINTS
+    )
     penalty_points = unresolved_penalty + hint_penalty
     objective_points = (
         points_possible
@@ -109,16 +117,28 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     points_awarded = max(0, points_before_penalty - penalty_points)
     overall_score = _js_round((points_awarded / points_possible) * 100) if points_possible else 0
 
+    if is_learning_mode:
+        feedback_summary = (
+            "Learning Mode: hints and retries do not affect your score. "
+            + (
+                "All required diagnosis, repair, verification, note, and closure checks passed."
+                if resolved
+                else "Review the ticket and try again to fully resolve it."
+            )
+        )
+    else:
+        feedback_summary = (
+            f"All required workflow checks passed. The final score includes {penalty_points} hint or closure penalty points."
+            if penalty_points > 0
+            else "All required diagnosis, repair, verification, note, and closure checks passed."
+        )
+
     return {
         "technical_complete": resolved,
         "critical_failure": False,
         "overall_score": overall_score,
         "passed": resolved,
-        "feedback_summary": (
-            f"All required workflow checks passed. The final score includes {penalty_points} hint or closure penalty points."
-            if penalty_points > 0
-            else "All required diagnosis, repair, verification, note, and closure checks passed."
-        ),
+        "feedback_summary": feedback_summary,
         "details": {
             "points_possible": points_possible,
             "points_awarded": points_awarded,
@@ -127,6 +147,7 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
             "resolved": resolved,
             "was_closed": was_closed,
             "directory_objective_satisfied": directory_satisfied,
+            "is_learning_mode": is_learning_mode,
         },
         "rubric_version": RUBRIC_VERSION,
     }
