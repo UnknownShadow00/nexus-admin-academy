@@ -8,6 +8,7 @@
 //   NEXUS_E2E_BASE_URL          e.g. http://192.168.0.101:18081
 //   NEXUS_E2E_STUDENT_A_USERNAME / _PASSWORD
 //   NEXUS_E2E_STUDENT_B_USERNAME / _PASSWORD
+//   NEXUS_E2E_STUDENT_D_USERNAME / _PASSWORD
 //   NEXUS_E2E_ADMIN_USERNAME / _PASSWORD
 //
 // The two student accounts and the admin account are expected to be
@@ -30,6 +31,8 @@ const studentBUsername = requireEnv("NEXUS_E2E_STUDENT_B_USERNAME");
 const studentBPassword = requireEnv("NEXUS_E2E_STUDENT_B_PASSWORD");
 const studentCUsername = requireEnv("NEXUS_E2E_STUDENT_C_USERNAME");
 const studentCPassword = requireEnv("NEXUS_E2E_STUDENT_C_PASSWORD");
+const studentDUsername = requireEnv("NEXUS_E2E_STUDENT_D_USERNAME");
+const studentDPassword = requireEnv("NEXUS_E2E_STUDENT_D_PASSWORD");
 const adminUsername = requireEnv("NEXUS_E2E_ADMIN_USERNAME");
 const adminPassword = requireEnv("NEXUS_E2E_ADMIN_PASSWORD");
 
@@ -204,6 +207,59 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     expect(timeline.grade.id).toBe(completed.grade.id);
     await adminContext.close();
     await context.close();
+  });
+
+  test("Student D restores the full ticket and directory snapshot in a clean browser", async ({ browser }) => {
+    const sourceContext = await browser.newContext();
+    const sourcePage = await sourceContext.newPage();
+    await studentLogin(sourcePage, studentDUsername, studentDPassword);
+    const assignment = await getMyAssignment(sourcePage, SCENARIO_STABLE_KEY);
+    const started = await sourcePage.request.post(
+      `/api/service-desk/assignments/${assignment.id}/attempts`,
+      withOrigin({}),
+    );
+    expect(started.ok()).toBeTruthy();
+    const attemptId = (await started.json()).id;
+
+    await sourcePage.goto(`/service-desk/tickets/${TICKET_ID}`);
+    await sourcePage.getByLabel("Add a note").fill("Student D clean-browser restoration note.");
+    await sourcePage.getByRole("button", { name: "Add internal note" }).click();
+    await sourcePage.getByRole("link", { name: /Directory/ }).click();
+    await expect(sourcePage.getByRole("heading", { name: "Directory", exact: true })).toBeVisible();
+    await sourcePage.getByText("Avery Brooks", { exact: true }).click();
+    await sourcePage.getByRole("button", { name: "Unlock account" }).click();
+    await sourcePage.getByRole("dialog").getByRole("button", { name: "Unlock account" }).click();
+    await expect(sourcePage.getByText(/Account unlocked\. New sign-in attempts/)).toBeVisible();
+
+    await expect.poll(async () => {
+      const response = await sourcePage.request.get(`/api/service-desk/attempts/${attemptId}`);
+      return (await response.json()).current_state;
+    }).toMatchObject({
+      schema_version: 1,
+      nexus_service_desk_attempt: {
+        assetOverlays: expect.any(Object),
+        chatThreads: expect.any(Object),
+        deploymentRuns: expect.any(Object),
+        directoryOverlays: { "directory-user-avery-brooks": { locked: false } },
+        remoteDesktopOverlays: expect.any(Object),
+        ticketOverlays: { [TICKET_ID]: { notes: [expect.objectContaining({ body: "Student D clean-browser restoration note." })] } },
+      },
+    });
+    await sourceContext.close();
+
+    // A new browser context has neither the Service Desk attempt cache nor its
+    // outbox. The only possible restoration source is the Nexus snapshot.
+    const cleanContext = await browser.newContext();
+    const cleanPage = await cleanContext.newPage();
+    await studentLogin(cleanPage, studentDUsername, studentDPassword);
+    await cleanPage.goto(`/service-desk/tickets/${TICKET_ID}`);
+    await expect(cleanPage.getByText("Student D clean-browser restoration note.")).toBeVisible();
+    await cleanPage.getByRole("link", { name: /Directory/ }).click();
+    await cleanPage.getByRole("button", { name: /Avery Brooks abrooks/ }).click();
+    await expect(cleanPage.getByRole("heading", { name: "Avery Brooks", exact: true })).toBeVisible();
+    await expect(cleanPage.getByText("Account unlocked", { exact: true })).toBeVisible();
+    await expect(cleanPage.getByRole("button", { name: "Already unlocked" })).toBeDisabled();
+    await cleanContext.close();
   });
 
   test("student resolves a ticket through the real UI; grade, XP, and evidence are Nexus-authoritative", async ({ browser }) => {
