@@ -57,33 +57,33 @@ constraint, the trust boundary is:
 - **Not allowed:** telling Nexus "give this student N XP" as a bare number.
   Fixed as of this phase — see below.
 
-## Known residual gap (not closed in Phase 1/2, tracked for Phase 3)
+## Score/pass computation — closed via server-side deterministic grading
 
-`POST /api/service-desk/attempts/{id}/complete` (added in 3a56c30) currently
-accepts `overall_score`, `passed`, `technical_complete`, `critical_failure`,
-and `feedback_summary` **as asserted by the student's own authenticated
-request** and stores them as-is. This is the same category of problem as the
-XP bug below, just not yet closed, because closing it properly requires
-either:
+The former client-asserted-grade gap is closed. `POST
+/api/service-desk/attempts/{id}/complete` now accepts only an idempotency key;
+Nexus computes score, pass/fail, hints, priority points, closure penalties,
+and the `inc2401`/`inc2405` directory objective from the immutable published
+scenario definition and the server-assigned, append-only attempt event log.
+The Python implementation ports the deterministic constants and objective
+logic from `evaluate-objectives.ts`, including replay of the relevant
+successful directory actions. Client-supplied grade fields are no longer
+accepted or used.
 
-1. Porting `evaluate-objectives.ts`'s deterministic grading into Python so
-   Nexus can independently recompute the grade from the stored event log
-   (duplicates logic, risks drift between the two implementations), or
-2. Having `service-desk-app`'s own **server** (a Next.js route handler, not
-   the browser) fetch the authoritative event history from Nexus, run
-   `evaluateObjectives` there, and submit the result to a
-   service-to-service-authenticated endpoint the browser cannot call
-   directly (no logic duplication, but requires wiring the Next.js server
-   as a trusted intermediary and issuing it its own service credential,
-   distinct from the student's JWT).
+### Deliberate residual: remote-desktop workflow evidence
 
-Option 2 is the intended design and is the recommended next step before this
-system is used for anything higher-stakes than a 5-student private pilot
-with mentor review as a backstop. It has not been built yet — mentors can
-already see the full raw event timeline via
-`GET /api/admin/service-desk/attempts/{id}` (also added in 3a56c30) and can
-sanity-check a suspicious grade against the actual recorded actions, which is
-the accepted interim mitigation for this pilot's scale.
+For tickets whose intended resolution path uses the Remote Desktop tool's
+multi-phase diagnose/fix/verify workflow — the pilot tickets are `INC2406`,
+`INC2407`, and `INC2408` — Nexus still relies on the client-reported
+`success`/`verifiedResolved` flags on the already-logged `ticket.close` event
+to decide whether that workflow was completed correctly. Nexus does not yet
+independently replay the Remote Desktop phase-gating or terminal-command
+evidence logic; porting that much larger TypeScript engine surface would be
+harder to keep synchronized.
+
+This is mitigated for the pilot by full raw event capture (including terminal
+commands and phase actions, being wired in a parallel frontend task) being
+visible to mentor review. That is not independent server verification. This
+is a deliberate, scoped decision, not an oversight.
 
 ## XP — fixed in this phase
 
@@ -112,5 +112,5 @@ string ticket IDs (`INC2401`) this domain uses).
 | "This student is a mentor/admin" | Yes, from the JWT claim or a Nexus round-trip | `nexus-auth.ts::hasNexusAdminAccess` |
 | "This action happened, in this order" | Yes, but Nexus — not the client — assigns order and dedups | `service_desk_attempt_events` |
 | "Give this student N XP" (old bridge) | No longer — fixed table by event_type | `service_desk_bridge.py` (this phase) |
-| "This attempt's grade is X" (new endpoint) | **Yes, still fully trusted** — open gap | `service_desk.py::complete_attempt` (tracked above, Phase 3) |
+| "This attempt's grade is X" (new endpoint) | Yes — Nexus recomputes it from the published definition and append-only event log; the close event's workflow flags remain a deliberate residual trust boundary | `service_desk_grading.py` + `service_desk.py::complete_attempt` |
 | "Mark this scenario complete" (duplicate submission) | Not yet deduped on the old bridge | Old bridge: open. New attempt model: closed via idempotency key. |

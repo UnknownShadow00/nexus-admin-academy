@@ -43,6 +43,7 @@ def test_feedback_requires_grade_then_succeeds(db, monkeypatch):
     student_client = make_client(service_desk.router); attempt = start(student_client, student, assignment).json(); admin_client = make_client(admin_service_desk.router)
     path = f"/api/admin/service-desk/attempts/{attempt['id']}/feedback"
     assert admin_client.post(path, headers=headers, json={"mentor_feedback": "wait"}).status_code == 404
-    student_client.post(f"/api/service-desk/attempts/{attempt['id']}/complete", headers=auth_headers(student), json={"idempotency_key":"c","technical_complete":True,"critical_failure":False,"overall_score":80,"passed":True,"feedback_summary":"ok","rubric_version":"v1"})
+    student_client.post(f"/api/service-desk/attempts/{attempt['id']}/events", headers=auth_headers(student), json={"idempotency_key":"close","event_type":"ticket.close","tool":"ticket","payload":{"verifiedResolved":True,"resolutionNote":"ok"},"resulting_state":{},"success":True})
+    student_client.post(f"/api/service-desk/attempts/{attempt['id']}/complete", headers=auth_headers(student), json={"idempotency_key":"c"})
     response = admin_client.post(path, headers=headers, json={"mentor_feedback": "Nice work"})
     assert response.status_code == 200 and response.json()["mentor_feedback"] == "Nice work"

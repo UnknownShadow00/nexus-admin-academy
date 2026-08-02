@@ -21,13 +21,6 @@ class ServiceDeskHintCreate(BaseModel):
 
 class ServiceDeskCompleteCreate(BaseModel):
     idempotency_key: str = Field(min_length=1, max_length=120)
-    technical_complete: bool
-    critical_failure: bool
-    overall_score: int
-    passed: bool
-    feedback_summary: str
-    details: dict[str, Any] = Field(default_factory=dict)
-    rubric_version: str = Field(min_length=1, max_length=40)
 
 
 class ServiceDeskFeedbackCreate(BaseModel):

@@ -19,6 +19,7 @@ from app.schemas.service_desk import (
     ServiceDeskCompleteCreate, ServiceDeskEventCreate, ServiceDeskHintCreate,
 )
 from app.services.auth_service import ensure_student_access, get_current_student
+from app.services.service_desk_grading import AttemptNotClosedError, compute_grade
 from app.services.xp_service import award_xp
 
 router = APIRouter(prefix="/api/service-desk", tags=["service-desk"])
@@ -184,23 +185,27 @@ def complete_attempt(attempt_id: int, body: ServiceDeskCompleteCreate, current_s
         return _json_response(_grade_dict(existing), 200)
     if attempt.status != "in_progress":
         raise HTTPException(409, "Attempt is no longer in progress")
+    try:
+        computed = compute_grade(db, attempt)
+    except AttemptNotClosedError as exc:
+        raise HTTPException(409, str(exc)) from exc
     grade = ServiceDeskAttemptGrade(attempt_id=attempt.id, scenario_version_id=attempt.scenario_version_id,
-                                    rubric_version=body.rubric_version, technical_complete=body.technical_complete,
-                                    critical_failure=body.critical_failure, overall_score=body.overall_score,
-                                    passed=body.passed, feedback_summary=body.feedback_summary, details_json=body.details)
+                                    rubric_version=computed["rubric_version"], technical_complete=computed["technical_complete"],
+                                    critical_failure=computed["critical_failure"], overall_score=computed["overall_score"],
+                                    passed=computed["passed"], feedback_summary=computed["feedback_summary"], details_json=computed["details"])
     db.add(grade)
     award_xp(
         db,
         student_id=attempt.student_id,
-        delta=body.overall_score,
+        delta=computed["overall_score"],
         source_type="service_desk_attempt",
         source_id=attempt.id,
         description=f"Service Desk attempt {attempt.id}",
     )
-    attempt.status = "completed" if body.passed else "failed"
+    attempt.status = "completed" if computed["passed"] else "failed"
     attempt.completed_at = datetime.now(timezone.utc)
-    attempt.score = body.overall_score
-    attempt.passed = body.passed
+    attempt.score = computed["overall_score"]
+    attempt.passed = computed["passed"]
     try:
         db.commit()
     except IntegrityError:
