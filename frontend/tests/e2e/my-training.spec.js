@@ -90,15 +90,15 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await studentLogin(page);
   const monitor = monitorPage(page);
 
-  await expect(page.getByRole("link", { name: "Home", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "My Training", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Practice Library/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Today", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Extra Practice/ })).toBeVisible();
   await expect(page.getByRole("link", { name: "Progress", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /Learning Path/i })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: /Begin Your IT Training|Continue Your Training/ })).toBeVisible();
   await assertNoHorizontalOverflow(page);
 
-  await page.getByRole("link", { name: "My Training", exact: true }).click();
+  await page.getByRole("button", { name: /Extra Practice/ }).click();
+  await page.getByRole("menuitem", { name: "My Training", exact: true }).click();
   await expect(page).toHaveURL(/\/training$/);
   await expect(page.getByRole("heading", { name: "My Training", exact: true })).toBeVisible();
   await expect(page.getByText("Weekly Roadmap")).toBeVisible();
@@ -147,8 +147,8 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   }
 
   await page.goto("/training");
-  await page.getByRole("button", { name: /Practice Library/ }).click();
-  for (const name of ["Support Tickets", "Guided Labs", "Networking Labs", "Command Library", "Terminal Practice"]) {
+  await page.getByRole("button", { name: /Extra Practice/ }).click();
+  for (const name of ["My Training", "Support Tickets", "Guided Labs", "Networking Labs", "Command Library", "Terminal Practice"]) {
     await expect(page.getByRole("menuitem", { name, exact: true })).toBeVisible();
   }
   await expect(page.getByRole("menuitem", { name: "Capstones", exact: true })).toHaveCount(0);
@@ -199,7 +199,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await page.getByRole("button", { name: "Toggle menu" }).click();
   await expect(page.getByRole("link", { name: "My Training", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /Learning Path/i })).toHaveCount(0);
-  await expect(page.getByRole("paragraph").filter({ hasText: /^Practice Library$/ })).toBeVisible();
+  await expect(page.getByRole("paragraph").filter({ hasText: /^Extra Practice$/ })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await page.goto("/training/week/0");
   await assertNoHorizontalOverflow(page);
@@ -264,7 +264,7 @@ test("capstone navigation remains role gated", async ({ page }) => {
   await page.getByLabel("Password").fill(process.env.NEXUS_E2E_QUALIFIED_PASSWORD || "BrowserQualified!2026");
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page.getByRole("heading", { name: /Qualified Browser Student|Student Home/ })).toBeVisible();
-  await page.getByRole("button", { name: /Practice Library/ }).click();
+  await page.getByRole("button", { name: /Extra Practice/ }).click();
   await expect(page.getByRole("menuitem", { name: "Capstones", exact: true })).toBeVisible();
   await page.getByRole("menuitem", { name: "Capstones", exact: true }).click();
   await expect(page).toHaveURL(/\/capstones$/);

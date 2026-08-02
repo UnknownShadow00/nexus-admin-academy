@@ -69,7 +69,7 @@ export default function StudentHome() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
-      <PageHeader title={stats.name || "Student Home"} subtitle="Stay on track with your next lesson, quiz, and support ticket milestone." />
+      <PageHeader title={stats.name || "Today"} subtitle="Your next lesson, quiz, or Service Desk scenario, picked for you." />
 
       <section className="rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-700 p-5 text-white shadow-lg sm:p-7">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">My Training</p>

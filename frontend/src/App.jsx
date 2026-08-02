@@ -44,12 +44,13 @@ const CurriculumTagsPage = lazy(() => import("./pages/admin/CurriculumTagsPage")
 const QuizEditorPage = lazy(() => import("./pages/admin/QuizEditorPage"));
 const AdminTrainingPage = lazy(() => import("./pages/admin/AdminTrainingPage"));
 const studentNavItems = [
-  { to: "/", label: "Home" },
-  { to: "/training", label: "My Training" },
+  { to: "/", label: "Today" },
   { to: "/service-desk", label: "Service Desk Simulator", external: true },
+  { to: "/progress", label: "Progress" },
   {
-    label: "Practice Library",
+    label: "Extra Practice",
     children: [
+      { to: "/training", label: "My Training" },
       { to: "/tickets", label: "Support Tickets" },
       { to: "/labs", label: "Guided Labs" },
       { to: "/cli-labs", label: "Networking Labs" },
@@ -58,7 +59,6 @@ const studentNavItems = [
       { to: "/terminal", label: "Terminal Practice" },
     ],
   },
-  { to: "/progress", label: "Progress" },
 ];
 
 const adminNavItems = [

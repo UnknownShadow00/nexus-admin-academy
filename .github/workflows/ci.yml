@@ -289,12 +289,13 @@ jobs:
       - name: Run Playwright (desktop + mobile viewports)
         working-directory: frontend
         # my-training.spec.js exercises both the 1440x1000 desktop and
-        # 375x812 mobile viewports within its own tests; service-desk-
-        # disabled.spec.js covers the disabled-state regression from
-        # Sprint 1. Both run in well under a minute, so the full pair
-        # runs on every PR rather than splitting a "critical" subset out
-        # to a nightly job.
-        run: npx playwright test tests/e2e/my-training.spec.js tests/e2e/service-desk-disabled.spec.js --reporter=list
+        # 375x812 mobile viewports within its own tests. It runs in well
+        # under a minute against this isolated stack. service-desk-
+        # integration.spec.js is intentionally NOT run here: it requires
+        # the full Nexus + Service Desk Docker Compose stack (a separate
+        # sibling repository, real staging-style environment), which this
+        # isolated single-backend stack does not provide.
+        run: npx playwright test tests/e2e/my-training.spec.js --reporter=list
 
       - name: Stop isolated local stack
         if: always()
