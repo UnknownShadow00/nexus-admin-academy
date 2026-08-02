@@ -33,7 +33,7 @@ def _full(db, attempt):
             "state_version": attempt.state_version, "attempt_number": attempt.attempt_number, "started_at": attempt.started_at,
             "completed_at": attempt.completed_at, "score": attempt.score, "passed": attempt.passed, "created_at": attempt.created_at,
             "updated_at": attempt.updated_at, "events": [{"id": e.id, "sequence_number": e.sequence_number, "event_type": e.event_type,
-            "tool": e.tool, "payload": e.payload_json, "success": e.success, "created_at": e.created_at} for e in events], "grade": _grade(grade)}
+            "tool": e.tool, "idempotency_key": e.idempotency_key, "payload": e.payload_json, "success": e.success, "created_at": e.created_at} for e in events], "grade": _grade(grade)}
 
 
 @router.get("/attempts")

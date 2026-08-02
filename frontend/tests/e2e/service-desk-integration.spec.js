@@ -70,6 +70,90 @@ async function getMyAssignment(page, stableKey) {
 }
 
 test.describe("Service Desk integration (requires an integrated stack)", () => {
+  test("offline outbox retries grading evidence in original order", async ({ browser }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await studentLogin(page, studentAUsername, studentAPassword);
+    const assignment = await getMyAssignment(page, SCENARIO_STABLE_KEY);
+    const started = await page.request.post(
+      `/api/service-desk/assignments/${assignment.id}/attempts`,
+      withOrigin({}),
+    );
+    expect(started.ok()).toBeTruthy();
+    const attemptId = (await started.json()).id;
+
+    await page.goto(`/service-desk/tickets/${TICKET_ID}`);
+    await expect(page.getByText(TICKET_ID).first()).toBeVisible();
+    await page.route(/\/api\/service-desk\/attempts\/\d+\/(events|hints)$/, (route) => route.abort());
+
+    await page.getByLabel("Add a note").fill("Offline evidence note.");
+    await page.getByRole("button", { name: "Add internal note" }).click();
+    await page.getByRole("link", { name: /Directory/ }).click();
+    await expect(page.getByRole("heading", { name: "Directory", exact: true })).toBeVisible();
+    await page.getByText("Avery Brooks", { exact: true }).click();
+    await page.getByRole("button", { name: "Unlock account" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Unlock account" }).click();
+    await page.goto(`/service-desk/tickets/${TICKET_ID}`);
+    await page.getByRole("button", { name: /I don't know how to fix this/i }).click();
+
+    await expect(page.getByText(/Saving…|Sync problem — retrying/)).toBeVisible();
+    const readOutbox = () => page.evaluate(() => {
+      const key = Object.keys(localStorage).find((candidate) => candidate.startsWith("nexus-sd-outbox-v1:"));
+      return key ? JSON.parse(localStorage.getItem(key) || "{}") : null;
+    });
+    const pendingBeforeRefresh = await readOutbox();
+    expect(pendingBeforeRefresh.items).toHaveLength(3);
+    const queuedTypes = pendingBeforeRefresh.items.map((item) => item.event.event_type);
+    const queuedKeys = pendingBeforeRefresh.items.map((item) => item.event.idempotency_key);
+    expect(queuedTypes).toEqual(["ticket.add_note", "directory.unlock_account", "ticket.reveal_hint"]);
+    const storedTypes = ["ticket.add_note", "directory.unlock_account", "hint_requested"];
+
+    await page.reload();
+    await expect(page.getByText("Offline evidence note.")).toBeVisible();
+    expect((await readOutbox()).items.map((item) => item.event.idempotency_key)).toEqual(queuedKeys);
+    const retriedRequests = [];
+    const retriedResponses = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST" && /\/api\/service-desk\/attempts\/\d+\/(events|hints)$/.test(request.url())) {
+        retriedRequests.push({ url: request.url(), body: request.postDataJSON() });
+      }
+    });
+    page.on("response", async (response) => {
+      if (response.request().method() === "POST" && /\/api\/service-desk\/attempts\/\d+\/(events|hints)$/.test(response.url())) {
+        retriedResponses.push({ url: response.url(), status: response.status() });
+      }
+    });
+    await page.unroute(/\/api\/service-desk\/attempts\/\d+\/(events|hints)$/);
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await expect.poll(() => retriedResponses.length).toBeGreaterThan(0);
+    expect(retriedRequests.map((request) => request.body.idempotency_key)).toEqual(queuedKeys);
+    expect(retriedRequests.map((request) => request.url)).toEqual([
+      `${baseUrl}/api/service-desk/attempts/${attemptId}/events`,
+      `${baseUrl}/api/service-desk/attempts/${attemptId}/events`,
+      `${baseUrl}/api/service-desk/attempts/${attemptId}/hints`,
+    ]);
+    expect(retriedResponses.map((response) => response.status)).toEqual([201, 201, 201]);
+    await expect.poll(async () => (await readOutbox()).items.length).toBe(0);
+    await expect(page.getByText("Saving…")).toBeHidden();
+
+    const adminContext = await browser.newContext();
+    const adminPage = await adminContext.newPage();
+    await adminLogin(adminPage);
+    await expect.poll(async () => {
+      const response = await adminPage.request.get(`/api/admin/service-desk/attempts/${attemptId}`);
+      return (await response.json()).events.map((event) => event.event_type);
+    }).toEqual(storedTypes);
+    const timeline = await (await adminPage.request.get(`/api/admin/service-desk/attempts/${attemptId}`)).json();
+    const retried = timeline.events.filter((event) => storedTypes.includes(event.event_type));
+    expect(retried.map((event) => event.event_type)).toEqual(storedTypes);
+    expect(new Set(retried.map((event) => event.idempotency_key))).toEqual(new Set(queuedKeys));
+    expect(retried).toHaveLength(3);
+    await adminPage.goto("/admin/service-desk-review");
+    await expect(adminPage.getByText(/#\d+ directory\.unlock_account/)).toBeVisible();
+    await adminContext.close();
+    await context.close();
+  });
+
   test("student resolves a ticket through the real UI; grade, XP, and evidence are Nexus-authoritative", async ({ browser }) => {
     // --- Student A: work the ticket through the real Service Desk UI ---
     const contextA1 = await browser.newContext();

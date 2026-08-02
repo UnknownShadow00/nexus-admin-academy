@@ -886,3 +886,8 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/tests/e2e/service-desk-integration.spec.js; frontend/vite.config.js; scripts/e2e/start_local_stack.sh; scripts/e2e/stop_local_stack.sh; tasks/loop-log.md
 - Result: pass against acceptance criteria — a confirmed Directory action is persisted as directory.unlock_account, returned by the admin timeline API, and rendered in the admin review UI.
 - Next: Resume the remaining launch-verification browser-test groups.
+## [2026-08-02T12:45:00Z] Task Completed
+- Task: Added offline Service Desk outbox recovery browser coverage with ordered retry, idempotency, backend timeline, and admin UI verification.
+- Files changed: frontend/tests/e2e/service-desk-integration.spec.js; backend/app/routers/admin_service_desk.py; tasks/loop-log.md
+- Result: pass against acceptance criteria — focused offline outbox Playwright test passed on a fresh local stack.
+- Next: Add pending-completion browser coverage.
