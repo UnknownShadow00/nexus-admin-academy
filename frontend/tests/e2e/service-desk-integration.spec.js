@@ -154,6 +154,56 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await context.close();
   });
 
+  test("completion waits for pending Service Desk evidence", async ({ browser }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await studentLogin(page, studentAUsername, studentAPassword);
+    const assignment = await getMyAssignment(page, SCENARIO_STABLE_KEY);
+    const started = await page.request.post(`/api/service-desk/assignments/${assignment.id}/attempts`, withOrigin({}));
+    const attemptId = (await started.json()).id;
+    await page.goto(`/service-desk/tickets/${TICKET_ID}`);
+    await page.route(/\/api\/service-desk\/attempts\/\d+\/(events|hints|complete)$/, (route) => route.abort());
+
+    await page.getByRole("link", { name: /Directory/ }).click();
+    await expect(page.getByRole("heading", { name: "Directory", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /Avery Brooks abrooks/ }).click();
+    await expect(page.getByRole("heading", { name: "Avery Brooks", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Unlock account" })).toBeVisible();
+    await page.getByRole("button", { name: "Unlock account" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Unlock account" }).click();
+    await page.goto(`/service-desk/tickets/${TICKET_ID}`);
+    await page.getByLabel("Add a note").fill("Completion must wait for sync.");
+    await page.getByRole("button", { name: "Add internal note" }).click();
+    await page.getByRole("button", { name: "Resolve / close" }).click();
+    await page.getByLabel("Resolution note").fill("Unlocked the account and verified sign-in.");
+    await page.getByRole("checkbox", { name: /verified the requester/i }).check();
+    await page.getByRole("button", { name: "Continue to review" }).click();
+    await page.getByRole("button", { name: "Resolve ticket" }).click();
+    await expect(page.getByText(/Saving…|Sync problem — retrying/)).toBeVisible();
+
+    const beforeReconnect = await page.request.get(`/api/service-desk/attempts/${attemptId}`);
+    const pendingAttempt = await beforeReconnect.json();
+    expect(pendingAttempt.status).toBe("in_progress");
+    expect(pendingAttempt.grade).toBeNull();
+
+    await page.unroute(/\/api\/service-desk\/attempts\/\d+\/(events|hints|complete)$/);
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await expect.poll(async () => (await (await page.request.get(`/api/service-desk/attempts/${attemptId}`)).json()).status).toBe("completed");
+    const completed = await (await page.request.get(`/api/service-desk/attempts/${attemptId}`)).json();
+    expect(completed.grade).toBeTruthy();
+    const replay = await page.request.post(`/api/service-desk/attempts/${attemptId}/complete`, withOrigin({ data: { idempotency_key: "pending-completion-replay" } }));
+    expect(replay.status()).toBe(200);
+    const adminContext = await browser.newContext();
+    const adminPage = await adminContext.newPage();
+    await adminLogin(adminPage);
+    const timeline = await (await adminPage.request.get(`/api/admin/service-desk/attempts/${attemptId}`)).json();
+    expect(timeline.events.map((event) => event.event_type)).toEqual(["directory.unlock_account", "ticket.add_note", "ticket.close"]);
+    expect(new Set(timeline.events.map((event) => event.idempotency_key)).size).toBe(3);
+    expect(timeline.grade.id).toBe(completed.grade.id);
+    await adminContext.close();
+    await context.close();
+  });
+
   test("student resolves a ticket through the real UI; grade, XP, and evidence are Nexus-authoritative", async ({ browser }) => {
     // --- Student A: work the ticket through the real Service Desk UI ---
     const contextA1 = await browser.newContext();

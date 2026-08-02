@@ -891,3 +891,8 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/tests/e2e/service-desk-integration.spec.js; backend/app/routers/admin_service_desk.py; tasks/loop-log.md
 - Result: pass against acceptance criteria — focused offline outbox Playwright test passed on a fresh local stack.
 - Next: Add pending-completion browser coverage.
+## [2026-08-02T13:00:00Z] Task Completed
+- Task: Added Playwright coverage proving Service Desk completion waits for pending evidence, then completes idempotently after reconnect.
+- Files changed: frontend/tests/e2e/service-desk-integration.spec.js; tasks/loop-log.md
+- Result: pass against acceptance criteria — focused completion test passed on a fresh local stack.
+- Next: Run requested regression and focused backend checks.
