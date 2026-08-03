@@ -1,0 +1,32 @@
+@layer components {
+  [data-theme='light'] .sd-card,
+  [data-theme='light'] .sd-modal-card,
+  [data-theme='light'] .sd-panel-frame,
+  [data-theme='light'] .sd-tabs-content {
+    @apply border-zinc-300 bg-zinc-100 text-zinc-700;
+  }
+
+  [data-theme='light'] .sd-card-header,
+  [data-theme='light'] .sd-tooltip {
+    @apply border-zinc-300 bg-zinc-300 text-zinc-900 ring-zinc-300/60;
+  }
+
+  [data-theme='light'] .sd-card-header__title,
+  [data-theme='light'] .sd-modal-header {
+    @apply text-zinc-900;
+  }
+
+  [data-theme='light'] .sd-card-header__meta {
+    @apply text-zinc-600;
+  }
+
+  [data-theme='light'] .sd-input,
+  [data-theme='light'] .sd-select,
+  [data-theme='light'] .sd-textarea {
+    @apply border-zinc-300 bg-zinc-100 text-zinc-900 placeholder:text-zinc-500;
+  }
+
+  [data-theme='light'] .sd-tabs-list {
+    @apply border-zinc-300;
+  }
+}

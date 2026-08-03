@@ -1,0 +1,41 @@
+@import 'tailwindcss';
+@import '@service-desk/ui/styles.css';
+@source '../../../packages/ui/src';
+
+@layer base {
+  html {
+    color-scheme: dark;
+    --app-vh: 100dvh;
+    --app-zoom: 1;
+  }
+
+  html[data-theme='light'] {
+    color-scheme: light;
+  }
+
+  body {
+    @apply min-h-screen bg-zinc-950 text-zinc-100 antialiased;
+    min-height: var(--app-vh);
+    overflow-x: hidden;
+  }
+
+  html[data-theme='light'] body {
+    @apply bg-zinc-100 text-zinc-900;
+  }
+
+  button,
+  input,
+  a {
+    font: inherit;
+  }
+
+  ::selection {
+    @apply bg-sky-400/30 text-zinc-100;
+  }
+}
+
+@theme inline {
+  --font-display: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
+  --font-label: 'Rajdhani', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Share Tech Mono', ui-monospace, monospace;
+}

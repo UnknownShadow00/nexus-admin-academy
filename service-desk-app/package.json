@@ -1,0 +1,37 @@
+{
+  "name": "service-desk-app",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.15.1",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "brace-expansion": "5.0.8",
+      "jws": ">=3.2.3",
+      "postcss": ">=8.5.18",
+      "sharp": ">=0.35.0"
+    }
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --filter=@service-desk/web",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:ui": "pnpm --filter @service-desk/ui test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.8.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.8.0",
+    "prettier": "3.6.2",
+    "turbo": "2.10.7",
+    "typescript": "5.9.2",
+    "typescript-eslint": "8.65.0"
+  }
+}

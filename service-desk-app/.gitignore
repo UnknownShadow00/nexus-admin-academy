@@ -1,0 +1,16 @@
+.next/
+.turbo/
+.corepack/
+.npm-cache/
+coverage/
+dist/
+node_modules/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+
+# Capture evidence must remain outside the application source and build context.
+artifacts/
+website-capture/
+playwright/
