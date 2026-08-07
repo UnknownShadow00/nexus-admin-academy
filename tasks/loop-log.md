@@ -96,6 +96,12 @@
 - Files changed: backend/app/routers/service_desk.py, backend/app/schemas/service_desk.py, backend/app/routers/admin_service_desk.py, service-desk-app/apps/web/lib/nexus-service-desk-client.ts, service-desk-app/apps/web/components/TicketSessionProvider.tsx, frontend/tests/e2e/service-desk-integration.spec.js, tasks/loop-log.md
 - Result: pass against acceptance criteria; focused backend tests passed (37 tests), Service Desk typecheck passed, and launch verification passed twice (4/4 each run).
 - Next: None.
+
+## [2026-08-07T08:46:00Z] Task Completed
+- Task: Updated the CI migration-head assertion after adding the trusted Service Desk event migration.
+- Files changed: .github/workflows/ci.yml, tasks/loop-log.md
+- Result: pass against acceptance criteria; local Alembic heads/current both report 0032_service_desk_trusted_events (head).
+- Next: None.
 ## [2026-05-14T20:28:55-05:00] Task Completed
 - Task: Performed final regression review of Nexus quiz publish/detail/take/submit/review flow, capstone admin publishing support, frontend dist hygiene, draft/published edge cases, and quiz review multi-select/E UI handling; fixed draft quiz review access.
 - Files changed: backend/app/routers/quizzes.py, backend/tests/test_quizzes.py, tasks/loop-log.md
