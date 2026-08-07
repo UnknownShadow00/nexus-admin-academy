@@ -98,7 +98,14 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await page.getByLabel("Add a note").fill("Offline evidence note.");
     await page.getByRole("button", { name: "Add internal note" }).click();
     await page.getByRole("link", { name: /Directory/ }).click();
-    await expect(page.getByRole("heading", { name: "Directory", exact: true })).toBeVisible();
+    // The note click above just queued an offline-outbox write (its POST is
+    // being aborted by the route handler above) and triggered the sync-retry
+    // UI's own state update; that extra async work can briefly delay this
+    // client-side navigation's render under CI's slower CPU, past the
+    // default 5s timeout. Give it more room rather than racing it.
+    await expect(page.getByRole("heading", { name: "Directory", exact: true })).toBeVisible({
+      timeout: 15000,
+    });
     await page.getByText("Avery Brooks", { exact: true }).click();
     await page.getByRole("button", { name: "Unlock account" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Unlock account" }).click();
