@@ -1,3 +1,5 @@
+import pytest
+
 from app.models.service_desk import (
     ServiceDeskAssignment,
     ServiceDeskAttempt,
@@ -74,6 +76,21 @@ def close(client, student, attempt_id, *, verified=True, payload=None):
     )
 
 
+def unlock_avery(client, student, attempt_id, *, key="unlock-avery", success=True):
+    return client.post(
+        f"/api/service-desk/attempts/{attempt_id}/events",
+        headers=auth_headers(student),
+        json={
+            "idempotency_key": key,
+            "event_type": "directory.unlock_account",
+            "tool": "directory",
+            "payload": {"directoryUserId": "directory-user-avery-brooks"},
+            "resulting_state": {},
+            "success": success,
+        },
+    )
+
+
 def test_service_desk_requires_authentication():
     assert (
         make_client(service_desk.router)
@@ -99,9 +116,9 @@ def test_assignment_listing_start_resume_and_event_idempotency(db):
     assert second.status_code == 200 and second.json()["id"] == first.json()["id"]
     event_body = {
         "idempotency_key": "evt-1",
-        "event_type": "command",
-        "tool": "shell",
-        "payload": {"x": 1},
+        "event_type": "ticket.assign",
+        "tool": "ticket",
+        "payload": {"ticketId": "INC2401"},
         "resulting_state": {"x": 1},
         "success": True,
     }
@@ -146,10 +163,10 @@ def test_no_published_version_and_attempt_cap(db):
     assert start(client, capped_student, capped).status_code == 403
 
 
-def test_ownership_and_complete_awards_xp_once(db):
+def test_ownership_and_verified_complete_awards_xp_once(db):
     owner = make_student(db)
     other = make_student(db, username="other")
-    assignment = setup_assignment(db, owner)
+    assignment = setup_assignment(db, owner, stable_key="inc2401")
     client = make_client(service_desk.router)
     started = start(client, owner, assignment)
     attempt_id = started.json()["id"]
@@ -159,6 +176,7 @@ def test_ownership_and_complete_awards_xp_once(db):
         ).status_code
         == 403
     )
+    unlock_avery(client, owner, attempt_id)
     close(client, owner, attempt_id)
     body = {"idempotency_key": "complete-1"}
     before_xp = owner.total_xp
@@ -197,7 +215,7 @@ def test_ownership_and_complete_awards_xp_once(db):
     assert owner.total_xp == before_xp + 100
 
 
-def test_failed_complete_also_awards_the_score_as_xp(db):
+def test_failed_complete_awards_zero_xp(db):
     student = make_student(db, username="failed-complete")
     assignment = setup_assignment(db, student)
     client = make_client(service_desk.router)
@@ -221,16 +239,16 @@ def test_failed_complete_also_awards_the_score_as_xp(db):
         )
         .all()
     )
-    assert response.status_code == 201 and response.json()["overall_score"] == 75
-    assert len(ledger_rows) == 1 and ledger_rows[0].delta == 75
-    assert student.total_xp == 75
+    assert response.status_code == 201 and response.json()["overall_score"] == 0
+    assert ledger_rows == [] and student.total_xp == 0
 
 
 def test_full_priority_verified_close_gets_exact_score(db):
     student = make_student(db, username="critical-score")
-    assignment = setup_assignment(db, student, priority="critical")
+    assignment = setup_assignment(db, student, stable_key="inc2401", priority="critical")
     client = make_client(service_desk.router)
     attempt_id = start(client, student, assignment).json()["id"]
+    unlock_avery(client, student, attempt_id)
     close(client, student, attempt_id)
     response = client.post(
         f"/api/service-desk/attempts/{attempt_id}/complete",
@@ -243,7 +261,7 @@ def test_full_priority_verified_close_gets_exact_score(db):
 
 def test_two_hints_use_one_free_hint_and_normalize_score(db):
     student = make_student(db, username="hint-score")
-    assignment = setup_assignment(db, student, priority="critical")
+    assignment = setup_assignment(db, student, stable_key="inc2401", priority="critical")
     client = make_client(service_desk.router)
     attempt_id = start(client, student, assignment).json()["id"]
     for key in ("hint-1", "hint-2"):
@@ -255,6 +273,7 @@ def test_two_hints_use_one_free_hint_and_normalize_score(db):
             ).status_code
             == 201
         )
+    unlock_avery(client, student, attempt_id)
     close(client, student, attempt_id)
     response = client.post(
         f"/api/service-desk/attempts/{attempt_id}/complete",
@@ -269,7 +288,7 @@ def test_two_hints_use_one_free_hint_and_normalize_score(db):
 
 def test_unresolved_close_applies_penalty_and_fails(db):
     student = make_student(db, username="unresolved")
-    assignment = setup_assignment(db, student, priority="critical")
+    assignment = setup_assignment(db, student, stable_key="inc2401", priority="critical")
     client = make_client(service_desk.router)
     attempt_id = start(client, student, assignment).json()["id"]
     close(client, student, attempt_id, verified=False)
@@ -281,13 +300,13 @@ def test_unresolved_close_applies_penalty_and_fails(db):
     assert (
         response.json()["passed"] is False
         and response.json()["details"]["penalty_points"] == 40
-        and response.json()["overall_score"] == 75
+        and response.json()["overall_score"] == 0
     )
 
 
 def test_learning_mode_waives_hint_penalty(db):
     student = make_student(db, username="learning-hint-score")
-    assignment = setup_assignment(db, student, priority="critical", mode="learning")
+    assignment = setup_assignment(db, student, stable_key="inc2401", priority="critical", mode="learning")
     client = make_client(service_desk.router)
     attempt_id = start(client, student, assignment).json()["id"]
     for key in ("hint-1", "hint-2", "hint-3"):
@@ -299,6 +318,7 @@ def test_learning_mode_waives_hint_penalty(db):
             ).status_code
             == 201
         )
+    unlock_avery(client, student, attempt_id)
     close(client, student, attempt_id)
     response = client.post(
         f"/api/service-desk/attempts/{attempt_id}/complete",
@@ -316,7 +336,7 @@ def test_learning_mode_waives_hint_penalty(db):
 
 def test_learning_mode_waives_unresolved_close_penalty(db):
     student = make_student(db, username="learning-unresolved")
-    assignment = setup_assignment(db, student, priority="critical", mode="learning")
+    assignment = setup_assignment(db, student, stable_key="inc2401", priority="critical", mode="learning")
     client = make_client(service_desk.router)
     attempt_id = start(client, student, assignment).json()["id"]
     close(client, student, attempt_id, verified=False)
@@ -331,12 +351,12 @@ def test_learning_mode_waives_unresolved_close_penalty(db):
     assert (
         body["passed"] is False
         and body["details"]["penalty_points"] == 0
-        and body["overall_score"] == 100
+        and body["overall_score"] == 0
     )
     assert "Learning Mode" in body["feedback_summary"]
 
 
-def test_inc2401_directory_replay_reduces_then_restores_objective_points(db):
+def test_inc2401_directory_evidence_is_required_then_passes(db):
     student = make_student(db, username="avery")
     assignment = setup_assignment(db, student, stable_key="inc2401", priority="high")
     client = make_client(service_desk.router)
@@ -345,8 +365,8 @@ def test_inc2401_directory_replay_reduces_then_restores_objective_points(db):
     attempt = db.query(ServiceDeskAttempt).filter_by(id=attempt_id).one()
     first = compute_grade(db, attempt)
     assert (
-        first["details"]["directory_objective_satisfied"] is False
-        and first["overall_score"] == 50
+        first["passed"] is False
+        and first["overall_score"] == 0
     )
 
     event = {
@@ -371,7 +391,7 @@ def test_inc2401_directory_replay_reduces_then_restores_objective_points(db):
         json={"idempotency_key": "grade"},
     ).json()
     assert (
-        second["details"]["directory_objective_satisfied"] is True
+        second["details"]["objective_checks"]["approved_corrective_action"] is True
         and second["overall_score"] == 100
     )
 
@@ -400,7 +420,7 @@ def test_wrong_directory_user_does_not_satisfy_inc2401_objective(db):
         headers=auth_headers(student),
         json={"idempotency_key": "grade"},
     )
-    assert response.json()["details"]["directory_objective_satisfied"] is False
+    assert response.json()["passed"] is False
 
 
 def test_non_ticket_tool_events_do_not_overwrite_resumable_ticket_state(db):
@@ -458,9 +478,10 @@ def test_non_ticket_tool_events_do_not_overwrite_resumable_ticket_state(db):
 
 def test_client_grade_fields_are_ignored_and_repeat_is_identical(db):
     student = make_student(db, username="untrusted-fields")
-    assignment = setup_assignment(db, student, priority="high")
+    assignment = setup_assignment(db, student, stable_key="inc2401", priority="high")
     client = make_client(service_desk.router)
     attempt_id = start(client, student, assignment).json()["id"]
+    unlock_avery(client, student, attempt_id)
     close(client, student, attempt_id)
     body = {
         "idempotency_key": "grade",
@@ -490,7 +511,7 @@ def test_client_grade_fields_are_ignored_and_repeat_is_identical(db):
     assert (
         first.json()["overall_score"] == 100
         and first.json()["passed"] is True
-        and first.json()["rubric_version"] == "sim-engine-v1"
+        and first.json()["rubric_version"] == "server-objectives-v2"
     )
 
 
@@ -545,6 +566,74 @@ def test_complete_before_close_returns_409(db):
         response.status_code == 409
         and response.json()["detail"] == "Attempt has not been closed yet"
     )
+
+
+@pytest.mark.parametrize("stable_key", [f"inc240{number}" for number in range(1, 9)])
+def test_direct_api_forged_close_never_passes_or_awards_xp(db, stable_key):
+    """Regression for the P0: a close request is never completion evidence."""
+    student = make_student(db, username=f"forged-{stable_key}")
+    assignment = setup_assignment(db, student, stable_key=stable_key)
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+
+    # This is the actual malicious API shape: no simulation work beforehand.
+    response = close(client, student, attempt_id, verified=True)
+    assert response.status_code == 201
+    grade = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/complete",
+        headers=auth_headers(student), json={"idempotency_key": "forge-grade"},
+    )
+    db.refresh(student)
+    assert grade.status_code == 201
+    assert grade.json()["passed"] is False
+    assert grade.json()["technical_complete"] is False
+    assert student.total_xp == 0
+
+
+def test_forged_snapshot_unknown_event_and_failed_evidence_do_not_complete(db):
+    student = make_student(db, username="forged-evidence")
+    assignment = setup_assignment(db, student, stable_key="inc2401")
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+    headers = auth_headers(student)
+    unknown = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/events", headers=headers,
+        json={"idempotency_key": "unknown", "event_type": "totally.arbitrary", "tool": "ticket",
+              "payload": {}, "success": True, "resulting_state": {"solved": True}},
+    )
+    assert unknown.status_code == 422
+    forged_events = [
+        ("wrong-target", "directory.unlock_account", {"directoryUserId": "directory-user-sloane-rivera"}, True),
+        ("failed", "directory.unlock_account", {"directoryUserId": "directory-user-avery-brooks"}, False),
+    ]
+    for key, event_type, payload, success in forged_events:
+        assert client.post(
+            f"/api/service-desk/attempts/{attempt_id}/events", headers=headers,
+                json={"idempotency_key": key, "event_type": event_type, "tool": "directory",
+                  "payload": payload, "success": success,
+                  "resulting_state": {"solved": True, "verifiedResolved": True}},
+        ).status_code == 201
+    close(client, student, attempt_id, verified=True, payload={"resolved": True})
+    grade = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=headers,
+                        json={"idempotency_key": "complete"})
+    assert grade.json()["passed"] is False
+    assert grade.json()["details"]["objective_checks"]["approved_corrective_action"] is False
+
+
+def test_inc2405_correct_target_evidence_passes(db):
+    student = make_student(db, username="sloane-pass")
+    assignment = setup_assignment(db, student, stable_key="inc2405", priority="low")
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+    assert client.post(f"/api/service-desk/attempts/{attempt_id}/events", headers=auth_headers(student), json={
+        "idempotency_key": "facilities", "event_type": "directory.update_groups", "tool": "directory",
+        "payload": {"directoryUserId": "directory-user-sloane-rivera", "add": ["Facilities Calendar"]},
+        "resulting_state": {}, "success": True,
+    }).status_code == 201
+    close(client, student, attempt_id)
+    grade = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=auth_headers(student),
+                        json={"idempotency_key": "complete"})
+    assert grade.json()["passed"] is True and grade.json()["overall_score"] == 100
 
 
 # NOTE on true concurrency testing: a real multi-threaded race test was

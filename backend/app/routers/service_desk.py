@@ -24,6 +24,34 @@ from app.services.xp_service import award_xp
 
 router = APIRouter(prefix="/api/service-desk", tags=["service-desk"])
 
+# The API records simulation actions, not arbitrary browser facts.  Keep this
+# intentionally narrow enough to reject invented namespaces while allowing the
+# existing simulation tools to evolve within their owned namespaces.
+_EVENT_PREFIX_TOOLS = {
+    "ticket.": "ticket",
+    "directory.": "directory",
+    "remote_desktop.": "remote_desktop",
+}
+
+
+def _validate_event_shape(event_type: str, tool: str, payload: dict) -> None:
+    expected_tool = next(
+        (value for prefix, value in _EVENT_PREFIX_TOOLS.items() if event_type.startswith(prefix)),
+        None,
+    )
+    if expected_tool is None:
+        raise HTTPException(422, "Unknown Service Desk event type")
+    if tool != expected_tool:
+        raise HTTPException(422, "Event tool does not match its event type")
+    if event_type == "ticket.close":
+        # Close fields are UI metadata only.  They are allowed for compatibility
+        # but cannot control verification in compute_grade().
+        return
+    if event_type.startswith("directory.") and not isinstance(payload.get("directoryUserId"), str):
+        raise HTTPException(422, "Directory events require directoryUserId")
+    if event_type.startswith("remote_desktop.") and not isinstance(payload.get("assetTag"), str):
+        raise HTTPException(422, "Remote Desktop events require assetTag")
+
 
 def _hash_state(value: dict) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
@@ -168,6 +196,7 @@ def record_event(attempt_id: int, body: ServiceDeskEventCreate, current_student:
     attempt = _owned_attempt(db, attempt_id, current_student)
     if attempt.status != "in_progress":
         raise HTTPException(409, "Attempt is no longer in progress")
+    _validate_event_shape(body.event_type, body.tool, body.payload)
     data, code = _record_event(db, attempt, key=body.idempotency_key, event_type=body.event_type, tool=body.tool,
                                payload=body.payload, resulting_state=body.resulting_state, success=body.success)
     return _json_response(data, code)
@@ -200,14 +229,17 @@ def complete_attempt(attempt_id: int, body: ServiceDeskCompleteCreate, current_s
                                     critical_failure=computed["critical_failure"], overall_score=computed["overall_score"],
                                     passed=computed["passed"], feedback_summary=computed["feedback_summary"], details_json=computed["details"])
     db.add(grade)
-    award_xp(
-        db,
-        student_id=attempt.student_id,
-        delta=computed["overall_score"],
-        source_type="service_desk_attempt",
-        source_id=attempt.id,
-        description=f"Service Desk attempt {attempt.id}",
-    )
+    # A failed/incomplete verification is never XP eligible, even if an old
+    # scoring display assigns partial points for a closed ticket.
+    if computed["passed"]:
+        award_xp(
+            db,
+            student_id=attempt.student_id,
+            delta=computed["overall_score"],
+            source_type="service_desk_attempt",
+            source_id=attempt.id,
+            description=f"Service Desk attempt {attempt.id}",
+        )
     attempt.status = "completed" if computed["passed"] else "failed"
     attempt.completed_at = datetime.now(timezone.utc)
     attempt.score = computed["overall_score"]

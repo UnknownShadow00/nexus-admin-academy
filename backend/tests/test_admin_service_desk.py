@@ -21,9 +21,9 @@ def test_admin_auth_listing_filter_pagination_and_timeline(db, monkeypatch):
     started = start(student_client, student, assignment)
     event = {
         "idempotency_key": "timeline",
-        "event_type": "click",
-        "tool": "browser",
-        "payload": {},
+        "event_type": "ticket.assign",
+        "tool": "ticket",
+        "payload": {"ticketId": "INC2401"},
         "resulting_state": {"step": 1},
         "success": True,
     }

@@ -78,6 +78,12 @@
 - Files changed: .gitignore, backend/pytest.ini, backend/app/schemas/quiz.py, backend/app/routers/admin_quiz.py, backend/app/routers/quizzes.py, backend/app/routers/admin_content.py, backend/tests/test_quizzes.py, backend/tests/test_capstones.py, frontend/src/pages/QuizReviewPage.jsx, frontend/dist/index.html, frontend/dist/assets/index-BHo4YmWS.css (deleted by build), frontend/dist/assets/index-bbpxCFX5.js (deleted by build), tasks/loop-log.md
 - Result: pass against acceptance criteria; `python -m compileall app seed.py -q`, `python -m pytest -q`, focused quiz/capstone tests, and `npm run build` all passed.
 - Next: Existing tracked `frontend/dist` files still show build churn; fully enforcing the new ignore policy requires a later one-time untrack/restore decision for those tracked artifacts.
+
+## [2026-08-07T08:20:03Z] Task Completed
+- Task: Made Service Desk completion server-evaluated from declarative objective evidence, blocked forged close claims, and restricted events to known simulation namespaces.
+- Files changed: backend/app/services/service_desk_objectives.py, backend/app/services/service_desk_grading.py, backend/app/routers/service_desk.py, backend/tests/test_service_desk_attempts.py, backend/tests/test_admin_service_desk.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; focused Service Desk backend tests passed (32 tests) and compileall passed.
+- Next: Run the remaining frontend, Service Desk, and E2E validation suite before release.
 ## [2026-05-14T20:28:55-05:00] Task Completed
 - Task: Performed final regression review of Nexus quiz publish/detail/take/submit/review flow, capstone admin publishing support, frontend dist hygiene, draft/published edge cases, and quiz review multi-select/E UI handling; fixed draft quiz review access.
 - Files changed: backend/app/routers/quizzes.py, backend/tests/test_quizzes.py, tasks/loop-log.md
