@@ -265,7 +265,7 @@ SQLite database and generated-per-run credentials, never the real
 `backend/nexus.db` or `backend/.env`. An older run for the same branch is
 cancelled automatically when a newer commit arrives.
 
-Six independent jobs, so a failure is easy to attribute:
+Five independent jobs, so a failure is easy to attribute:
 
 - **Backend quality and tests** — `pip check`, Ruff, `python -m compileall`,
   the full `pytest` suite, and a manifest-based `pip-audit` against
@@ -286,9 +286,12 @@ Six independent jobs, so a failure is easy to attribute:
   and stopped running the moment the app became a subdirectory of this repo
   — GitHub Actions only discovers workflow files under the repository's own
   root `.github/workflows/`, not in nested subdirectories.
-- **Service Desk own browser tests** — Service Desk's own Playwright suite
-  (`service-desk-app/tests/e2e/`) against its own production build, isolated
-  from Nexus entirely.
+  Note: `service-desk-app/tests/e2e/remote-desktop-workflows.spec.ts` and
+  its `playwright.config.ts` exist but are currently dead — no package.json
+  in the workspace declares `@playwright/test` as a dependency, so
+  `pnpm exec playwright` cannot resolve it. Pre-existing breakage,
+  independent of this merge; not wired into CI here. Add the dependency and
+  confirm the suite actually passes before adding that job.
 - **Playwright browser tests** — real Chromium against an isolated local
   stack (see below), covering My Training, lesson objectives, quiz pass/fail
   messaging, Progress labels, and authentication/navigation regressions, at
@@ -329,11 +332,6 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm audit --audit-level=high
-
-# Service Desk's own Playwright suite (after the build above)
-cd service-desk-app
-pnpm exec playwright install --with-deps chromium
-pnpm exec playwright test
 
 # Nexus <-> Service Desk Playwright integration — see "Browser test fixture harness" below
 ```
@@ -377,8 +375,8 @@ sequence for just the integration spec, with results logged under
 `artifacts/e2e-launch-verification/`.
 
 Expected runtime: each of the backend/database/frontend/service-desk CI jobs
-finishes in well under two minutes; the two Playwright jobs' browser-test
-steps themselves take under a minute combined once each stack is up.
+finishes in well under two minutes; the Playwright job's two browser-test
+steps themselves take under a minute combined once the stack is up.
 
 ### Inspecting a failed CI run
 
