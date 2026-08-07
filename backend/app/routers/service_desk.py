@@ -17,6 +17,7 @@ from app.models.service_desk import (
 from app.models.student import Student
 from app.schemas.service_desk import (
     ServiceDeskActionCreate, ServiceDeskCompleteCreate, ServiceDeskEventCreate, ServiceDeskHintCreate,
+    ServiceDeskSnapshotCreate,
 )
 from app.services.service_desk_objectives import SCENARIO_OBJECTIVES, payload_matches
 from app.services.auth_service import ensure_student_access, get_current_student
@@ -192,6 +193,18 @@ def _record_event(db: Session, attempt: ServiceDeskAttempt, *, key: str, event_t
     return _event_dict(event), 201
 
 
+def _validate_resume_snapshot(snapshot: dict) -> None:
+    """Accept only the wrapper understood by the browser restore codec.
+
+    The nested attempt remains opaque and untrusted.  In particular, it is
+    never consulted by the trusted-event grading ledger.
+    """
+    if snapshot.get("schema_version") != 1 or not isinstance(
+        snapshot.get("nexus_service_desk_attempt"), dict
+    ):
+        raise HTTPException(422, "Invalid Service Desk resume snapshot")
+
+
 @router.post("/attempts/{attempt_id}/events")
 def record_event(attempt_id: int, body: ServiceDeskEventCreate, current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
     attempt = _owned_attempt(db, attempt_id, current_student)
@@ -200,6 +213,27 @@ def record_event(attempt_id: int, body: ServiceDeskEventCreate, current_student:
     _validate_event_shape(body.event_type, body.tool, body.payload)
     data, code = _record_event(db, attempt, key=body.idempotency_key, event_type=body.event_type, tool=body.tool,
                                payload=body.payload, resulting_state=body.resulting_state, success=body.success)
+    return _json_response(data, code)
+
+
+@router.post("/attempts/{attempt_id}/snapshot")
+def persist_snapshot(attempt_id: int, body: ServiceDeskSnapshotCreate,
+                     current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
+    """Persist browser resume state without submitting a grading action.
+
+    The idempotency ledger gives offline replay the same acknowledgement and
+    duplicate protection as actions, while ``trusted`` stays false and the
+    snapshot-only event is outside the server-owned transition graph.
+    """
+    attempt = _owned_attempt(db, attempt_id, current_student)
+    if attempt.status != "in_progress":
+        raise HTTPException(409, "Attempt is no longer in progress")
+    _validate_resume_snapshot(body.snapshot)
+    data, code = _record_event(
+        db, attempt, key=body.idempotency_key, event_type="snapshot.persisted",
+        tool="snapshot", payload={}, resulting_state=body.snapshot,
+        success=True, trusted=False,
+    )
     return _json_response(data, code)
 
 

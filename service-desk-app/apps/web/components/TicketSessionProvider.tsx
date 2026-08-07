@@ -78,6 +78,7 @@ import { TICKET_STATUS_LABELS } from './ticket-labels';
 import {
   completeAttempt,
   requestAttemptAction,
+  persistAttemptSnapshot,
   getAttempt,
   listAssignments,
   recordAttemptEvent,
@@ -419,6 +420,11 @@ interface NexusProgressEvent {
 interface NexusTicketMapping {
   assignmentId: string | number;
   attemptId?: string | number;
+}
+
+interface NexusSnapshotTarget {
+  assignmentId: string | number;
+  attemptId: string | number;
 }
 
 const DIRECTORY_TICKET_BY_USER_ID: Readonly<Record<string, string>> = {
@@ -957,6 +963,9 @@ export function TicketSessionProvider({
   const nexusOutboxFlushRef = useRef<Promise<void> | null>(null);
   const nexusSyncFailedRef = useRef(false);
   const nexusUnmappedWarningsRef = useRef<Set<string>>(new Set());
+  // Global simulator domains have no honest ticket relationship. This is an
+  // existing, student-owned attempt used only as an untrusted resume bucket.
+  const nexusSnapshotTargetRef = useRef<NexusSnapshotTarget | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1061,6 +1070,7 @@ export function TicketSessionProvider({
 
         const mappings = mapAssignmentsByTicket(assignments);
         nexusTicketMappingsRef.current = mappings;
+        nexusSnapshotTargetRef.current = null;
 
         for (const assignment of assignments) {
           const recentAttempt = assignment.most_recent_attempt;
@@ -1074,6 +1084,12 @@ export function TicketSessionProvider({
           }
 
           const currentState = nexusAttempt?.current_state;
+          if (!nexusSnapshotTargetRef.current && nexusAttempt) {
+            nexusSnapshotTargetRef.current = {
+              assignmentId: assignment.id,
+              attemptId: nexusAttempt.id,
+            };
+          }
           if (!currentState || !hasNexusTicketState(currentState)) {
             continue;
           }
@@ -1102,6 +1118,7 @@ export function TicketSessionProvider({
         }
       } else if (active) {
         nexusTicketMappingsRef.current = {};
+        nexusSnapshotTargetRef.current = null;
       }
 
       if (!active) {
@@ -1151,7 +1168,12 @@ export function TicketSessionProvider({
           }
           persistOutbox();
         }
-        const accepted = item.isHint
+        const accepted = item.isSnapshot
+          ? await persistAttemptSnapshot(attemptId, {
+              idempotency_key: item.event.idempotency_key,
+              snapshot: item.event.resulting_state,
+            })
+          : item.isHint
           ? await recordAttemptHint(attemptId, {
               idempotency_key: item.event.idempotency_key,
               payload: item.event.payload,
@@ -1248,6 +1270,42 @@ export function TicketSessionProvider({
         event: eventInput,
         isHint: syncDetails.tool === 'ticket' && action.type === 'ticket.reveal_hint',
         ticketId: normalizedTicketId,
+      });
+      nexusSyncFailedRef.current = false;
+      persistOutbox();
+      void flushNexusOutbox();
+    },
+    [flushNexusOutbox, persistOutbox],
+  );
+
+  const queueNexusSnapshotSync = useCallback(
+    (event: ActionEvent) => {
+      if (!NEXUS_INTEGRATION_ENABLED || !event.success) return;
+      const target = nexusSnapshotTargetRef.current;
+      if (!target) {
+        if (!nexusUnmappedWarningsRef.current.has('snapshot:no-active-attempt')) {
+          nexusUnmappedWarningsRef.current.add('snapshot:no-active-attempt');
+          console.warn('Nexus has no active attempt available for resume-only simulator state.');
+        }
+        return;
+      }
+      nexusOutboxRef.current.items.push({
+        assignmentId: target.assignmentId,
+        attemptId: target.attemptId,
+        event: {
+          event_type: 'snapshot.persisted',
+          idempotency_key: event.id,
+          payload: {},
+          resulting_state: {
+            nexus_service_desk_attempt: JSON.parse(serializeAttempt(attemptRef.current)),
+            schema_version: 1,
+          },
+          success: true,
+          tool: 'snapshot',
+        },
+        isHint: false,
+        isSnapshot: true,
+        ticketId: '__snapshot__',
       });
       nexusSyncFailedRef.current = false;
       persistOutbox();
@@ -1358,6 +1416,7 @@ export function TicketSessionProvider({
 
       if (
         NEXUS_INTEGRATION_ENABLED &&
+        result.event.success &&
         (isTicketSimulationAction(action) ||
           isDirectorySimulationAction(action) ||
           isRemoteDesktopSimulationAction(action))
@@ -1387,11 +1446,24 @@ export function TicketSessionProvider({
         }
       }
 
+      if (
+        NEXUS_INTEGRATION_ENABLED &&
+        result.event.success &&
+        !(isTicketSimulationAction(action) ||
+          isDirectorySimulationAction(action) ||
+          isRemoteDesktopSimulationAction(action))
+      ) {
+        // No ticket is fabricated for these domains. The snapshot endpoint
+        // only updates the selected attempt's untrusted resume state.
+        attemptRef.current = nextAttempt;
+        queueNexusSnapshotSync(result.event);
+      }
+
       attemptRef.current = nextAttempt;
       setAttempt(nextAttempt);
       return result.event;
     },
-    [actorId, queueNexusActionSync],
+    [actorId, queueNexusActionSync, queueNexusSnapshotSync],
   );
 
   const tickets = useMemo(() => projectTickets(attempt), [attempt]);

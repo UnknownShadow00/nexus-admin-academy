@@ -4,6 +4,7 @@ import {
   completeAttempt,
   getAttempt,
   listAssignments,
+  persistAttemptSnapshot,
   recordAttemptEvent,
   recordAttemptHint,
   startOrResumeAttempt,
@@ -95,6 +96,12 @@ describe('Nexus service desk client', () => {
       }),
     ).resolves.toBe(true);
     await expect(
+      persistAttemptSnapshot(101, {
+        idempotency_key: 'snapshot-1',
+        snapshot: { schema_version: 1, nexus_service_desk_attempt: {} },
+      }),
+    ).resolves.toBe(true);
+    await expect(
       completeAttempt(101, {
         idempotency_key: 'event-3',
       }),
@@ -108,6 +115,10 @@ describe('Nexus service desk client', () => {
     );
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/service-desk/attempts/101/events',
+      expect.objectContaining({ credentials: 'same-origin', method: 'POST' }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/service-desk/attempts/101/snapshot',
       expect.objectContaining({ credentials: 'same-origin', method: 'POST' }),
     );
   });

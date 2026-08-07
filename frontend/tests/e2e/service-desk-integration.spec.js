@@ -79,6 +79,104 @@ async function getMyAssignment(page, stableKey) {
 }
 
 test.describe("Service Desk integration (requires an integrated stack)", () => {
+  test("snapshot-only sync persists every formerly local simulator domain", async ({ browser }) => {
+    test.setTimeout(90_000);
+    const sourceContext = await browser.newContext();
+    const page = await sourceContext.newPage();
+    await studentLogin(page, studentAUsername, studentAPassword);
+    const assignment = await getMyAssignment(page, SCENARIO_STABLE_KEY);
+    const attemptId = (await (await page.request.post(
+      `/api/service-desk/assignments/${assignment.id}/attempts`, withOrigin({}),
+    )).json()).id;
+    const snapshot = async () => (await (await page.request.get(`/api/service-desk/attempts/${attemptId}`)).json()).current_state;
+
+    await page.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks');
+    await page.getByLabel(/Message Avery Brooks/).fill('Snapshot-only chat message.');
+    await page.getByRole('button', { name: 'Send' }).click();
+    await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { chatThreads: { 'directory-user-avery-brooks': { messages: expect.arrayContaining([expect.objectContaining({ body: 'Snapshot-only chat message.' })]) } } } });
+
+    await page.goto('/service-desk/tools/asset-management');
+    await page.getByText('NX-4831', { exact: true }).first().click();
+    await page.locator('#status-NX-4831').selectOption({ index: 1 });
+    await page.getByRole('button', { name: 'Update status' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /Mark / }).click();
+    await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { assetOverlays: { 'NX-4831': expect.any(Object) } } });
+
+    await page.goto('/service-desk/tools/pc-shelf');
+    await page.getByRole('button', { name: 'Add computer' }).first().click();
+    await page.locator('#pc-shelf-add-computer').selectOption('SD6893');
+    await page.getByRole('dialog').getByRole('button', { name: 'Add to shelf' }).click();
+    await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { pcShelfOverlays: { SD6893: { present: true } } } });
+
+    await page.goto('/service-desk/tools/server-room');
+    await page.getByRole('tab', { name: 'Devices' }).click();
+    await page.getByRole('button', { name: 'Restart device' }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Restart device' }).click();
+    await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { serverRoomOverlays: { 'metro-isp': expect.any(Object) } } });
+
+    await page.goto('/service-desk/tools/computer-deployment');
+    await page.getByRole('button', { name: 'Start' }).click();
+    await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { activeDeploymentRunId: expect.any(String), deploymentRuns: expect.any(Object) } });
+
+    await page.goto('/service-desk/tools/shipping-manager');
+    await page.getByLabel('Recipient name').fill('Avery Brooks');
+    await page.getByRole('checkbox', { name: 'Computer', exact: true }).check();
+    await page.getByLabel('Provisioned PC').selectOption('SD9099');
+    await page.getByRole('button', { name: 'Ship' }).click();
+    await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { shipments: expect.any(Object), lastShippingAddress: { recipientName: 'Avery Brooks' } } });
+    await sourceContext.close();
+
+    const cleanContext = await browser.newContext();
+    const cleanPage = await cleanContext.newPage();
+    await studentLogin(cleanPage, studentAUsername, studentAPassword);
+    await cleanPage.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks');
+    await expect(cleanPage.getByText('Snapshot-only chat message.')).toBeVisible();
+    await cleanPage.goto('/service-desk/tools/pc-shelf');
+    await expect(cleanPage.getByText('SD6893', { exact: true })).toBeVisible();
+    await cleanContext.close();
+  });
+
+  test("offline snapshot-only outbox replays formerly local changes in order", async ({ browser }) => {
+    test.setTimeout(60_000);
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await studentLogin(page, studentBUsername, studentBPassword);
+    const assignment = await getMyAssignment(page, SCENARIO_STABLE_KEY);
+    const attemptId = (await (await page.request.post(
+      `/api/service-desk/assignments/${assignment.id}/attempts`, withOrigin({}),
+    )).json()).id;
+    await page.route(/\/api\/service-desk\/attempts\/\d+\/snapshot$/, route => route.abort());
+    await page.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks');
+    await page.getByLabel(/Message Avery Brooks/).fill('Offline snapshot chat.');
+    await page.getByRole('button', { name: 'Send' }).click();
+    await page.goto('/service-desk/tools/pc-shelf');
+    await page.getByRole('button', { name: 'Add computer' }).first().click();
+    await page.locator('#pc-shelf-add-computer').selectOption('SD6893');
+    await page.getByRole('dialog').getByRole('button', { name: 'Add to shelf' }).click();
+    const outbox = await page.evaluate(() => {
+      const key = Object.keys(localStorage).find(key => key.startsWith('nexus-sd-outbox-v1:'));
+      return JSON.parse(localStorage.getItem(key) || '{}').items;
+    });
+    expect(outbox.length).toBeGreaterThanOrEqual(2);
+    expect(outbox.every(item => item.event.event_type === 'snapshot.persisted')).toBeTruthy();
+    const keys = outbox.map(item => item.event.idempotency_key);
+    await page.reload();
+    await page.unroute(/\/api\/service-desk\/attempts\/\d+\/snapshot$/);
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await expect.poll(async () => (await (await page.request.get(`/api/service-desk/attempts/${attemptId}`)).json()).current_state).toMatchObject({
+      nexus_service_desk_attempt: {
+        chatThreads: { 'directory-user-avery-brooks': { messages: expect.arrayContaining([expect.objectContaining({ body: 'Offline snapshot chat.' })]) } },
+        pcShelfOverlays: { SD6893: { present: true } },
+      },
+    });
+    await expect.poll(() => page.evaluate(() => {
+      const key = Object.keys(localStorage).find(key => key.startsWith('nexus-sd-outbox-v1:'));
+      return JSON.parse(localStorage.getItem(key) || '{}').items.length;
+    })).toBe(0);
+    await context.close();
+    expect(keys).toHaveLength(2);
+  });
+
   test("offline outbox retries grading evidence in original order", async ({ browser }) => {
     // This is the longest test in the file: route interception, offline
     // queueing across three event types, a reload, an online-triggered

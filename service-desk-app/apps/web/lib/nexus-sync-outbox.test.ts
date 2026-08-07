@@ -23,6 +23,27 @@ describe('Nexus durable sync outbox', () => {
     expect(readNexusOutbox(local, 'outbox').items.map((entry) => entry.event.idempotency_key)).toEqual(['event-1', 'event-2']);
   });
 
+  it('retains snapshot-only writes without treating them as action evidence', () => {
+    const local = storage();
+    writeNexusOutbox(local, 'outbox', {
+      items: [{
+        ...item,
+        isSnapshot: true,
+        ticketId: '__snapshot__',
+        event: {
+          ...item.event,
+          event_type: 'snapshot.persisted',
+          tool: 'snapshot',
+          resulting_state: { schema_version: 1, nexus_service_desk_attempt: { chatThreads: {} } },
+        },
+      }],
+    });
+    expect(readNexusOutbox(local, 'outbox').items[0]).toMatchObject({
+      isSnapshot: true,
+      event: { event_type: 'snapshot.persisted', tool: 'snapshot' },
+    });
+  });
+
   it('reports saving, then a retryable sync problem, without claiming saved', () => {
     const pending = { items: [item] };
     expect(outboxStatus(pending, false)).toBe('saving');
