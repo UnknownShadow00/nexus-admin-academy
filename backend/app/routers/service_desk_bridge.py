@@ -61,6 +61,26 @@ def record_service_desk_progress(
         if body.event_type == "ticket_resolved"
         else SERVICE_DESK_ACHIEVEMENT
     )
+    # This endpoint has no per-event idempotency key (unlike the newer
+    # service_desk_attempts model). The client sends a deterministic title
+    # per ticket/achievement (see TicketSessionProvider.tsx's
+    # syncNexusProgress callers), so a duplicate call — a retry, a replayed
+    # request, or a direct repeat call bypassing the client's own
+    # already-synced guard — is detected by an existing row with the same
+    # student/type/title and skipped rather than awarding XP again.
+    already_recorded = (
+        db.query(SquadActivity.id)
+        .filter(
+            SquadActivity.student_id == current_student.id,
+            SquadActivity.activity_type == activity_type,
+            SquadActivity.title == body.title[:200],
+        )
+        .first()
+        is not None
+    )
+    if already_recorded:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
     log_activity(
         db,
         current_student.id,

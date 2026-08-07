@@ -78,6 +78,40 @@ def test_progress_events_use_fixed_server_defined_xp_rewards(db):
     assert [row.delta for row in ledger_rows] == [25, 10]
 
 
+def test_progress_events_are_idempotent_per_student_type_and_title(db):
+    student = make_student(db, username="repeat-caller")
+    client = make_client(service_desk_bridge.router)
+    headers = auth_headers(student)
+    payload = {
+        "event_type": "ticket_resolved",
+        "ticket_id": "ticket-123",
+        "title": "Resolved locked account",
+        "detail": "Verified the requester and restored access.",
+    }
+
+    # Simulate a client retrying the same sync call (network hiccup, replay,
+    # or a direct repeat call bypassing the client's own dedup guard).
+    for _ in range(3):
+        assert client.post(
+            "/api/service-desk/progress", headers=headers, json=payload
+        ).status_code == 204
+
+    assert db.query(SquadActivity).filter_by(student_id=student.id).count() == 1
+    ledger_rows = db.query(XPLedger).filter_by(
+        student_id=student.id,
+        source_type="service_desk",
+    ).all()
+    assert [row.delta for row in ledger_rows] == [25]
+
+    # A different title (a different ticket/achievement) is still recorded.
+    assert client.post(
+        "/api/service-desk/progress",
+        headers=headers,
+        json={**payload, "ticket_id": "ticket-456", "title": "Resolved another ticket"},
+    ).status_code == 204
+    assert db.query(SquadActivity).filter_by(student_id=student.id).count() == 2
+
+
 def test_progress_endpoints_require_student_authentication():
     client = make_client(service_desk_bridge.router)
 
