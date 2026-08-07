@@ -214,6 +214,19 @@ export async function recordAttemptEvent(
   );
 }
 
+/** Submit an action request. The server, not the browser, decides evidence. */
+export async function requestAttemptAction(
+  attemptId: string | number,
+  input: Omit<NexusAttemptEventInput, 'resulting_state' | 'success'>,
+): Promise<boolean> {
+  return (
+    (await request(
+      `/api/service-desk/attempts/${encodeURIComponent(attemptId)}/actions`,
+      { body: JSON.stringify(input), method: 'POST' },
+    )) !== null
+  );
+}
+
 export async function recordAttemptHint(
   attemptId: string | number,
   input: NexusAttemptHintInput,

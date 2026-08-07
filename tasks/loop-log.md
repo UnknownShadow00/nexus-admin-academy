@@ -84,6 +84,12 @@
 - Files changed: backend/app/services/service_desk_objectives.py, backend/app/services/service_desk_grading.py, backend/app/routers/service_desk.py, backend/tests/test_service_desk_attempts.py, backend/tests/test_admin_service_desk.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; focused Service Desk backend tests passed (32 tests) and compileall passed.
 - Next: Run the remaining frontend, Service Desk, and E2E validation suite before release.
+
+## [2026-08-07T08:33:00Z] Task Completed
+- Task: Added server-authorized Service Desk action transitions and separated trusted grading evidence from raw browser event uploads.
+- Files changed: backend/app/models/service_desk.py, backend/alembic/versions/0032_service_desk_trusted_events.py, backend/app/schemas/service_desk.py, backend/app/routers/service_desk.py, backend/app/services/service_desk_objectives.py, backend/tests/test_service_desk_attempts.py, service-desk-app/apps/web/lib/nexus-service-desk-client.ts, service-desk-app/apps/web/components/TicketSessionProvider.tsx, tasks/loop-log.md
+- Result: pass against acceptance criteria; focused Service Desk tests passed (43 tests), compileall passed, and Service Desk typecheck passed.
+- Next: Run the remaining frontend, Service Desk lint/test/audit, and E2E commands before release.
 ## [2026-05-14T20:28:55-05:00] Task Completed
 - Task: Performed final regression review of Nexus quiz publish/detail/take/submit/review flow, capstone admin publishing support, frontend dist hygiene, draft/published edge cases, and quiz review multi-select/E UI handling; fixed draft quiz review access.
 - Files changed: backend/app/routers/quizzes.py, backend/tests/test_quizzes.py, tasks/loop-log.md

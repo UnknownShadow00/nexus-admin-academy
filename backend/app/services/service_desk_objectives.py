@@ -23,6 +23,8 @@ class ScenarioObjectiveDefinition:
     # required_any represents one corrective alternative.
     required_all: tuple[EvidenceRule, ...] = ()
     required_any: tuple[EvidenceRule, ...] = ()
+    # Every objective action requires a server-authorized ticket assignment.
+    # Definitions can add stronger ordered prerequisites as scenarios mature.
 
 
 def _remote(ticket: str, asset: str, step: str) -> EvidenceRule:
@@ -91,6 +93,8 @@ def evaluate_objectives(stable_key: str, events: list[Any]) -> tuple[bool, dict[
 
     def has(rule: EvidenceRule) -> bool:
         return any(
+            event.trusted is True
+            and
             event.success is True
             and event.event_type == rule.event_type
             and payload_matches(event.payload_json or {}, rule.payload)

@@ -16,8 +16,9 @@ from app.models.service_desk import (
 )
 from app.models.student import Student
 from app.schemas.service_desk import (
-    ServiceDeskCompleteCreate, ServiceDeskEventCreate, ServiceDeskHintCreate,
+    ServiceDeskActionCreate, ServiceDeskCompleteCreate, ServiceDeskEventCreate, ServiceDeskHintCreate,
 )
+from app.services.service_desk_objectives import SCENARIO_OBJECTIVES, payload_matches
 from app.services.auth_service import ensure_student_access, get_current_student
 from app.services.service_desk_grading import AttemptNotClosedError, compute_grade
 from app.services.xp_service import award_xp
@@ -160,7 +161,7 @@ def get_attempt(attempt_id: int, current_student: Student = Depends(get_current_
 
 
 def _record_event(db: Session, attempt: ServiceDeskAttempt, *, key: str, event_type: str, tool: str,
-                  payload: dict, resulting_state: dict, success: bool):
+                  payload: dict, resulting_state: dict, success: bool, trusted: bool = False):
     existing = db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt.id, idempotency_key=key).first()
     if existing:
         return _event_dict(existing), 200
@@ -168,7 +169,7 @@ def _record_event(db: Session, attempt: ServiceDeskAttempt, *, key: str, event_t
     event = ServiceDeskAttemptEvent(attempt_id=attempt.id, sequence_number=sequence, idempotency_key=key,
                                     event_type=event_type, tool=tool, payload_json=payload,
                                     previous_state_hash=attempt.current_state_hash,
-                                    resulting_state_hash=_hash_state(resulting_state), success=success)
+                                    resulting_state_hash=_hash_state(resulting_state), success=success, trusted=trusted)
     db.add(event)
     # Versioned full snapshots are safe to restore across devices. Legacy
     # tool overlays remain evidence only, except for old ticket clients.
@@ -199,6 +200,65 @@ def record_event(attempt_id: int, body: ServiceDeskEventCreate, current_student:
     _validate_event_shape(body.event_type, body.tool, body.payload)
     data, code = _record_event(db, attempt, key=body.idempotency_key, event_type=body.event_type, tool=body.tool,
                                payload=body.payload, resulting_state=body.resulting_state, success=body.success)
+    return _json_response(data, code)
+
+
+def _scenario_key(db: Session, attempt: ServiceDeskAttempt) -> str:
+    return db.query(ServiceDeskScenario).join(ServiceDeskScenarioVersion).filter(
+        ServiceDeskScenarioVersion.id == attempt.scenario_version_id
+    ).one().stable_key.lower()
+
+
+def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, payload: dict) -> bool:
+    """Apply the small server-owned transition graph used for grading.
+
+    Raw event posts cannot enter this graph.  Assignment is the required first
+    transition; thereafter only exact scenario rule actions may become trusted.
+    """
+    key = _scenario_key(db, attempt)
+    ticket_id = key.upper()
+    events = db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt.id, trusted=True).all()
+    assigned = any(e.event_type == "ticket.assign" and (e.payload_json or {}).get("ticketId") == ticket_id for e in events)
+    if event_type == "ticket.assign":
+        return payload.get("ticketId") == ticket_id
+    if not assigned:
+        return False
+    definition = SCENARIO_OBJECTIVES.get(key)
+    if definition is None:
+        return False
+    rules = (*definition.required_all, *definition.required_any)
+    return any(rule.event_type == event_type and payload_matches(payload, rule.payload) for rule in rules)
+
+
+@router.post("/attempts/{attempt_id}/actions")
+def request_action(attempt_id: int, body: ServiceDeskActionCreate, current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
+    """Validate and record a server-authorized simulation transition.
+
+    The browser never supplies success/trusted/state for this endpoint.
+    """
+    attempt = _owned_attempt(db, attempt_id, current_student)
+    if attempt.status != "in_progress":
+        raise HTTPException(409, "Attempt is no longer in progress")
+    _validate_event_shape(body.event_type, body.tool, body.payload)
+    trusted = _action_allowed(db, attempt, body.event_type, body.payload)
+    # Non-objective UI actions remain auditable/resumable, but cannot be
+    # promoted to grading evidence. Objective-shaped actions require the
+    # transition graph above; an objective before assignment is rejected.
+    key = _scenario_key(db, attempt)
+    definition = SCENARIO_OBJECTIVES.get(key)
+    objective_action = definition and any(
+        rule.event_type == body.event_type and payload_matches(body.payload, rule.payload)
+        for rule in (*definition.required_all, *definition.required_any)
+    )
+    if objective_action and not trusted:
+        raise HTTPException(409, "Action is not available in the current server-authoritative attempt state")
+    state = dict(attempt.current_state or {})
+    transition_state = dict(state.get("server_transitions") or {})
+    transition_state[body.event_type] = transition_state.get(body.event_type, 0) + 1
+    state["server_transitions"] = transition_state
+    data, code = _record_event(db, attempt, key=body.idempotency_key, event_type=body.event_type,
+                               tool=body.tool, payload=body.payload, resulting_state=state,
+                               success=True, trusted=trusted)
     return _json_response(data, code)
 
 
