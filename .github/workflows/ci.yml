@@ -1,8 +1,11 @@
 name: CI
 
 on:
+  # No branch filter: this repo stages work through intermediate integration
+  # branches (e.g. feature/merge-service-desk-into-nexus -> feature/service-desk-integration
+  # -> main) before landing on main, so PRs targeting a non-main branch must
+  # still get full CI. Push stays scoped to main (the deploy-relevant branch).
   pull_request:
-    branches: [main]
   push:
     branches: [main]
 
@@ -244,6 +247,97 @@ jobs:
       - name: Browser tests note
         run: echo "No npm test script exists yet, and none is invented here. Real-browser coverage runs in the playwright job."
 
+  service-desk:
+    name: Service Desk quality and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: service-desk-app/pnpm-lock.yaml
+
+      - name: Install Service Desk dependencies
+        working-directory: service-desk-app
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        working-directory: service-desk-app
+        run: pnpm lint
+
+      - name: Typecheck
+        working-directory: service-desk-app
+        run: pnpm typecheck
+
+      - name: Unit tests
+        working-directory: service-desk-app
+        run: pnpm test
+
+      - name: Production build
+        working-directory: service-desk-app
+        run: pnpm build
+
+      - name: pnpm audit (high severity and above)
+        working-directory: service-desk-app
+        run: pnpm audit --audit-level=high
+
+  service-desk-playwright:
+    name: Service Desk own browser tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: service-desk-app/pnpm-lock.yaml
+
+      - name: Install Service Desk dependencies
+        working-directory: service-desk-app
+        run: pnpm install --frozen-lockfile
+
+      - name: Production build
+        working-directory: service-desk-app
+        run: pnpm build
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('service-desk-app/pnpm-lock.yaml') }}
+
+      - name: Install Playwright Chromium
+        working-directory: service-desk-app
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Service Desk's own Playwright suite
+        working-directory: service-desk-app
+        env:
+          CI: "true"
+        run: pnpm exec playwright test
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-desk-playwright-report
+          path: |
+            service-desk-app/playwright-report/
+            service-desk-app/test-results/
+          retention-days: 5
+          if-no-files-found: ignore
+
   playwright:
     name: Playwright browser tests
     runs-on: ubuntu-latest
@@ -270,6 +364,17 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+
+      - name: Install Service Desk dependencies
+        # start_local_stack.sh runs the Service Desk dev server directly via
+        # `pnpm --filter @service-desk/web exec next dev`, so its workspace
+        # dependencies must already be installed before that script runs.
+        working-directory: service-desk-app
+        run: pnpm install --frozen-lockfile
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -283,19 +388,26 @@ jobs:
       - name: Start isolated local stack
         # Fresh throwaway SQLite database, non-production ports, and
         # fixture accounts with passwords generated for this run only.
-        # Writes NEXUS_E2E_* into $GITHUB_ENV for the test step below.
+        # Writes NEXUS_E2E_* into $GITHUB_ENV for the test steps below.
+        # This stack now also starts Service Desk in-process (Vite proxies
+        # /service-desk and /api to it) since it lives in this repo — see
+        # scripts/e2e/start_local_stack.sh.
         run: bash scripts/e2e/start_local_stack.sh
 
       - name: Run Playwright (desktop + mobile viewports)
         working-directory: frontend
         # my-training.spec.js exercises both the 1440x1000 desktop and
         # 375x812 mobile viewports within its own tests. It runs in well
-        # under a minute against this isolated stack. service-desk-
-        # integration.spec.js is intentionally NOT run here: it requires
-        # the full Nexus + Service Desk Docker Compose stack (a separate
-        # sibling repository, real staging-style environment), which this
-        # isolated single-backend stack does not provide.
+        # under a minute against this isolated stack.
         run: npx playwright test tests/e2e/my-training.spec.js --reporter=list
+
+      - name: Run Playwright (Nexus <-> Service Desk integration)
+        working-directory: frontend
+        # Requires both apps behind one browser origin. start_local_stack.sh
+        # already provides that via the Vite dev-server proxy (see
+        # frontend/vite.config.js) and exported the NEXUS_E2E_* credentials
+        # this spec needs into $GITHUB_ENV above.
+        run: npx playwright test tests/e2e/service-desk-integration.spec.js --reporter=list
 
       - name: Stop isolated local stack
         if: always()

@@ -1,7 +1,11 @@
 // Real end-to-end coverage for the Nexus <-> Service Desk simulator
-// integration: requires BOTH apps running together behind one origin
-// (e.g. the nexus-staging Compose stack), not the isolated single-service
-// local harness used by the other specs in this directory.
+// integration: requires BOTH apps running together behind one browser
+// origin. Since service-desk-app moved into this repo, that's satisfied
+// either by scripts/e2e/start_local_stack.sh (Vite dev-server proxies
+// /service-desk and /api to locally-started Service Desk + backend
+// processes — see frontend/vite.config.js) or by a real Compose stack
+// (e.g. nexus-staging). Both set NEXUS_E2E_BASE_URL to a single origin
+// that serves both apps, so this spec doesn't need to know which.
 //
 // Required env vars (no defaults — this must never silently run against
 // production or a half-configured stack):
@@ -11,8 +15,8 @@
 //   NEXUS_E2E_STUDENT_D_USERNAME / _PASSWORD
 //   NEXUS_E2E_ADMIN_USERNAME / _PASSWORD
 //
-// The two student accounts and the admin account are expected to be
-// disposable/staging-only fixtures, not real student data.
+// The student and admin accounts are expected to be disposable
+// local/staging-only fixtures, not real student data.
 
 import { expect, test } from "@playwright/test";
 
