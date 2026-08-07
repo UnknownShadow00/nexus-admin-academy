@@ -57,33 +57,41 @@ constraint, the trust boundary is:
 - **Not allowed:** telling Nexus "give this student N XP" as a bare number.
   Fixed as of this phase — see below.
 
-## Score/pass computation — closed via server-side deterministic grading
+## Score/pass computation — arithmetic is server-side, but the underlying facts mostly aren't (scope corrected 2026-08-07)
 
-The former client-asserted-grade gap is closed. `POST
-/api/service-desk/attempts/{id}/complete` now accepts only an idempotency key;
-Nexus computes score, pass/fail, hints, priority points, closure penalties,
-and the `inc2401`/`inc2405` directory objective from the immutable published
-scenario definition and the server-assigned, append-only attempt event log.
-The Python implementation ports the deterministic constants and objective
-logic from `evaluate-objectives.ts`, including replay of the relevant
-successful directory actions. Client-supplied grade fields are no longer
-accepted or used.
+`POST /api/service-desk/attempts/{id}/complete` now accepts only an
+idempotency key, and the *arithmetic* — priority points, hint penalties,
+closure penalties — is computed server-side in `service_desk_grading.py`
+from the immutable published scenario definition and the append-only event
+log. Client-supplied grade fields are no longer accepted or used.
 
-### Deliberate residual: remote-desktop workflow evidence
+**However, the single boolean that arithmetic is built on —
+`resolved = close_event.success is True and
+close_payload.get("verifiedResolved") is True` (`service_desk_grading.py`,
+`compute_grade`) — is taken directly from the client-supplied `success` and
+`payload` fields on the `ticket.close` event
+(`ServiceDeskEventCreate.success`/`.payload`, both unconstrained client
+input) for every scenario, not only the Remote Desktop ones.** A prior
+version of this document scoped this gap to `INC2406`–`INC2408` only; that
+was inaccurate. The only scenario-specific *independent* server-side
+verification is `_directory_objective_satisfied`, which replays real
+directory-tool actions to confirm `INC2401`/`INC2405`'s objective — and even
+that only adjusts a 0.5–1.0 score multiplier, not the `resolved` flag itself.
+For the other 6 of 8 seeded scenarios there is no independent verification
+of any kind: a client can `POST` a `ticket.close` event with
+`success: true, payload: {"verifiedResolved": true}` and no prior
+diagnostic actions, then `/complete`, and receive a full pass with full
+priority-based points. `backend/tests/test_service_desk_attempts.py`'s own
+`close()` helper exercises exactly this call shape as the normal test path.
 
-For tickets whose intended resolution path uses the Remote Desktop tool's
-multi-phase diagnose/fix/verify workflow — the pilot tickets are `INC2406`,
-`INC2407`, and `INC2408` — Nexus still relies on the client-reported
-`success`/`verifiedResolved` flags on the already-logged `ticket.close` event
-to decide whether that workflow was completed correctly. Nexus does not yet
-independently replay the Remote Desktop phase-gating or terminal-command
-evidence logic; porting that much larger TypeScript engine surface would be
-harder to keep synchronized.
-
-This is mitigated for the pilot by full raw event capture (including terminal
-commands and phase actions, being wired in a parallel frontend task) being
-visible to mentor review. That is not independent server verification. This
-is a deliberate, scoped decision, not an oversight.
+This is mitigated today only by full raw event capture being visible to
+mentor review — that is not independent server verification, and there is no
+automated flag surfacing low-evidence completions to a mentor. Treat this as
+an open P0 scope gap, not a deliberate, narrowly-scoped residual: either gate
+`resolved` on real replayed evidence per scenario (extending the
+`_directory_objective_satisfied` pattern, or porting more of
+`evaluate-objectives.ts`), or require mentor sign-off before a completion
+counts toward progression, until that lands.
 
 ## XP — fixed in this phase
 
@@ -95,14 +103,17 @@ replaces that with a fixed, server-defined lookup table keyed by
 `event_type` (`ticket_resolved` → 25 XP, `achievement_unlocked` → 10 XP);
 `xp_delta` is no longer an accepted request field.
 
-**Still open:** this endpoint has no idempotency/dedup — a client can call it
-repeatedly for the same ticket and accumulate XP indefinitely. This is
-deliberately deferred to Phase 3, which will migrate real completion+XP
-awarding onto the new `service_desk_attempts` / `service_desk_attempt_grades`
-model (which already has a proper `(attempt_id, idempotency_key)` unique
-constraint — the right place for this, not a patch onto the generic
-`XPLedger` table, whose `source_id` is an `Integer` and can't hold the
-string ticket IDs (`INC2401`) this domain uses).
+**Fixed 2026-08-07:** the endpoint now dedupes on `(student_id, activity_type,
+title)` — a repeated call with the same title (the client sends a
+deterministic title per ticket/achievement) is a 204 no-op, not a second XP
+award (`record_service_desk_progress`, regression test
+`test_progress_events_are_idempotent_per_student_type_and_title`). This is a
+minimal patch on the existing `SquadActivity`/`XPLedger` tables, not the
+real fix — migrating this bridge's XP awarding onto the
+`service_desk_attempts` / `service_desk_attempt_grades` model (which already
+has a proper `(attempt_id, idempotency_key)` unique constraint, and doesn't
+need a title-string dedup heuristic) is still the right long-term direction
+and remains open.
 
 ## Summary table
 
@@ -111,6 +122,7 @@ string ticket IDs (`INC2401`) this domain uses).
 | "This JWT is a valid Nexus student" | Yes — cryptographic verification | `nexus-auth.ts::verifyStudentSession` |
 | "This student is a mentor/admin" | Yes, from the JWT claim or a Nexus round-trip | `nexus-auth.ts::hasNexusAdminAccess` |
 | "This action happened, in this order" | Yes, but Nexus — not the client — assigns order and dedups | `service_desk_attempt_events` |
-| "Give this student N XP" (old bridge) | No longer — fixed table by event_type | `service_desk_bridge.py` (this phase) |
-| "This attempt's grade is X" (new endpoint) | Yes — Nexus recomputes it from the published definition and append-only event log; the close event's workflow flags remain a deliberate residual trust boundary | `service_desk_grading.py` + `service_desk.py::complete_attempt` |
-| "Mark this scenario complete" (duplicate submission) | Not yet deduped on the old bridge | Old bridge: open. New attempt model: closed via idempotency key. |
+| "Give this student N XP" (old bridge) | Amount: no longer, fixed table by event_type. Repeat calls: deduped by (student, type, title) as of 2026-08-07. | `service_desk_bridge.py` |
+| "This attempt's grade arithmetic is X points" | Yes — computed server-side from the published definition and append-only event log | `service_desk_grading.py` |
+| "This ticket was actually resolved correctly" (`resolved`/pass-fail) | **No, for 6 of 8 scenarios** — taken directly from client-supplied `success`/`verifiedResolved` on the `ticket.close` event with no independent replay. Only `INC2401`/`INC2405` get real verification (of the score multiplier, not `resolved` itself). | `service_desk_grading.py::compute_grade`, `_directory_objective_satisfied` |
+| "Mark this scenario complete" (duplicate submission) | Old bridge: deduped by (student, type, title) as of 2026-08-07 (not a true idempotency key). New attempt model: closed via idempotency key. |
