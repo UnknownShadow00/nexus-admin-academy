@@ -131,9 +131,9 @@ jobs:
         working-directory: backend
         run: python -m alembic upgrade head
 
-      - name: Confirm migration head is 0036_service_desk_mentor_feedback
+      - name: Confirm migration head is 0032_service_desk_trusted_events
         working-directory: backend
-        run: python -m alembic current | tee /tmp/alembic-current.txt | grep -q "0036_service_desk_mentor_feedback (head)"
+        run: python -m alembic current | tee /tmp/alembic-current.txt | grep -q "0032_service_desk_trusted_events (head)"
 
       - name: Seed application and curriculum content
         run: bash scripts/e2e/seed_fresh_db.sh

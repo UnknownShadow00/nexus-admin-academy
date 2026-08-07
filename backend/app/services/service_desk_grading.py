@@ -13,19 +13,14 @@ from app.models.service_desk import (
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
 )
+from app.services.service_desk_objectives import evaluate_objectives
 
 
 POINTS_BY_PRIORITY = {"critical": 160, "high": 120, "medium": 80, "low": 50}
 UNRESOLVED_CLOSE_PENALTY_RATE = 0.25
 HINT_PENALTY_POINTS = 5
 FREE_HINT_COUNT = 1
-DIRECTORY_OBJECTIVE_REDUCED_RATE = 0.5
-RUBRIC_VERSION = "sim-engine-v1"
-
-AVERY_BROOKS_DIRECTORY_USER_ID = "directory-user-avery-brooks"
-SLOANE_RIVERA_DIRECTORY_USER_ID = "directory-user-sloane-rivera"
-FACILITIES_CALENDAR_GROUP = "Facilities Calendar"
-
+RUBRIC_VERSION = "server-objectives-v2"
 
 class AttemptNotClosedError(Exception):
     """Raised when a grade is requested before a close event is recorded."""
@@ -34,42 +29,6 @@ class AttemptNotClosedError(Exception):
 def _js_round(value: float) -> int:
     """Match JavaScript Math.round for the non-negative grading values."""
     return floor(value + 0.5)
-
-
-def _directory_objective_satisfied(
-    stable_key: str, events: list[ServiceDeskAttemptEvent]
-) -> bool:
-    if stable_key not in {"inc2401", "inc2405"}:
-        return True
-
-    if stable_key == "inc2401":
-        target_user = AVERY_BROOKS_DIRECTORY_USER_ID
-        locked = True
-        mfa_enrolled = True
-        groups: set[str] = set()
-    else:
-        target_user = SLOANE_RIVERA_DIRECTORY_USER_ID
-        locked = False
-        mfa_enrolled = True
-        groups = {"All Staff", "Facilities Team"}
-
-    for event in events:
-        if not event.success or not event.event_type.startswith("directory."):
-            continue
-        payload = event.payload_json or {}
-        if payload.get("directoryUserId") != target_user:
-            continue
-        if event.event_type == "directory.unlock_account":
-            locked = False
-        elif event.event_type == "directory.reset_mfa":
-            mfa_enrolled = False
-        elif event.event_type == "directory.update_groups":
-            groups.difference_update(payload.get("remove", []))
-            groups.update(payload.get("add", []))
-
-    if stable_key == "inc2401":
-        return locked is False or mfa_enrolled is False
-    return FACILITIES_CALENDAR_GROUP in groups
 
 
 def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
@@ -86,12 +45,11 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     close_events = [event for event in events if event.event_type == "ticket.close"]
     if not close_events:
         raise AttemptNotClosedError("Attempt has not been closed yet")
-    close_event = close_events[-1]
-    close_payload = close_event.payload_json or {}
+    # ticket.close is only a request to grade.  Its success flag and payload
+    # are browser assertions and are never resolution evidence.
     was_closed = True
-    resolved = close_event.success is True and close_payload.get("verifiedResolved") is True
+    resolved, objective_checks = evaluate_objectives(scenario.stable_key, events)
     hints_used = sum(event.event_type == "hint_requested" for event in events)
-    directory_satisfied = _directory_objective_satisfied(scenario.stable_key, events)
     # Learning Mode is for practicing without penalty: hint use and an
     # unresolved close still get recorded and shown to the student, but do
     # not reduce the score. Simulation Mode is unaffected.
@@ -108,11 +66,7 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
         else max(0, hints_used - FREE_HINT_COUNT) * HINT_PENALTY_POINTS
     )
     penalty_points = unresolved_penalty + hint_penalty
-    objective_points = (
-        points_possible
-        if directory_satisfied
-        else _js_round(points_possible * DIRECTORY_OBJECTIVE_REDUCED_RATE)
-    )
+    objective_points = points_possible if resolved else 0
     points_before_penalty = objective_points if resolved or was_closed else 0
     points_awarded = max(0, points_before_penalty - penalty_points)
     overall_score = _js_round((points_awarded / points_possible) * 100) if points_possible else 0
@@ -126,12 +80,14 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
                 else "Review the ticket and try again to fully resolve it."
             )
         )
-    else:
+    elif resolved:
         feedback_summary = (
             f"All required workflow checks passed. The final score includes {penalty_points} hint or closure penalty points."
             if penalty_points > 0
             else "All required diagnosis, repair, verification, note, and closure checks passed."
         )
+    else:
+        feedback_summary = "Your ticket could not be verified yet. Review the required troubleshooting steps and try again."
 
     return {
         "technical_complete": resolved,
@@ -146,7 +102,7 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
             "hints_used": hints_used,
             "resolved": resolved,
             "was_closed": was_closed,
-            "directory_objective_satisfied": directory_satisfied,
+            "objective_checks": objective_checks,
             "is_learning_mode": is_learning_mode,
         },
         "rubric_version": RUBRIC_VERSION,

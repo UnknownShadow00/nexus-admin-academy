@@ -181,6 +181,10 @@ class ServiceDeskAttemptEvent(Base):
     previous_state_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     resulting_state_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    # Only the action-transition endpoint may create trusted evidence.  Raw
+    # browser event uploads are retained for audit/resume compatibility but
+    # must never satisfy a grading objective.
+    trusted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 

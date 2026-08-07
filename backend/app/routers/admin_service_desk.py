@@ -86,6 +86,7 @@ def _full(db, attempt):
                 "idempotency_key": e.idempotency_key,
                 "payload": e.payload_json,
                 "success": e.success,
+                "trusted": e.trusted,
                 "created_at": e.created_at,
             }
             for e in events

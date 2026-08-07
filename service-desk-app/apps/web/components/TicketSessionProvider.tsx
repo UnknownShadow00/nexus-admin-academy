@@ -77,6 +77,7 @@ import {
 import { TICKET_STATUS_LABELS } from './ticket-labels';
 import {
   completeAttempt,
+  requestAttemptAction,
   getAttempt,
   listAssignments,
   recordAttemptEvent,
@@ -1157,7 +1158,15 @@ export function TicketSessionProvider({
               resulting_state: item.event.resulting_state,
               tool: item.event.tool,
             })
-          : await recordAttemptEvent(attemptId, item.event);
+          : item.event.event_type === 'ticket.close'
+            ? await recordAttemptEvent(attemptId, item.event)
+            : await requestAttemptAction(attemptId, {
+                idempotency_key: item.event.idempotency_key,
+                event_type: item.event.event_type,
+                payload: item.event.payload,
+                resulting_state: item.event.resulting_state,
+                tool: item.event.tool,
+              });
         if (!accepted) throw new Error('Nexus did not confirm the saved action.');
         if (item.completion && !await completeAttempt(attemptId, item.completion)) {
           throw new Error('Nexus could not complete the attempt yet.');

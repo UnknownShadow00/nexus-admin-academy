@@ -99,7 +99,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
 
     await page.goto(`/service-desk/tickets/${TICKET_ID}`);
     await expect(page.getByText(TICKET_ID).first()).toBeVisible();
-    await page.route(/\/api\/service-desk\/attempts\/\d+\/(events|hints)$/, (route) => route.abort());
+    await page.route(/\/api\/service-desk\/attempts\/\d+\/(actions|events|hints)$/, (route) => route.abort());
 
     await page.getByLabel("Add a note").fill("Offline evidence note.");
     await page.getByRole("button", { name: "Add internal note" }).click();
@@ -136,22 +136,22 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const retriedRequests = [];
     const retriedResponses = [];
     page.on("request", (request) => {
-      if (request.method() === "POST" && /\/api\/service-desk\/attempts\/\d+\/(events|hints)$/.test(request.url())) {
+      if (request.method() === "POST" && /\/api\/service-desk\/attempts\/\d+\/(actions|events|hints)$/.test(request.url())) {
         retriedRequests.push({ url: request.url(), body: request.postDataJSON() });
       }
     });
     page.on("response", async (response) => {
-      if (response.request().method() === "POST" && /\/api\/service-desk\/attempts\/\d+\/(events|hints)$/.test(response.url())) {
+      if (response.request().method() === "POST" && /\/api\/service-desk\/attempts\/\d+\/(actions|events|hints)$/.test(response.url())) {
         retriedResponses.push({ url: response.url(), status: response.status() });
       }
     });
-    await page.unroute(/\/api\/service-desk\/attempts\/\d+\/(events|hints)$/);
+    await page.unroute(/\/api\/service-desk\/attempts\/\d+\/(actions|events|hints)$/);
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
     await expect.poll(() => retriedResponses.length).toBeGreaterThan(0);
     expect(retriedRequests.map((request) => request.body.idempotency_key)).toEqual(queuedKeys);
     expect(retriedRequests.map((request) => request.url)).toEqual([
-      `${baseUrl}/api/service-desk/attempts/${attemptId}/events`,
-      `${baseUrl}/api/service-desk/attempts/${attemptId}/events`,
+      `${baseUrl}/api/service-desk/attempts/${attemptId}/actions`,
+      `${baseUrl}/api/service-desk/attempts/${attemptId}/actions`,
       `${baseUrl}/api/service-desk/attempts/${attemptId}/hints`,
     ]);
     expect(retriedResponses.map((response) => response.status)).toEqual([201, 201, 201]);
@@ -184,7 +184,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const started = await page.request.post(`/api/service-desk/assignments/${assignment.id}/attempts`, withOrigin({}));
     const attemptId = (await started.json()).id;
     await page.goto(`/service-desk/tickets/${TICKET_ID}`);
-    await page.route(/\/api\/service-desk\/attempts\/\d+\/(events|hints|complete)$/, (route) => route.abort());
+    await page.route(/\/api\/service-desk\/attempts\/\d+\/(actions|events|hints|complete)$/, (route) => route.abort());
 
     await page.getByRole("link", { name: /Directory/ }).click();
     await expect(page.getByRole("heading", { name: "Directory", exact: true })).toBeVisible();
@@ -208,7 +208,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     expect(pendingAttempt.status).toBe("in_progress");
     expect(pendingAttempt.grade).toBeNull();
 
-    await page.unroute(/\/api\/service-desk\/attempts\/\d+\/(events|hints|complete)$/);
+    await page.unroute(/\/api\/service-desk\/attempts\/\d+\/(actions|events|hints|complete)$/);
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
     await expect.poll(async () => (await (await page.request.get(`/api/service-desk/attempts/${attemptId}`)).json()).status).toBe("completed");
     const completed = await (await page.request.get(`/api/service-desk/attempts/${attemptId}`)).json();
@@ -303,7 +303,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await expect(unlockTrigger.first()).toBeVisible();
     await unlockTrigger.first().click();
     const directoryEventResponse = pageA1.waitForResponse(async (response) => {
-      if (!response.url().includes("/api/service-desk/attempts/") || !response.url().endsWith("/events") || response.request().method() !== "POST") {
+      if (!response.url().includes("/api/service-desk/attempts/") || !response.url().endsWith("/actions") || response.request().method() !== "POST") {
         return false;
       }
       return (await response.request().postDataJSON()).event_type === "directory.unlock_account";
@@ -409,6 +409,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const eventTypes = timeline.events.map((event) => event.event_type);
     expect(eventTypes).toContain("ticket.close");
     expect(eventTypes.some((type) => type.startsWith("directory."))).toBe(true);
+    expect(timeline.events.find((event) => event.event_type === "directory.unlock_account").trusted).toBe(true);
 
     await pageAdmin.goto("/admin/service-desk-review");
     await expect(pageAdmin.getByRole("heading", { name: "Event timeline" })).toBeVisible();
