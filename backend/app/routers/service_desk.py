@@ -218,7 +218,17 @@ def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, p
     key = _scenario_key(db, attempt)
     ticket_id = key.upper()
     events = db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt.id, trusted=True).all()
-    assigned = any(e.event_type == "ticket.assign" and (e.payload_json or {}).get("ticketId") == ticket_id for e in events)
+    # The attempt itself is created only from this student's assignment, so it
+    # is a server-owned assignment prerequisite even when the fixture renders
+    # the ticket as already assigned and the UI emits no ticket.assign click.
+    assigned = db.query(ServiceDeskAssignment).join(ServiceDeskScenario).filter(
+        ServiceDeskAssignment.student_id == attempt.student_id,
+        ServiceDeskScenario.stable_key == key,
+    ).first() is not None
+    assigned = assigned or any(
+        e.event_type == "ticket.assign" and (e.payload_json or {}).get("ticketId") == ticket_id
+        for e in events
+    )
     if event_type == "ticket.assign":
         return payload.get("ticketId") == ticket_id
     if not assigned:
@@ -252,12 +262,11 @@ def request_action(attempt_id: int, body: ServiceDeskActionCreate, current_stude
     )
     if objective_action and not trusted:
         raise HTTPException(409, "Action is not available in the current server-authoritative attempt state")
-    state = dict(attempt.current_state or {})
-    transition_state = dict(state.get("server_transitions") or {})
-    transition_state[body.event_type] = transition_state.get(body.event_type, 0) + 1
-    state["server_transitions"] = transition_state
+    # Trusted transition state is reconstructed from the trusted ledger.  Do
+    # not add it to current_state: that field is the untrusted, versioned UI
+    # snapshot used by clean-browser resume.
     data, code = _record_event(db, attempt, key=body.idempotency_key, event_type=body.event_type,
-                               tool=body.tool, payload=body.payload, resulting_state=state,
+                               tool=body.tool, payload=body.payload, resulting_state=body.resulting_state,
                                success=True, trusted=trusted)
     return _json_response(data, code)
 

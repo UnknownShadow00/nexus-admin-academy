@@ -217,7 +217,7 @@ export async function recordAttemptEvent(
 /** Submit an action request. The server, not the browser, decides evidence. */
 export async function requestAttemptAction(
   attemptId: string | number,
-  input: Omit<NexusAttemptEventInput, 'resulting_state' | 'success'>,
+  input: Omit<NexusAttemptEventInput, 'success'>,
 ): Promise<boolean> {
   return (
     (await request(

@@ -19,6 +19,9 @@ class ServiceDeskActionCreate(BaseModel):
     event_type: str = Field(min_length=1, max_length=80)
     tool: str = Field(min_length=1, max_length=80)
     payload: dict[str, Any] = Field(default_factory=dict)
+    # Resume state is persisted for cross-device recovery only.  The action
+    # transition and objective evaluator never read it as evidence.
+    resulting_state: dict[str, Any] = Field(default_factory=dict)
 
 
 class ServiceDeskHintCreate(BaseModel):

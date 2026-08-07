@@ -1164,6 +1164,7 @@ export function TicketSessionProvider({
                 idempotency_key: item.event.idempotency_key,
                 event_type: item.event.event_type,
                 payload: item.event.payload,
+                resulting_state: item.event.resulting_state,
                 tool: item.event.tool,
               });
         if (!accepted) throw new Error('Nexus did not confirm the saved action.');
