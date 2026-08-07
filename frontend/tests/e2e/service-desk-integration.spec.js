@@ -80,6 +80,12 @@ async function getMyAssignment(page, stableKey) {
 
 test.describe("Service Desk integration (requires an integrated stack)", () => {
   test("offline outbox retries grading evidence in original order", async ({ browser }) => {
+    // This is the longest test in the file: route interception, offline
+    // queueing across three event types, a reload, an online-triggered
+    // retry, and an admin-side timeline check. The default 30s test budget
+    // is tight for that on a shared CI runner (observed failing mid-flow at
+    // ~30s in CI while passing locally); double it rather than trim steps.
+    test.setTimeout(60_000);
     const context = await browser.newContext();
     const page = await context.newPage();
     await studentLogin(page, studentAUsername, studentAPassword);
