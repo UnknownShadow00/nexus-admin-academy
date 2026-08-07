@@ -1,0 +1,33 @@
+{
+  "name": "@service-desk/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "lint": "eslint . --max-warnings=0",
+    "start": "next start",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@service-desk/shared": "workspace:*",
+    "@service-desk/simulation-engine": "workspace:*",
+    "@service-desk/ui": "workspace:*",
+    "@tabler/icons-react": "3.34.1",
+    "jsonwebtoken": "9.0.2",
+    "next": "15.5.22",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.1.12",
+    "@types/node": "22.18.3",
+    "@types/jsonwebtoken": "9.0.10",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "tailwindcss": "4.1.12",
+    "typescript": "5.9.2",
+    "vitest": "3.2.7"
+  }
+}

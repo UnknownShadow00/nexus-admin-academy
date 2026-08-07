@@ -46,10 +46,10 @@ services:
       service-desk-web:
         condition: service_healthy
 
-  # Build context is a sibling directory outside this repository; both repos must be checked out side by side on the same host.
+  # Service Desk is included inside this Nexus repository.
   service-desk-web:
     build:
-      context: ../Nexus dupe/service-desk-app
+      context: ./service-desk-app
       dockerfile: docker/web.Dockerfile
       args:
         NEXUS_INTEGRATION: "1"

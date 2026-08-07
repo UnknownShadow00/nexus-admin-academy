@@ -1,7 +1,11 @@
 // Real end-to-end coverage for the Nexus <-> Service Desk simulator
-// integration: requires BOTH apps running together behind one origin
-// (e.g. the nexus-staging Compose stack), not the isolated single-service
-// local harness used by the other specs in this directory.
+// integration: requires BOTH apps running together behind one browser
+// origin. Since service-desk-app moved into this repo, that's satisfied
+// either by scripts/e2e/start_local_stack.sh (Vite dev-server proxies
+// /service-desk and /api to locally-started Service Desk + backend
+// processes — see frontend/vite.config.js) or by a real Compose stack
+// (e.g. nexus-staging). Both set NEXUS_E2E_BASE_URL to a single origin
+// that serves both apps, so this spec doesn't need to know which.
 //
 // Required env vars (no defaults — this must never silently run against
 // production or a half-configured stack):
@@ -11,8 +15,8 @@
 //   NEXUS_E2E_STUDENT_D_USERNAME / _PASSWORD
 //   NEXUS_E2E_ADMIN_USERNAME / _PASSWORD
 //
-// The two student accounts and the admin account are expected to be
-// disposable/staging-only fixtures, not real student data.
+// The student and admin accounts are expected to be disposable
+// local/staging-only fixtures, not real student data.
 
 import { expect, test } from "@playwright/test";
 
@@ -76,6 +80,12 @@ async function getMyAssignment(page, stableKey) {
 
 test.describe("Service Desk integration (requires an integrated stack)", () => {
   test("offline outbox retries grading evidence in original order", async ({ browser }) => {
+    // This is the longest test in the file: route interception, offline
+    // queueing across three event types, a reload, an online-triggered
+    // retry, and an admin-side timeline check. The default 30s test budget
+    // is tight for that on a shared CI runner (observed failing mid-flow at
+    // ~30s in CI while passing locally); double it rather than trim steps.
+    test.setTimeout(60_000);
     const context = await browser.newContext();
     const page = await context.newPage();
     await studentLogin(page, studentAUsername, studentAPassword);
@@ -94,7 +104,14 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await page.getByLabel("Add a note").fill("Offline evidence note.");
     await page.getByRole("button", { name: "Add internal note" }).click();
     await page.getByRole("link", { name: /Directory/ }).click();
-    await expect(page.getByRole("heading", { name: "Directory", exact: true })).toBeVisible();
+    // The note click above just queued an offline-outbox write (its POST is
+    // being aborted by the route handler above) and triggered the sync-retry
+    // UI's own state update; that extra async work can briefly delay this
+    // client-side navigation's render under CI's slower CPU, past the
+    // default 5s timeout. Give it more room rather than racing it.
+    await expect(page.getByRole("heading", { name: "Directory", exact: true })).toBeVisible({
+      timeout: 15000,
+    });
     await page.getByText("Avery Brooks", { exact: true }).click();
     await page.getByRole("button", { name: "Unlock account" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Unlock account" }).click();
