@@ -1,25 +1,22 @@
 {
-  "generated_at": "2026-07-25T02:08:52.215156+00:00",
+  "generated_at": "2026-08-08T06:15:24.075160+00:00",
   "totals": {
-    "total_questions": 967,
+    "total_questions": 966,
     "multi_select": 186,
-    "single_choice": 781
+    "single_choice": 780
   },
   "by_classification": {
-    "already_valid": 966,
-    "requires_human_answer_key_review": 1
+    "already_valid": 966
   },
   "by_source_type": {
-    "examcompass": 778,
+    "examcompass": 777,
     "seed": 189
   },
   "by_required_vs_optional": {
-    "optional": 771,
+    "optional": 770,
     "required": 196
   },
-  "select_n_mismatch_question_ids": [
-    648
-  ],
+  "select_n_mismatch_question_ids": [],
   "blank_option_question_ids": [],
   "duplicate_option_question_ids": [],
   "invalid_answer_reference_question_ids": [],
@@ -96,7 +93,6 @@
     645,
     646,
     647,
-    648,
     650,
     651,
     652,
@@ -659,22 +655,84 @@
     1344,
     1345
   ],
+  "duplicate_question_groups": [],
+  "within_quiz_duplicate_question_groups": [],
+  "malformed_entity_question_ids": [],
+  "imported_number_prefix_question_ids": [],
+  "zero_question_quiz_ids": [],
+  "disconnected_quiz_ids": [
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    43,
+    44,
+    46,
+    47,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    56,
+    57,
+    58,
+    59,
+    60,
+    62,
+    63,
+    64,
+    65,
+    66,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    96,
+    97,
+    98,
+    99,
+    100,
+    101,
+    102,
+    103,
+    104
+  ],
   "multi_select_flashcards_affected_by_prior_render_bug": 1,
-  "findings": [
-    {
-      "question_id": 648,
-      "quiz_id": 39,
-      "quiz_title": "Windows OS Troubleshooting Quiz",
-      "quiz_status": "published",
-      "quiz_source_type": "examcompass",
-      "quiz_is_required": false,
-      "classification": "requires_human_answer_key_review",
-      "question_type": "single",
-      "errors": [
-        "This question says Select 2, but 1 correct answer(s) are stored."
-      ],
-      "warnings": [],
-      "info": []
-    }
-  ]
+  "findings": []
 }

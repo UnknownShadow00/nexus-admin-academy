@@ -10,10 +10,13 @@ Usage:
 
 import argparse
 import json
+import re
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+
+from sqlalchemy import func
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
@@ -22,6 +25,7 @@ if str(BACKEND_ROOT) not in sys.path:
 from app.database import SessionLocal  # noqa: E402
 from app.models.flashcard import FlashcardReview  # noqa: E402
 from app.models.quiz import QUIZ_STATUS_PUBLISHED, Question, Quiz  # noqa: E402
+from app.models.training import TrainingWeekActivity  # noqa: E402
 from app.services.question_validation import validate_question_row  # noqa: E402
 
 CLASS_SAFE_AUTO = "safe_automatic_cleanup"
@@ -73,6 +77,9 @@ def run_audit(db) -> dict:
     duplicate_option_questions = []
     invalid_reference_questions = []
     missing_explanation_questions = []
+    malformed_entity_questions = []
+    imported_number_prefix_questions = []
+    normalized_text_groups = defaultdict(list)
     findings = []
 
     for question in questions:
@@ -90,6 +97,13 @@ def run_audit(db) -> dict:
 
         if not question.explanation or not question.explanation.strip():
             missing_explanation_questions.append(question.id)
+        normalized_text = re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]", " ", question.question_text.casefold())).strip()
+        if normalized_text:
+            normalized_text_groups[normalized_text].append({"question_id": question.id, "quiz_id": quiz.id})
+        if re.search(r"&(?:amp|lt|gt|quot|apos|#\d+);", question.question_text, re.IGNORECASE):
+            malformed_entity_questions.append(question.id)
+        if re.match(r"^\s*(?:question|q)\s*\d+\s*[:.)-]", question.question_text, re.IGNORECASE):
+            imported_number_prefix_questions.append(question.id)
 
         for issue in result.errors:
             if "Select " in issue.message:
@@ -130,6 +144,26 @@ def run_audit(db) -> dict:
         if multi_select_question_ids
         else 0
     )
+    duplicate_groups = [group for group in normalized_text_groups.values() if len(group) > 1]
+    within_quiz_duplicate_groups = [
+        group for group in duplicate_groups if len({entry["quiz_id"] for entry in group}) < len(group)
+    ]
+    quiz_question_counts = dict(
+        db.query(Question.quiz_id, func.count(Question.id)).group_by(Question.quiz_id).all()
+    )
+    zero_question_quiz_ids = [quiz.id for quiz in quizzes.values() if quiz_question_counts.get(quiz.id, 0) == 0]
+    referenced_quiz_ids = set()
+    for activity in db.query(TrainingWeekActivity).all():
+        if activity.activity_type == "quiz" and str(activity.content_ref).isdigit():
+            referenced_quiz_ids.add(int(activity.content_ref))
+        mapped_quiz_id = (activity.metadata_json or {}).get("quiz_id")
+        if str(mapped_quiz_id or "").isdigit():
+            referenced_quiz_ids.add(int(mapped_quiz_id))
+    disconnected_quiz_ids = [
+        quiz.id for quiz in quizzes.values()
+        if quiz.is_active and quiz.id not in referenced_quiz_ids
+        and not quiz.show_in_practice_library and not quiz.lesson_id and not quiz.assignments
+    ]
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -142,6 +176,12 @@ def run_audit(db) -> dict:
         "duplicate_option_question_ids": duplicate_option_questions,
         "invalid_answer_reference_question_ids": invalid_reference_questions,
         "missing_explanation_question_ids": missing_explanation_questions,
+        "duplicate_question_groups": duplicate_groups,
+        "within_quiz_duplicate_question_groups": within_quiz_duplicate_groups,
+        "malformed_entity_question_ids": malformed_entity_questions,
+        "imported_number_prefix_question_ids": imported_number_prefix_questions,
+        "zero_question_quiz_ids": zero_question_quiz_ids,
+        "disconnected_quiz_ids": disconnected_quiz_ids,
         "multi_select_flashcards_affected_by_prior_render_bug": affected_flashcards,
         "findings": findings,
     }
@@ -202,6 +242,12 @@ def _markdown_report(report: dict) -> str:
         f"- Questions with duplicate option text: {len(report['duplicate_option_question_ids'])}",
         f"- Questions with invalid answer references: {len(report['invalid_answer_reference_question_ids'])}",
         f"- Questions missing an explanation: {len(report['missing_explanation_question_ids'])}",
+        f"- Exact normalized duplicate question groups: {len(report['duplicate_question_groups'])}",
+        f"- Duplicate groups within the same quiz: {len(report['within_quiz_duplicate_question_groups'])}",
+        f"- Questions with malformed HTML entities: {len(report['malformed_entity_question_ids'])}",
+        f"- Questions with imported numbering prefixes: {len(report['imported_number_prefix_question_ids'])}",
+        f"- Quizzes with zero questions: {len(report['zero_question_quiz_ids'])}",
+        f"- Active quizzes disconnected from curriculum/practice/assignments: {len(report['disconnected_quiz_ids'])}",
         f"- Flashcards pointing at multi-select questions (pre-fix render bug exposure): "
         f"{report['multi_select_flashcards_affected_by_prior_render_bug']}",
         "",
