@@ -13,6 +13,8 @@ export interface NexusOutboxItem {
     tool: string;
   };
   isHint: boolean;
+  /** A resume-only write: no simulation action is submitted to Nexus. */
+  isSnapshot?: boolean;
   ticketId: string;
 }
 
@@ -31,6 +33,7 @@ function isItem(value: unknown): value is NexusOutboxItem {
     (typeof value.assignmentId === 'string' || typeof value.assignmentId === 'number') &&
     typeof value.ticketId === 'string' &&
     typeof value.isHint === 'boolean' &&
+    (value.isSnapshot === undefined || typeof value.isSnapshot === 'boolean') &&
     isRecord(value.event) && typeof value.event.idempotency_key === 'string' &&
     typeof value.event.event_type === 'string' && typeof value.event.tool === 'string' &&
     isRecord(value.event.payload) && isRecord(value.event.resulting_state) &&

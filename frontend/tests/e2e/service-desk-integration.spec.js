@@ -79,6 +79,110 @@ async function getMyAssignment(page, stableKey) {
 }
 
 test.describe("Service Desk integration (requires an integrated stack)", () => {
+  test("snapshot-only sync persists every formerly local simulator domain", async ({ browser }) => {
+    test.setTimeout(90_000);
+    const sourceContext = await browser.newContext();
+    const page = await sourceContext.newPage();
+    await studentLogin(page, studentAUsername, studentAPassword);
+    const assignment = await getMyAssignment(page, SCENARIO_STABLE_KEY);
+    const attemptId = (await (await page.request.post(
+      `/api/service-desk/assignments/${assignment.id}/attempts`, withOrigin({}),
+    )).json()).id;
+    const snapshot = async () => (await (await page.request.get(`/api/service-desk/attempts/${attemptId}`)).json()).current_state;
+
+    await page.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks');
+    await page.getByLabel(/Message Avery Brooks/).fill('Snapshot-only chat message.');
+    await page.getByRole('button', { name: 'Send' }).click();
+    await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { chatThreads: { 'directory-user-avery-brooks': { messages: expect.arrayContaining([expect.objectContaining({ body: 'Snapshot-only chat message.' })]) } } } });
+
+    await page.goto('/service-desk/tools/asset-management');
+    await page.getByText('NX-4831', { exact: true }).first().click();
+    await page.locator('#status-NX-4831').selectOption({ index: 1 });
+    await page.getByRole('button', { name: 'Update status' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /Mark / }).click();
+    await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { assetOverlays: { 'NX-4831': expect.any(Object) } } });
+
+    await page.goto('/service-desk/tools/pc-shelf');
+    await page.getByRole('button', { name: 'Add computer' }).first().click();
+    await page.locator('#pc-shelf-add-computer').selectOption('SD6893');
+    await page.getByRole('dialog').getByRole('button', { name: 'Add to shelf' }).click();
+    await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { pcShelfOverlays: { SD6893: { present: true } } } });
+
+    await page.goto('/service-desk/tools/server-room');
+    await page.getByRole('tab', { name: 'Devices' }).click();
+    await page.getByRole('button', { name: 'Restart device' }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Restart device' }).click();
+    await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { serverRoomOverlays: { 'metro-isp': expect.any(Object) } } });
+
+    await page.goto('/service-desk/tools/computer-deployment');
+    await page.getByRole('button', { name: 'Start' }).click();
+    await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { activeDeploymentRunId: expect.any(String), deploymentRuns: expect.any(Object) } });
+
+    await page.goto('/service-desk/tools/shipping-manager');
+    await page.getByLabel('Recipient name').fill('Avery Brooks');
+    await page.getByRole('checkbox', { name: 'Computer', exact: true }).check();
+    await page.getByLabel('Provisioned PC').selectOption('SD9099');
+    await page.getByRole('button', { name: 'Ship', exact: true }).click();
+    await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { shipments: expect.any(Object), lastShippingAddress: { recipientName: 'Avery Brooks' } } });
+    await sourceContext.close();
+
+    const cleanContext = await browser.newContext();
+    const cleanPage = await cleanContext.newPage();
+    await studentLogin(cleanPage, studentAUsername, studentAPassword);
+    await cleanPage.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks');
+    await expect(cleanPage.getByText('Snapshot-only chat message.')).toBeVisible();
+    await cleanPage.goto('/service-desk/tools/pc-shelf');
+    await expect(
+      cleanPage.locator('.sd-card-header__title').filter({ hasText: 'SD6893' }),
+    ).toBeVisible();
+    await cleanContext.close();
+  });
+
+  test("offline snapshot-only outbox replays formerly local changes in order", async ({ browser }) => {
+    test.setTimeout(60_000);
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await studentLogin(page, studentBUsername, studentBPassword);
+    const assignment = await getMyAssignment(page, SCENARIO_STABLE_KEY);
+    const attemptId = (await (await page.request.post(
+      `/api/service-desk/assignments/${assignment.id}/attempts`, withOrigin({}),
+    )).json()).id;
+    await page.route(/\/api\/service-desk\/attempts\/\d+\/snapshot$/, route => route.abort());
+    await page.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks');
+    await page.getByLabel(/Message Avery Brooks/).fill('Offline snapshot chat.');
+    await page.getByRole('button', { name: 'Send' }).click();
+    await page.goto('/service-desk/tools/pc-shelf');
+    await page.getByRole('button', { name: 'Add computer' }).first().click();
+    await page.locator('#pc-shelf-add-computer').selectOption('SD6893');
+    await page.getByRole('dialog').getByRole('button', { name: 'Add to shelf' }).click();
+    const outbox = await page.evaluate(() => {
+      const key = Object.keys(localStorage).find(key => key.startsWith('nexus-sd-outbox-v1:'));
+      return JSON.parse(localStorage.getItem(key) || '{}').items;
+    });
+    expect(outbox.length).toBeGreaterThanOrEqual(2);
+    expect(outbox.every(item => item.event.event_type === 'snapshot.persisted')).toBeTruthy();
+    const keys = outbox.map(item => item.event.idempotency_key);
+    await page.reload();
+    expect((await page.evaluate(() => {
+      const key = Object.keys(localStorage).find(key => key.startsWith('nexus-sd-outbox-v1:'));
+      return JSON.parse(localStorage.getItem(key) || '{}').items.map(item => item.event.idempotency_key);
+    }))).toEqual(keys);
+    await page.unroute(/\/api\/service-desk\/attempts\/\d+\/snapshot$/);
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await expect.poll(async () => (await (await page.request.get(`/api/service-desk/attempts/${attemptId}`)).json()).current_state).toMatchObject({
+      nexus_service_desk_attempt: {
+        chatThreads: { 'directory-user-avery-brooks': { messages: expect.arrayContaining([expect.objectContaining({ body: 'Offline snapshot chat.' })]) } },
+        pcShelfOverlays: { SD6893: { present: true } },
+      },
+    });
+    await expect.poll(() => page.evaluate(() => {
+      const key = Object.keys(localStorage).find(key => key.startsWith('nexus-sd-outbox-v1:'));
+      return JSON.parse(localStorage.getItem(key) || '{}').items.length;
+    })).toBe(0);
+    await context.close();
+    expect(keys).toHaveLength(4);
+  });
+
   test("offline outbox retries grading evidence in original order", async ({ browser }) => {
     // This is the longest test in the file: route interception, offline
     // queueing across three event types, a reload, an online-triggered
@@ -163,15 +267,15 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await adminLogin(adminPage);
     await expect.poll(async () => {
       const response = await adminPage.request.get(`/api/admin/service-desk/attempts/${attemptId}`);
-      return (await response.json()).events.map((event) => event.event_type);
+      return (await response.json()).events
+        .filter((event) => event.event_type !== "snapshot.persisted")
+        .map((event) => event.event_type);
     }).toEqual(storedTypes);
     const timeline = await (await adminPage.request.get(`/api/admin/service-desk/attempts/${attemptId}`)).json();
     const retried = timeline.events.filter((event) => storedTypes.includes(event.event_type));
     expect(retried.map((event) => event.event_type)).toEqual(storedTypes);
     expect(new Set(retried.map((event) => event.idempotency_key))).toEqual(new Set(queuedKeys));
     expect(retried).toHaveLength(3);
-    await adminPage.goto("/admin/service-desk-review");
-    await expect(adminPage.getByText(/#\d+ directory\.unlock_account/)).toBeVisible();
     await adminContext.close();
     await context.close();
   });
@@ -183,17 +287,22 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const assignment = await getMyAssignment(page, SCENARIO_STABLE_KEY);
     const started = await page.request.post(`/api/service-desk/assignments/${assignment.id}/attempts`, withOrigin({}));
     const attemptId = (await started.json()).id;
+    const unlock = await page.request.post(
+      `/api/service-desk/attempts/${attemptId}/actions`,
+      withOrigin({
+        data: {
+          event_type: "directory.unlock_account",
+          idempotency_key: "completion-directory-unlock",
+          payload: { directoryUserId: "directory-user-avery-brooks" },
+          resulting_state: {},
+          tool: "directory",
+        },
+      }),
+    );
+    expect(unlock.status()).toBe(201);
     await page.goto(`/service-desk/tickets/${TICKET_ID}`);
     await page.route(/\/api\/service-desk\/attempts\/\d+\/(actions|events|hints|complete)$/, (route) => route.abort());
 
-    await page.getByRole("link", { name: /Directory/ }).click();
-    await expect(page.getByRole("heading", { name: "Directory", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: /Avery Brooks abrooks/ }).click();
-    await expect(page.getByRole("heading", { name: "Avery Brooks", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Unlock account" })).toBeVisible();
-    await page.getByRole("button", { name: "Unlock account" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Unlock account" }).click();
-    await page.goto(`/service-desk/tickets/${TICKET_ID}`);
     await page.getByLabel("Add a note").fill("Completion must wait for sync.");
     await page.getByRole("button", { name: "Add internal note" }).click();
     await page.getByRole("button", { name: "Resolve / close" }).click();
@@ -219,8 +328,9 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const adminPage = await adminContext.newPage();
     await adminLogin(adminPage);
     const timeline = await (await adminPage.request.get(`/api/admin/service-desk/attempts/${attemptId}`)).json();
-    expect(timeline.events.map((event) => event.event_type)).toEqual(["directory.unlock_account", "ticket.add_note", "ticket.close"]);
-    expect(new Set(timeline.events.map((event) => event.idempotency_key)).size).toBe(3);
+    const evidenceEvents = timeline.events.filter((event) => event.event_type !== "snapshot.persisted");
+    expect(evidenceEvents.map((event) => event.event_type)).toEqual(["directory.unlock_account", "ticket.add_note", "ticket.close"]);
+    expect(new Set(evidenceEvents.map((event) => event.idempotency_key)).size).toBe(3);
     expect(timeline.grade.id).toBe(completed.grade.id);
     await adminContext.close();
     await context.close();

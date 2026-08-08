@@ -3,6 +3,7 @@ import pytest
 from app.models.service_desk import (
     ServiceDeskAssignment,
     ServiceDeskAttempt,
+    ServiceDeskAttemptEvent,
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
 )
@@ -541,6 +542,63 @@ def test_versioned_full_snapshot_restores_all_tool_state(db):
         f"/api/service-desk/attempts/{attempt_id}", headers=auth_headers(student)
     ).json()
     assert resumed["current_state"] == snapshot
+
+
+def test_snapshot_endpoint_persists_untrusted_resume_state_idempotently(db):
+    student = make_student(db, username="snapshot-only")
+    assignment = setup_assignment(db, student, stable_key="inc2401")
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+    snapshot = {
+        "schema_version": 1,
+        "nexus_service_desk_attempt": {
+            "chatThreads": {"avery": {"messages": [{"body": "hello"}]}},
+            "assetOverlays": {"NX-4831": {"status": "retired"}},
+            "pcShelfOverlays": {"SD9099": {"present": False}},
+            "serverRoomOverlays": {"dc01": {"status": "online"}},
+            "deploymentRuns": {"run-1": {"hostname": "SD9999"}},
+            "shipments": {"shipment-1": {"recipientName": "Avery Brooks"}},
+        },
+    }
+    body = {"idempotency_key": "resume-1", "snapshot": snapshot}
+    first = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/snapshot",
+        headers=auth_headers(student), json=body,
+    )
+    assert first.status_code == 201
+    second = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/snapshot",
+        headers=auth_headers(student), json=body,
+    )
+    assert second.status_code == 200
+    resumed = client.get(
+        f"/api/service-desk/attempts/{attempt_id}", headers=auth_headers(student)
+    ).json()
+    assert resumed["current_state"] == snapshot
+    assert resumed["state_version"] == 1
+    # Snapshot-only writes are auditable but can never become trusted evidence.
+    event = db.query(ServiceDeskAttemptEvent).filter_by(
+        attempt_id=attempt_id, idempotency_key="resume-1"
+    ).one()
+    assert event.trusted is False
+    grade = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/complete",
+        headers=auth_headers(student), json={"idempotency_key": "snapshot-grade"},
+    )
+    assert grade.status_code == 409
+
+
+def test_snapshot_endpoint_rejects_invalid_or_completed_attempts(db):
+    student = make_student(db, username="invalid-snapshot")
+    assignment = setup_assignment(db, student)
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+    invalid = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/snapshot",
+        headers=auth_headers(student),
+        json={"idempotency_key": "bad", "snapshot": {"schema_version": 2}},
+    )
+    assert invalid.status_code == 422
 
 
 def test_complete_before_close_returns_409(db):

@@ -935,3 +935,27 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/routers/admin_service_desk.py, backend/tests/test_admin_service_desk.py, backend/tests/test_service_desk_attempts.py, frontend/tests/e2e/service-desk-integration.spec.js, scripts/e2e/start_local_stack.sh, tasks/loop-log.md
 - Result: pass against acceptance criteria; Nexus backend quality suite (300 tests), frontend build/CLI checks, dependency audits, Service Desk lint/typecheck/test/build/audit, and three consecutive fresh integrated browser launches (4 tests each) passed.
 - Next: None
+
+## [2026-08-07 14:20:00 UTC] Task Completed
+- Task: Added ordered snapshot-only persistence for successful Service Desk simulator domains without ticket attribution, while preserving server-authoritative grading.
+- Files changed: backend/app/routers/service_desk.py; backend/app/schemas/service_desk.py; backend/tests/test_service_desk_attempts.py; service-desk-app/apps/web/components/TicketSessionProvider.tsx; service-desk-app/apps/web/lib/nexus-service-desk-client.ts; service-desk-app/apps/web/lib/nexus-service-desk-client.test.ts; service-desk-app/apps/web/lib/nexus-sync-outbox.ts; service-desk-app/apps/web/lib/nexus-sync-outbox.test.ts; tasks/loop-log.md
+- Result: pass against focused acceptance criteria — backend snapshot security/idempotency tests and Service Desk lint/typecheck/test/build/audit passed.
+- Next: Add the requested per-domain UI cross-device and offline browser coverage before release.
+
+## [2026-08-08T01:07:36Z] Task Completed
+- Task: Validated and completed Service Desk full-state sync, offline snapshot replay, and dependency audit remediation.
+- Files changed: frontend/tests/e2e/service-desk-integration.spec.js; service-desk-app/apps/web/components/TicketSessionProvider.tsx; service-desk-app/package.json; service-desk-app/pnpm-lock.yaml; tasks/loop-log.md
+- Result: pass against acceptance criteria — all requested validation checks passed, including two 6/6 integrated browser runs.
+- Next: None
+
+## [2026-08-08T03:57:02Z] Task Completed
+- Task: Restored and validated PC Shelf clean-browser persistence coverage, and repaired snapshot hydration to ignore metadata-only legacy state.
+- Files changed: frontend/tests/e2e/service-desk-integration.spec.js; service-desk-app/apps/web/components/TicketSessionProvider.tsx; tasks/loop-log.md
+- Result: pass against acceptance criteria — two independent integrated browser runs passed all 6 tests.
+- Next: None
+
+## [2026-08-08T05:27:28Z] Task Completed
+- Task: Remediated the frontend nanoid high-severity audit finding with a compatible PostCSS lockfile update.
+- Files changed: frontend/package-lock.json; tasks/loop-log.md
+- Result: pass against acceptance criteria — nanoid and PostCSS findings are resolved; npm audit at high threshold, build, and CLI validation/sanity checks pass.
+- Next: Plan the React Router 7 migration during the pre-launch hardening sprint to resolve the two remaining moderate audit findings.

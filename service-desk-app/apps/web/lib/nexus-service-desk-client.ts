@@ -227,6 +227,19 @@ export async function requestAttemptAction(
   );
 }
 
+/** Persist untrusted resume data; this endpoint never creates grading evidence. */
+export async function persistAttemptSnapshot(
+  attemptId: string | number,
+  input: { idempotency_key: string; snapshot: Readonly<Record<string, unknown>> },
+): Promise<boolean> {
+  return (
+    (await request(
+      `/api/service-desk/attempts/${encodeURIComponent(attemptId)}/snapshot`,
+      { body: JSON.stringify(input), method: 'POST' },
+    )) !== null
+  );
+}
+
 export async function recordAttemptHint(
   attemptId: string | number,
   input: NexusAttemptHintInput,

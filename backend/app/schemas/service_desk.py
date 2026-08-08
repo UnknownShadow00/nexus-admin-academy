@@ -24,6 +24,17 @@ class ServiceDeskActionCreate(BaseModel):
     resulting_state: dict[str, Any] = Field(default_factory=dict)
 
 
+class ServiceDeskSnapshotCreate(BaseModel):
+    """An untrusted, versioned browser-resume snapshot.
+
+    This is deliberately separate from ``ServiceDeskActionCreate``: a
+    snapshot is not a simulation transition and must never be evaluated as
+    grading evidence.
+    """
+    idempotency_key: str = Field(min_length=1, max_length=120)
+    snapshot: dict[str, Any]
+
+
 class ServiceDeskHintCreate(BaseModel):
     idempotency_key: str = Field(min_length=1, max_length=120)
     tool: str = Field(min_length=1, max_length=80)
