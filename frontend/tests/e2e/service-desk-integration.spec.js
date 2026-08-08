@@ -619,4 +619,82 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     );
     await contextA3.close();
   });
+
+  test("INC2402 can be diagnosed, repaired, verified, and closed through Remote Desktop", async ({ page }) => {
+    test.setTimeout(90_000);
+    await studentLogin(page, studentAUsername, studentAPassword);
+    await page.goto("/service-desk/tickets/INC2402");
+    await expect(page.getByText("INC2402").first()).toBeVisible();
+
+    await page.goto("/service-desk/tools/remote-desktop?ticket=INC2402");
+    await page.getByPlaceholder("Search by asset tag, hostname, or owner").fill("NX-7714");
+    await page.getByRole("button", { name: "Connect" }).click();
+    await page.getByPlaceholder("e.g. jdoe").fill("support.admin");
+    await page.getByPlaceholder("Domain password").fill("simulation-only");
+    await page.getByRole("button", { name: "OK" }).click();
+    await expect(page.getByRole("button", { name: "System Tools", exact: true }).first()).toBeVisible();
+
+    await page.getByRole("button", { name: "System Tools", exact: true }).first().click();
+    await page.getByRole("button", { name: "View network diagnostics" }).click();
+    await page.getByRole("button", { name: "Settings", exact: true }).first().click();
+    await page.getByRole("button", { name: "Repair network profile" }).click();
+    await page.getByRole("button", { name: "System Tools", exact: true }).first().click();
+    await page.getByRole("button", { name: "Renew network address" }).click();
+
+    await expect(page.getByText("Solution complete")).toBeVisible();
+    await page.getByRole("button", { name: "Close ticket" }).click();
+    await expect(page.getByText("Saving…")).toBeHidden();
+
+    const assignment = await getMyAssignment(page, "inc2402");
+    const attempt = await (await page.request.get(
+      `/api/service-desk/attempts/${assignment.most_recent_attempt.id}`,
+    )).json();
+    expect(attempt.status).toBe("completed");
+    expect(attempt.grade.passed).toBe(true);
+  });
+
+  test("INC2404 requires real asset, shipping, note, and close actions", async ({ page }) => {
+    test.setTimeout(90_000);
+    await studentLogin(page, studentBUsername, studentBPassword);
+    await page.goto("/service-desk/tickets/INC2404");
+    await expect(page.getByText("INC2404").first()).toBeVisible();
+
+    await page.goto("/service-desk/tools/asset-management");
+    await page.getByPlaceholder("Search assets").fill("NX-9052");
+    await page.getByText("NX-9052", { exact: true }).first().click();
+    await page.locator("#status-NX-9052").selectOption("damaged");
+    await page.getByRole("button", { name: "Update status" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Mark damaged" }).click();
+    await expect(page.getByText("Asset status changed to damaged.")).toBeVisible();
+
+    await page.goto("/service-desk/tools/shipping-manager");
+    await page.getByLabel("Recipient name").fill("Elliot Ward");
+    await page.getByRole("checkbox", { name: "Headset", exact: true }).check();
+    await page.getByRole("radio", { name: /Express/ }).check();
+    await page.getByRole("checkbox", { name: /Include return label/ }).check();
+    await page.getByRole("button", { name: "Ship", exact: true }).click();
+    await expect(page.getByText("Replacement shipped")).toBeVisible();
+
+    await page.goto("/service-desk/tickets/INC2404");
+    const noteBox = page.getByPlaceholder(/note/i).or(page.locator("textarea").first());
+    await noteBox.first().fill(
+      "Confirmed the static followed the headset, marked NX-9052 damaged, and shipped Elliot a replacement for verification.",
+    );
+    await page.getByRole("button", { name: /add.*note/i }).first().click();
+    await page.getByRole("button", { name: "Resolve / close" }).click();
+    await page.getByLabel("Resolution note").fill(
+      "Replacement headset shipped; Elliot will verify clear audio on the next call.",
+    );
+    await page.getByRole("checkbox", { name: /verified the requester/i }).check();
+    await page.getByRole("button", { name: "Continue to review" }).click();
+    await page.getByRole("button", { name: "Resolve ticket" }).click();
+    await expect(page.getByText("Saving…")).toBeHidden();
+
+    const assignment = await getMyAssignment(page, "inc2404");
+    const attempt = await (await page.request.get(
+      `/api/service-desk/attempts/${assignment.most_recent_attempt.id}`,
+    )).json();
+    expect(attempt.status).toBe("completed");
+    expect(attempt.grade.passed).toBe(true);
+  });
 });

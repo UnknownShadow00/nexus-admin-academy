@@ -77,7 +77,7 @@ Branch: `prelaunch/final-hardening`
 - Backend: 338 passed; Alembic head `0041_verified_question_keys`.
 - Service Desk: lint, typecheck, build, and audit passed; 251 tests passed; no known vulnerabilities. One existing non-fatal Next.js ESLint-plugin configuration warning remains.
 - Frontend: `npm audit`, production build, `cli:validate`, and `cli:sanity` passed; 0 vulnerabilities.
-- Integrated launch verification: 7/7 passed. Full isolated browser suite: 20/20 passed.
+- Integrated launch verification: 9/9 passed, including real UI completion for INC2402 and INC2404. Full isolated browser suite: 22/22 passed.
 
 ## 15-17. Remaining Work and Launch Status
 
