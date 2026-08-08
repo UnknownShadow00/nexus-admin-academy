@@ -983,3 +983,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/services/quiz_editorial_mapping.py; backend/app/services/verified_question_corrections.py; backend/seed.py; backend/scripts/build_editorial_review_worklist.py; backend/tests/test_quiz_organization.py; docs/editorial_review_worklist.json; tasks/loop-log.md
 - Result: pass against acceptance criteria — only high-confidence content was exposed; question 970 and the remaining evidence-unverified queue stay hidden; 340 backend tests, Service Desk lint/typecheck/251 tests/build, frontend audit/build/CLI checks, and 9/9 launch verification passed.
 - Next: Conduct evidence-backed, item-by-item authoring for the remaining 397 questions and 65 legacy hidden quizzes before exposing any additional curriculum.
+
+## [2026-08-08T09:47:26Z] Task Completed
+- Task: Performed the final production launch rehearsal against the actual hybrid systemd, Docker, nginx, Cloudflare Tunnel, and SQLite architecture; proved database-copy migration, paired backup/restore, clean builds, isolated startup/restart persistence, proxy behavior, browser flows, predeploy gating, and rollback instructions.
+- Files changed: backend/app/routers/service_desk.py; docs/DEPLOYMENT.md; docs/PRODUCTION_LAUNCH_REHEARSAL.md; frontend/nginx.host.conf; scripts/backup_sqlite.sh; scripts/predeploy_check.sh; tasks/loop-log.md
+- Result: pass against rehearsal acceptance criteria — the release candidate is ready with required manual production environment declarations and credential rotation; 340 backend tests, 251 Service Desk tests, 9/9 launch verification, 22/22 full browser tests, clean builds/audits, and disposable backup/restore and process-restart checks passed.
+- Next: Before restarting production, apply the documented non-secret environment settings, rotate the admin/API/cohort credentials and persisted student password hashes, then require scripts/predeploy_check.sh to pass.

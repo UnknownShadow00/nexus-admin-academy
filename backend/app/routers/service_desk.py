@@ -19,7 +19,7 @@ from app.schemas.service_desk import (
     ServiceDeskActionCreate, ServiceDeskCompleteCreate, ServiceDeskEventCreate, ServiceDeskHintCreate,
     ServiceDeskSnapshotCreate,
 )
-from app.services.service_desk_objectives import SCENARIO_OBJECTIVES, objective_definition, payload_matches
+from app.services.service_desk_objectives import objective_definition, payload_matches
 from app.services.auth_service import ensure_student_access, ensure_student_ownership, get_current_student
 from app.services.service_desk_grading import AttemptNotClosedError, compute_grade
 from app.services.xp_service import award_xp
