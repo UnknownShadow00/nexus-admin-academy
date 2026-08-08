@@ -8,6 +8,7 @@ import {
 
 interface ServerVersion {
   created_at: string;
+  definition_hash: string;
   definition_json: Record<string, unknown>;
   id: number;
   published_at: string | null;
@@ -82,6 +83,7 @@ function toVersion(server: ServerVersion, scenario: ServerScenario): ScenarioVer
   const rawHints = Array.isArray(value.hints) ? value.hints : [];
 
   return {
+    definitionHash: server.definition_hash,
     description: {
       businessImpact: text(description.businessImpact),
       issue: text(description.issue, scenario.description ?? ''),
@@ -226,6 +228,7 @@ export async function saveServerScenario(
   scenarioId: string | null,
   draft: ScenarioVersionDraftData,
   draftVersionId?: string,
+  expectedDefinitionHash?: string,
 ): Promise<ScenarioRecord> {
   if (!scenarioId) {
     const result = await request('/api/admin/service-desk/scenarios', {
@@ -236,13 +239,19 @@ export async function saveServerScenario(
   if (draftVersionId) {
     const result = await request(
       `/api/admin/service-desk/scenarios/${encodeURIComponent(scenarioId)}/versions/${encodeURIComponent(draftVersionId)}`,
-      { body: JSON.stringify(metadata(draft)), method: 'PUT' },
+      {
+        body: JSON.stringify({
+          ...metadata(draft),
+          expected_definition_hash: expectedDefinitionHash,
+        }),
+        method: 'PUT',
+      },
     );
     return toRecord(result as ServerScenario);
   }
   await request(
     `/api/admin/service-desk/scenarios/${encodeURIComponent(scenarioId)}/versions`,
-    { body: JSON.stringify({ definition_json: draft }), method: 'POST' },
+    { body: JSON.stringify(metadata(draft)), method: 'POST' },
   );
   return getServerScenario(scenarioId);
 }

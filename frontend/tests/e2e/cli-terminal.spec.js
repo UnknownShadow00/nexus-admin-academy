@@ -39,6 +39,7 @@ test("maintained xterm terminal renders, accepts input, and survives mobile resi
   await page.goto("/terminal");
   const terminal = page.locator(".xterm");
   await expect(terminal).toBeVisible();
+  await expect(terminal).toHaveCount(1);
   await terminal.click();
   await page.keyboard.type("ipconfig");
   await page.keyboard.press("Enter");
@@ -50,4 +51,12 @@ test("maintained xterm terminal renders, accepts input, and survives mobile resi
   await page.keyboard.type("whoami");
   await page.keyboard.press("Enter");
   await expect(page.locator(".xterm-rows")).toContainText("NEXUS\\student01");
+
+  await page.goto("/");
+  await page.goBack();
+  await expect(page.locator(".xterm")).toHaveCount(1);
+  await page.locator(".xterm").click();
+  await page.keyboard.type("pwd");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".xterm-rows")).toContainText("C:\\Users\\Student");
 });

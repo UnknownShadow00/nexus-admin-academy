@@ -36,14 +36,22 @@ export function ScenarioPreview({ scenarioId }: { scenarioId: string }) {
   const [record, setRecord] = useState<ScenarioRecord | null>(null);
   const [slots, setSlots] = useState<TestStudentSlot[]>([]);
   const [slotId, setSlotId] = useState('');
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     const nextSlots = listTestStudents();
-    void getServerScenario(scenarioId).then(setRecord);
+    void getServerScenario(scenarioId)
+      .then(setRecord)
+      .catch((error: unknown) => setLoadError(
+        error instanceof Error ? error.message : 'Scenario preview could not load.',
+      ));
     setSlots(nextSlots);
     setSlotId(nextSlots[0]?.id ?? '');
   }, [scenarioId]);
 
+  if (loadError) {
+    return <p className="rounded-sm border border-red-400/30 bg-red-400/10 p-3 text-red-200" role="alert">{loadError}</p>;
+  }
   if (!record) {
     return (
       <p className="text-zinc-400">Loading scenario from Nexus…</p>

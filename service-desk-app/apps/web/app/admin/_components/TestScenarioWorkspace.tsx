@@ -53,6 +53,7 @@ export function TestScenarioWorkspace({
   const [directoryGroup, setDirectoryGroup] = useState<string>(
     DIRECTORY_GROUP_NAMES[0] ?? '',
   );
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     const slot = getTestStudent(slotId);
@@ -81,7 +82,9 @@ export function TestScenarioWorkspace({
           )?.predicateParams.directoryUserId;
         if (typeof firstRelevantUser === 'string') setDirectoryUserId(firstRelevantUser);
       },
-    );
+    ).catch((error: unknown) => setLoadError(
+      error instanceof Error ? error.message : 'Test scenario could not load.',
+    ));
   }, [scenarioId, slotId]);
 
   const evaluation = useMemo(
@@ -90,6 +93,9 @@ export function TestScenarioWorkspace({
     [attempt, version],
   );
 
+  if (loadError) {
+    return <p className="rounded-sm border border-red-400/30 bg-red-400/10 p-3 text-red-200" role="alert">{loadError}</p>;
+  }
   if (!attempt || !version) {
     return (
       <div className="space-y-3">

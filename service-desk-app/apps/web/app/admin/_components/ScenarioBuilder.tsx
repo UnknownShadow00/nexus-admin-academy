@@ -101,6 +101,7 @@ function draftFromRecord(record: ScenarioRecord): ScenarioVersionDraftData {
   }
   const {
     id: _id,
+    definitionHash: _definitionHash,
     publishedAt: _publishedAt,
     scenarioId: _scenarioId,
     version: _version,
@@ -441,7 +442,12 @@ export function ScenarioBuilder({
     setErrors([]);
     try {
       const draftVersion = record?.versions.find((version) => version.publishedAt === null);
-      const next = await saveServerScenario(scenarioId, draft, draftVersion?.id);
+      const next = await saveServerScenario(
+        scenarioId,
+        draft,
+        draftVersion?.id,
+        draftVersion?.definitionHash,
+      );
       const savedDraft = next.versions.find((version) => version.publishedAt === null);
       setRecord(next);
       setScenarioId(next.template.id);
@@ -539,11 +545,15 @@ export function ScenarioBuilder({
         </Field>
         <Field label="Slug">
           <Input
+            disabled={Boolean(record?.template.activeVersionId)}
             onChange={(event) =>
               setDraft({ ...draft, slug: event.target.value })
             }
             value={draft.slug}
           />
+          {record?.template.activeVersionId ? (
+            <span className="text-xs text-zinc-500">Locked after first publish to preserve historical grading.</span>
+          ) : null}
         </Field>
         <Field label="Category">
           <Select

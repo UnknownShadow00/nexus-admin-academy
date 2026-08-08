@@ -758,8 +758,8 @@ function actionEventToActivity(event: ActionEvent): ActivityEvent {
   }
 }
 
-function projectTickets(attempt: Attempt): Ticket[] {
-  return TICKET_FIXTURES.map((fixture) => {
+function projectTickets(attempt: Attempt, fixtures: readonly Ticket[]): Ticket[] {
+  return fixtures.map((fixture) => {
     const overlay = attempt.ticketOverlays[fixture.id];
 
     if (!overlay) {
@@ -788,6 +788,64 @@ function projectTickets(attempt: Attempt): Ticket[] {
       suggestedTools: [...fixture.suggestedTools],
     };
   });
+}
+
+export function ticketsForAssignments(assignments: readonly NexusAssignment[]): readonly Ticket[] {
+  const definitions = new Map(
+    assignments.flatMap((assignment) => {
+      const definition = assignment.latest_published_version?.definition_json;
+      const expectedId = normalizeTicketKey(assignment.scenario.stable_key);
+      if (
+        !definition ||
+        typeof definition.title !== 'string' ||
+        typeof definition.description !== 'object' ||
+        definition.description === null ||
+        typeof definition.requester !== 'object' ||
+        definition.requester === null
+      ) {
+        return [];
+      }
+      const legacy = definition.id === expectedId;
+      const projected = legacy
+        ? definition
+        : {
+            activity: [],
+            assignedTo: null,
+            category: definition.category,
+            createdAt: FIXTURE_REFERENCE_TIME,
+            description: definition.description,
+            device: definition.device,
+            escalated: false,
+            hints: Array.isArray(definition.hints)
+              ? definition.hints.map((hint) =>
+                  typeof hint === 'object' && hint !== null && 'text' in hint
+                    ? String(hint.text)
+                    : String(hint),
+                )
+              : [],
+            id: expectedId,
+            notes: [],
+            priority: definition.priority,
+            requester: definition.requester,
+            sla: definition.sla,
+            status: TicketStatus.Open,
+            suggestedTools: [],
+            title: definition.title,
+          };
+      return [[expectedId, projected] as const];
+    }),
+  );
+  const fixtures = TICKET_FIXTURES.map((fixture) => {
+    const definition = definitions.get(fixture.id);
+    return definition ? ({ ...fixture, ...definition, id: fixture.id } as Ticket) : fixture;
+  });
+  const known = new Set(fixtures.map((fixture) => fixture.id));
+  return [
+    ...fixtures,
+    ...[...definitions.entries()]
+      .filter(([id]) => !known.has(id as Ticket['id']))
+      .map(([, definition]) => definition as unknown as Ticket),
+  ];
 }
 
 function projectDirectoryUsers(attempt: Attempt): DirectoryUserTemplate[] {
@@ -994,6 +1052,7 @@ export function TicketSessionProvider({
   const attemptRef = useRef(attempt);
   const [hydrated, setHydrated] = useState(false);
   const [syncStatus, setSyncStatus] = useState<NexusSyncStatus>('saved');
+  const [runtimeTickets, setRuntimeTickets] = useState<readonly Ticket[]>(TICKET_FIXTURES);
   const storageKey =
     identity?.userId && identity.userId !== 'you'
       ? `svc-desk-attempt:${identity.userId}`
@@ -1115,6 +1174,7 @@ export function TicketSessionProvider({
         }
 
         const mappings = mapAssignmentsByTicket(assignments);
+        setRuntimeTickets(ticketsForAssignments(assignments));
         nexusTicketMappingsRef.current = mappings;
         nexusSnapshotTargetRef.current = null;
         let restoredNexusSnapshot = false;
@@ -1181,6 +1241,7 @@ export function TicketSessionProvider({
       } else if (active) {
         nexusTicketMappingsRef.current = {};
         nexusSnapshotTargetRef.current = null;
+        setRuntimeTickets(TICKET_FIXTURES);
       }
 
       if (!active) {
@@ -1380,7 +1441,7 @@ export function TicketSessionProvider({
   const dispatchAction = useCallback(
     (action: SimulationAction) => {
       const previousAchievements = NEXUS_INTEGRATION_ENABLED
-        ? evaluateAchievements(attemptRef.current, TICKET_FIXTURES)
+        ? evaluateAchievements(attemptRef.current, runtimeTickets)
         : [];
       const result = applyAction(attemptRef.current, actorId, action);
       let nextAttempt = result.attempt;
@@ -1390,7 +1451,7 @@ export function TicketSessionProvider({
         const grade = evaluateObjectives(
           result.attempt,
           action.payload.ticketId,
-          TICKET_FIXTURES,
+          runtimeTickets,
         );
 
         const scenario = getRemoteDesktopScenarioByTicket(
@@ -1439,7 +1500,7 @@ export function TicketSessionProvider({
 
         if (NEXUS_INTEGRATION_ENABLED) {
           if (grade.resolved) {
-            const ticket = TICKET_FIXTURES.find(
+            const ticket = runtimeTickets.find(
               (candidate) => candidate.id === action.payload.ticketId,
             );
             if (!nexusTicketMappingsRef.current[action.payload.ticketId]) {
@@ -1464,7 +1525,7 @@ export function TicketSessionProvider({
           );
           for (const achievement of evaluateAchievements(
             nextAttempt,
-            TICKET_FIXTURES,
+            runtimeTickets,
           )) {
             if (achievement.earned && !previouslyEarned.has(achievement.code)) {
               syncNexusProgress({
@@ -1528,10 +1589,10 @@ export function TicketSessionProvider({
       setAttempt(nextAttempt);
       return result.event;
     },
-    [actorId, queueNexusActionSync, queueNexusSnapshotSync],
+    [actorId, queueNexusActionSync, queueNexusSnapshotSync, runtimeTickets],
   );
 
-  const tickets = useMemo(() => projectTickets(attempt), [attempt]);
+  const tickets = useMemo(() => projectTickets(attempt, runtimeTickets), [attempt, runtimeTickets]);
   const baseDirectoryUsers = useMemo(
     () => projectDirectoryUsers(attempt),
     [attempt],
@@ -1603,10 +1664,10 @@ export function TicketSessionProvider({
       });
 
       return result.event.success
-        ? evaluateObjectives(result.attempt, ticketId, TICKET_FIXTURES)
+        ? evaluateObjectives(result.attempt, ticketId, runtimeTickets)
         : (attempt.grades[ticketId] ?? null);
     },
-    [actorId, attempt],
+    [actorId, attempt, runtimeTickets],
   );
 
   const ticketSessionValue = useMemo<TicketSessionContextValue>(
@@ -1671,13 +1732,13 @@ export function TicketSessionProvider({
   );
   const progressValue = useMemo<ProgressContextValue>(
     () => ({
-      achievements: evaluateAchievements(attempt, TICKET_FIXTURES),
-      analyticsSummary: deriveAnalyticsSummary(attempt, TICKET_FIXTURES),
+      achievements: evaluateAchievements(attempt, runtimeTickets),
+      analyticsSummary: deriveAnalyticsSummary(attempt, runtimeTickets),
       isHydrated: hydrated,
-      pastTickets: derivePastTickets(attempt, TICKET_FIXTURES),
+      pastTickets: derivePastTickets(attempt, runtimeTickets),
       syncStatus,
     }),
-    [attempt, hydrated, syncStatus],
+    [attempt, hydrated, runtimeTickets, syncStatus],
   );
   const directorySessionValue = useMemo<DirectorySessionContextValue>(
     () => ({
@@ -2178,6 +2239,10 @@ export function usePastTickets() {
 
 export function useSyncStatus() {
   return useProgressContext().syncStatus;
+}
+
+export function useSessionHydrated() {
+  return useProgressContext().isHydrated;
 }
 
 export function useDirectorySession() {

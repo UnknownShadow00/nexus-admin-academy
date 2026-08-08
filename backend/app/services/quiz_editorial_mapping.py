@@ -15,12 +15,21 @@ SAFE_OPTIONAL_QUIZ_MAPPINGS = {
     63: (9, "remediation"),    # network types
 }
 
+EXPECTED_QUIZ_TITLES = {
+    28: "Mobile Device Accessories Quiz",
+    32: "Social Engineering Quiz",
+    33: "Threats & Vulnerabilities Quiz",
+    56: "TCP & UDP Ports Quiz",
+    59: "Network Configuration Concepts Quiz",
+    63: "Network Types Quiz",
+}
+
 
 def apply_safe_optional_quiz_mappings(db) -> int:
     updated = 0
     for quiz_id, (week, purpose) in SAFE_OPTIONAL_QUIZ_MAPPINGS.items():
         quiz = db.get(Quiz, quiz_id)
-        if not quiz:
+        if not quiz or quiz.title != EXPECTED_QUIZ_TITLES[quiz_id]:
             continue
         quiz.week_number = week
         quiz.recommended_week = week

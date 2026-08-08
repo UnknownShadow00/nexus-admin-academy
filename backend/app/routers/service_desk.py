@@ -19,7 +19,7 @@ from app.schemas.service_desk import (
     ServiceDeskActionCreate, ServiceDeskCompleteCreate, ServiceDeskEventCreate, ServiceDeskHintCreate,
     ServiceDeskSnapshotCreate,
 )
-from app.services.service_desk_objectives import SCENARIO_OBJECTIVES, payload_matches
+from app.services.service_desk_objectives import SCENARIO_OBJECTIVES, objective_definition, payload_matches
 from app.services.auth_service import ensure_student_access, ensure_student_ownership, get_current_student
 from app.services.service_desk_grading import AttemptNotClosedError, compute_grade
 from app.services.xp_service import award_xp
@@ -82,6 +82,16 @@ def _event_dict(event: ServiceDeskAttemptEvent) -> dict:
             "resulting_state_hash": event.resulting_state_hash, "success": event.success, "created_at": event.created_at}
 
 
+def _student_scenario_definition(definition: dict) -> dict:
+    """Return runtime presentation only; never disclose grading or explanation data."""
+    allowed = {
+        "activity", "assignedTo", "category", "createdAt", "description", "device",
+        "escalated", "hints", "id", "notes", "priority", "requester", "sla",
+        "status", "suggestedTools", "title",
+    }
+    return {key: value for key, value in definition.items() if key in allowed}
+
+
 def _grade_dict(grade: ServiceDeskAttemptGrade | None) -> dict | None:
     if not grade:
         return None
@@ -129,18 +139,37 @@ def list_assignments(current_student: Student = Depends(get_current_student), db
         ).order_by(ServiceDeskScenarioVersion.version_number.desc()).first()
         latest_attempt = None
         if version:
-            latest_attempt = db.query(ServiceDeskAttempt).filter(
+            latest_attempt = db.query(ServiceDeskAttempt).join(
+                ServiceDeskScenarioVersion,
+                ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+            ).filter(
                 ServiceDeskAttempt.student_id == current_student.id,
-                ServiceDeskAttempt.scenario_version_id == version.id,
-            ).order_by(ServiceDeskAttempt.attempt_number.desc()).first()
+                ServiceDeskScenarioVersion.scenario_id == scenario.id,
+                ServiceDeskAttempt.status == "in_progress",
+            ).order_by(ServiceDeskAttempt.started_at.desc()).first()
+            if latest_attempt is None:
+                latest_attempt = db.query(ServiceDeskAttempt).filter(
+                    ServiceDeskAttempt.student_id == current_student.id,
+                    ServiceDeskAttempt.scenario_version_id == version.id,
+                ).order_by(ServiceDeskAttempt.attempt_number.desc()).first()
+        published_definition = version.definition_json or {} if version else {}
+        published_description = published_definition.get("description")
+        if isinstance(published_description, dict):
+            published_description = published_description.get("issue")
         result.append({"id": assignment.id, "student_id": assignment.student_id, "scenario_id": scenario.id,
                        "mode": assignment.mode, "is_required": assignment.is_required, "due_at": assignment.due_at,
                        "maximum_attempts": assignment.maximum_attempts, "assigned_by": assignment.assigned_by,
                        "assigned_at": assignment.assigned_at,
-                       "scenario": {"stable_key": scenario.stable_key, "title": scenario.title,
-                                    "description": scenario.description,
-                                    "category": scenario.category, "difficulty": scenario.difficulty},
-                       "latest_published_version": {"id": version.id, "version_number": version.version_number} if version else None,
+                       "scenario": {"stable_key": scenario.stable_key,
+                                    "title": published_definition.get("title") or scenario.title,
+                                    "description": published_description or scenario.description,
+                                    "category": published_definition.get("category") or scenario.category,
+                                    "difficulty": published_definition.get("difficulty") or scenario.difficulty},
+                       "latest_published_version": {
+                           "id": version.id,
+                           "version_number": version.version_number,
+                           "definition_json": _student_scenario_definition(version.definition_json or {}),
+                       } if version else None,
                        "most_recent_attempt": {"id": latest_attempt.id, "status": latest_attempt.status,
                                                "attempt_number": latest_attempt.attempt_number} if latest_attempt else None})
     return jsonable_encoder(result)
@@ -151,16 +180,22 @@ def start_attempt(assignment_id: int, current_student: Student = Depends(get_cur
     assignment = db.query(ServiceDeskAssignment).filter(ServiceDeskAssignment.id == assignment_id).first()
     if not assignment or assignment.student_id != current_student.id:
         raise HTTPException(404, "Assignment not found")
+    existing = db.query(ServiceDeskAttempt).join(
+        ServiceDeskScenarioVersion,
+        ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+    ).filter(
+        ServiceDeskAttempt.student_id == current_student.id,
+        ServiceDeskScenarioVersion.scenario_id == assignment.scenario_id,
+        ServiceDeskAttempt.status == "in_progress",
+    ).order_by(ServiceDeskAttempt.started_at.desc()).first()
+    if existing:
+        return _json_response(_attempt_dict(existing), 200)
     version = db.query(ServiceDeskScenarioVersion).filter(
         ServiceDeskScenarioVersion.scenario_id == assignment.scenario_id,
         ServiceDeskScenarioVersion.status == "published",
     ).order_by(ServiceDeskScenarioVersion.version_number.desc()).first()
     if not version:
         raise HTTPException(409, "This assignment has no published scenario version")
-    existing = db.query(ServiceDeskAttempt).filter_by(student_id=current_student.id, scenario_version_id=version.id,
-                                                       status="in_progress").first()
-    if existing:
-        return _json_response(_attempt_dict(existing), 200)
     count = db.query(ServiceDeskAttempt).filter_by(student_id=current_student.id, scenario_version_id=version.id).count()
     if assignment.maximum_attempts is not None and count >= assignment.maximum_attempts:
         raise HTTPException(403, "Maximum attempts for this assignment have been reached")
@@ -285,7 +320,8 @@ def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, p
         return payload.get("ticketId") == ticket_id
     if not assigned:
         return False
-    definition = SCENARIO_OBJECTIVES.get(key)
+    version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
+    definition = objective_definition(key, version.definition_json or {}) if version else None
     if definition is None:
         return False
     rules = (*definition.required_all, *definition.required_any)
@@ -307,7 +343,8 @@ def request_action(attempt_id: int, body: ServiceDeskActionCreate, current_stude
     # promoted to grading evidence. Objective-shaped actions require the
     # transition graph above; an objective before assignment is rejected.
     key = _scenario_key(db, attempt)
-    definition = SCENARIO_OBJECTIVES.get(key)
+    version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
+    definition = objective_definition(key, version.definition_json or {}) if version else None
     objective_action = definition and any(
         rule.event_type == body.event_type and payload_matches(body.payload, rule.payload)
         for rule in (*definition.required_all, *definition.required_any)

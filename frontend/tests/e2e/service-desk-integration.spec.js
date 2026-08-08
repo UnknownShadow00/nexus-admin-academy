@@ -108,9 +108,9 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
       sla: { dueAt: "2026-08-08T12:00:00Z", target: "4 hours" },
       initialWorldState: { directoryOverlaySeeds: {}, assetOverlaySeeds: {}, chatMessageSeeds: [] },
       objectives: [{
-        id: "restart-spooler", order: 1, description: "Restart the Print Spooler.",
+        id: "document-resolution", order: 1, description: "Document the diagnosis and verification.",
         pointValue: 100, predicateType: "action_event_occurred",
-        predicateParams: { actionType: "remote_desktop.restart_service" }, required: true,
+        predicateParams: { actionType: "ticket.add_note", payloadMatch: { ticketId: stableKey.toUpperCase() } }, required: true,
       }],
       requiredActions: [], forbiddenActions: [],
       hints: [
@@ -150,6 +150,8 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     expect(reloaded.versions[0].status).toBe("published");
     expect(reloaded.versions[0].definition_json.title).toBe(editedTitle);
     expect(reloaded.versions[1].status).toBe("draft");
+    await page.reload();
+    await expect(page.getByLabel("Title")).toHaveValue(`${editedTitle} v2`);
   });
 
   test("snapshot-only sync persists every formerly local simulator domain", async ({ browser }) => {

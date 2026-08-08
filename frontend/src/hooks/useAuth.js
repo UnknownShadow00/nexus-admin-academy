@@ -17,7 +17,7 @@ function decodeToken(token) {
 }
 
 export function getToken() {
-  return memoryToken;
+  return decodeToken(memoryToken) ? memoryToken : null;
 }
 
 export function setToken(token) {

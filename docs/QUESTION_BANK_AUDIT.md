@@ -1,6 +1,6 @@
 # Question Bank Audit
 
-Generated: 2026-08-08T07:20:48.230885+00:00
+Generated: 2026-08-08T08:27:46.382693+00:00
 
 Read-only audit run through the shared question validation service (`backend/app/services/question_validation.py`). No question data was modified. No student names, attempts, or other private data are included.
 
@@ -37,7 +37,7 @@ Read-only audit run through the shared question validation service (`backend/app
 - Questions with blank options: 0
 - Questions with duplicate option text: 0
 - Questions with invalid answer references: 0
-- Questions missing an explanation: 399
+- Questions missing an explanation: 397
 - Exact normalized duplicate question groups: 0
 - Duplicate groups within the same quiz: 0
 - Questions with malformed HTML entities: 0

@@ -51,10 +51,13 @@ def valid_builder_definition(title="Printer queue stops"):
         "objectives": [{
             "id": "restart-spooler",
             "order": 1,
-            "description": "Restart the Print Spooler.",
+            "description": "Document the diagnosis and verification.",
             "pointValue": 100,
             "predicateType": "action_event_occurred",
-            "predicateParams": {"actionType": "remote_desktop.restart_service"},
+            "predicateParams": {
+                "actionType": "ticket.add_note",
+                "payloadMatch": {"ticketId": "PRINTER-QUEUE-STOPS"},
+            },
             "required": True,
         }],
         "requiredActions": [],
@@ -87,6 +90,7 @@ def test_admin_auth_listing_filter_pagination_and_timeline(db, monkeypatch):
         json=event,
     )
     admin_client = make_client(admin_service_desk.router)
+    # Identical rapid saves are idempotent instead of surfacing a false error.
     assert (
         admin_client.get(
             "/api/admin/service-desk/attempts",
@@ -134,11 +138,14 @@ def test_admin_assignment_duplicate_versions_and_publish(db, monkeypatch):
         == 409
     )
     definition = valid_builder_definition()
+    definition["slug"] = "admin-scenario"
+    definition["objectives"][0]["predicateParams"]["payloadMatch"]["ticketId"] = "ADMIN-SCENARIO"
     version = client.post(
         f"/api/admin/service-desk/scenarios/{scenario.id}/versions",
         headers=headers,
         json={"definition_json": definition},
     )
+    # Identical rapid saves are idempotent instead of surfacing a false error.
     assert (
         version.status_code == 201
         and version.json()["definition_hash"]
@@ -150,7 +157,7 @@ def test_admin_assignment_duplicate_versions_and_publish(db, monkeypatch):
             headers=headers,
             json={"definition_json": definition},
         ).status_code
-        == 409
+        == 201
     )
     published = client.post(
         f"/api/admin/service-desk/scenarios/{scenario.id}/versions/{version.json()['id']}/publish",
@@ -219,6 +226,17 @@ def test_scenario_builder_create_save_reload_validate_publish_and_new_draft(db, 
     )
     assert published.status_code == 200
     assert published.json()["status"] == "published"
+    renamed_slug = {**edited, "slug": "renamed-after-publish"}
+    assert client.post(
+        f"/api/admin/service-desk/scenarios/{scenario['id']}/versions",
+        headers=headers,
+        json={
+            "stable_key": renamed_slug["slug"], "title": renamed_slug["title"],
+            "description": renamed_slug["description"]["issue"],
+            "category": renamed_slug["category"], "difficulty": 1,
+            "definition_json": renamed_slug,
+        },
+    ).status_code == 409
     assert client.put(
         f"/api/admin/service-desk/scenarios/{scenario['id']}/versions/{draft['id']}",
         headers=headers,
@@ -236,11 +254,56 @@ def test_scenario_builder_create_save_reload_validate_publish_and_new_draft(db, 
     next_draft = client.post(
         f"/api/admin/service-desk/scenarios/{scenario['id']}/versions",
         headers=headers,
-        json={"definition_json": next_definition},
+        json={
+            "stable_key": next_definition["slug"],
+            "title": next_definition["title"],
+            "description": next_definition["description"]["issue"],
+            "category": next_definition["category"],
+            "difficulty": 1,
+            "definition_json": next_definition,
+        },
     )
     assert next_draft.status_code == 201
     assert next_draft.json()["version_number"] == 2
+    refreshed = client.get(
+        f"/api/admin/service-desk/scenarios/{scenario['id']}", headers=headers
+    ).json()
+    assert refreshed["title"] == next_definition["title"]
+    assert refreshed["versions"][0]["definition_json"]["title"] == edited["title"]
     assert reloaded.json()["versions"][0]["definition_json"]["title"] == edited["title"]
+
+    current_hash = next_draft.json()["definition_hash"]
+    newer_definition = {**next_definition, "title": "Saved by a newer tab"}
+    newer = client.put(
+        f"/api/admin/service-desk/scenarios/{scenario['id']}/versions/{next_draft.json()['id']}",
+        headers=headers,
+        json={
+            "stable_key": newer_definition["slug"],
+            "title": newer_definition["title"],
+            "description": newer_definition["description"]["issue"],
+            "category": newer_definition["category"],
+            "difficulty": 1,
+            "definition_json": newer_definition,
+            "expected_definition_hash": current_hash,
+        },
+    )
+    assert newer.status_code == 200
+    stale_definition = {**next_definition, "title": "Stale overwrite"}
+    stale = client.put(
+        f"/api/admin/service-desk/scenarios/{scenario['id']}/versions/{next_draft.json()['id']}",
+        headers=headers,
+        json={
+            "stable_key": next_definition["slug"],
+            "title": stale_definition["title"],
+            "description": next_definition["description"]["issue"],
+            "category": next_definition["category"],
+            "difficulty": 1,
+            "definition_json": stale_definition,
+            "expected_definition_hash": current_hash,
+        },
+    )
+    assert stale.status_code == 409
+    assert "another browser tab" in stale.json()["detail"]
 
 
 def test_scenario_builder_allows_incomplete_draft_but_blocks_publish(db, monkeypatch):
@@ -268,6 +331,38 @@ def test_scenario_builder_allows_incomplete_draft_but_blocks_publish(db, monkeyp
     )
     assert publish.status_code == 422
     assert publish.json()["detail"]["errors"]
+
+
+def test_custom_scenario_publish_rejects_unattributable_tool_objective(db, monkeypatch):
+    headers = admin_headers(monkeypatch)
+    client = make_client(admin_service_desk.router)
+    definition = valid_builder_definition()
+    definition["objectives"][0]["predicateParams"] = {
+        "actionType": "remote_desktop.restart_service",
+        "payloadMatch": {"assetTag": "NX-1000"},
+    }
+    created = client.post(
+        "/api/admin/service-desk/scenarios",
+        headers=headers,
+        json={
+            "stable_key": definition["slug"], "title": definition["title"],
+            "description": definition["description"]["issue"],
+            "category": definition["category"], "difficulty": 1,
+            "definition_json": definition,
+        },
+    ).json()
+    version = created["versions"][0]
+    validation = client.post(
+        f"/api/admin/service-desk/scenarios/{created['id']}/versions/{version['id']}/validate",
+        headers=headers,
+    )
+    assert validation.status_code == 200 and validation.json()["valid"] is False
+    assert "cannot be attributed" in " ".join(validation.json()["errors"])
+    publish = client.post(
+        f"/api/admin/service-desk/scenarios/{created['id']}/versions/{version['id']}/publish",
+        headers=headers,
+    )
+    assert publish.status_code == 422
 
 
 def test_feedback_requires_grade_then_succeeds(db, monkeypatch):

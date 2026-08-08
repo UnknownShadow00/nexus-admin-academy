@@ -16,36 +16,38 @@ depends_on = None
 
 
 MAPPINGS = {
-    28: (5, "practice"),
-    32: (7, "practice"),
-    33: (7, "practice"),
-    56: (11, "remediation"),
-    59: (8, "remediation"),
-    63: (9, "remediation"),
+    28: ("Mobile Device Accessories Quiz", 5, "practice"),
+    32: ("Social Engineering Quiz", 7, "practice"),
+    33: ("Threats & Vulnerabilities Quiz", 7, "practice"),
+    56: ("TCP & UDP Ports Quiz", 11, "remediation"),
+    59: ("Network Configuration Concepts Quiz", 8, "remediation"),
+    63: ("Network Types Quiz", 9, "remediation"),
 }
 
 
 def upgrade() -> None:
     bind = op.get_bind()
-    for quiz_id, (week, purpose) in MAPPINGS.items():
+    for quiz_id, (title, week, purpose) in MAPPINGS.items():
         bind.execute(sa.text("""
             UPDATE quizzes
             SET week_number=:week, recommended_week=:week,
                 prerequisite_week=:prerequisite, quiz_purpose=:purpose,
                 is_required=:required, show_in_weekly_checklist=:required,
                 show_in_practice_library=:practice
-            WHERE id=:id
+            WHERE id=:id AND title=:title
         """), {
-            "id": quiz_id, "week": week, "prerequisite": max(0, week - 1),
+            "id": quiz_id, "title": title, "week": week, "prerequisite": max(0, week - 1),
             "purpose": purpose, "required": False, "practice": True,
         })
 
 
 def downgrade() -> None:
     bind = op.get_bind()
-    for quiz_id in MAPPINGS:
+    for quiz_id, (title, _week, _purpose) in MAPPINGS.items():
         bind.execute(sa.text("""
             UPDATE quizzes
-            SET show_in_practice_library=:practice
-            WHERE id=:id AND is_required=:required
-        """), {"id": quiz_id, "practice": False, "required": False})
+            SET week_number=NULL, recommended_week=NULL, prerequisite_week=NULL,
+                quiz_purpose='certification', is_required=:required,
+                show_in_weekly_checklist=:required, show_in_practice_library=:required
+            WHERE id=:id AND title=:title AND is_required=:required
+        """), {"id": quiz_id, "title": title, "required": False})

@@ -1,7 +1,7 @@
 {
   "generated_at": "2026-08-08T07:18:42.159006+00:00",
   "questions_before": 633,
-  "explanations_added": 234,
+  "explanations_added": 236,
   "added_question_ids": [
     572,
     574,
@@ -44,7 +44,9 @@
     643,
     644,
     645,
+    647,
     650,
+    651,
     657,
     667,
     678,
@@ -238,7 +240,7 @@
     1342,
     1345
   ],
-  "human_review_count": 399,
+  "human_review_count": 397,
   "human_review": [
     {
       "question_id": 568,
@@ -419,18 +421,6 @@
       "quiz_id": 38,
       "quiz_title": "Web Browser Security Quiz",
       "reason": "No conservative high-confidence explanation rule matched; editorial review required."
-    },
-    {
-      "question_id": 647,
-      "quiz_id": 39,
-      "quiz_title": "Windows OS Troubleshooting Quiz",
-      "reason": "The keyed answer is Event Viewer, but Task Manager or Resource Monitor is normally used to identify resource-intensive applications."
-    },
-    {
-      "question_id": 651,
-      "quiz_id": 39,
-      "quiz_title": "Windows OS Troubleshooting Quiz",
-      "reason": "The keyed answer is Windows Update, but Device Manager is normally used to roll back a specific device driver."
     },
     {
       "question_id": 652,

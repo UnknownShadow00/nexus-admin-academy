@@ -16,8 +16,8 @@ Branch: `prelaunch/final-hardening`
 - Total questions: 966.
 - Missing explanations before: 633.
 - High-confidence explanations added: 234.
-- Missing explanations after: 399. None are currently student-visible because the affected banks have not passed the centralized editorial visibility gate.
-- Human-review IDs and reasons are recorded in `docs/question_explanation_review.json`. IDs 647 and 651 are specifically flagged as likely incorrect stored answer keys.
+- Missing explanations after final red-team correction: 397. None are currently student-visible because the affected banks have not passed the centralized editorial visibility gate.
+- Human-review IDs and reasons are recorded in `docs/question_explanation_review.json`. IDs 647 and 651 were confirmed against Microsoft documentation, corrected to Task Manager and Device Manager respectively, and now have reviewed explanations.
 - The signature-based catalog is used by migrations and import flows so reviewed explanations survive reseeding/importing.
 
 ## 3. Previously Unmapped Quizzes
@@ -74,15 +74,15 @@ Branch: `prelaunch/final-hardening`
 
 ## 11-14. Regression Results
 
-- Backend: 334 passed; Alembic head `0040_service_desk_quality_versions`.
-- Service Desk: lint, typecheck, build, and audit passed; 250 tests passed; no known vulnerabilities. One existing non-fatal Next.js ESLint-plugin configuration warning remains.
+- Backend: 338 passed; Alembic head `0041_verified_question_keys`.
+- Service Desk: lint, typecheck, build, and audit passed; 251 tests passed; no known vulnerabilities. One existing non-fatal Next.js ESLint-plugin configuration warning remains.
 - Frontend: `npm audit`, production build, `cli:validate`, and `cli:sanity` passed; 0 vulnerabilities.
 - Integrated launch verification: 7/7 passed. Full isolated browser suite: 20/20 passed.
 
 ## 15-17. Remaining Work and Launch Status
 
 - Confirmed remaining application bugs: none found by the completed regression/browser pass.
-- Content-quality backlog: 399 explanations and 65 intentionally hidden quizzes require human editorial review; question IDs 647 and 651 should have their answer keys corrected or confirmed first.
+- Content-quality backlog: 397 explanations and 65 intentionally hidden quizzes require human editorial review.
 - Launch blockers: no technical blocker found. The hidden editorial backlog should not be exposed until reviewed.
 
 ## 18. Version-Control Safety

@@ -71,7 +71,9 @@ export default function QuizTaker({ quizId, studentId }) {
         } catch {
           localStorage.removeItem(progressKey(quizId));
         }
-        if (saved?.answers) setAnswers(saved.answers);
+        setAnswers(saved?.answers || {});
+        setCurrentIndex(0);
+        setResult(null);
         setTimings({});
         questionStartRef.current = Date.now();
       })

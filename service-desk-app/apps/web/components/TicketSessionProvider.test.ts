@@ -1,10 +1,11 @@
 import { createAttempt } from '@service-desk/simulation-engine';
-import { AssetStatus } from '@service-desk/shared';
+import { AssetStatus, TICKET_FIXTURES } from '@service-desk/shared';
 import { describe, expect, it } from 'vitest';
 
 import {
   getNexusActionSyncDetails,
   normalizeTicketKey,
+  ticketsForAssignments,
 } from './TicketSessionProvider';
 
 describe('Nexus evidence attribution', () => {
@@ -140,5 +141,19 @@ describe('Nexus evidence attribution', () => {
   it('normalizes ticket keys for Nexus assignment lookup', () => {
     expect(normalizeTicketKey('inc2406')).toBe('INC2406');
     expect(normalizeTicketKey(' Inc2406 ')).toBe(' INC2406 ');
+  });
+
+  it('renders the exact published assignment definition instead of stale bundled copy', () => {
+    const definition = {
+      ...structuredClone(TICKET_FIXTURES[1]),
+      title: 'Published v2 title from Nexus',
+    };
+    const tickets = ticketsForAssignments([{
+      id: 1, is_required: false, maximum_attempts: null, mode: 'simulation',
+      most_recent_attempt: null, scenario_id: 2,
+      scenario: { stable_key: 'inc2402', title: definition.title },
+      latest_published_version: { definition_json: definition, id: 22, version_number: 2 },
+    }]);
+    expect(tickets.find((ticket) => ticket.id === 'INC2402')?.title).toBe(definition.title);
   });
 });

@@ -81,6 +81,7 @@ export interface ScenarioHint {
 }
 
 export interface ScenarioVersion {
+  definitionHash?: string;
   description: TicketDescription;
   device: RequesterDevice;
   difficulty: 'easy' | 'medium' | 'hard';
@@ -106,6 +107,6 @@ export interface ScenarioRecord {
 
 export type ScenarioVersionDraftData = Omit<
   ScenarioVersion,
-  'id' | 'publishedAt' | 'scenarioId' | 'version'
+  'definitionHash' | 'id' | 'publishedAt' | 'scenarioId' | 'version'
 > &
   Pick<ScenarioTemplate, 'category' | 'priority' | 'slug' | 'title'>;

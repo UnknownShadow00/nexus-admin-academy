@@ -26,7 +26,7 @@ from app.schemas.service_desk import (
     ServiceDeskScenarioVersionCreate,
 )
 from app.services.admin_auth import get_admin_username, verify_admin
-from app.services.service_desk_scenario_validation import validate_scenario_definition
+from app.services.service_desk_scenario_validation import validate_runtime_definition, validate_scenario_definition
 
 router = APIRouter(
     prefix="/api/admin/service-desk",
@@ -44,6 +44,59 @@ def _definition_hash(definition: dict) -> str:
 def _validation(definition: dict) -> tuple[str, list[str]]:
     errors = validate_scenario_definition(definition)
     return ("invalid" if errors else "valid", errors)
+
+
+def _apply_version_metadata(scenario: ServiceDeskScenario, body) -> None:
+    """Keep editable template metadata in the same transaction as its draft."""
+    if body.stable_key is not None:
+        scenario.stable_key = body.stable_key
+    if body.title is not None:
+        scenario.title = body.title
+    if body.description is not None:
+        scenario.description = body.description
+    if body.category is not None:
+        scenario.category = body.category
+    if body.difficulty is not None:
+        scenario.difficulty = body.difficulty
+
+
+def _ensure_metadata_matches_definition(body) -> None:
+    """Reject split-brain drafts where template and immutable version disagree."""
+    definition = body.definition_json
+    expected_difficulty = {"easy": 1, "medium": 2, "hard": 3}.get(
+        definition.get("difficulty")
+    )
+    pairs = (
+        ("stable_key", "slug"),
+        ("title", "title"),
+        ("category", "category"),
+    )
+    errors = [
+        f"{field} must match definition_json.{definition_field}."
+        for field, definition_field in pairs
+        if getattr(body, field, None) is not None
+        and getattr(body, field) != definition.get(definition_field)
+    ]
+    if body.difficulty is not None and body.difficulty != expected_difficulty:
+        errors.append("difficulty must match definition_json.difficulty.")
+    if errors:
+        raise HTTPException(
+            422, {"message": "Scenario metadata does not match its draft", "errors": errors}
+        )
+
+
+def _protect_published_identity(db: Session, scenario: ServiceDeskScenario, proposed_key: str | None) -> None:
+    """A stable key is part of runtime grading identity, not editable display copy."""
+    if proposed_key is None or proposed_key == scenario.stable_key:
+        return
+    published = db.query(ServiceDeskScenarioVersion.id).filter_by(
+        scenario_id=scenario.id, status="published"
+    ).first()
+    if published:
+        raise HTTPException(
+            409,
+            "The scenario slug is immutable after first publish because historical attempts use it for grading.",
+        )
 
 
 def _version(version: ServiceDeskScenarioVersion, include_definition: bool = True):
@@ -161,7 +214,7 @@ def attempts(
     limit = max(1, min(limit, 200))
     offset = max(0, offset)
     query = (
-        db.query(ServiceDeskAttempt, Student, ServiceDeskScenario)
+        db.query(ServiceDeskAttempt, Student, ServiceDeskScenario, ServiceDeskScenarioVersion)
         .join(Student, Student.id == ServiceDeskAttempt.student_id)
         .join(
             ServiceDeskScenarioVersion,
@@ -189,7 +242,7 @@ def attempts(
                 "student_id": st.id,
                 "student_name": st.name,
                 "student_email": st.email,
-                "scenario_title": sc.title,
+                "scenario_title": (version.definition_json or {}).get("title") or sc.title,
                 "mode": a.mode,
                 "status": a.status,
                 "score": a.score,
@@ -197,7 +250,7 @@ def attempts(
                 "started_at": a.started_at,
                 "completed_at": a.completed_at,
             }
-            for a, st, sc in rows
+            for a, st, sc, version in rows
         ]
     )
 
@@ -289,6 +342,7 @@ def create_scenario(
     db: Session = Depends(get_db),
     _: bool = Depends(verify_admin),
 ):
+    _ensure_metadata_matches_definition(body)
     definition = body.definition_json
     validation_status, _errors = _validation(definition)
     scenario = ServiceDeskScenario(
@@ -328,13 +382,21 @@ def create_version(
     db: Session = Depends(get_db),
     _: bool = Depends(verify_admin),
 ):
-    if not db.query(ServiceDeskScenario).filter_by(id=scenario_id).first():
+    _ensure_metadata_matches_definition(body)
+    scenario = db.query(ServiceDeskScenario).filter_by(id=scenario_id).first()
+    if not scenario:
         raise HTTPException(404, "Scenario not found")
-    if db.query(ServiceDeskScenarioVersion).filter_by(
-        scenario_id=scenario_id, status="draft"
-    ).first():
-        raise HTTPException(409, "This scenario already has an editable draft")
+    _protect_published_identity(db, scenario, body.stable_key)
     definition_hash = _definition_hash(body.definition_json)
+    existing_draft = db.query(ServiceDeskScenarioVersion).filter_by(
+        scenario_id=scenario_id, status="draft"
+    ).first()
+    if existing_draft:
+        if existing_draft.definition_hash == definition_hash:
+            _apply_version_metadata(scenario, body)
+            db.commit()
+            return jsonable_encoder(_version(existing_draft))
+        raise HTTPException(409, "This scenario already has an editable draft")
     validation_status, _errors = _validation(body.definition_json)
     number = (
         db.query(func.max(ServiceDeskScenarioVersion.version_number))
@@ -350,11 +412,17 @@ def create_version(
         validation_status=validation_status,
         status="draft",
     )
+    _apply_version_metadata(scenario, body)
     db.add(version)
     try:
         db.commit()
     except IntegrityError as exc:
         db.rollback()
+        raced = db.query(ServiceDeskScenarioVersion).filter_by(
+            scenario_id=scenario_id, status="draft", definition_hash=definition_hash
+        ).first()
+        if raced:
+            return jsonable_encoder(_version(raced))
         raise HTTPException(
             409, "An identical scenario definition already exists"
         ) from exc
@@ -370,18 +438,29 @@ def update_draft_version(
     db: Session = Depends(get_db),
     _: bool = Depends(verify_admin),
 ):
+    _ensure_metadata_matches_definition(body)
     scenario = db.query(ServiceDeskScenario).filter_by(id=scenario_id).first()
     version = db.query(ServiceDeskScenarioVersion).filter_by(
         id=version_id, scenario_id=scenario_id
     ).first()
     if not scenario or not version:
         raise HTTPException(404, "Draft scenario version not found")
+    _protect_published_identity(db, scenario, body.stable_key)
     if version.status != "draft":
         raise HTTPException(
             409, "Published scenario versions are immutable; create a new draft version"
         )
-
     definition_hash = _definition_hash(body.definition_json)
+    if (
+        body.expected_definition_hash is not None
+        and body.expected_definition_hash != version.definition_hash
+        and definition_hash != version.definition_hash
+    ):
+        raise HTTPException(
+            409,
+            "This draft changed in another browser tab. Reload before saving so newer work is not overwritten.",
+        )
+
     duplicate = db.query(ServiceDeskScenarioVersion.id).filter(
         ServiceDeskScenarioVersion.scenario_id == scenario_id,
         ServiceDeskScenarioVersion.definition_hash == definition_hash,
@@ -419,7 +498,10 @@ def validate_version(
     ).first()
     if not version:
         raise HTTPException(404, "Scenario version not found")
+    scenario = db.get(ServiceDeskScenario, scenario_id)
     errors = validate_scenario_definition(version.definition_json or {})
+    if scenario:
+        errors.extend(validate_runtime_definition(scenario.stable_key, version.definition_json or {}))
     return {"valid": not errors, "errors": errors}
 
 
@@ -441,7 +523,10 @@ def publish_version(
         raise HTTPException(409, "Scenario version is already published")
     if version.status == "disabled":
         raise HTTPException(409, "Disabled scenario versions cannot be published")
+    scenario = db.get(ServiceDeskScenario, scenario_id)
     validation_errors = validate_scenario_definition(version.definition_json or {})
+    if scenario:
+        validation_errors.extend(validate_runtime_definition(scenario.stable_key, version.definition_json or {}))
     if validation_errors:
         raise HTTPException(
             422,

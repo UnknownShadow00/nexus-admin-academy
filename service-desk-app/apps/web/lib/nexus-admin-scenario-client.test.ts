@@ -33,7 +33,7 @@ const definition: ScenarioVersionDraftData = {
   initialWorldState: { assetOverlaySeeds: {}, chatMessageSeeds: [], directoryOverlaySeeds: {} },
   objectives: [{
     description: 'Restart spooler', id: 'o1', order: 1, pointValue: 100,
-    predicateParams: { actionType: 'remote_desktop.restart_service' },
+    predicateParams: { actionType: 'ticket.add_note', payloadMatch: { ticketId: 'PRINTER-QUEUE' } },
     predicateType: 'action_event_occurred', required: true,
   }],
   pointValue: 100,
@@ -54,6 +54,7 @@ function scenario(status: 'draft' | 'published' = 'draft') {
     difficulty: 1, id: 7, stable_key: definition.slug, status: 'active', title: definition.title,
     versions: [{
       created_at: '2026-08-08T00:00:00Z', definition_json: definition,
+      definition_hash: 'a'.repeat(64),
       id: 11, published_at: status === 'published' ? '2026-08-08T01:00:00Z' : null,
       scenario_id: 7, status, validation_errors: [], validation_status: 'valid', version_number: 1,
     }],

@@ -27,6 +27,7 @@ from app.models.quiz import (
 )
 from app.services.question_validation import validate_question
 from app.services.question_explanation_catalog import catalog_explanation
+from app.services.verified_question_corrections import correction_for
 
 MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_ROWS = 2000
@@ -284,14 +285,16 @@ def _apply_question_fields(question: Question, payload: dict, result, fingerprin
     for i, letter in enumerate(letters):
         setattr(question, f"option_{letter}", options[i].text if i < len(options) else None)
     question.question_text = payload["question_text"]
-    question.correct_answer = result.normalized_correct_answers[0]
+    correction = correction_for(payload["question_text"])
+    corrected_answers = [correction.correct_answer] if correction else result.normalized_correct_answers
+    question.correct_answer = corrected_answers[0]
     question.correct_answers = (
-        ",".join(result.normalized_correct_answers) if len(result.normalized_correct_answers) > 1 else None
+        ",".join(corrected_answers) if len(corrected_answers) > 1 else None
     )
-    question.explanation = payload["explanation"] or catalog_explanation(
+    question.explanation = (correction.explanation if correction else payload["explanation"]) or catalog_explanation(
         payload["question_text"],
         [option.text for option in options] + [""] * (8 - len(options)),
-        result.normalized_correct_answers,
+        corrected_answers,
     )
     question.difficulty = int(payload["difficulty"]) if str(payload["difficulty"] or "").isdigit() else None
     question.tags = payload["tags"] or None

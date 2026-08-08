@@ -117,6 +117,9 @@ def test_assignment_listing_start_resume_and_event_idempotency(db):
         listing.status_code == 200
         and listing.json()[0]["scenario"]["title"] == "VPN outage"
     )
+    assert listing.json()[0]["latest_published_version"]["definition_json"]["priority"] == "high"
+    assert "objectives" not in listing.json()[0]["latest_published_version"]["definition_json"]
+    assert "explanation" not in listing.json()[0]["latest_published_version"]["definition_json"]
     first = start(client, student, assignment)
     assert first.status_code == 201 and first.json()["attempt_number"] == 1
     second = start(client, student, assignment)
@@ -156,6 +159,55 @@ def test_assignment_listing_start_resume_and_event_idempotency(db):
     assert db.query(ServiceDeskAttempt).count() == 1
 
 
+def test_builder_definition_uses_versioned_server_objectives(db):
+    student = make_student(db, username="builder-runtime")
+    assignment = setup_assignment(db, student, stable_key="printer-queue-stops", priority="medium")
+    version = db.query(ServiceDeskScenarioVersion).filter_by(scenario_id=assignment.scenario_id).one()
+    definition = {
+        "priority": "medium",
+        "objectives": [{
+            "required": True,
+            "predicateType": "action_event_occurred",
+            "predicateParams": {
+                "actionType": "ticket.add_note",
+                "payloadMatch": {"ticketId": "PRINTER-QUEUE-STOPS"},
+            },
+        }],
+    }
+    # The test fixture uses a placeholder hash and remains published; updating
+    # it here models a definition created before the immutable publish step.
+    db.execute(
+        ServiceDeskScenarioVersion.__table__.update().where(
+            ServiceDeskScenarioVersion.id == version.id
+        ).values(definition_json=definition)
+    )
+    db.commit()
+    client = make_client(service_desk.router)
+    headers = auth_headers(student)
+    attempt_id = start(client, student, assignment).json()["id"]
+    response = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/actions",
+        headers=headers,
+        json={
+            "idempotency_key": "diagnosis-note",
+            "event_type": "ticket.add_note",
+            "tool": "ticket",
+            "payload": {
+                "ticketId": "PRINTER-QUEUE-STOPS",
+                "body": "Confirmed the local queue failed and verified printing after repair.",
+            },
+        },
+    )
+    assert response.status_code == 201
+    close(client, student, attempt_id)
+    grade = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/complete",
+        headers=headers,
+        json={"idempotency_key": "complete-builder"},
+    )
+    assert grade.status_code == 201 and grade.json()["passed"] is True
+
+
 def test_no_published_version_and_attempt_cap(db):
     student = make_student(db)
     client = make_client(service_desk.router)
@@ -168,6 +220,41 @@ def test_no_published_version_and_attempt_cap(db):
     db.query(ServiceDeskAttempt).filter_by(id=attempt_id).update({"status": "failed"})
     db.commit()
     assert start(client, capped_student, capped).status_code == 403
+
+
+def test_publishing_vnext_does_not_orphan_an_in_progress_old_version_attempt(db):
+    student = make_student(db, username="version-resume")
+    assignment = setup_assignment(db, student, stable_key="inc2401")
+    client = make_client(service_desk.router)
+    first = start(client, student, assignment).json()
+    first_version_id = first["scenario_version_id"]
+    scenario = db.get(ServiceDeskScenario, assignment.scenario_id)
+    v2 = ServiceDeskScenarioVersion(
+        scenario_id=scenario.id,
+        version_number=2,
+        definition_json={"priority": "high", "revision": 2},
+        definition_hash="published-v2-hash",
+        status="published",
+    )
+    db.add(v2)
+    db.commit()
+    db.refresh(v2)
+
+    listing = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()[0]
+    assert listing["latest_published_version"]["id"] == v2.id
+    assert listing["most_recent_attempt"]["id"] == first["id"]
+    resumed = start(client, student, assignment)
+    assert resumed.status_code == 200
+    assert resumed.json()["id"] == first["id"]
+    assert resumed.json()["scenario_version_id"] == first_version_id
+
+    db.query(ServiceDeskAttempt).filter_by(id=first["id"]).update({"status": "failed"})
+    db.commit()
+    second = start(client, student, assignment)
+    assert second.status_code == 201
+    assert second.json()["scenario_version_id"] == v2.id
 
 
 def test_ownership_and_verified_complete_awards_xp_once(db):

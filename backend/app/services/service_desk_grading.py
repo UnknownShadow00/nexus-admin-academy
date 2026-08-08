@@ -48,7 +48,7 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     # ticket.close is only a request to grade.  Its success flag and payload
     # are browser assertions and are never resolution evidence.
     was_closed = True
-    resolved, objective_checks = evaluate_objectives(scenario.stable_key, events)
+    resolved, objective_checks = evaluate_objectives(scenario.stable_key, events, definition)
     hints_used = sum(event.event_type == "hint_requested" for event in events)
     # Learning Mode is for practicing without penalty: hint use and an
     # unresolved close still get recorded and shown to the student, but do
