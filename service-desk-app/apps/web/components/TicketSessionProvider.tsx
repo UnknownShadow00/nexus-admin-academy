@@ -1095,7 +1095,11 @@ export function TicketSessionProvider({
           }
 
           const snapshot = currentState.nexus_service_desk_attempt;
-          if (snapshot && typeof snapshot === 'object') {
+          if (
+            nexusOutboxRef.current.items.length === 0 &&
+            snapshot &&
+            typeof snapshot === 'object'
+          ) {
             const restoredSnapshot = restoreAttempt(JSON.stringify(snapshot));
             if (restoredSnapshot) {
               nextAttempt = restoredSnapshot;
@@ -1125,6 +1129,7 @@ export function TicketSessionProvider({
         return;
       }
 
+      attemptRef.current = nextAttempt;
       setAttempt(nextAttempt);
       setHydrated(true);
     }
