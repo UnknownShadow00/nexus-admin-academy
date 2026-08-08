@@ -947,3 +947,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/tests/e2e/service-desk-integration.spec.js; service-desk-app/apps/web/components/TicketSessionProvider.tsx; service-desk-app/package.json; service-desk-app/pnpm-lock.yaml; tasks/loop-log.md
 - Result: pass against acceptance criteria — all requested validation checks passed, including two 6/6 integrated browser runs.
 - Next: None
+
+## [2026-08-08T03:57:02Z] Task Completed
+- Task: Restored and validated PC Shelf clean-browser persistence coverage, and repaired snapshot hydration to ignore metadata-only legacy state.
+- Files changed: frontend/tests/e2e/service-desk-integration.spec.js; service-desk-app/apps/web/components/TicketSessionProvider.tsx; tasks/loop-log.md
+- Result: pass against acceptance criteria — two independent integrated browser runs passed all 6 tests.
+- Next: None

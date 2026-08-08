@@ -131,6 +131,10 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await studentLogin(cleanPage, studentAUsername, studentAPassword);
     await cleanPage.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks');
     await expect(cleanPage.getByText('Snapshot-only chat message.')).toBeVisible();
+    await cleanPage.goto('/service-desk/tools/pc-shelf');
+    await expect(
+      cleanPage.locator('.sd-card-header__title').filter({ hasText: 'SD6893' }),
+    ).toBeVisible();
     await cleanContext.close();
   });
 

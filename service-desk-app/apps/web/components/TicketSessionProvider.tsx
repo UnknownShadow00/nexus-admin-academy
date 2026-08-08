@@ -477,8 +477,16 @@ function isTicketSimulationAction(
   return action.type.startsWith('ticket.');
 }
 
-function hasNexusTicketState(value: Record<string, unknown>): boolean {
-  return Object.keys(value).length > 0;
+function hasLegacyNexusTicketState(
+  value: Record<string, unknown>,
+): value is Record<string, unknown> & { events: readonly ActionEvent[] } {
+  return (
+    typeof value.status === 'string' &&
+    Array.isArray(value.events) &&
+    typeof value.escalated === 'boolean' &&
+    Array.isArray(value.notes) &&
+    Number.isInteger(value.hintsRevealedCount)
+  );
 }
 
 export function normalizeTicketKey(value: string): string {
@@ -1071,6 +1079,7 @@ export function TicketSessionProvider({
         const mappings = mapAssignmentsByTicket(assignments);
         nexusTicketMappingsRef.current = mappings;
         nexusSnapshotTargetRef.current = null;
+        let restoredNexusSnapshot = false;
 
         for (const assignment of assignments) {
           const recentAttempt = assignment.most_recent_attempt;
@@ -1090,7 +1099,14 @@ export function TicketSessionProvider({
               attemptId: nexusAttempt.id,
             };
           }
-          if (!currentState || !hasNexusTicketState(currentState)) {
+          if (!currentState) {
+            continue;
+          }
+
+          // A validated full snapshot is authoritative for this hydration
+          // pass. Do not merge older per-ticket state into it: those records
+          // are intentionally partial and do not satisfy an Attempt overlay.
+          if (restoredNexusSnapshot) {
             continue;
           }
 
@@ -1103,11 +1119,15 @@ export function TicketSessionProvider({
             const restoredSnapshot = restoreAttempt(JSON.stringify(snapshot));
             if (restoredSnapshot) {
               nextAttempt = restoredSnapshot;
+              restoredNexusSnapshot = true;
               continue;
             }
           }
 
           const ticketId = normalizeTicketKey(assignment.scenario.stable_key);
+          if (!hasLegacyNexusTicketState(currentState)) {
+            continue;
+          }
           const currentOverlay = nextAttempt.ticketOverlays[ticketId];
           nextAttempt = {
             ...nextAttempt,
