@@ -418,7 +418,7 @@ export function ScenarioBuilder({
   function persist() {
     const next = saveDraftVersion(scenarioId, draft);
     setRecord(next);
-    setMessage(`Draft v${next.versions.at(-1)?.version ?? 1} saved locally.`);
+    setMessage(`Prototype v${next.versions.at(-1)?.version ?? 1} saved in this browser only. Export an admin backup before clearing browser data.`);
     if (!existingScenarioId) {
       router.replace(`/admin/scenarios/${scenarioId}`);
     }
@@ -430,7 +430,7 @@ export function ScenarioBuilder({
     try {
       const next = publishVersion(scenarioId);
       setRecord(next);
-      setMessage(`Version ${next.versions.at(-1)?.version} published.`);
+      setMessage(`Prototype version ${next.versions.at(-1)?.version} marked ready for local preview only. It is not published to the Nexus server.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Publish failed.');
     }
@@ -456,9 +456,9 @@ export function ScenarioBuilder({
               Preview
             </Link>
           ) : null}
-          <Button onClick={persist}>Save Draft</Button>
+          <Button onClick={persist}>Save Local Prototype</Button>
           <Button onClick={publish} variant="primary">
-            Publish Version
+            Mark Local Preview Ready
           </Button>
         </div>
       </div>
