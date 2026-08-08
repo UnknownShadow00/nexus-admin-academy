@@ -989,3 +989,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/routers/service_desk.py; docs/DEPLOYMENT.md; docs/PRODUCTION_LAUNCH_REHEARSAL.md; frontend/nginx.host.conf; scripts/backup_sqlite.sh; scripts/predeploy_check.sh; tasks/loop-log.md
 - Result: pass against rehearsal acceptance criteria — the release candidate is ready with required manual production environment declarations and credential rotation; 340 backend tests, 251 Service Desk tests, 9/9 launch verification, 22/22 full browser tests, clean builds/audits, and disposable backup/restore and process-restart checks passed.
 - Next: Before restarting production, apply the documented non-secret environment settings, rotate the admin/API/cohort credentials and persisted student password hashes, then require scripts/predeploy_check.sh to pass.
+
+## [2026-08-08T11:19:22Z] Task Completed
+- Task: Aligned CI's migration-head assertion with the verified Alembic head and removed duplicate loading-state main landmarks while strengthening authenticated lazy-route browser assertions.
+- Files changed: .github/workflows/ci.yml; frontend/src/App.jsx; frontend/src/components/RequireAuth.jsx; frontend/tests/e2e/my-training.spec.js; tasks/loop-log.md
+- Result: pass against acceptance criteria — Alembic head is 0041_verified_question_keys; focused My Training Playwright suite passed 4/4; launch verification passed 9/9.
+- Next: None

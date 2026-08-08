@@ -186,13 +186,13 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("listitem").filter({ hasText: /^Can identify symptoms$/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Lesson notes", exact: true })).toBeVisible();
   await page.goto("/quizzes/42");
-  await expect(page.locator("main")).toContainText("Question 1 of 4");
+  await expect(page.getByText("Question 1 of 4", { exact: true })).toBeVisible();
   await page.goto("/tickets/1");
-  await expect(page.locator("main")).toContainText("DNS resolution failing");
+  await expect(page.getByRole("heading", { name: /DNS resolution failing/ })).toBeVisible();
   await page.goto("/labs/4");
-  await expect(page.locator("main")).toContainText("Hardware Component Identification");
+  await expect(page.getByRole("heading", { name: "Hardware Component Identification", exact: true })).toBeVisible();
   await page.goto("/cli-labs/meet-cli-001");
-  await expect(page.locator("main")).toContainText("First Contact");
+  await expect(page.getByRole("heading", { name: "First Contact", exact: true })).toBeVisible();
 
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/training");

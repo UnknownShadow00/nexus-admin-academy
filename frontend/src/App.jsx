@@ -409,7 +409,7 @@ export default function App() {
         </header>
       ) : null}
 
-      <Suspense fallback={<main className="mx-auto max-w-3xl p-6">Loading page...</main>}>
+      <Suspense fallback={<div className="mx-auto max-w-3xl p-6" role="status">Loading page...</div>}>
       <Routes>
         <Route path="/" element={<RequireAuth><StudentHome /></RequireAuth>} />
         <Route path="/login" element={<LoginPage />} />
