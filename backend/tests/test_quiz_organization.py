@@ -18,6 +18,8 @@ from app.services.quiz_progression import (
     required_quizzes_for_week,
 )
 from conftest import auth_headers, make_client, make_student
+from app.services.quiz_editorial_mapping import apply_reviewed_legacy_quiz_approvals
+from app.services.verified_question_corrections import apply_verified_question_corrections
 from seed_quiz_organization import rebalance_seed_answer_positions
 
 
@@ -88,6 +90,60 @@ def test_optional_and_certification_quizzes_never_block_week(db):
     _quiz(db, title="Certification", purpose=QUIZ_PURPOSE_CERTIFICATION)
 
     assert required_quizzes_for_week(db, 1) == []
+
+
+def test_reviewed_backup_quiz_becomes_optional_only_after_all_questions_are_complete(db):
+    quiz = Quiz(
+        id=45,
+        title="Backup & Recovery Methods Quiz",
+        week_number=17,
+        domain_id="1.0",
+        status="published",
+        question_count=1,
+        editorial_status="archived",
+        is_active=False,
+    )
+    db.add(quiz)
+    question = Question(
+        quiz_id=45,
+        question_text="Which backup type copies all data changed since the last full backup?",
+        option_a="Synthetic full backup",
+        option_b="Incremental backup",
+        option_c="Snapshot backup",
+        option_d="Differential backup",
+        correct_answer="D",
+    )
+    db.add(question)
+    db.commit()
+
+    assert apply_reviewed_legacy_quiz_approvals(db) == 0
+    apply_verified_question_corrections(db)
+    assert apply_reviewed_legacy_quiz_approvals(db) == 1
+    assert quiz.editorial_status == "validated"
+    assert quiz.answer_keys_validated is True
+    assert quiz.explanations_complete is True
+    assert quiz.is_active is True
+    assert quiz.is_required is False
+    assert quiz.show_in_weekly_checklist is False
+
+
+def test_ambiguous_bios_password_prompt_stays_flagged_for_editorial_rewrite(db):
+    question = Question(
+        quiz_id=_quiz(db, title="Firmware", purpose=QUIZ_PURPOSE_PRACTICE).id,
+        question_text="Which of the following statements does not apply to a BIOS password?",
+        option_a="Activated only when entering the BIOS configuration menu",
+        option_b="Restricts access to the BIOS/UEFI setup interface",
+        option_c="Does not interfere with the actual boot process once configured",
+        option_d="Ensures that unauthorized users cannot start the system",
+        correct_answer="D",
+    )
+    db.add(question)
+    db.commit()
+
+    apply_verified_question_corrections(db)
+
+    assert question.flagged_for_review is True
+    assert "setup/supervisor" in question.flag_reason
 
 
 def test_remediation_only_appears_when_assigned_or_triggered(db):

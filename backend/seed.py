@@ -23,6 +23,10 @@ from seed_phase_e import seed_phase_e
 from seed_phase_f import seed_phase_f
 from seed_phase_g import seed_phase_g
 from seed_quiz_organization import rebalance_seed_answer_positions, seed_quiz_organization
+from app.services.quiz_editorial_mapping import (
+    apply_reviewed_legacy_quiz_approvals,
+    apply_safe_optional_quiz_mappings,
+)
 load_env()
 
 # Service Desk simulator fixtures are mirrored from the pilot app as an audit/reference
@@ -1194,9 +1198,11 @@ def run_seed() -> None:
         phase_g = seed_phase_g(db)
         verified_question_corrections = apply_verified_question_corrections(db)
         quiz_organization = seed_quiz_organization(db)
+        legacy_quiz_mappings = apply_safe_optional_quiz_mappings(db)
+        legacy_quiz_approvals = apply_reviewed_legacy_quiz_approvals(db)
         answer_positions = rebalance_seed_answer_positions(db)
         db.commit()
-        print(f"Seed complete: roles(6), gates, module0+methodology, base tickets(8), labs(4), capstones(2), commands(50), phase_a={phase_a}, phase_b={phase_b}, phase_c={phase_c}, phase_d={phase_d}, phase_e={phase_e}, phase_f={phase_f}, phase_g={phase_g}, verified_question_corrections={verified_question_corrections}, quiz_organization={quiz_organization}, answer_positions={answer_positions}")
+        print(f"Seed complete: roles(6), gates, module0+methodology, base tickets(8), labs(4), capstones(2), commands(50), phase_a={phase_a}, phase_b={phase_b}, phase_c={phase_c}, phase_d={phase_d}, phase_e={phase_e}, phase_f={phase_f}, phase_g={phase_g}, verified_question_corrections={verified_question_corrections}, quiz_organization={quiz_organization}, legacy_quiz_mappings={legacy_quiz_mappings}, legacy_quiz_approvals={legacy_quiz_approvals}, answer_positions={answer_positions}")
     except Exception:
         db.rollback()
         raise
