@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  getScenario,
   listTestStudents,
   setTestStudentScenarioAssignment,
   type ScenarioRecord,
@@ -20,6 +19,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { clearTestAttempt } from '../_lib/test-attempt';
+import { getServerScenario } from '../../../lib/nexus-admin-scenario-client';
 
 function displayVersion(record: ScenarioRecord): ScenarioVersion | undefined {
   return (
@@ -39,14 +39,14 @@ export function ScenarioPreview({ scenarioId }: { scenarioId: string }) {
 
   useEffect(() => {
     const nextSlots = listTestStudents();
-    setRecord(getScenario(scenarioId));
+    void getServerScenario(scenarioId).then(setRecord);
     setSlots(nextSlots);
     setSlotId(nextSlots[0]?.id ?? '');
   }, [scenarioId]);
 
   if (!record) {
     return (
-      <p className="text-zinc-400">Scenario not found in local storage.</p>
+      <p className="text-zinc-400">Loading scenario from Nexus…</p>
     );
   }
   const version = displayVersion(record);

@@ -67,10 +67,10 @@ export function verifyStudentSession(
 }
 
 export async function hasNexusAdminAccess(
-  session: VerifiedStudentSession,
+  session: VerifiedStudentSession | null,
   cookieHeader: string | null,
 ): Promise<boolean> {
-  if (session.isMentor) {
+  if (session?.isMentor) {
     return true;
   }
 

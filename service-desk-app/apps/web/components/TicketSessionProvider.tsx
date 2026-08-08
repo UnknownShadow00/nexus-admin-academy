@@ -47,6 +47,7 @@ import {
   restoreAttempt,
   serializeAttempt,
   type ActionEvent,
+  type AssetSimulationAction,
   type AnalyticsSummary,
   type Attempt,
   type ChatThreadOverlay,
@@ -61,6 +62,7 @@ import {
   type TicketSimulationAction,
   type DirectorySimulationAction,
   type RemoteDesktopSimulationAction,
+  type ShippingSimulationAction,
 } from '@service-desk/simulation-engine';
 import {
   createContext,
@@ -431,6 +433,12 @@ const DIRECTORY_TICKET_BY_USER_ID: Readonly<Record<string, string>> = {
   'directory-user-avery-brooks': 'INC2401',
   'directory-user-sloane-rivera': 'INC2405',
 };
+const ASSET_TICKET_BY_TAG: Readonly<Record<string, string>> = {
+  'NX-9052': 'INC2404',
+};
+const SHIPPING_TICKET_BY_RECIPIENT: Readonly<Record<string, string>> = {
+  'directory-user-elliot-ward': 'INC2404',
+};
 
 const REMOTE_DESKTOP_TICKET_ACTION_TYPES = new Set([
   'remote_desktop.connect',
@@ -461,14 +469,16 @@ const REMOTE_DESKTOP_EVIDENCE_ACTION_TYPES = new Set([
 ]);
 
 type NexusEvidenceAction =
+  | AssetSimulationAction
   | TicketSimulationAction
   | DirectorySimulationAction
-  | RemoteDesktopSimulationAction;
+  | RemoteDesktopSimulationAction
+  | ShippingSimulationAction;
 
 interface NexusActionSyncDetails {
   resultingState: Readonly<Record<string, unknown>>;
   ticketId: string;
-  tool: 'directory' | 'remote_desktop' | 'ticket';
+  tool: 'asset' | 'directory' | 'remote_desktop' | 'shipping' | 'ticket';
 }
 
 function isTicketSimulationAction(
@@ -505,6 +515,14 @@ function isRemoteDesktopSimulationAction(
   return action.type.startsWith('remote_desktop.');
 }
 
+function isAssetSimulationAction(action: SimulationAction): action is AssetSimulationAction {
+  return action.type.startsWith('asset.');
+}
+
+function isShippingSimulationAction(action: SimulationAction): action is ShippingSimulationAction {
+  return action.type.startsWith('shipping.');
+}
+
 function isRemoteDesktopTicketAction(
   action: RemoteDesktopSimulationAction,
 ): action is Extract<
@@ -523,6 +541,26 @@ export function getNexusActionSyncDetails(
   action: NexusEvidenceAction,
   attempt: Attempt,
 ): NexusActionSyncDetails | null {
+  if (isAssetSimulationAction(action)) {
+    const ticketId = ASSET_TICKET_BY_TAG[action.payload.assetTag];
+    if (!ticketId) return null;
+    return {
+      resultingState: { ...attempt.assetOverlays[action.payload.assetTag] },
+      ticketId,
+      tool: 'asset',
+    };
+  }
+
+  if (isShippingSimulationAction(action)) {
+    if (action.type !== 'shipping.create') return null;
+    const ticketId = SHIPPING_TICKET_BY_RECIPIENT[action.payload.recipientDirectoryUserId];
+    if (!ticketId) return null;
+    return {
+      resultingState: { shipments: attempt.shipments },
+      ticketId,
+      tool: 'shipping',
+    };
+  }
   if (isDirectorySimulationAction(action)) {
     const ticketId =
       DIRECTORY_TICKET_BY_USER_ID[action.payload.directoryUserId];
@@ -1443,8 +1481,10 @@ export function TicketSessionProvider({
         NEXUS_INTEGRATION_ENABLED &&
         result.event.success &&
         (isTicketSimulationAction(action) ||
+          isAssetSimulationAction(action) ||
           isDirectorySimulationAction(action) ||
-          isRemoteDesktopSimulationAction(action))
+          isRemoteDesktopSimulationAction(action) ||
+          isShippingSimulationAction(action))
       ) {
         // Every queued Nexus event carries the full post-action snapshot used
         // by a clean browser context.  Publish it before queueing so the

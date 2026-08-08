@@ -462,6 +462,63 @@ def test_wrong_directory_user_does_not_satisfy_inc2401_objective(db):
     assert response.json()["passed"] is False
 
 
+def test_headset_ticket_requires_asset_replacement_shipping_and_notes(db):
+    student = make_student(db, username="headset-workflow")
+    assignment = setup_assignment(db, student, stable_key="inc2404", priority="medium")
+    client = make_client(service_desk.router)
+    headers = auth_headers(student)
+    attempt_id = start(client, student, assignment).json()["id"]
+    path = f"/api/service-desk/attempts/{attempt_id}/actions"
+
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "asset-damaged",
+        "event_type": "asset.change_status",
+        "tool": "asset",
+        "payload": {"assetTag": "NX-9052", "status": "damaged"},
+    }).status_code == 201
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "ship-headset",
+        "event_type": "shipping.create",
+        "tool": "shipping",
+        "payload": {
+            "recipientDirectoryUserId": "directory-user-elliot-ward",
+            "recipientName": "Elliot Ward",
+            "street": "120 Cedar Street",
+            "city": "Seattle",
+            "state": "WA",
+            "postalCode": "98101",
+            "senderDepartment": "IT Department",
+            "equipment": [{"name": "Headset", "quantity": 1}],
+            "computerAssetTag": None,
+            "speed": "express",
+            "includeReturnLabel": True,
+        },
+    }).status_code == 201
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "short-note",
+        "event_type": "ticket.add_note",
+        "tool": "ticket",
+        "payload": {"ticketId": "INC2404", "body": "Replaced."},
+    }).status_code == 422
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "complete-note",
+        "event_type": "ticket.add_note",
+        "tool": "ticket",
+        "payload": {
+            "ticketId": "INC2404",
+            "body": "Confirmed static followed the headset; replacement shipped and user will test it.",
+        },
+    }).status_code == 201
+    close(client, student, attempt_id)
+    grade = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/complete",
+        headers=headers,
+        json={"idempotency_key": "grade-headset"},
+    )
+    assert grade.status_code == 201
+    assert grade.json()["passed"] is True
+
+
 def test_non_ticket_tool_events_do_not_overwrite_resumable_ticket_state(db):
     student = make_student(db, username="state-shape")
     assignment = setup_assignment(db, student, stable_key="inc2401", priority="high")
@@ -778,10 +835,23 @@ def test_server_authorized_workflow_passes_every_auto_gradable_scenario(db, stab
     definition = SCENARIO_OBJECTIVES[stable_key]
     rules = [*definition.required_all, *(definition.required_any[:1])]
     for index, rule in enumerate(rules):
-        tool = "directory" if rule.event_type.startswith("directory.") else "remote_desktop"
+        payload = dict(rule.payload)
+        if rule.event_type == "ticket.add_note":
+            payload["body"] = "Diagnosed damaged headset and arranged a verified replacement shipment."
+        tool = (
+            "directory"
+            if rule.event_type.startswith("directory.")
+            else "asset"
+            if rule.event_type.startswith("asset.")
+            else "shipping"
+            if rule.event_type.startswith("shipping.")
+            else "ticket"
+            if rule.event_type.startswith("ticket.")
+            else "remote_desktop"
+        )
         assert client.post(f"/api/service-desk/attempts/{attempt_id}/actions", headers=headers, json={
             "idempotency_key": f"action-{index}", "event_type": rule.event_type, "tool": tool,
-            "payload": rule.payload,
+            "payload": payload,
         }).status_code == 201
     close(client, student, attempt_id)
     grade = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=headers,

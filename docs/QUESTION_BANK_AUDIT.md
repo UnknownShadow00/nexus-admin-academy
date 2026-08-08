@@ -1,6 +1,6 @@
 # Question Bank Audit
 
-Generated: 2026-08-08T06:15:24.075160+00:00
+Generated: 2026-08-08T07:20:48.230885+00:00
 
 Read-only audit run through the shared question validation service (`backend/app/services/question_validation.py`). No question data was modified. No student names, attempts, or other private data are included.
 
@@ -37,13 +37,13 @@ Read-only audit run through the shared question validation service (`backend/app
 - Questions with blank options: 0
 - Questions with duplicate option text: 0
 - Questions with invalid answer references: 0
-- Questions missing an explanation: 633
+- Questions missing an explanation: 399
 - Exact normalized duplicate question groups: 0
 - Duplicate groups within the same quiz: 0
 - Questions with malformed HTML entities: 0
 - Questions with imported numbering prefixes: 0
 - Quizzes with zero questions: 0
-- Active quizzes disconnected from curriculum/practice/assignments: 71
+- Active quizzes disconnected from curriculum/practice/assignments: 65
 - Flashcards pointing at multi-select questions (pre-fix render bug exposure): 1
 
 ## Findings requiring attention

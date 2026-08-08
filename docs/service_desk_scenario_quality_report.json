@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-08-08T08:00:00Z",
+  "scale": "1 (weak) to 5 (strong)",
+  "criteria": [
+    "realism",
+    "diagnosis_required",
+    "information_gathering",
+    "tool_usage",
+    "repair_step",
+    "verification",
+    "technician_notes",
+    "close_resolution_quality",
+    "hint_quality",
+    "difficulty_calibration",
+    "beginner_appropriateness"
+  ],
+  "summary": {
+    "active_scenarios_reviewed": 13,
+    "assigned_runtime_scenarios_reviewed": 8,
+    "scenarios_changed": 2,
+    "grading_contracts_repaired": 1
+  },
+  "scenarios": [
+    {"stable_key":"bitlocker-recovery","scores":[4,3,4,4,4,4,3,4,3,3,4],"changed":false,"finding":"Structured identity, recovery-key, verification, and closure workflow is appropriate for guided beginners."},
+    {"stable_key":"locked-user-account","scores":[4,3,4,4,4,4,3,4,3,2,5],"changed":false,"finding":"Guided account investigation preserves identity verification and post-repair sign-in verification."},
+    {"stable_key":"mfa-reset","scores":[4,3,4,4,4,4,3,4,3,3,4],"changed":false,"finding":"Safe identity-first reset sequence with meaningful verification and failure branches."},
+    {"stable_key":"new-employee-onboarding","scores":[4,4,4,5,4,4,4,4,3,4,4],"changed":false,"finding":"Realistic multi-tool request workflow with approval and fulfillment dependencies."},
+    {"stable_key":"password-reset","scores":[4,3,4,4,4,4,3,4,3,2,5],"changed":false,"finding":"Beginner-safe reset flow keeps identity verification separate from the repair action."},
+    {"stable_key":"inc2401","scores":[5,4,4,5,4,4,4,4,4,3,4],"changed":false,"finding":"Symptom-led access incident requires second-factor diagnosis rather than naming the repair."},
+    {"stable_key":"inc2402","scores":[5,5,5,5,4,5,4,4,5,3,5],"changed":true,"finding":"Narrowed to one affected scanner beside a working peer; hints now move from scope comparison to adapter diagnosis, repair, and verification."},
+    {"stable_key":"inc2403","scores":[5,4,5,4,3,4,4,4,4,4,4],"changed":false,"finding":"Large-file export symptom supports reproduction, resource checks, documentation, and evidence-based escalation."},
+    {"stable_key":"inc2404","scores":[5,4,4,5,5,4,5,5,5,3,5],"changed":true,"finding":"Added authoritative damaged-asset, replacement-headset shipment, and meaningful technician-note objectives; repaired an impossible grading contract."},
+    {"stable_key":"inc2405","scores":[5,4,5,5,4,4,4,4,4,3,4],"changed":false,"finding":"New-starter calendar symptom requires role comparison, directory group diagnosis, and access verification."},
+    {"stable_key":"inc2406","scores":[5,4,5,4,4,4,4,4,4,4,4],"changed":false,"finding":"Remote-access compliance failure encourages exact-stage capture and documented correction before escalation."},
+    {"stable_key":"inc2407","scores":[5,5,4,5,4,5,4,4,5,3,5],"changed":false,"finding":"Cleanly distinguishes IP connectivity from name resolution and requires retesting the original hostname symptom."},
+    {"stable_key":"inc2408","scores":[5,4,4,5,4,5,4,4,5,3,5],"changed":false,"finding":"Peer-workstation comparison leads to local spooler diagnosis and a test-page verification without revealing the answer initially."}
+  ]
+}

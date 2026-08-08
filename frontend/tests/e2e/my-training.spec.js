@@ -314,6 +314,10 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     await expect(page.locator("p.opacity-100").getByText("Saved", { exact: true })).toBeVisible();
 
     await page.goto("/training/week/0");
+    // Optional work is deliberately collapsed so beginners see the required
+    // path first; open it here because this regression verifies all three
+    // activities that share the same quiz.
+    await page.getByText(/Extra practice \(/).click();
     const sharedQuizLinks = page.getByRole("link", { name: "Take Quiz" });
     await expect(sharedQuizLinks).toHaveCount(3);
     for (const link of await sharedQuizLinks.all()) {
@@ -347,6 +351,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     await page.getByRole("link", { name: "Return to This Week" }).click();
     await expect(page).toHaveURL(/\/training\/week\/0$/);
 
+    await page.getByText(/Extra practice \(/).click();
     const reviewLinks = page.getByRole("link", { name: /Review Quiz · \d+%/ });
     await expect(reviewLinks).toHaveCount(3);
     for (const link of await reviewLinks.all()) {
@@ -374,6 +379,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     const weekHeaderText = await page.locator("main > header").innerText();
     expect(weekHeaderText).toContain("5 of 5 required complete");
     await expect(page.getByRole("heading", { name: "Week 0 Complete" })).toBeVisible();
+    await page.getByText(/Extra practice \(/).click();
     await expect(page.locator('article[data-activity-type="video"]').filter({ hasText: "How to Pass Your A+" }).first().getByRole("button", { name: "Mark Watched" })).toBeVisible();
 
     await page.goto("/training");

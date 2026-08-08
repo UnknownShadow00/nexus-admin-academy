@@ -106,6 +106,23 @@ def test_confirm_import_creates_quiz_and_questions(db):
     assert question.fingerprint == compute_fingerprint("Networking Basics", "What port does HTTPS use?", ["443", "80", "21", "25"])
 
 
+def test_confirm_import_restores_curated_explanation_when_source_is_blank(db, monkeypatch):
+    monkeypatch.setattr(
+        question_importer,
+        "catalog_explanation",
+        lambda *_args: "HTTPS uses TLS on port 443; port 80 is ordinary HTTP.",
+    )
+    rows = parse_csv_file(
+        (CSV_HEADER + _csv_row(explanation="")).encode("utf-8")
+    )
+
+    confirm_import(db, rows, duplicate_policy="skip", source_filename="reviewed.csv")
+
+    assert db.query(Question).one().explanation == (
+        "HTTPS uses TLS on port 443; port 80 is ordinary HTTP."
+    )
+
+
 def test_confirm_import_handles_true_false_two_option_question(db):
     """A question with only 2 options (e.g. true/false) must import cleanly —
     option_b/c/d are not NOT-NULL-required at the DB level, only option_a is;

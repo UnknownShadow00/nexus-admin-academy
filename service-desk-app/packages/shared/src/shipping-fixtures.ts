@@ -23,6 +23,7 @@ export const SHIPPING_EQUIPMENT = [
   'DisplayPort Cable',
   'USB-C Cable',
   'Laptop Charger',
+  'Headset',
   'Desktop Power Cable',
   'Computer',
   'Monitor',

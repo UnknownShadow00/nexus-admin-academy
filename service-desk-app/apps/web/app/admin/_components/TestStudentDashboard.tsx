@@ -2,7 +2,6 @@
 
 import {
   getTestStudent,
-  listScenarios,
   setTestStudentScenarioAssignment,
   type ScenarioRecord,
   type ScenarioVersion,
@@ -30,6 +29,7 @@ import {
   resetTestAttempt,
   saveTestAttempt,
 } from '../_lib/test-attempt';
+import { listServerScenarios } from '../../../lib/nexus-admin-scenario-client';
 
 function activeVersion(record: ScenarioRecord): ScenarioVersion | undefined {
   return record.versions.find(
@@ -59,21 +59,21 @@ export function TestStudentDashboard({ slotId }: { slotId: string }) {
 
   useEffect(() => {
     const nextSlot = getTestStudent(slotId);
-    const nextRecords = listScenarios();
     setSlot(nextSlot);
-    setRecords(nextRecords);
-    if (nextSlot) {
-      const versions = nextRecords.flatMap((record) => {
-        const version = activeVersion(record);
-        return version &&
-          nextSlot.assignedScenarioIds.includes(record.template.id)
-          ? [version]
-          : [];
-      });
-      const nextAttempt = loadTestAttempt(slotId, versions);
-      setAttempt(nextAttempt);
-      saveTestAttempt(slotId, nextAttempt);
-    }
+    void listServerScenarios().then((nextRecords) => {
+      setRecords(nextRecords);
+      if (nextSlot) {
+        const versions = nextRecords.flatMap((record) => {
+          const version = activeVersion(record);
+          return version && nextSlot.assignedScenarioIds.includes(record.template.id)
+            ? [version]
+            : [];
+        });
+        const nextAttempt = loadTestAttempt(slotId, versions);
+        setAttempt(nextAttempt);
+        saveTestAttempt(slotId, nextAttempt);
+      }
+    });
   }, [slotId]);
 
   if (!slot || !attempt) {

@@ -26,6 +26,7 @@ from app.models.quiz import (
     Quiz,
 )
 from app.services.question_validation import validate_question
+from app.services.question_explanation_catalog import catalog_explanation
 
 MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_ROWS = 2000
@@ -287,7 +288,11 @@ def _apply_question_fields(question: Question, payload: dict, result, fingerprin
     question.correct_answers = (
         ",".join(result.normalized_correct_answers) if len(result.normalized_correct_answers) > 1 else None
     )
-    question.explanation = payload["explanation"] or None
+    question.explanation = payload["explanation"] or catalog_explanation(
+        payload["question_text"],
+        [option.text for option in options] + [""] * (8 - len(options)),
+        result.normalized_correct_answers,
+    )
     question.difficulty = int(payload["difficulty"]) if str(payload["difficulty"] or "").isdigit() else None
     question.tags = payload["tags"] or None
     question.source = payload["source"] or SOURCE_TYPE_MANUAL

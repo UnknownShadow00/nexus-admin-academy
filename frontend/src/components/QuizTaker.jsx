@@ -50,31 +50,45 @@ export default function QuizTaker({ quizId, studentId }) {
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timings, setTimings] = useState({});
   const questionStartRef = useRef(Date.now());
 
-  useEffect(() => {
+  const loadQuiz = () => {
+    setLoading(true);
+    setLoadError("");
     getQuiz(quizId, studentId, { suppressToast: true })
       .then((res) => {
         const q = res.data;
         setQuiz(q);
         const sq = shuffle(q.questions || []).map(buildShuffledQuestion);
         setShuffledQuestions(sq);
-        const saved = JSON.parse(
-          localStorage.getItem(progressKey(quizId)) || "null"
-        );
+        let saved = null;
+        try {
+          saved = JSON.parse(localStorage.getItem(progressKey(quizId)) || "null");
+        } catch {
+          localStorage.removeItem(progressKey(quizId));
+        }
         if (saved?.answers) setAnswers(saved.answers);
         setTimings({});
         questionStartRef.current = Date.now();
       })
       .catch((err) => {
-        toast.error(err?.userMessage || "Unable to load quiz");
+        const message = err?.userMessage || "Unable to load quiz";
+        setLoadError(message);
+        toast.error(message);
       })
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    loadQuiz();
+    // loadQuiz intentionally restarts only when the quiz or student changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizId, studentId]);
 
   useEffect(() => {
@@ -123,8 +137,12 @@ export default function QuizTaker({ quizId, studentId }) {
   };
 
   const onSubmit = async () => {
+    if (submitting) return;
     const unanswered =
-      (shuffledQuestions.length || 0) - Object.keys(answers).length;
+      (shuffledQuestions.length || 0) - shuffledQuestions.filter((question) => {
+        const answer = answers[question.id];
+        return Array.isArray(answer) ? answer.length > 0 : Boolean(answer);
+      }).length;
     if (
       unanswered > 0 &&
       !window.confirm(`${unanswered} unanswered question(s). Submit anyway?`)
@@ -180,7 +198,8 @@ export default function QuizTaker({ quizId, studentId }) {
   if (!quiz) {
     return (
       <div className="panel">
-        <p className="text-sm text-slate-500 dark:text-slate-300">Quiz is unavailable right now.</p>
+        <p role="alert" className="text-sm text-slate-600 dark:text-slate-300">{loadError || "Quiz is unavailable right now."}</p>
+        <button type="button" className="btn-primary mt-4" onClick={loadQuiz}>Try again</button>
       </div>
     );
   }
@@ -206,6 +225,9 @@ export default function QuizTaker({ quizId, studentId }) {
   return (
     <section className="space-y-4">
       <div>
+        <p className="mb-3 text-sm text-slate-600 dark:text-slate-300">
+          Choose {isMulti ? "all correct answers" : "one answer"}, then use Next. Submit once at the end to see your score and explanations.
+        </p>
         <div className="mb-1 flex justify-between text-sm text-slate-500">
           <span>
             Question {currentIndex + 1} of {total}
@@ -261,7 +283,7 @@ export default function QuizTaker({ quizId, studentId }) {
                       : "border-slate-300 dark:border-slate-600"
                   }`}
                 >
-                  {selected && isMulti ? "?" : display}
+                  {selected && isMulti ? "✓" : display}
                 </span>
                 <span className="text-sm text-slate-800 dark:text-slate-200">
                   {text}
@@ -275,6 +297,7 @@ export default function QuizTaker({ quizId, studentId }) {
       <div className="flex flex-wrap gap-1">
         {shuffledQuestions.map((q, idx) => (
           <button
+            type="button"
             key={q.id}
             onClick={() => {
               recordCurrentTiming();
@@ -287,6 +310,8 @@ export default function QuizTaker({ quizId, studentId }) {
                   ? "bg-green-500 text-white"
                   : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
             }`}
+            aria-label={`Go to question ${idx + 1}${answers[q.id] !== undefined ? ", answered" : ""}`}
+            aria-current={idx === currentIndex ? "step" : undefined}
           >
             {idx + 1}
           </button>
@@ -296,6 +321,7 @@ export default function QuizTaker({ quizId, studentId }) {
       <div className="flex gap-2">
         {currentIndex > 0 && (
           <button
+            type="button"
             className="btn-secondary flex-1"
             onClick={() => {
               recordCurrentTiming();
@@ -307,6 +333,7 @@ export default function QuizTaker({ quizId, studentId }) {
         )}
         {currentIndex < total - 1 ? (
           <button
+            type="button"
             className="btn-primary flex-1"
             onClick={() => {
               recordCurrentTiming();
@@ -317,6 +344,7 @@ export default function QuizTaker({ quizId, studentId }) {
           </button>
         ) : (
           <button
+            type="button"
             className="btn-primary flex-1"
             onClick={onSubmit}
             disabled={submitting}

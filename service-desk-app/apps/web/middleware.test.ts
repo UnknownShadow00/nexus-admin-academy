@@ -126,6 +126,21 @@ describe('middleware', () => {
     expect(response.headers.get('x-middleware-rewrite')).toBeNull();
   });
 
+  it('allows a verified Nexus admin cookie into /admin without a student session', async () => {
+    process.env.NEXUS_ADMIN_CHECK_URL = 'http://nexus-backend:8000';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ is_admin: true }), { status: 200 }),
+      ),
+    );
+    const response = await middleware(
+      requestFor('/service-desk/admin', 'admin_session=real'),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+  });
+
   it('passes an authenticated base-path API request to Next routing', async () => {
     const token = sign({
       sub: '42',

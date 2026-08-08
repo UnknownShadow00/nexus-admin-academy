@@ -30,6 +30,8 @@ router = APIRouter(prefix="/api/service-desk", tags=["service-desk"])
 # intentionally narrow enough to reject invented namespaces while allowing the
 # existing simulation tools to evolve within their owned namespaces.
 _EVENT_PREFIX_TOOLS = {
+    "asset.": "asset",
+    "shipping.": "shipping",
     "ticket.": "ticket",
     "directory.": "directory",
     "remote_desktop.": "remote_desktop",
@@ -49,6 +51,16 @@ def _validate_event_shape(event_type: str, tool: str, payload: dict) -> None:
         # Close fields are UI metadata only.  They are allowed for compatibility
         # but cannot control verification in compute_grade().
         return
+    if event_type == "ticket.add_note" and (
+        not isinstance(payload.get("body"), str) or len(payload["body"].strip()) < 20
+    ):
+        raise HTTPException(422, "Technician notes must contain at least 20 characters")
+    if event_type.startswith("asset.") and not isinstance(payload.get("assetTag"), str):
+        raise HTTPException(422, "Asset events require assetTag")
+    if event_type.startswith("shipping.") and not isinstance(
+        payload.get("recipientDirectoryUserId"), str
+    ):
+        raise HTTPException(422, "Shipping events require a directory recipient")
     if event_type.startswith("directory.") and not isinstance(payload.get("directoryUserId"), str):
         raise HTTPException(422, "Directory events require directoryUserId")
     if event_type.startswith("remote_desktop.") and not isinstance(payload.get("assetTag"), str):

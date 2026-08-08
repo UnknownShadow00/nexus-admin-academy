@@ -152,6 +152,20 @@ describe('hasNexusAdminAccess', () => {
     ).resolves.toBe(true);
   });
 
+  it('accepts a verified Nexus admin cookie without a student session', async () => {
+    process.env.NEXUS_ADMIN_CHECK_URL = 'http://nexus-backend:8000';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ is_admin: true }), { status: 200 }),
+      ),
+    );
+
+    await expect(
+      hasNexusAdminAccess(null, 'admin_session=real'),
+    ).resolves.toBe(true);
+  });
+
   it('returns false when the backend reports is_admin: false', async () => {
     process.env.NEXUS_ADMIN_CHECK_URL = 'http://nexus-backend:8000';
     vi.stubGlobal(

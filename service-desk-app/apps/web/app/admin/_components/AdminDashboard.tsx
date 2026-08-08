@@ -2,9 +2,7 @@
 
 import {
   applyBackup,
-  deleteScenario,
   exportBackup,
-  listScenarios,
   validateBackup,
   type AttemptCodec,
   type ScenarioRecord,
@@ -25,6 +23,10 @@ import Link from 'next/link';
 import { useEffect, useState, type ChangeEvent } from 'react';
 
 import { TestStudentManager } from './TestStudentManager';
+import {
+  deleteServerScenario,
+  listServerScenarios,
+} from '../../../lib/nexus-admin-scenario-client';
 
 const attemptCodec: AttemptCodec<Attempt> = {
   restoreAttempt,
@@ -37,7 +39,16 @@ export function AdminDashboard() {
     tone: 'error' | 'success';
   } | null>(null);
   const [records, setRecords] = useState<ScenarioRecord[]>([]);
-  useEffect(() => setRecords(listScenarios()), []);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    listServerScenarios()
+      .then(setRecords)
+      .catch((error: unknown) => setBackupMessage({
+        text: error instanceof Error ? error.message : 'Scenario library could not load.',
+        tone: 'error',
+      }))
+      .finally(() => setLoading(false));
+  }, []);
 
   function downloadBackup() {
     try {
@@ -77,9 +88,8 @@ export function AdminDashboard() {
       const json = await file.text();
       validateBackup(json, attemptCodec);
       const restored = applyBackup(json, attemptCodec);
-      setRecords(listScenarios());
       setBackupMessage({
-        text: `Backup restored: ${restored.adminScenarioCount} scenarios and ${restored.testStudentCount} test students.`,
+        text: `Local practice backup restored: ${restored.testStudentCount} test students. Server scenarios were not changed.`,
         tone: 'success',
       });
     } catch (error) {
@@ -98,7 +108,7 @@ export function AdminDashboard() {
         <div>
           <h1 className="text-2xl font-black">Scenario library</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Local browser-only authoring. Published versions are immutable.
+            Server-backed drafts with immutable published version history.
           </p>
         </div>
         <Link
@@ -112,9 +122,11 @@ export function AdminDashboard() {
       <Card>
         <CardHeader meta={`${records.length} templates`} title="Scenarios" />
         <div className="p-4">
-          {records.length === 0 ? (
+          {loading ? (
+            <p className="py-8 text-center text-sm text-zinc-500">Loading scenarios…</p>
+          ) : records.length === 0 ? (
             <p className="py-8 text-center text-sm text-zinc-500">
-              No scenarios authored in this browser.
+              No scenarios have been created yet.
             </p>
           ) : (
             <ul className="divide-y divide-zinc-800">
@@ -160,11 +172,17 @@ export function AdminDashboard() {
                       onClick={() => {
                         if (
                           window.confirm(
-                            `Delete “${template.title}” and every version?`,
+                            `Delete the unpublished scenario “${template.title}”? Published history cannot be deleted.`,
                           )
                         ) {
-                          deleteScenario(template.id);
-                          setRecords(listScenarios());
+                          void deleteServerScenario(template.id)
+                            .then(() => setRecords((current) => current.filter(
+                              ({ template: candidate }) => candidate.id !== template.id,
+                            )))
+                            .catch((error: unknown) => setBackupMessage({
+                              text: error instanceof Error ? error.message : 'Scenario delete failed.',
+                              tone: 'error',
+                            }));
                         }
                       }}
                     >
@@ -178,7 +196,7 @@ export function AdminDashboard() {
         </div>
       </Card>
       <Card>
-        <CardHeader meta="Version 1 JSON" title="Backup and restore" />
+        <CardHeader meta="Local practice data" title="Backup and restore" />
         <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
           <Button onClick={downloadBackup} variant="primary">
             Export all data
@@ -193,8 +211,8 @@ export function AdminDashboard() {
             />
           </label>
           <p className="text-xs text-zinc-500">
-            Includes the student attempt, admin scenarios, and test-student
-            attempts stored in this browser.
+            Includes browser-local practice and test-student attempts. Scenario
+            definitions are already stored authoritatively on the Nexus server.
           </p>
         </div>
         {backupMessage ? (

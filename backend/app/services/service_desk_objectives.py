@@ -34,8 +34,6 @@ def _remote(ticket: str, asset: str, step: str) -> EvidenceRule:
     )
 
 
-# INC2404 has no server-verifiable simulation workflow yet.  Its absence here
-# is intentional: unknown evidence fails closed rather than becoming a pass.
 SCENARIO_OBJECTIVES: dict[str, ScenarioObjectiveDefinition] = {
     "inc2401": ScenarioObjectiveDefinition(
         required_any=(
@@ -50,6 +48,14 @@ SCENARIO_OBJECTIVES: dict[str, ScenarioObjectiveDefinition] = {
     "inc2403": ScenarioObjectiveDefinition(required_all=(
         _remote("INC2403", "NX-3560", "updates.install"),
         _remote("INC2403", "NX-3560", "system.restart-pdf-helper"),
+    )),
+    "inc2404": ScenarioObjectiveDefinition(required_all=(
+        EvidenceRule("asset.change_status", {"assetTag": "NX-9052", "status": "damaged"}),
+        EvidenceRule("shipping.create", {
+            "recipientDirectoryUserId": "directory-user-elliot-ward",
+            "equipment": [{"name": "Headset", "quantity": 1}],
+        }),
+        EvidenceRule("ticket.add_note", {"ticketId": "INC2404"}),
     )),
     "inc2405": ScenarioObjectiveDefinition(required_all=(
         EvidenceRule("directory.update_groups", {

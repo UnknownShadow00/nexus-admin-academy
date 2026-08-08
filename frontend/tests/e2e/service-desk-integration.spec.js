@@ -79,6 +79,79 @@ async function getMyAssignment(page, stableKey) {
 }
 
 test.describe("Service Desk integration (requires an integrated stack)", () => {
+  test("admin scenario draft survives refresh and publishes an immutable version", async ({ page }) => {
+    const suffix = Date.now();
+    const stableKey = `e2e-printer-${suffix}`;
+    const title = `E2E printer draft ${suffix}`;
+    const definition = {
+      title,
+      slug: stableKey,
+      category: "software",
+      priority: "medium",
+      difficulty: "easy",
+      pointValue: 100,
+      explanation: "Restarting the failed Print Spooler restores the local print queue.",
+      description: {
+        issue: "Print jobs disappear from one workstation while a nearby workstation prints normally.",
+        reportedByLine: "Reported through the employee portal.",
+        businessImpact: "The requester cannot print an onboarding pack.",
+        troubleshooting: ["A nearby workstation can print to the same device."],
+      },
+      requester: {
+        name: "Avery Brooks", department: "Finance", email: "avery@example.test",
+        contact: "Ext. 10", location: "North office",
+      },
+      device: {
+        assetTag: "NX-1000", deviceName: "FIN-LT-10", kind: "laptop",
+        operatingSystem: "Windows 11", state: "active",
+      },
+      sla: { dueAt: "2026-08-08T12:00:00Z", target: "4 hours" },
+      initialWorldState: { directoryOverlaySeeds: {}, assetOverlaySeeds: {}, chatMessageSeeds: [] },
+      objectives: [{
+        id: "restart-spooler", order: 1, description: "Restart the Print Spooler.",
+        pointValue: 100, predicateType: "action_event_occurred",
+        predicateParams: { actionType: "remote_desktop.restart_service" }, required: true,
+      }],
+      requiredActions: [], forbiddenActions: [],
+      hints: [
+        { id: "h1", order: 1, pointPenalty: 0, text: "Determine whether the failure follows the user, workstation, or printer." },
+        { id: "h2", order: 2, pointPenalty: 5, text: "Inspect the affected workstation's Windows services." },
+        { id: "h3", order: 3, pointPenalty: 5, text: "Check and restart the Print Spooler, then print a test page." },
+      ],
+    };
+
+    await adminLogin(page);
+    const created = await page.request.post("/api/admin/service-desk/scenarios", withOrigin({ data: {
+      stable_key: stableKey, title, description: definition.description.issue,
+      category: definition.category, difficulty: 1, definition_json: definition,
+    } }));
+    expect(created.status()).toBe(201);
+    const scenario = await created.json();
+
+    await page.goto(`/service-desk/admin/scenarios/${scenario.id}`);
+    const titleInput = page.getByLabel("Title");
+    await expect(titleInput).toHaveValue(title);
+    const editedTitle = `${title} saved`;
+    await titleInput.fill(editedTitle);
+    await page.getByRole("button", { name: "Save Draft" }).click();
+    await expect(page.getByText(/Draft v1 saved to Nexus/)).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByLabel("Title")).toHaveValue(editedTitle);
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Publish Version" }).click();
+    await expect(page.getByText(/Version 1 published/)).toBeVisible();
+
+    await page.getByLabel("Title").fill(`${editedTitle} v2`);
+    await page.getByRole("button", { name: "Save Draft" }).click();
+    await expect(page.getByText(/Draft v2 saved to Nexus/)).toBeVisible();
+    const reloaded = await (await page.request.get(`/api/admin/service-desk/scenarios/${scenario.id}`)).json();
+    expect(reloaded.versions).toHaveLength(2);
+    expect(reloaded.versions[0].status).toBe("published");
+    expect(reloaded.versions[0].definition_json.title).toBe(editedTitle);
+    expect(reloaded.versions[1].status).toBe("draft");
+  });
+
   test("snapshot-only sync persists every formerly local simulator domain", async ({ browser }) => {
     test.setTimeout(90_000);
     const sourceContext = await browser.newContext();

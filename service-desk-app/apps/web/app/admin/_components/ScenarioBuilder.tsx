@@ -6,9 +6,6 @@ import {
   DIRECTORY_USER_FIXTURES,
   Priority,
   TicketCategory,
-  getScenario,
-  publishVersion,
-  saveDraftVersion,
   type ScenarioActionRule,
   type ScenarioHint,
   type ScenarioObjective,
@@ -26,6 +23,14 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+
+import {
+  ScenarioApiError,
+  getServerScenario,
+  publishServerScenario,
+  saveServerScenario,
+  validateServerScenario,
+} from '../../../lib/nexus-admin-scenario-client';
 
 function id(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random()
@@ -382,12 +387,12 @@ export function ScenarioBuilder({
   existingScenarioId?: string;
 }) {
   const router = useRouter();
-  const [scenarioId] = useState(
-    () => existingScenarioId ?? id('scenario-template'),
-  );
+  const [scenarioId, setScenarioId] = useState(existingScenarioId ?? null);
   const [draft, setDraft] = useState<ScenarioVersionDraftData>(defaultDraft);
   const [record, setRecord] = useState<ScenarioRecord | null>(null);
   const [message, setMessage] = useState('');
+  const [errors, setErrors] = useState<readonly string[]>([]);
+  const [busy, setBusy] = useState(false);
   const [worldUserId, setWorldUserId] = useState(
     DIRECTORY_USER_FIXTURES[0]?.id ?? '',
   );
@@ -408,31 +413,76 @@ export function ScenarioBuilder({
     if (!existingScenarioId) {
       return;
     }
-    const found = getScenario(existingScenarioId);
-    if (found) {
-      setRecord(found);
-      setDraft(draftFromRecord(found));
-    }
+    let cancelled = false;
+    setBusy(true);
+    getServerScenario(existingScenarioId)
+      .then((found) => {
+        if (!cancelled) {
+          setRecord(found);
+          setDraft(draftFromRecord(found));
+          setErrors([]);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setMessage(error instanceof Error ? error.message : 'Scenario load failed.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [existingScenarioId]);
 
-  function persist() {
-    const next = saveDraftVersion(scenarioId, draft);
-    setRecord(next);
-    setMessage(`Prototype v${next.versions.at(-1)?.version ?? 1} saved in this browser only. Export an admin backup before clearing browser data.`);
-    if (!existingScenarioId) {
-      router.replace(`/admin/scenarios/${scenarioId}`);
+  async function persist() {
+    setBusy(true);
+    setErrors([]);
+    try {
+      const draftVersion = record?.versions.find((version) => version.publishedAt === null);
+      const next = await saveServerScenario(scenarioId, draft, draftVersion?.id);
+      const savedDraft = next.versions.find((version) => version.publishedAt === null);
+      setRecord(next);
+      setScenarioId(next.template.id);
+      setMessage(`Draft v${savedDraft?.version ?? 1} saved to Nexus.`);
+      if (!scenarioId) router.replace(`/admin/scenarios/${next.template.id}`);
+      return next;
+    } catch (error) {
+      setErrors(error instanceof ScenarioApiError ? error.validationErrors : []);
+      setMessage(error instanceof Error ? error.message : 'Draft save failed.');
+      return null;
+    } finally {
+      setBusy(false);
     }
-    return next;
   }
 
-  function publish() {
-    persist();
+  async function publish() {
+    if (!window.confirm('Publish this immutable scenario version to students?')) return;
+    const next = await persist();
+    if (!next) return;
+    const draftVersion = next.versions.find((version) => version.publishedAt === null);
+    if (!draftVersion) {
+      setMessage('No saved draft is available to publish.');
+      return;
+    }
+    setBusy(true);
     try {
-      const next = publishVersion(scenarioId);
-      setRecord(next);
-      setMessage(`Prototype version ${next.versions.at(-1)?.version} marked ready for local preview only. It is not published to the Nexus server.`);
+      const validation = await validateServerScenario(next.template.id, draftVersion.id);
+      if (!validation.valid) {
+        setErrors(validation.errors);
+        setMessage('Fix the validation issues before publishing. Your draft remains saved.');
+        return;
+      }
+      const published = await publishServerScenario(next.template.id, draftVersion.id);
+      setRecord(published);
+      setErrors([]);
+      setMessage(`Version ${draftVersion.version} published. Future edits will create a new draft version.`);
     } catch (error) {
+      setErrors(error instanceof ScenarioApiError ? error.validationErrors : []);
       setMessage(error instanceof Error ? error.message : 'Publish failed.');
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -451,14 +501,16 @@ export function ScenarioBuilder({
           {record ? (
             <Link
               className="rounded-sm border border-zinc-700 px-4 py-2 text-sm font-bold uppercase text-zinc-300"
-              href={`/admin/scenarios/${scenarioId}/preview`}
+              href={`/admin/scenarios/${record.template.id}/preview`}
             >
               Preview
             </Link>
           ) : null}
-          <Button onClick={persist}>Save Local Prototype</Button>
-          <Button onClick={publish} variant="primary">
-            Mark Local Preview Ready
+          <Button disabled={busy} onClick={() => void persist()}>
+            {busy ? 'Saving…' : 'Save Draft'}
+          </Button>
+          <Button disabled={busy} onClick={() => void publish()} variant="primary">
+            Publish Version
           </Button>
         </div>
       </div>
@@ -466,6 +518,14 @@ export function ScenarioBuilder({
         <p className="rounded-sm border border-sky-400/30 bg-sky-400/10 p-3 text-sm text-sky-200">
           {message}
         </p>
+      ) : null}
+      {errors.length ? (
+        <div className="rounded-sm border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200" role="alert">
+          <p className="font-bold">Scenario needs attention:</p>
+          <ul className="mt-2 list-inside list-disc">
+            {errors.map((error) => <li key={error}>{error}</li>)}
+          </ul>
+        </div>
       ) : null}
 
       <Section title="Basics">

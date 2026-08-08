@@ -1,4 +1,5 @@
 import { createAttempt } from '@service-desk/simulation-engine';
+import { AssetStatus } from '@service-desk/shared';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -38,6 +39,24 @@ describe('Nexus evidence attribution', () => {
         attempt,
       ),
     ).toBeNull();
+  });
+
+  it('attributes the damaged headset and its replacement shipment to INC2404', () => {
+    expect(getNexusActionSyncDetails({
+      type: 'asset.change_status',
+      payload: { assetTag: 'NX-9052', status: AssetStatus.Damaged },
+    }, attempt)).toMatchObject({ ticketId: 'INC2404', tool: 'asset' });
+
+    expect(getNexusActionSyncDetails({
+      type: 'shipping.create',
+      payload: {
+        recipientDirectoryUserId: 'directory-user-elliot-ward',
+        recipientName: 'Elliot Ward', street: '120 Cedar Street', city: 'Seattle',
+        state: 'WA', postalCode: '98101', senderDepartment: 'IT Department',
+        equipment: [{ name: 'Headset', quantity: 1 }], computerAssetTag: null,
+        speed: 'express', includeReturnLabel: true,
+      },
+    }, attempt)).toMatchObject({ ticketId: 'INC2404', tool: 'shipping' });
   });
 
   it('uses the ticketId on Remote Desktop ticket-payload actions', () => {
