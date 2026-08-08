@@ -1,4 +1,5 @@
 import hmac
+import logging
 from datetime import datetime
 from typing import Literal
 
@@ -8,22 +9,20 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.squad_activity import SquadActivity
+from app.models.service_desk import (
+    ServiceDeskAttempt,
+    ServiceDeskAttemptGrade,
+    ServiceDeskScenario,
+    ServiceDeskScenarioVersion,
+)
 from app.models.student import Student
 from app.models.xp_ledger import XPLedger
-from app.services.activity_service import log_activity
 from app.services.admin_auth import get_admin_api_key, has_valid_admin_session
 from app.services.auth_service import STUDENT_SESSION_COOKIE, decode_token, get_current_student
 
 router = APIRouter(prefix="/api/service-desk", tags=["service-desk-bridge"])
 
-SERVICE_DESK_TICKET = "service_desk_ticket"
-SERVICE_DESK_ACHIEVEMENT = "service_desk_achievement"
-SERVICE_DESK_ACTIVITY_TYPES = (SERVICE_DESK_TICKET, SERVICE_DESK_ACHIEVEMENT)
-SERVICE_DESK_XP_REWARDS = {
-    "ticket_resolved": 25,
-    "achievement_unlocked": 10,
-}
+logger = logging.getLogger(__name__)
 
 
 class ServiceDeskProgressEvent(BaseModel):
@@ -56,49 +55,19 @@ def record_service_desk_progress(
     current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
 ) -> Response:
-    activity_type = (
-        SERVICE_DESK_TICKET
-        if body.event_type == "ticket_resolved"
-        else SERVICE_DESK_ACHIEVEMENT
-    )
-    # This endpoint has no per-event idempotency key (unlike the newer
-    # service_desk_attempts model). The client sends a deterministic title
-    # per ticket/achievement (see TicketSessionProvider.tsx's
-    # syncNexusProgress callers), so a duplicate call — a retry, a replayed
-    # request, or a direct repeat call bypassing the client's own
-    # already-synced guard — is detected by an existing row with the same
-    # student/type/title and skipped rather than awarding XP again.
-    already_recorded = (
-        db.query(SquadActivity.id)
-        .filter(
-            SquadActivity.student_id == current_student.id,
-            SquadActivity.activity_type == activity_type,
-            SquadActivity.title == body.title[:200],
-        )
-        .first()
-        is not None
-    )
-    if already_recorded:
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    """Compatibility no-op for pre-authoritative simulator clients.
 
-    log_activity(
-        db,
+    The payload is browser-authored and has no trusted attempt, event, or
+    grade reference. It therefore cannot create progress or XP. Current
+    clients use the attempt action/completion endpoints for authoritative
+    grading; keeping this as 204 avoids crashing older browser bundles.
+    """
+    logger.info(
+        "ignored_untrusted_service_desk_progress student_id=%s event_type=%s ticket_id=%s",
         current_student.id,
-        activity_type,
-        body.title,
-        body.detail,
-        commit=False,
+        body.event_type,
+        body.ticket_id,
     )
-    db.add(
-        XPLedger(
-            student_id=current_student.id,
-            source_type="service_desk",
-            source_id=None,
-            delta=SERVICE_DESK_XP_REWARDS[body.event_type],
-            description=body.title,
-        )
-    )
-    db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -107,45 +76,38 @@ def get_service_desk_progress_summary(
     current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
 ) -> ServiceDeskProgressSummary:
-    activity_counts = dict(
-        db.query(SquadActivity.activity_type, func.count(SquadActivity.id))
+    completed_rows = (
+        db.query(ServiceDeskAttemptGrade, ServiceDeskScenario)
+        .join(ServiceDeskAttempt, ServiceDeskAttempt.id == ServiceDeskAttemptGrade.attempt_id)
+        .join(ServiceDeskScenarioVersion, ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id)
+        .join(ServiceDeskScenario, ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id)
         .filter(
-            SquadActivity.student_id == current_student.id,
-            SquadActivity.activity_type.in_(SERVICE_DESK_ACTIVITY_TYPES),
+            ServiceDeskAttempt.student_id == current_student.id,
+            ServiceDeskAttemptGrade.passed.is_(True),
         )
-        .group_by(SquadActivity.activity_type)
+        .order_by(ServiceDeskAttemptGrade.calculated_at.desc(), ServiceDeskAttemptGrade.id.desc())
         .all()
     )
     total_xp = (
         db.query(func.coalesce(func.sum(XPLedger.delta), 0))
         .filter(
             XPLedger.student_id == current_student.id,
-            XPLedger.source_type == "service_desk",
+            XPLedger.source_type == "service_desk_attempt",
         )
         .scalar()
         or 0
     )
-    recent_rows = (
-        db.query(SquadActivity)
-        .filter(
-            SquadActivity.student_id == current_student.id,
-            SquadActivity.activity_type.in_(SERVICE_DESK_ACTIVITY_TYPES),
-        )
-        .order_by(SquadActivity.created_at.desc(), SquadActivity.id.desc())
-        .limit(5)
-        .all()
-    )
     return ServiceDeskProgressSummary(
-        tickets_completed=int(activity_counts.get(SERVICE_DESK_TICKET, 0)),
-        achievements_unlocked=int(activity_counts.get(SERVICE_DESK_ACHIEVEMENT, 0)),
+        tickets_completed=len(completed_rows),
+        achievements_unlocked=0,
         total_xp=int(total_xp),
         recent_activity=[
             RecentServiceDeskActivity(
-                title=row.title,
-                detail=row.detail,
-                created_at=_isoformat(row.created_at),
+                title=scenario.title,
+                detail=f"Passed with {grade.overall_score} points",
+                created_at=_isoformat(grade.calculated_at),
             )
-            for row in recent_rows
+            for grade, scenario in completed_rows[:5]
         ],
     )
 

@@ -12,7 +12,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError
 from sqlalchemy.orm import Session
 
-from app.config import load_env
+from app.config import is_production_environment, load_env
 from app.database import get_db
 from app.models.student import Student
 
@@ -43,14 +43,17 @@ def validate_jwt_startup_config() -> None:
     secret_key = os.environ.get("JWT_SECRET_KEY")
     algorithm = os.environ.get("JWT_ALGORITHM")
 
-    if not secret_key:
+    invalid = False
+    if not secret_key or len(secret_key) < 32 or secret_key.startswith("change_this") or secret_key.startswith("replace-with"):
+        invalid = True
         logger.error(
-            "Nexus JWT configuration invalid: JWT_SECRET_KEY is not set. "
+            "Nexus JWT configuration invalid: JWT_SECRET_KEY must be a non-placeholder secret of at least 32 characters. "
             "Student login and the service-desk identity bridge will fail "
             "until JWT_SECRET_KEY is configured in backend/.env."
         )
 
     if algorithm not in ALLOWED_JWT_ALGORITHMS:
+        invalid = True
         logger.error(
             "Nexus JWT configuration invalid: JWT_ALGORITHM=%r is not one of "
             "%s. Student login and the service-desk identity bridge will "
@@ -58,6 +61,8 @@ def validate_jwt_startup_config() -> None:
             algorithm,
             sorted(ALLOWED_JWT_ALGORITHMS),
         )
+    if invalid and is_production_environment():
+        raise RuntimeError("Refusing to start production with invalid JWT configuration")
 
 try:
     from passlib.context import CryptContext
@@ -108,7 +113,20 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def ensure_student_access(current_student: Student, student_id: int) -> None:
+    """Allow a student to read their data and a mentor to review it."""
     if current_student.is_mentor or current_student.id == student_id:
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+
+def ensure_student_ownership(current_student: Student, student_id: int) -> None:
+    """Require the authenticated student to own a state-changing operation.
+
+    Mentor access is deliberately read-only on student routes. Administrative
+    changes must use an explicit admin endpoint so review access cannot create
+    assessment evidence, completion records, grades, or XP for a student.
+    """
+    if current_student.id == student_id:
         return
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 

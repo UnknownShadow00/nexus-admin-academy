@@ -222,6 +222,53 @@ def test_ownership_and_verified_complete_awards_xp_once(db):
     assert owner.total_xp == before_xp + 100
 
 
+def test_mentor_review_access_cannot_mutate_student_attempt(db):
+    owner = make_student(db, username="attempt-owner")
+    mentor = make_student(db, username="read-only-mentor")
+    mentor.is_mentor = True
+    db.commit()
+    assignment = setup_assignment(db, owner, stable_key="inc2401")
+    client = make_client(service_desk.router)
+    attempt_id = start(client, owner, assignment).json()["id"]
+    headers = auth_headers(mentor)
+
+    assert client.get(f"/api/service-desk/attempts/{attempt_id}", headers=headers).status_code == 200
+    writes = [
+        client.post(
+            f"/api/service-desk/attempts/{attempt_id}/events",
+            headers=headers,
+            json={"idempotency_key": "mentor-event", "event_type": "ticket.close", "tool": "ticket",
+                  "payload": {"verifiedResolved": True}, "resulting_state": {}, "success": True},
+        ),
+        client.post(
+            f"/api/service-desk/attempts/{attempt_id}/snapshot",
+            headers=headers,
+            json={"idempotency_key": "mentor-snapshot", "snapshot": {
+                "schema_version": 1, "nexus_service_desk_attempt": {}}},
+        ),
+        client.post(
+            f"/api/service-desk/attempts/{attempt_id}/actions",
+            headers=headers,
+            json={"idempotency_key": "mentor-action", "event_type": "ticket.assign", "tool": "ticket",
+                  "payload": {"ticketId": "INC2401"}, "resulting_state": {}},
+        ),
+        client.post(
+            f"/api/service-desk/attempts/{attempt_id}/hints",
+            headers=headers,
+            json={"idempotency_key": "mentor-hint", "tool": "ticket", "payload": {}},
+        ),
+        client.post(
+            f"/api/service-desk/attempts/{attempt_id}/complete",
+            headers=headers,
+            json={"idempotency_key": "mentor-complete"},
+        ),
+    ]
+
+    assert [response.status_code for response in writes] == [403, 403, 403, 403, 403]
+    assert db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt_id).count() == 0
+    assert db.query(XPLedger).filter_by(student_id=owner.id).count() == 0
+
+
 def test_failed_complete_awards_zero_xp(db):
     student = make_student(db, username="failed-complete")
     assignment = setup_assignment(db, student)

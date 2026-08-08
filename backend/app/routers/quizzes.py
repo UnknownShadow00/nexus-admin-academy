@@ -9,7 +9,7 @@ from app.models.quiz import QUIZ_PURPOSE_REMEDIATION, Quiz, QuizAttempt
 from app.models.student import Student
 from app.schemas.quiz import QuizSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
-from app.services.auth_service import ensure_student_access, get_current_student
+from app.services.auth_service import ensure_student_access, ensure_student_ownership, get_current_student
 from app.services.fsrs_service import create_cards_for_wrong_answers
 from app.services.mastery_service import record_quiz_mastery
 from app.services.quiz_progression import assigned_remediation_ids, triggered_remediation_ids
@@ -181,7 +181,7 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
 @router.post("/{quiz_id}/submit")
 def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
     student_id = payload.student_id
-    ensure_student_access(current_student, student_id)
+    ensure_student_ownership(current_student, student_id)
     answers = payload.answers
     time_per_question = payload.time_per_question
     avg_seconds = _avg_seconds_per_question(time_per_question)

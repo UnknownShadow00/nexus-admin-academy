@@ -20,7 +20,7 @@ from app.schemas.service_desk import (
     ServiceDeskSnapshotCreate,
 )
 from app.services.service_desk_objectives import SCENARIO_OBJECTIVES, payload_matches
-from app.services.auth_service import ensure_student_access, get_current_student
+from app.services.auth_service import ensure_student_access, ensure_student_ownership, get_current_student
 from app.services.service_desk_grading import AttemptNotClosedError, compute_grade
 from app.services.xp_service import award_xp
 
@@ -95,6 +95,12 @@ def _owned_attempt(db: Session, attempt_id: int, student: Student) -> ServiceDes
     if not attempt:
         raise HTTPException(404, "Attempt not found")
     ensure_student_access(student, attempt.student_id)
+    return attempt
+
+
+def _writable_attempt(db: Session, attempt_id: int, student: Student) -> ServiceDeskAttempt:
+    attempt = _owned_attempt(db, attempt_id, student)
+    ensure_student_ownership(student, attempt.student_id)
     return attempt
 
 
@@ -207,7 +213,7 @@ def _validate_resume_snapshot(snapshot: dict) -> None:
 
 @router.post("/attempts/{attempt_id}/events")
 def record_event(attempt_id: int, body: ServiceDeskEventCreate, current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
-    attempt = _owned_attempt(db, attempt_id, current_student)
+    attempt = _writable_attempt(db, attempt_id, current_student)
     if attempt.status != "in_progress":
         raise HTTPException(409, "Attempt is no longer in progress")
     _validate_event_shape(body.event_type, body.tool, body.payload)
@@ -225,7 +231,7 @@ def persist_snapshot(attempt_id: int, body: ServiceDeskSnapshotCreate,
     duplicate protection as actions, while ``trusted`` stays false and the
     snapshot-only event is outside the server-owned transition graph.
     """
-    attempt = _owned_attempt(db, attempt_id, current_student)
+    attempt = _writable_attempt(db, attempt_id, current_student)
     if attempt.status != "in_progress":
         raise HTTPException(409, "Attempt is no longer in progress")
     _validate_resume_snapshot(body.snapshot)
@@ -280,7 +286,7 @@ def request_action(attempt_id: int, body: ServiceDeskActionCreate, current_stude
 
     The browser never supplies success/trusted/state for this endpoint.
     """
-    attempt = _owned_attempt(db, attempt_id, current_student)
+    attempt = _writable_attempt(db, attempt_id, current_student)
     if attempt.status != "in_progress":
         raise HTTPException(409, "Attempt is no longer in progress")
     _validate_event_shape(body.event_type, body.tool, body.payload)
@@ -307,7 +313,7 @@ def request_action(attempt_id: int, body: ServiceDeskActionCreate, current_stude
 
 @router.post("/attempts/{attempt_id}/hints")
 def record_hint(attempt_id: int, body: ServiceDeskHintCreate, current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
-    attempt = _owned_attempt(db, attempt_id, current_student)
+    attempt = _writable_attempt(db, attempt_id, current_student)
     if attempt.status != "in_progress":
         raise HTTPException(409, "Attempt is no longer in progress")
     data, code = _record_event(db, attempt, key=body.idempotency_key, event_type="hint_requested", tool=body.tool,
@@ -317,7 +323,7 @@ def record_hint(attempt_id: int, body: ServiceDeskHintCreate, current_student: S
 
 @router.post("/attempts/{attempt_id}/complete")
 def complete_attempt(attempt_id: int, body: ServiceDeskCompleteCreate, current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
-    attempt = _owned_attempt(db, attempt_id, current_student)
+    attempt = _writable_attempt(db, attempt_id, current_student)
     existing = db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt.id).first()
     if attempt.status != "in_progress" and existing:
         return _json_response(_grade_dict(existing), 200)
