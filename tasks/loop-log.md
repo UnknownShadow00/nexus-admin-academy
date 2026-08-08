@@ -953,3 +953,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/tests/e2e/service-desk-integration.spec.js; service-desk-app/apps/web/components/TicketSessionProvider.tsx; tasks/loop-log.md
 - Result: pass against acceptance criteria — two independent integrated browser runs passed all 6 tests.
 - Next: None
+
+## [2026-08-08T05:27:28Z] Task Completed
+- Task: Remediated the frontend nanoid high-severity audit finding with a compatible PostCSS lockfile update.
+- Files changed: frontend/package-lock.json; tasks/loop-log.md
+- Result: pass against acceptance criteria — nanoid and PostCSS findings are resolved; npm audit at high threshold, build, and CLI validation/sanity checks pass.
+- Next: Plan the React Router 7 migration during the pre-launch hardening sprint to resolve the two remaining moderate audit findings.
