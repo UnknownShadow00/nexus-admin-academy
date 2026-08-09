@@ -1,6 +1,5 @@
 import { TICKET_FIXTURES, getFixtureTicket } from '@service-desk/shared';
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 
 import { TicketWorkspace } from '../../../../components/TicketWorkspace';
 
@@ -27,10 +26,6 @@ export async function generateMetadata({
 
 export default async function TicketPage({ params }: TicketPageProps) {
   const { ticketId } = await params;
-
-  if (!getFixtureTicket(ticketId)) {
-    notFound();
-  }
 
   return <TicketWorkspace ticketId={ticketId} />;
 }

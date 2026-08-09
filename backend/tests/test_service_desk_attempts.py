@@ -117,6 +117,9 @@ def test_assignment_listing_start_resume_and_event_idempotency(db):
         listing.status_code == 200
         and listing.json()[0]["scenario"]["title"] == "VPN outage"
     )
+    assert listing.json()[0]["latest_published_version"]["definition_json"]["priority"] == "high"
+    assert "objectives" not in listing.json()[0]["latest_published_version"]["definition_json"]
+    assert "explanation" not in listing.json()[0]["latest_published_version"]["definition_json"]
     first = start(client, student, assignment)
     assert first.status_code == 201 and first.json()["attempt_number"] == 1
     second = start(client, student, assignment)
@@ -156,6 +159,55 @@ def test_assignment_listing_start_resume_and_event_idempotency(db):
     assert db.query(ServiceDeskAttempt).count() == 1
 
 
+def test_builder_definition_uses_versioned_server_objectives(db):
+    student = make_student(db, username="builder-runtime")
+    assignment = setup_assignment(db, student, stable_key="printer-queue-stops", priority="medium")
+    version = db.query(ServiceDeskScenarioVersion).filter_by(scenario_id=assignment.scenario_id).one()
+    definition = {
+        "priority": "medium",
+        "objectives": [{
+            "required": True,
+            "predicateType": "action_event_occurred",
+            "predicateParams": {
+                "actionType": "ticket.add_note",
+                "payloadMatch": {"ticketId": "PRINTER-QUEUE-STOPS"},
+            },
+        }],
+    }
+    # The test fixture uses a placeholder hash and remains published; updating
+    # it here models a definition created before the immutable publish step.
+    db.execute(
+        ServiceDeskScenarioVersion.__table__.update().where(
+            ServiceDeskScenarioVersion.id == version.id
+        ).values(definition_json=definition)
+    )
+    db.commit()
+    client = make_client(service_desk.router)
+    headers = auth_headers(student)
+    attempt_id = start(client, student, assignment).json()["id"]
+    response = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/actions",
+        headers=headers,
+        json={
+            "idempotency_key": "diagnosis-note",
+            "event_type": "ticket.add_note",
+            "tool": "ticket",
+            "payload": {
+                "ticketId": "PRINTER-QUEUE-STOPS",
+                "body": "Confirmed the local queue failed and verified printing after repair.",
+            },
+        },
+    )
+    assert response.status_code == 201
+    close(client, student, attempt_id)
+    grade = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/complete",
+        headers=headers,
+        json={"idempotency_key": "complete-builder"},
+    )
+    assert grade.status_code == 201 and grade.json()["passed"] is True
+
+
 def test_no_published_version_and_attempt_cap(db):
     student = make_student(db)
     client = make_client(service_desk.router)
@@ -168,6 +220,41 @@ def test_no_published_version_and_attempt_cap(db):
     db.query(ServiceDeskAttempt).filter_by(id=attempt_id).update({"status": "failed"})
     db.commit()
     assert start(client, capped_student, capped).status_code == 403
+
+
+def test_publishing_vnext_does_not_orphan_an_in_progress_old_version_attempt(db):
+    student = make_student(db, username="version-resume")
+    assignment = setup_assignment(db, student, stable_key="inc2401")
+    client = make_client(service_desk.router)
+    first = start(client, student, assignment).json()
+    first_version_id = first["scenario_version_id"]
+    scenario = db.get(ServiceDeskScenario, assignment.scenario_id)
+    v2 = ServiceDeskScenarioVersion(
+        scenario_id=scenario.id,
+        version_number=2,
+        definition_json={"priority": "high", "revision": 2},
+        definition_hash="published-v2-hash",
+        status="published",
+    )
+    db.add(v2)
+    db.commit()
+    db.refresh(v2)
+
+    listing = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()[0]
+    assert listing["latest_published_version"]["id"] == v2.id
+    assert listing["most_recent_attempt"]["id"] == first["id"]
+    resumed = start(client, student, assignment)
+    assert resumed.status_code == 200
+    assert resumed.json()["id"] == first["id"]
+    assert resumed.json()["scenario_version_id"] == first_version_id
+
+    db.query(ServiceDeskAttempt).filter_by(id=first["id"]).update({"status": "failed"})
+    db.commit()
+    second = start(client, student, assignment)
+    assert second.status_code == 201
+    assert second.json()["scenario_version_id"] == v2.id
 
 
 def test_ownership_and_verified_complete_awards_xp_once(db):
@@ -220,6 +307,53 @@ def test_ownership_and_verified_complete_awards_xp_once(db):
     assert second.json()["id"] == first.json()["id"] == third.json()["id"]
     assert len(ledger_rows) == 1 and ledger_rows[0].delta == 100
     assert owner.total_xp == before_xp + 100
+
+
+def test_mentor_review_access_cannot_mutate_student_attempt(db):
+    owner = make_student(db, username="attempt-owner")
+    mentor = make_student(db, username="read-only-mentor")
+    mentor.is_mentor = True
+    db.commit()
+    assignment = setup_assignment(db, owner, stable_key="inc2401")
+    client = make_client(service_desk.router)
+    attempt_id = start(client, owner, assignment).json()["id"]
+    headers = auth_headers(mentor)
+
+    assert client.get(f"/api/service-desk/attempts/{attempt_id}", headers=headers).status_code == 200
+    writes = [
+        client.post(
+            f"/api/service-desk/attempts/{attempt_id}/events",
+            headers=headers,
+            json={"idempotency_key": "mentor-event", "event_type": "ticket.close", "tool": "ticket",
+                  "payload": {"verifiedResolved": True}, "resulting_state": {}, "success": True},
+        ),
+        client.post(
+            f"/api/service-desk/attempts/{attempt_id}/snapshot",
+            headers=headers,
+            json={"idempotency_key": "mentor-snapshot", "snapshot": {
+                "schema_version": 1, "nexus_service_desk_attempt": {}}},
+        ),
+        client.post(
+            f"/api/service-desk/attempts/{attempt_id}/actions",
+            headers=headers,
+            json={"idempotency_key": "mentor-action", "event_type": "ticket.assign", "tool": "ticket",
+                  "payload": {"ticketId": "INC2401"}, "resulting_state": {}},
+        ),
+        client.post(
+            f"/api/service-desk/attempts/{attempt_id}/hints",
+            headers=headers,
+            json={"idempotency_key": "mentor-hint", "tool": "ticket", "payload": {}},
+        ),
+        client.post(
+            f"/api/service-desk/attempts/{attempt_id}/complete",
+            headers=headers,
+            json={"idempotency_key": "mentor-complete"},
+        ),
+    ]
+
+    assert [response.status_code for response in writes] == [403, 403, 403, 403, 403]
+    assert db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt_id).count() == 0
+    assert db.query(XPLedger).filter_by(student_id=owner.id).count() == 0
 
 
 def test_failed_complete_awards_zero_xp(db):
@@ -413,6 +547,63 @@ def test_wrong_directory_user_does_not_satisfy_inc2401_objective(db):
         json={"idempotency_key": "grade"},
     )
     assert response.json()["passed"] is False
+
+
+def test_headset_ticket_requires_asset_replacement_shipping_and_notes(db):
+    student = make_student(db, username="headset-workflow")
+    assignment = setup_assignment(db, student, stable_key="inc2404", priority="medium")
+    client = make_client(service_desk.router)
+    headers = auth_headers(student)
+    attempt_id = start(client, student, assignment).json()["id"]
+    path = f"/api/service-desk/attempts/{attempt_id}/actions"
+
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "asset-damaged",
+        "event_type": "asset.change_status",
+        "tool": "asset",
+        "payload": {"assetTag": "NX-9052", "status": "damaged"},
+    }).status_code == 201
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "ship-headset",
+        "event_type": "shipping.create",
+        "tool": "shipping",
+        "payload": {
+            "recipientDirectoryUserId": "directory-user-elliot-ward",
+            "recipientName": "Elliot Ward",
+            "street": "120 Cedar Street",
+            "city": "Seattle",
+            "state": "WA",
+            "postalCode": "98101",
+            "senderDepartment": "IT Department",
+            "equipment": [{"name": "Headset", "quantity": 1}],
+            "computerAssetTag": None,
+            "speed": "express",
+            "includeReturnLabel": True,
+        },
+    }).status_code == 201
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "short-note",
+        "event_type": "ticket.add_note",
+        "tool": "ticket",
+        "payload": {"ticketId": "INC2404", "body": "Replaced."},
+    }).status_code == 422
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "complete-note",
+        "event_type": "ticket.add_note",
+        "tool": "ticket",
+        "payload": {
+            "ticketId": "INC2404",
+            "body": "Confirmed static followed the headset; replacement shipped and user will test it.",
+        },
+    }).status_code == 201
+    close(client, student, attempt_id)
+    grade = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/complete",
+        headers=headers,
+        json={"idempotency_key": "grade-headset"},
+    )
+    assert grade.status_code == 201
+    assert grade.json()["passed"] is True
 
 
 def test_non_ticket_tool_events_do_not_overwrite_resumable_ticket_state(db):
@@ -731,10 +922,23 @@ def test_server_authorized_workflow_passes_every_auto_gradable_scenario(db, stab
     definition = SCENARIO_OBJECTIVES[stable_key]
     rules = [*definition.required_all, *(definition.required_any[:1])]
     for index, rule in enumerate(rules):
-        tool = "directory" if rule.event_type.startswith("directory.") else "remote_desktop"
+        payload = dict(rule.payload)
+        if rule.event_type == "ticket.add_note":
+            payload["body"] = "Diagnosed damaged headset and arranged a verified replacement shipment."
+        tool = (
+            "directory"
+            if rule.event_type.startswith("directory.")
+            else "asset"
+            if rule.event_type.startswith("asset.")
+            else "shipping"
+            if rule.event_type.startswith("shipping.")
+            else "ticket"
+            if rule.event_type.startswith("ticket.")
+            else "remote_desktop"
+        )
         assert client.post(f"/api/service-desk/attempts/{attempt_id}/actions", headers=headers, json={
             "idempotency_key": f"action-{index}", "event_type": rule.event_type, "tool": tool,
-            "payload": rule.payload,
+            "payload": payload,
         }).status_code == 201
     close(client, student, attempt_id)
     grade = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=headers,

@@ -1,9 +1,11 @@
 import { createAttempt } from '@service-desk/simulation-engine';
+import { AssetStatus, TICKET_FIXTURES } from '@service-desk/shared';
 import { describe, expect, it } from 'vitest';
 
 import {
   getNexusActionSyncDetails,
   normalizeTicketKey,
+  ticketsForAssignments,
 } from './TicketSessionProvider';
 
 describe('Nexus evidence attribution', () => {
@@ -38,6 +40,24 @@ describe('Nexus evidence attribution', () => {
         attempt,
       ),
     ).toBeNull();
+  });
+
+  it('attributes the damaged headset and its replacement shipment to INC2404', () => {
+    expect(getNexusActionSyncDetails({
+      type: 'asset.change_status',
+      payload: { assetTag: 'NX-9052', status: AssetStatus.Damaged },
+    }, attempt)).toMatchObject({ ticketId: 'INC2404', tool: 'asset' });
+
+    expect(getNexusActionSyncDetails({
+      type: 'shipping.create',
+      payload: {
+        recipientDirectoryUserId: 'directory-user-elliot-ward',
+        recipientName: 'Elliot Ward', street: '120 Cedar Street', city: 'Seattle',
+        state: 'WA', postalCode: '98101', senderDepartment: 'IT Department',
+        equipment: [{ name: 'Headset', quantity: 1 }], computerAssetTag: null,
+        speed: 'express', includeReturnLabel: true,
+      },
+    }, attempt)).toMatchObject({ ticketId: 'INC2404', tool: 'shipping' });
   });
 
   it('uses the ticketId on Remote Desktop ticket-payload actions', () => {
@@ -121,5 +141,19 @@ describe('Nexus evidence attribution', () => {
   it('normalizes ticket keys for Nexus assignment lookup', () => {
     expect(normalizeTicketKey('inc2406')).toBe('INC2406');
     expect(normalizeTicketKey(' Inc2406 ')).toBe(' INC2406 ');
+  });
+
+  it('renders the exact published assignment definition instead of stale bundled copy', () => {
+    const definition = {
+      ...structuredClone(TICKET_FIXTURES[1]),
+      title: 'Published v2 title from Nexus',
+    };
+    const tickets = ticketsForAssignments([{
+      id: 1, is_required: false, maximum_attempts: null, mode: 'simulation',
+      most_recent_attempt: null, scenario_id: 2,
+      scenario: { stable_key: 'inc2402', title: definition.title },
+      latest_published_version: { definition_json: definition, id: 22, version_number: 2 },
+    }]);
+    expect(tickets.find((ticket) => ticket.id === 'INC2402')?.title).toBe(definition.title);
   });
 });

@@ -3,9 +3,7 @@
 import {
   DIRECTORY_GROUP_NAMES,
   DIRECTORY_USER_FIXTURES,
-  getScenario,
   getTestStudent,
-  listScenarios,
   type ScenarioVersion,
 } from '@service-desk/shared';
 import {
@@ -30,6 +28,10 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 import { loadTestAttempt, saveTestAttempt } from '../_lib/test-attempt';
+import {
+  getServerScenario,
+  listServerScenarios,
+} from '../../../lib/nexus-admin-scenario-client';
 
 const ACTOR_ID = 'admin-test-student';
 
@@ -51,43 +53,38 @@ export function TestScenarioWorkspace({
   const [directoryGroup, setDirectoryGroup] = useState<string>(
     DIRECTORY_GROUP_NAMES[0] ?? '',
   );
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
-    const record = getScenario(scenarioId);
     const slot = getTestStudent(slotId);
-    if (
-      !record ||
-      !slot?.assignedScenarioIds.includes(scenarioId) ||
-      !record.template.activeVersionId
-    ) {
-      return;
-    }
-    const active = record.versions.find(
-      (candidate) => candidate.id === record.template.activeVersionId,
-    );
-    if (!active) {
-      return;
-    }
-    const assignedVersions = listScenarios().flatMap((candidate) => {
-      const candidateVersion = candidate.versions.find(
-        (item) => item.id === candidate.template.activeVersionId,
-      );
-      return candidateVersion &&
-        slot.assignedScenarioIds.includes(candidate.template.id)
-        ? [candidateVersion]
-        : [];
-    });
-    setVersion(active);
-    setAttempt(loadTestAttempt(slotId, assignedVersions));
-    const firstRelevantUser =
-      Object.keys(active.initialWorldState.directoryOverlaySeeds)[0] ??
-      active.objectives.find(
-        (objective) =>
-          typeof objective.predicateParams.directoryUserId === 'string',
-      )?.predicateParams.directoryUserId;
-    if (typeof firstRelevantUser === 'string') {
-      setDirectoryUserId(firstRelevantUser);
-    }
+    if (!slot?.assignedScenarioIds.includes(scenarioId)) return;
+    void Promise.all([getServerScenario(scenarioId), listServerScenarios()]).then(
+      ([record, records]) => {
+        if (!record.template.activeVersionId) return;
+        const active = record.versions.find(
+          (candidate) => candidate.id === record.template.activeVersionId,
+        );
+        if (!active) return;
+        const assignedVersions = records.flatMap((candidate) => {
+          const candidateVersion = candidate.versions.find(
+            (item) => item.id === candidate.template.activeVersionId,
+          );
+          return candidateVersion && slot.assignedScenarioIds.includes(candidate.template.id)
+            ? [candidateVersion]
+            : [];
+        });
+        setVersion(active);
+        setAttempt(loadTestAttempt(slotId, assignedVersions));
+        const firstRelevantUser =
+          Object.keys(active.initialWorldState.directoryOverlaySeeds)[0] ??
+          active.objectives.find(
+            (objective) => typeof objective.predicateParams.directoryUserId === 'string',
+          )?.predicateParams.directoryUserId;
+        if (typeof firstRelevantUser === 'string') setDirectoryUserId(firstRelevantUser);
+      },
+    ).catch((error: unknown) => setLoadError(
+      error instanceof Error ? error.message : 'Test scenario could not load.',
+    ));
   }, [scenarioId, slotId]);
 
   const evaluation = useMemo(
@@ -96,6 +93,9 @@ export function TestScenarioWorkspace({
     [attempt, version],
   );
 
+  if (loadError) {
+    return <p className="rounded-sm border border-red-400/30 bg-red-400/10 p-3 text-red-200" role="alert">{loadError}</p>;
+  }
   if (!attempt || !version) {
     return (
       <div className="space-y-3">

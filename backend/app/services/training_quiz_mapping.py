@@ -97,7 +97,9 @@ BEGINNER_REQUIRED_VIDEO_IDS = {
     4: {46, 47, 62, 169, 180},
     7: {137, 138, 143, 156, 157},
     8: {6, 7, 18, 61, 123},
-    20: {145, 149, 153, 155, 161},
+    # Week 20's required path is Linux operations. These security videos are
+    # useful review but duplicate Week 7 and stay available as optional work.
+    20: set(),
 }
 
 # The Week 3 Defender/update lesson is repeated more coherently in Week 7.

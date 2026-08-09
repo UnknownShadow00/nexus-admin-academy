@@ -79,6 +79,81 @@ async function getMyAssignment(page, stableKey) {
 }
 
 test.describe("Service Desk integration (requires an integrated stack)", () => {
+  test("admin scenario draft survives refresh and publishes an immutable version", async ({ page }) => {
+    const suffix = Date.now();
+    const stableKey = `e2e-printer-${suffix}`;
+    const title = `E2E printer draft ${suffix}`;
+    const definition = {
+      title,
+      slug: stableKey,
+      category: "software",
+      priority: "medium",
+      difficulty: "easy",
+      pointValue: 100,
+      explanation: "Restarting the failed Print Spooler restores the local print queue.",
+      description: {
+        issue: "Print jobs disappear from one workstation while a nearby workstation prints normally.",
+        reportedByLine: "Reported through the employee portal.",
+        businessImpact: "The requester cannot print an onboarding pack.",
+        troubleshooting: ["A nearby workstation can print to the same device."],
+      },
+      requester: {
+        name: "Avery Brooks", department: "Finance", email: "avery@example.test",
+        contact: "Ext. 10", location: "North office",
+      },
+      device: {
+        assetTag: "NX-1000", deviceName: "FIN-LT-10", kind: "laptop",
+        operatingSystem: "Windows 11", state: "active",
+      },
+      sla: { dueAt: "2026-08-08T12:00:00Z", target: "4 hours" },
+      initialWorldState: { directoryOverlaySeeds: {}, assetOverlaySeeds: {}, chatMessageSeeds: [] },
+      objectives: [{
+        id: "document-resolution", order: 1, description: "Document the diagnosis and verification.",
+        pointValue: 100, predicateType: "action_event_occurred",
+        predicateParams: { actionType: "ticket.add_note", payloadMatch: { ticketId: stableKey.toUpperCase() } }, required: true,
+      }],
+      requiredActions: [], forbiddenActions: [],
+      hints: [
+        { id: "h1", order: 1, pointPenalty: 0, text: "Determine whether the failure follows the user, workstation, or printer." },
+        { id: "h2", order: 2, pointPenalty: 5, text: "Inspect the affected workstation's Windows services." },
+        { id: "h3", order: 3, pointPenalty: 5, text: "Check and restart the Print Spooler, then print a test page." },
+      ],
+    };
+
+    await adminLogin(page);
+    const created = await page.request.post("/api/admin/service-desk/scenarios", withOrigin({ data: {
+      stable_key: stableKey, title, description: definition.description.issue,
+      category: definition.category, difficulty: 1, definition_json: definition,
+    } }));
+    expect(created.status()).toBe(201);
+    const scenario = await created.json();
+
+    await page.goto(`/service-desk/admin/scenarios/${scenario.id}`);
+    const titleInput = page.getByLabel("Title");
+    await expect(titleInput).toHaveValue(title);
+    const editedTitle = `${title} saved`;
+    await titleInput.fill(editedTitle);
+    await page.getByRole("button", { name: "Save Draft" }).click();
+    await expect(page.getByText(/Draft v1 saved to Nexus/)).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByLabel("Title")).toHaveValue(editedTitle);
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Publish Version" }).click();
+    await expect(page.getByText(/Version 1 published/)).toBeVisible();
+
+    await page.getByLabel("Title").fill(`${editedTitle} v2`);
+    await page.getByRole("button", { name: "Save Draft" }).click();
+    await expect(page.getByText(/Draft v2 saved to Nexus/)).toBeVisible();
+    const reloaded = await (await page.request.get(`/api/admin/service-desk/scenarios/${scenario.id}`)).json();
+    expect(reloaded.versions).toHaveLength(2);
+    expect(reloaded.versions[0].status).toBe("published");
+    expect(reloaded.versions[0].definition_json.title).toBe(editedTitle);
+    expect(reloaded.versions[1].status).toBe("draft");
+    await page.reload();
+    await expect(page.getByLabel("Title")).toHaveValue(`${editedTitle} v2`);
+  });
+
   test("snapshot-only sync persists every formerly local simulator domain", async ({ browser }) => {
     test.setTimeout(90_000);
     const sourceContext = await browser.newContext();
@@ -543,5 +618,83 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
       "Nice work verifying identity before unlocking the account.",
     );
     await contextA3.close();
+  });
+
+  test("INC2402 can be diagnosed, repaired, verified, and closed through Remote Desktop", async ({ page }) => {
+    test.setTimeout(90_000);
+    await studentLogin(page, studentAUsername, studentAPassword);
+    await page.goto("/service-desk/tickets/INC2402");
+    await expect(page.getByText("INC2402").first()).toBeVisible();
+
+    await page.goto("/service-desk/tools/remote-desktop?ticket=INC2402");
+    await page.getByPlaceholder("Search by asset tag, hostname, or owner").fill("NX-7714");
+    await page.getByRole("button", { name: "Connect" }).click();
+    await page.getByPlaceholder("e.g. jdoe").fill("support.admin");
+    await page.getByPlaceholder("Domain password").fill("simulation-only");
+    await page.getByRole("button", { name: "OK" }).click();
+    await expect(page.getByRole("button", { name: "System Tools", exact: true }).first()).toBeVisible();
+
+    await page.getByRole("button", { name: "System Tools", exact: true }).first().click();
+    await page.getByRole("button", { name: "View network diagnostics" }).click();
+    await page.getByRole("button", { name: "Settings", exact: true }).first().click();
+    await page.getByRole("button", { name: "Repair network profile" }).click();
+    await page.getByRole("button", { name: "System Tools", exact: true }).first().click();
+    await page.getByRole("button", { name: "Renew network address" }).click();
+
+    await expect(page.getByText("Solution complete")).toBeVisible();
+    await page.getByRole("button", { name: "Close ticket" }).click();
+    await expect(page.getByText("Saving…")).toBeHidden();
+
+    const assignment = await getMyAssignment(page, "inc2402");
+    const attempt = await (await page.request.get(
+      `/api/service-desk/attempts/${assignment.most_recent_attempt.id}`,
+    )).json();
+    expect(attempt.status).toBe("completed");
+    expect(attempt.grade.passed).toBe(true);
+  });
+
+  test("INC2404 requires real asset, shipping, note, and close actions", async ({ page }) => {
+    test.setTimeout(90_000);
+    await studentLogin(page, studentBUsername, studentBPassword);
+    await page.goto("/service-desk/tickets/INC2404");
+    await expect(page.getByText("INC2404").first()).toBeVisible();
+
+    await page.goto("/service-desk/tools/asset-management");
+    await page.getByPlaceholder("Search assets").fill("NX-9052");
+    await page.getByText("NX-9052", { exact: true }).first().click();
+    await page.locator("#status-NX-9052").selectOption("damaged");
+    await page.getByRole("button", { name: "Update status" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Mark damaged" }).click();
+    await expect(page.getByText("Asset status changed to damaged.")).toBeVisible();
+
+    await page.goto("/service-desk/tools/shipping-manager");
+    await page.getByLabel("Recipient name").fill("Elliot Ward");
+    await page.getByRole("checkbox", { name: "Headset", exact: true }).check();
+    await page.getByRole("radio", { name: /Express/ }).check();
+    await page.getByRole("checkbox", { name: /Include return label/ }).check();
+    await page.getByRole("button", { name: "Ship", exact: true }).click();
+    await expect(page.getByText("Replacement shipped")).toBeVisible();
+
+    await page.goto("/service-desk/tickets/INC2404");
+    const noteBox = page.getByPlaceholder(/note/i).or(page.locator("textarea").first());
+    await noteBox.first().fill(
+      "Confirmed the static followed the headset, marked NX-9052 damaged, and shipped Elliot a replacement for verification.",
+    );
+    await page.getByRole("button", { name: /add.*note/i }).first().click();
+    await page.getByRole("button", { name: "Resolve / close" }).click();
+    await page.getByLabel("Resolution note").fill(
+      "Replacement headset shipped; Elliot will verify clear audio on the next call.",
+    );
+    await page.getByRole("checkbox", { name: /verified the requester/i }).check();
+    await page.getByRole("button", { name: "Continue to review" }).click();
+    await page.getByRole("button", { name: "Resolve ticket" }).click();
+    await expect(page.getByText("Saving…")).toBeHidden();
+
+    const assignment = await getMyAssignment(page, "inc2404");
+    const attempt = await (await page.request.get(
+      `/api/service-desk/attempts/${assignment.most_recent_attempt.id}`,
+    )).json();
+    expect(attempt.status).toBe("completed");
+    expect(attempt.grade.passed).toBe(true);
   });
 });

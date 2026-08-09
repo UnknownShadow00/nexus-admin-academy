@@ -54,6 +54,18 @@ describe('Nexus durable sync outbox', () => {
   it('rejects malformed persisted data safely', () => {
     const local = storage();
     local.setItem('outbox', '{bad json');
-    expect(readNexusOutbox(local, 'outbox')).toEqual({ items: [] });
+    expect(readNexusOutbox(local, 'outbox')).toEqual({ items: [], recoveryIssue: true });
+    expect(local.getItem('outbox:corrupt-backup')).toBe('{bad json');
+  });
+
+  it('keeps valid queued work when one persisted item is malformed', () => {
+    const local = storage();
+    const raw = JSON.stringify({ version: 1, items: [item, { assignmentId: 4 }] });
+    local.setItem('outbox', raw);
+    const recovered = readNexusOutbox(local, 'outbox');
+    expect(recovered.items).toEqual([item]);
+    expect(recovered.recoveryIssue).toBe(true);
+    expect(outboxStatus(recovered, false)).toBe('problem');
+    expect(local.getItem('outbox:corrupt-backup')).toBe(raw);
   });
 });

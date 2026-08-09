@@ -104,11 +104,29 @@ docker build \
   -f 'service-desk-app/docker/web.Dockerfile' \
   -t "$SERVICE_DESK_IMAGE" 'service-desk-app'
 
-export JWT_SECRET_KEY="$(sed -n 's/^JWT_SECRET_KEY=//p' backend/.env | head -n1)"
-export JWT_ALGORITHM="$(sed -n 's/^JWT_ALGORITHM=//p' backend/.env | head -n1)"
+read_nexus_env_value() {
+  backend/.venv/bin/python - "$1" <<'PY'
+import sys
+from dotenv import dotenv_values
+value = dotenv_values("backend/.env").get(sys.argv[1])
+if not value:
+    raise SystemExit(f"Missing {sys.argv[1]} in backend/.env")
+print(value)
+PY
+}
+export JWT_SECRET_KEY="$(read_nexus_env_value JWT_SECRET_KEY)"
+export JWT_ALGORITHM="$(read_nexus_env_value JWT_ALGORITHM)"
 docker network inspect nexus-production >/dev/null 2>&1 || docker network create nexus-production
 docker network inspect nexus-production --format '{{json .Containers}}' | grep -q 'nexus-frontend' || \
   docker network connect nexus-production nexus-frontend
+if docker inspect nexus-service-desk >/dev/null 2>&1; then
+  if docker inspect nexus-service-desk-predeploy >/dev/null 2>&1; then
+    echo 'ERROR: nexus-service-desk-predeploy already exists; resolve it before continuing.' >&2
+    exit 1
+  fi
+  docker stop nexus-service-desk
+  docker rename nexus-service-desk nexus-service-desk-predeploy
+fi
 docker run -d --name nexus-service-desk --restart unless-stopped \
   --network nexus-production \
   --add-host=backend-host:host-gateway \
@@ -124,6 +142,7 @@ docker run -d --name nexus-service-desk --restart unless-stopped \
   --health-start-period=15s \
   "$SERVICE_DESK_IMAGE"
 unset JWT_SECRET_KEY JWT_ALGORITHM
+unset -f read_nexus_env_value
 
 curl --fail http://127.0.0.1:13000/service-desk/api/health
 docker inspect nexus-service-desk --format '{{.State.Health.Status}}'
@@ -139,13 +158,10 @@ rollback restores that nginx file, reloads nginx, and starts a container from
 the recorded image ID on the same private Docker network and loopback port.
 Never publish port `13000` on a LAN or public interface.
 
-The frontend is a Vite SPA and does not use React Router data routers, SSR,
-hydration serialization, actions, or RSC mode. The current version therefore
-retains the last compatible v6 release while `safeNextPath()` rejects both
-protocol-relative and backslash-confused redirects. `npm audit
---audit-level=high` is the release gate; review the two documented moderate
-React Router advisories again when a non-conflicting upstream patch is
-available.
+The frontend is a Vite SPA using React Router 7 declarative routing; it does
+not use data routers, SSR, hydration serialization, actions, or RSC mode.
+`safeNextPath()` rejects both protocol-relative and backslash-confused
+redirects. `npm audit --audit-level=high` remains the release gate.
 
 The project directory permissions protect `backend/.env`; do not replace the
 copy-based frontend deployment with a bind mount that requires making the
@@ -209,8 +225,11 @@ recreate those volumes during an ordinary deployment.
 ## SQLite backup and restore
 
 `scripts/backup_sqlite.sh` uses SQLite's online backup API, compresses the
-database, synchronizes uploads, rejects suspiciously small backups, and keeps
-14 days. The script documents the production cron entry.
+database, creates a timestamp-matched uploads archive, rejects suspiciously
+small database backups, and keeps 14 days. The script documents the
+production cron entry. `NEXUS_SQLITE_DB`, `NEXUS_UPLOADS_DIR`,
+`NEXUS_BACKUP_DIR`, and `NEXUS_BACKUP_STAMP` may be set to rehearse safely
+against an isolated copy; production defaults remain unchanged.
 
 Test a backup without replacing production:
 

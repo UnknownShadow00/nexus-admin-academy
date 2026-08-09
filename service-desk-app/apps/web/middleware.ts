@@ -22,13 +22,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const session = verifyStudentSession(
-    request.cookies.get('student_session')?.value,
-  );
-  if (!session) {
-    return loginRedirect(request);
-  }
-
   // NextURL strips the configured basePath; the fallback keeps this safe if URL
   // normalization is disabled in a future Next.js configuration.
   const appPathname =
@@ -37,11 +30,18 @@ export async function middleware(request: NextRequest) {
       ? request.nextUrl.pathname.slice(request.nextUrl.basePath.length) || '/'
       : request.nextUrl.pathname;
 
-  if (
-    appPathname.startsWith('/admin') &&
-    !(await hasNexusAdminAccess(session, request.headers.get('cookie')))
-  ) {
-    return appRootRedirect(request);
+  const session = verifyStudentSession(
+    request.cookies.get('student_session')?.value,
+  );
+
+  if (appPathname.startsWith('/admin')) {
+    return (await hasNexusAdminAccess(session, request.headers.get('cookie')))
+      ? NextResponse.next()
+      : appRootRedirect(request);
+  }
+
+  if (!session) {
+    return loginRedirect(request);
   }
 
   return NextResponse.next();

@@ -4,18 +4,18 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import TrainingSubnav from "../components/TrainingSubnav";
 import { getTrainingWeek, markTrainingVideoWatched } from "../services/api";
 
-const learnTypes = new Set(["lesson", "video", "quiz"]);
+const learnTypes = new Set(["lesson", "video"]);
 
-function ActivityCard({ activity, onWatched, returnTo }) {
+function ActivityCard({ activity, isNext = false, onWatched, returnTo }) {
   const quiz = activity.linked_quiz;
   const actionLabel = activity.complete ? "Review" : activity.status === "in_progress" ? "Continue" : "Start";
   return (
-    <article id={activity.stable_id} data-activity-type={activity.activity_type} className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+    <article id={activity.stable_id} data-activity-type={activity.activity_type} className={`rounded-xl border bg-white p-4 dark:bg-slate-900 ${isNext ? "border-blue-500 ring-2 ring-blue-100 dark:border-blue-400 dark:ring-blue-950" : "border-slate-200 dark:border-slate-700"}`}>
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 gap-3">
           <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 ${activity.complete ? "border-green-500 bg-green-500 text-white" : activity.status === "locked" ? "border-slate-300 text-slate-400 dark:border-slate-600" : "border-blue-300 text-blue-600 dark:border-blue-700"}`}>{activity.complete ? <Check size={16} /> : activity.status === "locked" ? <Lock size={14} /> : ""}</span>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2"><span className="text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">{activity.activity_label}</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${activity.is_required ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" : "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"}`}>{activity.requirement_label}</span>{activity.estimated_minutes ? <span className="inline-flex items-center gap-1 text-xs text-slate-500"><Clock size={12} />{activity.estimated_minutes} min</span> : null}</div>
+            <div className="flex flex-wrap items-center gap-2">{isNext ? <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-bold uppercase text-white">Next</span> : null}<span className="text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">{activity.activity_label}</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${activity.is_required ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" : "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"}`}>{activity.requirement_label}</span>{activity.estimated_minutes ? <span className="inline-flex items-center gap-1 text-xs text-slate-500"><Clock size={12} />{activity.estimated_minutes} min</span> : null}</div>
             <h3 className="mt-1 font-bold text-slate-900 dark:text-white">{activity.title}</h3>
             {activity.description ? <p className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{activity.description}</p> : null}
             {activity.score_percent != null ? <p className="mt-2 text-sm font-semibold text-green-700 dark:text-green-300">Quiz score: {activity.score}/{activity.total} ({activity.score_percent}%)</p> : null}
@@ -32,6 +32,11 @@ function ActivityCard({ activity, onWatched, returnTo }) {
       </div>
     </article>
   );
+}
+
+function ActivitySection({ description, items, nextId, onWatched, returnTo, title }) {
+  if (!items.length) return null;
+  return <section className="space-y-3"><div><h2 className="text-2xl font-bold text-slate-950 dark:text-white">{title}</h2><p className="text-sm text-slate-600 dark:text-slate-300">{description}</p></div>{items.map((item) => <ActivityCard key={item.id} activity={item} isNext={item.id === nextId} onWatched={onWatched} returnTo={returnTo} />)}</section>;
 }
 
 export default function TrainingWeekPage() {
@@ -51,8 +56,13 @@ export default function TrainingWeekPage() {
   };
   if (error) return <main className="mx-auto max-w-3xl p-6"><Link className="mb-4 inline-flex items-center gap-1 text-blue-600" to="/training"><ChevronLeft size={16} />My Training</Link><div role="alert" className="panel">{error}</div></main>;
   if (!week) return <main className="mx-auto max-w-5xl p-6"><div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
-  const learn = week.activities.filter((item) => learnTypes.has(item.activity_type));
-  const practice = week.activities.filter((item) => !learnTypes.has(item.activity_type));
+  const required = week.activities.filter((item) => item.is_required);
+  const extra = week.activities.filter((item) => !item.is_required);
+  const requiredLearn = required.filter((item) => learnTypes.has(item.activity_type));
+  const requiredQuiz = required.filter((item) => item.activity_type === "quiz");
+  const requiredPractice = required.filter((item) => !learnTypes.has(item.activity_type) && item.activity_type !== "quiz");
+  const nextId = week.next_activity?.id;
+  const returnTo = `/training/week/${week.week_number}`;
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6">
       <Link className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to="/training"><ChevronLeft size={16} />Weekly Plan</Link>
@@ -62,8 +72,11 @@ export default function TrainingWeekPage() {
         <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto] md:items-end"><div><div className="mb-2 flex justify-between text-sm text-slate-600 dark:text-slate-300"><span>{week.required_complete} of {week.required_total} required complete{week.required_estimated_minutes ? ` · about ${Math.ceil(week.required_estimated_minutes / 60)} hr` : ""}</span><strong>{week.completion_percent}%</strong></div><div className="h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full bg-blue-600" style={{ width: `${week.completion_percent}%` }} /></div></div>{week.next_activity?.destination_route ? <Link className="btn-primary" to={week.next_activity.destination_route}>Continue Next Activity</Link> : null}</div>
         {week.learning_goals?.length ? <div className="mt-5"><h2 className="font-bold text-slate-900 dark:text-white">Learning goals</h2><ul className="mt-2 grid gap-1 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-2">{week.learning_goals.map((goal) => <li key={goal} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-blue-600" />{goal}</li>)}</ul></div> : null}
       </header>
-      <section className="space-y-3"><div><h2 className="text-2xl font-bold text-slate-950 dark:text-white">Learn</h2><p className="text-sm text-slate-600 dark:text-slate-300">Learn each topic, then take the linked quiz before or after marking the video watched.</p></div>{learn.length ? learn.map((item) => <ActivityCard key={item.id} activity={item} onWatched={handleWatched} returnTo={`/training/week/${week.week_number}`} />) : <p className="panel text-sm text-slate-500">No learning activities are assigned.</p>}</section>
-      <section className="space-y-3"><div><h2 className="text-2xl font-bold text-slate-950 dark:text-white">Practice</h2><p className="text-sm text-slate-600 dark:text-slate-300">Apply this week’s skills. Optional work never blocks the next week.</p></div>{practice.length ? practice.map((item) => <ActivityCard key={item.id} activity={item} onWatched={handleWatched} returnTo={`/training/week/${week.week_number}`} />) : <p className="panel text-sm text-slate-500">No practical activity is currently mapped to this week.</p>}</section>
+      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100"><strong>Your required path:</strong> Learn → Quiz → Practice → Review. Complete these sections in order; extra practice is optional and collapsed below.</div>
+      <ActivitySection title="1. Learn" description="Build the core knowledge for this week." items={requiredLearn} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} />
+      <ActivitySection title="2. Quiz" description="Check your understanding and review the explanation after each answer." items={requiredQuiz} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} />
+      <ActivitySection title="3. Practice" description="Apply the week’s skills in a realistic task." items={requiredPractice} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} />
+      {extra.length ? <details className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 dark:border-violet-900 dark:bg-violet-950/10"><summary className="cursor-pointer font-bold text-violet-900 dark:text-violet-200">Extra practice ({extra.length}) <span className="ml-2 text-sm font-normal text-violet-700 dark:text-violet-300">Optional — does not affect week completion</span></summary><div className="mt-4 space-y-3">{extra.map((item) => <ActivityCard key={item.id} activity={item} onWatched={handleWatched} returnTo={returnTo} />)}</div></details> : null}
       <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/20"><h2 className="text-xl font-bold text-slate-950 dark:text-white">{week.is_complete ? `Week ${week.week_number} Complete` : `Week ${week.week_number} Progress`}</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{week.required_complete} of {week.required_total} required activities complete</p>{week.next_activity?.destination_route ? <Link className="btn-primary mt-4" to={week.next_activity.destination_route}>Continue Next Activity</Link> : <Link className="btn-primary mt-4" to="/training">Return to Weekly Plan</Link>}</section>
     </main>
   );

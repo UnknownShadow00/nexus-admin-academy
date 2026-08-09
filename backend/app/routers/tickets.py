@@ -14,7 +14,7 @@ from app.models.ticket import Ticket, TicketSubmission
 from app.schemas.ticket import TicketSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.ticket_params import resolve_parameters, substitute, substitute_list
-from app.services.auth_service import ensure_student_access, get_current_student
+from app.services.auth_service import ensure_student_access, ensure_student_ownership, get_current_student
 from app.services.ticket_grader import grade_ticket_submission, grade_ticket_with_answer_key
 from app.services.progression_service import require_week_reached
 from app.utils.responses import ok
@@ -296,7 +296,7 @@ def _verify_evidence_ownership(db: Session, student_id: int, *artifact_ids: int 
 @router.post("/{ticket_id}/submit")
 async def submit_ticket(ticket_id: int, payload: TicketSubmitRequest, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
     student_id = payload.student_id
-    ensure_student_access(current_student, student_id)
+    ensure_student_ownership(current_student, student_id)
     collaborators = _validate_collaborators(db, student_id, payload.collaborator_ids or [])
     duration_minutes = payload.duration_minutes
 

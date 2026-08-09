@@ -8,6 +8,7 @@ export interface NexusAssignment {
   id: string | number;
   is_required: boolean;
   latest_published_version: {
+    definition_json: Record<string, unknown>;
     id: string | number;
     version_number: number;
   } | null;
@@ -126,6 +127,7 @@ function isAssignment(value: unknown): value is NexusAssignment {
     (value.latest_published_version === null ||
       (isRecord(value.latest_published_version) &&
         isId(value.latest_published_version.id) &&
+        isRecord(value.latest_published_version.definition_json) &&
         typeof value.latest_published_version.version_number === 'number')) &&
     typeof value.mode === 'string' &&
     (value.most_recent_attempt === null ||

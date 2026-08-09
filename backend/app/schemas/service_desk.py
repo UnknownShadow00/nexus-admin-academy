@@ -61,3 +61,27 @@ class ServiceDeskAssignmentCreate(BaseModel):
 
 class ServiceDeskScenarioVersionCreate(BaseModel):
     definition_json: dict[str, Any]
+    stable_key: str | None = Field(default=None, min_length=2, max_length=120, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    title: str | None = Field(default=None, min_length=3, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+    category: str | None = Field(default=None, min_length=2, max_length=100)
+    difficulty: int | None = Field(default=None, ge=1, le=3)
+
+
+class ServiceDeskScenarioCreate(BaseModel):
+    stable_key: str = Field(min_length=2, max_length=120, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    title: str = Field(min_length=3, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+    category: str = Field(min_length=2, max_length=100)
+    difficulty: int = Field(ge=1, le=3)
+    definition_json: dict[str, Any]
+
+
+class ServiceDeskScenarioDraftUpdate(BaseModel):
+    stable_key: str = Field(min_length=2, max_length=120, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    title: str = Field(min_length=3, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+    category: str = Field(min_length=2, max_length=100)
+    difficulty: int = Field(ge=1, le=3)
+    definition_json: dict[str, Any]
+    expected_definition_hash: str | None = Field(default=None, min_length=64, max_length=64)

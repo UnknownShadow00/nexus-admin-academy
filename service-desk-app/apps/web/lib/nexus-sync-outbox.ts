@@ -20,6 +20,8 @@ export interface NexusOutboxItem {
 
 export interface NexusOutbox {
   items: NexusOutboxItem[];
+  /** Persisted data needed recovery; the UI must not claim everything is saved. */
+  recoveryIssue?: boolean;
 }
 
 const OUTBOX_VERSION = 1;
@@ -41,14 +43,33 @@ function isItem(value: unknown): value is NexusOutboxItem {
 }
 
 export function readNexusOutbox(storage: Storage, key: string): NexusOutbox {
+  const raw = storage.getItem(key);
+  if (raw === null) return { items: [] };
   try {
-    const value: unknown = JSON.parse(storage.getItem(key) ?? '');
+    const value: unknown = JSON.parse(raw);
     if (!isRecord(value) || value.version !== OUTBOX_VERSION || !Array.isArray(value.items)) {
-      return { items: [] };
+      preserveCorruptOutbox(storage, key, raw);
+      return { items: [], recoveryIssue: true };
     }
-    return { items: value.items.filter(isItem) };
-  } catch {
-    return { items: [] };
+    const items = value.items.filter(isItem);
+    if (items.length !== value.items.length) {
+      preserveCorruptOutbox(storage, key, raw);
+      return { items, recoveryIssue: true };
+    }
+    return { items };
+  } catch (error) {
+    preserveCorruptOutbox(storage, key, raw);
+    console.error('Nexus preserved a corrupt sync outbox for recovery.', error);
+    return { items: [], recoveryIssue: true };
+  }
+}
+
+function preserveCorruptOutbox(storage: Storage, key: string, raw: string): void {
+  const backupKey = `${key}:corrupt-backup`;
+  try {
+    if (storage.getItem(backupKey) === null) storage.setItem(backupKey, raw);
+  } catch (error) {
+    console.error('Nexus could not back up a corrupt sync outbox.', error);
   }
 }
 
@@ -57,6 +78,7 @@ export function writeNexusOutbox(storage: Storage, key: string, outbox: NexusOut
 }
 
 export function outboxStatus(outbox: NexusOutbox, failed: boolean): NexusSyncStatus {
+  if (outbox.recoveryIssue) return 'problem';
   if (outbox.items.length === 0) return 'saved';
   return failed ? 'problem' : 'saving';
 }

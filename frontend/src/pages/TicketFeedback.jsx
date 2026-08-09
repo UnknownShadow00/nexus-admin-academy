@@ -34,8 +34,8 @@ export default function TicketFeedback() {
 
   const feedback = typeof submission.ai_feedback === "string" ? JSON.parse(submission.ai_feedback) : (submission.ai_feedback || {});
   const images = (submission.evidence_artifacts || [])
-    .filter((a) => a.artifact_type === "screenshot")
-    .map((a) => buildApiUrl(`/uploads/screenshots/${a.storage_key}`));
+    .filter((artifact) => artifact.artifact_type === "screenshot")
+    .map((artifact) => buildApiUrl(`/api/evidence/${artifact.id}/file`));
 
   return (
     <main className="mx-auto max-w-4xl p-6">

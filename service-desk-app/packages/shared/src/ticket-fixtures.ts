@@ -88,14 +88,14 @@ export const TICKET_FIXTURES = [
     createdAt: '2026-07-28T10:08:00.000Z',
     description: {
       businessImpact:
-        'Outbound orders are being recorded on paper, slowing dispatch and increasing re-entry work.',
+        'One loading lane is recording orders on paper, slowing dispatch and increasing re-entry work.',
       issue:
-        'Handheld scanners at two loading lanes disconnect from the warehouse network every few minutes.',
+        'The scanner at loading lane 2 disconnects from the warehouse network every few minutes. The scanner at the next lane stays connected.',
       reportedByLine:
-        'Reported by the morning dispatch lead after the issue spread to a second lane.',
+        'Reported by the morning dispatch lead after the issue continued through the first hour of the shift.',
       troubleshooting: [
         'Restarted one handheld scanner.',
-        'Moved within range of the nearest access point.',
+        'Moved the affected scanner beside a working scanner; only the affected unit disconnected.',
         'Confirmed wired packing stations remain connected.',
       ],
     },
@@ -108,10 +108,9 @@ export const TICKET_FIXTURES = [
     },
     escalated: false,
     hints: [
-      'Establish whether every affected scanner is using the same wireless access point.',
-      'Inspect network health and recent alerts for the loading dock segment.',
-      'Compare the affected device configuration with a scanner that remains connected.',
-      'Document the stable connection test before returning scanners to the dispatch team.',
+      'Use the working scanner beside it to decide whether the fault follows the network area or one device.',
+      'Open Remote Desktop and compare the affected scanner’s network settings with the working unit.',
+      'Repair the affected network profile, renew its address, and then watch the connection long enough to verify stability.',
     ],
     id: 'INC2402',
     notes: [],
@@ -226,10 +225,9 @@ export const TICKET_FIXTURES = [
     },
     escalated: false,
     hints: [
-      'Confirm whether the static follows the headset to another workstation.',
-      'Review the asset record for warranty and replacement eligibility.',
-      'Compare audio behavior with a known-good headset on the same workstation.',
-      'Update the requester after deciding whether the fault follows the accessory or the PC.',
+      'Work out whether the fault follows the headset or remains with the workstation.',
+      'Use Asset Management to record the confirmed hardware condition, then review replacement options.',
+      'Mark the faulty headset as damaged, ship one replacement headset to Elliot Ward, and document how the requester should verify it.',
     ],
     id: 'INC2404',
     notes: [],

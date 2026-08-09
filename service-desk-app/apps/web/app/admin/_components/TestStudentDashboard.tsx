@@ -2,7 +2,6 @@
 
 import {
   getTestStudent,
-  listScenarios,
   setTestStudentScenarioAssignment,
   type ScenarioRecord,
   type ScenarioVersion,
@@ -30,6 +29,7 @@ import {
   resetTestAttempt,
   saveTestAttempt,
 } from '../_lib/test-attempt';
+import { listServerScenarios } from '../../../lib/nexus-admin-scenario-client';
 
 function activeVersion(record: ScenarioRecord): ScenarioVersion | undefined {
   return record.versions.find(
@@ -43,6 +43,8 @@ export function TestStudentDashboard({ slotId }: { slotId: string }) {
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [scenarioToAssign, setScenarioToAssign] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [loaded, setLoaded] = useState(false);
   const published = useMemo(
     () => records.filter((record) => Boolean(activeVersion(record))),
     [records],
@@ -59,23 +61,31 @@ export function TestStudentDashboard({ slotId }: { slotId: string }) {
 
   useEffect(() => {
     const nextSlot = getTestStudent(slotId);
-    const nextRecords = listScenarios();
     setSlot(nextSlot);
-    setRecords(nextRecords);
-    if (nextSlot) {
-      const versions = nextRecords.flatMap((record) => {
-        const version = activeVersion(record);
-        return version &&
-          nextSlot.assignedScenarioIds.includes(record.template.id)
-          ? [version]
-          : [];
-      });
-      const nextAttempt = loadTestAttempt(slotId, versions);
-      setAttempt(nextAttempt);
-      saveTestAttempt(slotId, nextAttempt);
-    }
+    void listServerScenarios().then((nextRecords) => {
+      setRecords(nextRecords);
+      if (nextSlot) {
+        const versions = nextRecords.flatMap((record) => {
+          const version = activeVersion(record);
+          return version && nextSlot.assignedScenarioIds.includes(record.template.id)
+            ? [version]
+            : [];
+        });
+        const nextAttempt = loadTestAttempt(slotId, versions);
+        setAttempt(nextAttempt);
+        saveTestAttempt(slotId, nextAttempt);
+      }
+    }).catch((error: unknown) => setLoadError(
+      error instanceof Error ? error.message : 'Published scenarios could not load.',
+    )).finally(() => setLoaded(true));
   }, [slotId]);
 
+  if (loadError) {
+    return <p className="rounded-sm border border-red-400/30 bg-red-400/10 p-3 text-red-200" role="alert">{loadError}</p>;
+  }
+  if (loaded && !slot) {
+    return <p className="text-zinc-400">This test student slot does not exist.</p>;
+  }
   if (!slot || !attempt) {
     return <p className="text-zinc-400">Loading test student slot…</p>;
   }

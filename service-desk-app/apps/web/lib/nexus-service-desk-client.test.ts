@@ -52,7 +52,7 @@ describe('Nexus service desk client', () => {
             {
               id: 1,
               is_required: true,
-              latest_published_version: { id: 1, version_number: 1 },
+              latest_published_version: { definition_json: {}, id: 1, version_number: 1 },
               mode: 'practice',
               most_recent_attempt: null,
               maximum_attempts: null,

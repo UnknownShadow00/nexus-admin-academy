@@ -11,11 +11,16 @@ import { SuggestedTools } from './SuggestedTools';
 import { TicketActionBar } from './TicketActionBar';
 import { TicketDetailHeader } from './TicketDetailHeader';
 import { TicketIssueDetails } from './TicketIssueDetails';
-import { useTicketSession } from './TicketSessionProvider';
+import { useSessionHydrated, useTicketSession } from './TicketSessionProvider';
 
 export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   const { addNote, getTicket } = useTicketSession();
+  const isHydrated = useSessionHydrated();
   const ticket = getTicket(ticketId);
+
+  if (!isHydrated) {
+    return <div className="mx-auto h-64 max-w-7xl animate-pulse rounded-sm bg-zinc-900" aria-label="Loading ticket" />;
+  }
 
   if (!ticket) {
     return (

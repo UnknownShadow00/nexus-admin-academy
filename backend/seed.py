@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -13,6 +14,7 @@ from app.models.student import Student
 from app.models.service_desk import ServiceDeskAssignment, ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.ticket import Ticket
 from app.services.cli_lab_seed import seed_cli_labs
+from app.services.verified_question_corrections import apply_verified_question_corrections
 from seed_phase_a import seed_phase_a
 from seed_phase_b import seed_phase_b
 from seed_phase_c import seed_phase_c
@@ -21,6 +23,10 @@ from seed_phase_e import seed_phase_e
 from seed_phase_f import seed_phase_f
 from seed_phase_g import seed_phase_g
 from seed_quiz_organization import rebalance_seed_answer_positions, seed_quiz_organization
+from app.services.quiz_editorial_mapping import (
+    apply_reviewed_legacy_quiz_approvals,
+    apply_safe_optional_quiz_mappings,
+)
 load_env()
 
 # Service Desk simulator fixtures are mirrored from the pilot app as an audit/reference
@@ -934,10 +940,50 @@ def seed_methodology_completions(db):
 
 
 
+SERVICE_DESK_TICKET_CONTENT_PATCHES = {
+    "INC2402": {
+        "businessImpact": "One loading lane is recording orders on paper, slowing dispatch and increasing re-entry work.",
+        "issue": "The scanner at loading lane 2 disconnects from the warehouse network every few minutes. The scanner at the next lane stays connected.",
+        "reportedByLine": "Reported by the morning dispatch lead after the issue continued through the first hour of the shift.",
+        "troubleshooting": [
+            "Restarted the affected scanner.",
+            "Moved the affected scanner beside a working scanner; only the affected unit disconnected.",
+            "Confirmed wired packing stations remain connected.",
+        ],
+        "hints": [
+            "Use the working scanner beside it to decide whether the fault follows the network area or one device.",
+            "Open Remote Desktop and compare the affected scanner's network settings with the working unit.",
+            "Repair the affected network profile, renew its address, and then watch the connection long enough to verify stability.",
+        ],
+    },
+    "INC2404": {
+        "hints": [
+            "Work out whether the fault follows the headset or remains with the workstation.",
+            "Use Asset Management to record the confirmed hardware condition, then review replacement options.",
+            "Mark the faulty headset as damaged, ship one replacement headset to Elliot Ward, and document how the requester should verify it.",
+        ],
+    },
+}
+
+
+def _current_service_desk_ticket_fixture(ticket):
+    ticket = deepcopy(ticket)
+    patch = SERVICE_DESK_TICKET_CONTENT_PATCHES.get(ticket["id"])
+    if not patch:
+        return ticket
+    for field in ("businessImpact", "issue", "reportedByLine", "troubleshooting"):
+        if field in patch:
+            ticket["description"][field] = patch[field]
+    if "hints" in patch:
+        ticket["hints"] = patch["hints"]
+    return ticket
+
+
 def seed_service_desk_scenarios(db):
     """Seed published Service Desk scenarios and their immutable v1 definitions."""
     scenarios = {}
-    for ticket in SERVICE_DESK_TICKET_FIXTURES:
+    for raw_ticket in SERVICE_DESK_TICKET_FIXTURES:
+        ticket = _current_service_desk_ticket_fixture(raw_ticket)
         stable_key = ticket["id"].lower()
         scenario = db.query(ServiceDeskScenario).filter_by(stable_key=stable_key).first()
         if scenario is None:
@@ -1150,10 +1196,13 @@ def run_seed() -> None:
         phase_f = seed_phase_f(db)
         db.commit()
         phase_g = seed_phase_g(db)
+        verified_question_corrections = apply_verified_question_corrections(db)
         quiz_organization = seed_quiz_organization(db)
+        legacy_quiz_mappings = apply_safe_optional_quiz_mappings(db)
+        legacy_quiz_approvals = apply_reviewed_legacy_quiz_approvals(db)
         answer_positions = rebalance_seed_answer_positions(db)
         db.commit()
-        print(f"Seed complete: roles(6), gates, module0+methodology, base tickets(8), labs(4), capstones(2), commands(50), phase_a={phase_a}, phase_b={phase_b}, phase_c={phase_c}, phase_d={phase_d}, phase_e={phase_e}, phase_f={phase_f}, phase_g={phase_g}, quiz_organization={quiz_organization}, answer_positions={answer_positions}")
+        print(f"Seed complete: roles(6), gates, module0+methodology, base tickets(8), labs(4), capstones(2), commands(50), phase_a={phase_a}, phase_b={phase_b}, phase_c={phase_c}, phase_d={phase_d}, phase_e={phase_e}, phase_f={phase_f}, phase_g={phase_g}, verified_question_corrections={verified_question_corrections}, quiz_organization={quiz_organization}, legacy_quiz_mappings={legacy_quiz_mappings}, legacy_quiz_approvals={legacy_quiz_approvals}, answer_positions={answer_positions}")
     except Exception:
         db.rollback()
         raise

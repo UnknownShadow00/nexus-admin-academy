@@ -3,13 +3,14 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.evidence import EvidenceArtifact
 from app.models.student import Student
 from app.models.ticket import Ticket
-from app.services.auth_service import get_current_student
+from app.services.auth_service import ensure_student_access, get_current_student
 from app.services.evidence_validator import validate_evidence_artifact
 from app.services.onboarding_service import get_orientation_lesson
 from app.services.progression_service import require_week_reached
@@ -27,6 +28,39 @@ def _upload_dir() -> Path:
     path = Path(configured) if configured else Path(__file__).resolve().parents[2] / "uploads" / "screenshots"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+@router.get("/{artifact_id}/file")
+def download_evidence(
+    artifact_id: int,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    """Return evidence only to its owner or a read-only mentor reviewer."""
+    artifact = db.query(EvidenceArtifact).filter(EvidenceArtifact.id == artifact_id).first()
+    if not artifact or artifact.student_id is None:
+        raise HTTPException(status_code=404, detail="Evidence not found")
+    ensure_student_access(current_student, artifact.student_id)
+
+    storage_name = Path(artifact.storage_key).name
+    if storage_name != artifact.storage_key:
+        raise HTTPException(status_code=404, detail="Evidence file not found")
+    upload_root = _upload_dir().resolve()
+    if artifact.submission_type == "lab" and os.getenv("UPLOAD_DIR"):
+        upload_root = (upload_root / "screenshots").resolve()
+    path = (upload_root / storage_name).resolve()
+    try:
+        path.relative_to(upload_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Evidence file not found") from exc
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Evidence file not found")
+    return FileResponse(
+        path,
+        media_type=artifact.mime_type or "application/octet-stream",
+        filename=artifact.original_filename or storage_name,
+        content_disposition_type="inline",
+    )
 
 
 @router.post("/upload")

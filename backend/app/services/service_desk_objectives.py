@@ -34,8 +34,6 @@ def _remote(ticket: str, asset: str, step: str) -> EvidenceRule:
     )
 
 
-# INC2404 has no server-verifiable simulation workflow yet.  Its absence here
-# is intentional: unknown evidence fails closed rather than becoming a pass.
 SCENARIO_OBJECTIVES: dict[str, ScenarioObjectiveDefinition] = {
     "inc2401": ScenarioObjectiveDefinition(
         required_any=(
@@ -50,6 +48,14 @@ SCENARIO_OBJECTIVES: dict[str, ScenarioObjectiveDefinition] = {
     "inc2403": ScenarioObjectiveDefinition(required_all=(
         _remote("INC2403", "NX-3560", "updates.install"),
         _remote("INC2403", "NX-3560", "system.restart-pdf-helper"),
+    )),
+    "inc2404": ScenarioObjectiveDefinition(required_all=(
+        EvidenceRule("asset.change_status", {"assetTag": "NX-9052", "status": "damaged"}),
+        EvidenceRule("shipping.create", {
+            "recipientDirectoryUserId": "directory-user-elliot-ward",
+            "equipment": [{"name": "Headset", "quantity": 1}],
+        }),
+        EvidenceRule("ticket.add_note", {"ticketId": "INC2404"}),
     )),
     "inc2405": ScenarioObjectiveDefinition(required_all=(
         EvidenceRule("directory.update_groups", {
@@ -74,6 +80,51 @@ SCENARIO_OBJECTIVES: dict[str, ScenarioObjectiveDefinition] = {
 }
 
 
+def definition_objectives(definition_json: dict[str, Any]) -> ScenarioObjectiveDefinition | None:
+    """Translate builder predicates into the same trusted-event rule format."""
+    rules: list[EvidenceRule] = []
+    for objective in definition_json.get("objectives", []):
+        if not isinstance(objective, dict) or objective.get("required") is not True:
+            continue
+        predicate = objective.get("predicateType")
+        params = objective.get("predicateParams")
+        if not isinstance(params, dict):
+            return None
+        if predicate == "action_event_occurred":
+            event_type = params.get("actionType")
+            payload = params.get("payloadMatch", {})
+            if not isinstance(event_type, str) or not isinstance(payload, dict):
+                return None
+            rules.append(EvidenceRule(event_type, payload))
+        elif predicate == "directory_group_membership":
+            user_id, group = params.get("directoryUserId"), params.get("group")
+            if not isinstance(user_id, str) or not isinstance(group, str):
+                return None
+            field = "add" if params.get("includes") is True else "remove"
+            rules.append(EvidenceRule("directory.update_groups", {
+                "directoryUserId": user_id, field: [group],
+            }))
+        elif predicate == "directory_user_field":
+            user_id, field, equals = (
+                params.get("directoryUserId"), params.get("field"), params.get("equals")
+            )
+            event_type = {
+                ("locked", False): "directory.unlock_account",
+                ("disabled", False): "directory.enable_account",
+                ("disabled", True): "directory.disable_account",
+            }.get((field, equals))
+            if not isinstance(user_id, str) or event_type is None:
+                return None
+            rules.append(EvidenceRule(event_type, {"directoryUserId": user_id}))
+        elif predicate != "ticket_verified_resolved":
+            return None
+    return ScenarioObjectiveDefinition(required_all=tuple(rules)) if rules else None
+
+
+def objective_definition(stable_key: str, definition_json: dict[str, Any]) -> ScenarioObjectiveDefinition | None:
+    return SCENARIO_OBJECTIVES.get(stable_key.lower()) or definition_objectives(definition_json)
+
+
 def payload_matches(actual: dict[str, Any], expected: dict[str, Any]) -> bool:
     """Match expected scalar fields and required members without trusting extras."""
     for key, value in expected.items():
@@ -86,8 +137,8 @@ def payload_matches(actual: dict[str, Any], expected: dict[str, Any]) -> bool:
     return True
 
 
-def evaluate_objectives(stable_key: str, events: list[Any]) -> tuple[bool, dict[str, bool]]:
-    definition = SCENARIO_OBJECTIVES.get(stable_key.lower())
+def evaluate_objectives(stable_key: str, events: list[Any], definition_json: dict[str, Any] | None = None) -> tuple[bool, dict[str, bool]]:
+    definition = objective_definition(stable_key, definition_json or {})
     if definition is None:
         return False, {"server_verifiable": False}
 

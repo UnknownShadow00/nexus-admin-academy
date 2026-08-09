@@ -1513,6 +1513,7 @@ function AppContent({
     case 'settings':
       return (
         <SettingsWindow
+          canRepairNetwork={Boolean(scenario.actionLabels['settings.repair-network'])}
           clearProfileStorage={() => runStep('settings.clear-profile-storage')}
           completeUpdate={() =>
             onEvent(remote.completeUpdateInstall(workstation.assetTag))
@@ -1523,6 +1524,9 @@ function AppContent({
           restartAfterUpdate={() =>
             onEvent(remote.restartAfterUpdate(workstation.assetTag))
           }
+          repairNetwork={() => runStep('settings.repair-network')}
+          networkRepaired={performed.has('settings.repair-network')}
+          scenarioComplete={scenarioComplete}
           updateDns={(primaryDns, secondaryDns) =>
             onEvent(
               remote.updateDns(workstation.assetTag, primaryDns, secondaryDns),
@@ -1763,17 +1767,25 @@ function VpnClientWindow({
 type SettingsTab = 'network' | 'storage' | 'applications' | 'updates';
 
 function SettingsWindow({
+  canRepairNetwork,
   clearProfileStorage,
   completeUpdate,
   installUpdate,
+  networkRepaired,
+  repairNetwork,
   restartAfterUpdate,
+  scenarioComplete,
   updateDns,
   workstation,
 }: {
+  canRepairNetwork: boolean;
   clearProfileStorage: () => void;
   completeUpdate: () => void;
   installUpdate: () => void;
+  networkRepaired: boolean;
+  repairNetwork: () => void;
   restartAfterUpdate: () => void;
+  scenarioComplete: boolean;
   updateDns: (primaryDns: string, secondaryDns: string) => void;
   workstation: RemoteDesktopWorkstationRecord;
 }) {
@@ -1821,6 +1833,16 @@ function SettingsWindow({
             <p className="mt-1 text-sm text-zinc-600">
               Ethernet adapter · {workstation.networkStatus}
             </p>
+            {canRepairNetwork ? (
+              <Button
+                className="mt-4"
+                disabled={networkRepaired || scenarioComplete}
+                onClick={repairNetwork}
+                type="button"
+              >
+                {networkRepaired ? 'Network profile repaired' : 'Repair network profile'}
+              </Button>
+            ) : null}
             <form
               className="mt-5 max-w-md space-y-4"
               onSubmit={(event) => {

@@ -1,7 +1,7 @@
 ﻿import { useEffect, useRef } from "react";
-import { Terminal } from "xterm";
-import { FitAddon } from "xterm-addon-fit";
-import "xterm/css/xterm.css";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import "@xterm/xterm/css/xterm.css";
 
 function processCommand(cmd, term) {
   const command = cmd.trim().toLowerCase();
@@ -186,6 +186,11 @@ export default function TerminalWidget({ prefillCommand, onSessionChange }) {
   const historyRef = useRef([]);
   const historyIndexRef = useRef(-1);
   const sessionLinesRef = useRef([]);
+  const onSessionChangeRef = useRef(onSessionChange);
+
+  useEffect(() => {
+    onSessionChangeRef.current = onSessionChange;
+  }, [onSessionChange]);
 
   const clearCurrentLine = (term) => {
     for (let i = 0; i < currentLineRef.current.length; i += 1) {
@@ -207,7 +212,7 @@ export default function TerminalWidget({ prefillCommand, onSessionChange }) {
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.open(terminalRef.current);
-    setTimeout(() => {
+    const initialFitTimer = window.setTimeout(() => {
       try {
         fitAddon.fit();
       } catch {
@@ -240,7 +245,7 @@ export default function TerminalWidget({ prefillCommand, onSessionChange }) {
         sessionLinesRef.current.push("");
         currentLineRef.current = "";
         writePrompt();
-        onSessionChange?.(sessionLinesRef.current.join("\n"));
+        onSessionChangeRef.current?.(sessionLinesRef.current.join("\n"));
       } else if (data === "\u0003") {
         term.write("^C\r\n");
         currentLineRef.current = "";
@@ -287,10 +292,11 @@ export default function TerminalWidget({ prefillCommand, onSessionChange }) {
 
     return () => {
       window.removeEventListener("resize", onResize);
+      window.clearTimeout(initialFitTimer);
       termRef.current = null;
       term.dispose();
     };
-  }, [onSessionChange]);
+  }, []);
 
   useEffect(() => {
     if (!prefillCommand || !termRef.current) return;

@@ -1,9 +1,10 @@
 # Nexus — Curriculum Audit
 
-**Date:** 2026-07-23 · Baseline `15a9410` · Pulled live from production
-(`/api/admin/training/weeks` + `/validation`): **25 weeks, 296 activities, 137/137 videos mapped,
-validation `valid:true`.** Composition: lesson 64 · video 137 · quiz 28 · support_ticket 48 ·
-networking_lab 11 · guided_lab 5 · capstone 3.
+**Updated:** 2026-08-08 · Final hardening audit against the branch database and
+`backend/scripts/validate_training_curriculum.py`: **25 contiguous weeks (0–24), 296 activities,
+137/137 videos mapped, validation `valid:true`, no broken references or gating issues.**
+Composition: lesson 64 · video 137 · quiz 28 · support_ticket 48 · networking_lab 11 ·
+guided_lab 5 · capstone 3. Fresh-seed idempotency and the same totals are covered by automated tests.
 
 ## Sequence assessment
 The program follows the intended skill arc and **no out-of-order topics were found**:
@@ -14,7 +15,7 @@ capstone readiness (W24). Capstones are distributed (W4, W8, W24) as mid-course 
 ## Week-by-week (required / total activities / est. minutes)
 | Wk | Title | Req | Total | Min | Notes |
 |---|---|---|---|---|---|
-| 0 | Welcome to Nexus | 5 | 6 | ~93 | Gentle orientation + 6-step process. Fix "24-week" copy. Required video after quiz (order quirk). |
+| 0 | Welcome to Nexus | 5 | 6 | ~93 | Gentle orientation + 6-step process. Fresh seeds place both required videos before the quiz; the checked branch DB retains an older video-after-quiz order. |
 | 1 | IT Support and Ticket Basics | 7 | 10 | 227 | Good on-ramp to ticket work. |
 | 2 | Computer Hardware | 10 | **25** | ~354 | **Dense** (15 optional videos) — jarring jump from W1. Collapse optional videos. |
 | 3 | Windows Fundamentals | 10 | **26** | 300 | Dense. |
@@ -50,8 +51,10 @@ capstone readiness (W24). Capstones are distributed (W4, W8, W24) as mid-course 
 ## Sequence / prerequisite problems
 - **None structural** — every week has learning goals, `requires_previous_week` set (except W0),
   no orphaned/duplicate activities, no broken refs (`valid:true`).
-- **Known observation #1 (low):** in Week 0, the **Document Types** video is ordered **after** the
-  **Ticketing Systems Quiz**. Confirmed live. Low impact; if touched, move it before the quiz.
+- **Known observation #1 (low):** in the checked branch database, the **Document Types** video is
+  ordered **after** the **Ticketing Systems Quiz**. Fresh seeds already place it before the quiz.
+  Do not hand-edit production; apply the reviewed idempotent curriculum seed only as an intentional
+  release content step after backup.
 - **Known observation #2 (benign):** running the full seed reconciles a missing MOD-001
   prerequisite (self-heal). Not a defect.
 
@@ -89,13 +92,12 @@ video/quiz/lab → Notes prompt.
 
 ## Is the curriculum ready for the five students?
 **Yes — with minor, low-risk polish** (none blocking):
-1. Fix "24-week" → "25-week" copy (lesson 1 body + README).
-2. Author lesson 1 (CompTIA 6-Step stub).
-3. Surface lesson objectives (`outcomes`).
-4. Collapse optional videos in dense weeks (W2–W4).
-5. Add a couple of early-week guided labs.
+1. Author lesson 1 (CompTIA 6-Step stub).
+2. Surface lesson objectives (`outcomes`).
+3. Collapse optional videos in dense weeks (W2–W4).
+4. Add a couple of early-week guided labs.
 Optional/low: Week-0 Document Types ordering; tighten exact video→quiz maps.
 
 ## Priorities
 - P1: surface `outcomes`. P2: author lesson 1; dense-week presentation; more early labs.
-- P3: "24-week" copy; exact quiz mappings; Document Types ordering.
+- P3: exact quiz mappings; reconcile the older checked-DB Week 0 order through the reviewed seed process.

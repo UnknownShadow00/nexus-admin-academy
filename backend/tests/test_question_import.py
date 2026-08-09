@@ -106,6 +106,36 @@ def test_confirm_import_creates_quiz_and_questions(db):
     assert question.fingerprint == compute_fingerprint("Networking Basics", "What port does HTTPS use?", ["443", "80", "21", "25"])
 
 
+def test_confirm_import_restores_curated_explanation_when_source_is_blank(db, monkeypatch):
+    monkeypatch.setattr(
+        question_importer,
+        "catalog_explanation",
+        lambda *_args: "HTTPS uses TLS on port 443; port 80 is ordinary HTTP.",
+    )
+    rows = parse_csv_file(
+        (CSV_HEADER + _csv_row(explanation="")).encode("utf-8")
+    )
+
+    confirm_import(db, rows, duplicate_policy="skip", source_filename="reviewed.csv")
+
+    assert db.query(Question).one().explanation == (
+        "HTTPS uses TLS on port 443; port 80 is ordinary HTTP."
+    )
+
+
+def test_confirm_import_repairs_verified_windows_answer_key(db):
+    text = "Which of the tools listed below can be used to identify resource-intensive applications that cause degraded performance in Microsoft Windows?"
+    rows = parse_csv_file(
+        (CSV_HEADER + _csv_row(text=text, a="Event Viewer", b="Windows Memory Diagnostic", c="System Information", d="Task Manager", correct="A", explanation="")).encode("utf-8")
+    )
+
+    confirm_import(db, rows, duplicate_policy="skip", source_filename="legacy.csv")
+
+    question = db.query(Question).one()
+    assert question.correct_answer == "D"
+    assert question.explanation.startswith("Task Manager shows")
+
+
 def test_confirm_import_handles_true_false_two_option_question(db):
     """A question with only 2 options (e.g. true/false) must import cleanly —
     option_b/c/d are not NOT-NULL-required at the DB level, only option_a is;

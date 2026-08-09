@@ -58,7 +58,7 @@ export default function RequireAuth({ children }) {
   }, []);
 
   if (checking) {
-    return <main className="mx-auto max-w-3xl p-6 text-sm text-slate-500 dark:text-slate-300">Checking session...</main>;
+    return <div className="mx-auto max-w-3xl p-6 text-sm text-slate-500 dark:text-slate-300" role="status">Checking session...</div>;
   }
 
   if (!authorized) {

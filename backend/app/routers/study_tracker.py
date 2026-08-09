@@ -10,7 +10,7 @@ from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.admin_auth import allow_admin_or_student, verify_admin
 from app.services.a_plus_access import get_a_plus_progress
-from app.services.auth_service import ensure_student_access, get_current_student
+from app.services.auth_service import ensure_student_access, ensure_student_ownership, get_current_student
 from app.services.quiz_visibility import student_visible_quiz_filters
 from app.utils.responses import ok
 
@@ -198,7 +198,7 @@ def get_study_tracker(student_id: int, db: Session = Depends(get_db), current_st
 
 @router.post("/{student_id}/watch/{video_key:path}")
 def mark_watched(student_id: int, video_key: str, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
-    ensure_student_access(current_student, student_id)
+    ensure_student_ownership(current_student, student_id)
     exists = (
         db.query(VideoWatch)
         .filter(VideoWatch.student_id == student_id, VideoWatch.video_key == video_key)
@@ -212,7 +212,7 @@ def mark_watched(student_id: int, video_key: str, db: Session = Depends(get_db),
 
 @router.delete("/{student_id}/watch/{video_key:path}")
 def unmark_watched(student_id: int, video_key: str, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
-    ensure_student_access(current_student, student_id)
+    ensure_student_ownership(current_student, student_id)
     db.query(VideoWatch).filter(
         VideoWatch.student_id == student_id,
         VideoWatch.video_key == video_key,

@@ -52,13 +52,20 @@ export default function QuizReviewScreen({ quiz, result, onRetake }) {
           <div key={question.id} className={`rounded-xl border p-4 ${isCorrect ? "border-green-200 dark:border-green-900" : "border-red-200 dark:border-red-900"}`}>
             <div className="mb-3 flex items-start justify-between gap-2"><p className="font-semibold text-slate-900 dark:text-slate-100">Q{index + 1}. {question.question_text}</p><span className="shrink-0">{isCorrect ? <CheckCircle2 size={18} className="text-green-500" /> : <XCircle size={18} className="text-red-500" />}</span></div>
             <div className="space-y-1.5">{ALL_OPTS.map((opt) => { const text = options[opt]; if (!text) return null; return <OptionRow key={opt} letter={opt} text={text} correctAnswers={correctAnswers} studentAnswer={studentAnswerArr} />; })}</div>
-            {review?.explanation ? <p className="mt-2 rounded bg-slate-50 p-2 text-sm italic text-slate-600 dark:bg-slate-800 dark:text-slate-300">{review.explanation}</p> : null}
+            {review?.explanation ? (
+              <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-slate-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-slate-200">
+                <p className="mb-1 font-semibold text-blue-800 dark:text-blue-300">Why this is correct</p>
+                <p>{review.explanation}</p>
+              </div>
+            ) : (
+              <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">An explanation is being reviewed for this question. Use the highlighted correct answer above for now.</p>
+            )}
           </div>
         );
       })}
       <div className="flex gap-3">
-        <button className="btn-secondary flex-1" onClick={onRetake}>Retake Quiz</button>
-        <Link to="/quizzes" className="btn-primary flex-1 text-center">Back to Quizzes</Link>
+        <button type="button" className="btn-secondary flex-1" onClick={onRetake}>Try Again</button>
+        <Link to="/" className="btn-primary flex-1 text-center">Continue Learning</Link>
       </div>
     </div>
   );
