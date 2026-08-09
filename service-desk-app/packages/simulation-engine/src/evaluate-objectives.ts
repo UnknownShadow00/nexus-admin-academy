@@ -1,10 +1,7 @@
 import {
-  AVERY_BROOKS_DIRECTORY_USER_ID,
-  FACILITIES_CALENDAR_GROUP,
   Priority,
-  SLOANE_RIVERA_DIRECTORY_USER_ID,
   TicketStatus,
-  getDirectoryUserById,
+  getRemoteDesktopScenarioByTicket,
   type Ticket,
 } from '@service-desk/shared';
 
@@ -21,45 +18,6 @@ const POINTS_BY_PRIORITY: Readonly<Record<Priority, number>> = {
 const UNRESOLVED_CLOSE_PENALTY_RATE = 0.25;
 const HINT_PENALTY_POINTS = 5;
 const FREE_HINT_COUNT = 1;
-const DIRECTORY_OBJECTIVE_REDUCED_RATE = 0.5;
-
-function effectiveDirectoryGroups(attempt: Attempt, directoryUserId: string) {
-  const fixture = getDirectoryUserById(directoryUserId);
-  const overlay = attempt.directoryOverlays[directoryUserId];
-
-  if (!fixture) {
-    return [];
-  }
-  if (!overlay) {
-    return [...fixture.groups];
-  }
-
-  const removed = new Set(overlay.groupChanges.removed);
-  const templateGroups = new Set<string>(fixture.groups);
-  return [
-    ...fixture.groups.filter((group) => !removed.has(group)),
-    ...overlay.groupChanges.added.filter((group) => !templateGroups.has(group)),
-  ];
-}
-
-function directoryObjectiveSatisfied(attempt: Attempt, ticketId: string) {
-  if (ticketId === 'INC2401') {
-    const overlay = attempt.directoryOverlays[AVERY_BROOKS_DIRECTORY_USER_ID];
-
-    // Either corrective identity action resolves the simulated auth loop.
-    return overlay?.locked === false || overlay?.mfaEnrolled === false;
-  }
-
-  if (ticketId === 'INC2405') {
-    return effectiveDirectoryGroups(
-      attempt,
-      SLOANE_RIVERA_DIRECTORY_USER_ID,
-    ).includes(FACILITIES_CALENDAR_GROUP);
-  }
-
-  return true;
-}
-
 export function evaluateObjectives(
   attempt: Attempt,
   ticketId: string,
@@ -82,9 +40,16 @@ export function evaluateObjectives(
       ? Math.max(0, hintsUsed - FREE_HINT_COUNT) * HINT_PENALTY_POINTS
       : 0;
   const penaltyPoints = unresolvedPenalty + hintPenalty;
-  const objectivePoints = directoryObjectiveSatisfied(attempt, ticketId)
-    ? pointsPossible
-    : Math.round(pointsPossible * DIRECTORY_OBJECTIVE_REDUCED_RATE);
+  const scenario = getRemoteDesktopScenarioByTicket(ticketId);
+  const workflowScore = scenario?.workflow
+    ? attempt.remoteDesktopOverlays[scenario.assetTag]?.scenarioProgress[
+        scenario.id
+      ]?.finalScore
+    : null;
+  const objectivePoints =
+    workflowScore === null || workflowScore === undefined
+      ? pointsPossible
+      : Math.round((pointsPossible * workflowScore) / 100);
   const pointsBeforePenalty = resolved || wasClosed ? objectivePoints : 0;
 
   return {

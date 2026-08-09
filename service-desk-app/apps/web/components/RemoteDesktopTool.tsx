@@ -148,6 +148,8 @@ export function RemoteDesktopTool() {
       : new URLSearchParams(window.location.search).get('computer'),
   );
   const [query, setQuery] = useState('');
+  const consoleLabel =
+    ticketId === 'INC2402' ? 'Managed Device Console' : 'Remote Desktop';
   const [ticketOpen, setTicketOpen] = useState(true);
   const [toast, setToast] = useState<ActionEvent | null>(null);
   const scenario =
@@ -258,7 +260,7 @@ export function RemoteDesktopTool() {
             id="remote-desktop-title"
             className="font-display text-2xl font-bold text-zinc-100"
           >
-            Remote Desktop
+            {consoleLabel}
           </h1>
         </div>
         {canReviewScenario ? (
@@ -1513,7 +1515,9 @@ function AppContent({
     case 'settings':
       return (
         <SettingsWindow
-          canRepairNetwork={Boolean(scenario.actionLabels['settings.repair-network'])}
+          canRepairNetwork={Boolean(
+            scenario.actionLabels['settings.repair-network'],
+          )}
           clearProfileStorage={() => runStep('settings.clear-profile-storage')}
           completeUpdate={() =>
             onEvent(remote.completeUpdateInstall(workstation.assetTag))
@@ -1840,7 +1844,9 @@ function SettingsWindow({
                 onClick={repairNetwork}
                 type="button"
               >
-                {networkRepaired ? 'Network profile repaired' : 'Repair network profile'}
+                {networkRepaired
+                  ? 'Network profile repaired'
+                  : 'Repair network profile'}
               </Button>
             ) : null}
             <form

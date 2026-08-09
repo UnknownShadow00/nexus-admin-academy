@@ -148,7 +148,6 @@ export const DIRECTORY_USER_FIXTURES: readonly DirectoryUserTemplate[] = [
     jobTitle: 'Reconciliation Analyst',
     assetTag: 'NX-4831',
     groups: ['All Staff', 'Finance Operations Updates'],
-    locked: true,
   }),
   createDirectoryUser({
     id: SLOANE_RIVERA_DIRECTORY_USER_ID,
@@ -156,7 +155,7 @@ export const DIRECTORY_USER_FIXTURES: readonly DirectoryUserTemplate[] = [
     department: 'Facilities',
     jobTitle: 'Facilities Coordinator',
     assetTag: 'NX-6128',
-    groups: ['All Staff', 'Facilities Team'],
+    groups: ['All Staff', 'Facilities Team', FACILITIES_CALENDAR_GROUP],
   }),
   createDirectoryUser({
     id: 'directory-user-noah-vance',

@@ -995,3 +995,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: .github/workflows/ci.yml; frontend/src/App.jsx; frontend/src/components/RequireAuth.jsx; frontend/tests/e2e/my-training.spec.js; tasks/loop-log.md
 - Result: pass against acceptance criteria — Alembic head is 0041_verified_question_keys; focused My Training Playwright suite passed 4/4; launch verification passed 9/9.
 - Next: None
+
+## [2026-08-09T21:30:00Z] Task Completed
+- Task: Audited and repaired current Service Desk scenario consistency and introduced process-aware workflow scoring for the simulator.
+- Files changed: service-desk-app/apps/web/components/RemoteDesktopTool.tsx; service-desk-app/packages/shared/src/directory-fixtures.ts; service-desk-app/packages/shared/src/phase-18-fixtures.test.ts; service-desk-app/packages/shared/src/remote-desktop-fixtures.ts; service-desk-app/packages/shared/src/ticket-fixtures.ts; service-desk-app/packages/shared/src/ticket-logic.test.ts; service-desk-app/packages/simulation-engine/src/apply-action.test.ts; service-desk-app/packages/simulation-engine/src/apply-action.ts; service-desk-app/packages/simulation-engine/src/evaluate-objectives.ts; service-desk-app/packages/simulation-engine/src/phase-18-remote-desktop.test.ts; service-desk-app/packages/simulation-engine/src/serialize.ts; service-desk-app/packages/simulation-engine/src/server-remote-actions.test.ts; service-desk-app/packages/simulation-engine/src/service-desk-quality.test.ts; service-desk-app/packages/simulation-engine/src/types.ts; tasks/loop-log.md
+- Result: pass against acceptance criteria — Service Desk lint/typecheck/tests/build pass; focused backend Service Desk tests pass; Playwright executable is not installed locally.
+- Next: Align the separately deployed backend Service Desk objective catalog with this simulator’s revised root causes before enabling cross-system scoring for these tickets.

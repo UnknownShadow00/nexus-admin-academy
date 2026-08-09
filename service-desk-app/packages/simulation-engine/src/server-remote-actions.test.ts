@@ -255,7 +255,7 @@ describe('Remote Desktop actions', () => {
     ).toMatchObject({ diagnosed: true, fixed: true, verified: true });
   });
 
-  it('completes the PDF export and browser-profile workflows in order', () => {
+  it('records legacy repair clicks without granting completion before evidence and closure', () => {
     const pdf = performSteps(
       connect(createAttempt(), 'NX-3560', 'INC2403').attempt,
       'NX-3560',
@@ -271,10 +271,10 @@ describe('Remote Desktop actions', () => {
 
     expect(
       pdf.attempt.remoteDesktopOverlays['NX-3560']?.completedScenarioIds,
-    ).toContain('pdf-export-update');
+    ).not.toContain('pdf-export-update');
     expect(
       profile.attempt.remoteDesktopOverlays['NX-4831']?.completedScenarioIds,
-    ).toContain('profile-storage');
+    ).not.toContain('profile-storage');
   });
 
   it('keeps training mode as an isolated per-workstation preference', () => {
@@ -737,7 +737,7 @@ describe('Remote Desktop actions', () => {
     ).toMatchObject({ diagnosed: true, fixed: true, verified: true });
   });
 
-  it('credits scenario completion when verification happens via Explorer reconnect, not just navigate', () => {
+  it('records a repaired calendar mapping without auto-completing the scenario', () => {
     const connected = connect(createAttempt(), 'NX-6128', 'INC2405');
     const opened = apply(connected.attempt, {
       type: 'remote_desktop.explorer_navigate',
@@ -751,7 +751,7 @@ describe('Remote Desktop actions', () => {
     expect(
       reconnected.attempt.remoteDesktopOverlays['NX-6128']
         ?.completedScenarioIds,
-    ).toContain('mapped-drive-permissions');
+    ).not.toContain('facilities-calendar-mapping');
   });
 
   it('returns an explicit deterministic response for an unrecognized Terminal command', () => {

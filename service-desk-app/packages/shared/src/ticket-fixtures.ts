@@ -27,13 +27,14 @@ export const TICKET_FIXTURES = [
       businessImpact:
         'A month-end reconciliation is paused until the analyst can reach the reporting workspace.',
       issue:
-        'The finance reporting portal accepts the first authentication step, then returns to the sign-in screen before the dashboard loads.',
+        'The finance reporting portal accepts the first authentication step, then returns to the sign-in screen before the dashboard loads. Other internal services continue to accept the analyst’s account.',
       reportedByLine:
         'Submitted through the employee support portal after two failed sign-in attempts.',
       troubleshooting: [
         'Closed and reopened the browser.',
         'Confirmed other internal sites load normally.',
         'Tried a private browsing window with the same result.',
+        'Confirmed the account is not locked and the second-factor prompt succeeds on another internal service.',
       ],
     },
     device: {
@@ -46,9 +47,9 @@ export const TICKET_FIXTURES = [
     escalated: false,
     hints: [
       'Confirm whether the requester can complete the second authentication prompt on another internal service.',
-      'Review the directory record for a locked account or an expired access policy.',
+      'Review the browser/profile evidence before changing the employee account.',
       'Check the knowledge base for the finance portal sign-in loop procedure.',
-      'Ask the requester to start a fresh session after the account state is corrected.',
+      'Ask the requester to start a fresh session after the local profile data is cleared.',
     ],
     id: 'INC2401',
     notes: [],
@@ -109,12 +110,12 @@ export const TICKET_FIXTURES = [
     escalated: false,
     hints: [
       'Use the working scanner beside it to decide whether the fault follows the network area or one device.',
-      'Open Remote Desktop and compare the affected scanner’s network settings with the working unit.',
-      'Repair the affected network profile, renew its address, and then watch the connection long enough to verify stability.',
+      'Open the managed device console and compare the affected scanner’s wireless profile with the working unit.',
+      'Refresh the affected managed wireless profile, renew its address, and then watch the connection long enough to verify stability.',
     ],
     id: 'INC2402',
     notes: [],
-    priority: Priority.Critical,
+    priority: Priority.High,
     requester: {
       contact: 'Radio channel 3',
       department: 'Distribution',
@@ -262,13 +263,13 @@ export const TICKET_FIXTURES = [
       businessImpact:
         'A new coordinator can complete orientation but cannot access the shared scheduling calendar.',
       issue:
-        'The new starter can sign in to email but the facilities scheduling calendar is not listed.',
+        'The new starter can sign in to email and see the Facilities Calendar entry, but opening it returns an archived-location error.',
       reportedByLine:
         'Raised by the facilities team lead during the new starter checklist.',
       troubleshooting: [
         'Signed out and back in to the calendar application.',
-        'Searched for the calendar by its full display name.',
-        'Confirmed the user can open their personal calendar.',
+        'Confirmed the user can open their personal calendar and another current Facilities calendar.',
+        'Used the desktop calendar shortcut, which opened an archived-location error.',
       ],
     },
     device: {
@@ -280,10 +281,10 @@ export const TICKET_FIXTURES = [
     },
     escalated: false,
     hints: [
-      'Verify the requester identity and the intended facilities team membership.',
-      'Compare the directory groups with another coordinator in the same role.',
-      'Review the access guide before changing any group membership.',
-      'Ask the requester to refresh the calendar list after access synchronizes.',
+      'Verify the requester already has the expected Facilities Calendar access before changing memberships.',
+      'Inspect the calendar workspace location in the desktop shortcut.',
+      'Review the access guide before changing any mapping.',
+      'Ask the requester to reopen the original calendar after the shortcut is repaired.',
     ],
     id: 'INC2405',
     notes: [],
@@ -306,7 +307,7 @@ export const TICKET_FIXTURES = [
       'documentation',
       'company-chat',
     ],
-    title: 'New coordinator cannot see the facilities calendar',
+    title: 'New coordinator cannot open the facilities calendar shortcut',
   },
   {
     activity: [
@@ -324,28 +325,28 @@ export const TICKET_FIXTURES = [
       businessImpact:
         'The project manager can work locally but cannot join the secure partner workspace.',
       issue:
-        'The remote access client reaches the gateway, then stops while checking the device profile.',
+        'The remote access client can reach the gateway, but the secure partner workspace is unavailable because the company VPN is disconnected.',
       reportedByLine:
         'Submitted from a home network before a scheduled partner review.',
       troubleshooting: [
         'Restarted the laptop.',
         'Confirmed normal internet browsing works.',
-        'Retried the connection after closing other applications.',
+        'Confirmed the VPN client shows Disconnected.',
       ],
     },
     device: {
       assetTag: 'NX-2047',
       deviceName: 'PM-LT-41',
       kind: 'laptop',
-      operatingSystem: 'macOS 16',
+      operatingSystem: 'Windows 11 Enterprise',
       state: 'active',
     },
     escalated: false,
     hints: [
-      'Confirm the client version and capture the exact device-check stage.',
-      'Review the device asset record for compliance status.',
-      'Check current remote access guidance for the reported platform.',
-      'Retry after correcting any documented client or compliance mismatch.',
+      'Confirm the secure partner share is unavailable while ordinary internet browsing works.',
+      'Review the company VPN connection state.',
+      'Check current remote access guidance for the VPN route.',
+      'Reconnect the VPN and retest the original partner workspace.',
     ],
     id: 'INC2406',
     notes: [],
@@ -363,7 +364,7 @@ export const TICKET_FIXTURES = [
     },
     status: TicketStatus.Open,
     suggestedTools: ['remote-desktop', 'documentation', 'asset-management'],
-    title: 'Remote access pauses during the device compliance check',
+    title: 'Remote partner workspace unavailable while VPN is disconnected',
   },
   {
     activity: [

@@ -82,11 +82,20 @@ export interface RemoteDesktopWorkflowObjective {
 }
 
 export interface RemoteDesktopScenarioWorkflow {
+  /** Establishes the scope before the student changes the environment. */
+  investigate: readonly RemoteDesktopWorkflowObjective[];
   diagnose: readonly RemoteDesktopWorkflowObjective[];
   fix: readonly RemoteDesktopWorkflowObjective[];
   verify: readonly RemoteDesktopWorkflowObjective[];
   note: { minimumLength: number };
   close: { explicit: true };
+  scoring: {
+    investigation: number;
+    diagnosis: number;
+    remediation: number;
+    verification: number;
+    documentation: number;
+  };
   finalState: {
     dnsServers?: readonly string[];
     driveStates?: Readonly<Record<string, RemoteDesktopDriveStatus>>;
@@ -340,7 +349,8 @@ function assetDigits(assetTag: string) {
   return Number(assetTag.replace(/\D/g, ''));
 }
 
-function operatingSystem(deviceType: string) {
+function operatingSystem(assetTag: string, deviceType: string) {
+  if (assetTag === 'NX-7714') return 'Android Enterprise 15';
   return deviceType === 'mobile workstation'
     ? 'Windows 11 Enterprise'
     : 'Windows 11 Pro';
@@ -364,7 +374,10 @@ const DIRECTORY_REMOTE_DESKTOP_WORKSTATIONS: readonly RemoteDesktopWorkstationFi
       ).padStart(2, '0')}:00.000Z`,
       location: device?.location ?? 'HQ',
       networkStatus: retired ? 'offline' : damaged ? 'limited' : 'online',
-      operatingSystem: operatingSystem(device?.deviceType ?? 'laptop'),
+      operatingSystem: operatingSystem(
+        user.assetTag,
+        device?.deviceType ?? 'laptop',
+      ),
       pendingUpdate:
         user.assetTag === 'NX-3560'
           ? {
@@ -565,6 +578,15 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       ],
       incorrectSteps: ['explorer.remove-share', 'updates.install'],
       workflow: {
+        investigate: [
+          {
+            id: 'affected-resource-confirmed',
+            anyOf: [
+              'explorer.share-unreachable',
+              'terminal.ping-hostname-failed',
+            ],
+          },
+        ],
         diagnose: [
           {
             id: 'network-access-failure',
@@ -584,6 +606,13 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         ],
         note: { minimumLength: 20 },
         close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
         finalState: {
           driveStates: { 'Z:': 'connected' },
           vpnStatus: 'connected',
@@ -636,6 +665,16 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       ],
       incorrectSteps: ['updates.install'],
       workflow: {
+        investigate: [
+          {
+            id: 'network-scope',
+            anyOf: [
+              'terminal.ping-ip-success',
+              'terminal.ipconfig',
+              'terminal.ipconfig-all',
+            ],
+          },
+        ],
         diagnose: [
           {
             id: 'adapter-configuration',
@@ -664,6 +703,13 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         ],
         note: { minimumLength: 20 },
         close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
         finalState: { dnsServers: ['10.20.0.10', '10.20.0.11'] },
       },
       explanation:
@@ -712,6 +758,7 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       ],
       incorrectSteps: ['updates.install'],
       workflow: {
+        investigate: [{ id: 'print-symptom', anyOf: ['printer.test-failed'] }],
         diagnose: [
           { id: 'print-symptom', anyOf: ['printer.test-failed'] },
           {
@@ -732,6 +779,13 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         verify: [{ id: 'print-restored', anyOf: ['printer.test-succeeded'] }],
         note: { minimumLength: 20 },
         close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
         finalState: { serviceStates: { 'Print Spooler': 'running' } },
       },
       explanation:
@@ -750,14 +804,19 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       assetTag: 'NX-3560',
       title: 'PDF export fails while a reliability update is pending',
       summary:
-        'A known export component fix is queued. Install the update, restart the PDF helper, then retry the export.',
+        'The PDF editor crashes only when exporting the full annotated package; a pending reliability update addresses the known export component fault.',
       studentHints: [
+        'Reproduce the full-package export failure before changing the application.',
         'Check whether this computer has a pending reliability or application update.',
         'A component that supports PDF export may need to reload after an update.',
         'Install the pending update, restart the PDF helper, and retry the export.',
       ],
       actionLabels: {
-        'browser.retry-export': 'Retried the PDF export',
+        'browser.retry-export': 'Retry the annotated PDF export',
+        'browser.export-failed':
+          'Reproduced the full annotated PDF export failure',
+        'browser.export-succeeded':
+          'Confirmed the annotated PDF export completed',
         'explorer.check-free-space': 'Checked available storage',
         'system.restart-pdf-helper': 'Restarted the PDF helper',
         'trash.empty': 'Emptied the recycle bin',
@@ -768,13 +827,35 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         'software-large-export-crash',
         'sop-change-record',
       ],
-      requiredSteps: [
-        'updates.install',
-        'system.restart-pdf-helper',
-        'browser.retry-export',
-      ],
+      requiredSteps: [],
       optionalSteps: ['explorer.check-free-space'],
       incorrectSteps: ['trash.empty', 'vpn.connect'],
+      workflow: {
+        investigate: [
+          { id: 'failure-reproduced', anyOf: ['browser.export-failed'] },
+        ],
+        diagnose: [
+          { id: 'update-inspected', anyOf: ['updates.pending-inspected'] },
+          { id: 'system-scope', anyOf: ['explorer.check-free-space'] },
+        ],
+        fix: [
+          { id: 'reliability-update-applied', anyOf: ['updates.applied'] },
+          { id: 'pdf-helper-restarted', anyOf: ['system.restart-pdf-helper'] },
+        ],
+        verify: [
+          { id: 'export-restored', anyOf: ['browser.export-succeeded'] },
+        ],
+        note: { minimumLength: 20 },
+        close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
+        finalState: {},
+      },
       explanation:
         'The export helper was using an outdated component. Applying the pending update and restarting the helper loads the corrected version.',
       completion: {
@@ -799,7 +880,11 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         'Clear the affected browser profile storage and retry the portal sign-in.',
       ],
       actionLabels: {
-        'browser.retry-sign-in': 'Retried the portal sign-in',
+        'browser.retry-sign-in': 'Retry the finance portal sign-in',
+        'browser.sign-in-loop-confirmed':
+          'Confirmed the portal returned to sign-in before the repair',
+        'browser.sign-in-restored':
+          'Confirmed the finance portal opened after the repair',
         'explorer.remove-share': 'Changed the shared-drive mapping',
         'mail.review-alert': 'Reviewed the support alert',
         'settings.clear-profile-storage':
@@ -810,12 +895,42 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         'access-signin-loop',
         'email-client-profile-repair',
       ],
-      requiredSteps: [
-        'settings.clear-profile-storage',
-        'browser.retry-sign-in',
-      ],
+      requiredSteps: [],
       optionalSteps: ['mail.review-alert'],
       incorrectSteps: ['vpn.connect', 'explorer.remove-share'],
+      workflow: {
+        investigate: [
+          { id: 'profile-evidence-reviewed', anyOf: ['mail.review-alert'] },
+        ],
+        diagnose: [
+          {
+            id: 'sign-in-loop-reproduced',
+            anyOf: ['browser.sign-in-loop-confirmed'],
+          },
+        ],
+        fix: [
+          {
+            id: 'profile-storage-cleared',
+            anyOf: ['settings.clear-profile-storage'],
+          },
+        ],
+        verify: [
+          {
+            id: 'finance-portal-restored',
+            anyOf: ['browser.sign-in-restored'],
+          },
+        ],
+        note: { minimumLength: 20 },
+        close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
+        finalState: {},
+      },
       explanation:
         'Clearing the stale local profile token forces a clean browser session. Resetting the account would not correct the workstation issue.',
       completion: {
@@ -831,25 +946,54 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       id: 'network-configuration',
       ticketId: 'INC2402',
       assetTag: 'NX-7714',
-      title: 'Incorrect network configuration interrupts warehouse access',
+      title: 'Managed scanner wireless profile drops at one loading lane',
       summary:
-        'A bad adapter profile prevents the device from maintaining its internal network route.',
+        'The affected Android Enterprise scanner has a stale managed wireless profile; nearby scanners remain connected to the same warehouse network.',
       studentHints: [
-        'Compare the computer’s network configuration with the route it needs to reach.',
-        'Look for a network profile or address configuration that may be out of date.',
-        'Repair the adapter profile, renew the address, and confirm the connection.',
+        'Use the working scanner beside it to establish that the local access point is not the common cause.',
+        'Inspect the affected device’s managed wireless profile before resetting anything.',
+        'Refresh the affected managed profile, renew its lease, and confirm stability.',
       ],
       actionLabels: {
         'chat.confirm-restored': 'Confirmed the service was restored',
+        'terminal.ipconfig': 'Reviewed the managed device network status',
+        'terminal.ping-ip-success':
+          'Confirmed basic warehouse network reachability',
         'settings.repair-network': 'Repaired the network profile',
         'system.renew-address': 'Renewed the network address',
         'trash.empty': 'Emptied the recycle bin',
         'updates.install': 'Installed an unrelated update',
       },
       documentationArticleIds: ['network-dns-triage', 'network-first-response'],
-      requiredSteps: ['settings.repair-network', 'system.renew-address'],
+      requiredSteps: [],
       optionalSteps: ['chat.confirm-restored'],
       incorrectSteps: ['updates.install', 'trash.empty'],
+      workflow: {
+        investigate: [
+          { id: 'affected-device-scoped', anyOf: ['terminal.ipconfig'] },
+        ],
+        diagnose: [
+          { id: 'wireless-path-isolated', anyOf: ['terminal.ping-ip-success'] },
+        ],
+        fix: [
+          {
+            id: 'managed-profile-refreshed',
+            anyOf: ['settings.repair-network'],
+          },
+          { id: 'lease-renewed', anyOf: ['system.renew-address'] },
+        ],
+        verify: [{ id: 'scanner-stable', anyOf: ['chat.confirm-restored'] }],
+        note: { minimumLength: 20 },
+        close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
+        finalState: {},
+      },
       explanation:
         'Restoring the known-good adapter profile and renewing its address returns the device to the warehouse segment.',
       completion: {
@@ -861,19 +1005,21 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       },
     },
     {
-      id: 'mapped-drive-permissions',
+      id: 'facilities-calendar-mapping',
       ticketId: 'INC2405',
       assetTag: 'NX-6128',
-      title: 'Mapped drive points to the wrong facilities location',
+      title: 'Facilities calendar shortcut points to an archived location',
       summary:
-        'The calendar workspace mapping targets an obsolete location; update it and validate access without changing permissions.',
+        'The coordinator already has Facilities Calendar access, but the desktop shortcut points to an archived workspace location.',
       studentHints: [
-        'The user may already have access, but the computer could be pointing to the wrong location.',
-        'Inspect the mapped drive before changing permissions or accounts.',
-        'Repair the drive mapping, then verify the shared location opens.',
+        'Confirm the calendar location before changing permissions or accounts.',
+        'Inspect the mapped calendar workspace and compare it with the current Facilities location.',
+        'Repair the stale mapping, then verify the requested calendar workspace opens.',
       ],
       actionLabels: {
         'chat.confirm-restored': 'Confirmed the service was restored',
+        'explorer.mapping-obsolete':
+          'Confirmed the calendar shortcut targeted the archived workspace',
         'explorer.repair-mapping': 'Repaired the mapped drive location',
         'explorer.verify-share': 'Tested access to the shared drive',
         'settings.clear-profile-storage':
@@ -884,9 +1030,42 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         'access-group-membership',
         'network-first-response',
       ],
-      requiredSteps: ['explorer.repair-mapping', 'explorer.verify-share'],
+      requiredSteps: [],
       optionalSteps: ['chat.confirm-restored'],
       incorrectSteps: ['vpn.connect', 'settings.clear-profile-storage'],
+      workflow: {
+        investigate: [
+          {
+            id: 'calendar-location-inspected',
+            anyOf: ['explorer.mapping-obsolete'],
+          },
+        ],
+        diagnose: [
+          {
+            id: 'obsolete-mapping-confirmed',
+            anyOf: ['explorer.mapping-obsolete'],
+          },
+        ],
+        fix: [
+          {
+            id: 'calendar-mapping-repaired',
+            anyOf: ['explorer.repair-mapping'],
+          },
+        ],
+        verify: [
+          { id: 'calendar-workspace-opened', anyOf: ['explorer.verify-share'] },
+        ],
+        note: { minimumLength: 20 },
+        close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
+        finalState: { driveStates: { 'Y:': 'connected' } },
+      },
       explanation:
         'The user already has the correct access. Updating the stale mapped-drive target restores the calendar workspace.',
       completion: {

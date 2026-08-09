@@ -39,7 +39,7 @@ describe('ticket filtering', () => {
         query: '',
         status: TicketStatus.Open,
       }).map((ticket) => ticket.id),
-    ).toEqual(['INC2406', 'INC2407', 'INC2408']);
+    ).toEqual(['INC2402', 'INC2406', 'INC2407', 'INC2408']);
   });
 });
 

@@ -101,15 +101,16 @@ function isMeaningfulInternalNote(text: string) {
   }
 
   const joined = words.join(' ');
-  const documentsDiagnosis = /\b(cause|diagnos|observ|investigat|confirm)/u.test(
-    joined,
-  );
-  const documentsRepair = /\b(fix|repair|appl(?:y|ied)|start(?:ed)?|connect(?:ed)?|configur(?:e|ed|ing)|set)\b/u.test(
-    joined,
-  );
-  const documentsVerification = /\b(verif(?:y|ied|ication)|test(?:ed|ing)?|validat(?:e|ed|ion)|resolv(?:e|ed|ing)|restor(?:e|ed|ing)|confirm)/u.test(
-    joined,
-  );
+  const documentsDiagnosis =
+    /\b(cause|diagnos|observ|investigat|confirm)/u.test(joined);
+  const documentsRepair =
+    /\b(fix|repair|appl(?:y|ied)|start(?:ed)?|connect(?:ed)?|configur(?:e|ed|ing)|set)\b/u.test(
+      joined,
+    );
+  const documentsVerification =
+    /\b(verif(?:y|ied|ication)|test(?:ed|ing)?|validat(?:e|ed|ion)|resolv(?:e|ed|ing)|restor(?:e|ed|ing)|confirm)/u.test(
+      joined,
+    );
 
   return documentsDiagnosis && documentsRepair && documentsVerification;
 }
@@ -192,10 +193,7 @@ function ticketRejectReason(
           attempt.remoteDesktopOverlays[scenario.assetTag]?.scenarioProgress[
             scenario.id
           ];
-        if (!progress?.phases.diagnosed) {
-          return 'Gather the required diagnosis evidence before closing this ticket.';
-        }
-        if (!progress.phases.fixed) {
+        if (!progress?.phases.fixed) {
           return 'Complete the repair and leave the computer in the corrected state before closing this ticket.';
         }
         if (!progress.phases.verified) {
@@ -861,11 +859,13 @@ function explorerErrorForPath(
 
 function createRemoteDesktopScenarioProgress(): RemoteDesktopScenarioProgress {
   return {
+    investigationEvidence: [],
     diagnosisEvidence: [],
     fixEvidence: [],
     verificationEvidence: [],
     internalNote: null,
     phases: {
+      investigated: false,
       diagnosed: false,
       fixed: false,
       verified: false,
@@ -927,6 +927,21 @@ function objectivesSatisfied(
   );
 }
 
+function workflowScore(
+  scenario: RemoteDesktopScenarioFixture,
+  progress: RemoteDesktopScenarioProgress,
+) {
+  const weights = scenario.workflow?.scoring;
+  if (!weights) return 0;
+  return (
+    (progress.phases.investigated ? weights.investigation : 0) +
+    (progress.phases.diagnosed ? weights.diagnosis : 0) +
+    (progress.phases.fixed ? weights.remediation : 0) +
+    (progress.phases.verified ? weights.verification : 0) +
+    (progress.phases.noted ? weights.documentation : 0)
+  );
+}
+
 function addEvidence(
   evidence: readonly string[],
   key: string | null,
@@ -950,6 +965,12 @@ function terminalWorkflowEvidence(
 
   if (normalized === 'ipconfig') return 'terminal.ipconfig';
   if (normalized === 'ipconfig /all') return 'terminal.ipconfig-all';
+  if (
+    normalized === 'net use' &&
+    scenario.id === 'facilities-calendar-mapping'
+  ) {
+    return 'explorer.mapping-obsolete';
+  }
   if (normalized.startsWith('ping ')) {
     if (isIpTarget) return 'terminal.ping-ip-success';
     return dnsBroken
@@ -991,6 +1012,13 @@ function workflowEvidenceForAction(
 ) {
   if (action.type === 'remote_desktop.open_app') {
     if (
+      scenario.id === 'pdf-export-update' &&
+      action.payload.appId === 'updates' &&
+      before.updateState === 'pending'
+    ) {
+      return 'updates.pending-inspected';
+    }
+    if (
       scenario.id === 'vpn-shared-drive' &&
       action.payload.appId === 'vpn' &&
       before.vpnStatus !== 'connected'
@@ -1026,6 +1054,12 @@ function workflowEvidenceForAction(
         ? 'explorer.share-unreachable'
         : 'explorer.share-reachable';
     }
+    if (
+      scenario.id === 'pdf-export-update' &&
+      (after.explorerCurrentPath === 'This PC' || drive?.kind === 'local')
+    ) {
+      return 'explorer.check-free-space';
+    }
   }
   if (
     action.type === 'remote_desktop.vpn_complete_connection' &&
@@ -1033,6 +1067,13 @@ function workflowEvidenceForAction(
     after.vpnStatus === 'connected'
   ) {
     return 'vpn.connected';
+  }
+  if (
+    action.type === 'remote_desktop.update_restart' &&
+    scenario.id === 'pdf-export-update' &&
+    after.updateState === 'applied'
+  ) {
+    return 'updates.applied';
   }
   if (
     action.type === 'remote_desktop.settings_update_dns' &&
@@ -1059,6 +1100,45 @@ function workflowEvidenceForAction(
       ? 'printer.test-succeeded'
       : 'printer.test-failed';
   }
+  if (action.type === 'remote_desktop.perform_scenario_step') {
+    if (action.payload.stepId === 'browser.retry-sign-in') {
+      return before.scenarioSteps[scenario.id]?.includes(
+        'settings.clear-profile-storage',
+      )
+        ? 'browser.sign-in-restored'
+        : 'browser.sign-in-loop-confirmed';
+    }
+    if (action.payload.stepId === 'browser.retry-export') {
+      return before.updateState === 'applied' &&
+        before.scenarioSteps[scenario.id]?.includes('system.restart-pdf-helper')
+        ? 'browser.export-succeeded'
+        : 'browser.export-failed';
+    }
+    if (action.payload.stepId === 'explorer.repair-mapping') {
+      return 'explorer.repair-mapping';
+    }
+    if (action.payload.stepId === 'explorer.verify-share') {
+      return 'explorer.verify-share';
+    }
+    if (action.payload.stepId === 'settings.repair-network') {
+      return 'settings.repair-network';
+    }
+    if (action.payload.stepId === 'system.renew-address') {
+      return 'system.renew-address';
+    }
+    if (action.payload.stepId === 'chat.confirm-restored') {
+      return 'chat.confirm-restored';
+    }
+    if (action.payload.stepId === 'mail.review-alert') {
+      return 'mail.review-alert';
+    }
+    if (action.payload.stepId === 'settings.clear-profile-storage') {
+      return 'settings.clear-profile-storage';
+    }
+    if (action.payload.stepId === 'system.restart-pdf-helper') {
+      return 'system.restart-pdf-helper';
+    }
+  }
   return null;
 }
 
@@ -1073,6 +1153,11 @@ function recordRemoteDesktopWorkflowProgress(
     before.scenarioProgress[scenario.id] ??
     createRemoteDesktopScenarioProgress();
   const key = workflowEvidenceForAction(scenario, action, before, after);
+  const investigationKey = scenario.workflow.investigate.some((objective) =>
+    objective.anyOf.includes(key ?? ''),
+  )
+    ? key
+    : null;
   const diagnosisKey = scenario.workflow.diagnose.some((objective) =>
     objective.anyOf.includes(key ?? ''),
   )
@@ -1092,6 +1177,10 @@ function recordRemoteDesktopWorkflowProgress(
     current.diagnosisEvidence,
     diagnosisKey,
   );
+  const investigationEvidence = addEvidence(
+    current.investigationEvidence,
+    investigationKey,
+  );
   const fixEvidence = addEvidence(current.fixEvidence, fixKey);
   const verificationEvidence = addEvidence(
     current.verificationEvidence,
@@ -1103,12 +1192,17 @@ function recordRemoteDesktopWorkflowProgress(
       : current.internalNote;
   const progress: RemoteDesktopScenarioProgress = {
     ...current,
+    investigationEvidence,
     diagnosisEvidence,
     fixEvidence,
     verificationEvidence,
     internalNote,
     phases: {
       ...current.phases,
+      investigated: objectivesSatisfied(
+        scenario.workflow.investigate,
+        investigationEvidence,
+      ),
       diagnosed: objectivesSatisfied(
         scenario.workflow.diagnose,
         diagnosisEvidence,
@@ -1143,23 +1237,36 @@ function applyRemoteDesktopScenarioStep(
   const completed = overlay.scenarioSteps[scenario.id] ?? [];
   if (completed.includes(stepId)) return overlay;
   const nextSteps = [...completed, stepId];
+  const networkDrive = getRemoteDesktopWorkstation(assetTag)?.drives.find(
+    (drive) => drive.kind === 'network',
+  );
   if (scenario.workflow) {
     return stepId === 'printer.test-page'
       ? overlay
       : {
           ...overlay,
+          driveStates:
+            scenario.id === 'facilities-calendar-mapping' &&
+            stepId === 'explorer.repair-mapping' &&
+            networkDrive
+              ? {
+                  ...overlay.driveStates,
+                  [networkDrive.letter]: 'connected' as const,
+                }
+              : overlay.driveStates,
           scenarioSteps: { ...overlay.scenarioSteps, [scenario.id]: nextSteps },
+          networkStatus:
+            stepId === 'settings.repair-network'
+              ? ('online' as const)
+              : overlay.networkStatus,
         };
   }
   const requiredComplete = scenario.requiredSteps.every((step) =>
     nextSteps.includes(step),
   );
-  const networkDrive = getRemoteDesktopWorkstation(assetTag)?.drives.find(
-    (drive) => drive.kind === 'network',
-  );
   const connectsDrive =
     (scenario.id === 'vpn-shared-drive' && stepId === 'vpn.connect') ||
-    (scenario.id === 'mapped-drive-permissions' &&
+    (scenario.id === 'facilities-calendar-mapping' &&
       stepId === 'explorer.repair-mapping');
 
   return {
@@ -1547,7 +1654,7 @@ function remoteDesktopRejectReason(
         }
         if (
           action.payload.stepId === 'printer.test-page' ||
-          scenario.optionalSteps.includes(action.payload.stepId)
+          scenario.actionLabels[action.payload.stepId]
         ) {
           return null;
         }
@@ -1873,7 +1980,7 @@ function applyValidRemoteDesktopAction(
       };
       const scenario = getRemoteDesktopScenarioByAsset(action.payload.assetTag);
       const withRepairStep =
-        scenario?.id === 'mapped-drive-permissions'
+        scenario?.id === 'facilities-calendar-mapping'
           ? applyRemoteDesktopScenarioStep(
               connected,
               action.payload.assetTag,
@@ -3010,9 +3117,11 @@ export function applyAction(
             [scenario.id]: {
               ...progress,
               phases: { ...progress.phases, closed: true },
-              finalScore: 100,
+              finalScore: workflowScore(scenario, progress),
               feedback:
-                'All required diagnosis, repair, verification, note, and closure checks passed.',
+                progress.phases.diagnosed && progress.phases.investigated
+                  ? 'All troubleshooting-process, repair, verification, note, and closure checks passed.'
+                  : 'The original symptom was repaired and verified, but investigation or diagnosis evidence was incomplete.',
             },
           },
         },
