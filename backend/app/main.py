@@ -8,8 +8,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import SessionLocal
@@ -36,6 +35,8 @@ from app.routers import (
     tickets,
     training,
     service_desk_bridge,
+    service_desk,
+    admin_service_desk,
 )
 from app.routers.admin_curriculum import router as admin_curriculum_router
 from app.services.cli_lab_seed import seed_cli_labs
@@ -79,14 +80,17 @@ def _cors_origins() -> list[str]:
     raw = os.getenv("CORS_ORIGINS") or os.getenv("FRONTEND_URL")
     if not raw and not is_production_environment():
         raw = "http://localhost:5173,http://127.0.0.1:5173"
-    origins = [origin.strip() for origin in raw.split(",") if origin.strip()]
-    for origin in ["https://www.examcompass.com", "https://examcompass.com"]:
-        if origin not in origins:
-            origins.append(origin)
+    origins: list[str] = []
+    for candidate in (raw or "").split(","):
+        candidate = candidate.strip().rstrip("/")
+        normalized = _origin_from_url(candidate)
+        if normalized and normalized == candidate.lower() and normalized not in origins:
+            origins.append(normalized)
     return origins
 
 
 _EXAMCOMPASS_ORIGINS = {"https://www.examcompass.com", "https://examcompass.com"}
+_EXAMCOMPASS_BOOKMARKLET_PATH = "/api/admin/quiz/bookmarklet-import"
 _STATE_CHANGING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _SECURITY_CSP = (
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
@@ -145,6 +149,30 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def examcompass_bookmarklet_cors(request: Request, call_next):
+        """Permit only the API-key bookmarklet route from ExamCompass.
+
+        ExamCompass is not a Nexus application origin and must not receive
+        credentialed CORS access to the rest of the API. The bookmarklet uses
+        an explicit X-Admin-Key; browser cookies are intentionally unsupported.
+        """
+        origin = _origin_from_url(request.headers.get("origin"))
+        is_bookmarklet = request.url.path == _EXAMCOMPASS_BOOKMARKLET_PATH
+        if is_bookmarklet and origin in _EXAMCOMPASS_ORIGINS and request.method == "OPTIONS":
+            requested_method = request.headers.get("access-control-request-method", "").upper()
+            if requested_method != "POST":
+                return Response(status_code=405)
+            response = Response(status_code=204)
+        else:
+            response = await call_next(request)
+        if is_bookmarklet and origin in _EXAMCOMPASS_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Admin-Key"
+            response.headers["Vary"] = "Origin"
+        return response
 
     @app.middleware("http")
     async def csrf_origin_validation(request: Request, call_next):
@@ -241,11 +269,8 @@ def create_app() -> FastAPI:
     app.include_router(study_tracker.router)
     app.include_router(training.router)
     app.include_router(service_desk_bridge.router)
-
-    upload_dir = os.getenv("UPLOAD_DIR")
-    directory = Path(upload_dir) if upload_dir else (Path(__file__).resolve().parents[1] / "uploads" / "screenshots")
-    directory.mkdir(parents=True, exist_ok=True)
-    app.mount("/uploads/screenshots", StaticFiles(directory=str(directory)), name="screenshots")
+    app.include_router(service_desk.router)
+    app.include_router(admin_service_desk.router)
 
     return app
 

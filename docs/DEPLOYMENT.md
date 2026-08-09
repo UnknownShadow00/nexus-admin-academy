@@ -91,20 +91,42 @@ same private network.
 The container does not receive the full backend environment; pass only the
 shared JWT settings it needs:
 
+Run this from the repository root — `service-desk-app/` is a subdirectory of
+this repository now, so the image tag is derived from this repo's own HEAD,
+the same commit that produced the `service-desk-app/` sources being built:
+
 ```bash
-SERVICE_DESK_IMAGE="nexus-service-desk:$(git -C '../Nexus dupe' rev-parse --short=12 HEAD)"
+SERVICE_DESK_IMAGE="nexus-service-desk:$(git rev-parse --short=12 HEAD)"
 docker build \
   --build-arg NEXUS_INTEGRATION=1 \
   --build-arg NEXT_PUBLIC_NEXUS_INTEGRATION=1 \
   --build-arg SERVICE_DESK_BASE_PATH=/service-desk \
-  -f '../Nexus dupe/service-desk-app/docker/web.Dockerfile' \
-  -t "$SERVICE_DESK_IMAGE" '../Nexus dupe/service-desk-app'
+  -f 'service-desk-app/docker/web.Dockerfile' \
+  -t "$SERVICE_DESK_IMAGE" 'service-desk-app'
 
-export JWT_SECRET_KEY="$(sed -n 's/^JWT_SECRET_KEY=//p' backend/.env | head -n1)"
-export JWT_ALGORITHM="$(sed -n 's/^JWT_ALGORITHM=//p' backend/.env | head -n1)"
+read_nexus_env_value() {
+  backend/.venv/bin/python - "$1" <<'PY'
+import sys
+from dotenv import dotenv_values
+value = dotenv_values("backend/.env").get(sys.argv[1])
+if not value:
+    raise SystemExit(f"Missing {sys.argv[1]} in backend/.env")
+print(value)
+PY
+}
+export JWT_SECRET_KEY="$(read_nexus_env_value JWT_SECRET_KEY)"
+export JWT_ALGORITHM="$(read_nexus_env_value JWT_ALGORITHM)"
 docker network inspect nexus-production >/dev/null 2>&1 || docker network create nexus-production
 docker network inspect nexus-production --format '{{json .Containers}}' | grep -q 'nexus-frontend' || \
   docker network connect nexus-production nexus-frontend
+if docker inspect nexus-service-desk >/dev/null 2>&1; then
+  if docker inspect nexus-service-desk-predeploy >/dev/null 2>&1; then
+    echo 'ERROR: nexus-service-desk-predeploy already exists; resolve it before continuing.' >&2
+    exit 1
+  fi
+  docker stop nexus-service-desk
+  docker rename nexus-service-desk nexus-service-desk-predeploy
+fi
 docker run -d --name nexus-service-desk --restart unless-stopped \
   --network nexus-production \
   --add-host=backend-host:host-gateway \
@@ -120,6 +142,7 @@ docker run -d --name nexus-service-desk --restart unless-stopped \
   --health-start-period=15s \
   "$SERVICE_DESK_IMAGE"
 unset JWT_SECRET_KEY JWT_ALGORITHM
+unset -f read_nexus_env_value
 
 curl --fail http://127.0.0.1:13000/service-desk/api/health
 docker inspect nexus-service-desk --format '{{.State.Health.Status}}'
@@ -135,13 +158,10 @@ rollback restores that nginx file, reloads nginx, and starts a container from
 the recorded image ID on the same private Docker network and loopback port.
 Never publish port `13000` on a LAN or public interface.
 
-The frontend is a Vite SPA and does not use React Router data routers, SSR,
-hydration serialization, actions, or RSC mode. The current version therefore
-retains the last compatible v6 release while `safeNextPath()` rejects both
-protocol-relative and backslash-confused redirects. `npm audit
---audit-level=high` is the release gate; review the two documented moderate
-React Router advisories again when a non-conflicting upstream patch is
-available.
+The frontend is a Vite SPA using React Router 7 declarative routing; it does
+not use data routers, SSR, hydration serialization, actions, or RSC mode.
+`safeNextPath()` rejects both protocol-relative and backslash-confused
+redirects. `npm audit --audit-level=high` remains the release gate.
 
 The project directory permissions protect `backend/.env`; do not replace the
 copy-based frontend deployment with a bind mount that requires making the
@@ -205,8 +225,11 @@ recreate those volumes during an ordinary deployment.
 ## SQLite backup and restore
 
 `scripts/backup_sqlite.sh` uses SQLite's online backup API, compresses the
-database, synchronizes uploads, rejects suspiciously small backups, and keeps
-14 days. The script documents the production cron entry.
+database, creates a timestamp-matched uploads archive, rejects suspiciously
+small database backups, and keeps 14 days. The script documents the
+production cron entry. `NEXUS_SQLITE_DB`, `NEXUS_UPLOADS_DIR`,
+`NEXUS_BACKUP_DIR`, and `NEXUS_BACKUP_STAMP` may be set to rehearse safely
+against an isolated copy; production defaults remain unchanged.
 
 Test a backup without replacing production:
 
@@ -253,13 +276,15 @@ the smoke checklist below.
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every pull request targeting `main` and on
-every push to `main`. It never touches production — every job uses a
-throwaway SQLite database and generated-per-run credentials, never the real
+`.github/workflows/ci.yml` runs on every pull request (any target branch —
+this repo stages work through intermediate integration branches before
+reaching `main`, so PRs are not restricted to a `main` base) and on every
+push to `main`. It never touches production — every job uses a throwaway
+SQLite database and generated-per-run credentials, never the real
 `backend/nexus.db` or `backend/.env`. An older run for the same branch is
 cancelled automatically when a newer commit arrives.
 
-Four independent jobs, so a failure is easy to attribute:
+Five independent jobs, so a failure is easy to attribute:
 
 - **Backend quality and tests** — `pip check`, Ruff, `python -m compileall`,
   the full `pytest` suite, and a manifest-based `pip-audit` against
@@ -273,14 +298,29 @@ Four independent jobs, so a failure is easy to attribute:
 - **Frontend validation** — `npm audit --audit-level=high`, `npm run build`,
   `npm run cli:validate`, `npm run cli:sanity`. There is no frontend unit
   test script; real-browser coverage runs in the Playwright job instead.
+- **Service Desk quality and tests** — `pnpm lint`, `pnpm typecheck`,
+  `pnpm test`, `pnpm build`, and `pnpm audit --audit-level=high` inside
+  `service-desk-app/`. This is the in-repo replacement for the standalone
+  app's old CI, which lived at `service-desk-app/.github/workflows/ci.yml`
+  and stopped running the moment the app became a subdirectory of this repo
+  — GitHub Actions only discovers workflow files under the repository's own
+  root `.github/workflows/`, not in nested subdirectories.
+  Note: `service-desk-app/tests/e2e/remote-desktop-workflows.spec.ts` and
+  its `playwright.config.ts` exist but are currently dead — no package.json
+  in the workspace declares `@playwright/test` as a dependency, so
+  `pnpm exec playwright` cannot resolve it. Pre-existing breakage,
+  independent of this merge; not wired into CI here. Add the dependency and
+  confirm the suite actually passes before adding that job.
 - **Playwright browser tests** — real Chromium against an isolated local
   stack (see below), covering My Training, lesson objectives, quiz pass/fail
-  messaging, Progress labels, and
-  authentication/navigation regressions, at both the 1440x1000 desktop and
-  375x812 mobile viewports. Both specs currently run in under 20 seconds
-  combined, so the full pair runs on every PR rather than splitting a
-  "critical" subset out to a nightly job — revisit that split only if the
-  suite grows slow enough to justify it.
+  messaging, Progress labels, and authentication/navigation regressions, at
+  both the 1440x1000 desktop and 375x812 mobile viewports, plus the four
+  Nexus <-> Service Desk integration scenarios in
+  `service-desk-integration.spec.js` (offline outbox retry ordering, ticket
+  completion gating on pending evidence, clean-browser snapshot restore, and
+  real UI resolution with server-side grading/XP/evidence). The isolated
+  stack now starts Service Desk in-process too (see "Browser test fixture
+  harness" below), so this no longer needs a separate Compose stack.
 
 ### Reproducing each job locally
 
@@ -303,7 +343,16 @@ npm run build
 npm run cli:validate
 npm run cli:sanity
 
-# Playwright browser tests — see "Browser test fixture harness" below
+# Service Desk quality and tests
+cd service-desk-app
+pnpm install --frozen-lockfile
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm audit --audit-level=high
+
+# Nexus <-> Service Desk Playwright integration — see "Browser test fixture harness" below
 ```
 
 ### Browser test fixture harness
@@ -316,10 +365,15 @@ use for real-browser testing:
   production `backend/nexus.db` path specifically.
 - `start_local_stack.sh` — generates fresh random credentials (never
   hard-coded, never logged), seeds a scratch database, starts an isolated
-  backend (default port 8011) and frontend (default port 5173), creates the
-  `browser-training-student` and `browser-qualified-student` fixture
-  accounts, and writes the resulting `NEXUS_E2E_*` variables to
-  `<scratch dir>/stack.env` (and to `$GITHUB_ENV` under GitHub Actions).
+  backend (default port 8011), Service Desk (default port 3001, from the
+  in-repo `service-desk-app/`), and frontend (default port 5173) — the Vite
+  dev server proxies `/api` and `/service-desk` to the other two so all
+  three share one browser origin (see `frontend/vite.config.js`) — creates
+  the `browser-training-student`, `browser-qualified-student`, and two more
+  fixture student accounts plus their Service Desk assignments, and writes
+  the resulting `NEXUS_E2E_*` variables to `<scratch dir>/stack.env` (and to
+  `$GITHUB_ENV` under GitHub Actions). Requires Service Desk's own
+  dependencies already installed (`cd service-desk-app && pnpm install`).
 - `stop_local_stack.sh` — kills both processes and deletes the scratch
   directory (database, uploads, logs, generated credentials). Always run
   this from an `if: always()` step (or after a local run, success or not) so
@@ -328,15 +382,20 @@ use for real-browser testing:
 Local usage:
 
 ```bash
+cd service-desk-app && pnpm install --frozen-lockfile && cd ..
 bash scripts/e2e/start_local_stack.sh
 set -a && source /tmp/nexus-e2e-XXXXXX/stack.env && set +a   # path printed by start_local_stack.sh
-cd frontend && npx playwright test tests/e2e/my-training.spec.js tests/e2e/service-desk-disabled.spec.js --reporter=list
+cd frontend && npx playwright test tests/e2e/my-training.spec.js tests/e2e/service-desk-integration.spec.js --reporter=list
 cd .. && bash scripts/e2e/stop_local_stack.sh
 ```
 
-Expected runtime: each of the four CI jobs finishes in well under two
-minutes; the Playwright job's browser-test step itself takes under 20
-seconds once the stack is up.
+`scripts/e2e/run_launch_verification.sh` wraps the same start/test/stop
+sequence for just the integration spec, with results logged under
+`artifacts/e2e-launch-verification/`.
+
+Expected runtime: each of the backend/database/frontend/service-desk CI jobs
+finishes in well under two minutes; the Playwright job's two browser-test
+steps themselves take under a minute combined once the stack is up.
 
 ### Inspecting a failed CI run
 
@@ -351,12 +410,14 @@ artifact from the failed run's Summary page and open
 
 ## Service Desk Simulator
 
-The simulator is a separate Next.js application reverse-proxied at
-`/service-desk`. The root compose file expects its repository at
-`../Nexus dupe/service-desk-app`, alongside this repository, and proxies it
-through the frontend nginx container. For standalone-host deployments, update
-the `service-desk-host:3000` placeholder in `frontend/nginx.host.conf` to the
-simulator's deployed host and port.
+The simulator is a Next.js application reverse-proxied at `/service-desk`.
+It lives in this repository at `service-desk-app/`. The root
+`docker-compose.yml` builds it from `./service-desk-app` directly. For the
+active systemd/standalone-host deployment (built and run as its own Docker
+container rather than through Compose — see "Service Desk Simulator on the
+active host deployment" above), update the `service-desk-host:3000`
+placeholder in `frontend/nginx.host.conf` to the simulator's deployed host
+and port.
 
 Automated Proxmox/Guacamole delivery remains opt-in until a staging test proves
 start, scoped student access, isolation, refresh recovery, expiry, and cleanup.

@@ -1,0 +1,719 @@
+{
+  "generated_at": "2026-08-08T07:20:47.953210+00:00",
+  "original_unmapped_count": 71,
+  "mapped_optional_count": 6,
+  "intentionally_left_unmapped_count": 65,
+  "required_blockers_added": 0,
+  "decisions": [
+    {
+      "quiz_id": 26,
+      "title": "Mobile Device Connection Methods Quiz",
+      "classification": "F",
+      "pedagogical_home": 1,
+      "intended_role": "certification",
+      "missing_explanations": 2,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 27,
+      "title": "Mobile Device Hardware Servicing Quiz",
+      "classification": "F",
+      "pedagogical_home": 1,
+      "intended_role": "certification",
+      "missing_explanations": 8,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 28,
+      "title": "Mobile Device Accessories Quiz",
+      "classification": "B",
+      "pedagogical_home": 5,
+      "intended_role": "practice",
+      "missing_explanations": 0,
+      "decision": "mapped_to_extra_practice",
+      "reason": "Complete explanations and a clear week-level practice role; optional and non-blocking."
+    },
+    {
+      "quiz_id": 29,
+      "title": "Mobile Device Network Connectivity Quiz",
+      "classification": "F",
+      "pedagogical_home": 8,
+      "intended_role": "practice",
+      "missing_explanations": 5,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 30,
+      "title": "Mobile Device Application Support Quiz",
+      "classification": "F",
+      "pedagogical_home": 1,
+      "intended_role": "certification",
+      "missing_explanations": 1,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 31,
+      "title": "Malware Quiz",
+      "classification": "F",
+      "pedagogical_home": 7,
+      "intended_role": "remediation",
+      "missing_explanations": 1,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 32,
+      "title": "Social Engineering Quiz",
+      "classification": "B",
+      "pedagogical_home": 7,
+      "intended_role": "practice",
+      "missing_explanations": 0,
+      "decision": "mapped_to_extra_practice",
+      "reason": "Complete explanations and a clear week-level practice role; optional and non-blocking."
+    },
+    {
+      "quiz_id": 33,
+      "title": "Threats & Vulnerabilities Quiz",
+      "classification": "B",
+      "pedagogical_home": 7,
+      "intended_role": "practice",
+      "missing_explanations": 0,
+      "decision": "mapped_to_extra_practice",
+      "reason": "Complete explanations and a clear week-level practice role; optional and non-blocking."
+    },
+    {
+      "quiz_id": 34,
+      "title": "Malware Removal Procedures Quiz",
+      "classification": "F",
+      "pedagogical_home": 7,
+      "intended_role": "practice",
+      "missing_explanations": 5,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 35,
+      "title": "Mobile Device Security Quiz",
+      "classification": "F",
+      "pedagogical_home": 7,
+      "intended_role": "certification",
+      "missing_explanations": 2,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 36,
+      "title": "Data Destruction & Disposal Methods Quiz",
+      "classification": "F",
+      "pedagogical_home": 7,
+      "intended_role": "certification",
+      "missing_explanations": 1,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 37,
+      "title": "SOHO Network Security Quiz",
+      "classification": "F",
+      "pedagogical_home": 11,
+      "intended_role": "practice",
+      "missing_explanations": 4,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 38,
+      "title": "Web Browser Security Quiz",
+      "classification": "F",
+      "pedagogical_home": 7,
+      "intended_role": "certification",
+      "missing_explanations": 1,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 39,
+      "title": "Windows OS Troubleshooting Quiz",
+      "classification": "F",
+      "pedagogical_home": 5,
+      "intended_role": "practice",
+      "missing_explanations": 2,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 40,
+      "title": "Mobile OS and App Troubleshooting Quiz",
+      "classification": "F",
+      "pedagogical_home": 8,
+      "intended_role": "certification",
+      "missing_explanations": 5,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 41,
+      "title": "Common PC Security Issues Troubleshooting Quiz",
+      "classification": "F",
+      "pedagogical_home": 7,
+      "intended_role": "remediation",
+      "missing_explanations": 3,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 43,
+      "title": "Asset Management Quiz",
+      "classification": "F",
+      "pedagogical_home": 23,
+      "intended_role": "practice",
+      "missing_explanations": 2,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 44,
+      "title": "Change Management Procedures Quiz",
+      "classification": "F",
+      "pedagogical_home": 4,
+      "intended_role": "practice",
+      "missing_explanations": 4,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 46,
+      "title": "Common Safety Procedures Quiz",
+      "classification": "F",
+      "pedagogical_home": 9,
+      "intended_role": "certification",
+      "missing_explanations": 5,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 47,
+      "title": "Environmental Impacts & Controls Quiz",
+      "classification": "F",
+      "pedagogical_home": 9,
+      "intended_role": "certification",
+      "missing_explanations": 2,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 49,
+      "title": "Software Licensing Concepts Quiz",
+      "classification": "F",
+      "pedagogical_home": 9,
+      "intended_role": "certification",
+      "missing_explanations": 5,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 50,
+      "title": "Regulated Data Quiz",
+      "classification": "F",
+      "pedagogical_home": 9,
+      "intended_role": "certification",
+      "missing_explanations": 3,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 51,
+      "title": "Communication & Professionalism Quiz",
+      "classification": "F",
+      "pedagogical_home": 4,
+      "intended_role": "practice",
+      "missing_explanations": 14,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 52,
+      "title": "Scripting Basics Quiz",
+      "classification": "F",
+      "pedagogical_home": 16,
+      "intended_role": "remediation",
+      "missing_explanations": 7,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 53,
+      "title": "Remote Access Technologies Quiz",
+      "classification": "F",
+      "pedagogical_home": 7,
+      "intended_role": "practice",
+      "missing_explanations": 4,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 54,
+      "title": "Basic AI Concepts Quiz",
+      "classification": "F",
+      "pedagogical_home": 9,
+      "intended_role": "certification",
+      "missing_explanations": 2,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 56,
+      "title": "TCP & UDP Ports Quiz",
+      "classification": "C",
+      "pedagogical_home": 11,
+      "intended_role": "remediation",
+      "missing_explanations": 0,
+      "decision": "mapped_to_extra_practice",
+      "reason": "Complete explanations and a clear week-level practice role; optional and non-blocking."
+    },
+    {
+      "quiz_id": 57,
+      "title": "Wireless Networking Technologies Quiz",
+      "classification": "F",
+      "pedagogical_home": 11,
+      "intended_role": "practice",
+      "missing_explanations": 3,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 58,
+      "title": "Network Services Quiz",
+      "classification": "F",
+      "pedagogical_home": 11,
+      "intended_role": "practice",
+      "missing_explanations": 2,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 59,
+      "title": "Network Configuration Concepts Quiz",
+      "classification": "C",
+      "pedagogical_home": 8,
+      "intended_role": "remediation",
+      "missing_explanations": 0,
+      "decision": "mapped_to_extra_practice",
+      "reason": "Complete explanations and a clear week-level practice role; optional and non-blocking."
+    },
+    {
+      "quiz_id": 60,
+      "title": "Common Networking Hardware Quiz",
+      "classification": "F",
+      "pedagogical_home": 9,
+      "intended_role": "remediation",
+      "missing_explanations": 7,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 62,
+      "title": "Internet Connection Types Quiz",
+      "classification": "F",
+      "pedagogical_home": 2,
+      "intended_role": "certification",
+      "missing_explanations": 6,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 63,
+      "title": "Network Types Quiz",
+      "classification": "C",
+      "pedagogical_home": 9,
+      "intended_role": "remediation",
+      "missing_explanations": 0,
+      "decision": "mapped_to_extra_practice",
+      "reason": "Complete explanations and a clear week-level practice role; optional and non-blocking."
+    },
+    {
+      "quiz_id": 64,
+      "title": "Networking Tools Quiz",
+      "classification": "F",
+      "pedagogical_home": 8,
+      "intended_role": "practice",
+      "missing_explanations": 1,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 65,
+      "title": "Display Devices Quiz",
+      "classification": "F",
+      "pedagogical_home": 3,
+      "intended_role": "certification",
+      "missing_explanations": 4,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 66,
+      "title": "Cabling Quiz",
+      "classification": "F",
+      "pedagogical_home": 3,
+      "intended_role": "certification",
+      "missing_explanations": 27,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 68,
+      "title": "RAM Quiz",
+      "classification": "F",
+      "pedagogical_home": 2,
+      "intended_role": "remediation",
+      "missing_explanations": 10,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 69,
+      "title": "Storage Devices Quiz",
+      "classification": "F",
+      "pedagogical_home": 2,
+      "intended_role": "remediation",
+      "missing_explanations": 5,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 70,
+      "title": "Motherboard Quiz",
+      "classification": "F",
+      "pedagogical_home": 3,
+      "intended_role": "certification",
+      "missing_explanations": 11,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 71,
+      "title": "BIOS Quiz",
+      "classification": "F",
+      "pedagogical_home": 2,
+      "intended_role": "practice",
+      "missing_explanations": 5,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 72,
+      "title": "CPU Quiz",
+      "classification": "F",
+      "pedagogical_home": 2,
+      "intended_role": "remediation",
+      "missing_explanations": 5,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 73,
+      "title": "Power Supply Quiz",
+      "classification": "F",
+      "pedagogical_home": 2,
+      "intended_role": "practice",
+      "missing_explanations": 2,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 74,
+      "title": "Multifunction Devices Quiz",
+      "classification": "F",
+      "pedagogical_home": 3,
+      "intended_role": "certification",
+      "missing_explanations": 4,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 75,
+      "title": "Printer Quiz",
+      "classification": "F",
+      "pedagogical_home": 3,
+      "intended_role": "certification",
+      "missing_explanations": 12,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 76,
+      "title": "Virtualization Concepts Quiz",
+      "classification": "F",
+      "pedagogical_home": 21,
+      "intended_role": "practice",
+      "missing_explanations": 6,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 77,
+      "title": "Cloud Computing Concepts Quiz",
+      "classification": "F",
+      "pedagogical_home": 21,
+      "intended_role": "practice",
+      "missing_explanations": 13,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 79,
+      "title": "Storage and RAID Troubleshooting Quiz",
+      "classification": "F",
+      "pedagogical_home": 2,
+      "intended_role": "practice",
+      "missing_explanations": 10,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 80,
+      "title": "Display Devices Troubleshooting Quiz",
+      "classification": "F",
+      "pedagogical_home": 5,
+      "intended_role": "certification",
+      "missing_explanations": 21,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 81,
+      "title": "Mobile Devices Troubleshooting Quiz",
+      "classification": "F",
+      "pedagogical_home": 5,
+      "intended_role": "certification",
+      "missing_explanations": 25,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 82,
+      "title": "Network Troubleshooting Quiz",
+      "classification": "F",
+      "pedagogical_home": 8,
+      "intended_role": "practice",
+      "missing_explanations": 10,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 83,
+      "title": "Printer Troubleshooting Quiz",
+      "classification": "F",
+      "pedagogical_home": 5,
+      "intended_role": "certification",
+      "missing_explanations": 16,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 84,
+      "title": "Common OS Types Quiz",
+      "classification": "F",
+      "pedagogical_home": 6,
+      "intended_role": "certification",
+      "missing_explanations": 2,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 85,
+      "title": "Filesystem Types Quiz",
+      "classification": "F",
+      "pedagogical_home": 18,
+      "intended_role": "remediation",
+      "missing_explanations": 1,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 86,
+      "title": "OS Boot Methods Quiz",
+      "classification": "F",
+      "pedagogical_home": 5,
+      "intended_role": "practice",
+      "missing_explanations": 8,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 87,
+      "title": "OS Installation Methods Quiz",
+      "classification": "F",
+      "pedagogical_home": 6,
+      "intended_role": "certification",
+      "missing_explanations": 4,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 88,
+      "title": "Microsoft Windows Editions Quiz",
+      "classification": "F",
+      "pedagogical_home": 6,
+      "intended_role": "certification",
+      "missing_explanations": 10,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 89,
+      "title": "MS Windows Basic Features Quiz",
+      "classification": "F",
+      "pedagogical_home": 3,
+      "intended_role": "remediation",
+      "missing_explanations": 3,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 90,
+      "title": "Windows Task Manager Quiz",
+      "classification": "F",
+      "pedagogical_home": 3,
+      "intended_role": "practice",
+      "missing_explanations": 6,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 91,
+      "title": "Windows MMC Snap-ins Quiz",
+      "classification": "F",
+      "pedagogical_home": 13,
+      "intended_role": "remediation",
+      "missing_explanations": 1,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 92,
+      "title": "Windows Additional Admin Tools Quiz",
+      "classification": "F",
+      "pedagogical_home": 3,
+      "intended_role": "practice",
+      "missing_explanations": 1,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 93,
+      "title": "Microsoft Command-Line Tools Quiz",
+      "classification": "F",
+      "pedagogical_home": 3,
+      "intended_role": "practice",
+      "missing_explanations": 1,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 94,
+      "title": "Microsoft Windows Settings Quiz",
+      "classification": "F",
+      "pedagogical_home": 3,
+      "intended_role": "remediation",
+      "missing_explanations": 5,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 96,
+      "title": "macOS Quiz",
+      "classification": "F",
+      "pedagogical_home": 6,
+      "intended_role": "certification",
+      "missing_explanations": 4,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 97,
+      "title": "Linux Command Line Quiz",
+      "classification": "F",
+      "pedagogical_home": 18,
+      "intended_role": "practice",
+      "missing_explanations": 10,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 98,
+      "title": "Linux OS Features & Tools Quiz",
+      "classification": "F",
+      "pedagogical_home": 18,
+      "intended_role": "remediation",
+      "missing_explanations": 1,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 99,
+      "title": "Physical Security Concepts Quiz",
+      "classification": "F",
+      "pedagogical_home": 7,
+      "intended_role": "certification",
+      "missing_explanations": 7,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 100,
+      "title": "Logical Security Concepts Quiz",
+      "classification": "F",
+      "pedagogical_home": 7,
+      "intended_role": "practice",
+      "missing_explanations": 5,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 101,
+      "title": "Windows OS Security Quiz",
+      "classification": "F",
+      "pedagogical_home": 7,
+      "intended_role": "remediation",
+      "missing_explanations": 4,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 102,
+      "title": "NTFS & Share Permissions Quiz",
+      "classification": "F",
+      "pedagogical_home": 6,
+      "intended_role": "practice",
+      "missing_explanations": 10,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 103,
+      "title": "Active Directory Quiz",
+      "classification": "F",
+      "pedagogical_home": 13,
+      "intended_role": "remediation",
+      "missing_explanations": 5,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    },
+    {
+      "quiz_id": 104,
+      "title": "Wireless Security Quiz",
+      "classification": "F",
+      "pedagogical_home": 11,
+      "intended_role": "practice",
+      "missing_explanations": 2,
+      "decision": "intentionally_left_unmapped",
+      "reason": "Relevant as future optional/remediation material, but not appropriate for active student use until its remaining explanations and answer-key quality receive editorial review."
+    }
+  ]
+}

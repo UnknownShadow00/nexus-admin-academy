@@ -80,9 +80,13 @@ changing a feature.
 
 ## Frontend structure
 
-Student primary navigation is intentionally limited to Home, Learn, Practice,
-and Progress. Quizzes live under Learn; tickets, labs, networking labs,
-capstones, commands, and terminal practice live under Practice.
+Student primary navigation is intentionally limited to Today, Service Desk,
+and Progress, plus a small secondary "Extra Practice" group for optional work.
+Today (route `/`) surfaces the single next required activity across videos,
+quizzes, and Service Desk scenarios, sourced from `training_service.py`'s
+`next_activity`. My Training, Support Tickets, Guided Labs, Networking Labs,
+Capstones, Command Library, and Terminal Practice live under Extra Practice —
+optional and never competing with what Today points at.
 
 Admin primary navigation is intentionally workflow-based: Dashboard, Learning
 Content, Students, Assessments & Labs, and System. Small admin utilities belong

@@ -181,6 +181,10 @@ class ServiceDeskAttemptEvent(Base):
     previous_state_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     resulting_state_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     success: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    # Only the action-transition endpoint may create trusted evidence.  Raw
+    # browser event uploads are retained for audit/resume compatibility but
+    # must never satisfy a grading objective.
+    trusted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
@@ -207,6 +211,9 @@ class ServiceDeskAttemptGrade(Base):
         "details", JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict
     )
     calculated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    mentor_feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mentor_feedback_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    mentor_feedback_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 @event.listens_for(ServiceDeskScenarioVersion, "before_update")

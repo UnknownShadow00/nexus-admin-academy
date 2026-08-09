@@ -16,12 +16,23 @@ export default function StudentHome() {
   const studentId = getCurrentStudent()?.id;
   const [stats, setStats] = useState(null);
   const [training, setTraining] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
-    if (!studentId) return setStats(null);
+    if (!studentId) {
+      setStats(null);
+      setLoading(false);
+      return;
+    }
     const run = async () => {
+      setLoading(true);
+      setLoadError("");
       try {
-        await checkInStudent(studentId, { suppressToast: true });
+        // A failed check-in must not block Today; awaiting the handled request
+        // lets the following read include the latest streak when it succeeds.
+        await checkInStudent(studentId, { suppressToast: true }).catch(() => null);
         const [res, trainingRes] = await Promise.all([
           getStudentStats(studentId, { suppressToast: true }),
           getTrainingDashboard({ suppressToast: true }),
@@ -30,10 +41,14 @@ export default function StudentHome() {
         setTraining(trainingRes?.data || null);
       } catch {
         setStats(null);
+        setTraining(null);
+        setLoadError("Today could not be loaded. Check your connection, then try again.");
+      } finally {
+        setLoading(false);
       }
     };
     run();
-  }, [studentId]);
+  }, [retryKey, studentId]);
 
   const continueTarget = useMemo(() => {
     const week = training?.current_week;
@@ -49,11 +64,23 @@ export default function StudentHome() {
     };
   }, [training]);
 
-  if (!stats) {
+  if (loading) {
     return (
       <main className="mx-auto max-w-5xl space-y-4 p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((item) => <SkeletonCard key={item} />)}
+        </div>
+      </main>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <main className="mx-auto max-w-3xl p-6">
+        <div className="panel text-center" role="alert">
+          <h1 className="text-xl font-bold text-slate-950 dark:text-white">Today is temporarily unavailable</h1>
+          <p className="mt-2 text-slate-600 dark:text-slate-300">{loadError || "Sign in again to continue your training."}</p>
+          <button className="btn-primary mt-4" onClick={() => setRetryKey((value) => value + 1)} type="button">Try Again</button>
         </div>
       </main>
     );
@@ -69,7 +96,7 @@ export default function StudentHome() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
-      <PageHeader title={stats.name || "Student Home"} subtitle="Stay on track with your next lesson, quiz, and support ticket milestone." />
+      <PageHeader title={stats.name || "Today"} subtitle="Your next lesson, quiz, or Service Desk scenario, picked for you." />
 
       <section className="rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-700 p-5 text-white shadow-lg sm:p-7">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">My Training</p>
@@ -110,14 +137,6 @@ export default function StudentHome() {
         <div className="panel">
           <FlashcardReviewPanel />
         </div>
-      </section>
-
-      <section className="panel flex flex-col gap-4 border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/70 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Up Next</p>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">{continueTarget.detail}</h2>
-        </div>
-        <Link className="btn-primary shrink-0" to={continueTarget.to}>{continueTarget.label}</Link>
       </section>
 
       <section className="panel space-y-3">

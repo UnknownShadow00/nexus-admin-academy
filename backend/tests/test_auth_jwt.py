@@ -4,7 +4,7 @@ import jwt
 import pytest
 from fastapi import HTTPException
 
-from app.services.auth_service import create_access_token, decode_token
+from app.services.auth_service import create_access_token, decode_token, validate_jwt_startup_config
 
 
 def test_valid_token_round_trip():
@@ -53,3 +53,12 @@ def test_unsigned_token_is_rejected():
         decode_token(token)
 
     assert exc_info.value.status_code == 401
+
+
+def test_production_refuses_placeholder_jwt_secret(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("JWT_SECRET_KEY", "change_this_to_a_long_random_secret")
+    monkeypatch.setenv("JWT_ALGORITHM", "HS256")
+
+    with pytest.raises(RuntimeError, match="Refusing to start production"):
+        validate_jwt_startup_config()

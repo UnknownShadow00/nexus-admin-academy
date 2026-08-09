@@ -25,7 +25,7 @@ if [[ -z "$SCRATCH_DIR" ]]; then
     exit 0
 fi
 
-for pid_file in "$SCRATCH_DIR/backend.pid" "$SCRATCH_DIR/frontend.pid"; do
+for pid_file in "$SCRATCH_DIR/backend.pid" "$SCRATCH_DIR/frontend.pid" "$SCRATCH_DIR/service-desk.pid"; do
     if [[ -f "$pid_file" ]]; then
         pid="$(cat "$pid_file")"
         if kill -0 "$pid" 2>/dev/null; then
@@ -41,6 +41,7 @@ done
 # Extra safety net in case a pid file was missing or stale.
 pkill -f "uvicorn app.main:app --host 127.0.0.1 --port ${E2E_BACKEND_PORT:-8011}" 2>/dev/null
 pkill -f "vite --port ${E2E_FRONTEND_PORT:-5173}" 2>/dev/null
+pkill -f "next dev.*--port ${E2E_SERVICE_DESK_PORT:-3001}" 2>/dev/null
 
 rm -rf "$SCRATCH_DIR"
 rm -f "$STATE_FILE"

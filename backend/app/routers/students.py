@@ -25,7 +25,7 @@ from app.models.squad_activity import SquadActivity
 from app.models.ticket import Ticket, TicketSubmission
 from app.models.xp_ledger import XPLedger
 from app.services.activity_service import mark_student_active
-from app.services.auth_service import ensure_student_access, get_current_student
+from app.services.auth_service import ensure_student_access, ensure_student_ownership, get_current_student
 from app.services.mastery_service import list_student_mastery
 from app.services.methodology_enforcer import can_access_tickets
 from app.services.onboarding_service import get_orientation_state
@@ -121,7 +121,7 @@ def _build_cert_readiness(student_id: int, db: Session) -> dict:
 
 @router.post("/api/students/{student_id}/check-in")
 def student_check_in(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
-    ensure_student_access(current_student, student_id)
+    ensure_student_ownership(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -181,7 +181,9 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    streak = update_login_streak(db, student_id)
+    # This is a read endpoint and is also used by mentor review. Presence and
+    # streak mutations belong to the owner-only check-in endpoint above.
+    streak = db.query(LoginStreak).filter(LoginStreak.student_id == student_id).first()
     level, level_name = level_from_xp(student.total_xp)
 
     required_quizzes = [quiz for week in range(25) for quiz in required_quizzes_for_week(db, week)]
@@ -304,8 +306,8 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
             {"topic": row.category or "general", "avg_score": round(float(row.avg_score or 0), 1), "attempts": int(row.attempts or 0)}
             for row in weak_rows
         ],
-        "streak": streak.current_streak,
-        "longest_streak": streak.longest_streak,
+        "streak": streak.current_streak if streak else 0,
+        "longest_streak": streak.longest_streak if streak else 0,
         "cohort_comparison": {
             "your_xp": student.total_xp,
             "avg_xp": avg_xp,

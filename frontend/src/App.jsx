@@ -6,29 +6,29 @@ import RequireAuth from "./components/RequireAuth";
 import { clearAuthSession, getCurrentStudent, isAuthenticated } from "./hooks/useAuth";
 import { useDarkMode } from "./hooks/useDarkMode";
 import AdminLoginPage from "./pages/AdminLoginPage";
-import LessonPage from "./pages/LessonPage";
-import CapstonePage from "./pages/CapstonePage";
-import CapstonesPage from "./pages/CapstonesPage";
-import CliLabPage from "./pages/CliLabPage";
-import CliLabsPage from "./pages/CliLabsPage";
-import CommandReferencePage from "./pages/CommandReferencePage";
-import LabPage from "./pages/LabPage";
-import LabsPage from "./pages/LabsPage";
 import LoginPage from "./pages/LoginPage";
-import QuizPage from "./pages/QuizPage";
-import QuizReviewPage from "./pages/QuizReviewPage";
-import QuizzesPage from "./pages/QuizzesPage";
 import StudentHome from "./pages/StudentHome";
-import StudyTrackerPage from "./pages/StudyTrackerPage";
-import TrainingDashboardPage from "./pages/TrainingDashboardPage";
-import TrainingProgressPage from "./pages/TrainingProgressPage";
-import TrainingWeekPage from "./pages/TrainingWeekPage";
-import TerminalCommandsPage from "./pages/TerminalCommandsPage";
-import TicketFeedback from "./pages/TicketFeedback";
-import TicketPage from "./pages/TicketPage";
-import TicketsPage from "./pages/TicketsPage";
 import { authLogout, getTickets, globalSearch } from "./services/api";
 
+const LessonPage = lazy(() => import("./pages/LessonPage"));
+const CapstonePage = lazy(() => import("./pages/CapstonePage"));
+const CapstonesPage = lazy(() => import("./pages/CapstonesPage"));
+const CliLabPage = lazy(() => import("./pages/CliLabPage"));
+const CliLabsPage = lazy(() => import("./pages/CliLabsPage"));
+const CommandReferencePage = lazy(() => import("./pages/CommandReferencePage"));
+const LabPage = lazy(() => import("./pages/LabPage"));
+const LabsPage = lazy(() => import("./pages/LabsPage"));
+const QuizPage = lazy(() => import("./pages/QuizPage"));
+const QuizReviewPage = lazy(() => import("./pages/QuizReviewPage"));
+const QuizzesPage = lazy(() => import("./pages/QuizzesPage"));
+const StudyTrackerPage = lazy(() => import("./pages/StudyTrackerPage"));
+const TrainingDashboardPage = lazy(() => import("./pages/TrainingDashboardPage"));
+const TrainingProgressPage = lazy(() => import("./pages/TrainingProgressPage"));
+const TrainingWeekPage = lazy(() => import("./pages/TrainingWeekPage"));
+const TerminalCommandsPage = lazy(() => import("./pages/TerminalCommandsPage"));
+const TicketFeedback = lazy(() => import("./pages/TicketFeedback"));
+const TicketPage = lazy(() => import("./pages/TicketPage"));
+const TicketsPage = lazy(() => import("./pages/TicketsPage"));
 const AdminHome = lazy(() => import("./pages/AdminHome"));
 const AdminStudentsPage = lazy(() => import("./pages/AdminStudentsPage"));
 const ModuleManager = lazy(() => import("./pages/ModuleManager"));
@@ -36,6 +36,7 @@ const AICostDashboard = lazy(() => import("./pages/admin/AICostDashboard"));
 const AdminCapstonesPage = lazy(() => import("./pages/admin/AdminCapstonesPage"));
 const AdminLabsPage = lazy(() => import("./pages/admin/AdminLabsPage"));
 const AdminTicketReviewPage = lazy(() => import("./pages/admin/AdminTicketReviewPage"));
+const AdminServiceDeskReviewPage = lazy(() => import("./pages/admin/AdminServiceDeskReviewPage"));
 const BookmarkletPage = lazy(() => import("./pages/admin/BookmarkletPage"));
 const QuestionImportPage = lazy(() => import("./pages/admin/QuestionImportPage"));
 const CurriculumEditorPage = lazy(() => import("./pages/admin/CurriculumEditorPage"));
@@ -43,12 +44,13 @@ const CurriculumTagsPage = lazy(() => import("./pages/admin/CurriculumTagsPage")
 const QuizEditorPage = lazy(() => import("./pages/admin/QuizEditorPage"));
 const AdminTrainingPage = lazy(() => import("./pages/admin/AdminTrainingPage"));
 const studentNavItems = [
-  { to: "/", label: "Home" },
-  { to: "/training", label: "My Training" },
+  { to: "/", label: "Today" },
   { to: "/service-desk", label: "Service Desk Simulator", external: true },
+  { to: "/progress", label: "Progress" },
   {
-    label: "Practice Library",
+    label: "Extra Practice",
     children: [
+      { to: "/training", label: "My Training" },
       { to: "/tickets", label: "Support Tickets" },
       { to: "/labs", label: "Guided Labs" },
       { to: "/cli-labs", label: "Networking Labs" },
@@ -57,7 +59,6 @@ const studentNavItems = [
       { to: "/terminal", label: "Terminal Practice" },
     ],
   },
-  { to: "/progress", label: "Progress" },
 ];
 
 const adminNavItems = [
@@ -78,6 +79,7 @@ const adminNavItems = [
     label: "Assessments & Labs",
     children: [
       { to: "/admin/ticket-review", label: "Ticket Review" },
+      { to: "/admin/service-desk-review", label: "Service Desk Review" },
       { to: "/admin/labs", label: "Labs & VM Assignments" },
       { to: "/admin/capstones", label: "Capstones" },
     ],
@@ -92,6 +94,17 @@ const navLinkBase = "rounded-lg px-3 py-2 text-sm font-medium transition-colors 
 const navLinkInactive = "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100";
 const navLinkActive = "bg-blue-600 text-white";
 const iconButtonClass = "rounded-lg border border-slate-300 p-2 text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus-visible:ring-offset-slate-900";
+
+function NotFoundPage() {
+  return (
+    <main className="mx-auto max-w-xl px-6 py-16 text-center">
+      <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Page not found</p>
+      <h1 className="mt-2 text-3xl font-bold">That page is not part of your learning path.</h1>
+      <p className="mt-3 text-slate-600 dark:text-slate-300">Return to Today to continue with your next required activity.</p>
+      <Link className="btn-primary mt-6 inline-flex" to="/">Go to Today</Link>
+    </main>
+  );
+}
 
 function AppNav({ items, hasTicketFeedback, isAdminRoute, onNavigate, mobile = false }) {
   const location = useLocation();
@@ -396,7 +409,7 @@ export default function App() {
         </header>
       ) : null}
 
-      <Suspense fallback={<main className="mx-auto max-w-3xl p-6">Loading page...</main>}>
+      <Suspense fallback={<div className="mx-auto max-w-3xl p-6" role="status">Loading page...</div>}>
       <Routes>
         <Route path="/" element={<RequireAuth><StudentHome /></RequireAuth>} />
         <Route path="/login" element={<LoginPage />} />
@@ -425,6 +438,7 @@ export default function App() {
 
         <Route path="/admin" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminHome /></AdminAccessGate>} />
         <Route path="/admin/ticket-review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminTicketReviewPage /></AdminAccessGate>} />
+        <Route path="/admin/service-desk-review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminServiceDeskReviewPage /></AdminAccessGate>} />
         <Route path="/admin/review" element={<Navigate to="/admin/ticket-review" replace />} />
         <Route path="/admin/students" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminStudentsPage /></AdminAccessGate>} />
         <Route path="/admin/modules" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><ModuleManager /></AdminAccessGate>} />
@@ -437,6 +451,7 @@ export default function App() {
         <Route path="/admin/curriculum-tags" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><CurriculumTagsPage /></AdminAccessGate>} />
         <Route path="/admin/quizzes/:quizId/edit" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><QuizEditorPage /></AdminAccessGate>} />
         <Route path="/admin/ai-costs" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AICostDashboard /></AdminAccessGate>} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
       </Suspense>
     </div>

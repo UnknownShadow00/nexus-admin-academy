@@ -375,6 +375,24 @@ export const deleteResource = (id, requestOptions) =>
 export const getAdminReviewQueue = (requestOptions) => request(() => adminApi.get("/api/admin/review"), requestOptions);
 export const getAdminSubmission = (id, requestOptions) =>
   request(() => adminApi.get(`/api/admin/submissions/${id}`), requestOptions);
+export const getAdminServiceDeskAttempts = (params = {}, requestOptions) =>
+  request(
+    () => adminApi.get("/api/admin/service-desk/attempts", {
+      params: {
+        student_id: params.studentId,
+        limit: params.limit,
+        offset: params.offset,
+      },
+    }),
+    requestOptions
+  );
+export const getAdminServiceDeskAttempt = (attemptId, requestOptions) =>
+  request(() => adminApi.get(`/api/admin/service-desk/attempts/${attemptId}`), requestOptions);
+export const submitServiceDeskMentorFeedback = (attemptId, feedback, requestOptions) =>
+  request(
+    () => adminApi.post(`/api/admin/service-desk/attempts/${attemptId}/feedback`, { mentor_feedback: feedback }),
+    requestOptions
+  );
 export const verifySubmission = (id, comment, requestOptions) =>
   request(
     () => adminApi.put(`/api/admin/submissions/${id}/verify-proof`, null, { params: comment ? { comment } : {} }),

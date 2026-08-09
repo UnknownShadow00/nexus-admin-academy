@@ -1,0 +1,27 @@
+{
+  "name": "@service-desk/simulation-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@service-desk/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2",
+    "vitest": "3.2.7"
+  }
+}

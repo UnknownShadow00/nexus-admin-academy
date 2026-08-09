@@ -1,4 +1,3 @@
-from app.models.squad_activity import SquadActivity
 from app.models.xp_ledger import XPLedger
 from app.routers import service_desk_bridge
 from app.services.admin_auth import issue_admin_session, revoke_admin_session
@@ -6,7 +5,7 @@ from app.services.auth_service import STUDENT_SESSION_COOKIE, create_access_toke
 from conftest import auth_headers, make_client, make_student
 
 
-def test_progress_events_are_recorded_and_summarized(db):
+def test_untrusted_progress_events_cannot_create_progress_or_xp(db):
     student = make_student(db)
     client = make_client(service_desk_bridge.router)
     headers = auth_headers(student)
@@ -19,7 +18,7 @@ def test_progress_events_are_recorded_and_summarized(db):
             "ticket_id": "ticket-123",
             "title": "Resolved locked account",
             "detail": "Verified the requester and restored access.",
-            "xp_delta": 25,
+            "xp_delta": 999999999,
         },
     )
     achievement_response = client.post(
@@ -28,27 +27,81 @@ def test_progress_events_are_recorded_and_summarized(db):
         json={
             "event_type": "achievement_unlocked",
             "title": "Identity verifier",
-            "xp_delta": 0,
+            "xp_delta": -999999999,
         },
     )
 
     assert ticket_response.status_code == 204
     assert achievement_response.status_code == 204
-    assert db.query(SquadActivity).filter_by(student_id=student.id).count() == 2
-    assert db.query(XPLedger).filter_by(student_id=student.id, source_type="service_desk").count() == 1
+    ledger_rows = db.query(XPLedger).filter_by(
+        student_id=student.id,
+        source_type="service_desk_attempt",
+    ).order_by(XPLedger.id).all()
+    assert ledger_rows == []
 
     summary_response = client.get("/api/service-desk/progress-summary", headers=headers)
 
     assert summary_response.status_code == 200
     summary = summary_response.json()
-    assert summary["tickets_completed"] == 1
-    assert summary["achievements_unlocked"] == 1
-    assert summary["total_xp"] == 25
-    assert [item["title"] for item in summary["recent_activity"]] == [
-        "Identity verifier",
-        "Resolved locked account",
-    ]
-    assert all(item["created_at"] for item in summary["recent_activity"])
+    assert summary == {
+        "tickets_completed": 0,
+        "achievements_unlocked": 0,
+        "total_xp": 0,
+        "recent_activity": [],
+    }
+
+
+def test_many_unique_untrusted_progress_events_still_award_zero_xp(db):
+    student = make_student(db, username="fixed-rewards")
+    client = make_client(service_desk_bridge.router)
+    headers = auth_headers(student)
+
+    for index in range(20):
+        assert client.post(
+            "/api/service-desk/progress",
+            headers=headers,
+            json={"event_type": "ticket_resolved", "ticket_id": f"fake-{index}",
+                  "title": f"Invented completion {index}", "xp_delta": 999999999},
+        ).status_code == 204
+
+    ledger_rows = db.query(XPLedger).filter_by(
+        student_id=student.id,
+        source_type="service_desk_attempt",
+    ).order_by(XPLedger.id).all()
+    assert ledger_rows == []
+
+
+def test_progress_compatibility_endpoint_remains_idempotent_noop(db):
+    student = make_student(db, username="repeat-caller")
+    client = make_client(service_desk_bridge.router)
+    headers = auth_headers(student)
+    payload = {
+        "event_type": "ticket_resolved",
+        "ticket_id": "ticket-123",
+        "title": "Resolved locked account",
+        "detail": "Verified the requester and restored access.",
+    }
+
+    # Simulate a client retrying the same sync call (network hiccup, replay,
+    # or a direct repeat call bypassing the client's own dedup guard).
+    for _ in range(3):
+        assert client.post(
+            "/api/service-desk/progress", headers=headers, json=payload
+        ).status_code == 204
+
+    ledger_rows = db.query(XPLedger).filter_by(
+        student_id=student.id,
+        source_type="service_desk_attempt",
+    ).all()
+    assert ledger_rows == []
+
+    # A different title (a different ticket/achievement) is still recorded.
+    assert client.post(
+        "/api/service-desk/progress",
+        headers=headers,
+        json={**payload, "ticket_id": "ticket-456", "title": "Resolved another ticket"},
+    ).status_code == 204
+    assert db.query(XPLedger).filter_by(student_id=student.id).count() == 0
 
 
 def test_progress_endpoints_require_student_authentication():

@@ -22,6 +22,8 @@ from app.schemas.admin_content import QuestionUpdate, QuizImportRequest, ScrapeP
 from app.services.admin_auth import verify_admin
 from app.services.examcompass_scraper import scrape_examcompass_quiz
 from app.services.question_validation import validate_question, validate_question_row
+from app.services.question_explanation_catalog import catalog_explanation
+from app.services.verified_question_corrections import correction_for
 from app.services.quiz_generator import generate_quiz_from_videos
 from app.utils.responses import ok
 
@@ -33,6 +35,25 @@ def _normalize_examcompass_title(raw: str) -> str:
     title = _re.sub(r"^[^:]+:\s*", "", title)
     title = title.strip()
     return title if len(title) >= 3 else raw.strip()
+
+
+def _catalog_explanation(question, answers: list[str]) -> str | None:
+    correction = correction_for(question.question_text)
+    if correction:
+        return correction.explanation
+    supplied = (question.explanation or "").strip()
+    if supplied:
+        return supplied
+    return catalog_explanation(
+        question.question_text,
+        [getattr(question, f"option_{letter}") or "" for letter in "abcdefgh"],
+        answers,
+    )
+
+
+def _verified_answers(question_text: str, answers: list[str]) -> list[str]:
+    correction = correction_for(question_text)
+    return [correction.correct_answer] if correction else answers
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(verify_admin)])
@@ -345,6 +366,9 @@ async def scrape_quiz_save(payload: QuizImportRequest, db: Session = Depends(get
     saved_count = 0
     flagged_count = 0
     for question in questions:
+        verified_answers = _verified_answers(
+            question.question_text, [question.correct_answer]
+        )
         result = validate_question(
             {
                 "question_text": question.question_text,
@@ -356,7 +380,7 @@ async def scrape_quiz_save(payload: QuizImportRequest, db: Session = Depends(get
                 "option_f": question.option_f,
                 "option_g": question.option_g,
                 "option_h": question.option_h,
-                "correct_answers": question.correct_answer,
+                "correct_answers": verified_answers[0],
                 "explanation": question.explanation,
             }
         )
@@ -374,8 +398,8 @@ async def scrape_quiz_save(payload: QuizImportRequest, db: Session = Depends(get
                 option_f=question.option_f or None,
                 option_g=question.option_g or None,
                 option_h=question.option_h or None,
-                correct_answer=question.correct_answer,
-                explanation=question.explanation,
+                correct_answer=verified_answers[0],
+                explanation=_catalog_explanation(question, verified_answers),
                 flagged_for_review=not result.valid,
                 flag_reason="; ".join(i.message for i in result.errors) if not result.valid else None,
             )
@@ -437,7 +461,11 @@ async def bookmarklet_import(payload: QuizImportRequest, db: Session = Depends(g
         if primary_correct != "A" and not getattr(question, f"option_{primary_correct.lower()}"):
             primary_correct = "A"
 
-        correct_answers_str = ",".join(all_correct) if len(all_correct) > 1 else None
+        verified_answers = _verified_answers(
+            question.question_text, all_correct or [primary_correct]
+        )
+        primary_correct = verified_answers[0]
+        correct_answers_str = ",".join(verified_answers) if len(verified_answers) > 1 else None
         result = validate_question(
             {
                 "question_text": question.question_text,
@@ -469,7 +497,10 @@ async def bookmarklet_import(payload: QuizImportRequest, db: Session = Depends(g
                 option_h=question.option_h or None,
                 correct_answer=primary_correct,
                 correct_answers=correct_answers_str,
-                explanation=question.explanation,
+                explanation=_catalog_explanation(
+                    question,
+                    correct_answers_str.split(",") if correct_answers_str else [primary_correct],
+                ),
                 flagged_for_review=not result.valid,
                 flag_reason="; ".join(i.message for i in result.errors) if not result.valid else None,
             )
