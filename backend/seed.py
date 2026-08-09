@@ -15,6 +15,7 @@ from app.models.service_desk import ServiceDeskAssignment, ServiceDeskScenario, 
 from app.models.ticket import Ticket
 from app.services.cli_lab_seed import seed_cli_labs
 from app.services.verified_question_corrections import apply_verified_question_corrections
+from app.services.service_desk_objectives import PROCESS_CATALOG_VERSION
 from seed_phase_a import seed_phase_a
 from seed_phase_b import seed_phase_b
 from seed_phase_c import seed_phase_c
@@ -941,7 +942,21 @@ def seed_methodology_completions(db):
 
 
 SERVICE_DESK_TICKET_CONTENT_PATCHES = {
+    "INC2401": {
+        "issue": "The finance reporting portal accepts the first authentication step, then returns to the sign-in screen before the dashboard loads on the assigned laptop.",
+        "troubleshooting": [
+            "Confirmed Avery can sign in to another internal service.",
+            "Confirmed the directory account is active and not locked.",
+            "The Finance portal returned to sign-in before the dashboard loaded.",
+        ],
+        "hints": [
+            "The employee account is healthy, so distinguish an account problem from a browser-session problem.",
+            "Reproduce the Finance sign-in loop and review the local browser/profile evidence.",
+            "Clear the stale browser profile storage, then confirm the original Finance portal opens.",
+        ],
+    },
     "INC2402": {
+        "priority": "high",
         "businessImpact": "One loading lane is recording orders on paper, slowing dispatch and increasing re-entry work.",
         "issue": "The scanner at loading lane 2 disconnects from the warehouse network every few minutes. The scanner at the next lane stays connected.",
         "reportedByLine": "Reported by the morning dispatch lead after the issue continued through the first hour of the shift.",
@@ -963,6 +978,34 @@ SERVICE_DESK_TICKET_CONTENT_PATCHES = {
             "Mark the faulty headset as damaged, ship one replacement headset to Elliot Ward, and document how the requester should verify it.",
         ],
     },
+    "INC2405": {
+        "title": "Facilities calendar shortcut opens an archived workspace",
+        "issue": "The new coordinator can sign in and already has Facilities Calendar access, but the desktop calendar shortcut opens an archived-location error.",
+        "troubleshooting": [
+            "Confirmed the user can open their personal calendar and another current Facilities calendar.",
+            "Confirmed the requester is already in the Facilities Calendar access group.",
+            "Used the desktop calendar shortcut, which opened an archived-location error.",
+        ],
+        "hints": [
+            "Confirm that the requested calendar exists and that the requester already has legitimate access.",
+            "Inspect the calendar workspace shortcut or mapping and compare it with the current Facilities location.",
+            "Repair the obsolete mapping and ask the requester to open the original calendar workspace again.",
+        ],
+    },
+    "INC2406": {
+        "title": "Partner workspace unavailable while VPN is disconnected",
+        "issue": "The laptop has normal internet access, but the secure partner workspace cannot be reached because the company VPN is disconnected.",
+        "troubleshooting": [
+            "Confirmed normal internet browsing works.",
+            "Confirmed the partner share is unavailable from the home network.",
+            "The company VPN client is disconnected.",
+        ],
+        "hints": [
+            "Separate ordinary internet access from access to a private company resource.",
+            "Confirm whether the secure partner share is reachable before changing its mapped-drive configuration.",
+            "Reconnect the company VPN, then verify the original partner workspace opens.",
+        ],
+    },
 }
 
 
@@ -974,13 +1017,22 @@ def _current_service_desk_ticket_fixture(ticket):
     for field in ("businessImpact", "issue", "reportedByLine", "troubleshooting"):
         if field in patch:
             ticket["description"][field] = patch[field]
+    if "title" in patch:
+        ticket["title"] = patch["title"]
+    if "priority" in patch:
+        ticket["priority"] = patch["priority"]
     if "hints" in patch:
         ticket["hints"] = patch["hints"]
     return ticket
 
 
 def seed_service_desk_scenarios(db):
-    """Seed published Service Desk scenarios and their immutable v1 definitions."""
+    """Seed current Service Desk definitions as immutable published versions.
+
+    Existing published versions are never edited.  When the curated content or
+    server grading profile changes, this creates the next published version so
+    old attempts remain bound to their historical definition.
+    """
     scenarios = {}
     for raw_ticket in SERVICE_DESK_TICKET_FIXTURES:
         ticket = _current_service_desk_ticket_fixture(raw_ticket)
@@ -997,22 +1049,30 @@ def seed_service_desk_scenarios(db):
             )
             db.add(scenario)
             db.flush()
+        else:
+            scenario.title = ticket["title"]
+            scenario.description = f'{ticket["description"]["issue"]} {ticket["description"]["businessImpact"]}'
+            scenario.category = ticket["category"]
+            scenario.difficulty = SERVICE_DESK_DIFFICULTY_BY_PRIORITY[ticket["priority"]]
         scenarios[stable_key] = scenario
 
-        version = (
-            db.query(ServiceDeskScenarioVersion)
-            .filter_by(scenario_id=scenario.id, version_number=1)
-            .first()
-        )
+        definition = {**ticket, "objective_catalog_version": PROCESS_CATALOG_VERSION}
+        definition_hash = hashlib.sha256(
+            json.dumps(definition, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        version = db.query(ServiceDeskScenarioVersion).filter_by(
+            scenario_id=scenario.id, definition_hash=definition_hash
+        ).first()
         if version is None:
-            definition_hash = hashlib.sha256(
-                json.dumps(ticket, sort_keys=True).encode("utf-8")
-            ).hexdigest()
+            next_version = (db.query(ServiceDeskScenarioVersion.version_number)
+                            .filter_by(scenario_id=scenario.id)
+                            .order_by(ServiceDeskScenarioVersion.version_number.desc())
+                            .first())
             db.add(
                 ServiceDeskScenarioVersion(
                     scenario_id=scenario.id,
-                    version_number=1,
-                    definition_json=ticket,
+                    version_number=(next_version[0] if next_version else 0) + 1,
+                    definition_json=definition,
                     definition_hash=definition_hash,
                     validation_status="valid",
                     status="published",

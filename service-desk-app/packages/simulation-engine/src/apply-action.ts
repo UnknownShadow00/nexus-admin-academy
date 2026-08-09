@@ -557,6 +557,11 @@ function assetRejectReason(
       return overlay.status === action.payload.status
         ? `This asset is already marked ${action.payload.status}.`
         : null;
+    case 'asset.record_isolation':
+      if (action.payload.assetTag !== 'NX-9052') {
+        return 'Hardware isolation checks are available only for the affected headset.';
+      }
+      return null;
   }
 }
 
@@ -579,6 +584,8 @@ function applyValidAssetAction(
       };
     case 'asset.change_status':
       return { ...overlay, status: action.payload.status };
+    case 'asset.record_isolation':
+      return overlay;
   }
 }
 
@@ -600,6 +607,9 @@ function syncPcShelfFromAssetAction(
       assignedDirectoryUserId: null,
       deviceState: PcShelfDeviceState.OnShelf,
     };
+  }
+  if (action.type === 'asset.record_isolation') {
+    return current;
   }
   if (action.payload.status === AssetStatus.Retired) {
     return { ...current, deviceState: PcShelfDeviceState.Retired };

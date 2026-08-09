@@ -180,6 +180,10 @@ interface AssetManagementSessionContextValue {
   assets: readonly AssetInventoryRecord[];
   assignAsset: (assetTag: string, directoryUserId: string) => ActionEvent;
   changeAssetStatus: (assetTag: string, status: AssetStatus) => ActionEvent;
+  recordIsolationTest: (
+    assetTag: string,
+    test: import('@service-desk/simulation-engine').HeadsetIsolationTest,
+  ) => ActionEvent;
   directoryUsers: readonly DirectoryUserTemplate[];
   isHydrated: boolean;
   unassignAsset: (assetTag: string) => ActionEvent;
@@ -1809,6 +1813,11 @@ export function TicketSessionProvider({
           dispatchAction({
             type: 'asset.change_status',
             payload: { assetTag, status },
+          }),
+        recordIsolationTest: (assetTag, test) =>
+          dispatchAction({
+            type: 'asset.record_isolation',
+            payload: { assetTag, test },
           }),
         directoryUsers,
         isHydrated: hydrated,

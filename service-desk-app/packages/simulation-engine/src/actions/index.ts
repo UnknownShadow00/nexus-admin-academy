@@ -164,6 +164,19 @@ export interface ChangeAssetStatusAction {
   };
 }
 
+export type HeadsetIsolationTest =
+  | 'affected-headset-known-good-workstation'
+  | 'known-good-headset-affected-workstation'
+  | 'alternate-usb-port'
+  | 'replacement-clean-audio';
+
+export interface RecordAssetIsolationAction {
+  type: 'asset.record_isolation';
+  payload: AssetActionPayload & {
+    test: HeadsetIsolationTest;
+  };
+}
+
 export interface AddPcShelfComputerAction {
   type: 'pc_shelf.add';
   payload: PcShelfActionPayload;
@@ -476,7 +489,8 @@ export type TicketSimulationAction =
 export type AssetSimulationAction =
   | AssignAssetAction
   | UnassignAssetAction
-  | ChangeAssetStatusAction;
+  | ChangeAssetStatusAction
+  | RecordAssetIsolationAction;
 
 export type PcShelfSimulationAction =
   | AddPcShelfComputerAction

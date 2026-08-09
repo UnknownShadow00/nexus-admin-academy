@@ -11,6 +11,7 @@ from app.models.xp_ledger import XPLedger
 from app.routers import service_desk
 from app.services.service_desk_grading import compute_grade
 from app.services.service_desk_objectives import SCENARIO_OBJECTIVES
+from app.services.service_desk_objectives import PROCESS_CATALOG_VERSION
 from conftest import auth_headers, make_client, make_student
 
 
@@ -23,25 +24,29 @@ def setup_assignment(
     stable_key=None,
     priority="high",
     mode="simulation",
+    process_profile=False,
 ):
-    scenario = ServiceDeskScenario(
-        stable_key=stable_key or f"scenario-{student.id}-{published}",
-        title="VPN outage",
-        description="desc",
-        category="network",
-        difficulty=2,
-    )
-    db.add(scenario)
-    db.flush()
-    version = ServiceDeskScenarioVersion(
-        scenario_id=scenario.id,
-        version_number=1,
-        definition_json={"steps": [], "priority": priority},
-        definition_hash=f"hash-{student.id}-{published}-{stable_key or priority}",
-        status="published" if published else "draft",
-    )
-    db.add(version)
-    db.flush()
+    key = stable_key or f"scenario-{student.id}-{published}"
+    scenario = db.query(ServiceDeskScenario).filter_by(stable_key=key).first()
+    if scenario is None:
+        scenario = ServiceDeskScenario(
+            stable_key=key, title="VPN outage", description="desc",
+            category="network", difficulty=2,
+        )
+        db.add(scenario)
+        db.flush()
+        version = ServiceDeskScenarioVersion(
+            scenario_id=scenario.id,
+            version_number=1,
+            definition_json={
+                "steps": [], "priority": priority,
+                **({"objective_catalog_version": PROCESS_CATALOG_VERSION} if process_profile else {}),
+            },
+            definition_hash=f"hash-{student.id}-{published}-{stable_key or priority}",
+            status="published" if published else "draft",
+        )
+        db.add(version)
+        db.flush()
     assignment = ServiceDeskAssignment(
         student_id=student.id,
         scenario_id=scenario.id,
@@ -96,6 +101,43 @@ def unlock_avery(client, student, attempt_id, *, key="unlock-avery", success=Tru
             "payload": {"directoryUserId": "directory-user-avery-brooks"},
         },
     )
+
+
+def _tool_for(rule):
+    if rule.event_type.startswith("directory."):
+        return "directory"
+    if rule.event_type.startswith("asset."):
+        return "asset"
+    if rule.event_type.startswith("shipping."):
+        return "shipping"
+    if rule.event_type.startswith("ticket."):
+        return "ticket"
+    return "remote_desktop"
+
+
+def complete_process_workflow(client, student, attempt_id, stable_key):
+    """Submit one server-authorized valid route through each process category."""
+    headers = auth_headers(student)
+    ticket_id = stable_key.upper()
+    path = f"/api/service-desk/attempts/{attempt_id}/actions"
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "assign", "event_type": "ticket.assign", "tool": "ticket",
+        "payload": {"ticketId": ticket_id},
+    }).status_code == 201
+    definition = SCENARIO_OBJECTIVES[stable_key]
+    for category_index, category in enumerate(definition.categories):
+        for objective_index, objective in enumerate(category.objectives):
+            rule = objective.any_of[0]
+            payload = dict(rule.payload)
+            if rule.event_type == "ticket.add_note" or rule.event_type == "remote_desktop.add_internal_note":
+                payload["body"] = "Documented the symptom, evidence, repair, and verification."
+            response = client.post(path, headers=headers, json={
+                "idempotency_key": f"{category.name}-{category_index}-{objective_index}",
+                "event_type": rule.event_type,
+                "tool": _tool_for(rule),
+                "payload": payload,
+            })
+            assert response.status_code == 201, response.text
 
 
 def test_service_desk_requires_authentication():
@@ -694,7 +736,7 @@ def test_client_grade_fields_are_ignored_and_repeat_is_identical(db):
     assert (
         first.json()["overall_score"] == 100
         and first.json()["passed"] is True
-        and first.json()["rubric_version"] == "server-objectives-v2"
+        and first.json()["rubric_version"] == "server-process-v3"
     )
 
 
@@ -862,22 +904,165 @@ def test_forged_snapshot_unknown_event_and_failed_evidence_do_not_complete(db):
 
 def test_inc2405_correct_target_evidence_passes(db):
     student = make_student(db, username="sloane-pass")
-    assignment = setup_assignment(db, student, stable_key="inc2405", priority="low")
+    assignment = setup_assignment(db, student, stable_key="inc2405", priority="low", process_profile=True)
     client = make_client(service_desk.router)
     attempt_id = start(client, student, assignment).json()["id"]
-    headers = auth_headers(student)
-    assert client.post(f"/api/service-desk/attempts/{attempt_id}/actions", headers=headers, json={
-        "idempotency_key": "assign", "event_type": "ticket.assign", "tool": "ticket",
-        "payload": {"ticketId": "INC2405"},
-    }).status_code == 201
-    assert client.post(f"/api/service-desk/attempts/{attempt_id}/actions", headers=headers, json={
-        "idempotency_key": "facilities", "event_type": "directory.update_groups", "tool": "directory",
-        "payload": {"directoryUserId": "directory-user-sloane-rivera", "add": ["Facilities Calendar"]},
-    }).status_code == 201
+    complete_process_workflow(client, student, attempt_id, "inc2405")
     close(client, student, attempt_id)
     grade = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=auth_headers(student),
                         json={"idempotency_key": "complete"})
     assert grade.json()["passed"] is True and grade.json()["overall_score"] == 100
+
+
+@pytest.mark.parametrize("event_type", ["directory.unlock_account", "directory.reset_mfa"])
+def test_inc2401_old_account_actions_cannot_solve_process_version(db, event_type):
+    student = make_student(db, username=f"inc2401-old-{event_type.rsplit('.', 1)[1]}")
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, setup_assignment(
+        db, student, stable_key="inc2401", process_profile=True
+    )).json()["id"]
+    path = f"/api/service-desk/attempts/{attempt_id}/actions"
+    headers = auth_headers(student)
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "assign", "event_type": "ticket.assign", "tool": "ticket",
+        "payload": {"ticketId": "INC2401"},
+    }).status_code == 201
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "old-fix", "event_type": event_type, "tool": "directory",
+        "payload": {"directoryUserId": "directory-user-avery-brooks"},
+    }).status_code == 201
+    close(client, student, attempt_id)
+    grade = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=headers,
+                        json={"idempotency_key": "complete"})
+    assert grade.json()["passed"] is False
+    assert grade.json()["overall_score"] == 0
+
+
+def test_inc2401_profile_evidence_repair_and_verification_earn_full_credit(db):
+    student = make_student(db, username="inc2401-profile-pass")
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, setup_assignment(
+        db, student, stable_key="inc2401", process_profile=True
+    )).json()["id"]
+    complete_process_workflow(client, student, attempt_id, "inc2401")
+    close(client, student, attempt_id)
+    grade = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=auth_headers(student),
+                        json={"idempotency_key": "complete"}).json()
+    assert grade["passed"] is True and grade["overall_score"] == 100
+    assert grade["details"]["objective_checks"] == {
+        "server_verifiable": True, "investigation": True, "diagnosis": True,
+        "remediation": True, "verification": True, "documentation": True,
+        "technical_complete": True,
+    }
+
+
+def test_inc2405_group_change_cannot_solve_mapping_version(db):
+    student = make_student(db, username="inc2405-group-guess")
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, setup_assignment(
+        db, student, stable_key="inc2405", priority="low", process_profile=True
+    )).json()["id"]
+    path = f"/api/service-desk/attempts/{attempt_id}/actions"
+    headers = auth_headers(student)
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "assign", "event_type": "ticket.assign", "tool": "ticket",
+        "payload": {"ticketId": "INC2405"},
+    }).status_code == 201
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "group", "event_type": "directory.update_groups", "tool": "directory",
+        "payload": {"directoryUserId": "directory-user-sloane-rivera", "add": ["Facilities Calendar"]},
+    }).status_code == 201
+    close(client, student, attempt_id)
+    grade = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=headers,
+                        json={"idempotency_key": "complete"}).json()
+    assert grade["passed"] is False and grade["overall_score"] == 0
+
+
+def _submit_actions(client, student, attempt_id, ticket_id, actions):
+    headers = auth_headers(student)
+    path = f"/api/service-desk/attempts/{attempt_id}/actions"
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "assign", "event_type": "ticket.assign", "tool": "ticket",
+        "payload": {"ticketId": ticket_id},
+    }).status_code == 201
+    for index, (event_type, tool, payload) in enumerate(actions):
+        response = client.post(path, headers=headers, json={
+            "idempotency_key": f"action-{index}", "event_type": event_type,
+            "tool": tool, "payload": payload,
+        })
+        assert response.status_code == 201, response.text
+
+
+def test_inc2404_isolation_path_scores_higher_than_immediate_replacement(db):
+    def grade_for(username, actions):
+        student = make_student(db, username=username)
+        client = make_client(service_desk.router)
+        attempt_id = start(client, student, setup_assignment(
+            db, student, stable_key="inc2404", priority="medium", process_profile=True
+        )).json()["id"]
+        _submit_actions(client, student, attempt_id, "INC2404", actions)
+        close(client, student, attempt_id)
+        return client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=auth_headers(student),
+                           json={"idempotency_key": "complete"}).json()
+
+    replacement = [
+        ("asset.change_status", "asset", {"assetTag": "NX-9052", "status": "damaged"}),
+        ("shipping.create", "shipping", {"recipientDirectoryUserId": "directory-user-elliot-ward", "equipment": [{"name": "Headset", "quantity": 1}]}),
+        ("asset.record_isolation", "asset", {"assetTag": "NX-9052", "test": "replacement-clean-audio"}),
+        ("ticket.add_note", "ticket", {"ticketId": "INC2404", "body": "Replacement shipped and clean audio confirmed after the repair."}),
+    ]
+    immediate = grade_for("inc2404-immediate", replacement)
+    assert immediate["passed"] is True and immediate["overall_score"] == 60
+
+    student = make_student(db, username="inc2404-isolated")
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, setup_assignment(
+        db, student, stable_key="inc2404", priority="medium", process_profile=True
+    )).json()["id"]
+    complete_process_workflow(client, student, attempt_id, "inc2404")
+    close(client, student, attempt_id)
+    isolated = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=auth_headers(student),
+                           json={"idempotency_key": "complete"}).json()
+    assert isolated["overall_score"] == 100 > immediate["overall_score"]
+
+
+@pytest.mark.parametrize(
+    ("stable_key", "ticket_id", "repair_actions", "expected_score"),
+    [
+        ("inc2407", "INC2407", [
+            ("remote_desktop.settings_update_dns", "remote_desktop", {"assetTag": "NX-8892", "primaryDns": "10.20.0.10", "secondaryDns": "10.20.0.11"}),
+            ("remote_desktop.run_terminal_command", "remote_desktop", {"assetTag": "NX-8892", "command": "nslookup intranet.nexus.internal"}),
+            ("remote_desktop.add_internal_note", "remote_desktop", {"assetTag": "NX-8892", "ticketId": "INC2407", "body": "DNS changed and the original internal hostname now resolves."}),
+        ], 60),
+        ("inc2408", "INC2408", [
+            ("remote_desktop.start_service", "remote_desktop", {"assetTag": "NX-4419", "serviceName": "Print Spooler"}),
+            ("remote_desktop.perform_scenario_step", "remote_desktop", {"assetTag": "NX-4419", "ticketId": "INC2408", "stepId": "printer.test-page"}),
+            ("remote_desktop.add_internal_note", "remote_desktop", {"assetTag": "NX-4419", "ticketId": "INC2408", "body": "Spooler started and the original print test now completes."}),
+        ], 60),
+    ],
+)
+def test_evidence_led_dns_and_print_paths_outscore_blind_repairs(db, stable_key, ticket_id, repair_actions, expected_score):
+    student = make_student(db, username=f"{stable_key}-blind")
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, setup_assignment(
+        db, student, stable_key=stable_key, process_profile=True
+    )).json()["id"]
+    _submit_actions(client, student, attempt_id, ticket_id, repair_actions)
+    close(client, student, attempt_id)
+    blind = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=auth_headers(student),
+                        json={"idempotency_key": "complete"}).json()
+    assert blind["passed"] is True and blind["overall_score"] == expected_score
+
+    evidence_student = make_student(db, username=f"{stable_key}-evidence")
+    evidence_client = make_client(service_desk.router)
+    evidence_attempt = start(evidence_client, evidence_student, setup_assignment(
+        db, evidence_student, stable_key=stable_key, process_profile=True
+    )).json()["id"]
+    complete_process_workflow(evidence_client, evidence_student, evidence_attempt, stable_key)
+    close(evidence_client, evidence_student, evidence_attempt)
+    evidence = evidence_client.post(f"/api/service-desk/attempts/{evidence_attempt}/complete", headers=auth_headers(evidence_student),
+                                    json={"idempotency_key": "complete"}).json()
+    assert evidence["overall_score"] == 100 > blind["overall_score"]
 
 
 @pytest.mark.parametrize("stable_key, evidence", [
@@ -912,38 +1097,14 @@ def test_raw_api_fabricated_full_evidence_sequence_is_not_trusted(db, stable_key
 def test_server_authorized_workflow_passes_every_auto_gradable_scenario(db, stable_key):
     student = make_student(db, username=f"authorized-{stable_key}")
     client = make_client(service_desk.router)
-    attempt_id = start(client, student, setup_assignment(db, student, stable_key=stable_key)).json()["id"]
-    headers = auth_headers(student)
-    ticket_id = stable_key.upper()
-    assert client.post(f"/api/service-desk/attempts/{attempt_id}/actions", headers=headers, json={
-        "idempotency_key": "assign", "event_type": "ticket.assign", "tool": "ticket",
-        "payload": {"ticketId": ticket_id},
-    }).status_code == 201
-    definition = SCENARIO_OBJECTIVES[stable_key]
-    rules = [*definition.required_all, *(definition.required_any[:1])]
-    for index, rule in enumerate(rules):
-        payload = dict(rule.payload)
-        if rule.event_type == "ticket.add_note":
-            payload["body"] = "Diagnosed damaged headset and arranged a verified replacement shipment."
-        tool = (
-            "directory"
-            if rule.event_type.startswith("directory.")
-            else "asset"
-            if rule.event_type.startswith("asset.")
-            else "shipping"
-            if rule.event_type.startswith("shipping.")
-            else "ticket"
-            if rule.event_type.startswith("ticket.")
-            else "remote_desktop"
-        )
-        assert client.post(f"/api/service-desk/attempts/{attempt_id}/actions", headers=headers, json={
-            "idempotency_key": f"action-{index}", "event_type": rule.event_type, "tool": tool,
-            "payload": payload,
-        }).status_code == 201
+    attempt_id = start(client, student, setup_assignment(
+        db, student, stable_key=stable_key, process_profile=True
+    )).json()["id"]
+    complete_process_workflow(client, student, attempt_id, stable_key)
     close(client, student, attempt_id)
-    grade = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=headers,
+    grade = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=auth_headers(student),
                         json={"idempotency_key": "complete"})
-    assert grade.json()["passed"] is True
+    assert grade.json()["passed"] is True and grade.json()["overall_score"] == 100
 
 
 # NOTE on true concurrency testing: a real multi-threaded race test was
