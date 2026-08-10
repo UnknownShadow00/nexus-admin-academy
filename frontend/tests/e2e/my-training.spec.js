@@ -85,6 +85,32 @@ async function assertNoHorizontalOverflow(page) {
   expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width + 1);
 }
 
+test("student authentication rejects invalid credentials and protects private routes", async ({ page }) => {
+  await page.goto("/progress");
+  await expect(page).toHaveURL(/\/login$/);
+
+  await page.getByLabel("Username").fill(studentUsername);
+  await page.getByLabel("Password").fill("definitely-not-the-password");
+  const rejectedLogin = page.waitForResponse((response) => response.url().endsWith("/auth/login"));
+  await page.getByRole("button", { name: "Login" }).click();
+  expect((await rejectedLogin).status()).toBe(401);
+  await expect(page.getByText("Invalid credentials", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
+
+  await page.getByLabel("Password").fill(studentPassword);
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.goto("/progress");
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Browser Training Student" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto("/progress");
+  await expect(page).toHaveURL(/\/login$/);
+});
+
 test("student follows My Training on desktop and mobile", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await studentLogin(page);
@@ -181,6 +207,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   // than a hard-coded /lessons/{id} route.
   await page.goto("/training/week/0");
   await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Welcome to Nexus: Your First Week" }).getByRole("link").click();
+  const orientationLessonPath = new URL(page.url()).pathname;
   await expect(page.getByRole("heading", { name: "Welcome to Nexus: Your First Week", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Mark lesson complete", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Optional notes", exact: true })).toBeVisible();
@@ -202,8 +229,24 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await assertNoHorizontalOverflow(page);
   await page.goto("/training/week/0");
   await assertNoHorizontalOverflow(page);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: /Begin Your IT Training|Continue Your Training/ })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+  await page.goto("/progress");
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+  await page.goto(orientationLessonPath);
+  await expect(page.getByRole("heading", { name: "Welcome to Nexus: Your First Week", exact: true })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+  await page.goto("/quizzes/42");
+  await expect(page.getByText("Question 1 of 4", { exact: true })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+  await page.goto("/service-desk");
+  await expect(page.getByRole("heading", { name: "Ticket Queue" })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
   await page.getByRole("button", { name: "Browser Training Student" }).click();
   await expect(page).toHaveURL(/\/login$/);
 
@@ -387,6 +430,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     await expect(page.getByRole("heading", { name: "Ticketing Systems Quiz" })).toBeVisible();
     await expect(page.getByText("Passed", { exact: true })).toBeVisible();
     await expect(page.getByText("Answer Review", { exact: true })).toBeVisible();
+    await expect(page.getByText("Why this is correct", { exact: true })).toHaveCount(4);
     await page.getByRole("link", { name: "Return to This Week" }).click();
     await expect(page).toHaveURL(/\/training\/week\/0$/);
 

@@ -97,19 +97,35 @@ describe('Service Desk quality pass', () => {
     const attempt = run(connected('NX-4831', 'INC2401'), [
       {
         type: 'remote_desktop.perform_scenario_step',
-        payload: { assetTag: 'NX-4831', ticketId: 'INC2401', stepId: 'mail.review-alert' },
+        payload: {
+          assetTag: 'NX-4831',
+          ticketId: 'INC2401',
+          stepId: 'mail.review-alert',
+        },
       },
       {
         type: 'remote_desktop.perform_scenario_step',
-        payload: { assetTag: 'NX-4831', ticketId: 'INC2401', stepId: 'browser.retry-sign-in' },
+        payload: {
+          assetTag: 'NX-4831',
+          ticketId: 'INC2401',
+          stepId: 'browser.retry-sign-in',
+        },
       },
       {
         type: 'remote_desktop.perform_scenario_step',
-        payload: { assetTag: 'NX-4831', ticketId: 'INC2401', stepId: 'settings.clear-profile-storage' },
+        payload: {
+          assetTag: 'NX-4831',
+          ticketId: 'INC2401',
+          stepId: 'settings.clear-profile-storage',
+        },
       },
       {
         type: 'remote_desktop.perform_scenario_step',
-        payload: { assetTag: 'NX-4831', ticketId: 'INC2401', stepId: 'browser.retry-sign-in' },
+        payload: {
+          assetTag: 'NX-4831',
+          ticketId: 'INC2401',
+          stepId: 'browser.retry-sign-in',
+        },
       },
       note('NX-4831', 'INC2401'),
       close('INC2401'),

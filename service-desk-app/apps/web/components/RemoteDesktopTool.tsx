@@ -1606,10 +1606,17 @@ function AppContent({
               </button>
             ) : null}
           </div>
-          {Object.keys(scenario.actionLabels).some((stepId) => stepId.startsWith('scenario.')) ? (
+          {Object.keys(scenario.actionLabels).some((stepId) =>
+            stepId.startsWith('scenario.'),
+          ) ? (
             <section className="mt-6 rounded border border-zinc-200 bg-zinc-50 p-4">
-              <h4 className="font-semibold text-zinc-900">Case investigation workspace</h4>
-              <p className="mt-1 text-sm text-zinc-600">Record the evidence you establish, then apply the specific safe remediation and retest the original request.</p>
+              <h4 className="font-semibold text-zinc-900">
+                Case investigation workspace
+              </h4>
+              <p className="mt-1 text-sm text-zinc-600">
+                Record the evidence you establish, then apply the specific safe
+                remediation and retest the original request.
+              </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {Object.entries(scenario.actionLabels)
                   .filter(([stepId]) => stepId.startsWith('scenario.'))

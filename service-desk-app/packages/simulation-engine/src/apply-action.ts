@@ -1251,9 +1251,12 @@ function applyRemoteDesktopScenarioStep(
   const scenario = getRemoteDesktopScenarioByAsset(assetTag);
   if (!scenario) return overlay;
   const completed = overlay.scenarioSteps[scenario.id] ?? [];
-  const repeatable = stepId === 'browser.retry-sign-in' || stepId === 'browser.retry-export';
+  const repeatable =
+    stepId === 'browser.retry-sign-in' || stepId === 'browser.retry-export';
   if (completed.includes(stepId) && !repeatable) return overlay;
-  const nextSteps = completed.includes(stepId) ? completed : [...completed, stepId];
+  const nextSteps = completed.includes(stepId)
+    ? completed
+    : [...completed, stepId];
   const networkDrive = getRemoteDesktopWorkstation(assetTag)?.drives.find(
     (drive) => drive.kind === 'network',
   );
