@@ -1054,3 +1054,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/seed_phase_c.py; tasks/loop-log.md
 - Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 104/170 to 91/170; all 189 explanations remain present; authored-quality checks and 14 focused seed/organization tests pass.
 - Next: Continue Phase 3B with the directory, Group Policy, server, and remaining required worklist questions.
+
+## [2026-08-10T08:25:00Z] Task Completed
+- Task: Completed Phase 3B authored-question editorial repair batch 4 across Active Directory, domain operations, Group Policy, and DNS/DHCP administration.
+- Files changed: backend/seed_phase_d.py; tasks/loop-log.md
+- Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 91/170 to 76/170; all 189 explanations remain present; authored-quality checks and 14 focused seed/organization tests pass.
+- Next: Continue Phase 3B with server operations and the remaining Linux and cloud worklist questions.
