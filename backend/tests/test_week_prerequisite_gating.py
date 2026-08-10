@@ -1,5 +1,7 @@
 """Regression coverage for curriculum-week prerequisite enforcement."""
 
+from datetime import datetime, timezone
+
 from conftest import auth_headers, make_client, make_student
 
 from app.models.capstone import CapstoneTemplate
@@ -7,6 +9,7 @@ from app.models.cli_lab import CliLab
 from app.models.curriculum_video import CurriculumVideo
 from app.models.lab import LabTemplate
 from app.models.learning import Lesson, Module
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.progression import Role, StudentRole
 from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
 from app.models.ticket import Ticket
@@ -211,25 +214,59 @@ def test_a_plus_video_progress_never_changes_hands_on_week_access(db):
     assert all(response.json()["code"] == "PREREQUISITE_NOT_MET" for response in zero_watched + all_watched)
 
 
-def test_mod_001_is_unlocked_for_a_fresh_student_after_prerequisite_fix(db):
+def test_mod_001_learning_path_uses_current_week_zero_requirements(db):
     student = make_student(db)
     week_zero = Module(code="MOD-000", title="Week 0", module_order=0)
     week_one = Module(code="MOD-001", title="The Ticket Is the Job", module_order=1, prerequisite_module_id=None)
     db.add_all([week_zero, week_one])
     db.flush()
+    orientation = Lesson(module_id=week_zero.id, title="Week 0 lesson", lesson_order=1, status="published")
+    checkpoint = Quiz(
+        title="Ticketing Systems Quiz",
+        week_number=0,
+        question_count=1,
+        status=QUIZ_STATUS_PUBLISHED,
+        quiz_purpose="required",
+        is_required=True,
+        show_in_weekly_checklist=True,
+        answer_keys_validated=True,
+        editorial_status="validated",
+        is_active=True,
+    )
     db.add_all([
-        Lesson(module_id=week_zero.id, title="Week 0 lesson", lesson_order=1, status="published"),
+        orientation,
         Lesson(module_id=week_one.id, title="Anatomy of a Good Ticket", lesson_order=1, status="published"),
         Lesson(module_id=week_one.id, title="Meet the Command Line", lesson_order=2, status="published"),
+        checkpoint,
     ])
     db.commit()
 
-    response = client.get(f"/api/students/{student.id}/learning-path", headers=auth_headers(student))
+    def week_one_state():
+        response = client.get(f"/api/students/{student.id}/learning-path", headers=auth_headers(student))
+        assert response.status_code == 200
+        return next(module for module in response.json()["modules"] if module["code"] == "MOD-001")
 
-    assert response.status_code == 200
-    mod_001 = next(module for module in response.json()["modules"] if module["code"] == "MOD-001")
-    assert mod_001["unlocked"] is True
-    assert mod_001["unlock_requirements"] == []
+    fresh = week_one_state()
+    assert fresh["unlocked"] is False
+    assert fresh["unlock_requirements"] == ["Complete Week 0's required work first."]
+
+    db.add(
+        StudentLessonProgress(
+            student_id=student.id,
+            lesson_id=orientation.id,
+            completed_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+    orientation_only = week_one_state()
+    assert orientation_only["unlocked"] is False
+
+    db.add(QuizAttempt(student_id=student.id, quiz_id=checkpoint.id, answers={}, score=1, xp_awarded=0))
+    db.commit()
+
+    complete = week_one_state()
+    assert complete["unlocked"] is True
+    assert complete["unlock_requirements"] == []
 
 
 def test_capstone_role_levels_block_fresh_trainee_and_allow_required_rank(db):

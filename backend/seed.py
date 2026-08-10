@@ -220,34 +220,25 @@ PROMOTION_GATES = [
 ]
 
 ORIENTATION_TITLE = "Welcome to Nexus: Your First Week"
-ORIENTATION_SUMMARY = """Nexus is your 25-week practice space (Week 0 through Week 24) for becoming an IT-support technician. You will learn the habits, tools, and communication that help real people when technology gets in their way. You do not need an IT background to begin.
+ORIENTATION_SUMMARY = """Week 0 is a quick setup so you know how Nexus works.
 
-WHAT A WEEK MEANS: each week is a small, guided set of learning and practice. Finish the required items in the order shown, then use optional practice when you want more repetition. You are not expected to know everything before you start.
+Complete these 2 things:
 
-THE FOUR THINGS YOU WILL SEE:
-- A LESSON explains one idea in plain language. You can save optional notes and explicitly mark the lesson complete when you are ready.
-- A QUIZ is a short checkpoint. It shows what you understand and what to revisit.
-- A LAB is a safe place to try a task with guided steps.
-- A SERVICE DESK SCENARIO is a realistic support request. You investigate, fix, verify, and document what you did.
+1. Read this short introduction and mark it complete.
+2. Take the Ticketing Systems Quiz.
 
-REQUIRED VS OPTIONAL: required items keep your weekly path moving. Optional practice, review, and certification questions are there when you want extra reps; they do not block your next required step.
+When both are finished, Week 1 unlocks automatically.
 
-EVIDENCE AND REMEDIATION: evidence is a screenshot, command output, or note that shows what happened. Remediation means a focused retry or extra practice after a missed checkpoint — it is coaching, not a punishment.
+During the course you’ll use:
 
-XP AND YOUR ROLE: XP is a running total of completed learning work. Your Role is a promotion level based on demonstrated readiness and specific gates. XP can show momentum; it does not promote you by itself.
+- Lessons to learn
+- Quizzes to check your understanding
+- Labs to practice
+- Service Desk to solve realistic IT support tickets
 
-HOW GRADING WORKS: Service Desk scenarios evaluate the evidence of your investigation, fix, verification, and notes. A mentor may still review your work afterward, especially when judgment, safety, or workplace communication matters. NEEDS REVISION means your work is not final yet: read the feedback, improve the missing part, and try again.
+Optional notes and extra practice never block your progress.
 
-WHEN YOU NEED HELP: ask your mentor or your cohort's agreed help channel. Include the lesson, quiz, lab, or ticket name and what you already tried. That gives people a useful starting point.
-
-YOUR SIMPLE ROUTINE:
-1. Open This Week on Home and choose the first item marked Next up.
-2. Read the lesson, mark it complete when you are ready, and complete the required quiz or practice.
-3. Come back to Home anytime. Your notes, quiz attempts, and submitted work save to your account, and unfinished work stays in This Week.
-
-GUIDED PRACTICE: mark this orientation lesson complete, take the Ticketing Systems Quiz, then write a one-sentence practice response. You may optionally save notes or upload a harmless sample screenshot. This walkthrough is not graded and does not need mentor review.
-
-WHY THIS MATTERS: good support work is not guessing alone. It is knowing what to do next, recording what happened, asking for help early, and improving one small step at a time."""
+That’s it. Complete the two required items below to begin Week 1."""
 
 
 MODULE_0 = {
@@ -264,8 +255,8 @@ MODULE_0 = {
             "summary": ORIENTATION_SUMMARY,
             "outcomes": [],
             "lesson_order": 1,
-            "estimated_minutes": 12,
-            "required_notes_template": "Write one sentence: What is the first thing you will do when you are unsure what comes next in Nexus?",
+            "estimated_minutes": 3,
+            "required_notes_template": None,
         },
     ],
 }
@@ -870,20 +861,20 @@ def seed_module0_and_methodology(db):
     # complete intended module here as the post-migration source of truth.
     for lesson_data in MODULE_0["lessons"]:
         lesson = db.query(Lesson).filter(Lesson.module_id == module.id, Lesson.title == lesson_data["title"]).first()
-        if lesson:
-            continue
-        db.add(
-            Lesson(
+        if lesson is None:
+            lesson = Lesson(
                 module_id=module.id,
                 title=lesson_data["title"],
-                summary=lesson_data["summary"],
-                lesson_order=lesson_data["lesson_order"],
-                outcomes=lesson_data["outcomes"],
-                estimated_minutes=lesson_data["estimated_minutes"],
-                required_notes_template=lesson_data["required_notes_template"],
-                status="published",
             )
-        )
+            db.add(lesson)
+        # Synchronize the reviewed copy in place so lesson IDs and all student
+        # notes/completion history remain stable.
+        lesson.summary = lesson_data["summary"]
+        lesson.lesson_order = lesson_data["lesson_order"]
+        lesson.outcomes = lesson_data["outcomes"]
+        lesson.estimated_minutes = lesson_data["estimated_minutes"]
+        lesson.required_notes_template = lesson_data["required_notes_template"]
+        lesson.status = "published"
 
     l1 = db.query(Role).filter(Role.rank_order == 1).first()
     framework = db.query(MethodologyFramework).filter(MethodologyFramework.name == "CompTIA 6-Step").first()

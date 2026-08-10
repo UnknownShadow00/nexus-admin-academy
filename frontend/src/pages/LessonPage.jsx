@@ -1,6 +1,7 @@
 import { ChevronLeft } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 
 import OrientationPracticePanel from "../components/OrientationPracticePanel";
 import { completeLesson, getLesson, getLessonNote, saveLessonNote } from "../services/api";
@@ -67,23 +68,30 @@ function LessonNotes({ lessonId, onSaved, orientation }) {
 export default function LessonPage() {
   const { lessonId } = useParams();
   const [lesson, setLesson] = useState(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
   const [orientationRefresh, setOrientationRefresh] = useState(0);
   const [completing, setCompleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setLesson(null);
-    setError("");
+    setError(null);
     getLesson(lessonId, { suppressToast: true })
       .then((response) => { if (!cancelled) setLesson(response.data); })
       .catch((requestError) => {
-        if (!cancelled) setError(requestError?.response?.status === 403 ? "This lesson is still locked." : "This lesson could not be loaded.");
+        if (!cancelled) {
+          const locked = requestError?.response?.status === 403;
+          setError({
+            message: locked ? requestError?.userMessage || "Complete the previous week's required work first." : "This lesson could not be loaded.",
+            nextRoute: requestError?.response?.data?.data?.next_action_route || "/training",
+            requiredWeek: requestError?.response?.data?.data?.required_week,
+          });
+        }
       });
     return () => { cancelled = true; };
   }, [lessonId]);
 
-  if (error) return <main className="mx-auto max-w-3xl p-6"><Link className="mb-4 inline-flex items-center gap-1 text-blue-600" to="/training"><ChevronLeft size={16} />My Training</Link><div className="panel" role="alert">{error}</div></main>;
+  if (error) return <main className="mx-auto max-w-3xl p-6"><Link className="mb-4 inline-flex items-center gap-1 text-blue-600" to="/training"><ChevronLeft size={16} />My Training</Link><div className="panel" role="alert"><h1 className="text-xl font-bold">{error.requiredWeek ? `Week ${error.requiredWeek} locked` : "Lesson locked"}</h1><p className="mt-2 text-slate-700 dark:text-slate-300">{error.message}</p><Link className="btn-primary mt-4" to={error.nextRoute}>Complete remaining work</Link></div></main>;
   if (!lesson) return <main className="mx-auto max-w-4xl p-6"><div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
 
   async function markComplete() {
@@ -102,9 +110,19 @@ export default function LessonPage() {
     <main className="mx-auto max-w-4xl space-y-6 p-4 pb-20 sm:p-6">
       <Link className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600" to="/training"><ChevronLeft size={16} />My Training</Link>
       <header className="panel">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">{lesson.module_code}</p>
-        <h1 className="mt-2 text-3xl font-bold">{lesson.title}</h1>
-        {lesson.summary ? <div className="mt-4 whitespace-pre-line leading-7 text-slate-700 dark:text-slate-300">{lesson.summary}</div> : null}
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">{lesson.is_orientation ? "Welcome to Nexus" : lesson.module_code}</p>
+        <h1 className="mt-2 text-3xl font-bold">{lesson.is_orientation ? "Welcome to Nexus" : lesson.title}</h1>
+        {lesson.summary ? lesson.is_orientation ? (
+          <ReactMarkdown
+            className="mt-4 space-y-3 leading-7 text-slate-700 dark:text-slate-300"
+            components={{
+              ol: ({ children }) => <ol className="list-decimal space-y-1 pl-6">{children}</ol>,
+              ul: ({ children }) => <ul className="grid gap-1 pl-1 sm:grid-cols-2">{children}</ul>,
+              li: ({ children }) => <li className="ml-4">{children}</li>,
+              p: ({ children }) => <p>{children}</p>,
+            }}
+          >{lesson.summary}</ReactMarkdown>
+        ) : <div className="mt-4 whitespace-pre-line leading-7 text-slate-700 dark:text-slate-300">{lesson.summary}</div> : null}
       </header>
       {Array.isArray(lesson.outcomes) && lesson.outcomes.length > 0 ? (
         <section className="panel">
@@ -115,7 +133,7 @@ export default function LessonPage() {
         </section>
       ) : null}
       {embedUrl ? <section className="aspect-video overflow-hidden rounded-xl bg-black"><iframe src={embedUrl} className="h-full w-full" allowFullScreen title={lesson.title} /></section> : null}
-      <section className="panel flex flex-wrap items-center justify-between gap-3">
+      {!lesson.is_orientation ? <section className="panel flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold">Ready to move on?</h2>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Mark this lesson complete after reviewing the material above.</p>
@@ -123,9 +141,9 @@ export default function LessonPage() {
         <button className="btn-primary" disabled={lesson.is_complete || completing} onClick={markComplete} type="button">
           {lesson.is_complete ? "Lesson complete" : completing ? "Saving…" : "Mark lesson complete"}
         </button>
-      </section>
-      <LessonNotes lessonId={lesson.id} orientation={lesson.is_orientation} onSaved={() => setOrientationRefresh((value) => value + 1)} />
-      {lesson.is_orientation ? <OrientationPracticePanel refreshKey={orientationRefresh} /> : null}
+      </section> : null}
+      {lesson.is_orientation ? <OrientationPracticePanel completing={completing} onMarkComplete={markComplete} refreshKey={orientationRefresh} /> : null}
+      <LessonNotes lessonId={lesson.id} orientation={lesson.is_orientation} />
     </main>
   );
 }

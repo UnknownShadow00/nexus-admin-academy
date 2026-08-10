@@ -26,7 +26,7 @@ from app.services.training_service import (
     build_training_week,
     validate_training_curriculum,
 )
-from app.services.training_curriculum_seed import sync_initial_training_activities
+from app.services.training_curriculum_seed import reconcile_week_zero_requirements, sync_initial_training_activities
 from app.services.training_curriculum_seed import VIDEO_WEEKS
 from app.services.training_quiz_mapping import VIDEO_QUIZ_MAPPINGS
 from conftest import make_student
@@ -500,3 +500,40 @@ def test_post_seed_curriculum_sync_is_idempotent(db, student):
     assert second == {"created": 0, "skipped": True, "reason": "configuration_exists"}
     assert len(rows) == 1
     assert rows[0].content_ref == str(video.id)
+
+
+def test_week_zero_reconciliation_keeps_only_orientation_and_checkpoint_required(db):
+    week = add_week(db, 0, requires_previous=False)
+    module = Module(code="MOD-000", title="Week 0", module_order=0)
+    db.add(module)
+    db.flush()
+    orientation = Lesson(
+        module_id=module.id,
+        title="Welcome to Nexus: Your First Week",
+        lesson_order=1,
+        status="published",
+    )
+    retired = Lesson(module_id=module.id, title="Retired filler", lesson_order=2, status="draft")
+    quiz = Quiz(
+        title="Ticketing Systems Quiz",
+        week_number=0,
+        status=QUIZ_STATUS_PUBLISHED,
+        is_required=True,
+    )
+    db.add_all([orientation, retired, quiz])
+    db.flush()
+    activities = [
+        add_activity(db, week, "orientation", "lesson", orientation.id, 1, required=True),
+        add_activity(db, week, "video-a", "video", 166, 2, required=True),
+        add_activity(db, week, "video-b", "video", 168, 3, required=True),
+        add_activity(db, week, "checkpoint", "quiz", quiz.id, 4, required=True),
+        add_activity(db, week, "retired", "lesson", retired.id, 5, required=True),
+    ]
+    db.commit()
+
+    first = reconcile_week_zero_requirements(db)
+    second = reconcile_week_zero_requirements(db)
+
+    assert first == {"updated": 3, "skipped": False}
+    assert second == {"updated": 0, "skipped": False}
+    assert [row.is_required for row in activities] == [True, False, False, True, False]

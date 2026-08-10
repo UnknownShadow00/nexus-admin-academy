@@ -93,6 +93,9 @@ _map([171, 172, 173], 25, WEEK_FALLBACK, "Week-level fallback", "Integrated Oper
 # Beginner workload overrides.  Content remains assigned and reviewable; these
 # sets only decide which videos gate the next week.
 BEGINNER_REQUIRED_VIDEO_IDS = {
+    # Week 0 has exactly two gates: its orientation lesson and checkpoint quiz.
+    # Videos remain assigned as optional extra practice.
+    0: set(),
     3: {110, 114, 117, 118},
     4: {46, 47, 62, 169, 180},
     7: {137, 138, 143, 156, 157},

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { NavCluster } from './NavCluster';
+import { BackToNexusLink } from './BackToNexusLink';
 import { LeaderboardModal } from './LeaderboardModal';
 import { PastTicketsModal } from './PastTicketsModal';
 import { ProfileMenuTrigger } from './ProfileMenuTrigger';
@@ -48,6 +49,7 @@ export function Header({ currentPath }: HeaderProps) {
                 </span>
               </span>
             </Link>
+            <BackToNexusLink />
             {onToolPage ? (
               <Button
                 className="hidden px-2 text-xs xl:inline-flex"

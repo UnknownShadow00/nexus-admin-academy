@@ -54,13 +54,17 @@ def _fresh_seed_snapshot(database_path: Path) -> dict:
         week_zero_activities = connection.execute(
             """
             SELECT activities.stable_id, activities.activity_type,
-                   activities.content_ref, activities.display_order
+                   activities.content_ref, activities.display_order,
+                   activities.is_required
               FROM training_week_activities AS activities
               JOIN training_weeks AS weeks ON weeks.id = activities.training_week_id
              WHERE weeks.week_number = 0
              ORDER BY activities.display_order
             """
         ).fetchall()
+        mod_001_prerequisite = connection.execute(
+            "SELECT prerequisite_module_id FROM modules WHERE code = 'MOD-001'"
+        ).fetchone()[0]
         return {
             "lessons": module_lessons,
             "orientation_activities": orientation_activities,
@@ -69,6 +73,7 @@ def _fresh_seed_snapshot(database_path: Path) -> dict:
             "activity_count": connection.execute("SELECT count(*) FROM training_week_activities").fetchone()[0],
             "legacy_support_ticket_count": connection.execute("SELECT count(*) FROM training_week_activities WHERE activity_type = 'support_ticket'").fetchone()[0],
             "active_video_count": connection.execute("SELECT count(*) FROM curriculum_videos WHERE active = 1").fetchone()[0],
+            "mod_001_prerequisite": mod_001_prerequisite,
         }
 
 
@@ -90,11 +95,11 @@ def test_completely_fresh_seed_contains_orientation_and_is_idempotent(tmp_path):
     assert [(title, order) for _, title, order in first["lessons"]] == [(ORIENTATION_TITLE, 1)]
     assert first["orientation_activities"] == [(f"week-0-lesson-{first['lessons'][0][0]}", 1, 1)]
     assert first["week_zero_activities"] == [
-        ("week-0-lesson-1", "lesson", "1", 1),
-        ("week-0-video-182", "video", "182", 2),
-        ("week-0-video-166", "video", "166", 3),
-        ("week-0-video-168", "video", "168", 4),
-        ("week-0-quiz-42", "quiz", "42", 5),
+        ("week-0-lesson-1", "lesson", "1", 1, 1),
+        ("week-0-video-182", "video", "182", 2, 0),
+        ("week-0-video-166", "video", "166", 3, 0),
+        ("week-0-video-168", "video", "168", 4, 0),
+        ("week-0-quiz-42", "quiz", "42", 5, 1),
     ]
     assert first["week_count"] == 25
     # Legacy support_ticket activities are retired; the reviewed Service Desk
@@ -102,17 +107,22 @@ def test_completely_fresh_seed_contains_orientation_and_is_idempotent(tmp_path):
     assert first["activity_count"] == 256
     assert first["legacy_support_ticket_count"] == 0
     assert first["active_video_count"] == 137
+    assert first["mod_001_prerequisite"] is None
     assert second == first
     assert '"valid": true' in validation.stdout
     assert '"mapped_video_count": 137' in validation.stdout
 
 
-def test_orientation_summary_describes_the_full_25_week_program():
-    assert "24-week" not in ORIENTATION_SUMMARY
-    assert "25-week" in ORIENTATION_SUMMARY
+def test_orientation_summary_is_short_and_beginner_friendly():
+    assert "Complete these 2 things" in ORIENTATION_SUMMARY
+    assert "Week 1 unlocks automatically" in ORIENTATION_SUMMARY
+    assert "Service Desk" in ORIENTATION_SUMMARY
+    for internal_term in ("remediation", "evidence", "AI grading", "promotion gate", "mentor review"):
+        assert internal_term.lower() not in ORIENTATION_SUMMARY.lower()
+    assert len(ORIENTATION_SUMMARY.split()) < 120
 
 
-def test_seed_does_not_rewrite_existing_production_style_orientation(db):
+def test_seed_updates_existing_orientation_in_place_without_replacing_history(db):
     module = Module(
         code="MOD-000",
         title="Troubleshooting Methodology",
@@ -133,16 +143,14 @@ def test_seed_does_not_rewrite_existing_production_style_orientation(db):
     )
     db.add(orientation)
     db.commit()
-    before = [
-        (row.id, row.title, row.summary, row.lesson_order, row.estimated_minutes, row.required_notes_template, row.status)
-        for row in db.query(Lesson).filter(Lesson.module_id == module.id).order_by(Lesson.id)
-    ]
+    original_id = orientation.id
 
     seed_module0_and_methodology(db)
     db.commit()
-    after = [
-        (row.id, row.title, row.summary, row.lesson_order, row.estimated_minutes, row.required_notes_template, row.status)
-        for row in db.query(Lesson).filter(Lesson.module_id == module.id).order_by(Lesson.id)
-    ]
-
-    assert after == before
+    updated = db.query(Lesson).filter(Lesson.module_id == module.id, Lesson.title == ORIENTATION_TITLE).one()
+    assert updated.id == original_id
+    assert updated.summary == ORIENTATION_SUMMARY
+    assert updated.lesson_order == 1
+    assert updated.estimated_minutes == 3
+    assert updated.required_notes_template is None
+    assert updated.status == "published"
