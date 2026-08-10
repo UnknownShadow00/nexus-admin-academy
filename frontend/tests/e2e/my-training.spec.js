@@ -507,7 +507,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     // router so a deliberately slow CI runner cannot drop this navigation.
     await page.waitForLoadState("networkidle");
     await page.getByRole("button", { name: "Company Chat" }).click();
-    await expect(page).toHaveURL(/\/service-desk\/tools\/company-chat$/);
+    await expect(page).toHaveURL(/\/service-desk\/tools\/company-chat$/, { timeout: 15_000 });
     await page.getByRole("link", { name: "Back to Nexus" }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("heading", { name: "Continue Your Training" })).toBeVisible();
