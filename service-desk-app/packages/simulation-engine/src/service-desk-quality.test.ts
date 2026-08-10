@@ -93,6 +93,32 @@ describe('Service Desk quality pass', () => {
     expect(score(verified, 'NX-4831', 'profile-storage')).toBe(60);
   });
 
+  it('INC2401 allows the portal check before and after repair for full process credit', () => {
+    const attempt = run(connected('NX-4831', 'INC2401'), [
+      {
+        type: 'remote_desktop.perform_scenario_step',
+        payload: { assetTag: 'NX-4831', ticketId: 'INC2401', stepId: 'mail.review-alert' },
+      },
+      {
+        type: 'remote_desktop.perform_scenario_step',
+        payload: { assetTag: 'NX-4831', ticketId: 'INC2401', stepId: 'browser.retry-sign-in' },
+      },
+      {
+        type: 'remote_desktop.perform_scenario_step',
+        payload: { assetTag: 'NX-4831', ticketId: 'INC2401', stepId: 'settings.clear-profile-storage' },
+      },
+      {
+        type: 'remote_desktop.perform_scenario_step',
+        payload: { assetTag: 'NX-4831', ticketId: 'INC2401', stepId: 'browser.retry-sign-in' },
+      },
+      note('NX-4831', 'INC2401'),
+      close('INC2401'),
+    ]);
+
+    expect(attempt.ticketOverlays.INC2401?.status).toBe(TicketStatus.Resolved);
+    expect(score(attempt, 'NX-4831', 'profile-storage')).toBe(100);
+  });
+
   it('INC2405 only credits the obsolete calendar mapping diagnosis and repair', () => {
     const attempt = run(connected('NX-6128', 'INC2405'), [
       {

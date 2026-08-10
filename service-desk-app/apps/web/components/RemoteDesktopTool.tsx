@@ -1431,12 +1431,14 @@ function DesktopWindow({
 function ScenarioAction({
   children,
   performed,
+  repeatable = false,
   runStep,
   scenarioComplete,
   stepId,
 }: {
   children: ReactNode;
   performed: ReadonlySet<string>;
+  repeatable?: boolean;
   runStep: (stepId: string) => void;
   scenarioComplete: boolean;
   stepId: string;
@@ -1445,11 +1447,11 @@ function ScenarioAction({
   return (
     <button
       className="rounded-sm bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-700 disabled:bg-zinc-300"
-      disabled={recorded || scenarioComplete}
+      disabled={(recorded && !repeatable) || scenarioComplete}
       onClick={() => runStep(stepId)}
       type="button"
     >
-      {recorded ? 'Recorded' : children}
+      {recorded && !repeatable ? 'Recorded' : children}
     </button>
   );
 }
@@ -2205,6 +2207,7 @@ function BrowserWindow({
         {scenario.actionLabels['browser.retry-export'] ? (
           <ScenarioAction
             performed={performed}
+            repeatable
             runStep={runStep}
             scenarioComplete={scenarioComplete}
             stepId="browser.retry-export"
@@ -2215,6 +2218,7 @@ function BrowserWindow({
         {scenario.actionLabels['browser.retry-sign-in'] ? (
           <ScenarioAction
             performed={performed}
+            repeatable
             runStep={runStep}
             scenarioComplete={scenarioComplete}
             stepId="browser.retry-sign-in"

@@ -104,7 +104,7 @@ function isMeaningfulInternalNote(text: string) {
   const documentsDiagnosis =
     /\b(cause|diagnos|observ|investigat|confirm)/u.test(joined);
   const documentsRepair =
-    /\b(fix|repair|appl(?:y|ied)|start(?:ed)?|connect(?:ed)?|configur(?:e|ed|ing)|set)\b/u.test(
+    /\b(fix(?:ed|ing)?|repair(?:ed|ing)?|appl(?:y|ied)|start(?:ed)?|connect(?:ed)?|configur(?:e|ed|ing)|set)\b/u.test(
       joined,
     );
   const documentsVerification =
@@ -1251,8 +1251,9 @@ function applyRemoteDesktopScenarioStep(
   const scenario = getRemoteDesktopScenarioByAsset(assetTag);
   if (!scenario) return overlay;
   const completed = overlay.scenarioSteps[scenario.id] ?? [];
-  if (completed.includes(stepId)) return overlay;
-  const nextSteps = [...completed, stepId];
+  const repeatable = stepId === 'browser.retry-sign-in' || stepId === 'browser.retry-export';
+  if (completed.includes(stepId) && !repeatable) return overlay;
+  const nextSteps = completed.includes(stepId) ? completed : [...completed, stepId];
   const networkDrive = getRemoteDesktopWorkstation(assetTag)?.drives.find(
     (drive) => drive.kind === 'network',
   );

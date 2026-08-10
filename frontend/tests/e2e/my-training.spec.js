@@ -148,9 +148,10 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
 
   await page.goto("/training");
   await page.getByRole("button", { name: /Extra Practice/ }).click();
-  for (const name of ["My Training", "Support Tickets", "Guided Labs", "Networking Labs", "Command Library", "Terminal Practice"]) {
+  for (const name of ["My Training", "Guided Labs", "Networking Labs", "Command Library", "Terminal Practice"]) {
     await expect(page.getByRole("menuitem", { name, exact: true })).toBeVisible();
   }
+  await expect(page.getByRole("menuitem", { name: "Support Tickets", exact: true })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Capstones", exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "Progress", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
@@ -159,7 +160,6 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
 
   const studentRoutes = [
     ["/quizzes", "Quiz Library"],
-    ["/tickets", "Available Tickets"],
     ["/labs", "Lab Exercises"],
     ["/cli-labs", "Networking Labs"],
     ["/commands", "Command Library"],
@@ -186,8 +186,8 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Optional notes", exact: true })).toBeVisible();
   await page.goto("/quizzes/42");
   await expect(page.getByText("Question 1 of 4", { exact: true })).toBeVisible();
-  await page.goto("/tickets/1");
-  await expect(page.getByRole("heading", { name: /DNS resolution failing/ })).toBeVisible();
+  await page.goto("/tickets");
+  await expect(page.getByRole("heading", { name: "That page is not part of your learning path." })).toBeVisible();
   await page.goto("/labs/4");
   await expect(page.getByRole("heading", { name: "Hardware Component Identification", exact: true })).toBeVisible();
   await page.goto("/cli-labs/meet-cli-001");
@@ -241,8 +241,8 @@ test("admin can open Weekly Training under Learning Content", async ({ page }) =
     await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
   }
   await page.goto("/admin/review");
-  await expect(page).toHaveURL(/\/admin\/ticket-review$/);
-  await expect(page.getByRole("heading", { name: "Ticket Review Queue" })).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/service-desk-review$/);
+  await expect(page.getByRole("heading", { name: "Service Desk Review" })).toBeVisible();
   await page.setViewportSize({ width: 375, height: 812 });
   await page.getByRole("button", { name: "Toggle menu" }).click();
   await expect(page.getByRole("navigation").getByText("Learning Content", { exact: true })).toBeVisible();
@@ -268,6 +268,46 @@ test("capstone navigation remains role gated", async ({ page }) => {
   await page.getByRole("menuitem", { name: "Capstones", exact: true }).click();
   await expect(page).toHaveURL(/\/capstones$/);
   await expect(page.getByRole("heading", { name: /Capstone/i }).first()).toBeVisible();
+});
+
+test("required Nexus-authored quiz grades and reviews every answer", async ({ page }) => {
+  await studentLogin(page);
+  await page.goto("/quizzes/1");
+  await expect(page.getByText(/Question 1 of 8/)).toBeVisible();
+
+  for (let index = 1; index <= 8; index += 1) {
+    const questionPanel = page.locator("section .panel").first();
+    const questionText = await questionPanel.textContent();
+    const correctOptions = questionText.includes("FIRST thing missing")
+      ? ["The reported symptom"]
+      : questionText.includes("USER-FACING resolution")
+        ? ["Your profile was repaired and your files open normally."]
+        : questionText.includes("without doing what")
+          ? ["Repeating the same questions"]
+          : questionText.includes("INTERNAL notes")
+            ? ["Exact command output proving the fix", "Event ID and source", "What was ruled out and how"]
+            : questionText.includes("grading anchor")
+              ? ["verification"]
+              : questionText.includes("MSPs care intensely")
+                ? ["They support billing and auditability"]
+                : questionText.includes("confirms the scope")
+                  ? ["Can you reproduce it in another browser?"]
+                  : ["It is unproven and unprofessional"];
+    for (const option of correctOptions) {
+      await questionPanel.getByText(option, { exact: true }).click();
+    }
+    await page.getByRole("button", { name: index === 8 ? "Submit Quiz" : "Next", exact: true }).click();
+  }
+
+  await expect(page.getByText("Passed", { exact: true })).toBeVisible();
+  await expect(page.getByText("Answer Review", { exact: true })).toBeVisible();
+  await expect(page.getByText("Why this is correct", { exact: true })).toHaveCount(8);
+  await assertNoHorizontalOverflow(page);
+
+  await page.goto("/quizzes/1/review");
+  await expect(page.getByRole("heading", { name: "Answer Review" })).toBeVisible();
+  // Ten selected correct options (the multi-select has three) plus the score summary label.
+  await expect(page.getByText("Correct", { exact: true })).toHaveCount(11);
 });
 
 test("a disposable beginner completes Week 0 with a shared quiz and persistent progress", async ({ page, browser }) => {
@@ -306,7 +346,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     await expect(page).toHaveURL(/\/lessons\/\d+$/);
     const orientationLessonId = new URL(page.url()).pathname.split("/").pop();
 
-    const orientationNote = page.getByPlaceholder("Write one sentence: Where will you look when you are unsure what comes next?");
+    const orientationNote = page.getByPlaceholder("Optional: note where you will look when you are unsure what comes next.");
     const orientationSaved = page.waitForResponse((response) => response.url().endsWith(`/api/lessons/${orientationLessonId}/notes`) && response.request().method() === "PUT" && response.ok());
     await orientationNote.fill("I will open Home and follow the next My Training activity.");
     await orientationSaved;
@@ -393,7 +433,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     await expect(page.getByRole("heading", { name: "Continue Your Training" })).toBeVisible();
     await expect(page.getByText(/Week 1 —/).first()).toBeVisible();
     await page.goto("/training/week/0");
-    await expect(page.getByText("5 of 5 required activities complete").first()).toBeVisible();
+    await expect(page.getByText("4 of 4 required activities complete").first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
     await page.setViewportSize({ width: 375, height: 812 });

@@ -499,6 +499,23 @@ describe('Phase 18 phase-aware Remote Desktop workflows', () => {
     },
   );
 
+  it.each([
+    'I diagnosed the stale profile, repaired it by clearing storage, and verified the portal opened.',
+    'I confirmed the bad profile, fixed it by clearing storage, and tested the portal successfully.',
+  ])('accepts natural repair verb forms in meaningful internal notes', (text) => {
+    const accepted = act(connected('NX-4831', 'INC2401'), {
+      type: 'remote_desktop.add_internal_note',
+      payload: { assetTag: 'NX-4831', ticketId: 'INC2401', text },
+    });
+
+    expect(accepted.event.success).toBe(true);
+    expect(
+      accepted.attempt.remoteDesktopOverlays['NX-4831']?.scenarioProgress[
+        'profile-storage'
+      ],
+    ).toMatchObject({ internalNote: text, phases: { noted: true } });
+  });
+
   it('preserves diagnose, fix, and verify progress through serialization refresh', () => {
     const beforeRefresh = run(connected('NX-8892', 'INC2407'), [
       {
