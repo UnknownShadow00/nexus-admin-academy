@@ -1126,3 +1126,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: tasks/loop-log.md
 - Result: fail against acceptance criteria — Phase 1 and scripts/predeploy_check.sh passed, but PR #12 failed Backend quality and tests on Ruff F841 in service_desk_objectives.py and failed Database, migrations, and seeds because CI still expected 0041 instead of the 0046 head; no merge or production change was performed.
 - Next: Correct both CI failures on the release branch, validate them, establish and approve a new RC SHA, then restart the production release from Phase 1.
+
+## [2026-08-10T14:53:32Z] Task Completed
+- Task: Repaired all PR #12 release CI regressions, validated the complete release candidate locally, pushed the fixes to the existing branch, and monitored the replacement GitHub Actions run through success.
+- Files changed: .github/workflows/ci.yml; backend/app/services/service_desk_objectives.py; frontend/tests/e2e/my-training.spec.js; scripts/e2e/start_local_stack.sh; tasks/loop-log.md
+- Result: pass against acceptance criteria — backend 377/377, Service Desk 257/257, both Playwright suites 6/6 and 10/10, disposable database migration/seed/integrity gates, frontend and Service Desk builds/audits, and scripts/predeploy_check.sh passed; all five required PR #12 CI jobs passed on repair commit 9274fe98e1acac80d4131200fa00ccb011c24e34.
+- Next: Treat the final pushed branch head as the replacement release candidate; merge and production deployment require separate authorization and must restart the documented release procedure from Phase 1.
