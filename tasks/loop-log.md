@@ -1108,3 +1108,15 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/tests/e2e/my-training.spec.js; frontend/tests/e2e/service-desk-integration.spec.js; service-desk-app/apps/web/components/RemoteDesktopTool.tsx; service-desk-app/packages/simulation-engine/src/apply-action.ts; service-desk-app/packages/simulation-engine/src/phase-18-remote-desktop.test.ts; service-desk-app/packages/simulation-engine/src/service-desk-quality.test.ts; service-desk-app/package.json; service-desk-app/pnpm-lock.yaml; docs/FINAL_LAUNCH_READINESS.md; tasks/loop-log.md
 - Result: pass against acceptance criteria — backend 377/377, integrated Playwright 25/25, standalone Service Desk Playwright 3/3, Service Desk 257/257 unit tests plus lint/typecheck/build, frontend build, dependency audits, question guards, fresh 0046 migration, and production-like 0041→0046 upgrade all passed with no launch blocker.
 - Next: Follow the documented merge and production deployment rehearsal; do not deploy without verified paired SQLite/uploads backups and rollback assets.
+
+## [2026-08-10T12:26:06Z] Task Completed
+- Task: Attempted the actual production release through the mandatory source verification and predeploy gate, then stopped at the first failed precondition.
+- Files changed: tasks/loop-log.md
+- Result: fail against acceptance criteria — Phase 1 passed at approved RC 9fa3c79558b0eee591c035b4649d9a911612bcf9 with a clean tree, but scripts/predeploy_check.sh exited 1 because Alembic could not load migration 0043 (`ModuleNotFoundError: No module named 'app'`); no merge or production change was performed.
+- Next: Correct and validate the documented predeploy gate/Alembic invocation on the release branch, restore a clean reviewed release-candidate state, and restart the production release from Phase 1.
+
+## [2026-08-10T13:37:36Z] Task Completed
+- Task: Fixed the Alembic predeploy execution context, aligned active-production documentation, and revalidated the pending migration chain without deploying.
+- Files changed: CLAUDE.md; docs/DEPLOYMENT.md; docs/PRODUCTION_LAUNCH_REHEARSAL.md; scripts/predeploy_check.sh; tasks/loop-log.md
+- Result: pass against acceptance criteria — root-level predeploy now uses the backend venv interpreter with `python -m alembic` from `backend/`, loads one 0046 head, and accepts production 0041 only as a proven ancestor; fresh and production-like 0041→0046 disposable migrations passed with integrity ok and zero foreign-key violations; backend import/compile, 3 focused tests, and all 377 backend tests passed.
+- Next: Review the new release-candidate commit, then restart the production release from Phase 1 only when explicitly authorized.

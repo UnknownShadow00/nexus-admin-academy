@@ -167,7 +167,7 @@ cd backend
 .venv/bin/python -m compileall -q app tests seed.py seed_curriculum.py
 .venv/bin/ruff check app tests seed.py seed_curriculum.py
 .venv/bin/python -m pytest -q
-.venv/bin/alembic heads
+.venv/bin/python -m alembic heads
 
 cd ../frontend
 npm ci
@@ -199,9 +199,9 @@ With writers still stopped from the paired backup, run:
 
 ```bash
 cd backend
-.venv/bin/alembic current
-.venv/bin/alembic upgrade head
-.venv/bin/alembic current
+.venv/bin/python -m alembic current
+.venv/bin/python -m alembic upgrade head
+.venv/bin/python -m alembic current
 DATABASE_URL=sqlite:///./nexus.db .venv/bin/python seed.py
 
 sudo systemctl start nexus-admin-academy.service

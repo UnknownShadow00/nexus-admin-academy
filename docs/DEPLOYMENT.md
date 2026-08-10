@@ -57,7 +57,7 @@ Backend update:
 ```bash
 cd backend
 ./.venv/bin/pip install -r requirements.txt
-./.venv/bin/alembic upgrade head
+./.venv/bin/python -m alembic upgrade head
 sudo systemctl restart nexus-admin-academy.service
 curl --fail http://127.0.0.1:8000/health
 sudo journalctl -u nexus-admin-academy.service -n 100 --no-pager
@@ -256,7 +256,7 @@ database while the application is writing to it.
 for the compose deployment. Test a dump against a disposable PostgreSQL
 database before relying on it. For a real restore, stop application writes,
 preserve the current database, restore with the PostgreSQL tools matching the
-dump format, restore the uploads archive, run `alembic current`, and complete
+dump format, restore the uploads archive, run `python -m alembic current`, and complete
 the smoke checklist below.
 
 ## Post-deployment smoke checklist
