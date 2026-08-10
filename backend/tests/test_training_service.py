@@ -6,6 +6,9 @@ from app.models.capstone import CapstoneRun, CapstoneTemplate
 from app.models.cli_lab import CliLab, CliLabAttempt
 from app.models.curriculum_video import CurriculumVideo
 from app.models.lab import LabRun, LabTemplate
+from app.models.learning import Lesson, Module
+from app.models.lesson_notes import StudentLessonNote
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.quiz import (
     EDITORIAL_STATUS_VALIDATED,
     QUIZ_STATUS_PUBLISHED,
@@ -183,6 +186,34 @@ def test_required_activity_blocks_next_week_but_optional_does_not(db, student):
     assert after["weeks"][1]["status"] == "in_progress"
     assert after["current_week"]["week_number"] == 2
     assert after["next_activity"]["stable_id"] == "w2-required"
+
+
+def test_lesson_note_does_not_complete_a_required_training_activity(db, student):
+    week_one = add_week(db, 1, requires_previous=False)
+    week_two = add_week(db, 2)
+    module = Module(code="MOD-001", title="Week 1", module_order=1)
+    db.add(module)
+    db.flush()
+    lesson = Lesson(module_id=module.id, title="Read a real lesson", lesson_order=1, status="published")
+    db.add(lesson)
+    db.flush()
+    add_activity(db, week_one, "w1-lesson", "lesson", lesson.id, 1)
+    add_activity(db, week_two, "w2-review", "review", "week-2", 1)
+    db.add(StudentLessonNote(student_id=student.id, lesson_id=lesson.id, content="Optional study note."))
+    db.commit()
+
+    before = build_training_overview(db, student)
+    assert before["weeks"][0]["required_complete"] == 0
+    assert before["weeks"][0]["required_total"] == 1
+    assert before["weeks"][1]["status"] == "locked"
+    assert before["next_activity"]["stable_id"] == "w1-lesson"
+
+    db.add(StudentLessonProgress(student_id=student.id, lesson_id=lesson.id, completed_at=datetime.now(timezone.utc)))
+    db.commit()
+    after = build_training_overview(db, student)
+    assert after["weeks"][0]["required_complete"] == 1
+    assert after["weeks"][0]["completion_percent"] == 100.0
+    assert after["weeks"][1]["status"] == "complete"  # a review activity is intentionally untracked
 
 
 def test_video_quiz_lab_ticket_and_networking_completion_are_server_derived(db, student):

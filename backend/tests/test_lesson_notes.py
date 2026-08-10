@@ -1,6 +1,8 @@
 from conftest import auth_headers, make_client, make_student
 from app.models.learning import Lesson, Module
+from app.models.lesson_progress import StudentLessonProgress
 from app.routers.lesson_notes import router as lesson_router
+from app.services.progression_service import derive_current_week
 
 
 client = make_client(lesson_router)
@@ -40,6 +42,7 @@ def test_direct_lesson_and_notes_remain_student_scoped(db):
         "module_code": module.code,
         "module_title": module.title,
         "is_orientation": False,
+        "is_complete": False,
     }
 
     saved = client.put(
@@ -50,6 +53,34 @@ def test_direct_lesson_and_notes_remain_student_scoped(db):
     assert saved.status_code == 200
     assert client.get(f"/api/lessons/{lesson.id}/notes", headers=auth_headers(student)).json()["data"]["content"] == "Verify impact before changing anything."
     assert client.get(f"/api/lessons/{lesson.id}/notes", headers=auth_headers(other)).json()["data"]["content"] == ""
+    assert client.get(f"/api/lessons/{lesson.id}", headers=auth_headers(student)).json()["data"]["is_complete"] is False
+
+    completed = client.post(f"/api/lessons/{lesson.id}/complete", headers=auth_headers(student))
+    assert completed.status_code == 200
+    completed_at = completed.json()["data"]["completed_at"]
+    assert client.post(f"/api/lessons/{lesson.id}/complete", headers=auth_headers(student)).json()["data"]["completed_at"] == completed_at
+    assert client.get(f"/api/lessons/{lesson.id}", headers=auth_headers(student)).json()["data"]["is_complete"] is True
+    assert client.post(f"/api/lessons/{lesson.id}/complete", headers=auth_headers(other)).status_code == 409
+    assert db.query(StudentLessonProgress).filter_by(student_id=other.id, lesson_id=lesson.id).first() is None
+
+
+def test_saving_a_note_never_completes_or_unlocks_a_lesson(db):
+    student = make_student(db)
+    module = Module(code="MOD-001", title="Week 1", module_order=1, active=True)
+    db.add(module)
+    db.flush()
+    lesson = Lesson(module_id=module.id, title="Meaningful lesson", lesson_order=1, status="published")
+    db.add(lesson)
+    db.commit()
+
+    saved = client.put(
+        f"/api/lessons/{lesson.id}/notes",
+        json={"content": "A useful study note."},
+        headers=auth_headers(student),
+    )
+    assert saved.status_code == 200
+    assert db.query(StudentLessonProgress).filter_by(student_id=student.id, lesson_id=lesson.id).first() is None
+    assert derive_current_week(student.id, db) == 1
 
 
 def test_direct_lesson_returns_empty_outcomes_list_by_default(db):

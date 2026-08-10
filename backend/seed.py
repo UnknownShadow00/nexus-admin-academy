@@ -225,10 +225,10 @@ ORIENTATION_SUMMARY = """Nexus is your 25-week practice space (Week 0 through We
 WHAT A WEEK MEANS: each week is a small, guided set of learning and practice. Finish the required items in the order shown, then use optional practice when you want more repetition. You are not expected to know everything before you start.
 
 THE FOUR THINGS YOU WILL SEE:
-- A LESSON explains one idea in plain language and gives you a place to save notes.
+- A LESSON explains one idea in plain language. You can save optional notes and explicitly mark the lesson complete when you are ready.
 - A QUIZ is a short checkpoint. It shows what you understand and what to revisit.
 - A LAB is a safe place to try a task with guided steps.
-- A TICKET is a realistic support request. You explain what you checked, what you did, and how you know it worked.
+- A SERVICE DESK SCENARIO is a realistic support request. You investigate, fix, verify, and document what you did.
 
 REQUIRED VS OPTIONAL: required items keep your weekly path moving. Optional practice, review, and certification questions are there when you want extra reps; they do not block your next required step.
 
@@ -236,16 +236,16 @@ EVIDENCE AND REMEDIATION: evidence is a screenshot, command output, or note that
 
 XP AND YOUR ROLE: XP is a running total of completed learning work. Your Role is a promotion level based on demonstrated readiness and specific gates. XP can show momentum; it does not promote you by itself.
 
-HOW GRADING WORKS: Nexus can use AI to give fast feedback on real ticket work. A mentor may still review it afterward, especially when judgment, safety, or workplace communication matters. NEEDS REVISION means your work is not final yet: read the feedback, improve the missing part, and submit again.
+HOW GRADING WORKS: Service Desk scenarios evaluate the evidence of your investigation, fix, verification, and notes. A mentor may still review your work afterward, especially when judgment, safety, or workplace communication matters. NEEDS REVISION means your work is not final yet: read the feedback, improve the missing part, and try again.
 
 WHEN YOU NEED HELP: ask your mentor or your cohort's agreed help channel. Include the lesson, quiz, lab, or ticket name and what you already tried. That gives people a useful starting point.
 
 YOUR SIMPLE ROUTINE:
 1. Open This Week on Home and choose the first item marked Next up.
-2. Read the lesson, save a short note, and complete the required quiz or practice.
+2. Read the lesson, mark it complete when you are ready, and complete the required quiz or practice.
 3. Come back to Home anytime. Your notes, quiz attempts, and submitted work save to your account, and unfinished work stays in This Week.
 
-GUIDED PRACTICE: save one short note below, take the Ticketing Systems Quiz, then write a one-sentence practice response. You may also upload a harmless sample screenshot. This walkthrough is not graded, does not use AI, and does not need mentor review.
+GUIDED PRACTICE: mark this orientation lesson complete, take the Ticketing Systems Quiz, then write a one-sentence practice response. You may optionally save notes or upload a harmless sample screenshot. This walkthrough is not graded and does not need mentor review.
 
 WHY THIS MATTERS: good support work is not guessing alone. It is knowing what to do next, recording what happened, asking for help early, and improving one small step at a time."""
 
@@ -267,14 +267,6 @@ MODULE_0 = {
             "estimated_minutes": 12,
             "required_notes_template": "Write one sentence: What is the first thing you will do when you are unsure what comes next in Nexus?",
         },
-        {
-            "title": "CompTIA 6-Step Process",
-            "summary": "Define, theorize, test, plan, verify, and document.",
-            "outcomes": ["Can identify symptoms", "Can test theories", "Can verify fixes"],
-            "lesson_order": 2,
-            "estimated_minutes": 45,
-            "required_notes_template": None,
-        }
     ],
 }
 
@@ -876,16 +868,6 @@ def seed_module0_and_methodology(db):
     # Migration 0031 cannot insert the orientation lesson on a completely fresh
     # database because MOD-000 is created later by this ordinary seed. Keep the
     # complete intended module here as the post-migration source of truth.
-    orientation = db.query(Lesson).filter(Lesson.module_id == module.id, Lesson.title == ORIENTATION_TITLE).first()
-    if orientation is None:
-        methodology = db.query(Lesson).filter(
-            Lesson.module_id == module.id,
-            Lesson.title == "CompTIA 6-Step Process",
-            Lesson.lesson_order == 1,
-        ).first()
-        if methodology is not None:
-            methodology.lesson_order = 2
-
     for lesson_data in MODULE_0["lessons"]:
         lesson = db.query(Lesson).filter(Lesson.module_id == module.id, Lesson.title == lesson_data["title"]).first()
         if lesson:

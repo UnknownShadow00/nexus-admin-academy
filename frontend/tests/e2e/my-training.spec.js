@@ -177,14 +177,13 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page).toHaveURL(/\/training$/);
   await expect(page.getByRole("heading", { name: "My Training", exact: true })).toBeVisible();
   // Lesson IDs are not stable across a fresh seed vs. production's
-  // accumulated history, so reach the CompTIA lesson through the UI rather
+  // accumulated history, so reach the orientation lesson through the UI rather
   // than a hard-coded /lessons/{id} route.
   await page.goto("/training/week/0");
-  await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "CompTIA 6-Step Process" }).getByRole("link").click();
-  await expect(page.getByRole("heading", { name: "CompTIA 6-Step Process", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "In this lesson, you'll learn", exact: true })).toBeVisible();
-  await expect(page.getByRole("listitem").filter({ hasText: /^Can identify symptoms$/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Lesson notes", exact: true })).toBeVisible();
+  await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Welcome to Nexus: Your First Week" }).getByRole("link").click();
+  await expect(page.getByRole("heading", { name: "Welcome to Nexus: Your First Week", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Mark lesson complete", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Optional notes", exact: true })).toBeVisible();
   await page.goto("/quizzes/42");
   await expect(page.getByText("Question 1 of 4", { exact: true })).toBeVisible();
   await page.goto("/tickets/1");
@@ -359,16 +358,12 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     }
     await expect(page.locator('article[data-activity-type="video"]').filter({ hasText: "Ticketing Systems" }).first().getByRole("button", { name: "Mark Watched" })).toBeVisible();
 
-    // Already back on /training/week/0 — reach the CompTIA lesson through
+    // Already back on /training/week/0 — complete the orientation lesson through
     // its activity card rather than a hard-coded /lessons/{id} route.
-    await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "CompTIA 6-Step Process" }).getByRole("link").click();
+    await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Welcome to Nexus: Your First Week" }).getByRole("link").click();
     await expect(page).toHaveURL(/\/lessons\/\d+$/);
-    const methodologyLessonId = new URL(page.url()).pathname.split("/").pop();
-    const methodologyNote = page.getByPlaceholder("Your notes for this lesson...");
-    const methodologySaved = page.waitForResponse((response) => response.url().endsWith(`/api/lessons/${methodologyLessonId}/notes`) && response.request().method() === "PUT" && response.ok());
-    await methodologyNote.fill("I will identify the problem before testing a theory and document the result.");
-    await methodologySaved;
-    await expect(page.locator("p.opacity-100").getByText("Saved", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Mark lesson complete", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Lesson complete", exact: true })).toBeVisible();
 
     await page.goto("/training/week/0");
     for (const title of ["Ticketing Systems", "Document Types"]) {
@@ -377,7 +372,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
       await expect(page.locator('article[data-activity-type="video"]').filter({ hasText: title }).first().getByRole("link", { name: "Watch Again" })).toBeVisible();
     }
     const weekHeaderText = await page.locator("main > header").innerText();
-    expect(weekHeaderText).toContain("5 of 5 required complete");
+    expect(weekHeaderText).toContain("4 of 4 required complete");
     await expect(page.getByRole("heading", { name: "Week 0 Complete" })).toBeVisible();
     await page.getByText(/Extra practice \(/).click();
     await expect(page.locator('article[data-activity-type="video"]').filter({ hasText: "How to Pass Your A+" }).first().getByRole("button", { name: "Mark Watched" })).toBeVisible();

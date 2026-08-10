@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.comptia import ComptiaObjective, StudentObjectiveProgress
 from app.models.learning import Lesson, Module
-from app.models.lesson_notes import StudentLessonNote
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.login_streak import LoginStreak
 from app.models.progression import MethodologyFramework, StudentMethodologyProgress
 from app.models.quiz import (
@@ -430,7 +430,12 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db), current_st
     for module in modules:
         mastery = get_module_mastery(student_id, module.id, db)
         unlock_check = check_module_unlock(student_id, module.id, db)
-        lessons = db.query(Lesson).filter(Lesson.module_id == module.id).order_by(Lesson.lesson_order.asc()).all()
+        lessons = (
+            db.query(Lesson)
+            .filter(Lesson.module_id == module.id, Lesson.status == "published")
+            .order_by(Lesson.lesson_order.asc())
+            .all()
+        )
 
         lesson_items = []
         for lesson in lessons:
@@ -452,12 +457,16 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db), current_st
             )
             total_parts = int(quiz_count + ticket_count)
             done_parts = int(completed_quiz + completed_ticket)
-            lesson_note_exists = bool(
-                db.query(StudentLessonNote.id)
-                .filter(StudentLessonNote.student_id == student_id, StudentLessonNote.lesson_id == lesson.id)
+            lesson_complete = bool(
+                db.query(StudentLessonProgress.id)
+                .filter(
+                    StudentLessonProgress.student_id == student_id,
+                    StudentLessonProgress.lesson_id == lesson.id,
+                    StudentLessonProgress.completed_at.isnot(None),
+                )
                 .first()
             )
-            completion_percent = round((done_parts / total_parts) * 100, 1) if total_parts else (100 if lesson_note_exists else 0)
+            completion_percent = round((done_parts / total_parts) * 100, 1) if total_parts else (100 if lesson_complete else 0)
 
             lesson_items.append(
                 {
@@ -540,7 +549,7 @@ def get_week_plan(
     from app.models.cli_lab import CliLab, CliLabAttempt
     from app.models.lab import LabRun, LabTemplate
     from app.models.learning import Lesson, Module
-    from app.models.lesson_notes import StudentLessonNote
+    from app.models.lesson_progress import StudentLessonProgress
     from app.models.quiz import Quiz
     from app.models.training import TrainingWeek, TrainingWeekActivity
     from app.services.progression_service import get_promotion_status
@@ -560,8 +569,9 @@ def get_week_plan(
         )
         done_lessons = {
             row.lesson_id
-            for row in db.query(StudentLessonNote.lesson_id).filter(
-                StudentLessonNote.student_id == student_id
+            for row in db.query(StudentLessonProgress.lesson_id).filter(
+                StudentLessonProgress.student_id == student_id,
+                StudentLessonProgress.completed_at.isnot(None),
             )
         }
         for module in modules:

@@ -5,6 +5,7 @@ from conftest import auth_headers, make_client, make_student
 from app.models.cli_lab import CliLab, CliLabAttempt
 from app.models.learning import Lesson, Module
 from app.models.lesson_notes import StudentLessonNote
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz
 from app.models.ticket import Ticket, TicketSubmission
 from app.routers.students import router as students_router
@@ -40,7 +41,7 @@ def test_week_plan_statuses_and_progress(db):
     student = make_student(db)
     module, l1, l2, quiz, cli = _seed_week1(db)
     # complete one lesson and the CLI lab
-    db.add(StudentLessonNote(student_id=student.id, lesson_id=l1.id, content="notes"))
+    db.add(StudentLessonProgress(student_id=student.id, lesson_id=l1.id, completed_at=datetime.now(timezone.utc)))
     db.add(CliLabAttempt(student_id=student.id, lab_id=cli.id, completed_at=datetime.now(timezone.utc)))
     db.commit()
 
@@ -79,12 +80,24 @@ def test_week_plan_excludes_retired_ticket_history(db):
     assert data["progress_percent"] == 0.0
 
 
+def test_note_does_not_complete_or_advance_the_week_plan(db):
+    student = make_student(db)
+    _, l1, _, _, _ = _seed_week1(db)
+    db.add(StudentLessonNote(student_id=student.id, lesson_id=l1.id, content="A study note is not completion."))
+    db.commit()
+
+    data = client.get("/api/students/me/week-plan?week=1", headers=auth_headers(student)).json()["data"]
+    assert data["lessons"][0]["status"] == "available"
+    assert data["progress_percent"] == 0.0
+    assert data["next_action"]["id"] == l1.id
+
+
 def test_week_plan_scoped_to_own_data(db):
     """Another student's completions must never appear in my plan."""
     s1 = make_student(db)
     s2 = make_student(db, username="student2")
     module, l1, l2, quiz, cli = _seed_week1(db)
-    db.add(StudentLessonNote(student_id=s2.id, lesson_id=l1.id, content="s2 notes"))
+    db.add(StudentLessonProgress(student_id=s2.id, lesson_id=l1.id, completed_at=datetime.now(timezone.utc)))
     db.commit()
     r = client.get("/api/students/me/week-plan?week=1", headers=auth_headers(s1))
     lessons = {lesson["title"]: lesson["status"] for lesson in r.json()["data"]["lessons"]}

@@ -256,6 +256,8 @@ export const getLessonNote = (lessonId, requestOptions) =>
   request(() => api.get(`/api/lessons/${lessonId}/notes`), requestOptions);
 export const getLesson = (lessonId, requestOptions) =>
   request(() => api.get(`/api/lessons/${lessonId}`), requestOptions);
+export const completeLesson = (lessonId, requestOptions) =>
+  request(() => api.post(`/api/lessons/${lessonId}/complete`), requestOptions);
 export const saveLessonNote = (lessonId, content, requestOptions) =>
   request(() => api.put(`/api/lessons/${lessonId}/notes`, { content }), requestOptions);
 export const getOrientationProgress = (requestOptions) =>

@@ -7,7 +7,7 @@ CLI labs, and mentor flags.
 from conftest import make_student
 from app.models.cli_lab import CliLab, CliLabAttempt
 from app.models.learning import Lesson, Module
-from app.models.lesson_notes import StudentLessonNote
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.mastery import StudentDomainMastery
 from app.models.progression import PromotionGate, Role
 from app.models.ticket import Ticket, TicketSubmission
@@ -62,7 +62,7 @@ def _seed_curriculum(db):
 
 def _fulfill_everything(db, student, lessons, sim, easy_tickets):
     for lesson in lessons:
-        db.add(StudentLessonNote(student_id=student.id, lesson_id=lesson.id, content="notes"))
+        db.add(StudentLessonProgress(student_id=student.id, lesson_id=lesson.id, completed_at=datetime.now(timezone.utc)))
     db.add(StudentDomainMastery(student_id=student.id, domain_id="1.0", mastery_percent=85))
     for t in easy_tickets:
         db.add(TicketSubmission(
@@ -96,7 +96,7 @@ def test_gate1_fails_on_missing_lessons(db):
     module, lessons, sim, easy = _seed_curriculum(db)
     student = make_student(db)
     _fulfill_everything(db, student, lessons, sim, easy)
-    db.query(StudentLessonNote).filter(StudentLessonNote.student_id == student.id).delete()
+    db.query(StudentLessonProgress).filter(StudentLessonProgress.student_id == student.id).delete()
     db.commit()
     result = check_promotion_eligibility(student.id, role.id, db)
     assert result["eligible"] is False

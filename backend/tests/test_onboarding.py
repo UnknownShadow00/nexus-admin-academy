@@ -1,10 +1,12 @@
 """Week 0 orientation walkthrough regression coverage."""
 
 import json
+from datetime import datetime, timezone
 
 from conftest import auth_headers, make_client, make_student
 from app.models.ai_rate_limit import AIRateLimit
 from app.models.learning import Lesson, Module
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.onboarding import StudentOnboardingPractice
 from app.models.progression import PromotionGate, Role
 from app.models.quiz import EDITORIAL_STATUS_VALIDATED, QUIZ_STATUS_PUBLISHED, Question, Quiz, QuizAttempt
@@ -28,7 +30,6 @@ def _seed_orientation(db):
     db.add_all([week_zero, week_one])
     db.flush()
     orientation = Lesson(module_id=week_zero.id, title=ORIENTATION_TITLE, lesson_order=1, status="published")
-    methodology = Lesson(module_id=week_zero.id, title="CompTIA 6-Step Process", lesson_order=2, status="published")
     first_week_one_lesson = Lesson(module_id=week_one.id, title="Anatomy of a Good Ticket", lesson_order=1, status="published")
     quiz = Quiz(
         title="Ticketing Systems Quiz",
@@ -43,7 +44,7 @@ def _seed_orientation(db):
         answer_keys_validated=True,
         is_active=True,
     )
-    db.add_all([orientation, methodology, first_week_one_lesson, quiz])
+    db.add_all([orientation, first_week_one_lesson, quiz])
     db.flush()
     question = Question(
         quiz_id=quiz.id,
@@ -73,7 +74,7 @@ def test_fresh_student_can_resume_and_complete_orientation_without_ticket_gradin
 
     progress = get_onboarding_progress(db=db, current_student=student)
     assert progress["data"]["steps"] == {
-        "lesson_note": False,
+        "lesson_completion": False,
         "quiz": False,
         "practice_response": False,
         "optional_evidence": False,
@@ -87,10 +88,13 @@ def test_fresh_student_can_resume_and_complete_orientation_without_ticket_gradin
     )
     assert note["data"]["content"] == "I will check Home → This Week."
 
-    # Simulate leaving and resuming with a new request: completion is in DB.
+    # Notes are optional study aids and never complete the walkthrough.
     resumed = get_onboarding_progress(db=db, current_student=student)
-    assert resumed["data"]["steps"]["lesson_note"] is True
+    assert resumed["data"]["steps"]["lesson_completion"] is False
     assert resumed["data"]["is_complete"] is False
+
+    db.add(StudentLessonProgress(student_id=student.id, lesson_id=orientation.id, completed_at=datetime.now(timezone.utc)))
+    db.commit()
 
     # The existing quiz endpoint has its own scoring coverage. Seed its normal
     # persisted result here so this regression stays focused on onboarding
@@ -160,16 +164,11 @@ def test_fresh_student_can_resume_and_complete_orientation_without_ticket_gradin
     assert next_action["route"] == f"/lessons/{first_week_one_lesson.id}"
 
 
-def test_orientation_completion_reports_the_remaining_week_zero_lesson_until_week_one_unlocks(db):
+def test_orientation_completion_unlocks_week_one_without_retired_methodology_lesson(db):
     student = make_student(db)
     orientation, quiz, question, _ = _seed_orientation(db)
 
-    save_lesson_note(
-        orientation.id,
-        LessonNoteRequest(content="I will start from Home → This Week."),
-        db=db,
-        current_student=student,
-    )
+    db.add(StudentLessonProgress(student_id=student.id, lesson_id=orientation.id, completed_at=datetime.now(timezone.utc)))
     db.add(
         QuizAttempt(
             student_id=student.id,
@@ -189,17 +188,10 @@ def test_orientation_completion_reports_the_remaining_week_zero_lesson_until_wee
         current_student=student,
     )
 
-    methodology = db.query(Lesson).filter(Lesson.title == "CompTIA 6-Step Process").one()
     progress = get_onboarding_progress(db=db, current_student=student)["data"]
     assert progress["is_complete"] is True
-    assert progress["week_one_unlocked"] is False
-    assert progress["week_one_remaining_lessons"] == [
-        {
-            "id": methodology.id,
-            "title": methodology.title,
-            "route": f"/lessons/{methodology.id}",
-        }
-    ]
+    assert progress["week_one_unlocked"] is True
+    assert progress["week_one_remaining_lessons"] == []
 
     from app.models.ticket import Ticket
 
@@ -212,42 +204,16 @@ def test_orientation_completion_reports_the_remaining_week_zero_lesson_until_wee
     )
     db.add(ticket)
     db.commit()
-    blocked = client.post(f"/api/tickets/{ticket.id}/hint", headers=auth_headers(student))
-    assert blocked.status_code == 403
-    assert blocked.json() == {
-        "success": False,
-        "code": "PREREQUISITE_NOT_MET",
-        "error": "Complete Week 0's required lesson first.",
-        "data": {
-            "required_week": 1,
-            "current_week": 0,
-            "next_action_route": "/training",
-        },
-    }
-
-    save_lesson_note(
-        methodology.id,
-        LessonNoteRequest(content="I will follow the six-step process before changing anything."),
-        db=db,
-        current_student=student,
-    )
-    unlocked = get_onboarding_progress(db=db, current_student=student)["data"]
-    assert unlocked["week_one_unlocked"] is True
-    assert unlocked["week_one_remaining_lessons"] == []
     assert client.post(f"/api/tickets/{ticket.id}/hint", headers=auth_headers(student)).status_code == 200
 
 
 def test_admin_activity_includes_student_onboarding_progress(db):
     student = make_student(db)
     orientation, _, _, _ = _seed_orientation(db)
-    save_lesson_note(
-        orientation.id,
-        LessonNoteRequest(content="I will use Home → This Week."),
-        db=db,
-        current_student=student,
-    )
+    db.add(StudentLessonProgress(student_id=student.id, lesson_id=orientation.id, completed_at=datetime.now(timezone.utc)))
+    db.commit()
 
     response = student_activity(student.id, db=db)
 
     assert response["data"]["onboarding"]["lesson_id"] == orientation.id
-    assert response["data"]["onboarding"]["steps"]["lesson_note"] is True
+    assert response["data"]["onboarding"]["steps"]["lesson_completion"] is True

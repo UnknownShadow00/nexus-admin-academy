@@ -1024,3 +1024,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/tests/test_week_plan.py; frontend/src/components/WeekPlanPanel.jsx; tasks/loop-log.md
 - Result: pass against acceptance criteria — Week Plan excludes retired ticket history, exposes Service Desk scenarios, and the full backend suite passes 368/368; focused Week Plan/training tests pass 20/20; frontend build passes.
 - Next: None
+
+## [2026-08-10T05:00:00Z] Task Completed
+- Task: Completed Phase 3A lesson-path audit and replaced note-based lesson progression with explicit server-authoritative lesson completion.
+- Files changed: backend lesson progress model/migration, lesson/onboarding/training/progression APIs and tests, Week 0 seed and audit document, frontend lesson/orientation UI and E2E expectation, tasks/loop-log.md
+- Result: pass against acceptance criteria — the note-only CompTIA wrapper is retired from Week 0; notes remain optional; explicit completion is student-owned and idempotent; 371 backend tests and focused lesson/training coverage pass; frontend build and temporary fresh/upgrade migration validation pass.
+- Next: Do not begin quiz-bank cleanup until Phase 3A review is accepted.

@@ -1,7 +1,9 @@
 """Gate 4 (Network Support Technician → Junior Systems Technician) tests."""
+from datetime import datetime, timezone
+
 from conftest import make_student
 from app.models.learning import Lesson, Module
-from app.models.lesson_notes import StudentLessonNote
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.mastery import StudentDomainMastery
 from app.models.progression import PromotionGate, Role
 from app.models.ticket import Ticket, TicketSubmission
@@ -34,7 +36,7 @@ def _seed(db):
 
 
 def _fulfill(db, student, lesson, tickets):
-    db.add(StudentLessonNote(student_id=student.id, lesson_id=lesson.id, content="n"))
+    db.add(StudentLessonProgress(student_id=student.id, lesson_id=lesson.id, completed_at=datetime.now(timezone.utc)))
     db.add(StudentDomainMastery(student_id=student.id, domain_id="3.0", mastery_percent=82))
     for t in tickets:
         db.add(TicketSubmission(student_id=student.id, ticket_id=t.id, writeup="w",
@@ -54,7 +56,7 @@ def test_gate4_fails_missing_ad_lessons(db):
     role, lesson, tickets = _seed(db)
     student = make_student(db)
     _fulfill(db, student, lesson, tickets)
-    db.query(StudentLessonNote).filter_by(student_id=student.id).delete()
+    db.query(StudentLessonProgress).filter_by(student_id=student.id).delete()
     db.commit()
     result = check_promotion_eligibility(student.id, role.id, db)
     assert result["eligible"] is False

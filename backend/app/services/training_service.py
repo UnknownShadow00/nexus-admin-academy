@@ -11,7 +11,7 @@ from app.models.command_reference import CommandReference
 from app.models.curriculum_video import CurriculumVideo
 from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson
-from app.models.lesson_notes import StudentLessonNote
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.progression import Role, StudentRole
 from app.models.quiz import Question, Quiz, QuizAttempt
 from app.models.student import Student
@@ -190,10 +190,14 @@ class _TrainingContext:
         self.attempts: dict[int, list[QuizAttempt]] = defaultdict(list)
         for attempt in attempts:
             self.attempts[attempt.quiz_id].append(attempt)
-        self.lesson_notes = {
+        self.lesson_progress = {
             row.lesson_id: row
-            for row in db.query(StudentLessonNote)
-            .filter(StudentLessonNote.student_id == student.id, StudentLessonNote.lesson_id.in_(set(self.lessons)))
+            for row in db.query(StudentLessonProgress)
+            .filter(
+                StudentLessonProgress.student_id == student.id,
+                StudentLessonProgress.lesson_id.in_(set(self.lessons)),
+                StudentLessonProgress.completed_at.isnot(None),
+            )
             .all()
         } if self.lessons else {}
         lab_runs = (
@@ -400,8 +404,8 @@ class _TrainingContext:
             complete = quiz_progress["passed"] if activity.is_required else quiz_progress["attempted"]
             return {"complete": complete, "in_progress": quiz_progress["attempted"] and not complete, **quiz_progress}
         if activity.activity_type == "lesson":
-            note = self.lesson_notes.get(ref)
-            return {"complete": note is not None, "in_progress": False, "completed_at": note.updated_at if note else None}
+            progress = self.lesson_progress.get(ref)
+            return {"complete": progress is not None, "in_progress": False, "completed_at": progress.completed_at if progress else None}
         if activity.activity_type == "guided_lab":
             run = self.lab_runs.get(ref)
             complete = bool(run and run.status in {"submitted", "verified"})
@@ -697,8 +701,8 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
         .order_by(QuizAttempt.completed_at.desc(), QuizAttempt.id.desc())
         .all()
     )
-    note_rows = db.query(StudentLessonNote).filter(
-        StudentLessonNote.student_id.in_(cohort_ids)
+    lesson_progress_rows = db.query(StudentLessonProgress).filter(
+        StudentLessonProgress.student_id.in_(cohort_ids), StudentLessonProgress.completed_at.isnot(None)
     ).all()
     lab_rows = (
         db.query(LabRun)
@@ -735,7 +739,7 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
 
     videos_by_student = _group_cohort_rows(video_rows, lambda row: row[0].student_id)
     quizzes_by_student = _group_cohort_rows(quiz_rows, lambda row: row[0].student_id)
-    notes_by_student = _group_cohort_rows(note_rows, lambda row: row.student_id)
+    lesson_progress_by_student = _group_cohort_rows(lesson_progress_rows, lambda row: row.student_id)
     labs_by_student = _group_cohort_rows(lab_rows, lambda row: row.student_id)
     cli_by_student = _group_cohort_rows(cli_rows, lambda row: row.student_id)
     capstones_by_student = _group_cohort_rows(capstone_rows, lambda row: row.student_id)
@@ -750,7 +754,7 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
         quiz_attempts = defaultdict(list)
         for attempt, total in quizzes_by_student[student.id]:
             quiz_attempts[str(attempt.quiz_id)].append((attempt, int(total or 0)))
-        lesson_ids = {str(note.lesson_id) for note in notes_by_student[student.id]}
+        lesson_ids = {str(progress.lesson_id) for progress in lesson_progress_by_student[student.id]}
         lab_runs = _latest_by(labs_by_student[student.id], lambda row: str(row.lab_template_id))
         cli_attempts = _latest_by(cli_by_student[student.id], lambda row: row.lab_id)
         capstone_runs = _latest_by(

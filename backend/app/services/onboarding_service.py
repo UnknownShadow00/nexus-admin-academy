@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.models.evidence import EvidenceArtifact
 from app.models.lesson_notes import StudentLessonNote
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.learning import Lesson, Module
 from app.models.onboarding import StudentOnboardingPractice
 from app.models.quiz import Quiz, QuizAttempt
@@ -31,11 +32,15 @@ def get_orientation_state(db: Session, student: Student) -> dict:
     """Build server-backed walkthrough state from the real learning primitives."""
     lesson = get_orientation_lesson(db)
     quiz = get_orientation_quiz(db)
-    lesson_note = None
+    lesson_progress = None
     if lesson:
-        lesson_note = (
-            db.query(StudentLessonNote)
-            .filter(StudentLessonNote.student_id == student.id, StudentLessonNote.lesson_id == lesson.id)
+        lesson_progress = (
+            db.query(StudentLessonProgress)
+            .filter(
+                StudentLessonProgress.student_id == student.id,
+                StudentLessonProgress.lesson_id == lesson.id,
+                StudentLessonProgress.completed_at.isnot(None),
+            )
             .first()
         )
     quiz_taken = bool(
@@ -59,7 +64,7 @@ def get_orientation_state(db: Session, student: Student) -> dict:
         )
         .first()
     )
-    lesson_complete = bool(lesson_note and (lesson_note.content or "").strip())
+    lesson_complete = lesson_progress is not None
     practice_complete = bool(practice and (practice.response or "").strip())
     week_one_unlocked = derive_current_week(student.id, db) >= 1
     complete = bool(lesson_complete and quiz_taken and practice_complete)
@@ -67,8 +72,9 @@ def get_orientation_state(db: Session, student: Student) -> dict:
     if complete and lesson:
         completed_lesson_ids = {
             row.lesson_id
-            for row in db.query(StudentLessonNote.lesson_id).filter(
-                StudentLessonNote.student_id == student.id
+            for row in db.query(StudentLessonProgress.lesson_id).filter(
+                StudentLessonProgress.student_id == student.id,
+                StudentLessonProgress.completed_at.isnot(None),
             )
         }
         remaining_week_zero_lessons = [
@@ -91,7 +97,8 @@ def get_orientation_state(db: Session, student: Student) -> dict:
             if row.id not in completed_lesson_ids
         ]
     has_activity = bool(
-        lesson_note
+        db.query(StudentLessonNote.id).filter(StudentLessonNote.student_id == student.id).first()
+        or lesson_progress
         or quiz_taken
         or practice
         or evidence_uploaded
@@ -112,7 +119,7 @@ def get_orientation_state(db: Session, student: Student) -> dict:
         "quiz_route": f"/quizzes/{quiz.id}" if quiz else "/quizzes",
         "next_week_plan_url": "/api/students/me/week-plan?week=1",
         "steps": {
-            "lesson_note": lesson_complete,
+            "lesson_completion": lesson_complete,
             "quiz": quiz_taken,
             "practice_response": practice_complete,
             "optional_evidence": evidence_uploaded,
