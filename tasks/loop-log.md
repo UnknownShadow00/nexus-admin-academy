@@ -1090,3 +1090,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: tasks/loop-log.md
 - Result: pass against acceptance criteria — full backend suite passed 374 tests; frontend production build passed; Alembic upgraded a disposable database through 0045, full seed completed, and authored-quality validation passed with 4/170 uniquely-longest correct answers (2.4%), 189/189 explanations, and 19 multi-select questions.
 - Next: None
+
+## [2026-08-10T09:35:00Z] Task Completed
+- Task: Completed Phase 3C imported-bank and quiz-organization audit, archived unreviewed ExamCompass quiz banks, and hardened imported-quiz intake safety.
+- Files changed: backend/alembic/versions/0046_archive_unreviewed_examcompass.py; backend/app/routers/admin_quiz.py; backend/scripts/audit_imported_question_bank.py; backend/tests/test_admin_content_validation.py; backend/tests/test_imported_question_audit.py; docs/IMPORTED_QUESTION_AND_QUIZ_AUDIT.md; docs/imported_question_quiz_audit.json; tasks/loop-log.md
+- Result: pass against acceptance criteria — disposable migrated legacy-bank audit found 777 imported questions (27 required, 4 optional visible), zero structural integrity/duplicate findings, and 75 active imported quizzes before archival; migration preserves all data while reducing active imported quizzes to 4 and strict disconnected active imports to 0. Focused tests passed 19/19.
+- Next: Run full backend suite, frontend build, and fresh migration/seed validation before declaring Phase 3C complete.

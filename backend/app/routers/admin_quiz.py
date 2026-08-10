@@ -359,6 +359,7 @@ async def scrape_quiz_save(payload: QuizImportRequest, db: Session = Depends(get
         source_type=SOURCE_TYPE_EXAMCOMPASS if "examcompass" in str(payload.source_url or "").lower() else SOURCE_TYPE_MANUAL,
         answer_keys_validated=False,
         explanations_complete=False,
+        is_active=False,
     )
     db.add(quiz)
     db.flush()
@@ -384,7 +385,8 @@ async def scrape_quiz_save(payload: QuizImportRequest, db: Session = Depends(get
                 "explanation": question.explanation,
             }
         )
-        if not result.valid:
+        review_messages = [issue.message for issue in [*result.errors, *result.warnings]]
+        if review_messages:
             flagged_count += 1
         db.add(
             Question(
@@ -400,8 +402,8 @@ async def scrape_quiz_save(payload: QuizImportRequest, db: Session = Depends(get
                 option_h=question.option_h or None,
                 correct_answer=verified_answers[0],
                 explanation=_catalog_explanation(question, verified_answers),
-                flagged_for_review=not result.valid,
-                flag_reason="; ".join(i.message for i in result.errors) if not result.valid else None,
+                flagged_for_review=bool(review_messages),
+                flag_reason="; ".join(review_messages) or None,
             )
         )
         saved_count += 1
@@ -445,6 +447,7 @@ async def bookmarklet_import(payload: QuizImportRequest, db: Session = Depends(g
         source_type=SOURCE_TYPE_EXAMCOMPASS,
         answer_keys_validated=False,
         explanations_complete=False,
+        is_active=False,
     )
     db.add(quiz)
     db.flush()
@@ -456,9 +459,11 @@ async def bookmarklet_import(payload: QuizImportRequest, db: Session = Depends(g
 
         primary_correct = all_correct[0] if all_correct else question.correct_answer
         allowed_answers = ["A", "B", "C", "D", "E", "F", "G", "H"]
-        if primary_correct not in allowed_answers:
+        invalid_primary_answer = primary_correct not in allowed_answers
+        if invalid_primary_answer:
             primary_correct = "A"
         if primary_correct != "A" and not getattr(question, f"option_{primary_correct.lower()}"):
+            invalid_primary_answer = True
             primary_correct = "A"
 
         verified_answers = _verified_answers(
@@ -481,7 +486,10 @@ async def bookmarklet_import(payload: QuizImportRequest, db: Session = Depends(g
                 "explanation": question.explanation,
             }
         )
-        if not result.valid:
+        review_messages = [issue.message for issue in [*result.errors, *result.warnings]]
+        if invalid_primary_answer:
+            review_messages.append("Imported correct answer did not reference an available option.")
+        if review_messages:
             flagged += 1
         db.add(
             Question(
@@ -501,8 +509,8 @@ async def bookmarklet_import(payload: QuizImportRequest, db: Session = Depends(g
                     question,
                     correct_answers_str.split(",") if correct_answers_str else [primary_correct],
                 ),
-                flagged_for_review=not result.valid,
-                flag_reason="; ".join(i.message for i in result.errors) if not result.valid else None,
+                flagged_for_review=bool(review_messages),
+                flag_reason="; ".join(review_messages) or None,
             )
         )
         saved += 1
