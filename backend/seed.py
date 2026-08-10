@@ -941,6 +941,42 @@ def seed_methodology_completions(db):
 
 
 
+def _converted_service_desk_ticket(
+    ticket_id, title, category, priority, asset_tag, device_name, requester,
+    department, issue, impact, troubleshooting, hints,
+):
+    """Current definitions for legacy content reviewed for Service Desk use.
+
+    These are new stable scenarios, not edits to the archived Ticket rows.
+    ``seed_service_desk_scenarios`` versions them immutably like the original
+    eight curated cases.
+    """
+    return {
+        "activity": [{"id": f"{ticket_id}-created", "label": "Ticket created", "timestamp": "2026-07-28T10:30:00.000Z"}],
+        "assignedTo": "you", "category": category, "createdAt": "2026-07-28T10:30:00.000Z",
+        "description": {"businessImpact": impact, "issue": issue, "reportedByLine": "Submitted through the employee support portal.", "troubleshooting": troubleshooting},
+        "device": {"assetTag": asset_tag, "deviceName": device_name, "kind": "laptop", "operatingSystem": "Windows 11 Enterprise", "state": "attention"},
+        "escalated": False, "hints": hints, "id": ticket_id, "notes": [], "priority": priority,
+        "requester": {"contact": "Employee support portal", "department": department, "email": f"{requester.lower().replace(' ', '.')}@nexus.example", "location": "Nexus office", "name": requester},
+        "sla": {"dueAt": "2026-07-28T14:30:00.000Z", "target": "Respond within 4 hours"},
+        "status": "open", "suggestedTools": ["remote-desktop", "documentation", "company-chat"], "title": title,
+    }
+
+
+SERVICE_DESK_TICKET_FIXTURES.extend([
+    _converted_service_desk_ticket("INC2501", "Desktop opens with a temporary Windows profile", "software", "high", "NX-2501", "ACCT-LT-17", "Morgan Ellis", "Accounting", "After signing in, Morgan sees a fresh desktop and cannot find the usual Documents files.", "Month-end work is paused while the user data appears unavailable.", ["The user restarted once.", "A nearby teammate can open the same shared files."], ["Protect user data before profile repair.", "Compare the sign-in profile path with the expected local profile.", "Confirm the original files are available after repairing the profile."]),
+    _converted_service_desk_ticket("INC2502", "Excel crashes only when one reporting workbook opens", "software", "medium", "NX-2502", "FIN-WS-44", "Priya Shah", "Finance", "Excel closes when the monthly reporting workbook opens, but other workbooks remain usable.", "The finance team cannot finish the monthly report.", ["A blank workbook opens normally.", "The workbook was copied locally and still crashes."], ["Reproduce the specific crash before changing Office.", "Use Safe Mode or add-in isolation to separate workbook and add-in causes.", "Verify the original workbook opens and saves after the repair."]),
+    _converted_service_desk_ticket("INC2503", "One desk lost network after an office move", "network", "high", "NX-2503", "OPS-WS-12", "Jordan Kim", "Operations", "A workstation moved to a new desk has no network while adjacent desks work normally.", "One dispatcher cannot access the order system.", ["The workstation was restarted.", "Nearby workstations remain connected."], ["Start with physical link and compare the nearby working desk.", "Check the assigned switch port and VLAN before renewing addresses.", "Verify the original order system after the port is corrected."]),
+    _converted_service_desk_ticket("INC2504", "Department printer stopped after its DHCP address changed", "hardware", "high", "NX-2504", "ENG-WS-09", "Sofia Nguyen", "Engineering", "The shared department printer is reachable from one workstation but this workstation still sends jobs to its old address.", "Engineering cannot print drawing review packets from the affected workstation.", ["The printer is powered on.", "A colleague printed successfully from a nearby computer."], ["Confirm whether this is local or printer-wide.", "Compare the configured print port with the printer’s current address.", "Update the port safely and print a test page."]),
+    _converted_service_desk_ticket("INC2505", "New employee cannot open the department share", "access", "medium", "NX-2505", "MKT-LT-05", "Taylor Reed", "Marketing", "A new employee receives Access Denied for the Marketing share that peers can use.", "The new hire cannot access approved team materials.", ["The share opens for the team lead.", "The employee can sign in successfully."], ["Confirm the requested resource and compare an authorized peer.", "Check approved group access before granting anything.", "Verify the original share after the least-privilege change."]),
+    _converted_service_desk_ticket("INC2506", "Assistant requests access to restricted salary records", "access", "high", "NX-2506", "HR-LT-21", "Casey Lane", "Executive Office", "An executive assistant asks for access to the restricted HR salary folder to help with a meeting.", "The request needs a timely, safe response without expanding access improperly.", ["The requester has access to general HR materials.", "No written approval is attached."], ["Identify the authorization boundary.", "Do not use a group change as a substitute for approval.", "Document a safe escalation and verify the request is routed correctly."]),
+    _converted_service_desk_ticket("INC2507", "Account keeps locking after a password change", "access", "high", "NX-2507", "SALES-LT-08", "Avery Monroe", "Sales", "The account locks again shortly after each successful password reset.", "The employee repeatedly loses access to sales systems.", ["The account was unlocked once.", "The employee can sign in immediately after the reset."], ["Find what is reusing the old credential instead of resetting again.", "Inspect saved mappings, Credential Manager, and scheduled connections.", "Remove the stale credential and monitor for another lockout."]),
+    _converted_service_desk_ticket("INC2508", "Employee entered credentials into a phishing page", "access", "high", "NX-2508", "PAY-LT-03", "Riley Brown", "Payroll", "An employee reports entering their password into a page reached from a suspicious email.", "The account and payroll data may be exposed until containment is complete.", ["The employee closed the page.", "No access changes have been made yet."], ["Contain first; do not treat this as ordinary password troubleshooting.", "Reset credentials, revoke active sessions, and escalate through the security path.", "Record the actions and safe follow-up for the employee."]),
+    _converted_service_desk_ticket("INC2509", "Workstation disk fills again every few days", "software", "medium", "NX-2509", "SUP-WS-31", "Devon Ross", "Support", "The C: drive fills repeatedly even after temporary files are deleted.", "The support workstation becomes slow and cannot install approved updates.", ["Temporary files were removed last week.", "Free space returned briefly, then fell again."], ["Identify what is growing rather than repeatedly deleting symptoms.", "Inspect log and application storage trends.", "Correct the source safely and verify free space remains stable."]),
+    _converted_service_desk_ticket("INC2510", "Restored laptop reports a trust relationship failure", "access", "medium", "NX-2510", "OPS-LT-58", "Sam Ortiz", "Operations", "A restored domain laptop rejects sign-in with a trust relationship error while peer laptops work.", "The employee cannot access the domain workstation after recovery.", ["The network is connected.", "Other domain users can sign in on nearby devices."], ["Separate user credentials from the computer account relationship.", "Confirm the secure-channel failure before changing the user account.", "Repair or escalate the device trust safely and verify domain sign-in."]),
+])
+
+
 SERVICE_DESK_TICKET_CONTENT_PATCHES = {
     "INC2401": {
         "issue": "The finance reporting portal accepts the first authentication step, then returns to the sign-in screen before the dashboard loads on the assigned laptop.",

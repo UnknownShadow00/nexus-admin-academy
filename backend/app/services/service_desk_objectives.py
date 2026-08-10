@@ -243,6 +243,72 @@ SCENARIO_OBJECTIVES: dict[str, ScenarioObjectiveDefinition] = {
 }
 
 
+def _converted_process_profile(ticket_id: str, asset_tag: str) -> ScenarioObjectiveDefinition:
+    """Shared evidence shape for reviewed legacy-ticket conversions.
+
+    The step names are intentionally semantic categories rather than a hidden
+    click order. A learner can gather either scope or comparison evidence,
+    but server-authoritative remediation and original-symptom verification are
+    still required before an attempt passes.
+    """
+    return _process(
+        ProcessCategory("investigation", (
+            _objective(
+                "scope-or-evidence-established",
+                _remote(ticket_id, asset_tag, "scenario.inspect-symptom"),
+                _remote(ticket_id, asset_tag, "scenario.collect-evidence"),
+            ),
+        )),
+        ProcessCategory("diagnosis", (
+            _objective(
+                "root-cause-isolated",
+                _remote(ticket_id, asset_tag, "scenario.isolate-root-cause"),
+            ),
+        )),
+        ProcessCategory("remediation", (
+            _objective(
+                "safe-remediation-applied",
+                _remote(ticket_id, asset_tag, "scenario.apply-safe-remediation"),
+            ),
+        )),
+        ProcessCategory("verification", (
+            _objective(
+                "original-symptom-verified",
+                _remote(ticket_id, asset_tag, "scenario.verify-original-symptom"),
+            ),
+        )),
+        ProcessCategory("documentation", (
+            _objective(
+                "closure-note",
+                EvidenceRule(
+                    "remote_desktop.add_internal_note",
+                    {"ticketId": ticket_id, "assetTag": asset_tag},
+                ),
+            ),
+        )),
+    )
+
+
+# These profiles intentionally share only the grading *shape*. Their trusted
+# evidence remains ticket- and asset-specific, so one student cannot replay an
+# action from a different scenario to manufacture credit.
+SCENARIO_OBJECTIVES.update({
+    stable_key: _converted_process_profile(ticket_id, asset_tag)
+    for stable_key, ticket_id, asset_tag in (
+        ("inc2501", "INC2501", "NX-2501"),
+        ("inc2502", "INC2502", "NX-2502"),
+        ("inc2503", "INC2503", "NX-2503"),
+        ("inc2504", "INC2504", "NX-2504"),
+        ("inc2505", "INC2505", "NX-2505"),
+        ("inc2506", "INC2506", "NX-2506"),
+        ("inc2507", "INC2507", "NX-2507"),
+        ("inc2508", "INC2508", "NX-2508"),
+        ("inc2509", "INC2509", "NX-2509"),
+        ("inc2510", "INC2510", "NX-2510"),
+    )
+})
+
+
 # Kept solely for attempts already pinned to the immutable pre-process
 # published versions.  New/current versions select SCENARIO_OBJECTIVES through
 # ``objective_catalog_version`` below.

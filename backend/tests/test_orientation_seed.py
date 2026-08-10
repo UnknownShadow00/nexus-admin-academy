@@ -68,6 +68,7 @@ def _fresh_seed_snapshot(database_path: Path) -> dict:
             "week_zero_activities": week_zero_activities,
             "week_count": connection.execute("SELECT count(*) FROM training_weeks").fetchone()[0],
             "activity_count": connection.execute("SELECT count(*) FROM training_week_activities").fetchone()[0],
+            "legacy_support_ticket_count": connection.execute("SELECT count(*) FROM training_week_activities WHERE activity_type = 'support_ticket'").fetchone()[0],
             "active_video_count": connection.execute("SELECT count(*) FROM curriculum_videos WHERE active = 1").fetchone()[0],
         }
 
@@ -101,7 +102,10 @@ def test_completely_fresh_seed_contains_orientation_and_is_idempotent(tmp_path):
         ("week-0-quiz-42", "quiz", "42", 6),
     ]
     assert first["week_count"] == 25
-    assert first["activity_count"] == 296
+    # Legacy support_ticket activities are retired; the reviewed Service Desk
+    # scenarios replace the required curriculum path instead.
+    assert first["activity_count"] == 257
+    assert first["legacy_support_ticket_count"] == 0
     assert first["active_video_count"] == 137
     assert second == first
     assert '"valid": true' in validation.stdout

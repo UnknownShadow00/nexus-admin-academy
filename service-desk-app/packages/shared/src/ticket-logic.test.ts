@@ -39,7 +39,10 @@ describe('ticket filtering', () => {
         query: '',
         status: TicketStatus.Open,
       }).map((ticket) => ticket.id),
-    ).toEqual(['INC2402', 'INC2406', 'INC2407', 'INC2408']);
+    ).toEqual([
+      'INC2402', 'INC2406', 'INC2407', 'INC2408',
+      'INC2501', 'INC2503', 'INC2504', 'INC2506', 'INC2507', 'INC2508',
+    ]);
   });
 });
 

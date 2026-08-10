@@ -28,7 +28,6 @@ from app.services.training_quiz_mapping import CONFIDENCE_BY_BASIS, EXACT, TOPIC
 PRACTICE_ACTIVITY_TYPES = {
     "guided_lab",
     "networking_lab",
-    "support_ticket",
     "command_exercise",
     "terminal_exercise",
     "capstone",
@@ -42,7 +41,6 @@ ACTIVITY_LABELS = {
     "lesson": "Course Lesson",
     "guided_lab": "Guided Lab",
     "networking_lab": "Networking Lab",
-    "support_ticket": "Support Ticket",
     "command_exercise": "Command Exercise",
     "terminal_exercise": "Terminal Exercise",
     "review": "Weekly Review",
@@ -141,6 +139,9 @@ class _TrainingContext:
             .filter(LabTemplate.id.in_(integer_refs("guided_lab")), LabTemplate.is_published.is_(True))
             .all()
         } if refs["guided_lab"] else {}
+        # Compatibility read only: migration 0043 removes all live references.
+        # This preserves a coherent read of a pre-migration historical week
+        # without ever seeding or creating new Support Ticket requirements.
         self.tickets = {
             row.id: row for row in db.query(Ticket).filter(Ticket.id.in_(integer_refs("support_ticket"))).all()
         } if refs["support_ticket"] else {}
@@ -168,7 +169,9 @@ class _TrainingContext:
             .all()
         ]
         service_attempts = db.query(ServiceDeskAttempt).filter(ServiceDeskAttempt.student_id == student.id, ServiceDeskAttempt.scenario_version_id.in_(service_version_ids), ServiceDeskAttempt.passed.is_(True)).order_by(ServiceDeskAttempt.completed_at.desc()).all() if service_version_ids else []
-        self.service_desk_completed_versions = {row.scenario_version_id for row in service_attempts}
+        self.service_desk_completed_attempts = _latest_by(
+            service_attempts, lambda row: row.scenario_version_id
+        )
 
         video_keys = [row.video_key for row in self.videos.values()]
         self.watches = {
@@ -334,8 +337,8 @@ class _TrainingContext:
                 return None
             return _ResolvedContent(
                 title=ticket.title,
-                description=f"{ticket.category or 'IT support'} practice",
-                destination_route=f"/tickets/{ticket.id}",
+                description="Archived Support Ticket history",
+                destination_route=None,
                 estimated_minutes=activity.estimated_minutes,
             )
         if activity.activity_type == "service_desk_scenario":
@@ -409,9 +412,6 @@ class _TrainingContext:
             }
         if activity.activity_type == "support_ticket":
             submission = self.ticket_submissions.get(ref)
-            # Weekly progression requires a real server-graded submission, but
-            # does not wait indefinitely for an instructor to award XP. Mentor
-            # verification remains authoritative for rank/mastery credit.
             complete = bool(
                 submission
                 and submission.status in {"pending", "in_review", "passed"}
@@ -428,8 +428,20 @@ class _TrainingContext:
             if not scenario:
                 return {"complete": False, "in_progress": False, "completed_at": None}
             versions = self.db.query(ServiceDeskScenarioVersion.id).filter(ServiceDeskScenarioVersion.scenario_id == scenario.id, ServiceDeskScenarioVersion.status == "published").all()
-            complete = any(version_id in self.service_desk_completed_versions for (version_id,) in versions)
-            return {"complete": complete, "in_progress": False, "completed_at": None}
+            completed_attempt = next(
+                (
+                    self.service_desk_completed_attempts.get(version_id)
+                    for (version_id,) in versions
+                    if version_id in self.service_desk_completed_attempts
+                ),
+                None,
+            )
+            return {
+                "complete": completed_attempt is not None,
+                "in_progress": False,
+                "completed_at": completed_attempt.completed_at if completed_attempt else None,
+                "score": completed_attempt.score if completed_attempt else None,
+            }
         if activity.activity_type == "networking_lab":
             attempt = self.cli_attempts.get(activity.content_ref)
             complete = bool(attempt and attempt.completed_at)
@@ -694,12 +706,6 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
         .order_by(LabRun.created_at.desc(), LabRun.id.desc())
         .all()
     )
-    ticket_rows = (
-        db.query(TicketSubmission)
-        .filter(TicketSubmission.student_id.in_(cohort_ids))
-        .order_by(TicketSubmission.submitted_at.desc(), TicketSubmission.id.desc())
-        .all()
-    )
     cli_rows = (
         db.query(CliLabAttempt)
         .filter(CliLabAttempt.student_id.in_(cohort_ids))
@@ -731,7 +737,6 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
     quizzes_by_student = _group_cohort_rows(quiz_rows, lambda row: row[0].student_id)
     notes_by_student = _group_cohort_rows(note_rows, lambda row: row.student_id)
     labs_by_student = _group_cohort_rows(lab_rows, lambda row: row.student_id)
-    tickets_by_student = _group_cohort_rows(ticket_rows, lambda row: row.student_id)
     cli_by_student = _group_cohort_rows(cli_rows, lambda row: row.student_id)
     capstones_by_student = _group_cohort_rows(capstone_rows, lambda row: row.student_id)
     service_desk_by_student = _group_cohort_rows(
@@ -747,9 +752,6 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
             quiz_attempts[str(attempt.quiz_id)].append((attempt, int(total or 0)))
         lesson_ids = {str(note.lesson_id) for note in notes_by_student[student.id]}
         lab_runs = _latest_by(labs_by_student[student.id], lambda row: str(row.lab_template_id))
-        ticket_submissions = _latest_by(
-            tickets_by_student[student.id], lambda row: str(row.ticket_id)
-        )
         cli_attempts = _latest_by(cli_by_student[student.id], lambda row: row.lab_id)
         capstone_runs = _latest_by(
             capstones_by_student[student.id], lambda row: str(row.capstone_template_id)
@@ -788,14 +790,6 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
                 run = lab_runs.get(content_ref)
                 complete = bool(run and run.status in {"submitted", "verified"})
                 return complete, bool(run and not complete)
-            if activity.activity_type == "support_ticket":
-                submission = ticket_submissions.get(content_ref)
-                complete = bool(
-                    submission
-                    and submission.status in {"pending", "in_review", "passed"}
-                    and (submission.graded_at is not None or submission.status == "passed")
-                )
-                return complete, bool(submission and not complete)
             if activity.activity_type == "networking_lab":
                 attempt = cli_attempts.get(content_ref)
                 complete = bool(attempt and attempt.completed_at)
@@ -944,7 +938,7 @@ def build_training_progress(db: Session, student: Student) -> dict:
         "practice": practice_metric,
         "guided_labs": _metric(states, {"guided_lab"}),
         "networking_labs": _metric(states, {"networking_lab"}),
-        "tickets": _metric(states, {"support_ticket"}),
+        "service_desk": _metric(states, {"service_desk_scenario"}),
         "capstones": _metric(states, {"capstone"}),
         "rank_progress": promotion,
         "skills": list_student_mastery(db, student.id),
@@ -961,7 +955,6 @@ def validate_training_activity_reference(db: Session, activity: TrainingWeekActi
         "video": (CurriculumVideo, CurriculumVideo.id == ref, CurriculumVideo.active.is_(True)),
         "lesson": (Lesson, Lesson.id == ref, None),
         "guided_lab": (LabTemplate, LabTemplate.id == ref, LabTemplate.is_published.is_(True)),
-        "support_ticket": (Ticket, Ticket.id == ref, None),
         "command_exercise": (CommandReference, CommandReference.id == ref, None),
         "capstone": (CapstoneTemplate, CapstoneTemplate.id == ref, CapstoneTemplate.is_published.is_(True)),
     }
@@ -1076,7 +1069,7 @@ def _workload_row(db: Session, week: TrainingWeek) -> dict:
         "required_quizzes": by_type["quiz"],
         "required_guided_labs": by_type["guided_lab"],
         "required_networking_labs": by_type["networking_lab"],
-        "required_support_tickets": by_type["support_ticket"],
+        "required_service_desk_scenarios": by_type["service_desk_scenario"],
         "required_capstones": by_type["capstone"],
         "estimated_minutes": video_minutes + non_video_minutes,
         "optional_items": sum(1 for activity in week.activities if not activity.is_required),

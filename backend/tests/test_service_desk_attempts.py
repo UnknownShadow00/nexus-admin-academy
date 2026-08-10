@@ -140,6 +140,58 @@ def complete_process_workflow(client, student, attempt_id, stable_key):
             assert response.status_code == 201, response.text
 
 
+@pytest.mark.parametrize(
+    "stable_key",
+    [f"inc{number}" for number in range(2501, 2511)],
+)
+def test_converted_legacy_cases_require_server_authoritative_process_evidence(
+    db, stable_key
+):
+    """Each harvested case has a complete, trusted process path—not a text answer."""
+    student = make_student(db, username=f"{stable_key}-student")
+    assignment = setup_assignment(
+        db, student, stable_key=stable_key, process_profile=True
+    )
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+    complete_process_workflow(client, student, attempt_id, stable_key)
+    close(client, student, attempt_id)
+    grade = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/complete",
+        headers=auth_headers(student), json={"idempotency_key": f"complete-{stable_key}"},
+    )
+    assert grade.status_code == 201
+    assert grade.json()["passed"] is True
+    assert grade.json()["overall_score"] == 100
+
+
+def test_converted_legacy_case_repair_does_not_replace_investigation_or_diagnosis(db):
+    student = make_student(db, username="guessing-lockout")
+    assignment = setup_assignment(db, student, stable_key="inc2507", process_profile=True)
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+    headers = auth_headers(student)
+    path = f"/api/service-desk/attempts/{attempt_id}/actions"
+    assert client.post(path, headers=headers, json={
+        "idempotency_key": "assign", "event_type": "ticket.assign", "tool": "ticket",
+        "payload": {"ticketId": "INC2507"},
+    }).status_code == 201
+    for index, step in enumerate(("scenario.apply-safe-remediation", "scenario.verify-original-symptom")):
+        assert client.post(path, headers=headers, json={
+            "idempotency_key": f"guess-{index}",
+            "event_type": "remote_desktop.perform_scenario_step", "tool": "remote_desktop",
+            "payload": {"ticketId": "INC2507", "assetTag": "NX-2507", "stepId": step},
+        }).status_code == 201
+    close(client, student, attempt_id)
+    grade = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/complete", headers=headers,
+        json={"idempotency_key": "complete-guess"},
+    )
+    assert grade.status_code == 201
+    assert grade.json()["passed"] is False
+    assert grade.json()["overall_score"] < 50
+
+
 def test_service_desk_requires_authentication():
     assert (
         make_client(service_desk.router)

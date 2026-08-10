@@ -17,7 +17,6 @@ from app.models.curriculum_video import CurriculumVideo
 from app.models.lab import LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.quiz import Quiz
-from app.models.ticket import Ticket
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.quiz_visibility import student_visible_quiz_filters
 from app.services.training_quiz_mapping import OPTIONAL_LESSON_IDS, mapping_metadata, video_is_required
@@ -60,6 +59,21 @@ CLI_WEEKS = {
     "dev-sw-act-23": 11,
     "exam-first-switch": 11,
     "exam-ssh": 12,
+}
+
+# Stable Service Desk keys are deliberately independent of legacy Ticket IDs.
+# Keep this compact mapping near the weekly seed so required curriculum never
+# falls back to the retired support_ticket product.
+SERVICE_DESK_WEEKS = {
+    1: "inc2407",
+    2: "inc2503",
+    3: "inc2501",
+    4: "inc2509",
+    5: "inc2502",
+    6: "inc2505",
+    7: "inc2509",
+    8: "inc2507",
+    14: "inc2510",
 }
 
 
@@ -145,12 +159,8 @@ def sync_initial_training_activities(db: Session) -> dict:
     for lab in labs:
         add(lab.week_number, "guided_lab", lab.id, True, lab.estimated_minutes)
 
-    first_ticket_week = set()
-    tickets = db.query(Ticket).filter(Ticket.week_number.between(0, 24)).order_by(Ticket.week_number, Ticket.id).all()
-    for ticket in tickets:
-        required = ticket.week_number not in first_ticket_week
-        add(ticket.week_number, "support_ticket", ticket.id, required, 30)
-        first_ticket_week.add(ticket.week_number)
+    for week_number, scenario_key in SERVICE_DESK_WEEKS.items():
+        add(week_number, "service_desk_scenario", scenario_key, True, 30)
 
     cli_labs = {row.id: row for row in db.query(CliLab).filter(CliLab.id.in_(set(CLI_WEEKS))).all()}
     for lab_id, week_number in CLI_WEEKS.items():

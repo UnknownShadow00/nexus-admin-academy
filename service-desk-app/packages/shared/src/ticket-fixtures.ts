@@ -3,7 +3,63 @@ import { TicketStatus, type Ticket } from './ticket-types';
 
 export const FIXTURE_REFERENCE_TIME = '2026-07-28T10:30:00.000Z';
 
-export const TICKET_FIXTURES = [
+type ConvertedTicketSpec = {
+  id: string;
+  title: string;
+  category: TicketCategory;
+  priority: Priority;
+  assetTag: string;
+  deviceName: string;
+  deviceKind: Ticket['device']['kind'];
+  operatingSystem: string;
+  requester: string;
+  department: string;
+  issue: string;
+  impact: string;
+  troubleshooting: readonly string[];
+  hints: readonly string[];
+};
+
+function convertedTicket(spec: ConvertedTicketSpec): Ticket {
+  return {
+    activity: [{ id: `${spec.id}-created`, label: 'Ticket created', timestamp: FIXTURE_REFERENCE_TIME }],
+    assignedTo: 'you',
+    category: spec.category,
+    createdAt: FIXTURE_REFERENCE_TIME,
+    description: {
+      businessImpact: spec.impact,
+      issue: spec.issue,
+      reportedByLine: 'Submitted through the employee support portal.',
+      troubleshooting: [...spec.troubleshooting],
+    },
+    device: { assetTag: spec.assetTag, deviceName: spec.deviceName, kind: spec.deviceKind, operatingSystem: spec.operatingSystem, state: 'attention' },
+    escalated: false,
+    hints: [...spec.hints],
+    id: spec.id as `INC${number}`,
+    notes: [],
+    priority: spec.priority,
+    requester: { contact: 'Employee support portal', department: spec.department, email: `${spec.requester.toLowerCase().replace(/ /g, '.')}@nexus.example`, location: 'Nexus office', name: spec.requester },
+    sla: { dueAt: '2026-07-28T14:30:00.000Z', target: 'Respond within 4 hours' },
+    status: TicketStatus.Open,
+    suggestedTools: ['remote-desktop', 'documentation', 'company-chat'],
+    title: spec.title,
+  };
+}
+
+const CONVERTED_LEGACY_TICKETS: readonly Ticket[] = [
+  convertedTicket({ id: 'INC2501', title: 'Desktop opens with a temporary Windows profile', category: TicketCategory.Software, priority: Priority.High, assetTag: 'NX-2501', deviceName: 'ACCT-LT-17', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Morgan Ellis', department: 'Accounting', issue: 'After signing in, Morgan sees a fresh desktop and cannot find the usual Documents files.', impact: 'Month-end work is paused while the user data appears unavailable.', troubleshooting: ['The user restarted once.', 'A nearby teammate can open the same shared files.'], hints: ['Protect user data before profile repair.', 'Compare the sign-in profile path with the expected local profile.', 'Confirm the original files are available after repairing the profile.'] }),
+  convertedTicket({ id: 'INC2502', title: 'Excel crashes only when one reporting workbook opens', category: TicketCategory.Software, priority: Priority.Medium, assetTag: 'NX-2502', deviceName: 'FIN-WS-44', deviceKind: 'desktop', operatingSystem: 'Windows 11 Enterprise', requester: 'Priya Shah', department: 'Finance', issue: 'Excel closes when the monthly reporting workbook opens, but other workbooks remain usable.', impact: 'The finance team cannot finish the monthly report.', troubleshooting: ['A blank workbook opens normally.', 'The workbook was copied locally and still crashes.'], hints: ['Reproduce the specific crash before changing Office.', 'Use Safe Mode or add-in isolation to separate workbook and add-in causes.', 'Verify the original workbook opens and saves after the repair.'] }),
+  convertedTicket({ id: 'INC2503', title: 'One desk lost network after an office move', category: TicketCategory.Network, priority: Priority.High, assetTag: 'NX-2503', deviceName: 'OPS-WS-12', deviceKind: 'desktop', operatingSystem: 'Windows 11 Enterprise', requester: 'Jordan Kim', department: 'Operations', issue: 'A workstation moved to a new desk has no network while adjacent desks work normally.', impact: 'One dispatcher cannot access the order system.', troubleshooting: ['The workstation was restarted.', 'Nearby workstations remain connected.'], hints: ['Start with physical link and compare the nearby working desk.', 'Check the assigned switch port and VLAN before renewing addresses.', 'Verify the original order system after the port is corrected.'] }),
+  convertedTicket({ id: 'INC2504', title: 'Department printer stopped after its DHCP address changed', category: TicketCategory.Hardware, priority: Priority.High, assetTag: 'NX-2504', deviceName: 'ENG-WS-09', deviceKind: 'desktop', operatingSystem: 'Windows 11 Enterprise', requester: 'Sofia Nguyen', department: 'Engineering', issue: 'The shared department printer is reachable from one workstation but this workstation still sends jobs to its old address.', impact: 'Engineering cannot print drawing review packets from the affected workstation.', troubleshooting: ['The printer is powered on.', 'A colleague printed successfully from a nearby computer.'], hints: ['Confirm whether this is local or printer-wide.', 'Compare the configured print port with the printer’s current address.', 'Update the port safely and print a test page.'] }),
+  convertedTicket({ id: 'INC2505', title: 'New employee cannot open the department share', category: TicketCategory.Access, priority: Priority.Medium, assetTag: 'NX-2505', deviceName: 'MKT-LT-05', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Taylor Reed', department: 'Marketing', issue: 'A new employee receives Access Denied for the Marketing share that peers can use.', impact: 'The new hire cannot access approved team materials.', troubleshooting: ['The share opens for the team lead.', 'The employee can sign in successfully.'], hints: ['Confirm the requested resource and compare a peer with the same role.', 'Check approved group access before granting anything.', 'Verify the original share after the least-privilege change.'] }),
+  convertedTicket({ id: 'INC2506', title: 'Assistant requests access to restricted salary records', category: TicketCategory.Access, priority: Priority.High, assetTag: 'NX-2506', deviceName: 'HR-LT-21', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Casey Lane', department: 'Executive Office', issue: 'An executive assistant asks for access to the restricted HR salary folder to help with a meeting.', impact: 'The request needs a timely, safe response without expanding access improperly.', troubleshooting: ['The requester has access to general HR materials.', 'No written approval is attached.'], hints: ['Identify the authorization boundary.', 'Do not use a group change as a substitute for approval.', 'Document a safe escalation and verify the request is routed correctly.'] }),
+  convertedTicket({ id: 'INC2507', title: 'Account keeps locking after a password change', category: TicketCategory.Access, priority: Priority.High, assetTag: 'NX-2507', deviceName: 'SALES-LT-08', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Avery Monroe', department: 'Sales', issue: 'The account locks again shortly after each successful password reset.', impact: 'The employee repeatedly loses access to sales systems.', troubleshooting: ['The account was unlocked once.', 'The employee can sign in immediately after the reset.'], hints: ['Find what is reusing the old credential instead of resetting again.', 'Inspect saved mappings, Credential Manager, and scheduled connections.', 'Remove the stale credential and monitor for another lockout.'] }),
+  convertedTicket({ id: 'INC2508', title: 'Employee entered credentials into a phishing page', category: TicketCategory.Access, priority: Priority.High, assetTag: 'NX-2508', deviceName: 'PAY-LT-03', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Riley Brown', department: 'Payroll', issue: 'An employee reports entering their password into a page reached from a suspicious email.', impact: 'The account and payroll data may be exposed until containment is complete.', troubleshooting: ['The employee closed the page.', 'No access changes have been made yet.'], hints: ['Contain first; do not treat this as ordinary password troubleshooting.', 'Reset credentials, revoke active sessions, and escalate through the security path.', 'Record the actions and safe follow-up for the employee.'] }),
+  convertedTicket({ id: 'INC2509', title: 'Workstation disk fills again every few days', category: TicketCategory.Software, priority: Priority.Medium, assetTag: 'NX-2509', deviceName: 'SUP-WS-31', deviceKind: 'desktop', operatingSystem: 'Windows 11 Enterprise', requester: 'Devon Ross', department: 'Support', issue: 'The C: drive fills repeatedly even after temporary files are deleted.', impact: 'The support workstation becomes slow and cannot install approved updates.', troubleshooting: ['Temporary files were removed last week.', 'Free space returned briefly, then fell again.'], hints: ['Identify what is growing rather than repeatedly deleting symptoms.', 'Inspect log and application storage trends.', 'Correct the source safely and verify free space remains stable.'] }),
+  convertedTicket({ id: 'INC2510', title: 'Restored laptop reports a trust relationship failure', category: TicketCategory.Access, priority: Priority.Medium, assetTag: 'NX-2510', deviceName: 'OPS-LT-58', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Sam Ortiz', department: 'Operations', issue: 'A restored domain laptop rejects sign-in with a trust relationship error while peer laptops work.', impact: 'The employee cannot access the domain workstation after recovery.', troubleshooting: ['The network is connected.', 'Other domain users can sign in on nearby devices.'], hints: ['Separate user credentials from the computer account relationship.', 'Confirm the secure-channel failure before changing the user account.', 'Repair or escalate the device trust safely and verify domain sign-in.'] }),
+];
+
+const BASE_TICKET_FIXTURES = [
   {
     activity: [
       {
@@ -478,7 +534,12 @@ export const TICKET_FIXTURES = [
     suggestedTools: ['remote-desktop', 'documentation'],
     title: 'Print jobs disappear on the HR workstation',
   },
-] as const satisfies readonly Ticket[];
+ ] as const satisfies readonly Ticket[];
+
+export const TICKET_FIXTURES = [
+  ...BASE_TICKET_FIXTURES,
+  ...CONVERTED_LEGACY_TICKETS,
+] as const;
 
 export function getFixtureTicket(ticketId: string) {
   return TICKET_FIXTURES.find((ticket) => ticket.id === ticketId);

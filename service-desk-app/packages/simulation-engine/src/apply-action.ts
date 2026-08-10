@@ -1148,6 +1148,12 @@ function workflowEvidenceForAction(
     if (action.payload.stepId === 'system.restart-pdf-helper') {
       return 'system.restart-pdf-helper';
     }
+    // Converted legacy cases use named, scenario-specific controls. The
+    // control is accepted only when it belongs to the active fixture; the
+    // server independently authorizes the resulting evidence for its ticket.
+    if (scenario.actionLabels[action.payload.stepId]) {
+      return action.payload.stepId;
+    }
   }
   return null;
 }
