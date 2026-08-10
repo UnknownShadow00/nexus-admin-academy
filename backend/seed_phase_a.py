@@ -422,7 +422,7 @@ QUIZZES = [
                "They publish technical details to customers", "They satisfy a Windows licensing requirement",
                "A", "MSPs use complete notes as evidence of work performed and as an audit trail for handoffs, billing, and disputes."),
             _q("A single remote user says that every website on one company laptop stopped loading five minutes ago. Other staff in the same office can browse normally. Before changing the laptop, which question best confirms the scope?",
-               "Can nearby staff browse normally?", "What IP address does the laptop have?",
+               "Can nearby staff browse normally?", "What IP configuration does the laptop use?",
                "Can you restart the laptop?", "Can you reproduce it in another browser?",
                "D", "The report already limits the issue to one laptop, so testing another browser is the fastest safe way to distinguish a browser-specific problem from a device or network-path problem. Asking whether nearby staff are affected repeats information the scenario already gives; a restart or IP address is premature."),
             _q("Why should a ticket avoid saying that a user 'obviously deleted' a file?",

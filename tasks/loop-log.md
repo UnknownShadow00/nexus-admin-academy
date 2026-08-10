@@ -1066,3 +1066,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/seed_phase_d.py; backend/seed_phase_e.py; tasks/loop-log.md
 - Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 76/170 to 68/170; all 189 explanations remain present; authored-quality checks and 14 focused seed/organization tests pass.
 - Next: Continue the residual audit worklist through cloud and integrated operations; do not stop at the quantitative guardrail.
+
+## [2026-08-10T08:45:00Z] Task Completed
+- Task: Completed the next Phase 3B residual editorial checkpoint across early troubleshooting, directory, server, and Linux questions.
+- Files changed: backend/seed_phase_a.py; backend/seed_phase_b.py; backend/seed_phase_d.py; backend/seed_phase_e.py; tasks/loop-log.md
+- Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 68/170 to 44/170; all 189 explanations remain present; authored-quality checks and 14 focused seed/organization tests pass.
+- Next: Finish cloud and integrated operations residual signals, then complete the whole-suite and build validation pass.
