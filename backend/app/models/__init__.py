@@ -21,6 +21,7 @@ from app.models.cli_lab import CliLab, CliLabAttempt
 from app.models.video_watch import VideoWatch
 from app.models.curriculum_video import CurriculumVideo
 from app.models.lesson_notes import StudentLessonNote
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.flashcard import FlashcardReview
 from app.models.vm_assignment import VmAssignment
 from app.models.app_setting import AppSetting
@@ -79,6 +80,7 @@ __all__ = [
     "VideoWatch",
     "CurriculumVideo",
     "StudentLessonNote",
+    "StudentLessonProgress",
     "FlashcardReview",
     "VmAssignment",
     "AppSetting",

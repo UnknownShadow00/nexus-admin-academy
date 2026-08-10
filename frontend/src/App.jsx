@@ -8,7 +8,7 @@ import { useDarkMode } from "./hooks/useDarkMode";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import LoginPage from "./pages/LoginPage";
 import StudentHome from "./pages/StudentHome";
-import { authLogout, getTickets, globalSearch } from "./services/api";
+import { authLogout, globalSearch } from "./services/api";
 
 const LessonPage = lazy(() => import("./pages/LessonPage"));
 const CapstonePage = lazy(() => import("./pages/CapstonePage"));
@@ -26,16 +26,12 @@ const TrainingDashboardPage = lazy(() => import("./pages/TrainingDashboardPage")
 const TrainingProgressPage = lazy(() => import("./pages/TrainingProgressPage"));
 const TrainingWeekPage = lazy(() => import("./pages/TrainingWeekPage"));
 const TerminalCommandsPage = lazy(() => import("./pages/TerminalCommandsPage"));
-const TicketFeedback = lazy(() => import("./pages/TicketFeedback"));
-const TicketPage = lazy(() => import("./pages/TicketPage"));
-const TicketsPage = lazy(() => import("./pages/TicketsPage"));
 const AdminHome = lazy(() => import("./pages/AdminHome"));
 const AdminStudentsPage = lazy(() => import("./pages/AdminStudentsPage"));
 const ModuleManager = lazy(() => import("./pages/ModuleManager"));
 const AICostDashboard = lazy(() => import("./pages/admin/AICostDashboard"));
 const AdminCapstonesPage = lazy(() => import("./pages/admin/AdminCapstonesPage"));
 const AdminLabsPage = lazy(() => import("./pages/admin/AdminLabsPage"));
-const AdminTicketReviewPage = lazy(() => import("./pages/admin/AdminTicketReviewPage"));
 const AdminServiceDeskReviewPage = lazy(() => import("./pages/admin/AdminServiceDeskReviewPage"));
 const BookmarkletPage = lazy(() => import("./pages/admin/BookmarkletPage"));
 const QuestionImportPage = lazy(() => import("./pages/admin/QuestionImportPage"));
@@ -51,7 +47,6 @@ const studentNavItems = [
     label: "Extra Practice",
     children: [
       { to: "/training", label: "My Training" },
-      { to: "/tickets", label: "Support Tickets" },
       { to: "/labs", label: "Guided Labs" },
       { to: "/cli-labs", label: "Networking Labs" },
       { to: "/capstones", label: "Capstones" },
@@ -78,7 +73,6 @@ const adminNavItems = [
   {
     label: "Assessments & Labs",
     children: [
-      { to: "/admin/ticket-review", label: "Ticket Review" },
       { to: "/admin/service-desk-review", label: "Service Desk Review" },
       { to: "/admin/labs", label: "Labs & VM Assignments" },
       { to: "/admin/capstones", label: "Capstones" },
@@ -106,7 +100,7 @@ function NotFoundPage() {
   );
 }
 
-function AppNav({ items, hasTicketFeedback, isAdminRoute, onNavigate, mobile = false }) {
+function AppNav({ items, isAdminRoute, onNavigate, mobile = false }) {
   const location = useLocation();
   const [openGroup, setOpenGroup] = useState(null);
 
@@ -119,14 +113,7 @@ function AppNav({ items, hasTicketFeedback, isAdminRoute, onNavigate, mobile = f
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
-  const linkContent = (item) => (
-    <>
-      {item.label}
-      {!isAdminRoute && item.to === "/tickets" && hasTicketFeedback ? (
-        <span className="ml-2 inline-flex h-2 w-2 rounded-full bg-orange-400" title="New feedback" />
-      ) : null}
-    </>
-  );
+  const linkContent = (item) => item.label;
 
   return (
     <nav className={mobile ? "flex flex-col gap-2" : "hidden items-center gap-3 md:flex"}>
@@ -233,7 +220,6 @@ export default function App() {
   const authenticated = isAuthenticated();
   const currentStudent = authenticated ? getCurrentStudent() : null;
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
-  const [hasTicketFeedback, setHasTicketFeedback] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState({ lessons: [], commands: [] });
   const [searchOpen, setSearchOpen] = useState(false);
@@ -264,24 +250,6 @@ export default function App() {
     setSearchQuery("");
     setSearchResults({ lessons: [], commands: [] });
   }, [location.pathname]);
-
-  useEffect(() => {
-    const studentId = currentStudent?.id;
-    if (!authenticated || !studentId || isAdminRoute || isAdminLoginRoute) {
-      setHasTicketFeedback(false);
-      return;
-    }
-    const run = async () => {
-      try {
-        const res = await getTickets(undefined, studentId, { suppressToast: true });
-        const rows = Array.isArray(res.data) ? res.data : [];
-        setHasTicketFeedback(rows.some((row) => row.status === "needs_revision"));
-      } catch {
-        setHasTicketFeedback(false);
-      }
-    };
-    run();
-  }, [authenticated, currentStudent?.id, isAdminLoginRoute, isAdminRoute, location.pathname]);
 
   useEffect(() => {
     if (!showSearch || !searchOpen) return;
@@ -317,7 +285,7 @@ export default function App() {
         <header className="relative sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
           <div className="mx-auto flex max-w-7xl items-center gap-3 px-6 py-4">
             <div className="text-lg font-bold">Nexus Admin Academy</div>
-            <AppNav items={navItems} hasTicketFeedback={hasTicketFeedback} isAdminRoute={isAdminRoute} />
+            <AppNav items={navItems} isAdminRoute={isAdminRoute} />
             <div className="ml-auto flex items-center gap-3">
               <button
                 className={`${iconButtonClass} md:hidden`}
@@ -391,7 +359,7 @@ export default function App() {
             {mobileOpen ? (
               <div className="absolute inset-x-0 top-full z-30 border-b border-slate-200 bg-white px-6 py-4 shadow-lg md:hidden dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex flex-col gap-3">
-                  <AppNav items={navItems} hasTicketFeedback={hasTicketFeedback} isAdminRoute={isAdminRoute} onNavigate={() => setMobileOpen(false)} mobile />
+                  <AppNav items={navItems} isAdminRoute={isAdminRoute} onNavigate={() => setMobileOpen(false)} mobile />
                   {!isAdminRoute ? (
                     <button
                       className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200"
@@ -423,9 +391,6 @@ export default function App() {
         <Route path="/study-tracker" element={<Navigate to="/training/content" replace />} />
         <Route path="/quizzes/:quizId" element={<RequireAuth><QuizPage /></RequireAuth>} />
         <Route path="/quizzes/:quizId/review" element={<RequireAuth><QuizReviewPage /></RequireAuth>} />
-        <Route path="/tickets" element={<RequireAuth><TicketsPage /></RequireAuth>} />
-        <Route path="/tickets/:ticketId" element={<RequireAuth><TicketPage /></RequireAuth>} />
-        <Route path="/tickets/:submissionId/feedback" element={<RequireAuth><TicketFeedback /></RequireAuth>} />
         <Route path="/labs" element={<RequireAuth><LabsPage /></RequireAuth>} />
         <Route path="/labs/:labId" element={<RequireAuth><LabPage /></RequireAuth>} />
         <Route path="/cli-labs" element={<RequireAuth><CliLabsPage /></RequireAuth>} />
@@ -437,9 +402,8 @@ export default function App() {
         <Route path="/admin-login" element={<AdminLoginPage />} />
 
         <Route path="/admin" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminHome /></AdminAccessGate>} />
-        <Route path="/admin/ticket-review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminTicketReviewPage /></AdminAccessGate>} />
         <Route path="/admin/service-desk-review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminServiceDeskReviewPage /></AdminAccessGate>} />
-        <Route path="/admin/review" element={<Navigate to="/admin/ticket-review" replace />} />
+        <Route path="/admin/review" element={<Navigate to="/admin/service-desk-review" replace />} />
         <Route path="/admin/students" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminStudentsPage /></AdminAccessGate>} />
         <Route path="/admin/modules" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><ModuleManager /></AdminAccessGate>} />
         <Route path="/admin/training" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminTrainingPage /></AdminAccessGate>} />

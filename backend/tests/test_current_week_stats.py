@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
 from app.models.learning import Lesson, Module
-from app.models.lesson_notes import StudentLessonNote
+from app.models.lesson_progress import StudentLessonProgress
 from app.routers.students import router as students_router
 from conftest import auth_headers, make_client, make_student
 
@@ -25,7 +25,7 @@ def _seed_progression(db, student, target_week):
         db.add(lesson)
         db.flush()
         if week < target_week:
-            db.add(StudentLessonNote(student_id=student.id, lesson_id=lesson.id, content="done"))
+            db.add(StudentLessonProgress(student_id=student.id, lesson_id=lesson.id, completed_at=datetime.now(timezone.utc)))
     db.commit()
 
 

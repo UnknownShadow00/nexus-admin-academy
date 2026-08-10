@@ -164,24 +164,24 @@ QUIZZES_G = [
         "week_number": 23, "domain_id": "5.0", "lesson_title": "Working a Mixed Queue",
         "questions": [
             _q("A mixed queue's triage pass tags each ticket with:",
-               "A random number", "Technology domain, symptom layer, and fix owner",
-               "The user's mood", "Font color",
+               "A random priority number", "Domain, layer, and owner",
+               "The user's current mood", "A ticket font color",
                "B", "Domain/layer/owner classification routes work correctly in thirty seconds per ticket."),
             _q("'Local works, remote fails' on an Azure VM, a Linux server, and a Windows PC points at:",
-               "Three unrelated methods", "The same gateway/routing/NSG layer — the method transfers",
-               "DNS in all cases", "Reinstalling",
+               "Three unrelated troubleshooting methods", "A shared network-control layer",
+               "DNS resolution in every case", "Reinstalling each operating system",
                "B", "The layered method is portable; only the commands change."),
             _q("During a major incident, your FIRST user communication goes out:",
-               "After the fix, with full details", "Early — affected scope, being worked, next-update time",
-               "Never", "Only if asked",
+               "After the fix with full details", "Send an early status update",
+               "Never during the incident", "Only after a user asks",
                "B", "Early honest status prevents duplicate tickets and panic; details follow."),
             _q("A blameless post-incident note attributes cause to:",
-               "The person who made the mistake", "Process/system gaps (e.g. a checklist missing a step)",
-               "Bad luck", "The vendor, always",
+               "The person who made the mistake", "A process or system gap",
+               "Unavoidable bad luck", "The external vendor alone",
                "B", "Blameless RCA fixes systems; naming people teaches hiding."),
             _q("The prevention section of a good RCA says:",
-               "'Be more careful next time'", "A concrete systemic fix (rotation rule, checklist step, reservation, alert)",
-               "Nothing", "'Users should stop breaking things'",
+               "Be more careful next time", "Add a systemic preventive control",
+               "No prevention is needed", "Users should stop breaking things",
                "B", "Prevention must be actionable and systemic — the class-of-problem fix."),
             _q("Mid-investigation, your shift ends. Before leaving you: (select all that apply)",
                "Write the handoff: state, ruled-out-with-evidence, next step, promises made",
@@ -382,6 +382,7 @@ def seed_phase_g(db) -> dict:
     from app.models.quiz import QUIZ_STATUS_PUBLISHED, Question, Quiz
     from app.models.progression import Role
     from app.models.ticket import Ticket
+    from app.services.seed_question_sync import sync_seed_questions
 
     counts = {"modules": 0, "lessons": 0, "quizzes": 0, "questions": 0, "tickets": 0, "capstones": 0}
     prev_module = db.query(Module).filter(Module.code == "MOD-022").first()
@@ -430,10 +431,7 @@ def seed_phase_g(db) -> dict:
             quiz.question_count = len(qspec["questions"])
             quiz.status = QUIZ_STATUS_PUBLISHED
             quiz.lesson_id = lesson.id if lesson else quiz.lesson_id
-            db.query(Question).filter(Question.quiz_id == quiz.id).delete()
-        for q in qspec["questions"]:
-            db.add(Question(quiz_id=quiz.id, **q))
-            counts["questions"] += 1
+        counts["questions"] += sync_seed_questions(db, quiz, qspec["questions"])
         db.flush()
 
     for tspec in TICKETS_G:

@@ -85,6 +85,32 @@ async function assertNoHorizontalOverflow(page) {
   expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width + 1);
 }
 
+test("student authentication rejects invalid credentials and protects private routes", async ({ page }) => {
+  await page.goto("/progress");
+  await expect(page).toHaveURL(/\/login$/);
+
+  await page.getByLabel("Username").fill(studentUsername);
+  await page.getByLabel("Password").fill("definitely-not-the-password");
+  const rejectedLogin = page.waitForResponse((response) => response.url().endsWith("/auth/login"));
+  await page.getByRole("button", { name: "Login" }).click();
+  expect((await rejectedLogin).status()).toBe(401);
+  await expect(page.getByText("Invalid credentials", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
+
+  await page.getByLabel("Password").fill(studentPassword);
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.goto("/progress");
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Browser Training Student" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto("/progress");
+  await expect(page).toHaveURL(/\/login$/);
+});
+
 test("student follows My Training on desktop and mobile", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await studentLogin(page);
@@ -148,9 +174,10 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
 
   await page.goto("/training");
   await page.getByRole("button", { name: /Extra Practice/ }).click();
-  for (const name of ["My Training", "Support Tickets", "Guided Labs", "Networking Labs", "Command Library", "Terminal Practice"]) {
+  for (const name of ["My Training", "Guided Labs", "Networking Labs", "Command Library", "Terminal Practice"]) {
     await expect(page.getByRole("menuitem", { name, exact: true })).toBeVisible();
   }
+  await expect(page.getByRole("menuitem", { name: "Support Tickets", exact: true })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Capstones", exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "Progress", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
@@ -159,7 +186,6 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
 
   const studentRoutes = [
     ["/quizzes", "Quiz Library"],
-    ["/tickets", "Available Tickets"],
     ["/labs", "Lab Exercises"],
     ["/cli-labs", "Networking Labs"],
     ["/commands", "Command Library"],
@@ -177,18 +203,18 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page).toHaveURL(/\/training$/);
   await expect(page.getByRole("heading", { name: "My Training", exact: true })).toBeVisible();
   // Lesson IDs are not stable across a fresh seed vs. production's
-  // accumulated history, so reach the CompTIA lesson through the UI rather
+  // accumulated history, so reach the orientation lesson through the UI rather
   // than a hard-coded /lessons/{id} route.
   await page.goto("/training/week/0");
-  await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "CompTIA 6-Step Process" }).getByRole("link").click();
-  await expect(page.getByRole("heading", { name: "CompTIA 6-Step Process", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "In this lesson, you'll learn", exact: true })).toBeVisible();
-  await expect(page.getByRole("listitem").filter({ hasText: /^Can identify symptoms$/ })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Lesson notes", exact: true })).toBeVisible();
+  await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Welcome to Nexus: Your First Week" }).getByRole("link").click();
+  const orientationLessonPath = new URL(page.url()).pathname;
+  await expect(page.getByRole("heading", { name: "Welcome to Nexus: Your First Week", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Mark lesson complete", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Optional notes", exact: true })).toBeVisible();
   await page.goto("/quizzes/42");
   await expect(page.getByText("Question 1 of 4", { exact: true })).toBeVisible();
-  await page.goto("/tickets/1");
-  await expect(page.getByRole("heading", { name: /DNS resolution failing/ })).toBeVisible();
+  await page.goto("/tickets");
+  await expect(page.getByRole("heading", { name: "That page is not part of your learning path." })).toBeVisible();
   await page.goto("/labs/4");
   await expect(page.getByRole("heading", { name: "Hardware Component Identification", exact: true })).toBeVisible();
   await page.goto("/cli-labs/meet-cli-001");
@@ -203,8 +229,24 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await assertNoHorizontalOverflow(page);
   await page.goto("/training/week/0");
   await assertNoHorizontalOverflow(page);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: /Begin Your IT Training|Continue Your Training/ })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+  await page.goto("/progress");
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+  await page.goto(orientationLessonPath);
+  await expect(page.getByRole("heading", { name: "Welcome to Nexus: Your First Week", exact: true })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+  await page.goto("/quizzes/42");
+  await expect(page.getByText("Question 1 of 4", { exact: true })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+  await page.goto("/service-desk", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Ticket Queue" })).toBeVisible();
+  await assertNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
   await page.getByRole("button", { name: "Browser Training Student" }).click();
   await expect(page).toHaveURL(/\/login$/);
 
@@ -242,8 +284,8 @@ test("admin can open Weekly Training under Learning Content", async ({ page }) =
     await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
   }
   await page.goto("/admin/review");
-  await expect(page).toHaveURL(/\/admin\/ticket-review$/);
-  await expect(page.getByRole("heading", { name: "Ticket Review Queue" })).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/service-desk-review$/);
+  await expect(page.getByRole("heading", { name: "Service Desk Review" })).toBeVisible();
   await page.setViewportSize({ width: 375, height: 812 });
   await page.getByRole("button", { name: "Toggle menu" }).click();
   await expect(page.getByRole("navigation").getByText("Learning Content", { exact: true })).toBeVisible();
@@ -269,6 +311,46 @@ test("capstone navigation remains role gated", async ({ page }) => {
   await page.getByRole("menuitem", { name: "Capstones", exact: true }).click();
   await expect(page).toHaveURL(/\/capstones$/);
   await expect(page.getByRole("heading", { name: /Capstone/i }).first()).toBeVisible();
+});
+
+test("required Nexus-authored quiz grades and reviews every answer", async ({ page }) => {
+  await studentLogin(page);
+  await page.goto("/quizzes/1");
+  await expect(page.getByText(/Question 1 of 8/)).toBeVisible();
+
+  for (let index = 1; index <= 8; index += 1) {
+    const questionPanel = page.locator("section .panel").first();
+    const questionText = await questionPanel.textContent();
+    const correctOptions = questionText.includes("FIRST thing missing")
+      ? ["The reported symptom"]
+      : questionText.includes("USER-FACING resolution")
+        ? ["Your profile was repaired and your files open normally."]
+        : questionText.includes("without doing what")
+          ? ["Repeating the same questions"]
+          : questionText.includes("INTERNAL notes")
+            ? ["Exact command output proving the fix", "Event ID and source", "What was ruled out and how"]
+            : questionText.includes("grading anchor")
+              ? ["verification"]
+              : questionText.includes("MSPs care intensely")
+                ? ["They support billing and auditability"]
+                : questionText.includes("confirms the scope")
+                  ? ["Can you reproduce it in another browser?"]
+                  : ["It is unproven and unprofessional"];
+    for (const option of correctOptions) {
+      await questionPanel.getByText(option, { exact: true }).click();
+    }
+    await page.getByRole("button", { name: index === 8 ? "Submit Quiz" : "Next", exact: true }).click();
+  }
+
+  await expect(page.getByText("Passed", { exact: true })).toBeVisible();
+  await expect(page.getByText("Answer Review", { exact: true })).toBeVisible();
+  await expect(page.getByText("Why this is correct", { exact: true })).toHaveCount(8);
+  await assertNoHorizontalOverflow(page);
+
+  await page.goto("/quizzes/1/review");
+  await expect(page.getByRole("heading", { name: "Answer Review" })).toBeVisible();
+  // Ten selected correct options (the multi-select has three) plus the score summary label.
+  await expect(page.getByText("Correct", { exact: true })).toHaveCount(11);
 });
 
 test("a disposable beginner completes Week 0 with a shared quiz and persistent progress", async ({ page, browser }) => {
@@ -307,7 +389,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     await expect(page).toHaveURL(/\/lessons\/\d+$/);
     const orientationLessonId = new URL(page.url()).pathname.split("/").pop();
 
-    const orientationNote = page.getByPlaceholder("Write one sentence: Where will you look when you are unsure what comes next?");
+    const orientationNote = page.getByPlaceholder("Optional: note where you will look when you are unsure what comes next.");
     const orientationSaved = page.waitForResponse((response) => response.url().endsWith(`/api/lessons/${orientationLessonId}/notes`) && response.request().method() === "PUT" && response.ok());
     await orientationNote.fill("I will open Home and follow the next My Training activity.");
     await orientationSaved;
@@ -348,6 +430,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     await expect(page.getByRole("heading", { name: "Ticketing Systems Quiz" })).toBeVisible();
     await expect(page.getByText("Passed", { exact: true })).toBeVisible();
     await expect(page.getByText("Answer Review", { exact: true })).toBeVisible();
+    await expect(page.getByText("Why this is correct", { exact: true })).toHaveCount(4);
     await page.getByRole("link", { name: "Return to This Week" }).click();
     await expect(page).toHaveURL(/\/training\/week\/0$/);
 
@@ -359,16 +442,12 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     }
     await expect(page.locator('article[data-activity-type="video"]').filter({ hasText: "Ticketing Systems" }).first().getByRole("button", { name: "Mark Watched" })).toBeVisible();
 
-    // Already back on /training/week/0 — reach the CompTIA lesson through
+    // Already back on /training/week/0 — complete the orientation lesson through
     // its activity card rather than a hard-coded /lessons/{id} route.
-    await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "CompTIA 6-Step Process" }).getByRole("link").click();
+    await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Welcome to Nexus: Your First Week" }).getByRole("link").click();
     await expect(page).toHaveURL(/\/lessons\/\d+$/);
-    const methodologyLessonId = new URL(page.url()).pathname.split("/").pop();
-    const methodologyNote = page.getByPlaceholder("Your notes for this lesson...");
-    const methodologySaved = page.waitForResponse((response) => response.url().endsWith(`/api/lessons/${methodologyLessonId}/notes`) && response.request().method() === "PUT" && response.ok());
-    await methodologyNote.fill("I will identify the problem before testing a theory and document the result.");
-    await methodologySaved;
-    await expect(page.locator("p.opacity-100").getByText("Saved", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Mark lesson complete", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Lesson complete", exact: true })).toBeVisible();
 
     await page.goto("/training/week/0");
     for (const title of ["Ticketing Systems", "Document Types"]) {
@@ -377,7 +456,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
       await expect(page.locator('article[data-activity-type="video"]').filter({ hasText: title }).first().getByRole("link", { name: "Watch Again" })).toBeVisible();
     }
     const weekHeaderText = await page.locator("main > header").innerText();
-    expect(weekHeaderText).toContain("5 of 5 required complete");
+    expect(weekHeaderText).toContain("4 of 4 required complete");
     await expect(page.getByRole("heading", { name: "Week 0 Complete" })).toBeVisible();
     await page.getByText(/Extra practice \(/).click();
     await expect(page.locator('article[data-activity-type="video"]').filter({ hasText: "How to Pass Your A+" }).first().getByRole("button", { name: "Mark Watched" })).toBeVisible();
@@ -398,7 +477,7 @@ test("a disposable beginner completes Week 0 with a shared quiz and persistent p
     await expect(page.getByRole("heading", { name: "Continue Your Training" })).toBeVisible();
     await expect(page.getByText(/Week 1 —/).first()).toBeVisible();
     await page.goto("/training/week/0");
-    await expect(page.getByText("5 of 5 required activities complete").first()).toBeVisible();
+    await expect(page.getByText("4 of 4 required activities complete").first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
     await page.setViewportSize({ width: 375, height: 812 });

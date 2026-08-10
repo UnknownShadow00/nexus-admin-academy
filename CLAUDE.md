@@ -114,7 +114,7 @@ Run the checks that match the change:
 cd backend
 ./.venv/bin/python -m compileall -q app tests
 ./.venv/bin/python -m pytest -q
-./.venv/bin/alembic current
+./.venv/bin/python -m alembic current
 
 cd ../frontend
 npm ci

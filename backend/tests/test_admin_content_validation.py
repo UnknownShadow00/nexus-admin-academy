@@ -1,5 +1,5 @@
 from app.config import load_env
-from app.models.quiz import Question
+from app.models.quiz import Question, Quiz
 from app.routers.admin_content import router as admin_content_router
 from app.routers.admin_quiz import router as admin_quiz_router
 from conftest import make_client
@@ -143,6 +143,10 @@ def test_examcompass_scrape_save_flags_invalid_question_without_rejecting_batch(
     assert body["question_count"] == 2
     assert body["flagged_for_review_count"] == 1
 
+    # Imported content is stored for editorial review, never activated merely
+    # because the transport succeeded.
+    assert db.get(Quiz, body["quiz_id"]).is_active is False
+
     questions = db.query(Question).filter(Question.quiz_id == body["quiz_id"]).order_by(Question.id).all()
     assert questions[0].flagged_for_review is False
     assert questions[1].flagged_for_review is True
@@ -191,3 +195,30 @@ def test_bookmarklet_import_preserves_multiselect_and_flags_select_n_mismatch(mo
     assert questions[0].flagged_for_review is False
     assert questions[1].flagged_for_review is True
     assert "Select 2" in questions[1].flag_reason
+    assert db.get(Quiz, body["quiz_id"]).is_active is False
+
+
+def test_examcompass_import_flags_duplicate_options_for_review(monkeypatch, db):
+    headers = _headers(monkeypatch)
+    response = client.post(
+        "/api/admin/quiz/scrape-save",
+        json={
+            "title": "Duplicate option import",
+            "source_url": "https://examcompass.com/quiz",
+            "week_number": 3,
+            "questions": [{
+                "question_text": "Which value is correct?",
+                "option_a": "Same",
+                "option_b": "Same",
+                "correct_answer": "A",
+            }],
+        },
+        headers=headers,
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()["data"]
+    assert body["flagged_for_review_count"] == 1
+    question = db.query(Question).filter(Question.quiz_id == body["quiz_id"]).one()
+    assert question.flagged_for_review is True
+    assert "duplicate text" in question.flag_reason.lower()

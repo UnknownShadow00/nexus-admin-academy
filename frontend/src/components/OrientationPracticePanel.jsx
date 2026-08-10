@@ -83,12 +83,12 @@ export default function OrientationPracticePanel({ onProgressChange, refreshKey 
       </div>
 
       <ol className="space-y-3">
-        <Step complete={steps.lesson_note}>
-          <strong>1. Save your note.</strong> Use the note box above to answer its one-sentence prompt. It saves to your account automatically.
+        <Step complete={steps.lesson_completion}>
+          <strong>1. Mark the orientation lesson complete.</strong> Review the walkthrough above, then use its completion button. Notes are optional.
         </Step>
         <Step complete={steps.quiz}>
           <strong>2. Take the required Week 0 checkpoint.</strong>{" "}
-          {steps.lesson_note ? <Link className="font-medium text-blue-700 underline dark:text-blue-300" to={progress.quiz_route}>Open Ticketing Systems Quiz</Link> : "First save your note, then the quiz link will be ready."}
+          {steps.lesson_completion ? <Link className="font-medium text-blue-700 underline dark:text-blue-300" to={progress.quiz_route}>Open Ticketing Systems Quiz</Link> : "First mark the orientation lesson complete, then the quiz link will be ready."}
         </Step>
         <Step complete={steps.practice_response}>
           <strong>3. Save a harmless practice response.</strong>

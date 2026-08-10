@@ -4,6 +4,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_ROOT="$REPO_ROOT/backend"
+BACKEND_PYTHON="$BACKEND_ROOT/.venv/bin/python"
 ENV_FILE="${NEXUS_ENV_FILE:-$BACKEND_ROOT/.env}"
 FAILED=0
 
@@ -106,14 +107,45 @@ fi
 for command in python3 gzip tar docker curl; do
     if command -v "$command" >/dev/null 2>&1; then pass "$command is available"; else fail "$command is unavailable"; fi
 done
-if [ -x "$BACKEND_ROOT/.venv/bin/alembic" ]; then pass "backend virtual environment is available"; else fail "backend virtual environment is missing"; fi
+if [ -x "$BACKEND_PYTHON" ]; then pass "backend virtual environment is available"; else fail "backend virtual environment is missing"; fi
 if [ -x "$REPO_ROOT/scripts/backup_sqlite.sh" ]; then pass "SQLite backup script is executable"; else fail "SQLite backup script is not executable"; fi
 
-if [ -x "$BACKEND_ROOT/.venv/bin/alembic" ]; then
-    HEADS="$(cd "$BACKEND_ROOT" && .venv/bin/alembic heads 2>/dev/null | awk '{print $1}')"
-    CURRENT="$(cd "$BACKEND_ROOT" && .venv/bin/alembic current 2>/dev/null | awk '{print $1}')"
-    if [ "$(printf '%s\n' "$HEADS" | sed '/^$/d' | wc -l)" -eq 1 ]; then pass "Alembic has one head: $HEADS"; else fail "Alembic does not have exactly one head"; fi
-    if [ "$CURRENT" = "$HEADS" ]; then pass "database revision matches Alembic head"; else fail "database revision does not match Alembic head"; fi
+if [ -x "$BACKEND_PYTHON" ]; then
+    # Use the venv interpreter as a module from backend/. Unlike the generated
+    # console-script entry point, this puts backend/ on sys.path while Alembic
+    # loads revision modules for commands such as `heads` and `history`.
+    if HEADS_OUTPUT="$(cd "$BACKEND_ROOT" && "$BACKEND_PYTHON" -m alembic heads)"; then
+        HEADS="$(printf '%s\n' "$HEADS_OUTPUT" | awk 'NF {print $1}')"
+        HEAD_COUNT="$(printf '%s\n' "$HEADS" | sed '/^$/d' | wc -l)"
+        if [ "$HEAD_COUNT" -eq 1 ]; then
+            HEAD="$(printf '%s\n' "$HEADS" | head -n 1)"
+            pass "Alembic has one head: $HEAD"
+        else
+            fail "Alembic does not have exactly one head"
+        fi
+    else
+        fail "Alembic could not load migration heads"
+    fi
+
+    if CURRENT_OUTPUT="$(cd "$BACKEND_ROOT" && "$BACKEND_PYTHON" -m alembic current)"; then
+        CURRENT="$(printf '%s\n' "$CURRENT_OUTPUT" | awk 'NF {print $1}')"
+        CURRENT_COUNT="$(printf '%s\n' "$CURRENT" | sed '/^$/d' | wc -l)"
+        if [ "$CURRENT_COUNT" -ne 1 ]; then
+            fail "database does not have exactly one current Alembic revision"
+        fi
+    else
+        fail "Alembic could not read the current database revision"
+    fi
+
+    if [ "${HEAD_COUNT:-0}" -eq 1 ] && [ "${CURRENT_COUNT:-0}" -eq 1 ]; then
+        if [ "$CURRENT" = "$HEAD" ]; then
+            pass "database revision matches Alembic head: $CURRENT"
+        elif (cd "$BACKEND_ROOT" && "$BACKEND_PYTHON" -m alembic history -r "$CURRENT:$HEAD" >/dev/null); then
+            pass "database revision $CURRENT is a valid ancestor of head $HEAD"
+        else
+            fail "database revision $CURRENT is not a valid ancestor of head $HEAD"
+        fi
+    fi
 fi
 
 AVAILABLE_KB="$(df -Pk "$REPO_ROOT" | awk 'NR==2 {print $4}')"

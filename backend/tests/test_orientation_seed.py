@@ -10,7 +10,6 @@ from seed import ORIENTATION_SUMMARY, seed_module0_and_methodology
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 ORIENTATION_TITLE = "Welcome to Nexus: Your First Week"
-METHODOLOGY_TITLE = "CompTIA 6-Step Process"
 
 
 def _run(command: list[str], database_url: str) -> subprocess.CompletedProcess[str]:
@@ -68,6 +67,7 @@ def _fresh_seed_snapshot(database_path: Path) -> dict:
             "week_zero_activities": week_zero_activities,
             "week_count": connection.execute("SELECT count(*) FROM training_weeks").fetchone()[0],
             "activity_count": connection.execute("SELECT count(*) FROM training_week_activities").fetchone()[0],
+            "legacy_support_ticket_count": connection.execute("SELECT count(*) FROM training_week_activities WHERE activity_type = 'support_ticket'").fetchone()[0],
             "active_video_count": connection.execute("SELECT count(*) FROM curriculum_videos WHERE active = 1").fetchone()[0],
         }
 
@@ -87,21 +87,20 @@ def test_completely_fresh_seed_contains_orientation_and_is_idempotent(tmp_path):
     second = _fresh_seed_snapshot(database_path)
     validation = _run([python, "scripts/validate_training_curriculum.py"], database_url)
 
-    assert [(title, order) for _, title, order in first["lessons"]] == [
-        (ORIENTATION_TITLE, 1),
-        (METHODOLOGY_TITLE, 2),
-    ]
+    assert [(title, order) for _, title, order in first["lessons"]] == [(ORIENTATION_TITLE, 1)]
     assert first["orientation_activities"] == [(f"week-0-lesson-{first['lessons'][0][0]}", 1, 1)]
     assert first["week_zero_activities"] == [
         ("week-0-lesson-1", "lesson", "1", 1),
-        ("week-0-lesson-2", "lesson", "2", 2),
-        ("week-0-video-182", "video", "182", 3),
-        ("week-0-video-166", "video", "166", 4),
-        ("week-0-video-168", "video", "168", 5),
-        ("week-0-quiz-42", "quiz", "42", 6),
+        ("week-0-video-182", "video", "182", 2),
+        ("week-0-video-166", "video", "166", 3),
+        ("week-0-video-168", "video", "168", 4),
+        ("week-0-quiz-42", "quiz", "42", 5),
     ]
     assert first["week_count"] == 25
-    assert first["activity_count"] == 296
+    # Legacy support_ticket activities are retired; the reviewed Service Desk
+    # scenarios replace the required curriculum path instead.
+    assert first["activity_count"] == 256
+    assert first["legacy_support_ticket_count"] == 0
     assert first["active_video_count"] == 137
     assert second == first
     assert '"valid": true' in validation.stdout
@@ -132,15 +131,7 @@ def test_seed_does_not_rewrite_existing_production_style_orientation(db):
         required_notes_template="Existing reviewed notes prompt",
         status="published",
     )
-    methodology = Lesson(
-        module_id=module.id,
-        title=METHODOLOGY_TITLE,
-        summary="Existing methodology content",
-        lesson_order=2,
-        estimated_minutes=45,
-        status="published",
-    )
-    db.add_all([orientation, methodology])
+    db.add(orientation)
     db.commit()
     before = [
         (row.id, row.title, row.summary, row.lesson_order, row.estimated_minutes, row.required_notes_template, row.status)

@@ -32,8 +32,8 @@ def save_orientation_practice(
     # This is intentionally not a ticket submission: no XP, AI call, mentor
     # review, leaderboard event, or promotion-gate record is created here.
     state = get_orientation_state(db, current_student)
-    if not state["steps"]["lesson_note"] or not state["steps"]["quiz"]:
-        raise HTTPException(status_code=409, detail="Save your orientation note and take the Ticketing Systems Quiz before this practice step.")
+    if not state["steps"]["lesson_completion"] or not state["steps"]["quiz"]:
+        raise HTTPException(status_code=409, detail="Mark the orientation lesson complete and take the Ticketing Systems Quiz before this practice step.")
 
     row = (
         db.query(StudentOnboardingPractice)

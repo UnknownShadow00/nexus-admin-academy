@@ -116,6 +116,9 @@ class Question(Base):
     import_filename: Mapped[str | None] = mapped_column(Text, nullable=True)
     flagged_for_review: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0", default=False, index=True)
     flag_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Stable identity for Nexus-authored seed content. Imported questions keep
+    # this NULL; their source/fingerprint metadata remains authoritative.
+    seed_key: Mapped[str | None] = mapped_column(String(160), nullable=True, unique=True, index=True)
 
     quiz = relationship("Quiz", back_populates="questions")
 

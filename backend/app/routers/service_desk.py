@@ -324,7 +324,7 @@ def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, p
     definition = objective_definition(key, version.definition_json or {}) if version else None
     if definition is None:
         return False
-    rules = (*definition.required_all, *definition.required_any)
+    rules = definition.authorized_rules
     return any(rule.event_type == event_type and payload_matches(payload, rule.payload) for rule in rules)
 
 
@@ -347,7 +347,7 @@ def request_action(attempt_id: int, body: ServiceDeskActionCreate, current_stude
     definition = objective_definition(key, version.definition_json or {}) if version else None
     objective_action = definition and any(
         rule.event_type == body.event_type and payload_matches(body.payload, rule.payload)
-        for rule in (*definition.required_all, *definition.required_any)
+        for rule in definition.authorized_rules
     )
     if objective_action and not trusted:
         raise HTTPException(409, "Action is not available in the current server-authoritative attempt state")

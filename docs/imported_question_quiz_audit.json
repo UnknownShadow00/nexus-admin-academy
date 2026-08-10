@@ -1,0 +1,1390 @@
+{
+  "generated_at": "2026-08-10T08:40:56.588295+00:00",
+  "authorship_rule": "Imported ExamCompass questions are those whose parent Quiz.source_type == 'examcompass'.",
+  "imported": {
+    "all": {
+      "questions": 777,
+      "single_answer": 610,
+      "multi_select": 167,
+      "explanations": 380,
+      "missing_explanations": 397,
+      "explanation_percent": 48.9,
+      "correct_position_distribution": {
+        "A": 151,
+        "B": 118,
+        "C": 168,
+        "D": 146
+      },
+      "uniquely_longest_correct": 84,
+      "uniquely_longest_correct_percent": 13.8
+    },
+    "required_curriculum": {
+      "questions": 27,
+      "single_answer": 24,
+      "multi_select": 3,
+      "explanations": 27,
+      "missing_explanations": 0,
+      "explanation_percent": 100.0,
+      "correct_position_distribution": {
+        "A": 1,
+        "B": 5,
+        "C": 3,
+        "D": 9
+      },
+      "uniquely_longest_correct": 1,
+      "uniquely_longest_correct_percent": 4.2
+    },
+    "optional_visible": {
+      "questions": 4,
+      "single_answer": 4,
+      "multi_select": 0,
+      "explanations": 4,
+      "missing_explanations": 0,
+      "explanation_percent": 100.0,
+      "correct_position_distribution": {
+        "A": 0,
+        "B": 2,
+        "C": 0,
+        "D": 2
+      },
+      "uniquely_longest_correct": 1,
+      "uniquely_longest_correct_percent": 25.0
+    },
+    "unused_or_archive": {
+      "questions": 746,
+      "single_answer": 582,
+      "multi_select": 164,
+      "explanations": 349,
+      "missing_explanations": 397,
+      "explanation_percent": 46.8,
+      "correct_position_distribution": {
+        "A": 150,
+        "B": 111,
+        "C": 165,
+        "D": 135
+      },
+      "uniquely_longest_correct": 82,
+      "uniquely_longest_correct_percent": 14.1
+    },
+    "active_quizzes": 4,
+    "hidden_or_archived_quizzes": 75,
+    "student_visible_quizzes": 4,
+    "required_quiz_ids": [
+      42,
+      48,
+      78
+    ],
+    "optional_visible_quiz_ids": [
+      45
+    ]
+  },
+  "integrity": {
+    "invalid_or_duplicate_option_questions": [],
+    "exact_duplicate_question_groups": [],
+    "duplicate_import_identifier_groups": []
+  },
+  "quiz_summary": {
+    "total": 104,
+    "active": 29,
+    "classifications": {
+      "KEEP REQUIRED": 27,
+      "KEEP OPTIONAL": 2,
+      "HIDE / ARCHIVE": 75
+    },
+    "strict_disconnected_active_imported_quiz_ids": []
+  },
+  "quizzes": [
+    {
+      "id": 1,
+      "title": "Ticket Writing Fundamentals",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "lesson connection",
+        "optional weekly curriculum",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 2,
+      "title": "Windows Accounts and Permissions",
+      "source": "seed",
+      "question_count": 10,
+      "usage": [
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 3,
+      "title": "The Investigator's Toolkit",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "lesson connection",
+        "optional weekly curriculum",
+        "practice library",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 4,
+      "title": "Windows Command-Line Diagnostics",
+      "source": "seed",
+      "question_count": 6,
+      "usage": [
+        "lesson connection",
+        "optional weekly curriculum",
+        "practice library",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 5,
+      "title": "Help-Desk Operations",
+      "source": "seed",
+      "question_count": 6,
+      "usage": [
+        "lesson connection",
+        "optional weekly curriculum",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 6,
+      "title": "Windows Deep Troubleshooting",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "lesson connection",
+        "optional weekly curriculum",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 7,
+      "title": "Accounts and Permissions in Practice",
+      "source": "seed",
+      "question_count": 9,
+      "usage": [
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 8,
+      "title": "Endpoint Security and Remote Support",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "lesson connection",
+        "optional weekly curriculum",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 9,
+      "title": "Client Network Triage",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "lesson connection",
+        "optional weekly curriculum",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 10,
+      "title": "IPv4 Addressing and Subnetting",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 11,
+      "title": "Packet Flow, ARP, and MAC Learning",
+      "source": "seed",
+      "question_count": 6,
+      "usage": [
+        "lesson connection",
+        "optional weekly curriculum",
+        "practice library"
+      ],
+      "student_visible": true,
+      "classification": "KEEP OPTIONAL",
+      "action": "Validated optional practice is student-visible."
+    },
+    {
+      "id": 12,
+      "title": "Cisco CLI, VLANs, and Interfaces",
+      "source": "seed",
+      "question_count": 7,
+      "usage": [
+        "lesson connection",
+        "optional weekly curriculum",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 13,
+      "title": "Trunks, Routing, and Network Services",
+      "source": "seed",
+      "question_count": 7,
+      "usage": [
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 14,
+      "title": "Network Troubleshooting and Secure Admin",
+      "source": "seed",
+      "question_count": 7,
+      "usage": [
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 15,
+      "title": "Active Directory Foundations",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 16,
+      "title": "Domain Joins and File Access",
+      "source": "seed",
+      "question_count": 7,
+      "usage": [
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 17,
+      "title": "Group Policy Troubleshooting",
+      "source": "seed",
+      "question_count": 7,
+      "usage": [
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 18,
+      "title": "Server DNS/DHCP and PowerShell",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "cumulative review",
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 19,
+      "title": "Server Operations, Backup, and Remoting",
+      "source": "seed",
+      "question_count": 7,
+      "usage": [
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 20,
+      "title": "Linux Fundamentals: Files, Permissions, SSH",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "lesson connection",
+        "optional weekly curriculum",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 21,
+      "title": "Services, Logs, and Linux Networking",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 22,
+      "title": "Linux in Production and Monitoring",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "cumulative review",
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 23,
+      "title": "Cloud Concepts and Entra ID",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "lesson connection",
+        "optional weekly curriculum",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 24,
+      "title": "Azure VMs, NSGs, and Storage",
+      "source": "seed",
+      "question_count": 8,
+      "usage": [
+        "lesson connection",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 25,
+      "title": "Integrated Operations Readiness",
+      "source": "seed",
+      "question_count": 6,
+      "usage": [
+        "lesson connection",
+        "optional weekly curriculum",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 26,
+      "title": "Mobile Device Connection Methods Quiz",
+      "source": "examcompass",
+      "question_count": 7,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 27,
+      "title": "Mobile Device Hardware Servicing Quiz",
+      "source": "examcompass",
+      "question_count": 9,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 28,
+      "title": "Mobile Device Accessories Quiz",
+      "source": "examcompass",
+      "question_count": 5,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 29,
+      "title": "Mobile Device Network Connectivity Quiz",
+      "source": "examcompass",
+      "question_count": 9,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 30,
+      "title": "Mobile Device Application Support Quiz",
+      "source": "examcompass",
+      "question_count": 6,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 31,
+      "title": "Malware Quiz",
+      "source": "examcompass",
+      "question_count": 5,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 32,
+      "title": "Social Engineering Quiz",
+      "source": "examcompass",
+      "question_count": 7,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 33,
+      "title": "Threats & Vulnerabilities Quiz",
+      "source": "examcompass",
+      "question_count": 4,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 34,
+      "title": "Malware Removal Procedures Quiz",
+      "source": "examcompass",
+      "question_count": 8,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 35,
+      "title": "Mobile Device Security Quiz",
+      "source": "examcompass",
+      "question_count": 5,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 36,
+      "title": "Data Destruction & Disposal Methods Quiz",
+      "source": "examcompass",
+      "question_count": 4,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 37,
+      "title": "SOHO Network Security Quiz",
+      "source": "examcompass",
+      "question_count": 6,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 38,
+      "title": "Web Browser Security Quiz",
+      "source": "examcompass",
+      "question_count": 4,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 39,
+      "title": "Windows OS Troubleshooting Quiz",
+      "source": "examcompass",
+      "question_count": 4,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 40,
+      "title": "Mobile OS and App Troubleshooting Quiz",
+      "source": "examcompass",
+      "question_count": 5,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 41,
+      "title": "Common PC Security Issues Troubleshooting Quiz",
+      "source": "examcompass",
+      "question_count": 4,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 42,
+      "title": "Ticketing Systems Quiz",
+      "source": "examcompass",
+      "question_count": 4,
+      "usage": [
+        "optional weekly curriculum",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 43,
+      "title": "Asset Management Quiz",
+      "source": "examcompass",
+      "question_count": 10,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 44,
+      "title": "Change Management Procedures Quiz",
+      "source": "examcompass",
+      "question_count": 5,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 45,
+      "title": "Backup & Recovery Methods Quiz",
+      "source": "examcompass",
+      "question_count": 4,
+      "usage": [
+        "practice library"
+      ],
+      "student_visible": true,
+      "classification": "KEEP OPTIONAL",
+      "action": "Validated optional practice is student-visible."
+    },
+    {
+      "id": 46,
+      "title": "Common Safety Procedures Quiz",
+      "source": "examcompass",
+      "question_count": 5,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 47,
+      "title": "Environmental Impacts & Controls Quiz",
+      "source": "examcompass",
+      "question_count": 5,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 48,
+      "title": "Incident Response Quiz",
+      "source": "examcompass",
+      "question_count": 4,
+      "usage": [
+        "optional weekly curriculum",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 49,
+      "title": "Software Licensing Concepts Quiz",
+      "source": "examcompass",
+      "question_count": 6,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 50,
+      "title": "Regulated Data Quiz",
+      "source": "examcompass",
+      "question_count": 5,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 51,
+      "title": "Communication & Professionalism Quiz",
+      "source": "examcompass",
+      "question_count": 14,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 52,
+      "title": "Scripting Basics Quiz",
+      "source": "examcompass",
+      "question_count": 7,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 53,
+      "title": "Remote Access Technologies Quiz",
+      "source": "examcompass",
+      "question_count": 14,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 54,
+      "title": "Basic AI Concepts Quiz",
+      "source": "examcompass",
+      "question_count": 4,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 55,
+      "title": "Network Protocols Quiz",
+      "source": "examcompass",
+      "question_count": 19,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 56,
+      "title": "TCP & UDP Ports Quiz",
+      "source": "examcompass",
+      "question_count": 15,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 57,
+      "title": "Wireless Networking Technologies Quiz",
+      "source": "examcompass",
+      "question_count": 3,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 58,
+      "title": "Network Services Quiz",
+      "source": "examcompass",
+      "question_count": 20,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 59,
+      "title": "Network Configuration Concepts Quiz",
+      "source": "examcompass",
+      "question_count": 4,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 60,
+      "title": "Common Networking Hardware Quiz",
+      "source": "examcompass",
+      "question_count": 15,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 61,
+      "title": "IP Addressing Quiz",
+      "source": "examcompass",
+      "question_count": 15,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 62,
+      "title": "Internet Connection Types Quiz",
+      "source": "examcompass",
+      "question_count": 8,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 63,
+      "title": "Network Types Quiz",
+      "source": "examcompass",
+      "question_count": 7,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 64,
+      "title": "Networking Tools Quiz",
+      "source": "examcompass",
+      "question_count": 8,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 65,
+      "title": "Display Devices Quiz",
+      "source": "examcompass",
+      "question_count": 10,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 66,
+      "title": "Cabling Quiz",
+      "source": "examcompass",
+      "question_count": 36,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 67,
+      "title": "Connector Quiz",
+      "source": "examcompass",
+      "question_count": 12,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 68,
+      "title": "RAM Quiz",
+      "source": "examcompass",
+      "question_count": 17,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 69,
+      "title": "Storage Devices Quiz",
+      "source": "examcompass",
+      "question_count": 7,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 70,
+      "title": "Motherboard Quiz",
+      "source": "examcompass",
+      "question_count": 20,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 71,
+      "title": "BIOS Quiz",
+      "source": "examcompass",
+      "question_count": 7,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 72,
+      "title": "CPU Quiz",
+      "source": "examcompass",
+      "question_count": 11,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 73,
+      "title": "Power Supply Quiz",
+      "source": "examcompass",
+      "question_count": 12,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 74,
+      "title": "Multifunction Devices Quiz",
+      "source": "examcompass",
+      "question_count": 8,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 75,
+      "title": "Printer Quiz",
+      "source": "examcompass",
+      "question_count": 21,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 76,
+      "title": "Virtualization Concepts Quiz",
+      "source": "examcompass",
+      "question_count": 6,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 77,
+      "title": "Cloud Computing Concepts Quiz",
+      "source": "examcompass",
+      "question_count": 25,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 78,
+      "title": "Core PC Hardware Troubleshooting Quiz",
+      "source": "examcompass",
+      "question_count": 19,
+      "usage": [
+        "optional weekly curriculum",
+        "required weekly curriculum"
+      ],
+      "student_visible": true,
+      "classification": "KEEP REQUIRED",
+      "action": "Required curriculum connection is explicit."
+    },
+    {
+      "id": 79,
+      "title": "Storage and RAID Troubleshooting Quiz",
+      "source": "examcompass",
+      "question_count": 18,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 80,
+      "title": "Display Devices Troubleshooting Quiz",
+      "source": "examcompass",
+      "question_count": 22,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 81,
+      "title": "Mobile Devices Troubleshooting Quiz",
+      "source": "examcompass",
+      "question_count": 30,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 82,
+      "title": "Network Troubleshooting Quiz",
+      "source": "examcompass",
+      "question_count": 14,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 83,
+      "title": "Printer Troubleshooting Quiz",
+      "source": "examcompass",
+      "question_count": 20,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 84,
+      "title": "Common OS Types Quiz",
+      "source": "examcompass",
+      "question_count": 10,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 85,
+      "title": "Filesystem Types Quiz",
+      "source": "examcompass",
+      "question_count": 8,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 86,
+      "title": "OS Boot Methods Quiz",
+      "source": "examcompass",
+      "question_count": 12,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 87,
+      "title": "OS Installation Methods Quiz",
+      "source": "examcompass",
+      "question_count": 8,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 88,
+      "title": "Microsoft Windows Editions Quiz",
+      "source": "examcompass",
+      "question_count": 14,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 89,
+      "title": "MS Windows Basic Features Quiz",
+      "source": "examcompass",
+      "question_count": 8,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 90,
+      "title": "Windows Task Manager Quiz",
+      "source": "examcompass",
+      "question_count": 7,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 91,
+      "title": "Windows MMC Snap-ins Quiz",
+      "source": "examcompass",
+      "question_count": 7,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 92,
+      "title": "Windows Additional Admin Tools Quiz",
+      "source": "examcompass",
+      "question_count": 8,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 93,
+      "title": "Microsoft Command-Line Tools Quiz",
+      "source": "examcompass",
+      "question_count": 9,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 94,
+      "title": "Microsoft Windows Settings Quiz",
+      "source": "examcompass",
+      "question_count": 6,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 95,
+      "title": "Windows Networking Features Quiz",
+      "source": "examcompass",
+      "question_count": 5,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 96,
+      "title": "macOS Quiz",
+      "source": "examcompass",
+      "question_count": 9,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 97,
+      "title": "Linux Command Line Quiz",
+      "source": "examcompass",
+      "question_count": 10,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 98,
+      "title": "Linux OS Features & Tools Quiz",
+      "source": "examcompass",
+      "question_count": 5,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 99,
+      "title": "Physical Security Concepts Quiz",
+      "source": "examcompass",
+      "question_count": 8,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 100,
+      "title": "Logical Security Concepts Quiz",
+      "source": "examcompass",
+      "question_count": 11,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 101,
+      "title": "Windows OS Security Quiz",
+      "source": "examcompass",
+      "question_count": 4,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 102,
+      "title": "NTFS & Share Permissions Quiz",
+      "source": "examcompass",
+      "question_count": 11,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 103,
+      "title": "Active Directory Quiz",
+      "source": "examcompass",
+      "question_count": 5,
+      "usage": [
+        "remediation"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    },
+    {
+      "id": 104,
+      "title": "Wireless Security Quiz",
+      "source": "examcompass",
+      "question_count": 4,
+      "usage": [
+        "none"
+      ],
+      "student_visible": false,
+      "classification": "HIDE / ARCHIVE",
+      "action": "Retain IDs and history; do not surface to students."
+    }
+  ]
+}

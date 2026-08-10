@@ -3,7 +3,63 @@ import { TicketStatus, type Ticket } from './ticket-types';
 
 export const FIXTURE_REFERENCE_TIME = '2026-07-28T10:30:00.000Z';
 
-export const TICKET_FIXTURES = [
+type ConvertedTicketSpec = {
+  id: string;
+  title: string;
+  category: TicketCategory;
+  priority: Priority;
+  assetTag: string;
+  deviceName: string;
+  deviceKind: Ticket['device']['kind'];
+  operatingSystem: string;
+  requester: string;
+  department: string;
+  issue: string;
+  impact: string;
+  troubleshooting: readonly string[];
+  hints: readonly string[];
+};
+
+function convertedTicket(spec: ConvertedTicketSpec): Ticket {
+  return {
+    activity: [{ id: `${spec.id}-created`, label: 'Ticket created', timestamp: FIXTURE_REFERENCE_TIME }],
+    assignedTo: 'you',
+    category: spec.category,
+    createdAt: FIXTURE_REFERENCE_TIME,
+    description: {
+      businessImpact: spec.impact,
+      issue: spec.issue,
+      reportedByLine: 'Submitted through the employee support portal.',
+      troubleshooting: [...spec.troubleshooting],
+    },
+    device: { assetTag: spec.assetTag, deviceName: spec.deviceName, kind: spec.deviceKind, operatingSystem: spec.operatingSystem, state: 'attention' },
+    escalated: false,
+    hints: [...spec.hints],
+    id: spec.id as `INC${number}`,
+    notes: [],
+    priority: spec.priority,
+    requester: { contact: 'Employee support portal', department: spec.department, email: `${spec.requester.toLowerCase().replace(/ /g, '.')}@nexus.example`, location: 'Nexus office', name: spec.requester },
+    sla: { dueAt: '2026-07-28T14:30:00.000Z', target: 'Respond within 4 hours' },
+    status: TicketStatus.Open,
+    suggestedTools: ['remote-desktop', 'documentation', 'company-chat'],
+    title: spec.title,
+  };
+}
+
+const CONVERTED_LEGACY_TICKETS: readonly Ticket[] = [
+  convertedTicket({ id: 'INC2501', title: 'Desktop opens with a temporary Windows profile', category: TicketCategory.Software, priority: Priority.High, assetTag: 'NX-2501', deviceName: 'ACCT-LT-17', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Morgan Ellis', department: 'Accounting', issue: 'After signing in, Morgan sees a fresh desktop and cannot find the usual Documents files.', impact: 'Month-end work is paused while the user data appears unavailable.', troubleshooting: ['The user restarted once.', 'A nearby teammate can open the same shared files.'], hints: ['Protect user data before profile repair.', 'Compare the sign-in profile path with the expected local profile.', 'Confirm the original files are available after repairing the profile.'] }),
+  convertedTicket({ id: 'INC2502', title: 'Excel crashes only when one reporting workbook opens', category: TicketCategory.Software, priority: Priority.Medium, assetTag: 'NX-2502', deviceName: 'FIN-WS-44', deviceKind: 'desktop', operatingSystem: 'Windows 11 Enterprise', requester: 'Priya Shah', department: 'Finance', issue: 'Excel closes when the monthly reporting workbook opens, but other workbooks remain usable.', impact: 'The finance team cannot finish the monthly report.', troubleshooting: ['A blank workbook opens normally.', 'The workbook was copied locally and still crashes.'], hints: ['Reproduce the specific crash before changing Office.', 'Use Safe Mode or add-in isolation to separate workbook and add-in causes.', 'Verify the original workbook opens and saves after the repair.'] }),
+  convertedTicket({ id: 'INC2503', title: 'One desk lost network after an office move', category: TicketCategory.Network, priority: Priority.High, assetTag: 'NX-2503', deviceName: 'OPS-WS-12', deviceKind: 'desktop', operatingSystem: 'Windows 11 Enterprise', requester: 'Jordan Kim', department: 'Operations', issue: 'A workstation moved to a new desk has no network while adjacent desks work normally.', impact: 'One dispatcher cannot access the order system.', troubleshooting: ['The workstation was restarted.', 'Nearby workstations remain connected.'], hints: ['Start with physical link and compare the nearby working desk.', 'Check the assigned switch port and VLAN before renewing addresses.', 'Verify the original order system after the port is corrected.'] }),
+  convertedTicket({ id: 'INC2504', title: 'Department printer stopped after its DHCP address changed', category: TicketCategory.Hardware, priority: Priority.High, assetTag: 'NX-2504', deviceName: 'ENG-WS-09', deviceKind: 'desktop', operatingSystem: 'Windows 11 Enterprise', requester: 'Sofia Nguyen', department: 'Engineering', issue: 'The shared department printer is reachable from one workstation but this workstation still sends jobs to its old address.', impact: 'Engineering cannot print drawing review packets from the affected workstation.', troubleshooting: ['The printer is powered on.', 'A colleague printed successfully from a nearby computer.'], hints: ['Confirm whether this is local or printer-wide.', 'Compare the configured print port with the printer’s current address.', 'Update the port safely and print a test page.'] }),
+  convertedTicket({ id: 'INC2505', title: 'New employee cannot open the department share', category: TicketCategory.Access, priority: Priority.Medium, assetTag: 'NX-2505', deviceName: 'MKT-LT-05', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Taylor Reed', department: 'Marketing', issue: 'A new employee receives Access Denied for the Marketing share that peers can use.', impact: 'The new hire cannot access approved team materials.', troubleshooting: ['The share opens for the team lead.', 'The employee can sign in successfully.'], hints: ['Confirm the requested resource and compare a peer with the same role.', 'Check approved group access before granting anything.', 'Verify the original share after the least-privilege change.'] }),
+  convertedTicket({ id: 'INC2506', title: 'Assistant requests access to restricted salary records', category: TicketCategory.Access, priority: Priority.High, assetTag: 'NX-2506', deviceName: 'HR-LT-21', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Casey Lane', department: 'Executive Office', issue: 'An executive assistant asks for access to the restricted HR salary folder to help with a meeting.', impact: 'The request needs a timely, safe response without expanding access improperly.', troubleshooting: ['The requester has access to general HR materials.', 'No written approval is attached.'], hints: ['Identify the authorization boundary.', 'Do not use a group change as a substitute for approval.', 'Document a safe escalation and verify the request is routed correctly.'] }),
+  convertedTicket({ id: 'INC2507', title: 'Account keeps locking after a password change', category: TicketCategory.Access, priority: Priority.High, assetTag: 'NX-2507', deviceName: 'SALES-LT-08', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Avery Monroe', department: 'Sales', issue: 'The account locks again shortly after each successful password reset.', impact: 'The employee repeatedly loses access to sales systems.', troubleshooting: ['The account was unlocked once.', 'The employee can sign in immediately after the reset.'], hints: ['Find what is reusing the old credential instead of resetting again.', 'Inspect saved mappings, Credential Manager, and scheduled connections.', 'Remove the stale credential and monitor for another lockout.'] }),
+  convertedTicket({ id: 'INC2508', title: 'Employee entered credentials into a phishing page', category: TicketCategory.Access, priority: Priority.High, assetTag: 'NX-2508', deviceName: 'PAY-LT-03', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Riley Brown', department: 'Payroll', issue: 'An employee reports entering their password into a page reached from a suspicious email.', impact: 'The account and payroll data may be exposed until containment is complete.', troubleshooting: ['The employee closed the page.', 'No access changes have been made yet.'], hints: ['Contain first; do not treat this as ordinary password troubleshooting.', 'Reset credentials, revoke active sessions, and escalate through the security path.', 'Record the actions and safe follow-up for the employee.'] }),
+  convertedTicket({ id: 'INC2509', title: 'Workstation disk fills again every few days', category: TicketCategory.Software, priority: Priority.Medium, assetTag: 'NX-2509', deviceName: 'SUP-WS-31', deviceKind: 'desktop', operatingSystem: 'Windows 11 Enterprise', requester: 'Devon Ross', department: 'Support', issue: 'The C: drive fills repeatedly even after temporary files are deleted.', impact: 'The support workstation becomes slow and cannot install approved updates.', troubleshooting: ['Temporary files were removed last week.', 'Free space returned briefly, then fell again.'], hints: ['Identify what is growing rather than repeatedly deleting symptoms.', 'Inspect log and application storage trends.', 'Correct the source safely and verify free space remains stable.'] }),
+  convertedTicket({ id: 'INC2510', title: 'Restored laptop reports a trust relationship failure', category: TicketCategory.Access, priority: Priority.Medium, assetTag: 'NX-2510', deviceName: 'OPS-LT-58', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Sam Ortiz', department: 'Operations', issue: 'A restored domain laptop rejects sign-in with a trust relationship error while peer laptops work.', impact: 'The employee cannot access the domain workstation after recovery.', troubleshooting: ['The network is connected.', 'Other domain users can sign in on nearby devices.'], hints: ['Separate user credentials from the computer account relationship.', 'Confirm the secure-channel failure before changing the user account.', 'Repair or escalate the device trust safely and verify domain sign-in.'] }),
+];
+
+const BASE_TICKET_FIXTURES = [
   {
     activity: [
       {
@@ -27,13 +83,14 @@ export const TICKET_FIXTURES = [
       businessImpact:
         'A month-end reconciliation is paused until the analyst can reach the reporting workspace.',
       issue:
-        'The finance reporting portal accepts the first authentication step, then returns to the sign-in screen before the dashboard loads.',
+        'The finance reporting portal accepts the first authentication step, then returns to the sign-in screen before the dashboard loads. Other internal services continue to accept the analyst’s account.',
       reportedByLine:
         'Submitted through the employee support portal after two failed sign-in attempts.',
       troubleshooting: [
         'Closed and reopened the browser.',
         'Confirmed other internal sites load normally.',
         'Tried a private browsing window with the same result.',
+        'Confirmed the account is not locked and the second-factor prompt succeeds on another internal service.',
       ],
     },
     device: {
@@ -46,9 +103,9 @@ export const TICKET_FIXTURES = [
     escalated: false,
     hints: [
       'Confirm whether the requester can complete the second authentication prompt on another internal service.',
-      'Review the directory record for a locked account or an expired access policy.',
+      'Review the browser/profile evidence before changing the employee account.',
       'Check the knowledge base for the finance portal sign-in loop procedure.',
-      'Ask the requester to start a fresh session after the account state is corrected.',
+      'Ask the requester to start a fresh session after the local profile data is cleared.',
     ],
     id: 'INC2401',
     notes: [],
@@ -109,12 +166,12 @@ export const TICKET_FIXTURES = [
     escalated: false,
     hints: [
       'Use the working scanner beside it to decide whether the fault follows the network area or one device.',
-      'Open Remote Desktop and compare the affected scanner’s network settings with the working unit.',
-      'Repair the affected network profile, renew its address, and then watch the connection long enough to verify stability.',
+      'Open the managed device console and compare the affected scanner’s wireless profile with the working unit.',
+      'Refresh the affected managed wireless profile, renew its address, and then watch the connection long enough to verify stability.',
     ],
     id: 'INC2402',
     notes: [],
-    priority: Priority.Critical,
+    priority: Priority.High,
     requester: {
       contact: 'Radio channel 3',
       department: 'Distribution',
@@ -262,13 +319,13 @@ export const TICKET_FIXTURES = [
       businessImpact:
         'A new coordinator can complete orientation but cannot access the shared scheduling calendar.',
       issue:
-        'The new starter can sign in to email but the facilities scheduling calendar is not listed.',
+        'The new starter can sign in to email and see the Facilities Calendar entry, but opening it returns an archived-location error.',
       reportedByLine:
         'Raised by the facilities team lead during the new starter checklist.',
       troubleshooting: [
         'Signed out and back in to the calendar application.',
-        'Searched for the calendar by its full display name.',
-        'Confirmed the user can open their personal calendar.',
+        'Confirmed the user can open their personal calendar and another current Facilities calendar.',
+        'Used the desktop calendar shortcut, which opened an archived-location error.',
       ],
     },
     device: {
@@ -280,10 +337,10 @@ export const TICKET_FIXTURES = [
     },
     escalated: false,
     hints: [
-      'Verify the requester identity and the intended facilities team membership.',
-      'Compare the directory groups with another coordinator in the same role.',
-      'Review the access guide before changing any group membership.',
-      'Ask the requester to refresh the calendar list after access synchronizes.',
+      'Verify the requester already has the expected Facilities Calendar access before changing memberships.',
+      'Inspect the calendar workspace location in the desktop shortcut.',
+      'Review the access guide before changing any mapping.',
+      'Ask the requester to reopen the original calendar after the shortcut is repaired.',
     ],
     id: 'INC2405',
     notes: [],
@@ -306,7 +363,7 @@ export const TICKET_FIXTURES = [
       'documentation',
       'company-chat',
     ],
-    title: 'New coordinator cannot see the facilities calendar',
+    title: 'New coordinator cannot open the facilities calendar shortcut',
   },
   {
     activity: [
@@ -324,28 +381,28 @@ export const TICKET_FIXTURES = [
       businessImpact:
         'The project manager can work locally but cannot join the secure partner workspace.',
       issue:
-        'The remote access client reaches the gateway, then stops while checking the device profile.',
+        'The remote access client can reach the gateway, but the secure partner workspace is unavailable because the company VPN is disconnected.',
       reportedByLine:
         'Submitted from a home network before a scheduled partner review.',
       troubleshooting: [
         'Restarted the laptop.',
         'Confirmed normal internet browsing works.',
-        'Retried the connection after closing other applications.',
+        'Confirmed the VPN client shows Disconnected.',
       ],
     },
     device: {
       assetTag: 'NX-2047',
       deviceName: 'PM-LT-41',
       kind: 'laptop',
-      operatingSystem: 'macOS 16',
+      operatingSystem: 'Windows 11 Enterprise',
       state: 'active',
     },
     escalated: false,
     hints: [
-      'Confirm the client version and capture the exact device-check stage.',
-      'Review the device asset record for compliance status.',
-      'Check current remote access guidance for the reported platform.',
-      'Retry after correcting any documented client or compliance mismatch.',
+      'Confirm the secure partner share is unavailable while ordinary internet browsing works.',
+      'Review the company VPN connection state.',
+      'Check current remote access guidance for the VPN route.',
+      'Reconnect the VPN and retest the original partner workspace.',
     ],
     id: 'INC2406',
     notes: [],
@@ -363,7 +420,7 @@ export const TICKET_FIXTURES = [
     },
     status: TicketStatus.Open,
     suggestedTools: ['remote-desktop', 'documentation', 'asset-management'],
-    title: 'Remote access pauses during the device compliance check',
+    title: 'Remote partner workspace unavailable while VPN is disconnected',
   },
   {
     activity: [
@@ -477,7 +534,12 @@ export const TICKET_FIXTURES = [
     suggestedTools: ['remote-desktop', 'documentation'],
     title: 'Print jobs disappear on the HR workstation',
   },
-] as const satisfies readonly Ticket[];
+ ] as const satisfies readonly Ticket[];
+
+export const TICKET_FIXTURES = [
+  ...BASE_TICKET_FIXTURES,
+  ...CONVERTED_LEGACY_TICKETS,
+] as const;
 
 export function getFixtureTicket(ticketId: string) {
   return TICKET_FIXTURES.find((ticket) => ticket.id === ticketId);

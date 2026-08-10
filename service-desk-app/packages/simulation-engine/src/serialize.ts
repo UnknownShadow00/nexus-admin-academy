@@ -349,11 +349,13 @@ function isExplorerError(value: unknown) {
 function isRemoteDesktopScenarioProgress(value: unknown) {
   return (
     isRecord(value) &&
+    isStringArray(value.investigationEvidence) &&
     isStringArray(value.diagnosisEvidence) &&
     isStringArray(value.fixEvidence) &&
     isStringArray(value.verificationEvidence) &&
     (value.internalNote === null || isString(value.internalNote)) &&
     isRecord(value.phases) &&
+    typeof value.phases.investigated === 'boolean' &&
     typeof value.phases.diagnosed === 'boolean' &&
     typeof value.phases.fixed === 'boolean' &&
     typeof value.phases.verified === 'boolean' &&
@@ -662,61 +664,80 @@ export function restoreAttempt(json: string): Attempt | null {
             remoteDesktopOverlays: Object.fromEntries(
               Object.entries(
                 normalizedServerRoomState.remoteDesktopOverlays,
-              ).map(
-                ([assetTag, overlay]) => [
-                  assetTag,
-                  isRecord(overlay)
-                    ? {
-                        ...overlay,
-                        connectionState:
-                          overlay.connectionState ?? 'disconnected',
-                        completedScenarioIds:
-                          overlay.completedScenarioIds ?? [],
-                        dnsServers: overlay.dnsServers ?? [
-                          ...getRemoteDesktopTerminalFixture(assetTag)
-                            .dnsServers,
-                        ],
-                        driveStates:
-                          overlay.driveStates ??
-                          getRemoteDesktopInitialDriveStates(assetTag),
-                        explorerCurrentPath:
-                          overlay.explorerCurrentPath ?? 'This PC',
-                        explorerError: overlay.explorerError ?? null,
-                        explorerLastRefreshedAt:
-                          overlay.explorerLastRefreshedAt ?? null,
-                        focusedApp: overlay.focusedApp ?? null,
-                        lastError: overlay.lastError ?? null,
-                        learningMode:
-                          overlay.learningMode ??
-                          (overlay.trainingMode === false
-                            ? 'practice'
-                            : 'guided'),
-                        minimizedApps: overlay.minimizedApps ?? [],
-                        openApps: overlay.openApps ?? [],
-                        scenarioProgress: overlay.scenarioProgress ?? {},
-                        scenarioSteps: overlay.scenarioSteps ?? {},
-                        serviceStates:
-                          overlay.serviceStates ??
-                          getInitialRemoteDesktopServiceStates(assetTag),
-                        terminalHistory: overlay.terminalHistory ?? [],
-                        trainingMode:
-                          overlay.trainingMode ??
-                          (typeof overlay.learningMode === 'string'
-                            ? overlay.learningMode === 'guided'
-                            : true),
-                        updateInstalledAt: overlay.updateInstalledAt ?? null,
-                        updateState:
-                          overlay.updateState ??
-                          (getRemoteDesktopWorkstation(assetTag)?.pendingUpdate
-                            ? 'pending'
-                            : 'applied'),
-                        vpnError: overlay.vpnError ?? null,
-                        vpnLog: overlay.vpnLog ?? [],
-                        vpnStatus: overlay.vpnStatus ?? 'disconnected',
-                      }
-                    : overlay,
-                ],
-              ),
+              ).map(([assetTag, overlay]) => [
+                assetTag,
+                isRecord(overlay)
+                  ? {
+                      ...overlay,
+                      connectionState:
+                        overlay.connectionState ?? 'disconnected',
+                      completedScenarioIds: overlay.completedScenarioIds ?? [],
+                      dnsServers: overlay.dnsServers ?? [
+                        ...getRemoteDesktopTerminalFixture(assetTag).dnsServers,
+                      ],
+                      driveStates:
+                        overlay.driveStates ??
+                        getRemoteDesktopInitialDriveStates(assetTag),
+                      explorerCurrentPath:
+                        overlay.explorerCurrentPath ?? 'This PC',
+                      explorerError: overlay.explorerError ?? null,
+                      explorerLastRefreshedAt:
+                        overlay.explorerLastRefreshedAt ?? null,
+                      focusedApp: overlay.focusedApp ?? null,
+                      lastError: overlay.lastError ?? null,
+                      learningMode:
+                        overlay.learningMode ??
+                        (overlay.trainingMode === false
+                          ? 'practice'
+                          : 'guided'),
+                      minimizedApps: overlay.minimizedApps ?? [],
+                      openApps: overlay.openApps ?? [],
+                      scenarioProgress: isRecord(overlay.scenarioProgress)
+                        ? Object.fromEntries(
+                            Object.entries(overlay.scenarioProgress).map(
+                              ([scenarioId, progress]) => [
+                                scenarioId,
+                                isRecord(progress)
+                                  ? {
+                                      ...progress,
+                                      investigationEvidence:
+                                        progress.investigationEvidence ?? [],
+                                      phases: isRecord(progress.phases)
+                                        ? {
+                                            ...progress.phases,
+                                            investigated:
+                                              progress.phases.investigated ??
+                                              false,
+                                          }
+                                        : progress.phases,
+                                    }
+                                  : progress,
+                              ],
+                            ),
+                          )
+                        : {},
+                      scenarioSteps: overlay.scenarioSteps ?? {},
+                      serviceStates:
+                        overlay.serviceStates ??
+                        getInitialRemoteDesktopServiceStates(assetTag),
+                      terminalHistory: overlay.terminalHistory ?? [],
+                      trainingMode:
+                        overlay.trainingMode ??
+                        (typeof overlay.learningMode === 'string'
+                          ? overlay.learningMode === 'guided'
+                          : true),
+                      updateInstalledAt: overlay.updateInstalledAt ?? null,
+                      updateState:
+                        overlay.updateState ??
+                        (getRemoteDesktopWorkstation(assetTag)?.pendingUpdate
+                          ? 'pending'
+                          : 'applied'),
+                      vpnError: overlay.vpnError ?? null,
+                      vpnLog: overlay.vpnLog ?? [],
+                      vpnStatus: overlay.vpnStatus ?? 'disconnected',
+                    }
+                  : overlay,
+              ]),
             ),
           }
         : normalizedServerRoomState;

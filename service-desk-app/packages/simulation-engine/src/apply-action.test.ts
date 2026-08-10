@@ -1,6 +1,5 @@
 import {
   AVERY_BROOKS_DIRECTORY_USER_ID,
-  FACILITIES_CALENDAR_GROUP,
   SLOANE_RIVERA_DIRECTORY_USER_ID,
   TICKET_FIXTURES,
   TicketStatus,
@@ -75,16 +74,16 @@ describe('applyAction happy paths', () => {
     const closed = apply(createAttempt(), {
       type: 'ticket.close',
       payload: {
-        ticketId: 'INC2402',
+        ticketId: 'INC2404',
         resolutionNote: 'Connectivity verified with dispatch.',
         verifiedResolved: true,
       },
     });
     expect(closed.event.success).toBe(true);
-    expect(closed.attempt.ticketOverlays.INC2402?.status).toBe(
+    expect(closed.attempt.ticketOverlays.INC2404?.status).toBe(
       TicketStatus.Resolved,
     );
-    expect(closed.attempt.ticketOverlays.INC2402?.closure).toMatchObject({
+    expect(closed.attempt.ticketOverlays.INC2404?.closure).toMatchObject({
       resolutionNote: 'Connectivity verified with dispatch.',
       verifiedResolved: true,
     });
@@ -108,7 +107,7 @@ describe('applyAction happy paths', () => {
 describe('directory actions', () => {
   const disabledUserId = 'directory-user-iris-caldwell';
 
-  it('unlocks a locked account and rejects unlocking it again', () => {
+  it('rejects unlocking the healthy Finance account', () => {
     const unlocked = apply(createAttempt(), {
       type: 'directory.unlock_account',
       payload: { directoryUserId: AVERY_BROOKS_DIRECTORY_USER_ID },
@@ -118,13 +117,9 @@ describe('directory actions', () => {
       payload: { directoryUserId: AVERY_BROOKS_DIRECTORY_USER_ID },
     });
 
-    expect(unlocked.event.success).toBe(true);
-    expect(
-      unlocked.attempt.directoryOverlays[AVERY_BROOKS_DIRECTORY_USER_ID]
-        ?.locked,
-    ).toBe(false);
+    expect(unlocked.event.success).toBe(false);
+    expect(unlocked.event.rejectReason).toContain('already unlocked');
     expect(rejected.event.success).toBe(false);
-    expect(rejected.event.rejectReason).toContain('already unlocked');
     expect(
       rejected.attempt.directoryOverlays[AVERY_BROOKS_DIRECTORY_USER_ID]
         ?.events,
@@ -211,7 +206,7 @@ describe('directory actions', () => {
       type: 'directory.update_groups',
       payload: {
         directoryUserId: SLOANE_RIVERA_DIRECTORY_USER_ID,
-        add: [FACILITIES_CALENDAR_GROUP],
+        add: ['Product Design Review'],
         remove: [],
       },
     });
@@ -219,7 +214,7 @@ describe('directory actions', () => {
       type: 'directory.update_groups',
       payload: {
         directoryUserId: SLOANE_RIVERA_DIRECTORY_USER_ID,
-        add: [FACILITIES_CALENDAR_GROUP],
+        add: ['Product Design Review'],
         remove: [],
       },
     });
@@ -228,14 +223,14 @@ describe('directory actions', () => {
       payload: {
         directoryUserId: SLOANE_RIVERA_DIRECTORY_USER_ID,
         add: [],
-        remove: [FACILITIES_CALENDAR_GROUP],
+        remove: ['Product Design Review'],
       },
     });
 
     expect(
       added.attempt.directoryOverlays[SLOANE_RIVERA_DIRECTORY_USER_ID]
         ?.groupChanges.added,
-    ).toContain(FACILITIES_CALENDAR_GROUP);
+    ).toContain('Product Design Review');
     expect(unchanged.event.success).toBe(false);
     expect(unchanged.event.rejectReason).toContain('would not change');
     expect(
@@ -422,7 +417,7 @@ describe('applyAction rejection paths', () => {
     const first = apply(createAttempt(), {
       type: 'ticket.close',
       payload: {
-        ticketId: 'INC2402',
+        ticketId: 'INC2404',
         resolutionNote: '',
         verifiedResolved: false,
       },
@@ -430,7 +425,7 @@ describe('applyAction rejection paths', () => {
     const second = apply(first.attempt, {
       type: 'ticket.close',
       payload: {
-        ticketId: 'INC2402',
+        ticketId: 'INC2404',
         resolutionNote: '',
         verifiedResolved: true,
       },
@@ -438,13 +433,13 @@ describe('applyAction rejection paths', () => {
 
     expect(second.event.success).toBe(false);
     expect(second.event.rejectReason).toContain('already');
-    expect(second.attempt.ticketOverlays.INC2402?.events).toHaveLength(2);
+    expect(second.attempt.ticketOverlays.INC2404?.events).toHaveLength(2);
   });
 });
 
 describe('objective evaluation', () => {
   const highFixture = {
-    ...TICKET_FIXTURES[2],
+    ...TICKET_FIXTURES[3],
     activity: [],
     hints: ['One', 'Two', 'Three'],
     notes: [],
@@ -515,101 +510,6 @@ describe('objective evaluation', () => {
         penaltyPoints: 10,
       },
     );
-  });
-
-  it('reduces INC2401 points until the linked identity issue is corrected', () => {
-    const fixture = TICKET_FIXTURES.find(
-      (ticket) => ticket.id === 'INC2401',
-    ) as Ticket;
-    const closed = apply(createAttempt(), {
-      type: 'ticket.close',
-      payload: {
-        ticketId: fixture.id,
-        resolutionNote: 'Requester tested a fresh session.',
-        verifiedResolved: true,
-      },
-    });
-
-    expect(
-      evaluateObjectives(closed.attempt, fixture.id, [fixture]),
-    ).toMatchObject({
-      pointsAwarded: 60,
-      pointsPossible: 120,
-    });
-  });
-
-  it.each(['directory.unlock_account', 'directory.reset_mfa'] as const)(
-    'awards full INC2401 points after %s',
-    (type) => {
-      const fixture = TICKET_FIXTURES.find(
-        (ticket) => ticket.id === 'INC2401',
-      ) as Ticket;
-      let attempt = apply(createAttempt(), {
-        type,
-        payload: { directoryUserId: AVERY_BROOKS_DIRECTORY_USER_ID },
-      }).attempt;
-      attempt = apply(attempt, {
-        type: 'ticket.close',
-        payload: {
-          ticketId: fixture.id,
-          resolutionNote: 'Requester tested a fresh session.',
-          verifiedResolved: true,
-        },
-      }).attempt;
-
-      expect(evaluateObjectives(attempt, fixture.id, [fixture])).toMatchObject({
-        pointsAwarded: 120,
-        pointsPossible: 120,
-      });
-    },
-  );
-
-  it('reduces INC2405 points until Facilities Calendar is assigned', () => {
-    const fixture = TICKET_FIXTURES.find(
-      (ticket) => ticket.id === 'INC2405',
-    ) as Ticket;
-    const closed = apply(createAttempt(), {
-      type: 'ticket.close',
-      payload: {
-        ticketId: fixture.id,
-        resolutionNote: 'Requester refreshed the calendar list.',
-        verifiedResolved: true,
-      },
-    });
-
-    expect(
-      evaluateObjectives(closed.attempt, fixture.id, [fixture]),
-    ).toMatchObject({
-      pointsAwarded: 25,
-      pointsPossible: 50,
-    });
-  });
-
-  it('awards full INC2405 points after Facilities Calendar is assigned', () => {
-    const fixture = TICKET_FIXTURES.find(
-      (ticket) => ticket.id === 'INC2405',
-    ) as Ticket;
-    let attempt = apply(createAttempt(), {
-      type: 'directory.update_groups',
-      payload: {
-        directoryUserId: SLOANE_RIVERA_DIRECTORY_USER_ID,
-        add: [FACILITIES_CALENDAR_GROUP],
-        remove: [],
-      },
-    }).attempt;
-    attempt = apply(attempt, {
-      type: 'ticket.close',
-      payload: {
-        ticketId: fixture.id,
-        resolutionNote: 'Requester refreshed the calendar list.',
-        verifiedResolved: true,
-      },
-    }).attempt;
-
-    expect(evaluateObjectives(attempt, fixture.id, [fixture])).toMatchObject({
-      pointsAwarded: 50,
-      pointsPossible: 50,
-    });
   });
 });
 

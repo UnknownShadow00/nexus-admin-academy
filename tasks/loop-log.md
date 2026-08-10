@@ -79,6 +79,12 @@
 - Result: pass against acceptance criteria; `python -m compileall app seed.py -q`, `python -m pytest -q`, focused quiz/capstone tests, and `npm run build` all passed.
 - Next: Existing tracked `frontend/dist` files still show build churn; fully enforcing the new ignore policy requires a later one-time untrack/restore decision for those tracked artifacts.
 
+## [2026-08-10T05:07:37Z] Task Completed
+- Task: Audited Nexus-authored quiz provenance and quality signals, repaired the known Internet-scope prompt, added authored-question identity preservation, and added a quality audit/regression guard.
+- Files changed: backend/app/models/quiz.py, backend/alembic/versions/0045_preserve_authored_question_identity.py, backend/app/services/seed_question_sync.py, backend/seed_phase_a.py, backend/seed_phase_b.py, backend/seed_phase_c.py, backend/seed_phase_d.py, backend/seed_phase_e.py, backend/seed_phase_f.py, backend/seed_phase_g.py, backend/scripts/audit_nexus_question_quality.py, backend/scripts/check_nexus_question_quality.py, backend/tests/test_nexus_question_quality.py, docs/NEXUS_QUESTION_QUALITY_AUDIT.md, docs/nexus_question_quality_prechange.json, docs/nexus_question_quality_postchange.json, tasks/loop-log.md
+- Result: partial against acceptance criteria; provenance, integrity, history safety, known ambiguity, focused tests, fresh seed/migration, and frontend build pass, but the verified 90.0% uniquely-longest-answer pattern remains and requires the requested full editorial distractor pass.
+- Next: Complete the 153-question distractor rewrite worklist before claiming Nexus-authored quizzes no longer reward choosing the longest option.
+
 ## [2026-08-07T08:20:03Z] Task Completed
 - Task: Made Service Desk completion server-evaluated from declarative objective evidence, blocked forged close claims, and restricted events to known simulation namespaces.
 - Files changed: backend/app/services/service_desk_objectives.py, backend/app/services/service_desk_grading.py, backend/app/routers/service_desk.py, backend/tests/test_service_desk_attempts.py, backend/tests/test_admin_service_desk.py, tasks/loop-log.md
@@ -995,3 +1001,134 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: .github/workflows/ci.yml; frontend/src/App.jsx; frontend/src/components/RequireAuth.jsx; frontend/tests/e2e/my-training.spec.js; tasks/loop-log.md
 - Result: pass against acceptance criteria — Alembic head is 0041_verified_question_keys; focused My Training Playwright suite passed 4/4; launch verification passed 9/9.
 - Next: None
+
+## [2026-08-09T21:30:00Z] Task Completed
+- Task: Audited and repaired current Service Desk scenario consistency and introduced process-aware workflow scoring for the simulator.
+- Files changed: service-desk-app/apps/web/components/RemoteDesktopTool.tsx; service-desk-app/packages/shared/src/directory-fixtures.ts; service-desk-app/packages/shared/src/phase-18-fixtures.test.ts; service-desk-app/packages/shared/src/remote-desktop-fixtures.ts; service-desk-app/packages/shared/src/ticket-fixtures.ts; service-desk-app/packages/shared/src/ticket-logic.test.ts; service-desk-app/packages/simulation-engine/src/apply-action.test.ts; service-desk-app/packages/simulation-engine/src/apply-action.ts; service-desk-app/packages/simulation-engine/src/evaluate-objectives.ts; service-desk-app/packages/simulation-engine/src/phase-18-remote-desktop.test.ts; service-desk-app/packages/simulation-engine/src/serialize.ts; service-desk-app/packages/simulation-engine/src/server-remote-actions.test.ts; service-desk-app/packages/simulation-engine/src/service-desk-quality.test.ts; service-desk-app/packages/simulation-engine/src/types.ts; tasks/loop-log.md
+- Result: pass against acceptance criteria — Service Desk lint/typecheck/tests/build pass; focused backend Service Desk tests pass; Playwright executable is not installed locally.
+- Next: Align the separately deployed backend Service Desk objective catalog with this simulator’s revised root causes before enabling cross-system scoring for these tickets.
+
+## [2026-08-09T22:03:35Z] Task Completed
+- Task: Aligned server-authoritative Service Desk grading with the repaired simulator, published process-profile scenario versions, and added hardware isolation for INC2404.
+- Files changed: backend/alembic/versions/0042_service_desk_process_grading.py; backend/app/routers/service_desk.py; backend/app/services/service_desk_grading.py; backend/app/services/service_desk_objectives.py; backend/seed.py; backend/tests/test_service_desk_attempts.py; service-desk-app/apps/web/components/AssetDetail.tsx; service-desk-app/apps/web/components/AssetManagementTool.tsx; service-desk-app/apps/web/components/TicketSessionProvider.tsx; service-desk-app/packages/simulation-engine/src/actions/index.ts; service-desk-app/packages/simulation-engine/src/apply-action.ts; service-desk-app/packages/simulation-engine/src/asset-pc-shelf-actions.test.ts; service-desk-app/packages/simulation-engine/src/index.ts; tasks/loop-log.md
+- Result: pass against acceptance criteria — 347 backend tests in three non-overlapping shards; 63 focused Service Desk backend tests; Service Desk lint/typecheck/build and 254 tests passed; no deployment or production changes made.
+- Next: No blocker remains for current Service Desk cross-system consistency; browser coverage can be run separately when the local Playwright executable is available.
+## 2026-08-10T03:35:03Z Task Completed
+- Task: Audited and retired the legacy Support Tickets product; converted ten reviewed scenarios into process-graded Service Desk cases; migrated required weekly activities and student/admin metrics to Service Desk.
+- Files changed: backend Service Desk seeds/objectives/migration/training services/tests, frontend navigation/dashboard/progress/admin ticket UI, Service Desk fixtures/simulation controls/tests, docs/LEGACY_TICKET_CONTENT_AUDIT.md
+- Result: PASS — no live required curriculum activity uses support_ticket; server-authoritative Service Desk grading, frontend builds, focused/backend suites, and Service Desk checks pass.
+- Next: Browser E2E requires the separately configured base URL and dedicated E2E student credentials; review Python dependency-audit findings in a dependency-maintenance pass.
+
+## [2026-08-10T04:00:04Z] Task Completed
+- Task: Verified and remediated the backend virtual environment's Python dependency-audit findings without changing declared Nexus runtime dependencies.
+- Files changed: tasks/loop-log.md
+- Result: pass against acceptance criteria — `pip-audit` is clean for the active backend environment and a fresh install from requirements files; focused auth/security/Service Desk tests passed 133/133; full suite passed 366/368 with 2 unrelated legacy Week Plan expectation failures.
+- Next: Investigate the two pre-existing `tests/test_week_plan.py` expectations only in a separately scoped curriculum/Service Desk follow-up; no dependency change or deployment is needed.
+
+## [2026-08-10T04:17:00Z] Task Completed
+- Task: Updated Week Plan regression coverage and its client section map for the intentional retirement of legacy Support Tickets.
+- Files changed: backend/tests/test_week_plan.py; frontend/src/components/WeekPlanPanel.jsx; tasks/loop-log.md
+- Result: pass against acceptance criteria — Week Plan excludes retired ticket history, exposes Service Desk scenarios, and the full backend suite passes 368/368; focused Week Plan/training tests pass 20/20; frontend build passes.
+- Next: None
+
+## [2026-08-10T05:00:00Z] Task Completed
+- Task: Completed Phase 3A lesson-path audit and replaced note-based lesson progression with explicit server-authoritative lesson completion.
+- Files changed: backend lesson progress model/migration, lesson/onboarding/training/progression APIs and tests, Week 0 seed and audit document, frontend lesson/orientation UI and E2E expectation, tasks/loop-log.md
+- Result: pass against acceptance criteria — the note-only CompTIA wrapper is retired from Week 0; notes remain optional; explicit completion is student-owned and idempotent; 371 backend tests and focused lesson/training coverage pass; frontend build and temporary fresh/upgrade migration validation pass.
+- Next: Do not begin quiz-bank cleanup until Phase 3A review is accepted.
+
+## [2026-08-10T07:55:00Z] Task Completed
+- Task: Completed Phase 3B authored-question editorial repair batch 1, preserving the five existing rewrites and repairing the next required longest-answer cues.
+- Files changed: backend/seed_phase_a.py; tasks/loop-log.md
+- Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 148/170 to 127/170; all 189 explanations remain present; authored-quality checks and 14 focused seed/organization tests pass.
+- Next: Continue Phase 3B batch 2 with the next required P1 worklist questions.
+
+## [2026-08-10T08:05:00Z] Task Completed
+- Task: Completed Phase 3B authored-question editorial repair batch 2 across accounts, endpoint security, client networking, and IPv4 foundations.
+- Files changed: backend/seed_phase_b.py; backend/seed_phase_c.py; tasks/loop-log.md
+- Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 127/170 to 104/170; all 189 explanations remain present; authored-quality checks and 14 focused seed/organization tests pass.
+- Next: Continue Phase 3B batch 3 with packet flow, Cisco, and routing-service questions.
+
+## [2026-08-10T08:15:00Z] Task Completed
+- Task: Completed Phase 3B authored-question editorial repair batch 3 across packet flow, switching, trunks, routing, and secure administration.
+- Files changed: backend/seed_phase_c.py; tasks/loop-log.md
+- Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 104/170 to 91/170; all 189 explanations remain present; authored-quality checks and 14 focused seed/organization tests pass.
+- Next: Continue Phase 3B with the directory, Group Policy, server, and remaining required worklist questions.
+
+## [2026-08-10T08:25:00Z] Task Completed
+- Task: Completed Phase 3B authored-question editorial repair batch 4 across Active Directory, domain operations, Group Policy, and DNS/DHCP administration.
+- Files changed: backend/seed_phase_d.py; tasks/loop-log.md
+- Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 91/170 to 76/170; all 189 explanations remain present; authored-quality checks and 14 focused seed/organization tests pass.
+- Next: Continue Phase 3B with server operations and the remaining Linux and cloud worklist questions.
+
+## [2026-08-10T08:35:00Z] Task Completed
+- Task: Completed Phase 3B authored-question editorial repair batch 5 across server operations, Linux fundamentals, service operations, and monitoring.
+- Files changed: backend/seed_phase_d.py; backend/seed_phase_e.py; tasks/loop-log.md
+- Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 76/170 to 68/170; all 189 explanations remain present; authored-quality checks and 14 focused seed/organization tests pass.
+- Next: Continue the residual audit worklist through cloud and integrated operations; do not stop at the quantitative guardrail.
+
+## [2026-08-10T08:45:00Z] Task Completed
+- Task: Completed the next Phase 3B residual editorial checkpoint across early troubleshooting, directory, server, and Linux questions.
+- Files changed: backend/seed_phase_a.py; backend/seed_phase_b.py; backend/seed_phase_d.py; backend/seed_phase_e.py; tasks/loop-log.md
+- Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 68/170 to 44/170; all 189 explanations remain present; authored-quality checks and 14 focused seed/organization tests pass.
+- Next: Finish cloud and integrated operations residual signals, then complete the whole-suite and build validation pass.
+
+## [2026-08-10T08:55:00Z] Task Completed
+- Task: Completed the Phase 3B cloud and integrated-operations editorial checkpoint, including residual networking option parallelism.
+- Files changed: backend/seed_phase_c.py; backend/seed_phase_f.py; backend/seed_phase_g.py; tasks/loop-log.md
+- Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 44/170 to 27/170; all 189 explanations remain present; authored-quality checks are clean and 14 focused seed/organization tests pass.
+- Next: Clear the remaining residual signals and run final complete validation.
+
+## [2026-08-10T09:05:00Z] Task Completed
+- Task: Completed the final Phase 3B residual editorial repair and regenerated the authored-question quality audit.
+- Files changed: backend/seed_phase_a.py; backend/seed_phase_b.py; backend/seed_phase_c.py; backend/seed_phase_d.py; backend/seed_phase_e.py; backend/seed_phase_f.py; docs/NEXUS_QUESTION_QUALITY_AUDIT.md; docs/nexus_question_quality.json; tasks/loop-log.md
+- Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 27/170 to 4/170 (2.4%); all 189 authored questions remain active with 189 explanations, including 19 validated multi-select questions; authored-quality checks and 14 focused seed/organization tests pass.
+- Next: Run full backend, frontend build, and final fresh-seed validation before declaring Phase 3B complete.
+
+## [2026-08-10T09:15:00Z] Task Completed
+- Task: Completed Phase 3B editorial repair final validation.
+- Files changed: tasks/loop-log.md
+- Result: pass against acceptance criteria — full backend suite passed 374 tests; frontend production build passed; Alembic upgraded a disposable database through 0045, full seed completed, and authored-quality validation passed with 4/170 uniquely-longest correct answers (2.4%), 189/189 explanations, and 19 multi-select questions.
+- Next: None
+
+## [2026-08-10T09:35:00Z] Task Completed
+- Task: Completed Phase 3C imported-bank and quiz-organization audit, archived unreviewed ExamCompass quiz banks, and hardened imported-quiz intake safety.
+- Files changed: backend/alembic/versions/0046_archive_unreviewed_examcompass.py; backend/app/routers/admin_quiz.py; backend/scripts/audit_imported_question_bank.py; backend/tests/test_admin_content_validation.py; backend/tests/test_imported_question_audit.py; docs/IMPORTED_QUESTION_AND_QUIZ_AUDIT.md; docs/imported_question_quiz_audit.json; tasks/loop-log.md
+- Result: pass against acceptance criteria — disposable migrated legacy-bank audit found 777 imported questions (27 required, 4 optional visible), zero structural integrity/duplicate findings, and 75 active imported quizzes before archival; migration preserves all data while reducing active imported quizzes to 4 and strict disconnected active imports to 0. Focused tests passed 19/19.
+- Next: Run full backend suite, frontend build, and fresh migration/seed validation before declaring Phase 3C complete.
+
+## [2026-08-10T08:44:12Z] Task Completed
+- Task: Completed Phase 3C imported-bank and quiz-organization safety pass.
+- Files changed: backend/alembic/versions/0046_archive_unreviewed_examcompass.py; backend/app/routers/admin_quiz.py; backend/scripts/audit_imported_question_bank.py; backend/tests/test_admin_content_validation.py; backend/tests/test_imported_question_audit.py; docs/IMPORTED_QUESTION_AND_QUIZ_AUDIT.md; docs/imported_question_quiz_audit.json; tasks/loop-log.md
+- Result: pass against acceptance criteria — focused tests passed 19/19, full backend suite passed 377 tests, frontend production build passed, and a fresh disposable database upgraded through 0046, seeded 25 authored quizzes/189 questions, and passed authored-quality validation.
+- Next: None.
+
+## [2026-08-10 09:51:42 UTC] Task Completed
+- Task: Completed the final pre-launch engineering pass, repaired repeatable Service Desk verification and natural internal-note validation, restored standalone browser testing, and recorded release evidence.
+- Files changed: frontend/tests/e2e/my-training.spec.js; frontend/tests/e2e/service-desk-integration.spec.js; service-desk-app/apps/web/components/RemoteDesktopTool.tsx; service-desk-app/packages/simulation-engine/src/apply-action.ts; service-desk-app/packages/simulation-engine/src/phase-18-remote-desktop.test.ts; service-desk-app/packages/simulation-engine/src/service-desk-quality.test.ts; service-desk-app/package.json; service-desk-app/pnpm-lock.yaml; docs/FINAL_LAUNCH_READINESS.md; tasks/loop-log.md
+- Result: pass against acceptance criteria — backend 377/377, integrated Playwright 25/25, standalone Service Desk Playwright 3/3, Service Desk 257/257 unit tests plus lint/typecheck/build, frontend build, dependency audits, question guards, fresh 0046 migration, and production-like 0041→0046 upgrade all passed with no launch blocker.
+- Next: Follow the documented merge and production deployment rehearsal; do not deploy without verified paired SQLite/uploads backups and rollback assets.
+
+## [2026-08-10T12:26:06Z] Task Completed
+- Task: Attempted the actual production release through the mandatory source verification and predeploy gate, then stopped at the first failed precondition.
+- Files changed: tasks/loop-log.md
+- Result: fail against acceptance criteria — Phase 1 passed at approved RC 9fa3c79558b0eee591c035b4649d9a911612bcf9 with a clean tree, but scripts/predeploy_check.sh exited 1 because Alembic could not load migration 0043 (`ModuleNotFoundError: No module named 'app'`); no merge or production change was performed.
+- Next: Correct and validate the documented predeploy gate/Alembic invocation on the release branch, restore a clean reviewed release-candidate state, and restart the production release from Phase 1.
+
+## [2026-08-10T13:37:36Z] Task Completed
+- Task: Fixed the Alembic predeploy execution context, aligned active-production documentation, and revalidated the pending migration chain without deploying.
+- Files changed: CLAUDE.md; docs/DEPLOYMENT.md; docs/PRODUCTION_LAUNCH_REHEARSAL.md; scripts/predeploy_check.sh; tasks/loop-log.md
+- Result: pass against acceptance criteria — root-level predeploy now uses the backend venv interpreter with `python -m alembic` from `backend/`, loads one 0046 head, and accepts production 0041 only as a proven ancestor; fresh and production-like 0041→0046 disposable migrations passed with integrity ok and zero foreign-key violations; backend import/compile, 3 focused tests, and all 377 backend tests passed.
+- Next: Review the new release-candidate commit, then restart the production release from Phase 1 only when explicitly authorized.
+
+## [2026-08-10T14:05:26Z] Task Completed
+- Task: Restarted the actual production release from Phase 1 for RC 18fb8f860a6ae9a0851660c60fd4ca949e1544cd, passed the repaired predeploy gate, opened protected-workflow PR #12, and stopped before merge when GitHub CI failed.
+- Files changed: tasks/loop-log.md
+- Result: fail against acceptance criteria — Phase 1 and scripts/predeploy_check.sh passed, but PR #12 failed Backend quality and tests on Ruff F841 in service_desk_objectives.py and failed Database, migrations, and seeds because CI still expected 0041 instead of the 0046 head; no merge or production change was performed.
+- Next: Correct both CI failures on the release branch, validate them, establish and approve a new RC SHA, then restart the production release from Phase 1.
+
+## [2026-08-10T14:53:32Z] Task Completed
+- Task: Repaired all PR #12 release CI regressions, validated the complete release candidate locally, pushed the fixes to the existing branch, and monitored the replacement GitHub Actions run through success.
+- Files changed: .github/workflows/ci.yml; backend/app/services/service_desk_objectives.py; frontend/tests/e2e/my-training.spec.js; scripts/e2e/start_local_stack.sh; tasks/loop-log.md
+- Result: pass against acceptance criteria — backend 377/377, Service Desk 257/257, both Playwright suites 6/6 and 10/10, disposable database migration/seed/integrity gates, frontend and Service Desk builds/audits, and scripts/predeploy_check.sh passed; all five required PR #12 CI jobs passed on repair commit 9274fe98e1acac80d4131200fa00ccb011c24e34.
+- Next: Treat the final pushed branch head as the replacement release candidate; merge and production deployment require separate authorization and must restart the documented release procedure from Phase 1.

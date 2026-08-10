@@ -148,6 +148,8 @@ export function RemoteDesktopTool() {
       : new URLSearchParams(window.location.search).get('computer'),
   );
   const [query, setQuery] = useState('');
+  const consoleLabel =
+    ticketId === 'INC2402' ? 'Managed Device Console' : 'Remote Desktop';
   const [ticketOpen, setTicketOpen] = useState(true);
   const [toast, setToast] = useState<ActionEvent | null>(null);
   const scenario =
@@ -258,7 +260,7 @@ export function RemoteDesktopTool() {
             id="remote-desktop-title"
             className="font-display text-2xl font-bold text-zinc-100"
           >
-            Remote Desktop
+            {consoleLabel}
           </h1>
         </div>
         {canReviewScenario ? (
@@ -1429,12 +1431,14 @@ function DesktopWindow({
 function ScenarioAction({
   children,
   performed,
+  repeatable = false,
   runStep,
   scenarioComplete,
   stepId,
 }: {
   children: ReactNode;
   performed: ReadonlySet<string>;
+  repeatable?: boolean;
   runStep: (stepId: string) => void;
   scenarioComplete: boolean;
   stepId: string;
@@ -1443,11 +1447,11 @@ function ScenarioAction({
   return (
     <button
       className="rounded-sm bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-700 disabled:bg-zinc-300"
-      disabled={recorded || scenarioComplete}
+      disabled={(recorded && !repeatable) || scenarioComplete}
       onClick={() => runStep(stepId)}
       type="button"
     >
-      {recorded ? 'Recorded' : children}
+      {recorded && !repeatable ? 'Recorded' : children}
     </button>
   );
 }
@@ -1513,7 +1517,9 @@ function AppContent({
     case 'settings':
       return (
         <SettingsWindow
-          canRepairNetwork={Boolean(scenario.actionLabels['settings.repair-network'])}
+          canRepairNetwork={Boolean(
+            scenario.actionLabels['settings.repair-network'],
+          )}
           clearProfileStorage={() => runStep('settings.clear-profile-storage')}
           completeUpdate={() =>
             onEvent(remote.completeUpdateInstall(workstation.assetTag))
@@ -1600,6 +1606,24 @@ function AppContent({
               </button>
             ) : null}
           </div>
+          {Object.keys(scenario.actionLabels).some((stepId) =>
+            stepId.startsWith('scenario.'),
+          ) ? (
+            <section className="mt-6 rounded border border-zinc-200 bg-zinc-50 p-4">
+              <h4 className="font-semibold text-zinc-900">
+                Case investigation workspace
+              </h4>
+              <p className="mt-1 text-sm text-zinc-600">
+                Record the evidence you establish, then apply the specific safe
+                remediation and retest the original request.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {Object.entries(scenario.actionLabels)
+                  .filter(([stepId]) => stepId.startsWith('scenario.'))
+                  .map(([stepId, label]) => action(stepId, label))}
+              </div>
+            </section>
+          ) : null}
           {printResult ? (
             <p
               className={`mt-4 rounded border p-3 text-sm ${serviceProgress?.verificationEvidence.includes('printer.test-succeeded') ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-900'}`}
@@ -1840,7 +1864,9 @@ function SettingsWindow({
                 onClick={repairNetwork}
                 type="button"
               >
-                {networkRepaired ? 'Network profile repaired' : 'Repair network profile'}
+                {networkRepaired
+                  ? 'Network profile repaired'
+                  : 'Repair network profile'}
               </Button>
             ) : null}
             <form
@@ -2188,6 +2214,7 @@ function BrowserWindow({
         {scenario.actionLabels['browser.retry-export'] ? (
           <ScenarioAction
             performed={performed}
+            repeatable
             runStep={runStep}
             scenarioComplete={scenarioComplete}
             stepId="browser.retry-export"
@@ -2198,6 +2225,7 @@ function BrowserWindow({
         {scenario.actionLabels['browser.retry-sign-in'] ? (
           <ScenarioAction
             performed={performed}
+            repeatable
             runStep={runStep}
             scenarioComplete={scenarioComplete}
             stepId="browser.retry-sign-in"

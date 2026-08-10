@@ -91,6 +91,7 @@ function expectClosed(
     attempt.remoteDesktopOverlays[assetTag]?.scenarioProgress[scenarioId]
       ?.phases,
   ).toEqual({
+    investigated: true,
     diagnosed: true,
     fixed: true,
     verified: true,
@@ -191,7 +192,7 @@ describe('Phase 18 phase-aware Remote Desktop workflows', () => {
     expectClosed(attempt, 'NX-2047', 'INC2406', 'vpn-shared-drive');
   });
 
-  it('rejects Ticket A closure when diagnosis evidence is incomplete', () => {
+  it('awards a reduced process score when Ticket A is repaired without diagnosis evidence', () => {
     const attempt = run(connected('NX-2047', 'INC2406'), [
       {
         type: 'remote_desktop.vpn_connect',
@@ -209,8 +210,12 @@ describe('Phase 18 phase-aware Remote Desktop workflows', () => {
     ]);
     const rejected = act(attempt, close('INC2406'));
 
-    expect(rejected.event.success).toBe(false);
-    expect(rejected.event.rejectReason).toContain('diagnosis evidence');
+    expect(rejected.event.success).toBe(true);
+    expect(
+      rejected.attempt.remoteDesktopOverlays['NX-2047']?.scenarioProgress[
+        'vpn-shared-drive'
+      ]?.finalScore,
+    ).toBe(60);
   });
 
   it('completes Ticket B through diagnose, fix, verify, note, and close', () => {
@@ -474,20 +479,45 @@ describe('Phase 18 phase-aware Remote Desktop workflows', () => {
     'x'.repeat(40),
     'fixed fixed fixed fixed fixed fixed fixed fixed',
     '\u200b'.repeat(40),
-  ])('rejects malformed internal notes that only satisfy the length check', (text) => {
-    const rejected = act(connected('NX-2047', 'INC2406'), {
-      type: 'remote_desktop.add_internal_note',
-      payload: { assetTag: 'NX-2047', ticketId: 'INC2406', text },
-    });
+  ])(
+    'rejects malformed internal notes that only satisfy the length check',
+    (text) => {
+      const rejected = act(connected('NX-2047', 'INC2406'), {
+        type: 'remote_desktop.add_internal_note',
+        payload: { assetTag: 'NX-2047', ticketId: 'INC2406', text },
+      });
 
-    expect(rejected.event.success).toBe(false);
-    expect(rejected.event.rejectReason).toContain('meaningful student-authored');
-    expect(
-      rejected.attempt.remoteDesktopOverlays['NX-2047']?.scenarioProgress[
-        'vpn-shared-drive'
-      ],
-    ).toMatchObject({ internalNote: null, phases: { noted: false } });
-  });
+      expect(rejected.event.success).toBe(false);
+      expect(rejected.event.rejectReason).toContain(
+        'meaningful student-authored',
+      );
+      expect(
+        rejected.attempt.remoteDesktopOverlays['NX-2047']?.scenarioProgress[
+          'vpn-shared-drive'
+        ],
+      ).toMatchObject({ internalNote: null, phases: { noted: false } });
+    },
+  );
+
+  it.each([
+    'I diagnosed the stale profile, repaired it by clearing storage, and verified the portal opened.',
+    'I confirmed the bad profile, fixed it by clearing storage, and tested the portal successfully.',
+  ])(
+    'accepts natural repair verb forms in meaningful internal notes',
+    (text) => {
+      const accepted = act(connected('NX-4831', 'INC2401'), {
+        type: 'remote_desktop.add_internal_note',
+        payload: { assetTag: 'NX-4831', ticketId: 'INC2401', text },
+      });
+
+      expect(accepted.event.success).toBe(true);
+      expect(
+        accepted.attempt.remoteDesktopOverlays['NX-4831']?.scenarioProgress[
+          'profile-storage'
+        ],
+      ).toMatchObject({ internalNote: text, phases: { noted: true } });
+    },
+  );
 
   it('preserves diagnose, fix, and verify progress through serialization refresh', () => {
     const beforeRefresh = run(connected('NX-8892', 'INC2407'), [
@@ -531,7 +561,7 @@ describe('Phase 18 phase-aware Remote Desktop workflows', () => {
     ).toMatchObject({ diagnosed: true, fixed: true, verified: true });
   });
 
-  it('keeps the four unchanged pre-existing scenarios working with their original steps', () => {
+  it('requires the upgraded scenarios to collect process evidence before completion', () => {
     const cases = [
       {
         assetTag: 'NX-3560',
@@ -579,7 +609,7 @@ describe('Phase 18 phase-aware Remote Desktop workflows', () => {
       }
       expect(
         attempt.remoteDesktopOverlays[item.assetTag]?.completedScenarioIds,
-      ).toContain(item.scenarioId);
+      ).not.toContain(item.scenarioId);
     }
   });
 });

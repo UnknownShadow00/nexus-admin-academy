@@ -104,6 +104,20 @@ describe('asset actions', () => {
     ).toHaveLength(2);
   });
 
+  it('records an auditable headset isolation check without changing inventory state', () => {
+    const result = apply(createAttempt(), {
+      type: 'asset.record_isolation',
+      payload: {
+        assetTag: 'NX-9052',
+        test: 'affected-headset-known-good-workstation',
+      },
+    });
+
+    expect(result.event.success).toBe(true);
+    expect(result.attempt.assetOverlays['NX-9052']?.events).toHaveLength(1);
+    expect(result.attempt.assetOverlays['NX-9052']?.status).toBeDefined();
+  });
+
   it('keeps an SD shelf computer and Asset Management assignment in sync', () => {
     const assigned = apply(createAttempt(), {
       type: 'asset.assign',

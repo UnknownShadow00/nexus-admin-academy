@@ -50,7 +50,7 @@ MODULE_WEEKS = {
 
 def derive_current_week(student_id: int, db: Session) -> int:
     """Return the earliest curriculum week with incomplete required work."""
-    from app.models.lesson_notes import StudentLessonNote
+    from app.models.lesson_progress import StudentLessonProgress
 
     for week in range(25):
         codes = [code for code, mapped_week in MODULE_WEEKS.items() if mapped_week == week]
@@ -68,9 +68,10 @@ def derive_current_week(student_id: int, db: Session) -> int:
         if lesson_ids:
             done = {
                 row.lesson_id
-                for row in db.query(StudentLessonNote.lesson_id).filter(
-                    StudentLessonNote.student_id == student_id,
-                    StudentLessonNote.lesson_id.in_(lesson_ids),
+                for row in db.query(StudentLessonProgress.lesson_id).filter(
+                    StudentLessonProgress.student_id == student_id,
+                    StudentLessonProgress.lesson_id.in_(lesson_ids),
+                    StudentLessonProgress.completed_at.isnot(None),
                 )
             }
         required_incomplete = any(
@@ -407,12 +408,12 @@ def _check_practical_checkpoint(student_id: int, config: dict, db: Session) -> d
 
 
 def _check_lessons_requirement(student_id: int, config: dict, db: Session) -> dict:
-    """Lesson completion = submitted lesson notes (the platform's completion signal).
+    """Lesson completion = an explicit, server-stored completion record.
 
     Config: {"weeks": [1,2,3,4]} or {"module_codes": ["MOD-001", ...]}.
-    Requires notes for every published lesson in scope.
+    Requires explicit completion for every published lesson in scope.
     """
-    from app.models.lesson_notes import StudentLessonNote
+    from app.models.lesson_progress import StudentLessonProgress
 
     cfg = config or {}
     lesson_query = db.query(Lesson.id).filter(Lesson.status == "published")
@@ -426,14 +427,14 @@ def _check_lessons_requirement(student_id: int, config: dict, db: Session) -> di
     required_ids = {row.id for row in lesson_query.all()}
     done_ids = {
         row.lesson_id
-        for row in db.query(StudentLessonNote.lesson_id)
-        .filter(StudentLessonNote.student_id == student_id)
+        for row in db.query(StudentLessonProgress.lesson_id)
+        .filter(StudentLessonProgress.student_id == student_id, StudentLessonProgress.completed_at.isnot(None))
         .all()
     }
     missing = sorted(required_ids - done_ids)
     return {
         "type": "min_completed_lessons",
-        "description": f"Lesson notes submitted for {scope_desc}",
+        "description": f"Lessons completed for {scope_desc}",
         "progress": {
             "required": len(required_ids),
             "completed": len(required_ids) - len(missing),

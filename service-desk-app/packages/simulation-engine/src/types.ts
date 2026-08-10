@@ -162,11 +162,13 @@ export interface ServerRoomOverlay {
 }
 
 export interface RemoteDesktopScenarioProgress {
+  investigationEvidence: readonly string[];
   diagnosisEvidence: readonly string[];
   fixEvidence: readonly string[];
   verificationEvidence: readonly string[];
   internalNote: string | null;
   phases: {
+    investigated: boolean;
     diagnosed: boolean;
     fixed: boolean;
     verified: boolean;

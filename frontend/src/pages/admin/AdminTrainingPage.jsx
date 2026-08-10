@@ -18,7 +18,7 @@ import {
 
 const activityTypes = [
   "video", "quiz", "lesson", "guided_lab", "networking_lab",
-  "support_ticket", "command_exercise", "terminal_exercise", "review", "capstone",
+  "service_desk_scenario", "command_exercise", "terminal_exercise", "review", "capstone",
 ];
 const emptyActivity = {
   activity_type: "video", content_ref: "", is_required: true,

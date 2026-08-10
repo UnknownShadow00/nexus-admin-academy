@@ -162,6 +162,8 @@ def add_activity(week_id: int, payload: ActivityCreate, db: Session = Depends(ge
     week = _week_or_404(db, week_id)
     if payload.activity_type not in TRAINING_ACTIVITY_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported activity type")
+    if payload.activity_type == "support_ticket":
+        raise HTTPException(status_code=400, detail="Legacy Support Tickets are retired; use a Service Desk scenario")
     if payload.is_required and payload.activity_type in UNTRACKED_ACTIVITY_TYPES:
         raise HTTPException(status_code=400, detail="This activity type has no verified completion record and must remain optional")
     if db.query(TrainingWeekActivity.id).filter(TrainingWeekActivity.stable_id == payload.stable_id).first():
@@ -192,6 +194,8 @@ def update_activity(activity_id: int, payload: ActivityPatch, db: Session = Depe
     if row is None:
         raise HTTPException(status_code=404, detail="Training activity not found")
     changes = payload.model_dump(exclude_unset=True)
+    if changes.get("activity_type") == "support_ticket":
+        raise HTTPException(status_code=400, detail="Legacy Support Tickets are retired; use a Service Desk scenario")
     if changes.get("is_required") and row.activity_type in UNTRACKED_ACTIVITY_TYPES:
         raise HTTPException(status_code=400, detail="This activity type has no verified completion record and must remain optional")
     prerequisite_id = changes.get("prerequisite_activity_id")

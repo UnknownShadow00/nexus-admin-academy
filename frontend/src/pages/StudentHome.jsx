@@ -91,7 +91,7 @@ export default function StudentHome() {
     { label: "Total XP", value: stats.total_xp || 0, to: "/progress", Icon: Zap, accent: "text-blue-600 dark:text-blue-400", card: "sm:col-span-2 lg:col-span-1" },
     { label: "Day Streak", value: stats.streak || 0, to: "/progress", Icon: Flame, accent: "text-orange-500 dark:text-orange-300" },
     { label: "Quizzes Done", value: stats.quizzes_completed || 0, to: "/quizzes", Icon: Trophy, accent: "text-emerald-600 dark:text-emerald-400" },
-    { label: "Tickets Passed", value: stats.tickets_completed || 0, to: "/tickets", Icon: Ticket, accent: "text-violet-600 dark:text-violet-400" },
+    { label: "Service Desk Passed", value: stats.service_desk_completed || 0, to: "/service-desk", Icon: Ticket, accent: "text-violet-600 dark:text-violet-400" },
   ];
 
   return (
@@ -145,8 +145,8 @@ export default function StudentHome() {
           <Link className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" to="/progress">View progress</Link>
         </div>
         {recent.length ? recent.map((item, index) => {
-          const Icon = item.type === "ticket" ? Ticket : BookOpen;
-          const scorePct = item.score != null ? (item.score / 10) * 100 : null;
+          const Icon = item.type === "service_desk" ? Ticket : BookOpen;
+          const scorePct = item.score != null ? item.score : null;
           return (
             <div key={`${item.type}-${index}`} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
               <div className="flex min-w-0 items-start gap-3">
@@ -159,7 +159,7 @@ export default function StudentHome() {
                 </div>
               </div>
               {item.score != null ? (
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${scoreBand.classes[scoreBand(scorePct)]}`}>Score {item.score}/10</span>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${scoreBand.classes[scoreBand(scorePct)]}`}>Score {item.score}%</span>
               ) : item.xp != null ? (
                 <div className="shrink-0"><XPBadge amount={item.xp} /></div>
               ) : null}

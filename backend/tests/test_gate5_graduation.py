@@ -1,7 +1,9 @@
 """Gate 5 (graduation → Junior Infrastructure Administrator) tests."""
+from datetime import datetime, timezone
+
 from conftest import make_student
 from app.models.learning import Lesson, Module
-from app.models.lesson_notes import StudentLessonNote
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.progression import PromotionGate, Role
 from app.models.ticket import Ticket, TicketSubmission
 from app.services.progression_service import check_promotion_eligibility
@@ -33,7 +35,7 @@ def _seed(db):
 
 
 def _fulfill(db, student, lesson, t4, sim3, sim_hints=1, sim_score=8):
-    db.add(StudentLessonNote(student_id=student.id, lesson_id=lesson.id, content="n"))
+    db.add(StudentLessonProgress(student_id=student.id, lesson_id=lesson.id, completed_at=datetime.now(timezone.utc)))
     db.add(TicketSubmission(student_id=student.id, ticket_id=t4.id, writeup="w",
                             status="passed", final_score=8, xp_awarded=40))
     db.add(TicketSubmission(student_id=student.id, ticket_id=sim3.id, writeup="w",

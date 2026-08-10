@@ -1,0 +1,3121 @@
+{
+  "generated_at": "2026-08-10T05:04:30.010653+00:00",
+  "authorship_rule": "Quiz.source_type == 'seed'. Imported ExamCompass questions use source_type == 'examcompass' and are excluded.",
+  "totals": {
+    "questions": 189,
+    "single_answer": 170,
+    "multi_select": 19,
+    "required": 169,
+    "optional": 20,
+    "active": 189,
+    "inactive": 0,
+    "explanations": 189,
+    "missing_explanations": 0,
+    "uniquely_longest_correct": 153,
+    "uniquely_longest_correct_percent": 90.0
+  },
+  "quizzes": {
+    "1: Ticket Writing Fundamentals": 8,
+    "2: Windows Accounts and Permissions": 10,
+    "3: The Investigator's Toolkit": 8,
+    "4: Windows Command-Line Diagnostics": 6,
+    "5: Help-Desk Operations": 6,
+    "6: Windows Deep Troubleshooting": 8,
+    "7: Accounts and Permissions in Practice": 9,
+    "8: Endpoint Security and Remote Support": 8,
+    "9: Client Network Triage": 8,
+    "10: IPv4 Addressing and Subnetting": 8,
+    "11: Packet Flow, ARP, and MAC Learning": 6,
+    "12: Cisco CLI, VLANs, and Interfaces": 7,
+    "13: Trunks, Routing, and Network Services": 7,
+    "14: Network Troubleshooting and Secure Admin": 7,
+    "15: Active Directory Foundations": 8,
+    "16: Domain Joins and File Access": 7,
+    "17: Group Policy Troubleshooting": 7,
+    "18: Server DNS/DHCP and PowerShell": 8,
+    "19: Server Operations, Backup, and Remoting": 7,
+    "20: Linux Fundamentals: Files, Permissions, SSH": 8,
+    "21: Services, Logs, and Linux Networking": 8,
+    "22: Linux in Production and Monitoring": 8,
+    "23: Cloud Concepts and Entra ID": 8,
+    "24: Azure VMs, NSGs, and Storage": 8,
+    "25: Integrated Operations Readiness": 6
+  },
+  "single_answer_position_distribution": {
+    "A": 36,
+    "B": 44,
+    "C": 44,
+    "D": 46
+  },
+  "classifications": {
+    "REWRITE STEM": 35,
+    "REWRITE DISTRACTORS": 118,
+    "KEEP": 36
+  },
+  "priorities": {
+    "P1": 156,
+    "P3": 17,
+    "P2": 16
+  },
+  "exact_normalized_duplicate_groups": [],
+  "records": [
+    {
+      "seed_key": "nexus-authored:ticket-writing-fundamentals:01",
+      "question_id": 1,
+      "quiz": "Ticket Writing Fundamentals",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:ticket-writing-fundamentals:02",
+      "question_id": 2,
+      "quiz": "Ticket Writing Fundamentals",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:ticket-writing-fundamentals:03",
+      "question_id": 3,
+      "quiz": "Ticket Writing Fundamentals",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:ticket-writing-fundamentals:04",
+      "question_id": 4,
+      "quiz": "Ticket Writing Fundamentals",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:ticket-writing-fundamentals:05",
+      "question_id": 5,
+      "quiz": "Ticket Writing Fundamentals",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:ticket-writing-fundamentals:06",
+      "question_id": 6,
+      "quiz": "Ticket Writing Fundamentals",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:ticket-writing-fundamentals:07",
+      "question_id": 7,
+      "quiz": "Ticket Writing Fundamentals",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:ticket-writing-fundamentals:08",
+      "question_id": 8,
+      "quiz": "Ticket Writing Fundamentals",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:windows-accounts-and-permissions:01",
+      "question_id": 9,
+      "quiz": "Windows Accounts and Permissions",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:windows-accounts-and-permissions:02",
+      "question_id": 10,
+      "quiz": "Windows Accounts and Permissions",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:windows-accounts-and-permissions:03",
+      "question_id": 11,
+      "quiz": "Windows Accounts and Permissions",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:windows-accounts-and-permissions:04",
+      "question_id": 12,
+      "quiz": "Windows Accounts and Permissions",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:windows-accounts-and-permissions:05",
+      "question_id": 13,
+      "quiz": "Windows Accounts and Permissions",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:windows-accounts-and-permissions:06",
+      "question_id": 14,
+      "quiz": "Windows Accounts and Permissions",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:windows-accounts-and-permissions:07",
+      "question_id": 15,
+      "quiz": "Windows Accounts and Permissions",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:windows-accounts-and-permissions:08",
+      "question_id": 16,
+      "quiz": "Windows Accounts and Permissions",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:windows-accounts-and-permissions:09",
+      "question_id": 17,
+      "quiz": "Windows Accounts and Permissions",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:windows-accounts-and-permissions:10",
+      "question_id": 18,
+      "quiz": "Windows Accounts and Permissions",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:the-investigator-s-toolkit:01",
+      "question_id": 19,
+      "quiz": "The Investigator's Toolkit",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:the-investigator-s-toolkit:02",
+      "question_id": 20,
+      "quiz": "The Investigator's Toolkit",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P2",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:the-investigator-s-toolkit:03",
+      "question_id": 21,
+      "quiz": "The Investigator's Toolkit",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P2",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:the-investigator-s-toolkit:04",
+      "question_id": 22,
+      "quiz": "The Investigator's Toolkit",
+      "required": false,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P2",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:the-investigator-s-toolkit:05",
+      "question_id": 23,
+      "quiz": "The Investigator's Toolkit",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P2",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:the-investigator-s-toolkit:06",
+      "question_id": 24,
+      "quiz": "The Investigator's Toolkit",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P2",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:the-investigator-s-toolkit:07",
+      "question_id": 25,
+      "quiz": "The Investigator's Toolkit",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P2",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:the-investigator-s-toolkit:08",
+      "question_id": 26,
+      "quiz": "The Investigator's Toolkit",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P2",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:windows-command-line-diagnostics:01",
+      "question_id": 27,
+      "quiz": "Windows Command-Line Diagnostics",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P2",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:windows-command-line-diagnostics:02",
+      "question_id": 28,
+      "quiz": "Windows Command-Line Diagnostics",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:windows-command-line-diagnostics:03",
+      "question_id": 29,
+      "quiz": "Windows Command-Line Diagnostics",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P2",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:windows-command-line-diagnostics:04",
+      "question_id": 30,
+      "quiz": "Windows Command-Line Diagnostics",
+      "required": false,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P2",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:windows-command-line-diagnostics:05",
+      "question_id": 31,
+      "quiz": "Windows Command-Line Diagnostics",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P2",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:windows-command-line-diagnostics:06",
+      "question_id": 32,
+      "quiz": "Windows Command-Line Diagnostics",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P2",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:help-desk-operations:01",
+      "question_id": 33,
+      "quiz": "Help-Desk Operations",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:help-desk-operations:02",
+      "question_id": 34,
+      "quiz": "Help-Desk Operations",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:help-desk-operations:03",
+      "question_id": 35,
+      "quiz": "Help-Desk Operations",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:help-desk-operations:04",
+      "question_id": 36,
+      "quiz": "Help-Desk Operations",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:help-desk-operations:05",
+      "question_id": 37,
+      "quiz": "Help-Desk Operations",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:help-desk-operations:06",
+      "question_id": 38,
+      "quiz": "Help-Desk Operations",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:windows-deep-troubleshooting:01",
+      "question_id": 39,
+      "quiz": "Windows Deep Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:windows-deep-troubleshooting:02",
+      "question_id": 40,
+      "quiz": "Windows Deep Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:windows-deep-troubleshooting:03",
+      "question_id": 41,
+      "quiz": "Windows Deep Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:windows-deep-troubleshooting:04",
+      "question_id": 42,
+      "quiz": "Windows Deep Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:windows-deep-troubleshooting:05",
+      "question_id": 43,
+      "quiz": "Windows Deep Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:windows-deep-troubleshooting:06",
+      "question_id": 44,
+      "quiz": "Windows Deep Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:windows-deep-troubleshooting:07",
+      "question_id": 45,
+      "quiz": "Windows Deep Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:windows-deep-troubleshooting:08",
+      "question_id": 46,
+      "quiz": "Windows Deep Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:accounts-and-permissions-in-practice:01",
+      "question_id": 47,
+      "quiz": "Accounts and Permissions in Practice",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:accounts-and-permissions-in-practice:02",
+      "question_id": 48,
+      "quiz": "Accounts and Permissions in Practice",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:accounts-and-permissions-in-practice:03",
+      "question_id": 49,
+      "quiz": "Accounts and Permissions in Practice",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:accounts-and-permissions-in-practice:04",
+      "question_id": 50,
+      "quiz": "Accounts and Permissions in Practice",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:accounts-and-permissions-in-practice:05",
+      "question_id": 51,
+      "quiz": "Accounts and Permissions in Practice",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:accounts-and-permissions-in-practice:06",
+      "question_id": 52,
+      "quiz": "Accounts and Permissions in Practice",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:accounts-and-permissions-in-practice:07",
+      "question_id": 53,
+      "quiz": "Accounts and Permissions in Practice",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:accounts-and-permissions-in-practice:08",
+      "question_id": 54,
+      "quiz": "Accounts and Permissions in Practice",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:accounts-and-permissions-in-practice:09",
+      "question_id": 55,
+      "quiz": "Accounts and Permissions in Practice",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:endpoint-security-and-remote-support:01",
+      "question_id": 56,
+      "quiz": "Endpoint Security and Remote Support",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:endpoint-security-and-remote-support:02",
+      "question_id": 57,
+      "quiz": "Endpoint Security and Remote Support",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:endpoint-security-and-remote-support:03",
+      "question_id": 58,
+      "quiz": "Endpoint Security and Remote Support",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:endpoint-security-and-remote-support:04",
+      "question_id": 59,
+      "quiz": "Endpoint Security and Remote Support",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:endpoint-security-and-remote-support:05",
+      "question_id": 60,
+      "quiz": "Endpoint Security and Remote Support",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:endpoint-security-and-remote-support:06",
+      "question_id": 61,
+      "quiz": "Endpoint Security and Remote Support",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:endpoint-security-and-remote-support:07",
+      "question_id": 62,
+      "quiz": "Endpoint Security and Remote Support",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:endpoint-security-and-remote-support:08",
+      "question_id": 63,
+      "quiz": "Endpoint Security and Remote Support",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:client-network-triage:01",
+      "question_id": 64,
+      "quiz": "Client Network Triage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:client-network-triage:02",
+      "question_id": 65,
+      "quiz": "Client Network Triage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:client-network-triage:03",
+      "question_id": 66,
+      "quiz": "Client Network Triage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:client-network-triage:04",
+      "question_id": 67,
+      "quiz": "Client Network Triage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:client-network-triage:05",
+      "question_id": 68,
+      "quiz": "Client Network Triage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:client-network-triage:06",
+      "question_id": 69,
+      "quiz": "Client Network Triage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:client-network-triage:07",
+      "question_id": 70,
+      "quiz": "Client Network Triage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:client-network-triage:08",
+      "question_id": 71,
+      "quiz": "Client Network Triage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:ipv4-addressing-and-subnetting:01",
+      "question_id": 72,
+      "quiz": "IPv4 Addressing and Subnetting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:ipv4-addressing-and-subnetting:02",
+      "question_id": 73,
+      "quiz": "IPv4 Addressing and Subnetting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:ipv4-addressing-and-subnetting:03",
+      "question_id": 74,
+      "quiz": "IPv4 Addressing and Subnetting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:ipv4-addressing-and-subnetting:04",
+      "question_id": 75,
+      "quiz": "IPv4 Addressing and Subnetting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:ipv4-addressing-and-subnetting:05",
+      "question_id": 76,
+      "quiz": "IPv4 Addressing and Subnetting",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:ipv4-addressing-and-subnetting:06",
+      "question_id": 77,
+      "quiz": "IPv4 Addressing and Subnetting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:ipv4-addressing-and-subnetting:07",
+      "question_id": 78,
+      "quiz": "IPv4 Addressing and Subnetting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:ipv4-addressing-and-subnetting:08",
+      "question_id": 79,
+      "quiz": "IPv4 Addressing and Subnetting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:packet-flow-arp-and-mac-learning:01",
+      "question_id": 80,
+      "quiz": "Packet Flow, ARP, and MAC Learning",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:packet-flow-arp-and-mac-learning:02",
+      "question_id": 81,
+      "quiz": "Packet Flow, ARP, and MAC Learning",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P2",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:packet-flow-arp-and-mac-learning:03",
+      "question_id": 82,
+      "quiz": "Packet Flow, ARP, and MAC Learning",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P2",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:packet-flow-arp-and-mac-learning:04",
+      "question_id": 83,
+      "quiz": "Packet Flow, ARP, and MAC Learning",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:packet-flow-arp-and-mac-learning:05",
+      "question_id": 84,
+      "quiz": "Packet Flow, ARP, and MAC Learning",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P2",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:packet-flow-arp-and-mac-learning:06",
+      "question_id": 85,
+      "quiz": "Packet Flow, ARP, and MAC Learning",
+      "required": false,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P2",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:cisco-cli-vlans-and-interfaces:01",
+      "question_id": 86,
+      "quiz": "Cisco CLI, VLANs, and Interfaces",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:cisco-cli-vlans-and-interfaces:02",
+      "question_id": 87,
+      "quiz": "Cisco CLI, VLANs, and Interfaces",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:cisco-cli-vlans-and-interfaces:03",
+      "question_id": 88,
+      "quiz": "Cisco CLI, VLANs, and Interfaces",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:cisco-cli-vlans-and-interfaces:04",
+      "question_id": 89,
+      "quiz": "Cisco CLI, VLANs, and Interfaces",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:cisco-cli-vlans-and-interfaces:05",
+      "question_id": 90,
+      "quiz": "Cisco CLI, VLANs, and Interfaces",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:cisco-cli-vlans-and-interfaces:06",
+      "question_id": 91,
+      "quiz": "Cisco CLI, VLANs, and Interfaces",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:cisco-cli-vlans-and-interfaces:07",
+      "question_id": 92,
+      "quiz": "Cisco CLI, VLANs, and Interfaces",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:trunks-routing-and-network-services:01",
+      "question_id": 93,
+      "quiz": "Trunks, Routing, and Network Services",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:trunks-routing-and-network-services:02",
+      "question_id": 94,
+      "quiz": "Trunks, Routing, and Network Services",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:trunks-routing-and-network-services:03",
+      "question_id": 95,
+      "quiz": "Trunks, Routing, and Network Services",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:trunks-routing-and-network-services:04",
+      "question_id": 96,
+      "quiz": "Trunks, Routing, and Network Services",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:trunks-routing-and-network-services:05",
+      "question_id": 97,
+      "quiz": "Trunks, Routing, and Network Services",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:trunks-routing-and-network-services:06",
+      "question_id": 98,
+      "quiz": "Trunks, Routing, and Network Services",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:trunks-routing-and-network-services:07",
+      "question_id": 99,
+      "quiz": "Trunks, Routing, and Network Services",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:network-troubleshooting-and-secure-admin:01",
+      "question_id": 100,
+      "quiz": "Network Troubleshooting and Secure Admin",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:network-troubleshooting-and-secure-admin:02",
+      "question_id": 101,
+      "quiz": "Network Troubleshooting and Secure Admin",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:network-troubleshooting-and-secure-admin:03",
+      "question_id": 102,
+      "quiz": "Network Troubleshooting and Secure Admin",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:network-troubleshooting-and-secure-admin:04",
+      "question_id": 103,
+      "quiz": "Network Troubleshooting and Secure Admin",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:network-troubleshooting-and-secure-admin:05",
+      "question_id": 104,
+      "quiz": "Network Troubleshooting and Secure Admin",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:network-troubleshooting-and-secure-admin:06",
+      "question_id": 105,
+      "quiz": "Network Troubleshooting and Secure Admin",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:network-troubleshooting-and-secure-admin:07",
+      "question_id": 106,
+      "quiz": "Network Troubleshooting and Secure Admin",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:active-directory-foundations:01",
+      "question_id": 107,
+      "quiz": "Active Directory Foundations",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:active-directory-foundations:02",
+      "question_id": 108,
+      "quiz": "Active Directory Foundations",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:active-directory-foundations:03",
+      "question_id": 109,
+      "quiz": "Active Directory Foundations",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:active-directory-foundations:04",
+      "question_id": 110,
+      "quiz": "Active Directory Foundations",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:active-directory-foundations:05",
+      "question_id": 111,
+      "quiz": "Active Directory Foundations",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:active-directory-foundations:06",
+      "question_id": 112,
+      "quiz": "Active Directory Foundations",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:active-directory-foundations:07",
+      "question_id": 113,
+      "quiz": "Active Directory Foundations",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:active-directory-foundations:08",
+      "question_id": 114,
+      "quiz": "Active Directory Foundations",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:domain-joins-and-file-access:01",
+      "question_id": 115,
+      "quiz": "Domain Joins and File Access",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:domain-joins-and-file-access:02",
+      "question_id": 116,
+      "quiz": "Domain Joins and File Access",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:domain-joins-and-file-access:03",
+      "question_id": 117,
+      "quiz": "Domain Joins and File Access",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:domain-joins-and-file-access:04",
+      "question_id": 118,
+      "quiz": "Domain Joins and File Access",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:domain-joins-and-file-access:05",
+      "question_id": 119,
+      "quiz": "Domain Joins and File Access",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:domain-joins-and-file-access:06",
+      "question_id": 120,
+      "quiz": "Domain Joins and File Access",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:domain-joins-and-file-access:07",
+      "question_id": 121,
+      "quiz": "Domain Joins and File Access",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:group-policy-troubleshooting:01",
+      "question_id": 122,
+      "quiz": "Group Policy Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:group-policy-troubleshooting:02",
+      "question_id": 123,
+      "quiz": "Group Policy Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:group-policy-troubleshooting:03",
+      "question_id": 124,
+      "quiz": "Group Policy Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:group-policy-troubleshooting:04",
+      "question_id": 125,
+      "quiz": "Group Policy Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:group-policy-troubleshooting:05",
+      "question_id": 126,
+      "quiz": "Group Policy Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:group-policy-troubleshooting:06",
+      "question_id": 127,
+      "quiz": "Group Policy Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:group-policy-troubleshooting:07",
+      "question_id": 128,
+      "quiz": "Group Policy Troubleshooting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:server-dns-dhcp-and-powershell:01",
+      "question_id": 129,
+      "quiz": "Server DNS/DHCP and PowerShell",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:server-dns-dhcp-and-powershell:02",
+      "question_id": 130,
+      "quiz": "Server DNS/DHCP and PowerShell",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:server-dns-dhcp-and-powershell:03",
+      "question_id": 131,
+      "quiz": "Server DNS/DHCP and PowerShell",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:server-dns-dhcp-and-powershell:04",
+      "question_id": 132,
+      "quiz": "Server DNS/DHCP and PowerShell",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:server-dns-dhcp-and-powershell:05",
+      "question_id": 133,
+      "quiz": "Server DNS/DHCP and PowerShell",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:server-dns-dhcp-and-powershell:06",
+      "question_id": 134,
+      "quiz": "Server DNS/DHCP and PowerShell",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:server-dns-dhcp-and-powershell:07",
+      "question_id": 135,
+      "quiz": "Server DNS/DHCP and PowerShell",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:server-dns-dhcp-and-powershell:08",
+      "question_id": 136,
+      "quiz": "Server DNS/DHCP and PowerShell",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:server-operations-backup-and-remoting:01",
+      "question_id": 137,
+      "quiz": "Server Operations, Backup, and Remoting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:server-operations-backup-and-remoting:02",
+      "question_id": 138,
+      "quiz": "Server Operations, Backup, and Remoting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:server-operations-backup-and-remoting:03",
+      "question_id": 139,
+      "quiz": "Server Operations, Backup, and Remoting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:server-operations-backup-and-remoting:04",
+      "question_id": 140,
+      "quiz": "Server Operations, Backup, and Remoting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:server-operations-backup-and-remoting:05",
+      "question_id": 141,
+      "quiz": "Server Operations, Backup, and Remoting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:server-operations-backup-and-remoting:06",
+      "question_id": 142,
+      "quiz": "Server Operations, Backup, and Remoting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:server-operations-backup-and-remoting:07",
+      "question_id": 143,
+      "quiz": "Server Operations, Backup, and Remoting",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:linux-fundamentals-files-permissions-ssh:01",
+      "question_id": 144,
+      "quiz": "Linux Fundamentals: Files, Permissions, SSH",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:linux-fundamentals-files-permissions-ssh:02",
+      "question_id": 145,
+      "quiz": "Linux Fundamentals: Files, Permissions, SSH",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:linux-fundamentals-files-permissions-ssh:03",
+      "question_id": 146,
+      "quiz": "Linux Fundamentals: Files, Permissions, SSH",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:linux-fundamentals-files-permissions-ssh:04",
+      "question_id": 147,
+      "quiz": "Linux Fundamentals: Files, Permissions, SSH",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:linux-fundamentals-files-permissions-ssh:05",
+      "question_id": 148,
+      "quiz": "Linux Fundamentals: Files, Permissions, SSH",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:linux-fundamentals-files-permissions-ssh:06",
+      "question_id": 149,
+      "quiz": "Linux Fundamentals: Files, Permissions, SSH",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:linux-fundamentals-files-permissions-ssh:07",
+      "question_id": 150,
+      "quiz": "Linux Fundamentals: Files, Permissions, SSH",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:linux-fundamentals-files-permissions-ssh:08",
+      "question_id": 151,
+      "quiz": "Linux Fundamentals: Files, Permissions, SSH",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:services-logs-and-linux-networking:01",
+      "question_id": 152,
+      "quiz": "Services, Logs, and Linux Networking",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:services-logs-and-linux-networking:02",
+      "question_id": 153,
+      "quiz": "Services, Logs, and Linux Networking",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:services-logs-and-linux-networking:03",
+      "question_id": 154,
+      "quiz": "Services, Logs, and Linux Networking",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:services-logs-and-linux-networking:04",
+      "question_id": 155,
+      "quiz": "Services, Logs, and Linux Networking",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:services-logs-and-linux-networking:05",
+      "question_id": 156,
+      "quiz": "Services, Logs, and Linux Networking",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P3",
+      "rationale": "No mechanical clue detected; retain under normal editorial review."
+    },
+    {
+      "seed_key": "nexus-authored:services-logs-and-linux-networking:06",
+      "question_id": 157,
+      "quiz": "Services, Logs, and Linux Networking",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:services-logs-and-linux-networking:07",
+      "question_id": 158,
+      "quiz": "Services, Logs, and Linux Networking",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:services-logs-and-linux-networking:08",
+      "question_id": 159,
+      "quiz": "Services, Logs, and Linux Networking",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:linux-in-production-and-monitoring:01",
+      "question_id": 160,
+      "quiz": "Linux in Production and Monitoring",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:linux-in-production-and-monitoring:02",
+      "question_id": 161,
+      "quiz": "Linux in Production and Monitoring",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:linux-in-production-and-monitoring:03",
+      "question_id": 162,
+      "quiz": "Linux in Production and Monitoring",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:linux-in-production-and-monitoring:04",
+      "question_id": 163,
+      "quiz": "Linux in Production and Monitoring",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:linux-in-production-and-monitoring:05",
+      "question_id": 164,
+      "quiz": "Linux in Production and Monitoring",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:linux-in-production-and-monitoring:06",
+      "question_id": 165,
+      "quiz": "Linux in Production and Monitoring",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:linux-in-production-and-monitoring:07",
+      "question_id": 166,
+      "quiz": "Linux in Production and Monitoring",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:linux-in-production-and-monitoring:08",
+      "question_id": 167,
+      "quiz": "Linux in Production and Monitoring",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:cloud-concepts-and-entra-id:01",
+      "question_id": 168,
+      "quiz": "Cloud Concepts and Entra ID",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:cloud-concepts-and-entra-id:02",
+      "question_id": 169,
+      "quiz": "Cloud Concepts and Entra ID",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:cloud-concepts-and-entra-id:03",
+      "question_id": 170,
+      "quiz": "Cloud Concepts and Entra ID",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:cloud-concepts-and-entra-id:04",
+      "question_id": 171,
+      "quiz": "Cloud Concepts and Entra ID",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:cloud-concepts-and-entra-id:05",
+      "question_id": 172,
+      "quiz": "Cloud Concepts and Entra ID",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:cloud-concepts-and-entra-id:06",
+      "question_id": 173,
+      "quiz": "Cloud Concepts and Entra ID",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:cloud-concepts-and-entra-id:07",
+      "question_id": 174,
+      "quiz": "Cloud Concepts and Entra ID",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:cloud-concepts-and-entra-id:08",
+      "question_id": 175,
+      "quiz": "Cloud Concepts and Entra ID",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:azure-vms-nsgs-and-storage:01",
+      "question_id": 176,
+      "quiz": "Azure VMs, NSGs, and Storage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:azure-vms-nsgs-and-storage:02",
+      "question_id": 177,
+      "quiz": "Azure VMs, NSGs, and Storage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:azure-vms-nsgs-and-storage:03",
+      "question_id": 178,
+      "quiz": "Azure VMs, NSGs, and Storage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:azure-vms-nsgs-and-storage:04",
+      "question_id": 179,
+      "quiz": "Azure VMs, NSGs, and Storage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:azure-vms-nsgs-and-storage:05",
+      "question_id": 180,
+      "quiz": "Azure VMs, NSGs, and Storage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:azure-vms-nsgs-and-storage:06",
+      "question_id": 181,
+      "quiz": "Azure VMs, NSGs, and Storage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:azure-vms-nsgs-and-storage:07",
+      "question_id": 182,
+      "quiz": "Azure VMs, NSGs, and Storage",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B",
+        "D"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    },
+    {
+      "seed_key": "nexus-authored:azure-vms-nsgs-and-storage:08",
+      "question_id": 183,
+      "quiz": "Azure VMs, NSGs, and Storage",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:integrated-operations-readiness:01",
+      "question_id": 184,
+      "quiz": "Integrated Operations Readiness",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:integrated-operations-readiness:02",
+      "question_id": 185,
+      "quiz": "Integrated Operations Readiness",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:integrated-operations-readiness:03",
+      "question_id": 186,
+      "quiz": "Integrated Operations Readiness",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "A"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE STEM",
+      "priority": "P1",
+      "rationale": "Decision wording needs sufficient scenario context."
+    },
+    {
+      "seed_key": "nexus-authored:integrated-operations-readiness:04",
+      "question_id": 187,
+      "quiz": "Integrated Operations Readiness",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:integrated-operations-readiness:05",
+      "question_id": 188,
+      "quiz": "Integrated Operations Readiness",
+      "required": true,
+      "active": true,
+      "multi_select": false,
+      "correct_positions": [
+        "C"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": true,
+      "classification": "REWRITE DISTRACTORS",
+      "priority": "P1",
+      "rationale": "Correct option is uniquely longest; make options naturally comparable."
+    },
+    {
+      "seed_key": "nexus-authored:integrated-operations-readiness:06",
+      "question_id": 189,
+      "quiz": "Integrated Operations Readiness",
+      "required": true,
+      "active": true,
+      "multi_select": true,
+      "correct_positions": [
+        "A",
+        "B"
+      ],
+      "has_explanation": true,
+      "correct_uniquely_longest": false,
+      "classification": "KEEP",
+      "priority": "P1",
+      "rationale": "Multi-select reviewed for explicit selection count and exact-set mapping."
+    }
+  ]
+}

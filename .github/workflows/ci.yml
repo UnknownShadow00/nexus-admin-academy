@@ -97,7 +97,7 @@ jobs:
         working-directory: backend
         # test_orientation_seed.py already runs: migrate an empty DB to
         # head, seed twice, diff the two snapshots for exact equality, and
-        # assert 25 weeks / 296 activities / 137 mapped videos / the single
+        # assert 25 weeks / 256 activities / 137 mapped videos / the single
         # required Week 0 orientation activity / curriculum validation
         # valid:true. Reusing it here avoids re-implementing that diff
         # logic in the workflow.
@@ -131,9 +131,29 @@ jobs:
         working-directory: backend
         run: python -m alembic upgrade head
 
-      - name: Confirm migration head is 0041_verified_question_keys
+      - name: Confirm database is at the single migration head
         working-directory: backend
-        run: python -m alembic current | tee /tmp/alembic-current.txt | grep -q "0041_verified_question_keys (head)"
+        run: |
+          set -o pipefail
+          python -m alembic heads | tee /tmp/alembic-heads.txt
+          python -m alembic current | tee /tmp/alembic-current.txt
+
+          mapfile -t heads < <(sed -nE 's/^([^[:space:]]+)[[:space:]]+\(head\)$/\1/p' /tmp/alembic-heads.txt)
+          mapfile -t current < <(sed -nE 's/^([^[:space:]]+)([[:space:]]+\(head\))?$/\1/p' /tmp/alembic-current.txt)
+
+          if [[ ${#heads[@]} -ne 1 ]]; then
+            echo "Expected exactly one Alembic head, found ${#heads[@]}" >&2
+            exit 1
+          fi
+          if [[ ${#current[@]} -ne 1 ]]; then
+            echo "Expected exactly one current database revision, found ${#current[@]}" >&2
+            exit 1
+          fi
+          if [[ "${current[0]}" != "${heads[0]}" ]]; then
+            echo "Database revision ${current[0]} does not match head ${heads[0]}" >&2
+            exit 1
+          fi
+          echo "confirmed: database revision ${current[0]} matches the single Alembic head"
 
       - name: Seed application and curriculum content
         run: bash scripts/e2e/seed_fresh_db.sh
@@ -148,10 +168,10 @@ jobs:
               data = json.load(f)
           assert data["valid"] is True, data
           assert data["week_count"] == 25, data["week_count"]
-          assert data["activity_count"] == 296, data["activity_count"]
+          assert data["activity_count"] == 256, data["activity_count"]
           assert data["enabled_video_count"] == 137, data["enabled_video_count"]
           assert data["mapped_video_count"] == 137, data["mapped_video_count"]
-          print("curriculum validation counts confirmed: 25 weeks, 296 activities, 137/137 videos mapped")
+          print("curriculum validation counts confirmed: 25 weeks, 256 activities, 137/137 videos mapped")
           PY
 
       - name: Run CLI validate and sanity
@@ -169,10 +189,19 @@ jobs:
           db_path = os.environ["DATABASE_URL"].removeprefix("sqlite:///")
           db = sqlite3.connect(db_path)
 
-          # Week 0 legitimately has two required lesson activities
-          # (orientation + the CompTIA methodology lesson) — identify the
-          # orientation one specifically by its lesson title, not just
-          # "any required lesson in Week 0".
+          # The empty CompTIA methodology wrapper is retired. Week 0 now has
+          # exactly one required lesson: the Nexus orientation.
+          required_lessons = db.execute(
+              """
+              SELECT COUNT(*) FROM training_week_activities AS activities
+              JOIN training_weeks AS weeks ON weeks.id = activities.training_week_id
+              WHERE weeks.week_number = 0
+                AND activities.activity_type = 'lesson'
+                AND activities.is_required = 1
+              """
+          ).fetchone()[0]
+          assert required_lessons == 1, f"expected exactly one required Week 0 lesson, found {required_lessons}"
+
           orientation = db.execute(
               """
               SELECT COUNT(*) FROM training_week_activities AS activities
@@ -194,7 +223,14 @@ jobs:
           ).fetchall()
           assert duplicates == [], f"duplicate seed records found: {duplicates}"
 
-          print("confirmed: one required Week 0 orientation activity, no duplicate seed records")
+          support_ticket_activities = db.execute(
+              "SELECT COUNT(*) FROM training_week_activities WHERE activity_type = 'support_ticket'"
+          ).fetchone()[0]
+          assert support_ticket_activities == 0, (
+              f"expected no live support_ticket activities, found {support_ticket_activities}"
+          )
+
+          print("confirmed: one required Week 0 orientation, no duplicate stable IDs, no live support_ticket activities")
           PY
 
       - name: SQLite integrity and foreign-key checks
@@ -286,16 +322,6 @@ jobs:
       - name: pnpm audit (high severity and above)
         working-directory: service-desk-app
         run: pnpm audit --audit-level=high
-
-  # NOTE: service-desk-app/tests/e2e/remote-desktop-workflows.spec.ts and
-  # service-desk-app/playwright.config.ts exist, but no package.json in this
-  # workspace (root, apps/*, or packages/*) declares @playwright/test as a
-  # dependency -- confirmed by grepping every workspace package.json and by
-  # `pnpm exec playwright` failing with "Command \"playwright\" not found".
-  # This suite is pre-existing dead infrastructure, broken independently of
-  # this merge, not something safe to wire into CI without first adding the
-  # missing dependency and actually verifying the suite passes. Tracked as a
-  # follow-up rather than guessed at here.
 
   playwright:
     name: Playwright browser tests

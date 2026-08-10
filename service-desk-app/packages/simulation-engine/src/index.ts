@@ -8,6 +8,8 @@ export {
   type ChatSimulationAction,
   type ChangeTicketStatusAction,
   type ChangeAssetStatusAction,
+  type HeadsetIsolationTest,
+  type RecordAssetIsolationAction,
   type ChangePcShelfDeviceStateAction,
   type ChangePcShelfNetworkStatusAction,
   type CloseTicketAction,

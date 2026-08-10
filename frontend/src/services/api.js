@@ -227,26 +227,8 @@ export const unmarkVideoWatched = (videoKey, studentId = currentStudentId(), req
 export const updateCurriculumVideo = (videoId, data, requestOptions) =>
   request(() => adminApi.patch(`/api/study-tracker/curriculum/${videoId}`, data), requestOptions);
 
-export const getTickets = (weekNumber, studentId = currentStudentId(), requestOptions) =>
-  request(() => api.get("/api/tickets", { params: { week_number: weekNumber, student_id: studentId } }), requestOptions);
-export const getTicket = (ticketId, requestOptions) => request(() => api.get(`/api/tickets/${ticketId}`), requestOptions);
-export const revealTicketHint = (ticketId, requestOptions) =>
-  request(() => api.post(`/api/tickets/${ticketId}/hint`), requestOptions);
 export const getWeekPlan = (week, requestOptions) =>
   request(() => api.get(`/api/students/me/week-plan${week ? `?week=${week}` : ""}`), requestOptions);
-export const submitTicket = (ticketId, payload, requestOptions) =>
-  request(() => api.post(`/api/tickets/${ticketId}/submit`, payload), requestOptions);
-export const getSubmission = (submissionId, requestOptions) =>
-  request(() => api.get(`/api/submissions/${submissionId}`), requestOptions);
-
-export const uploadScreenshots = (files, requestOptions) => {
-  const formData = new FormData();
-  files.forEach((file) => formData.append("files", file));
-  return request(
-    () => api.post("/api/tickets/uploads", formData, { headers: { "Content-Type": "multipart/form-data" } }),
-    requestOptions
-  );
-};
 export const uploadEvidence = ({ file, ticketId, artifactType }, requestOptions) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -274,6 +256,8 @@ export const getLessonNote = (lessonId, requestOptions) =>
   request(() => api.get(`/api/lessons/${lessonId}/notes`), requestOptions);
 export const getLesson = (lessonId, requestOptions) =>
   request(() => api.get(`/api/lessons/${lessonId}`), requestOptions);
+export const completeLesson = (lessonId, requestOptions) =>
+  request(() => api.post(`/api/lessons/${lessonId}/complete`), requestOptions);
 export const saveLessonNote = (lessonId, content, requestOptions) =>
   request(() => api.put(`/api/lessons/${lessonId}/notes`, { content }), requestOptions);
 export const getOrientationProgress = (requestOptions) =>
@@ -363,16 +347,10 @@ export const downloadQuestionImportErrorReport = (invalidRows) =>
     .then((res) => res.data);
 export const updateQuestion = (questionId, payload, requestOptions) =>
   request(() => adminApi.put(`/api/admin/questions/${questionId}`, payload), requestOptions);
-export const createTicket = (payload, requestOptions) =>
-  request(() => adminApi.post("/api/admin/tickets", payload), requestOptions);
-export const getSubmissions = (requestOptions) => request(() => adminApi.get("/api/admin/submissions"), requestOptions);
-export const getSubmissionDetail = (id, requestOptions) =>
-  request(() => adminApi.get(`/api/admin/submissions/${id}`), requestOptions);
 export const createResource = (payload, requestOptions) =>
   request(() => adminApi.post("/api/admin/resources", payload), requestOptions);
 export const deleteResource = (id, requestOptions) =>
   request(() => adminApi.delete(`/api/admin/resources/${id}`), requestOptions);
-export const getAdminReviewQueue = (requestOptions) => request(() => adminApi.get("/api/admin/review"), requestOptions);
 export const getAdminSubmission = (id, requestOptions) =>
   request(() => adminApi.get(`/api/admin/submissions/${id}`), requestOptions);
 export const getAdminServiceDeskAttempts = (params = {}, requestOptions) =>
@@ -419,10 +397,6 @@ export const updateStudent = (id, payload, requestOptions) =>
   request(() => adminApi.put(`/api/admin/students/${id}`, payload), requestOptions);
 export const deleteStudent = (id, requestOptions) =>
   request(() => adminApi.delete(`/api/admin/students/${id}`), requestOptions);
-export const bulkGenerateTickets = (payload, requestOptions) =>
-  request(() => adminApi.post("/api/admin/tickets/bulk-generate", payload), requestOptions);
-export const bulkPublishTickets = (payload, requestOptions) =>
-  request(() => adminApi.post("/api/admin/tickets/bulk-publish", payload), requestOptions);
 export const getAIUsageStats = (requestOptions) =>
   request(() => adminApi.get("/api/admin/ai-usage"), requestOptions);
 export const getAdminLabTemplates = (requestOptions) =>
@@ -449,8 +423,6 @@ export const getWeeklyLeads = (requestOptions) =>
   request(() => adminApi.get("/api/admin/weekly-domain-leads"), requestOptions);
 export const getRecentCVEs = (keyword = "windows", requestOptions) =>
   request(() => adminApi.get("/api/admin/cve/recent", { params: { keyword } }), requestOptions);
-export const createTicketFromCVE = (cveId, requestOptions) =>
-  request(() => adminApi.post("/api/admin/tickets/from-cve", null, { params: { cve_id: cveId } }), requestOptions);
 export const getModules = (requestOptions) => request(() => adminApi.get("/api/admin/modules"), requestOptions);
 export const createModule = (payload, requestOptions) =>
   request(() => adminApi.post("/api/admin/modules", payload), requestOptions);
@@ -466,8 +438,6 @@ export const getEvidence = (status, requestOptions) =>
   request(() => adminApi.get("/api/admin/evidence", { params: { status } }), requestOptions);
 export const reviewEvidence = (id, payload, requestOptions) =>
   request(() => adminApi.put(`/api/admin/evidence/${id}`, payload), requestOptions);
-export const updateTicketAnswerKey = (ticketId, payload, requestOptions) =>
-  request(() => adminApi.put(`/api/admin/tickets/${ticketId}/answer-key`, payload), requestOptions);
 export const getAdminCommands = (requestOptions) =>
   request(() => adminApi.get("/api/admin/commands"), requestOptions);
 export const createAdminCommand = (payload, requestOptions) =>

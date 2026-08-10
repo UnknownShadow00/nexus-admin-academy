@@ -1,4 +1,4 @@
-import { BookOpen, CheckCircle2, Circle, ClipboardList, FlaskConical, TerminalSquare, Ticket as TicketIcon } from "lucide-react";
+import { BookOpen, CheckCircle2, Circle, ClipboardList, FlaskConical, TerminalSquare } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getWeekPlan } from "../services/api";
@@ -12,7 +12,7 @@ const SECTIONS = [
   { key: "cumulative_gate_quizzes", label: "Cumulative / Gate", Icon: ClipboardList },
   { key: "cli_labs", label: "Networking Labs", Icon: TerminalSquare },
   { key: "labs", label: "Labs", Icon: FlaskConical },
-  { key: "tickets", label: "Tickets", Icon: TicketIcon },
+  { key: "service_desk", label: "Service Desk", Icon: ClipboardList },
 ];
 
 const STATUS_STYLES = {

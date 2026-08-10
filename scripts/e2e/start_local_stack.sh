@@ -207,6 +207,30 @@ for username in sys.argv[2:]:
 db.commit()
 PY
 
+# The health endpoint is a separate Next.js route and does not compile the
+# authenticated queue page. Warm the real route through the same Vite proxy
+# the browser uses so "Local stack ready" means the cross-app page can render,
+# not merely that the Service Desk process is listening.
+echo "== Warming Service Desk application route =="
+STUDENT_COOKIES="$SCRATCH_DIR/student_cookies.txt"
+curl -sf --max-time 15 -c "$STUDENT_COOKIES" -X POST "$API_BASE/auth/login" \
+    -H "Content-Type: application/json" -H "Origin: http://$FRONTEND_HOST:$FRONTEND_PORT" \
+    -d "{\"username\":\"$STUDENT_USERNAME_GEN\",\"password\":\"$STUDENT_PASSWORD_GEN\"}" \
+    > /dev/null
+if ! SERVICE_DESK_STATUS="$(curl -sS --max-time 45 -b "$STUDENT_COOKIES" -o /dev/null -w '%{http_code}' \
+    "http://$FRONTEND_HOST:$FRONTEND_PORT/service-desk")"; then
+    echo "Service Desk application route did not respond in time. Logs:" >&2
+    cat "$SCRATCH_DIR/service-desk.log" >&2 || true
+    cat "$SCRATCH_DIR/vite.log" >&2 || true
+    exit 1
+fi
+if [[ "$SERVICE_DESK_STATUS" != "200" ]]; then
+    echo "Service Desk application route did not become ready (HTTP $SERVICE_DESK_STATUS). Logs:" >&2
+    cat "$SCRATCH_DIR/service-desk.log" >&2 || true
+    cat "$SCRATCH_DIR/vite.log" >&2 || true
+    exit 1
+fi
+
 STACK_ENV="$SCRATCH_DIR/stack.env"
 {
     echo "NEXUS_E2E_BASE_URL=http://$FRONTEND_HOST:$FRONTEND_PORT"

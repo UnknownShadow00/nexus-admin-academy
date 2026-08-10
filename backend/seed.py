@@ -15,6 +15,7 @@ from app.models.service_desk import ServiceDeskAssignment, ServiceDeskScenario, 
 from app.models.ticket import Ticket
 from app.services.cli_lab_seed import seed_cli_labs
 from app.services.verified_question_corrections import apply_verified_question_corrections
+from app.services.service_desk_objectives import PROCESS_CATALOG_VERSION
 from seed_phase_a import seed_phase_a
 from seed_phase_b import seed_phase_b
 from seed_phase_c import seed_phase_c
@@ -224,10 +225,10 @@ ORIENTATION_SUMMARY = """Nexus is your 25-week practice space (Week 0 through We
 WHAT A WEEK MEANS: each week is a small, guided set of learning and practice. Finish the required items in the order shown, then use optional practice when you want more repetition. You are not expected to know everything before you start.
 
 THE FOUR THINGS YOU WILL SEE:
-- A LESSON explains one idea in plain language and gives you a place to save notes.
+- A LESSON explains one idea in plain language. You can save optional notes and explicitly mark the lesson complete when you are ready.
 - A QUIZ is a short checkpoint. It shows what you understand and what to revisit.
 - A LAB is a safe place to try a task with guided steps.
-- A TICKET is a realistic support request. You explain what you checked, what you did, and how you know it worked.
+- A SERVICE DESK SCENARIO is a realistic support request. You investigate, fix, verify, and document what you did.
 
 REQUIRED VS OPTIONAL: required items keep your weekly path moving. Optional practice, review, and certification questions are there when you want extra reps; they do not block your next required step.
 
@@ -235,16 +236,16 @@ EVIDENCE AND REMEDIATION: evidence is a screenshot, command output, or note that
 
 XP AND YOUR ROLE: XP is a running total of completed learning work. Your Role is a promotion level based on demonstrated readiness and specific gates. XP can show momentum; it does not promote you by itself.
 
-HOW GRADING WORKS: Nexus can use AI to give fast feedback on real ticket work. A mentor may still review it afterward, especially when judgment, safety, or workplace communication matters. NEEDS REVISION means your work is not final yet: read the feedback, improve the missing part, and submit again.
+HOW GRADING WORKS: Service Desk scenarios evaluate the evidence of your investigation, fix, verification, and notes. A mentor may still review your work afterward, especially when judgment, safety, or workplace communication matters. NEEDS REVISION means your work is not final yet: read the feedback, improve the missing part, and try again.
 
 WHEN YOU NEED HELP: ask your mentor or your cohort's agreed help channel. Include the lesson, quiz, lab, or ticket name and what you already tried. That gives people a useful starting point.
 
 YOUR SIMPLE ROUTINE:
 1. Open This Week on Home and choose the first item marked Next up.
-2. Read the lesson, save a short note, and complete the required quiz or practice.
+2. Read the lesson, mark it complete when you are ready, and complete the required quiz or practice.
 3. Come back to Home anytime. Your notes, quiz attempts, and submitted work save to your account, and unfinished work stays in This Week.
 
-GUIDED PRACTICE: save one short note below, take the Ticketing Systems Quiz, then write a one-sentence practice response. You may also upload a harmless sample screenshot. This walkthrough is not graded, does not use AI, and does not need mentor review.
+GUIDED PRACTICE: mark this orientation lesson complete, take the Ticketing Systems Quiz, then write a one-sentence practice response. You may optionally save notes or upload a harmless sample screenshot. This walkthrough is not graded and does not need mentor review.
 
 WHY THIS MATTERS: good support work is not guessing alone. It is knowing what to do next, recording what happened, asking for help early, and improving one small step at a time."""
 
@@ -266,14 +267,6 @@ MODULE_0 = {
             "estimated_minutes": 12,
             "required_notes_template": "Write one sentence: What is the first thing you will do when you are unsure what comes next in Nexus?",
         },
-        {
-            "title": "CompTIA 6-Step Process",
-            "summary": "Define, theorize, test, plan, verify, and document.",
-            "outcomes": ["Can identify symptoms", "Can test theories", "Can verify fixes"],
-            "lesson_order": 2,
-            "estimated_minutes": 45,
-            "required_notes_template": None,
-        }
     ],
 }
 
@@ -875,16 +868,6 @@ def seed_module0_and_methodology(db):
     # Migration 0031 cannot insert the orientation lesson on a completely fresh
     # database because MOD-000 is created later by this ordinary seed. Keep the
     # complete intended module here as the post-migration source of truth.
-    orientation = db.query(Lesson).filter(Lesson.module_id == module.id, Lesson.title == ORIENTATION_TITLE).first()
-    if orientation is None:
-        methodology = db.query(Lesson).filter(
-            Lesson.module_id == module.id,
-            Lesson.title == "CompTIA 6-Step Process",
-            Lesson.lesson_order == 1,
-        ).first()
-        if methodology is not None:
-            methodology.lesson_order = 2
-
     for lesson_data in MODULE_0["lessons"]:
         lesson = db.query(Lesson).filter(Lesson.module_id == module.id, Lesson.title == lesson_data["title"]).first()
         if lesson:
@@ -940,8 +923,58 @@ def seed_methodology_completions(db):
 
 
 
+def _converted_service_desk_ticket(
+    ticket_id, title, category, priority, asset_tag, device_name, requester,
+    department, issue, impact, troubleshooting, hints,
+):
+    """Current definitions for legacy content reviewed for Service Desk use.
+
+    These are new stable scenarios, not edits to the archived Ticket rows.
+    ``seed_service_desk_scenarios`` versions them immutably like the original
+    eight curated cases.
+    """
+    return {
+        "activity": [{"id": f"{ticket_id}-created", "label": "Ticket created", "timestamp": "2026-07-28T10:30:00.000Z"}],
+        "assignedTo": "you", "category": category, "createdAt": "2026-07-28T10:30:00.000Z",
+        "description": {"businessImpact": impact, "issue": issue, "reportedByLine": "Submitted through the employee support portal.", "troubleshooting": troubleshooting},
+        "device": {"assetTag": asset_tag, "deviceName": device_name, "kind": "laptop", "operatingSystem": "Windows 11 Enterprise", "state": "attention"},
+        "escalated": False, "hints": hints, "id": ticket_id, "notes": [], "priority": priority,
+        "requester": {"contact": "Employee support portal", "department": department, "email": f"{requester.lower().replace(' ', '.')}@nexus.example", "location": "Nexus office", "name": requester},
+        "sla": {"dueAt": "2026-07-28T14:30:00.000Z", "target": "Respond within 4 hours"},
+        "status": "open", "suggestedTools": ["remote-desktop", "documentation", "company-chat"], "title": title,
+    }
+
+
+SERVICE_DESK_TICKET_FIXTURES.extend([
+    _converted_service_desk_ticket("INC2501", "Desktop opens with a temporary Windows profile", "software", "high", "NX-2501", "ACCT-LT-17", "Morgan Ellis", "Accounting", "After signing in, Morgan sees a fresh desktop and cannot find the usual Documents files.", "Month-end work is paused while the user data appears unavailable.", ["The user restarted once.", "A nearby teammate can open the same shared files."], ["Protect user data before profile repair.", "Compare the sign-in profile path with the expected local profile.", "Confirm the original files are available after repairing the profile."]),
+    _converted_service_desk_ticket("INC2502", "Excel crashes only when one reporting workbook opens", "software", "medium", "NX-2502", "FIN-WS-44", "Priya Shah", "Finance", "Excel closes when the monthly reporting workbook opens, but other workbooks remain usable.", "The finance team cannot finish the monthly report.", ["A blank workbook opens normally.", "The workbook was copied locally and still crashes."], ["Reproduce the specific crash before changing Office.", "Use Safe Mode or add-in isolation to separate workbook and add-in causes.", "Verify the original workbook opens and saves after the repair."]),
+    _converted_service_desk_ticket("INC2503", "One desk lost network after an office move", "network", "high", "NX-2503", "OPS-WS-12", "Jordan Kim", "Operations", "A workstation moved to a new desk has no network while adjacent desks work normally.", "One dispatcher cannot access the order system.", ["The workstation was restarted.", "Nearby workstations remain connected."], ["Start with physical link and compare the nearby working desk.", "Check the assigned switch port and VLAN before renewing addresses.", "Verify the original order system after the port is corrected."]),
+    _converted_service_desk_ticket("INC2504", "Department printer stopped after its DHCP address changed", "hardware", "high", "NX-2504", "ENG-WS-09", "Sofia Nguyen", "Engineering", "The shared department printer is reachable from one workstation but this workstation still sends jobs to its old address.", "Engineering cannot print drawing review packets from the affected workstation.", ["The printer is powered on.", "A colleague printed successfully from a nearby computer."], ["Confirm whether this is local or printer-wide.", "Compare the configured print port with the printer’s current address.", "Update the port safely and print a test page."]),
+    _converted_service_desk_ticket("INC2505", "New employee cannot open the department share", "access", "medium", "NX-2505", "MKT-LT-05", "Taylor Reed", "Marketing", "A new employee receives Access Denied for the Marketing share that peers can use.", "The new hire cannot access approved team materials.", ["The share opens for the team lead.", "The employee can sign in successfully."], ["Confirm the requested resource and compare an authorized peer.", "Check approved group access before granting anything.", "Verify the original share after the least-privilege change."]),
+    _converted_service_desk_ticket("INC2506", "Assistant requests access to restricted salary records", "access", "high", "NX-2506", "HR-LT-21", "Casey Lane", "Executive Office", "An executive assistant asks for access to the restricted HR salary folder to help with a meeting.", "The request needs a timely, safe response without expanding access improperly.", ["The requester has access to general HR materials.", "No written approval is attached."], ["Identify the authorization boundary.", "Do not use a group change as a substitute for approval.", "Document a safe escalation and verify the request is routed correctly."]),
+    _converted_service_desk_ticket("INC2507", "Account keeps locking after a password change", "access", "high", "NX-2507", "SALES-LT-08", "Avery Monroe", "Sales", "The account locks again shortly after each successful password reset.", "The employee repeatedly loses access to sales systems.", ["The account was unlocked once.", "The employee can sign in immediately after the reset."], ["Find what is reusing the old credential instead of resetting again.", "Inspect saved mappings, Credential Manager, and scheduled connections.", "Remove the stale credential and monitor for another lockout."]),
+    _converted_service_desk_ticket("INC2508", "Employee entered credentials into a phishing page", "access", "high", "NX-2508", "PAY-LT-03", "Riley Brown", "Payroll", "An employee reports entering their password into a page reached from a suspicious email.", "The account and payroll data may be exposed until containment is complete.", ["The employee closed the page.", "No access changes have been made yet."], ["Contain first; do not treat this as ordinary password troubleshooting.", "Reset credentials, revoke active sessions, and escalate through the security path.", "Record the actions and safe follow-up for the employee."]),
+    _converted_service_desk_ticket("INC2509", "Workstation disk fills again every few days", "software", "medium", "NX-2509", "SUP-WS-31", "Devon Ross", "Support", "The C: drive fills repeatedly even after temporary files are deleted.", "The support workstation becomes slow and cannot install approved updates.", ["Temporary files were removed last week.", "Free space returned briefly, then fell again."], ["Identify what is growing rather than repeatedly deleting symptoms.", "Inspect log and application storage trends.", "Correct the source safely and verify free space remains stable."]),
+    _converted_service_desk_ticket("INC2510", "Restored laptop reports a trust relationship failure", "access", "medium", "NX-2510", "OPS-LT-58", "Sam Ortiz", "Operations", "A restored domain laptop rejects sign-in with a trust relationship error while peer laptops work.", "The employee cannot access the domain workstation after recovery.", ["The network is connected.", "Other domain users can sign in on nearby devices."], ["Separate user credentials from the computer account relationship.", "Confirm the secure-channel failure before changing the user account.", "Repair or escalate the device trust safely and verify domain sign-in."]),
+])
+
+
 SERVICE_DESK_TICKET_CONTENT_PATCHES = {
+    "INC2401": {
+        "issue": "The finance reporting portal accepts the first authentication step, then returns to the sign-in screen before the dashboard loads on the assigned laptop.",
+        "troubleshooting": [
+            "Confirmed Avery can sign in to another internal service.",
+            "Confirmed the directory account is active and not locked.",
+            "The Finance portal returned to sign-in before the dashboard loaded.",
+        ],
+        "hints": [
+            "The employee account is healthy, so distinguish an account problem from a browser-session problem.",
+            "Reproduce the Finance sign-in loop and review the local browser/profile evidence.",
+            "Clear the stale browser profile storage, then confirm the original Finance portal opens.",
+        ],
+    },
     "INC2402": {
+        "priority": "high",
         "businessImpact": "One loading lane is recording orders on paper, slowing dispatch and increasing re-entry work.",
         "issue": "The scanner at loading lane 2 disconnects from the warehouse network every few minutes. The scanner at the next lane stays connected.",
         "reportedByLine": "Reported by the morning dispatch lead after the issue continued through the first hour of the shift.",
@@ -963,6 +996,34 @@ SERVICE_DESK_TICKET_CONTENT_PATCHES = {
             "Mark the faulty headset as damaged, ship one replacement headset to Elliot Ward, and document how the requester should verify it.",
         ],
     },
+    "INC2405": {
+        "title": "Facilities calendar shortcut opens an archived workspace",
+        "issue": "The new coordinator can sign in and already has Facilities Calendar access, but the desktop calendar shortcut opens an archived-location error.",
+        "troubleshooting": [
+            "Confirmed the user can open their personal calendar and another current Facilities calendar.",
+            "Confirmed the requester is already in the Facilities Calendar access group.",
+            "Used the desktop calendar shortcut, which opened an archived-location error.",
+        ],
+        "hints": [
+            "Confirm that the requested calendar exists and that the requester already has legitimate access.",
+            "Inspect the calendar workspace shortcut or mapping and compare it with the current Facilities location.",
+            "Repair the obsolete mapping and ask the requester to open the original calendar workspace again.",
+        ],
+    },
+    "INC2406": {
+        "title": "Partner workspace unavailable while VPN is disconnected",
+        "issue": "The laptop has normal internet access, but the secure partner workspace cannot be reached because the company VPN is disconnected.",
+        "troubleshooting": [
+            "Confirmed normal internet browsing works.",
+            "Confirmed the partner share is unavailable from the home network.",
+            "The company VPN client is disconnected.",
+        ],
+        "hints": [
+            "Separate ordinary internet access from access to a private company resource.",
+            "Confirm whether the secure partner share is reachable before changing its mapped-drive configuration.",
+            "Reconnect the company VPN, then verify the original partner workspace opens.",
+        ],
+    },
 }
 
 
@@ -974,13 +1035,22 @@ def _current_service_desk_ticket_fixture(ticket):
     for field in ("businessImpact", "issue", "reportedByLine", "troubleshooting"):
         if field in patch:
             ticket["description"][field] = patch[field]
+    if "title" in patch:
+        ticket["title"] = patch["title"]
+    if "priority" in patch:
+        ticket["priority"] = patch["priority"]
     if "hints" in patch:
         ticket["hints"] = patch["hints"]
     return ticket
 
 
 def seed_service_desk_scenarios(db):
-    """Seed published Service Desk scenarios and their immutable v1 definitions."""
+    """Seed current Service Desk definitions as immutable published versions.
+
+    Existing published versions are never edited.  When the curated content or
+    server grading profile changes, this creates the next published version so
+    old attempts remain bound to their historical definition.
+    """
     scenarios = {}
     for raw_ticket in SERVICE_DESK_TICKET_FIXTURES:
         ticket = _current_service_desk_ticket_fixture(raw_ticket)
@@ -997,22 +1067,30 @@ def seed_service_desk_scenarios(db):
             )
             db.add(scenario)
             db.flush()
+        else:
+            scenario.title = ticket["title"]
+            scenario.description = f'{ticket["description"]["issue"]} {ticket["description"]["businessImpact"]}'
+            scenario.category = ticket["category"]
+            scenario.difficulty = SERVICE_DESK_DIFFICULTY_BY_PRIORITY[ticket["priority"]]
         scenarios[stable_key] = scenario
 
-        version = (
-            db.query(ServiceDeskScenarioVersion)
-            .filter_by(scenario_id=scenario.id, version_number=1)
-            .first()
-        )
+        definition = {**ticket, "objective_catalog_version": PROCESS_CATALOG_VERSION}
+        definition_hash = hashlib.sha256(
+            json.dumps(definition, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        version = db.query(ServiceDeskScenarioVersion).filter_by(
+            scenario_id=scenario.id, definition_hash=definition_hash
+        ).first()
         if version is None:
-            definition_hash = hashlib.sha256(
-                json.dumps(ticket, sort_keys=True).encode("utf-8")
-            ).hexdigest()
+            next_version = (db.query(ServiceDeskScenarioVersion.version_number)
+                            .filter_by(scenario_id=scenario.id)
+                            .order_by(ServiceDeskScenarioVersion.version_number.desc())
+                            .first())
             db.add(
                 ServiceDeskScenarioVersion(
                     scenario_id=scenario.id,
-                    version_number=1,
-                    definition_json=ticket,
+                    version_number=(next_version[0] if next_version else 0) + 1,
+                    definition_json=definition,
                     definition_hash=definition_hash,
                     validation_status="valid",
                     status="published",

@@ -28,7 +28,7 @@ export function AssetDetail({
   directoryUsers,
   onAction,
 }: AssetDetailProps) {
-  const { assignAsset, changeAssetStatus, unassignAsset } =
+  const { assignAsset, changeAssetStatus, recordIsolationTest, unassignAsset } =
     useAssetManagementSession();
   const [employeeId, setEmployeeId] = useState('');
   const [nextStatus, setNextStatus] = useState<AssetStatus>(asset.status);
@@ -208,6 +208,69 @@ export function AssetDetail({
           />
         </div>
       </Card>
+
+      {asset.assetTag === 'NX-9052' ? (
+        <Card>
+          <CardHeader title="Hardware isolation" />
+          <div className="space-y-2 p-4">
+            <p className="text-sm text-zinc-400">
+              Record the comparison that establishes whether static follows the
+              headset or remains with the workstation before arranging a replacement.
+            </p>
+            <div className="grid gap-2">
+              <Button
+                onClick={() =>
+                  onAction(
+                    recordIsolationTest(
+                      asset.assetTag,
+                      'affected-headset-known-good-workstation',
+                    ),
+                  )
+                }
+                variant="soft"
+              >
+                Test affected headset on known-good workstation
+              </Button>
+              <Button
+                onClick={() =>
+                  onAction(
+                    recordIsolationTest(
+                      asset.assetTag,
+                      'known-good-headset-affected-workstation',
+                    ),
+                  )
+                }
+                variant="soft"
+              >
+                Test known-good headset on affected workstation
+              </Button>
+              <Button
+                onClick={() =>
+                  onAction(
+                    recordIsolationTest(asset.assetTag, 'alternate-usb-port'),
+                  )
+                }
+                variant="soft"
+              >
+                Test alternate USB port
+              </Button>
+              <Button
+                onClick={() =>
+                  onAction(
+                    recordIsolationTest(
+                      asset.assetTag,
+                      'replacement-clean-audio',
+                    ),
+                  )
+                }
+                variant="primary"
+              >
+                Confirm clean audio with replacement
+              </Button>
+            </div>
+          </div>
+        </Card>
+      ) : null}
     </aside>
   );
 }

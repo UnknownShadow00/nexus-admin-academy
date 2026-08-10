@@ -3,9 +3,11 @@
 Same contract as Gate 1 tests; exercises the seeded Gate 2 requirement set
 including the max_hints=1 checkpoint via the now-real hints_used column.
 """
+from datetime import datetime, timezone
+
 from conftest import make_student
 from app.models.learning import Lesson, Module
-from app.models.lesson_notes import StudentLessonNote
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.mastery import StudentDomainMastery
 from app.models.progression import PromotionGate, Role
 from app.models.ticket import Ticket, TicketSubmission
@@ -40,7 +42,7 @@ def _seed(db):
 
 
 def _fulfill(db, student, lesson, sim2, d2_tickets, sim_hints=1, sim_score=8):
-    db.add(StudentLessonNote(student_id=student.id, lesson_id=lesson.id, content="n"))
+    db.add(StudentLessonProgress(student_id=student.id, lesson_id=lesson.id, completed_at=datetime.now(timezone.utc)))
     db.add(StudentDomainMastery(student_id=student.id, domain_id="2.0", mastery_percent=80))
     db.add(StudentDomainMastery(student_id=student.id, domain_id="4.0", mastery_percent=75))
     for t in d2_tickets:

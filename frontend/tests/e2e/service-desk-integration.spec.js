@@ -78,6 +78,34 @@ async function getMyAssignment(page, stableKey) {
   return assignment;
 }
 
+async function connectRemoteDesktop(page, ticketId, assetTag) {
+  await page.goto(`/service-desk/tools/remote-desktop?ticket=${ticketId}`);
+  await page.getByPlaceholder("Search by asset tag, hostname, or owner").fill(assetTag);
+  await page.getByRole("button", { name: "Connect" }).click();
+  await page.getByPlaceholder("e.g. jdoe").fill("support.admin");
+  await page.getByPlaceholder("Domain password").fill("simulation-only");
+  await page.getByRole("button", { name: "OK" }).click();
+  await expect(page.getByRole("button", { name: "System Tools", exact: true }).first()).toBeVisible();
+}
+
+async function prepareInc2401Workflow(page) {
+  await connectRemoteDesktop(page, TICKET_ID, "NX-4831");
+  await page.getByRole("button", { name: "Mail", exact: true }).click();
+  await page.getByRole("button", { name: "Mark support alert reviewed" }).click();
+  await page.getByRole("button", { name: "Web Browser", exact: true }).click();
+  await page.getByRole("button", { name: "Retry portal sign-in" }).click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Applications", exact: true }).click();
+  await page.getByRole("button", { name: "Clear support browser profile storage" }).click();
+  await page.getByRole("button", { name: "Web Browser", exact: true }).click();
+  await page.getByRole("button", { name: "Retry portal sign-in" }).click();
+  await page.getByLabel("Student-authored internal note").fill(
+    "I confirmed stale browser profile storage, applied the repair by clearing the profile, and verified the portal opened.",
+  );
+  await page.getByRole("button", { name: "Save internal note" }).click();
+  await expect(page.getByRole("button", { name: "Close ticket" })).toBeEnabled();
+}
+
 test.describe("Service Desk integration (requires an integrated stack)", () => {
   test("admin scenario draft survives refresh and publishes an immutable version", async ({ page }) => {
     const suffix = Date.now();
@@ -282,19 +310,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
 
     await page.getByLabel("Add a note").fill("Offline evidence note.");
     await page.getByRole("button", { name: "Add internal note" }).click();
-    await page.getByRole("link", { name: /Directory/ }).click();
-    // The note click above just queued an offline-outbox write (its POST is
-    // being aborted by the route handler above) and triggered the sync-retry
-    // UI's own state update; that extra async work can briefly delay this
-    // client-side navigation's render under CI's slower CPU, past the
-    // default 5s timeout. Give it more room rather than racing it.
-    await expect(page.getByRole("heading", { name: "Directory", exact: true })).toBeVisible({
-      timeout: 15000,
-    });
-    await page.getByText("Avery Brooks", { exact: true }).click();
-    await page.getByRole("button", { name: "Unlock account" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Unlock account" }).click();
-    await page.goto(`/service-desk/tickets/${TICKET_ID}`);
+    await page.getByRole("button", { name: "Unassign", exact: true }).click();
     await page.getByRole("button", { name: /I don't know how to fix this/i }).click();
 
     await expect(page.getByText(/Saving…|Sync problem — retrying/)).toBeVisible();
@@ -306,8 +322,8 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     expect(pendingBeforeRefresh.items).toHaveLength(3);
     const queuedTypes = pendingBeforeRefresh.items.map((item) => item.event.event_type);
     const queuedKeys = pendingBeforeRefresh.items.map((item) => item.event.idempotency_key);
-    expect(queuedTypes).toEqual(["ticket.add_note", "directory.unlock_account", "ticket.reveal_hint"]);
-    const storedTypes = ["ticket.add_note", "directory.unlock_account", "hint_requested"];
+    expect(queuedTypes).toEqual(["ticket.add_note", "ticket.unassign", "ticket.reveal_hint"]);
+    const storedTypes = ["ticket.add_note", "ticket.unassign", "hint_requested"];
 
     await page.reload();
     await expect(page.getByText("Offline evidence note.")).toBeVisible();
@@ -356,35 +372,15 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
   });
 
   test("completion waits for pending Service Desk evidence", async ({ browser }) => {
+    test.setTimeout(90_000);
     const context = await browser.newContext();
     const page = await context.newPage();
     await studentLogin(page, studentBUsername, studentBPassword);
+    await prepareInc2401Workflow(page);
     const assignment = await getMyAssignment(page, SCENARIO_STABLE_KEY);
-    const started = await page.request.post(`/api/service-desk/assignments/${assignment.id}/attempts`, withOrigin({}));
-    const attemptId = (await started.json()).id;
-    const unlock = await page.request.post(
-      `/api/service-desk/attempts/${attemptId}/actions`,
-      withOrigin({
-        data: {
-          event_type: "directory.unlock_account",
-          idempotency_key: "completion-directory-unlock",
-          payload: { directoryUserId: "directory-user-avery-brooks" },
-          resulting_state: {},
-          tool: "directory",
-        },
-      }),
-    );
-    expect(unlock.status()).toBe(201);
-    await page.goto(`/service-desk/tickets/${TICKET_ID}`);
+    const attemptId = assignment.most_recent_attempt.id;
     await page.route(/\/api\/service-desk\/attempts\/\d+\/(actions|events|hints|complete)$/, (route) => route.abort());
-
-    await page.getByLabel("Add a note").fill("Completion must wait for sync.");
-    await page.getByRole("button", { name: "Add internal note" }).click();
-    await page.getByRole("button", { name: "Resolve / close" }).click();
-    await page.getByLabel("Resolution note").fill("Unlocked the account and verified sign-in.");
-    await page.getByRole("checkbox", { name: /verified the requester/i }).check();
-    await page.getByRole("button", { name: "Continue to review" }).click();
-    await page.getByRole("button", { name: "Resolve ticket" }).click();
+    await page.getByRole("button", { name: "Close ticket" }).click();
     await expect(page.getByText(/Saving…|Sync problem — retrying/)).toBeVisible();
 
     const beforeReconnect = await page.request.get(`/api/service-desk/attempts/${attemptId}`);
@@ -394,7 +390,10 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
 
     await page.unroute(/\/api\/service-desk\/attempts\/\d+\/(actions|events|hints|complete)$/);
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
-    await expect.poll(async () => (await (await page.request.get(`/api/service-desk/attempts/${attemptId}`)).json()).status).toBe("completed");
+    await expect.poll(
+      async () => (await (await page.request.get(`/api/service-desk/attempts/${attemptId}`)).json()).status,
+      { timeout: 15_000 },
+    ).toBe("completed");
     const completed = await (await page.request.get(`/api/service-desk/attempts/${attemptId}`)).json();
     expect(completed.grade).toBeTruthy();
     const replay = await page.request.post(`/api/service-desk/attempts/${attemptId}/complete`, withOrigin({ data: { idempotency_key: "pending-completion-replay" } }));
@@ -404,14 +403,15 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await adminLogin(adminPage);
     const timeline = await (await adminPage.request.get(`/api/admin/service-desk/attempts/${attemptId}`)).json();
     const evidenceEvents = timeline.events.filter((event) => event.event_type !== "snapshot.persisted");
-    expect(evidenceEvents.map((event) => event.event_type)).toEqual(["directory.unlock_account", "ticket.add_note", "ticket.close"]);
-    expect(new Set(evidenceEvents.map((event) => event.idempotency_key)).size).toBe(3);
+    expect(evidenceEvents.map((event) => event.event_type)).toContain("ticket.close");
+    expect(evidenceEvents.filter((event) => event.trusted)).toHaveLength(5);
+    expect(new Set(evidenceEvents.map((event) => event.idempotency_key)).size).toBe(evidenceEvents.length);
     expect(timeline.grade.id).toBe(completed.grade.id);
     await adminContext.close();
     await context.close();
   });
 
-  test("Student D restores the full ticket and directory snapshot in a clean browser", async ({ browser }) => {
+  test("Student D restores ticket and asset state in a clean browser", async ({ browser }) => {
     const sourceContext = await browser.newContext();
     const sourcePage = await sourceContext.newPage();
     await studentLogin(sourcePage, studentDUsername, studentDPassword);
@@ -426,12 +426,14 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await sourcePage.goto(`/service-desk/tickets/${TICKET_ID}`);
     await sourcePage.getByLabel("Add a note").fill("Student D clean-browser restoration note.");
     await sourcePage.getByRole("button", { name: "Add internal note" }).click();
-    await sourcePage.getByRole("link", { name: /Directory/ }).click();
-    await expect(sourcePage.getByRole("heading", { name: "Directory", exact: true })).toBeVisible();
-    await sourcePage.getByText("Avery Brooks", { exact: true }).click();
-    await sourcePage.getByRole("button", { name: "Unlock account" }).click();
-    await sourcePage.getByRole("dialog").getByRole("button", { name: "Unlock account" }).click();
-    await expect(sourcePage.getByText(/Account unlocked\. New sign-in attempts/)).toBeVisible();
+    await sourcePage.goto("/service-desk/tools/asset-management");
+    await sourcePage.getByPlaceholder("Search assets").fill("NX-4831");
+    await sourcePage.getByText("NX-4831", { exact: true }).first().click();
+    const statusSelect = sourcePage.locator("#status-NX-4831");
+    await statusSelect.selectOption({ index: 1 });
+    const changedStatus = await statusSelect.inputValue();
+    await sourcePage.getByRole("button", { name: "Update status" }).click();
+    await sourcePage.getByRole("dialog").getByRole("button", { name: /Mark / }).click();
 
     await expect.poll(async () => {
       const response = await sourcePage.request.get(`/api/service-desk/attempts/${attemptId}`);
@@ -439,10 +441,9 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     }).toMatchObject({
       schema_version: 1,
       nexus_service_desk_attempt: {
-        assetOverlays: expect.any(Object),
         chatThreads: expect.any(Object),
         deploymentRuns: expect.any(Object),
-        directoryOverlays: { "directory-user-avery-brooks": { locked: false } },
+        assetOverlays: { "NX-4831": { status: changedStatus } },
         remoteDesktopOverlays: expect.any(Object),
         ticketOverlays: { [TICKET_ID]: { notes: [expect.objectContaining({ body: "Student D clean-browser restoration note." })] } },
       },
@@ -456,15 +457,15 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await studentLogin(cleanPage, studentDUsername, studentDPassword);
     await cleanPage.goto(`/service-desk/tickets/${TICKET_ID}`);
     await expect(cleanPage.getByText("Student D clean-browser restoration note.")).toBeVisible();
-    await cleanPage.getByRole("link", { name: /Directory/ }).click();
-    await cleanPage.getByRole("button", { name: /Avery Brooks abrooks/ }).click();
-    await expect(cleanPage.getByRole("heading", { name: "Avery Brooks", exact: true })).toBeVisible();
-    await expect(cleanPage.getByText("Account unlocked", { exact: true })).toBeVisible();
-    await expect(cleanPage.getByRole("button", { name: "Already unlocked" })).toBeDisabled();
+    await cleanPage.goto("/service-desk/tools/asset-management");
+    await cleanPage.getByPlaceholder("Search assets").fill("NX-4831");
+    await cleanPage.getByText("NX-4831", { exact: true }).first().click();
+    await expect(cleanPage.locator("#status-NX-4831")).toHaveValue(changedStatus);
     await cleanContext.close();
   });
 
   test("student resolves a ticket through the real UI; grade, XP, and evidence are Nexus-authoritative", async ({ browser }) => {
+    test.setTimeout(90_000);
     // --- Student A: work the ticket through the real Service Desk UI ---
     const contextA1 = await browser.newContext();
     const pageA1 = await contextA1.newPage();
@@ -474,59 +475,11 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const hadPriorAttempt = assignmentBefore.most_recent_attempt !== null;
 
     await pageA1.goto(`/service-desk/tickets/${TICKET_ID}`);
-    await pageA1.waitForTimeout(1000);
     await expect(pageA1.getByText(TICKET_ID).first()).toBeVisible();
-
-    // Satisfy the INC2401 directory objective: unlock Avery Brooks.
-    // "Unlock account" is a trigger that opens a DirectoryActionDialog confirm
-    // modal; the modal's confirm button has the SAME accessible name as the
-    // trigger, so it must be clicked twice (open, then confirm-scoped-to-dialog).
-    await pageA1.getByRole("link", { name: /Directory/ }).click();
-    await expect(pageA1.getByRole("heading", { name: "Directory", exact: true })).toBeVisible();
-    await pageA1.getByText("Avery Brooks", { exact: true }).click();
-    const unlockTrigger = pageA1.getByRole("button", { name: "Unlock account" });
-    await expect(unlockTrigger.first()).toBeVisible();
-    await unlockTrigger.first().click();
-    const directoryEventResponse = pageA1.waitForResponse(async (response) => {
-      if (!response.url().includes("/api/service-desk/attempts/") || !response.url().endsWith("/actions") || response.request().method() !== "POST") {
-        return false;
-      }
-      return (await response.request().postDataJSON()).event_type === "directory.unlock_account";
-    });
-    await pageA1
-      .getByRole("dialog")
-      .getByRole("button", { name: "Unlock account" })
-      .click();
-    await expect(pageA1.getByText(/Account unlocked\. New sign-in attempts/)).toBeVisible();
-    expect((await directoryEventResponse).status()).toBe(201);
+    await prepareInc2401Workflow(pageA1);
+    await pageA1.getByRole("button", { name: "Close ticket" }).click();
+    await expect(pageA1.getByText("Solution complete")).toBeVisible();
     await expect(pageA1.getByText("Saving…")).toBeHidden();
-
-    // Add an internal note, then resolve and close the ticket.
-    await pageA1.goto(`/service-desk/tickets/${TICKET_ID}`);
-    await pageA1.waitForTimeout(1000);
-    const noteBox = pageA1.getByPlaceholder(/note/i).or(pageA1.locator("textarea").first());
-    if (await noteBox.count()) {
-      await noteBox.first().fill("Unlocked the account after confirming identity with the requester.");
-      const addNoteButton = pageA1.getByRole("button", { name: /add.*note/i });
-      if (await addNoteButton.count()) {
-        await addNoteButton.first().click();
-        await pageA1.waitForTimeout(500);
-      }
-    }
-
-    // ResolveDialog is a two-step modal: fill note + verified checkbox,
-    // "Continue to review" shows the grade preview, then "Resolve ticket"
-    // (or "Close anyway" if unverified) actually calls onConfirm.
-    await pageA1.getByRole("button", { name: "Resolve / close" }).click();
-    await pageA1.waitForTimeout(500);
-    await pageA1.getByLabel("Resolution note").fill(
-      "Unlocked the account; verified the requester could sign in.",
-    );
-    await pageA1.getByRole("checkbox", { name: /verified the requester/i }).check();
-    await pageA1.getByRole("button", { name: "Continue to review" }).click();
-    await pageA1.waitForTimeout(500);
-    await pageA1.getByRole("button", { name: "Resolve ticket" }).click();
-    await pageA1.waitForTimeout(1500);
 
     // --- Verify Nexus is now authoritative for this attempt ---
     const assignmentAfter = await getMyAssignment(pageA1, SCENARIO_STABLE_KEY);
@@ -546,7 +499,6 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const contextIdem = await browser.newContext();
     const pageIdem = await contextIdem.newPage();
     await studentLogin(pageIdem, studentCUsername, studentCPassword);
-    const beforeXp = await pageIdem.request.get("/api/service-desk/assignments");
     const repeatResponse = await pageIdem.request.post(
       `/api/service-desk/attempts/${attemptId}/complete`,
       withOrigin({ data: { idempotency_key: "e2e-repeat-should-be-a-no-op" } }),
@@ -593,16 +545,16 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const timeline = await timelineResponse.json();
     const eventTypes = timeline.events.map((event) => event.event_type);
     expect(eventTypes).toContain("ticket.close");
-    expect(eventTypes.some((type) => type.startsWith("directory."))).toBe(true);
-    expect(timeline.events.find((event) => event.event_type === "directory.unlock_account").trusted).toBe(true);
+    expect(eventTypes).toContain("remote_desktop.perform_scenario_step");
+    expect(timeline.events.find((event) => event.event_type === "remote_desktop.perform_scenario_step").trusted).toBe(true);
 
     await pageAdmin.goto("/admin/service-desk-review");
     await expect(pageAdmin.getByRole("heading", { name: "Event timeline" })).toBeVisible();
-    await expect(pageAdmin.getByText(/#\d+ directory\.unlock_account/)).toBeVisible();
+    await expect(pageAdmin.getByText(/#\d+ remote_desktop\.perform_scenario_step/).first()).toBeVisible();
 
     const feedbackResponse = await pageAdmin.request.post(
       `/api/admin/service-desk/attempts/${attemptId}/feedback`,
-      withOrigin({ data: { mentor_feedback: "Nice work verifying identity before unlocking the account." } }),
+      withOrigin({ data: { mentor_feedback: "Nice work verifying the original portal symptom after the profile repair." } }),
     );
     expect(feedbackResponse.ok()).toBeTruthy();
     await contextAdmin.close();
@@ -615,7 +567,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
       await pageA3.request.get(`/api/service-desk/attempts/${attemptId}`)
     ).json();
     expect(withFeedback.grade.mentor_feedback).toBe(
-      "Nice work verifying identity before unlocking the account.",
+      "Nice work verifying the original portal symptom after the profile repair.",
     );
     await contextA3.close();
   });
@@ -626,23 +578,25 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await page.goto("/service-desk/tickets/INC2402");
     await expect(page.getByText("INC2402").first()).toBeVisible();
 
-    await page.goto("/service-desk/tools/remote-desktop?ticket=INC2402");
-    await page.getByPlaceholder("Search by asset tag, hostname, or owner").fill("NX-7714");
-    await page.getByRole("button", { name: "Connect" }).click();
-    await page.getByPlaceholder("e.g. jdoe").fill("support.admin");
-    await page.getByPlaceholder("Domain password").fill("simulation-only");
-    await page.getByRole("button", { name: "OK" }).click();
-    await expect(page.getByRole("button", { name: "System Tools", exact: true }).first()).toBeVisible();
-
-    await page.getByRole("button", { name: "System Tools", exact: true }).first().click();
-    await page.getByRole("button", { name: "View network diagnostics" }).click();
+    await connectRemoteDesktop(page, "INC2402", "NX-7714");
+    await page.getByRole("button", { name: "Terminal", exact: true }).first().click();
+    await page.locator("#terminal-command").fill("ipconfig");
+    await page.locator("#terminal-command").press("Enter");
+    await page.locator("#terminal-command").fill("ping 10.77.14.1");
+    await page.locator("#terminal-command").press("Enter");
     await page.getByRole("button", { name: "Settings", exact: true }).first().click();
     await page.getByRole("button", { name: "Repair network profile" }).click();
     await page.getByRole("button", { name: "System Tools", exact: true }).first().click();
     await page.getByRole("button", { name: "Renew network address" }).click();
-
-    await expect(page.getByText("Solution complete")).toBeVisible();
+    await page.getByRole("button", { name: "Company Chat", exact: true }).nth(1).click();
+    await page.getByPlaceholder("Write a ticket update").fill("The scanner connection remained stable after the profile repair.");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await page.getByLabel("Student-authored internal note").fill(
+      "I confirmed the managed profile caused the failure, applied the repair, renewed the address, and verified stable service.",
+    );
+    await page.getByRole("button", { name: "Save internal note" }).click();
     await page.getByRole("button", { name: "Close ticket" }).click();
+    await expect(page.getByText("Solution complete")).toBeVisible();
     await expect(page.getByText("Saving…")).toBeHidden();
 
     const assignment = await getMyAssignment(page, "inc2402");
@@ -662,6 +616,8 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await page.goto("/service-desk/tools/asset-management");
     await page.getByPlaceholder("Search assets").fill("NX-9052");
     await page.getByText("NX-9052", { exact: true }).first().click();
+    await page.getByRole("button", { name: "Test affected headset on known-good workstation" }).click();
+    await page.getByRole("button", { name: "Test known-good headset on affected workstation" }).click();
     await page.locator("#status-NX-9052").selectOption("damaged");
     await page.getByRole("button", { name: "Update status" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Mark damaged" }).click();
@@ -674,6 +630,11 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await page.getByRole("checkbox", { name: /Include return label/ }).check();
     await page.getByRole("button", { name: "Ship", exact: true }).click();
     await expect(page.getByText("Replacement shipped")).toBeVisible();
+
+    await page.goto("/service-desk/tools/asset-management");
+    await page.getByPlaceholder("Search assets").fill("NX-9052");
+    await page.getByText("NX-9052", { exact: true }).first().click();
+    await page.getByRole("button", { name: "Confirm clean audio with replacement" }).click();
 
     await page.goto("/service-desk/tickets/INC2404");
     const noteBox = page.getByPlaceholder(/note/i).or(page.locator("textarea").first());
@@ -696,5 +657,34 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     )).json();
     expect(attempt.status).toBe("completed");
     expect(attempt.grade.passed).toBe(true);
+  });
+
+  test("launch curriculum scenarios expose their current student workflows", async ({ page }) => {
+    await studentLogin(page, studentDUsername, studentDPassword);
+    const scenarios = [
+      ["INC2401", "Finance portal returns to sign-in after verification"],
+      ["INC2405", "Facilities calendar shortcut opens an archived workspace"],
+      ["INC2407", "Internal sites fail while IP connectivity still works"],
+      ["INC2501", "Desktop opens with a temporary Windows profile"],
+      ["INC2506", "Assistant requests access to restricted salary records"],
+      ["INC2508", "Employee entered credentials into a phishing page"],
+    ];
+
+    for (const [ticketId, title] of scenarios) {
+      await page.goto(`/service-desk/tickets/${ticketId}`);
+      await expect(page.getByText(ticketId).first()).toBeVisible();
+      await expect(page.getByRole("heading", { name: title })).toBeVisible();
+      await expect(page.getByRole("region", { name: "Ticket actions" })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Suggested tools" })).toBeVisible();
+    }
+
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/service-desk");
+    await expect(page.getByRole("heading", { name: "Ticket Queue" })).toBeVisible();
+    const dimensions = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
   });
 });

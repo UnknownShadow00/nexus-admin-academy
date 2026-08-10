@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import OrientationPracticePanel from "../components/OrientationPracticePanel";
-import { getLesson, getLessonNote, saveLessonNote } from "../services/api";
+import { completeLesson, getLesson, getLessonNote, saveLessonNote } from "../services/api";
 
 function getYouTubeEmbedUrl(url) {
   if (!url) return null;
@@ -46,8 +46,8 @@ function LessonNotes({ lessonId, onSaved, orientation }) {
 
   return (
     <section className="panel">
-      <h2 className="text-xl font-bold">Lesson notes</h2>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Notes save automatically to your account.</p>
+      <h2 className="text-xl font-bold">Optional notes</h2>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Notes are a study aid and never affect lesson completion. They save automatically to your account.</p>
       <textarea
         className="input-field mt-3 w-full"
         disabled={loading}
@@ -55,7 +55,7 @@ function LessonNotes({ lessonId, onSaved, orientation }) {
           editedRef.current = true;
           setContent(event.target.value);
         }}
-        placeholder={orientation ? "Write one sentence: Where will you look when you are unsure what comes next?" : "Your notes for this lesson..."}
+        placeholder={orientation ? "Optional: note where you will look when you are unsure what comes next." : "Optional notes for this lesson..."}
         rows={5}
         value={content}
       />
@@ -69,6 +69,7 @@ export default function LessonPage() {
   const [lesson, setLesson] = useState(null);
   const [error, setError] = useState("");
   const [orientationRefresh, setOrientationRefresh] = useState(0);
+  const [completing, setCompleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,6 +85,17 @@ export default function LessonPage() {
 
   if (error) return <main className="mx-auto max-w-3xl p-6"><Link className="mb-4 inline-flex items-center gap-1 text-blue-600" to="/training"><ChevronLeft size={16} />My Training</Link><div className="panel" role="alert">{error}</div></main>;
   if (!lesson) return <main className="mx-auto max-w-4xl p-6"><div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
+
+  async function markComplete() {
+    setCompleting(true);
+    try {
+      await completeLesson(lesson.id, { suppressToast: true });
+      setLesson((current) => ({ ...current, is_complete: true }));
+      setOrientationRefresh((value) => value + 1);
+    } finally {
+      setCompleting(false);
+    }
+  }
 
   const embedUrl = getYouTubeEmbedUrl(lesson.video_url);
   return (
@@ -103,6 +115,15 @@ export default function LessonPage() {
         </section>
       ) : null}
       {embedUrl ? <section className="aspect-video overflow-hidden rounded-xl bg-black"><iframe src={embedUrl} className="h-full w-full" allowFullScreen title={lesson.title} /></section> : null}
+      <section className="panel flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold">Ready to move on?</h2>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Mark this lesson complete after reviewing the material above.</p>
+        </div>
+        <button className="btn-primary" disabled={lesson.is_complete || completing} onClick={markComplete} type="button">
+          {lesson.is_complete ? "Lesson complete" : completing ? "Saving…" : "Mark lesson complete"}
+        </button>
+      </section>
       <LessonNotes lessonId={lesson.id} orientation={lesson.is_orientation} onSaved={() => setOrientationRefresh((value) => value + 1)} />
       {lesson.is_orientation ? <OrientationPracticePanel refreshKey={orientationRefresh} /> : null}
     </main>

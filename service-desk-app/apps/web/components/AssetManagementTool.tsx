@@ -30,6 +30,8 @@ function eventMessage(event: ActionEvent) {
       return 'Asset returned to the unassigned inventory pool.';
     case 'asset.change_status':
       return `Asset status changed to ${String(event.payload.status)}.`;
+    case 'asset.record_isolation':
+      return 'Hardware isolation check recorded.';
     default:
       return 'Asset action recorded.';
   }

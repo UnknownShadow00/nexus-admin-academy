@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from conftest import make_student
 from app.models.cli_lab import CliLab, CliLabAttempt
 from app.models.learning import Lesson, Module
-from app.models.lesson_notes import StudentLessonNote
+from app.models.lesson_progress import StudentLessonProgress
 from app.models.mastery import StudentDomainMastery
 from app.models.progression import PromotionGate, Role
 from app.models.ticket import Ticket, TicketSubmission
@@ -47,7 +47,7 @@ def _seed(db):
 
 
 def _fulfill(db, student, lesson, tickets, sw_labs, nf_lab, sw_count=3):
-    db.add(StudentLessonNote(student_id=student.id, lesson_id=lesson.id, content="n"))
+    db.add(StudentLessonProgress(student_id=student.id, lesson_id=lesson.id, completed_at=datetime.now(timezone.utc)))
     db.add(StudentDomainMastery(student_id=student.id, domain_id="2.0", mastery_percent=80))
     for t in tickets:
         db.add(TicketSubmission(student_id=student.id, ticket_id=t.id, writeup="w",

@@ -82,11 +82,20 @@ export interface RemoteDesktopWorkflowObjective {
 }
 
 export interface RemoteDesktopScenarioWorkflow {
+  /** Establishes the scope before the student changes the environment. */
+  investigate: readonly RemoteDesktopWorkflowObjective[];
   diagnose: readonly RemoteDesktopWorkflowObjective[];
   fix: readonly RemoteDesktopWorkflowObjective[];
   verify: readonly RemoteDesktopWorkflowObjective[];
   note: { minimumLength: number };
   close: { explicit: true };
+  scoring: {
+    investigation: number;
+    diagnosis: number;
+    remediation: number;
+    verification: number;
+    documentation: number;
+  };
   finalState: {
     dnsServers?: readonly string[];
     driveStates?: Readonly<Record<string, RemoteDesktopDriveStatus>>;
@@ -340,7 +349,8 @@ function assetDigits(assetTag: string) {
   return Number(assetTag.replace(/\D/g, ''));
 }
 
-function operatingSystem(deviceType: string) {
+function operatingSystem(assetTag: string, deviceType: string) {
+  if (assetTag === 'NX-7714') return 'Android Enterprise 15';
   return deviceType === 'mobile workstation'
     ? 'Windows 11 Enterprise'
     : 'Windows 11 Pro';
@@ -364,7 +374,10 @@ const DIRECTORY_REMOTE_DESKTOP_WORKSTATIONS: readonly RemoteDesktopWorkstationFi
       ).padStart(2, '0')}:00.000Z`,
       location: device?.location ?? 'HQ',
       networkStatus: retired ? 'offline' : damaged ? 'limited' : 'online',
-      operatingSystem: operatingSystem(device?.deviceType ?? 'laptop'),
+      operatingSystem: operatingSystem(
+        user.assetTag,
+        device?.deviceType ?? 'laptop',
+      ),
       pendingUpdate:
         user.assetTag === 'NX-3560'
           ? {
@@ -454,6 +467,31 @@ export const REMOTE_DESKTOP_WORKSTATION_FIXTURES: readonly RemoteDesktopWorkstat
   [
     ...DIRECTORY_REMOTE_DESKTOP_WORKSTATIONS,
     ...TICKET_REMOTE_DESKTOP_WORKSTATIONS,
+    ...([
+      ['NX-2501', 'Morgan Ellis', 'ACCT-LT-17'], ['NX-2502', 'Priya Shah', 'FIN-WS-44'],
+      ['NX-2503', 'Jordan Kim', 'OPS-WS-12'], ['NX-2504', 'Sofia Nguyen', 'ENG-WS-09'],
+      ['NX-2505', 'Taylor Reed', 'MKT-LT-05'], ['NX-2506', 'Casey Lane', 'HR-LT-21'],
+      ['NX-2507', 'Avery Monroe', 'SALES-LT-08'], ['NX-2508', 'Riley Brown', 'PAY-LT-03'],
+      ['NX-2509', 'Devon Ross', 'SUP-WS-31'], ['NX-2510', 'Sam Ortiz', 'OPS-LT-58'],
+    ] as const).map(([assetTag, employeeName, hostname], index) => ({
+      assetTag,
+      directoryUserId: `directory-user-${assetTag.toLowerCase()}`,
+      employeeName,
+      hostname,
+      ipAddress: `10.25.${index + 1}.25`,
+      lastLogon: '2026-07-28T10:00:00.000Z',
+      location: 'Nexus office',
+      networkStatus: 'online' as const,
+      operatingSystem: 'Windows 11 Enterprise',
+      pendingUpdate: null,
+      powerState: 'online' as const,
+      drives: workstationDrives(assetTag, employeeName),
+      services: [
+        { name: 'Workstation', state: 'running' as const },
+        { name: 'Windows Event Log', state: 'running' as const },
+        { name: 'Network Adapter Service', state: 'running' as const },
+      ],
+    })),
   ];
 
 export const REMOTE_DESKTOP_TERMINAL_FIXTURES: Readonly<
@@ -524,7 +562,7 @@ export function getRemoteDesktopWorkstation(assetTag: string) {
  * These are deterministic desktop-only learning scenarios. They deliberately
  * model the ticket/asset relationship rather than a real RDP connection.
  */
-export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
+const CURATED_REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
   [
     {
       id: 'vpn-shared-drive',
@@ -565,6 +603,15 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       ],
       incorrectSteps: ['explorer.remove-share', 'updates.install'],
       workflow: {
+        investigate: [
+          {
+            id: 'affected-resource-confirmed',
+            anyOf: [
+              'explorer.share-unreachable',
+              'terminal.ping-hostname-failed',
+            ],
+          },
+        ],
         diagnose: [
           {
             id: 'network-access-failure',
@@ -584,6 +631,13 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         ],
         note: { minimumLength: 20 },
         close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
         finalState: {
           driveStates: { 'Z:': 'connected' },
           vpnStatus: 'connected',
@@ -636,6 +690,16 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       ],
       incorrectSteps: ['updates.install'],
       workflow: {
+        investigate: [
+          {
+            id: 'network-scope',
+            anyOf: [
+              'terminal.ping-ip-success',
+              'terminal.ipconfig',
+              'terminal.ipconfig-all',
+            ],
+          },
+        ],
         diagnose: [
           {
             id: 'adapter-configuration',
@@ -664,6 +728,13 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         ],
         note: { minimumLength: 20 },
         close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
         finalState: { dnsServers: ['10.20.0.10', '10.20.0.11'] },
       },
       explanation:
@@ -712,6 +783,7 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       ],
       incorrectSteps: ['updates.install'],
       workflow: {
+        investigate: [{ id: 'print-symptom', anyOf: ['printer.test-failed'] }],
         diagnose: [
           { id: 'print-symptom', anyOf: ['printer.test-failed'] },
           {
@@ -732,6 +804,13 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         verify: [{ id: 'print-restored', anyOf: ['printer.test-succeeded'] }],
         note: { minimumLength: 20 },
         close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
         finalState: { serviceStates: { 'Print Spooler': 'running' } },
       },
       explanation:
@@ -750,14 +829,19 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       assetTag: 'NX-3560',
       title: 'PDF export fails while a reliability update is pending',
       summary:
-        'A known export component fix is queued. Install the update, restart the PDF helper, then retry the export.',
+        'The PDF editor crashes only when exporting the full annotated package; a pending reliability update addresses the known export component fault.',
       studentHints: [
+        'Reproduce the full-package export failure before changing the application.',
         'Check whether this computer has a pending reliability or application update.',
         'A component that supports PDF export may need to reload after an update.',
         'Install the pending update, restart the PDF helper, and retry the export.',
       ],
       actionLabels: {
-        'browser.retry-export': 'Retried the PDF export',
+        'browser.retry-export': 'Retry the annotated PDF export',
+        'browser.export-failed':
+          'Reproduced the full annotated PDF export failure',
+        'browser.export-succeeded':
+          'Confirmed the annotated PDF export completed',
         'explorer.check-free-space': 'Checked available storage',
         'system.restart-pdf-helper': 'Restarted the PDF helper',
         'trash.empty': 'Emptied the recycle bin',
@@ -768,13 +852,35 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         'software-large-export-crash',
         'sop-change-record',
       ],
-      requiredSteps: [
-        'updates.install',
-        'system.restart-pdf-helper',
-        'browser.retry-export',
-      ],
+      requiredSteps: [],
       optionalSteps: ['explorer.check-free-space'],
       incorrectSteps: ['trash.empty', 'vpn.connect'],
+      workflow: {
+        investigate: [
+          { id: 'failure-reproduced', anyOf: ['browser.export-failed'] },
+        ],
+        diagnose: [
+          { id: 'update-inspected', anyOf: ['updates.pending-inspected'] },
+          { id: 'system-scope', anyOf: ['explorer.check-free-space'] },
+        ],
+        fix: [
+          { id: 'reliability-update-applied', anyOf: ['updates.applied'] },
+          { id: 'pdf-helper-restarted', anyOf: ['system.restart-pdf-helper'] },
+        ],
+        verify: [
+          { id: 'export-restored', anyOf: ['browser.export-succeeded'] },
+        ],
+        note: { minimumLength: 20 },
+        close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
+        finalState: {},
+      },
       explanation:
         'The export helper was using an outdated component. Applying the pending update and restarting the helper loads the corrected version.',
       completion: {
@@ -799,7 +905,11 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         'Clear the affected browser profile storage and retry the portal sign-in.',
       ],
       actionLabels: {
-        'browser.retry-sign-in': 'Retried the portal sign-in',
+        'browser.retry-sign-in': 'Retry the finance portal sign-in',
+        'browser.sign-in-loop-confirmed':
+          'Confirmed the portal returned to sign-in before the repair',
+        'browser.sign-in-restored':
+          'Confirmed the finance portal opened after the repair',
         'explorer.remove-share': 'Changed the shared-drive mapping',
         'mail.review-alert': 'Reviewed the support alert',
         'settings.clear-profile-storage':
@@ -810,12 +920,42 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         'access-signin-loop',
         'email-client-profile-repair',
       ],
-      requiredSteps: [
-        'settings.clear-profile-storage',
-        'browser.retry-sign-in',
-      ],
+      requiredSteps: [],
       optionalSteps: ['mail.review-alert'],
       incorrectSteps: ['vpn.connect', 'explorer.remove-share'],
+      workflow: {
+        investigate: [
+          { id: 'profile-evidence-reviewed', anyOf: ['mail.review-alert'] },
+        ],
+        diagnose: [
+          {
+            id: 'sign-in-loop-reproduced',
+            anyOf: ['browser.sign-in-loop-confirmed'],
+          },
+        ],
+        fix: [
+          {
+            id: 'profile-storage-cleared',
+            anyOf: ['settings.clear-profile-storage'],
+          },
+        ],
+        verify: [
+          {
+            id: 'finance-portal-restored',
+            anyOf: ['browser.sign-in-restored'],
+          },
+        ],
+        note: { minimumLength: 20 },
+        close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
+        finalState: {},
+      },
       explanation:
         'Clearing the stale local profile token forces a clean browser session. Resetting the account would not correct the workstation issue.',
       completion: {
@@ -831,25 +971,54 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       id: 'network-configuration',
       ticketId: 'INC2402',
       assetTag: 'NX-7714',
-      title: 'Incorrect network configuration interrupts warehouse access',
+      title: 'Managed scanner wireless profile drops at one loading lane',
       summary:
-        'A bad adapter profile prevents the device from maintaining its internal network route.',
+        'The affected Android Enterprise scanner has a stale managed wireless profile; nearby scanners remain connected to the same warehouse network.',
       studentHints: [
-        'Compare the computer’s network configuration with the route it needs to reach.',
-        'Look for a network profile or address configuration that may be out of date.',
-        'Repair the adapter profile, renew the address, and confirm the connection.',
+        'Use the working scanner beside it to establish that the local access point is not the common cause.',
+        'Inspect the affected device’s managed wireless profile before resetting anything.',
+        'Refresh the affected managed profile, renew its lease, and confirm stability.',
       ],
       actionLabels: {
         'chat.confirm-restored': 'Confirmed the service was restored',
+        'terminal.ipconfig': 'Reviewed the managed device network status',
+        'terminal.ping-ip-success':
+          'Confirmed basic warehouse network reachability',
         'settings.repair-network': 'Repaired the network profile',
         'system.renew-address': 'Renewed the network address',
         'trash.empty': 'Emptied the recycle bin',
         'updates.install': 'Installed an unrelated update',
       },
       documentationArticleIds: ['network-dns-triage', 'network-first-response'],
-      requiredSteps: ['settings.repair-network', 'system.renew-address'],
+      requiredSteps: [],
       optionalSteps: ['chat.confirm-restored'],
       incorrectSteps: ['updates.install', 'trash.empty'],
+      workflow: {
+        investigate: [
+          { id: 'affected-device-scoped', anyOf: ['terminal.ipconfig'] },
+        ],
+        diagnose: [
+          { id: 'wireless-path-isolated', anyOf: ['terminal.ping-ip-success'] },
+        ],
+        fix: [
+          {
+            id: 'managed-profile-refreshed',
+            anyOf: ['settings.repair-network'],
+          },
+          { id: 'lease-renewed', anyOf: ['system.renew-address'] },
+        ],
+        verify: [{ id: 'scanner-stable', anyOf: ['chat.confirm-restored'] }],
+        note: { minimumLength: 20 },
+        close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
+        finalState: {},
+      },
       explanation:
         'Restoring the known-good adapter profile and renewing its address returns the device to the warehouse segment.',
       completion: {
@@ -861,19 +1030,21 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       },
     },
     {
-      id: 'mapped-drive-permissions',
+      id: 'facilities-calendar-mapping',
       ticketId: 'INC2405',
       assetTag: 'NX-6128',
-      title: 'Mapped drive points to the wrong facilities location',
+      title: 'Facilities calendar shortcut points to an archived location',
       summary:
-        'The calendar workspace mapping targets an obsolete location; update it and validate access without changing permissions.',
+        'The coordinator already has Facilities Calendar access, but the desktop shortcut points to an archived workspace location.',
       studentHints: [
-        'The user may already have access, but the computer could be pointing to the wrong location.',
-        'Inspect the mapped drive before changing permissions or accounts.',
-        'Repair the drive mapping, then verify the shared location opens.',
+        'Confirm the calendar location before changing permissions or accounts.',
+        'Inspect the mapped calendar workspace and compare it with the current Facilities location.',
+        'Repair the stale mapping, then verify the requested calendar workspace opens.',
       ],
       actionLabels: {
         'chat.confirm-restored': 'Confirmed the service was restored',
+        'explorer.mapping-obsolete':
+          'Confirmed the calendar shortcut targeted the archived workspace',
         'explorer.repair-mapping': 'Repaired the mapped drive location',
         'explorer.verify-share': 'Tested access to the shared drive',
         'settings.clear-profile-storage':
@@ -884,9 +1055,42 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
         'access-group-membership',
         'network-first-response',
       ],
-      requiredSteps: ['explorer.repair-mapping', 'explorer.verify-share'],
+      requiredSteps: [],
       optionalSteps: ['chat.confirm-restored'],
       incorrectSteps: ['vpn.connect', 'settings.clear-profile-storage'],
+      workflow: {
+        investigate: [
+          {
+            id: 'calendar-location-inspected',
+            anyOf: ['explorer.mapping-obsolete'],
+          },
+        ],
+        diagnose: [
+          {
+            id: 'obsolete-mapping-confirmed',
+            anyOf: ['explorer.mapping-obsolete'],
+          },
+        ],
+        fix: [
+          {
+            id: 'calendar-mapping-repaired',
+            anyOf: ['explorer.repair-mapping'],
+          },
+        ],
+        verify: [
+          { id: 'calendar-workspace-opened', anyOf: ['explorer.verify-share'] },
+        ],
+        note: { minimumLength: 20 },
+        close: { explicit: true },
+        scoring: {
+          investigation: 15,
+          diagnosis: 25,
+          remediation: 30,
+          verification: 20,
+          documentation: 10,
+        },
+        finalState: { driveStates: { 'Y:': 'connected' } },
+      },
       explanation:
         'The user already has the correct access. Updating the stale mapped-drive target restores the calendar workspace.',
       completion: {
@@ -899,6 +1103,74 @@ export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
       },
     },
   ];
+
+type ConvertedScenarioSpec = {
+  id: string;
+  ticketId: string;
+  assetTag: string;
+  title: string;
+  summary: string;
+  rootCause: string;
+  remedy: string;
+  investigation: string;
+  diagnosis: string;
+  remediation: string;
+  verification: string;
+};
+
+function convertedScenario(spec: ConvertedScenarioSpec): RemoteDesktopScenarioFixture {
+  const actionLabels = {
+    'scenario.inspect-symptom': spec.investigation,
+    'scenario.collect-evidence': 'Collected relevant system and comparison evidence',
+    'scenario.isolate-root-cause': spec.diagnosis,
+    'scenario.apply-safe-remediation': spec.remediation,
+    'scenario.verify-original-symptom': spec.verification,
+  };
+  return {
+    id: spec.id,
+    ticketId: spec.ticketId,
+    assetTag: spec.assetTag,
+    title: spec.title,
+    summary: spec.summary,
+    studentHints: [
+      'Establish scope before changing the environment.',
+      'Use the case tools to capture evidence that distinguishes likely causes.',
+      'Apply the safe, specific remediation and verify the original request.',
+    ],
+    actionLabels,
+    documentationArticleIds: ['network-first-response', 'sop-change-record'],
+    requiredSteps: [], optionalSteps: ['scenario.collect-evidence'], incorrectSteps: [],
+    workflow: {
+      investigate: [{ id: 'scope-established', anyOf: ['scenario.inspect-symptom', 'scenario.collect-evidence'] }],
+      diagnose: [{ id: 'root-cause-isolated', anyOf: ['scenario.isolate-root-cause'] }],
+      fix: [{ id: 'safe-remediation-applied', anyOf: ['scenario.apply-safe-remediation'] }],
+      verify: [{ id: 'original-symptom-verified', anyOf: ['scenario.verify-original-symptom'] }],
+      note: { minimumLength: 20 }, close: { explicit: true },
+      scoring: { investigation: 15, diagnosis: 25, remediation: 30, verification: 20, documentation: 10 },
+      finalState: {},
+    },
+    explanation: spec.rootCause,
+    completion: { rootCause: spec.rootCause, whatFixed: spec.remedy, whyItWorked: 'The action addressed the established cause and the original symptom was retested.' },
+  };
+}
+
+const CONVERTED_REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] = [
+  convertedScenario({ id: 'temporary-windows-profile', ticketId: 'INC2501', assetTag: 'NX-2501', title: 'Temporary Windows profile hides user files', summary: 'The sign-in created a temporary profile; user data must be protected before profile repair.', rootCause: 'Windows loaded a temporary profile instead of the user’s normal profile.', remedy: 'Protected the user data, repaired the profile mapping, and confirmed the normal profile loaded.', investigation: 'Inspected the sign-in profile and protected user data', diagnosis: 'Isolated a temporary profile rather than deleted files', remediation: 'Repaired the temporary profile mapping safely', verification: 'Confirmed the normal desktop and Documents returned' }),
+  convertedScenario({ id: 'excel-add-in-isolation', ticketId: 'INC2502', assetTag: 'NX-2502', title: 'Excel add-in crashes one reporting workbook', summary: 'The crash must be reproduced and isolated from workbook-only and application-wide causes.', rootCause: 'A reporting add-in conflicted with the workbook load path.', remedy: 'Disabled the failing add-in and validated the workbook opens and saves.', investigation: 'Reproduced the crash with the original workbook', diagnosis: 'Used Safe Mode evidence to isolate the failing add-in', remediation: 'Disabled the identified Excel add-in', verification: 'Opened and saved the original reporting workbook' }),
+  convertedScenario({ id: 'office-move-network', ticketId: 'INC2503', assetTag: 'NX-2503', title: 'Moved desk is on the wrong network path', summary: 'A single moved workstation needs physical, switch, VLAN, and DHCP isolation against a working neighbour.', rootCause: 'The moved desk was connected to an incorrectly assigned switch port/VLAN.', remedy: 'Corrected the approved switch-port assignment and renewed network access.', investigation: 'Compared the affected desk with a nearby working workstation', diagnosis: 'Isolated the physical switch-port/VLAN mismatch', remediation: 'Corrected the approved switch-port assignment', verification: 'Confirmed the original order system loads at the moved desk' }),
+  convertedScenario({ id: 'printer-dhcp-port', ticketId: 'INC2504', assetTag: 'NX-2504', title: 'Local print port still uses an old DHCP address', summary: 'The printer is healthy for peers, while the affected workstation retains an obsolete print port.', rootCause: 'The workstation’s printer port still targeted the printer’s old DHCP address.', remedy: 'Updated the local print port to the approved current address and printed a test page.', investigation: 'Confirmed printing works from a nearby workstation', diagnosis: 'Compared the local print port with the current printer address', remediation: 'Updated the obsolete local print port', verification: 'Printed the original test document successfully' }),
+  convertedScenario({ id: 'department-share-least-privilege', ticketId: 'INC2505', assetTag: 'NX-2505', title: 'New hire lacks approved department-share group', summary: 'Use peer comparison and approved least-privilege membership before changing access.', rootCause: 'The new employee was missing the approved Marketing share group.', remedy: 'Added only the approved department group and confirmed access.', investigation: 'Confirmed the requested share and compared an authorized peer', diagnosis: 'Identified the missing approved group membership', remediation: 'Applied the least-privilege department group change', verification: 'Opened the original Marketing share successfully' }),
+  convertedScenario({ id: 'restricted-folder-escalation', ticketId: 'INC2506', assetTag: 'NX-2506', title: 'Restricted salary-folder request requires authorization', summary: 'The correct resolution is safe escalation, not a convenient group change.', rootCause: 'The request lacked authorization for restricted HR salary records.', remedy: 'Did not grant access; routed the request to the authorized HR approver.', investigation: 'Confirmed the folder is restricted and approval is absent', diagnosis: 'Identified the authorization boundary', remediation: 'Escalated through the authorized HR access path', verification: 'Confirmed the requester received the approved escalation update' }),
+  convertedScenario({ id: 'recurring-lockout-stale-mapping', ticketId: 'INC2507', assetTag: 'NX-2507', title: 'Stale mapped-drive credential relocks account', summary: 'Resetting an account treats the symptom; evidence must identify the stored old credential.', rootCause: 'A mapped drive repeatedly submitted the old password after the reset.', remedy: 'Removed or updated the stale saved mapping credential and monitored for recurrence.', investigation: 'Reviewed the recurring lockout timing and saved connections', diagnosis: 'Isolated the stale mapped-drive credential', remediation: 'Removed the obsolete saved drive credential', verification: 'Confirmed the account remained unlocked after the normal interval' }),
+  convertedScenario({ id: 'phishing-credential-containment', ticketId: 'INC2508', assetTag: 'NX-2508', title: 'Phishing credential exposure needs containment', summary: 'Security containment and escalation take priority over ordinary troubleshooting.', rootCause: 'Credentials were entered on a suspected phishing page.', remedy: 'Contained the account, reset credentials, revoked sessions, and escalated to security.', investigation: 'Captured the phishing report and exposure scope', diagnosis: 'Classified the event as credential compromise', remediation: 'Performed safe containment and security escalation', verification: 'Confirmed sessions were revoked and the employee received safe follow-up' }),
+  convertedScenario({ id: 'recurring-disk-growth', ticketId: 'INC2509', assetTag: 'NX-2509', title: 'Recurring disk exhaustion caused by runaway logs', summary: 'Deleting temporary files is not a durable repair when application logs keep growing.', rootCause: 'A runaway application log was consuming the system drive.', remedy: 'Corrected the log retention/configuration issue and verified stable free space.', investigation: 'Compared disk use over time and identified the growing path', diagnosis: 'Isolated the runaway application log', remediation: 'Corrected log retention at the source', verification: 'Confirmed free space remained available after the scheduled interval' }),
+  convertedScenario({ id: 'domain-trust-repair', ticketId: 'INC2510', assetTag: 'NX-2510', title: 'Restored laptop has a broken domain trust', summary: 'The device computer-account relationship—not the user password—must be diagnosed safely.', rootCause: 'The restored laptop’s computer account no longer had a valid secure channel with the domain.', remedy: 'Repaired the secure channel through the approved device process and retested sign-in.', investigation: 'Confirmed the trust error and ruled out a general network failure', diagnosis: 'Identified the broken computer-account secure channel', remediation: 'Repaired the device trust through the approved process', verification: 'Confirmed normal domain sign-in on the restored laptop' }),
+];
+
+export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] = [
+  ...CURATED_REMOTE_DESKTOP_SCENARIOS,
+  ...CONVERTED_REMOTE_DESKTOP_SCENARIOS,
+];
 
 export function getRemoteDesktopScenarioByTicket(ticketId: string) {
   return REMOTE_DESKTOP_SCENARIOS.find(
