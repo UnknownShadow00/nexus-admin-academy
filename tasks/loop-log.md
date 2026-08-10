@@ -1012,3 +1012,15 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend Service Desk seeds/objectives/migration/training services/tests, frontend navigation/dashboard/progress/admin ticket UI, Service Desk fixtures/simulation controls/tests, docs/LEGACY_TICKET_CONTENT_AUDIT.md
 - Result: PASS — no live required curriculum activity uses support_ticket; server-authoritative Service Desk grading, frontend builds, focused/backend suites, and Service Desk checks pass.
 - Next: Browser E2E requires the separately configured base URL and dedicated E2E student credentials; review Python dependency-audit findings in a dependency-maintenance pass.
+
+## [2026-08-10T04:00:04Z] Task Completed
+- Task: Verified and remediated the backend virtual environment's Python dependency-audit findings without changing declared Nexus runtime dependencies.
+- Files changed: tasks/loop-log.md
+- Result: pass against acceptance criteria — `pip-audit` is clean for the active backend environment and a fresh install from requirements files; focused auth/security/Service Desk tests passed 133/133; full suite passed 366/368 with 2 unrelated legacy Week Plan expectation failures.
+- Next: Investigate the two pre-existing `tests/test_week_plan.py` expectations only in a separately scoped curriculum/Service Desk follow-up; no dependency change or deployment is needed.
+
+## [2026-08-10T04:17:00Z] Task Completed
+- Task: Updated Week Plan regression coverage and its client section map for the intentional retirement of legacy Support Tickets.
+- Files changed: backend/tests/test_week_plan.py; frontend/src/components/WeekPlanPanel.jsx; tasks/loop-log.md
+- Result: pass against acceptance criteria — Week Plan excludes retired ticket history, exposes Service Desk scenarios, and the full backend suite passes 368/368; focused Week Plan/training tests pass 20/20; frontend build passes.
+- Next: None

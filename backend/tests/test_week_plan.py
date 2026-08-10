@@ -30,16 +30,15 @@ def _seed_week1(db):
         editorial_status="validated",
         is_active=True,
     )
-    ticket = Ticket(title="DNS resolution failing", description="d", difficulty=1, week_number=1)
     cli = CliLab(id="mtc-01", title="First Commands", compartment_id="meet-the-cli", vendor_id="cisco", content={}, order_index=1)
-    db.add_all([l1, l2, draft, quiz, ticket, cli])
+    db.add_all([l1, l2, draft, quiz, cli])
     db.commit()
-    return module, l1, l2, quiz, ticket, cli
+    return module, l1, l2, quiz, cli
 
 
 def test_week_plan_statuses_and_progress(db):
     student = make_student(db)
-    module, l1, l2, quiz, ticket, cli = _seed_week1(db)
+    module, l1, l2, quiz, cli = _seed_week1(db)
     # complete one lesson and the CLI lab
     db.add(StudentLessonNote(student_id=student.id, lesson_id=l1.id, content="notes"))
     db.add(CliLabAttempt(student_id=student.id, lab_id=cli.id, completed_at=datetime.now(timezone.utc)))
@@ -57,28 +56,34 @@ def test_week_plan_statuses_and_progress(db):
 
     assert data["cli_labs"][0]["status"] == "done"
     assert data["quizzes"][0]["status"] == "available"
-    assert data["tickets"][0]["status"] == "available"
-    # 2 done of 5 visible items
-    assert data["progress_percent"] == 40.0
+    assert "tickets" not in data
+    # 2 done of 4 visible items; legacy Support Tickets are retired.
+    assert data["progress_percent"] == 50.0
     # next action is the first incomplete item in pedagogical order (a lesson)
     assert data["next_action"]["title"] == "Meet the Command Line"
     assert data["next_action"]["route"] == f"/lessons/{l2.id}"
 
 
-def test_week_plan_ticket_in_review_status(db):
+def test_week_plan_excludes_retired_ticket_history(db):
     student = make_student(db)
-    module, l1, l2, quiz, ticket, cli = _seed_week1(db)
+    _seed_week1(db)
+    ticket = Ticket(title="Retired DNS ticket", description="d", difficulty=1, week_number=1)
+    db.add(ticket)
+    db.flush()
     db.add(TicketSubmission(student_id=student.id, ticket_id=ticket.id, writeup="w", status="pending", xp_awarded=0))
     db.commit()
+
     r = client.get("/api/students/me/week-plan?week=1", headers=auth_headers(student))
-    assert r.json()["data"]["tickets"][0]["status"] == "in_review"
+    data = r.json()["data"]
+    assert "tickets" not in data
+    assert data["progress_percent"] == 0.0
 
 
 def test_week_plan_scoped_to_own_data(db):
     """Another student's completions must never appear in my plan."""
     s1 = make_student(db)
     s2 = make_student(db, username="student2")
-    module, l1, l2, quiz, ticket, cli = _seed_week1(db)
+    module, l1, l2, quiz, cli = _seed_week1(db)
     db.add(StudentLessonNote(student_id=s2.id, lesson_id=l1.id, content="s2 notes"))
     db.commit()
     r = client.get("/api/students/me/week-plan?week=1", headers=auth_headers(s1))
