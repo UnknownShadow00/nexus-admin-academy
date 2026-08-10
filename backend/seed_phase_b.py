@@ -476,7 +476,7 @@ QUIZZES_B = [
         "questions": [
             _q("Windows hangs on spinning dots, but boots fine in Safe Mode. The strongest conclusion:",
                "Storage hardware failure", "A third-party driver or service",
-               "Windows bootloader corruption", "Memory hardware fault",
+               "Windows bootloader configuration error", "Memory hardware fault",
                "B", "Safe Mode loads a minimal set; success there points at something excluded from it — third-party drivers/services."),
             _q("Automatic Repair has failed twice in a loop. Best next move:",
                "Repeat Startup Repair", "Gather WinRE evidence",
@@ -486,7 +486,7 @@ QUIZZES_B = [
                "The Outlook application", "The named Outlook add-in", "A Windows Update package", "The user's local profile",
                "B", "The faulting module names the code that crashed — an add-in DLL indicts the add-in, not the host app."),
             _q("An app hangs only when opening files from P:\\ (a mapped drive). This is most likely:",
-               "An application defect", "A mapped-drive network issue", "A graphics driver problem", "A malware infection",
+               "An application defect", "A mapped-drive network issue", "A graphics-driver installation failure", "A malware infection",
                "B", "Hangs on file operations against dead network paths are network tickets; the app is just the messenger."),
             _q("The repair ladder for a broken app, least destructive first:",
                "Reinstall, repair, restart", "Restart, repair, then reinstall",

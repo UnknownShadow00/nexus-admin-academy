@@ -1078,3 +1078,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/seed_phase_c.py; backend/seed_phase_f.py; backend/seed_phase_g.py; tasks/loop-log.md
 - Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 44/170 to 27/170; all 189 explanations remain present; authored-quality checks are clean and 14 focused seed/organization tests pass.
 - Next: Clear the remaining residual signals and run final complete validation.
+
+## [2026-08-10T09:05:00Z] Task Completed
+- Task: Completed the final Phase 3B residual editorial repair and regenerated the authored-question quality audit.
+- Files changed: backend/seed_phase_a.py; backend/seed_phase_b.py; backend/seed_phase_c.py; backend/seed_phase_d.py; backend/seed_phase_e.py; backend/seed_phase_f.py; docs/NEXUS_QUESTION_QUALITY_AUDIT.md; docs/nexus_question_quality.json; tasks/loop-log.md
+- Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 27/170 to 4/170 (2.4%); all 189 authored questions remain active with 189 explanations, including 19 validated multi-select questions; authored-quality checks and 14 focused seed/organization tests pass.
+- Next: Run full backend, frontend build, and final fresh-seed validation before declaring Phase 3B complete.

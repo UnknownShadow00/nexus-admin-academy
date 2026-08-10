@@ -485,7 +485,7 @@ QUIZZES = [
                "It holds unsaved user work", "It is a database/system process mid-write", "It is using 90% CPU", "It belongs to another logged-in user's session",
                "A", "High CPU alone is a symptom, not a license to kill; unsaved work, mid-write databases, and other users' sessions need graceful handling.", multi="A,B,D"),
             _q("Login takes 4 minutes. The fastest evidence source is:",
-               "Task Manager startup impact", "Disk Management free space", "DNS lookup results", "Windows Update history",
+               "Task Manager startup impact", "Disk Management free-space view", "DNS lookup results", "Windows Update history",
                "A", "Startup impact ranks exactly what slows logon."),
             _q("Event Viewer 'Level' tells you:",
                "The event severity", "The responsible user", "The recommended fix", "The current CPU usage",
