@@ -9,6 +9,15 @@ from app.models.login_streak import LoginStreak
 from app.models.mastery import StudentDomainMastery
 from app.models.progression import MethodologyFramework, Role, StudentMethodologyProgress
 from app.models.squad_activity import SquadActivity
+from app.models.service_desk import (
+    ServiceDeskAssignment,
+    ServiceDeskAttempt,
+    ServiceDeskAttemptEvent,
+    ServiceDeskAttemptGrade,
+    ServiceDeskBetaEnrollment,
+    ServiceDeskScenario,
+    ServiceDeskScenarioVersion,
+)
 from app.models.student import Student
 from app.models.weekly_lead import WeeklyDomainLead
 from app.routers.admin_students import router as admin_students_router
@@ -85,7 +94,75 @@ def test_admin_create_delete_and_id_reuse_leave_no_orphans(db):
             ),
         ]
     )
+    scenario = ServiceDeskScenario(
+        stable_key="disposable-cleanup",
+        title="Disposable cleanup scenario",
+        category="service_desk",
+        difficulty=1,
+    )
+    db.add(scenario)
+    db.flush()
+    version = ServiceDeskScenarioVersion(
+        scenario_id=scenario.id,
+        version_number=1,
+        definition_json={},
+        definition_hash="d" * 64,
+        validation_status="valid",
+        status="published",
+    )
+    db.add(version)
+    db.flush()
+    assignment = ServiceDeskAssignment(
+        student_id=student_id,
+        scenario_id=scenario.id,
+        mode="simulation",
+        assigned_by="admin",
+    )
+    attempt = ServiceDeskAttempt(
+        student_id=student_id,
+        scenario_version_id=version.id,
+        mode="simulation",
+        status="completed",
+        current_state={},
+        current_state_hash="a" * 64,
+        state_version=1,
+        attempt_number=1,
+        score=100,
+        passed=True,
+    )
+    enrollment = ServiceDeskBetaEnrollment(
+        student_id=student_id,
+        enabled=True,
+        enrolled_by="admin",
+    )
+    db.add_all([assignment, attempt, enrollment])
+    db.flush()
+    event = ServiceDeskAttemptEvent(
+        attempt_id=attempt.id,
+        sequence_number=1,
+        idempotency_key="disposable-cleanup-event",
+        event_type="ticket.close",
+        tool="ticket",
+        payload_json={},
+        previous_state_hash="0" * 64,
+        resulting_state_hash="a" * 64,
+        success=True,
+        trusted=True,
+    )
+    grade = ServiceDeskAttemptGrade(
+        attempt_id=attempt.id,
+        scenario_version_id=version.id,
+        rubric_version="test-v1",
+        technical_complete=True,
+        critical_failure=False,
+        overall_score=100,
+        passed=True,
+        feedback_summary="Passed",
+        details_json={},
+    )
+    db.add_all([event, grade])
     db.commit()
+    attempt_id = attempt.id
 
     deleted = client.delete(f"/api/admin/students/{student_id}")
     assert deleted.status_code == 200
@@ -96,6 +173,11 @@ def test_admin_create_delete_and_id_reuse_leave_no_orphans(db):
     assert db.query(SquadActivity).filter_by(student_id=student_id).count() == 0
     assert db.query(StudentDomainMastery).filter_by(student_id=student_id).count() == 0
     assert db.query(WeeklyDomainLead).filter_by(student_id=student_id).count() == 0
+    assert db.query(ServiceDeskAssignment).filter_by(student_id=student_id).count() == 0
+    assert db.query(ServiceDeskAttempt).filter_by(student_id=student_id).count() == 0
+    assert db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt_id).count() == 0
+    assert db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt_id).count() == 0
+    assert db.query(ServiceDeskBetaEnrollment).filter_by(student_id=student_id).count() == 0
     artifact = db.query(EvidenceArtifact).filter_by(storage_key="disposable.png").one()
     assert artifact.student_id is None
     assert db.connection().exec_driver_sql("PRAGMA foreign_key_check").all() == []

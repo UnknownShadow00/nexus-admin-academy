@@ -14,6 +14,13 @@ from app.models.login_streak import LoginStreak
 from app.models.mastery import StudentDomainMastery
 from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
 from app.models.squad_activity import SquadActivity
+from app.models.service_desk import (
+    ServiceDeskAssignment,
+    ServiceDeskAttempt,
+    ServiceDeskAttemptEvent,
+    ServiceDeskAttemptGrade,
+    ServiceDeskBetaEnrollment,
+)
 from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
 from app.models.weekly_lead import WeeklyDomainLead
@@ -217,6 +224,34 @@ def delete_student(student_id: int, db: Session = Depends(get_db)):
     for model in (LoginStreak, SquadActivity, StudentDomainMastery, WeeklyDomainLead):
         db.query(model).filter(model.student_id == student_id).delete(synchronize_session=False)
     db.query(AIRateLimit).filter(AIRateLimit.user_id == student_id).delete(synchronize_session=False)
+
+    # Service Desk records use RESTRICT foreign keys so historical attempts
+    # cannot disappear as an accidental side effect of unrelated writes. An
+    # explicit administrator account deletion is different: remove only the
+    # selected student's owned simulation records, in dependency order, as
+    # part of the same transaction as the account deletion.
+    attempt_ids = [
+        attempt_id
+        for (attempt_id,) in db.query(ServiceDeskAttempt.id)
+        .filter(ServiceDeskAttempt.student_id == student_id)
+        .all()
+    ]
+    if attempt_ids:
+        db.query(ServiceDeskAttemptGrade).filter(
+            ServiceDeskAttemptGrade.attempt_id.in_(attempt_ids)
+        ).delete(synchronize_session=False)
+        db.query(ServiceDeskAttemptEvent).filter(
+            ServiceDeskAttemptEvent.attempt_id.in_(attempt_ids)
+        ).delete(synchronize_session=False)
+        db.query(ServiceDeskAttempt).filter(
+            ServiceDeskAttempt.id.in_(attempt_ids)
+        ).delete(synchronize_session=False)
+    db.query(ServiceDeskAssignment).filter(
+        ServiceDeskAssignment.student_id == student_id
+    ).delete(synchronize_session=False)
+    db.query(ServiceDeskBetaEnrollment).filter(
+        ServiceDeskBetaEnrollment.student_id == student_id
+    ).delete(synchronize_session=False)
 
     try:
         db.delete(student)
