@@ -421,10 +421,10 @@ QUIZZES = [
                "Notes are billed time evidence and the audit trail", "Notes are published to customers' websites",
                "Notes replace monitoring", "Notes are required by Windows licensing",
                "A", "MSP billing and dispute resolution rest on documented work."),
-            _q("The user says 'the internet is down.' Your best FIRST question is:",
-               "Have you tried restarting?", "Can you send a screenshot of exactly what you see when it fails?",
-               "Is anyone else having issues?", "What is your IP address?",
-               "B", "Evidence beats opinion; a screenshot pins the actual error instead of the user's interpretation."),
+            _q("A single remote user says that every website on one company laptop stopped loading five minutes ago. Other staff in the same office can browse normally. Before changing the laptop, which question best confirms the scope?",
+               "Did the office internet connection fail for everyone?", "What is your IP address?",
+               "Have you tried restarting the laptop?", "Does the same problem occur in a second browser on this laptop?",
+               "D", "The report already limits the issue to one laptop, so testing a second browser is the fastest safe way to distinguish a browser-specific problem from a device or network-path problem. Asking whether everyone is affected repeats information the scenario already gives; a restart or IP address is premature."),
             _q("Blaming the user in writing ('user obviously deleted it') is bad primarily because:",
                "It may be read by the user or their manager and is rarely provable",
                "It makes the ticket longer", "It voids the warranty", "Users never cause problems",
@@ -962,8 +962,10 @@ def seed_phase_a(db) -> dict:
         db.flush()
         prev_module = module
 
-    # Quizzes + questions (match quiz by title; questions replaced wholesale so
-    # edits to this file propagate — attempts reference quiz_id, which survives)
+    from app.services.seed_question_sync import sync_seed_questions
+
+    # Quizzes + questions. Authored questions update in place by seed_key so
+    # existing attempt/review references keep their stable question IDs.
     for qspec in QUIZZES:
         quiz = db.query(Quiz).filter(Quiz.title == qspec["title"]).first()
         lesson = (db.query(Lesson)
@@ -982,10 +984,7 @@ def seed_phase_a(db) -> dict:
             quiz.question_count = len(qspec["questions"])
             quiz.status = QUIZ_STATUS_PUBLISHED
             quiz.lesson_id = lesson.id if lesson else quiz.lesson_id
-            db.query(Question).filter(Question.quiz_id == quiz.id).delete()
-        for q in qspec["questions"]:
-            db.add(Question(quiz_id=quiz.id, **q))
-            counts["questions"] += 1
+        counts["questions"] += sync_seed_questions(db, quiz, qspec["questions"])
         db.flush()
 
     # New tickets (match by title)

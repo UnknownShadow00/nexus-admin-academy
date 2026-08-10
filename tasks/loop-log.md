@@ -79,6 +79,12 @@
 - Result: pass against acceptance criteria; `python -m compileall app seed.py -q`, `python -m pytest -q`, focused quiz/capstone tests, and `npm run build` all passed.
 - Next: Existing tracked `frontend/dist` files still show build churn; fully enforcing the new ignore policy requires a later one-time untrack/restore decision for those tracked artifacts.
 
+## [2026-08-10T05:07:37Z] Task Completed
+- Task: Audited Nexus-authored quiz provenance and quality signals, repaired the known Internet-scope prompt, added authored-question identity preservation, and added a quality audit/regression guard.
+- Files changed: backend/app/models/quiz.py, backend/alembic/versions/0045_preserve_authored_question_identity.py, backend/app/services/seed_question_sync.py, backend/seed_phase_a.py, backend/seed_phase_b.py, backend/seed_phase_c.py, backend/seed_phase_d.py, backend/seed_phase_e.py, backend/seed_phase_f.py, backend/seed_phase_g.py, backend/scripts/audit_nexus_question_quality.py, backend/scripts/check_nexus_question_quality.py, backend/tests/test_nexus_question_quality.py, docs/NEXUS_QUESTION_QUALITY_AUDIT.md, docs/nexus_question_quality_prechange.json, docs/nexus_question_quality_postchange.json, tasks/loop-log.md
+- Result: partial against acceptance criteria; provenance, integrity, history safety, known ambiguity, focused tests, fresh seed/migration, and frontend build pass, but the verified 90.0% uniquely-longest-answer pattern remains and requires the requested full editorial distractor pass.
+- Next: Complete the 153-question distractor rewrite worklist before claiming Nexus-authored quizzes no longer reward choosing the longest option.
+
 ## [2026-08-07T08:20:03Z] Task Completed
 - Task: Made Service Desk completion server-evaluated from declarative objective evidence, blocked forged close claims, and restricted events to known simulation namespaces.
 - Files changed: backend/app/services/service_desk_objectives.py, backend/app/services/service_desk_grading.py, backend/app/routers/service_desk.py, backend/tests/test_service_desk_attempts.py, backend/tests/test_admin_service_desk.py, tasks/loop-log.md

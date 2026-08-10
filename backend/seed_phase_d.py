@@ -991,6 +991,7 @@ def seed_phase_d(db) -> dict:
     from app.models.learning import Lesson, Module
     from app.models.quiz import QUIZ_STATUS_PUBLISHED, Question, Quiz
     from app.models.ticket import Ticket
+    from app.services.seed_question_sync import sync_seed_questions
     from app.models.lab import LabTemplate
 
     counts = {"modules": 0, "lessons": 0, "quizzes": 0, "questions": 0, "tickets": 0, "labs": 0}
@@ -1040,10 +1041,7 @@ def seed_phase_d(db) -> dict:
             quiz.question_count = len(qspec["questions"])
             quiz.status = QUIZ_STATUS_PUBLISHED
             quiz.lesson_id = lesson.id if lesson else quiz.lesson_id
-            db.query(Question).filter(Question.quiz_id == quiz.id).delete()
-        for q in qspec["questions"]:
-            db.add(Question(quiz_id=quiz.id, **q))
-            counts["questions"] += 1
+        counts["questions"] += sync_seed_questions(db, quiz, qspec["questions"])
         db.flush()
 
     for tspec in TICKETS_D:
