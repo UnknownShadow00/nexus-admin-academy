@@ -21,6 +21,7 @@ from app.models.quiz import (
     QuizAttempt,
 )
 from app.models.student import Student
+from app.models.service_desk import ServiceDeskAttempt, ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.squad_activity import SquadActivity
 from app.models.ticket import Ticket, TicketSubmission
 from app.models.xp_ledger import XPLedger
@@ -148,7 +149,12 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db), curren
     )
 
     quiz_attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).all()
-    ticket_subs = db.query(TicketSubmission).filter(TicketSubmission.student_id == student_id).all()
+    service_desk_completed = (
+        db.query(func.count(ServiceDeskAttempt.id))
+        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True))
+        .scalar()
+        or 0
+    )
 
     data = {
         "student": {
@@ -158,7 +164,7 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db), curren
             "level": level,
             "level_name": level_name,
             "quiz_best_scores": [{"quiz_id": q.quiz_id, "best_score": q.best_score, "first_attempt_xp": q.first_attempt_xp} for q in quiz_attempts],
-            "tickets_completed": sum(1 for t in ticket_subs if t.status == "passed"),
+            "service_desk_completed": int(service_desk_completed),
         },
         "recent_activity": [
             {
@@ -198,27 +204,23 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
     })()
     total_quizzes = len(required_quizzes)
 
-    ticket_stats = (
-        db.query(func.count(TicketSubmission.id).label("completed"), func.coalesce(func.avg(TicketSubmission.ai_score), 0).label("avg_score"))
-        .filter(TicketSubmission.student_id == student_id, TicketSubmission.status == "passed")
+    service_desk_stats = (
+        db.query(
+            func.count(ServiceDeskAttempt.id).label("completed"),
+            func.coalesce(func.avg(ServiceDeskAttempt.score), 0).label("avg_score"),
+        )
+        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True))
         .first()
     )
-    total_tickets = db.query(func.count(Ticket.id)).scalar() or 0
+    total_service_desk = db.query(func.count(ServiceDeskScenario.id)).filter(ServiceDeskScenario.status == "active").scalar() or 0
 
     week_number = derive_current_week(student_id, db)
     week_required_quizzes = required_quizzes_for_week(db, week_number)
     week_quizzes = len(week_required_quizzes)
-    week_tickets = db.query(func.count(Ticket.id)).filter(Ticket.week_number == week_number).scalar() or 0
+    week_service_desk = 0
     week_completed_q = sum(is_quiz_passed(db, student_id, quiz) for quiz in week_required_quizzes)
-    week_completed_t = (
-        db.query(func.count(TicketSubmission.id))
-        .join(Ticket, TicketSubmission.ticket_id == Ticket.id)
-        .filter(TicketSubmission.student_id == student_id, Ticket.week_number == week_number, TicketSubmission.status == "passed")
-        .scalar()
-        or 0
-    )
-    week_total = week_quizzes + week_tickets
-    week_done = week_completed_q + week_completed_t
+    week_total = week_quizzes + week_service_desk
+    week_done = week_completed_q
     week_completion = round((week_done / week_total) * 100, 1) if week_total else 0
 
     quiz_activity = (
@@ -232,15 +234,15 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
         .filter(QuizAttempt.student_id == student_id)
         .all()
     )
-    ticket_activity = (
+    service_desk_activity = (
         db.query(
-            TicketSubmission.submitted_at.label("timestamp"),
-            Ticket.title.label("title"),
-            TicketSubmission.ai_score.label("score"),
-            TicketSubmission.xp_awarded.label("xp"),
+            ServiceDeskAttempt.completed_at.label("timestamp"),
+            ServiceDeskScenario.title.label("title"),
+            ServiceDeskAttempt.score.label("score"),
         )
-        .join(Ticket, Ticket.id == TicketSubmission.ticket_id)
-        .filter(TicketSubmission.student_id == student_id, TicketSubmission.status == "passed")
+        .join(ServiceDeskScenarioVersion, ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id)
+        .join(ServiceDeskScenario, ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id)
+        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True))
         .all()
     )
 
@@ -248,25 +250,13 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
         {"type": "quiz", "title": row.title, "score": row.score, "xp": row.xp, "timestamp": row.timestamp}
         for row in quiz_activity
     ] + [
-        {"type": "ticket", "title": row.title, "score": row.score, "xp": row.xp, "timestamp": row.timestamp}
-        for row in ticket_activity
+        {"type": "service_desk", "title": row.title, "score": row.score, "xp": None, "timestamp": row.timestamp}
+        for row in service_desk_activity
     ]
     recent_activity.sort(key=lambda x: x["timestamp"] or datetime.min, reverse=True)
     recent_activity = recent_activity[:5]
 
-    weak_rows = (
-        db.query(
-            Ticket.category.label("category"),
-            func.count(TicketSubmission.id).label("attempts"),
-            func.coalesce(func.avg(TicketSubmission.ai_score), 0).label("avg_score"),
-        )
-        .join(Ticket, Ticket.id == TicketSubmission.ticket_id)
-        .filter(TicketSubmission.student_id == student_id, TicketSubmission.status == "passed")
-        .group_by(Ticket.category)
-        .having(func.avg(TicketSubmission.ai_score) < 6)
-        .order_by(func.avg(TicketSubmission.ai_score).asc())
-        .all()
-    )
+    weak_rows = []
 
     cohort = (
         db.query(Student.id, Student.total_xp)
@@ -296,9 +286,9 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
         "quizzes_completed": int(quiz_stats.completed or 0),
         "total_quizzes": int(total_quizzes),
         "avg_quiz_score": round(float(quiz_stats.avg_score or 0), 1),
-        "tickets_completed": int(ticket_stats.completed or 0),
-        "total_tickets": int(total_tickets),
-        "avg_ticket_score": round(float(ticket_stats.avg_score or 0), 1),
+        "service_desk_completed": int(service_desk_stats.completed or 0),
+        "total_service_desk": int(total_service_desk),
+        "avg_service_desk_score": round(float(service_desk_stats.avg_score or 0), 1),
         "current_week": week_number,
         "week_completion": week_completion,
         "recent_activity": recent_activity,
@@ -546,13 +536,13 @@ def get_week_plan(
     current_student: Student = Depends(get_current_student),
 ):
     """The student's ordered plan for a week: lessons, quizzes, CLI labs, labs,
-    tickets — each with done/available status. Scope: own data only (TB-03)."""
+    Service Desk scenarios — each with done/available status. Scope: own data only (TB-03)."""
     from app.models.cli_lab import CliLab, CliLabAttempt
     from app.models.lab import LabRun, LabTemplate
     from app.models.learning import Lesson, Module
     from app.models.lesson_notes import StudentLessonNote
     from app.models.quiz import Quiz
-    from app.models.ticket import Ticket, TicketSubmission
+    from app.models.training import TrainingWeek, TrainingWeekActivity
     from app.services.progression_service import get_promotion_status
 
     student_id = current_student.id
@@ -672,28 +662,39 @@ def get_week_plan(
         .all()
     ]
 
-    # Tickets by week_number; done = passed submission
-    sub_status = {
-        s.ticket_id: s.status
-        for s in db.query(TicketSubmission).filter(TicketSubmission.student_id == student_id).all()
+    scenario_keys = [
+        row.content_ref
+        for row in db.query(TrainingWeekActivity)
+        .join(TrainingWeek, TrainingWeek.id == TrainingWeekActivity.training_week_id)
+        .filter(
+            TrainingWeek.week_number == current_week,
+            TrainingWeekActivity.activity_type == "service_desk_scenario",
+        )
+        .all()
+    ]
+    passed_scenarios = {
+        stable_key
+        for stable_key, in db.query(ServiceDeskScenario.stable_key)
+        .join(ServiceDeskScenarioVersion, ServiceDeskScenarioVersion.scenario_id == ServiceDeskScenario.id)
+        .join(ServiceDeskAttempt, ServiceDeskAttempt.scenario_version_id == ServiceDeskScenarioVersion.id)
+        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True))
+        .all()
     }
-    tickets_out = [
+    service_desk_out = [
         {
-            "id": t.id,
-            "title": t.title,
-            "difficulty": t.difficulty,
-            "status": "done" if sub_status.get(t.id) == "passed" else (
-                "in_review" if sub_status.get(t.id) == "pending" else "available"
-            ),
-            "route": f"/tickets/{t.id}",
+            "id": scenario.stable_key,
+            "title": scenario.title,
+            "difficulty": scenario.difficulty,
+            "status": "done" if scenario.stable_key in passed_scenarios else "available",
+            "route": "/service-desk",
         }
-        for t in db.query(Ticket)
-        .filter(Ticket.week_number == current_week)
-        .order_by(Ticket.difficulty, Ticket.id)
+        for scenario in db.query(ServiceDeskScenario)
+        .filter(ServiceDeskScenario.stable_key.in_(scenario_keys), ServiceDeskScenario.status == "active")
+        .order_by(ServiceDeskScenario.difficulty, ServiceDeskScenario.id)
         .all()
     ]
 
-    all_items = lessons_out + quizzes_out + cumulative_gate_out + cli_out + labs_out + tickets_out
+    all_items = lessons_out + quizzes_out + cumulative_gate_out + cli_out + labs_out + service_desk_out
     done_count = sum(1 for item in all_items if item["status"] == "done")
 
     # Recommended next action: first non-done item in pedagogical order
@@ -715,7 +716,7 @@ def get_week_plan(
             "cumulative_gate_quizzes": cumulative_gate_out,
             "cli_labs": cli_out,
             "labs": labs_out,
-            "tickets": tickets_out,
+            "service_desk": service_desk_out,
             "onboarding": get_orientation_state(db, current_student),
         }
     )

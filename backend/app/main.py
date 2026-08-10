@@ -256,6 +256,8 @@ def create_app() -> FastAPI:
     app.include_router(labs.router)
     app.include_router(capstones.router)
     app.include_router(cli_labs.router)
+    # Retained as dormant, authenticated historical-record APIs. Student and
+    # admin navigation no longer exposes the retired Support Tickets product.
     app.include_router(tickets.router)
     app.include_router(submissions.router)
     app.include_router(commands.router)
