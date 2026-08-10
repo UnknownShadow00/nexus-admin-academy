@@ -1120,3 +1120,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: CLAUDE.md; docs/DEPLOYMENT.md; docs/PRODUCTION_LAUNCH_REHEARSAL.md; scripts/predeploy_check.sh; tasks/loop-log.md
 - Result: pass against acceptance criteria — root-level predeploy now uses the backend venv interpreter with `python -m alembic` from `backend/`, loads one 0046 head, and accepts production 0041 only as a proven ancestor; fresh and production-like 0041→0046 disposable migrations passed with integrity ok and zero foreign-key violations; backend import/compile, 3 focused tests, and all 377 backend tests passed.
 - Next: Review the new release-candidate commit, then restart the production release from Phase 1 only when explicitly authorized.
+
+## [2026-08-10T14:05:26Z] Task Completed
+- Task: Restarted the actual production release from Phase 1 for RC 18fb8f860a6ae9a0851660c60fd4ca949e1544cd, passed the repaired predeploy gate, opened protected-workflow PR #12, and stopped before merge when GitHub CI failed.
+- Files changed: tasks/loop-log.md
+- Result: fail against acceptance criteria — Phase 1 and scripts/predeploy_check.sh passed, but PR #12 failed Backend quality and tests on Ruff F841 in service_desk_objectives.py and failed Database, migrations, and seeds because CI still expected 0041 instead of the 0046 head; no merge or production change was performed.
+- Next: Correct both CI failures on the release branch, validate them, establish and approve a new RC SHA, then restart the production release from Phase 1.

@@ -417,10 +417,6 @@ def evaluate_objectives(stable_key: str, events: list[Any], definition_json: dic
             checks["approved_corrective_action"] = any_passed
         return all(checks.values()) and any_passed, checks | {"server_verifiable": True}
 
-    positions = {
-        category.name: [position for objective in category.objectives for position in _matching_positions(events, objective)]
-        for category in definition.categories
-    }
     remediation = next(category for category in definition.categories if category.name == "remediation")
     remediation_positions = [_matching_positions(events, objective) for objective in remediation.objectives]
     remediation_met = all(matches for matches in remediation_positions)

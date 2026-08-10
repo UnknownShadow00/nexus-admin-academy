@@ -241,7 +241,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await page.goto("/quizzes/42");
   await expect(page.getByText("Question 1 of 4", { exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
-  await page.goto("/service-desk");
+  await page.goto("/service-desk", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Ticket Queue" })).toBeVisible();
   await assertNoHorizontalOverflow(page);
 
