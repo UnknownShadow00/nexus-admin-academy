@@ -1036,3 +1036,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend lesson progress model/migration, lesson/onboarding/training/progression APIs and tests, Week 0 seed and audit document, frontend lesson/orientation UI and E2E expectation, tasks/loop-log.md
 - Result: pass against acceptance criteria — the note-only CompTIA wrapper is retired from Week 0; notes remain optional; explicit completion is student-owned and idempotent; 371 backend tests and focused lesson/training coverage pass; frontend build and temporary fresh/upgrade migration validation pass.
 - Next: Do not begin quiz-bank cleanup until Phase 3A review is accepted.
+
+## [2026-08-10T07:55:00Z] Task Completed
+- Task: Completed Phase 3B authored-question editorial repair batch 1, preserving the five existing rewrites and repairing the next required longest-answer cues.
+- Files changed: backend/seed_phase_a.py; tasks/loop-log.md
+- Result: pass against acceptance criteria — fresh seed audit reduced uniquely-longest correct single-answer options from 148/170 to 127/170; all 189 explanations remain present; authored-quality checks and 14 focused seed/organization tests pass.
+- Next: Continue Phase 3B batch 2 with the next required P1 worklist questions.
