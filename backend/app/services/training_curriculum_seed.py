@@ -76,6 +76,45 @@ SERVICE_DESK_WEEKS = {
     14: "inc2510",
 }
 
+ORIENTATION_LESSON_TITLE = "Welcome to Nexus: Your First Week"
+ORIENTATION_QUIZ_TITLE = "Ticketing Systems Quiz"
+
+
+def reconcile_week_zero_requirements(db: Session) -> dict:
+    """Keep only the current orientation lesson and checkpoint quiz required.
+
+    Requirement flags update in place; activities and student history remain.
+    """
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    week = db.query(TrainingWeek).filter(TrainingWeek.week_number == 0).first()
+    if week is None:
+        return {"updated": 0, "skipped": True, "reason": "week_missing"}
+    orientation = (
+        db.query(Lesson)
+        .join(Module, Module.id == Lesson.module_id)
+        .filter(Module.code == "MOD-000", Lesson.title == ORIENTATION_LESSON_TITLE)
+        .first()
+    )
+    checkpoint = db.query(Quiz).filter(Quiz.week_number == 0, Quiz.title == ORIENTATION_QUIZ_TITLE).first()
+    if orientation is None or checkpoint is None:
+        return {"updated": 0, "skipped": True, "reason": "onboarding_content_missing"}
+
+    updated = 0
+    activities = db.query(TrainingWeekActivity).filter(TrainingWeekActivity.training_week_id == week.id).all()
+    for activity in activities:
+        should_be_required = (
+            activity.activity_type == "lesson" and activity.content_ref == str(orientation.id)
+        ) or (
+            activity.activity_type == "quiz" and activity.content_ref == str(checkpoint.id)
+        )
+        if bool(activity.is_required) != should_be_required:
+            activity.is_required = should_be_required
+            updated += 1
+    db.commit()
+    return {"updated": updated, "skipped": False}
+
 
 def sync_initial_training_activities(db: Session) -> dict:
     """Populate references only when the migrated curriculum is still empty."""

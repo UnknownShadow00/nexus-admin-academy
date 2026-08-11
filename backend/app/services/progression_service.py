@@ -6,6 +6,7 @@ from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.progression import PromotionGate, Role
 from app.models.quiz import Quiz, QuizAttempt
+from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
 from app.services.quiz_progression import is_quiz_passed, required_quizzes_for_week
 
@@ -97,22 +98,42 @@ def require_week_reached(db: Session, student, required_week: int) -> dict:
     if required_week <= current_week:
         return {"required_week": required_week, "current_week": current_week}
 
+    from app.models.lesson_progress import StudentLessonProgress
+
+    codes = [code for code, mapped_week in MODULE_WEEKS.items() if mapped_week == current_week]
+    week_lesson_ids = {
+        row.id
+        for row in db.query(Lesson.id)
+        .join(Module, Module.id == Lesson.module_id)
+        .filter(Module.code.in_(codes), Lesson.status == "published")
+    } if codes else set()
+    completed_lesson_ids = {
+        row.lesson_id
+        for row in db.query(StudentLessonProgress.lesson_id).filter(
+            StudentLessonProgress.student_id == student.id,
+            StudentLessonProgress.lesson_id.in_(week_lesson_ids),
+            StudentLessonProgress.completed_at.isnot(None),
+        )
+    } if week_lesson_ids else set()
+    lesson_incomplete = bool(week_lesson_ids - completed_lesson_ids)
     incomplete_quiz = next(
-        (
-            quiz
-            for quiz in required_quizzes_for_week(db, current_week)
-            if not is_quiz_passed(db, student.id, quiz)
-        ),
+        (quiz for quiz in required_quizzes_for_week(db, current_week) if not is_quiz_passed(db, student.id, quiz)),
         None,
     )
-    if incomplete_quiz is not None:
+    if lesson_incomplete and incomplete_quiz is not None:
+        error = f"Complete Week {current_week}'s required lesson and quiz first."
+        next_action_route = "/training"
+    elif incomplete_quiz is not None:
         error = f"Complete Week {current_week}'s required quiz first."
         next_action_route = f"/quizzes/{incomplete_quiz.id}"
     elif required_week > current_week + 1:
         error = f"You'll unlock this once you reach Week {required_week}."
         next_action_route = "/training"
-    else:
+    elif lesson_incomplete:
         error = f"Complete Week {current_week}'s required lesson first."
+        next_action_route = "/training"
+    else:
+        error = f"Complete Week {current_week}'s required work first."
         next_action_route = "/training"
 
     raise HTTPException(
@@ -136,6 +157,13 @@ def check_module_unlock(student_id: int, module_id: int, db: Session) -> dict:
         return {"unlocked": False, "requirements_missing": ["Module not found"]}
 
     requirements_missing = []
+    student = db.query(Student).filter(Student.id == student_id).first()
+    mapped_week = MODULE_WEEKS.get(module.code)
+    if student and not student.is_mentor and mapped_week is not None:
+        current_week = derive_current_week(student_id, db)
+        if mapped_week > current_week:
+            requirements_missing.append(f"Complete Week {current_week}'s required work first.")
+
     if module.prerequisite_module_id:
         prereq_mastery = get_module_mastery(student_id, module.prerequisite_module_id, db)
         if prereq_mastery < (module.unlock_threshold or 70):

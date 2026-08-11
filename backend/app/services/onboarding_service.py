@@ -1,15 +1,14 @@
 from sqlalchemy.orm import Session
 
-from app.models.evidence import EvidenceArtifact
 from app.models.lesson_notes import StudentLessonNote
 from app.models.lesson_progress import StudentLessonProgress
 from app.models.learning import Lesson, Module
-from app.models.onboarding import StudentOnboardingPractice
-from app.models.quiz import Quiz, QuizAttempt
+from app.models.quiz import Quiz
 from app.models.student import Student
 from app.models.ticket import TicketSubmission
 from app.models.xp_ledger import XPLedger
 from app.services.progression_service import derive_current_week
+from app.services.quiz_progression import is_quiz_passed
 
 ORIENTATION_LESSON_TITLE = "Welcome to Nexus: Your First Week"
 ORIENTATION_QUIZ_TITLE = "Ticketing Systems Quiz"
@@ -43,31 +42,10 @@ def get_orientation_state(db: Session, student: Student) -> dict:
             )
             .first()
         )
-    quiz_taken = bool(
-        quiz
-        and db.query(QuizAttempt.id)
-        .filter(QuizAttempt.student_id == student.id, QuizAttempt.quiz_id == quiz.id)
-        .first()
-    )
-    practice = (
-        db.query(StudentOnboardingPractice)
-        .filter(StudentOnboardingPractice.student_id == student.id)
-        .first()
-    )
-    evidence_uploaded = bool(
-        lesson
-        and db.query(EvidenceArtifact.id)
-        .filter(
-            EvidenceArtifact.student_id == student.id,
-            EvidenceArtifact.submission_type == "orientation",
-            EvidenceArtifact.submission_id == lesson.id,
-        )
-        .first()
-    )
+    quiz_passed = bool(quiz and is_quiz_passed(db, student.id, quiz))
     lesson_complete = lesson_progress is not None
-    practice_complete = bool(practice and (practice.response or "").strip())
     week_one_unlocked = derive_current_week(student.id, db) >= 1
-    complete = bool(lesson_complete and quiz_taken and practice_complete)
+    complete = bool(lesson_complete and quiz_passed)
     remaining_week_zero_lessons = []
     if complete and lesson:
         completed_lesson_ids = {
@@ -99,9 +77,7 @@ def get_orientation_state(db: Session, student: Student) -> dict:
     has_activity = bool(
         db.query(StudentLessonNote.id).filter(StudentLessonNote.student_id == student.id).first()
         or lesson_progress
-        or quiz_taken
-        or practice
-        or evidence_uploaded
+        or quiz_passed
         or db.query(XPLedger.id).filter(XPLedger.student_id == student.id).first()
         or db.query(TicketSubmission.id).filter(TicketSubmission.student_id == student.id).first()
     )
@@ -120,8 +96,6 @@ def get_orientation_state(db: Session, student: Student) -> dict:
         "next_week_plan_url": "/api/students/me/week-plan?week=1",
         "steps": {
             "lesson_completion": lesson_complete,
-            "quiz": quiz_taken,
-            "practice_response": practice_complete,
-            "optional_evidence": evidence_uploaded,
+            "quiz": quiz_passed,
         },
     }

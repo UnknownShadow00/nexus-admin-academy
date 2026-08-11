@@ -7,13 +7,12 @@ from conftest import auth_headers, make_client, make_student
 from app.models.ai_rate_limit import AIRateLimit
 from app.models.learning import Lesson, Module
 from app.models.lesson_progress import StudentLessonProgress
-from app.models.onboarding import StudentOnboardingPractice
 from app.models.progression import PromotionGate, Role
 from app.models.quiz import EDITORIAL_STATUS_VALIDATED, QUIZ_STATUS_PUBLISHED, Question, Quiz, QuizAttempt
 from app.models.ticket import TicketSubmission
 from app.models.xp_ledger import XPLedger
-from app.routers.lesson_notes import LessonNoteRequest, save_lesson_note
-from app.routers.onboarding import OrientationPracticeRequest, get_onboarding_progress, save_orientation_practice
+from app.routers.lesson_notes import LessonNoteRequest, router as lesson_router, save_lesson_note
+from app.routers.onboarding import get_onboarding_progress
 from app.routers.students import get_leaderboard, get_student_stats, get_week_plan
 from app.routers.tickets import router as tickets_router
 from app.routers.admin_students import student_activity
@@ -21,7 +20,7 @@ from app.services.progression_service import check_promotion_eligibility
 
 ORIENTATION_TITLE = "Welcome to Nexus: Your First Week"
 
-client = make_client(tickets_router)
+client = make_client(tickets_router, lesson_router)
 
 
 def _seed_orientation(db):
@@ -29,6 +28,9 @@ def _seed_orientation(db):
     week_one = Module(code="MOD-001", title="The Ticket Is the Job", module_order=1)
     db.add_all([week_zero, week_one])
     db.flush()
+    # Reproduce the production regression: the Phase A content seed restored
+    # this retired mastery prerequisite after migration 0030 had removed it.
+    week_one.prerequisite_module_id = week_zero.id
     orientation = Lesson(module_id=week_zero.id, title=ORIENTATION_TITLE, lesson_order=1, status="published")
     first_week_one_lesson = Lesson(module_id=week_one.id, title="Anatomy of a Good Ticket", lesson_order=1, status="published")
     quiz = Quiz(
@@ -61,6 +63,33 @@ def _seed_orientation(db):
     return orientation, quiz, question, first_week_one_lesson
 
 
+def _complete_orientation(db, student, orientation):
+    db.add(
+        StudentLessonProgress(
+            student_id=student.id,
+            lesson_id=orientation.id,
+            completed_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+
+
+def _pass_quiz(db, student, quiz, question):
+    db.add(
+        QuizAttempt(
+            student_id=student.id,
+            quiz_id=quiz.id,
+            answers={str(question.id): "A"},
+            results=[],
+            score=1,
+            xp_awarded=0,
+            best_score=1,
+            first_attempt_xp=0,
+        )
+    )
+    db.commit()
+
+
 def test_fresh_student_can_resume_and_complete_orientation_without_ticket_grading(db):
     student = make_student(db)
     orientation, quiz, question, first_week_one_lesson = _seed_orientation(db)
@@ -73,12 +102,13 @@ def test_fresh_student_can_resume_and_complete_orientation_without_ticket_gradin
     assert "pick up where you left off" not in json.dumps(home).lower()
 
     progress = get_onboarding_progress(db=db, current_student=student)
-    assert progress["data"]["steps"] == {
-        "lesson_completion": False,
-        "quiz": False,
-        "practice_response": False,
-        "optional_evidence": False,
-    }
+    assert progress["data"]["steps"] == {"lesson_completion": False, "quiz": False}
+    assert progress["data"]["is_complete"] is False
+    assert progress["data"]["week_one_unlocked"] is False
+
+    locked = client.get(f"/api/lessons/{first_week_one_lesson.id}", headers=auth_headers(student))
+    assert locked.status_code == 403
+    assert locked.json()["error"] == "Complete Week 0's required lesson and quiz first."
 
     note = save_lesson_note(
         orientation.id,
@@ -93,8 +123,13 @@ def test_fresh_student_can_resume_and_complete_orientation_without_ticket_gradin
     assert resumed["data"]["steps"]["lesson_completion"] is False
     assert resumed["data"]["is_complete"] is False
 
-    db.add(StudentLessonProgress(student_id=student.id, lesson_id=orientation.id, completed_at=datetime.now(timezone.utc)))
-    db.commit()
+    _complete_orientation(db, student, orientation)
+    orientation_only = get_onboarding_progress(db=db, current_student=student)["data"]
+    assert orientation_only["steps"] == {"lesson_completion": True, "quiz": False}
+    assert orientation_only["is_complete"] is False
+    locked = client.get(f"/api/lessons/{first_week_one_lesson.id}", headers=auth_headers(student))
+    assert locked.status_code == 403
+    assert locked.json()["error"] == "Complete Week 0's required quiz first."
 
     # The existing quiz endpoint has its own scoring coverage. Seed its normal
     # persisted result here so this regression stays focused on onboarding
@@ -134,26 +169,20 @@ def test_fresh_student_can_resume_and_complete_orientation_without_ticket_gradin
     db.commit()
     ticket_gate_before = check_promotion_eligibility(student.id, role.id, db)
 
-    practice = save_orientation_practice(
-        OrientationPracticeRequest(response="I would open This Week and choose Next up."),
-        db=db,
-        current_student=student,
-    )
-    assert practice["data"]["onboarding"]["is_complete"] is True
-
-    # Zero-stakes practice does not create a ticket, AI rate-limit row, XP, or
-    # promotion-relevant ticket completion; therefore it cannot distort rank.
+    # Finishing the two current requirements does not create a ticket, AI
+    # rate-limit row, or promotion-relevant completion; therefore it cannot
+    # distort rank.
     db.refresh(student)
     assert student.total_xp == xp_after_required_quiz
     assert db.query(AIRateLimit).filter(AIRateLimit.user_id == student.id).count() == ai_limit_count == 0
     assert db.query(TicketSubmission).filter(TicketSubmission.student_id == student.id).count() == ticket_count == 0
-    assert db.query(StudentOnboardingPractice).filter(StudentOnboardingPractice.student_id == student.id).count() == 1
     assert check_promotion_eligibility(student.id, role.id, db)["requirements_missing"][0]["progress"] == ticket_gate_before["requirements_missing"][0]["progress"]
     leaderboard = get_leaderboard(db=db, current_student=student)
     assert [row["student_id"] for row in leaderboard["data"]][:2] == [leader.id, student.id]
 
     finished = get_onboarding_progress(db=db, current_student=student)
     assert finished["data"]["is_complete"] is True
+    assert finished["data"]["week_one_unlocked"] is True
     assert finished["data"]["is_fresh"] is False
     assert finished["data"]["available_later"] is True
 
@@ -163,35 +192,46 @@ def test_fresh_student_can_resume_and_complete_orientation_without_ticket_gradin
     assert next_action["title"] == first_week_one_lesson.title
     assert next_action["route"] == f"/lessons/{first_week_one_lesson.id}"
 
+    # Direct route authorization is server-authoritative and survives a fresh
+    # request, regardless of the stale legacy module prerequisite reproduced
+    # by this fixture.
+    opened = client.get(f"/api/lessons/{first_week_one_lesson.id}", headers=auth_headers(student))
+    assert opened.status_code == 200
+    assert opened.json()["data"]["title"] == first_week_one_lesson.title
+
+    other = make_student(db, username="fresh-isolated-student")
+    other_locked = client.get(f"/api/lessons/{first_week_one_lesson.id}", headers=auth_headers(other))
+    assert other_locked.status_code == 403
+    assert get_onboarding_progress(db=db, current_student=other)["data"]["week_one_unlocked"] is False
+
+
+def test_quiz_without_orientation_keeps_week_one_locked(db):
+    student = make_student(db)
+    _, quiz, question, first_week_one_lesson = _seed_orientation(db)
+
+    _pass_quiz(db, student, quiz, question)
+
+    progress = get_onboarding_progress(db=db, current_student=student)["data"]
+    assert progress["steps"] == {"lesson_completion": False, "quiz": True}
+    assert progress["is_complete"] is False
+    assert progress["week_one_unlocked"] is False
+    locked = client.get(f"/api/lessons/{first_week_one_lesson.id}", headers=auth_headers(student))
+    assert locked.status_code == 403
+    assert locked.json()["error"] == "Complete Week 0's required lesson first."
+
 
 def test_orientation_completion_unlocks_week_one_without_retired_methodology_lesson(db):
     student = make_student(db)
-    orientation, quiz, question, _ = _seed_orientation(db)
+    orientation, quiz, question, first_week_one_lesson = _seed_orientation(db)
 
-    db.add(StudentLessonProgress(student_id=student.id, lesson_id=orientation.id, completed_at=datetime.now(timezone.utc)))
-    db.add(
-        QuizAttempt(
-            student_id=student.id,
-            quiz_id=quiz.id,
-            answers={str(question.id): "A"},
-            results=[],
-            score=1,
-            xp_awarded=0,
-            best_score=1,
-            first_attempt_xp=0,
-        )
-    )
-    db.commit()
-    save_orientation_practice(
-        OrientationPracticeRequest(response="I would select the next item from This Week."),
-        db=db,
-        current_student=student,
-    )
+    _complete_orientation(db, student, orientation)
+    _pass_quiz(db, student, quiz, question)
 
     progress = get_onboarding_progress(db=db, current_student=student)["data"]
     assert progress["is_complete"] is True
     assert progress["week_one_unlocked"] is True
     assert progress["week_one_remaining_lessons"] == []
+    assert client.get(f"/api/lessons/{first_week_one_lesson.id}", headers=auth_headers(student)).status_code == 200
 
     from app.models.ticket import Ticket
 

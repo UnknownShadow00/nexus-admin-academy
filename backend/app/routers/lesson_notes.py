@@ -10,7 +10,7 @@ from app.models.lesson_notes import StudentLessonNote
 from app.models.lesson_progress import StudentLessonProgress
 from app.models.student import Student
 from app.services.auth_service import get_current_student
-from app.services.progression_service import check_module_unlock
+from app.services.progression_service import MODULE_WEEKS, require_week_reached
 from app.utils.responses import ok
 
 router = APIRouter(tags=["lesson-notes"])
@@ -31,8 +31,8 @@ def get_lesson(lesson_id: int, db: Session = Depends(get_db), current_student: S
     if row is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
     lesson, module = row
-    if not check_module_unlock(current_student.id, module.id, db)["unlocked"]:
-        raise HTTPException(status_code=403, detail="Lesson is locked")
+    if module.code in MODULE_WEEKS:
+        require_week_reached(db, current_student, MODULE_WEEKS[module.code])
     progress = (
         db.query(StudentLessonProgress)
         .filter(StudentLessonProgress.student_id == current_student.id, StudentLessonProgress.lesson_id == lesson.id)
@@ -77,8 +77,8 @@ def complete_lesson(
     if row is None:
         raise HTTPException(status_code=404, detail="Lesson not found")
     lesson, module = row
-    if not check_module_unlock(current_student.id, module.id, db)["unlocked"]:
-        raise HTTPException(status_code=403, detail="Lesson is locked")
+    if module.code in MODULE_WEEKS:
+        require_week_reached(db, current_student, MODULE_WEEKS[module.code])
     progress = (
         db.query(StudentLessonProgress)
         .filter(StudentLessonProgress.student_id == current_student.id, StudentLessonProgress.lesson_id == lesson.id)

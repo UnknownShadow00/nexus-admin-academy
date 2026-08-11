@@ -925,7 +925,7 @@ TICKET_RETROFITS = {
 def seed_phase_a(db) -> dict:
     """Idempotent Phase A content seed. Returns counts for the seed summary."""
     from app.models.learning import Lesson, Module
-    from app.models.quiz import QUIZ_STATUS_PUBLISHED, Question, Quiz
+    from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz
     from app.models.ticket import Ticket
 
     counts = {"modules": 0, "lessons": 0, "quizzes": 0, "questions": 0,
@@ -944,7 +944,11 @@ def seed_phase_a(db) -> dict:
         else:
             for k, v in fields.items():
                 setattr(module, k, v)
-        if prev_module is not None:
+        if spec["code"] == "MOD-001":
+            # Week 1 is gated by current Week 0 lesson + quiz progression, not
+            # MOD-000 mastery. Do not restore the prerequisite removed by 0030.
+            module.prerequisite_module_id = None
+        elif prev_module is not None:
             module.prerequisite_module_id = prev_module.id if module.id != prev_module.id else None
         db.flush()
         for lspec in spec["lessons"]:
