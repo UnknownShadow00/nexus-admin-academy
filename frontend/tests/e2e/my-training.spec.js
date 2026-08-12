@@ -248,6 +248,10 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
+  // Let Home's student reads settle before logout revokes the shared session.
+  // Otherwise a legitimate in-flight read can cross the logout boundary and
+  // report a 401 even though the protected-route behavior is correct.
+  await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Browser Training Student" }).click();
   await expect(page).toHaveURL(/\/login$/);
 

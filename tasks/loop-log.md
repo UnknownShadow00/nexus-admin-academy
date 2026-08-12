@@ -1186,3 +1186,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/tests/e2e/my-training.spec.js; tasks/loop-log.md
 - Result: pass against acceptance criteria — the trace showed the long cross-app smoke reached a pending Service Desk session request with only four seconds left in its 30-second total budget; its total budget is now 60 seconds while assertion timeouts, console/network monitoring, and authorization checks remain strict. The complete six-test My Training suite passed locally in 25.8 seconds.
 - Next: Push the focused CI stabilization to existing draft PR #15 and wait for all five required checks to pass; do not mark ready, merge, or deploy.
+
+## [2026-08-12T10:04:37Z] Task Completed
+- Task: Fixed the remaining PR #15 browser CI session-revocation race after the cold Service Desk bundle loaded successfully.
+- Files changed: frontend/tests/e2e/my-training.spec.js; tasks/loop-log.md
+- Result: pass against acceptance criteria — the replacement CI trace identified only two expected Home reads crossing the immediate logout boundary and returning 401; the test now waits for Home network idle before revoking the session, exactly as the existing admin test does, while retaining strict console/network assertions. The complete six-test My Training suite passed locally in 26.3 seconds.
+- Next: Push this focused fix to existing draft PR #15 and wait for the replacement five-job CI run to pass; do not mark ready, merge, or deploy.
