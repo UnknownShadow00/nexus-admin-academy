@@ -65,14 +65,14 @@ CLI_WEEKS = {
 # Keep this compact mapping near the weekly seed so required curriculum never
 # falls back to the retired support_ticket product.
 SERVICE_DESK_WEEKS = {
-    1: "inc2407",
-    2: "inc2503",
-    3: "inc2501",
-    4: "inc2509",
+    1: "locked-user-account",
+    2: "inc2404",
+    3: "password-reset",
+    4: "mfa-reset",
     5: "inc2502",
     6: "inc2505",
-    7: "inc2509",
-    8: "inc2507",
+    7: "inc2508",
+    8: "inc2407",
     14: "inc2510",
 }
 

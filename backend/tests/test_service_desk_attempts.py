@@ -15,6 +15,17 @@ from app.services.service_desk_objectives import PROCESS_CATALOG_VERSION
 from conftest import auth_headers, make_client, make_student
 
 
+def _process_ticket_id(stable_key: str) -> str:
+    definition = SCENARIO_OBJECTIVES[stable_key]
+    return next(
+        rule.payload["ticketId"]
+        for category in definition.categories
+        for objective in category.objectives
+        for rule in objective.any_of
+        if "ticketId" in rule.payload
+    )
+
+
 def setup_assignment(
     db,
     student,
@@ -40,7 +51,14 @@ def setup_assignment(
             version_number=1,
             definition_json={
                 "steps": [], "priority": priority,
-                **({"objective_catalog_version": PROCESS_CATALOG_VERSION} if process_profile else {}),
+                **(
+                    {
+                        "id": _process_ticket_id(key),
+                        "objective_catalog_version": PROCESS_CATALOG_VERSION,
+                    }
+                    if process_profile
+                    else {}
+                ),
             },
             definition_hash=f"hash-{student.id}-{published}-{stable_key or priority}",
             status="published" if published else "draft",
@@ -118,7 +136,7 @@ def _tool_for(rule):
 def complete_process_workflow(client, student, attempt_id, stable_key):
     """Submit one server-authorized valid route through each process category."""
     headers = auth_headers(student)
-    ticket_id = stable_key.upper()
+    ticket_id = _process_ticket_id(stable_key)
     path = f"/api/service-desk/attempts/{attempt_id}/actions"
     assert client.post(path, headers=headers, json={
         "idempotency_key": "assign", "event_type": "ticket.assign", "tool": "ticket",
@@ -163,6 +181,93 @@ def test_converted_legacy_cases_require_server_authoritative_process_evidence(
     assert grade.status_code == 201
     assert grade.json()["passed"] is True
     assert grade.json()["overall_score"] == 100
+
+
+@pytest.mark.parametrize(
+    ("stable_key", "event_type", "payload"),
+    [
+        (
+            "locked-user-account",
+            "directory.unlock_account",
+            {"directoryUserId": "directory-user-taylor-morgan"},
+        ),
+        (
+            "password-reset",
+            "directory.reset_password",
+            {
+                "directoryUserId": "directory-user-jordan-lee",
+                "requireChangeAtNextSignIn": True,
+            },
+        ),
+        (
+            "mfa-reset",
+            "directory.reset_mfa",
+            {"directoryUserId": "directory-user-camille-reyes"},
+        ),
+    ],
+)
+def test_foundational_account_fix_is_rejected_before_investigation(
+    db, stable_key, event_type, payload
+):
+    student = make_student(db, username=f"premature-{stable_key}")
+    assignment = setup_assignment(
+        db, student, stable_key=stable_key, process_profile=True
+    )
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+    headers = auth_headers(student)
+    path = f"/api/service-desk/attempts/{attempt_id}/actions"
+    assert client.post(
+        path,
+        headers=headers,
+        json={
+            "idempotency_key": "assign",
+            "event_type": "ticket.assign",
+            "tool": "ticket",
+            "payload": {"ticketId": _process_ticket_id(stable_key)},
+        },
+    ).status_code == 201
+
+    response = client.post(
+        path,
+        headers=headers,
+        json={
+            "idempotency_key": "guessed-fix",
+            "event_type": event_type,
+            "tool": "directory",
+            "payload": payload,
+        },
+    )
+
+    assert response.status_code == 409
+    assert "server-authoritative attempt state" in response.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "stable_key",
+    ["locked-user-account", "password-reset", "mfa-reset"],
+)
+def test_foundational_account_lifecycle_passes_and_replays(db, stable_key):
+    student = make_student(db, username=f"lifecycle-{stable_key}")
+    assignment = setup_assignment(
+        db, student, stable_key=stable_key, process_profile=True
+    )
+    client = make_client(service_desk.router)
+    first_attempt_id = start(client, student, assignment).json()["id"]
+    complete_process_workflow(client, student, first_attempt_id, stable_key)
+    close(client, student, first_attempt_id)
+    grade = client.post(
+        f"/api/service-desk/attempts/{first_attempt_id}/complete",
+        headers=auth_headers(student),
+        json={"idempotency_key": "complete-foundational"},
+    )
+    replay = start(client, student, assignment)
+
+    assert grade.status_code == 201
+    assert grade.json()["passed"] is True
+    assert grade.json()["overall_score"] == 100
+    assert replay.status_code == 201
+    assert replay.json()["attempt_number"] == 2
 
 
 def test_converted_legacy_case_repair_does_not_replace_investigation_or_diagnosis(db):

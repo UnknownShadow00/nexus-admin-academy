@@ -40,6 +40,7 @@ SERVICE_DESK_DIFFICULTY_BY_PRIORITY = {
     "critical": 5,
 }
 SERVICE_DESK_DIFFICULTY_BY_ID = {
+    "INC2511": 1, "INC2512": 1, "INC2513": 1,
     "INC2405": 1, "INC2404": 1, "INC2403": 2, "INC2502": 2,
     "INC2408": 2, "INC2501": 2, "INC2509": 2, "INC2504": 2,
     "INC2401": 2, "INC2505": 2, "INC2510": 2, "INC2507": 3,
@@ -946,6 +947,143 @@ def _converted_service_desk_ticket(
     }
 
 
+def _foundational_account_ticket(
+    stable_key, ticket_id, title, requester, username, department, asset_tag, device_name,
+    issue, impact, reported_by, troubleshooting, hints,
+):
+    """Simulator-ready account case with a natural employee request.
+
+    The root cause stays in the server-owned objective/workstation fixtures,
+    never in the student-facing title or request text.
+    """
+    return {
+        "activity": [
+            {
+                "detail": "Created from the employee support portal.",
+                "id": f"{ticket_id}-created",
+                "label": "Ticket created",
+                "timestamp": "2026-07-28T08:35:00.000Z",
+            },
+            {
+                "detail": "Starter Support routed this case to your shift.",
+                "id": f"{ticket_id}-assigned",
+                "label": "Assigned to you",
+                "timestamp": "2026-07-28T08:39:00.000Z",
+                "tone": "info",
+            },
+        ],
+        "assignedTo": "you",
+        "category": "access",
+        "createdAt": "2026-07-28T08:35:00.000Z",
+        "description": {
+            "businessImpact": impact,
+            "issue": issue,
+            "reportedByLine": reported_by,
+            "troubleshooting": troubleshooting,
+        },
+        "device": {
+            "assetTag": asset_tag,
+            "deviceName": device_name,
+            "kind": "laptop",
+            "operatingSystem": "Windows 11 Enterprise",
+            "state": "active",
+        },
+        "escalated": False,
+        "hints": hints,
+        "id": ticket_id,
+        "stableKey": stable_key,
+        "notes": [],
+        "priority": "medium",
+        "requester": {
+            "contact": "Employee support portal",
+            "department": department,
+            "email": f"{username}@nexus.example",
+            "location": "North Campus",
+            "name": requester,
+        },
+        "sla": {
+            "dueAt": "2026-07-28T12:35:00.000Z",
+            "target": "Respond within 4 hours",
+        },
+        "status": "open",
+        "suggestedTools": ["directory", "documentation"],
+        "title": title,
+    }
+
+
+SERVICE_DESK_TICKET_FIXTURES.extend([
+    _foundational_account_ticket(
+        "locked-user-account",
+        "INC2511",
+        "Can't sign in after lunch",
+        "Taylor Morgan",
+        "tmorgan",
+        "Customer Care",
+        "NX-3101",
+        "CARE-LT-31",
+        "I came back from lunch and Windows keeps saying my password is incorrect. I tried it several times and I’m pretty sure I’m typing it correctly.",
+        "Taylor has a customer handoff meeting in 45 minutes and cannot open the assigned laptop.",
+        "Submitted by Taylor through the employee support portal.",
+        [
+            "Retyped the password carefully.",
+            "Confirmed Caps Lock is off.",
+            "Stopped retrying after the portal advised contacting support.",
+        ],
+        [
+            "Find the correct requester record and review the account state before changing it.",
+            "Use the approved training identity check, then distinguish a lock from an expired or mistyped password.",
+            "After the safe correction, verify the account can accept a new sign-in and document what you confirmed.",
+        ],
+    ),
+    _foundational_account_ticket(
+        "password-reset",
+        "INC2512",
+        "Sign-in stops before the desktop loads",
+        "Jordan Lee",
+        "jlee",
+        "Facilities",
+        "NX-3102",
+        "FAC-LT-32",
+        "Windows accepted my usual password yesterday. This morning it says I need help from the service desk before I can continue, and I cannot reach the desktop.",
+        "Jordan needs the laptop for today’s building inspection rounds.",
+        "Submitted by Jordan from a shared kiosk after the first failed sign-in.",
+        [
+            "Confirmed the username shown on the sign-in screen is jlee.",
+            "Did not share a password or security answer in the ticket.",
+            "Has not continued guessing the password.",
+        ],
+        [
+            "Review the account state and use the simulator’s approved identity-check assumption before making a credential change.",
+            "Confirm the account is enabled and not locked; determine whether the password state explains the symptom.",
+            "Issue a simulated temporary password only when justified, require a change at next sign-in, and verify the sign-in handoff is ready.",
+        ],
+    ),
+    _foundational_account_ticket(
+        "mfa-reset",
+        "INC2513",
+        "Approval prompts go to an old phone",
+        "Camille Reyes",
+        "creyes",
+        "Finance Operations",
+        "NX-3103",
+        "FIN-LT-33",
+        "My password still works, but the approval prompt is going to the phone I returned last week. I cannot finish signing in to the expense portal.",
+        "Camille must submit travel expenses before the afternoon approval cutoff.",
+        "Submitted by Camille after primary sign-in succeeded but the approval prompt could not be completed.",
+        [
+            "Confirmed the password step succeeds.",
+            "No longer has the previously registered phone.",
+            "Did not approve or deny any unexpected prompts.",
+        ],
+        [
+            "Confirm primary password authentication separately from the second-factor problem.",
+            "Review the registered MFA state after the approved training identity check.",
+            "Clear only the unusable registration, then verify the account is ready for secure re-enrollment and document the next step.",
+        ],
+    ),
+])
+
+
 SERVICE_DESK_TICKET_FIXTURES.extend([
     _converted_service_desk_ticket("INC2501", "Desktop opens with a temporary Windows profile", "software", "high", "NX-2501", "ACCT-LT-17", "Morgan Ellis", "Accounting", "After signing in, Morgan sees a fresh desktop and cannot find the usual Documents files.", "Month-end work is paused while the user data appears unavailable.", ["The user restarted once.", "A nearby teammate can open the same shared files."], ["Protect user data before profile repair.", "Compare the sign-in profile path with the expected local profile.", "Confirm the original files are available after repairing the profile."]),
     _converted_service_desk_ticket("INC2502", "Excel crashes only when one reporting workbook opens", "software", "medium", "NX-2502", "FIN-WS-44", "Priya Shah", "Finance", "Excel closes when the monthly reporting workbook opens, but other workbooks remain usable.", "The finance team cannot finish the monthly report.", ["A blank workbook opens normally.", "The workbook was copied locally and still crashes."], ["Reproduce the specific crash before changing Office.", "Use Safe Mode or add-in isolation to separate workbook and add-in causes.", "Verify the original workbook opens and saves after the repair."]),
@@ -1063,7 +1201,7 @@ def seed_service_desk_scenarios(db):
     scenarios = {}
     for raw_ticket in SERVICE_DESK_TICKET_FIXTURES:
         ticket = _current_service_desk_ticket_fixture(raw_ticket)
-        stable_key = ticket["id"].lower()
+        stable_key = ticket.get("stableKey", ticket["id"].lower())
         scenario = db.query(ServiceDeskScenario).filter_by(stable_key=stable_key).first()
         if scenario is None:
             scenario = ServiceDeskScenario(

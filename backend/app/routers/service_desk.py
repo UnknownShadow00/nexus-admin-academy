@@ -244,7 +244,9 @@ def list_assignments(
         sorted(
             result,
             key=lambda row: (
-                0 if row["queue_type"] == "assigned" else 1,
+                {"assigned": 0, "practice": 1, "earlier": 2}.get(
+                    row["queue_type"], 3
+                ),
                 row["pack_order"],
                 row["id"],
             ),
@@ -294,6 +296,7 @@ def get_progression(
     }
     assigned = [row for row in visible if row[2]["queue_type"] == "assigned"]
     practice = [row for row in visible if row[2]["queue_type"] == "practice"]
+    earlier = [row for row in visible if row[2]["queue_type"] == "earlier"]
     completed = len(
         {scenario.stable_key for _, scenario, _ in visible} & progression["passed_keys"]
     )
@@ -303,16 +306,21 @@ def get_progression(
     return jsonable_encoder(
         {
             "current_week": progression["current_week"],
-            "current_pack": {
-                "key": progression["active_pack"].key,
-                "name": progression["active_pack"].name,
-            },
+            "current_pack": (
+                {
+                    "key": progression["active_pack"].key,
+                    "name": progression["active_pack"].name,
+                }
+                if progression["active_pack"]
+                else None
+            ),
             "next_pack": progression["next_pack"],
             "counts": {
                 "available": max(0, len(assigned) - in_progress),
                 "in_progress": in_progress,
                 "completed": completed,
                 "practice": len(practice),
+                "earlier": len(earlier),
             },
         }
     )
@@ -482,7 +490,9 @@ def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, p
     transition; thereafter only exact scenario rule actions may become trusted.
     """
     key = _scenario_key(db, attempt)
-    ticket_id = key.upper()
+    version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
+    definition_json = version.definition_json or {} if version else {}
+    ticket_id = definition_json.get("id") or key.upper()
     events = db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt.id, trusted=True).all()
     # The attempt itself is created only from this student's assignment, so it
     # is a server-owned assignment prerequisite even when the fixture renders
@@ -499,12 +509,51 @@ def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, p
         return payload.get("ticketId") == ticket_id
     if not assigned:
         return False
-    version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
-    definition = objective_definition(key, version.definition_json or {}) if version else None
+    definition = objective_definition(key, definition_json) if version else None
     if definition is None:
         return False
     rules = definition.authorized_rules
-    return any(rule.event_type == event_type and payload_matches(payload, rule.payload) for rule in rules)
+    action_matches = any(
+        rule.event_type == event_type and payload_matches(payload, rule.payload)
+        for rule in rules
+    )
+    if not action_matches:
+        return False
+
+    # The foundational cases teach a safe sequence, not a magic fix button.
+    # Enforce their phase prerequisites on the trusted ledger so a handcrafted
+    # API request cannot skip investigation, diagnosis, or verification.
+    if key not in {"locked-user-account", "password-reset", "mfa-reset"}:
+        return True
+    category_index = next(
+        (
+            index
+            for index, category in enumerate(definition.categories)
+            if any(
+                rule.event_type == event_type
+                and payload_matches(payload, rule.payload)
+                for objective in category.objectives
+                for rule in objective.any_of
+            )
+        ),
+        None,
+    )
+    if category_index is None:
+        return False
+    for category in definition.categories[:category_index]:
+        for objective in category.objectives:
+            if not any(
+                event.trusted is True
+                and event.success is True
+                and any(
+                    event.event_type == rule.event_type
+                    and payload_matches(event.payload_json or {}, rule.payload)
+                    for rule in objective.any_of
+                )
+                for event in events
+            ):
+                return False
+    return True
 
 
 @router.post("/attempts/{attempt_id}/actions")

@@ -34,13 +34,13 @@ depends_on = None
 
 
 WEEK_SCENARIOS = {
-    1: "inc2405",
+    1: "locked-user-account",
     2: "inc2404",
-    3: "inc2501",
-    4: "inc2509",
+    3: "password-reset",
+    4: "mfa-reset",
     5: "inc2502",
     6: "inc2505",
-    7: "inc2507",
+    7: "inc2508",
     8: "inc2407",
     14: "inc2510",
 }
@@ -57,7 +57,15 @@ PREVIOUS_WEEK_SCENARIOS = {
     14: "inc2510",
 }
 
-REVISED_SCENARIOS = {"INC2405", "INC2406", "INC2501", "INC2504"}
+REVISED_SCENARIOS = {
+    "INC2511",
+    "INC2512",
+    "INC2513",
+    "INC2405",
+    "INC2406",
+    "INC2501",
+    "INC2504",
+}
 REVISED_LABS = {
     "Troubleshoot a Network Connectivity Scenario",
     "Windows Command-Line Diagnostics",
@@ -68,7 +76,7 @@ def _publish_revised_scenarios(bind):
     now = datetime.now(timezone.utc).isoformat()
     for raw_ticket in SERVICE_DESK_TICKET_FIXTURES:
         ticket = _current_service_desk_ticket_fixture(raw_ticket)
-        stable_key = ticket["id"].lower()
+        stable_key = ticket.get("stableKey", ticket["id"].lower())
         difficulty = SERVICE_DESK_DIFFICULTY_BY_ID.get(
             ticket["id"], SERVICE_DESK_DIFFICULTY_BY_PRIORITY[ticket["priority"]]
         )
@@ -79,7 +87,29 @@ def _publish_revised_scenarios(bind):
             {"stable_key": stable_key},
         ).first()
         if scenario is None:
-            continue
+            scenario_id = bind.execute(
+                sa.text(
+                    """
+                    INSERT INTO service_desk_scenarios
+                    (stable_key, title, description, category, difficulty,
+                     status, created_by)
+                    VALUES (:stable_key, :title, :description, :category,
+                            :difficulty, 'active', 'migration-0047')
+                    RETURNING id
+                    """
+                ),
+                {
+                    "stable_key": stable_key,
+                    "title": ticket["title"],
+                    "description": (
+                        f"{ticket['description']['issue']} "
+                        f"{ticket['description']['businessImpact']}"
+                    ),
+                    "category": ticket["category"],
+                    "difficulty": difficulty,
+                },
+            ).scalar_one()
+            scenario = (scenario_id,)
         bind.execute(
             sa.text(
                 """
@@ -99,6 +129,25 @@ def _publish_revised_scenarios(bind):
                 "category": ticket["category"],
                 "difficulty": difficulty,
             },
+        )
+        bind.execute(
+            sa.text(
+                """
+                INSERT INTO service_desk_assignments
+                (student_id, scenario_id, mode, is_required, assigned_by)
+                SELECT students.id, :scenario_id, 'simulation', 0,
+                       'migration-0047'
+                FROM students
+                WHERE students.is_mentor = 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM service_desk_assignments existing
+                    WHERE existing.student_id = students.id
+                      AND existing.scenario_id = :scenario_id
+                      AND existing.mode = 'simulation'
+                  )
+                """
+            ),
+            {"scenario_id": scenario[0]},
         )
         if ticket["id"] not in REVISED_SCENARIOS:
             continue
