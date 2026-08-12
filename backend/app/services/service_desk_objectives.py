@@ -180,12 +180,13 @@ SCENARIO_OBJECTIVES: dict[str, ScenarioObjectiveDefinition] = {
         ProcessCategory("investigation", (_terminal("NX-6128", "net use"),)),
         ProcessCategory("diagnosis", (_terminal("NX-6128", "net use"),)),
         ProcessCategory("remediation", (
-            _objective("calendar-mapping-repaired", _remote("INC2405", "NX-6128", "explorer.repair-mapping")),
+            _objective("calendar-mapping-repaired", EvidenceRule("remote_desktop.map_drive", {"assetTag": "NX-6128", "letter": "Y:", "uncPath": r"\\facilities.nexus.internal\calendar", "reconnectAtSignIn": True})),
         )),
         ProcessCategory("verification", (
             _objective("calendar-workspace-opened", _remote("INC2405", "NX-6128", "explorer.verify-share")),
         )),
         ProcessCategory("documentation", (
+            _objective("requester-confirmed", EvidenceRule("chat.request_resolution_confirmation", {"ticketId": "INC2405", "contactId": "directory-user-sloane-rivera"})),
             _objective("closure-note", EvidenceRule("remote_desktop.add_internal_note", {"ticketId": "INC2405", "assetTag": "NX-6128"})),
         )),
     ),
@@ -194,15 +195,17 @@ SCENARIO_OBJECTIVES: dict[str, ScenarioObjectiveDefinition] = {
             _objective("partner-share-unreachable", EvidenceRule("remote_desktop.explorer_navigate", {"assetTag": "NX-2047", "path": "Z:"})),
         )),
         ProcessCategory("diagnosis", (
-            _objective("vpn-session-inspected", EvidenceRule("remote_desktop.vpn_connect", {"assetTag": "NX-2047"})),
+            _terminal("NX-2047", "ipconfig /all"),
+            _objective("internal-route-tested", EvidenceRule("remote_desktop.run_terminal_command", {"assetTag": "NX-2047", "command": "ping partner.nexus.internal"})),
         )),
         ProcessCategory("remediation", (
             _objective("vpn-connected", EvidenceRule("remote_desktop.vpn_complete_connection", {"assetTag": "NX-2047"})),
         )),
         ProcessCategory("verification", (
-            _objective("partner-share-restored", EvidenceRule("remote_desktop.explorer_navigate", {"assetTag": "NX-2047", "path": "Z:"})),
+            _objective("partner-resource-restored", EvidenceRule("remote_desktop.run_terminal_command", {"assetTag": "NX-2047", "command": "ping partner.nexus.internal"})),
         )),
         ProcessCategory("documentation", (
+            _objective("requester-confirmed", EvidenceRule("chat.request_resolution_confirmation", {"ticketId": "INC2406", "contactId": "directory-user-harper-kim"})),
             _objective("closure-note", EvidenceRule("remote_desktop.add_internal_note", {"ticketId": "INC2406", "assetTag": "NX-2047"})),
         )),
     ),
@@ -324,13 +327,11 @@ def _account_process(
         ),
         _objective(
             "approved-identity-check",
-            EvidenceRule(
-                "directory.verify_identity",
-                {
-                    "directoryUserId": directory_user_id,
-                    "method": "approved-training-check",
-                },
-            ),
+            *(EvidenceRule("chat.verify_identity", {"ticketId": ticket_id, "contactId": directory_user_id, "method": method}) for method in ("employee-id-directory-match", "manager-confirmation", "known-number-callback")),
+        ),
+        _objective(
+            "identity-evidence-recorded",
+            *(EvidenceRule("directory.verify_identity", {"directoryUserId": directory_user_id, "method": method}) for method in ("employee-id-directory-match", "manager-confirmation", "known-number-callback")),
         ),
     ]
     if require_primary_auth_test:
@@ -376,6 +377,13 @@ def _account_process(
         ProcessCategory(
             "documentation",
             (
+                _objective(
+                    "requester-confirmed-original-symptom",
+                    EvidenceRule(
+                        "chat.request_resolution_confirmation",
+                        {"ticketId": ticket_id, "contactId": directory_user_id},
+                    ),
+                ),
                 _objective(
                     "meaningful-resolution-note",
                     EvidenceRule("ticket.add_note", {"ticketId": ticket_id}),

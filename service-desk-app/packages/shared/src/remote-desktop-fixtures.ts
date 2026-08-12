@@ -358,7 +358,7 @@ function operatingSystem(assetTag: string, deviceType: string) {
 }
 
 const DIRECTORY_REMOTE_DESKTOP_WORKSTATIONS: readonly RemoteDesktopWorkstationFixture[] =
-  DIRECTORY_USER_FIXTURES.map((user, index) => {
+  DIRECTORY_USER_FIXTURES.filter((user) => user.assetTag !== 'NX-2047').map((user, index) => {
     const device = user.devices[0];
     const number = assetDigits(user.assetTag);
     const retired = device?.status === AssetStatus.Retired;
@@ -634,7 +634,10 @@ const CURATED_REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] 
         verify: [
           {
             id: 'share-access-restored',
-            anyOf: ['explorer.share-reachable'],
+            anyOf: [
+              'explorer.share-reachable',
+              'terminal.ping-hostname-success',
+            ],
           },
         ],
         note: { minimumLength: 20 },

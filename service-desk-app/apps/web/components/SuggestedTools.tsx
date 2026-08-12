@@ -2,6 +2,7 @@ import {
   AVERY_BROOKS_DIRECTORY_USER_ID,
   SLOANE_RIVERA_DIRECTORY_USER_ID,
   TicketCategory,
+  TOOL_CATALOG,
   getToolBySlug,
   type SuggestedToolSlug,
   type ToolDefinition,
@@ -9,6 +10,7 @@ import {
 import { Card, CardHeader } from '@service-desk/ui';
 import { IconChevronRight, IconTool } from '@tabler/icons-react';
 import Link from 'next/link';
+import React from 'react';
 
 import { TOOL_ICONS } from './tool-icons';
 
@@ -24,6 +26,10 @@ const DOCUMENTATION_CATEGORY_BY_TICKET_CATEGORY: Readonly<
 const CHAT_CONTACT_BY_TICKET_ID: Readonly<Record<string, string>> = {
   INC2401: AVERY_BROOKS_DIRECTORY_USER_ID,
   INC2405: SLOANE_RIVERA_DIRECTORY_USER_ID,
+  INC2406: 'directory-user-harper-kim',
+  INC2511: 'directory-user-taylor-morgan',
+  INC2512: 'directory-user-jordan-lee',
+  INC2513: 'directory-user-camille-reyes',
 };
 
 function suggestedToolHref(
@@ -43,26 +49,33 @@ function suggestedToolHref(
 }
 
 export function SuggestedTools({
+  experienceMode,
   ticketCategory,
   ticketId,
   toolSlugs,
 }: {
+  experienceMode: 'guided' | 'practice' | 'assessment';
   ticketCategory: TicketCategory;
   ticketId: string;
   toolSlugs: readonly SuggestedToolSlug[];
 }) {
-  const tools = toolSlugs
-    .map((slug) => getToolBySlug(slug))
-    .filter((tool) => tool !== undefined);
+  const tools =
+    experienceMode === 'guided'
+      ? toolSlugs
+          .map((slug) => getToolBySlug(slug))
+          .filter((tool) => tool !== undefined)
+      : TOOL_CATALOG;
 
   return (
     <Card>
       <CardHeader
-        meta="Ticket context"
+        meta={experienceMode === 'guided' ? 'Ticket context' : 'Standard suite'}
         title={
           <span className="flex items-center gap-2">
             <IconTool aria-hidden="true" className="h-5 w-5 text-sky-400" />
-            Suggested tools
+            {experienceMode === 'guided'
+              ? 'Recommended places to start'
+              : 'Available technician tools'}
           </span>
         }
       />

@@ -139,6 +139,21 @@ function isMeaningfulInternalNote(text: string) {
   return documentsDiagnosis && documentsRepair && documentsVerification;
 }
 
+function hasSuccessfulResolutionConfirmation(
+  attempt: Attempt,
+  ticketId: string,
+) {
+  const contactId = CHAT_REQUESTER_BY_TICKET[ticketId];
+  return Boolean(
+    contactId &&
+      attempt.chatThreads[contactId]?.messages.some(
+        (message) =>
+          !message.fromStudent &&
+          message.triggerKey === 'original-symptom-confirmed-fixed',
+      ),
+  );
+}
+
 function ticketRejectReason(
   attempt: Attempt,
   overlay: TicketOverlay,
@@ -175,6 +190,12 @@ function ticketRejectReason(
       }
       if (accountUserId && !accountOverlay?.accessVerified) {
         return 'Verify the original sign-in path before writing the final resolution note.';
+      }
+      if (
+        accountUserId &&
+        !hasSuccessfulResolutionConfirmation(attempt, action.payload.ticketId)
+      ) {
+        return 'Ask the requester in Company Chat to retest the original sign-in symptom before documenting closure.';
       }
       if (accountUserId && !isMeaningfulInternalNote(action.payload.body)) {
         return 'Document the diagnosis, remediation, and post-fix verification in the note.';
@@ -224,6 +245,14 @@ function ticketRejectReason(
           if (!accountOverlay?.accessVerified) {
             return 'Verify the original sign-in path after remediation before closing this ticket.';
           }
+          if (
+            !hasSuccessfulResolutionConfirmation(
+              attempt,
+              action.payload.ticketId,
+            )
+          ) {
+            return 'Obtain the requester’s Company Chat confirmation of the original sign-in retest before closing.';
+          }
           const finalNote = [...overlay.notes]
             .reverse()
             .find((note) => isMeaningfulInternalNote(note.body));
@@ -251,6 +280,12 @@ function ticketRejectReason(
         }
         if (!progress.phases.verified) {
           return 'Perform a real post-fix verification before closing this ticket.';
+        }
+        if (
+          CHAT_REQUESTER_BY_TICKET[action.payload.ticketId] &&
+          !hasSuccessfulResolutionConfirmation(attempt, action.payload.ticketId)
+        ) {
+          return 'Ask the requester in Company Chat to confirm the original symptom is resolved before closing.';
         }
         if (!progress.phases.noted || !progress.internalNote) {
           return 'Add a non-trivial student-authored internal note before closing this ticket.';
@@ -328,6 +363,7 @@ function createDirectoryOverlay(directoryUserId: string): DirectoryUserOverlay {
     mfaFactorStatus: fixture?.mfaFactorStatus ?? 'available',
     inspected: false,
     identityVerified: false,
+    identityVerificationMethod: null,
     primaryAuthTested: false,
     diagnosis: null,
     accessVerified: false,
@@ -391,6 +427,9 @@ function directoryRejectReason(
     case 'directory.verify_identity':
       if (!overlay.inspected) {
         return 'Review the account state before recording the approved identity check.';
+      }
+      if (overlay.identityVerificationMethod !== action.payload.method) {
+        return 'Complete an approved Company Chat identity-verification interaction before recording it in Directory.';
       }
       return overlay.identityVerified
         ? 'The approved training identity check is already recorded.'
@@ -552,9 +591,30 @@ function createChatThreadOverlay(): ChatThreadOverlay {
   };
 }
 
+const CHAT_REQUESTER_BY_TICKET: Readonly<Record<string, string>> = {
+  INC2405: 'directory-user-sloane-rivera',
+  INC2406: 'directory-user-harper-kim',
+  INC2511: 'directory-user-taylor-morgan',
+  INC2512: 'directory-user-jordan-lee',
+  INC2513: 'directory-user-camille-reyes',
+};
+
 function chatRejectReason(action: ChatSimulationAction): string | null {
-  if (!getDirectoryUserById(action.payload.contactId)) {
+  const contact = getDirectoryUserById(action.payload.contactId);
+  if (!contact) {
     return 'The requested chat contact does not exist in this simulation.';
+  }
+
+  if (
+    (action.type === 'chat.verify_identity' ||
+      action.type === 'chat.request_resolution_confirmation') &&
+    CHAT_REQUESTER_BY_TICKET[action.payload.ticketId] !==
+      action.payload.contactId
+  ) {
+    return 'This contact is not the requester for that support workflow.';
+  }
+  if (action.type === 'chat.verify_identity' && !contact.supportIssue) {
+    return 'This workflow does not require an identity-administration verification.';
   }
 
   if (action.type === 'chat.send_message') {
@@ -572,6 +632,7 @@ function chatRejectReason(action: ChatSimulationAction): string | null {
 function applyValidChatAction(
   overlay: ChatThreadOverlay,
   action: ChatSimulationAction,
+  attempt: Attempt,
   createdAt: string,
   eventId: string,
 ): ChatThreadOverlay {
@@ -596,6 +657,77 @@ function applyValidChatAction(
             fromStudent: false,
             body: reply.body,
             triggerKey: reply.triggerKey,
+            createdAt,
+          },
+        ],
+      };
+    }
+    case 'chat.verify_identity': {
+      const methodLabels = {
+        'employee-id-directory-match':
+          'employee ID matched to the directory record',
+        'manager-confirmation':
+          'manager confirmation through the approved company channel',
+        'known-number-callback': 'callback to the known company number',
+      } as const;
+      return {
+        ...overlay,
+        messages: [
+          ...overlay.messages,
+          {
+            id: `${eventId}-student-message`,
+            fromStudent: true,
+            body: `Identity check requested: ${methodLabels[action.payload.method]}.`,
+            triggerKey: null,
+            createdAt,
+          },
+          {
+            id: `${eventId}-contact-reply`,
+            fromStudent: false,
+            body: 'The approved training verification completed. No password, recovery code, security answer, or personal secret was collected.',
+            triggerKey: 'identity-verification-approved',
+            createdAt,
+          },
+        ],
+      };
+    }
+    case 'chat.request_resolution_confirmation': {
+      const accountUserByTicket: Readonly<Record<string, string>> = {
+        INC2511: 'directory-user-taylor-morgan',
+        INC2512: 'directory-user-jordan-lee',
+        INC2513: 'directory-user-camille-reyes',
+      };
+      const directoryUserId = accountUserByTicket[action.payload.ticketId];
+      const scenario = getRemoteDesktopScenarioByTicket(
+        action.payload.ticketId,
+      );
+      const fixed = directoryUserId
+        ? attempt.directoryOverlays[directoryUserId]?.accessVerified === true
+        : scenario
+          ? attempt.remoteDesktopOverlays[scenario.assetTag]?.scenarioProgress[
+              scenario.id
+            ]?.phases.verified === true
+          : false;
+      return {
+        ...overlay,
+        messages: [
+          ...overlay.messages,
+          {
+            id: `${eventId}-student-message`,
+            fromStudent: true,
+            body: 'Please repeat the original task in a fresh session and confirm the exact symptom is gone.',
+            triggerKey: null,
+            createdAt,
+          },
+          {
+            id: `${eventId}-contact-reply`,
+            fromStudent: false,
+            body: fixed
+              ? 'I repeated the original task in a fresh session. It now works and I can continue.'
+              : 'I tried the original task again, but I am still seeing the same problem.',
+            triggerKey: fixed
+              ? 'original-symptom-confirmed-fixed'
+              : 'original-symptom-still-broken',
             createdAt,
           },
         ],
@@ -1135,6 +1267,11 @@ function terminalWorkflowEvidence(
   }
   if (normalized.startsWith('ping ')) {
     if (isIpTarget) return 'terminal.ping-ip-success';
+    if (scenario.id === 'vpn-shared-drive') {
+      return before.vpnStatus === 'connected'
+        ? 'terminal.ping-hostname-success'
+        : 'terminal.ping-hostname-failed';
+    }
     return dnsBroken
       ? 'terminal.ping-hostname-failed'
       : 'terminal.ping-hostname-success';
@@ -2954,7 +3091,13 @@ export function applyAction(
     );
     const updatedOverlay =
       rejectReason === null
-        ? applyValidChatAction(currentOverlay, action, createdAt, eventId)
+        ? applyValidChatAction(
+            currentOverlay,
+            action,
+            attempt,
+            createdAt,
+            eventId,
+          )
         : { ...currentOverlay };
     const overlayWithEvent: ChatThreadOverlay = {
       ...updatedOverlay,
@@ -2966,7 +3109,17 @@ export function applyAction(
       attempt: {
         ...attempt,
         ticketOverlays: { ...attempt.ticketOverlays },
-        directoryOverlays: { ...attempt.directoryOverlays },
+        directoryOverlays:
+          action.type === 'chat.verify_identity' && rejectReason === null
+            ? {
+                ...attempt.directoryOverlays,
+                [contactId]: {
+                  ...(attempt.directoryOverlays[contactId] ??
+                    createDirectoryOverlay(contactId)),
+                  identityVerificationMethod: action.payload.method,
+                },
+              }
+            : { ...attempt.directoryOverlays },
         chatThreads: {
           ...attempt.chatThreads,
           [contactId]: overlayWithEvent,

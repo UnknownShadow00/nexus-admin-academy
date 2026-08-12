@@ -52,6 +52,19 @@ function close(ticketId: string): SimulationAction {
   };
 }
 
+function confirmation(ticketId: 'INC2405' | 'INC2406'): SimulationAction {
+  return {
+    type: 'chat.request_resolution_confirmation',
+    payload: {
+      contactId:
+        ticketId === 'INC2405'
+          ? 'directory-user-sloane-rivera'
+          : 'directory-user-harper-kim',
+      ticketId,
+    },
+  };
+}
+
 function score(attempt: Attempt, assetTag: string, scenarioId: string) {
   return attempt.remoteDesktopOverlays[assetTag]?.scenarioProgress[scenarioId]
     ?.finalScore;
@@ -158,6 +171,7 @@ describe('Service Desk quality pass', () => {
         },
       },
       note('NX-6128', 'INC2405'),
+      confirmation('INC2405'),
       close('INC2405'),
     ]);
     expect(score(attempt, 'NX-6128', 'facilities-calendar-mapping')).toBe(100);
@@ -282,6 +296,7 @@ describe('Service Desk quality pass', () => {
         payload: { assetTag: 'NX-2047', path: 'Z:\\' },
       },
       note('NX-2047', 'INC2406'),
+      confirmation('INC2406'),
       close('INC2406'),
     ]);
     expect(score(attempt, 'NX-2047', 'vpn-shared-drive')).toBe(100);

@@ -40,6 +40,7 @@ _EVENT_PREFIX_TOOLS = {
     "shipping.": "shipping",
     "ticket.": "ticket",
     "directory.": "directory",
+    "chat.": "chat",
     "remote_desktop.": "remote_desktop",
 }
 
@@ -69,6 +70,8 @@ def _validate_event_shape(event_type: str, tool: str, payload: dict) -> None:
         raise HTTPException(422, "Shipping events require a directory recipient")
     if event_type.startswith("directory.") and not isinstance(payload.get("directoryUserId"), str):
         raise HTTPException(422, "Directory events require directoryUserId")
+    if event_type.startswith("chat.") and not isinstance(payload.get("contactId"), str):
+        raise HTTPException(422, "Company Chat events require contactId")
     if event_type.startswith("remote_desktop.") and not isinstance(payload.get("assetTag"), str):
         raise HTTPException(422, "Remote Desktop events require assetTag")
 
@@ -111,7 +114,8 @@ def _grade_dict(grade: ServiceDeskAttemptGrade | None) -> dict | None:
 
 def _attempt_dict(attempt: ServiceDeskAttempt, grade: ServiceDeskAttemptGrade | None = None) -> dict:
     return {"id": attempt.id, "student_id": attempt.student_id, "scenario_version_id": attempt.scenario_version_id,
-            "mode": attempt.mode, "status": attempt.status, "current_state": attempt.current_state,
+            "mode": attempt.mode, "experience_mode": attempt.experience_mode,
+            "status": attempt.status, "current_state": attempt.current_state,
             "current_state_hash": attempt.current_state_hash, "state_version": attempt.state_version,
             "attempt_number": attempt.attempt_number, "started_at": attempt.started_at,
             "completed_at": attempt.completed_at, "score": attempt.score, "passed": attempt.passed,
@@ -178,6 +182,7 @@ def list_assignments(
                     ServiceDeskAttempt.student_id == current_student.id,
                     ServiceDeskScenarioVersion.scenario_id == scenario.id,
                     ServiceDeskAttempt.status == "in_progress",
+                    ServiceDeskAttempt.experience_mode == access["experience_mode"],
                 )
                 .order_by(ServiceDeskAttempt.started_at.desc())
                 .first()
@@ -188,6 +193,7 @@ def list_assignments(
                     .filter(
                         ServiceDeskAttempt.student_id == current_student.id,
                         ServiceDeskAttempt.scenario_version_id == version.id,
+                        ServiceDeskAttempt.experience_mode == access["experience_mode"],
                     )
                     .order_by(ServiceDeskAttempt.attempt_number.desc())
                     .first()
@@ -343,6 +349,11 @@ def start_attempt(
     if not scenario or scenario.status != "active":
         raise HTTPException(404, "Assignment not found")
     require_scenario_unlocked(db, current_student, scenario)
+    progression = build_service_desk_progression(db, current_student)
+    access = scenario_access(progression, scenario.stable_key)
+    experience_mode = (
+        "guided" if assignment.mode == "learning" else access["experience_mode"]
+    )
     existing = (
         db.query(ServiceDeskAttempt)
         .join(
@@ -353,6 +364,7 @@ def start_attempt(
             ServiceDeskAttempt.student_id == current_student.id,
             ServiceDeskScenarioVersion.scenario_id == assignment.scenario_id,
             ServiceDeskAttempt.status == "in_progress",
+            ServiceDeskAttempt.experience_mode == experience_mode,
         )
         .order_by(ServiceDeskAttempt.started_at.desc())
         .first()
@@ -382,7 +394,8 @@ def start_attempt(
     attempt = ServiceDeskAttempt(
         student_id=current_student.id,
         scenario_version_id=version.id,
-        mode=assignment.mode,
+        mode="simulation" if experience_mode == "assessment" else "learning",
+        experience_mode=experience_mode,
         status="in_progress",
         current_state={},
         current_state_hash=_hash_state({}),
@@ -523,8 +536,54 @@ def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, p
     # The foundational cases teach a safe sequence, not a magic fix button.
     # Enforce their phase prerequisites on the trusted ledger so a handcrafted
     # API request cannot skip investigation, diagnosis, or verification.
-    if key not in {"locked-user-account", "password-reset", "mfa-reset"}:
+    ordered_workflows = {
+        "locked-user-account",
+        "password-reset",
+        "mfa-reset",
+        "inc2405",
+        "inc2406",
+    }
+    if key not in ordered_workflows:
         return True
+
+    def has_trusted(event_name: str, expected_payload: dict) -> bool:
+        return any(
+            event.trusted is True
+            and event.success is True
+            and event.event_type == event_name
+            and payload_matches(event.payload_json or {}, expected_payload)
+            for event in events
+        )
+
+    if key in {"locked-user-account", "password-reset", "mfa-reset"}:
+        if event_type == "directory.verify_identity":
+            ticket_id_by_key = {
+                "locked-user-account": "INC2511",
+                "password-reset": "INC2512",
+                "mfa-reset": "INC2513",
+            }
+            if not has_trusted(
+                "chat.verify_identity",
+                {
+                    "ticketId": ticket_id_by_key[key],
+                    "contactId": payload.get("directoryUserId"),
+                    "method": payload.get("method"),
+                },
+            ):
+                return False
+        if event_type == "ticket.add_note" and not has_trusted(
+            "chat.request_resolution_confirmation",
+            {"ticketId": ticket_id},
+        ):
+            return False
+
+    if key in {"inc2405", "inc2406"} and event_type == "remote_desktop.add_internal_note":
+        if not has_trusted(
+            "chat.request_resolution_confirmation",
+            {"ticketId": ticket_id},
+        ):
+            return False
+
     category_index = next(
         (
             index
@@ -593,6 +652,8 @@ def record_hint(attempt_id: int, body: ServiceDeskHintCreate, current_student: S
     attempt = _writable_attempt(db, attempt_id, current_student)
     if attempt.status != "in_progress":
         raise HTTPException(409, "Attempt is no longer in progress")
+    if attempt.experience_mode == "assessment":
+        raise HTTPException(409, "Hints are unavailable during an assessment attempt")
     data, code = _record_event(db, attempt, key=body.idempotency_key, event_type="hint_requested", tool=body.tool,
                             payload=body.payload, resulting_state=body.resulting_state or attempt.current_state, success=True)
     return _json_response(data, code)
@@ -617,7 +678,7 @@ def complete_attempt(attempt_id: int, body: ServiceDeskCompleteCreate, current_s
     db.add(grade)
     # A failed/incomplete verification is never XP eligible, even if an old
     # scoring display assigns partial points for a closed ticket.
-    if computed["passed"]:
+    if computed["passed"] and attempt.experience_mode == "assessment":
         award_xp(
             db,
             student_id=attempt.student_id,

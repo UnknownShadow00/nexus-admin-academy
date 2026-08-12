@@ -29,6 +29,12 @@ export function TicketDetailHeader({
               {assignment.difficulty_label}
             </Badge>
           ) : null}
+          {assignment?.experience_mode ? (
+            <Badge variant="sky">
+              {assignment.experience_mode[0]?.toUpperCase()}
+              {assignment.experience_mode.slice(1)}
+            </Badge>
+          ) : null}
           {ticket.escalated ? (
             <Badge className="gap-1" variant="amber">
               <IconAlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />

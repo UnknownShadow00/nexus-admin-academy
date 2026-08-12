@@ -97,6 +97,7 @@ export {
   DIRECTORY_GROUP_NAMES,
   DIRECTORY_USER_FIXTURES,
   FACILITIES_CALENDAR_GROUP,
+  IDENTITY_VERIFICATION_METHODS,
   SLOANE_RIVERA_DIRECTORY_USER_ID,
   getDirectoryUserById,
   type DirectoryDevice,
@@ -104,6 +105,7 @@ export {
   type DirectoryGroupTemplate,
   type DirectoryLicense,
   type DirectoryUserTemplate,
+  type IdentityVerificationMethod,
 } from './directory-fixtures';
 export {
   DOCUMENTATION_ARTICLE_FIXTURES,

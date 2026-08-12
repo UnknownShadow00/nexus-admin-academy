@@ -1,11 +1,14 @@
 'use client';
 
-import type { DirectoryUserTemplate } from '@service-desk/shared';
+import type {
+  DirectoryUserTemplate,
+  IdentityVerificationMethod,
+} from '@service-desk/shared';
 import type {
   ActionEvent,
   ChatThreadOverlay,
 } from '@service-desk/simulation-engine';
-import { Badge, Button, Card, Textarea } from '@service-desk/ui';
+import { Badge, Button, Card, Select, Textarea } from '@service-desk/ui';
 import {
   IconMessages,
   IconPin,
@@ -25,8 +28,16 @@ interface CompanyChatThreadProps {
 }
 
 export function CompanyChatThread({ contact, thread }: CompanyChatThreadProps) {
-  const { markPinned, openThread, sendMessage } = useCompanyChatSession();
+  const {
+    markPinned,
+    openThread,
+    requestResolutionConfirmation,
+    sendMessage,
+    verifyIdentity,
+  } = useCompanyChatSession();
   const [body, setBody] = useState('');
+  const [verificationMethod, setVerificationMethod] =
+    useState<IdentityVerificationMethod>('employee-id-directory-match');
   const [lastEvent, setLastEvent] = useState<ActionEvent | null>(null);
 
   if (!contact) {
@@ -62,6 +73,14 @@ export function CompanyChatThread({ contact, thread }: CompanyChatThreadProps) {
 
   const pinned = thread?.pinned ?? false;
   const messages = thread?.messages ?? [];
+  const ticketByContact: Readonly<Record<string, string>> = {
+    'directory-user-camille-reyes': 'INC2513',
+    'directory-user-harper-kim': 'INC2406',
+    'directory-user-jordan-lee': 'INC2512',
+    'directory-user-sloane-rivera': 'INC2405',
+    'directory-user-taylor-morgan': 'INC2511',
+  };
+  const ticketId = ticketByContact[contact.id];
 
   return (
     <Card className="flex min-h-[32rem] flex-col overflow-hidden">
@@ -143,6 +162,66 @@ export function CompanyChatThread({ contact, thread }: CompanyChatThreadProps) {
           ))
         )}
       </div>
+
+      {ticketId ? (
+        <section className="space-y-3 border-t border-zinc-800 bg-zinc-900/70 p-4">
+          {contact.supportIssue ? (
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <Select
+                aria-label="Approved identity verification method"
+                onChange={(event) =>
+                  setVerificationMethod(
+                    event.target.value as IdentityVerificationMethod,
+                  )
+                }
+                value={verificationMethod}
+              >
+                <option value="employee-id-directory-match">
+                  Match employee ID to directory record
+                </option>
+                <option value="manager-confirmation">
+                  Approved manager confirmation
+                </option>
+                <option value="known-number-callback">
+                  Callback to known company number
+                </option>
+              </Select>
+              <Button
+                onClick={() => {
+                  const result = verifyIdentity(
+                    contact.id,
+                    ticketId,
+                    verificationMethod,
+                  );
+                  setLastEvent(result);
+                  if (result.success) openThread(contact.id);
+                }}
+                variant="soft"
+              >
+                Run approved identity check
+              </Button>
+            </div>
+          ) : null}
+          <Button
+            onClick={() => {
+              const result = requestResolutionConfirmation(
+                contact.id,
+                ticketId,
+              );
+              setLastEvent(result);
+              if (result.success) openThread(contact.id);
+            }}
+            variant="soft"
+          >
+            Ask user to retest original symptom
+          </Button>
+          <p className="text-xs leading-relaxed text-zinc-500">
+            Training interactions use approved company channels and never ask
+            for passwords, recovery codes, security answers, or real personal
+            data.
+          </p>
+        </section>
+      ) : null}
 
       <form
         className="border-t border-zinc-800 bg-zinc-900 p-4"

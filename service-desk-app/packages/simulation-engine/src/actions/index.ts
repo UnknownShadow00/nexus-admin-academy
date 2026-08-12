@@ -3,6 +3,7 @@ import type {
   DeploymentBootSource,
   DeploymentCable,
   DeploymentPort,
+  IdentityVerificationMethod,
   PcShelfDeviceState,
   PcShelfNetworkStatus,
   RemoteDesktopAppId,
@@ -111,7 +112,7 @@ export interface InspectDirectoryAccountAction {
 
 export interface VerifyDirectoryIdentityAction {
   type: 'directory.verify_identity';
-  payload: DirectoryActionPayload & { method: 'approved-training-check' };
+  payload: DirectoryActionPayload & { method: IdentityVerificationMethod };
 }
 
 export interface TestDirectoryPrimaryAuthAction {
@@ -164,6 +165,19 @@ export interface SendChatMessageAction {
   payload: ChatActionPayload & {
     body: string;
   };
+}
+
+export interface VerifyIdentityInChatAction {
+  type: 'chat.verify_identity';
+  payload: ChatActionPayload & {
+    method: IdentityVerificationMethod;
+    ticketId: string;
+  };
+}
+
+export interface RequestResolutionConfirmationAction {
+  type: 'chat.request_resolution_confirmation';
+  payload: ChatActionPayload & { ticketId: string };
 }
 
 export interface MarkChatPinnedAction {
@@ -540,6 +554,8 @@ export interface CancelShipmentAction {
 
 export type ChatSimulationAction =
   | SendChatMessageAction
+  | VerifyIdentityInChatAction
+  | RequestResolutionConfirmationAction
   | MarkChatPinnedAction
   | OpenChatThreadAction;
 

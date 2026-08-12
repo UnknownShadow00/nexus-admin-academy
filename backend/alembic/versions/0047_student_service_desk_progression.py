@@ -241,6 +241,31 @@ def _map_weeks(bind, mapping):
 
 def upgrade():
     bind = op.get_bind()
+    op.add_column(
+        "service_desk_attempts",
+        sa.Column(
+            "experience_mode",
+            sa.String(length=20),
+            nullable=False,
+            server_default="assessment",
+        ),
+    )
+    bind.execute(
+        sa.text(
+            """
+            UPDATE service_desk_attempts
+            SET experience_mode=CASE
+                WHEN mode='learning' THEN 'guided'
+                ELSE 'assessment'
+            END
+            """
+        )
+    )
+    with op.batch_alter_table("service_desk_attempts") as batch_op:
+        batch_op.create_check_constraint(
+            "ck_service_desk_attempts_experience_mode",
+            "experience_mode IN ('guided','practice','assessment')",
+        )
     _map_weeks(bind, WEEK_SCENARIOS)
     _publish_revised_scenarios(bind)
     _update_labs(bind)
@@ -248,3 +273,8 @@ def upgrade():
 
 def downgrade():
     _map_weeks(op.get_bind(), PREVIOUS_WEEK_SCENARIOS)
+    with op.batch_alter_table("service_desk_attempts") as batch_op:
+        batch_op.drop_constraint(
+            "ck_service_desk_attempts_experience_mode", type_="check"
+        )
+        batch_op.drop_column("experience_mode")

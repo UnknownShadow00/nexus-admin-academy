@@ -132,6 +132,10 @@ function isDirectoryUserOverlay(value: unknown): value is DirectoryUserOverlay {
       value.mfaFactorStatus === 'reset-ready') &&
     typeof value.inspected === 'boolean' &&
     typeof value.identityVerified === 'boolean' &&
+    (value.identityVerificationMethod === null ||
+      value.identityVerificationMethod === 'employee-id-directory-match' ||
+      value.identityVerificationMethod === 'manager-confirmation' ||
+      value.identityVerificationMethod === 'known-number-callback') &&
     typeof value.primaryAuthTested === 'boolean' &&
     (value.diagnosis === null ||
       value.diagnosis === 'account-locked' ||
@@ -651,6 +655,8 @@ export function restoreAttempt(json: string): Attempt | null {
                             'available',
                           inspected: overlay.inspected ?? false,
                           identityVerified: overlay.identityVerified ?? false,
+                          identityVerificationMethod:
+                            overlay.identityVerificationMethod ?? null,
                           primaryAuthTested: overlay.primaryAuthTested ?? false,
                           diagnosis: overlay.diagnosis ?? null,
                           accessVerified: overlay.accessVerified ?? false,

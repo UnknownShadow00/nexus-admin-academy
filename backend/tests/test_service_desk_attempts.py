@@ -122,6 +122,8 @@ def unlock_avery(client, student, attempt_id, *, key="unlock-avery", success=Tru
 
 
 def _tool_for(rule):
+    if rule.event_type.startswith("chat."):
+        return "chat"
     if rule.event_type.startswith("directory."):
         return "directory"
     if rule.event_type.startswith("asset."):
@@ -599,31 +601,18 @@ def test_full_priority_verified_close_gets_exact_score(db):
     assert response.json()["details"]["points_possible"] == 160
 
 
-def test_two_hints_use_one_free_hint_and_normalize_score(db):
+def test_assessment_rejects_hints(db):
     student = make_student(db, username="hint-score")
     assignment = setup_assignment(db, student, stable_key="inc2401", priority="critical")
     client = make_client(service_desk.router)
     attempt_id = start(client, student, assignment).json()["id"]
-    for key in ("hint-1", "hint-2"):
-        assert (
-            client.post(
-                f"/api/service-desk/attempts/{attempt_id}/hints",
-                headers=auth_headers(student),
-                json={"idempotency_key": key, "tool": "ticket", "payload": {}},
-            ).status_code
-            == 201
-        )
-    unlock_avery(client, student, attempt_id)
-    close(client, student, attempt_id)
     response = client.post(
-        f"/api/service-desk/attempts/{attempt_id}/complete",
+        f"/api/service-desk/attempts/{attempt_id}/hints",
         headers=auth_headers(student),
-        json={"idempotency_key": "grade"},
+        json={"idempotency_key": "hint-1", "tool": "ticket", "payload": {}},
     )
-    assert (
-        response.json()["details"]["penalty_points"] == 5
-        and response.json()["overall_score"] == 97
-    )
+    assert response.status_code == 409
+    assert "unavailable" in response.json()["detail"]
 
 
 def test_unresolved_close_applies_penalty_and_fails(db):
@@ -1069,6 +1058,133 @@ def test_inc2405_correct_target_evidence_passes(db):
     grade = client.post(f"/api/service-desk/attempts/{attempt_id}/complete", headers=auth_headers(student),
                         json={"idempotency_key": "complete"})
     assert grade.json()["passed"] is True and grade.json()["overall_score"] == 100
+
+
+def test_foundational_identity_evidence_must_match_and_precede_directory_record(db):
+    student = make_student(db, username="identity-sequence")
+    assignment = setup_assignment(
+        db,
+        student,
+        stable_key="locked-user-account",
+        process_profile=True,
+    )
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+    headers = auth_headers(student)
+    path = f"/api/service-desk/attempts/{attempt_id}/actions"
+
+    inspect = client.post(path, headers=headers, json={
+        "idempotency_key": "inspect",
+        "event_type": "directory.inspect_account",
+        "tool": "directory",
+        "payload": {"directoryUserId": "directory-user-taylor-morgan"},
+    })
+    assert inspect.status_code == 201
+
+    direct_record = client.post(path, headers=headers, json={
+        "idempotency_key": "direct-record",
+        "event_type": "directory.verify_identity",
+        "tool": "directory",
+        "payload": {
+            "directoryUserId": "directory-user-taylor-morgan",
+            "method": "employee-id-directory-match",
+        },
+    })
+    assert direct_record.status_code == 409
+
+    chat = client.post(path, headers=headers, json={
+        "idempotency_key": "chat-manager",
+        "event_type": "chat.verify_identity",
+        "tool": "chat",
+        "payload": {
+            "contactId": "directory-user-taylor-morgan",
+            "ticketId": "INC2511",
+            "method": "manager-confirmation",
+        },
+    })
+    assert chat.status_code == 201
+
+    mismatched_method = client.post(path, headers=headers, json={
+        "idempotency_key": "wrong-method-record",
+        "event_type": "directory.verify_identity",
+        "tool": "directory",
+        "payload": {
+            "directoryUserId": "directory-user-taylor-morgan",
+            "method": "known-number-callback",
+        },
+    })
+    assert mismatched_method.status_code == 409
+
+    matching_method = client.post(path, headers=headers, json={
+        "idempotency_key": "matching-method-record",
+        "event_type": "directory.verify_identity",
+        "tool": "directory",
+        "payload": {
+            "directoryUserId": "directory-user-taylor-morgan",
+            "method": "manager-confirmation",
+        },
+    })
+    assert matching_method.status_code == 201
+
+
+def test_mapped_drive_requires_exact_configuration_and_post_fix_confirmation(db):
+    student = make_student(db, username="mapped-drive-sequence")
+    assignment = setup_assignment(
+        db, student, stable_key="inc2405", priority="low", process_profile=True
+    )
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+    headers = auth_headers(student)
+    path = f"/api/service-desk/attempts/{attempt_id}/actions"
+
+    early_confirmation = client.post(path, headers=headers, json={
+        "idempotency_key": "early-confirm",
+        "event_type": "chat.request_resolution_confirmation",
+        "tool": "chat",
+        "payload": {
+            "ticketId": "INC2405",
+            "contactId": "directory-user-sloane-rivera",
+        },
+    })
+    assert early_confirmation.status_code == 409
+
+    evidence = client.post(path, headers=headers, json={
+        "idempotency_key": "net-use",
+        "event_type": "remote_desktop.run_terminal_command",
+        "tool": "remote_desktop",
+        "payload": {"assetTag": "NX-6128", "command": "net use"},
+    })
+    assert evidence.status_code == 201
+
+    wrong_mapping = client.post(path, headers=headers, json={
+        "idempotency_key": "wrong-map",
+        "event_type": "remote_desktop.map_drive",
+        "tool": "remote_desktop",
+        "payload": {
+            "assetTag": "NX-6128",
+            "letter": "Y:",
+            "uncPath": r"\\facilities.nexus.internal\wrong-share",
+            "reconnectAtSignIn": True,
+        },
+    })
+    assert wrong_mapping.status_code == 201
+    wrong_event = db.query(ServiceDeskAttemptEvent).filter_by(
+        attempt_id=attempt_id, idempotency_key="wrong-map"
+    ).one()
+    assert wrong_event.trusted is False
+
+    correct_mapping = client.post(path, headers=headers, json={
+        "idempotency_key": "correct-map",
+        "event_type": "remote_desktop.map_drive",
+        "tool": "remote_desktop",
+        "payload": {
+            "assetTag": "NX-6128",
+            "letter": "Y:",
+            "uncPath": r"\\facilities.nexus.internal\calendar",
+            "reconnectAtSignIn": True,
+        },
+    })
+    assert correct_mapping.status_code == 201
 
 
 @pytest.mark.parametrize("event_type", ["directory.unlock_account", "directory.reset_mfa"])

@@ -10,14 +10,14 @@ import { TICKET_FIXTURES } from './ticket-fixtures';
 
 describe('directory fixtures', () => {
   it('contains the directory roster and seven groups', () => {
-    expect(DIRECTORY_USER_FIXTURES).toHaveLength(39);
+    expect(DIRECTORY_USER_FIXTURES).toHaveLength(40);
     expect(DIRECTORY_GROUP_NAMES).toHaveLength(7);
     expect(new Set(DIRECTORY_USER_FIXTURES.map((user) => user.id)).size).toBe(
-      39,
+      40,
     );
     expect(
       new Set(DIRECTORY_USER_FIXTURES.map((user) => user.username)).size,
-    ).toBe(39);
+    ).toBe(40);
   });
 
   it.each([

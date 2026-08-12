@@ -113,6 +113,38 @@ describe('Nexus evidence attribution', () => {
     });
   });
 
+  it('attributes structured requester verification and drive mapping evidence', () => {
+    expect(
+      getNexusActionSyncDetails(
+        {
+          type: 'chat.verify_identity',
+          payload: {
+            contactId: 'directory-user-taylor-morgan',
+            ticketId: 'INC2511',
+            method: 'employee-id-directory-match',
+          },
+        },
+        attempt,
+      ),
+    ).toMatchObject({ ticketId: 'INC2511', tool: 'chat' });
+
+    expect(
+      getNexusActionSyncDetails(
+        {
+          type: 'remote_desktop.map_drive',
+          payload: {
+            assetTag: 'NX-6128',
+            letter: 'Y:',
+            uncPath: '\\\\facilities.nexus.internal\\calendar',
+            reconnectAtSignIn: true,
+            credentialTarget: null,
+          },
+        },
+        attempt,
+      ),
+    ).toMatchObject({ ticketId: 'INC2405', tool: 'remote_desktop' });
+  });
+
   it('keeps asset-only actions local-only when the asset has no scenario', () => {
     expect(
       getNexusActionSyncDetails(
@@ -169,7 +201,8 @@ describe('Nexus evidence attribution', () => {
         id: 1,
         is_required: false,
         maximum_attempts: null,
-        mode: 'simulation',
+      mode: 'simulation',
+      experience_mode: 'assessment',
         most_recent_attempt: null,
         scenario_id: 2,
         scenario: { stable_key: 'inc2402', title: definition.title },
@@ -193,7 +226,8 @@ describe('Nexus evidence attribution', () => {
         id: 2,
         is_required: false,
         maximum_attempts: null,
-        mode: 'simulation',
+      mode: 'simulation',
+      experience_mode: 'assessment',
         most_recent_attempt: null,
         scenario_id: 5,
         scenario: { stable_key: 'inc2405', title: definition.title },

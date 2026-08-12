@@ -72,6 +72,19 @@ function close(ticketId: string): SimulationAction {
   };
 }
 
+function confirmation(ticketId: 'INC2405' | 'INC2406'): SimulationAction {
+  return {
+    type: 'chat.request_resolution_confirmation',
+    payload: {
+      contactId:
+        ticketId === 'INC2405'
+          ? 'directory-user-sloane-rivera'
+          : 'directory-user-harper-kim',
+      ticketId,
+    },
+  };
+}
+
 function expectClosed(
   attempt: Attempt,
   assetTag: string,
@@ -157,6 +170,7 @@ describe('Phase 18 phase-aware Remote Desktop workflows', () => {
         type: 'remote_desktop.explorer_navigate',
         payload: { assetTag: 'NX-2047', path: 'Z:\\' },
       },
+      confirmation('INC2406'),
       note('NX-2047', 'INC2406'),
       close('INC2406'),
     ]);
@@ -194,6 +208,7 @@ describe('Phase 18 phase-aware Remote Desktop workflows', () => {
         type: 'remote_desktop.explorer_navigate',
         payload: { assetTag: 'NX-2047', path: 'Z:\\' },
       },
+      confirmation('INC2406'),
       close('INC2406'),
     ]);
 
@@ -218,6 +233,7 @@ describe('Phase 18 phase-aware Remote Desktop workflows', () => {
         type: 'remote_desktop.explorer_navigate',
         payload: { assetTag: 'NX-2047', path: 'Z:\\' },
       },
+      confirmation('INC2406'),
       note('NX-2047', 'INC2406'),
     ]);
     const rejected = act(attempt, close('INC2406'));

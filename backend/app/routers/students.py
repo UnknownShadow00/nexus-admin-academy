@@ -151,7 +151,7 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db), curren
     quiz_attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).all()
     service_desk_completed = (
         db.query(func.count(ServiceDeskAttempt.id))
-        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True))
+        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True), ServiceDeskAttempt.experience_mode == "assessment")
         .scalar()
         or 0
     )
@@ -209,7 +209,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
             func.count(ServiceDeskAttempt.id).label("completed"),
             func.coalesce(func.avg(ServiceDeskAttempt.score), 0).label("avg_score"),
         )
-        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True))
+        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True), ServiceDeskAttempt.experience_mode == "assessment")
         .first()
     )
     total_service_desk = db.query(func.count(ServiceDeskScenario.id)).filter(ServiceDeskScenario.status == "active").scalar() or 0
@@ -242,7 +242,7 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
         )
         .join(ServiceDeskScenarioVersion, ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id)
         .join(ServiceDeskScenario, ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id)
-        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True))
+        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True), ServiceDeskAttempt.experience_mode == "assessment")
         .all()
     )
 
@@ -687,7 +687,7 @@ def get_week_plan(
         for stable_key, in db.query(ServiceDeskScenario.stable_key)
         .join(ServiceDeskScenarioVersion, ServiceDeskScenarioVersion.scenario_id == ServiceDeskScenario.id)
         .join(ServiceDeskAttempt, ServiceDeskAttempt.scenario_version_id == ServiceDeskScenarioVersion.id)
-        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True))
+        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True), ServiceDeskAttempt.experience_mode == "assessment")
         .all()
     }
     service_desk_out = [

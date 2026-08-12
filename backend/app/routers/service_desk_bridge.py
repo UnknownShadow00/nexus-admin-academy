@@ -101,6 +101,7 @@ def get_service_desk_progress_summary(
         )
         .filter(
             ServiceDeskAttempt.student_id == current_student.id,
+            ServiceDeskAttempt.experience_mode == "assessment",
             ServiceDeskAttemptGrade.passed.is_(True),
         )
         .order_by(

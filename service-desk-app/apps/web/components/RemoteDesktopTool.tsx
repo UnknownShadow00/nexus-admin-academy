@@ -107,7 +107,10 @@ export function RemoteDesktopTool() {
   const ticket = tickets.getTicket(scenario.ticketId);
   const workstation =
     remote.workstations.find((item) => item.assetTag === computer) ?? null;
-  const learningMode = workstation?.learningMode ?? 'guided';
+  const assignedExperienceMode =
+    tickets.assignmentByTicket[ticketId]?.experience_mode;
+  const learningMode =
+    assignedExperienceMode ?? workstation?.learningMode ?? 'guided';
   const hintsRevealed = ticket?.hintsRevealedCount ?? 0;
   const canReviewScenario = canInspectScenarioRequirements(identity);
   const scenarioComplete =
@@ -213,7 +216,12 @@ export function RemoteDesktopTool() {
             {consoleLabel}
           </h1>
         </div>
-        {canReviewScenario ? (
+        {assignedExperienceMode ? (
+          <span className="rounded-full border border-zinc-800 bg-zinc-950/70 px-3 py-1.5 text-xs font-semibold text-sky-300">
+            {assignedExperienceMode[0]?.toUpperCase()}
+            {assignedExperienceMode.slice(1)} attempt
+          </span>
+        ) : canReviewScenario ? (
           <label className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/70 px-3 py-1.5 text-xs font-semibold text-zinc-300">
             <span className="text-sky-300">Learning mode</span>
             <select

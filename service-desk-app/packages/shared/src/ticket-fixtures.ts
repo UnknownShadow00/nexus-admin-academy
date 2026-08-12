@@ -139,7 +139,7 @@ const FOUNDATIONAL_ACCOUNT_TICKETS: readonly Ticket[] = [
   }),
 ].map((ticket) => ({
   ...ticket,
-  suggestedTools: ['directory', 'documentation'] as const,
+  suggestedTools: ['directory', 'company-chat', 'documentation'] as const,
 }));
 
 const BASE_TICKET_FIXTURES = [
@@ -328,7 +328,11 @@ const BASE_TICKET_FIXTURES = [
       target: 'Respond within 4 hours',
     },
     status: TicketStatus.Open,
-    suggestedTools: ['remote-desktop', 'documentation', 'asset-management'],
+    suggestedTools: [
+      'remote-desktop',
+      'documentation',
+      'company-chat',
+    ],
     title: 'PDF editor closes while exporting annotated drawings',
   },
   {

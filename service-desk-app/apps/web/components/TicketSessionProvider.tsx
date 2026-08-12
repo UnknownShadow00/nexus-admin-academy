@@ -34,6 +34,7 @@ import {
   type ActivityEvent,
   type DirectoryGroupName,
   type DirectoryUserTemplate,
+  type IdentityVerificationMethod,
   type Ticket,
   type WorkstationState,
   type WorkstationWindowBounds,
@@ -54,6 +55,7 @@ import {
   type AnalyticsSummary,
   type Attempt,
   type ChatThreadOverlay,
+  type ChatSimulationAction,
   type DeploymentRun,
   type EvaluatedAchievement,
   type Grade,
@@ -154,7 +156,10 @@ interface DirectorySessionContextValue {
     diagnosis: 'account-locked' | 'password-expired' | 'mfa-factor-unavailable',
   ) => ActionEvent;
   resetMfa: (directoryUserId: string) => ActionEvent;
-  resetPassword: (directoryUserId: string) => ActionEvent;
+  resetPassword: (
+    directoryUserId: string,
+    requireChangeAtNextSignIn: boolean,
+  ) => ActionEvent;
   unlockAccount: (directoryUserId: string) => ActionEvent;
   testPrimaryAuth: (
     directoryUserId: string,
@@ -167,7 +172,10 @@ interface DirectorySessionContextValue {
       | 'temporary-password-issued'
       | 'mfa-reregistration-ready',
   ) => ActionEvent;
-  verifyIdentity: (directoryUserId: string) => ActionEvent;
+  verifyIdentity: (
+    directoryUserId: string,
+    method: IdentityVerificationMethod,
+  ) => ActionEvent;
   updateGroups: (
     directoryUserId: string,
     add: string[],
@@ -181,6 +189,15 @@ interface CompanyChatSessionContextValue {
   markPinned: (contactId: string, pinned: boolean) => ActionEvent;
   openThread: (contactId: string) => ActionEvent;
   sendMessage: (contactId: string, body: string) => ActionEvent;
+  requestResolutionConfirmation: (
+    contactId: string,
+    ticketId: string,
+  ) => ActionEvent;
+  verifyIdentity: (
+    contactId: string,
+    ticketId: string,
+    method: IdentityVerificationMethod,
+  ) => ActionEvent;
   unreadThreadCount: number;
 }
 
@@ -513,6 +530,9 @@ const REMOTE_DESKTOP_EVIDENCE_ACTION_TYPES = new Set([
   'remote_desktop.explorer_navigate',
   'remote_desktop.explorer_reconnect_drive',
   'remote_desktop.explorer_refresh',
+  'remote_desktop.map_drive',
+  'remote_desktop.credential_add',
+  'remote_desktop.credential_delete',
   'remote_desktop.vpn_connect',
   'remote_desktop.vpn_complete_connection',
   'remote_desktop.vpn_disconnect',
@@ -527,13 +547,20 @@ type NexusEvidenceAction =
   | AssetSimulationAction
   | TicketSimulationAction
   | DirectorySimulationAction
+  | ChatSimulationAction
   | RemoteDesktopSimulationAction
   | ShippingSimulationAction;
 
 interface NexusActionSyncDetails {
   resultingState: Readonly<Record<string, unknown>>;
   ticketId: string;
-  tool: 'asset' | 'directory' | 'remote_desktop' | 'shipping' | 'ticket';
+  tool:
+    | 'asset'
+    | 'chat'
+    | 'directory'
+    | 'remote_desktop'
+    | 'shipping'
+    | 'ticket';
 }
 
 function isTicketSimulationAction(
@@ -569,6 +596,12 @@ function isDirectorySimulationAction(
   action: SimulationAction,
 ): action is DirectorySimulationAction {
   return action.type.startsWith('directory.');
+}
+
+function isChatSimulationAction(
+  action: SimulationAction,
+): action is ChatSimulationAction {
+  return action.type.startsWith('chat.');
 }
 
 function isRemoteDesktopSimulationAction(
@@ -641,6 +674,20 @@ export function getNexusActionSyncDetails(
       },
       ticketId,
       tool: 'directory',
+    };
+  }
+
+  if (isChatSimulationAction(action)) {
+    if (
+      action.type !== 'chat.verify_identity' &&
+      action.type !== 'chat.request_resolution_confirmation'
+    ) {
+      return null;
+    }
+    return {
+      resultingState: { ...attempt.chatThreads[action.payload.contactId] },
+      ticketId: action.payload.ticketId,
+      tool: 'chat',
     };
   }
 
@@ -957,6 +1004,7 @@ function projectDirectoryUsers(attempt: Attempt): DirectoryUserTemplate[] {
       mfaFactorStatus: overlay.mfaFactorStatus,
       accountInspected: overlay.inspected,
       identityVerified: overlay.identityVerified,
+      identityVerificationMethod: overlay.identityVerificationMethod,
       primaryAuthTested: overlay.primaryAuthTested,
       diagnosis: overlay.diagnosis,
       accessVerified: overlay.accessVerified,
@@ -1672,6 +1720,7 @@ export function TicketSessionProvider({
         NEXUS_INTEGRATION_ENABLED &&
         result.event.success &&
         (isTicketSimulationAction(action) ||
+          isChatSimulationAction(action) ||
           isAssetSimulationAction(action) ||
           isDirectorySimulationAction(action) ||
           isRemoteDesktopSimulationAction(action) ||
@@ -1707,6 +1756,7 @@ export function TicketSessionProvider({
         result.event.success &&
         !(
           isTicketSimulationAction(action) ||
+          isChatSimulationAction(action) ||
           isDirectorySimulationAction(action) ||
           isRemoteDesktopSimulationAction(action)
         )
@@ -1907,10 +1957,10 @@ export function TicketSessionProvider({
           type: 'directory.reset_mfa',
           payload: { directoryUserId },
         }),
-      resetPassword: (directoryUserId) =>
+      resetPassword: (directoryUserId, requireChangeAtNextSignIn) =>
         dispatchAction({
           type: 'directory.reset_password',
-          payload: { directoryUserId, requireChangeAtNextSignIn: true },
+          payload: { directoryUserId, requireChangeAtNextSignIn },
         }),
       unlockAccount: (directoryUserId) =>
         dispatchAction({
@@ -1927,10 +1977,10 @@ export function TicketSessionProvider({
           type: 'directory.verify_access',
           payload: { directoryUserId, check },
         }),
-      verifyIdentity: (directoryUserId) =>
+      verifyIdentity: (directoryUserId, method) =>
         dispatchAction({
           type: 'directory.verify_identity',
-          payload: { directoryUserId, method: 'approved-training-check' },
+          payload: { directoryUserId, method },
         }),
       updateGroups: (directoryUserId, add, remove) =>
         dispatchAction({
@@ -1947,12 +1997,23 @@ export function TicketSessionProvider({
       markPinned: markChatPinned,
       openThread: openChatThread,
       sendMessage: sendChatMessage,
+      requestResolutionConfirmation: (contactId, ticketId) =>
+        dispatchAction({
+          type: 'chat.request_resolution_confirmation',
+          payload: { contactId, ticketId },
+        }),
+      verifyIdentity: (contactId, ticketId, method) =>
+        dispatchAction({
+          type: 'chat.verify_identity',
+          payload: { contactId, ticketId, method },
+        }),
       unreadThreadCount: Object.values(attempt.chatThreads).filter(
         isChatThreadUnread,
       ).length,
     }),
     [
       attempt.chatThreads,
+      dispatchAction,
       hydrated,
       markChatPinned,
       openChatThread,

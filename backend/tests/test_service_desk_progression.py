@@ -138,7 +138,7 @@ def _seed_pack_assignments(db, *students):
     return scenarios
 
 
-def _pass(db, student, scenario_and_version):
+def _pass(db, student, scenario_and_version, *, experience_mode="assessment"):
     _, version = scenario_and_version
     attempt_number = (
         db.query(ServiceDeskAttempt)
@@ -151,6 +151,7 @@ def _pass(db, student, scenario_and_version):
             student_id=student.id,
             scenario_version_id=version.id,
             mode="simulation",
+            experience_mode=experience_mode,
             status="completed",
             current_state={},
             current_state_hash="a" * 64,
@@ -162,6 +163,41 @@ def _pass(db, student, scenario_and_version):
         )
     )
     db.commit()
+
+
+def test_guided_starter_pass_does_not_count_as_curriculum_mastery_or_pack_progress(
+    monkeypatch, db
+):
+    student = make_student(db, "guided-is-not-mastery")
+    scenarios = _seed_pack_assignments(db, student)
+    _map_required_case(db, 3, "password-reset")
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+    _pass(db, student, scenarios["password-reset"], experience_mode="guided")
+
+    listing = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+    password = next(
+        row for row in listing if row["scenario"]["stable_key"] == "password-reset"
+    )
+    assert password["experience_mode"] == "guided"
+    assert password["queue_type"] != "practice"
+
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 3,
+    )
+    listing = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+    password = next(
+        row for row in listing if row["scenario"]["stable_key"] == "password-reset"
+    )
+    assert password["experience_mode"] == "assessment"
+    assert password["queue_type"] == "assigned"
 
 
 def _map_required_case(db, week_number, stable_key):

@@ -1,5 +1,9 @@
 import React from 'react';
-import { REMOTE_DESKTOP_APP_IDS } from '@service-desk/shared';
+import {
+  REMOTE_DESKTOP_APP_IDS,
+  TOOL_CATALOG,
+  TicketCategory,
+} from '@service-desk/shared';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -7,6 +11,8 @@ import { WORKSTATION_APP_REGISTRY } from './app-registry';
 import { CredentialManagerApp } from './apps/CredentialManagerApp';
 import { MapNetworkDriveDialog } from './apps/MapNetworkDriveDialog';
 import { WindowFrame } from './WindowFrame';
+import { ACCOUNT_SIGN_IN_TESTS } from '../AccountSignInTestDialog';
+import { SuggestedTools } from '../SuggestedTools';
 
 describe('workstation UI contracts', () => {
   it('registers every desktop app including Credential Manager', () => {
@@ -89,5 +95,37 @@ describe('workstation UI contracts', () => {
     expect(markup).toContain('Minimize File Explorer');
     expect(markup).toContain('Maximize File Explorer');
     expect(markup).toContain('Close File Explorer');
+  });
+
+  it('keeps assessment tools complete without revealing the solution subset', () => {
+    const markup = renderToStaticMarkup(
+      <SuggestedTools
+        experienceMode="assessment"
+        ticketCategory={TicketCategory.Access}
+        ticketId="INC2511"
+        toolSlugs={['directory', 'company-chat']}
+      />,
+    );
+
+    expect(markup).toContain('Available technician tools');
+    expect(markup).not.toContain('Recommended places to start');
+    for (const tool of TOOL_CATALOG) {
+      expect(markup).toContain(tool.menuLabel);
+    }
+  });
+
+  it('uses case-specific, secret-free original sign-in checkpoints', () => {
+    expect(ACCOUNT_SIGN_IN_TESTS['account-locked'].result).toContain(
+      'account-lock message did not recur',
+    );
+    expect(ACCOUNT_SIGN_IN_TESTS['password-expired'].result).toContain(
+      'required password-change screen',
+    );
+    expect(ACCOUNT_SIGN_IN_TESTS['mfa-factor-unavailable'].result).toContain(
+      'MFA re-registration prompt',
+    );
+    expect(JSON.stringify(ACCOUNT_SIGN_IN_TESTS)).toContain(
+      'No credential value was exposed',
+    );
   });
 });

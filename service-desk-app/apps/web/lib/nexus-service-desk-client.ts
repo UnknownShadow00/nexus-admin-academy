@@ -15,6 +15,7 @@ export interface NexusAssignment {
     version_number: number;
   } | null;
   mode: string;
+  experience_mode: 'guided' | 'practice' | 'assessment';
   most_recent_attempt: NexusAssignmentAttemptSummary | null;
   maximum_attempts: number | null;
   pack_key?: string;
@@ -65,6 +66,7 @@ export interface NexusAttempt {
   current_state_hash: string;
   id: string | number;
   mode: string;
+  experience_mode: 'guided' | 'practice' | 'assessment';
   passed: boolean | null;
   score: number | null;
   started_at: string;
@@ -126,6 +128,9 @@ function isAttempt(value: unknown): value is NexusAttempt {
     typeof value.current_state_hash === 'string' &&
     isId(value.id) &&
     typeof value.mode === 'string' &&
+    (value.experience_mode === 'guided' ||
+      value.experience_mode === 'practice' ||
+      value.experience_mode === 'assessment') &&
     (typeof value.passed === 'boolean' || value.passed === null) &&
     (typeof value.score === 'number' || value.score === null) &&
     typeof value.started_at === 'string' &&
@@ -166,6 +171,9 @@ function isAssignment(value: unknown): value is NexusAssignment {
         isRecord(value.latest_published_version.definition_json) &&
         typeof value.latest_published_version.version_number === 'number')) &&
     typeof value.mode === 'string' &&
+    (value.experience_mode === 'guided' ||
+      value.experience_mode === 'practice' ||
+      value.experience_mode === 'assessment') &&
     (value.most_recent_attempt === null ||
       (isRecord(value.most_recent_attempt) &&
         typeof value.most_recent_attempt.attempt_number === 'number' &&

@@ -157,6 +157,7 @@ function completedAttempt(scenario: ScenarioVersion): Attempt {
         mfaFactorStatus: 'available',
         inspected: false,
         identityVerified: false,
+        identityVerificationMethod: null,
         primaryAuthTested: false,
         diagnosis: null,
         accessVerified: false,

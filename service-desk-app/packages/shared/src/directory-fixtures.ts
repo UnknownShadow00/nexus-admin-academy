@@ -45,6 +45,7 @@ export interface DirectoryUserTemplate {
     | null;
   accountInspected?: boolean;
   identityVerified?: boolean;
+  identityVerificationMethod?: IdentityVerificationMethod | null;
   diagnosis?: string | null;
   primaryAuthTested?: boolean;
   accessVerified?: boolean;
@@ -52,6 +53,15 @@ export interface DirectoryUserTemplate {
   devices: readonly DirectoryDevice[];
   licenses: readonly DirectoryLicense[];
 }
+
+export const IDENTITY_VERIFICATION_METHODS = [
+  'employee-id-directory-match',
+  'manager-confirmation',
+  'known-number-callback',
+] as const;
+
+export type IdentityVerificationMethod =
+  (typeof IDENTITY_VERIFICATION_METHODS)[number];
 
 export interface DirectoryGroupTemplate {
   id: string;
@@ -227,6 +237,14 @@ export const DIRECTORY_USER_FIXTURES: readonly DirectoryUserTemplate[] = [
     assetTag: 'NX-3560',
     groups: ['All Staff', 'Product Design Review'],
     deviceType: 'desktop',
+  }),
+  createDirectoryUser({
+    id: 'directory-user-harper-kim',
+    fullName: 'Harper Kim',
+    department: 'Program Delivery',
+    jobTitle: 'Project Manager',
+    assetTag: 'NX-2047',
+    groups: ['All Staff'],
   }),
   createDirectoryUser({
     id: 'directory-user-elliot-ward',

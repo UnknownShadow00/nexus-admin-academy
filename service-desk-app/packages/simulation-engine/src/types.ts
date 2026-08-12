@@ -1,6 +1,7 @@
 import type {
   DeploymentCable,
   DeploymentStepId,
+  IdentityVerificationMethod,
   PcShelfComputerFixture,
   ShippingDepartment,
   ShippingEquipmentName,
@@ -65,6 +66,7 @@ export interface DirectoryUserOverlay {
   mfaFactorStatus: 'available' | 'device-unavailable' | 'reset-ready';
   inspected: boolean;
   identityVerified: boolean;
+  identityVerificationMethod: IdentityVerificationMethod | null;
   primaryAuthTested: boolean;
   diagnosis:
     | 'account-locked'
