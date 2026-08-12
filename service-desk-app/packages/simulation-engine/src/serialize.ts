@@ -19,6 +19,7 @@ import {
   SHIPPING_SPEEDS,
   TicketStatus,
   getRemoteDesktopInitialDriveStates,
+  getDirectoryUserById,
   getRemoteDesktopTerminalFixture,
   getRemoteDesktopWorkstation,
   getServerRoomNode,
@@ -121,6 +122,20 @@ function isDirectoryUserOverlay(value: unknown): value is DirectoryUserOverlay {
     typeof value.locked === 'boolean' &&
     typeof value.disabled === 'boolean' &&
     typeof value.mfaEnrolled === 'boolean' &&
+    (value.passwordState === 'current' ||
+      value.passwordState === 'expired' ||
+      value.passwordState === 'temporary') &&
+    (value.mfaFactorStatus === 'available' ||
+      value.mfaFactorStatus === 'device-unavailable' ||
+      value.mfaFactorStatus === 'reset-ready') &&
+    typeof value.inspected === 'boolean' &&
+    typeof value.identityVerified === 'boolean' &&
+    typeof value.primaryAuthTested === 'boolean' &&
+    (value.diagnosis === null ||
+      value.diagnosis === 'account-locked' ||
+      value.diagnosis === 'password-expired' ||
+      value.diagnosis === 'mfa-factor-unavailable') &&
+    typeof value.accessVerified === 'boolean' &&
     isRecord(value.groupChanges) &&
     isStringArray(value.groupChanges.added) &&
     isStringArray(value.groupChanges.removed) &&
@@ -601,11 +616,46 @@ export function restoreAttempt(json: string): Attempt | null {
       isRecord(value) && value.directoryOverlays === undefined
         ? { ...value, directoryOverlays: {} }
         : value;
-    const normalized =
+    const normalizedDirectoryState =
       isRecord(normalizedDirectory) &&
-      normalizedDirectory.chatThreads === undefined
-        ? { ...normalizedDirectory, chatThreads: {} }
+      isRecord(normalizedDirectory.directoryOverlays)
+        ? {
+            ...normalizedDirectory,
+            directoryOverlays: Object.fromEntries(
+              Object.entries(normalizedDirectory.directoryOverlays).map(
+                ([directoryUserId, overlay]) => {
+                  const fixture = getDirectoryUserById(directoryUserId);
+                  return [
+                    directoryUserId,
+                    isRecord(overlay)
+                      ? {
+                          ...overlay,
+                          passwordState:
+                            overlay.passwordState ??
+                            fixture?.passwordState ??
+                            'current',
+                          mfaFactorStatus:
+                            overlay.mfaFactorStatus ??
+                            fixture?.mfaFactorStatus ??
+                            'available',
+                          inspected: overlay.inspected ?? false,
+                          identityVerified: overlay.identityVerified ?? false,
+                          primaryAuthTested: overlay.primaryAuthTested ?? false,
+                          diagnosis: overlay.diagnosis ?? null,
+                          accessVerified: overlay.accessVerified ?? false,
+                        }
+                      : overlay,
+                  ];
+                },
+              ),
+            ),
+          }
         : normalizedDirectory;
+    const normalized =
+      isRecord(normalizedDirectoryState) &&
+      normalizedDirectoryState.chatThreads === undefined
+        ? { ...normalizedDirectoryState, chatThreads: {} }
+        : normalizedDirectoryState;
     const normalizedAssets =
       isRecord(normalized) && normalized.assetOverlays === undefined
         ? { ...normalized, assetOverlays: {} }

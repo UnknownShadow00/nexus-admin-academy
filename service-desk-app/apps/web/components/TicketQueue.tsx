@@ -12,6 +12,7 @@ import {
   IconRefresh,
   IconTicket,
   IconUser,
+  IconHistory,
 } from '@tabler/icons-react';
 import { Button, Card } from '@service-desk/ui';
 import { useMemo, useState } from 'react';
@@ -36,12 +37,16 @@ export function TicketQueue() {
   const queueType = (ticketId: string) =>
     assignmentByTicket[ticketId]?.queue_type ?? 'assigned';
   const assignedTickets = filteredTickets.filter(
-    (ticket) => queueType(ticket.id) === 'assigned' && isOpenTicket(ticket),
+    (ticket) => queueType(ticket.id) === 'assigned',
   );
   const practiceTickets = filteredTickets.filter(
-    (ticket) => queueType(ticket.id) === 'practice' || !isOpenTicket(ticket),
+    (ticket) => queueType(ticket.id) === 'practice',
   );
-  const visibleCount = assignedTickets.length + practiceTickets.length;
+  const earlierTickets = filteredTickets.filter(
+    (ticket) => queueType(ticket.id) === 'earlier',
+  );
+  const visibleCount =
+    assignedTickets.length + practiceTickets.length + earlierTickets.length;
   const allOpenCount = tickets.filter(isOpenTicket).length;
 
   return (
@@ -55,8 +60,8 @@ export function TicketQueue() {
             My Service Desk
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-            Start with the cases assigned to your shift. Completed and earlier
-            cases stay available for practice.
+            Start with the cases assigned to your shift. Passed cases become
+            replayable practice; unfinished older cases remain available below.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs font-bold uppercase text-zinc-500">
@@ -66,6 +71,21 @@ export function TicketQueue() {
       </header>
 
       <TicketQueueFilters filters={filters} onChange={setFilters} />
+
+      {progression && progression.current_pack === null ? (
+        <Card className="border-sky-400/20 bg-sky-400/5 p-5 sm:p-6">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-sky-400">
+            Your first shift is almost ready
+          </p>
+          <h2 className="mt-2 font-display text-xl font-bold text-zinc-100">
+            Complete Week 0 to begin your first Service Desk shift.
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+            Finish the Nexus orientation lesson and pass its checkpoint. Your
+            four Starter Support cases will then appear here automatically.
+          </p>
+        </Card>
+      ) : null}
 
       {assignedTickets.length > 0 ? (
         <TicketQueueSection
@@ -109,7 +129,32 @@ export function TicketQueue() {
         )}
       </section>
 
-      {progression?.next_pack ? (
+      {earlierTickets.length > 0 ? (
+        <details className="group rounded-md border border-zinc-800 bg-zinc-900/40">
+          <summary className="sd-focus-ring flex cursor-pointer list-none items-center gap-2 rounded-md px-4 py-3 text-sm font-bold text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+            <IconHistory aria-hidden="true" className="h-4 w-4 text-zinc-500" />
+            More unlocked cases
+            <span className="ml-auto text-xs font-semibold text-zinc-500">
+              {earlierTickets.length} unfinished
+            </span>
+          </summary>
+          <div className="border-t border-zinc-800 p-3 sm:p-4">
+            <p className="mb-3 text-sm text-zinc-500">
+              These unfinished cases remain available, but they are not part of
+              your current shift queue.
+            </p>
+            <TicketQueueSection
+              icon={IconHistory}
+              label="Unlocked cases outside this shift"
+              meta={`${earlierTickets.length} unfinished`}
+              tickets={earlierTickets}
+              assignmentByTicket={assignmentByTicket}
+            />
+          </div>
+        </details>
+      ) : null}
+
+      {progression?.next_pack && progression.current_pack ? (
         <Card className="flex items-start gap-3 border-dashed border-zinc-700 p-4 sm:p-5">
           <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-700 bg-zinc-950 text-zinc-400">
             <IconLock aria-hidden="true" className="h-4 w-4" />
@@ -121,10 +166,32 @@ export function TicketQueue() {
             <h2 className="mt-1 font-display text-base font-bold text-zinc-100">
               {progression.next_pack.name}
             </h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              {progression.next_pack.reason} Continue your Nexus training to
-              unlock these cases.
-            </p>
+            <div className="mt-3 space-y-2 text-sm text-zinc-400">
+              <p
+                className={
+                  progression.next_pack.requirements.week.met
+                    ? 'text-emerald-300'
+                    : ''
+                }
+              >
+                {progression.next_pack.requirements.week.met ? '✓' : '○'}{' '}
+                {progression.next_pack.requirements.week.label}
+              </p>
+              {progression.next_pack.requirements.passes ? (
+                <p
+                  className={
+                    progression.next_pack.requirements.passes.met
+                      ? 'text-emerald-300'
+                      : ''
+                  }
+                >
+                  {progression.next_pack.requirements.passes.met ? '✓' : '○'}{' '}
+                  {progression.next_pack.requirements.passes.label} (
+                  {progression.next_pack.requirements.passes.completed}/
+                  {progression.next_pack.requirements.passes.required})
+                </p>
+              ) : null}
+            </div>
           </div>
         </Card>
       ) : null}

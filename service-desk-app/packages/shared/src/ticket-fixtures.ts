@@ -59,6 +59,89 @@ const CONVERTED_LEGACY_TICKETS: readonly Ticket[] = [
   convertedTicket({ id: 'INC2510', title: 'Restored laptop reports a trust relationship failure', category: TicketCategory.Access, priority: Priority.Medium, assetTag: 'NX-2510', deviceName: 'OPS-LT-58', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Sam Ortiz', department: 'Operations', issue: 'A restored domain laptop rejects sign-in with a trust relationship error while peer laptops work.', impact: 'The employee cannot access the domain workstation after recovery.', troubleshooting: ['The network is connected.', 'Other domain users can sign in on nearby devices.'], hints: ['Separate user credentials from the computer account relationship.', 'Confirm the secure-channel failure before changing the user account.', 'Repair or escalate the device trust safely and verify domain sign-in.'] }),
 ];
 
+const FOUNDATIONAL_ACCOUNT_TICKETS: readonly Ticket[] = [
+  convertedTicket({
+    id: 'INC2511',
+    title: "Can't sign in after lunch",
+    category: TicketCategory.Access,
+    priority: Priority.Medium,
+    assetTag: 'NX-3101',
+    deviceName: 'CARE-LT-31',
+    deviceKind: 'laptop',
+    operatingSystem: 'Windows 11 Enterprise',
+    requester: 'Taylor Morgan',
+    department: 'Customer Care',
+    issue:
+      'I came back from lunch and Windows keeps saying my password is incorrect. I tried it several times and I’m pretty sure I’m typing it correctly.',
+    impact:
+      'Taylor has a customer handoff meeting in 45 minutes and cannot open the assigned laptop.',
+    troubleshooting: [
+      'Retyped the password carefully.',
+      'Confirmed Caps Lock is off.',
+      'Stopped retrying after the portal advised contacting support.',
+    ],
+    hints: [
+      'Review the account state before changing it.',
+      'Use the approved identity check and distinguish a lock from password or MFA trouble.',
+      'Verify a new sign-in can proceed and document the evidence.',
+    ],
+  }),
+  convertedTicket({
+    id: 'INC2512',
+    title: 'Sign-in stops before the desktop loads',
+    category: TicketCategory.Access,
+    priority: Priority.Medium,
+    assetTag: 'NX-3102',
+    deviceName: 'FAC-LT-32',
+    deviceKind: 'laptop',
+    operatingSystem: 'Windows 11 Enterprise',
+    requester: 'Jordan Lee',
+    department: 'Facilities',
+    issue:
+      'Windows accepted my usual password yesterday. This morning it says I need help from the service desk before I can continue.',
+    impact: 'Jordan needs the laptop for today’s building inspection rounds.',
+    troubleshooting: [
+      'Confirmed the username is jlee.',
+      'Did not share a password or security answer.',
+      'Stopped guessing after the first failure.',
+    ],
+    hints: [
+      'Review enablement, lock, and password state.',
+      'Use the approved identity-check assumption before a credential change.',
+      'Require a change at next sign-in and verify the temporary sign-in handoff.',
+    ],
+  }),
+  convertedTicket({
+    id: 'INC2513',
+    title: 'Approval prompts go to an old phone',
+    category: TicketCategory.Access,
+    priority: Priority.Medium,
+    assetTag: 'NX-3103',
+    deviceName: 'FIN-LT-33',
+    deviceKind: 'laptop',
+    operatingSystem: 'Windows 11 Enterprise',
+    requester: 'Camille Reyes',
+    department: 'Finance Operations',
+    issue:
+      'My password still works, but the approval prompt is going to the phone I returned last week.',
+    impact:
+      'Camille must submit travel expenses before the afternoon approval cutoff.',
+    troubleshooting: [
+      'Confirmed the password step succeeds.',
+      'No longer has the registered phone.',
+      'Did not approve any unexpected prompt.',
+    ],
+    hints: [
+      'Separate primary authentication from the second factor.',
+      'Review the registered factor after the approved identity check.',
+      'Clear only the unusable registration and verify re-enrollment readiness.',
+    ],
+  }),
+].map((ticket) => ({
+  ...ticket,
+  suggestedTools: ['directory', 'documentation'] as const,
+}));
+
 const BASE_TICKET_FIXTURES = [
   {
     activity: [
@@ -534,11 +617,12 @@ const BASE_TICKET_FIXTURES = [
     suggestedTools: ['remote-desktop', 'documentation'],
     title: 'Print jobs disappear on the HR workstation',
   },
- ] as const satisfies readonly Ticket[];
+] as const satisfies readonly Ticket[];
 
 export const TICKET_FIXTURES = [
   ...BASE_TICKET_FIXTURES,
   ...CONVERTED_LEGACY_TICKETS,
+  ...FOUNDATIONAL_ACCOUNT_TICKETS,
 ] as const;
 
 export function getFixtureTicket(ticketId: string) {

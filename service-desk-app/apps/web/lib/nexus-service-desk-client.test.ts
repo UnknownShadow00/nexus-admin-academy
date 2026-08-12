@@ -72,6 +72,7 @@ describe('Nexus service desk client', () => {
                 completed: 0,
                 in_progress: 0,
                 practice: 0,
+                earlier: 0,
               },
               current_pack: { key: 'starter-support', name: 'Starter Support' },
               current_week: 0,
@@ -84,6 +85,15 @@ describe('Nexus service desk client', () => {
                 required_week: 3,
                 source_pack_name: 'Starter Support',
                 source_pack_passes: 0,
+                requirements: {
+                  week: { label: 'Reach Week 3 training', met: false },
+                  passes: {
+                    label: 'Successfully resolve 2 Starter Support cases',
+                    met: false,
+                    completed: 0,
+                    required: 2,
+                  },
+                },
               },
             }
           : path.endsWith('/events') || path.endsWith('/hints')

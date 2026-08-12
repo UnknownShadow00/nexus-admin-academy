@@ -58,26 +58,22 @@ describe('Server Room fixtures', () => {
 });
 
 describe('Remote Desktop fixtures', () => {
-  it('reuses all 36 directory identities and NX asset tags one-for-one, with ticket-only machines allowed', () => {
+  it('reuses every directory identity and NX asset tag one-for-one, with ticket-only machines allowed', () => {
     const directoryWorkstations = REMOTE_DESKTOP_WORKSTATION_FIXTURES.filter(
       (workstation) =>
-        DIRECTORY_USER_FIXTURES.some((user) => user.id === workstation.directoryUserId),
+        DIRECTORY_USER_FIXTURES.some(
+          (user) => user.id === workstation.directoryUserId,
+        ),
     );
 
-    expect(directoryWorkstations).toHaveLength(36);
+    expect(directoryWorkstations).toHaveLength(DIRECTORY_USER_FIXTURES.length);
     expect(
       new Set(
-        directoryWorkstations.map(
-          (workstation) => workstation.directoryUserId,
-        ),
+        directoryWorkstations.map((workstation) => workstation.directoryUserId),
       ),
     ).toEqual(new Set(DIRECTORY_USER_FIXTURES.map((user) => user.id)));
     expect(
-      new Set(
-        directoryWorkstations.map(
-          (workstation) => workstation.assetTag,
-        ),
-      ),
+      new Set(directoryWorkstations.map((workstation) => workstation.assetTag)),
     ).toEqual(new Set(DIRECTORY_USER_FIXTURES.map((user) => user.assetTag)));
   });
 

@@ -35,6 +35,19 @@ export interface DirectoryUserTemplate {
   locked: boolean;
   disabled: boolean;
   mfaEnrolled: boolean;
+  passwordState: 'current' | 'expired' | 'temporary';
+  mfaFactorStatus: 'available' | 'device-unavailable' | 'reset-ready';
+  primaryAuthSucceeds: boolean;
+  supportIssue:
+    | 'account-locked'
+    | 'password-expired'
+    | 'mfa-factor-unavailable'
+    | null;
+  accountInspected?: boolean;
+  identityVerified?: boolean;
+  diagnosis?: string | null;
+  primaryAuthTested?: boolean;
+  accessVerified?: boolean;
   groups: readonly DirectoryGroupName[];
   devices: readonly DirectoryDevice[];
   licenses: readonly DirectoryLicense[];
@@ -56,6 +69,10 @@ interface DirectoryUserSeed {
   locked?: boolean;
   disabled?: boolean;
   mfaEnrolled?: boolean;
+  passwordState?: DirectoryUserTemplate['passwordState'];
+  mfaFactorStatus?: DirectoryUserTemplate['mfaFactorStatus'];
+  primaryAuthSucceeds?: boolean;
+  supportIssue?: DirectoryUserTemplate['supportIssue'];
   deviceType?: string;
   deviceStatus?: AssetStatus;
 }
@@ -119,6 +136,10 @@ function createDirectoryUser(seed: DirectoryUserSeed): DirectoryUserTemplate {
     locked: seed.locked ?? false,
     disabled: seed.disabled ?? false,
     mfaEnrolled: seed.mfaEnrolled ?? true,
+    passwordState: seed.passwordState ?? 'current',
+    mfaFactorStatus: seed.mfaFactorStatus ?? 'available',
+    primaryAuthSucceeds: seed.primaryAuthSucceeds ?? true,
+    supportIssue: seed.supportIssue ?? null,
     devices: [
       {
         assetTag: seed.assetTag,
@@ -141,6 +162,38 @@ export const SLOANE_RIVERA_DIRECTORY_USER_ID = 'directory-user-sloane-rivera';
 export const FACILITIES_CALENDAR_GROUP = 'Facilities Calendar';
 
 export const DIRECTORY_USER_FIXTURES: readonly DirectoryUserTemplate[] = [
+  createDirectoryUser({
+    id: 'directory-user-taylor-morgan',
+    fullName: 'Taylor Morgan',
+    department: 'Customer Care',
+    jobTitle: 'Customer Advisor',
+    assetTag: 'NX-3101',
+    groups: ['All Staff', 'Customer Care'],
+    locked: true,
+    primaryAuthSucceeds: false,
+    supportIssue: 'account-locked',
+  }),
+  createDirectoryUser({
+    id: 'directory-user-jordan-lee',
+    fullName: 'Jordan Lee',
+    department: 'Facilities',
+    jobTitle: 'Building Coordinator',
+    assetTag: 'NX-3102',
+    groups: ['All Staff', 'Facilities Team'],
+    passwordState: 'expired',
+    primaryAuthSucceeds: false,
+    supportIssue: 'password-expired',
+  }),
+  createDirectoryUser({
+    id: 'directory-user-camille-reyes',
+    fullName: 'Camille Reyes',
+    department: 'Finance Operations',
+    jobTitle: 'Expense Analyst',
+    assetTag: 'NX-3103',
+    groups: ['All Staff', 'Finance Operations Updates'],
+    mfaFactorStatus: 'device-unavailable',
+    supportIssue: 'mfa-factor-unavailable',
+  }),
   createDirectoryUser({
     id: AVERY_BROOKS_DIRECTORY_USER_ID,
     fullName: 'Avery Brooks',

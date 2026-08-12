@@ -16,6 +16,7 @@ interface GradePreview {
 }
 
 interface ResolveDialogProps {
+  initialResolutionNote?: string;
   onConfirm: (options: {
     resolutionNote: string;
     verifiedResolved: boolean;
@@ -26,6 +27,7 @@ interface ResolveDialogProps {
 }
 
 export function ResolveDialog({
+  initialResolutionNote = '',
   onConfirm,
   readyGrade,
   status,
@@ -33,7 +35,7 @@ export function ResolveDialog({
 }: ResolveDialogProps) {
   const [open, setOpen] = useState(false);
   const [reviewing, setReviewing] = useState(false);
-  const [resolutionNote, setResolutionNote] = useState('');
+  const [resolutionNote, setResolutionNote] = useState(initialResolutionNote);
   const [verifiedResolved, setVerifiedResolved] = useState(false);
   const effectiveVerified =
     verifiedResolved || status === TicketStatus.Resolved;
@@ -43,13 +45,17 @@ export function ResolveDialog({
 
   function reset() {
     setReviewing(false);
-    setResolutionNote('');
+    setResolutionNote(initialResolutionNote);
     setVerifiedResolved(false);
   }
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
-    if (!nextOpen) {
+    if (nextOpen) {
+      setResolutionNote(initialResolutionNote);
+      setVerifiedResolved(false);
+      setReviewing(false);
+    } else {
       reset();
     }
   }

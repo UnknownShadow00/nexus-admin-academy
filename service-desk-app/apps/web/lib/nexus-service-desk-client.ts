@@ -20,7 +20,7 @@ export interface NexusAssignment {
   pack_key?: string;
   pack_name?: string;
   pack_order?: number;
-  queue_type?: 'assigned' | 'practice';
+  queue_type?: 'assigned' | 'practice' | 'earlier';
   scenario: {
     stable_key: string;
     title: string;
@@ -34,8 +34,9 @@ export interface NexusServiceDeskProgression {
     completed: number;
     in_progress: number;
     practice: number;
+    earlier: number;
   };
-  current_pack: { key: string; name: string };
+  current_pack: { key: string; name: string } | null;
   current_week: number;
   next_pack: {
     key: string;
@@ -45,6 +46,15 @@ export interface NexusServiceDeskProgression {
     required_week: number;
     source_pack_name: string;
     source_pack_passes: number;
+    requirements: {
+      week: { label: string; met: boolean };
+      passes: {
+        label: string;
+        met: boolean;
+        completed: number;
+        required: number;
+      } | null;
+    };
   } | null;
 }
 
@@ -173,7 +183,7 @@ function isProgression(value: unknown): value is NexusServiceDeskProgression {
   if (
     !isRecord(value) ||
     !isRecord(value.counts) ||
-    !isRecord(value.current_pack)
+    !(value.current_pack === null || isRecord(value.current_pack))
   ) {
     return false;
   }
@@ -183,8 +193,10 @@ function isProgression(value: unknown): value is NexusServiceDeskProgression {
     typeof counts.completed === 'number' &&
     typeof counts.in_progress === 'number' &&
     typeof counts.practice === 'number' &&
-    typeof value.current_pack.key === 'string' &&
-    typeof value.current_pack.name === 'string' &&
+    typeof counts.earlier === 'number' &&
+    (value.current_pack === null ||
+      (typeof value.current_pack.key === 'string' &&
+        typeof value.current_pack.name === 'string')) &&
     typeof value.current_week === 'number' &&
     (value.next_pack === null || isRecord(value.next_pack))
   );

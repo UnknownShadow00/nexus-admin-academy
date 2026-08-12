@@ -100,7 +100,39 @@ export interface UnlockDirectoryAccountAction {
 
 export interface ResetDirectoryPasswordAction {
   type: 'directory.reset_password';
+  payload: DirectoryActionPayload & { requireChangeAtNextSignIn?: boolean };
+}
+
+export interface InspectDirectoryAccountAction {
+  type: 'directory.inspect_account';
   payload: DirectoryActionPayload;
+}
+
+export interface VerifyDirectoryIdentityAction {
+  type: 'directory.verify_identity';
+  payload: DirectoryActionPayload & { method: 'approved-training-check' };
+}
+
+export interface TestDirectoryPrimaryAuthAction {
+  type: 'directory.test_primary_auth';
+  payload: DirectoryActionPayload & { result: 'succeeds' | 'blocked' };
+}
+
+export interface RecordDirectoryDiagnosisAction {
+  type: 'directory.record_diagnosis';
+  payload: DirectoryActionPayload & {
+    diagnosis: 'account-locked' | 'password-expired' | 'mfa-factor-unavailable';
+  };
+}
+
+export interface VerifyDirectoryAccessAction {
+  type: 'directory.verify_access';
+  payload: DirectoryActionPayload & {
+    check:
+      | 'account-unlocked'
+      | 'temporary-password-issued'
+      | 'mfa-reregistration-ready';
+  };
 }
 
 export interface EnableDirectoryAccountAction {
@@ -470,6 +502,11 @@ export type ChatSimulationAction =
   | OpenChatThreadAction;
 
 export type DirectorySimulationAction =
+  | InspectDirectoryAccountAction
+  | VerifyDirectoryIdentityAction
+  | TestDirectoryPrimaryAuthAction
+  | RecordDirectoryDiagnosisAction
+  | VerifyDirectoryAccessAction
   | UnlockDirectoryAccountAction
   | ResetDirectoryPasswordAction
   | EnableDirectoryAccountAction

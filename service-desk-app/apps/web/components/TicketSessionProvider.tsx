@@ -145,9 +145,26 @@ interface DirectorySessionContextValue {
   disableAccount: (directoryUserId: string) => ActionEvent;
   enableAccount: (directoryUserId: string) => ActionEvent;
   isHydrated: boolean;
+  inspectAccount: (directoryUserId: string) => ActionEvent;
+  recordDiagnosis: (
+    directoryUserId: string,
+    diagnosis: 'account-locked' | 'password-expired' | 'mfa-factor-unavailable',
+  ) => ActionEvent;
   resetMfa: (directoryUserId: string) => ActionEvent;
   resetPassword: (directoryUserId: string) => ActionEvent;
   unlockAccount: (directoryUserId: string) => ActionEvent;
+  testPrimaryAuth: (
+    directoryUserId: string,
+    result: 'succeeds' | 'blocked',
+  ) => ActionEvent;
+  verifyAccess: (
+    directoryUserId: string,
+    check:
+      | 'account-unlocked'
+      | 'temporary-password-issued'
+      | 'mfa-reregistration-ready',
+  ) => ActionEvent;
+  verifyIdentity: (directoryUserId: string) => ActionEvent;
   updateGroups: (
     directoryUserId: string,
     add: string[],
@@ -438,6 +455,9 @@ interface NexusSnapshotTarget {
 }
 
 const DIRECTORY_TICKET_BY_USER_ID: Readonly<Record<string, string>> = {
+  'directory-user-taylor-morgan': 'INC2511',
+  'directory-user-jordan-lee': 'INC2512',
+  'directory-user-camille-reyes': 'INC2513',
   'directory-user-avery-brooks': 'INC2401',
   'directory-user-sloane-rivera': 'INC2405',
 };
@@ -508,6 +528,13 @@ function hasLegacyNexusTicketState(
 }
 
 export function normalizeTicketKey(value: string): string {
+  const foundationalIds: Readonly<Record<string, string>> = {
+    'locked-user-account': 'INC2511',
+    'password-reset': 'INC2512',
+    'mfa-reset': 'INC2513',
+  };
+  const foundationalId = foundationalIds[value.toLowerCase()];
+  if (foundationalId) return foundationalId;
   return value.toUpperCase();
 }
 
@@ -899,6 +926,13 @@ function projectDirectoryUsers(attempt: Attempt): DirectoryUserTemplate[] {
       licenses: fixture.licenses.map((license) => ({ ...license })),
       locked: overlay.locked,
       mfaEnrolled: overlay.mfaEnrolled,
+      passwordState: overlay.passwordState,
+      mfaFactorStatus: overlay.mfaFactorStatus,
+      accountInspected: overlay.inspected,
+      identityVerified: overlay.identityVerified,
+      primaryAuthTested: overlay.primaryAuthTested,
+      diagnosis: overlay.diagnosis,
+      accessVerified: overlay.accessVerified,
     };
   });
 }
@@ -1730,7 +1764,8 @@ export function TicketSessionProvider({
         type: 'ticket.close',
         payload: {
           ticketId,
-          resolutionNote: '',
+          resolutionNote:
+            attempt.ticketOverlays[ticketId]?.notes.at(-1)?.body ?? '',
           verifiedResolved,
         },
       });
@@ -1828,6 +1863,16 @@ export function TicketSessionProvider({
           payload: { directoryUserId },
         }),
       isHydrated: hydrated,
+      inspectAccount: (directoryUserId) =>
+        dispatchAction({
+          type: 'directory.inspect_account',
+          payload: { directoryUserId },
+        }),
+      recordDiagnosis: (directoryUserId, diagnosis) =>
+        dispatchAction({
+          type: 'directory.record_diagnosis',
+          payload: { directoryUserId, diagnosis },
+        }),
       resetMfa: (directoryUserId) =>
         dispatchAction({
           type: 'directory.reset_mfa',
@@ -1836,12 +1881,27 @@ export function TicketSessionProvider({
       resetPassword: (directoryUserId) =>
         dispatchAction({
           type: 'directory.reset_password',
-          payload: { directoryUserId },
+          payload: { directoryUserId, requireChangeAtNextSignIn: true },
         }),
       unlockAccount: (directoryUserId) =>
         dispatchAction({
           type: 'directory.unlock_account',
           payload: { directoryUserId },
+        }),
+      testPrimaryAuth: (directoryUserId, result) =>
+        dispatchAction({
+          type: 'directory.test_primary_auth',
+          payload: { directoryUserId, result },
+        }),
+      verifyAccess: (directoryUserId, check) =>
+        dispatchAction({
+          type: 'directory.verify_access',
+          payload: { directoryUserId, check },
+        }),
+      verifyIdentity: (directoryUserId) =>
+        dispatchAction({
+          type: 'directory.verify_identity',
+          payload: { directoryUserId, method: 'approved-training-check' },
         }),
       updateGroups: (directoryUserId, add, remove) =>
         dispatchAction({
