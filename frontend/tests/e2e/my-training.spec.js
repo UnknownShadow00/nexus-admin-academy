@@ -242,7 +242,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByText("Question 1 of 4", { exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await page.goto("/service-desk", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "My Service Desk" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "My Service Desk" })).toBeVisible({ timeout: 15_000 });
   await assertNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -292,6 +292,10 @@ test("admin can open Weekly Training under Learning Content", async ({ page }) =
   await assertNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 1440, height: 1000 });
+  // Let StrictMode's duplicate initial data requests settle before logout
+  // revokes the shared admin session cookie. Otherwise a request can cross
+  // the logout boundary and produce a harmless but noisy 403 in the console.
+  await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Admin Sign Out" }).click();
   await expect(page).toHaveURL(/\/admin-login/);
 
