@@ -63,6 +63,36 @@ async function adminLogin(page) {
   await expect(page).toHaveURL(/\/admin$/);
 }
 
+
+async function completeWeekZero(page) {
+  await page.goto("/");
+  await page.getByRole("link", { name: "Start Training" }).first().click();
+  await expect(page).toHaveURL(/\/lessons\/\d+$/);
+  await page.getByRole("button", { name: "Mark lesson complete", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Orientation complete", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Take quiz", exact: true }).click();
+  await expect(page).toHaveURL(/\/quizzes\/\d+$/);
+
+  for (let index = 1; index <= 4; index += 1) {
+    await expect(page.getByText("Question " + index + " of 4", { exact: true })).toBeVisible();
+    const questionPanel = page.locator("section .panel").first();
+    const questionText = await questionPanel.textContent();
+    const correctOptions = questionText.includes("initial data collection")
+      ? ["User information", "Device information", "Problem description"]
+      : questionText.includes("future reporting")
+        ? ["Category"]
+        : questionText.includes("Level 2 hardware specialist")
+          ? ["Escalation level"]
+          : ["Progress notes"];
+    for (const option of correctOptions) {
+      await questionPanel.getByText(option, { exact: true }).click();
+    }
+    await page.getByRole("button", { name: index === 4 ? "Submit Quiz" : "Next", exact: true }).click();
+  }
+
+  await expect(page.getByText("Passed", { exact: true })).toBeVisible();
+}
+
 // The backend's CSRF-origin-validation middleware rejects state-changing
 // requests (POST/PUT/PATCH/DELETE) made with a session cookie unless the
 // Origin header matches a trusted origin. Real browser fetch() calls made
@@ -80,6 +110,65 @@ async function getMyAssignment(page, stableKey) {
   const assignment = assignments.find((a) => a.scenario.stable_key === stableKey);
   expect(assignment, `assignment for ${stableKey} should exist`).toBeTruthy();
   return assignment;
+}
+
+
+async function resolveFoundationalAccountCase(page, scenario) {
+  const assignment = await getMyAssignment(page, scenario.stableKey);
+  const started = await page.request.post(
+    "/api/service-desk/assignments/" + assignment.id + "/attempts",
+    withOrigin({}),
+  );
+  expect([200, 201]).toContain(started.status());
+
+  await page.goto("/service-desk/tickets/" + scenario.ticketId);
+  await expect(page.getByRole("heading", { name: scenario.title })).toBeVisible();
+  await expect(page.getByText("Read").first()).toBeVisible();
+  await expect(page.getByText("Investigate").first()).toBeVisible();
+  await page.getByRole("link", { name: "Directory", exact: true }).click();
+  await page.getByPlaceholder("Search name, username, or department").fill(scenario.requester);
+  await page.getByRole("button", { name: new RegExp(scenario.requester) }).click();
+
+  await expect(page.getByText("Account status has not been reviewed yet.")).toBeVisible();
+  await page.getByRole("button", { name: "Review account state" }).click();
+  await expect(page.getByText("Account state reviewed.", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Record approved identity check" }).click();
+  await expect(page.getByText("Approved training identity check recorded.", { exact: false })).toBeVisible();
+  if (scenario.testPrimaryAuth) {
+    await page.getByRole("button", { name: "Test primary password sign-in" }).click();
+    await expect(page.getByText("Primary password authentication succeeds", { exact: false })).toBeVisible();
+  }
+  await page.getByLabel("Account diagnosis").selectOption(scenario.diagnosis);
+  await page.getByRole("button", { name: "Record diagnosis" }).click();
+  await expect(page.getByText("Diagnosis recorded from the reviewed account evidence.")).toBeVisible();
+
+  await page.getByRole("button", { name: scenario.remediationTrigger, exact: true }).first().click();
+  await page.getByRole("dialog").getByRole(
+    "button",
+    { name: scenario.remediationConfirm, exact: true },
+  ).click();
+  await page.getByRole("button", { name: "Verify original sign-in path" }).click();
+  await expect(page.getByText("The original sign-in path has been verified after remediation.")).toBeVisible();
+
+  await page.getByRole("link", { name: "Dashboard", exact: true }).click();
+  await page.getByRole("link", { name: new RegExp(scenario.title) }).click();
+  await expect(page).toHaveURL(new RegExp("/service-desk/tickets/" + scenario.ticketId + "$"));
+  await page.getByLabel("Add a note").fill(scenario.note);
+  await page.getByRole("button", { name: "Add internal note" }).click();
+  await expect(page.getByText(scenario.note, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Resolve / close" }).click();
+  await page.getByLabel("I verified the requester has a working outcome").check();
+  await page.getByRole("button", { name: "Continue to review" }).click();
+  await expect(page.getByText("Ready to resolve", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Resolve ticket", exact: true }).click();
+
+  await expect.poll(async () => {
+    const current = await getMyAssignment(page, scenario.stableKey);
+    return {
+      queueType: current.queue_type,
+      status: current.most_recent_attempt?.status,
+    };
+  }).toEqual({ queueType: "practice", status: "completed" });
 }
 
 async function connectRemoteDesktop(page, ticketId, assetTag) {
@@ -111,21 +200,35 @@ async function prepareInc2401Workflow(page) {
 }
 
 test.describe("Service Desk integration (requires an integrated stack)", () => {
-  test("fresh students receive an isolated four-ticket starter queue with a compact next-pack preview", async ({ browser }) => {
+
+  test("Week 0 unlocks an isolated four-ticket starter queue with a compact next-pack preview", async ({ browser }) => {
+    test.setTimeout(180_000);
     const contextA = await browser.newContext({ viewport: { width: 375, height: 812 } });
     const pageA = await contextA.newPage();
     await studentLogin(pageA, freshAUsername, freshAPassword);
 
-    const assignmentsResponse = await pageA.request.get("/api/service-desk/assignments");
+    let assignmentsResponse = await pageA.request.get("/api/service-desk/assignments");
     expect(assignmentsResponse.ok()).toBeTruthy();
-    const assignments = await assignmentsResponse.json();
-    expect(new Set(assignments.map((row) => row.scenario.stable_key))).toEqual(
-      new Set(["inc2405", "inc2404", "inc2403", "inc2502"]),
-    );
-    expect(assignments.every((row) => row.queue_type === "assigned")).toBeTruthy();
+    expect(await assignmentsResponse.json()).toEqual([]);
 
     await pageA.goto("/service-desk");
     await expect(pageA.getByRole("heading", { name: "My Service Desk" })).toBeVisible();
+    await expect(pageA.getByText("Complete Week 0 to begin your first Service Desk shift.")).toBeVisible();
+    await expect(pageA.getByRole("region", { name: "Assigned" })).toHaveCount(0);
+    await expect(pageA.locator('a[href^="/service-desk/tickets/"]')).toHaveCount(0);
+    await pageA.goto("/service-desk/tickets/INC2511");
+    await expect(pageA.getByRole("heading", { name: "Case unavailable" })).toBeVisible();
+
+    await completeWeekZero(pageA);
+    await pageA.goto("/service-desk");
+    assignmentsResponse = await pageA.request.get("/api/service-desk/assignments");
+    expect(assignmentsResponse.ok()).toBeTruthy();
+    const assignments = await assignmentsResponse.json();
+    expect(new Set(assignments.map((row) => row.scenario.stable_key))).toEqual(
+      new Set(["locked-user-account", "password-reset", "mfa-reset", "inc2404"]),
+    );
+    expect(assignments.every((row) => row.queue_type === "assigned")).toBeTruthy();
+
     const progressA = pageA.getByRole("region", { name: "Training progress" });
     await expect(progressA.getByText("4", { exact: true })).toBeVisible();
     await expect(progressA.getByText("Available", { exact: true })).toBeVisible();
@@ -134,7 +237,8 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await expect(pageA.getByText("No completed cases yet", { exact: false })).toBeVisible();
     await expect(pageA.getByText("Next case pack", { exact: true })).toBeVisible();
     await expect(pageA.getByRole("heading", { name: "Desktop Support" })).toBeVisible();
-    await expect(pageA.getByText(/Reach Week 3 and complete 2 Starter Support cases successfully/)).toBeVisible();
+    await expect(pageA.getByText("○ Reach Week 3 training")).toBeVisible();
+    await expect(pageA.getByText(/○ Successfully resolve 2 Starter Support cases \(0\/2\)/)).toBeVisible();
     await expect(pageA.locator('a[href^="/service-desk/tickets/"]')).toHaveCount(4);
     await expect(pageA.getByText("Desktop opens with a temporary Windows profile")).toHaveCount(0);
     const dimensions = await pageA.evaluate(() => ({
@@ -144,7 +248,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
 
     const started = await pageA.request.post(
-      `/api/service-desk/assignments/${assignments[0].id}/attempts`,
+      "/api/service-desk/assignments/" + assignments[0].id + "/attempts",
       withOrigin({}),
     );
     expect(started.status()).toBe(201);
@@ -161,14 +265,72 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const pageB = await contextB.newPage();
     await studentLogin(pageB, freshBUsername, freshBPassword);
     const studentBAssignments = await (await pageB.request.get("/api/service-desk/assignments")).json();
-    expect(studentBAssignments).toHaveLength(4);
-    expect(studentBAssignments.every((row) => row.most_recent_attempt === null)).toBeTruthy();
+    expect(studentBAssignments).toHaveLength(0);
     await pageB.goto("/service-desk");
-    const progressB = pageB.getByRole("region", { name: "Training progress" });
-    await expect(progressB.getByText("4", { exact: true })).toBeVisible();
-    await expect(progressB.getByText("0", { exact: true })).toHaveCount(3);
-    await expect(progressB.getByText("In progress", { exact: true })).toBeVisible();
+    await expect(pageB.getByText("Complete Week 0 to begin your first Service Desk shift.")).toBeVisible();
+    await expect(pageB.locator('a[href^="/service-desk/tickets/"]')).toHaveCount(0);
     await contextB.close();
+  });
+
+  test("foundational account cases require investigation, remediation, verification, and documentation", async ({ browser }) => {
+    test.setTimeout(180_000);
+    const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+    const page = await context.newPage();
+    await studentLogin(page, freshAUsername, freshAPassword);
+    if ((await (await page.request.get("/api/service-desk/assignments")).json()).length === 0) {
+      await completeWeekZero(page);
+    }
+
+    const cases = [
+      {
+        diagnosis: "account-locked",
+        note: "Reviewed Taylor's account and approved identity check, confirmed the lock, unlocked it, and verified the original sign-in path works.",
+        remediationConfirm: "Unlock account",
+        remediationTrigger: "Unlock account",
+        requester: "Taylor Morgan",
+        stableKey: "locked-user-account",
+        testPrimaryAuth: false,
+        ticketId: "INC2511",
+        title: "Can't sign in after lunch",
+      },
+      {
+        diagnosis: "password-expired",
+        note: "Reviewed Jordan's account and approved identity check, confirmed the expired password, issued a temporary password, and verified the required-change sign-in handoff.",
+        remediationConfirm: "Issue temporary password",
+        remediationTrigger: "Reset password",
+        requester: "Jordan Lee",
+        stableKey: "password-reset",
+        testPrimaryAuth: false,
+        ticketId: "INC2512",
+        title: "Sign-in stops before the desktop loads",
+      },
+      {
+        diagnosis: "mfa-factor-unavailable",
+        note: "Reviewed Camille's account, confirmed primary password authentication succeeds, reset the unavailable MFA factor, and verified re-registration is ready.",
+        remediationConfirm: "Reset MFA",
+        remediationTrigger: "Reset MFA",
+        requester: "Camille Reyes",
+        stableKey: "mfa-reset",
+        testPrimaryAuth: true,
+        ticketId: "INC2513",
+        title: "Approval prompts go to an old phone",
+      },
+    ];
+
+    for (const scenario of cases) {
+      await resolveFoundationalAccountCase(page, scenario);
+    }
+
+    await page.goto("/service-desk");
+    await expect(page.getByRole("region", { name: "Practice" }).locator('a[href^="/service-desk/tickets/"]')).toHaveCount(3);
+    await expect(page.getByRole("region", { name: "Assigned" }).locator('a[href^="/service-desk/tickets/"]')).toHaveCount(1);
+    await expect(page.getByRole("region", { name: "Practice cases" }).getByText("3 unlocked")).toBeVisible();
+    const dimensions = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+    await context.close();
   });
 
   test("admin scenario draft survives refresh and publishes an immutable version", async ({ page }) => {

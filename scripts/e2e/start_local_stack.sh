@@ -225,6 +225,11 @@ for username in sys.argv[2:]:
                 "(SELECT 1 FROM service_desk_assignments WHERE student_id = ? AND scenario_id = ? AND mode = 'simulation')",
                 (row[0], scenario_id, row[0], scenario_id),
             )
+            db.execute(
+                "UPDATE service_desk_assignments SET assigned_by = 'e2e', is_required = 1 "
+                "WHERE student_id = ? AND scenario_id = ? AND mode = 'simulation'",
+                (row[0], scenario_id),
+            )
 db.commit()
 PY
 
@@ -245,7 +250,7 @@ for username in sys.argv[2:]:
         for scenario_id in scenario_ids:
             db.execute(
                 "INSERT INTO service_desk_assignments (student_id, scenario_id, mode, is_required, assigned_by) "
-                "SELECT ?, ?, 'simulation', 1, 'e2e-progression' WHERE NOT EXISTS "
+                "SELECT ?, ?, 'simulation', 1, 'migration-0047' WHERE NOT EXISTS "
                 "(SELECT 1 FROM service_desk_assignments WHERE student_id = ? AND scenario_id = ? AND mode = 'simulation')",
                 (row[0], scenario_id, row[0], scenario_id),
             )
