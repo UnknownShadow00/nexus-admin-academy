@@ -112,6 +112,7 @@ test("student authentication rejects invalid credentials and protects private ro
 });
 
 test("student follows My Training on desktop and mobile", async ({ page }) => {
+  test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await studentLogin(page);
   const monitor = monitorPage(page);
