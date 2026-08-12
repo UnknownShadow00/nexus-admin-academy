@@ -39,6 +39,13 @@ SERVICE_DESK_DIFFICULTY_BY_PRIORITY = {
     "high": 3,
     "critical": 5,
 }
+SERVICE_DESK_DIFFICULTY_BY_ID = {
+    "INC2405": 1, "INC2404": 1, "INC2403": 2, "INC2502": 2,
+    "INC2408": 2, "INC2501": 2, "INC2509": 2, "INC2504": 2,
+    "INC2401": 2, "INC2505": 2, "INC2510": 2, "INC2507": 3,
+    "INC2406": 2, "INC2407": 2, "INC2503": 2, "INC2402": 3,
+    "INC2506": 3, "INC2508": 3,
+}
 
 
 # TB-01: seed.py must NEVER create login-able accounts. The 6 real accounts
@@ -528,39 +535,42 @@ LABS = [
     },
     {
         "title": "Troubleshoot a Network Connectivity Scenario",
-        "description": "Given a simulated scenario, identify and resolve the connectivity issue using a structured approach",
+        "description": "A user can reach 10.20.0.15 by IP, but intranet.nexus.internal does not open. Their adapter uses DNS server 192.0.2.53 and nslookup times out; a nearby working PC uses 10.20.0.10.",
         "difficulty": 3,
         "week_number": 3,
         "estimated_minutes": 45,
         "lab_type": "scenario",
-        "setup_instructions": "Read the scenario carefully. Use the OSI model layers from bottom to top to diagnose.",
+        "setup_instructions": "Work independently from the supplied command evidence. Identify the failing layer, propose one safe configuration change, and state the exact tests that would prove the original problem is fixed. Use the hints only if you are stuck.",
         "success_criteria": {
             "tasks": [
-                "Identify OSI layer of failure",
-                "Name the likely cause",
-                "Describe the fix",
-                "Explain how to verify",
+                "Separate working IP connectivity from failed name resolution",
+                "Identify the incorrect DNS server as the root cause",
+                "Describe changing only the adapter DNS setting to the approved resolver",
+                "Verify with nslookup and the original intranet hostname",
+                "Explain in one sentence why pinging the IP worked",
             ]
         },
         "hints": [
-            "Start at Layer 1 (physical)",
-            "Check DHCP before DNS",
+            "Compare what works by IP with what fails by name",
+            "Use the nearby working PC as the approved configuration baseline",
         ],
     },
     {
         "title": "Windows Command-Line Diagnostics",
-        "description": "Practice using ipconfig, ping, tracert, netstat, and nslookup to diagnose network issues",
+        "description": "Build a repeatable Windows command-line evidence routine before troubleshooting an independent Service Desk case.",
         "difficulty": 2,
         "week_number": 4,
         "estimated_minutes": 40,
         "lab_type": "guided",
-        "setup_instructions": "Open Command Prompt on your Windows machine. You will run commands and document the output.",
+        "setup_instructions": "Open Command Prompt on your Windows machine or approved training VM. Run each command without changing network settings. Record the relevant line of output and explain what it proves.",
         "success_criteria": {
             "tasks": [
-                "Run ipconfig /all and identify gateway",
-                "Ping 8.8.8.8 and interpret result",
-                "Run tracert and identify hops",
-                "Use nslookup to resolve a domain",
+                "Run hostname and whoami to identify the workstation and signed-in user",
+                "Run ipconfig /all and identify the address, gateway, and DNS servers",
+                "Ping the default gateway and explain the result",
+                "Use nslookup to resolve a hostname and identify the responding DNS server",
+                "Run tracert to an approved destination and identify where the path leaves the local network",
+                "State which two commands you would repeat after a DNS repair and why",
             ]
         },
         "hints": [
@@ -988,8 +998,8 @@ SERVICE_DESK_TICKET_CONTENT_PATCHES = {
         ],
     },
     "INC2405": {
-        "title": "Facilities calendar shortcut opens an archived workspace",
-        "issue": "The new coordinator can sign in and already has Facilities Calendar access, but the desktop calendar shortcut opens an archived-location error.",
+        "title": "Facilities calendar shortcut shows a location error",
+        "issue": "The new coordinator can sign in and open a current team calendar, but the Facilities shortcut on the desktop shows a location error.",
         "troubleshooting": [
             "Confirmed the user can open their personal calendar and another current Facilities calendar.",
             "Confirmed the requester is already in the Facilities Calendar access group.",
@@ -1002,18 +1012,26 @@ SERVICE_DESK_TICKET_CONTENT_PATCHES = {
         ],
     },
     "INC2406": {
-        "title": "Partner workspace unavailable while VPN is disconnected",
-        "issue": "The laptop has normal internet access, but the secure partner workspace cannot be reached because the company VPN is disconnected.",
+        "title": "Partner workspace unavailable from home",
+        "issue": "The laptop has normal internet access at home, but opening the secure partner workspace returns a network path unavailable message.",
         "troubleshooting": [
             "Confirmed normal internet browsing works.",
             "Confirmed the partner share is unavailable from the home network.",
-            "The company VPN client is disconnected.",
+            "The workspace opened normally in the office yesterday.",
         ],
         "hints": [
             "Separate ordinary internet access from access to a private company resource.",
             "Confirm whether the secure partner share is reachable before changing its mapped-drive configuration.",
             "Reconnect the company VPN, then verify the original partner workspace opens.",
         ],
+    },
+    "INC2501": {
+        "title": "Desktop and Documents are missing after sign-in",
+        "issue": "After signing in, Morgan sees an unfamiliar empty desktop and cannot find the usual Documents files.",
+    },
+    "INC2504": {
+        "title": "One workstation cannot print to the department printer",
+        "issue": "Jobs from one Engineering workstation remain queued, while a nearby colleague can print to the same department printer.",
     },
 }
 
@@ -1053,7 +1071,9 @@ def seed_service_desk_scenarios(db):
                 title=ticket["title"],
                 description=f'{ticket["description"]["issue"]} {ticket["description"]["businessImpact"]}',
                 category=ticket["category"],
-                difficulty=SERVICE_DESK_DIFFICULTY_BY_PRIORITY[ticket["priority"]],
+                difficulty=SERVICE_DESK_DIFFICULTY_BY_ID.get(
+                    ticket["id"], SERVICE_DESK_DIFFICULTY_BY_PRIORITY[ticket["priority"]]
+                ),
                 status="active",
             )
             db.add(scenario)
@@ -1062,7 +1082,9 @@ def seed_service_desk_scenarios(db):
             scenario.title = ticket["title"]
             scenario.description = f'{ticket["description"]["issue"]} {ticket["description"]["businessImpact"]}'
             scenario.category = ticket["category"]
-            scenario.difficulty = SERVICE_DESK_DIFFICULTY_BY_PRIORITY[ticket["priority"]]
+            scenario.difficulty = SERVICE_DESK_DIFFICULTY_BY_ID.get(
+                ticket["id"], SERVICE_DESK_DIFFICULTY_BY_PRIORITY[ticket["priority"]]
+            )
         scenarios[stable_key] = scenario
 
         definition = {**ticket, "objective_catalog_version": PROCESS_CATALOG_VERSION}
@@ -1139,26 +1161,27 @@ def seed_tickets(db):
 
 
 def seed_labs(db):
-    existing_titles = {row.title for row in db.query(LabTemplate).all()}
+    existing_by_title = {row.title: row for row in db.query(LabTemplate).all()}
     for lab in LABS:
-        if lab["title"] in existing_titles:
-            continue
-        db.add(
-            LabTemplate(
+        row = existing_by_title.get(lab["title"])
+        if row is None:
+            row = LabTemplate(
                 title=lab["title"],
-                description=lab["description"],
-                lab_type=lab["lab_type"],
-                difficulty=lab["difficulty"],
-                week_number=lab["week_number"],
-                estimated_minutes=lab["estimated_minutes"],
                 environment_requirements={},
-                setup_instructions=lab["setup_instructions"],
-                success_criteria=lab["success_criteria"],
                 required_evidence={},
-                hints=lab["hints"],
                 is_published=True,
             )
-        )
+            db.add(row)
+            existing_by_title[lab["title"]] = row
+        row.description = lab["description"]
+        row.lab_type = lab["lab_type"]
+        row.difficulty = lab["difficulty"]
+        row.week_number = lab["week_number"]
+        row.estimated_minutes = lab["estimated_minutes"]
+        row.setup_instructions = lab["setup_instructions"]
+        row.success_criteria = lab["success_criteria"]
+        row.hints = lab["hints"]
+        row.is_published = True
 
 
 def seed_capstones(db):

@@ -38,10 +38,19 @@ class RecentServiceDeskActivity(BaseModel):
     created_at: str
 
 
+class ServiceDeskSkillCount(BaseModel):
+    name: str
+    completed: int
+
+
 class ServiceDeskProgressSummary(BaseModel):
     tickets_completed: int
+    passed_first_try: int
+    needed_revision: int
     achievements_unlocked: int
     total_xp: int
+    skills: list[ServiceDeskSkillCount]
+    needs_practice: list[str]
     recent_activity: list[RecentServiceDeskActivity]
 
 
@@ -78,16 +87,77 @@ def get_service_desk_progress_summary(
 ) -> ServiceDeskProgressSummary:
     completed_rows = (
         db.query(ServiceDeskAttemptGrade, ServiceDeskScenario)
-        .join(ServiceDeskAttempt, ServiceDeskAttempt.id == ServiceDeskAttemptGrade.attempt_id)
-        .join(ServiceDeskScenarioVersion, ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id)
-        .join(ServiceDeskScenario, ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id)
+        .join(
+            ServiceDeskAttempt,
+            ServiceDeskAttempt.id == ServiceDeskAttemptGrade.attempt_id,
+        )
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+        )
+        .join(
+            ServiceDeskScenario,
+            ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id,
+        )
         .filter(
             ServiceDeskAttempt.student_id == current_student.id,
             ServiceDeskAttemptGrade.passed.is_(True),
         )
-        .order_by(ServiceDeskAttemptGrade.calculated_at.desc(), ServiceDeskAttemptGrade.id.desc())
+        .order_by(
+            ServiceDeskAttemptGrade.calculated_at.desc(),
+            ServiceDeskAttemptGrade.id.desc(),
+        )
         .all()
     )
+    attempt_rows = (
+        db.query(ServiceDeskAttempt, ServiceDeskScenario)
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+        )
+        .join(
+            ServiceDeskScenario,
+            ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id,
+        )
+        .filter(ServiceDeskAttempt.student_id == current_student.id)
+        .order_by(ServiceDeskAttempt.started_at, ServiceDeskAttempt.id)
+        .all()
+    )
+    attempts_by_scenario: dict[
+        str, list[tuple[ServiceDeskAttempt, ServiceDeskScenario]]
+    ] = {}
+    for attempt, scenario in attempt_rows:
+        attempts_by_scenario.setdefault(scenario.stable_key, []).append(
+            (attempt, scenario)
+        )
+    passed_scenarios = {
+        key
+        for key, rows in attempts_by_scenario.items()
+        if any(attempt.passed is True for attempt, _ in rows)
+    }
+    passed_first_try = sum(
+        bool(rows and rows[0][0].passed is True)
+        for key, rows in attempts_by_scenario.items()
+        if key in passed_scenarios
+    )
+    skill_names = {
+        "access": "Accounts & Access",
+        "hardware": "Desktop & Hardware",
+        "network": "Networking",
+        "software": "Windows & Applications",
+    }
+    skill_counts: dict[str, int] = {}
+    for key in passed_scenarios:
+        scenario = attempts_by_scenario[key][0][1]
+        name = skill_names.get(scenario.category.lower(), scenario.category.title())
+        skill_counts[name] = skill_counts.get(name, 0) + 1
+    recent_unique = []
+    recent_seen = set()
+    for grade, scenario in completed_rows:
+        if scenario.stable_key in recent_seen:
+            continue
+        recent_seen.add(scenario.stable_key)
+        recent_unique.append((grade, scenario))
     total_xp = (
         db.query(func.coalesce(func.sum(XPLedger.delta), 0))
         .filter(
@@ -98,16 +168,28 @@ def get_service_desk_progress_summary(
         or 0
     )
     return ServiceDeskProgressSummary(
-        tickets_completed=len(completed_rows),
+        tickets_completed=len(passed_scenarios),
+        passed_first_try=passed_first_try,
+        needed_revision=len(passed_scenarios) - passed_first_try,
         achievements_unlocked=0,
         total_xp=int(total_xp),
+        skills=[
+            ServiceDeskSkillCount(name=name, completed=count)
+            for name, count in sorted(skill_counts.items())
+        ],
+        needs_practice=[
+            rows[0][1].title
+            for key, rows in attempts_by_scenario.items()
+            if key not in passed_scenarios
+            and any(attempt.status == "failed" for attempt, _ in rows)
+        ],
         recent_activity=[
             RecentServiceDeskActivity(
                 title=scenario.title,
                 detail=f"Passed with {grade.overall_score} points",
                 created_at=_isoformat(grade.calculated_at),
             )
-            for grade, scenario in completed_rows[:5]
+            for grade, scenario in recent_unique[:5]
         ],
     )
 
