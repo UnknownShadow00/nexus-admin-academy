@@ -12,6 +12,37 @@ function getYouTubeEmbedUrl(url) {
   return match ? `https://www.youtube.com/embed/${match[1]}` : null;
 }
 
+function lessonSummaryMarkdown(summary) {
+  return String(summary || "")
+    .split(/\n\s*\n/)
+    .map((block) => {
+      const lines = block.trim().split("\n");
+      const heading = lines[0]?.match(/^([A-Z][A-Z0-9 &'’/(),-]{2,}):\s*(.*)$/);
+      if (!heading) return block.trim();
+      const rest = [heading[2], ...lines.slice(1)].filter(Boolean).join("\n");
+      return `## ${heading[1]}${rest ? `\n${rest}` : ""}`;
+    })
+    .join("\n\n");
+}
+
+function LessonSummary({ summary }) {
+  return (
+    <ReactMarkdown
+      className="mt-4 space-y-4 leading-7 text-slate-700 dark:text-slate-300"
+      components={{
+        code: ({ children }) => <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-sm text-slate-900 dark:bg-slate-800 dark:text-slate-100">{children}</code>,
+        h2: ({ children }) => <h2 className="border-t border-slate-200 pt-4 text-lg font-bold text-slate-950 first:border-0 first:pt-0 dark:border-slate-700 dark:text-white">{children}</h2>,
+        li: ({ children }) => <li className="pl-1">{children}</li>,
+        ol: ({ children }) => <ol className="list-decimal space-y-2 pl-6">{children}</ol>,
+        p: ({ children }) => <p className="max-w-3xl">{children}</p>,
+        ul: ({ children }) => <ul className="list-disc space-y-2 pl-6">{children}</ul>,
+      }}
+    >
+      {lessonSummaryMarkdown(summary)}
+    </ReactMarkdown>
+  );
+}
+
 function LessonNotes({ lessonId, onSaved, orientation }) {
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
@@ -122,7 +153,7 @@ export default function LessonPage() {
               p: ({ children }) => <p>{children}</p>,
             }}
           >{lesson.summary}</ReactMarkdown>
-        ) : <div className="mt-4 whitespace-pre-line leading-7 text-slate-700 dark:text-slate-300">{lesson.summary}</div> : null}
+        ) : <LessonSummary summary={lesson.summary} /> : null}
       </header>
       {Array.isArray(lesson.outcomes) && lesson.outcomes.length > 0 ? (
         <section className="panel">

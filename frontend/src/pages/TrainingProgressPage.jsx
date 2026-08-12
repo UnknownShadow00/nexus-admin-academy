@@ -41,9 +41,11 @@ export default function TrainingProgressPage() {
           <h2 className="text-xl font-bold">Service Desk Simulator</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div><p className="text-sm text-slate-500 dark:text-slate-400">Scenarios completed</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.tickets_completed}</p></div>
-            <div><p className="text-sm text-slate-500 dark:text-slate-400">Achievements unlocked</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.achievements_unlocked}</p></div>
-            <div><p className="text-sm text-slate-500 dark:text-slate-400">Total XP</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.total_xp}</p></div>
+            <div><p className="text-sm text-slate-500 dark:text-slate-400">Passed first try</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.passed_first_try}</p></div>
+            <div><p className="text-sm text-slate-500 dark:text-slate-400">Needed revision</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.needed_revision}</p></div>
           </div>
+          {serviceDeskSummary.skills?.length ? <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700"><h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Skills practiced</h3><div className="mt-2 flex flex-wrap gap-2">{serviceDeskSummary.skills.map((skill) => <span className="rounded-full bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 dark:bg-blue-950/30 dark:text-blue-200" key={skill.name}>{skill.name} · {skill.completed}</span>)}</div></div> : null}
+          {serviceDeskSummary.needs_practice?.length ? <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/20"><h3 className="font-semibold text-amber-900 dark:text-amber-200">Needs practice</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800 dark:text-amber-300">{serviceDeskSummary.needs_practice.map((title) => <li key={title}>{title}</li>)}</ul></div> : null}
           {serviceDeskSummary.recent_activity?.length ? (
             <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Recent activity</h3>

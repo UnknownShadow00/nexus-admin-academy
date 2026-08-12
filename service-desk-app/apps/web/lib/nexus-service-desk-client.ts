@@ -5,6 +5,8 @@ export interface NexusAssignmentAttemptSummary {
 }
 
 export interface NexusAssignment {
+  difficulty_label?: string;
+  difficulty_stars?: string;
   id: string | number;
   is_required: boolean;
   latest_published_version: {
@@ -15,11 +17,35 @@ export interface NexusAssignment {
   mode: string;
   most_recent_attempt: NexusAssignmentAttemptSummary | null;
   maximum_attempts: number | null;
+  pack_key?: string;
+  pack_name?: string;
+  pack_order?: number;
+  queue_type?: 'assigned' | 'practice';
   scenario: {
     stable_key: string;
     title: string;
   };
   scenario_id: string | number;
+}
+
+export interface NexusServiceDeskProgression {
+  counts: {
+    available: number;
+    completed: number;
+    in_progress: number;
+    practice: number;
+  };
+  current_pack: { key: string; name: string };
+  current_week: number;
+  next_pack: {
+    key: string;
+    name: string;
+    reason: string;
+    required_passes: number;
+    required_week: number;
+    source_pack_name: string;
+    source_pack_passes: number;
+  } | null;
 }
 
 export interface NexusAttempt {
@@ -143,6 +169,27 @@ function isAssignment(value: unknown): value is NexusAssignment {
   );
 }
 
+function isProgression(value: unknown): value is NexusServiceDeskProgression {
+  if (
+    !isRecord(value) ||
+    !isRecord(value.counts) ||
+    !isRecord(value.current_pack)
+  ) {
+    return false;
+  }
+  const counts = value.counts;
+  return (
+    typeof counts.available === 'number' &&
+    typeof counts.completed === 'number' &&
+    typeof counts.in_progress === 'number' &&
+    typeof counts.practice === 'number' &&
+    typeof value.current_pack.key === 'string' &&
+    typeof value.current_pack.name === 'string' &&
+    typeof value.current_week === 'number' &&
+    (value.next_pack === null || isRecord(value.next_pack))
+  );
+}
+
 async function request(
   path: string,
   init: RequestInit,
@@ -180,6 +227,14 @@ export async function listAssignments(): Promise<readonly NexusAssignment[]> {
   });
 
   return Array.isArray(result) ? result.filter(isAssignment) : [];
+}
+
+export async function getServiceDeskProgression(): Promise<NexusServiceDeskProgression | null> {
+  const result = await request('/api/service-desk/progression', {
+    method: 'GET',
+  });
+
+  return isProgression(result) ? result : null;
 }
 
 export async function startOrResumeAttempt(
@@ -232,7 +287,10 @@ export async function requestAttemptAction(
 /** Persist untrusted resume data; this endpoint never creates grading evidence. */
 export async function persistAttemptSnapshot(
   attemptId: string | number,
-  input: { idempotency_key: string; snapshot: Readonly<Record<string, unknown>> },
+  input: {
+    idempotency_key: string;
+    snapshot: Readonly<Record<string, unknown>>;
+  },
 ): Promise<boolean> {
   return (
     (await request(

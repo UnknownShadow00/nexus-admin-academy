@@ -47,10 +47,10 @@ function convertedTicket(spec: ConvertedTicketSpec): Ticket {
 }
 
 const CONVERTED_LEGACY_TICKETS: readonly Ticket[] = [
-  convertedTicket({ id: 'INC2501', title: 'Desktop opens with a temporary Windows profile', category: TicketCategory.Software, priority: Priority.High, assetTag: 'NX-2501', deviceName: 'ACCT-LT-17', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Morgan Ellis', department: 'Accounting', issue: 'After signing in, Morgan sees a fresh desktop and cannot find the usual Documents files.', impact: 'Month-end work is paused while the user data appears unavailable.', troubleshooting: ['The user restarted once.', 'A nearby teammate can open the same shared files.'], hints: ['Protect user data before profile repair.', 'Compare the sign-in profile path with the expected local profile.', 'Confirm the original files are available after repairing the profile.'] }),
+  convertedTicket({ id: 'INC2501', title: 'Desktop and Documents are missing after sign-in', category: TicketCategory.Software, priority: Priority.High, assetTag: 'NX-2501', deviceName: 'ACCT-LT-17', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Morgan Ellis', department: 'Accounting', issue: 'After signing in, Morgan sees an unfamiliar empty desktop and cannot find the usual Documents files.', impact: 'Month-end work is paused while the user data appears unavailable.', troubleshooting: ['The user restarted once.', 'A nearby teammate can open the same shared files.'], hints: ['Protect user data before profile repair.', 'Compare the sign-in profile path with the expected local profile.', 'Confirm the original files are available after repairing the profile.'] }),
   convertedTicket({ id: 'INC2502', title: 'Excel crashes only when one reporting workbook opens', category: TicketCategory.Software, priority: Priority.Medium, assetTag: 'NX-2502', deviceName: 'FIN-WS-44', deviceKind: 'desktop', operatingSystem: 'Windows 11 Enterprise', requester: 'Priya Shah', department: 'Finance', issue: 'Excel closes when the monthly reporting workbook opens, but other workbooks remain usable.', impact: 'The finance team cannot finish the monthly report.', troubleshooting: ['A blank workbook opens normally.', 'The workbook was copied locally and still crashes.'], hints: ['Reproduce the specific crash before changing Office.', 'Use Safe Mode or add-in isolation to separate workbook and add-in causes.', 'Verify the original workbook opens and saves after the repair.'] }),
   convertedTicket({ id: 'INC2503', title: 'One desk lost network after an office move', category: TicketCategory.Network, priority: Priority.High, assetTag: 'NX-2503', deviceName: 'OPS-WS-12', deviceKind: 'desktop', operatingSystem: 'Windows 11 Enterprise', requester: 'Jordan Kim', department: 'Operations', issue: 'A workstation moved to a new desk has no network while adjacent desks work normally.', impact: 'One dispatcher cannot access the order system.', troubleshooting: ['The workstation was restarted.', 'Nearby workstations remain connected.'], hints: ['Start with physical link and compare the nearby working desk.', 'Check the assigned switch port and VLAN before renewing addresses.', 'Verify the original order system after the port is corrected.'] }),
-  convertedTicket({ id: 'INC2504', title: 'Department printer stopped after its DHCP address changed', category: TicketCategory.Hardware, priority: Priority.High, assetTag: 'NX-2504', deviceName: 'ENG-WS-09', deviceKind: 'desktop', operatingSystem: 'Windows 11 Enterprise', requester: 'Sofia Nguyen', department: 'Engineering', issue: 'The shared department printer is reachable from one workstation but this workstation still sends jobs to its old address.', impact: 'Engineering cannot print drawing review packets from the affected workstation.', troubleshooting: ['The printer is powered on.', 'A colleague printed successfully from a nearby computer.'], hints: ['Confirm whether this is local or printer-wide.', 'Compare the configured print port with the printer’s current address.', 'Update the port safely and print a test page.'] }),
+  convertedTicket({ id: 'INC2504', title: 'One workstation cannot print to the department printer', category: TicketCategory.Hardware, priority: Priority.High, assetTag: 'NX-2504', deviceName: 'ENG-WS-09', deviceKind: 'desktop', operatingSystem: 'Windows 11 Enterprise', requester: 'Sofia Nguyen', department: 'Engineering', issue: 'Jobs from one Engineering workstation remain queued, while a nearby colleague can print to the same department printer.', impact: 'Engineering cannot print drawing review packets from the affected workstation.', troubleshooting: ['The printer is powered on.', 'A colleague printed successfully from a nearby computer.'], hints: ['Confirm whether this is local or printer-wide.', 'Compare the configured print port with the printer’s current address.', 'Update the port safely and print a test page.'] }),
   convertedTicket({ id: 'INC2505', title: 'New employee cannot open the department share', category: TicketCategory.Access, priority: Priority.Medium, assetTag: 'NX-2505', deviceName: 'MKT-LT-05', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Taylor Reed', department: 'Marketing', issue: 'A new employee receives Access Denied for the Marketing share that peers can use.', impact: 'The new hire cannot access approved team materials.', troubleshooting: ['The share opens for the team lead.', 'The employee can sign in successfully.'], hints: ['Confirm the requested resource and compare a peer with the same role.', 'Check approved group access before granting anything.', 'Verify the original share after the least-privilege change.'] }),
   convertedTicket({ id: 'INC2506', title: 'Assistant requests access to restricted salary records', category: TicketCategory.Access, priority: Priority.High, assetTag: 'NX-2506', deviceName: 'HR-LT-21', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Casey Lane', department: 'Executive Office', issue: 'An executive assistant asks for access to the restricted HR salary folder to help with a meeting.', impact: 'The request needs a timely, safe response without expanding access improperly.', troubleshooting: ['The requester has access to general HR materials.', 'No written approval is attached.'], hints: ['Identify the authorization boundary.', 'Do not use a group change as a substitute for approval.', 'Document a safe escalation and verify the request is routed correctly.'] }),
   convertedTicket({ id: 'INC2507', title: 'Account keeps locking after a password change', category: TicketCategory.Access, priority: Priority.High, assetTag: 'NX-2507', deviceName: 'SALES-LT-08', deviceKind: 'laptop', operatingSystem: 'Windows 11 Enterprise', requester: 'Avery Monroe', department: 'Sales', issue: 'The account locks again shortly after each successful password reset.', impact: 'The employee repeatedly loses access to sales systems.', troubleshooting: ['The account was unlocked once.', 'The employee can sign in immediately after the reset.'], hints: ['Find what is reusing the old credential instead of resetting again.', 'Inspect saved mappings, Credential Manager, and scheduled connections.', 'Remove the stale credential and monitor for another lockout.'] }),
@@ -319,7 +319,7 @@ const BASE_TICKET_FIXTURES = [
       businessImpact:
         'A new coordinator can complete orientation but cannot access the shared scheduling calendar.',
       issue:
-        'The new starter can sign in to email and see the Facilities Calendar entry, but opening it returns an archived-location error.',
+        'The new coordinator can sign in and open a current team calendar, but the Facilities shortcut on the desktop shows a location error.',
       reportedByLine:
         'Raised by the facilities team lead during the new starter checklist.',
       troubleshooting: [
@@ -363,7 +363,7 @@ const BASE_TICKET_FIXTURES = [
       'documentation',
       'company-chat',
     ],
-    title: 'New coordinator cannot open the facilities calendar shortcut',
+    title: 'Facilities calendar shortcut shows a location error',
   },
   {
     activity: [
@@ -381,13 +381,13 @@ const BASE_TICKET_FIXTURES = [
       businessImpact:
         'The project manager can work locally but cannot join the secure partner workspace.',
       issue:
-        'The remote access client can reach the gateway, but the secure partner workspace is unavailable because the company VPN is disconnected.',
+        'The laptop has normal internet access at home, but opening the secure partner workspace returns a network path unavailable message.',
       reportedByLine:
         'Submitted from a home network before a scheduled partner review.',
       troubleshooting: [
         'Restarted the laptop.',
         'Confirmed normal internet browsing works.',
-        'Confirmed the VPN client shows Disconnected.',
+        'The workspace opened normally in the office yesterday.',
       ],
     },
     device: {
@@ -420,7 +420,7 @@ const BASE_TICKET_FIXTURES = [
     },
     status: TicketStatus.Open,
     suggestedTools: ['remote-desktop', 'documentation', 'asset-management'],
-    title: 'Remote partner workspace unavailable while VPN is disconnected',
+    title: 'Partner workspace unavailable from home',
   },
   {
     activity: [

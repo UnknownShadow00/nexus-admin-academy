@@ -3,8 +3,15 @@ import { Badge, Card, PriorityBadge } from '@service-desk/ui';
 import { IconAlertTriangle, IconClockHour4 } from '@tabler/icons-react';
 
 import { TicketStatusBadge } from './TicketStatusBadge';
+import type { NexusAssignment } from '../lib/nexus-service-desk-client';
 
-export function TicketDetailHeader({ ticket }: { ticket: Ticket }) {
+export function TicketDetailHeader({
+  assignment,
+  ticket,
+}: {
+  assignment?: NexusAssignment;
+  ticket: Ticket;
+}) {
   return (
     <Card>
       <div className="border-b border-zinc-800 bg-zinc-800/40 px-4 py-4 sm:px-6 sm:py-5">
@@ -14,6 +21,14 @@ export function TicketDetailHeader({ ticket }: { ticket: Ticket }) {
           </span>
           <PriorityBadge pill priority={ticket.priority} />
           <TicketStatusBadge status={ticket.status} />
+          {assignment?.difficulty_label ? (
+            <Badge>
+              <span aria-hidden="true" className="text-amber-400">
+                {assignment.difficulty_stars}
+              </span>{' '}
+              {assignment.difficulty_label}
+            </Badge>
+          ) : null}
           {ticket.escalated ? (
             <Badge className="gap-1" variant="amber">
               <IconAlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />

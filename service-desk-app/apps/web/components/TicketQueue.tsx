@@ -8,6 +8,8 @@ import {
 import {
   IconClipboardList,
   IconFilterOff,
+  IconLock,
+  IconRefresh,
   IconTicket,
   IconUser,
 } from '@tabler/icons-react';
@@ -25,19 +27,21 @@ const EMPTY_FILTERS: TicketFilters = {
 };
 
 export function TicketQueue() {
-  const { tickets } = useTicketSession();
+  const { assignmentByTicket, progression, tickets } = useTicketSession();
   const [filters, setFilters] = useState<TicketFilters>(EMPTY_FILTERS);
   const filteredTickets = useMemo(
     () => filterTickets(tickets, filters),
     [filters, tickets],
   );
+  const queueType = (ticketId: string) =>
+    assignmentByTicket[ticketId]?.queue_type ?? 'assigned';
   const assignedTickets = filteredTickets.filter(
-    (ticket) => ticket.assignedTo === 'you' && isOpenTicket(ticket),
+    (ticket) => queueType(ticket.id) === 'assigned' && isOpenTicket(ticket),
   );
-  const openIncidents = filteredTickets.filter(
-    (ticket) => ticket.assignedTo === null && isOpenTicket(ticket),
+  const practiceTickets = filteredTickets.filter(
+    (ticket) => queueType(ticket.id) === 'practice' || !isOpenTicket(ticket),
   );
-  const visibleCount = assignedTickets.length + openIncidents.length;
+  const visibleCount = assignedTickets.length + practiceTickets.length;
   const allOpenCount = tickets.filter(isOpenTicket).length;
 
   return (
@@ -48,16 +52,16 @@ export function TicketQueue() {
             Support operations
           </p>
           <h1 className="mt-1 font-display text-2xl font-bold text-zinc-100 sm:text-3xl">
-            Ticket Queue
+            My Service Desk
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-            Continue your active incident or pick up an open request from the
-            shared queue.
+            Start with the cases assigned to your shift. Completed and earlier
+            cases stay available for practice.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs font-bold uppercase text-zinc-500">
           <IconTicket aria-hidden="true" className="h-4 w-4 text-sky-400" />
-          {allOpenCount} active incidents
+          {allOpenCount} active cases
         </div>
       </header>
 
@@ -66,36 +70,63 @@ export function TicketQueue() {
       {assignedTickets.length > 0 ? (
         <TicketQueueSection
           icon={IconUser}
-          label="Assigned to you"
-          meta={`${assignedTickets.length} active`}
+          label="Assigned"
+          meta={`${assignedTickets.length} new or active`}
           tickets={assignedTickets}
+          assignmentByTicket={assignmentByTicket}
         />
       ) : null}
 
-      {openIncidents.length > 0 ? (
-        <section aria-labelledby="open-incidents-title">
-          <div className="mb-3 flex items-center gap-2">
-            <h2
-              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-zinc-500"
-              id="open-incidents-title"
-            >
-              <IconClipboardList
-                aria-hidden="true"
-                className="h-4 w-4 text-sky-400"
-              />
-              Open incidents
-            </h2>
-            <span className="ml-auto text-xs font-semibold text-zinc-500">
-              Select an incident to open its workspace
-            </span>
-          </div>
+      <section aria-labelledby="practice-title">
+        <div className="mb-3 flex items-center gap-2">
+          <h2
+            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-zinc-500"
+            id="practice-title"
+          >
+            <IconClipboardList
+              aria-hidden="true"
+              className="h-4 w-4 text-sky-400"
+            />
+            Practice
+          </h2>
+          <span className="ml-auto text-right text-xs font-semibold text-zinc-500">
+            Replay cases you have completed
+          </span>
+        </div>
+        {practiceTickets.length > 0 ? (
           <TicketQueueSection
-            icon={IconClipboardList}
-            label="Incidents"
-            meta={`${openIncidents.length} open`}
-            tickets={openIncidents}
+            icon={IconRefresh}
+            label="Practice cases"
+            meta={`${practiceTickets.length} unlocked`}
+            tickets={practiceTickets}
+            assignmentByTicket={assignmentByTicket}
           />
-        </section>
+        ) : (
+          <Card className="border-dashed border-zinc-800 px-4 py-4 text-sm text-zinc-500">
+            No completed cases yet. Successfully complete an assigned case to
+            add it here for replay.
+          </Card>
+        )}
+      </section>
+
+      {progression?.next_pack ? (
+        <Card className="flex items-start gap-3 border-dashed border-zinc-700 p-4 sm:p-5">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-700 bg-zinc-950 text-zinc-400">
+            <IconLock aria-hidden="true" className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-wide text-zinc-500">
+              Next case pack
+            </p>
+            <h2 className="mt-1 font-display text-base font-bold text-zinc-100">
+              {progression.next_pack.name}
+            </h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              {progression.next_pack.reason} Continue your Nexus training to
+              unlock these cases.
+            </p>
+          </div>
+        </Card>
       ) : null}
 
       {visibleCount === 0 ? (

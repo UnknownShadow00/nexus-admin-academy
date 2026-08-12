@@ -1,4 +1,4 @@
-import { BookOpen, Brain, Flame, Ticket, Trophy, Zap } from "lucide-react";
+import { ArrowRight, BookOpen, Brain, CheckCircle2, Circle, Clock3, Flame, Ticket, Trophy, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import FlashcardReviewPanel from "../components/FlashcardReviewPanel";
@@ -59,7 +59,7 @@ export default function StudentHome() {
     return {
       label: fresh ? "Start Training" : "Continue Training",
       to: next?.destination_route || `/training/week/${week.week_number}`,
-      title: fresh ? "Begin Your IT Training" : "Continue Your Training",
+      title: fresh ? "Begin Your IT Training" : "Continue where you left off",
       detail: `Week ${week.week_number} — ${week.title}`,
     };
   }, [training]);
@@ -87,6 +87,9 @@ export default function StudentHome() {
   }
 
   const recent = (stats.recent_activity || []).slice(0, 5);
+  const weekActivities = training?.current_week_activities || [];
+  const requiredActivities = weekActivities.filter((item) => item.is_required);
+  const optionalActivities = weekActivities.filter((item) => !item.is_required);
   const statCards = [
     { label: "Total XP", value: stats.total_xp || 0, to: "/progress", Icon: Zap, accent: "text-blue-600 dark:text-blue-400", card: "sm:col-span-2 lg:col-span-1" },
     { label: "Day Streak", value: stats.streak || 0, to: "/progress", Icon: Flame, accent: "text-orange-500 dark:text-orange-300" },
@@ -102,9 +105,35 @@ export default function StudentHome() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">My Training</p>
         <h2 className="mt-2 text-2xl font-bold sm:text-3xl">{continueTarget.title}</h2>
         <p className="mt-2 text-blue-100">{continueTarget.detail}</p>
+        {training?.next_activity ? (
+          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-white/20 bg-blue-950/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wide text-blue-200">Next up</p>
+              <p className="mt-1 truncate font-semibold text-white">{training.next_activity.activity_label} — {training.next_activity.title}</p>
+              {training.next_activity.estimated_minutes ? <p className="mt-1 inline-flex items-center gap-1 text-xs text-blue-100"><Clock3 size={13} />About {training.next_activity.estimated_minutes} min</p> : null}
+            </div>
+            <ArrowRight className="hidden shrink-0 text-blue-200 sm:block" size={20} aria-hidden="true" />
+          </div>
+        ) : null}
         {training?.current_week ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{training.current_week.required_complete} of {training.current_week.required_total} required activities complete</span><strong>{training.current_week.completion_percent}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${training.current_week.completion_percent}%` }} /></div></div> : null}
         <Link className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 font-bold text-blue-700 hover:bg-blue-50" to={continueTarget.to}>{continueTarget.label}</Link>
       </section>
+
+      {training?.current_week ? (
+        <section className="panel space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">This Week</p><h2 className="mt-1 text-xl font-semibold text-slate-900 dark:text-white">Week {training.current_week.week_number} — {training.current_week.title}</h2></div>
+            <Link className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to={`/training/week/${training.current_week.week_number}`}>View weekly plan</Link>
+          </div>
+          <ol className="divide-y divide-slate-200 dark:divide-slate-700">
+            {requiredActivities.map((item) => {
+              const isNext = item.id === training.next_activity?.id;
+              return <li className={`flex items-center gap-3 py-2.5 ${isNext ? "font-semibold text-blue-700 dark:text-blue-300" : "text-slate-700 dark:text-slate-300"}`} key={item.id}>{item.complete ? <CheckCircle2 className="shrink-0 text-emerald-500" size={18} /> : isNext ? <ArrowRight className="shrink-0 text-blue-600" size={18} /> : <Circle className="shrink-0 text-slate-300 dark:text-slate-600" size={18} />}<span className="min-w-0 flex-1 truncate">{item.title}</span><span className="shrink-0 text-xs font-medium text-slate-500">{isNext ? "Next" : item.complete ? "Done" : "Upcoming"}</span></li>;
+            })}
+          </ol>
+          {optionalActivities.length ? <p className="rounded-lg bg-violet-50 px-3 py-2 text-sm text-violet-800 dark:bg-violet-950/30 dark:text-violet-200"><strong>Optional practice:</strong> {optionalActivities.length} item{optionalActivities.length === 1 ? "" : "s"}. These do not block your next week.</p> : null}
+        </section>
+      ) : null}
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map(({ label, value, to, Icon, accent, card }) => (

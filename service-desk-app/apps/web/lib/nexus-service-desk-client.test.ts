@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   completeAttempt,
   getAttempt,
+  getServiceDeskProgression,
   listAssignments,
   persistAttemptSnapshot,
   recordAttemptEvent,
@@ -52,7 +53,11 @@ describe('Nexus service desk client', () => {
             {
               id: 1,
               is_required: true,
-              latest_published_version: { definition_json: {}, id: 1, version_number: 1 },
+              latest_published_version: {
+                definition_json: {},
+                id: 1,
+                version_number: 1,
+              },
               mode: 'practice',
               most_recent_attempt: null,
               maximum_attempts: null,
@@ -60,11 +65,32 @@ describe('Nexus service desk client', () => {
               scenario_id: 1,
             },
           ]
-        : path.endsWith('/events') || path.endsWith('/hints')
-          ? { accepted: true, body }
-          : path.endsWith('/complete')
-            ? grade
-            : attempt;
+        : path.endsWith('/progression')
+          ? {
+              counts: {
+                available: 4,
+                completed: 0,
+                in_progress: 0,
+                practice: 0,
+              },
+              current_pack: { key: 'starter-support', name: 'Starter Support' },
+              current_week: 0,
+              next_pack: {
+                key: 'desktop-support',
+                name: 'Desktop Support',
+                reason:
+                  'Reach Week 3 and complete 2 Starter Support cases successfully.',
+                required_passes: 2,
+                required_week: 3,
+                source_pack_name: 'Starter Support',
+                source_pack_passes: 0,
+              },
+            }
+          : path.endsWith('/events') || path.endsWith('/hints')
+            ? { accepted: true, body }
+            : path.endsWith('/complete')
+              ? grade
+              : attempt;
       return Promise.resolve(
         new Response(JSON.stringify(response), { status: 200 }),
       );
@@ -72,6 +98,11 @@ describe('Nexus service desk client', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(listAssignments()).resolves.toHaveLength(1);
+    await expect(getServiceDeskProgression()).resolves.toMatchObject({
+      counts: { available: 4, practice: 0 },
+      current_pack: { name: 'Starter Support' },
+      next_pack: { name: 'Desktop Support' },
+    });
     await expect(startOrResumeAttempt(1)).resolves.toMatchObject({
       id: 101,
     });
