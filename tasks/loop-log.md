@@ -1192,3 +1192,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/tests/e2e/my-training.spec.js; tasks/loop-log.md
 - Result: pass against acceptance criteria — the replacement CI trace identified only two expected Home reads crossing the immediate logout boundary and returning 401; the test now waits for Home network idle before revoking the session, exactly as the existing admin test does, while retaining strict console/network assertions. The complete six-test My Training suite passed locally in 26.3 seconds.
 - Next: Push this focused fix to existing draft PR #15 and wait for the replacement five-job CI run to pass; do not mark ready, merge, or deploy.
+
+## [2026-08-12T23:03:04Z] Task Completed
+- Task: Audited the complete Service Desk simulator, its 21 runnable scenarios, grading and persistence boundaries, learning-mode leakage, starter-versus-curriculum contradiction, and five representative workflows; researched real Windows support workflows and compared window-manager, terminal, File Explorer, and browser-OS dependencies.
+- Files changed: docs/SERVICE_DESK_WORKSTATION_REALISM_AUDIT.md; docs/SERVICE_DESK_WORKSTATION_REALISM_RESEARCH.md; tasks/loop-log.md
+- Result: pass against the audit and research acceptance criteria — both required evidence-backed documents now identify the existing strengths, exact one-click shortcuts, state and architecture gaps, authoritative Guided/Practice/Assessment policy, backward-compatible persistence requirements, conditional react-rnd adoption gate, project-owned domain boundaries, future VM seam, and later BitLocker/onboarding plans.
+- Next: Implement the versioned shared workstation state and snapshot upgrader test-first, then extract the reducer, command interpreter, shell, and apps before converting the five workflows.
