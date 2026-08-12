@@ -212,6 +212,108 @@ describe('Remote Desktop actions', () => {
     });
   });
 
+  it('projects desktop, network, service, drive, and terminal changes into one workstation model', () => {
+    const connected = connect(createAttempt(), 'NX-6128', 'INC2405');
+    const explorer = apply(connected.attempt, {
+      type: 'remote_desktop.open_app',
+      payload: { assetTag: 'NX-6128', appId: 'explorer' },
+    });
+    const mapped = apply(explorer.attempt, {
+      type: 'remote_desktop.explorer_reconnect_drive',
+      payload: { assetTag: 'NX-6128', driveLetter: 'Y:' },
+    });
+    const stopped = apply(mapped.attempt, {
+      type: 'remote_desktop.stop_service',
+      payload: { assetTag: 'NX-6128', serviceName: 'Windows Update' },
+    });
+    const terminal = apply(stopped.attempt, {
+      type: 'remote_desktop.run_terminal_command',
+      payload: { assetTag: 'NX-6128', command: 'net use' },
+    });
+    const state =
+      terminal.attempt.remoteDesktopOverlays['NX-6128']?.workstation;
+
+    expect(state).toMatchObject({
+      mappedDrives: { 'Y:': { status: 'connected' } },
+      services: { 'Windows Update': { state: 'stopped' } },
+      desktop: {
+        activeAppId: 'explorer',
+        windows: { explorer: { open: true, minimized: false } },
+      },
+      terminal: { history: [{ command: 'net use' }] },
+    });
+    expect(state?.filesystem.nodes['drive-Y']).toMatchObject({
+      available: true,
+      access: 'read-write',
+    });
+  });
+
+  it('persists bounded window movement, maximize/restore, and Start state', () => {
+    const connected = connect(createAttempt(), 'NX-2047', 'INC2406');
+    const opened = apply(connected.attempt, {
+      type: 'remote_desktop.open_app',
+      payload: { assetTag: 'NX-2047', appId: 'explorer' },
+    });
+    const moved = apply(opened.attempt, {
+      type: 'remote_desktop.move_window',
+      payload: {
+        assetTag: 'NX-2047',
+        appId: 'explorer',
+        bounds: { x: 180, y: 96, width: 820, height: 560 },
+      },
+    });
+    const maximized = apply(moved.attempt, {
+      type: 'remote_desktop.toggle_window_maximize',
+      payload: { assetTag: 'NX-2047', appId: 'explorer' },
+    });
+    const startOpen = apply(maximized.attempt, {
+      type: 'remote_desktop.set_start_menu',
+      payload: { assetTag: 'NX-2047', open: true },
+    });
+    const restored = apply(startOpen.attempt, {
+      type: 'remote_desktop.toggle_window_maximize',
+      payload: { assetTag: 'NX-2047', appId: 'explorer' },
+    });
+    const rejected = apply(restored.attempt, {
+      type: 'remote_desktop.move_window',
+      payload: {
+        assetTag: 'NX-2047',
+        appId: 'explorer',
+        bounds: { x: -10, y: 0, width: 200, height: 100 },
+      },
+    });
+
+    expect(
+      moved.attempt.remoteDesktopOverlays['NX-2047']?.workstation.desktop,
+    ).toMatchObject({
+      windows: {
+        explorer: {
+          bounds: { x: 180, y: 96, width: 820, height: 560 },
+        },
+      },
+    });
+    expect(
+      maximized.attempt.remoteDesktopOverlays['NX-2047']?.workstation.desktop
+        .windows.explorer,
+    ).toMatchObject({ maximized: true, restoreBounds: { x: 180, y: 96 } });
+    expect(
+      startOpen.attempt.remoteDesktopOverlays['NX-2047']?.workstation.desktop
+        .startMenuOpen,
+    ).toBe(true);
+    expect(
+      restored.attempt.remoteDesktopOverlays['NX-2047']?.workstation.desktop
+        .windows.explorer,
+    ).toMatchObject({
+      maximized: false,
+      bounds: { x: 180, y: 96, width: 820, height: 560 },
+      restoreBounds: null,
+    });
+    expect(rejected.event.success).toBe(false);
+    expect(rejected.event.rejectReason).toContain(
+      'within the simulated desktop',
+    );
+  });
+
   it('tracks VPN repair evidence without completing before note and closure', () => {
     const connected = connect(createAttempt(), 'NX-2047', 'INC2406');
     const incorrect = apply(connected.attempt, {
@@ -238,7 +340,11 @@ describe('Remote Desktop actions', () => {
       type: 'remote_desktop.vpn_complete_connection',
       payload: { assetTag: 'NX-2047' },
     });
-    const verified = apply(fixed.attempt, {
+    const reconnected = apply(fixed.attempt, {
+      type: 'remote_desktop.explorer_reconnect_drive',
+      payload: { assetTag: 'NX-2047', driveLetter: 'Z:' },
+    });
+    const verified = apply(reconnected.attempt, {
       type: 'remote_desktop.explorer_navigate',
       payload: { assetTag: 'NX-2047', path: 'Z:\\' },
     });
@@ -633,6 +739,75 @@ describe('Remote Desktop actions', () => {
     });
   });
 
+  it('maps a validated UNC path with reconnect and safe stored-credential metadata', () => {
+    const connected = connect(createAttempt(), 'NX-6128', 'INC2405');
+    const credential = apply(connected.attempt, {
+      type: 'remote_desktop.credential_add',
+      payload: {
+        assetTag: 'NX-6128',
+        target: 'facilities.nexus.internal',
+        username: 'NEXUS\\morgan.taylor',
+      },
+    });
+    const mapped = apply(credential.attempt, {
+      type: 'remote_desktop.map_drive',
+      payload: {
+        assetTag: 'NX-6128',
+        letter: 'Y:',
+        uncPath: '\\\\facilities.nexus.internal\\calendar',
+        reconnectAtSignIn: true,
+        credentialTarget: 'facilities.nexus.internal',
+      },
+    });
+    const wrongPath = apply(connected.attempt, {
+      type: 'remote_desktop.map_drive',
+      payload: {
+        assetTag: 'NX-6128',
+        letter: 'Y:',
+        uncPath: 'https://facilities.nexus.internal/calendar',
+        reconnectAtSignIn: true,
+        credentialTarget: null,
+      },
+    });
+    const removed = apply(mapped.attempt, {
+      type: 'remote_desktop.credential_delete',
+      payload: {
+        assetTag: 'NX-6128',
+        target: 'facilities.nexus.internal',
+      },
+    });
+
+    expect(credential.event.success).toBe(true);
+    expect(mapped.event.success).toBe(true);
+    expect(mapped.attempt.remoteDesktopOverlays['NX-6128']).toMatchObject({
+      driveStates: { 'Y:': 'connected' },
+      workstation: {
+        mappedDrives: {
+          'Y:': {
+            uncPath: '\\\\facilities.nexus.internal\\calendar',
+            reconnectAtSignIn: true,
+            credentialTarget: 'facilities.nexus.internal',
+            status: 'connected',
+          },
+        },
+        credentials: {
+          'facilities.nexus.internal': {
+            username: 'NEXUS\\morgan.taylor',
+          },
+        },
+      },
+    });
+    expect(wrongPath.event.success).toBe(false);
+    expect(wrongPath.event.rejectReason).toContain('network name');
+    expect(
+      removed.attempt.remoteDesktopOverlays['NX-6128']?.workstation.credentials,
+    ).toEqual({});
+    expect(
+      removed.attempt.remoteDesktopOverlays['NX-6128']?.workstation
+        .mappedDrives['Y:']?.credentialTarget,
+    ).toBeNull();
+  });
+
   it('converges on the same shared drive state from Explorer and the legacy repair step', () => {
     const explorerSession = connect(createAttempt(), 'NX-6128', 'INC2405');
     const explorerRepair = apply(explorerSession.attempt, {
@@ -674,7 +849,11 @@ describe('Remote Desktop actions', () => {
       type: 'remote_desktop.vpn_complete_connection',
       payload: { assetTag: 'NX-2047' },
     });
-    const refreshed = apply(vpnConnected.attempt, {
+    const driveReconnected = apply(vpnConnected.attempt, {
+      type: 'remote_desktop.explorer_reconnect_drive',
+      payload: { assetTag: 'NX-2047', driveLetter: 'Z:' },
+    });
+    const refreshed = apply(driveReconnected.attempt, {
       type: 'remote_desktop.explorer_refresh',
       payload: { assetTag: 'NX-2047' },
     });
@@ -725,7 +904,11 @@ describe('Remote Desktop actions', () => {
       type: 'remote_desktop.vpn_complete_connection',
       payload: { assetTag: 'NX-2047' },
     });
-    const refreshed = apply(vpnConnected.attempt, {
+    const driveReconnected = apply(vpnConnected.attempt, {
+      type: 'remote_desktop.explorer_reconnect_drive',
+      payload: { assetTag: 'NX-2047', driveLetter: 'Z:' },
+    });
+    const refreshed = apply(driveReconnected.attempt, {
       type: 'remote_desktop.explorer_refresh',
       payload: { assetTag: 'NX-2047' },
     });
@@ -780,7 +963,7 @@ describe('Remote Desktop actions', () => {
     );
   });
 
-  it('connects and disconnects VPN with timestamped logs, shared-drive state, and a modeled error', () => {
+  it('connects and disconnects VPN routes without magically repairing a mapped drive', () => {
     const connected = connect(createAttempt(), 'NX-2047', 'INC2406');
     const connectingVpn = apply(connected.attempt, {
       type: 'remote_desktop.vpn_connect',
@@ -790,7 +973,11 @@ describe('Remote Desktop actions', () => {
       type: 'remote_desktop.vpn_complete_connection',
       payload: { assetTag: 'NX-2047' },
     });
-    const disconnectedVpn = apply(completedVpn.attempt, {
+    const reconnectedDrive = apply(completedVpn.attempt, {
+      type: 'remote_desktop.explorer_reconnect_drive',
+      payload: { assetTag: 'NX-2047', driveLetter: 'Z:' },
+    });
+    const disconnectedVpn = apply(reconnectedDrive.attempt, {
       type: 'remote_desktop.vpn_disconnect',
       payload: { assetTag: 'NX-2047' },
     });
@@ -803,11 +990,27 @@ describe('Remote Desktop actions', () => {
     });
     expect(completedVpn.attempt.remoteDesktopOverlays['NX-2047']).toMatchObject(
       {
-        driveStates: { 'Z:': 'connected' },
+        driveStates: { 'Z:': 'network-path-error' },
         vpnError: null,
         vpnStatus: 'connected',
+        workstation: {
+          network: {
+            intranetReachable: true,
+            routes: [
+              expect.objectContaining({ source: 'dhcp' }),
+              expect.objectContaining({ source: 'vpn' }),
+            ],
+          },
+          mappedDrives: { 'Z:': { status: 'network-path-error' } },
+        },
       },
     );
+    expect(
+      reconnectedDrive.attempt.remoteDesktopOverlays['NX-2047'],
+    ).toMatchObject({
+      driveStates: { 'Z:': 'connected' },
+      workstation: { mappedDrives: { 'Z:': { status: 'connected' } } },
+    });
     expect(
       restoreAttempt(serializeAttempt(completedVpn.attempt))
         ?.remoteDesktopOverlays['NX-2047'],
@@ -830,33 +1033,35 @@ describe('Remote Desktop actions', () => {
       type: 'remote_desktop.vpn_connect',
       payload: { assetTag: 'NX-6128' },
     });
-    const mappedVpnConnected = apply(mappedVpnConnecting.attempt, {
-      type: 'remote_desktop.vpn_complete_connection',
-      payload: { assetTag: 'NX-6128' },
-    });
-    expect(
-      mappedVpnConnected.attempt.remoteDesktopOverlays['NX-6128']?.driveStates[
-        'Y:'
-      ],
-    ).toBe('disconnected');
+    expect(mappedVpnConnecting.event.success).toBe(false);
+    expect(mappedVpnConnecting.event.rejectReason).toContain('No VPN profile');
 
-    const offline = connect(createAttempt(), 'NX-1344', 'INC9999');
-    const offlineConnecting = apply(offline.attempt, {
+    const online = connect(createAttempt(), 'NX-2047', 'INC2406');
+    const onlineOverlay = online.attempt.remoteDesktopOverlays['NX-2047'];
+    if (!onlineOverlay) throw new Error('Expected VPN workstation');
+    const offlineAttempt = {
+      ...online.attempt,
+      remoteDesktopOverlays: {
+        ...online.attempt.remoteDesktopOverlays,
+        'NX-2047': { ...onlineOverlay, networkStatus: 'offline' as const },
+      },
+    };
+    const offlineConnecting = apply(offlineAttempt, {
       type: 'remote_desktop.vpn_connect',
-      payload: { assetTag: 'NX-1344' },
+      payload: { assetTag: 'NX-2047' },
     });
     const failed = apply(offlineConnecting.attempt, {
       type: 'remote_desktop.vpn_complete_connection',
-      payload: { assetTag: 'NX-1344' },
+      payload: { assetTag: 'NX-2047' },
     });
 
     expect(failed.event.success).toBe(false);
-    expect(failed.attempt.remoteDesktopOverlays['NX-1344']).toMatchObject({
+    expect(failed.attempt.remoteDesktopOverlays['NX-2047']).toMatchObject({
       vpnError: expect.stringContaining('no network connection'),
       vpnStatus: 'error',
     });
     expect(
-      failed.attempt.remoteDesktopOverlays['NX-1344']?.vpnLog.at(-1),
+      failed.attempt.remoteDesktopOverlays['NX-2047']?.vpnLog.at(-1),
     ).toMatchObject({
       message: expect.stringContaining('Connection failed'),
       timestamp: expect.any(String),

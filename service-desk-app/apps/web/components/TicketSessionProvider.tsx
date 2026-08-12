@@ -35,10 +35,13 @@ import {
   type DirectoryGroupName,
   type DirectoryUserTemplate,
   type Ticket,
+  type WorkstationState,
+  type WorkstationWindowBounds,
 } from '@service-desk/shared';
 import {
   applyAction,
   createAttempt,
+  createWorkstationState,
   deriveAnalyticsSummary,
   derivePastTickets,
   evaluateObjectives,
@@ -244,6 +247,7 @@ interface ServerRoomSessionContextValue {
 
 export interface RemoteDesktopWorkstationRecord
   extends RemoteDesktopWorkstationFixture {
+  workstation: WorkstationState;
   completedScenarioIds: readonly string[];
   connectionState: RemoteDesktopConnectionState;
   dnsServers: readonly string[];
@@ -298,6 +302,24 @@ interface RemoteDesktopSessionContextValue {
   focusApp: (assetTag: string, appId: RemoteDesktopAppId) => ActionEvent;
   isHydrated: boolean;
   minimizeApp: (assetTag: string, appId: RemoteDesktopAppId) => ActionEvent;
+  mapDrive: (
+    assetTag: string,
+    letter: string,
+    uncPath: string,
+    reconnectAtSignIn: boolean,
+    credentialTarget: string | null,
+  ) => ActionEvent;
+  addCredential: (
+    assetTag: string,
+    target: string,
+    username: string,
+  ) => ActionEvent;
+  deleteCredential: (assetTag: string, target: string) => ActionEvent;
+  moveWindow: (
+    assetTag: string,
+    appId: RemoteDesktopAppId,
+    bounds: WorkstationWindowBounds,
+  ) => ActionEvent;
   networkReset: (assetTag: string) => ActionEvent;
   openApp: (assetTag: string, appId: RemoteDesktopAppId) => ActionEvent;
   performScenarioStep: (
@@ -331,6 +353,11 @@ interface RemoteDesktopSessionContextValue {
   setLearningMode: (
     assetTag: string,
     mode: RemoteDesktopLearningMode,
+  ) => ActionEvent;
+  setStartMenu: (assetTag: string, open: boolean) => ActionEvent;
+  toggleWindowMaximize: (
+    assetTag: string,
+    appId: RemoteDesktopAppId,
   ) => ActionEvent;
   workstations: readonly RemoteDesktopWorkstationRecord[];
 }
@@ -979,6 +1006,8 @@ function projectRemoteDesktopWorkstations(
 
     return {
       ...fixture,
+      workstation:
+        overlay?.workstation ?? createWorkstationState(fixture.assetTag),
       completedScenarioIds: overlay?.completedScenarioIds ?? [],
       dnsServers:
         overlay?.dnsServers ??
@@ -2068,6 +2097,38 @@ export function TicketSessionProvider({
           type: 'remote_desktop.minimize_app',
           payload: { assetTag, appId },
         }),
+      mapDrive: (
+        assetTag,
+        letter,
+        uncPath,
+        reconnectAtSignIn,
+        credentialTarget,
+      ) =>
+        dispatchAction({
+          type: 'remote_desktop.map_drive',
+          payload: {
+            assetTag,
+            letter,
+            uncPath,
+            reconnectAtSignIn,
+            credentialTarget,
+          },
+        }),
+      addCredential: (assetTag, target, username) =>
+        dispatchAction({
+          type: 'remote_desktop.credential_add',
+          payload: { assetTag, target, username },
+        }),
+      deleteCredential: (assetTag, target) =>
+        dispatchAction({
+          type: 'remote_desktop.credential_delete',
+          payload: { assetTag, target },
+        }),
+      moveWindow: (assetTag, appId, bounds) =>
+        dispatchAction({
+          type: 'remote_desktop.move_window',
+          payload: { assetTag, appId, bounds },
+        }),
       networkReset: (assetTag) =>
         dispatchAction({
           type: 'remote_desktop.network_reset',
@@ -2167,6 +2228,16 @@ export function TicketSessionProvider({
         dispatchAction({
           type: 'remote_desktop.set_learning_mode',
           payload: { assetTag, mode },
+        }),
+      setStartMenu: (assetTag, open) =>
+        dispatchAction({
+          type: 'remote_desktop.set_start_menu',
+          payload: { assetTag, open },
+        }),
+      toggleWindowMaximize: (assetTag, appId) =>
+        dispatchAction({
+          type: 'remote_desktop.toggle_window_maximize',
+          payload: { assetTag, appId },
         }),
       workstations: remoteDesktopWorkstations,
     }),

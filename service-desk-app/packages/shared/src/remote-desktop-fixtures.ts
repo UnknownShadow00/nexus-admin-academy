@@ -49,6 +49,7 @@ export const REMOTE_DESKTOP_APP_IDS = [
   'trash',
   'system',
   'terminal',
+  'credential-manager',
 ] as const;
 
 export type RemoteDesktopPowerState =
@@ -467,13 +468,20 @@ export const REMOTE_DESKTOP_WORKSTATION_FIXTURES: readonly RemoteDesktopWorkstat
   [
     ...DIRECTORY_REMOTE_DESKTOP_WORKSTATIONS,
     ...TICKET_REMOTE_DESKTOP_WORKSTATIONS,
-    ...([
-      ['NX-2501', 'Morgan Ellis', 'ACCT-LT-17'], ['NX-2502', 'Priya Shah', 'FIN-WS-44'],
-      ['NX-2503', 'Jordan Kim', 'OPS-WS-12'], ['NX-2504', 'Sofia Nguyen', 'ENG-WS-09'],
-      ['NX-2505', 'Taylor Reed', 'MKT-LT-05'], ['NX-2506', 'Casey Lane', 'HR-LT-21'],
-      ['NX-2507', 'Avery Monroe', 'SALES-LT-08'], ['NX-2508', 'Riley Brown', 'PAY-LT-03'],
-      ['NX-2509', 'Devon Ross', 'SUP-WS-31'], ['NX-2510', 'Sam Ortiz', 'OPS-LT-58'],
-    ] as const).map(([assetTag, employeeName, hostname], index) => ({
+    ...(
+      [
+        ['NX-2501', 'Morgan Ellis', 'ACCT-LT-17'],
+        ['NX-2502', 'Priya Shah', 'FIN-WS-44'],
+        ['NX-2503', 'Jordan Kim', 'OPS-WS-12'],
+        ['NX-2504', 'Sofia Nguyen', 'ENG-WS-09'],
+        ['NX-2505', 'Taylor Reed', 'MKT-LT-05'],
+        ['NX-2506', 'Casey Lane', 'HR-LT-21'],
+        ['NX-2507', 'Avery Monroe', 'SALES-LT-08'],
+        ['NX-2508', 'Riley Brown', 'PAY-LT-03'],
+        ['NX-2509', 'Devon Ross', 'SUP-WS-31'],
+        ['NX-2510', 'Sam Ortiz', 'OPS-LT-58'],
+      ] as const
+    ).map(([assetTag, employeeName, hostname], index) => ({
       assetTag,
       directoryUserId: `directory-user-${assetTag.toLowerCase()}`,
       employeeName,
@@ -1118,10 +1126,13 @@ type ConvertedScenarioSpec = {
   verification: string;
 };
 
-function convertedScenario(spec: ConvertedScenarioSpec): RemoteDesktopScenarioFixture {
+function convertedScenario(
+  spec: ConvertedScenarioSpec,
+): RemoteDesktopScenarioFixture {
   const actionLabels = {
     'scenario.inspect-symptom': spec.investigation,
-    'scenario.collect-evidence': 'Collected relevant system and comparison evidence',
+    'scenario.collect-evidence':
+      'Collected relevant system and comparison evidence',
     'scenario.isolate-root-cause': spec.diagnosis,
     'scenario.apply-safe-remediation': spec.remediation,
     'scenario.verify-original-symptom': spec.verification,
@@ -1139,38 +1150,226 @@ function convertedScenario(spec: ConvertedScenarioSpec): RemoteDesktopScenarioFi
     ],
     actionLabels,
     documentationArticleIds: ['network-first-response', 'sop-change-record'],
-    requiredSteps: [], optionalSteps: ['scenario.collect-evidence'], incorrectSteps: [],
+    requiredSteps: [],
+    optionalSteps: ['scenario.collect-evidence'],
+    incorrectSteps: [],
     workflow: {
-      investigate: [{ id: 'scope-established', anyOf: ['scenario.inspect-symptom', 'scenario.collect-evidence'] }],
-      diagnose: [{ id: 'root-cause-isolated', anyOf: ['scenario.isolate-root-cause'] }],
-      fix: [{ id: 'safe-remediation-applied', anyOf: ['scenario.apply-safe-remediation'] }],
-      verify: [{ id: 'original-symptom-verified', anyOf: ['scenario.verify-original-symptom'] }],
-      note: { minimumLength: 20 }, close: { explicit: true },
-      scoring: { investigation: 15, diagnosis: 25, remediation: 30, verification: 20, documentation: 10 },
+      investigate: [
+        {
+          id: 'scope-established',
+          anyOf: ['scenario.inspect-symptom', 'scenario.collect-evidence'],
+        },
+      ],
+      diagnose: [
+        { id: 'root-cause-isolated', anyOf: ['scenario.isolate-root-cause'] },
+      ],
+      fix: [
+        {
+          id: 'safe-remediation-applied',
+          anyOf: ['scenario.apply-safe-remediation'],
+        },
+      ],
+      verify: [
+        {
+          id: 'original-symptom-verified',
+          anyOf: ['scenario.verify-original-symptom'],
+        },
+      ],
+      note: { minimumLength: 20 },
+      close: { explicit: true },
+      scoring: {
+        investigation: 15,
+        diagnosis: 25,
+        remediation: 30,
+        verification: 20,
+        documentation: 10,
+      },
       finalState: {},
     },
     explanation: spec.rootCause,
-    completion: { rootCause: spec.rootCause, whatFixed: spec.remedy, whyItWorked: 'The action addressed the established cause and the original symptom was retested.' },
+    completion: {
+      rootCause: spec.rootCause,
+      whatFixed: spec.remedy,
+      whyItWorked:
+        'The action addressed the established cause and the original symptom was retested.',
+    },
   };
 }
 
-const CONVERTED_REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] = [
-  convertedScenario({ id: 'temporary-windows-profile', ticketId: 'INC2501', assetTag: 'NX-2501', title: 'Temporary Windows profile hides user files', summary: 'The sign-in created a temporary profile; user data must be protected before profile repair.', rootCause: 'Windows loaded a temporary profile instead of the user’s normal profile.', remedy: 'Protected the user data, repaired the profile mapping, and confirmed the normal profile loaded.', investigation: 'Inspected the sign-in profile and protected user data', diagnosis: 'Isolated a temporary profile rather than deleted files', remediation: 'Repaired the temporary profile mapping safely', verification: 'Confirmed the normal desktop and Documents returned' }),
-  convertedScenario({ id: 'excel-add-in-isolation', ticketId: 'INC2502', assetTag: 'NX-2502', title: 'Excel add-in crashes one reporting workbook', summary: 'The crash must be reproduced and isolated from workbook-only and application-wide causes.', rootCause: 'A reporting add-in conflicted with the workbook load path.', remedy: 'Disabled the failing add-in and validated the workbook opens and saves.', investigation: 'Reproduced the crash with the original workbook', diagnosis: 'Used Safe Mode evidence to isolate the failing add-in', remediation: 'Disabled the identified Excel add-in', verification: 'Opened and saved the original reporting workbook' }),
-  convertedScenario({ id: 'office-move-network', ticketId: 'INC2503', assetTag: 'NX-2503', title: 'Moved desk is on the wrong network path', summary: 'A single moved workstation needs physical, switch, VLAN, and DHCP isolation against a working neighbour.', rootCause: 'The moved desk was connected to an incorrectly assigned switch port/VLAN.', remedy: 'Corrected the approved switch-port assignment and renewed network access.', investigation: 'Compared the affected desk with a nearby working workstation', diagnosis: 'Isolated the physical switch-port/VLAN mismatch', remediation: 'Corrected the approved switch-port assignment', verification: 'Confirmed the original order system loads at the moved desk' }),
-  convertedScenario({ id: 'printer-dhcp-port', ticketId: 'INC2504', assetTag: 'NX-2504', title: 'Local print port still uses an old DHCP address', summary: 'The printer is healthy for peers, while the affected workstation retains an obsolete print port.', rootCause: 'The workstation’s printer port still targeted the printer’s old DHCP address.', remedy: 'Updated the local print port to the approved current address and printed a test page.', investigation: 'Confirmed printing works from a nearby workstation', diagnosis: 'Compared the local print port with the current printer address', remediation: 'Updated the obsolete local print port', verification: 'Printed the original test document successfully' }),
-  convertedScenario({ id: 'department-share-least-privilege', ticketId: 'INC2505', assetTag: 'NX-2505', title: 'New hire lacks approved department-share group', summary: 'Use peer comparison and approved least-privilege membership before changing access.', rootCause: 'The new employee was missing the approved Marketing share group.', remedy: 'Added only the approved department group and confirmed access.', investigation: 'Confirmed the requested share and compared an authorized peer', diagnosis: 'Identified the missing approved group membership', remediation: 'Applied the least-privilege department group change', verification: 'Opened the original Marketing share successfully' }),
-  convertedScenario({ id: 'restricted-folder-escalation', ticketId: 'INC2506', assetTag: 'NX-2506', title: 'Restricted salary-folder request requires authorization', summary: 'The correct resolution is safe escalation, not a convenient group change.', rootCause: 'The request lacked authorization for restricted HR salary records.', remedy: 'Did not grant access; routed the request to the authorized HR approver.', investigation: 'Confirmed the folder is restricted and approval is absent', diagnosis: 'Identified the authorization boundary', remediation: 'Escalated through the authorized HR access path', verification: 'Confirmed the requester received the approved escalation update' }),
-  convertedScenario({ id: 'recurring-lockout-stale-mapping', ticketId: 'INC2507', assetTag: 'NX-2507', title: 'Stale mapped-drive credential relocks account', summary: 'Resetting an account treats the symptom; evidence must identify the stored old credential.', rootCause: 'A mapped drive repeatedly submitted the old password after the reset.', remedy: 'Removed or updated the stale saved mapping credential and monitored for recurrence.', investigation: 'Reviewed the recurring lockout timing and saved connections', diagnosis: 'Isolated the stale mapped-drive credential', remediation: 'Removed the obsolete saved drive credential', verification: 'Confirmed the account remained unlocked after the normal interval' }),
-  convertedScenario({ id: 'phishing-credential-containment', ticketId: 'INC2508', assetTag: 'NX-2508', title: 'Phishing credential exposure needs containment', summary: 'Security containment and escalation take priority over ordinary troubleshooting.', rootCause: 'Credentials were entered on a suspected phishing page.', remedy: 'Contained the account, reset credentials, revoked sessions, and escalated to security.', investigation: 'Captured the phishing report and exposure scope', diagnosis: 'Classified the event as credential compromise', remediation: 'Performed safe containment and security escalation', verification: 'Confirmed sessions were revoked and the employee received safe follow-up' }),
-  convertedScenario({ id: 'recurring-disk-growth', ticketId: 'INC2509', assetTag: 'NX-2509', title: 'Recurring disk exhaustion caused by runaway logs', summary: 'Deleting temporary files is not a durable repair when application logs keep growing.', rootCause: 'A runaway application log was consuming the system drive.', remedy: 'Corrected the log retention/configuration issue and verified stable free space.', investigation: 'Compared disk use over time and identified the growing path', diagnosis: 'Isolated the runaway application log', remediation: 'Corrected log retention at the source', verification: 'Confirmed free space remained available after the scheduled interval' }),
-  convertedScenario({ id: 'domain-trust-repair', ticketId: 'INC2510', assetTag: 'NX-2510', title: 'Restored laptop has a broken domain trust', summary: 'The device computer-account relationship—not the user password—must be diagnosed safely.', rootCause: 'The restored laptop’s computer account no longer had a valid secure channel with the domain.', remedy: 'Repaired the secure channel through the approved device process and retested sign-in.', investigation: 'Confirmed the trust error and ruled out a general network failure', diagnosis: 'Identified the broken computer-account secure channel', remediation: 'Repaired the device trust through the approved process', verification: 'Confirmed normal domain sign-in on the restored laptop' }),
-];
+const CONVERTED_REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
+  [
+    convertedScenario({
+      id: 'temporary-windows-profile',
+      ticketId: 'INC2501',
+      assetTag: 'NX-2501',
+      title: 'Temporary Windows profile hides user files',
+      summary:
+        'The sign-in created a temporary profile; user data must be protected before profile repair.',
+      rootCause:
+        'Windows loaded a temporary profile instead of the user’s normal profile.',
+      remedy:
+        'Protected the user data, repaired the profile mapping, and confirmed the normal profile loaded.',
+      investigation: 'Inspected the sign-in profile and protected user data',
+      diagnosis: 'Isolated a temporary profile rather than deleted files',
+      remediation: 'Repaired the temporary profile mapping safely',
+      verification: 'Confirmed the normal desktop and Documents returned',
+    }),
+    convertedScenario({
+      id: 'excel-add-in-isolation',
+      ticketId: 'INC2502',
+      assetTag: 'NX-2502',
+      title: 'Excel add-in crashes one reporting workbook',
+      summary:
+        'The crash must be reproduced and isolated from workbook-only and application-wide causes.',
+      rootCause: 'A reporting add-in conflicted with the workbook load path.',
+      remedy:
+        'Disabled the failing add-in and validated the workbook opens and saves.',
+      investigation: 'Reproduced the crash with the original workbook',
+      diagnosis: 'Used Safe Mode evidence to isolate the failing add-in',
+      remediation: 'Disabled the identified Excel add-in',
+      verification: 'Opened and saved the original reporting workbook',
+    }),
+    convertedScenario({
+      id: 'office-move-network',
+      ticketId: 'INC2503',
+      assetTag: 'NX-2503',
+      title: 'Moved desk is on the wrong network path',
+      summary:
+        'A single moved workstation needs physical, switch, VLAN, and DHCP isolation against a working neighbour.',
+      rootCause:
+        'The moved desk was connected to an incorrectly assigned switch port/VLAN.',
+      remedy:
+        'Corrected the approved switch-port assignment and renewed network access.',
+      investigation:
+        'Compared the affected desk with a nearby working workstation',
+      diagnosis: 'Isolated the physical switch-port/VLAN mismatch',
+      remediation: 'Corrected the approved switch-port assignment',
+      verification:
+        'Confirmed the original order system loads at the moved desk',
+    }),
+    convertedScenario({
+      id: 'printer-dhcp-port',
+      ticketId: 'INC2504',
+      assetTag: 'NX-2504',
+      title: 'Local print port still uses an old DHCP address',
+      summary:
+        'The printer is healthy for peers, while the affected workstation retains an obsolete print port.',
+      rootCause:
+        'The workstation’s printer port still targeted the printer’s old DHCP address.',
+      remedy:
+        'Updated the local print port to the approved current address and printed a test page.',
+      investigation: 'Confirmed printing works from a nearby workstation',
+      diagnosis:
+        'Compared the local print port with the current printer address',
+      remediation: 'Updated the obsolete local print port',
+      verification: 'Printed the original test document successfully',
+    }),
+    convertedScenario({
+      id: 'department-share-least-privilege',
+      ticketId: 'INC2505',
+      assetTag: 'NX-2505',
+      title: 'New hire lacks approved department-share group',
+      summary:
+        'Use peer comparison and approved least-privilege membership before changing access.',
+      rootCause:
+        'The new employee was missing the approved Marketing share group.',
+      remedy: 'Added only the approved department group and confirmed access.',
+      investigation:
+        'Confirmed the requested share and compared an authorized peer',
+      diagnosis: 'Identified the missing approved group membership',
+      remediation: 'Applied the least-privilege department group change',
+      verification: 'Opened the original Marketing share successfully',
+    }),
+    convertedScenario({
+      id: 'restricted-folder-escalation',
+      ticketId: 'INC2506',
+      assetTag: 'NX-2506',
+      title: 'Restricted salary-folder request requires authorization',
+      summary:
+        'The correct resolution is safe escalation, not a convenient group change.',
+      rootCause:
+        'The request lacked authorization for restricted HR salary records.',
+      remedy:
+        'Did not grant access; routed the request to the authorized HR approver.',
+      investigation:
+        'Confirmed the folder is restricted and approval is absent',
+      diagnosis: 'Identified the authorization boundary',
+      remediation: 'Escalated through the authorized HR access path',
+      verification:
+        'Confirmed the requester received the approved escalation update',
+    }),
+    convertedScenario({
+      id: 'recurring-lockout-stale-mapping',
+      ticketId: 'INC2507',
+      assetTag: 'NX-2507',
+      title: 'Stale mapped-drive credential relocks account',
+      summary:
+        'Resetting an account treats the symptom; evidence must identify the stored old credential.',
+      rootCause:
+        'A mapped drive repeatedly submitted the old password after the reset.',
+      remedy:
+        'Removed or updated the stale saved mapping credential and monitored for recurrence.',
+      investigation:
+        'Reviewed the recurring lockout timing and saved connections',
+      diagnosis: 'Isolated the stale mapped-drive credential',
+      remediation: 'Removed the obsolete saved drive credential',
+      verification:
+        'Confirmed the account remained unlocked after the normal interval',
+    }),
+    convertedScenario({
+      id: 'phishing-credential-containment',
+      ticketId: 'INC2508',
+      assetTag: 'NX-2508',
+      title: 'Phishing credential exposure needs containment',
+      summary:
+        'Security containment and escalation take priority over ordinary troubleshooting.',
+      rootCause: 'Credentials were entered on a suspected phishing page.',
+      remedy:
+        'Contained the account, reset credentials, revoked sessions, and escalated to security.',
+      investigation: 'Captured the phishing report and exposure scope',
+      diagnosis: 'Classified the event as credential compromise',
+      remediation: 'Performed safe containment and security escalation',
+      verification:
+        'Confirmed sessions were revoked and the employee received safe follow-up',
+    }),
+    convertedScenario({
+      id: 'recurring-disk-growth',
+      ticketId: 'INC2509',
+      assetTag: 'NX-2509',
+      title: 'Recurring disk exhaustion caused by runaway logs',
+      summary:
+        'Deleting temporary files is not a durable repair when application logs keep growing.',
+      rootCause: 'A runaway application log was consuming the system drive.',
+      remedy:
+        'Corrected the log retention/configuration issue and verified stable free space.',
+      investigation:
+        'Compared disk use over time and identified the growing path',
+      diagnosis: 'Isolated the runaway application log',
+      remediation: 'Corrected log retention at the source',
+      verification:
+        'Confirmed free space remained available after the scheduled interval',
+    }),
+    convertedScenario({
+      id: 'domain-trust-repair',
+      ticketId: 'INC2510',
+      assetTag: 'NX-2510',
+      title: 'Restored laptop has a broken domain trust',
+      summary:
+        'The device computer-account relationship—not the user password—must be diagnosed safely.',
+      rootCause:
+        'The restored laptop’s computer account no longer had a valid secure channel with the domain.',
+      remedy:
+        'Repaired the secure channel through the approved device process and retested sign-in.',
+      investigation:
+        'Confirmed the trust error and ruled out a general network failure',
+      diagnosis: 'Identified the broken computer-account secure channel',
+      remediation: 'Repaired the device trust through the approved process',
+      verification: 'Confirmed normal domain sign-in on the restored laptop',
+    }),
+  ];
 
-export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] = [
-  ...CURATED_REMOTE_DESKTOP_SCENARIOS,
-  ...CONVERTED_REMOTE_DESKTOP_SCENARIOS,
-];
+export const REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
+  [...CURATED_REMOTE_DESKTOP_SCENARIOS, ...CONVERTED_REMOTE_DESKTOP_SCENARIOS];
 
 export function getRemoteDesktopScenarioByTicket(ticketId: string) {
   return REMOTE_DESKTOP_SCENARIOS.find(

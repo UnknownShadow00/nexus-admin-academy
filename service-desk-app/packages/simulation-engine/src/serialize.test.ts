@@ -75,6 +75,69 @@ describe('attempt serialization', () => {
     expect(restoreAttempt(serializeAttempt(attempt))).toEqual(attempt);
   });
 
+  it('round-trips the versioned shared workstation state', () => {
+    const attempt = createAttempt({
+      id: 'workstation-v2-attempt',
+      startedAt: '2026-07-30T10:30:00.000Z',
+    });
+
+    expect(attempt.remoteDesktopOverlays['NX-2047']?.workstation).toMatchObject(
+      {
+        schemaVersion: 2,
+        machine: { assetTag: 'NX-2047', hostname: 'PM-LT-41' },
+        mappedDrives: {
+          'Z:': {
+            uncPath: '\\\\partner.nexus.internal\\workspace',
+            status: 'network-path-error',
+          },
+        },
+      },
+    );
+    expect(restoreAttempt(serializeAttempt(attempt))).toEqual(attempt);
+  });
+
+  it('upgrades a legacy flat Remote Desktop overlay into workstation schema v2', () => {
+    const attempt = createAttempt({
+      id: 'workstation-v1-attempt',
+      startedAt: '2026-07-30T10:30:00.000Z',
+    });
+    const overlay = attempt.remoteDesktopOverlays['NX-2047'];
+    if (!overlay) throw new Error('Expected remote desktop fixture');
+    const { workstation: _workstation, ...legacyOverlay } = overlay;
+    const legacyAttempt = {
+      ...attempt,
+      remoteDesktopOverlays: {
+        ...attempt.remoteDesktopOverlays,
+        'NX-2047': {
+          ...legacyOverlay,
+          dnsServers: ['192.0.2.53'],
+          driveStates: { 'C:': 'connected', 'Z:': 'permission-error' },
+          vpnStatus: 'error',
+          vpnError: 'Authentication failed.',
+        },
+      },
+    };
+
+    const restored = restoreAttempt(JSON.stringify(legacyAttempt));
+    expect(
+      restored?.remoteDesktopOverlays['NX-2047']?.workstation,
+    ).toMatchObject({
+      schemaVersion: 2,
+      network: {
+        interfaces: [{ dnsServers: ['192.0.2.53'] }],
+        vpn: {
+          status: 'error',
+          error: {
+            code: 'legacy-error',
+            message: 'Authentication failed.',
+          },
+        },
+      },
+      mappedDrives: { 'Z:': { status: 'permission-error' } },
+      credentials: {},
+    });
+  });
+
   it('migrates the legacy trainingMode boolean and back-fills phase progress', () => {
     const attempt = createAttempt({
       id: 'phase-17-attempt',

@@ -13,7 +13,6 @@ import {
 } from '@service-desk/shared';
 import { Badge, Button, Input } from '@service-desk/ui';
 import {
-  IconAppWindow,
   IconAlertTriangle,
   IconArrowLeft,
   IconBrandWindows,
@@ -25,30 +24,14 @@ import {
   IconFile,
   IconKey,
   IconLock,
-  IconMail,
-  IconMaximize,
-  IconMessageCircle,
-  IconMinus,
   IconNetwork,
   IconRefresh,
   IconSearch,
-  IconSettings,
-  IconShieldCheck,
-  IconTerminal2,
-  IconTrash,
   IconWifi,
-  IconWorld,
   IconX,
 } from '@tabler/icons-react';
 import Link from 'next/link';
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import {
   type RemoteDesktopWorkstationRecord,
@@ -67,43 +50,10 @@ import {
   shouldProactivelyRevealHint,
   studentFeedbackMessage,
 } from '../lib/remote-desktop-learning';
-
-const APP_META: Record<
-  RemoteDesktopAppId,
-  { label: string; Icon: typeof IconAppWindow; tint: string }
-> = {
-  explorer: {
-    label: 'File Explorer',
-    Icon: IconFolder,
-    tint: 'text-amber-300',
-  },
-  vpn: { label: 'VPN Client', Icon: IconShieldCheck, tint: 'text-emerald-300' },
-  settings: { label: 'Settings', Icon: IconSettings, tint: 'text-zinc-100' },
-  services: {
-    label: 'Services',
-    Icon: IconTerminal2,
-    tint: 'text-orange-300',
-  },
-  chat: {
-    label: 'Company Chat',
-    Icon: IconMessageCircle,
-    tint: 'text-sky-300',
-  },
-  mail: { label: 'Mail', Icon: IconMail, tint: 'text-blue-300' },
-  browser: { label: 'Web Browser', Icon: IconWorld, tint: 'text-cyan-300' },
-  updates: {
-    label: 'System Update',
-    Icon: IconRefresh,
-    tint: 'text-violet-300',
-  },
-  trash: { label: 'Trash', Icon: IconTrash, tint: 'text-zinc-300' },
-  system: { label: 'System Tools', Icon: IconTerminal2, tint: 'text-lime-300' },
-  terminal: {
-    label: 'Terminal',
-    Icon: IconTerminal2,
-    tint: 'text-emerald-300',
-  },
-};
+import { WORKSTATION_APP_REGISTRY } from './workstation/app-registry';
+import { CredentialManagerApp } from './workstation/apps/CredentialManagerApp';
+import { MapNetworkDriveDialog } from './workstation/apps/MapNetworkDriveDialog';
+import { WindowFrame } from './workstation/WindowFrame';
 
 const TICKET_TOOL_LABELS: Record<string, string> = {
   'asset-management': 'Asset records',
@@ -927,7 +877,6 @@ function RemoteSurface({
   const [showHint, setShowHint] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [startOpen, setStartOpen] = useState(false);
   const status = workstation.connectionState;
   const sessionHeader = status !== 'disconnected';
   return (
@@ -999,8 +948,6 @@ function RemoteSurface({
           onEvent={onEvent}
           remote={remote}
           scenario={scenario}
-          startOpen={startOpen}
-          setStartOpen={setStartOpen}
           workstation={workstation}
         />
       ) : null}
@@ -1177,15 +1124,11 @@ function SimulatedDesktop({
   onEvent,
   remote,
   scenario,
-  setStartOpen,
-  startOpen,
   workstation,
 }: {
   onEvent: (event: ActionEvent) => void;
   remote: ReturnType<typeof useRemoteDesktopSession>;
   scenario: (typeof REMOTE_DESKTOP_SCENARIOS)[number];
-  setStartOpen: (value: boolean) => void;
-  startOpen: boolean;
   workstation: RemoteDesktopWorkstationRecord;
 }) {
   const visibleApps = workstation.openApps.filter(
@@ -1194,6 +1137,7 @@ function SimulatedDesktop({
   const scenarioComplete = workstation.completedScenarioIds.includes(
     scenario.id,
   );
+  const startOpen = workstation.workstation.desktop.startMenuOpen;
   const runStep = (stepId: string) =>
     !scenarioComplete &&
     onEvent(
@@ -1215,51 +1159,59 @@ function SimulatedDesktop({
           />
         ))}
       </div>
-      {visibleApps.map((appId, index) => (
-        <DesktopWindow
-          appId={appId}
-          focused={workstation.focusedApp === appId}
-          index={index}
-          key={appId}
-          onClose={() => onEvent(remote.closeApp(workstation.assetTag, appId))}
-          onFocus={() => onEvent(remote.focusApp(workstation.assetTag, appId))}
-          onMinimize={() =>
-            onEvent(remote.minimizeApp(workstation.assetTag, appId))
-          }
-        >
-          <AppContent
+      {visibleApps.map((appId) => {
+        const windowState = workstation.workstation.desktop.windows[appId];
+        if (!windowState) return null;
+        return (
+          <WindowFrame
             appId={appId}
-            navigateExplorer={(path) =>
-              onEvent(remote.navigateExplorer(workstation.assetTag, path))
+            focused={workstation.focusedApp === appId}
+            key={appId}
+            onClose={() =>
+              onEvent(remote.closeApp(workstation.assetTag, appId))
             }
-            reconnectExplorerDrive={(driveLetter) =>
-              onEvent(
-                remote.reconnectExplorerDrive(
-                  workstation.assetTag,
-                  driveLetter,
-                ),
-              )
+            onFocus={() =>
+              onEvent(remote.focusApp(workstation.assetTag, appId))
             }
-            refreshExplorer={() =>
-              onEvent(remote.refreshExplorer(workstation.assetTag))
+            onMinimize={() =>
+              onEvent(remote.minimizeApp(workstation.assetTag, appId))
             }
-            onEvent={onEvent}
-            remote={remote}
-            runStep={runStep}
-            runTerminalCommand={(command) =>
-              onEvent(remote.runTerminalCommand(workstation.assetTag, command))
+            onMove={(bounds) =>
+              onEvent(remote.moveWindow(workstation.assetTag, appId, bounds))
             }
-            scenarioComplete={scenarioComplete}
-            scenario={scenario}
-            workstation={workstation}
-          />
-        </DesktopWindow>
-      ))}
+            onToggleMaximize={() =>
+              onEvent(remote.toggleWindowMaximize(workstation.assetTag, appId))
+            }
+            windowState={windowState}
+          >
+            <AppContent
+              appId={appId}
+              navigateExplorer={(path) =>
+                onEvent(remote.navigateExplorer(workstation.assetTag, path))
+              }
+              refreshExplorer={() =>
+                onEvent(remote.refreshExplorer(workstation.assetTag))
+              }
+              onEvent={onEvent}
+              remote={remote}
+              runStep={runStep}
+              runTerminalCommand={(command) =>
+                onEvent(
+                  remote.runTerminalCommand(workstation.assetTag, command),
+                )
+              }
+              scenarioComplete={scenarioComplete}
+              scenario={scenario}
+              workstation={workstation}
+            />
+          </WindowFrame>
+        );
+      })}
       {startOpen ? (
         <StartMenu
           onOpen={(appId) => {
             onEvent(remote.openApp(workstation.assetTag, appId));
-            setStartOpen(false);
+            onEvent(remote.setStartMenu(workstation.assetTag, false));
           }}
         />
       ) : null}
@@ -1268,13 +1220,15 @@ function SimulatedDesktop({
           aria-expanded={startOpen}
           aria-label="Open Start menu"
           className="flex h-8 w-9 items-center justify-center rounded-sm hover:bg-white/15"
-          onClick={() => setStartOpen(!startOpen)}
+          onClick={() =>
+            onEvent(remote.setStartMenu(workstation.assetTag, !startOpen))
+          }
           type="button"
         >
           <IconBrandWindows aria-hidden="true" className="h-5 w-5" />
         </button>
         {workstation.openApps.map((appId) => {
-          const Meta = APP_META[appId];
+          const Meta = WORKSTATION_APP_REGISTRY[appId];
           return (
             <button
               aria-label={`Focus ${Meta.label}`}
@@ -1308,7 +1262,7 @@ function DesktopIcon({
   appId: RemoteDesktopAppId;
   onOpen: () => void;
 }) {
-  const Meta = APP_META[appId];
+  const Meta = WORKSTATION_APP_REGISTRY[appId];
   return (
     <button
       className="flex flex-col items-center gap-1 rounded p-1.5 text-center text-xs font-medium drop-shadow hover:bg-white/15 focus:bg-white/15"
@@ -1337,7 +1291,7 @@ function StartMenu({
       </p>
       <div className="grid grid-cols-2 gap-1">
         {REMOTE_DESKTOP_APP_IDS.map((appId) => {
-          const Meta = APP_META[appId];
+          const Meta = WORKSTATION_APP_REGISTRY[appId];
           return (
             <button
               className="flex items-center gap-2 rounded px-2 py-2 text-left text-xs hover:bg-white/10"
@@ -1355,76 +1309,6 @@ function StartMenu({
         })}
       </div>
     </div>
-  );
-}
-
-function DesktopWindow({
-  appId,
-  children,
-  focused,
-  index,
-  onClose,
-  onFocus,
-  onMinimize,
-}: {
-  appId: RemoteDesktopAppId;
-  children: ReactNode;
-  focused: boolean;
-  index: number;
-  onClose: () => void;
-  onFocus: () => void;
-  onMinimize: () => void;
-}) {
-  const Meta = APP_META[appId];
-  const [maximized, setMaximized] = useState(false);
-  return (
-    <section
-      className={`absolute z-20 flex min-h-0 flex-col overflow-hidden border bg-zinc-100 text-zinc-900 shadow-2xl ${maximized ? 'inset-x-2 top-2 bottom-14' : 'inset-x-2 top-14 bottom-14 sm:inset-x-auto sm:left-[12%] sm:top-[12%] sm:bottom-14 sm:w-[min(680px,76%)] sm:translate-x-[var(--window-offset-x)] sm:translate-y-[var(--window-offset-y)]'} ${focused ? 'border-sky-300 ring-2 ring-sky-300/30' : 'border-zinc-500'}`}
-      onMouseDown={() => {
-        if (!focused) onFocus();
-      }}
-      style={
-        {
-          '--window-offset-x': `${index * 8}px`,
-          '--window-offset-y': `${index * 8}px`,
-          zIndex: focused ? 40 : 20 + index,
-        } as CSSProperties
-      }
-    >
-      <header className="flex items-center justify-between border-b border-zinc-300 bg-[#e7edf2] px-3 py-1.5 shadow-[0_1px_0_rgba(255,255,255,.8)_inset]">
-        <span className="flex items-center gap-2 text-xs font-semibold">
-          <Meta.Icon aria-hidden="true" className={`h-4 w-4 ${Meta.tint}`} />
-          {Meta.label}
-        </span>
-        <span className="flex">
-          <button
-            aria-label={`Minimize ${Meta.label}`}
-            className="rounded-sm p-1 hover:bg-zinc-300"
-            onClick={onMinimize}
-            type="button"
-          >
-            <IconMinus aria-hidden="true" className="h-3.5 w-3.5" />
-          </button>
-          <button
-            aria-label={`${maximized ? 'Restore' : 'Maximize'} ${Meta.label}`}
-            className="rounded-sm p-1 hover:bg-zinc-300"
-            onClick={() => setMaximized((value) => !value)}
-            type="button"
-          >
-            <IconMaximize aria-hidden="true" className="h-3.5 w-3.5" />
-          </button>
-          <button
-            aria-label={`Close ${Meta.label}`}
-            className="rounded-sm p-1 hover:bg-red-500 hover:text-white"
-            onClick={onClose}
-            type="button"
-          >
-            <IconX aria-hidden="true" className="h-3.5 w-3.5" />
-          </button>
-        </span>
-      </header>
-      <div className="min-h-0 flex-1 overflow-auto bg-white">{children}</div>
-    </section>
   );
 }
 
@@ -1460,7 +1344,6 @@ function AppContent({
   appId,
   navigateExplorer,
   onEvent,
-  reconnectExplorerDrive,
   refreshExplorer,
   remote,
   runStep,
@@ -1472,7 +1355,6 @@ function AppContent({
   appId: RemoteDesktopAppId;
   navigateExplorer: (path: string) => void;
   onEvent: (event: ActionEvent) => void;
-  reconnectExplorerDrive: (driveLetter: string) => void;
   refreshExplorer: () => void;
   remote: ReturnType<typeof useRemoteDesktopSession>;
   runStep: (stepId: string) => void;
@@ -1508,10 +1390,30 @@ function AppContent({
     case 'explorer':
       return (
         <FileExplorerWindow
+          mapDrive={(values) =>
+            remote.mapDrive(
+              workstation.assetTag,
+              values.letter,
+              values.uncPath,
+              values.reconnectAtSignIn,
+              values.credentialTarget,
+            )
+          }
           navigate={navigateExplorer}
-          reconnectDrive={reconnectExplorerDrive}
           refresh={refreshExplorer}
           workstation={workstation}
+        />
+      );
+    case 'credential-manager':
+      return (
+        <CredentialManagerApp
+          credentials={Object.values(workstation.workstation.credentials)}
+          onAdd={(target, username) =>
+            remote.addCredential(workstation.assetTag, target, username)
+          }
+          onDelete={(target) => {
+            onEvent(remote.deleteCredential(workstation.assetTag, target));
+          }}
         />
       );
     case 'settings':
@@ -1687,6 +1589,10 @@ function VpnClientWindow({
   finishConnection: () => void;
   workstation: RemoteDesktopWorkstationRecord;
 }) {
+  const profileId = workstation.workstation.network.vpn.selectedProfileId;
+  const profile = profileId
+    ? workstation.workstation.network.vpn.profiles[profileId]
+    : null;
   useEffect(() => {
     if (workstation.vpnStatus !== 'connecting') return;
     const timer = window.setTimeout(finishConnection, 650);
@@ -1706,9 +1612,11 @@ function VpnClientWindow({
     <div className="p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-bold">Nexus Secure VPN</h3>
+          <h3 className="text-lg font-bold">
+            {profile?.name ?? 'VPN profiles'}
+          </h3>
           <p className="mt-1 text-sm text-zinc-600">
-            Gateway: vpn.nexus.internal
+            Gateway: {profile?.serverAddress ?? 'No profile configured'}
           </p>
         </div>
         <Badge
@@ -1728,10 +1636,12 @@ function VpnClientWindow({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-zinc-900">
-              Company network
+              {profile?.name ?? 'Company network'}
             </p>
             <p className="mt-1 text-xs text-zinc-500">
-              Secure access to internal services and mapped drives
+              {profile
+                ? `${profile.tunnelType.toUpperCase()} · ${profile.authenticationMethod} · device ${workstation.workstation.machine.compliance}`
+                : 'Add an approved VPN profile before connecting.'}
             </p>
           </div>
           {workstation.vpnStatus === 'connected' ? (
@@ -1740,7 +1650,7 @@ function VpnClientWindow({
             </Button>
           ) : (
             <Button
-              disabled={workstation.vpnStatus === 'connecting'}
+              disabled={!profile || workstation.vpnStatus === 'connecting'}
               onClick={connect}
             >
               {workstation.vpnStatus === 'connecting'
@@ -1760,6 +1670,25 @@ function VpnClientWindow({
           </p>
         ) : null}
       </div>
+
+      {profile ? (
+        <dl className="mt-4 grid gap-3 rounded border border-zinc-200 p-4 text-xs sm:grid-cols-2">
+          <div>
+            <dt className="font-semibold text-zinc-500">DNS policy</dt>
+            <dd className="mt-1 font-mono text-zinc-800">
+              {profile.dnsServers.join(', ')}
+            </dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-zinc-500">Private routes</dt>
+            <dd className="mt-1 font-mono text-zinc-800">
+              {profile.routes
+                .map((route) => `${route.destination}/${route.prefixLength}`)
+                .join(', ')}
+            </dd>
+          </div>
+        </dl>
+      ) : null}
 
       <section aria-labelledby="vpn-log-title" className="mt-5">
         <h4
@@ -2384,16 +2313,24 @@ function driveStatusLabel(status: string) {
 }
 
 function FileExplorerWindow({
+  mapDrive,
   navigate,
-  reconnectDrive,
   refresh,
   workstation,
 }: {
+  mapDrive: (values: {
+    letter: string;
+    uncPath: string;
+    reconnectAtSignIn: boolean;
+    credentialTarget: string | null;
+  }) => ActionEvent;
   navigate: (path: string) => void;
-  reconnectDrive: (driveLetter: string) => void;
   refresh: () => void;
   workstation: RemoteDesktopWorkstationRecord;
 }) {
+  const [mapDialogFor, setMapDialogFor] = useState<string | null | undefined>(
+    undefined,
+  );
   const currentDrive = workstation.drives.find(
     (drive) =>
       workstation.explorerCurrentPath !== 'This PC' &&
@@ -2408,7 +2345,7 @@ function FileExplorerWindow({
     ) ?? [];
 
   return (
-    <div className="flex h-full min-h-[22rem] flex-col bg-white text-zinc-900">
+    <div className="relative flex h-full min-h-[22rem] flex-col bg-white text-zinc-900">
       <div className="flex items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-2 py-2">
         <button
           aria-label="Go back"
@@ -2420,6 +2357,14 @@ function FileExplorerWindow({
           type="button"
         >
           <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
+        </button>
+        <button
+          className="inline-flex items-center gap-1 rounded px-2 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-200"
+          onClick={() => setMapDialogFor(null)}
+          type="button"
+        >
+          <IconNetwork aria-hidden="true" className="h-4 w-4" />
+          <span className="max-sm:sr-only">Map network drive</span>
         </button>
         <div
           aria-label="Current File Explorer location"
@@ -2479,9 +2424,10 @@ function FileExplorerWindow({
         <main className="min-w-0 flex-1 overflow-y-auto p-3 sm:p-5">
           {workstation.explorerError ? (
             <ExplorerErrorState
-              driveLetter={currentDrive?.letter ?? null}
               error={workstation.explorerError}
-              reconnectDrive={reconnectDrive}
+              openMapDialog={() =>
+                setMapDialogFor(currentDrive?.letter ?? null)
+              }
             />
           ) : workstation.explorerCurrentPath === 'This PC' ? (
             <section aria-labelledby="explorer-drives-title">
@@ -2614,18 +2560,28 @@ function FileExplorerWindow({
           )}
         </main>
       </div>
+      {mapDialogFor !== undefined ? (
+        <MapNetworkDriveDialog
+          credentials={Object.values(workstation.workstation.credentials)}
+          currentMapping={
+            mapDialogFor
+              ? (workstation.workstation.mappedDrives[mapDialogFor] ?? null)
+              : null
+          }
+          onCancel={() => setMapDialogFor(undefined)}
+          onMap={mapDrive}
+        />
+      ) : null}
     </div>
   );
 }
 
 function ExplorerErrorState({
-  driveLetter,
   error,
-  reconnectDrive,
+  openMapDialog,
 }: {
-  driveLetter: string | null;
   error: NonNullable<RemoteDesktopWorkstationRecord['explorerError']>;
-  reconnectDrive: (driveLetter: string) => void;
+  openMapDialog: () => void;
 }) {
   const permissionError = error.kind === 'permission-error';
   return (
@@ -2641,15 +2597,13 @@ function ExplorerErrorState({
         {permissionError ? 'Access denied' : 'Network path unavailable'}
       </h3>
       <p className="mt-2 text-sm leading-5">{error.message}</p>
-      {driveLetter ? (
-        <button
-          className={`mt-4 rounded px-3 py-2 text-xs font-bold text-white ${permissionError ? 'bg-red-700 hover:bg-red-800' : 'bg-amber-700 hover:bg-amber-800'}`}
-          onClick={() => reconnectDrive(driveLetter)}
-          type="button"
-        >
-          Reconnect {driveLetter}
-        </button>
-      ) : null}
+      <button
+        className={`mt-4 rounded px-3 py-2 text-xs font-bold text-white ${permissionError ? 'bg-red-700 hover:bg-red-800' : 'bg-amber-700 hover:bg-amber-800'}`}
+        onClick={openMapDialog}
+        type="button"
+      >
+        Open Map Network Drive
+      </button>
     </div>
   );
 }

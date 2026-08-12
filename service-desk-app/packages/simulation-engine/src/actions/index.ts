@@ -11,6 +11,7 @@ import type {
   ShippingEquipmentName,
   ShippingSpeed,
   TicketStatus,
+  WorkstationWindowBounds,
 } from '@service-desk/shared';
 
 interface TicketActionPayload {
@@ -327,6 +328,24 @@ export interface MinimizeRemoteDesktopAppAction {
   payload: RemoteDesktopActionPayload & { appId: RemoteDesktopAppId };
 }
 
+export interface MoveRemoteDesktopWindowAction {
+  type: 'remote_desktop.move_window';
+  payload: RemoteDesktopActionPayload & {
+    appId: RemoteDesktopAppId;
+    bounds: WorkstationWindowBounds;
+  };
+}
+
+export interface ToggleRemoteDesktopWindowMaximizeAction {
+  type: 'remote_desktop.toggle_window_maximize';
+  payload: RemoteDesktopActionPayload & { appId: RemoteDesktopAppId };
+}
+
+export interface SetRemoteDesktopStartMenuAction {
+  type: 'remote_desktop.set_start_menu';
+  payload: RemoteDesktopActionPayload & { open: boolean };
+}
+
 export interface ToggleRemoteDesktopTrainingModeAction {
   type: 'remote_desktop.toggle_training_mode';
   payload: RemoteDesktopActionPayload & { enabled: boolean };
@@ -365,6 +384,29 @@ export interface ReconnectRemoteDesktopExplorerDriveAction {
 export interface RefreshRemoteDesktopExplorerAction {
   type: 'remote_desktop.explorer_refresh';
   payload: RemoteDesktopActionPayload;
+}
+
+export interface MapRemoteDesktopDriveAction {
+  type: 'remote_desktop.map_drive';
+  payload: RemoteDesktopActionPayload & {
+    letter: string;
+    uncPath: string;
+    reconnectAtSignIn: boolean;
+    credentialTarget: string | null;
+  };
+}
+
+export interface AddRemoteDesktopCredentialAction {
+  type: 'remote_desktop.credential_add';
+  payload: RemoteDesktopActionPayload & {
+    target: string;
+    username: string;
+  };
+}
+
+export interface DeleteRemoteDesktopCredentialAction {
+  type: 'remote_desktop.credential_delete';
+  payload: RemoteDesktopActionPayload & { target: string };
 }
 
 export interface ConnectRemoteDesktopVpnAction {
@@ -555,6 +597,9 @@ export type RemoteDesktopSimulationAction =
   | CloseRemoteDesktopAppAction
   | FocusRemoteDesktopAppAction
   | MinimizeRemoteDesktopAppAction
+  | MoveRemoteDesktopWindowAction
+  | ToggleRemoteDesktopWindowMaximizeAction
+  | SetRemoteDesktopStartMenuAction
   | ToggleRemoteDesktopTrainingModeAction
   | SetRemoteDesktopLearningModeAction
   | AddRemoteDesktopInternalNoteAction
@@ -563,6 +608,9 @@ export type RemoteDesktopSimulationAction =
   | NavigateRemoteDesktopExplorerAction
   | ReconnectRemoteDesktopExplorerDriveAction
   | RefreshRemoteDesktopExplorerAction
+  | MapRemoteDesktopDriveAction
+  | AddRemoteDesktopCredentialAction
+  | DeleteRemoteDesktopCredentialAction
   | ConnectRemoteDesktopVpnAction
   | CompleteRemoteDesktopVpnConnectionAction
   | DisconnectRemoteDesktopVpnAction

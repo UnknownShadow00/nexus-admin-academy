@@ -150,6 +150,10 @@ describe('Phase 18 phase-aware Remote Desktop workflows', () => {
         payload: { assetTag: 'NX-2047' },
       },
       {
+        type: 'remote_desktop.explorer_reconnect_drive',
+        payload: { assetTag: 'NX-2047', driveLetter: 'Z:' },
+      },
+      {
         type: 'remote_desktop.explorer_navigate',
         payload: { assetTag: 'NX-2047', path: 'Z:\\' },
       },
@@ -183,6 +187,10 @@ describe('Phase 18 phase-aware Remote Desktop workflows', () => {
         payload: { assetTag: 'NX-2047' },
       },
       {
+        type: 'remote_desktop.explorer_reconnect_drive',
+        payload: { assetTag: 'NX-2047', driveLetter: 'Z:' },
+      },
+      {
         type: 'remote_desktop.explorer_navigate',
         payload: { assetTag: 'NX-2047', path: 'Z:\\' },
       },
@@ -201,6 +209,10 @@ describe('Phase 18 phase-aware Remote Desktop workflows', () => {
       {
         type: 'remote_desktop.vpn_complete_connection',
         payload: { assetTag: 'NX-2047' },
+      },
+      {
+        type: 'remote_desktop.explorer_reconnect_drive',
+        payload: { assetTag: 'NX-2047', driveLetter: 'Z:' },
       },
       {
         type: 'remote_desktop.explorer_navigate',

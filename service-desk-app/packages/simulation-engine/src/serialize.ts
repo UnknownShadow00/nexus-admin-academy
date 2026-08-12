@@ -49,6 +49,8 @@ import type {
   TicketClosure,
   TicketOverlay,
 } from './types';
+import { migrateLegacyWorkstationState } from './workstation/state';
+import { isWorkstationState } from './workstation/validate';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -324,7 +326,11 @@ function getInitialServerRoomServiceStates(nodeId: string) {
     : {};
 }
 
-function isTerminalHistory(value: unknown) {
+function isTerminalHistory(value: unknown): value is {
+  command: string;
+  output: string[];
+  timestamp: string;
+}[] {
   return (
     Array.isArray(value) &&
     value.every(
@@ -350,7 +356,11 @@ function isDriveStates(value: unknown) {
   );
 }
 
-function isExplorerError(value: unknown) {
+function isExplorerError(value: unknown): value is {
+  kind: 'network-path-error' | 'permission-error';
+  message: string;
+  path: string;
+} | null {
   return (
     value === null ||
     (isRecord(value) &&
@@ -396,6 +406,7 @@ function isServerRoomOverlay(value: unknown): value is ServerRoomOverlay {
 function isRemoteDesktopOverlay(value: unknown): value is RemoteDesktopOverlay {
   return (
     isRecord(value) &&
+    isWorkstationState(value.workstation) &&
     REMOTE_DESKTOP_CONNECTION_STATES.includes(
       value.connectionState as (typeof REMOTE_DESKTOP_CONNECTION_STATES)[number],
     ) &&
@@ -785,6 +796,79 @@ export function restoreAttempt(json: string): Attempt | null {
                       vpnError: overlay.vpnError ?? null,
                       vpnLog: overlay.vpnLog ?? [],
                       vpnStatus: overlay.vpnStatus ?? 'disconnected',
+                      workstation:
+                        overlay.workstation ??
+                        migrateLegacyWorkstationState(assetTag, {
+                          dnsServers: isStringArray(overlay.dnsServers)
+                            ? overlay.dnsServers
+                            : undefined,
+                          driveStates: isRecord(overlay.driveStates)
+                            ? (overlay.driveStates as Record<
+                                string,
+                                (typeof REMOTE_DESKTOP_DRIVE_STATUSES)[number]
+                              >)
+                            : undefined,
+                          explorerCurrentPath:
+                            typeof overlay.explorerCurrentPath === 'string'
+                              ? overlay.explorerCurrentPath
+                              : undefined,
+                          explorerError: isExplorerError(overlay.explorerError)
+                            ? overlay.explorerError
+                            : undefined,
+                          explorerLastRefreshedAt:
+                            typeof overlay.explorerLastRefreshedAt ===
+                              'string' ||
+                            overlay.explorerLastRefreshedAt === null
+                              ? overlay.explorerLastRefreshedAt
+                              : undefined,
+                          focusedApp:
+                            typeof overlay.focusedApp === 'string' ||
+                            overlay.focusedApp === null
+                              ? (overlay.focusedApp as
+                                  | (typeof REMOTE_DESKTOP_APP_IDS)[number]
+                                  | null)
+                              : undefined,
+                          minimizedApps: isStringArray(overlay.minimizedApps)
+                            ? (overlay.minimizedApps as (typeof REMOTE_DESKTOP_APP_IDS)[number][])
+                            : undefined,
+                          openApps: isStringArray(overlay.openApps)
+                            ? (overlay.openApps as (typeof REMOTE_DESKTOP_APP_IDS)[number][])
+                            : undefined,
+                          serviceStates: isRecord(overlay.serviceStates)
+                            ? (overlay.serviceStates as Record<
+                                string,
+                                (typeof REMOTE_DESKTOP_SERVICE_STATES)[number]
+                              >)
+                            : undefined,
+                          terminalHistory: isTerminalHistory(
+                            overlay.terminalHistory,
+                          )
+                            ? overlay.terminalHistory
+                            : undefined,
+                          vpnError:
+                            typeof overlay.vpnError === 'string' ||
+                            overlay.vpnError === null
+                              ? overlay.vpnError
+                              : undefined,
+                          vpnLog:
+                            Array.isArray(overlay.vpnLog) &&
+                            overlay.vpnLog.every(
+                              (entry) =>
+                                isRecord(entry) &&
+                                isString(entry.message) &&
+                                isIsoDate(entry.timestamp),
+                            )
+                              ? (overlay.vpnLog as {
+                                  message: string;
+                                  timestamp: string;
+                                }[])
+                              : undefined,
+                          vpnStatus: REMOTE_DESKTOP_VPN_STATUSES.includes(
+                            overlay.vpnStatus as (typeof REMOTE_DESKTOP_VPN_STATUSES)[number],
+                          )
+                            ? (overlay.vpnStatus as (typeof REMOTE_DESKTOP_VPN_STATUSES)[number])
+                            : undefined,
+                        }),
                     }
                   : overlay,
               ]),

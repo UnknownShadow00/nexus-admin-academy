@@ -13,6 +13,7 @@ import type {
   RemoteDesktopOverlay,
   ServerRoomOverlay,
 } from './types';
+import { createWorkstationState } from './workstation/state';
 
 export interface AttemptSeed {
   id?: string;
@@ -74,6 +75,7 @@ export function createInitialRemoteDesktopOverlays(): Record<
     REMOTE_DESKTOP_WORKSTATION_FIXTURES.map((fixture) => [
       fixture.assetTag,
       {
+        workstation: createWorkstationState(fixture.assetTag),
         connectionState: 'disconnected',
         completedScenarioIds: [],
         dnsServers: [

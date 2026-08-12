@@ -22,6 +22,9 @@ export {
   type CloseRemoteDesktopAppAction,
   type FocusRemoteDesktopAppAction,
   type MinimizeRemoteDesktopAppAction,
+  type MoveRemoteDesktopWindowAction,
+  type ToggleRemoteDesktopWindowMaximizeAction,
+  type SetRemoteDesktopStartMenuAction,
   type ToggleRemoteDesktopTrainingModeAction,
   type SetRemoteDesktopLearningModeAction,
   type AddRemoteDesktopInternalNoteAction,
@@ -30,6 +33,9 @@ export {
   type NavigateRemoteDesktopExplorerAction,
   type ReconnectRemoteDesktopExplorerDriveAction,
   type RefreshRemoteDesktopExplorerAction,
+  type MapRemoteDesktopDriveAction,
+  type AddRemoteDesktopCredentialAction,
+  type DeleteRemoteDesktopCredentialAction,
   type ConnectRemoteDesktopVpnAction,
   type CompleteRemoteDesktopVpnConnectionAction,
   type DisconnectRemoteDesktopVpnAction,
@@ -106,6 +112,11 @@ export {
   type TicketTimeEntry,
 } from './progress-read-model';
 export { restoreAttempt, serializeAttempt } from './serialize';
+export {
+  createWorkstationState,
+  migrateLegacyWorkstationState,
+  type LegacyWorkstationFacts,
+} from './workstation/state';
 export type {
   ActionEvent,
   AssetOverlay,

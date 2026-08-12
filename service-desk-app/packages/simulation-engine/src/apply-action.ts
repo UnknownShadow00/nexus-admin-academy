@@ -50,6 +50,24 @@ import type {
   UpdateDirectoryGroupsAction,
 } from './actions';
 import { resolveScriptedChatReply } from './chat';
+import {
+  executeWorkstationCommand,
+  mapWorkstationDrive,
+} from './workstation/commands';
+import {
+  addWorkstationCredential,
+  deleteWorkstationCredential,
+} from './workstation/credentials';
+import {
+  moveWorkstationWindow,
+  setWorkstationStartMenu,
+  toggleWorkstationWindowMaximize,
+} from './workstation/windows';
+import {
+  createUnavailableWorkstationState,
+  createWorkstationState,
+  reconcileWorkstationState,
+} from './workstation/state';
 import type {
   ActionEvent,
   AssetOverlay,
@@ -917,6 +935,9 @@ function createRemoteDesktopOverlay(assetTag: string): RemoteDesktopOverlay {
   const fixture = getRemoteDesktopWorkstation(assetTag);
 
   return {
+    workstation: fixture
+      ? createWorkstationState(assetTag)
+      : createUnavailableWorkstationState(assetTag),
     connectionState: 'disconnected',
     completedScenarioIds: [],
     dnsServers: [...getRemoteDesktopTerminalFixture(assetTag).dnsServers],
@@ -1210,6 +1231,15 @@ function workflowEvidenceForAction(
     return 'vpn.connected';
   }
   if (
+    action.type === 'remote_desktop.map_drive' &&
+    scenario.id === 'facilities-calendar-mapping' &&
+    action.payload.letter.trim().toUpperCase() === 'Y:' &&
+    action.payload.uncPath.trim().toLowerCase() ===
+      '\\\\facilities.nexus.internal\\calendar'
+  ) {
+    return 'explorer.repair-mapping';
+  }
+  if (
     action.type === 'remote_desktop.update_restart' &&
     scenario.id === 'pdf-export-update' &&
     after.updateState === 'applied'
@@ -1470,229 +1500,6 @@ function recordExplorerVerification(
     : overlay;
 }
 
-function terminalOutput(
-  assetTag: string,
-  command: string,
-  overlay: RemoteDesktopOverlay,
-): { output: string[]; serviceChange?: [string, 'running' | 'stopped'] } {
-  const workstation = getRemoteDesktopWorkstation(assetTag);
-  const terminal = getRemoteDesktopTerminalFixture(assetTag);
-  const normalized = command.trim().replace(/\s+/g, ' ').toLowerCase();
-  const scenario = getRemoteDesktopScenarioByAsset(assetTag);
-  const steps = scenario ? (overlay.scenarioSteps[scenario.id] ?? []) : [];
-  const expectedDns = scenario?.workflow?.finalState.dnsServers;
-  const dnsBroken = expectedDns
-    ? !sameStringArray(overlay.dnsServers, expectedDns)
-    : overlay.networkStatus !== 'online' ||
-      (scenario?.id === 'network-configuration' &&
-        !steps.includes('settings.repair-network'));
-  const address = workstation?.ipAddress ?? '0.0.0.0';
-  const gateway =
-    address === '0.0.0.0' ? '0.0.0.0' : address.replace(/\d+$/, '1');
-  const target = command.trim().split(/\s+/).slice(1).join(' ') || 'host';
-  const isIpTarget = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(target);
-  const serviceFor = (value: string) =>
-    workstation?.services.find(
-      (service) => service.name.toLowerCase() === value.toLowerCase(),
-    );
-  const serviceName = command
-    .trim()
-    .replace(/^net (?:start|stop)|^sc query/i, '')
-    .trim();
-
-  if (normalized === 'ipconfig') {
-    return {
-      output: [
-        'Windows IP Configuration',
-        '',
-        'Ethernet adapter Ethernet:',
-        `   IPv4 Address. . . . . . . . . . . : ${address}`,
-        '   Subnet Mask . . . . . . . . . . . : 255.255.255.0',
-        `   Default Gateway . . . . . . . . . : ${gateway}`,
-      ],
-    };
-  }
-  if (normalized === 'ipconfig /all') {
-    return {
-      output: [
-        'Windows IP Configuration',
-        '',
-        `   Host Name . . . . . . . . . . . . : ${workstation?.hostname ?? assetTag}`,
-        '   Node Type . . . . . . . . . . . . : Hybrid',
-        'Ethernet adapter Ethernet:',
-        `   IPv4 Address. . . . . . . . . . . : ${address}`,
-        `   Default Gateway . . . . . . . . . : ${gateway}`,
-        `   DNS Servers . . . . . . . . . . . : ${overlay.dnsServers.join('\n                                       ')}`,
-      ],
-    };
-  }
-  if (normalized.startsWith('ping ')) {
-    const succeeds = isIpTarget || !dnsBroken;
-    return {
-      output: succeeds
-        ? [
-            `Pinging ${target} with 32 bytes of data:`,
-            `Reply from ${isIpTarget ? target : address}: bytes=32 time=4ms TTL=127`,
-            `Reply from ${isIpTarget ? target : address}: bytes=32 time=5ms TTL=127`,
-            '',
-            `Ping statistics for ${isIpTarget ? target : address}: Sent = 2, Received = 2, Lost = 0 (0% loss),`,
-          ]
-        : [
-            `Ping request could not find host ${target}. Check the name and try again.`,
-          ],
-    };
-  }
-  if (normalized.startsWith('nslookup ')) {
-    return {
-      output: dnsBroken
-        ? [
-            `Server:  UnKnown`,
-            `Address:  ${overlay.dnsServers[0]}`,
-            '',
-            `*** UnKnown can't find ${target}: Request timed out`,
-          ]
-        : [
-            `Server:  dns01.nexus.internal`,
-            `Address:  ${overlay.dnsServers[0]}`,
-            '',
-            `Name:    ${target}`,
-            `Address:  ${address}`,
-          ],
-    };
-  }
-  if (normalized.startsWith('tracert ')) {
-    return {
-      output:
-        dnsBroken && !isIpTarget
-          ? [`Unable to resolve target system name ${target}.`]
-          : [
-              `Tracing route to ${target} over a maximum of 3 hops:`,
-              `  1     1 ms     1 ms     1 ms  ${gateway}`,
-              `  2     4 ms     4 ms     5 ms  ${isIpTarget ? target : address}`,
-              'Trace complete.',
-            ],
-    };
-  }
-  if (normalized === 'net use') {
-    const drives =
-      workstation?.drives.filter((drive) => drive.kind === 'network') ?? [];
-    const terminalStatus = (drive: (typeof drives)[number]) => {
-      const status = overlay.driveStates[drive.letter] ?? drive.initialStatus;
-      if (status === 'connected') return 'OK';
-      if (status === 'disconnected') return 'Disconnected';
-      if (status === 'permission-error') return 'Access Denied';
-      return 'Unavailable';
-    };
-    return {
-      output: drives.length
-        ? [
-            'New connections will be remembered.',
-            '',
-            `Status       Local     Remote`,
-            ...drives.map(
-              (drive) =>
-                `${terminalStatus(drive).padEnd(12)} ${drive.letter.padEnd(9)} ${drive.sharePath}`,
-            ),
-            '',
-            'The command completed successfully.',
-          ]
-        : [
-            'New connections will be remembered.',
-            '',
-            'There are no entries in the list.',
-          ],
-    };
-  }
-  if (normalized === 'whoami') return { output: [terminal.currentUser] };
-  if (normalized === 'hostname')
-    return { output: [workstation?.hostname ?? assetTag] };
-  if (normalized === 'gpupdate') {
-    return {
-      output: [
-        'Updating policy...',
-        'Computer Policy update has completed successfully.',
-      ],
-    };
-  }
-  if (normalized === 'systeminfo') {
-    return {
-      output: [
-        `Host Name:                 ${workstation?.hostname ?? assetTag}`,
-        `OS Name:                   ${workstation?.operatingSystem ?? 'Windows 11 Pro'}`,
-        `System Model:              ${terminal.systemModel}`,
-        'System Boot Time:          7/30/2026, 8:15:00 AM',
-      ],
-    };
-  }
-  if (normalized === 'tasklist') {
-    const serviceProcesses = Object.entries(overlay.serviceStates)
-      .filter(([, state]) => state === 'running')
-      .map(
-        ([name], index) =>
-          `${name.replace(/\s+/g, '').slice(0, 18).padEnd(25)} ${String(1200 + index).padStart(5)} Console                    1     12,000 K`,
-      );
-    return {
-      output: [
-        'Image Name                     PID Session Name        Session#    Mem Usage',
-        '========================= ======== ================ =========== ============',
-        'explorer.exe                  1040 Console                    1     48,000 K',
-        ...serviceProcesses,
-      ],
-    };
-  }
-  if (normalized.startsWith('sc query ')) {
-    const service = serviceFor(serviceName);
-    if (!service)
-      return {
-        output: [
-          `[SC] OpenService FAILED 1060: The specified service does not exist as an installed service.`,
-        ],
-      };
-    const state = overlay.serviceStates[service.name] ?? service.state;
-    return {
-      output: [
-        `SERVICE_NAME: ${service.name}`,
-        '        TYPE               : 10  WIN32_OWN_PROCESS',
-        `        STATE              : ${state === 'running' ? '4  RUNNING' : '1  STOPPED'}`,
-      ],
-    };
-  }
-  if (
-    normalized.startsWith('net start ') ||
-    normalized.startsWith('net stop ')
-  ) {
-    const service = serviceFor(serviceName);
-    if (!service)
-      return {
-        output: [`The service name is invalid: ${serviceName || '(missing)'}.`],
-      };
-    const nextState = normalized.startsWith('net start ')
-      ? 'running'
-      : 'stopped';
-    return {
-      output: [
-        `The ${service.name} service was ${nextState === 'running' ? 'started' : 'stopped'} successfully.`,
-      ],
-      serviceChange: [service.name, nextState],
-    };
-  }
-  if (normalized === 'help') {
-    return {
-      output: [
-        'Supported commands:',
-        'ipconfig, ipconfig /all, ping <host>, nslookup <host>, tracert <host>, net use',
-        'whoami, hostname, gpupdate, systeminfo, tasklist, sc query <service>',
-        'net start <service>, net stop <service>, cls, help',
-      ],
-    };
-  }
-  return {
-    output: [
-      `'${command.trim()}' is not recognized as an internal or external command, operable program or batch file.`,
-    ],
-  };
-}
-
 function remoteDesktopRejectReason(
   action: RemoteDesktopSimulationAction,
   overlay: RemoteDesktopOverlay,
@@ -1759,6 +1566,38 @@ function remoteDesktopRejectReason(
       return REMOTE_DESKTOP_APP_IDS.includes(action.payload.appId)
         ? null
         : 'That application is not available on this simulated desktop.';
+    case 'remote_desktop.move_window': {
+      if (overlay.connectionState !== 'connected') {
+        return 'Connect to the simulated computer before moving desktop windows.';
+      }
+      const windowState =
+        overlay.workstation.desktop.windows[action.payload.appId];
+      if (!windowState?.open)
+        return 'Open the application before moving its window.';
+      const { x, y, width, height } = action.payload.bounds;
+      return [x, y, width, height].every(Number.isFinite) &&
+        x >= 0 &&
+        y >= 0 &&
+        x <= 1920 &&
+        y <= 1080 &&
+        width >= 320 &&
+        width <= 1600 &&
+        height >= 240 &&
+        height <= 1000
+        ? null
+        : 'Keep the window within the simulated desktop and use a supported size.';
+    }
+    case 'remote_desktop.toggle_window_maximize':
+      if (overlay.connectionState !== 'connected') {
+        return 'Connect to the simulated computer before changing desktop windows.';
+      }
+      return overlay.workstation.desktop.windows[action.payload.appId]?.open
+        ? null
+        : 'Open the application before maximizing its window.';
+    case 'remote_desktop.set_start_menu':
+      return overlay.connectionState === 'connected'
+        ? null
+        : 'Connect to the simulated computer before opening Start.';
     case 'remote_desktop.toggle_training_mode':
       return null;
     case 'remote_desktop.set_learning_mode':
@@ -1845,6 +1684,48 @@ function remoteDesktopRejectReason(
       return overlay.connectionState === 'connected'
         ? null
         : 'Connect to the simulated computer before refreshing File Explorer.';
+    case 'remote_desktop.map_drive': {
+      if (overlay.connectionState !== 'connected') {
+        return 'Connect to the simulated computer before mapping a drive.';
+      }
+      const letter = action.payload.letter.trim().toUpperCase();
+      if (!/^[D-Z]:$/.test(letter)) {
+        return 'Choose an available drive letter from D: through Z:.';
+      }
+      if (
+        action.payload.credentialTarget &&
+        !overlay.workstation.credentials[
+          action.payload.credentialTarget.trim().toLowerCase()
+        ]
+      ) {
+        return 'The selected stored credential does not exist.';
+      }
+      const mapping = mapWorkstationDrive(
+        overlay.workstation,
+        letter,
+        action.payload.uncPath.trim(),
+        action.payload.reconnectAtSignIn,
+      );
+      return mapping.success ? null : mapping.output.join(' ');
+    }
+    case 'remote_desktop.credential_add':
+      if (overlay.connectionState !== 'connected') {
+        return 'Connect to the simulated computer before managing credentials.';
+      }
+      return addWorkstationCredential(
+        overlay.workstation,
+        action.payload.target,
+        action.payload.username,
+        '1970-01-01T00:00:00.000Z',
+      ).error;
+    case 'remote_desktop.credential_delete':
+      if (overlay.connectionState !== 'connected') {
+        return 'Connect to the simulated computer before managing credentials.';
+      }
+      return deleteWorkstationCredential(
+        overlay.workstation,
+        action.payload.target,
+      ).error;
     case 'remote_desktop.explorer_reconnect_drive': {
       if (overlay.connectionState !== 'connected') {
         return 'Connect to the simulated computer before reconnecting a drive.';
@@ -1861,7 +1742,10 @@ function remoteDesktopRejectReason(
       if (status === 'permission-error') {
         return `Access denied. Reconnecting cannot grant permission to ${drive.label}.`;
       }
-      if (status === 'network-path-error') {
+      if (
+        status === 'network-path-error' &&
+        overlay.vpnStatus !== 'connected'
+      ) {
         return `Network path unavailable. Connect the required VPN or network before reconnecting ${drive.label}.`;
       }
       return null;
@@ -1870,17 +1754,30 @@ function remoteDesktopRejectReason(
       if (overlay.connectionState !== 'connected') {
         return 'Connect to the simulated computer before opening a VPN session.';
       }
+      if (!overlay.workstation.network.vpn.selectedProfileId) {
+        return 'No VPN profile is configured on this workstation.';
+      }
       return overlay.vpnStatus === 'disconnected' ||
         overlay.vpnStatus === 'error'
         ? null
         : 'The VPN client is already connected or connecting.';
-    case 'remote_desktop.vpn_complete_connection':
+    case 'remote_desktop.vpn_complete_connection': {
       if (overlay.vpnStatus !== 'connecting') {
         return 'The VPN client is not waiting for a connection result.';
       }
-      return overlay.networkStatus === 'offline'
-        ? 'The VPN gateway could not be reached because this device has no network connection.'
+      if (overlay.networkStatus === 'offline') {
+        return 'The VPN gateway could not be reached because this device has no network connection.';
+      }
+      const profileId = overlay.workstation.network.vpn.selectedProfileId;
+      const profile = profileId
+        ? overlay.workstation.network.vpn.profiles[profileId]
+        : undefined;
+      if (!profile) return 'No VPN profile is configured on this workstation.';
+      return profile.requiredCompliance !==
+        overlay.workstation.machine.compliance
+        ? 'The VPN connection was blocked because the device compliance check failed.'
         : null;
+    }
     case 'remote_desktop.vpn_disconnect':
       return overlay.vpnStatus === 'connected' || overlay.vpnStatus === 'error'
         ? null
@@ -1992,6 +1889,7 @@ function applyValidRemoteDesktopAction(
     case 'remote_desktop.disconnect':
       return {
         ...overlay,
+        workstation: setWorkstationStartMenu(overlay.workstation, false),
         connectionState: 'disconnected',
         focusedApp: null,
         lastError: null,
@@ -2049,6 +1947,35 @@ function applyValidRemoteDesktopAction(
           ? overlay.minimizedApps
           : [...overlay.minimizedApps, action.payload.appId],
       };
+    case 'remote_desktop.move_window':
+      return {
+        ...overlay,
+        workstation: moveWorkstationWindow(
+          overlay.workstation,
+          action.payload.appId,
+          action.payload.bounds,
+        ),
+      };
+    case 'remote_desktop.toggle_window_maximize':
+      return {
+        ...overlay,
+        focusedApp: action.payload.appId,
+        minimizedApps: overlay.minimizedApps.filter(
+          (appId) => appId !== action.payload.appId,
+        ),
+        workstation: toggleWorkstationWindowMaximize(
+          overlay.workstation,
+          action.payload.appId,
+        ),
+      };
+    case 'remote_desktop.set_start_menu':
+      return {
+        ...overlay,
+        workstation: setWorkstationStartMenu(
+          overlay.workstation,
+          action.payload.open,
+        ),
+      };
     case 'remote_desktop.toggle_training_mode':
       return {
         ...overlay,
@@ -2071,19 +1998,37 @@ function applyValidRemoteDesktopAction(
       );
     }
     case 'remote_desktop.run_terminal_command': {
-      const result = terminalOutput(
-        action.payload.assetTag,
+      const result = executeWorkstationCommand(
+        overlay.workstation,
         action.payload.command,
-        overlay,
+        createdAt,
+      );
+      const interfaceState = result.state.network.interfaces.find(
+        (entry) => entry.kind !== 'vpn',
+      );
+      const mappedDriveStates = Object.fromEntries(
+        Object.entries(result.state.mappedDrives).map(([letter, drive]) => [
+          letter,
+          drive.status,
+        ]),
+      );
+      const serviceStates = Object.fromEntries(
+        Object.entries(result.state.services).map(([name, service]) => [
+          name,
+          service.state,
+        ]),
       );
       return {
         ...overlay,
-        serviceStates: result.serviceChange
-          ? {
-              ...overlay.serviceStates,
-              [result.serviceChange[0]]: result.serviceChange[1],
-            }
-          : overlay.serviceStates,
+        workstation: result.state,
+        dnsServers: interfaceState?.dnsServers ?? overlay.dnsServers,
+        driveStates: { ...overlay.driveStates, ...mappedDriveStates },
+        networkStatus: result.state.network.internetReachable
+          ? overlay.networkStatus === 'offline'
+            ? 'online'
+            : overlay.networkStatus
+          : 'offline',
+        serviceStates,
         terminalHistory: [
           ...overlay.terminalHistory,
           {
@@ -2162,6 +2107,66 @@ function applyValidRemoteDesktopAction(
             overlay.explorerCurrentPath,
           );
     }
+    case 'remote_desktop.map_drive': {
+      const letter = action.payload.letter.trim().toUpperCase();
+      const mapped = mapWorkstationDrive(
+        overlay.workstation,
+        letter,
+        action.payload.uncPath.trim(),
+        action.payload.reconnectAtSignIn,
+      );
+      const target =
+        action.payload.credentialTarget?.trim().toLowerCase() ?? null;
+      const drive = mapped.state.mappedDrives[letter];
+      const workstation = drive
+        ? {
+            ...mapped.state,
+            mappedDrives: {
+              ...mapped.state.mappedDrives,
+              [letter]: { ...drive, credentialTarget: target },
+            },
+          }
+        : mapped.state;
+      const connected: RemoteDesktopOverlay = {
+        ...overlay,
+        workstation,
+        driveStates: { ...overlay.driveStates, [letter]: 'connected' },
+        explorerCurrentPath: `${letter}\\`,
+        explorerError: null,
+      };
+      const scenario = getRemoteDesktopScenarioByAsset(action.payload.assetTag);
+      const withRepairStep =
+        scenario?.id === 'facilities-calendar-mapping'
+          ? applyRemoteDesktopScenarioStep(
+              connected,
+              action.payload.assetTag,
+              'explorer.repair-mapping',
+            )
+          : connected;
+      return recordExplorerVerification(
+        withRepairStep,
+        action.payload.assetTag,
+        `${letter}\\`,
+      );
+    }
+    case 'remote_desktop.credential_add':
+      return {
+        ...overlay,
+        workstation: addWorkstationCredential(
+          overlay.workstation,
+          action.payload.target,
+          action.payload.username,
+          createdAt,
+        ).state,
+      };
+    case 'remote_desktop.credential_delete':
+      return {
+        ...overlay,
+        workstation: deleteWorkstationCredential(
+          overlay.workstation,
+          action.payload.target,
+        ).state,
+      };
     case 'remote_desktop.vpn_connect':
       return {
         ...overlay,
@@ -2176,30 +2181,9 @@ function applyValidRemoteDesktopAction(
         vpnStatus: 'connecting',
       };
     case 'remote_desktop.vpn_complete_connection': {
-      const workstation = getRemoteDesktopWorkstation(action.payload.assetTag);
       const scenario = getRemoteDesktopScenarioByAsset(action.payload.assetTag);
-      const driveStates =
-        scenario?.id === 'vpn-shared-drive'
-          ? (Object.fromEntries(
-              workstation?.drives.map((drive) => [
-                drive.letter,
-                drive.kind === 'network'
-                  ? ('connected' as const)
-                  : (overlay.driveStates[drive.letter] ?? drive.initialStatus),
-              ]) ?? [],
-            ) as RemoteDesktopOverlay['driveStates'])
-          : overlay.driveStates;
       const connected: RemoteDesktopOverlay = {
         ...overlay,
-        driveStates: { ...overlay.driveStates, ...driveStates },
-        explorerError: explorerErrorForPath(
-          action.payload.assetTag,
-          overlay.explorerCurrentPath,
-          {
-            ...overlay,
-            driveStates: { ...overlay.driveStates, ...driveStates },
-          },
-        ),
         vpnError: null,
         vpnLog: [
           ...overlay.vpnLog,
@@ -3170,14 +3154,32 @@ export function applyAction(
             action,
           )
         : appliedOverlay;
-    const overlayWithEvent: RemoteDesktopOverlay = {
+    const synchronizedOverlay: RemoteDesktopOverlay = {
       ...updatedOverlay,
-      dnsServers: [...updatedOverlay.dnsServers],
-      driveStates: { ...updatedOverlay.driveStates },
-      serviceStates: { ...updatedOverlay.serviceStates },
-      scenarioProgress: { ...updatedOverlay.scenarioProgress },
-      terminalHistory: [...updatedOverlay.terminalHistory],
-      vpnLog: [...updatedOverlay.vpnLog],
+      workstation: reconcileWorkstationState(updatedOverlay.workstation, {
+        dnsServers: updatedOverlay.dnsServers,
+        driveStates: updatedOverlay.driveStates,
+        explorerCurrentPath: updatedOverlay.explorerCurrentPath,
+        explorerError: updatedOverlay.explorerError,
+        explorerLastRefreshedAt: updatedOverlay.explorerLastRefreshedAt,
+        focusedApp: updatedOverlay.focusedApp,
+        minimizedApps: updatedOverlay.minimizedApps,
+        openApps: updatedOverlay.openApps,
+        serviceStates: updatedOverlay.serviceStates,
+        terminalHistory: updatedOverlay.terminalHistory,
+        vpnError: updatedOverlay.vpnError,
+        vpnLog: updatedOverlay.vpnLog,
+        vpnStatus: updatedOverlay.vpnStatus,
+      }),
+    };
+    const overlayWithEvent: RemoteDesktopOverlay = {
+      ...synchronizedOverlay,
+      dnsServers: [...synchronizedOverlay.dnsServers],
+      driveStates: { ...synchronizedOverlay.driveStates },
+      serviceStates: { ...synchronizedOverlay.serviceStates },
+      scenarioProgress: { ...synchronizedOverlay.scenarioProgress },
+      terminalHistory: [...synchronizedOverlay.terminalHistory],
+      vpnLog: [...synchronizedOverlay.vpnLog],
       events: [...currentOverlay.events, event],
     };
 

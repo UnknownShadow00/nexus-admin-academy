@@ -258,7 +258,7 @@ describe('Service Desk quality pass', () => {
     expect(score(attempt, 'NX-3560', 'pdf-export-update')).toBe(100);
   });
 
-  it('INC2406 teaches a disconnected VPN rather than device compliance', () => {
+  it('INC2406 separates VPN route restoration from mapped-drive repair', () => {
     const attempt = run(connected('NX-2047', 'INC2406'), [
       {
         type: 'remote_desktop.explorer_navigate',
@@ -272,6 +272,10 @@ describe('Service Desk quality pass', () => {
       {
         type: 'remote_desktop.vpn_complete_connection',
         payload: { assetTag: 'NX-2047' },
+      },
+      {
+        type: 'remote_desktop.explorer_reconnect_drive',
+        payload: { assetTag: 'NX-2047', driveLetter: 'Z:' },
       },
       {
         type: 'remote_desktop.explorer_navigate',
