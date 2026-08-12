@@ -37,6 +37,10 @@ const studentCUsername = requireEnv("NEXUS_E2E_STUDENT_C_USERNAME");
 const studentCPassword = requireEnv("NEXUS_E2E_STUDENT_C_PASSWORD");
 const studentDUsername = requireEnv("NEXUS_E2E_STUDENT_D_USERNAME");
 const studentDPassword = requireEnv("NEXUS_E2E_STUDENT_D_PASSWORD");
+const freshAUsername = requireEnv("NEXUS_E2E_FRESH_A_USERNAME");
+const freshAPassword = requireEnv("NEXUS_E2E_FRESH_A_PASSWORD");
+const freshBUsername = requireEnv("NEXUS_E2E_FRESH_B_USERNAME");
+const freshBPassword = requireEnv("NEXUS_E2E_FRESH_B_PASSWORD");
 const adminUsername = requireEnv("NEXUS_E2E_ADMIN_USERNAME");
 const adminPassword = requireEnv("NEXUS_E2E_ADMIN_PASSWORD");
 
@@ -107,6 +111,66 @@ async function prepareInc2401Workflow(page) {
 }
 
 test.describe("Service Desk integration (requires an integrated stack)", () => {
+  test("fresh students receive an isolated four-ticket starter queue with a compact next-pack preview", async ({ browser }) => {
+    const contextA = await browser.newContext({ viewport: { width: 375, height: 812 } });
+    const pageA = await contextA.newPage();
+    await studentLogin(pageA, freshAUsername, freshAPassword);
+
+    const assignmentsResponse = await pageA.request.get("/api/service-desk/assignments");
+    expect(assignmentsResponse.ok()).toBeTruthy();
+    const assignments = await assignmentsResponse.json();
+    expect(new Set(assignments.map((row) => row.scenario.stable_key))).toEqual(
+      new Set(["inc2405", "inc2404", "inc2403", "inc2502"]),
+    );
+    expect(assignments.every((row) => row.queue_type === "assigned")).toBeTruthy();
+
+    await pageA.goto("/service-desk");
+    await expect(pageA.getByRole("heading", { name: "My Service Desk" })).toBeVisible();
+    const progressA = pageA.getByRole("region", { name: "Training progress" });
+    await expect(progressA.getByText("4", { exact: true })).toBeVisible();
+    await expect(progressA.getByText("Available", { exact: true })).toBeVisible();
+    await expect(pageA.getByRole("region", { name: "Assigned" })).toBeVisible();
+    await expect(pageA.getByRole("heading", { name: "Practice" })).toBeVisible();
+    await expect(pageA.getByText("No completed cases yet", { exact: false })).toBeVisible();
+    await expect(pageA.getByText("Next case pack", { exact: true })).toBeVisible();
+    await expect(pageA.getByRole("heading", { name: "Desktop Support" })).toBeVisible();
+    await expect(pageA.getByText(/Reach Week 3 and complete 2 Starter Support cases successfully/)).toBeVisible();
+    await expect(pageA.locator('a[href^="/service-desk/tickets/"]')).toHaveCount(4);
+    await expect(pageA.getByText("Desktop opens with a temporary Windows profile")).toHaveCount(0);
+    const dimensions = await pageA.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+
+    const started = await pageA.request.post(
+      `/api/service-desk/assignments/${assignments[0].id}/attempts`,
+      withOrigin({}),
+    );
+    expect(started.status()).toBe(201);
+    await pageA.reload();
+    await expect(progressA.getByText("3", { exact: true })).toBeVisible();
+    await expect(progressA.getByText("1", { exact: true })).toBeVisible();
+    await expect(progressA.getByText("In progress", { exact: true })).toBeVisible();
+
+    await pageA.goto("/service-desk/tickets/INC2408");
+    await expect(pageA.getByRole("heading", { name: "Case unavailable" })).toBeVisible();
+    await contextA.close();
+
+    const contextB = await browser.newContext();
+    const pageB = await contextB.newPage();
+    await studentLogin(pageB, freshBUsername, freshBPassword);
+    const studentBAssignments = await (await pageB.request.get("/api/service-desk/assignments")).json();
+    expect(studentBAssignments).toHaveLength(4);
+    expect(studentBAssignments.every((row) => row.most_recent_attempt === null)).toBeTruthy();
+    await pageB.goto("/service-desk");
+    const progressB = pageB.getByRole("region", { name: "Training progress" });
+    await expect(progressB.getByText("4", { exact: true })).toBeVisible();
+    await expect(progressB.getByText("0", { exact: true })).toHaveCount(3);
+    await expect(progressB.getByText("In progress", { exact: true })).toBeVisible();
+    await contextB.close();
+  });
+
   test("admin scenario draft survives refresh and publishes an immutable version", async ({ page }) => {
     const suffix = Date.now();
     const stableKey = `e2e-printer-${suffix}`;
@@ -663,9 +727,9 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await studentLogin(page, studentDUsername, studentDPassword);
     const scenarios = [
       ["INC2401", "Finance portal returns to sign-in after verification"],
-      ["INC2405", "Facilities calendar shortcut opens an archived workspace"],
+      ["INC2405", "Facilities calendar shortcut shows a location error"],
       ["INC2407", "Internal sites fail while IP connectivity still works"],
-      ["INC2501", "Desktop opens with a temporary Windows profile"],
+      ["INC2501", "Desktop and Documents are missing after sign-in"],
       ["INC2506", "Assistant requests access to restricted salary records"],
       ["INC2508", "Employee entered credentials into a phishing page"],
     ];
@@ -680,7 +744,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
 
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/service-desk");
-    await expect(page.getByRole("heading", { name: "Ticket Queue" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "My Service Desk" })).toBeVisible();
     const dimensions = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,

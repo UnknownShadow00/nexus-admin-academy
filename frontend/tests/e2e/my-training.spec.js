@@ -120,11 +120,10 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Extra Practice/ })).toBeVisible();
   await expect(page.getByRole("link", { name: "Progress", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /Learning Path/i })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: /Begin Your IT Training|Continue Your Training/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Begin Your IT Training|Continue where you left off/ })).toBeVisible();
   await assertNoHorizontalOverflow(page);
 
-  await page.getByRole("button", { name: /Extra Practice/ }).click();
-  await page.getByRole("menuitem", { name: "My Training", exact: true }).click();
+  await page.getByRole("link", { name: "This Week", exact: true }).click();
   await expect(page).toHaveURL(/\/training$/);
   await expect(page.getByRole("heading", { name: "My Training", exact: true })).toBeVisible();
   await expect(page.getByText("Weekly Roadmap")).toBeVisible();
@@ -175,7 +174,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
 
   await page.goto("/training");
   await page.getByRole("button", { name: /Extra Practice/ }).click();
-  for (const name of ["My Training", "Guided Labs", "Networking Labs", "Command Library", "Terminal Practice"]) {
+  for (const name of ["Guided Labs", "Networking Labs", "Command Library", "Terminal Practice"]) {
     await expect(page.getByRole("menuitem", { name, exact: true })).toBeVisible();
   }
   await expect(page.getByRole("menuitem", { name: "Support Tickets", exact: true })).toHaveCount(0);
@@ -224,14 +223,14 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/training");
   await page.getByRole("button", { name: "Toggle menu" }).click();
-  await expect(page.getByRole("link", { name: "My Training", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "This Week", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /Learning Path/i })).toHaveCount(0);
   await expect(page.getByRole("paragraph").filter({ hasText: /^Extra Practice$/ })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await page.goto("/training/week/0");
   await assertNoHorizontalOverflow(page);
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Begin Your IT Training|Continue Your Training/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Begin Your IT Training|Continue where you left off/ })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await page.goto("/progress");
   await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
@@ -243,7 +242,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByText("Question 1 of 4", { exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await page.goto("/service-desk", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "Ticket Queue" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "My Service Desk" })).toBeVisible();
   await assertNoHorizontalOverflow(page);
 
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -485,7 +484,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await expect(weekOne).toBeVisible();
     await expect(weekOne).not.toContainText("Locked");
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Continue Your Training" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Continue where you left off" })).toBeVisible();
     await expect(page.getByText(/Week 1 —/).first()).toBeVisible();
 
     monitor.pause();
@@ -493,14 +492,14 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await expect(page).toHaveURL(/\/login$/);
     await studentLogin(page, username, password);
     monitor.resume();
-    await expect(page.getByRole("heading", { name: "Continue Your Training" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Continue where you left off" })).toBeVisible();
     await expect(page.getByText(/Week 1 —/).first()).toBeVisible();
     await page.goto("/training/week/0");
     await expect(page.getByText("2 of 2 required activities complete").first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
     await page.goto("/");
-    await page.getByRole("link", { name: "Service Desk Simulator" }).click();
+    await page.getByRole("link", { name: "Service Desk", exact: true }).click();
     await expect(page).toHaveURL(/\/service-desk\/?$/);
     await expect(page.getByRole("link", { name: "Back to Nexus" })).toBeVisible();
     // The link is server-rendered before Next hydration. Wait for the client
@@ -510,14 +509,14 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await expect(page).toHaveURL(/\/service-desk\/tools\/company-chat$/, { timeout: 15_000 });
     await page.getByRole("link", { name: "Back to Nexus" }).click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole("heading", { name: "Continue Your Training" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Continue where you left off" })).toBeVisible();
 
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/service-desk");
     await expect(page.getByRole("link", { name: "Back to Nexus" })).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await page.getByRole("link", { name: "Back to Nexus" }).click();
-    await expect(page.getByRole("heading", { name: "Continue Your Training" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Continue where you left off" })).toBeVisible();
     await assertNoHorizontalOverflow(page);
 
     const secondContext = await browser.newContext({ baseURL: browserBaseUrl });
