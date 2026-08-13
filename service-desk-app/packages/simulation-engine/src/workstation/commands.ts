@@ -3,6 +3,7 @@ import type {
   WorkstationService,
   WorkstationState,
 } from '@service-desk/shared';
+import { WORKSTATION_TERMINAL_COMMAND_MAX_LENGTH } from '@service-desk/shared';
 
 export interface WorkstationCommandResult {
   state: WorkstationState;
@@ -13,6 +14,15 @@ export interface WorkstationCommandResult {
 const SHELL_METACHARACTERS = /[&|><;`$\r\n]/;
 const DRIVE_LETTER = /^[A-Z]:$/;
 const IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}$/;
+
+function containsUnsupportedControlCharacters(value: string) {
+  return [...value].some((character) => {
+    const code = character.charCodeAt(0);
+    return (
+      code === 127 || (code < 32 && code !== 9 && code !== 10 && code !== 13)
+    );
+  });
+}
 
 function result(
   state: WorkstationState,
@@ -277,6 +287,22 @@ export function executeWorkstationCommand(
   command: string,
   timestamp: string,
 ): WorkstationCommandResult {
+  if (command.length > WORKSTATION_TERMINAL_COMMAND_MAX_LENGTH) {
+    return result(
+      state,
+      [
+        `The command exceeds the ${WORKSTATION_TERMINAL_COMMAND_MAX_LENGTH}-character simulator limit.`,
+      ],
+      false,
+    );
+  }
+  if (containsUnsupportedControlCharacters(command)) {
+    return result(
+      state,
+      ['The command contains unsupported characters.'],
+      false,
+    );
+  }
   const parsed = tokenize(command.trim());
   if ('error' in parsed) {
     return result(
@@ -298,6 +324,9 @@ export function executeWorkstationCommand(
         '',
         'No adapters found.',
       ]);
+    }
+    if (normalizedArgs.length > 1) {
+      return result(state, ['The parameter is incorrect.'], false);
     }
     if (normalizedArgs.length === 0 || normalizedArgs[0] === '/all') {
       const all = normalizedArgs[0] === '/all';
@@ -386,7 +415,8 @@ export function executeWorkstationCommand(
     executable === 'nslookup'
   ) {
     const target = args[0];
-    if (!target) return result(state, [`Usage: ${executable} <host>`], false);
+    if (!target || args.length !== 1)
+      return result(state, [`Usage: ${executable} <host>`], false);
     const address = IPV4.test(target) ? target : resolveHost(state, target);
     const reachable = Boolean(address && canReachIp(state, address));
     const nextState =
@@ -460,6 +490,13 @@ export function executeWorkstationCommand(
       return result(state, ['Use a drive letter in the form Z:.'], false);
     }
     if (normalizedArgs[2] === '/delete') {
+      if (args.length !== 3) {
+        return result(
+          state,
+          ['The command line parameters are not valid.'],
+          false,
+        );
+      }
       return deleteWorkstationDrive(state, letter);
     }
     const uncPath = args[2];
@@ -473,6 +510,17 @@ export function executeWorkstationCommand(
     ) {
       return result(state, ['Use /persistent:yes or /persistent:no.'], false);
     }
+    const expectedLength = persistent ? 4 : 3;
+    if (
+      args.length !== expectedLength ||
+      args.slice(3).some((arg) => !arg.toLowerCase().startsWith('/persistent:'))
+    ) {
+      return result(
+        state,
+        ['The command line parameters are not valid.'],
+        false,
+      );
+    }
     return mapWorkstationDrive(
       state,
       letter,
@@ -482,7 +530,7 @@ export function executeWorkstationCommand(
   }
 
   if (executable === 'cmdkey') {
-    if (normalizedArgs[0] === '/list') {
+    if (normalizedArgs[0] === '/list' && args.length === 1) {
       const credentials = Object.values(state.credentials);
       return result(
         state,
@@ -499,7 +547,7 @@ export function executeWorkstationCommand(
     const add = args.find((arg) => arg.toLowerCase().startsWith('/add:'));
     const user = args.find((arg) => arg.toLowerCase().startsWith('/user:'));
     const remove = args.find((arg) => arg.toLowerCase().startsWith('/delete:'));
-    if (add && user) {
+    if (add && user && args.length === 2 && !remove) {
       const target = add.slice('/add:'.length).toLowerCase();
       const username = user.slice('/user:'.length);
       if (!target || !username || !/^[a-z0-9.-]+$/i.test(target)) {
@@ -527,7 +575,7 @@ export function executeWorkstationCommand(
         ['CMDKEY: Credential added successfully.'],
       );
     }
-    if (remove) {
+    if (remove && args.length === 1 && !add && !user) {
       const target = remove.slice('/delete:'.length).toLowerCase();
       if (!state.credentials[target]) {
         return result(state, ['CMDKEY: Element not found.'], false);
@@ -545,12 +593,13 @@ export function executeWorkstationCommand(
     );
   }
 
-  if (executable === 'whoami')
+  if (executable === 'whoami' && args.length === 0)
     return result(state, [state.machine.signedInUser]);
-  if (executable === 'hostname') return result(state, [state.machine.hostname]);
+  if (executable === 'hostname' && args.length === 0)
+    return result(state, [state.machine.hostname]);
   if (
     executable === 'gpupdate' &&
-    (args.length === 0 || normalizedArgs[0] === '/force')
+    (args.length === 0 || (args.length === 1 && normalizedArgs[0] === '/force'))
   ) {
     return result(state, [
       'Updating policy...',
@@ -558,7 +607,7 @@ export function executeWorkstationCommand(
       'User Policy update has completed successfully.',
     ]);
   }
-  if (executable === 'systeminfo') {
+  if (executable === 'systeminfo' && args.length === 0) {
     return result(state, [
       `Host Name:                 ${state.machine.hostname}`,
       `OS Name:                   ${state.machine.operatingSystem}`,
@@ -567,7 +616,7 @@ export function executeWorkstationCommand(
       `Domain:                    ${state.machine.domain}`,
     ]);
   }
-  if (executable === 'tasklist') {
+  if (executable === 'tasklist' && args.length === 0) {
     const services = Object.values(state.services)
       .filter((service) => service.state === 'running')
       .map(
@@ -613,8 +662,8 @@ export function executeWorkstationCommand(
       ],
     );
   }
-  if (executable === 'cls') return result(state, []);
-  if (executable === 'help') {
+  if (executable === 'cls' && args.length === 0) return result(state, []);
+  if (executable === 'help' && args.length === 0) {
     return result(state, [
       'Supported commands:',
       'ipconfig [/all|/release|/renew|/displaydns|/flushdns]',

@@ -32,6 +32,10 @@ import {
   getFixtureTicket,
   getStatusTransitions,
   TicketStatus,
+  WORKSTATION_EVENT_HISTORY_LIMIT,
+  WORKSTATION_RENDERED_TERMINAL_LIMIT,
+  WORKSTATION_TERMINAL_COMMAND_MAX_LENGTH,
+  WORKSTATION_VPN_LOG_LIMIT,
   type TicketNote,
   type RemoteDesktopScenarioFixture,
 } from '@service-desk/shared';
@@ -485,15 +489,21 @@ function directoryRejectReason(
         : 'The original account problem has not been remediated yet.';
     }
     case 'directory.unlock_account':
-      if (fixture.supportIssue && overlay.diagnosis !== 'account-locked') {
-        return 'Record the supported lock diagnosis before unlocking this account.';
+      if (
+        fixture.supportIssue &&
+        (!overlay.inspected || !overlay.identityVerified)
+      ) {
+        return 'Review the account and record an approved identity check before using account actions.';
       }
       return overlay.locked
         ? null
         : 'This directory account is already unlocked.';
     case 'directory.reset_password':
-      if (fixture.supportIssue && overlay.diagnosis !== 'password-expired') {
-        return 'Record the supported password diagnosis before issuing a temporary password.';
+      if (
+        fixture.supportIssue &&
+        (!overlay.inspected || !overlay.identityVerified)
+      ) {
+        return 'Review the account and record an approved identity check before using account actions.';
       }
       if (
         fixture.supportIssue === 'password-expired' &&
@@ -505,19 +515,25 @@ function directoryRejectReason(
         ? 'A password cannot be reset while this account is disabled.'
         : null;
     case 'directory.enable_account':
+      if (fixture.supportIssue) {
+        return 'Enable and disable controls are restricted for this active support case.';
+      }
       return overlay.disabled
         ? null
         : 'This directory account is already enabled.';
     case 'directory.disable_account':
+      if (fixture.supportIssue) {
+        return 'Disabling this active requester account is not an approved training action.';
+      }
       return overlay.disabled
         ? 'This directory account is already disabled.'
         : null;
     case 'directory.reset_mfa':
       if (
         fixture.supportIssue &&
-        overlay.diagnosis !== 'mfa-factor-unavailable'
+        (!overlay.inspected || !overlay.identityVerified)
       ) {
-        return 'Record the supported MFA diagnosis before clearing registration.';
+        return 'Review the account and record an approved identity check before using account actions.';
       }
       return overlay.disabled
         ? 'MFA cannot be reset while this account is disabled.'
@@ -619,6 +635,14 @@ function chatRejectReason(action: ChatSimulationAction): string | null {
   }
   if (action.type === 'chat.verify_identity' && !contact.supportIssue) {
     return 'This workflow does not require an identity-administration verification.';
+  }
+  if (
+    action.type === 'chat.verify_identity' &&
+    !contact.availableIdentityVerificationMethods.includes(
+      action.payload.method,
+    )
+  ) {
+    return 'That approved verification method is not available in this ticket context.';
   }
 
   if (action.type === 'chat.send_message') {
@@ -1819,9 +1843,13 @@ function remoteDesktopRejectReason(
         : `Complete “${expected ?? 'the remaining required step'}” before attempting another repair.`;
     }
     case 'remote_desktop.run_terminal_command':
-      return overlay.connectionState === 'connected'
+      if (overlay.connectionState !== 'connected') {
+        return 'Connect to the simulated computer before running Terminal commands.';
+      }
+      return action.payload.command.length <=
+        WORKSTATION_TERMINAL_COMMAND_MAX_LENGTH
         ? null
-        : 'Connect to the simulated computer before running Terminal commands.';
+        : `Terminal commands cannot exceed ${WORKSTATION_TERMINAL_COMMAND_MAX_LENGTH} characters.`;
     case 'remote_desktop.explorer_navigate':
       if (overlay.connectionState !== 'connected') {
         return 'Connect to the simulated computer before navigating File Explorer.';
@@ -2201,7 +2229,7 @@ function applyValidRemoteDesktopAction(
             output: result.output,
             timestamp: createdAt,
           },
-        ],
+        ].slice(-WORKSTATION_RENDERED_TERMINAL_LIMIT),
       };
     }
     case 'remote_desktop.explorer_navigate': {
@@ -3360,8 +3388,10 @@ export function applyAction(
       serviceStates: { ...synchronizedOverlay.serviceStates },
       scenarioProgress: { ...synchronizedOverlay.scenarioProgress },
       terminalHistory: [...synchronizedOverlay.terminalHistory],
-      vpnLog: [...synchronizedOverlay.vpnLog],
-      events: [...currentOverlay.events, event],
+      vpnLog: synchronizedOverlay.vpnLog.slice(-WORKSTATION_VPN_LOG_LIMIT),
+      events: [...currentOverlay.events, event].slice(
+        -WORKSTATION_EVENT_HISTORY_LIMIT,
+      ),
     };
 
     let ticketOverlays = { ...attempt.ticketOverlays };

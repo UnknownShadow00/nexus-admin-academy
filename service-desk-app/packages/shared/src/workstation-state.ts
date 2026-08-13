@@ -6,6 +6,13 @@ import type {
 } from './remote-desktop-fixtures';
 
 export const WORKSTATION_STATE_SCHEMA_VERSION = 2 as const;
+export const WORKSTATION_RENDERED_TERMINAL_LIMIT = 100;
+export const WORKSTATION_PERSISTED_TERMINAL_LIMIT = 50;
+export const WORKSTATION_COMMAND_RECALL_LIMIT = 100;
+export const WORKSTATION_EVENT_HISTORY_LIMIT = 250;
+export const WORKSTATION_EXPLORER_HISTORY_LIMIT = 50;
+export const WORKSTATION_VPN_LOG_LIMIT = 50;
+export const WORKSTATION_TERMINAL_COMMAND_MAX_LENGTH = 512;
 
 export type WorkstationComplianceState =
   | 'compliant'

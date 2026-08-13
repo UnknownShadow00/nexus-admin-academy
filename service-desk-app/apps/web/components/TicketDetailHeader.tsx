@@ -49,6 +49,22 @@ export function TicketDetailHeader({
           <IconClockHour4 aria-hidden="true" className="h-4 w-4 text-sky-400" />
           <span>{ticket.sla.target}</span>
         </div>
+        {assignment?.experience_mode === 'guided' ? (
+          <p className="mt-3 max-w-3xl text-sm text-sky-200">
+            Guided practice. This case may return later as an independent
+            assessment.
+          </p>
+        ) : assignment?.experience_mode === 'practice' ? (
+          <p className="mt-3 max-w-3xl text-sm text-zinc-400">
+            Independent replay. Practice does not replace required assessment
+            mastery or award XP.
+          </p>
+        ) : assignment?.guided_completed ? (
+          <p className="mt-3 max-w-3xl text-sm text-sky-200">
+            You practiced this case earlier. Complete it independently to
+            demonstrate mastery.
+          </p>
+        ) : null}
       </div>
     </Card>
   );

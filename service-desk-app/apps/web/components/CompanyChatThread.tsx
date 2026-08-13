@@ -21,6 +21,13 @@ import { useState, type FormEvent } from 'react';
 import { useCompanyChatSession } from './TicketSessionProvider';
 
 const MESSAGE_LIMIT = 500;
+const IDENTITY_METHOD_LABELS: Readonly<
+  Record<IdentityVerificationMethod, string>
+> = {
+  'employee-id-directory-match': 'Match employee ID to directory record',
+  'manager-confirmation': 'Approved manager confirmation',
+  'known-number-callback': 'Callback to known company number',
+};
 
 interface CompanyChatThreadProps {
   contact: DirectoryUserTemplate | null;
@@ -81,6 +88,13 @@ export function CompanyChatThread({ contact, thread }: CompanyChatThreadProps) {
     'directory-user-taylor-morgan': 'INC2511',
   };
   const ticketId = ticketByContact[contact.id];
+  const availableVerificationMethods =
+    contact.availableIdentityVerificationMethods;
+  const selectedVerificationMethod = availableVerificationMethods.includes(
+    verificationMethod,
+  )
+    ? verificationMethod
+    : availableVerificationMethods[0];
 
   return (
     <Card className="flex min-h-[32rem] flex-col overflow-hidden">
@@ -166,40 +180,43 @@ export function CompanyChatThread({ contact, thread }: CompanyChatThreadProps) {
       {ticketId ? (
         <section className="space-y-3 border-t border-zinc-800 bg-zinc-900/70 p-4">
           {contact.supportIssue ? (
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-              <Select
-                aria-label="Approved identity verification method"
-                onChange={(event) =>
-                  setVerificationMethod(
-                    event.target.value as IdentityVerificationMethod,
-                  )
-                }
-                value={verificationMethod}
-              >
-                <option value="employee-id-directory-match">
-                  Match employee ID to directory record
-                </option>
-                <option value="manager-confirmation">
-                  Approved manager confirmation
-                </option>
-                <option value="known-number-callback">
-                  Callback to known company number
-                </option>
-              </Select>
-              <Button
-                onClick={() => {
-                  const result = verifyIdentity(
-                    contact.id,
-                    ticketId,
-                    verificationMethod,
-                  );
-                  setLastEvent(result);
-                  if (result.success) openThread(contact.id);
-                }}
-                variant="soft"
-              >
-                Run approved identity check
-              </Button>
+            <div className="space-y-2">
+              <p className="text-xs leading-relaxed text-zinc-400">
+                {contact.identityVerificationContext}
+              </p>
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <Select
+                  aria-label="Approved identity verification method"
+                  onChange={(event) =>
+                    setVerificationMethod(
+                      event.target.value as IdentityVerificationMethod,
+                    )
+                  }
+                  value={selectedVerificationMethod}
+                >
+                  {availableVerificationMethods.map((method) => (
+                    <option key={method} value={method}>
+                      {IDENTITY_METHOD_LABELS[method]}
+                    </option>
+                  ))}
+                </Select>
+                <Button
+                  disabled={!selectedVerificationMethod}
+                  onClick={() => {
+                    if (!selectedVerificationMethod) return;
+                    const result = verifyIdentity(
+                      contact.id,
+                      ticketId,
+                      selectedVerificationMethod,
+                    );
+                    setLastEvent(result);
+                    if (result.success) openThread(contact.id);
+                  }}
+                  variant="soft"
+                >
+                  Run approved identity check
+                </Button>
+              </div>
             </div>
           ) : null}
           <Button

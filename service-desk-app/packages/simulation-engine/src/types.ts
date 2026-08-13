@@ -241,6 +241,7 @@ export interface RemoteDesktopOverlay {
 
 export interface Grade {
   attemptId: string;
+  experienceMode?: 'guided' | 'practice' | 'assessment';
   ticketId: string;
   pointsAwarded: number;
   pointsPossible: number;

@@ -111,7 +111,12 @@ export {
   type PastTicket,
   type TicketTimeEntry,
 } from './progress-read-model';
-export { restoreAttempt, serializeAttempt } from './serialize';
+export {
+  mergeAttemptSessionUi,
+  restoreAttempt,
+  serializeAttempt,
+  serializeNexusResumeAttempt,
+} from './serialize';
 export {
   createWorkstationState,
   migrateLegacyWorkstationState,

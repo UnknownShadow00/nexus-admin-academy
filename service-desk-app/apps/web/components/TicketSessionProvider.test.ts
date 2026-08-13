@@ -93,9 +93,7 @@ describe('Nexus evidence attribution', () => {
       ticketId: 'inc2406',
       tool: 'remote_desktop',
     });
-    expect(details?.resultingState).toEqual(
-      attempt.remoteDesktopOverlays['NX-2047'],
-    );
+    expect(details?.resultingState).toEqual({});
   });
 
   it('uses the asset reverse lookup for substantive asset-only actions', () => {
@@ -201,9 +199,11 @@ describe('Nexus evidence attribution', () => {
         id: 1,
         is_required: false,
         maximum_attempts: null,
-      mode: 'simulation',
-      experience_mode: 'assessment',
+        mode: 'simulation',
+        experience_mode: 'assessment',
+        guided_completed: false,
         most_recent_attempt: null,
+        required_this_week: false,
         scenario_id: 2,
         scenario: { stable_key: 'inc2402', title: definition.title },
         latest_published_version: {
@@ -226,9 +226,11 @@ describe('Nexus evidence attribution', () => {
         id: 2,
         is_required: false,
         maximum_attempts: null,
-      mode: 'simulation',
-      experience_mode: 'assessment',
+        mode: 'simulation',
+        experience_mode: 'assessment',
+        guided_completed: false,
         most_recent_attempt: null,
+        required_this_week: false,
         scenario_id: 5,
         scenario: { stable_key: 'inc2405', title: definition.title },
         latest_published_version: {

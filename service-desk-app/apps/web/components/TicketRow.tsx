@@ -52,6 +52,14 @@ export function TicketRow({
           </span>
         </span>
         <span className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-400">
+          <span className="font-bold uppercase tracking-wide text-sky-300">
+            {assignment?.experience_mode ?? 'assessment'}
+          </span>
+          {assignment?.required_this_week ? (
+            <span className="font-semibold text-amber-300">
+              Required this week
+            </span>
+          ) : null}
           <span className="inline-flex items-center gap-1 whitespace-nowrap">
             <IconClock aria-hidden="true" className="h-3.5 w-3.5" />
             {formatRelativeTime(ticket.createdAt, FIXTURE_REFERENCE_TIME)}

@@ -176,6 +176,33 @@ describe('progress read model', () => {
     expect(derivePastTickets(attempt)).toEqual([]);
   });
 
+  it('excludes Guided and Practice grades from mastery rollups and achievements', () => {
+    const attempt = attemptWithProgress();
+    const nonAssessment = {
+      ...attempt,
+      grades: Object.fromEntries(
+        Object.entries(attempt.grades).map(([ticketId, item], index) => [
+          ticketId,
+          {
+            ...item,
+            experienceMode: index === 0 ? 'guided' : 'practice',
+          },
+        ]),
+      ),
+    } satisfies Attempt;
+
+    expect(deriveAnalyticsSummary(nonAssessment)).toMatchObject({
+      hintsUsed: 0,
+      pointsTotal: 0,
+      ticketsAttempted: 0,
+      ticketsResolved: 0,
+    });
+    expect(
+      evaluateAchievements(nonAssessment).every((item) => !item.earned),
+    ).toBe(true);
+    expect(derivePastTickets(nonAssessment)).toEqual([]);
+  });
+
   it('projects past tickets directly from grades and fixture metadata', () => {
     expect(derivePastTickets(attemptWithProgress())[0]).toMatchObject({
       category: TicketCategory.Access,

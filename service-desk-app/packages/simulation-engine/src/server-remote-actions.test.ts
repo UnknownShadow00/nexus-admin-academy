@@ -392,9 +392,10 @@ describe('Remote Desktop actions', () => {
     expect(updated.attempt.remoteDesktopOverlays['NX-2047']?.trainingMode).toBe(
       false,
     );
-    expect(updated.attempt.remoteDesktopOverlays['NX-3560']?.trainingMode).toBe(
-      true,
-    );
+    expect(updated.attempt.remoteDesktopOverlays['NX-3560']).toBeUndefined();
+    expect(Object.keys(updated.attempt.remoteDesktopOverlays)).toEqual([
+      'NX-2047',
+    ]);
   });
 
   it('restarts a workstation and rejects an unknown workstation', () => {

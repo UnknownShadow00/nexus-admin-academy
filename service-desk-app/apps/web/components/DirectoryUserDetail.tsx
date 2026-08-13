@@ -47,6 +47,9 @@ export function DirectoryUserDetail({
   const [groupToAdd, setGroupToAdd] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
   const isStarterAccountCase = user.supportIssue !== null;
+  const accountActionsAuthorized =
+    !isStarterAccountCase ||
+    (user.accountInspected === true && user.identityVerified === true);
   const remediationComplete =
     (user.supportIssue === 'account-locked' && !user.locked) ||
     (user.supportIssue === 'password-expired' &&
@@ -261,10 +264,7 @@ export function DirectoryUserDetail({
             title="Unlock account"
             trigger={
               <Button
-                disabled={
-                  !user.locked ||
-                  (isStarterAccountCase && user.diagnosis !== 'account-locked')
-                }
+                disabled={!user.locked || !accountActionsAuthorized}
                 variant="soft"
               >
                 <IconLockOpen aria-hidden="true" className="h-4 w-4" />
@@ -273,10 +273,7 @@ export function DirectoryUserDetail({
             }
           />
           <PasswordResetDialog
-            disabled={
-              user.disabled ||
-              (isStarterAccountCase && user.diagnosis !== 'password-expired')
-            }
+            disabled={user.disabled || !accountActionsAuthorized}
             fullName={user.fullName}
             onConfirm={(requireChangeAtNextSignIn) =>
               onAction(resetPassword(user.id, requireChangeAtNextSignIn))
@@ -298,7 +295,10 @@ export function DirectoryUserDetail({
             }
             title={user.disabled ? 'Enable account' : 'Disable account'}
             trigger={
-              <Button variant={user.disabled ? 'primary' : 'default'}>
+              <Button
+                disabled={isStarterAccountCase}
+                variant={user.disabled ? 'primary' : 'default'}
+              >
                 <IconUserCheck aria-hidden="true" className="h-4 w-4" />
                 {user.disabled ? 'Enable account' : 'Disable account'}
               </Button>
@@ -311,13 +311,7 @@ export function DirectoryUserDetail({
             onConfirm={() => onAction(resetMfa(user.id))}
             title="Reset MFA"
             trigger={
-              <Button
-                disabled={
-                  user.disabled ||
-                  (isStarterAccountCase &&
-                    user.diagnosis !== 'mfa-factor-unavailable')
-                }
-              >
+              <Button disabled={user.disabled || !accountActionsAuthorized}>
                 <IconShieldLock aria-hidden="true" className="h-4 w-4" />
                 Reset MFA
               </Button>

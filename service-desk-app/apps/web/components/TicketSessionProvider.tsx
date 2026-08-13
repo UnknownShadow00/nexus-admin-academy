@@ -48,8 +48,10 @@ import {
   evaluateObjectives,
   evaluateAchievements,
   isChatThreadUnread,
+  mergeAttemptSessionUi,
   restoreAttempt,
   serializeAttempt,
+  serializeNexusResumeAttempt,
   type ActionEvent,
   type AssetSimulationAction,
   type AnalyticsSummary,
@@ -543,6 +545,22 @@ const REMOTE_DESKTOP_EVIDENCE_ACTION_TYPES = new Set([
   'remote_desktop.update_restart',
   'remote_desktop.disconnect',
 ]);
+
+const REMOTE_DESKTOP_SESSION_UI_ACTION_TYPES = new Set([
+  'remote_desktop.open_app',
+  'remote_desktop.close_app',
+  'remote_desktop.focus_app',
+  'remote_desktop.minimize_app',
+  'remote_desktop.move_window',
+  'remote_desktop.toggle_window_maximize',
+  'remote_desktop.set_start_menu',
+  'remote_desktop.toggle_training_mode',
+  'remote_desktop.set_learning_mode',
+]);
+
+function isRemoteDesktopSessionUiAction(action: SimulationAction): boolean {
+  return REMOTE_DESKTOP_SESSION_UI_ACTION_TYPES.has(action.type);
+}
 
 type NexusEvidenceAction =
   | AssetSimulationAction
@@ -1428,7 +1446,10 @@ export function TicketSessionProvider({
           // Each action carries a versioned full workstation snapshot. Restore
           // the newest one across all active tickets so navigation cannot roll
           // shared Directory, Chat, or desktop state back to an older case.
-          nextAttempt = newestNexusSnapshot.restored;
+          nextAttempt = mergeAttemptSessionUi(
+            newestNexusSnapshot.restored,
+            restored,
+          );
         }
       } else if (active) {
         nexusTicketMappingsRef.current = {};
@@ -1593,7 +1614,7 @@ export function TicketSessionProvider({
         payload: event.payload,
         resulting_state: {
           nexus_service_desk_attempt: JSON.parse(
-            serializeAttempt(attemptRef.current),
+            serializeNexusResumeAttempt(attemptRef.current),
           ),
           schema_version: 1,
         },
@@ -1640,7 +1661,7 @@ export function TicketSessionProvider({
           payload: {},
           resulting_state: {
             nexus_service_desk_attempt: JSON.parse(
-              serializeAttempt(attemptRef.current),
+              serializeNexusResumeAttempt(attemptRef.current),
             ),
             schema_version: 1,
           },
@@ -1668,11 +1689,16 @@ export function TicketSessionProvider({
       let completion: NexusAttemptCompletionInput | null = null;
 
       if (action.type === 'ticket.close' && result.event.success) {
-        const grade = evaluateObjectives(
-          result.attempt,
-          action.payload.ticketId,
-          runtimeTickets,
-        );
+        const grade = {
+          ...evaluateObjectives(
+            result.attempt,
+            action.payload.ticketId,
+            runtimeTickets,
+          ),
+          experienceMode:
+            runtimeAssignments[action.payload.ticketId]?.experience_mode ??
+            'assessment',
+        };
 
         const scenario = getRemoteDesktopScenarioByTicket(
           action.payload.ticketId,
@@ -1761,6 +1787,7 @@ export function TicketSessionProvider({
       if (
         NEXUS_INTEGRATION_ENABLED &&
         result.event.success &&
+        !isRemoteDesktopSessionUiAction(action) &&
         (isTicketSimulationAction(action) ||
           isChatSimulationAction(action) ||
           isAssetSimulationAction(action) ||
@@ -1803,8 +1830,10 @@ export function TicketSessionProvider({
         !(
           isTicketSimulationAction(action) ||
           isChatSimulationAction(action) ||
+          isAssetSimulationAction(action) ||
           isDirectorySimulationAction(action) ||
-          isRemoteDesktopSimulationAction(action)
+          isRemoteDesktopSimulationAction(action) ||
+          isShippingSimulationAction(action)
         )
       ) {
         // No ticket is fabricated for these domains. The snapshot endpoint
@@ -1817,7 +1846,13 @@ export function TicketSessionProvider({
       setAttempt(nextAttempt);
       return result.event;
     },
-    [actorId, queueNexusActionSync, queueNexusSnapshotSync, runtimeTickets],
+    [
+      actorId,
+      queueNexusActionSync,
+      queueNexusSnapshotSync,
+      runtimeAssignments,
+      runtimeTickets,
+    ],
   );
 
   const tickets = useMemo(

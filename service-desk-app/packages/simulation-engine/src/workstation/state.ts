@@ -1,5 +1,9 @@
 import {
+  WORKSTATION_COMMAND_RECALL_LIMIT,
+  WORKSTATION_EXPLORER_HISTORY_LIMIT,
+  WORKSTATION_RENDERED_TERMINAL_LIMIT,
   WORKSTATION_STATE_SCHEMA_VERSION,
+  WORKSTATION_VPN_LOG_LIMIT,
   getRemoteDesktopTerminalFixture,
   getRemoteDesktopWorkstation,
   type RemoteDesktopAppId,
@@ -478,11 +482,13 @@ export function migrateLegacyWorkstationState(
         error: legacy.vpnError
           ? { code: 'legacy-error', message: legacy.vpnError }
           : null,
-        log: (legacy.vpnLog ?? []).map((entry) => ({
-          code: 'legacy-event',
-          message: entry.message,
-          timestamp: entry.timestamp,
-        })),
+        log: (legacy.vpnLog ?? [])
+          .slice(-WORKSTATION_VPN_LOG_LIMIT)
+          .map((entry) => ({
+            code: 'legacy-event',
+            message: entry.message,
+            timestamp: entry.timestamp,
+          })),
       },
     },
     filesystem: {
@@ -510,11 +516,16 @@ export function migrateLegacyWorkstationState(
       nextZIndex: openApps.length + 10,
     },
     terminal: {
-      history: [...(legacy.terminalHistory ?? [])],
-      commandHistory: (legacy.terminalHistory ?? []).map(
-        (entry) => entry.command,
+      history: (legacy.terminalHistory ?? []).slice(
+        -WORKSTATION_RENDERED_TERMINAL_LIMIT,
       ),
-      historyCursor: (legacy.terminalHistory ?? []).length,
+      commandHistory: (legacy.terminalHistory ?? [])
+        .map((entry) => entry.command)
+        .slice(-WORKSTATION_COMMAND_RECALL_LIMIT),
+      historyCursor: Math.min(
+        (legacy.terminalHistory ?? []).length,
+        WORKSTATION_COMMAND_RECALL_LIMIT,
+      ),
     },
   };
 }
@@ -650,6 +661,16 @@ export function reconcileWorkstationState(
         }))
       : []),
   ];
+  const explorerNavigated = Boolean(
+    legacy.explorerCurrentPath &&
+      legacy.explorerCurrentPath !== state.filesystem.currentPath,
+  );
+  const explorerHistory = explorerNavigated
+    ? [
+        ...state.filesystem.history.slice(0, state.filesystem.historyIndex + 1),
+        legacy.explorerCurrentPath!,
+      ].slice(-WORKSTATION_EXPLORER_HISTORY_LIMIT)
+    : state.filesystem.history.slice(-WORKSTATION_EXPLORER_HISTORY_LIMIT);
 
   return {
     ...state,
@@ -672,7 +693,7 @@ export function reconcileWorkstationState(
           ? { code: 'connection-error', message: legacy.vpnError }
           : null,
         log: legacy.vpnLog
-          ? legacy.vpnLog.map((entry) => ({
+          ? legacy.vpnLog.slice(-WORKSTATION_VPN_LOG_LIMIT).map((entry) => ({
               code: 'connection-event',
               message: entry.message,
               timestamp: entry.timestamp,
@@ -684,22 +705,10 @@ export function reconcileWorkstationState(
       ...state.filesystem,
       nodes: filesystemNodes,
       currentPath: legacy.explorerCurrentPath ?? state.filesystem.currentPath,
-      history:
-        legacy.explorerCurrentPath &&
-        legacy.explorerCurrentPath !== state.filesystem.currentPath
-          ? [
-              ...state.filesystem.history.slice(
-                0,
-                state.filesystem.historyIndex + 1,
-              ),
-              legacy.explorerCurrentPath,
-            ]
-          : state.filesystem.history,
-      historyIndex:
-        legacy.explorerCurrentPath &&
-        legacy.explorerCurrentPath !== state.filesystem.currentPath
-          ? state.filesystem.historyIndex + 1
-          : state.filesystem.historyIndex,
+      history: explorerHistory,
+      historyIndex: explorerNavigated
+        ? explorerHistory.length - 1
+        : Math.min(state.filesystem.historyIndex, explorerHistory.length - 1),
       error: legacy.explorerError
         ? {
             code: legacy.explorerError.kind,
@@ -723,9 +732,16 @@ export function reconcileWorkstationState(
     },
     terminal: legacy.terminalHistory
       ? {
-          history: [...legacy.terminalHistory],
-          commandHistory: legacy.terminalHistory.map((entry) => entry.command),
-          historyCursor: legacy.terminalHistory.length,
+          history: legacy.terminalHistory.slice(
+            -WORKSTATION_RENDERED_TERMINAL_LIMIT,
+          ),
+          commandHistory: legacy.terminalHistory
+            .map((entry) => entry.command)
+            .slice(-WORKSTATION_COMMAND_RECALL_LIMIT),
+          historyCursor: Math.min(
+            legacy.terminalHistory.length,
+            WORKSTATION_COMMAND_RECALL_LIMIT,
+          ),
         }
       : state.terminal,
   };

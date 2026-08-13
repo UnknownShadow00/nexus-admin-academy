@@ -131,7 +131,10 @@ export function createAttempt(seed: AttemptSeed = {}): Attempt {
     shipments: {},
     lastShippingAddress: null,
     serverRoomOverlays: createInitialServerRoomOverlays(),
-    remoteDesktopOverlays: createInitialRemoteDesktopOverlays(),
+    // Workstations are fixture-backed and created on first use. Eagerly
+    // materializing every machine copied hundreds of kilobytes of immutable
+    // catalog data into a brand-new attempt and every resume snapshot.
+    remoteDesktopOverlays: {},
     grades: {},
   };
 }

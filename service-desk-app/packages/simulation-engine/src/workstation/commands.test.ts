@@ -142,4 +142,63 @@ describe('deterministic workstation command interpreter', () => {
     expect(injection.success).toBe(false);
     expect(injection.output[0]).toContain('unsupported characters');
   });
+
+  it.each([
+    'hostname && whoami',
+    'hostname || whoami',
+    'hostname | whoami',
+    'hostname > output.txt',
+    'hostname < input.txt',
+    'hostname; whoami',
+    'hostname\nwhoami',
+    'echo `whoami`',
+    'echo $(whoami)',
+  ])('rejects chaining, redirect, and substitution syntax: %s', (command) => {
+    const initial = createWorkstationState('NX-2047');
+    const result = executeWorkstationCommand(initial, command, NOW);
+
+    expect(result.success).toBe(false);
+    expect(result.state).toEqual(initial);
+    expect(result.output.join('\n')).toMatch(
+      /unsupported|could not be parsed/i,
+    );
+  });
+
+  it('handles whitespace, quoting, mixed case, Unicode, and traversal strings deterministically', () => {
+    const initial = createWorkstationState('NX-4419');
+
+    expect(
+      executeWorkstationCommand(
+        initial,
+        '  SC   QuErY   "Print Spooler"  ',
+        NOW,
+      ).output.join('\n'),
+    ).toContain('SERVICE_NAME: Print Spooler');
+    expect(
+      executeWorkstationCommand(initial, 'sc query "Print Spooler', NOW)
+        .success,
+    ).toBe(false);
+    expect(executeWorkstationCommand(initial, 'hostname ☃', NOW).success).toBe(
+      false,
+    );
+    expect(
+      executeWorkstationCommand(initial, 'net use Z: ..\\..\\etc', NOW).success,
+    ).toBe(false);
+  });
+
+  it('rejects unsupported switches, surplus arguments, controls, and oversized input', () => {
+    const initial = createWorkstationState('NX-2047');
+
+    for (const command of [
+      'ipconfig /all /verbose',
+      'ping example.com /unknown',
+      'whoami /all',
+      `hostname\u0000`,
+      'a'.repeat(513),
+    ]) {
+      const result = executeWorkstationCommand(initial, command, NOW);
+      expect(result.success, command).toBe(false);
+      expect(result.state, command).toEqual(initial);
+    }
+  });
 });

@@ -107,7 +107,7 @@ export function WindowFrame({
   return (
     <section
       aria-label={`${Meta.label} window`}
-      className={`absolute flex min-h-0 flex-col overflow-hidden border bg-zinc-100 text-zinc-900 shadow-2xl max-sm:inset-x-2 max-sm:bottom-12 max-sm:top-2 max-sm:h-auto max-sm:w-auto ${focused ? 'border-sky-300 ring-2 ring-sky-300/30' : 'border-zinc-500'}`}
+      className={`absolute flex min-h-0 flex-col overflow-hidden border bg-zinc-100 text-zinc-900 shadow-2xl max-sm:!inset-x-2 max-sm:!bottom-12 max-sm:!top-2 max-sm:!h-auto max-sm:!w-auto ${focused ? 'border-sky-300 ring-2 ring-sky-300/30' : 'border-zinc-500'}`}
       onPointerDown={() => {
         if (!focused) onFocus();
       }}
