@@ -199,10 +199,15 @@ async function connectRemoteDesktop(page, ticketId, assetTag) {
   await page.goto(`/service-desk/tools/remote-desktop?ticket=${ticketId}`);
   await page.getByPlaceholder("Search by asset tag, hostname, or owner").fill(assetTag);
   await page.getByRole("button", { name: "Connect" }).click();
-  await page.getByPlaceholder("e.g. jdoe").fill("support.admin");
-  await page.getByPlaceholder("Domain password").fill("simulation-only");
-  await page.getByRole("button", { name: "OK" }).click();
-  await expect(page.getByRole("button", { name: "Open Start menu" })).toBeVisible();
+  const startButton = page.getByRole("button", { name: "Open Start menu" });
+  const username = page.getByPlaceholder("e.g. jdoe");
+  await expect(username.or(startButton)).toBeVisible();
+  if (await username.isVisible()) {
+    await username.fill("support.admin");
+    await page.getByPlaceholder("Domain password").fill("simulation-only");
+    await page.getByRole("button", { name: "OK" }).click();
+  }
+  await expect(startButton).toBeVisible();
 }
 
 async function openDesktopApp(page, appName) {
@@ -264,7 +269,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await expect(progressA.getByText("Available", { exact: true })).toBeVisible();
     await expect(pageA.getByRole("region", { name: "Assigned" })).toBeVisible();
     await expect(pageA.getByRole("heading", { name: "Practice" })).toBeVisible();
-    await expect(pageA.getByText("No completed cases yet", { exact: false })).toBeVisible();
+    await expect(pageA.getByText("No mastered cases yet", { exact: false })).toBeVisible();
     await expect(pageA.getByText("Next case pack", { exact: true })).toBeVisible();
     await expect(pageA.getByRole("heading", { name: "Desktop Support" })).toBeVisible();
     await expect(pageA.getByText("○ Reach Week 3 training")).toBeVisible();
@@ -962,5 +967,70 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
       scrollWidth: document.documentElement.scrollWidth,
     }));
     expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+  });
+
+  test("workstation shell remains keyboard-operable at desktop and mobile viewports", async ({ browser }, testInfo) => {
+    test.setTimeout(90_000);
+
+    const runViewportCheck = async (viewport, screenshotName) => {
+      const context = await browser.newContext({ viewport });
+      const page = await context.newPage();
+      await studentLogin(page, studentAUsername, studentAPassword);
+      await connectRemoteDesktop(page, "INC2406", "NX-2047");
+
+      const ticketWorkspace = page.getByRole("button", { name: "Ticket workspace" });
+      await ticketWorkspace.focus();
+      await expect(ticketWorkspace).toBeFocused();
+      await page.keyboard.press("Enter");
+      if (viewport.width < 1280) {
+        await expect(ticketWorkspace).toBeHidden();
+      } else {
+        await expect(ticketWorkspace).toHaveAttribute("aria-expanded", "false");
+      }
+
+      const startButton = page.getByRole("button", { name: "Open Start menu" });
+      await startButton.focus();
+      await expect(startButton).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(startButton).toHaveAttribute("aria-expanded", "true");
+
+      const terminalLauncher = page.getByRole("button", { name: "Command Prompt", exact: true }).last();
+      await terminalLauncher.focus();
+      await page.keyboard.press("Enter");
+      const terminalWindow = page.getByLabel("Command Prompt window");
+      await expect(terminalWindow).toBeVisible();
+
+      const terminalInput = page.locator("#terminal-command");
+      await terminalInput.fill("hostname");
+      await terminalInput.press("Enter");
+      await expect(terminalWindow).toContainText("PM-LT-41> hostname");
+      await terminalInput.press("ArrowUp");
+      await expect(terminalInput).toHaveValue("hostname");
+
+      const minimizeButton = page.getByRole("button", { name: "Minimize Command Prompt" });
+      await minimizeButton.focus();
+      await page.keyboard.press("Enter");
+      await expect(terminalWindow).toBeHidden();
+      const focusTerminal = page.getByRole("button", { name: "Focus Command Prompt" });
+      await focusTerminal.focus();
+      await page.keyboard.press("Enter");
+      await expect(terminalWindow).toBeVisible();
+
+      await expect(page.getByRole("link", { name: "Back to Nexus" })).toBeVisible();
+      const dimensions = await page.evaluate(() => ({
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      }));
+      expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+
+      const screenshotPath = testInfo.outputPath(screenshotName);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.screenshot({ path: screenshotPath });
+      await testInfo.attach(screenshotName, { path: screenshotPath, contentType: "image/png" });
+      await context.close();
+    };
+
+    await runViewportCheck({ width: 1440, height: 1000 }, "workstation-desktop-1440x1000.png");
+    await runViewportCheck({ width: 375, height: 812 }, "workstation-mobile-375x812.png");
   });
 });

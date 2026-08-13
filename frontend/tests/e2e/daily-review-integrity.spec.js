@@ -14,7 +14,7 @@ const adminPassword = process.env.NEXUS_E2E_ADMIN_PASSWORD || "BrowserAdmin!2026
 function buildCsv(quizTitle) {
   const header =
     "quiz_title,question_type,question_text,option_a,option_b,option_c,option_d,option_e,option_f,option_g,option_h,correct_answers,explanation,difficulty,tags,source,published";
-  const row = `${quizTitle},multi,"When creating a new help desk ticket, which basic information is typically required? (Select 3 answers)",User information,Expected resolution date,Device information,Escalation levels required,Problem description,,,,A|C|E,"Tickets need requester, device, and problem details up front.",2,help-desk,e2e-fixture,false`;
+  const row = `${quizTitle},multi,"When creating a new help desk ticket for ${quizTitle}, which basic information is typically required? (Select 3 answers)",User information,Expected resolution date,Device information,Escalation levels required,Problem description,,,,A|C|E,"Tickets need requester, device, and problem details up front.",2,help-desk,e2e-fixture,false`;
   return `${header}\n${row}\n`;
 }
 
@@ -117,7 +117,7 @@ async function runDailyReviewFlow(page, { viewport, quizTitleSuffix }) {
 
   await expect(page.getByText("Answer Review")).toBeVisible();
   await expect(page.getByText("User information")).toBeVisible();
-  await expect(page.getByText("Device information")).toBeVisible();
+  await expect(page.getByText("Device information", { exact: true })).toBeVisible();
   await expect(page.getByText("Problem description")).toBeVisible();
   await expect(page.getByText("Correct answer")).toHaveCount(3); // A, C, E all shown
   await expect(page.getByText("Your answer")).toHaveCount(1); // only the wrong pick, B
