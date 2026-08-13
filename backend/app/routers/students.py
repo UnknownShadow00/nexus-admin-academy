@@ -21,12 +21,20 @@ from app.models.quiz import (
     QuizAttempt,
 )
 from app.models.student import Student
-from app.models.service_desk import ServiceDeskAttempt, ServiceDeskScenario, ServiceDeskScenarioVersion
+from app.models.service_desk import (
+    ServiceDeskAttempt,
+    ServiceDeskScenario,
+    ServiceDeskScenarioVersion,
+)
 from app.models.squad_activity import SquadActivity
 from app.models.ticket import Ticket, TicketSubmission
 from app.models.xp_ledger import XPLedger
 from app.services.activity_service import mark_student_active
-from app.services.auth_service import ensure_student_access, ensure_student_ownership, get_current_student
+from app.services.auth_service import (
+    ensure_student_access,
+    ensure_student_ownership,
+    get_current_student,
+)
 from app.services.mastery_service import list_student_mastery
 from app.services.methodology_enforcer import can_access_tickets
 from app.services.onboarding_service import get_orientation_state
@@ -57,7 +65,9 @@ def update_login_streak(db: Session, student_id: int) -> LoginStreak:
     streak = db.query(LoginStreak).filter(LoginStreak.student_id == student_id).first()
 
     if streak is None:
-        streak = LoginStreak(student_id=student_id, current_streak=1, longest_streak=1, last_login=today)
+        streak = LoginStreak(
+            student_id=student_id, current_streak=1, longest_streak=1, last_login=today
+        )
         db.add(streak)
         try:
             db.commit()
@@ -66,7 +76,11 @@ def update_login_streak(db: Session, student_id: int) -> LoginStreak:
             # mode or two tabs). The unique student row may be created by the
             # other request after our initial read; recover by loading it.
             db.rollback()
-            concurrent = db.query(LoginStreak).filter(LoginStreak.student_id == student_id).first()
+            concurrent = (
+                db.query(LoginStreak)
+                .filter(LoginStreak.student_id == student_id)
+                .first()
+            )
             if concurrent is None:
                 raise
             return concurrent
@@ -94,7 +108,9 @@ def _build_cert_readiness(student_id: int, db: Session) -> dict:
     mastery_rows = (
         db.query(
             ComptiaObjective.domain.label("domain"),
-            func.coalesce(func.avg(StudentObjectiveProgress.mastery_level), 0).label("avg_mastery"),
+            func.coalesce(func.avg(StudentObjectiveProgress.mastery_level), 0).label(
+                "avg_mastery"
+            ),
         )
         .outerjoin(
             StudentObjectiveProgress,
@@ -115,24 +131,39 @@ def _build_cert_readiness(student_id: int, db: Session) -> dict:
 
     return {
         "overall_readiness": round(float(overall), 1),
-        "by_domain": [{"domain": row.domain, "readiness": round(float(row.avg_mastery), 1)} for row in mastery_rows],
+        "by_domain": [
+            {"domain": row.domain, "readiness": round(float(row.avg_mastery), 1)}
+            for row in mastery_rows
+        ],
         "total_objectives": int(total_objectives),
     }
 
 
 @router.post("/api/students/{student_id}/check-in")
-def student_check_in(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def student_check_in(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     ensure_student_ownership(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
     mark_student_active(db, student_id)
     streak = update_login_streak(db, student_id)
-    return {"success": True, "streak": streak.current_streak, "longest_streak": streak.longest_streak}
+    return {
+        "success": True,
+        "streak": streak.current_streak,
+        "longest_streak": streak.longest_streak,
+    }
 
 
 @router.get("/api/students/{student_id}/dashboard")
-def get_student_dashboard(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def get_student_dashboard(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
@@ -148,10 +179,20 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db), curren
         .all()
     )
 
-    quiz_attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).all()
+    quiz_attempts = (
+        db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).all()
+    )
     service_desk_completed = (
-        db.query(func.count(ServiceDeskAttempt.id))
-        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True), ServiceDeskAttempt.experience_mode == "assessment")
+        db.query(func.count(func.distinct(ServiceDeskScenarioVersion.scenario_id)))
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+        )
+        .filter(
+            ServiceDeskAttempt.student_id == student_id,
+            ServiceDeskAttempt.passed.is_(True),
+            ServiceDeskAttempt.experience_mode == "assessment",
+        )
         .scalar()
         or 0
     )
@@ -163,7 +204,14 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db), curren
             "total_xp": student.total_xp,
             "level": level,
             "level_name": level_name,
-            "quiz_best_scores": [{"quiz_id": q.quiz_id, "best_score": q.best_score, "first_attempt_xp": q.first_attempt_xp} for q in quiz_attempts],
+            "quiz_best_scores": [
+                {
+                    "quiz_id": q.quiz_id,
+                    "best_score": q.best_score,
+                    "first_attempt_xp": q.first_attempt_xp,
+                }
+                for q in quiz_attempts
+            ],
             "service_desk_completed": int(service_desk_completed),
         },
         "recent_activity": [
@@ -181,7 +229,11 @@ def get_student_dashboard(student_id: int, db: Session = Depends(get_db), curren
 
 
 @router.get("/api/students/{student_id}/stats")
-def get_student_stats(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def get_student_stats(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
@@ -192,33 +244,63 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
     streak = db.query(LoginStreak).filter(LoginStreak.student_id == student_id).first()
     level, level_name = level_from_xp(student.total_xp)
 
-    required_quizzes = [quiz for week in range(25) for quiz in required_quizzes_for_week(db, week)]
-    completed_required = [quiz for quiz in required_quizzes if is_quiz_passed(db, student_id, quiz)]
+    required_quizzes = [
+        quiz for week in range(25) for quiz in required_quizzes_for_week(db, week)
+    ]
+    completed_required = [
+        quiz for quiz in required_quizzes if is_quiz_passed(db, student_id, quiz)
+    ]
     required_scores = [
-        max((attempt.score or 0) for attempt in quiz.attempts if attempt.student_id == student_id)
+        max(
+            (attempt.score or 0)
+            for attempt in quiz.attempts
+            if attempt.student_id == student_id
+        )
         for quiz in completed_required
     ]
-    quiz_stats = type("QuizStats", (), {
-        "completed": len(completed_required),
-        "avg_score": (sum(required_scores) / len(required_scores)) if required_scores else 0,
-    })()
+    quiz_stats = type(
+        "QuizStats",
+        (),
+        {
+            "completed": len(completed_required),
+            "avg_score": (sum(required_scores) / len(required_scores))
+            if required_scores
+            else 0,
+        },
+    )()
     total_quizzes = len(required_quizzes)
 
-    service_desk_stats = (
+    service_desk_mastery_scores = (
         db.query(
-            func.count(ServiceDeskAttempt.id).label("completed"),
-            func.coalesce(func.avg(ServiceDeskAttempt.score), 0).label("avg_score"),
+            ServiceDeskScenarioVersion.scenario_id,
+            func.max(ServiceDeskAttempt.score).label("score"),
         )
-        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True), ServiceDeskAttempt.experience_mode == "assessment")
-        .first()
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+        )
+        .filter(
+            ServiceDeskAttempt.student_id == student_id,
+            ServiceDeskAttempt.passed.is_(True),
+            ServiceDeskAttempt.experience_mode == "assessment",
+        )
+        .group_by(ServiceDeskScenarioVersion.scenario_id)
+        .all()
     )
-    total_service_desk = db.query(func.count(ServiceDeskScenario.id)).filter(ServiceDeskScenario.status == "active").scalar() or 0
+    total_service_desk = (
+        db.query(func.count(ServiceDeskScenario.id))
+        .filter(ServiceDeskScenario.status == "active")
+        .scalar()
+        or 0
+    )
 
     week_number = derive_current_week(student_id, db)
     week_required_quizzes = required_quizzes_for_week(db, week_number)
     week_quizzes = len(week_required_quizzes)
     week_service_desk = 0
-    week_completed_q = sum(is_quiz_passed(db, student_id, quiz) for quiz in week_required_quizzes)
+    week_completed_q = sum(
+        is_quiz_passed(db, student_id, quiz) for quiz in week_required_quizzes
+    )
     week_total = week_quizzes + week_service_desk
     week_done = week_completed_q
     week_completion = round((week_done / week_total) * 100, 1) if week_total else 0
@@ -240,17 +322,39 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
             ServiceDeskScenario.title.label("title"),
             ServiceDeskAttempt.score.label("score"),
         )
-        .join(ServiceDeskScenarioVersion, ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id)
-        .join(ServiceDeskScenario, ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id)
-        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True), ServiceDeskAttempt.experience_mode == "assessment")
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+        )
+        .join(
+            ServiceDeskScenario,
+            ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id,
+        )
+        .filter(
+            ServiceDeskAttempt.student_id == student_id,
+            ServiceDeskAttempt.passed.is_(True),
+            ServiceDeskAttempt.experience_mode == "assessment",
+        )
         .all()
     )
 
     recent_activity = [
-        {"type": "quiz", "title": row.title, "score": row.score, "xp": row.xp, "timestamp": row.timestamp}
+        {
+            "type": "quiz",
+            "title": row.title,
+            "score": row.score,
+            "xp": row.xp,
+            "timestamp": row.timestamp,
+        }
         for row in quiz_activity
     ] + [
-        {"type": "service_desk", "title": row.title, "score": row.score, "xp": None, "timestamp": row.timestamp}
+        {
+            "type": "service_desk",
+            "title": row.title,
+            "score": row.score,
+            "xp": None,
+            "timestamp": row.timestamp,
+        }
         for row in service_desk_activity
     ]
     recent_activity.sort(key=lambda x: x["timestamp"] or datetime.min, reverse=True)
@@ -259,12 +363,14 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
     weak_rows = []
 
     cohort = (
-        db.query(Student.id, Student.total_xp)
-        .filter(Student.id != student_id)
-        .all()
+        db.query(Student.id, Student.total_xp).filter(Student.id != student_id).all()
     )
     cohort_xp_values = [row.total_xp for row in cohort]
-    avg_xp = round(sum(cohort_xp_values) / len(cohort_xp_values), 0) if cohort_xp_values else 0
+    avg_xp = (
+        round(sum(cohort_xp_values) / len(cohort_xp_values), 0)
+        if cohort_xp_values
+        else 0
+    )
     percentile = round(((student.total_xp - avg_xp) / avg_xp) * 100, 1) if avg_xp else 0
 
     cohort_quiz_avg = (
@@ -286,14 +392,24 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
         "quizzes_completed": int(quiz_stats.completed or 0),
         "total_quizzes": int(total_quizzes),
         "avg_quiz_score": round(float(quiz_stats.avg_score or 0), 1),
-        "service_desk_completed": int(service_desk_stats.completed or 0),
+        "service_desk_completed": len(service_desk_mastery_scores),
         "total_service_desk": int(total_service_desk),
-        "avg_service_desk_score": round(float(service_desk_stats.avg_score or 0), 1),
+        "avg_service_desk_score": round(
+            sum(float(row.score or 0) for row in service_desk_mastery_scores)
+            / len(service_desk_mastery_scores),
+            1,
+        )
+        if service_desk_mastery_scores
+        else 0,
         "current_week": week_number,
         "week_completion": week_completion,
         "recent_activity": recent_activity,
         "weak_areas": [
-            {"topic": row.category or "general", "avg_score": round(float(row.avg_score or 0), 1), "attempts": int(row.attempts or 0)}
+            {
+                "topic": row.category or "general",
+                "avg_score": round(float(row.avg_score or 0), 1),
+                "attempts": int(row.attempts or 0),
+            }
             for row in weak_rows
         ],
         "streak": streak.current_streak if streak else 0,
@@ -311,7 +427,11 @@ def get_student_stats(student_id: int, db: Session = Depends(get_db), current_st
 
 
 @router.get("/api/students/{student_id}/certification-readiness")
-def get_cert_readiness(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def get_cert_readiness(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
@@ -320,8 +440,13 @@ def get_cert_readiness(student_id: int, db: Session = Depends(get_db), current_s
 
 
 @router.get("/api/leaderboard")
-def get_leaderboard(db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
-    students = db.query(Student).order_by(Student.total_xp.desc(), Student.id.asc()).all()
+def get_leaderboard(
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    students = (
+        db.query(Student).order_by(Student.total_xp.desc(), Student.id.asc()).all()
+    )
     entries = []
     for rank, student in enumerate(students, start=1):
         level, _ = level_from_xp(student.total_xp)
@@ -338,7 +463,10 @@ def get_leaderboard(db: Session = Depends(get_db), current_student: Student = De
 
 
 @router.get("/api/students")
-def get_students(db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def get_students(
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     # Student-facing roster (e.g. the ticket collaborator picker) — no email or
     # other private profile data. Admins use /api/admin/students/overview for that.
     rows = db.query(Student).order_by(Student.name.asc()).all()
@@ -347,7 +475,11 @@ def get_students(db: Session = Depends(get_db), current_student: Student = Depen
 
 
 @router.get("/api/students/{student_id}/mastery")
-def get_student_mastery(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def get_student_mastery(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
@@ -356,7 +488,12 @@ def get_student_mastery(student_id: int, db: Session = Depends(get_db), current_
 
 
 @router.get("/api/squad/dashboard")
-def squad_dashboard(student_id: int | None = None, limit: int = 30, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def squad_dashboard(
+    student_id: int | None = None,
+    limit: int = 30,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     if student_id is not None:
         ensure_student_access(current_student, student_id)
     cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
@@ -398,7 +535,9 @@ def squad_dashboard(student_id: int | None = None, limit: int = 30, db: Session 
             {
                 "id": row.id,
                 "student_id": row.student_id,
-                "student_name": student.name if student else f"Student {row.student_id}",
+                "student_name": student.name
+                if student
+                else f"Student {row.student_id}",
                 "activity_type": row.activity_type,
                 "title": row.title,
                 "detail": row.detail,
@@ -419,13 +558,21 @@ def squad_dashboard(student_id: int | None = None, limit: int = 30, db: Session 
 
 
 @router.get("/api/students/{student_id}/learning-path")
-def get_learning_path(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def get_learning_path(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    modules = db.query(Module).order_by(Module.module_order.asc().nullslast(), Module.id.asc()).all()
+    modules = (
+        db.query(Module)
+        .order_by(Module.module_order.asc().nullslast(), Module.id.asc())
+        .all()
+    )
     result = []
     for module in modules:
         mastery = get_module_mastery(student_id, module.id, db)
@@ -439,19 +586,35 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db), current_st
 
         lesson_items = []
         for lesson in lessons:
-            quiz_count = db.query(func.count(Quiz.id)).filter(Quiz.lesson_id == lesson.id).scalar() or 0
-            ticket_count = db.query(func.count(Ticket.id)).filter(Ticket.lesson_id == lesson.id).scalar() or 0
+            quiz_count = (
+                db.query(func.count(Quiz.id))
+                .filter(Quiz.lesson_id == lesson.id)
+                .scalar()
+                or 0
+            )
+            ticket_count = (
+                db.query(func.count(Ticket.id))
+                .filter(Ticket.lesson_id == lesson.id)
+                .scalar()
+                or 0
+            )
             completed_quiz = (
                 db.query(func.count(QuizAttempt.id))
                 .join(Quiz, QuizAttempt.quiz_id == Quiz.id)
-                .filter(QuizAttempt.student_id == student_id, Quiz.lesson_id == lesson.id)
+                .filter(
+                    QuizAttempt.student_id == student_id, Quiz.lesson_id == lesson.id
+                )
                 .scalar()
                 or 0
             )
             completed_ticket = (
                 db.query(func.count(TicketSubmission.id))
                 .join(Ticket, TicketSubmission.ticket_id == Ticket.id)
-                .filter(TicketSubmission.student_id == student_id, Ticket.lesson_id == lesson.id, TicketSubmission.status == "passed")
+                .filter(
+                    TicketSubmission.student_id == student_id,
+                    Ticket.lesson_id == lesson.id,
+                    TicketSubmission.status == "passed",
+                )
                 .scalar()
                 or 0
             )
@@ -466,7 +629,11 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db), current_st
                 )
                 .first()
             )
-            completion_percent = round((done_parts / total_parts) * 100, 1) if total_parts else (100 if lesson_complete else 0)
+            completion_percent = (
+                round((done_parts / total_parts) * 100, 1)
+                if total_parts
+                else (100 if lesson_complete else 0)
+            )
 
             lesson_items.append(
                 {
@@ -476,7 +643,8 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db), current_st
                     "summary": lesson.summary,
                     "lesson_order": lesson.lesson_order,
                     "completion_percent": completion_percent,
-                    "is_orientation": module.code == "MOD-000" and lesson.title == "Welcome to Nexus: Your First Week",
+                    "is_orientation": module.code == "MOD-000"
+                    and lesson.title == "Welcome to Nexus: Your First Week",
                 }
             )
 
@@ -497,7 +665,11 @@ def get_learning_path(student_id: int, db: Session = Depends(get_db), current_st
 
 
 @router.get("/api/students/{student_id}/promotion-status")
-def promotion_status(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def promotion_status(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
@@ -507,14 +679,20 @@ def promotion_status(student_id: int, db: Session = Depends(get_db), current_stu
 
 
 @router.get("/api/students/{student_id}/methodology-status")
-def methodology_status(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def methodology_status(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     ensure_student_access(current_student, student_id)
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
     access = can_access_tickets(student_id, db)
-    frameworks = db.query(MethodologyFramework).order_by(MethodologyFramework.id.asc()).all()
+    frameworks = (
+        db.query(MethodologyFramework).order_by(MethodologyFramework.id.asc()).all()
+    )
     progress = (
         db.query(StudentMethodologyProgress)
         .filter(StudentMethodologyProgress.student_id == student_id)
@@ -533,10 +711,16 @@ def methodology_status(student_id: int, db: Session = Depends(get_db), current_s
                 "quiz_score": p.quiz_score if p else None,
             }
         )
-    return {"success": True, "allowed": access["allowed"], "missing_frameworks": access["missing_frameworks"], "frameworks": data}
+    return {
+        "success": True,
+        "allowed": access["allowed"],
+        "missing_frameworks": access["missing_frameworks"],
+        "frameworks": data,
+    }
 
 
 # ---------------------------------------------------------------- TB-03: week plan
+
 
 @router.get("/api/students/me/week-plan")
 def get_week_plan(
@@ -600,7 +784,9 @@ def get_week_plan(
         .order_by(Quiz.id)
         .all()
     )
-    remediation_ids = assigned_remediation_ids(db, student_id) | triggered_remediation_ids(db, student_id)
+    remediation_ids = assigned_remediation_ids(
+        db, student_id
+    ) | triggered_remediation_ids(db, student_id)
 
     def quiz_item(quiz):
         passed = is_quiz_passed(db, student_id, quiz)
@@ -608,7 +794,9 @@ def get_week_plan(
         return {
             "id": quiz.id,
             "title": quiz.title,
-            "status": "done" if passed else ("in_progress" if attempted else "available"),
+            "status": "done"
+            if passed
+            else ("in_progress" if attempted else "available"),
             "route": f"/quizzes/{quiz.id}",
             "quiz_purpose": quiz.quiz_purpose,
             "is_required": quiz.is_required,
@@ -621,12 +809,27 @@ def get_week_plan(
         }
 
     quizzes_out = [
-        quiz_item(q) for q in visible_quizzes
-        if q.is_required and q.show_in_weekly_checklist and q.quiz_purpose not in {QUIZ_PURPOSE_CUMULATIVE, QUIZ_PURPOSE_GATE}
+        quiz_item(q)
+        for q in visible_quizzes
+        if q.is_required
+        and q.show_in_weekly_checklist
+        and q.quiz_purpose not in {QUIZ_PURPOSE_CUMULATIVE, QUIZ_PURPOSE_GATE}
     ]
-    practice_out = [quiz_item(q) for q in visible_quizzes if q.quiz_purpose == QUIZ_PURPOSE_PRACTICE and q.show_in_practice_library]
-    remediation_out = [quiz_item(q) for q in visible_quizzes if q.quiz_purpose == QUIZ_PURPOSE_REMEDIATION and q.id in remediation_ids]
-    cumulative_gate_out = [quiz_item(q) for q in visible_quizzes if q.quiz_purpose in {QUIZ_PURPOSE_CUMULATIVE, QUIZ_PURPOSE_GATE}]
+    practice_out = [
+        quiz_item(q)
+        for q in visible_quizzes
+        if q.quiz_purpose == QUIZ_PURPOSE_PRACTICE and q.show_in_practice_library
+    ]
+    remediation_out = [
+        quiz_item(q)
+        for q in visible_quizzes
+        if q.quiz_purpose == QUIZ_PURPOSE_REMEDIATION and q.id in remediation_ids
+    ]
+    cumulative_gate_out = [
+        quiz_item(q)
+        for q in visible_quizzes
+        if q.quiz_purpose in {QUIZ_PURPOSE_CUMULATIVE, QUIZ_PURPOSE_GATE}
+    ]
 
     # CLI labs by pack mapping
     week_packs = [p for p, w in CLI_PACK_WEEKS.items() if w == current_week]
@@ -663,11 +866,15 @@ def get_week_plan(
         {
             "id": lt.id,
             "title": lt.title,
-            "status": "done" if lab_runs.get(lt.id) in ("submitted", "verified") else "available",
+            "status": "done"
+            if lab_runs.get(lt.id) in ("submitted", "verified")
+            else "available",
             "route": f"/labs/{lt.id}",
         }
         for lt in db.query(LabTemplate)
-        .filter(LabTemplate.week_number == current_week, LabTemplate.is_published.is_(True))
+        .filter(
+            LabTemplate.week_number == current_week, LabTemplate.is_published.is_(True)
+        )
         .order_by(LabTemplate.id)
         .all()
     ]
@@ -684,10 +891,20 @@ def get_week_plan(
     ]
     passed_scenarios = {
         stable_key
-        for stable_key, in db.query(ServiceDeskScenario.stable_key)
-        .join(ServiceDeskScenarioVersion, ServiceDeskScenarioVersion.scenario_id == ServiceDeskScenario.id)
-        .join(ServiceDeskAttempt, ServiceDeskAttempt.scenario_version_id == ServiceDeskScenarioVersion.id)
-        .filter(ServiceDeskAttempt.student_id == student_id, ServiceDeskAttempt.passed.is_(True), ServiceDeskAttempt.experience_mode == "assessment")
+        for (stable_key,) in db.query(ServiceDeskScenario.stable_key)
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.scenario_id == ServiceDeskScenario.id,
+        )
+        .join(
+            ServiceDeskAttempt,
+            ServiceDeskAttempt.scenario_version_id == ServiceDeskScenarioVersion.id,
+        )
+        .filter(
+            ServiceDeskAttempt.student_id == student_id,
+            ServiceDeskAttempt.passed.is_(True),
+            ServiceDeskAttempt.experience_mode == "assessment",
+        )
         .all()
     }
     service_desk_out = [
@@ -695,16 +912,28 @@ def get_week_plan(
             "id": scenario.stable_key,
             "title": scenario.title,
             "difficulty": scenario.difficulty,
-            "status": "done" if scenario.stable_key in passed_scenarios else "available",
+            "status": "done"
+            if scenario.stable_key in passed_scenarios
+            else "available",
             "route": "/service-desk",
         }
         for scenario in db.query(ServiceDeskScenario)
-        .filter(ServiceDeskScenario.stable_key.in_(scenario_keys), ServiceDeskScenario.status == "active")
+        .filter(
+            ServiceDeskScenario.stable_key.in_(scenario_keys),
+            ServiceDeskScenario.status == "active",
+        )
         .order_by(ServiceDeskScenario.difficulty, ServiceDeskScenario.id)
         .all()
     ]
 
-    all_items = lessons_out + quizzes_out + cumulative_gate_out + cli_out + labs_out + service_desk_out
+    all_items = (
+        lessons_out
+        + quizzes_out
+        + cumulative_gate_out
+        + cli_out
+        + labs_out
+        + service_desk_out
+    )
     done_count = sum(1 for item in all_items if item["status"] == "done")
 
     # Recommended next action: first non-done item in pedagogical order
@@ -717,7 +946,9 @@ def get_week_plan(
             "week": current_week,
             "role": (promotion.get("current_role") or {}).get("name"),
             "gate": promotion.get("eligibility"),
-            "progress_percent": round(done_count / len(all_items) * 100, 1) if all_items else 0,
+            "progress_percent": round(done_count / len(all_items) * 100, 1)
+            if all_items
+            else 0,
             "next_action": next_action,
             "lessons": lessons_out,
             "quizzes": quizzes_out,

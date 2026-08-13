@@ -159,6 +159,26 @@ def test_0047_preserves_historical_rows_and_rehearses_downgrade(tmp_path):
     assert upgraded["integrity"] == "ok"
 
     with sqlite3.connect(database_path) as connection:
+        student_id = connection.execute(
+            "SELECT id FROM students WHERE email='migration.learner@nexus.example'"
+        ).fetchone()[0]
+        connection.execute(
+            """
+            INSERT INTO xp_ledger
+                (student_id, source_type, source_id, delta, description)
+            VALUES (?, 'service_desk_mastery', 777, 100, 'first mastery')
+            """,
+            (student_id,),
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                """
+                INSERT INTO xp_ledger
+                    (student_id, source_type, source_id, delta, description)
+                VALUES (?, 'service_desk_mastery', 777, 100, 'duplicate mastery')
+                """,
+                (student_id,),
+            )
         with pytest.raises(sqlite3.IntegrityError):
             connection.execute(
                 "UPDATE service_desk_attempts SET experience_mode='invalid' WHERE id=9001"
@@ -180,3 +200,23 @@ def test_0047_preserves_historical_rows_and_rehearses_downgrade(tmp_path):
 
     _alembic(database_url, "upgrade", REVISION_0047)
     assert _migration_snapshot(database_path) == upgraded
+
+
+def test_fresh_database_upgrades_from_base_through_0047(tmp_path):
+    database_path = tmp_path / "fresh-through-0047.db"
+    database_url = f"sqlite:///{database_path}"
+
+    _alembic(database_url, "upgrade", REVISION_0047)
+
+    with sqlite3.connect(database_path) as connection:
+        revision = connection.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone()[0]
+        columns = {
+            row[1]
+            for row in connection.execute("PRAGMA table_info(service_desk_attempts)")
+        }
+        assert revision == REVISION_0047
+        assert "experience_mode" in columns
+        assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+        assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"

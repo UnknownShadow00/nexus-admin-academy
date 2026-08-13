@@ -11,16 +11,27 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.service_desk import (
-    ServiceDeskAssignment, ServiceDeskAttempt, ServiceDeskAttemptEvent,
-    ServiceDeskAttemptGrade, ServiceDeskScenario, ServiceDeskScenarioVersion,
+    ServiceDeskAssignment,
+    ServiceDeskAttempt,
+    ServiceDeskAttemptEvent,
+    ServiceDeskAttemptGrade,
+    ServiceDeskScenario,
+    ServiceDeskScenarioVersion,
 )
 from app.models.student import Student
 from app.schemas.service_desk import (
-    ServiceDeskActionCreate, ServiceDeskCompleteCreate, ServiceDeskEventCreate, ServiceDeskHintCreate,
+    ServiceDeskActionCreate,
+    ServiceDeskCompleteCreate,
+    ServiceDeskEventCreate,
+    ServiceDeskHintCreate,
     ServiceDeskSnapshotCreate,
 )
 from app.services.service_desk_objectives import objective_definition, payload_matches
-from app.services.auth_service import ensure_student_access, ensure_student_ownership, get_current_student
+from app.services.auth_service import (
+    ensure_student_access,
+    ensure_student_ownership,
+    get_current_student,
+)
 from app.services.service_desk_grading import AttemptNotClosedError, compute_grade
 from app.services.service_desk_progression import (
     build_service_desk_progression,
@@ -31,6 +42,8 @@ from app.services.service_desk_progression import (
 from app.services.xp_service import award_xp
 
 router = APIRouter(prefix="/api/service-desk", tags=["service-desk"])
+
+MAX_RESUME_SNAPSHOT_BYTES = 512 * 1024
 
 # The API records simulation actions, not arbitrary browser facts.  Keep this
 # intentionally narrow enough to reject invented namespaces while allowing the
@@ -47,7 +60,11 @@ _EVENT_PREFIX_TOOLS = {
 
 def _validate_event_shape(event_type: str, tool: str, payload: dict) -> None:
     expected_tool = next(
-        (value for prefix, value in _EVENT_PREFIX_TOOLS.items() if event_type.startswith(prefix)),
+        (
+            value
+            for prefix, value in _EVENT_PREFIX_TOOLS.items()
+            if event_type.startswith(prefix)
+        ),
         None,
     )
     if expected_tool is None:
@@ -68,11 +85,15 @@ def _validate_event_shape(event_type: str, tool: str, payload: dict) -> None:
         payload.get("recipientDirectoryUserId"), str
     ):
         raise HTTPException(422, "Shipping events require a directory recipient")
-    if event_type.startswith("directory.") and not isinstance(payload.get("directoryUserId"), str):
+    if event_type.startswith("directory.") and not isinstance(
+        payload.get("directoryUserId"), str
+    ):
         raise HTTPException(422, "Directory events require directoryUserId")
     if event_type.startswith("chat.") and not isinstance(payload.get("contactId"), str):
         raise HTTPException(422, "Company Chat events require contactId")
-    if event_type.startswith("remote_desktop.") and not isinstance(payload.get("assetTag"), str):
+    if event_type.startswith("remote_desktop.") and not isinstance(
+        payload.get("assetTag"), str
+    ):
         raise HTTPException(422, "Remote Desktop events require assetTag")
 
 
@@ -85,52 +106,106 @@ def _json_response(content: dict, code: int) -> JSONResponse:
 
 
 def _event_dict(event: ServiceDeskAttemptEvent) -> dict:
-    return {"id": event.id, "attempt_id": event.attempt_id, "sequence_number": event.sequence_number,
-            "idempotency_key": event.idempotency_key, "event_type": event.event_type, "tool": event.tool,
-            "payload": event.payload_json, "previous_state_hash": event.previous_state_hash,
-            "resulting_state_hash": event.resulting_state_hash, "success": event.success, "created_at": event.created_at}
+    return {
+        "id": event.id,
+        "attempt_id": event.attempt_id,
+        "sequence_number": event.sequence_number,
+        "idempotency_key": event.idempotency_key,
+        "event_type": event.event_type,
+        "tool": event.tool,
+        "payload": event.payload_json,
+        "previous_state_hash": event.previous_state_hash,
+        "resulting_state_hash": event.resulting_state_hash,
+        "success": event.success,
+        "created_at": event.created_at,
+    }
 
 
-def _student_scenario_definition(definition: dict) -> dict:
+def _student_scenario_definition(definition: dict, experience_mode: str) -> dict:
     """Return runtime presentation only; never disclose grading or explanation data."""
     allowed = {
-        "activity", "assignedTo", "category", "createdAt", "description", "device",
-        "escalated", "hints", "id", "notes", "priority", "requester", "sla",
-        "status", "suggestedTools", "title",
+        "activity",
+        "assignedTo",
+        "category",
+        "createdAt",
+        "description",
+        "device",
+        "escalated",
+        "hints",
+        "id",
+        "notes",
+        "priority",
+        "requester",
+        "sla",
+        "status",
+        "suggestedTools",
+        "title",
     }
+    if experience_mode == "assessment":
+        allowed -= {"hints", "suggestedTools"}
     return {key: value for key, value in definition.items() if key in allowed}
 
 
 def _grade_dict(grade: ServiceDeskAttemptGrade | None) -> dict | None:
     if not grade:
         return None
-    return {"id": grade.id, "attempt_id": grade.attempt_id, "scenario_version_id": grade.scenario_version_id,
-            "rubric_version": grade.rubric_version, "technical_complete": grade.technical_complete,
-            "critical_failure": grade.critical_failure, "overall_score": grade.overall_score,
-            "passed": grade.passed, "feedback_summary": grade.feedback_summary, "details": grade.details_json,
-            "calculated_at": grade.calculated_at, "mentor_feedback": grade.mentor_feedback,
-            "mentor_feedback_by": grade.mentor_feedback_by, "mentor_feedback_at": grade.mentor_feedback_at}
+    return {
+        "id": grade.id,
+        "attempt_id": grade.attempt_id,
+        "scenario_version_id": grade.scenario_version_id,
+        "rubric_version": grade.rubric_version,
+        "technical_complete": grade.technical_complete,
+        "critical_failure": grade.critical_failure,
+        "overall_score": grade.overall_score,
+        "passed": grade.passed,
+        "feedback_summary": grade.feedback_summary,
+        "details": grade.details_json,
+        "calculated_at": grade.calculated_at,
+        "mentor_feedback": grade.mentor_feedback,
+        "mentor_feedback_by": grade.mentor_feedback_by,
+        "mentor_feedback_at": grade.mentor_feedback_at,
+    }
 
 
-def _attempt_dict(attempt: ServiceDeskAttempt, grade: ServiceDeskAttemptGrade | None = None) -> dict:
-    return {"id": attempt.id, "student_id": attempt.student_id, "scenario_version_id": attempt.scenario_version_id,
-            "mode": attempt.mode, "experience_mode": attempt.experience_mode,
-            "status": attempt.status, "current_state": attempt.current_state,
-            "current_state_hash": attempt.current_state_hash, "state_version": attempt.state_version,
-            "attempt_number": attempt.attempt_number, "started_at": attempt.started_at,
-            "completed_at": attempt.completed_at, "score": attempt.score, "passed": attempt.passed,
-            "created_at": attempt.created_at, "updated_at": attempt.updated_at, "grade": _grade_dict(grade)}
+def _attempt_dict(
+    attempt: ServiceDeskAttempt, grade: ServiceDeskAttemptGrade | None = None
+) -> dict:
+    return {
+        "id": attempt.id,
+        "student_id": attempt.student_id,
+        "scenario_version_id": attempt.scenario_version_id,
+        "mode": attempt.mode,
+        "experience_mode": attempt.experience_mode,
+        "status": attempt.status,
+        "current_state": attempt.current_state,
+        "current_state_hash": attempt.current_state_hash,
+        "state_version": attempt.state_version,
+        "attempt_number": attempt.attempt_number,
+        "started_at": attempt.started_at,
+        "completed_at": attempt.completed_at,
+        "score": attempt.score,
+        "passed": attempt.passed,
+        "created_at": attempt.created_at,
+        "updated_at": attempt.updated_at,
+        "grade": _grade_dict(grade),
+    }
 
 
-def _owned_attempt(db: Session, attempt_id: int, student: Student) -> ServiceDeskAttempt:
-    attempt = db.query(ServiceDeskAttempt).filter(ServiceDeskAttempt.id == attempt_id).first()
+def _owned_attempt(
+    db: Session, attempt_id: int, student: Student
+) -> ServiceDeskAttempt:
+    attempt = (
+        db.query(ServiceDeskAttempt).filter(ServiceDeskAttempt.id == attempt_id).first()
+    )
     if not attempt:
         raise HTTPException(404, "Attempt not found")
     ensure_student_access(student, attempt.student_id)
     return attempt
 
 
-def _writable_attempt(db: Session, attempt_id: int, student: Student) -> ServiceDeskAttempt:
+def _writable_attempt(
+    db: Session, attempt_id: int, student: Student
+) -> ServiceDeskAttempt:
     attempt = _owned_attempt(db, attempt_id, student)
     ensure_student_ownership(student, attempt.student_id)
     return attempt
@@ -198,6 +273,26 @@ def list_assignments(
                     .filter(
                         ServiceDeskAttempt.student_id == current_student.id,
                         ServiceDeskScenarioVersion.scenario_id == scenario.id,
+                        ServiceDeskAttempt.experience_mode == access["experience_mode"],
+                    )
+                    .order_by(
+                        ServiceDeskAttempt.started_at.desc(),
+                        ServiceDeskAttempt.id.desc(),
+                    )
+                    .first()
+                )
+            if latest_attempt is None:
+                latest_attempt = (
+                    db.query(ServiceDeskAttempt)
+                    .join(
+                        ServiceDeskScenarioVersion,
+                        ServiceDeskScenarioVersion.id
+                        == ServiceDeskAttempt.scenario_version_id,
+                    )
+                    .filter(
+                        ServiceDeskAttempt.student_id == current_student.id,
+                        ServiceDeskScenarioVersion.scenario_id == scenario.id,
+                        ServiceDeskAttempt.status != "in_progress",
                     )
                     .order_by(
                         ServiceDeskAttempt.started_at.desc(),
@@ -239,7 +334,7 @@ def list_assignments(
                     "id": version.id,
                     "version_number": version.version_number,
                     "definition_json": _student_scenario_definition(
-                        version.definition_json or {}
+                        version.definition_json or {}, access["experience_mode"]
                     ),
                 }
                 if version
@@ -248,6 +343,7 @@ def list_assignments(
                     "id": latest_attempt.id,
                     "status": latest_attempt.status,
                     "attempt_number": latest_attempt.attempt_number,
+                    "experience_mode": latest_attempt.experience_mode,
                 }
                 if latest_attempt
                 else None,
@@ -257,9 +353,7 @@ def list_assignments(
         sorted(
             result,
             key=lambda row: (
-                {"assigned": 0, "practice": 1, "earlier": 2}.get(
-                    row["queue_type"], 3
-                ),
+                {"assigned": 0, "practice": 1, "earlier": 2}.get(row["queue_type"], 3),
                 row["pack_order"],
                 row["id"],
             ),
@@ -416,25 +510,63 @@ def start_attempt(
 
 
 @router.get("/attempts/{attempt_id}")
-def get_attempt(attempt_id: int, current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
+def get_attempt(
+    attempt_id: int,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
     attempt = _owned_attempt(db, attempt_id, current_student)
-    return jsonable_encoder(_attempt_dict(attempt, db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt.id).first()))
+    return jsonable_encoder(
+        _attempt_dict(
+            attempt,
+            db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt.id).first(),
+        )
+    )
 
 
-def _record_event(db: Session, attempt: ServiceDeskAttempt, *, key: str, event_type: str, tool: str,
-                  payload: dict, resulting_state: dict, success: bool, trusted: bool = False):
-    existing = db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt.id, idempotency_key=key).first()
+def _record_event(
+    db: Session,
+    attempt: ServiceDeskAttempt,
+    *,
+    key: str,
+    event_type: str,
+    tool: str,
+    payload: dict,
+    resulting_state: dict,
+    success: bool,
+    trusted: bool = False,
+):
+    existing = (
+        db.query(ServiceDeskAttemptEvent)
+        .filter_by(attempt_id=attempt.id, idempotency_key=key)
+        .first()
+    )
     if existing:
         return _event_dict(existing), 200
-    sequence = (db.query(func.max(ServiceDeskAttemptEvent.sequence_number)).filter_by(attempt_id=attempt.id).scalar() or 0) + 1
-    event = ServiceDeskAttemptEvent(attempt_id=attempt.id, sequence_number=sequence, idempotency_key=key,
-                                    event_type=event_type, tool=tool, payload_json=payload,
-                                    previous_state_hash=attempt.current_state_hash,
-                                    resulting_state_hash=_hash_state(resulting_state), success=success, trusted=trusted)
+    sequence = (
+        db.query(func.max(ServiceDeskAttemptEvent.sequence_number))
+        .filter_by(attempt_id=attempt.id)
+        .scalar()
+        or 0
+    ) + 1
+    event = ServiceDeskAttemptEvent(
+        attempt_id=attempt.id,
+        sequence_number=sequence,
+        idempotency_key=key,
+        event_type=event_type,
+        tool=tool,
+        payload_json=payload,
+        previous_state_hash=attempt.current_state_hash,
+        resulting_state_hash=_hash_state(resulting_state),
+        success=success,
+        trusted=trusted,
+    )
     db.add(event)
     # Versioned full snapshots are safe to restore across devices. Legacy
     # tool overlays remain evidence only, except for old ticket clients.
-    if resulting_state.get("schema_version") == 1 and isinstance(resulting_state.get("nexus_service_desk_attempt"), dict):
+    if resulting_state.get("schema_version") == 1 and isinstance(
+        resulting_state.get("nexus_service_desk_attempt"), dict
+    ):
         attempt.current_state = resulting_state
         attempt.current_state_hash = event.resulting_state_hash
     elif tool == "ticket":
@@ -445,7 +577,11 @@ def _record_event(db: Session, attempt: ServiceDeskAttempt, *, key: str, event_t
         db.commit()
     except IntegrityError:
         db.rollback()
-        raced = db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt.id, idempotency_key=key).first()
+        raced = (
+            db.query(ServiceDeskAttemptEvent)
+            .filter_by(attempt_id=attempt.id, idempotency_key=key)
+            .first()
+        )
         if raced:
             return _event_dict(raced), 200
         raise
@@ -463,22 +599,44 @@ def _validate_resume_snapshot(snapshot: dict) -> None:
         snapshot.get("nexus_service_desk_attempt"), dict
     ):
         raise HTTPException(422, "Invalid Service Desk resume snapshot")
+    serialized_size = len(
+        json.dumps(snapshot, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    )
+    if serialized_size > MAX_RESUME_SNAPSHOT_BYTES:
+        raise HTTPException(413, "Service Desk resume snapshot is too large")
 
 
 @router.post("/attempts/{attempt_id}/events")
-def record_event(attempt_id: int, body: ServiceDeskEventCreate, current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
+def record_event(
+    attempt_id: int,
+    body: ServiceDeskEventCreate,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
     attempt = _writable_attempt(db, attempt_id, current_student)
     if attempt.status != "in_progress":
         raise HTTPException(409, "Attempt is no longer in progress")
     _validate_event_shape(body.event_type, body.tool, body.payload)
-    data, code = _record_event(db, attempt, key=body.idempotency_key, event_type=body.event_type, tool=body.tool,
-                               payload=body.payload, resulting_state=body.resulting_state, success=body.success)
+    data, code = _record_event(
+        db,
+        attempt,
+        key=body.idempotency_key,
+        event_type=body.event_type,
+        tool=body.tool,
+        payload=body.payload,
+        resulting_state=body.resulting_state,
+        success=body.success,
+    )
     return _json_response(data, code)
 
 
 @router.post("/attempts/{attempt_id}/snapshot")
-def persist_snapshot(attempt_id: int, body: ServiceDeskSnapshotCreate,
-                     current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
+def persist_snapshot(
+    attempt_id: int,
+    body: ServiceDeskSnapshotCreate,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
     """Persist browser resume state without submitting a grading action.
 
     The idempotency ledger gives offline replay the same acknowledgement and
@@ -490,20 +648,32 @@ def persist_snapshot(attempt_id: int, body: ServiceDeskSnapshotCreate,
         raise HTTPException(409, "Attempt is no longer in progress")
     _validate_resume_snapshot(body.snapshot)
     data, code = _record_event(
-        db, attempt, key=body.idempotency_key, event_type="snapshot.persisted",
-        tool="snapshot", payload={}, resulting_state=body.snapshot,
-        success=True, trusted=False,
+        db,
+        attempt,
+        key=body.idempotency_key,
+        event_type="snapshot.persisted",
+        tool="snapshot",
+        payload={},
+        resulting_state=body.snapshot,
+        success=True,
+        trusted=False,
     )
     return _json_response(data, code)
 
 
 def _scenario_key(db: Session, attempt: ServiceDeskAttempt) -> str:
-    return db.query(ServiceDeskScenario).join(ServiceDeskScenarioVersion).filter(
-        ServiceDeskScenarioVersion.id == attempt.scenario_version_id
-    ).one().stable_key.lower()
+    return (
+        db.query(ServiceDeskScenario)
+        .join(ServiceDeskScenarioVersion)
+        .filter(ServiceDeskScenarioVersion.id == attempt.scenario_version_id)
+        .one()
+        .stable_key.lower()
+    )
 
 
-def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, payload: dict) -> bool:
+def _action_allowed(
+    db: Session, attempt: ServiceDeskAttempt, event_type: str, payload: dict
+) -> bool:
     """Apply the small server-owned transition graph used for grading.
 
     Raw event posts cannot enter this graph.  Assignment is the required first
@@ -513,16 +683,27 @@ def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, p
     version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
     definition_json = version.definition_json or {} if version else {}
     ticket_id = definition_json.get("id") or key.upper()
-    events = db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt.id, trusted=True).all()
+    events = (
+        db.query(ServiceDeskAttemptEvent)
+        .filter_by(attempt_id=attempt.id, trusted=True)
+        .all()
+    )
     # The attempt itself is created only from this student's assignment, so it
     # is a server-owned assignment prerequisite even when the fixture renders
     # the ticket as already assigned and the UI emits no ticket.assign click.
-    assigned = db.query(ServiceDeskAssignment).join(ServiceDeskScenario).filter(
-        ServiceDeskAssignment.student_id == attempt.student_id,
-        ServiceDeskScenario.stable_key == key,
-    ).first() is not None
+    assigned = (
+        db.query(ServiceDeskAssignment)
+        .join(ServiceDeskScenario)
+        .filter(
+            ServiceDeskAssignment.student_id == attempt.student_id,
+            ServiceDeskScenario.stable_key == key,
+        )
+        .first()
+        is not None
+    )
     assigned = assigned or any(
-        e.event_type == "ticket.assign" and (e.payload_json or {}).get("ticketId") == ticket_id
+        e.event_type == "ticket.assign"
+        and (e.payload_json or {}).get("ticketId") == ticket_id
         for e in events
     )
     if event_type == "ticket.assign":
@@ -584,7 +765,10 @@ def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, p
         ):
             return False
 
-    if key in {"inc2405", "inc2406"} and event_type == "remote_desktop.add_internal_note":
+    if (
+        key in {"inc2405", "inc2406"}
+        and event_type == "remote_desktop.add_internal_note"
+    ):
         if not has_trusted(
             "chat.request_resolution_confirmation",
             {"ticketId": ticket_id},
@@ -596,8 +780,7 @@ def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, p
             index
             for index, category in enumerate(definition.categories)
             if any(
-                rule.event_type == event_type
-                and payload_matches(payload, rule.payload)
+                rule.event_type == event_type and payload_matches(payload, rule.payload)
                 for objective in category.objectives
                 for rule in objective.any_of
             )
@@ -623,7 +806,12 @@ def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, p
 
 
 @router.post("/attempts/{attempt_id}/actions")
-def request_action(attempt_id: int, body: ServiceDeskActionCreate, current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
+def request_action(
+    attempt_id: int,
+    body: ServiceDeskActionCreate,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
     """Validate and record a server-authorized simulation transition.
 
     The browser never supplies success/trusted/state for this endpoint.
@@ -638,38 +826,79 @@ def request_action(attempt_id: int, body: ServiceDeskActionCreate, current_stude
     # transition graph above; an objective before assignment is rejected.
     key = _scenario_key(db, attempt)
     version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
-    definition = objective_definition(key, version.definition_json or {}) if version else None
+    definition = (
+        objective_definition(key, version.definition_json or {}) if version else None
+    )
     objective_action = definition and any(
-        rule.event_type == body.event_type and payload_matches(body.payload, rule.payload)
+        rule.event_type == body.event_type
+        and payload_matches(body.payload, rule.payload)
         for rule in definition.authorized_rules
     )
-    if objective_action and not trusted:
-        raise HTTPException(409, "Action is not available in the current server-authoritative attempt state")
+    protected_identity_action = (
+        definition
+        and body.event_type in {"chat.verify_identity", "directory.verify_identity"}
+        and any(
+            rule.event_type == body.event_type for rule in definition.authorized_rules
+        )
+    )
+    if (objective_action or protected_identity_action) and not trusted:
+        raise HTTPException(
+            409,
+            "Action is not available in the current server-authoritative attempt state",
+        )
     # Trusted transition state is reconstructed from the trusted ledger.  Do
     # not add it to current_state: that field is the untrusted, versioned UI
     # snapshot used by clean-browser resume.
-    data, code = _record_event(db, attempt, key=body.idempotency_key, event_type=body.event_type,
-                               tool=body.tool, payload=body.payload, resulting_state=body.resulting_state,
-                               success=True, trusted=trusted)
+    data, code = _record_event(
+        db,
+        attempt,
+        key=body.idempotency_key,
+        event_type=body.event_type,
+        tool=body.tool,
+        payload=body.payload,
+        resulting_state=body.resulting_state,
+        success=True,
+        trusted=trusted,
+    )
     return _json_response(data, code)
 
 
 @router.post("/attempts/{attempt_id}/hints")
-def record_hint(attempt_id: int, body: ServiceDeskHintCreate, current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
+def record_hint(
+    attempt_id: int,
+    body: ServiceDeskHintCreate,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
     attempt = _writable_attempt(db, attempt_id, current_student)
     if attempt.status != "in_progress":
         raise HTTPException(409, "Attempt is no longer in progress")
     if attempt.experience_mode == "assessment":
         raise HTTPException(409, "Hints are unavailable during an assessment attempt")
-    data, code = _record_event(db, attempt, key=body.idempotency_key, event_type="hint_requested", tool=body.tool,
-                            payload=body.payload, resulting_state=body.resulting_state or attempt.current_state, success=True)
+    data, code = _record_event(
+        db,
+        attempt,
+        key=body.idempotency_key,
+        event_type="hint_requested",
+        tool=body.tool,
+        payload=body.payload,
+        resulting_state=body.resulting_state or attempt.current_state,
+        success=True,
+    )
     return _json_response(data, code)
 
 
 @router.post("/attempts/{attempt_id}/complete")
-def complete_attempt(attempt_id: int, body: ServiceDeskCompleteCreate, current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
+def complete_attempt(
+    attempt_id: int,
+    body: ServiceDeskCompleteCreate,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
     attempt = _writable_attempt(db, attempt_id, current_student)
-    existing = db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt.id).first()
+    existing = (
+        db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt.id).first()
+    )
     if attempt.status != "in_progress" and existing:
         return _json_response(_grade_dict(existing), 200)
     if attempt.status != "in_progress":
@@ -678,21 +907,38 @@ def complete_attempt(attempt_id: int, body: ServiceDeskCompleteCreate, current_s
         computed = compute_grade(db, attempt)
     except AttemptNotClosedError as exc:
         raise HTTPException(409, str(exc)) from exc
-    grade = ServiceDeskAttemptGrade(attempt_id=attempt.id, scenario_version_id=attempt.scenario_version_id,
-                                    rubric_version=computed["rubric_version"], technical_complete=computed["technical_complete"],
-                                    critical_failure=computed["critical_failure"], overall_score=computed["overall_score"],
-                                    passed=computed["passed"], feedback_summary=computed["feedback_summary"], details_json=computed["details"])
+    grade = ServiceDeskAttemptGrade(
+        attempt_id=attempt.id,
+        scenario_version_id=attempt.scenario_version_id,
+        rubric_version=computed["rubric_version"],
+        technical_complete=computed["technical_complete"],
+        critical_failure=computed["critical_failure"],
+        overall_score=computed["overall_score"],
+        passed=computed["passed"],
+        feedback_summary=computed["feedback_summary"],
+        details_json=computed["details"],
+    )
     db.add(grade)
     # A failed/incomplete verification is never XP eligible, even if an old
     # scoring display assigns partial points for a closed ticket.
-    if computed["passed"] and attempt.experience_mode == "assessment":
+    scenario_id = (
+        db.query(ServiceDeskScenarioVersion.scenario_id)
+        .filter(ServiceDeskScenarioVersion.id == attempt.scenario_version_id)
+        .scalar()
+    )
+    if (
+        computed["passed"]
+        and attempt.experience_mode == "assessment"
+        and scenario_id is not None
+    ):
         award_xp(
             db,
             student_id=attempt.student_id,
             delta=computed["overall_score"],
-            source_type="service_desk_attempt",
-            source_id=attempt.id,
-            description=f"Service Desk attempt {attempt.id}",
+            source_type="service_desk_mastery",
+            source_id=scenario_id,
+            description=f"Service Desk mastery: {_scenario_key(db, attempt)}",
+            idempotent=True,
         )
     attempt.status = "completed" if computed["passed"] else "failed"
     attempt.completed_at = datetime.now(timezone.utc)
@@ -702,7 +948,9 @@ def complete_attempt(attempt_id: int, body: ServiceDeskCompleteCreate, current_s
         db.commit()
     except IntegrityError:
         db.rollback()
-        existing = db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt.id).first()
+        existing = (
+            db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt.id).first()
+        )
         if existing:
             return _json_response(_grade_dict(existing), 200)
         raise
@@ -711,11 +959,37 @@ def complete_attempt(attempt_id: int, body: ServiceDeskCompleteCreate, current_s
 
 
 @router.get("/attempts")
-def list_attempts(current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
-    rows = db.query(ServiceDeskAttempt, ServiceDeskScenario).join(ServiceDeskScenarioVersion,
-        ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id).join(ServiceDeskScenario,
-        ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id).filter(
-        ServiceDeskAttempt.student_id == current_student.id).order_by(ServiceDeskAttempt.started_at.desc(), ServiceDeskAttempt.id.desc()).all()
-    return jsonable_encoder([{"id": a.id, "scenario_title": s.title, "mode": a.mode, "status": a.status, "score": a.score,
-             "passed": a.passed, "started_at": a.started_at, "completed_at": a.completed_at} for a, s in rows]
+def list_attempts(
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    rows = (
+        db.query(ServiceDeskAttempt, ServiceDeskScenario)
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+        )
+        .join(
+            ServiceDeskScenario,
+            ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id,
+        )
+        .filter(ServiceDeskAttempt.student_id == current_student.id)
+        .order_by(ServiceDeskAttempt.started_at.desc(), ServiceDeskAttempt.id.desc())
+        .all()
+    )
+    return jsonable_encoder(
+        [
+            {
+                "id": a.id,
+                "scenario_title": s.title,
+                "mode": a.mode,
+                "experience_mode": a.experience_mode,
+                "status": a.status,
+                "score": a.score,
+                "passed": a.passed,
+                "started_at": a.started_at,
+                "completed_at": a.completed_at,
+            }
+            for a, s in rows
+        ]
     )

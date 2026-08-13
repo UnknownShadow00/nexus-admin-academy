@@ -241,6 +241,14 @@ def _map_weeks(bind, mapping):
 
 def upgrade():
     bind = op.get_bind()
+    op.create_index(
+        "uq_xp_ledger_service_desk_mastery",
+        "xp_ledger",
+        ["student_id", "source_type", "source_id"],
+        unique=True,
+        sqlite_where=sa.text("source_type = 'service_desk_mastery'"),
+        postgresql_where=sa.text("source_type = 'service_desk_mastery'"),
+    )
     op.add_column(
         "service_desk_attempts",
         sa.Column(
@@ -273,3 +281,7 @@ def upgrade():
 def downgrade():
     _map_weeks(op.get_bind(), PREVIOUS_WEEK_SCENARIOS)
     op.drop_column("service_desk_attempts", "experience_mode")
+    op.drop_index(
+        "uq_xp_ledger_service_desk_mastery",
+        table_name="xp_ledger",
+    )

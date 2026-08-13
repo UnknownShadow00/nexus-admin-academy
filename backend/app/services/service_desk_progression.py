@@ -287,11 +287,9 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         active_candidates = [
             key
             for key in active_pack.scenario_keys
-            if key not in passed_keys and key not in assigned_keys
-            and (
-                key not in guided_completed_keys
-                or key in curriculum_unlocked_keys
-            )
+            if key not in passed_keys
+            and key not in assigned_keys
+            and (key not in guided_completed_keys or key in curriculum_unlocked_keys)
         ]
         assigned_keys.update(active_candidates[: max(0, 4 - len(assigned_keys))])
 
@@ -322,6 +320,8 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
             "unlocked": True,
             "queue_type": "assigned",
             "experience_mode": "assessment",
+            "guided_completed": False,
+            "required_this_week": False,
             "pack_key": "custom",
             "pack_name": "Assigned by instructor",
             "pack_order": len(SERVICE_DESK_PACKS),
@@ -360,6 +360,8 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
             )
             else "guided"
         ),
+        "guided_completed": normalized in progression["guided_completed_keys"],
+        "required_this_week": normalized in progression["curriculum_current_keys"],
     }
 
 
