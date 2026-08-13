@@ -215,7 +215,8 @@ PR #15 progression behavior was rerun through the complete integrated suite: Wee
 - Service Desk: lint pass; typecheck pass; 305 package tests pass (36 shared, 175 simulator, 29 UI, 65 web); production build pass; `pnpm audit` no known vulnerabilities.
 - Nexus frontend: `npm audit` zero vulnerabilities; production build pass; CLI validation 48 lessons pass; CLI sanity pass.
 - Playwright: 28/28 pass from a fresh disposable base-to-0047 database, including desktop/mobile Daily Review, parent progression, account workflows, shared-state/offline restore, trusted grading/XP/replay, converted workstation cases, exact viewports, and keyboard operation.
-- Disposable stacks were stopped and removed after each run. Production was not read from, written to, migrated, deployed, or otherwise modified.
+- Read-only `scripts/predeploy_check.sh`: pass after regenerating the production `.next` artifact replaced by the disposable `next dev` run; production remained at 0046, a valid ancestor of the unreleased 0047 head, and all live configuration/health checks passed.
+- Disposable stacks were stopped and removed after each run. Apart from the requested read-only predeploy checks, production was not accessed; it was never written to, migrated, deployed, restarted, or otherwise modified.
 
 ### Remaining classification
 
