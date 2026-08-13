@@ -246,6 +246,10 @@ def upgrade():
         sa.Column(
             "experience_mode",
             sa.String(length=20),
+            sa.CheckConstraint(
+                "experience_mode IN ('guided','practice','assessment')",
+                name="ck_service_desk_attempts_experience_mode",
+            ),
             nullable=False,
             server_default="assessment",
         ),
@@ -261,11 +265,6 @@ def upgrade():
             """
         )
     )
-    with op.batch_alter_table("service_desk_attempts") as batch_op:
-        batch_op.create_check_constraint(
-            "ck_service_desk_attempts_experience_mode",
-            "experience_mode IN ('guided','practice','assessment')",
-        )
     _map_weeks(bind, WEEK_SCENARIOS)
     _publish_revised_scenarios(bind)
     _update_labs(bind)
@@ -273,8 +272,4 @@ def upgrade():
 
 def downgrade():
     _map_weeks(op.get_bind(), PREVIOUS_WEEK_SCENARIOS)
-    with op.batch_alter_table("service_desk_attempts") as batch_op:
-        batch_op.drop_constraint(
-            "ck_service_desk_attempts_experience_mode", type_="check"
-        )
-        batch_op.drop_column("experience_mode")
+    op.drop_column("service_desk_attempts", "experience_mode")

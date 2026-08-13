@@ -59,7 +59,11 @@ import {
   deleteWorkstationCredential,
 } from './workstation/credentials';
 import {
+  closeWorkstationWindow,
+  focusWorkstationWindow,
+  minimizeWorkstationWindow,
   moveWorkstationWindow,
+  openWorkstationWindow,
   setWorkstationStartMenu,
   toggleWorkstationWindowMaximize,
 } from './workstation/windows';
@@ -1354,6 +1358,14 @@ function workflowEvidenceForAction(
         : 'explorer.share-reachable';
     }
     if (
+      scenario.id === 'facilities-calendar-mapping' &&
+      drive?.kind === 'network' &&
+      !after.explorerError &&
+      after.scenarioSteps[scenario.id]?.includes('explorer.repair-mapping')
+    ) {
+      return 'explorer.verify-share';
+    }
+    if (
       scenario.id === 'pdf-export-update' &&
       (after.explorerCurrentPath === 'This PC' || drive?.kind === 'local')
     ) {
@@ -2044,6 +2056,10 @@ function applyValidRemoteDesktopAction(
           (appId) => appId !== action.payload.appId,
         ),
         openApps,
+        workstation: openWorkstationWindow(
+          overlay.workstation,
+          action.payload.appId,
+        ),
       };
     }
     case 'remote_desktop.close_app': {
@@ -2060,6 +2076,10 @@ function applyValidRemoteDesktopAction(
           (appId) => appId !== action.payload.appId,
         ),
         openApps,
+        workstation: closeWorkstationWindow(
+          overlay.workstation,
+          action.payload.appId,
+        ),
       };
     }
     case 'remote_desktop.focus_app':
@@ -2072,6 +2092,10 @@ function applyValidRemoteDesktopAction(
         openApps: overlay.openApps.includes(action.payload.appId)
           ? overlay.openApps
           : [...overlay.openApps, action.payload.appId],
+        workstation: focusWorkstationWindow(
+          overlay.workstation,
+          action.payload.appId,
+        ),
       };
     case 'remote_desktop.minimize_app':
       return {
@@ -2083,6 +2107,10 @@ function applyValidRemoteDesktopAction(
         minimizedApps: overlay.minimizedApps.includes(action.payload.appId)
           ? overlay.minimizedApps
           : [...overlay.minimizedApps, action.payload.appId],
+        workstation: minimizeWorkstationWindow(
+          overlay.workstation,
+          action.payload.appId,
+        ),
       };
     case 'remote_desktop.move_window':
       return {

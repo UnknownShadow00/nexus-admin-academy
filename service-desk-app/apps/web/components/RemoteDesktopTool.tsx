@@ -2394,7 +2394,7 @@ function FileExplorerWindow({
       <div className="flex min-h-0 flex-1">
         <nav
           aria-label="File Explorer navigation"
-          className="w-28 shrink-0 overflow-y-auto border-r border-zinc-200 bg-zinc-50 p-2 sm:w-44"
+          className="hidden w-44 shrink-0 overflow-y-auto border-r border-zinc-200 bg-zinc-50 p-2 sm:block"
         >
           <button
             className={`flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs font-semibold ${workstation.explorerCurrentPath === 'This PC' ? 'bg-sky-100 text-sky-900' : 'text-zinc-700 hover:bg-zinc-200'}`}

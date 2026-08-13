@@ -148,36 +148,51 @@ describe('Service Desk quality pass', () => {
     expect(score(attempt, 'NX-4831', 'profile-storage')).toBe(100);
   });
 
-  it('INC2405 only credits the obsolete calendar mapping diagnosis and repair', () => {
-    const attempt = run(connected('NX-6128', 'INC2405'), [
+  it('INC2405 verifies the shared workflow through the mapped-drive GUI state', () => {
+    const repaired = run(connected('NX-6128', 'INC2405'), [
       {
         type: 'remote_desktop.run_terminal_command',
         payload: { assetTag: 'NX-6128', command: 'net use' },
       },
       {
-        type: 'remote_desktop.perform_scenario_step',
+        type: 'remote_desktop.map_drive',
         payload: {
           assetTag: 'NX-6128',
-          ticketId: 'INC2405',
-          stepId: 'explorer.repair-mapping',
+          letter: 'Y:',
+          uncPath: '\\\\facilities.nexus.internal\\calendar',
+          reconnectAtSignIn: true,
+          credentialTarget: null,
         },
       },
       {
-        type: 'remote_desktop.perform_scenario_step',
-        payload: {
-          assetTag: 'NX-6128',
-          ticketId: 'INC2405',
-          stepId: 'explorer.verify-share',
-        },
+        type: 'remote_desktop.explorer_navigate',
+        payload: { assetTag: 'NX-6128', path: 'Y:\\' },
       },
-      note('NX-6128', 'INC2405'),
+    ]);
+    expect(
+      repaired.remoteDesktopOverlays['NX-6128']?.scenarioProgress[
+        'facilities-calendar-mapping'
+      ]?.phases,
+    ).toMatchObject({
+      investigated: true,
+      diagnosed: true,
+      fixed: true,
+      verified: true,
+    });
+
+    const attempt = run(repaired, [
       confirmation('INC2405'),
+      note('NX-6128', 'INC2405'),
       close('INC2405'),
     ]);
     expect(score(attempt, 'NX-6128', 'facilities-calendar-mapping')).toBe(100);
     expect(attempt.remoteDesktopOverlays['NX-6128']?.driveStates['Y:']).toBe(
       'connected',
     );
+    expect(
+      attempt.chatThreads['directory-user-sloane-rivera']?.messages.at(-1)
+        ?.triggerKey,
+    ).toBe('original-symptom-confirmed-fixed');
   });
 
   it('INC2402 scopes the wireless fault to the managed scanner before repairing its profile', () => {

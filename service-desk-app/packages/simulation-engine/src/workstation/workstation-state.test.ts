@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { createWorkstationState, migrateLegacyWorkstationState } from './state';
+import {
+  focusWorkstationWindow,
+  minimizeWorkstationWindow,
+  openWorkstationWindow,
+} from './windows';
 
 describe('shared workstation state', () => {
   it('creates one coherent machine, network, filesystem, mapping, VPN, credential, service, and window model', () => {
@@ -98,5 +103,24 @@ describe('shared workstation state', () => {
     expect(() => createWorkstationState('NX-DOES-NOT-EXIST')).toThrow(
       'Missing workstation fixture for NX-DOES-NOT-EXIST.',
     );
+  });
+
+  it('raises a taskbar-focused window above every previously opened window', () => {
+    let state = createWorkstationState('NX-2047');
+    state = openWorkstationWindow(state, 'explorer');
+    state = openWorkstationWindow(state, 'terminal');
+    expect(state.desktop.windows.terminal!.zIndex).toBeGreaterThan(
+      state.desktop.windows.explorer!.zIndex,
+    );
+
+    state = focusWorkstationWindow(state, 'explorer');
+    expect(state.desktop.activeAppId).toBe('explorer');
+    expect(state.desktop.windows.explorer!.zIndex).toBeGreaterThan(
+      state.desktop.windows.terminal!.zIndex,
+    );
+
+    state = minimizeWorkstationWindow(state, 'explorer');
+    expect(state.desktop.windows.explorer).toMatchObject({ minimized: true });
+    expect(state.desktop.activeAppId).toBeNull();
   });
 });
