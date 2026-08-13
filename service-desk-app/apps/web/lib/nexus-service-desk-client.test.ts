@@ -26,6 +26,7 @@ const attempt = {
   started_at: '2026-08-02T00:00:00Z',
   state_version: 1,
   status: 'in_progress',
+  updated_at: '2026-08-13T00:00:00Z',
 };
 
 const grade = {

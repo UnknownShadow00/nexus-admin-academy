@@ -431,6 +431,7 @@ def test_completed_cases_move_to_practice_and_can_be_replayed(db):
     ).json()
     row = next(item for item in rows if item["scenario"]["stable_key"] == stable_key)
     assert row["queue_type"] == "practice"
+    assert row["most_recent_attempt"]["status"] == "completed"
 
     response = client.post(
         f"/api/service-desk/assignments/{_assignment_id(db, student, scenario)}/attempts",

@@ -92,6 +92,7 @@ import {
   recordAttemptEvent,
   recordAttemptHint,
   startOrResumeAttempt,
+  type NexusAttempt,
   type NexusAssignment,
   type NexusServiceDeskProgression,
   type NexusAttemptCompletionInput,
@@ -1327,7 +1328,32 @@ export function TicketSessionProvider({
         setServiceDeskProgression(progression);
         nexusTicketMappingsRef.current = mappings;
         nexusSnapshotTargetRef.current = null;
-        let restoredNexusSnapshot = false;
+        let newestNexusAttempt: {
+          assignmentId: NexusAssignment['id'];
+          attempt: NexusAttempt;
+        } | null = null;
+        let newestNexusSnapshot: {
+          attempt: NexusAttempt;
+          restored: Attempt;
+        } | null = null;
+
+        const isNewerAttempt = (
+          candidate: NexusAttempt,
+          current: NexusAttempt,
+        ) => {
+          const updatedComparison = candidate.updated_at.localeCompare(
+            current.updated_at,
+          );
+          if (updatedComparison !== 0) return updatedComparison > 0;
+          if (candidate.state_version !== current.state_version) {
+            return candidate.state_version > current.state_version;
+          }
+          return (
+            String(candidate.id).localeCompare(String(current.id), undefined, {
+              numeric: true,
+            }) > 0
+          );
+        };
 
         for (const assignment of assignments) {
           const recentAttempt = assignment.most_recent_attempt;
@@ -1341,20 +1367,17 @@ export function TicketSessionProvider({
           }
 
           const currentState = nexusAttempt?.current_state;
-          if (!nexusSnapshotTargetRef.current && nexusAttempt) {
-            nexusSnapshotTargetRef.current = {
+          if (
+            nexusAttempt &&
+            (!newestNexusAttempt ||
+              isNewerAttempt(nexusAttempt, newestNexusAttempt.attempt))
+          ) {
+            newestNexusAttempt = {
               assignmentId: assignment.id,
-              attemptId: nexusAttempt.id,
+              attempt: nexusAttempt,
             };
           }
           if (!currentState) {
-            continue;
-          }
-
-          // A validated full snapshot is authoritative for this hydration
-          // pass. Do not merge older per-ticket state into it: those records
-          // are intentionally partial and do not satisfy an Attempt overlay.
-          if (restoredNexusSnapshot) {
             continue;
           }
 
@@ -1365,9 +1388,15 @@ export function TicketSessionProvider({
             typeof snapshot === 'object'
           ) {
             const restoredSnapshot = restoreAttempt(JSON.stringify(snapshot));
-            if (restoredSnapshot) {
-              nextAttempt = restoredSnapshot;
-              restoredNexusSnapshot = true;
+            if (
+              restoredSnapshot &&
+              (!newestNexusSnapshot ||
+                isNewerAttempt(nexusAttempt, newestNexusSnapshot.attempt))
+            ) {
+              newestNexusSnapshot = {
+                attempt: nexusAttempt,
+                restored: restoredSnapshot,
+              };
               continue;
             }
           }
@@ -1387,6 +1416,19 @@ export function TicketSessionProvider({
               } as NonNullable<typeof currentOverlay>,
             },
           };
+        }
+
+        if (newestNexusAttempt) {
+          nexusSnapshotTargetRef.current = {
+            assignmentId: newestNexusAttempt.assignmentId,
+            attemptId: newestNexusAttempt.attempt.id,
+          };
+        }
+        if (newestNexusSnapshot) {
+          // Each action carries a versioned full workstation snapshot. Restore
+          // the newest one across all active tickets so navigation cannot roll
+          // shared Directory, Chat, or desktop state back to an older case.
+          nextAttempt = newestNexusSnapshot.restored;
         }
       } else if (active) {
         nexusTicketMappingsRef.current = {};
@@ -1748,6 +1790,10 @@ export function TicketSessionProvider({
               `Nexus cannot attribute ${action.type} to a service desk ticket; keeping it local-only.`,
             );
           }
+          // The action cannot become trusted grading evidence, but its
+          // post-action state must still survive refresh and clean-browser
+          // resume through the untrusted snapshot channel.
+          queueNexusSnapshotSync(result.event);
         }
       }
 

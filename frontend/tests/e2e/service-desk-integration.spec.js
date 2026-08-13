@@ -115,6 +115,7 @@ async function getMyAssignment(page, stableKey) {
 
 async function resolveFoundationalAccountCase(page, scenario) {
   const assignment = await getMyAssignment(page, scenario.stableKey);
+  const completedQueueType = assignment.experience_mode === "guided" ? "earlier" : "practice";
   const started = await page.request.post(
     "/api/service-desk/assignments/" + assignment.id + "/attempts",
     withOrigin({}),
@@ -132,8 +133,14 @@ async function resolveFoundationalAccountCase(page, scenario) {
   await expect(page.getByText("Account status has not been reviewed yet.")).toBeVisible();
   await page.getByRole("button", { name: "Review account state" }).click();
   await expect(page.getByText("Account state reviewed.", { exact: false })).toBeVisible();
-  await page.getByRole("button", { name: "Record approved identity check" }).click();
-  await expect(page.getByText("Approved training identity check recorded.", { exact: false })).toBeVisible();
+  await page.goto(
+    `/service-desk/tools/company-chat?contact=${scenario.contactId}&ticket=${scenario.ticketId}`,
+  );
+  await page.getByRole("button", { name: "Run approved identity check" }).click();
+  await page.goto("/service-desk/tools/directory");
+  await page.getByPlaceholder("Search name, username, or department").fill(scenario.requester);
+  await page.getByRole("button", { name: new RegExp(scenario.requester) }).click();
+  await page.getByRole("button", { name: "Record verified chat evidence" }).click();
   if (scenario.testPrimaryAuth) {
     await page.getByRole("button", { name: "Test primary password sign-in" }).click();
     await expect(page.getByText("Primary password authentication succeeds", { exact: false })).toBeVisible();
@@ -143,12 +150,28 @@ async function resolveFoundationalAccountCase(page, scenario) {
   await expect(page.getByText("Diagnosis recorded from the reviewed account evidence.")).toBeVisible();
 
   await page.getByRole("button", { name: scenario.remediationTrigger, exact: true }).first().click();
-  await page.getByRole("dialog").getByRole(
+  const remediationDialog = page.getByRole("dialog");
+  if (scenario.remediationTrigger === "Reset password") {
+    await expect(remediationDialog.getByRole("checkbox")).toBeChecked();
+  }
+  await remediationDialog.getByRole(
     "button",
     { name: scenario.remediationConfirm, exact: true },
   ).click();
-  await page.getByRole("button", { name: "Verify original sign-in path" }).click();
+  await page.getByRole("button", { name: "Test original sign-in" }).click();
+  const signInDialog = page.getByRole("dialog", { name: "Simulated sign-in test" });
+  await signInDialog.getByRole("button", { name: scenario.signInAction }).click();
+  await expect(signInDialog.getByText("Checkpoint reached")).toBeVisible();
+  await signInDialog.getByRole("button", { name: "Record successful sign-in test" }).click();
   await expect(page.getByText("The original sign-in path has been verified after remediation.")).toBeVisible();
+
+  await page.goto(
+    `/service-desk/tools/company-chat?contact=${scenario.contactId}&ticket=${scenario.ticketId}`,
+  );
+  await page.getByRole("button", { name: "Ask user to retest original symptom" }).click();
+  await expect(
+    page.getByText("It now works and I can continue.", { exact: false }).last(),
+  ).toBeVisible();
 
   await page.getByRole("link", { name: "Dashboard", exact: true }).click();
   await page.getByRole("link", { name: new RegExp(scenario.title) }).click();
@@ -168,7 +191,8 @@ async function resolveFoundationalAccountCase(page, scenario) {
       queueType: current.queue_type,
       status: current.most_recent_attempt?.status,
     };
-  }).toEqual({ queueType: "practice", status: "completed" });
+  }).toEqual({ queueType: completedQueueType, status: "completed" });
+  return completedQueueType;
 }
 
 async function connectRemoteDesktop(page, ticketId, assetTag) {
@@ -178,19 +202,25 @@ async function connectRemoteDesktop(page, ticketId, assetTag) {
   await page.getByPlaceholder("e.g. jdoe").fill("support.admin");
   await page.getByPlaceholder("Domain password").fill("simulation-only");
   await page.getByRole("button", { name: "OK" }).click();
-  await expect(page.getByRole("button", { name: "System Tools", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open Start menu" })).toBeVisible();
+}
+
+async function openDesktopApp(page, appName) {
+  await page.getByRole("button", { name: "Open Start menu" }).click();
+  await page.getByRole("button", { name: appName, exact: true }).last().click();
+  await expect(page.getByLabel(`${appName} window`)).toBeVisible();
 }
 
 async function prepareInc2401Workflow(page) {
   await connectRemoteDesktop(page, TICKET_ID, "NX-4831");
-  await page.getByRole("button", { name: "Mail", exact: true }).click();
+  await openDesktopApp(page, "Mail");
   await page.getByRole("button", { name: "Mark support alert reviewed" }).click();
-  await page.getByRole("button", { name: "Web Browser", exact: true }).click();
+  await openDesktopApp(page, "Web Browser");
   await page.getByRole("button", { name: "Retry portal sign-in" }).click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openDesktopApp(page, "Settings");
   await page.getByRole("button", { name: "Applications", exact: true }).click();
   await page.getByRole("button", { name: "Clear support browser profile storage" }).click();
-  await page.getByRole("button", { name: "Web Browser", exact: true }).click();
+  await openDesktopApp(page, "Web Browser");
   await page.getByRole("button", { name: "Retry portal sign-in" }).click();
   await page.getByLabel("Student-authored internal note").fill(
     "I confirmed stale browser profile storage, applied the repair by clearing the profile, and verified the portal opened.",
@@ -283,33 +313,39 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
 
     const cases = [
       {
+        contactId: "directory-user-taylor-morgan",
         diagnosis: "account-locked",
         note: "Reviewed Taylor's account and approved identity check, confirmed the lock, unlocked it, and verified the original sign-in path works.",
         remediationConfirm: "Unlock account",
         remediationTrigger: "Unlock account",
         requester: "Taylor Morgan",
+        signInAction: "Attempt clean account sign-in",
         stableKey: "locked-user-account",
         testPrimaryAuth: false,
         ticketId: "INC2511",
         title: "Can't sign in after lunch",
       },
       {
+        contactId: "directory-user-jordan-lee",
         diagnosis: "password-expired",
         note: "Reviewed Jordan's account and approved identity check, confirmed the expired password, issued a temporary password, and verified the required-change sign-in handoff.",
-        remediationConfirm: "Issue temporary password",
+        remediationConfirm: "Issue temporary credential",
         remediationTrigger: "Reset password",
         requester: "Jordan Lee",
+        signInAction: "Begin temporary-credential handoff",
         stableKey: "password-reset",
         testPrimaryAuth: false,
         ticketId: "INC2512",
         title: "Sign-in stops before the desktop loads",
       },
       {
+        contactId: "directory-user-camille-reyes",
         diagnosis: "mfa-factor-unavailable",
         note: "Reviewed Camille's account, confirmed primary password authentication succeeds, reset the unavailable MFA factor, and verified re-registration is ready.",
         remediationConfirm: "Reset MFA",
         remediationTrigger: "Reset MFA",
         requester: "Camille Reyes",
+        signInAction: "Test sign-in through second factor",
         stableKey: "mfa-reset",
         testPrimaryAuth: true,
         ticketId: "INC2513",
@@ -317,14 +353,28 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
       },
     ];
 
+    const completedQueueTypes = new Map();
     for (const scenario of cases) {
-      await resolveFoundationalAccountCase(page, scenario);
+      completedQueueTypes.set(
+        scenario.stableKey,
+        await resolveFoundationalAccountCase(page, scenario),
+      );
     }
 
     await page.goto("/service-desk");
-    await expect(page.getByRole("region", { name: "Practice" }).locator('a[href^="/service-desk/tickets/"]')).toHaveCount(3);
     await expect(page.getByRole("region", { name: "Assigned" }).locator('a[href^="/service-desk/tickets/"]')).toHaveCount(1);
-    await expect(page.getByRole("region", { name: "Practice cases" }).getByText("3 unlocked")).toBeVisible();
+    const starterAssignments = await (
+      await page.request.get("/api/service-desk/assignments")
+    ).json();
+    for (const scenario of cases) {
+      const completed = starterAssignments.find(
+        (assignment) => assignment.scenario.stable_key === scenario.stableKey,
+      );
+      expect(completed).toMatchObject({
+        queue_type: completedQueueTypes.get(scenario.stableKey),
+        most_recent_attempt: { status: "completed" },
+      });
+    }
     const dimensions = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
@@ -419,7 +469,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     )).json()).id;
     const snapshot = async () => (await (await page.request.get(`/api/service-desk/attempts/${attemptId}`)).json()).current_state;
 
-    await page.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks');
+    await page.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks&ticket=INC2401');
     await page.getByLabel(/Message Avery Brooks/).fill('Snapshot-only chat message.');
     await page.getByRole('button', { name: 'Send' }).click();
     await expect.poll(snapshot).toMatchObject({ nexus_service_desk_attempt: { chatThreads: { 'directory-user-avery-brooks': { messages: expect.arrayContaining([expect.objectContaining({ body: 'Snapshot-only chat message.' })]) } } } });
@@ -458,7 +508,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const cleanContext = await browser.newContext();
     const cleanPage = await cleanContext.newPage();
     await studentLogin(cleanPage, studentAUsername, studentAPassword);
-    await cleanPage.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks');
+    await cleanPage.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks&ticket=INC2401');
     await expect(cleanPage.getByText('Snapshot-only chat message.')).toBeVisible();
     await cleanPage.goto('/service-desk/tools/pc-shelf');
     await expect(
@@ -477,7 +527,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
       `/api/service-desk/assignments/${assignment.id}/attempts`, withOrigin({}),
     )).json()).id;
     await page.route(/\/api\/service-desk\/attempts\/\d+\/snapshot$/, route => route.abort());
-    await page.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks');
+    await page.goto('/service-desk/tools/company-chat?contact=directory-user-avery-brooks&ticket=INC2401');
     await page.getByLabel(/Message Avery Brooks/).fill('Offline snapshot chat.');
     await page.getByRole('button', { name: 'Send' }).click();
     await page.goto('/service-desk/tools/pc-shelf');
@@ -537,7 +587,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await page.getByLabel("Add a note").fill("Offline evidence note.");
     await page.getByRole("button", { name: "Add internal note" }).click();
     await page.getByRole("button", { name: "Unassign", exact: true }).click();
-    await page.getByRole("button", { name: /I don't know how to fix this/i }).click();
+    await page.getByRole("button", { name: "Assign to me", exact: true }).click();
 
     await expect(page.getByText(/Saving…|Sync problem — retrying/)).toBeVisible();
     const readOutbox = () => page.evaluate(() => {
@@ -548,8 +598,8 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     expect(pendingBeforeRefresh.items).toHaveLength(3);
     const queuedTypes = pendingBeforeRefresh.items.map((item) => item.event.event_type);
     const queuedKeys = pendingBeforeRefresh.items.map((item) => item.event.idempotency_key);
-    expect(queuedTypes).toEqual(["ticket.add_note", "ticket.unassign", "ticket.reveal_hint"]);
-    const storedTypes = ["ticket.add_note", "ticket.unassign", "hint_requested"];
+    expect(queuedTypes).toEqual(["ticket.add_note", "ticket.unassign", "ticket.assign"]);
+    const storedTypes = ["ticket.add_note", "ticket.unassign", "ticket.assign"];
 
     await page.reload();
     await expect(page.getByText("Offline evidence note.")).toBeVisible();
@@ -568,12 +618,12 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     });
     await page.unroute(/\/api\/service-desk\/attempts\/\d+\/(actions|events|hints)$/);
     await page.evaluate(() => window.dispatchEvent(new Event("online")));
-    await expect.poll(() => retriedResponses.length).toBeGreaterThan(0);
+    await expect.poll(() => retriedResponses.length).toBe(3);
     expect(retriedRequests.map((request) => request.body.idempotency_key)).toEqual(queuedKeys);
     expect(retriedRequests.map((request) => request.url)).toEqual([
       `${baseUrl}/api/service-desk/attempts/${attemptId}/actions`,
       `${baseUrl}/api/service-desk/attempts/${attemptId}/actions`,
-      `${baseUrl}/api/service-desk/attempts/${attemptId}/hints`,
+      `${baseUrl}/api/service-desk/attempts/${attemptId}/actions`,
     ]);
     expect(retriedResponses.map((response) => response.status)).toEqual([201, 201, 201]);
     await expect.poll(async () => (await readOutbox()).items.length).toBe(0);
@@ -805,16 +855,16 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await expect(page.getByText("INC2402").first()).toBeVisible();
 
     await connectRemoteDesktop(page, "INC2402", "NX-7714");
-    await page.getByRole("button", { name: "Terminal", exact: true }).first().click();
+    await openDesktopApp(page, "Command Prompt");
     await page.locator("#terminal-command").fill("ipconfig");
     await page.locator("#terminal-command").press("Enter");
     await page.locator("#terminal-command").fill("ping 10.77.14.1");
     await page.locator("#terminal-command").press("Enter");
-    await page.getByRole("button", { name: "Settings", exact: true }).first().click();
+    await openDesktopApp(page, "Settings");
     await page.getByRole("button", { name: "Repair network profile" }).click();
-    await page.getByRole("button", { name: "System Tools", exact: true }).first().click();
+    await openDesktopApp(page, "System Information");
     await page.getByRole("button", { name: "Renew network address" }).click();
-    await page.getByRole("button", { name: "Company Chat", exact: true }).nth(1).click();
+    await openDesktopApp(page, "Company Chat");
     await page.getByPlaceholder("Write a ticket update").fill("The scanner connection remained stable after the profile repair.");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await page.getByLabel("Student-authored internal note").fill(

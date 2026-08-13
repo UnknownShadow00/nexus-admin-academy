@@ -72,6 +72,7 @@ export interface NexusAttempt {
   started_at: string;
   state_version: number;
   status: string;
+  updated_at: string;
 }
 
 export interface NexusAttemptEventInput {
@@ -135,7 +136,8 @@ function isAttempt(value: unknown): value is NexusAttempt {
     (typeof value.score === 'number' || value.score === null) &&
     typeof value.started_at === 'string' &&
     typeof value.state_version === 'number' &&
-    typeof value.status === 'string'
+    typeof value.status === 'string' &&
+    typeof value.updated_at === 'string'
   );
 }
 

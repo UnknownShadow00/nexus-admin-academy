@@ -190,12 +190,19 @@ def list_assignments(
             if latest_attempt is None:
                 latest_attempt = (
                     db.query(ServiceDeskAttempt)
+                    .join(
+                        ServiceDeskScenarioVersion,
+                        ServiceDeskScenarioVersion.id
+                        == ServiceDeskAttempt.scenario_version_id,
+                    )
                     .filter(
                         ServiceDeskAttempt.student_id == current_student.id,
-                        ServiceDeskAttempt.scenario_version_id == version.id,
-                        ServiceDeskAttempt.experience_mode == access["experience_mode"],
+                        ServiceDeskScenarioVersion.scenario_id == scenario.id,
                     )
-                    .order_by(ServiceDeskAttempt.attempt_number.desc())
+                    .order_by(
+                        ServiceDeskAttempt.started_at.desc(),
+                        ServiceDeskAttempt.id.desc(),
+                    )
                     .first()
                 )
         published_definition = version.definition_json or {} if version else {}
