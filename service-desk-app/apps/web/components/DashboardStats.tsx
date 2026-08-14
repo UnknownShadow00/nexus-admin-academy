@@ -1,37 +1,49 @@
 'use client';
 
-import { IconChartBar, IconProgress, IconSparkles } from '@tabler/icons-react';
+import { TicketStatus } from '@service-desk/shared';
+import {
+  IconBriefcase,
+  IconChecks,
+  IconPlayerPlay,
+  IconRefresh,
+} from '@tabler/icons-react';
 import { Card } from '@service-desk/ui';
 
-import { useAnalyticsSummary, useAttemptScore } from './TicketSessionProvider';
+import { useTicketSession } from './TicketSessionProvider';
 
 export function DashboardStats() {
-  const { pointsTotal } = useAttemptScore();
-  const analytics = useAnalyticsSummary();
+  const { progression, tickets } = useTicketSession();
+  const fallbackCompleted = tickets.filter(
+    (ticket) => ticket.status === TicketStatus.Resolved,
+  ).length;
   const stats = [
     {
-      icon: IconSparkles,
-      label: 'Practice points',
-      value: analytics.isHydrated ? pointsTotal.toLocaleString() : '…',
+      icon: IconBriefcase,
+      label: 'Available',
+      value:
+        progression?.counts.available ?? tickets.length - fallbackCompleted,
     },
     {
-      icon: IconProgress,
-      label: 'Current rank',
-      value: analytics.isHydrated ? analytics.rank.currentTier : '…',
+      icon: IconPlayerPlay,
+      label: 'In progress',
+      value: progression?.counts.in_progress ?? 0,
     },
     {
-      icon: IconChartBar,
-      label: 'Accuracy',
-      value: analytics.isHydrated
-        ? `${analytics.accuracyPercent.toFixed(1)}%`
-        : '…',
+      icon: IconChecks,
+      label: 'Completed',
+      value: progression?.counts.completed ?? fallbackCompleted,
+    },
+    {
+      icon: IconRefresh,
+      label: 'Practice',
+      value: progression?.counts.practice ?? fallbackCompleted,
     },
   ];
 
   return (
     <section
       aria-label="Training progress"
-      className="mx-auto grid w-full max-w-6xl gap-3 sm:grid-cols-3"
+      className="mx-auto grid w-full max-w-6xl grid-cols-2 gap-3 lg:grid-cols-4"
     >
       {stats.map(({ icon: Icon, label, value }) => (
         <Card className="flex items-center gap-3 p-4" key={label}>

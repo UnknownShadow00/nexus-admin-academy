@@ -14,22 +14,26 @@ import { TicketIssueDetails } from './TicketIssueDetails';
 import { useSessionHydrated, useTicketSession } from './TicketSessionProvider';
 
 export function TicketWorkspace({ ticketId }: { ticketId: string }) {
-  const { addNote, getTicket } = useTicketSession();
+  const { addNote, assignmentByTicket, getTicket } = useTicketSession();
   const isHydrated = useSessionHydrated();
   const ticket = getTicket(ticketId);
 
   if (!isHydrated) {
-    return <div className="mx-auto h-64 max-w-7xl animate-pulse rounded-sm bg-zinc-900" aria-label="Loading ticket" />;
+    return (
+      <div
+        className="mx-auto h-64 max-w-7xl animate-pulse rounded-sm bg-zinc-900"
+        aria-label="Loading ticket"
+      />
+    );
   }
 
   if (!ticket) {
     return (
       <div className="mx-auto max-w-xl py-16 text-center">
-        <h1 className="text-xl font-bold text-zinc-100">
-          Ticket fixture unavailable
-        </h1>
+        <h1 className="text-xl font-bold text-zinc-100">Case unavailable</h1>
         <p className="mt-2 text-sm text-zinc-400">
-          Return to the queue and choose an active incident.
+          This case is not assigned or unlocked for your current training.
+          Return to the queue to continue an available case.
         </p>
         <Link
           className="sd-button sd-button--default sd-focus-ring mt-5 inline-flex min-h-10 items-center justify-center rounded-sm border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-extrabold uppercase text-zinc-200 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
@@ -59,7 +63,38 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
         </span>
       </div>
 
-      <TicketDetailHeader ticket={ticket} />
+      <TicketDetailHeader
+        assignment={assignmentByTicket[ticket.id]}
+        ticket={ticket}
+      />
+      <section
+        aria-label="Professional ticket workflow"
+        className="rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-3 sm:px-4"
+      >
+        <p className="text-[11px] font-extrabold uppercase tracking-wide text-zinc-500">
+          Work the case
+        </p>
+        <ol className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs font-semibold text-zinc-400">
+          {[
+            'Read',
+            'Investigate',
+            'Diagnose',
+            'Fix',
+            'Verify',
+            'Document',
+            'Close',
+          ].map((step, index) => (
+            <li className="flex items-center gap-2" key={step}>
+              {index > 0 ? (
+                <span aria-hidden="true" className="text-zinc-700">
+                  →
+                </span>
+              ) : null}
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
       <TicketActionBar ticket={ticket} />
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.65fr)_minmax(18rem,0.85fr)]">

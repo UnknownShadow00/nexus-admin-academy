@@ -18,6 +18,18 @@ function eventMessage(event: ActionEvent) {
   }
 
   switch (event.type) {
+    case 'directory.inspect_account':
+      return 'Account state reviewed. Use the evidence to distinguish lock, password, and MFA conditions.';
+    case 'directory.verify_identity':
+      return 'Approved training identity check recorded. No real secret was collected.';
+    case 'directory.test_primary_auth':
+      return event.payload.result === 'succeeds'
+        ? 'Primary password authentication succeeds; continue with the second-factor evidence.'
+        : 'Primary authentication is blocked; inspect the account and password state.';
+    case 'directory.record_diagnosis':
+      return 'Diagnosis recorded from the reviewed account evidence.';
+    case 'directory.verify_access':
+      return 'The original sign-in path has been verified after remediation.';
     case 'directory.unlock_account':
       return 'Account unlocked. New sign-in attempts are now allowed.';
     case 'directory.reset_password':
@@ -52,7 +64,9 @@ export function DirectoryTool() {
         user.department.toLowerCase().includes(normalizedQuery);
       const matchesAccountFilter =
         accountFilter === 'all' ||
-        (accountFilter === 'locked' && user.locked) ||
+        (accountFilter === 'locked' &&
+          user.locked &&
+          (!user.supportIssue || user.accountInspected)) ||
         (accountFilter === 'disabled' && user.disabled) ||
         (accountFilter === 'mfa-reset' && !user.mfaEnrolled);
 

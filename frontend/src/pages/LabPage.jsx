@@ -202,11 +202,12 @@ export default function LabPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <article className="space-y-4">
           <div className="panel dark:border-slate-700 dark:bg-slate-900">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Scenario</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300">{lab.description}</p>
           </div>
 
           <div className="panel dark:border-slate-700 dark:bg-slate-900">
-            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Setup Instructions</h2>
+            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Task and environment</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300">{lab.setup_instructions}</p>
           </div>
 
@@ -239,7 +240,7 @@ export default function LabPage() {
           ) : null}
 
           <div className="panel dark:border-slate-700 dark:bg-slate-900">
-            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Success Criteria</h2>
+            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Verify</h2>
             <ul className="space-y-2">
               {tasks.map((task) => (
                 <li key={task} className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-300">
@@ -266,13 +267,13 @@ export default function LabPage() {
 
         <aside className="panel h-fit space-y-4 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Your Submission</h2>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Work and explain</h2>
             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${status.cls}`}>{status.label}</span>
           </div>
 
           <textarea
             className="input-field min-h-64 w-full"
-            placeholder="Document your answers, steps, findings, and verification notes here."
+            placeholder="Record your evidence, diagnosis, work, and verification. When useful, end with one sentence: What caused the problem?"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             readOnly={Boolean(prerequisiteLock) || busy || lab.status === "submitted"}

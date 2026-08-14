@@ -508,7 +508,14 @@ def _serialize_activity(context: _TrainingContext, activity: TrainingWeekActivit
     return item
 
 
-def _serialize_week(week: TrainingWeek, activities: list[dict], *, locked: bool, lock_reason: str | None) -> dict:
+def _serialize_week(
+    week: TrainingWeek,
+    activities: list[dict],
+    *,
+    locked: bool,
+    lock_reason: str | None,
+    lock_requirements: list[str] | None = None,
+) -> dict:
     required = [item for item in activities if item["is_required"]]
     optional = [item for item in activities if not item["is_required"]]
     required_complete = sum(1 for item in required if item["complete"])
@@ -544,6 +551,7 @@ def _serialize_week(week: TrainingWeek, activities: list[dict], *, locked: bool,
         "is_complete": is_complete,
         "locked": locked,
         "lock_reason": lock_reason,
+        "lock_requirements": lock_requirements or [],
     }
 
 
@@ -580,14 +588,38 @@ def _build_state(db: Session, student: Student):
     week_states = []
     prior_required_complete = True
     prior_title = None
+    prior_missing_required: list[str] = []
     for week in weeks:
         items = [activity_states[item.id] for item in sorted(week.activities, key=lambda item: (item.display_order, item.id))]
         locked = bool(not student.is_mentor and week.requires_previous_week and not prior_required_complete)
-        reason = f"Complete {prior_title} first." if locked and prior_title else None
-        state = _serialize_week(week, items, locked=locked, lock_reason=reason)
+        reason = None
+        if locked and prior_title:
+            remaining = len(prior_missing_required)
+            first_missing = prior_missing_required[0] if prior_missing_required else None
+            if first_missing and remaining > 1:
+                reason = (
+                    f"Complete {prior_title}: {first_missing} and "
+                    f"{remaining - 1} more required item{'s' if remaining - 1 != 1 else ''}."
+                )
+            elif first_missing:
+                reason = f"Complete {prior_title}: {first_missing}."
+            else:
+                reason = f"Complete {prior_title} first."
+        state = _serialize_week(
+            week,
+            items,
+            locked=locked,
+            lock_reason=reason,
+            lock_requirements=prior_missing_required if locked else [],
+        )
         week_states.append((week, state, items))
         prior_required_complete = prior_required_complete and state["is_complete"]
         prior_title = f"Week {week.week_number} — {week.title}"
+        prior_missing_required = [
+            item["title"]
+            for item in items
+            if item["is_required"] and not item["complete"]
+        ]
     return weeks, context, week_states
 
 
@@ -619,6 +651,7 @@ def build_training_overview(db: Session, student: Student) -> dict:
     )
     return {
         "current_week": current_week,
+        "current_week_activities": current_entry[2] if current_entry else [],
         "weeks": public_weeks,
         "next_activity": next_activity,
         "recently_completed": recently_completed[0] if recently_completed else None,

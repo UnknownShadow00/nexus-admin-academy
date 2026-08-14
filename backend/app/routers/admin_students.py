@@ -20,6 +20,7 @@ from app.models.service_desk import (
     ServiceDeskAttemptEvent,
     ServiceDeskAttemptGrade,
     ServiceDeskBetaEnrollment,
+    ServiceDeskScenario,
 )
 from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
@@ -28,6 +29,7 @@ from app.models.xp_ledger import XPLedger
 from app.services.activity_service import get_recent_activity
 from app.services.onboarding_service import get_orientation_state
 from app.services.quiz_progression import is_quiz_passed
+from app.services.service_desk_progression import PACK_BY_SCENARIO
 from app.services.admin_auth import verify_admin
 from app.services.auth_service import hash_password, normalize_username
 from app.services.training_service import build_cohort_summary, build_training_progress
@@ -175,6 +177,23 @@ def create_student(payload: StudentCreateRequest, db: Session = Depends(get_db))
                 quiz_score=100,
             )
         )
+
+    # New accounts receive the same managed scenario catalog as seeded
+    # accounts. Student-facing availability is still filtered by the
+    # server-authoritative pack progression; these rows are assignment
+    # inventory, not an unlock shortcut.
+    managed_scenarios = db.query(ServiceDeskScenario).filter(
+        ServiceDeskScenario.status == "active",
+        ServiceDeskScenario.stable_key.in_(set(PACK_BY_SCENARIO)),
+    ).all()
+    for scenario in managed_scenarios:
+        db.add(ServiceDeskAssignment(
+            student_id=student.id,
+            scenario_id=scenario.id,
+            mode="simulation",
+            is_required=False,
+            assigned_by="student-create",
+        ))
 
     try:
         db.commit()

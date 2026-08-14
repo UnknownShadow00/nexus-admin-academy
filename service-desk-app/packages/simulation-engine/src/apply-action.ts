@@ -71,6 +71,12 @@ export interface ApplyActionResult {
   event: ActionEvent;
 }
 
+const ACCOUNT_CASE_USER_BY_TICKET: Readonly<Record<string, string>> = {
+  INC2511: 'directory-user-taylor-morgan',
+  INC2512: 'directory-user-jordan-lee',
+  INC2513: 'directory-user-camille-reyes',
+};
+
 function createId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random()
     .toString(36)
@@ -104,7 +110,7 @@ function isMeaningfulInternalNote(text: string) {
   const documentsDiagnosis =
     /\b(cause|diagnos|observ|investigat|confirm)/u.test(joined);
   const documentsRepair =
-    /\b(fix(?:ed|ing)?|repair(?:ed|ing)?|appl(?:y|ied)|start(?:ed)?|connect(?:ed)?|configur(?:e|ed|ing)|set)\b/u.test(
+    /\b(fix(?:ed|ing)?|repair(?:ed|ing)?|appl(?:y|ied)|start(?:ed)?|connect(?:ed)?|configur(?:e|ed|ing)|set|unlock(?:ed|ing)?|reset(?:ting)?|issu(?:e|ed|ing)|clear(?:ed|ing)?)\b/u.test(
       joined,
     );
   const documentsVerification =
@@ -121,6 +127,10 @@ function ticketRejectReason(
   action: TicketSimulationAction,
 ): string | null {
   const fixture = getFixtureTicket(action.payload.ticketId);
+  const accountUserId = ACCOUNT_CASE_USER_BY_TICKET[action.payload.ticketId];
+  const accountOverlay = accountUserId
+    ? attempt.directoryOverlays[accountUserId]
+    : undefined;
 
   if (!fixture) {
     return 'The requested ticket does not exist in this simulation.';
@@ -142,9 +152,16 @@ function ticketRejectReason(
         ? null
         : `A ticket cannot move from ${overlay.status} to ${action.payload.status}.`;
     case 'ticket.add_note':
-      return action.payload.body.trim().length === 0
-        ? 'An internal note cannot be empty.'
-        : null;
+      if (action.payload.body.trim().length === 0) {
+        return 'An internal note cannot be empty.';
+      }
+      if (accountUserId && !accountOverlay?.accessVerified) {
+        return 'Verify the original sign-in path before writing the final resolution note.';
+      }
+      if (accountUserId && !isMeaningfulInternalNote(action.payload.body)) {
+        return 'Document the diagnosis, remediation, and post-fix verification in the note.';
+      }
+      return null;
     case 'ticket.escalate':
       return overlay.escalated
         ? 'This ticket has already been escalated.'
@@ -182,6 +199,24 @@ function ticketRejectReason(
         return 'This ticket is already closed or resolved.';
       }
       {
+        if (accountUserId) {
+          if (!action.payload.verifiedResolved) {
+            return 'Starter account cases must be closed as verified resolved.';
+          }
+          if (!accountOverlay?.accessVerified) {
+            return 'Verify the original sign-in path after remediation before closing this ticket.';
+          }
+          const finalNote = [...overlay.notes]
+            .reverse()
+            .find((note) => isMeaningfulInternalNote(note.body));
+          if (!finalNote) {
+            return 'Add a meaningful note covering diagnosis, remediation, and verification before closing.';
+          }
+          if (action.payload.resolutionNote.trim() !== finalNote.body) {
+            return 'Close the ticket with the resolution note written during this attempt.';
+          }
+          return null;
+        }
         const scenario = getRemoteDesktopScenarioByTicket(
           action.payload.ticketId,
         );
@@ -271,6 +306,13 @@ function createDirectoryOverlay(directoryUserId: string): DirectoryUserOverlay {
     locked: fixture?.locked ?? false,
     disabled: fixture?.disabled ?? false,
     mfaEnrolled: fixture?.mfaEnrolled ?? false,
+    passwordState: fixture?.passwordState ?? 'current',
+    mfaFactorStatus: fixture?.mfaFactorStatus ?? 'available',
+    inspected: false,
+    identityVerified: false,
+    primaryAuthTested: false,
+    diagnosis: null,
+    accessVerified: false,
     groupChanges: { added: [], removed: [] },
     events: [],
   };
@@ -324,11 +366,80 @@ function directoryRejectReason(
   }
 
   switch (action.type) {
+    case 'directory.inspect_account':
+      return overlay.inspected
+        ? 'This account state has already been reviewed.'
+        : null;
+    case 'directory.verify_identity':
+      if (!overlay.inspected) {
+        return 'Review the account state before recording the approved identity check.';
+      }
+      return overlay.identityVerified
+        ? 'The approved training identity check is already recorded.'
+        : null;
+    case 'directory.test_primary_auth':
+      if (!overlay.inspected) {
+        return 'Review the account state before testing the primary sign-in step.';
+      }
+      if (overlay.primaryAuthTested) {
+        return 'Primary authentication has already been tested.';
+      }
+      return action.payload.result ===
+        (fixture.primaryAuthSucceeds ? 'succeeds' : 'blocked')
+        ? null
+        : 'The recorded primary-authentication result does not match the simulated sign-in.';
+    case 'directory.record_diagnosis':
+      if (!overlay.inspected || !overlay.identityVerified) {
+        return 'Inspect the account and complete the approved identity check before diagnosing it.';
+      }
+      if (
+        fixture.supportIssue === 'mfa-factor-unavailable' &&
+        !overlay.primaryAuthTested
+      ) {
+        return 'Test primary password authentication before diagnosing an MFA problem.';
+      }
+      return action.payload.diagnosis === fixture.supportIssue
+        ? null
+        : 'That diagnosis does not match the account evidence.';
+    case 'directory.verify_access': {
+      const expectedChecks: Readonly<Record<string, string>> = {
+        'account-locked': 'account-unlocked',
+        'password-expired': 'temporary-password-issued',
+        'mfa-factor-unavailable': 'mfa-reregistration-ready',
+      };
+      const expectedCheck = fixture.supportIssue
+        ? expectedChecks[fixture.supportIssue]
+        : undefined;
+      if (!overlay.diagnosis || action.payload.check !== expectedCheck) {
+        return 'Complete the correct remediation before verifying the original sign-in path.';
+      }
+      const remediated =
+        (fixture.supportIssue === 'account-locked' && !overlay.locked) ||
+        (fixture.supportIssue === 'password-expired' &&
+          overlay.passwordState === 'temporary') ||
+        (fixture.supportIssue === 'mfa-factor-unavailable' &&
+          overlay.mfaFactorStatus === 'reset-ready');
+      return remediated
+        ? null
+        : 'The original account problem has not been remediated yet.';
+    }
     case 'directory.unlock_account':
+      if (fixture.supportIssue && overlay.diagnosis !== 'account-locked') {
+        return 'Record the supported lock diagnosis before unlocking this account.';
+      }
       return overlay.locked
         ? null
         : 'This directory account is already unlocked.';
     case 'directory.reset_password':
+      if (fixture.supportIssue && overlay.diagnosis !== 'password-expired') {
+        return 'Record the supported password diagnosis before issuing a temporary password.';
+      }
+      if (
+        fixture.supportIssue === 'password-expired' &&
+        action.payload.requireChangeAtNextSignIn !== true
+      ) {
+        return 'Starter password resets must require a change at the next sign-in.';
+      }
       return overlay.disabled
         ? 'A password cannot be reset while this account is disabled.'
         : null;
@@ -341,6 +452,12 @@ function directoryRejectReason(
         ? 'This directory account is already disabled.'
         : null;
     case 'directory.reset_mfa':
+      if (
+        fixture.supportIssue &&
+        overlay.diagnosis !== 'mfa-factor-unavailable'
+      ) {
+        return 'Record the supported MFA diagnosis before clearing registration.';
+      }
       return overlay.disabled
         ? 'MFA cannot be reset while this account is disabled.'
         : null;
@@ -368,16 +485,30 @@ function applyValidDirectoryAction(
   action: DirectorySimulationAction,
 ): DirectoryUserOverlay {
   switch (action.type) {
+    case 'directory.inspect_account':
+      return { ...overlay, inspected: true };
+    case 'directory.verify_identity':
+      return { ...overlay, identityVerified: true };
+    case 'directory.test_primary_auth':
+      return { ...overlay, primaryAuthTested: true };
+    case 'directory.record_diagnosis':
+      return { ...overlay, diagnosis: action.payload.diagnosis };
+    case 'directory.verify_access':
+      return { ...overlay, accessVerified: true };
     case 'directory.unlock_account':
       return { ...overlay, locked: false };
     case 'directory.reset_password':
-      return { ...overlay };
+      return { ...overlay, passwordState: 'temporary' };
     case 'directory.enable_account':
       return { ...overlay, disabled: false };
     case 'directory.disable_account':
       return { ...overlay, disabled: true };
     case 'directory.reset_mfa':
-      return { ...overlay, mfaEnrolled: false };
+      return {
+        ...overlay,
+        mfaEnrolled: false,
+        mfaFactorStatus: 'reset-ready',
+      };
     case 'directory.update_groups': {
       const fixture = getDirectoryUserById(action.payload.directoryUserId);
       const next = nextGroupsForUpdate(overlay, action);

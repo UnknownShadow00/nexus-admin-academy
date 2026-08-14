@@ -9,18 +9,30 @@ import {
 import { TICKET_FIXTURES } from './ticket-fixtures';
 
 describe('directory fixtures', () => {
-  it('contains an original 36-user roster and seven groups', () => {
-    expect(DIRECTORY_USER_FIXTURES).toHaveLength(36);
+  it('contains the directory roster and seven groups', () => {
+    expect(DIRECTORY_USER_FIXTURES).toHaveLength(39);
     expect(DIRECTORY_GROUP_NAMES).toHaveLength(7);
     expect(new Set(DIRECTORY_USER_FIXTURES.map((user) => user.id)).size).toBe(
-      36,
+      39,
     );
     expect(
       new Set(DIRECTORY_USER_FIXTURES.map((user) => user.username)).size,
-    ).toBe(36);
+    ).toBe(39);
   });
 
   it.each([
+    {
+      directoryUserId: 'directory-user-taylor-morgan',
+      ticketId: 'INC2511',
+    },
+    {
+      directoryUserId: 'directory-user-jordan-lee',
+      ticketId: 'INC2512',
+    },
+    {
+      directoryUserId: 'directory-user-camille-reyes',
+      ticketId: 'INC2513',
+    },
     {
       directoryUserId: AVERY_BROOKS_DIRECTORY_USER_ID,
       ticketId: 'INC2401',

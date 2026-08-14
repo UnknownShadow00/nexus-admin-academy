@@ -78,7 +78,9 @@ export function DirectoryUserList({
                   {user.username} · {user.department}
                 </span>
               </span>
-              {user.disabled ? (
+              {user.supportIssue && !user.accountInspected ? (
+                <Badge variant="default">Review</Badge>
+              ) : user.disabled ? (
                 <Badge variant="amber">Disabled</Badge>
               ) : user.locked ? (
                 <Badge variant="amber">Locked</Badge>

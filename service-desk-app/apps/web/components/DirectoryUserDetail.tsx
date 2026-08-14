@@ -32,12 +32,31 @@ export function DirectoryUserDetail({
   const {
     disableAccount,
     enableAccount,
+    inspectAccount,
+    recordDiagnosis,
     resetMfa,
     resetPassword,
     unlockAccount,
+    testPrimaryAuth,
     updateGroups,
+    verifyAccess,
+    verifyIdentity,
   } = useDirectorySession();
   const [groupToAdd, setGroupToAdd] = useState('');
+  const [diagnosis, setDiagnosis] = useState('');
+  const isStarterAccountCase = user.supportIssue !== null;
+  const remediationComplete =
+    (user.supportIssue === 'account-locked' && !user.locked) ||
+    (user.supportIssue === 'password-expired' &&
+      user.passwordState === 'temporary') ||
+    (user.supportIssue === 'mfa-factor-unavailable' &&
+      user.mfaFactorStatus === 'reset-ready');
+  const verificationCheck =
+    user.supportIssue === 'account-locked'
+      ? 'account-unlocked'
+      : user.supportIssue === 'password-expired'
+        ? 'temporary-password-issued'
+        : 'mfa-reregistration-ready';
   const availableGroups = useMemo(
     () => DIRECTORY_GROUP_NAMES.filter((group) => !user.groups.includes(group)),
     [user.groups],
@@ -66,19 +85,132 @@ export function DirectoryUserDetail({
           <p className="mt-1 text-xs font-semibold uppercase text-zinc-500">
             Primary asset {user.assetTag}
           </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Badge variant={user.disabled ? 'amber' : 'success'}>
-              {user.disabled ? 'Account disabled' : 'Account enabled'}
-            </Badge>
-            <Badge variant={user.locked ? 'amber' : 'success'}>
-              {user.locked ? 'Account locked' : 'Account unlocked'}
-            </Badge>
-            <Badge variant={user.mfaEnrolled ? 'sky' : 'default'}>
-              {user.mfaEnrolled ? 'MFA enrolled' : 'MFA reset'}
-            </Badge>
-          </div>
+          {!isStarterAccountCase || user.accountInspected ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Badge variant={user.disabled ? 'amber' : 'success'}>
+                {user.disabled ? 'Account disabled' : 'Account enabled'}
+              </Badge>
+              <Badge variant={user.locked ? 'amber' : 'success'}>
+                {user.locked ? 'Account locked' : 'Account unlocked'}
+              </Badge>
+              <Badge variant={user.mfaEnrolled ? 'sky' : 'default'}>
+                {user.mfaEnrolled ? 'MFA enrolled' : 'MFA reset'}
+              </Badge>
+              {isStarterAccountCase ? (
+                <Badge
+                  variant={
+                    user.passwordState === 'expired' ? 'amber' : 'default'
+                  }
+                >
+                  Password {user.passwordState}
+                </Badge>
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-400">
+              Account status has not been reviewed yet.
+            </p>
+          )}
         </div>
       </Card>
+
+      {isStarterAccountCase ? (
+        <Card>
+          <CardHeader
+            meta="Read → investigate → diagnose"
+            title="Account review"
+          />
+          <div className="space-y-4 p-4">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
+                disabled={user.accountInspected}
+                onClick={() => onAction(inspectAccount(user.id))}
+                variant="soft"
+              >
+                {user.accountInspected
+                  ? 'Account state reviewed'
+                  : 'Review account state'}
+              </Button>
+              <Button
+                disabled={!user.accountInspected || user.identityVerified}
+                onClick={() => onAction(verifyIdentity(user.id))}
+                variant="soft"
+              >
+                {user.identityVerified
+                  ? 'Identity check recorded'
+                  : 'Record approved identity check'}
+              </Button>
+              {user.supportIssue === 'mfa-factor-unavailable' ? (
+                <Button
+                  disabled={!user.accountInspected || user.primaryAuthTested}
+                  onClick={() =>
+                    onAction(
+                      testPrimaryAuth(
+                        user.id,
+                        user.primaryAuthSucceeds ? 'succeeds' : 'blocked',
+                      ),
+                    )
+                  }
+                  variant="soft"
+                >
+                  {user.primaryAuthTested
+                    ? 'Primary sign-in tested'
+                    : 'Test primary password sign-in'}
+                </Button>
+              ) : null}
+            </div>
+            <p className="text-xs leading-relaxed text-zinc-500">
+              Training assumption: the identity check represents an approved
+              internal verification process. Never request or record a real
+              password, recovery code, or security answer.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <Select
+                aria-label="Account diagnosis"
+                disabled={!user.identityVerified || Boolean(user.diagnosis)}
+                onChange={(event) => setDiagnosis(event.target.value)}
+                value={user.diagnosis ?? diagnosis}
+              >
+                <option value="">Select diagnosis from the evidence</option>
+                <option value="account-locked">Account is locked</option>
+                <option value="password-expired">Password is expired</option>
+                <option value="mfa-factor-unavailable">
+                  Registered MFA factor is unavailable
+                </option>
+              </Select>
+              <Button
+                disabled={!diagnosis || Boolean(user.diagnosis)}
+                onClick={() =>
+                  onAction(
+                    recordDiagnosis(
+                      user.id,
+                      diagnosis as
+                        | 'account-locked'
+                        | 'password-expired'
+                        | 'mfa-factor-unavailable',
+                    ),
+                  )
+                }
+              >
+                Record diagnosis
+              </Button>
+            </div>
+            {remediationComplete ? (
+              <Button
+                disabled={user.accessVerified}
+                onClick={() =>
+                  onAction(verifyAccess(user.id, verificationCheck))
+                }
+                variant="soft"
+              >
+                {user.accessVerified
+                  ? 'Original sign-in path verified'
+                  : 'Verify original sign-in path'}
+              </Button>
+            ) : null}
+          </div>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader title="Account actions" />
@@ -89,7 +221,13 @@ export function DirectoryUserDetail({
             onConfirm={() => onAction(unlockAccount(user.id))}
             title="Unlock account"
             trigger={
-              <Button disabled={!user.locked} variant="soft">
+              <Button
+                disabled={
+                  !user.locked ||
+                  (isStarterAccountCase && user.diagnosis !== 'account-locked')
+                }
+                variant="soft"
+              >
                 <IconLockOpen aria-hidden="true" className="h-4 w-4" />
                 {user.locked ? 'Unlock account' : 'Already unlocked'}
               </Button>
@@ -101,7 +239,13 @@ export function DirectoryUserDetail({
             onConfirm={() => onAction(resetPassword(user.id))}
             title="Reset password"
             trigger={
-              <Button disabled={user.disabled}>
+              <Button
+                disabled={
+                  user.disabled ||
+                  (isStarterAccountCase &&
+                    user.diagnosis !== 'password-expired')
+                }
+              >
                 <IconKey aria-hidden="true" className="h-4 w-4" />
                 Reset password
               </Button>
@@ -136,7 +280,13 @@ export function DirectoryUserDetail({
             onConfirm={() => onAction(resetMfa(user.id))}
             title="Reset MFA"
             trigger={
-              <Button disabled={user.disabled}>
+              <Button
+                disabled={
+                  user.disabled ||
+                  (isStarterAccountCase &&
+                    user.diagnosis !== 'mfa-factor-unavailable')
+                }
+              >
                 <IconShieldLock aria-hidden="true" className="h-4 w-4" />
                 Reset MFA
               </Button>

@@ -60,6 +60,17 @@ export interface DirectoryUserOverlay {
   locked: boolean;
   disabled: boolean;
   mfaEnrolled: boolean;
+  passwordState: 'current' | 'expired' | 'temporary';
+  mfaFactorStatus: 'available' | 'device-unavailable' | 'reset-ready';
+  inspected: boolean;
+  identityVerified: boolean;
+  primaryAuthTested: boolean;
+  diagnosis:
+    | 'account-locked'
+    | 'password-expired'
+    | 'mfa-factor-unavailable'
+    | null;
+  accessVerified: boolean;
   groupChanges: {
     added: readonly string[];
     removed: readonly string[];

@@ -45,8 +45,12 @@ def test_untrusted_progress_events_cannot_create_progress_or_xp(db):
     summary = summary_response.json()
     assert summary == {
         "tickets_completed": 0,
+        "passed_first_try": 0,
+        "needed_revision": 0,
         "achievements_unlocked": 0,
         "total_xp": 0,
+        "skills": [],
+        "needs_practice": [],
         "recent_activity": [],
     }
 

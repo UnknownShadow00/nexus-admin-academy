@@ -45,6 +45,10 @@ STUDENT_C_USERNAME_GEN="browser-training-student-c"
 STUDENT_C_PASSWORD_GEN="$(rand)"
 STUDENT_D_USERNAME_GEN="browser-training-student-d"
 STUDENT_D_PASSWORD_GEN="$(rand)"
+FRESH_A_USERNAME_GEN="browser-fresh-student-a"
+FRESH_A_PASSWORD_GEN="$(rand)"
+FRESH_B_USERNAME_GEN="browser-fresh-student-b"
+FRESH_B_PASSWORD_GEN="$(rand)"
 
 export DATABASE_URL="sqlite:///$SCRATCH_DIR/e2e.db"
 export JWT_SECRET_KEY="$(rand)$(rand)"
@@ -163,6 +167,8 @@ create_student "$STUDENT_USERNAME_GEN" "$STUDENT_PASSWORD_GEN" "Browser Training
 create_student "$QUALIFIED_USERNAME_GEN" "$QUALIFIED_PASSWORD_GEN" "Qualified Browser Student"
 create_student "$STUDENT_C_USERNAME_GEN" "$STUDENT_C_PASSWORD_GEN" "Browser Training Student C"
 create_student "$STUDENT_D_USERNAME_GEN" "$STUDENT_D_PASSWORD_GEN" "Browser Training Student D"
+create_student "$FRESH_A_USERNAME_GEN" "$FRESH_A_PASSWORD_GEN" "Fresh Progression Student A"
+create_student "$FRESH_B_USERNAME_GEN" "$FRESH_B_PASSWORD_GEN" "Fresh Progression Student B"
 
 # There is no admin API for directly granting a role — promotion is normally
 # earned by completing gates. For the capstone-visibility fixture we grant a
@@ -187,20 +193,64 @@ if row:
 PY
 
 # Give each disposable browser account the published Service Desk fixtures.
-# This mirrors the seeded training accounts but never changes a persistent DB.
+# The four long-running simulator integration fixtures intentionally omit one
+# Starter Support assignment. That is the documented instructor-assignment
+# override path, preserving broad tool-workflow coverage without manufacturing
+# course completions. The two fresh fixtures receive the complete catalog and
+# therefore exercise the real server-authoritative pack progression.
 "$PYTHON" - "$SCRATCH_DIR/e2e.db" "$STUDENT_USERNAME_GEN" "$QUALIFIED_USERNAME_GEN" "$STUDENT_C_USERNAME_GEN" "$STUDENT_D_USERNAME_GEN" <<'PY'
 import sqlite3
 import sys
 
 db = sqlite3.connect(sys.argv[1])
-scenario_ids = [row[0] for row in db.execute("SELECT id FROM service_desk_scenarios WHERE status = 'active'")]
+scenario_ids = [
+    row[0]
+    for row in db.execute(
+        "SELECT id FROM service_desk_scenarios "
+        "WHERE status = 'active' AND stable_key LIKE 'inc%' AND stable_key != 'inc2502'"
+    )
+]
+for username in sys.argv[2:]:
+    row = db.execute("SELECT id FROM students WHERE username = ?", (username,)).fetchone()
+    if row:
+        db.execute(
+            "DELETE FROM service_desk_assignments WHERE student_id = ? AND scenario_id IN "
+            "(SELECT id FROM service_desk_scenarios WHERE stable_key = 'inc2502')",
+            (row[0],),
+        )
+        for scenario_id in scenario_ids:
+            db.execute(
+                "INSERT INTO service_desk_assignments (student_id, scenario_id, mode, is_required, assigned_by) "
+                "SELECT ?, ?, 'simulation', 1, 'e2e' WHERE NOT EXISTS "
+                "(SELECT 1 FROM service_desk_assignments WHERE student_id = ? AND scenario_id = ? AND mode = 'simulation')",
+                (row[0], scenario_id, row[0], scenario_id),
+            )
+            db.execute(
+                "UPDATE service_desk_assignments SET assigned_by = 'e2e', is_required = 1 "
+                "WHERE student_id = ? AND scenario_id = ? AND mode = 'simulation'",
+                (row[0], scenario_id),
+            )
+db.commit()
+PY
+
+"$PYTHON" - "$SCRATCH_DIR/e2e.db" "$FRESH_A_USERNAME_GEN" "$FRESH_B_USERNAME_GEN" <<'PY'
+import sqlite3
+import sys
+
+db = sqlite3.connect(sys.argv[1])
+scenario_ids = [
+    row[0]
+    for row in db.execute(
+        "SELECT id FROM service_desk_scenarios WHERE status = 'active' AND stable_key LIKE 'inc%'"
+    )
+]
 for username in sys.argv[2:]:
     row = db.execute("SELECT id FROM students WHERE username = ?", (username,)).fetchone()
     if row:
         for scenario_id in scenario_ids:
             db.execute(
                 "INSERT INTO service_desk_assignments (student_id, scenario_id, mode, is_required, assigned_by) "
-                "SELECT ?, ?, 'simulation', 1, 'e2e' WHERE NOT EXISTS "
+                "SELECT ?, ?, 'simulation', 1, 'migration-0047' WHERE NOT EXISTS "
                 "(SELECT 1 FROM service_desk_assignments WHERE student_id = ? AND scenario_id = ? AND mode = 'simulation')",
                 (row[0], scenario_id, row[0], scenario_id),
             )
@@ -247,6 +297,10 @@ STACK_ENV="$SCRATCH_DIR/stack.env"
     echo "NEXUS_E2E_STUDENT_C_PASSWORD=$STUDENT_C_PASSWORD_GEN"
     echo "NEXUS_E2E_STUDENT_D_USERNAME=$STUDENT_D_USERNAME_GEN"
     echo "NEXUS_E2E_STUDENT_D_PASSWORD=$STUDENT_D_PASSWORD_GEN"
+    echo "NEXUS_E2E_FRESH_A_USERNAME=$FRESH_A_USERNAME_GEN"
+    echo "NEXUS_E2E_FRESH_A_PASSWORD=$FRESH_A_PASSWORD_GEN"
+    echo "NEXUS_E2E_FRESH_B_USERNAME=$FRESH_B_USERNAME_GEN"
+    echo "NEXUS_E2E_FRESH_B_PASSWORD=$FRESH_B_PASSWORD_GEN"
     echo "NEXUS_E2E_QUALIFIED_USERNAME=$QUALIFIED_USERNAME_GEN"
     echo "NEXUS_E2E_QUALIFIED_PASSWORD=$QUALIFIED_PASSWORD_GEN"
 } > "$STACK_ENV"

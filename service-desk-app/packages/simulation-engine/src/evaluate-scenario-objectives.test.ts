@@ -153,6 +153,13 @@ function completedAttempt(scenario: ScenarioVersion): Attempt {
         },
         locked: false,
         mfaEnrolled: true,
+        passwordState: 'current',
+        mfaFactorStatus: 'available',
+        inspected: false,
+        identityVerified: false,
+        primaryAuthTested: false,
+        diagnosis: null,
+        accessVerified: false,
       },
     },
     ticketOverlays: {

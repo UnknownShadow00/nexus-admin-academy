@@ -16,8 +16,10 @@ describe('asset fixtures', () => {
       })),
     );
 
-    expect(devices).toHaveLength(36);
-    expect(new Set(devices.map((device) => device.assetTag)).size).toBe(36);
+    expect(devices).toHaveLength(DIRECTORY_USER_FIXTURES.length);
+    expect(new Set(devices.map((device) => device.assetTag)).size).toBe(
+      DIRECTORY_USER_FIXTURES.length,
+    );
     expect(devices.every((device) => /^NX-\d{4}$/.test(device.assetTag))).toBe(
       true,
     );
@@ -26,7 +28,9 @@ describe('asset fixtures', () => {
         Object.values(AssetStatus).includes(device.status),
       ),
     ).toBe(true);
-    expect(new Set(devices.map((device) => device.serialNumber)).size).toBe(36);
+    expect(new Set(devices.map((device) => device.serialNumber)).size).toBe(
+      DIRECTORY_USER_FIXTURES.length,
+    );
     expect(devices.every((device) => device.location.length > 0)).toBe(true);
   });
 

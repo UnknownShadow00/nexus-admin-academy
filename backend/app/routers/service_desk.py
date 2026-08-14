@@ -22,6 +22,12 @@ from app.schemas.service_desk import (
 from app.services.service_desk_objectives import objective_definition, payload_matches
 from app.services.auth_service import ensure_student_access, ensure_student_ownership, get_current_student
 from app.services.service_desk_grading import AttemptNotClosedError, compute_grade
+from app.services.service_desk_progression import (
+    build_service_desk_progression,
+    difficulty_presentation,
+    require_scenario_unlocked,
+    scenario_access,
+)
 from app.services.xp_service import award_xp
 
 router = APIRouter(prefix="/api/service-desk", tags=["service-desk"])
@@ -127,81 +133,262 @@ def _writable_attempt(db: Session, attempt_id: int, student: Student) -> Service
 
 
 @router.get("/assignments")
-def list_assignments(current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
-    rows = db.query(ServiceDeskAssignment, ServiceDeskScenario).join(
-        ServiceDeskScenario, ServiceDeskScenario.id == ServiceDeskAssignment.scenario_id
-    ).filter(ServiceDeskAssignment.student_id == current_student.id).order_by(ServiceDeskAssignment.id).all()
+def list_assignments(
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    progression = build_service_desk_progression(db, current_student)
+    rows = (
+        db.query(ServiceDeskAssignment, ServiceDeskScenario)
+        .join(
+            ServiceDeskScenario,
+            ServiceDeskScenario.id == ServiceDeskAssignment.scenario_id,
+        )
+        .filter(
+            ServiceDeskAssignment.student_id == current_student.id,
+            ServiceDeskScenario.status == "active",
+        )
+        .order_by(ServiceDeskAssignment.id)
+        .all()
+    )
     result = []
     for assignment, scenario in rows:
-        version = db.query(ServiceDeskScenarioVersion).filter(
-            ServiceDeskScenarioVersion.scenario_id == scenario.id,
-            ServiceDeskScenarioVersion.status == "published",
-        ).order_by(ServiceDeskScenarioVersion.version_number.desc()).first()
+        access = scenario_access(progression, scenario.stable_key)
+        if not access["unlocked"]:
+            continue
+        version = (
+            db.query(ServiceDeskScenarioVersion)
+            .filter(
+                ServiceDeskScenarioVersion.scenario_id == scenario.id,
+                ServiceDeskScenarioVersion.status == "published",
+            )
+            .order_by(ServiceDeskScenarioVersion.version_number.desc())
+            .first()
+        )
         latest_attempt = None
         if version:
-            latest_attempt = db.query(ServiceDeskAttempt).join(
-                ServiceDeskScenarioVersion,
-                ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
-            ).filter(
-                ServiceDeskAttempt.student_id == current_student.id,
-                ServiceDeskScenarioVersion.scenario_id == scenario.id,
-                ServiceDeskAttempt.status == "in_progress",
-            ).order_by(ServiceDeskAttempt.started_at.desc()).first()
-            if latest_attempt is None:
-                latest_attempt = db.query(ServiceDeskAttempt).filter(
+            latest_attempt = (
+                db.query(ServiceDeskAttempt)
+                .join(
+                    ServiceDeskScenarioVersion,
+                    ServiceDeskScenarioVersion.id
+                    == ServiceDeskAttempt.scenario_version_id,
+                )
+                .filter(
                     ServiceDeskAttempt.student_id == current_student.id,
-                    ServiceDeskAttempt.scenario_version_id == version.id,
-                ).order_by(ServiceDeskAttempt.attempt_number.desc()).first()
+                    ServiceDeskScenarioVersion.scenario_id == scenario.id,
+                    ServiceDeskAttempt.status == "in_progress",
+                )
+                .order_by(ServiceDeskAttempt.started_at.desc())
+                .first()
+            )
+            if latest_attempt is None:
+                latest_attempt = (
+                    db.query(ServiceDeskAttempt)
+                    .filter(
+                        ServiceDeskAttempt.student_id == current_student.id,
+                        ServiceDeskAttempt.scenario_version_id == version.id,
+                    )
+                    .order_by(ServiceDeskAttempt.attempt_number.desc())
+                    .first()
+                )
         published_definition = version.definition_json or {} if version else {}
         published_description = published_definition.get("description")
         if isinstance(published_description, dict):
             published_description = published_description.get("issue")
-        result.append({"id": assignment.id, "student_id": assignment.student_id, "scenario_id": scenario.id,
-                       "mode": assignment.mode, "is_required": assignment.is_required, "due_at": assignment.due_at,
-                       "maximum_attempts": assignment.maximum_attempts, "assigned_by": assignment.assigned_by,
-                       "assigned_at": assignment.assigned_at,
-                       "scenario": {"stable_key": scenario.stable_key,
-                                    "title": published_definition.get("title") or scenario.title,
-                                    "description": published_description or scenario.description,
-                                    "category": published_definition.get("category") or scenario.category,
-                                    "difficulty": published_definition.get("difficulty") or scenario.difficulty},
-                       "latest_published_version": {
-                           "id": version.id,
-                           "version_number": version.version_number,
-                           "definition_json": _student_scenario_definition(version.definition_json or {}),
-                       } if version else None,
-                       "most_recent_attempt": {"id": latest_attempt.id, "status": latest_attempt.status,
-                                               "attempt_number": latest_attempt.attempt_number} if latest_attempt else None})
-    return jsonable_encoder(result)
+        difficulty_label, difficulty_stars = difficulty_presentation(
+            scenario.difficulty
+        )
+        result.append(
+            {
+                "id": assignment.id,
+                "student_id": assignment.student_id,
+                "scenario_id": scenario.id,
+                "mode": assignment.mode,
+                "is_required": assignment.is_required,
+                "due_at": assignment.due_at,
+                "maximum_attempts": assignment.maximum_attempts,
+                "assigned_by": assignment.assigned_by,
+                "assigned_at": assignment.assigned_at,
+                **access,
+                "difficulty_label": difficulty_label,
+                "difficulty_stars": difficulty_stars,
+                "scenario": {
+                    "stable_key": scenario.stable_key,
+                    "title": published_definition.get("title") or scenario.title,
+                    "description": published_description or scenario.description,
+                    "category": published_definition.get("category")
+                    or scenario.category,
+                    "difficulty": published_definition.get("difficulty")
+                    or scenario.difficulty,
+                },
+                "latest_published_version": {
+                    "id": version.id,
+                    "version_number": version.version_number,
+                    "definition_json": _student_scenario_definition(
+                        version.definition_json or {}
+                    ),
+                }
+                if version
+                else None,
+                "most_recent_attempt": {
+                    "id": latest_attempt.id,
+                    "status": latest_attempt.status,
+                    "attempt_number": latest_attempt.attempt_number,
+                }
+                if latest_attempt
+                else None,
+            }
+        )
+    return jsonable_encoder(
+        sorted(
+            result,
+            key=lambda row: (
+                {"assigned": 0, "practice": 1, "earlier": 2}.get(
+                    row["queue_type"], 3
+                ),
+                row["pack_order"],
+                row["id"],
+            ),
+        )
+    )
+
+
+@router.get("/progression")
+def get_progression(
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    progression = build_service_desk_progression(db, current_student)
+    assignments = (
+        db.query(ServiceDeskAssignment, ServiceDeskScenario)
+        .join(
+            ServiceDeskScenario,
+            ServiceDeskScenario.id == ServiceDeskAssignment.scenario_id,
+        )
+        .filter(
+            ServiceDeskAssignment.student_id == current_student.id,
+            ServiceDeskScenario.status == "active",
+        )
+        .all()
+    )
+    visible = [
+        (assignment, scenario, scenario_access(progression, scenario.stable_key))
+        for assignment, scenario in assignments
+        if scenario_access(progression, scenario.stable_key)["unlocked"]
+    ]
+    in_progress_keys = {
+        stable_key
+        for (stable_key,) in db.query(ServiceDeskScenario.stable_key)
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.scenario_id == ServiceDeskScenario.id,
+        )
+        .join(
+            ServiceDeskAttempt,
+            ServiceDeskAttempt.scenario_version_id == ServiceDeskScenarioVersion.id,
+        )
+        .filter(
+            ServiceDeskAttempt.student_id == current_student.id,
+            ServiceDeskAttempt.status == "in_progress",
+        )
+        .all()
+    }
+    assigned = [row for row in visible if row[2]["queue_type"] == "assigned"]
+    practice = [row for row in visible if row[2]["queue_type"] == "practice"]
+    earlier = [row for row in visible if row[2]["queue_type"] == "earlier"]
+    completed = len(
+        {scenario.stable_key for _, scenario, _ in visible} & progression["passed_keys"]
+    )
+    in_progress = sum(
+        1 for _, scenario, _ in assigned if scenario.stable_key in in_progress_keys
+    )
+    return jsonable_encoder(
+        {
+            "current_week": progression["current_week"],
+            "current_pack": (
+                {
+                    "key": progression["active_pack"].key,
+                    "name": progression["active_pack"].name,
+                }
+                if progression["active_pack"]
+                else None
+            ),
+            "next_pack": progression["next_pack"],
+            "counts": {
+                "available": max(0, len(assigned) - in_progress),
+                "in_progress": in_progress,
+                "completed": completed,
+                "practice": len(practice),
+                "earlier": len(earlier),
+            },
+        }
+    )
 
 
 @router.post("/assignments/{assignment_id}/attempts")
-def start_attempt(assignment_id: int, current_student: Student = Depends(get_current_student), db: Session = Depends(get_db)):
-    assignment = db.query(ServiceDeskAssignment).filter(ServiceDeskAssignment.id == assignment_id).first()
+def start_attempt(
+    assignment_id: int,
+    current_student: Student = Depends(get_current_student),
+    db: Session = Depends(get_db),
+):
+    assignment = (
+        db.query(ServiceDeskAssignment)
+        .filter(ServiceDeskAssignment.id == assignment_id)
+        .first()
+    )
     if not assignment or assignment.student_id != current_student.id:
         raise HTTPException(404, "Assignment not found")
-    existing = db.query(ServiceDeskAttempt).join(
-        ServiceDeskScenarioVersion,
-        ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
-    ).filter(
-        ServiceDeskAttempt.student_id == current_student.id,
-        ServiceDeskScenarioVersion.scenario_id == assignment.scenario_id,
-        ServiceDeskAttempt.status == "in_progress",
-    ).order_by(ServiceDeskAttempt.started_at.desc()).first()
+    scenario = db.get(ServiceDeskScenario, assignment.scenario_id)
+    if not scenario or scenario.status != "active":
+        raise HTTPException(404, "Assignment not found")
+    require_scenario_unlocked(db, current_student, scenario)
+    existing = (
+        db.query(ServiceDeskAttempt)
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+        )
+        .filter(
+            ServiceDeskAttempt.student_id == current_student.id,
+            ServiceDeskScenarioVersion.scenario_id == assignment.scenario_id,
+            ServiceDeskAttempt.status == "in_progress",
+        )
+        .order_by(ServiceDeskAttempt.started_at.desc())
+        .first()
+    )
     if existing:
         return _json_response(_attempt_dict(existing), 200)
-    version = db.query(ServiceDeskScenarioVersion).filter(
-        ServiceDeskScenarioVersion.scenario_id == assignment.scenario_id,
-        ServiceDeskScenarioVersion.status == "published",
-    ).order_by(ServiceDeskScenarioVersion.version_number.desc()).first()
+    version = (
+        db.query(ServiceDeskScenarioVersion)
+        .filter(
+            ServiceDeskScenarioVersion.scenario_id == assignment.scenario_id,
+            ServiceDeskScenarioVersion.status == "published",
+        )
+        .order_by(ServiceDeskScenarioVersion.version_number.desc())
+        .first()
+    )
     if not version:
         raise HTTPException(409, "This assignment has no published scenario version")
-    count = db.query(ServiceDeskAttempt).filter_by(student_id=current_student.id, scenario_version_id=version.id).count()
+    count = (
+        db.query(ServiceDeskAttempt)
+        .filter_by(student_id=current_student.id, scenario_version_id=version.id)
+        .count()
+    )
     if assignment.maximum_attempts is not None and count >= assignment.maximum_attempts:
-        raise HTTPException(403, "Maximum attempts for this assignment have been reached")
-    attempt = ServiceDeskAttempt(student_id=current_student.id, scenario_version_id=version.id, mode=assignment.mode,
-                                 status="in_progress", current_state={}, current_state_hash=_hash_state({}),
-                                 state_version=0, attempt_number=count + 1)
+        raise HTTPException(
+            403, "Maximum attempts for this assignment have been reached"
+        )
+    attempt = ServiceDeskAttempt(
+        student_id=current_student.id,
+        scenario_version_id=version.id,
+        mode=assignment.mode,
+        status="in_progress",
+        current_state={},
+        current_state_hash=_hash_state({}),
+        state_version=0,
+        attempt_number=count + 1,
+    )
     db.add(attempt)
     db.commit()
     db.refresh(attempt)
@@ -303,7 +490,9 @@ def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, p
     transition; thereafter only exact scenario rule actions may become trusted.
     """
     key = _scenario_key(db, attempt)
-    ticket_id = key.upper()
+    version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
+    definition_json = version.definition_json or {} if version else {}
+    ticket_id = definition_json.get("id") or key.upper()
     events = db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt.id, trusted=True).all()
     # The attempt itself is created only from this student's assignment, so it
     # is a server-owned assignment prerequisite even when the fixture renders
@@ -320,12 +509,51 @@ def _action_allowed(db: Session, attempt: ServiceDeskAttempt, event_type: str, p
         return payload.get("ticketId") == ticket_id
     if not assigned:
         return False
-    version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
-    definition = objective_definition(key, version.definition_json or {}) if version else None
+    definition = objective_definition(key, definition_json) if version else None
     if definition is None:
         return False
     rules = definition.authorized_rules
-    return any(rule.event_type == event_type and payload_matches(payload, rule.payload) for rule in rules)
+    action_matches = any(
+        rule.event_type == event_type and payload_matches(payload, rule.payload)
+        for rule in rules
+    )
+    if not action_matches:
+        return False
+
+    # The foundational cases teach a safe sequence, not a magic fix button.
+    # Enforce their phase prerequisites on the trusted ledger so a handcrafted
+    # API request cannot skip investigation, diagnosis, or verification.
+    if key not in {"locked-user-account", "password-reset", "mfa-reset"}:
+        return True
+    category_index = next(
+        (
+            index
+            for index, category in enumerate(definition.categories)
+            if any(
+                rule.event_type == event_type
+                and payload_matches(payload, rule.payload)
+                for objective in category.objectives
+                for rule in objective.any_of
+            )
+        ),
+        None,
+    )
+    if category_index is None:
+        return False
+    for category in definition.categories[:category_index]:
+        for objective in category.objectives:
+            if not any(
+                event.trusted is True
+                and event.success is True
+                and any(
+                    event.event_type == rule.event_type
+                    and payload_matches(event.payload_json or {}, rule.payload)
+                    for rule in objective.any_of
+                )
+                for event in events
+            ):
+                return False
+    return True
 
 
 @router.post("/attempts/{attempt_id}/actions")

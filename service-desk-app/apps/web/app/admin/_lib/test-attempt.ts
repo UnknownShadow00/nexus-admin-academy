@@ -39,6 +39,13 @@ function seedAttempt(
         },
         locked: seed.locked ?? fixture?.locked ?? false,
         mfaEnrolled: seed.mfaEnrolled ?? fixture?.mfaEnrolled ?? true,
+        passwordState: fixture?.passwordState ?? 'current',
+        mfaFactorStatus: fixture?.mfaFactorStatus ?? 'available',
+        inspected: false,
+        identityVerified: false,
+        primaryAuthTested: false,
+        diagnosis: null,
+        accessVerified: false,
       };
     }
 

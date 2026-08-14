@@ -54,7 +54,8 @@ export default function QuizReviewScreen({ quiz, result, onRetake }) {
             <div className="space-y-1.5">{ALL_OPTS.map((opt) => { const text = options[opt]; if (!text) return null; return <OptionRow key={opt} letter={opt} text={text} correctAnswers={correctAnswers} studentAnswer={studentAnswerArr} />; })}</div>
             {review?.explanation ? (
               <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-slate-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-slate-200">
-                <p className="mb-1 font-semibold text-blue-800 dark:text-blue-300">Why this is correct</p>
+                <p className="mb-1 font-semibold text-blue-800 dark:text-blue-300">{isCorrect ? "Why this is correct" : "Not quite — review the reasoning"}</p>
+                {!isCorrect && studentAnswerArr.length ? <p className="mb-2 text-slate-600 dark:text-slate-300"><strong>You selected:</strong> {studentAnswerArr.map((answer) => options[answer]).filter(Boolean).join("; ")}</p> : null}
                 <p>{review.explanation}</p>
               </div>
             ) : (

@@ -39,6 +39,14 @@ SERVICE_DESK_DIFFICULTY_BY_PRIORITY = {
     "high": 3,
     "critical": 5,
 }
+SERVICE_DESK_DIFFICULTY_BY_ID = {
+    "INC2511": 1, "INC2512": 1, "INC2513": 1,
+    "INC2405": 1, "INC2404": 1, "INC2403": 2, "INC2502": 2,
+    "INC2408": 2, "INC2501": 2, "INC2509": 2, "INC2504": 2,
+    "INC2401": 2, "INC2505": 2, "INC2510": 2, "INC2507": 3,
+    "INC2406": 2, "INC2407": 2, "INC2503": 2, "INC2402": 3,
+    "INC2506": 3, "INC2508": 3,
+}
 
 
 # TB-01: seed.py must NEVER create login-able accounts. The 6 real accounts
@@ -528,39 +536,42 @@ LABS = [
     },
     {
         "title": "Troubleshoot a Network Connectivity Scenario",
-        "description": "Given a simulated scenario, identify and resolve the connectivity issue using a structured approach",
+        "description": "A user can reach 10.20.0.15 by IP, but intranet.nexus.internal does not open. Their adapter uses DNS server 192.0.2.53 and nslookup times out; a nearby working PC uses 10.20.0.10.",
         "difficulty": 3,
         "week_number": 3,
         "estimated_minutes": 45,
         "lab_type": "scenario",
-        "setup_instructions": "Read the scenario carefully. Use the OSI model layers from bottom to top to diagnose.",
+        "setup_instructions": "Work independently from the supplied command evidence. Identify the failing layer, propose one safe configuration change, and state the exact tests that would prove the original problem is fixed. Use the hints only if you are stuck.",
         "success_criteria": {
             "tasks": [
-                "Identify OSI layer of failure",
-                "Name the likely cause",
-                "Describe the fix",
-                "Explain how to verify",
+                "Separate working IP connectivity from failed name resolution",
+                "Identify the incorrect DNS server as the root cause",
+                "Describe changing only the adapter DNS setting to the approved resolver",
+                "Verify with nslookup and the original intranet hostname",
+                "Explain in one sentence why pinging the IP worked",
             ]
         },
         "hints": [
-            "Start at Layer 1 (physical)",
-            "Check DHCP before DNS",
+            "Compare what works by IP with what fails by name",
+            "Use the nearby working PC as the approved configuration baseline",
         ],
     },
     {
         "title": "Windows Command-Line Diagnostics",
-        "description": "Practice using ipconfig, ping, tracert, netstat, and nslookup to diagnose network issues",
+        "description": "Build a repeatable Windows command-line evidence routine before troubleshooting an independent Service Desk case.",
         "difficulty": 2,
         "week_number": 4,
         "estimated_minutes": 40,
         "lab_type": "guided",
-        "setup_instructions": "Open Command Prompt on your Windows machine. You will run commands and document the output.",
+        "setup_instructions": "Open Command Prompt on your Windows machine or approved training VM. Run each command without changing network settings. Record the relevant line of output and explain what it proves.",
         "success_criteria": {
             "tasks": [
-                "Run ipconfig /all and identify gateway",
-                "Ping 8.8.8.8 and interpret result",
-                "Run tracert and identify hops",
-                "Use nslookup to resolve a domain",
+                "Run hostname and whoami to identify the workstation and signed-in user",
+                "Run ipconfig /all and identify the address, gateway, and DNS servers",
+                "Ping the default gateway and explain the result",
+                "Use nslookup to resolve a hostname and identify the responding DNS server",
+                "Run tracert to an approved destination and identify where the path leaves the local network",
+                "State which two commands you would repeat after a DNS repair and why",
             ]
         },
         "hints": [
@@ -936,6 +947,143 @@ def _converted_service_desk_ticket(
     }
 
 
+def _foundational_account_ticket(
+    stable_key, ticket_id, title, requester, username, department, asset_tag, device_name,
+    issue, impact, reported_by, troubleshooting, hints,
+):
+    """Simulator-ready account case with a natural employee request.
+
+    The root cause stays in the server-owned objective/workstation fixtures,
+    never in the student-facing title or request text.
+    """
+    return {
+        "activity": [
+            {
+                "detail": "Created from the employee support portal.",
+                "id": f"{ticket_id}-created",
+                "label": "Ticket created",
+                "timestamp": "2026-07-28T08:35:00.000Z",
+            },
+            {
+                "detail": "Starter Support routed this case to your shift.",
+                "id": f"{ticket_id}-assigned",
+                "label": "Assigned to you",
+                "timestamp": "2026-07-28T08:39:00.000Z",
+                "tone": "info",
+            },
+        ],
+        "assignedTo": "you",
+        "category": "access",
+        "createdAt": "2026-07-28T08:35:00.000Z",
+        "description": {
+            "businessImpact": impact,
+            "issue": issue,
+            "reportedByLine": reported_by,
+            "troubleshooting": troubleshooting,
+        },
+        "device": {
+            "assetTag": asset_tag,
+            "deviceName": device_name,
+            "kind": "laptop",
+            "operatingSystem": "Windows 11 Enterprise",
+            "state": "active",
+        },
+        "escalated": False,
+        "hints": hints,
+        "id": ticket_id,
+        "stableKey": stable_key,
+        "notes": [],
+        "priority": "medium",
+        "requester": {
+            "contact": "Employee support portal",
+            "department": department,
+            "email": f"{username}@nexus.example",
+            "location": "North Campus",
+            "name": requester,
+        },
+        "sla": {
+            "dueAt": "2026-07-28T12:35:00.000Z",
+            "target": "Respond within 4 hours",
+        },
+        "status": "open",
+        "suggestedTools": ["directory", "documentation"],
+        "title": title,
+    }
+
+
+SERVICE_DESK_TICKET_FIXTURES.extend([
+    _foundational_account_ticket(
+        "locked-user-account",
+        "INC2511",
+        "Can't sign in after lunch",
+        "Taylor Morgan",
+        "tmorgan",
+        "Customer Care",
+        "NX-3101",
+        "CARE-LT-31",
+        "I came back from lunch and Windows keeps saying my password is incorrect. I tried it several times and I’m pretty sure I’m typing it correctly.",
+        "Taylor has a customer handoff meeting in 45 minutes and cannot open the assigned laptop.",
+        "Submitted by Taylor through the employee support portal.",
+        [
+            "Retyped the password carefully.",
+            "Confirmed Caps Lock is off.",
+            "Stopped retrying after the portal advised contacting support.",
+        ],
+        [
+            "Find the correct requester record and review the account state before changing it.",
+            "Use the approved training identity check, then distinguish a lock from an expired or mistyped password.",
+            "After the safe correction, verify the account can accept a new sign-in and document what you confirmed.",
+        ],
+    ),
+    _foundational_account_ticket(
+        "password-reset",
+        "INC2512",
+        "Sign-in stops before the desktop loads",
+        "Jordan Lee",
+        "jlee",
+        "Facilities",
+        "NX-3102",
+        "FAC-LT-32",
+        "Windows accepted my usual password yesterday. This morning it says I need help from the service desk before I can continue, and I cannot reach the desktop.",
+        "Jordan needs the laptop for today’s building inspection rounds.",
+        "Submitted by Jordan from a shared kiosk after the first failed sign-in.",
+        [
+            "Confirmed the username shown on the sign-in screen is jlee.",
+            "Did not share a password or security answer in the ticket.",
+            "Has not continued guessing the password.",
+        ],
+        [
+            "Review the account state and use the simulator’s approved identity-check assumption before making a credential change.",
+            "Confirm the account is enabled and not locked; determine whether the password state explains the symptom.",
+            "Issue a simulated temporary password only when justified, require a change at next sign-in, and verify the sign-in handoff is ready.",
+        ],
+    ),
+    _foundational_account_ticket(
+        "mfa-reset",
+        "INC2513",
+        "Approval prompts go to an old phone",
+        "Camille Reyes",
+        "creyes",
+        "Finance Operations",
+        "NX-3103",
+        "FIN-LT-33",
+        "My password still works, but the approval prompt is going to the phone I returned last week. I cannot finish signing in to the expense portal.",
+        "Camille must submit travel expenses before the afternoon approval cutoff.",
+        "Submitted by Camille after primary sign-in succeeded but the approval prompt could not be completed.",
+        [
+            "Confirmed the password step succeeds.",
+            "No longer has the previously registered phone.",
+            "Did not approve or deny any unexpected prompts.",
+        ],
+        [
+            "Confirm primary password authentication separately from the second-factor problem.",
+            "Review the registered MFA state after the approved training identity check.",
+            "Clear only the unusable registration, then verify the account is ready for secure re-enrollment and document the next step.",
+        ],
+    ),
+])
+
+
 SERVICE_DESK_TICKET_FIXTURES.extend([
     _converted_service_desk_ticket("INC2501", "Desktop opens with a temporary Windows profile", "software", "high", "NX-2501", "ACCT-LT-17", "Morgan Ellis", "Accounting", "After signing in, Morgan sees a fresh desktop and cannot find the usual Documents files.", "Month-end work is paused while the user data appears unavailable.", ["The user restarted once.", "A nearby teammate can open the same shared files."], ["Protect user data before profile repair.", "Compare the sign-in profile path with the expected local profile.", "Confirm the original files are available after repairing the profile."]),
     _converted_service_desk_ticket("INC2502", "Excel crashes only when one reporting workbook opens", "software", "medium", "NX-2502", "FIN-WS-44", "Priya Shah", "Finance", "Excel closes when the monthly reporting workbook opens, but other workbooks remain usable.", "The finance team cannot finish the monthly report.", ["A blank workbook opens normally.", "The workbook was copied locally and still crashes."], ["Reproduce the specific crash before changing Office.", "Use Safe Mode or add-in isolation to separate workbook and add-in causes.", "Verify the original workbook opens and saves after the repair."]),
@@ -988,8 +1136,8 @@ SERVICE_DESK_TICKET_CONTENT_PATCHES = {
         ],
     },
     "INC2405": {
-        "title": "Facilities calendar shortcut opens an archived workspace",
-        "issue": "The new coordinator can sign in and already has Facilities Calendar access, but the desktop calendar shortcut opens an archived-location error.",
+        "title": "Facilities calendar shortcut shows a location error",
+        "issue": "The new coordinator can sign in and open a current team calendar, but the Facilities shortcut on the desktop shows a location error.",
         "troubleshooting": [
             "Confirmed the user can open their personal calendar and another current Facilities calendar.",
             "Confirmed the requester is already in the Facilities Calendar access group.",
@@ -1002,18 +1150,26 @@ SERVICE_DESK_TICKET_CONTENT_PATCHES = {
         ],
     },
     "INC2406": {
-        "title": "Partner workspace unavailable while VPN is disconnected",
-        "issue": "The laptop has normal internet access, but the secure partner workspace cannot be reached because the company VPN is disconnected.",
+        "title": "Partner workspace unavailable from home",
+        "issue": "The laptop has normal internet access at home, but opening the secure partner workspace returns a network path unavailable message.",
         "troubleshooting": [
             "Confirmed normal internet browsing works.",
             "Confirmed the partner share is unavailable from the home network.",
-            "The company VPN client is disconnected.",
+            "The workspace opened normally in the office yesterday.",
         ],
         "hints": [
             "Separate ordinary internet access from access to a private company resource.",
             "Confirm whether the secure partner share is reachable before changing its mapped-drive configuration.",
             "Reconnect the company VPN, then verify the original partner workspace opens.",
         ],
+    },
+    "INC2501": {
+        "title": "Desktop and Documents are missing after sign-in",
+        "issue": "After signing in, Morgan sees an unfamiliar empty desktop and cannot find the usual Documents files.",
+    },
+    "INC2504": {
+        "title": "One workstation cannot print to the department printer",
+        "issue": "Jobs from one Engineering workstation remain queued, while a nearby colleague can print to the same department printer.",
     },
 }
 
@@ -1045,7 +1201,7 @@ def seed_service_desk_scenarios(db):
     scenarios = {}
     for raw_ticket in SERVICE_DESK_TICKET_FIXTURES:
         ticket = _current_service_desk_ticket_fixture(raw_ticket)
-        stable_key = ticket["id"].lower()
+        stable_key = ticket.get("stableKey", ticket["id"].lower())
         scenario = db.query(ServiceDeskScenario).filter_by(stable_key=stable_key).first()
         if scenario is None:
             scenario = ServiceDeskScenario(
@@ -1053,7 +1209,9 @@ def seed_service_desk_scenarios(db):
                 title=ticket["title"],
                 description=f'{ticket["description"]["issue"]} {ticket["description"]["businessImpact"]}',
                 category=ticket["category"],
-                difficulty=SERVICE_DESK_DIFFICULTY_BY_PRIORITY[ticket["priority"]],
+                difficulty=SERVICE_DESK_DIFFICULTY_BY_ID.get(
+                    ticket["id"], SERVICE_DESK_DIFFICULTY_BY_PRIORITY[ticket["priority"]]
+                ),
                 status="active",
             )
             db.add(scenario)
@@ -1062,7 +1220,9 @@ def seed_service_desk_scenarios(db):
             scenario.title = ticket["title"]
             scenario.description = f'{ticket["description"]["issue"]} {ticket["description"]["businessImpact"]}'
             scenario.category = ticket["category"]
-            scenario.difficulty = SERVICE_DESK_DIFFICULTY_BY_PRIORITY[ticket["priority"]]
+            scenario.difficulty = SERVICE_DESK_DIFFICULTY_BY_ID.get(
+                ticket["id"], SERVICE_DESK_DIFFICULTY_BY_PRIORITY[ticket["priority"]]
+            )
         scenarios[stable_key] = scenario
 
         definition = {**ticket, "objective_catalog_version": PROCESS_CATALOG_VERSION}
@@ -1139,26 +1299,27 @@ def seed_tickets(db):
 
 
 def seed_labs(db):
-    existing_titles = {row.title for row in db.query(LabTemplate).all()}
+    existing_by_title = {row.title: row for row in db.query(LabTemplate).all()}
     for lab in LABS:
-        if lab["title"] in existing_titles:
-            continue
-        db.add(
-            LabTemplate(
+        row = existing_by_title.get(lab["title"])
+        if row is None:
+            row = LabTemplate(
                 title=lab["title"],
-                description=lab["description"],
-                lab_type=lab["lab_type"],
-                difficulty=lab["difficulty"],
-                week_number=lab["week_number"],
-                estimated_minutes=lab["estimated_minutes"],
                 environment_requirements={},
-                setup_instructions=lab["setup_instructions"],
-                success_criteria=lab["success_criteria"],
                 required_evidence={},
-                hints=lab["hints"],
                 is_published=True,
             )
-        )
+            db.add(row)
+            existing_by_title[lab["title"]] = row
+        row.description = lab["description"]
+        row.lab_type = lab["lab_type"]
+        row.difficulty = lab["difficulty"]
+        row.week_number = lab["week_number"]
+        row.estimated_minutes = lab["estimated_minutes"]
+        row.setup_instructions = lab["setup_instructions"]
+        row.success_criteria = lab["success_criteria"]
+        row.hints = lab["hints"]
+        row.is_published = True
 
 
 def seed_capstones(db):

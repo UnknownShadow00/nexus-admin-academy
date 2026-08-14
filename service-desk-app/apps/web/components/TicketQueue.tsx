@@ -8,8 +8,11 @@ import {
 import {
   IconClipboardList,
   IconFilterOff,
+  IconLock,
+  IconRefresh,
   IconTicket,
   IconUser,
+  IconHistory,
 } from '@tabler/icons-react';
 import { Button, Card } from '@service-desk/ui';
 import { useMemo, useState } from 'react';
@@ -25,19 +28,25 @@ const EMPTY_FILTERS: TicketFilters = {
 };
 
 export function TicketQueue() {
-  const { tickets } = useTicketSession();
+  const { assignmentByTicket, progression, tickets } = useTicketSession();
   const [filters, setFilters] = useState<TicketFilters>(EMPTY_FILTERS);
   const filteredTickets = useMemo(
     () => filterTickets(tickets, filters),
     [filters, tickets],
   );
+  const queueType = (ticketId: string) =>
+    assignmentByTicket[ticketId]?.queue_type ?? 'assigned';
   const assignedTickets = filteredTickets.filter(
-    (ticket) => ticket.assignedTo === 'you' && isOpenTicket(ticket),
+    (ticket) => queueType(ticket.id) === 'assigned',
   );
-  const openIncidents = filteredTickets.filter(
-    (ticket) => ticket.assignedTo === null && isOpenTicket(ticket),
+  const practiceTickets = filteredTickets.filter(
+    (ticket) => queueType(ticket.id) === 'practice',
   );
-  const visibleCount = assignedTickets.length + openIncidents.length;
+  const earlierTickets = filteredTickets.filter(
+    (ticket) => queueType(ticket.id) === 'earlier',
+  );
+  const visibleCount =
+    assignedTickets.length + practiceTickets.length + earlierTickets.length;
   const allOpenCount = tickets.filter(isOpenTicket).length;
 
   return (
@@ -48,54 +57,143 @@ export function TicketQueue() {
             Support operations
           </p>
           <h1 className="mt-1 font-display text-2xl font-bold text-zinc-100 sm:text-3xl">
-            Ticket Queue
+            My Service Desk
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-            Continue your active incident or pick up an open request from the
-            shared queue.
+            Start with the cases assigned to your shift. Passed cases become
+            replayable practice; unfinished older cases remain available below.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs font-bold uppercase text-zinc-500">
           <IconTicket aria-hidden="true" className="h-4 w-4 text-sky-400" />
-          {allOpenCount} active incidents
+          {allOpenCount} active cases
         </div>
       </header>
 
       <TicketQueueFilters filters={filters} onChange={setFilters} />
 
+      {progression && progression.current_pack === null ? (
+        <Card className="border-sky-400/20 bg-sky-400/5 p-5 sm:p-6">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-sky-400">
+            Your first shift is almost ready
+          </p>
+          <h2 className="mt-2 font-display text-xl font-bold text-zinc-100">
+            Complete Week 0 to begin your first Service Desk shift.
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
+            Finish the Nexus orientation lesson and pass its checkpoint. Your
+            four Starter Support cases will then appear here automatically.
+          </p>
+        </Card>
+      ) : null}
+
       {assignedTickets.length > 0 ? (
         <TicketQueueSection
           icon={IconUser}
-          label="Assigned to you"
-          meta={`${assignedTickets.length} active`}
+          label="Assigned"
+          meta={`${assignedTickets.length} new or active`}
           tickets={assignedTickets}
+          assignmentByTicket={assignmentByTicket}
         />
       ) : null}
 
-      {openIncidents.length > 0 ? (
-        <section aria-labelledby="open-incidents-title">
-          <div className="mb-3 flex items-center gap-2">
-            <h2
-              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-zinc-500"
-              id="open-incidents-title"
-            >
-              <IconClipboardList
-                aria-hidden="true"
-                className="h-4 w-4 text-sky-400"
-              />
-              Open incidents
-            </h2>
-            <span className="ml-auto text-xs font-semibold text-zinc-500">
-              Select an incident to open its workspace
-            </span>
-          </div>
+      <section aria-labelledby="practice-title">
+        <div className="mb-3 flex items-center gap-2">
+          <h2
+            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-zinc-500"
+            id="practice-title"
+          >
+            <IconClipboardList
+              aria-hidden="true"
+              className="h-4 w-4 text-sky-400"
+            />
+            Practice
+          </h2>
+          <span className="ml-auto text-right text-xs font-semibold text-zinc-500">
+            Replay cases you have completed
+          </span>
+        </div>
+        {practiceTickets.length > 0 ? (
           <TicketQueueSection
-            icon={IconClipboardList}
-            label="Incidents"
-            meta={`${openIncidents.length} open`}
-            tickets={openIncidents}
+            icon={IconRefresh}
+            label="Practice cases"
+            meta={`${practiceTickets.length} unlocked`}
+            tickets={practiceTickets}
+            assignmentByTicket={assignmentByTicket}
           />
-        </section>
+        ) : (
+          <Card className="border-dashed border-zinc-800 px-4 py-4 text-sm text-zinc-500">
+            No completed cases yet. Successfully complete an assigned case to
+            add it here for replay.
+          </Card>
+        )}
+      </section>
+
+      {earlierTickets.length > 0 ? (
+        <details className="group rounded-md border border-zinc-800 bg-zinc-900/40">
+          <summary className="sd-focus-ring flex cursor-pointer list-none items-center gap-2 rounded-md px-4 py-3 text-sm font-bold text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
+            <IconHistory aria-hidden="true" className="h-4 w-4 text-zinc-500" />
+            More unlocked cases
+            <span className="ml-auto text-xs font-semibold text-zinc-500">
+              {earlierTickets.length} unfinished
+            </span>
+          </summary>
+          <div className="border-t border-zinc-800 p-3 sm:p-4">
+            <p className="mb-3 text-sm text-zinc-500">
+              These unfinished cases remain available, but they are not part of
+              your current shift queue.
+            </p>
+            <TicketQueueSection
+              icon={IconHistory}
+              label="Unlocked cases outside this shift"
+              meta={`${earlierTickets.length} unfinished`}
+              tickets={earlierTickets}
+              assignmentByTicket={assignmentByTicket}
+            />
+          </div>
+        </details>
+      ) : null}
+
+      {progression?.next_pack && progression.current_pack ? (
+        <Card className="flex items-start gap-3 border-dashed border-zinc-700 p-4 sm:p-5">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-700 bg-zinc-950 text-zinc-400">
+            <IconLock aria-hidden="true" className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-wide text-zinc-500">
+              Next case pack
+            </p>
+            <h2 className="mt-1 font-display text-base font-bold text-zinc-100">
+              {progression.next_pack.name}
+            </h2>
+            <div className="mt-3 space-y-2 text-sm text-zinc-400">
+              <p
+                className={
+                  progression.next_pack.requirements.week.met
+                    ? 'text-emerald-300'
+                    : ''
+                }
+              >
+                {progression.next_pack.requirements.week.met ? '✓' : '○'}{' '}
+                {progression.next_pack.requirements.week.label}
+              </p>
+              {progression.next_pack.requirements.passes ? (
+                <p
+                  className={
+                    progression.next_pack.requirements.passes.met
+                      ? 'text-emerald-300'
+                      : ''
+                  }
+                >
+                  {progression.next_pack.requirements.passes.met ? '✓' : '○'}{' '}
+                  {progression.next_pack.requirements.passes.label} (
+                  {progression.next_pack.requirements.passes.completed}/
+                  {progression.next_pack.requirements.passes.required})
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </Card>
       ) : null}
 
       {visibleCount === 0 ? (

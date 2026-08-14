@@ -40,6 +40,7 @@ export function TicketActionBar({ ticket }: { ticket: Ticket }) {
         onConfirm={() => escalateTicket(ticket.id)}
       />
       <ResolveDialog
+        initialResolutionNote={ticket.notes.at(-1)?.body ?? ''}
         readyGrade={previewCloseGrade(ticket.id, true)}
         onConfirm={(options) => closeTicket(ticket.id, options)}
         status={ticket.status}

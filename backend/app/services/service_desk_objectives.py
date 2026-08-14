@@ -309,6 +309,120 @@ SCENARIO_OBJECTIVES.update({
 })
 
 
+def _account_process(
+    *, ticket_id: str, directory_user_id: str, diagnosis: str,
+    remediation: EvidenceRule, verification_check: str,
+    require_primary_auth_test: bool = False,
+) -> ScenarioObjectiveDefinition:
+    investigation = [
+        _objective(
+            "account-state-inspected",
+            EvidenceRule(
+                "directory.inspect_account",
+                {"directoryUserId": directory_user_id},
+            ),
+        ),
+        _objective(
+            "approved-identity-check",
+            EvidenceRule(
+                "directory.verify_identity",
+                {
+                    "directoryUserId": directory_user_id,
+                    "method": "approved-training-check",
+                },
+            ),
+        ),
+    ]
+    if require_primary_auth_test:
+        investigation.append(
+            _objective(
+                "primary-auth-separated-from-mfa",
+                EvidenceRule(
+                    "directory.test_primary_auth",
+                    {"directoryUserId": directory_user_id, "result": "succeeds"},
+                ),
+            )
+        )
+    return _process(
+        ProcessCategory("investigation", tuple(investigation)),
+        ProcessCategory(
+            "diagnosis",
+            (
+                _objective(
+                    "root-cause-recorded",
+                    EvidenceRule(
+                        "directory.record_diagnosis",
+                        {"directoryUserId": directory_user_id, "diagnosis": diagnosis},
+                    ),
+                ),
+            ),
+        ),
+        ProcessCategory("remediation", (_objective("safe-account-action", remediation),)),
+        ProcessCategory(
+            "verification",
+            (
+                _objective(
+                    "original-sign-in-path-verified",
+                    EvidenceRule(
+                        "directory.verify_access",
+                        {
+                            "directoryUserId": directory_user_id,
+                            "check": verification_check,
+                        },
+                    ),
+                ),
+            ),
+        ),
+        ProcessCategory(
+            "documentation",
+            (
+                _objective(
+                    "meaningful-resolution-note",
+                    EvidenceRule("ticket.add_note", {"ticketId": ticket_id}),
+                ),
+            ),
+        ),
+    )
+
+
+SCENARIO_OBJECTIVES.update({
+    "locked-user-account": _account_process(
+        ticket_id="INC2511",
+        directory_user_id="directory-user-taylor-morgan",
+        diagnosis="account-locked",
+        remediation=EvidenceRule(
+            "directory.unlock_account",
+            {"directoryUserId": "directory-user-taylor-morgan"},
+        ),
+        verification_check="account-unlocked",
+    ),
+    "password-reset": _account_process(
+        ticket_id="INC2512",
+        directory_user_id="directory-user-jordan-lee",
+        diagnosis="password-expired",
+        remediation=EvidenceRule(
+            "directory.reset_password",
+            {
+                "directoryUserId": "directory-user-jordan-lee",
+                "requireChangeAtNextSignIn": True,
+            },
+        ),
+        verification_check="temporary-password-issued",
+    ),
+    "mfa-reset": _account_process(
+        ticket_id="INC2513",
+        directory_user_id="directory-user-camille-reyes",
+        diagnosis="mfa-factor-unavailable",
+        remediation=EvidenceRule(
+            "directory.reset_mfa",
+            {"directoryUserId": "directory-user-camille-reyes"},
+        ),
+        verification_check="mfa-reregistration-ready",
+        require_primary_auth_test=True,
+    ),
+})
+
+
 # Kept solely for attempts already pinned to the immutable pre-process
 # published versions.  New/current versions select SCENARIO_OBJECTIVES through
 # ``objective_catalog_version`` below.

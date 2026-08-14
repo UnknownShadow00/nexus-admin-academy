@@ -43,21 +43,37 @@ describe('Nexus evidence attribution', () => {
   });
 
   it('attributes the damaged headset and its replacement shipment to INC2404', () => {
-    expect(getNexusActionSyncDetails({
-      type: 'asset.change_status',
-      payload: { assetTag: 'NX-9052', status: AssetStatus.Damaged },
-    }, attempt)).toMatchObject({ ticketId: 'INC2404', tool: 'asset' });
+    expect(
+      getNexusActionSyncDetails(
+        {
+          type: 'asset.change_status',
+          payload: { assetTag: 'NX-9052', status: AssetStatus.Damaged },
+        },
+        attempt,
+      ),
+    ).toMatchObject({ ticketId: 'INC2404', tool: 'asset' });
 
-    expect(getNexusActionSyncDetails({
-      type: 'shipping.create',
-      payload: {
-        recipientDirectoryUserId: 'directory-user-elliot-ward',
-        recipientName: 'Elliot Ward', street: '120 Cedar Street', city: 'Seattle',
-        state: 'WA', postalCode: '98101', senderDepartment: 'IT Department',
-        equipment: [{ name: 'Headset', quantity: 1 }], computerAssetTag: null,
-        speed: 'express', includeReturnLabel: true,
-      },
-    }, attempt)).toMatchObject({ ticketId: 'INC2404', tool: 'shipping' });
+    expect(
+      getNexusActionSyncDetails(
+        {
+          type: 'shipping.create',
+          payload: {
+            recipientDirectoryUserId: 'directory-user-elliot-ward',
+            recipientName: 'Elliot Ward',
+            street: '120 Cedar Street',
+            city: 'Seattle',
+            state: 'WA',
+            postalCode: '98101',
+            senderDepartment: 'IT Department',
+            equipment: [{ name: 'Headset', quantity: 1 }],
+            computerAssetTag: null,
+            speed: 'express',
+            includeReturnLabel: true,
+          },
+        },
+        attempt,
+      ),
+    ).toMatchObject({ ticketId: 'INC2404', tool: 'shipping' });
   });
 
   it('uses the ticketId on Remote Desktop ticket-payload actions', () => {
@@ -148,12 +164,47 @@ describe('Nexus evidence attribution', () => {
       ...structuredClone(TICKET_FIXTURES[1]),
       title: 'Published v2 title from Nexus',
     };
-    const tickets = ticketsForAssignments([{
-      id: 1, is_required: false, maximum_attempts: null, mode: 'simulation',
-      most_recent_attempt: null, scenario_id: 2,
-      scenario: { stable_key: 'inc2402', title: definition.title },
-      latest_published_version: { definition_json: definition, id: 22, version_number: 2 },
-    }]);
-    expect(tickets.find((ticket) => ticket.id === 'INC2402')?.title).toBe(definition.title);
+    const tickets = ticketsForAssignments([
+      {
+        id: 1,
+        is_required: false,
+        maximum_attempts: null,
+        mode: 'simulation',
+        most_recent_attempt: null,
+        scenario_id: 2,
+        scenario: { stable_key: 'inc2402', title: definition.title },
+        latest_published_version: {
+          definition_json: definition,
+          id: 22,
+          version_number: 2,
+        },
+      },
+    ]);
+    expect(tickets).toHaveLength(1);
+    expect(tickets.find((ticket) => ticket.id === 'INC2402')?.title).toBe(
+      definition.title,
+    );
+  });
+
+  it('does not reconstruct locked bundled fixtures that were not assigned', () => {
+    const definition = structuredClone(TICKET_FIXTURES[4]);
+    const tickets = ticketsForAssignments([
+      {
+        id: 2,
+        is_required: false,
+        maximum_attempts: null,
+        mode: 'simulation',
+        most_recent_attempt: null,
+        scenario_id: 5,
+        scenario: { stable_key: 'inc2405', title: definition.title },
+        latest_published_version: {
+          definition_json: definition,
+          id: 25,
+          version_number: 2,
+        },
+      },
+    ]);
+
+    expect(tickets.map((ticket) => ticket.id)).toEqual(['INC2405']);
   });
 });
