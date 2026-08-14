@@ -105,44 +105,52 @@ function collectActionEvents(attempt: Attempt): ActionEvent[] {
 }
 
 function deriveTimeEntries(attempt: Attempt): TicketTimeEntry[] {
-  return Object.values(attempt.grades).flatMap((grade) => {
-    const overlay = attempt.ticketOverlays[grade.ticketId];
-    const closure = overlay?.closure;
+  return Object.values(attempt.grades)
+    .filter(isMasteryGrade)
+    .flatMap((grade) => {
+      const overlay = attempt.ticketOverlays[grade.ticketId];
+      const closure = overlay?.closure;
 
-    if (!closure || overlay.events.length === 0) {
-      return [];
-    }
+      if (!closure || overlay.events.length === 0) {
+        return [];
+      }
 
-    const closedAtMs = validTimestamp(closure.closedAt);
-    const eventTimes = overlay.events
-      .map((event) => validTimestamp(event.createdAt))
-      .filter((timestamp): timestamp is number => timestamp !== null);
+      const closedAtMs = validTimestamp(closure.closedAt);
+      const eventTimes = overlay.events
+        .map((event) => validTimestamp(event.createdAt))
+        .filter((timestamp): timestamp is number => timestamp !== null);
 
-    if (closedAtMs === null || eventTimes.length === 0) {
-      return [];
-    }
+      if (closedAtMs === null || eventTimes.length === 0) {
+        return [];
+      }
 
-    const startedAtMs = Math.min(...eventTimes);
-    if (closedAtMs < startedAtMs) {
-      return [];
-    }
+      const startedAtMs = Math.min(...eventTimes);
+      if (closedAtMs < startedAtMs) {
+        return [];
+      }
 
-    return [
-      {
-        closedAt: closure.closedAt,
-        durationMs: closedAtMs - startedAtMs,
-        startedAt: new Date(startedAtMs).toISOString(),
-        ticketId: grade.ticketId,
-      },
-    ];
-  });
+      return [
+        {
+          closedAt: closure.closedAt,
+          durationMs: closedAtMs - startedAtMs,
+          startedAt: new Date(startedAtMs).toISOString(),
+          ticketId: grade.ticketId,
+        },
+      ];
+    });
+}
+
+function isMasteryGrade(grade: Grade) {
+  return (
+    grade.experienceMode === undefined || grade.experienceMode === 'assessment'
+  );
 }
 
 export function deriveAnalyticsSummary(
   attempt: Attempt,
   fixtures: readonly Ticket[] = TICKET_FIXTURES,
 ): AnalyticsSummary {
-  const grades = Object.values(attempt.grades);
+  const grades = Object.values(attempt.grades).filter(isMasteryGrade);
   const resolvedGrades = grades.filter((grade) => grade.resolved);
   const pointsTotal = grades.reduce(
     (total, grade) => total + grade.pointsAwarded,
@@ -185,10 +193,7 @@ export function deriveAnalyticsSummary(
         Math.max(0, grade.hintsUsed - FREE_HINT_COUNT) * HINT_PENALTY_POINTS;
       return total + Math.min(grade.penaltyPoints, calculatedHintPenalty);
     }, 0),
-    hintsUsed: Object.values(attempt.ticketOverlays).reduce(
-      (total, overlay) => total + overlay.hintsRevealedCount,
-      0,
-    ),
+    hintsUsed: grades.reduce((total, grade) => total + grade.hintsUsed, 0),
     pointsPossibleTotal,
     pointsTotal,
     priorityDistribution: priorityKeys.map((priority) => {
@@ -243,7 +248,7 @@ export function evaluateAchievements(
   fixtures: readonly Ticket[] = TICKET_FIXTURES,
 ): EvaluatedAchievement[] {
   const summary = deriveAnalyticsSummary(attempt, fixtures);
-  const grades = Object.values(attempt.grades);
+  const grades = Object.values(attempt.grades).filter(isMasteryGrade);
   const resolvedGrades = grades.filter((grade) => grade.resolved);
   const fixtureById = new Map<string, Ticket>(
     fixtures.map((ticket) => [ticket.id, ticket]),
@@ -321,6 +326,7 @@ export function derivePastTickets(
   );
 
   return Object.values(attempt.grades)
+    .filter(isMasteryGrade)
     .flatMap((grade) => {
       const fixture = fixtureById.get(grade.ticketId);
       if (!fixture) {

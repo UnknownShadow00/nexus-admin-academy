@@ -17,6 +17,7 @@ from app.services.service_desk_objectives import (
     PROCESS_WEIGHTS,
     evaluate_objectives,
     objective_definition,
+    payload_matches,
 )
 
 
@@ -24,7 +25,15 @@ POINTS_BY_PRIORITY = {"critical": 160, "high": 120, "medium": 80, "low": 50}
 UNRESOLVED_CLOSE_PENALTY_RATE = 0.25
 HINT_PENALTY_POINTS = 5
 FREE_HINT_COUNT = 1
+WRONG_ACCOUNT_ACTION_PENALTY_POINTS = 10
 RUBRIC_VERSION = "server-process-v3"
+
+ACCOUNT_REMEDIATION_EVENT_TYPES = {
+    "directory.reset_mfa",
+    "directory.reset_password",
+    "directory.unlock_account",
+}
+
 
 class AttemptNotClosedError(Exception):
     """Raised when a grade is requested before a close event is recorded."""
@@ -37,14 +46,21 @@ def _js_round(value: float) -> int:
 
 def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     """Recompute an attempt grade exclusively from its published definition and events."""
-    version = db.query(ServiceDeskScenarioVersion).filter_by(id=attempt.scenario_version_id).one()
+    version = (
+        db.query(ServiceDeskScenarioVersion)
+        .filter_by(id=attempt.scenario_version_id)
+        .one()
+    )
     scenario = db.query(ServiceDeskScenario).filter_by(id=version.scenario_id).one()
     definition = version.definition_json or {}
     priority = definition.get("priority")
     points_possible = POINTS_BY_PRIORITY.get(priority, 0)
-    events = db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt.id).order_by(
-        ServiceDeskAttemptEvent.sequence_number
-    ).all()
+    events = (
+        db.query(ServiceDeskAttemptEvent)
+        .filter_by(attempt_id=attempt.id)
+        .order_by(ServiceDeskAttemptEvent.sequence_number)
+        .all()
+    )
 
     close_events = [event for event in events if event.event_type == "ticket.close"]
     if not close_events:
@@ -52,7 +68,9 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     # ticket.close is only a request to grade.  Its success flag and payload
     # are browser assertions and are never resolution evidence.
     was_closed = True
-    resolved, objective_checks = evaluate_objectives(scenario.stable_key, events, definition)
+    resolved, objective_checks = evaluate_objectives(
+        scenario.stable_key, events, definition
+    )
     objective_definition_for_version = objective_definition(
         scenario.stable_key, definition
     )
@@ -70,7 +88,9 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
         )
         if objective_definition_for_version
         and objective_definition_for_version.is_process_profile
-        else 100 if resolved else 0
+        else 100
+        if resolved
+        else 0
     )
     unresolved_penalty = (
         _js_round(points_possible * UNRESOLVED_CLOSE_PENALTY_RATE)
@@ -82,11 +102,43 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
         if is_learning_mode
         else max(0, hints_used - FREE_HINT_COUNT) * HINT_PENALTY_POINTS
     )
-    penalty_points = unresolved_penalty + hint_penalty
+    remediation_rules = (
+        tuple(
+            rule
+            for category in objective_definition_for_version.categories
+            if category.name == "remediation"
+            for objective in category.objectives
+            for rule in objective.any_of
+        )
+        if objective_definition_for_version
+        else ()
+    )
+    wrong_account_actions = (
+        sum(
+            event.success is True
+            and event.event_type in ACCOUNT_REMEDIATION_EVENT_TYPES
+            and not any(
+                event.event_type == rule.event_type
+                and payload_matches(event.payload_json or {}, rule.payload)
+                for rule in remediation_rules
+            )
+            for event in events
+        )
+        if remediation_rules
+        else 0
+    )
+    wrong_action_penalty = (
+        0
+        if is_learning_mode
+        else wrong_account_actions * WRONG_ACCOUNT_ACTION_PENALTY_POINTS
+    )
+    penalty_points = unresolved_penalty + hint_penalty + wrong_action_penalty
     objective_points = _js_round(points_possible * process_points / 100)
     points_before_penalty = objective_points if was_closed else 0
     points_awarded = max(0, points_before_penalty - penalty_points)
-    overall_score = _js_round((points_awarded / points_possible) * 100) if points_possible else 0
+    overall_score = (
+        _js_round((points_awarded / points_possible) * 100) if points_possible else 0
+    )
 
     if is_learning_mode:
         feedback_summary = (
@@ -116,9 +168,14 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
             "points_possible": points_possible,
             "points_awarded": points_awarded,
             "process_points": process_points,
-            "process_weights": PROCESS_WEIGHTS if objective_definition_for_version and objective_definition_for_version.is_process_profile else None,
+            "process_weights": PROCESS_WEIGHTS
+            if objective_definition_for_version
+            and objective_definition_for_version.is_process_profile
+            else None,
             "penalty_points": penalty_points,
             "hints_used": hints_used,
+            "wrong_account_actions": wrong_account_actions,
+            "wrong_action_penalty": wrong_action_penalty,
             "resolved": resolved,
             "was_closed": was_closed,
             "objective_checks": objective_checks,

@@ -98,6 +98,25 @@ def _passed_scenario_keys(db: Session, student_id: int) -> set[str]:
             .filter(
                 ServiceDeskAttempt.student_id == student_id,
                 ServiceDeskAttempt.passed.is_(True),
+                ServiceDeskAttempt.experience_mode == "assessment",
+            )
+            .distinct()
+            .all()
+        )
+    }
+
+
+def _guided_scenario_keys(db: Session, student_id: int) -> set[str]:
+    return {
+        stable_key
+        for (stable_key,) in (
+            db.query(ServiceDeskScenario.stable_key)
+            .join(ServiceDeskScenarioVersion)
+            .join(ServiceDeskAttempt)
+            .filter(
+                ServiceDeskAttempt.student_id == student_id,
+                ServiceDeskAttempt.passed.is_(True),
+                ServiceDeskAttempt.experience_mode == "guided",
             )
             .distinct()
             .all()
@@ -112,6 +131,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         else derive_current_week(student.id, db)
     )
     passed_keys = _passed_scenario_keys(db, student.id)
+    guided_completed_keys = _guided_scenario_keys(db, student.id)
     managed_assignments = (
         db.query(
             ServiceDeskScenario.stable_key,
@@ -267,13 +287,16 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         active_candidates = [
             key
             for key in active_pack.scenario_keys
-            if key not in passed_keys and key not in assigned_keys
+            if key not in passed_keys
+            and key not in assigned_keys
+            and (key not in guided_completed_keys or key in curriculum_unlocked_keys)
         ]
         assigned_keys.update(active_candidates[: max(0, 4 - len(assigned_keys))])
 
     return {
         "current_week": current_week,
         "passed_keys": passed_keys,
+        "guided_completed_keys": guided_completed_keys,
         "passed_by_pack": passed_by_pack,
         "direct_assignment_override_keys": direct_assignment_override_keys,
         "curriculum_unlocked_keys": curriculum_unlocked_keys,
@@ -296,6 +319,9 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
             "managed": False,
             "unlocked": True,
             "queue_type": "assigned",
+            "experience_mode": "assessment",
+            "guided_completed": False,
+            "required_this_week": False,
             "pack_key": "custom",
             "pack_name": "Assigned by instructor",
             "pack_order": len(SERVICE_DESK_PACKS),
@@ -324,6 +350,18 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
         "pack_key": pack.key,
         "pack_name": pack.name,
         "pack_order": PACK_INDEX[pack.key],
+        "experience_mode": (
+            "practice"
+            if passed
+            else "assessment"
+            if (
+                normalized in progression["curriculum_unlocked_keys"]
+                or assigned_override
+            )
+            else "guided"
+        ),
+        "guided_completed": normalized in progression["guided_completed_keys"],
+        "required_this_week": normalized in progression["curriculum_current_keys"],
     }
 
 

@@ -2,10 +2,22 @@ import { AssetStatus, PcShelfNetworkStatus } from '@service-desk/shared';
 import { describe, expect, it } from 'vitest';
 
 import { applyAction } from './apply-action';
-import { createAttempt } from './attempt';
-import { restoreAttempt, serializeAttempt } from './serialize';
+import { createAttempt, createInitialRemoteDesktopOverlays } from './attempt';
+import {
+  mergeAttemptSessionUi,
+  restoreAttempt,
+  serializeAttempt,
+  serializeNexusResumeAttempt,
+} from './serialize';
 
 describe('attempt serialization', () => {
+  const createLegacyFixtureAttempt = (
+    seed: Parameters<typeof createAttempt>[0],
+  ) => ({
+    ...createAttempt(seed),
+    remoteDesktopOverlays: createInitialRemoteDesktopOverlays(),
+  });
+
   it('round-trips an attempt exactly', () => {
     const attempt = applyAction(createAttempt(), 'student-1', {
       type: 'ticket.add_note',
@@ -75,8 +87,78 @@ describe('attempt serialization', () => {
     expect(restoreAttempt(serializeAttempt(attempt))).toEqual(attempt);
   });
 
+  it('round-trips the versioned shared workstation state', () => {
+    const attempt = applyAction(
+      createAttempt({
+        id: 'workstation-v2-attempt',
+        startedAt: '2026-07-30T10:30:00.000Z',
+      }),
+      'student-1',
+      {
+        type: 'remote_desktop.network_reset',
+        payload: { assetTag: 'NX-2047' },
+      },
+    ).attempt;
+
+    expect(attempt.remoteDesktopOverlays['NX-2047']?.workstation).toMatchObject(
+      {
+        schemaVersion: 2,
+        machine: { assetTag: 'NX-2047', hostname: 'PM-LT-41' },
+        mappedDrives: {
+          'Z:': {
+            uncPath: '\\\\partner.nexus.internal\\workspace',
+            status: 'network-path-error',
+          },
+        },
+      },
+    );
+    expect(restoreAttempt(serializeAttempt(attempt))).toEqual(attempt);
+  });
+
+  it('upgrades a legacy flat Remote Desktop overlay into workstation schema v2', () => {
+    const attempt = createLegacyFixtureAttempt({
+      id: 'workstation-v1-attempt',
+      startedAt: '2026-07-30T10:30:00.000Z',
+    });
+    const overlay = attempt.remoteDesktopOverlays['NX-2047'];
+    if (!overlay) throw new Error('Expected remote desktop fixture');
+    const { workstation: _workstation, ...legacyOverlay } = overlay;
+    const legacyAttempt = {
+      ...attempt,
+      remoteDesktopOverlays: {
+        ...attempt.remoteDesktopOverlays,
+        'NX-2047': {
+          ...legacyOverlay,
+          dnsServers: ['192.0.2.53'],
+          driveStates: { 'C:': 'connected', 'Z:': 'permission-error' },
+          vpnStatus: 'error',
+          vpnError: 'Authentication failed.',
+        },
+      },
+    };
+
+    const restored = restoreAttempt(JSON.stringify(legacyAttempt));
+    expect(
+      restored?.remoteDesktopOverlays['NX-2047']?.workstation,
+    ).toMatchObject({
+      schemaVersion: 2,
+      network: {
+        interfaces: [{ dnsServers: ['192.0.2.53'] }],
+        vpn: {
+          status: 'error',
+          error: {
+            code: 'legacy-error',
+            message: 'Authentication failed.',
+          },
+        },
+      },
+      mappedDrives: { 'Z:': { status: 'permission-error' } },
+      credentials: {},
+    });
+  });
+
   it('migrates the legacy trainingMode boolean and back-fills phase progress', () => {
-    const attempt = createAttempt({
+    const attempt = createLegacyFixtureAttempt({
       id: 'phase-17-attempt',
       startedAt: '2026-07-30T10:30:00.000Z',
     });
@@ -103,7 +185,7 @@ describe('attempt serialization', () => {
   });
 
   it('back-fills terminal history for a valid Phase 14 Remote Desktop overlay', () => {
-    const attempt = createAttempt({
+    const attempt = createLegacyFixtureAttempt({
       id: 'phase-14-attempt',
       startedAt: '2026-07-30T10:30:00.000Z',
     });
@@ -126,7 +208,7 @@ describe('attempt serialization', () => {
   });
 
   it('back-fills missing service states from the initial fixture state', () => {
-    const attempt = createAttempt({
+    const attempt = createLegacyFixtureAttempt({
       id: 'legacy-service-states-attempt',
       startedAt: '2026-07-30T10:30:00.000Z',
     });
@@ -162,7 +244,7 @@ describe('attempt serialization', () => {
   });
 
   it('back-fills Phase 16 Explorer state for a persisted Phase 15 overlay', () => {
-    const attempt = createAttempt({
+    const attempt = createLegacyFixtureAttempt({
       id: 'phase-15-attempt',
       startedAt: '2026-07-30T10:30:00.000Z',
     });
@@ -324,6 +406,127 @@ describe('attempt serialization', () => {
       lastShippingAddress: null,
       shipments: {},
     });
+  });
+
+  it('keeps new attempts sparse until a workstation is used', () => {
+    const attempt = createAttempt({
+      id: 'sparse-workstations',
+      startedAt: '2026-07-30T10:30:00.000Z',
+    });
+
+    expect(attempt.remoteDesktopOverlays).toEqual({});
+    expect(Buffer.byteLength(serializeAttempt(attempt))).toBeLessThan(20_000);
+
+    const touched = applyAction(attempt, 'student-1', {
+      type: 'remote_desktop.network_reset',
+      payload: { assetTag: 'NX-2047' },
+    }).attempt;
+    expect(
+      touched.remoteDesktopOverlays['NX-2047']?.workstation.machine,
+    ).toMatchObject({ assetTag: 'NX-2047', hostname: 'PM-LT-41' });
+  });
+
+  it('excludes cosmetic workstation UI from Nexus resume snapshots', () => {
+    let attempt = createAttempt({
+      id: 'server-resume-boundary',
+      startedAt: '2026-07-30T10:30:00.000Z',
+    });
+    attempt = applyAction(attempt, 'student-1', {
+      type: 'remote_desktop.connect',
+      payload: { assetTag: 'NX-2047', ticketId: 'INC2406' },
+    }).attempt;
+    attempt = applyAction(attempt, 'student-1', {
+      type: 'remote_desktop.begin_login',
+      payload: { assetTag: 'NX-2047', ticketId: 'INC2406' },
+    }).attempt;
+    attempt = applyAction(attempt, 'student-1', {
+      type: 'remote_desktop.authenticate',
+      payload: {
+        assetTag: 'NX-2047',
+        ticketId: 'INC2406',
+        usernameEntered: true,
+        passwordEntered: true,
+      },
+    }).attempt;
+    attempt = applyAction(attempt, 'student-1', {
+      type: 'remote_desktop.open_app',
+      payload: { assetTag: 'NX-2047', appId: 'terminal' },
+    }).attempt;
+    attempt = applyAction(attempt, 'student-1', {
+      type: 'remote_desktop.set_start_menu',
+      payload: { assetTag: 'NX-2047', open: true },
+    }).attempt;
+    attempt = applyAction(attempt, 'student-1', {
+      type: 'remote_desktop.explorer_navigate',
+      payload: { assetTag: 'NX-2047', path: 'C:\\' },
+    }).attempt;
+    attempt = applyAction(attempt, 'student-1', {
+      type: 'remote_desktop.run_terminal_command',
+      payload: { assetTag: 'NX-2047', command: 'ipconfig /all' },
+    }).attempt;
+
+    const snapshot = restoreAttempt(serializeNexusResumeAttempt(attempt));
+    const overlay = snapshot?.remoteDesktopOverlays['NX-2047'];
+
+    expect(overlay?.openApps).toEqual([]);
+    expect(overlay?.focusedApp).toBeNull();
+    expect(overlay?.explorerCurrentPath).toBe('This PC');
+    expect(overlay?.workstation.desktop).toMatchObject({
+      activeAppId: null,
+      startMenuOpen: false,
+      windows: {},
+    });
+    expect(overlay?.workstation.filesystem).toMatchObject({
+      currentPath: 'This PC',
+      history: ['This PC'],
+      historyIndex: 0,
+    });
+    expect(overlay?.terminalHistory.at(-1)?.command).toBe('ipconfig /all');
+    expect(overlay?.workstation.terminal.commandHistory).toEqual([]);
+  });
+
+  it('merges local UI over a server-restored simulation snapshot', () => {
+    let local = createAttempt();
+    local = applyAction(local, 'student-1', {
+      type: 'remote_desktop.connect',
+      payload: { assetTag: 'NX-2047', ticketId: 'INC2406' },
+    }).attempt;
+    local = applyAction(local, 'student-1', {
+      type: 'remote_desktop.begin_login',
+      payload: { assetTag: 'NX-2047', ticketId: 'INC2406' },
+    }).attempt;
+    local = applyAction(local, 'student-1', {
+      type: 'remote_desktop.authenticate',
+      payload: {
+        assetTag: 'NX-2047',
+        ticketId: 'INC2406',
+        usernameEntered: true,
+        passwordEntered: true,
+      },
+    }).attempt;
+    local = applyAction(local, 'student-1', {
+      type: 'remote_desktop.open_app',
+      payload: { assetTag: 'NX-2047', appId: 'terminal' },
+    }).attempt;
+    local = applyAction(local, 'student-1', {
+      type: 'remote_desktop.set_start_menu',
+      payload: { assetTag: 'NX-2047', open: true },
+    }).attempt;
+    const server = restoreAttempt(serializeNexusResumeAttempt(local));
+    if (!server) throw new Error('Expected a valid server snapshot');
+
+    const merged = mergeAttemptSessionUi(server, local);
+    expect(merged.remoteDesktopOverlays['NX-2047']).toMatchObject({
+      focusedApp: 'terminal',
+      openApps: ['terminal'],
+    });
+    expect(
+      merged.remoteDesktopOverlays['NX-2047']?.workstation.desktop
+        .startMenuOpen,
+    ).toBe(true);
+    expect(
+      mergeAttemptSessionUi(server, { ...local, id: 'different-attempt' }),
+    ).toEqual(server);
   });
 
   it.each([

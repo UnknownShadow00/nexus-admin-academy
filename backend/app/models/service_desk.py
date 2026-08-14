@@ -18,6 +18,7 @@ from app.database import Base
 SERVICE_DESK_SCENARIO_STATUSES = {"active", "disabled"}
 SERVICE_DESK_VERSION_STATUSES = {"draft", "published", "disabled"}
 SERVICE_DESK_ATTEMPT_MODES = {"learning", "simulation"}
+SERVICE_DESK_EXPERIENCE_MODES = {"guided", "practice", "assessment"}
 SERVICE_DESK_ATTEMPT_STATUSES = {"in_progress", "completed", "failed"}
 
 
@@ -132,6 +133,10 @@ class ServiceDeskAttempt(Base):
     __table_args__ = (
         UniqueConstraint("student_id", "scenario_version_id", "attempt_number", name="uq_service_desk_attempt_number"),
         CheckConstraint("mode IN ('learning','simulation')", name="ck_service_desk_attempts_mode"),
+        CheckConstraint(
+            "experience_mode IN ('guided','practice','assessment')",
+            name="ck_service_desk_attempts_experience_mode",
+        ),
         CheckConstraint("status IN ('in_progress','completed','failed')", name="ck_service_desk_attempts_status"),
     )
 
@@ -141,6 +146,9 @@ class ServiceDeskAttempt(Base):
         ForeignKey("service_desk_scenario_versions.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     mode: Mapped[str] = mapped_column(String(20), nullable=False)
+    experience_mode: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="assessment", server_default="assessment"
+    )
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="in_progress", index=True)
     current_state: Mapped[dict] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
     current_state_hash: Mapped[str] = mapped_column(String(64), nullable=False)

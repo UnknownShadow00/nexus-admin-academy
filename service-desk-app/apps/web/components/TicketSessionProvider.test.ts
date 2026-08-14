@@ -93,9 +93,7 @@ describe('Nexus evidence attribution', () => {
       ticketId: 'inc2406',
       tool: 'remote_desktop',
     });
-    expect(details?.resultingState).toEqual(
-      attempt.remoteDesktopOverlays['NX-2047'],
-    );
+    expect(details?.resultingState).toEqual({});
   });
 
   it('uses the asset reverse lookup for substantive asset-only actions', () => {
@@ -111,6 +109,38 @@ describe('Nexus evidence attribution', () => {
       ticketId: 'INC2406',
       tool: 'remote_desktop',
     });
+  });
+
+  it('attributes structured requester verification and drive mapping evidence', () => {
+    expect(
+      getNexusActionSyncDetails(
+        {
+          type: 'chat.verify_identity',
+          payload: {
+            contactId: 'directory-user-taylor-morgan',
+            ticketId: 'INC2511',
+            method: 'employee-id-directory-match',
+          },
+        },
+        attempt,
+      ),
+    ).toMatchObject({ ticketId: 'INC2511', tool: 'chat' });
+
+    expect(
+      getNexusActionSyncDetails(
+        {
+          type: 'remote_desktop.map_drive',
+          payload: {
+            assetTag: 'NX-6128',
+            letter: 'Y:',
+            uncPath: '\\\\facilities.nexus.internal\\calendar',
+            reconnectAtSignIn: true,
+            credentialTarget: null,
+          },
+        },
+        attempt,
+      ),
+    ).toMatchObject({ ticketId: 'INC2405', tool: 'remote_desktop' });
   });
 
   it('keeps asset-only actions local-only when the asset has no scenario', () => {
@@ -170,7 +200,10 @@ describe('Nexus evidence attribution', () => {
         is_required: false,
         maximum_attempts: null,
         mode: 'simulation',
+        experience_mode: 'assessment',
+        guided_completed: false,
         most_recent_attempt: null,
+        required_this_week: false,
         scenario_id: 2,
         scenario: { stable_key: 'inc2402', title: definition.title },
         latest_published_version: {
@@ -194,7 +227,10 @@ describe('Nexus evidence attribution', () => {
         is_required: false,
         maximum_attempts: null,
         mode: 'simulation',
+        experience_mode: 'assessment',
+        guided_completed: false,
         most_recent_attempt: null,
+        required_this_week: false,
         scenario_id: 5,
         scenario: { stable_key: 'inc2405', title: definition.title },
         latest_published_version: {

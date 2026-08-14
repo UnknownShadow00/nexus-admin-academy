@@ -52,6 +52,19 @@ function close(ticketId: string): SimulationAction {
   };
 }
 
+function confirmation(ticketId: 'INC2405' | 'INC2406'): SimulationAction {
+  return {
+    type: 'chat.request_resolution_confirmation',
+    payload: {
+      contactId:
+        ticketId === 'INC2405'
+          ? 'directory-user-sloane-rivera'
+          : 'directory-user-harper-kim',
+      ticketId,
+    },
+  };
+}
+
 function score(attempt: Attempt, assetTag: string, scenarioId: string) {
   return attempt.remoteDesktopOverlays[assetTag]?.scenarioProgress[scenarioId]
     ?.finalScore;
@@ -135,28 +148,40 @@ describe('Service Desk quality pass', () => {
     expect(score(attempt, 'NX-4831', 'profile-storage')).toBe(100);
   });
 
-  it('INC2405 only credits the obsolete calendar mapping diagnosis and repair', () => {
-    const attempt = run(connected('NX-6128', 'INC2405'), [
+  it('INC2405 verifies the shared workflow through the mapped-drive GUI state', () => {
+    const repaired = run(connected('NX-6128', 'INC2405'), [
       {
         type: 'remote_desktop.run_terminal_command',
         payload: { assetTag: 'NX-6128', command: 'net use' },
       },
       {
-        type: 'remote_desktop.perform_scenario_step',
+        type: 'remote_desktop.map_drive',
         payload: {
           assetTag: 'NX-6128',
-          ticketId: 'INC2405',
-          stepId: 'explorer.repair-mapping',
+          letter: 'Y:',
+          uncPath: '\\\\facilities.nexus.internal\\calendar',
+          reconnectAtSignIn: true,
+          credentialTarget: null,
         },
       },
       {
-        type: 'remote_desktop.perform_scenario_step',
-        payload: {
-          assetTag: 'NX-6128',
-          ticketId: 'INC2405',
-          stepId: 'explorer.verify-share',
-        },
+        type: 'remote_desktop.explorer_navigate',
+        payload: { assetTag: 'NX-6128', path: 'Y:\\' },
       },
+    ]);
+    expect(
+      repaired.remoteDesktopOverlays['NX-6128']?.scenarioProgress[
+        'facilities-calendar-mapping'
+      ]?.phases,
+    ).toMatchObject({
+      investigated: true,
+      diagnosed: true,
+      fixed: true,
+      verified: true,
+    });
+
+    const attempt = run(repaired, [
+      confirmation('INC2405'),
       note('NX-6128', 'INC2405'),
       close('INC2405'),
     ]);
@@ -164,6 +189,10 @@ describe('Service Desk quality pass', () => {
     expect(attempt.remoteDesktopOverlays['NX-6128']?.driveStates['Y:']).toBe(
       'connected',
     );
+    expect(
+      attempt.chatThreads['directory-user-sloane-rivera']?.messages.at(-1)
+        ?.triggerKey,
+    ).toBe('original-symptom-confirmed-fixed');
   });
 
   it('INC2402 scopes the wireless fault to the managed scanner before repairing its profile', () => {
@@ -258,7 +287,7 @@ describe('Service Desk quality pass', () => {
     expect(score(attempt, 'NX-3560', 'pdf-export-update')).toBe(100);
   });
 
-  it('INC2406 teaches a disconnected VPN rather than device compliance', () => {
+  it('INC2406 separates VPN route restoration from mapped-drive repair', () => {
     const attempt = run(connected('NX-2047', 'INC2406'), [
       {
         type: 'remote_desktop.explorer_navigate',
@@ -274,10 +303,15 @@ describe('Service Desk quality pass', () => {
         payload: { assetTag: 'NX-2047' },
       },
       {
+        type: 'remote_desktop.explorer_reconnect_drive',
+        payload: { assetTag: 'NX-2047', driveLetter: 'Z:' },
+      },
+      {
         type: 'remote_desktop.explorer_navigate',
         payload: { assetTag: 'NX-2047', path: 'Z:\\' },
       },
       note('NX-2047', 'INC2406'),
+      confirmation('INC2406'),
       close('INC2406'),
     ]);
     expect(score(attempt, 'NX-2047', 'vpn-shared-drive')).toBe(100);

@@ -38,6 +38,8 @@ export interface DirectoryUserTemplate {
   passwordState: 'current' | 'expired' | 'temporary';
   mfaFactorStatus: 'available' | 'device-unavailable' | 'reset-ready';
   primaryAuthSucceeds: boolean;
+  availableIdentityVerificationMethods: readonly IdentityVerificationMethod[];
+  identityVerificationContext: string;
   supportIssue:
     | 'account-locked'
     | 'password-expired'
@@ -45,6 +47,7 @@ export interface DirectoryUserTemplate {
     | null;
   accountInspected?: boolean;
   identityVerified?: boolean;
+  identityVerificationMethod?: IdentityVerificationMethod | null;
   diagnosis?: string | null;
   primaryAuthTested?: boolean;
   accessVerified?: boolean;
@@ -52,6 +55,15 @@ export interface DirectoryUserTemplate {
   devices: readonly DirectoryDevice[];
   licenses: readonly DirectoryLicense[];
 }
+
+export const IDENTITY_VERIFICATION_METHODS = [
+  'employee-id-directory-match',
+  'manager-confirmation',
+  'known-number-callback',
+] as const;
+
+export type IdentityVerificationMethod =
+  (typeof IDENTITY_VERIFICATION_METHODS)[number];
 
 export interface DirectoryGroupTemplate {
   id: string;
@@ -72,6 +84,8 @@ interface DirectoryUserSeed {
   passwordState?: DirectoryUserTemplate['passwordState'];
   mfaFactorStatus?: DirectoryUserTemplate['mfaFactorStatus'];
   primaryAuthSucceeds?: boolean;
+  availableIdentityVerificationMethods?: readonly IdentityVerificationMethod[];
+  identityVerificationContext?: string;
   supportIssue?: DirectoryUserTemplate['supportIssue'];
   deviceType?: string;
   deviceStatus?: AssetStatus;
@@ -139,6 +153,11 @@ function createDirectoryUser(seed: DirectoryUserSeed): DirectoryUserTemplate {
     passwordState: seed.passwordState ?? 'current',
     mfaFactorStatus: seed.mfaFactorStatus ?? 'available',
     primaryAuthSucceeds: seed.primaryAuthSucceeds ?? true,
+    availableIdentityVerificationMethods:
+      seed.availableIdentityVerificationMethods ?? [],
+    identityVerificationContext:
+      seed.identityVerificationContext ??
+      'No identity-administration verification is required for this profile.',
     supportIssue: seed.supportIssue ?? null,
     devices: [
       {
@@ -171,6 +190,12 @@ export const DIRECTORY_USER_FIXTURES: readonly DirectoryUserTemplate[] = [
     groups: ['All Staff', 'Customer Care'],
     locked: true,
     primaryAuthSucceeds: false,
+    availableIdentityVerificationMethods: [
+      'employee-id-directory-match',
+      'manager-confirmation',
+    ],
+    identityVerificationContext:
+      'The employee ID is available in the directory, and the approved manager is online.',
     supportIssue: 'account-locked',
   }),
   createDirectoryUser({
@@ -182,6 +207,12 @@ export const DIRECTORY_USER_FIXTURES: readonly DirectoryUserTemplate[] = [
     groups: ['All Staff', 'Facilities Team'],
     passwordState: 'expired',
     primaryAuthSucceeds: false,
+    availableIdentityVerificationMethods: [
+      'employee-id-directory-match',
+      'known-number-callback',
+    ],
+    identityVerificationContext:
+      'The employee ID and a known company callback number are available in trusted records.',
     supportIssue: 'password-expired',
   }),
   createDirectoryUser({
@@ -192,6 +223,12 @@ export const DIRECTORY_USER_FIXTURES: readonly DirectoryUserTemplate[] = [
     assetTag: 'NX-3103',
     groups: ['All Staff', 'Finance Operations Updates'],
     mfaFactorStatus: 'device-unavailable',
+    availableIdentityVerificationMethods: [
+      'manager-confirmation',
+      'known-number-callback',
+    ],
+    identityVerificationContext:
+      'The approved manager and a known company callback number are available; no employee ID is attached to this request.',
     supportIssue: 'mfa-factor-unavailable',
   }),
   createDirectoryUser({
@@ -227,6 +264,14 @@ export const DIRECTORY_USER_FIXTURES: readonly DirectoryUserTemplate[] = [
     assetTag: 'NX-3560',
     groups: ['All Staff', 'Product Design Review'],
     deviceType: 'desktop',
+  }),
+  createDirectoryUser({
+    id: 'directory-user-harper-kim',
+    fullName: 'Harper Kim',
+    department: 'Program Delivery',
+    jobTitle: 'Project Manager',
+    assetTag: 'NX-2047',
+    groups: ['All Staff'],
   }),
   createDirectoryUser({
     id: 'directory-user-elliot-ward',

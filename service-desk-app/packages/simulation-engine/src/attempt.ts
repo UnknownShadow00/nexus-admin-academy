@@ -13,6 +13,7 @@ import type {
   RemoteDesktopOverlay,
   ServerRoomOverlay,
 } from './types';
+import { createWorkstationState } from './workstation/state';
 
 export interface AttemptSeed {
   id?: string;
@@ -74,6 +75,7 @@ export function createInitialRemoteDesktopOverlays(): Record<
     REMOTE_DESKTOP_WORKSTATION_FIXTURES.map((fixture) => [
       fixture.assetTag,
       {
+        workstation: createWorkstationState(fixture.assetTag),
         connectionState: 'disconnected',
         completedScenarioIds: [],
         dnsServers: [
@@ -129,7 +131,10 @@ export function createAttempt(seed: AttemptSeed = {}): Attempt {
     shipments: {},
     lastShippingAddress: null,
     serverRoomOverlays: createInitialServerRoomOverlays(),
-    remoteDesktopOverlays: createInitialRemoteDesktopOverlays(),
+    // Workstations are fixture-backed and created on first use. Eagerly
+    // materializing every machine copied hundreds of kilobytes of immutable
+    // catalog data into a brand-new attempt and every resume snapshot.
+    remoteDesktopOverlays: {},
     grades: {},
   };
 }

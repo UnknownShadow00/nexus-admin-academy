@@ -1,6 +1,7 @@
 import type {
   DeploymentCable,
   DeploymentStepId,
+  IdentityVerificationMethod,
   PcShelfComputerFixture,
   ShippingDepartment,
   ShippingEquipmentName,
@@ -21,6 +22,7 @@ import {
   type RemoteDesktopUpdateState,
   type RemoteDesktopVpnStatus,
   type ServerRoomNodeStatus,
+  type WorkstationState,
   TicketStatus,
 } from '@service-desk/shared';
 
@@ -64,6 +66,7 @@ export interface DirectoryUserOverlay {
   mfaFactorStatus: 'available' | 'device-unavailable' | 'reset-ready';
   inspected: boolean;
   identityVerified: boolean;
+  identityVerificationMethod: IdentityVerificationMethod | null;
   primaryAuthTested: boolean;
   diagnosis:
     | 'account-locked'
@@ -191,6 +194,12 @@ export interface RemoteDesktopScenarioProgress {
 }
 
 export interface RemoteDesktopOverlay {
+  /**
+   * Schema-versioned shared workstation truth. Legacy flat fields remain as a
+   * compatibility projection until every app and persisted v1 attempt has
+   * migrated to the workstation domain.
+   */
+  workstation: WorkstationState;
   connectionState: RemoteDesktopConnectionState;
   completedScenarioIds: readonly string[];
   dnsServers: readonly string[];
@@ -232,6 +241,7 @@ export interface RemoteDesktopOverlay {
 
 export interface Grade {
   attemptId: string;
+  experienceMode?: 'guided' | 'practice' | 'assessment';
   ticketId: string;
   pointsAwarded: number;
   pointsPossible: number;

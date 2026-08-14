@@ -34,23 +34,30 @@ import {
   type ActivityEvent,
   type DirectoryGroupName,
   type DirectoryUserTemplate,
+  type IdentityVerificationMethod,
   type Ticket,
+  type WorkstationState,
+  type WorkstationWindowBounds,
 } from '@service-desk/shared';
 import {
   applyAction,
   createAttempt,
+  createWorkstationState,
   deriveAnalyticsSummary,
   derivePastTickets,
   evaluateObjectives,
   evaluateAchievements,
   isChatThreadUnread,
+  mergeAttemptSessionUi,
   restoreAttempt,
   serializeAttempt,
+  serializeNexusResumeAttempt,
   type ActionEvent,
   type AssetSimulationAction,
   type AnalyticsSummary,
   type Attempt,
   type ChatThreadOverlay,
+  type ChatSimulationAction,
   type DeploymentRun,
   type EvaluatedAchievement,
   type Grade,
@@ -87,6 +94,7 @@ import {
   recordAttemptEvent,
   recordAttemptHint,
   startOrResumeAttempt,
+  type NexusAttempt,
   type NexusAssignment,
   type NexusServiceDeskProgression,
   type NexusAttemptCompletionInput,
@@ -151,7 +159,10 @@ interface DirectorySessionContextValue {
     diagnosis: 'account-locked' | 'password-expired' | 'mfa-factor-unavailable',
   ) => ActionEvent;
   resetMfa: (directoryUserId: string) => ActionEvent;
-  resetPassword: (directoryUserId: string) => ActionEvent;
+  resetPassword: (
+    directoryUserId: string,
+    requireChangeAtNextSignIn: boolean,
+  ) => ActionEvent;
   unlockAccount: (directoryUserId: string) => ActionEvent;
   testPrimaryAuth: (
     directoryUserId: string,
@@ -164,7 +175,10 @@ interface DirectorySessionContextValue {
       | 'temporary-password-issued'
       | 'mfa-reregistration-ready',
   ) => ActionEvent;
-  verifyIdentity: (directoryUserId: string) => ActionEvent;
+  verifyIdentity: (
+    directoryUserId: string,
+    method: IdentityVerificationMethod,
+  ) => ActionEvent;
   updateGroups: (
     directoryUserId: string,
     add: string[],
@@ -178,6 +192,15 @@ interface CompanyChatSessionContextValue {
   markPinned: (contactId: string, pinned: boolean) => ActionEvent;
   openThread: (contactId: string) => ActionEvent;
   sendMessage: (contactId: string, body: string) => ActionEvent;
+  requestResolutionConfirmation: (
+    contactId: string,
+    ticketId: string,
+  ) => ActionEvent;
+  verifyIdentity: (
+    contactId: string,
+    ticketId: string,
+    method: IdentityVerificationMethod,
+  ) => ActionEvent;
   unreadThreadCount: number;
 }
 
@@ -244,6 +267,7 @@ interface ServerRoomSessionContextValue {
 
 export interface RemoteDesktopWorkstationRecord
   extends RemoteDesktopWorkstationFixture {
+  workstation: WorkstationState;
   completedScenarioIds: readonly string[];
   connectionState: RemoteDesktopConnectionState;
   dnsServers: readonly string[];
@@ -298,6 +322,24 @@ interface RemoteDesktopSessionContextValue {
   focusApp: (assetTag: string, appId: RemoteDesktopAppId) => ActionEvent;
   isHydrated: boolean;
   minimizeApp: (assetTag: string, appId: RemoteDesktopAppId) => ActionEvent;
+  mapDrive: (
+    assetTag: string,
+    letter: string,
+    uncPath: string,
+    reconnectAtSignIn: boolean,
+    credentialTarget: string | null,
+  ) => ActionEvent;
+  addCredential: (
+    assetTag: string,
+    target: string,
+    username: string,
+  ) => ActionEvent;
+  deleteCredential: (assetTag: string, target: string) => ActionEvent;
+  moveWindow: (
+    assetTag: string,
+    appId: RemoteDesktopAppId,
+    bounds: WorkstationWindowBounds,
+  ) => ActionEvent;
   networkReset: (assetTag: string) => ActionEvent;
   openApp: (assetTag: string, appId: RemoteDesktopAppId) => ActionEvent;
   performScenarioStep: (
@@ -331,6 +373,11 @@ interface RemoteDesktopSessionContextValue {
   setLearningMode: (
     assetTag: string,
     mode: RemoteDesktopLearningMode,
+  ) => ActionEvent;
+  setStartMenu: (assetTag: string, open: boolean) => ActionEvent;
+  toggleWindowMaximize: (
+    assetTag: string,
+    appId: RemoteDesktopAppId,
   ) => ActionEvent;
   workstations: readonly RemoteDesktopWorkstationRecord[];
 }
@@ -486,6 +533,9 @@ const REMOTE_DESKTOP_EVIDENCE_ACTION_TYPES = new Set([
   'remote_desktop.explorer_navigate',
   'remote_desktop.explorer_reconnect_drive',
   'remote_desktop.explorer_refresh',
+  'remote_desktop.map_drive',
+  'remote_desktop.credential_add',
+  'remote_desktop.credential_delete',
   'remote_desktop.vpn_connect',
   'remote_desktop.vpn_complete_connection',
   'remote_desktop.vpn_disconnect',
@@ -496,17 +546,40 @@ const REMOTE_DESKTOP_EVIDENCE_ACTION_TYPES = new Set([
   'remote_desktop.disconnect',
 ]);
 
+const REMOTE_DESKTOP_SESSION_UI_ACTION_TYPES = new Set([
+  'remote_desktop.open_app',
+  'remote_desktop.close_app',
+  'remote_desktop.focus_app',
+  'remote_desktop.minimize_app',
+  'remote_desktop.move_window',
+  'remote_desktop.toggle_window_maximize',
+  'remote_desktop.set_start_menu',
+  'remote_desktop.toggle_training_mode',
+  'remote_desktop.set_learning_mode',
+]);
+
+function isRemoteDesktopSessionUiAction(action: SimulationAction): boolean {
+  return REMOTE_DESKTOP_SESSION_UI_ACTION_TYPES.has(action.type);
+}
+
 type NexusEvidenceAction =
   | AssetSimulationAction
   | TicketSimulationAction
   | DirectorySimulationAction
+  | ChatSimulationAction
   | RemoteDesktopSimulationAction
   | ShippingSimulationAction;
 
 interface NexusActionSyncDetails {
   resultingState: Readonly<Record<string, unknown>>;
   ticketId: string;
-  tool: 'asset' | 'directory' | 'remote_desktop' | 'shipping' | 'ticket';
+  tool:
+    | 'asset'
+    | 'chat'
+    | 'directory'
+    | 'remote_desktop'
+    | 'shipping'
+    | 'ticket';
 }
 
 function isTicketSimulationAction(
@@ -542,6 +615,12 @@ function isDirectorySimulationAction(
   action: SimulationAction,
 ): action is DirectorySimulationAction {
   return action.type.startsWith('directory.');
+}
+
+function isChatSimulationAction(
+  action: SimulationAction,
+): action is ChatSimulationAction {
+  return action.type.startsWith('chat.');
 }
 
 function isRemoteDesktopSimulationAction(
@@ -614,6 +693,20 @@ export function getNexusActionSyncDetails(
       },
       ticketId,
       tool: 'directory',
+    };
+  }
+
+  if (isChatSimulationAction(action)) {
+    if (
+      action.type !== 'chat.verify_identity' &&
+      action.type !== 'chat.request_resolution_confirmation'
+    ) {
+      return null;
+    }
+    return {
+      resultingState: { ...attempt.chatThreads[action.payload.contactId] },
+      ticketId: action.payload.ticketId,
+      tool: 'chat',
     };
   }
 
@@ -930,6 +1023,7 @@ function projectDirectoryUsers(attempt: Attempt): DirectoryUserTemplate[] {
       mfaFactorStatus: overlay.mfaFactorStatus,
       accountInspected: overlay.inspected,
       identityVerified: overlay.identityVerified,
+      identityVerificationMethod: overlay.identityVerificationMethod,
       primaryAuthTested: overlay.primaryAuthTested,
       diagnosis: overlay.diagnosis,
       accessVerified: overlay.accessVerified,
@@ -979,6 +1073,8 @@ function projectRemoteDesktopWorkstations(
 
     return {
       ...fixture,
+      workstation:
+        overlay?.workstation ?? createWorkstationState(fixture.assetTag),
       completedScenarioIds: overlay?.completedScenarioIds ?? [],
       dnsServers:
         overlay?.dnsServers ??
@@ -1250,7 +1346,32 @@ export function TicketSessionProvider({
         setServiceDeskProgression(progression);
         nexusTicketMappingsRef.current = mappings;
         nexusSnapshotTargetRef.current = null;
-        let restoredNexusSnapshot = false;
+        let newestNexusAttempt: {
+          assignmentId: NexusAssignment['id'];
+          attempt: NexusAttempt;
+        } | null = null;
+        let newestNexusSnapshot: {
+          attempt: NexusAttempt;
+          restored: Attempt;
+        } | null = null;
+
+        const isNewerAttempt = (
+          candidate: NexusAttempt,
+          current: NexusAttempt,
+        ) => {
+          const updatedComparison = candidate.updated_at.localeCompare(
+            current.updated_at,
+          );
+          if (updatedComparison !== 0) return updatedComparison > 0;
+          if (candidate.state_version !== current.state_version) {
+            return candidate.state_version > current.state_version;
+          }
+          return (
+            String(candidate.id).localeCompare(String(current.id), undefined, {
+              numeric: true,
+            }) > 0
+          );
+        };
 
         for (const assignment of assignments) {
           const recentAttempt = assignment.most_recent_attempt;
@@ -1264,20 +1385,17 @@ export function TicketSessionProvider({
           }
 
           const currentState = nexusAttempt?.current_state;
-          if (!nexusSnapshotTargetRef.current && nexusAttempt) {
-            nexusSnapshotTargetRef.current = {
+          if (
+            nexusAttempt &&
+            (!newestNexusAttempt ||
+              isNewerAttempt(nexusAttempt, newestNexusAttempt.attempt))
+          ) {
+            newestNexusAttempt = {
               assignmentId: assignment.id,
-              attemptId: nexusAttempt.id,
+              attempt: nexusAttempt,
             };
           }
           if (!currentState) {
-            continue;
-          }
-
-          // A validated full snapshot is authoritative for this hydration
-          // pass. Do not merge older per-ticket state into it: those records
-          // are intentionally partial and do not satisfy an Attempt overlay.
-          if (restoredNexusSnapshot) {
             continue;
           }
 
@@ -1288,9 +1406,15 @@ export function TicketSessionProvider({
             typeof snapshot === 'object'
           ) {
             const restoredSnapshot = restoreAttempt(JSON.stringify(snapshot));
-            if (restoredSnapshot) {
-              nextAttempt = restoredSnapshot;
-              restoredNexusSnapshot = true;
+            if (
+              restoredSnapshot &&
+              (!newestNexusSnapshot ||
+                isNewerAttempt(nexusAttempt, newestNexusSnapshot.attempt))
+            ) {
+              newestNexusSnapshot = {
+                attempt: nexusAttempt,
+                restored: restoredSnapshot,
+              };
               continue;
             }
           }
@@ -1310,6 +1434,22 @@ export function TicketSessionProvider({
               } as NonNullable<typeof currentOverlay>,
             },
           };
+        }
+
+        if (newestNexusAttempt) {
+          nexusSnapshotTargetRef.current = {
+            assignmentId: newestNexusAttempt.assignmentId,
+            attemptId: newestNexusAttempt.attempt.id,
+          };
+        }
+        if (newestNexusSnapshot) {
+          // Each action carries a versioned full workstation snapshot. Restore
+          // the newest one across all active tickets so navigation cannot roll
+          // shared Directory, Chat, or desktop state back to an older case.
+          nextAttempt = mergeAttemptSessionUi(
+            newestNexusSnapshot.restored,
+            restored,
+          );
         }
       } else if (active) {
         nexusTicketMappingsRef.current = {};
@@ -1474,7 +1614,7 @@ export function TicketSessionProvider({
         payload: event.payload,
         resulting_state: {
           nexus_service_desk_attempt: JSON.parse(
-            serializeAttempt(attemptRef.current),
+            serializeNexusResumeAttempt(attemptRef.current),
           ),
           schema_version: 1,
         },
@@ -1521,7 +1661,7 @@ export function TicketSessionProvider({
           payload: {},
           resulting_state: {
             nexus_service_desk_attempt: JSON.parse(
-              serializeAttempt(attemptRef.current),
+              serializeNexusResumeAttempt(attemptRef.current),
             ),
             schema_version: 1,
           },
@@ -1549,11 +1689,16 @@ export function TicketSessionProvider({
       let completion: NexusAttemptCompletionInput | null = null;
 
       if (action.type === 'ticket.close' && result.event.success) {
-        const grade = evaluateObjectives(
-          result.attempt,
-          action.payload.ticketId,
-          runtimeTickets,
-        );
+        const grade = {
+          ...evaluateObjectives(
+            result.attempt,
+            action.payload.ticketId,
+            runtimeTickets,
+          ),
+          experienceMode:
+            runtimeAssignments[action.payload.ticketId]?.experience_mode ??
+            'assessment',
+        };
 
         const scenario = getRemoteDesktopScenarioByTicket(
           action.payload.ticketId,
@@ -1642,7 +1787,9 @@ export function TicketSessionProvider({
       if (
         NEXUS_INTEGRATION_ENABLED &&
         result.event.success &&
+        !isRemoteDesktopSessionUiAction(action) &&
         (isTicketSimulationAction(action) ||
+          isChatSimulationAction(action) ||
           isAssetSimulationAction(action) ||
           isDirectorySimulationAction(action) ||
           isRemoteDesktopSimulationAction(action) ||
@@ -1670,6 +1817,10 @@ export function TicketSessionProvider({
               `Nexus cannot attribute ${action.type} to a service desk ticket; keeping it local-only.`,
             );
           }
+          // The action cannot become trusted grading evidence, but its
+          // post-action state must still survive refresh and clean-browser
+          // resume through the untrusted snapshot channel.
+          queueNexusSnapshotSync(result.event);
         }
       }
 
@@ -1678,8 +1829,11 @@ export function TicketSessionProvider({
         result.event.success &&
         !(
           isTicketSimulationAction(action) ||
+          isChatSimulationAction(action) ||
+          isAssetSimulationAction(action) ||
           isDirectorySimulationAction(action) ||
-          isRemoteDesktopSimulationAction(action)
+          isRemoteDesktopSimulationAction(action) ||
+          isShippingSimulationAction(action)
         )
       ) {
         // No ticket is fabricated for these domains. The snapshot endpoint
@@ -1692,7 +1846,13 @@ export function TicketSessionProvider({
       setAttempt(nextAttempt);
       return result.event;
     },
-    [actorId, queueNexusActionSync, queueNexusSnapshotSync, runtimeTickets],
+    [
+      actorId,
+      queueNexusActionSync,
+      queueNexusSnapshotSync,
+      runtimeAssignments,
+      runtimeTickets,
+    ],
   );
 
   const tickets = useMemo(
@@ -1878,10 +2038,10 @@ export function TicketSessionProvider({
           type: 'directory.reset_mfa',
           payload: { directoryUserId },
         }),
-      resetPassword: (directoryUserId) =>
+      resetPassword: (directoryUserId, requireChangeAtNextSignIn) =>
         dispatchAction({
           type: 'directory.reset_password',
-          payload: { directoryUserId, requireChangeAtNextSignIn: true },
+          payload: { directoryUserId, requireChangeAtNextSignIn },
         }),
       unlockAccount: (directoryUserId) =>
         dispatchAction({
@@ -1898,10 +2058,10 @@ export function TicketSessionProvider({
           type: 'directory.verify_access',
           payload: { directoryUserId, check },
         }),
-      verifyIdentity: (directoryUserId) =>
+      verifyIdentity: (directoryUserId, method) =>
         dispatchAction({
           type: 'directory.verify_identity',
-          payload: { directoryUserId, method: 'approved-training-check' },
+          payload: { directoryUserId, method },
         }),
       updateGroups: (directoryUserId, add, remove) =>
         dispatchAction({
@@ -1918,12 +2078,23 @@ export function TicketSessionProvider({
       markPinned: markChatPinned,
       openThread: openChatThread,
       sendMessage: sendChatMessage,
+      requestResolutionConfirmation: (contactId, ticketId) =>
+        dispatchAction({
+          type: 'chat.request_resolution_confirmation',
+          payload: { contactId, ticketId },
+        }),
+      verifyIdentity: (contactId, ticketId, method) =>
+        dispatchAction({
+          type: 'chat.verify_identity',
+          payload: { contactId, ticketId, method },
+        }),
       unreadThreadCount: Object.values(attempt.chatThreads).filter(
         isChatThreadUnread,
       ).length,
     }),
     [
       attempt.chatThreads,
+      dispatchAction,
       hydrated,
       markChatPinned,
       openChatThread,
@@ -2068,6 +2239,38 @@ export function TicketSessionProvider({
           type: 'remote_desktop.minimize_app',
           payload: { assetTag, appId },
         }),
+      mapDrive: (
+        assetTag,
+        letter,
+        uncPath,
+        reconnectAtSignIn,
+        credentialTarget,
+      ) =>
+        dispatchAction({
+          type: 'remote_desktop.map_drive',
+          payload: {
+            assetTag,
+            letter,
+            uncPath,
+            reconnectAtSignIn,
+            credentialTarget,
+          },
+        }),
+      addCredential: (assetTag, target, username) =>
+        dispatchAction({
+          type: 'remote_desktop.credential_add',
+          payload: { assetTag, target, username },
+        }),
+      deleteCredential: (assetTag, target) =>
+        dispatchAction({
+          type: 'remote_desktop.credential_delete',
+          payload: { assetTag, target },
+        }),
+      moveWindow: (assetTag, appId, bounds) =>
+        dispatchAction({
+          type: 'remote_desktop.move_window',
+          payload: { assetTag, appId, bounds },
+        }),
       networkReset: (assetTag) =>
         dispatchAction({
           type: 'remote_desktop.network_reset',
@@ -2167,6 +2370,16 @@ export function TicketSessionProvider({
         dispatchAction({
           type: 'remote_desktop.set_learning_mode',
           payload: { assetTag, mode },
+        }),
+      setStartMenu: (assetTag, open) =>
+        dispatchAction({
+          type: 'remote_desktop.set_start_menu',
+          payload: { assetTag, open },
+        }),
+      toggleWindowMaximize: (assetTag, appId) =>
+        dispatchAction({
+          type: 'remote_desktop.toggle_window_maximize',
+          payload: { assetTag, appId },
         }),
       workstations: remoteDesktopWorkstations,
     }),

@@ -112,6 +112,9 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
           <RequesterCard requester={ticket.requester} />
           <RelatedDevicePanel device={ticket.device} />
           <SuggestedTools
+            experienceMode={
+              assignmentByTicket[ticket.id]?.experience_mode ?? 'guided'
+            }
             ticketCategory={ticket.category}
             ticketId={ticket.id}
             toolSlugs={ticket.suggestedTools}

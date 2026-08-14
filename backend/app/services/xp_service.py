@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.models.student import Student
 from app.models.xp_ledger import XPLedger
@@ -13,9 +14,10 @@ def award_xp(
     source_type: str,
     source_id: int | None,
     description: str,
-) -> None:
+    idempotent: bool = False,
+) -> bool:
     if delta == 0:
-        return
+        return False
 
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
@@ -28,6 +30,17 @@ def award_xp(
         delta=delta,
         description=description,
     )
-    db.add(entry)
+    if idempotent:
+        try:
+            # The savepoint contains the uniqueness failure without rolling
+            # back the caller's grade/attempt transaction.
+            with db.begin_nested():
+                db.add(entry)
+                db.flush()
+        except IntegrityError:
+            return False
+    else:
+        db.add(entry)
     student.total_xp += delta
     check_and_post_milestones(db, student_id, delta)
+    return True

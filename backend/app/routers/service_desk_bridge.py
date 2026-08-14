@@ -18,7 +18,11 @@ from app.models.service_desk import (
 from app.models.student import Student
 from app.models.xp_ledger import XPLedger
 from app.services.admin_auth import get_admin_api_key, has_valid_admin_session
-from app.services.auth_service import STUDENT_SESSION_COOKIE, decode_token, get_current_student
+from app.services.auth_service import (
+    STUDENT_SESSION_COOKIE,
+    decode_token,
+    get_current_student,
+)
 
 router = APIRouter(prefix="/api/service-desk", tags=["service-desk-bridge"])
 
@@ -101,6 +105,7 @@ def get_service_desk_progress_summary(
         )
         .filter(
             ServiceDeskAttempt.student_id == current_student.id,
+            ServiceDeskAttempt.experience_mode == "assessment",
             ServiceDeskAttemptGrade.passed.is_(True),
         )
         .order_by(
@@ -119,7 +124,10 @@ def get_service_desk_progress_summary(
             ServiceDeskScenario,
             ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id,
         )
-        .filter(ServiceDeskAttempt.student_id == current_student.id)
+        .filter(
+            ServiceDeskAttempt.student_id == current_student.id,
+            ServiceDeskAttempt.experience_mode == "assessment",
+        )
         .order_by(ServiceDeskAttempt.started_at, ServiceDeskAttempt.id)
         .all()
     )
@@ -162,7 +170,7 @@ def get_service_desk_progress_summary(
         db.query(func.coalesce(func.sum(XPLedger.delta), 0))
         .filter(
             XPLedger.student_id == current_student.id,
-            XPLedger.source_type == "service_desk_attempt",
+            XPLedger.source_type.in_(("service_desk_attempt", "service_desk_mastery")),
         )
         .scalar()
         or 0

@@ -1,5 +1,6 @@
 export interface NexusAssignmentAttemptSummary {
   attempt_number: number;
+  experience_mode: 'guided' | 'practice' | 'assessment';
   id: string | number;
   status: string;
 }
@@ -15,12 +16,15 @@ export interface NexusAssignment {
     version_number: number;
   } | null;
   mode: string;
+  experience_mode: 'guided' | 'practice' | 'assessment';
+  guided_completed: boolean;
   most_recent_attempt: NexusAssignmentAttemptSummary | null;
   maximum_attempts: number | null;
   pack_key?: string;
   pack_name?: string;
   pack_order?: number;
   queue_type?: 'assigned' | 'practice' | 'earlier';
+  required_this_week: boolean;
   scenario: {
     stable_key: string;
     title: string;
@@ -65,11 +69,13 @@ export interface NexusAttempt {
   current_state_hash: string;
   id: string | number;
   mode: string;
+  experience_mode: 'guided' | 'practice' | 'assessment';
   passed: boolean | null;
   score: number | null;
   started_at: string;
   state_version: number;
   status: string;
+  updated_at: string;
 }
 
 export interface NexusAttemptEventInput {
@@ -126,11 +132,15 @@ function isAttempt(value: unknown): value is NexusAttempt {
     typeof value.current_state_hash === 'string' &&
     isId(value.id) &&
     typeof value.mode === 'string' &&
+    (value.experience_mode === 'guided' ||
+      value.experience_mode === 'practice' ||
+      value.experience_mode === 'assessment') &&
     (typeof value.passed === 'boolean' || value.passed === null) &&
     (typeof value.score === 'number' || value.score === null) &&
     typeof value.started_at === 'string' &&
     typeof value.state_version === 'number' &&
-    typeof value.status === 'string'
+    typeof value.status === 'string' &&
+    typeof value.updated_at === 'string'
   );
 }
 
@@ -166,13 +176,21 @@ function isAssignment(value: unknown): value is NexusAssignment {
         isRecord(value.latest_published_version.definition_json) &&
         typeof value.latest_published_version.version_number === 'number')) &&
     typeof value.mode === 'string' &&
+    (value.experience_mode === 'guided' ||
+      value.experience_mode === 'practice' ||
+      value.experience_mode === 'assessment') &&
+    typeof value.guided_completed === 'boolean' &&
     (value.most_recent_attempt === null ||
       (isRecord(value.most_recent_attempt) &&
         typeof value.most_recent_attempt.attempt_number === 'number' &&
+        (value.most_recent_attempt.experience_mode === 'guided' ||
+          value.most_recent_attempt.experience_mode === 'practice' ||
+          value.most_recent_attempt.experience_mode === 'assessment') &&
         isId(value.most_recent_attempt.id) &&
         typeof value.most_recent_attempt.status === 'string')) &&
     (typeof value.maximum_attempts === 'number' ||
       value.maximum_attempts === null) &&
+    typeof value.required_this_week === 'boolean' &&
     typeof value.scenario.stable_key === 'string' &&
     typeof value.scenario.title === 'string' &&
     isId(value.scenario_id)

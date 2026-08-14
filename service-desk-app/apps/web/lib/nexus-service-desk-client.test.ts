@@ -20,11 +20,13 @@ const attempt = {
   current_state_hash: 'hash',
   id: 101,
   mode: 'practice',
+  experience_mode: 'practice',
   passed: null,
   score: null,
   started_at: '2026-08-02T00:00:00Z',
   state_version: 1,
   status: 'in_progress',
+  updated_at: '2026-08-13T00:00:00Z',
 };
 
 const grade = {
@@ -59,8 +61,11 @@ describe('Nexus service desk client', () => {
                 version_number: 1,
               },
               mode: 'practice',
+              experience_mode: 'practice',
+              guided_completed: false,
               most_recent_attempt: null,
               maximum_attempts: null,
+              required_this_week: false,
               scenario: { stable_key: 'INC2401', title: 'VPN' },
               scenario_id: 1,
             },

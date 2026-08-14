@@ -57,9 +57,12 @@ def test_foundational_prototypes_publish_as_current_immutable_versions_idempoten
         assert version.definition_json["id"] == expected_ticket_ids[key]
         assert version.definition_json["objective_catalog_version"] == "process-v3"
         assert scenario.difficulty == 1
-        assert db.query(ServiceDeskScenarioVersion).filter_by(
-            scenario_id=scenario.id
-        ).count() == initial_versions[key]
+        assert (
+            db.query(ServiceDeskScenarioVersion)
+            .filter_by(scenario_id=scenario.id)
+            .count()
+            == initial_versions[key]
+        )
 
 
 def _seed_pack_assignments(db, *students):
@@ -138,7 +141,7 @@ def _seed_pack_assignments(db, *students):
     return scenarios
 
 
-def _pass(db, student, scenario_and_version):
+def _pass(db, student, scenario_and_version, *, experience_mode="assessment"):
     _, version = scenario_and_version
     attempt_number = (
         db.query(ServiceDeskAttempt)
@@ -151,6 +154,7 @@ def _pass(db, student, scenario_and_version):
             student_id=student.id,
             scenario_version_id=version.id,
             mode="simulation",
+            experience_mode=experience_mode,
             status="completed",
             current_state={},
             current_state_hash="a" * 64,
@@ -162,6 +166,50 @@ def _pass(db, student, scenario_and_version):
         )
     )
     db.commit()
+
+
+def test_guided_starter_pass_does_not_count_as_curriculum_mastery_or_pack_progress(
+    monkeypatch, db
+):
+    student = make_student(db, "guided-is-not-mastery")
+    scenarios = _seed_pack_assignments(db, student)
+    _map_required_case(db, 3, "password-reset")
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+    _pass(db, student, scenarios["password-reset"], experience_mode="guided")
+
+    listing = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+    password = next(
+        row for row in listing if row["scenario"]["stable_key"] == "password-reset"
+    )
+    assert password["experience_mode"] == "guided"
+    assert password["guided_completed"] is True
+    assert password["required_this_week"] is False
+    assert password["queue_type"] != "practice"
+    assert "suggestedTools" in password["latest_published_version"]["definition_json"]
+
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 3,
+    )
+    listing = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+    password = next(
+        row for row in listing if row["scenario"]["stable_key"] == "password-reset"
+    )
+    assert password["experience_mode"] == "assessment"
+    assert password["guided_completed"] is True
+    assert password["required_this_week"] is True
+    assert password["queue_type"] == "assigned"
+    assert "hints" not in password["latest_published_version"]["definition_json"]
+    assert (
+        "suggestedTools" not in password["latest_published_version"]["definition_json"]
+    )
 
 
 def _map_required_case(db, week_number, stable_key):
@@ -361,10 +409,14 @@ def test_pack_requires_both_curriculum_week_and_prior_successes(monkeypatch, db)
         for row in after_week
         if row["queue_type"] == "assigned"
     } == set(SERVICE_DESK_PACKS[1].scenario_keys[:4])
-    assert next(
-        row for row in after_week
-        if row["scenario"]["stable_key"] == SERVICE_DESK_PACKS[1].scenario_keys[4]
-    )["queue_type"] == "earlier"
+    assert (
+        next(
+            row
+            for row in after_week
+            if row["scenario"]["stable_key"] == SERVICE_DESK_PACKS[1].scenario_keys[4]
+        )["queue_type"]
+        == "earlier"
+    )
 
 
 def test_direct_api_cannot_start_locked_assignment(monkeypatch, db):
@@ -395,6 +447,7 @@ def test_completed_cases_move_to_practice_and_can_be_replayed(db):
     ).json()
     row = next(item for item in rows if item["scenario"]["stable_key"] == stable_key)
     assert row["queue_type"] == "practice"
+    assert row["most_recent_attempt"]["status"] == "completed"
 
     response = client.post(
         f"/api/service-desk/assignments/{_assignment_id(db, student, scenario)}/attempts",
@@ -453,9 +506,11 @@ def test_instructor_assignment_unlocks_only_the_exact_case(monkeypatch, db):
     )
     future_key = SERVICE_DESK_PACKS[-1].scenario_keys[0]
     future_scenario, _ = scenarios[future_key]
-    assignment = db.query(ServiceDeskAssignment).filter_by(
-        student_id=student.id, scenario_id=future_scenario.id
-    ).one()
+    assignment = (
+        db.query(ServiceDeskAssignment)
+        .filter_by(student_id=student.id, scenario_id=future_scenario.id)
+        .one()
+    )
     assignment.assigned_by = "mentor.alex"
     db.commit()
 
@@ -465,13 +520,19 @@ def test_instructor_assignment_unlocks_only_the_exact_case(monkeypatch, db):
     future_rows = [row for row in rows if row["pack_key"] == SERVICE_DESK_PACKS[-1].key]
     assert [row["scenario"]["stable_key"] for row in future_rows] == [future_key]
     assert future_rows[0]["queue_type"] == "assigned"
-    assert client.post(
-        f"/api/service-desk/assignments/{assignment.id}/attempts",
-        headers=auth_headers(student),
-    ).status_code == 201
-    assert client.get(
-        "/api/service-desk/progression", headers=auth_headers(student)
-    ).json()["current_pack"]["key"] == "starter-support"
+    assert (
+        client.post(
+            f"/api/service-desk/assignments/{assignment.id}/attempts",
+            headers=auth_headers(student),
+        ).status_code
+        == 201
+    )
+    assert (
+        client.get(
+            "/api/service-desk/progression", headers=auth_headers(student)
+        ).json()["current_pack"]["key"]
+        == "starter-support"
+    )
 
     _pass(db, student, scenarios[future_key])
     rows = client.get(
@@ -481,9 +542,12 @@ def test_instructor_assignment_unlocks_only_the_exact_case(monkeypatch, db):
         row for row in rows if row["scenario"]["stable_key"] == future_key
     )
     assert future_row["queue_type"] == "practice"
-    assert client.get(
-        "/api/service-desk/progression", headers=auth_headers(student)
-    ).json()["current_pack"]["key"] == "starter-support"
+    assert (
+        client.get(
+            "/api/service-desk/progression", headers=auth_headers(student)
+        ).json()["current_pack"]["key"]
+        == "starter-support"
+    )
 
 
 def test_required_weekly_case_unlocks_exactly_without_unlocking_its_future_pack(
@@ -507,18 +571,26 @@ def test_required_weekly_case_unlocks_exactly_without_unlocking_its_future_pack(
         row for row in rows if row["scenario"]["stable_key"] == weekly_key
     )
     assert weekly_row["queue_type"] == "assigned"
-    assert client.get(
-        "/api/service-desk/progression", headers=auth_headers(student)
-    ).json()["current_pack"]["key"] == "starter-support"
+    assert (
+        client.get(
+            "/api/service-desk/progression", headers=auth_headers(student)
+        ).json()["current_pack"]["key"]
+        == "starter-support"
+    )
 
     unrelated_scenario, _ = scenarios["inc2506"]
-    unrelated_assignment = db.query(ServiceDeskAssignment).filter_by(
-        student_id=student.id, scenario_id=unrelated_scenario.id
-    ).one()
-    assert client.post(
-        f"/api/service-desk/assignments/{unrelated_assignment.id}/attempts",
-        headers=auth_headers(student),
-    ).status_code == 403
+    unrelated_assignment = (
+        db.query(ServiceDeskAssignment)
+        .filter_by(student_id=student.id, scenario_id=unrelated_scenario.id)
+        .one()
+    )
+    assert (
+        client.post(
+            f"/api/service-desk/assignments/{unrelated_assignment.id}/attempts",
+            headers=auth_headers(student),
+        ).status_code
+        == 403
+    )
 
     current_week = 8
     rows = client.get(
@@ -528,7 +600,10 @@ def test_required_weekly_case_unlocks_exactly_without_unlocking_its_future_pack(
         row for row in rows if row["scenario"]["stable_key"] == weekly_key
     )
     assert weekly_row["queue_type"] == "earlier"
-    assert client.post(
-        f"/api/service-desk/assignments/{weekly_row['id']}/attempts",
-        headers=auth_headers(student),
-    ).status_code == 201
+    assert (
+        client.post(
+            f"/api/service-desk/assignments/{weekly_row['id']}/attempts",
+            headers=auth_headers(student),
+        ).status_code
+        == 201
+    )

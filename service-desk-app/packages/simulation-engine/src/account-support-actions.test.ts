@@ -21,9 +21,27 @@ function establishDiagnosis(
     payload: { directoryUserId },
   });
   expect(result.event.success).toBe(true);
+  const ticketByUser: Readonly<Record<string, string>> = {
+    'directory-user-taylor-morgan': 'INC2511',
+    'directory-user-jordan-lee': 'INC2512',
+    'directory-user-camille-reyes': 'INC2513',
+  };
+  const identityMethod =
+    diagnosis === 'mfa-factor-unavailable'
+      ? ('manager-confirmation' as const)
+      : ('employee-id-directory-match' as const);
+  result = act(result.attempt, {
+    type: 'chat.verify_identity',
+    payload: {
+      contactId: directoryUserId,
+      ticketId: ticketByUser[directoryUserId]!,
+      method: identityMethod,
+    },
+  });
+  expect(result.event.success).toBe(true);
   result = act(result.attempt, {
     type: 'directory.verify_identity',
-    payload: { directoryUserId, method: 'approved-training-check' },
+    payload: { directoryUserId, method: identityMethod },
   });
   expect(result.event.success).toBe(true);
   if (diagnosis === 'mfa-factor-unavailable') {
@@ -42,6 +60,113 @@ function establishDiagnosis(
 }
 
 describe('foundational account support workflows', () => {
+  it('keeps safe generic account actions available after authorization', () => {
+    const directoryUserId = 'directory-user-jordan-lee';
+    const diagnosed = establishDiagnosis(
+      createAttempt(),
+      directoryUserId,
+      'password-expired',
+    );
+    const safeWrongAction = act(diagnosed, {
+      type: 'directory.reset_mfa',
+      payload: { directoryUserId },
+    });
+
+    expect(safeWrongAction.event.success).toBe(true);
+    expect(
+      safeWrongAction.attempt.directoryOverlays[directoryUserId]
+        ?.mfaFactorStatus,
+    ).toBe('reset-ready');
+    expect(
+      safeWrongAction.attempt.directoryOverlays[directoryUserId]?.passwordState,
+    ).toBe('expired');
+  });
+
+  it('requires matching Company Chat evidence before identity can be recorded', () => {
+    const directoryUserId = 'directory-user-taylor-morgan';
+    const inspected = act(createAttempt(), {
+      type: 'directory.inspect_account',
+      payload: { directoryUserId },
+    });
+
+    const withoutChat = act(inspected.attempt, {
+      type: 'directory.verify_identity',
+      payload: { directoryUserId, method: 'employee-id-directory-match' },
+    });
+    expect(withoutChat.event.success).toBe(false);
+    expect(withoutChat.event.rejectReason).toContain('Company Chat');
+
+    const wrongTicket = act(withoutChat.attempt, {
+      type: 'chat.verify_identity',
+      payload: {
+        contactId: directoryUserId,
+        ticketId: 'INC2512',
+        method: 'employee-id-directory-match',
+      },
+    });
+    expect(wrongTicket.event.success).toBe(false);
+    expect(
+      wrongTicket.attempt.directoryOverlays[directoryUserId]
+        ?.identityVerificationMethod,
+    ).toBeNull();
+
+    const unavailableMethod = act(wrongTicket.attempt, {
+      type: 'chat.verify_identity',
+      payload: {
+        contactId: directoryUserId,
+        ticketId: 'INC2511',
+        method: 'known-number-callback',
+      },
+    });
+    expect(unavailableMethod.event.success).toBe(false);
+    expect(unavailableMethod.event.rejectReason).toContain('not available');
+
+    const matchingChat = act(unavailableMethod.attempt, {
+      type: 'chat.verify_identity',
+      payload: {
+        contactId: directoryUserId,
+        ticketId: 'INC2511',
+        method: 'manager-confirmation',
+      },
+    });
+    expect(matchingChat.event.success).toBe(true);
+
+    const wrongMethod = act(matchingChat.attempt, {
+      type: 'directory.verify_identity',
+      payload: { directoryUserId, method: 'known-number-callback' },
+    });
+    expect(wrongMethod.event.success).toBe(false);
+
+    const matchingMethod = act(wrongMethod.attempt, {
+      type: 'directory.verify_identity',
+      payload: { directoryUserId, method: 'manager-confirmation' },
+    });
+    expect(matchingMethod.event.success).toBe(true);
+  });
+
+  it('reports the original symptom as broken before remediation', () => {
+    const contactId = 'directory-user-taylor-morgan';
+    const earlyRetest = act(createAttempt(), {
+      type: 'chat.request_resolution_confirmation',
+      payload: { contactId, ticketId: 'INC2511' },
+    });
+
+    expect(earlyRetest.event.success).toBe(true);
+    expect(
+      earlyRetest.attempt.chatThreads[contactId]?.messages.at(-1)?.triggerKey,
+    ).toBe('original-symptom-still-broken');
+
+    const prematureNote = act(earlyRetest.attempt, {
+      type: 'ticket.add_note',
+      payload: {
+        ticketId: 'INC2511',
+        body: 'Confirmed the cause, repaired the lock, and verified sign-in was restored.',
+      },
+    });
+    expect(prematureNote.event.success).toBe(false);
+    expect(prematureNote.event.rejectReason).toContain('sign-in');
+  });
+
   it('rejects a guessed unlock, then supports inspect through verification', () => {
     const directoryUserId = 'directory-user-taylor-morgan';
     const guessed = act(createAttempt(), {
@@ -49,7 +174,7 @@ describe('foundational account support workflows', () => {
       payload: { directoryUserId },
     });
     expect(guessed.event.success).toBe(false);
-    expect(guessed.event.rejectReason).toContain('diagnosis');
+    expect(guessed.event.rejectReason).toContain('identity check');
     const guessedClose = act(guessed.attempt, {
       type: 'ticket.close',
       payload: {
@@ -82,9 +207,14 @@ describe('foundational account support workflows', () => {
     expect(
       verify.attempt.directoryOverlays[directoryUserId]?.accessVerified,
     ).toBe(true);
+    const confirmed = act(verify.attempt, {
+      type: 'chat.request_resolution_confirmation',
+      payload: { contactId: directoryUserId, ticketId: 'INC2511' },
+    });
+    expect(confirmed.event.success).toBe(true);
     const note =
       'Confirmed the lock diagnosis, repaired it by unlocking the account, and verified the original sign-in was restored.';
-    const documented = act(verify.attempt, {
+    const documented = act(confirmed.attempt, {
       type: 'ticket.add_note',
       payload: { ticketId: 'INC2511', body: note },
     });
@@ -120,7 +250,12 @@ describe('foundational account support workflows', () => {
       payload: { directoryUserId, check: 'temporary-password-issued' },
     });
     expect(verify.event.success).toBe(true);
-    const documented = act(verify.attempt, {
+    const confirmed = act(verify.attempt, {
+      type: 'chat.request_resolution_confirmation',
+      payload: { contactId: directoryUserId, ticketId: 'INC2512' },
+    });
+    expect(confirmed.event.success).toBe(true);
+    const documented = act(confirmed.attempt, {
       type: 'ticket.add_note',
       payload: {
         ticketId: 'INC2512',
@@ -150,7 +285,12 @@ describe('foundational account support workflows', () => {
       payload: { directoryUserId, check: 'mfa-reregistration-ready' },
     });
     expect(verify.event.success).toBe(true);
-    const documented = act(verify.attempt, {
+    const confirmed = act(verify.attempt, {
+      type: 'chat.request_resolution_confirmation',
+      payload: { contactId: directoryUserId, ticketId: 'INC2513' },
+    });
+    expect(confirmed.event.success).toBe(true);
+    const documented = act(confirmed.attempt, {
       type: 'ticket.add_note',
       payload: {
         ticketId: 'INC2513',

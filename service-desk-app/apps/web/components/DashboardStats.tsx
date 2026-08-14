@@ -30,7 +30,7 @@ export function DashboardStats() {
     },
     {
       icon: IconChecks,
-      label: 'Completed',
+      label: 'Assessments passed',
       value: progression?.counts.completed ?? fallbackCompleted,
     },
     {

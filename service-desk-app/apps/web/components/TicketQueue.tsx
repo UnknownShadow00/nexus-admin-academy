@@ -60,8 +60,9 @@ export function TicketQueue() {
             My Service Desk
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-            Start with the cases assigned to your shift. Passed cases become
-            replayable practice; unfinished older cases remain available below.
+            Start with the cases assigned to your shift. Assessment passes
+            demonstrate mastery; passed cases remain replayable without
+            curriculum stakes.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs font-bold uppercase text-zinc-500">
@@ -110,7 +111,7 @@ export function TicketQueue() {
             Practice
           </h2>
           <span className="ml-auto text-right text-xs font-semibold text-zinc-500">
-            Replay cases you have completed
+            Independent replay · no mastery or XP
           </span>
         </div>
         {practiceTickets.length > 0 ? (
@@ -123,8 +124,8 @@ export function TicketQueue() {
           />
         ) : (
           <Card className="border-dashed border-zinc-800 px-4 py-4 text-sm text-zinc-500">
-            No completed cases yet. Successfully complete an assigned case to
-            add it here for replay.
+            No mastered cases yet. Pass an assessment to add it here for
+            independent replay.
           </Card>
         )}
       </section>

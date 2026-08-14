@@ -168,7 +168,7 @@ class _TrainingContext:
             .filter(ServiceDeskScenario.stable_key.in_(set(self.service_desk_scenarios)), ServiceDeskScenarioVersion.status == "published")
             .all()
         ]
-        service_attempts = db.query(ServiceDeskAttempt).filter(ServiceDeskAttempt.student_id == student.id, ServiceDeskAttempt.scenario_version_id.in_(service_version_ids), ServiceDeskAttempt.passed.is_(True)).order_by(ServiceDeskAttempt.completed_at.desc()).all() if service_version_ids else []
+        service_attempts = db.query(ServiceDeskAttempt).filter(ServiceDeskAttempt.student_id == student.id, ServiceDeskAttempt.scenario_version_id.in_(service_version_ids), ServiceDeskAttempt.passed.is_(True), ServiceDeskAttempt.experience_mode == "assessment").order_by(ServiceDeskAttempt.completed_at.desc()).all() if service_version_ids else []
         self.service_desk_completed_attempts = _latest_by(
             service_attempts, lambda row: row.scenario_version_id
         )

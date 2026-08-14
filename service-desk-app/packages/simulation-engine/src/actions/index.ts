@@ -3,6 +3,7 @@ import type {
   DeploymentBootSource,
   DeploymentCable,
   DeploymentPort,
+  IdentityVerificationMethod,
   PcShelfDeviceState,
   PcShelfNetworkStatus,
   RemoteDesktopAppId,
@@ -11,6 +12,7 @@ import type {
   ShippingEquipmentName,
   ShippingSpeed,
   TicketStatus,
+  WorkstationWindowBounds,
 } from '@service-desk/shared';
 
 interface TicketActionPayload {
@@ -110,7 +112,7 @@ export interface InspectDirectoryAccountAction {
 
 export interface VerifyDirectoryIdentityAction {
   type: 'directory.verify_identity';
-  payload: DirectoryActionPayload & { method: 'approved-training-check' };
+  payload: DirectoryActionPayload & { method: IdentityVerificationMethod };
 }
 
 export interface TestDirectoryPrimaryAuthAction {
@@ -163,6 +165,19 @@ export interface SendChatMessageAction {
   payload: ChatActionPayload & {
     body: string;
   };
+}
+
+export interface VerifyIdentityInChatAction {
+  type: 'chat.verify_identity';
+  payload: ChatActionPayload & {
+    method: IdentityVerificationMethod;
+    ticketId: string;
+  };
+}
+
+export interface RequestResolutionConfirmationAction {
+  type: 'chat.request_resolution_confirmation';
+  payload: ChatActionPayload & { ticketId: string };
 }
 
 export interface MarkChatPinnedAction {
@@ -327,6 +342,24 @@ export interface MinimizeRemoteDesktopAppAction {
   payload: RemoteDesktopActionPayload & { appId: RemoteDesktopAppId };
 }
 
+export interface MoveRemoteDesktopWindowAction {
+  type: 'remote_desktop.move_window';
+  payload: RemoteDesktopActionPayload & {
+    appId: RemoteDesktopAppId;
+    bounds: WorkstationWindowBounds;
+  };
+}
+
+export interface ToggleRemoteDesktopWindowMaximizeAction {
+  type: 'remote_desktop.toggle_window_maximize';
+  payload: RemoteDesktopActionPayload & { appId: RemoteDesktopAppId };
+}
+
+export interface SetRemoteDesktopStartMenuAction {
+  type: 'remote_desktop.set_start_menu';
+  payload: RemoteDesktopActionPayload & { open: boolean };
+}
+
 export interface ToggleRemoteDesktopTrainingModeAction {
   type: 'remote_desktop.toggle_training_mode';
   payload: RemoteDesktopActionPayload & { enabled: boolean };
@@ -365,6 +398,29 @@ export interface ReconnectRemoteDesktopExplorerDriveAction {
 export interface RefreshRemoteDesktopExplorerAction {
   type: 'remote_desktop.explorer_refresh';
   payload: RemoteDesktopActionPayload;
+}
+
+export interface MapRemoteDesktopDriveAction {
+  type: 'remote_desktop.map_drive';
+  payload: RemoteDesktopActionPayload & {
+    letter: string;
+    uncPath: string;
+    reconnectAtSignIn: boolean;
+    credentialTarget: string | null;
+  };
+}
+
+export interface AddRemoteDesktopCredentialAction {
+  type: 'remote_desktop.credential_add';
+  payload: RemoteDesktopActionPayload & {
+    target: string;
+    username: string;
+  };
+}
+
+export interface DeleteRemoteDesktopCredentialAction {
+  type: 'remote_desktop.credential_delete';
+  payload: RemoteDesktopActionPayload & { target: string };
 }
 
 export interface ConnectRemoteDesktopVpnAction {
@@ -498,6 +554,8 @@ export interface CancelShipmentAction {
 
 export type ChatSimulationAction =
   | SendChatMessageAction
+  | VerifyIdentityInChatAction
+  | RequestResolutionConfirmationAction
   | MarkChatPinnedAction
   | OpenChatThreadAction;
 
@@ -555,6 +613,9 @@ export type RemoteDesktopSimulationAction =
   | CloseRemoteDesktopAppAction
   | FocusRemoteDesktopAppAction
   | MinimizeRemoteDesktopAppAction
+  | MoveRemoteDesktopWindowAction
+  | ToggleRemoteDesktopWindowMaximizeAction
+  | SetRemoteDesktopStartMenuAction
   | ToggleRemoteDesktopTrainingModeAction
   | SetRemoteDesktopLearningModeAction
   | AddRemoteDesktopInternalNoteAction
@@ -563,6 +624,9 @@ export type RemoteDesktopSimulationAction =
   | NavigateRemoteDesktopExplorerAction
   | ReconnectRemoteDesktopExplorerDriveAction
   | RefreshRemoteDesktopExplorerAction
+  | MapRemoteDesktopDriveAction
+  | AddRemoteDesktopCredentialAction
+  | DeleteRemoteDesktopCredentialAction
   | ConnectRemoteDesktopVpnAction
   | CompleteRemoteDesktopVpnConnectionAction
   | DisconnectRemoteDesktopVpnAction
