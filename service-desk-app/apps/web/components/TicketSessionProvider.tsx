@@ -11,7 +11,6 @@ import {
   PC_SHELF_FIXTURES,
   PcShelfDeviceState,
   REMOTE_DESKTOP_WORKSTATION_FIXTURES,
-  getRemoteDesktopScenarioByTicket,
   getRemoteDesktopScenarioByAsset,
   getRemoteDesktopTerminalFixture,
   SERVER_ROOM_NODE_FIXTURES,
@@ -41,6 +40,7 @@ import {
 } from '@service-desk/shared';
 import {
   applyAction,
+  derivedRemoteDesktopWorkflowAction,
   createAttempt,
   createWorkstationState,
   deriveAnalyticsSummary,
@@ -96,6 +96,7 @@ import {
   startOrResumeAttempt,
   type NexusAttempt,
   type NexusAssignment,
+  type NexusGrade,
   type NexusServiceDeskProgression,
   type NexusAttemptCompletionInput,
 } from '../lib/nexus-service-desk-client';
@@ -119,6 +120,7 @@ interface TicketSessionContextValue {
   getTicket: (ticketId: string) => Ticket | undefined;
   recordHintReveal: (ticketId: string, step: number) => void;
   assignmentByTicket: Readonly<Record<string, NexusAssignment>>;
+  authoritativeGradeByTicket: Readonly<Record<string, NexusGrade>>;
   progression: NexusServiceDeskProgression | null;
   tickets: readonly Ticket[];
   unassignTicket: (ticketId: string) => void;
@@ -1204,6 +1206,9 @@ export function TicketSessionProvider({
   const attemptRef = useRef(attempt);
   const [hydrated, setHydrated] = useState(false);
   const [syncStatus, setSyncStatus] = useState<NexusSyncStatus>('saved');
+  const [authoritativeGradeByTicket, setAuthoritativeGradeByTicket] = useState<
+    Readonly<Record<string, NexusGrade>>
+  >({});
   const [runtimeTickets, setRuntimeTickets] =
     useState<readonly Ticket[]>(TICKET_FIXTURES);
   const [runtimeAssignments, setRuntimeAssignments] = useState<
@@ -1279,6 +1284,7 @@ export function TicketSessionProvider({
     let active = true;
 
     async function hydrateAttempt() {
+      setAuthoritativeGradeByTicket({});
       let restored: Attempt | null = null;
 
       try {
@@ -1436,6 +1442,28 @@ export function TicketSessionProvider({
           };
         }
 
+        const completedGrades: Record<string, NexusGrade> = {};
+        for (const assignment of assignments) {
+          const recentAttempt = assignment.most_recent_attempt;
+          if (!recentAttempt || recentAttempt.status !== 'completed') {
+            continue;
+          }
+          const completedAttempt = await getAttempt(recentAttempt.id);
+          if (!active) {
+            return;
+          }
+          if (completedAttempt?.grade) {
+            completedGrades[normalizeTicketKey(assignment.scenario.stable_key)] =
+              completedAttempt.grade;
+          }
+        }
+        if (Object.keys(completedGrades).length > 0) {
+          setAuthoritativeGradeByTicket((current) => ({
+            ...current,
+            ...completedGrades,
+          }));
+        }
+
         if (newestNexusAttempt) {
           nexusSnapshotTargetRef.current = {
             assignmentId: newestNexusAttempt.assignmentId,
@@ -1534,11 +1562,17 @@ export function TicketSessionProvider({
                 });
         if (!accepted)
           throw new Error('Nexus did not confirm the saved action.');
-        if (
-          item.completion &&
-          !(await completeAttempt(attemptId, item.completion))
-        ) {
-          throw new Error('Nexus could not complete the attempt yet.');
+        if (item.completion) {
+          const grade = await completeAttempt(attemptId, item.completion);
+          if (!grade) {
+            throw new Error('Nexus could not complete the attempt yet.');
+          }
+          // Final pass/fail and score are server-owned. Local workflow state
+          // may guide the student, but cannot be rendered as a final grade.
+          setAuthoritativeGradeByTicket((current) => ({
+            ...current,
+            [item.ticketId]: grade,
+          }));
         }
         nexusOutboxRef.current.items.shift();
         nexusSyncFailedRef.current = false;
@@ -1686,6 +1720,24 @@ export function TicketSessionProvider({
         : [];
       const result = applyAction(attemptRef.current, actorId, action);
       let nextAttempt = result.attempt;
+      const eventsToSync: Array<{
+        action: SimulationAction;
+        event: ActionEvent;
+      }> = [{ action, event: result.event }];
+      if (result.event.success && isRemoteDesktopSimulationAction(action)) {
+        const before = attemptRef.current.remoteDesktopOverlays[
+          action.payload.assetTag
+        ];
+        const after = result.attempt.remoteDesktopOverlays[action.payload.assetTag];
+        if (before && after) {
+          const derived = derivedRemoteDesktopWorkflowAction(action, before, after);
+          if (derived) {
+            const derivedResult = applyAction(nextAttempt, actorId, derived);
+            nextAttempt = derivedResult.attempt;
+            eventsToSync.push({ action: derived, event: derivedResult.event });
+          }
+        }
+      }
       let completion: NexusAttemptCompletionInput | null = null;
 
       if (action.type === 'ticket.close' && result.event.success) {
@@ -1700,44 +1752,8 @@ export function TicketSessionProvider({
             'assessment',
         };
 
-        const scenario = getRemoteDesktopScenarioByTicket(
-          action.payload.ticketId,
-        );
-        const remoteOverlay = scenario
-          ? result.attempt.remoteDesktopOverlays[scenario.assetTag]
-          : undefined;
-        const progress =
-          scenario && remoteOverlay
-            ? remoteOverlay.scenarioProgress[scenario.id]
-            : undefined;
-        const normalizedScore = grade.pointsPossible
-          ? Math.round((grade.pointsAwarded / grade.pointsPossible) * 100)
-          : 0;
-        const feedbackSummary =
-          grade.penaltyPoints > 0
-            ? `All required workflow checks passed. The final score includes ${grade.penaltyPoints} hint or closure penalty points.`
-            : 'All required diagnosis, repair, verification, note, and closure checks passed.';
-        const remoteDesktopOverlays =
-          scenario?.workflow && remoteOverlay && progress
-            ? {
-                ...result.attempt.remoteDesktopOverlays,
-                [scenario.assetTag]: {
-                  ...remoteOverlay,
-                  scenarioProgress: {
-                    ...remoteOverlay.scenarioProgress,
-                    [scenario.id]: {
-                      ...progress,
-                      finalScore: normalizedScore,
-                      feedback: feedbackSummary,
-                    },
-                  },
-                },
-              }
-            : result.attempt.remoteDesktopOverlays;
-
         nextAttempt = {
           ...result.attempt,
-          remoteDesktopOverlays,
           grades: {
             ...result.attempt.grades,
             [action.payload.ticketId]: grade,
@@ -1784,43 +1800,48 @@ export function TicketSessionProvider({
         }
       }
 
-      if (
-        NEXUS_INTEGRATION_ENABLED &&
-        result.event.success &&
-        !isRemoteDesktopSessionUiAction(action) &&
-        (isTicketSimulationAction(action) ||
-          isChatSimulationAction(action) ||
-          isAssetSimulationAction(action) ||
-          isDirectorySimulationAction(action) ||
-          isRemoteDesktopSimulationAction(action) ||
-          isShippingSimulationAction(action))
-      ) {
+      for (const item of eventsToSync) {
+        const syncedAction = item.action;
+        const syncedEvent = item.event;
+        if (
+          !NEXUS_INTEGRATION_ENABLED ||
+          !syncedEvent.success ||
+          isRemoteDesktopSessionUiAction(syncedAction) ||
+          !(isTicketSimulationAction(syncedAction) ||
+            isChatSimulationAction(syncedAction) ||
+            isAssetSimulationAction(syncedAction) ||
+            isDirectorySimulationAction(syncedAction) ||
+            isRemoteDesktopSimulationAction(syncedAction) ||
+            isShippingSimulationAction(syncedAction))
+        ) {
+          continue;
+        }
         // Every queued Nexus event carries the full post-action snapshot used
         // by a clean browser context.  Publish it before queueing so the
         // snapshot includes this action rather than the preceding one.
         attemptRef.current = nextAttempt;
-        const syncDetails = getNexusActionSyncDetails(action, nextAttempt);
+        const syncDetails = getNexusActionSyncDetails(syncedAction, nextAttempt);
         if (syncDetails) {
           queueNexusActionSync(
-            action,
-            result.event,
+            syncedAction,
+            syncedEvent,
             syncDetails,
-            action.type === 'ticket.close' && result.event.success
+            syncedAction.type === 'ticket.close' && syncedEvent.success
               ? completion
               : null,
           );
         } else {
-          const warningKey = getUnattributedNexusActionWarningKey(action);
+          const warningKey = getUnattributedNexusActionWarningKey(syncedAction);
           if (warningKey && !nexusUnmappedWarningsRef.current.has(warningKey)) {
             nexusUnmappedWarningsRef.current.add(warningKey);
             console.warn(
-              `Nexus cannot attribute ${action.type} to a service desk ticket; keeping it local-only.`,
+              `Nexus cannot attribute ${syncedAction.type} to a service desk ticket; keeping it local-only.`,
             );
           }
           // The action cannot become trusted grading evidence, but its
           // post-action state must still survive refresh and clean-browser
           // resume through the untrusted snapshot channel.
-          queueNexusSnapshotSync(result.event);
+          queueNexusSnapshotSync(syncedEvent);
         }
       }
 
@@ -1940,6 +1961,7 @@ export function TicketSessionProvider({
   const ticketSessionValue = useMemo<TicketSessionContextValue>(
     () => ({
       assignmentByTicket: runtimeAssignments,
+      authoritativeGradeByTicket,
       addNote: (ticketId, body) => {
         dispatchAction({
           type: 'ticket.add_note',
@@ -1986,7 +2008,13 @@ export function TicketSessionProvider({
         });
       },
     }),
-    [dispatchAction, runtimeAssignments, serviceDeskProgression, tickets],
+    [
+      authoritativeGradeByTicket,
+      dispatchAction,
+      runtimeAssignments,
+      serviceDeskProgression,
+      tickets,
+    ],
   );
 
   const scoreValue = useMemo<AttemptScoreContextValue>(

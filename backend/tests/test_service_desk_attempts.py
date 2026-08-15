@@ -10,7 +10,10 @@ from app.models.service_desk import (
 from app.models.xp_ledger import XPLedger
 from app.routers import service_desk
 from app.services.service_desk_grading import compute_grade
-from app.services.service_desk_objectives import SCENARIO_OBJECTIVES
+from app.services.service_desk_objectives import (
+    SCENARIO_OBJECTIVES,
+    payload_matches,
+)
 from app.services.service_desk_objectives import PROCESS_CATALOG_VERSION
 from conftest import auth_headers, make_client, make_student
 
@@ -24,6 +27,28 @@ def _process_ticket_id(stable_key: str) -> str:
         for rule in objective.any_of
         if "ticketId" in rule.payload
     )
+
+
+@pytest.mark.parametrize(
+    ("actual", "expected"),
+    [
+        ({"path": "Z:\\"}, {"path": "Z:"}),
+        ({"path": "Y:"}, {"path": "Y:\\"}),
+        (
+            {"uncPath": r"\\FACILITIES.NEXUS.INTERNAL\calendar\\"},
+            {"uncPath": r"\\facilities.nexus.internal\CALENDAR"},
+        ),
+    ],
+)
+def test_windows_path_payload_fields_are_canonicalized(actual, expected):
+    assert payload_matches(actual, expected) is True
+
+
+def test_non_path_payload_fields_remain_exact():
+    assert payload_matches(
+        {"ticketId": "inc2405", "stepId": "explorer.verify-share", "command": "NET USE"},
+        {"ticketId": "INC2405", "stepId": "explorer.verify-share", "command": "net use"},
+    ) is False
 
 
 def setup_assignment(
@@ -166,6 +191,31 @@ def complete_process_workflow(client, student, attempt_id, stable_key):
         for objective_index, objective in enumerate(category.objectives):
             rule = objective.any_of[0]
             payload = dict(rule.payload)
+            if (
+                stable_key == "inc2406"
+                and rule.event_type == "remote_desktop.explorer_navigate"
+                and payload.get("path") == "Z:"
+            ):
+                # File Explorer naturally emits the drive root with a slash.
+                payload["path"] = "Z:\\"
+            if (
+                stable_key == "inc2405"
+                and rule.event_type == "remote_desktop.perform_scenario_step"
+                and payload.get("stepId") == "explorer.verify-share"
+            ):
+                # The browser derives the scenario-step audit event from this
+                # real Explorer navigation; it is never a student control.
+                response = client.post(
+                    path,
+                    headers=headers,
+                    json={
+                        "idempotency_key": "explorer-verify-source",
+                        "event_type": "remote_desktop.explorer_navigate",
+                        "tool": "remote_desktop",
+                        "payload": {"assetTag": "NX-6128", "path": "Y:\\"},
+                    },
+                )
+                assert response.status_code == 201, response.text
             if (
                 rule.event_type == "ticket.add_note"
                 or rule.event_type == "remote_desktop.add_internal_note"
@@ -1294,6 +1344,68 @@ def test_inc2405_correct_target_evidence_passes(db):
     client = make_client(service_desk.router)
     attempt_id = start(client, student, assignment).json()["id"]
     complete_process_workflow(client, student, attempt_id, "inc2405")
+    close(client, student, attempt_id)
+    grade = client.post(
+        f"/api/service-desk/attempts/{attempt_id}/complete",
+        headers=auth_headers(student),
+        json={"idempotency_key": "complete"},
+    )
+    assert grade.json()["passed"] is True and grade.json()["overall_score"] == 100
+
+
+def test_inc2405_rejects_a_direct_verification_step_without_explorer_source(db):
+    student = make_student(db, username="inc2405-forged-step")
+    assignment = setup_assignment(
+        db, student, stable_key="inc2405", priority="low", process_profile=True
+    )
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+    headers = auth_headers(student)
+    path = f"/api/service-desk/attempts/{attempt_id}/actions"
+
+    # Establish all preceding server-trusted workflow evidence, then prove a
+    # replayed/direct scenario-step cannot stand in for UI navigation.
+    definition = SCENARIO_OBJECTIVES["inc2405"]
+    for category in definition.categories[:3]:
+        for objective in category.objectives:
+            rule = objective.any_of[0]
+            response = client.post(
+                path,
+                headers=headers,
+                json={
+                    "idempotency_key": f"{category.name}-{objective.id}",
+                    "event_type": rule.event_type,
+                    "tool": _tool_for(rule),
+                    "payload": rule.payload,
+                },
+            )
+            assert response.status_code == 201, response.text
+
+    forged = client.post(
+        path,
+        headers=headers,
+        json={
+            "idempotency_key": "forged-verify",
+            "event_type": "remote_desktop.perform_scenario_step",
+            "tool": "remote_desktop",
+            "payload": {
+                "assetTag": "NX-6128",
+                "ticketId": "INC2405",
+                "stepId": "explorer.verify-share",
+            },
+        },
+    )
+    assert forged.status_code == 409
+
+
+def test_inc2406_accepts_real_explorer_drive_root_spelling(db):
+    student = make_student(db, username="inc2406-explorer-root")
+    assignment = setup_assignment(
+        db, student, stable_key="inc2406", priority="low", process_profile=True
+    )
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+    complete_process_workflow(client, student, attempt_id, "inc2406")
     close(client, student, attempt_id)
     grade = client.post(
         f"/api/service-desk/attempts/{attempt_id}/complete",

@@ -38,12 +38,10 @@ describe('remote desktop learning presentation', () => {
     expect(hasAnotherHint(VPN_SCENARIO, 1, 'guided', false)).toBe(true);
   });
 
-  it('blocks Assessment hints until completion, then exposes student-safe hints', () => {
+  it('never exposes Guided hint text in an Assessment attempt', () => {
     expect(progressiveHints(VPN_SCENARIO, 3, 'assessment', false)).toEqual([]);
     expect(hasAnotherHint(VPN_SCENARIO, 0, 'assessment', false)).toBe(false);
-    expect(progressiveHints(VPN_SCENARIO, 0, 'assessment', true)).toEqual(
-      VPN_SCENARIO.studentHints,
-    );
+    expect(progressiveHints(VPN_SCENARIO, 3, 'assessment', true)).toEqual([]);
   });
 
   it('keeps raw requirements for the mentor review while student labels stay natural', () => {

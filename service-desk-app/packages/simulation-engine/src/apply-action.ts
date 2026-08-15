@@ -1331,7 +1331,7 @@ function terminalWorkflowEvidence(
   return null;
 }
 
-function workflowEvidenceForAction(
+export function workflowEvidenceForAction(
   scenario: RemoteDesktopScenarioFixture,
   action: RemoteDesktopSimulationAction,
   before: RemoteDesktopOverlay,
@@ -1490,6 +1490,36 @@ function workflowEvidenceForAction(
     }
   }
   return null;
+}
+
+/**
+ * Convert UI-reachable workflow evidence into the matching trusted server
+ * action.  This keeps scenario-step events as an audit record of a real
+ * simulator transition instead of exposing a second "complete" control.
+ */
+export function derivedRemoteDesktopWorkflowAction(
+  action: RemoteDesktopSimulationAction,
+  before: RemoteDesktopOverlay,
+  after: RemoteDesktopOverlay,
+): RemoteDesktopSimulationAction | null {
+  if (
+    action.type !== 'remote_desktop.explorer_navigate' &&
+    action.type !== 'remote_desktop.explorer_refresh'
+  ) {
+    return null;
+  }
+  const scenario = getRemoteDesktopScenarioByAsset(action.payload.assetTag);
+  if (!scenario?.serverEvidenceSteps?.length) return null;
+  const stepId = workflowEvidenceForAction(scenario, action, before, after);
+  if (!stepId || !scenario.serverEvidenceSteps.includes(stepId)) return null;
+  return {
+    type: 'remote_desktop.perform_scenario_step',
+    payload: {
+      assetTag: scenario.assetTag,
+      ticketId: scenario.ticketId,
+      stepId,
+    },
+  };
 }
 
 function recordRemoteDesktopWorkflowProgress(

@@ -759,7 +759,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await expect(pageA1.getByText(TICKET_ID).first()).toBeVisible();
     await prepareInc2401Workflow(pageA1);
     await pageA1.getByRole("button", { name: "Close ticket" }).click();
-    await expect(pageA1.getByText("Solution complete")).toBeVisible();
+    await expect(pageA1.getByText("Server assessment complete")).toBeVisible({ timeout: 10_000 });
     await expect(pageA1.getByText("Saving…")).toBeHidden();
 
     // --- Verify Nexus is now authoritative for this attempt ---
@@ -877,7 +877,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     );
     await page.getByRole("button", { name: "Save internal note" }).click();
     await page.getByRole("button", { name: "Close ticket" }).click();
-    await expect(page.getByText("Solution complete")).toBeVisible();
+    await expect(page.getByText("Server assessment complete")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("Saving…")).toBeHidden();
 
     const assignment = await getMyAssignment(page, "inc2402");

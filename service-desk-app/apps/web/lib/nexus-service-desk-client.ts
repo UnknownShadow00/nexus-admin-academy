@@ -67,6 +67,7 @@ export interface NexusAttempt {
   completed_at: string | null;
   current_state: Record<string, unknown>;
   current_state_hash: string;
+  grade?: NexusGrade | null;
   id: string | number;
   mode: string;
   experience_mode: 'guided' | 'practice' | 'assessment';

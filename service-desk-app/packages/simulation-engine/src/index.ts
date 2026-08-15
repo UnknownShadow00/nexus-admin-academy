@@ -75,7 +75,12 @@ export {
   type UnlockDirectoryAccountAction,
   type UpdateDirectoryGroupsAction,
 } from './actions';
-export { applyAction, type ApplyActionResult } from './apply-action';
+export {
+  applyAction,
+  derivedRemoteDesktopWorkflowAction,
+  workflowEvidenceForAction,
+  type ApplyActionResult,
+} from './apply-action';
 export { applyScenarioTicketAction } from './apply-scenario-ticket-action';
 export {
   CHAT_REPLY_RULES,
