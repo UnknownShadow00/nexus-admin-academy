@@ -1442,6 +1442,28 @@ export function TicketSessionProvider({
           };
         }
 
+        const completedGrades: Record<string, NexusGrade> = {};
+        for (const assignment of assignments) {
+          const recentAttempt = assignment.most_recent_attempt;
+          if (!recentAttempt || recentAttempt.status !== 'completed') {
+            continue;
+          }
+          const completedAttempt = await getAttempt(recentAttempt.id);
+          if (!active) {
+            return;
+          }
+          if (completedAttempt?.grade) {
+            completedGrades[normalizeTicketKey(assignment.scenario.stable_key)] =
+              completedAttempt.grade;
+          }
+        }
+        if (Object.keys(completedGrades).length > 0) {
+          setAuthoritativeGradeByTicket((current) => ({
+            ...current,
+            ...completedGrades,
+          }));
+        }
+
         if (newestNexusAttempt) {
           nexusSnapshotTargetRef.current = {
             assignmentId: newestNexusAttempt.assignmentId,

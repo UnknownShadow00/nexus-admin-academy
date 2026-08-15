@@ -74,6 +74,44 @@ backend’s existing assessment-mode 409 remains unchanged. A server-rendered
 DOM test verifies that prior Guided hint text is absent from a resumed
 Assessment view.
 
+## Independent review findings (addressed)
+
+An independent review of this diff (pre-merge) found two real regressions,
+both fixed in this branch:
+
+- Completed attempt grades disappeared from `CompletionSummary` after a
+  browser refresh or resumed session, because `authoritativeGradeByTicket`
+  was only ever populated during the live completion round trip and reset to
+  empty on every hydration. `TicketSessionProvider.tsx`'s attempt-hydration
+  effect now also fetches the attempt for any assignment whose
+  `most_recent_attempt.status === 'completed'` and seeds
+  `authoritativeGradeByTicket` from its server `grade`, so a completed
+  scenario shows its real result on resume instead of a misleading
+  "awaiting server grade" state.
+- The Assessment-mode hint panel still read "Hints are now available because
+  the assessment is complete," left over from before hints were permanently
+  suppressed in Assessment mode. Copy corrected to state hints are simply
+  not shown during an assessment attempt.
+
+## Known pre-existing scope boundary (not addressed by this hotfix)
+
+The review also confirmed that a sufficiently sophisticated attacker could
+bypass `_action_allowed`'s trusted-event check by POSTing a hand-crafted
+`remote_desktop.explorer_navigate` event with a matching payload directly to
+`/attempts/{id}/actions`, without ever having driven the real simulator to
+that state, and then following it with the derived `perform_scenario_step`.
+This is not a new gap introduced by this hotfix: every existing scenario
+objective (diagnosis, remediation, etc., across all eight seeded scenarios)
+already trusts `event.trusted`/`event.success` from the same
+payload-matching mechanism rather than a server-side replay of the
+TypeScript simulation engine, as already documented in
+`docs/SERVICE_DESK_TRUST_BOUNDARY.md`. Closing it for real would mean
+porting `evaluate-objectives.ts`'s deterministic replay to the Python
+backend (or requiring mentor sign-off before a completion counts toward
+progression) — a substantial, already-tracked P0 scope gap, not something a
+narrowly-scoped grading hotfix should absorb. This hotfix does not make that
+boundary any wider than it already was for every other objective category.
+
 ## Explicitly out of scope
 
 - Mail/Company Chat requester-name cosmetic issue.

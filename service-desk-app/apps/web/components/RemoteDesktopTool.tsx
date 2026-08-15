@@ -492,13 +492,12 @@ function Feedback({
 
 export function ProgressiveHints({
   canReveal,
-  completed,
   hints,
   learningMode,
   onReveal,
 }: {
   canReveal: boolean;
-  completed: boolean;
+  completed?: boolean;
   hints: readonly string[];
   learningMode: 'guided' | 'practice' | 'assessment';
   onReveal: () => void;
@@ -520,9 +519,7 @@ export function ProgressiveHints({
               ? 'The first hint appears proactively; reveal more as you work.'
               : learningMode === 'practice'
                 ? 'Hints are available on request.'
-                : completed
-                  ? 'Hints are now available because the assessment is complete.'
-                  : 'Hints remain unavailable until this assessment is complete.'}
+                : 'Hints are not shown during an assessment attempt.'}
           </p>
         </div>
       </div>
