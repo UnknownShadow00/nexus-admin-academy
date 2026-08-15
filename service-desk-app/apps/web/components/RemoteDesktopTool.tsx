@@ -23,7 +23,7 @@ import {
   IconWifi,
   IconX,
 } from '@tabler/icons-react';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import {
   type RemoteDesktopWorkstationRecord,
@@ -31,6 +31,7 @@ import {
   useSessionIdentity,
   useTicketSession,
 } from './TicketSessionProvider';
+import type { NexusGrade } from '../lib/nexus-service-desk-client';
 import {
   canInspectScenarioRequirements,
   hasAnotherHint,
@@ -100,7 +101,8 @@ export function RemoteDesktopTool() {
     tickets.assignmentByTicket[ticketId]?.experience_mode;
   const learningMode =
     assignedExperienceMode ?? workstation?.learningMode ?? 'guided';
-  const hintsRevealed = ticket?.hintsRevealedCount ?? 0;
+  const hintsRevealed =
+    learningMode === 'assessment' ? 0 : (ticket?.hintsRevealedCount ?? 0);
   const canReviewScenario = canInspectScenarioRequirements(identity);
   const scenarioComplete =
     workstation?.completedScenarioIds.includes(scenario.id) ?? false;
@@ -399,7 +401,7 @@ export function RemoteDesktopTool() {
             {workstation?.completedScenarioIds.includes(scenario.id) ? (
               <CompletionSummary
                 hintsUsed={hintsRevealed}
-                hintTexts={scenario.studentHints.slice(0, hintsRevealed)}
+                hintTexts={revealedHints}
                 onClose={
                   scenario.workflow
                     ? undefined
@@ -412,6 +414,7 @@ export function RemoteDesktopTool() {
                 }
                 progress={workflowProgress}
                 scenario={scenario}
+                serverGrade={tickets.authoritativeGradeByTicket[scenario.ticketId]}
                 workstation={workstation}
               />
             ) : null}
@@ -487,7 +490,7 @@ function Feedback({
   );
 }
 
-function ProgressiveHints({
+export function ProgressiveHints({
   canReveal,
   completed,
   hints,
@@ -659,12 +662,13 @@ function WorkflowClosure({
   );
 }
 
-function CompletionSummary({
+export function CompletionSummary({
   hintTexts,
   hintsUsed,
   onClose,
   progress,
   scenario,
+  serverGrade,
   workstation,
 }: {
   hintTexts: readonly string[];
@@ -672,6 +676,7 @@ function CompletionSummary({
   onClose?: () => void;
   progress: RemoteDesktopScenarioProgress | undefined;
   scenario: (typeof REMOTE_DESKTOP_SCENARIOS)[number];
+  serverGrade: NexusGrade | undefined;
   workstation: RemoteDesktopWorkstationRecord;
 }) {
   const complete = new Set(workstation.scenarioSteps[scenario.id] ?? []);
@@ -695,7 +700,11 @@ function CompletionSummary({
     <section className="rounded-sm border border-emerald-400/35 bg-emerald-400/[0.08] p-4">
       <IconCheck aria-hidden="true" className="h-7 w-7 text-emerald-300" />
       <p className="mt-2 font-display text-xl font-bold text-emerald-100">
-        Solution complete
+        {serverGrade
+          ? serverGrade.passed
+            ? 'Server assessment complete'
+            : 'Server assessment incomplete'
+          : 'Awaiting authoritative server grade'}
       </p>
       <div className="mt-4 space-y-3 text-sm leading-6 text-emerald-50/90">
         <p>
@@ -734,14 +743,23 @@ function CompletionSummary({
         <p className="mt-1 text-emerald-50/85">
           {hintTexts.length ? hintTexts.join(' · ') : 'None.'}
         </p>
-        <p className="mt-3 text-emerald-50/85">
-          <span className="font-semibold text-emerald-100">Final score:</span>{' '}
-          {progress?.finalScore ?? 100}/100
-        </p>
-        <p className="mt-1 text-emerald-50/85">
-          <span className="font-semibold text-emerald-100">Feedback:</span>{' '}
-          {progress?.feedback ?? 'The reported service is working again.'}
-        </p>
+        {serverGrade ? (
+          <>
+            <p className="mt-3 text-emerald-50/85">
+              <span className="font-semibold text-emerald-100">Final score:</span>{' '}
+              {serverGrade.overall_score}/100
+            </p>
+            <p className="mt-1 text-emerald-50/85">
+              <span className="font-semibold text-emerald-100">Feedback:</span>{' '}
+              {serverGrade.feedback_summary}
+            </p>
+          </>
+        ) : (
+          <p className="mt-3 text-emerald-50/85">
+            Your work is saved locally. Final pass/fail and score will appear
+            only after the server confirms this attempt.
+          </p>
+        )}
       </div>
       {onClose ? (
         <Button className="mt-4" onClick={onClose} variant="soft">

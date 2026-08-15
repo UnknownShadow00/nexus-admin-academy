@@ -117,6 +117,12 @@ export interface RemoteDesktopScenarioFixture {
   requiredSteps: readonly string[];
   optionalSteps: readonly string[];
   incorrectSteps: readonly string[];
+  /**
+   * Workflow keys whose trusted server evidence is derived from a real UI
+   * action.  The dispatcher emits the matching scenario-step event only after
+   * the simulation has reached that key; these are not student controls.
+   */
+  serverEvidenceSteps?: readonly string[];
   /** Phase-aware objectives are opt-in so the four legacy scenarios remain unchanged. */
   workflow?: RemoteDesktopScenarioWorkflow;
   completion: {
@@ -1069,6 +1075,7 @@ const CURATED_REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] 
       requiredSteps: [],
       optionalSteps: ['chat.confirm-restored'],
       incorrectSteps: ['vpn.connect', 'settings.clear-profile-storage'],
+      serverEvidenceSteps: ['explorer.verify-share'],
       workflow: {
         investigate: [
           {

@@ -26,7 +26,11 @@ from app.schemas.service_desk import (
     ServiceDeskHintCreate,
     ServiceDeskSnapshotCreate,
 )
-from app.services.service_desk_objectives import objective_definition, payload_matches
+from app.services.service_desk_objectives import (
+    DERIVED_REMOTE_STEP_SOURCES,
+    objective_definition,
+    payload_matches,
+)
 from app.services.auth_service import (
     ensure_student_access,
     ensure_student_ownership,
@@ -714,10 +718,20 @@ def _action_allowed(
     if definition is None:
         return False
     rules = definition.authorized_rules
+    source_for_derived_step = next(
+        (
+            source
+            for (source_key, _), source in DERIVED_REMOTE_STEP_SOURCES.items()
+            if source_key == key
+            and source.event_type == event_type
+            and payload_matches(payload, source.payload)
+        ),
+        None,
+    )
     action_matches = any(
         rule.event_type == event_type and payload_matches(payload, rule.payload)
         for rule in rules
-    )
+    ) or source_for_derived_step is not None
     if not action_matches:
         return False
 
@@ -741,6 +755,34 @@ def _action_allowed(
             and event.event_type == event_name
             and payload_matches(event.payload_json or {}, expected_payload)
             for event in events
+        )
+
+    derived_source = (
+        DERIVED_REMOTE_STEP_SOURCES.get((key, payload.get("stepId")))
+        if event_type == "remote_desktop.perform_scenario_step"
+        else None
+    )
+    if derived_source and not has_trusted(
+        derived_source.event_type, derived_source.payload
+    ):
+        return False
+
+    if source_for_derived_step:
+        # The source action is accepted only after the preceding process phases.
+        # It remains an audit prerequisite, not a second way to earn a category.
+        return all(
+            any(
+                event.trusted is True
+                and event.success is True
+                and any(
+                    event.event_type == rule.event_type
+                    and payload_matches(event.payload_json or {}, rule.payload)
+                    for rule in objective.any_of
+                )
+                for event in events
+            )
+            for category in definition.categories[:3]
+            for objective in category.objectives
         )
 
     if key in {"locked-user-account", "password-reset", "mfa-reset"}:

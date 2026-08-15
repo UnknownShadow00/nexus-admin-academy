@@ -21,6 +21,10 @@ PROCESS_WEIGHTS = {
     "documentation": 10,
 }
 
+# Only these payload fields represent Windows filesystem paths. Every other
+# evidence field remains exact, including IDs, commands, and workflow keys.
+WINDOWS_PATH_PAYLOAD_FIELDS = frozenset({"path", "uncPath"})
+
 
 @dataclass(frozen=True)
 class EvidenceRule:
@@ -70,6 +74,20 @@ class ScenarioObjectiveDefinition:
             for objective in category.objectives
             for rule in objective.any_of
         )
+
+
+# A scenario-step event can be a derived audit record of a concrete UI action.
+# Its source event is separately required by the transition graph, so posting
+# the scenario step directly cannot skip the real Explorer transition.
+DERIVED_REMOTE_STEP_SOURCES: dict[tuple[str, str], EvidenceRule] = {
+    (
+        "inc2405",
+        "explorer.verify-share",
+    ): EvidenceRule(
+        "remote_desktop.explorer_navigate",
+        {"assetTag": "NX-6128", "path": "Y:"},
+    ),
+}
 
 
 def _remote(ticket: str, asset: str, step: str) -> EvidenceRule:
@@ -976,6 +994,21 @@ def objective_definition(
     return LEGACY_SCENARIO_OBJECTIVES.get(key) or definition_objectives(definition_json)
 
 
+def canonical_windows_path(value: Any) -> Any:
+    """Normalize only semantically equivalent Windows drive and UNC paths."""
+    if not isinstance(value, str):
+        return value
+    stripped = value.strip()
+    if len(stripped) >= 2 and stripped[0].isalpha() and stripped[1] == ":":
+        remainder = stripped[2:]
+        if not remainder or all(character in "\\/" for character in remainder):
+            return f"{stripped[0].upper()}:"
+    if stripped.startswith("\\\\"):
+        parts = [part for part in stripped.replace("/", "\\").split("\\") if part]
+        return "\\\\" + "\\".join(part.lower() for part in parts)
+    return value
+
+
 def payload_matches(actual: dict[str, Any], expected: dict[str, Any]) -> bool:
     """Match expected scalar fields and required members without trusting extras."""
     for key, value in expected.items():
@@ -984,6 +1017,9 @@ def payload_matches(actual: dict[str, Any], expected: dict[str, Any]) -> bool:
             if not isinstance(candidate, list) or not all(
                 item in candidate for item in value
             ):
+                return False
+        elif key in WINDOWS_PATH_PAYLOAD_FIELDS:
+            if canonical_windows_path(candidate) != canonical_windows_path(value):
                 return False
         elif candidate != value:
             return False

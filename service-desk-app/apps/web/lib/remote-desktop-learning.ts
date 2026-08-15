@@ -13,10 +13,12 @@ export function progressiveHints(
   scenario: RemoteDesktopScenarioFixture,
   hintsRevealed: number,
   learningMode: RemoteDesktopLearningMode = 'practice',
-  completed = false,
+  _completed = false,
 ) {
   if (learningMode === 'assessment') {
-    return completed ? scenario.studentHints : [];
+    // Assessment attempts never render hint bodies. This remains true after a
+    // Guided attempt, completion, refresh, or resume of the same scenario.
+    return [];
   }
   return scenario.studentHints.slice(0, hintsRevealed);
 }
