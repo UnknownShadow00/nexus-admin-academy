@@ -151,7 +151,7 @@ def test_submit_structured_lab_uses_server_authoritative_grading(db):
     missing_answers = client.post(f"/api/labs/{structured.id}/submit", json={"notes": "No answers"}, headers=auth_headers(student))
     assert missing_answers.status_code == 400
 
-    self_attested = client.post(f"/api/labs/5/submit", json={"notes": "Fixed the account."}, headers=auth_headers(student))
+    self_attested = client.post("/api/labs/5/submit", json={"notes": "Fixed the account."}, headers=auth_headers(student))
     assert self_attested.status_code == 200
     db.expire_all()
     break_fix_run = db.query(LabRun).filter_by(lab_template_id=5, student_id=student.id).one()
