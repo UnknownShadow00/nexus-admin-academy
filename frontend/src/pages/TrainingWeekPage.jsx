@@ -2,6 +2,7 @@ import { Check, ChevronLeft, Clock, ExternalLink, Lock } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import TrainingSubnav from "../components/TrainingSubnav";
+import { JOB_RELEVANCE_TAGS, JobRelevanceBadge } from "../components/ui/Badge";
 import { getTrainingWeek, markTrainingVideoWatched } from "../services/api";
 
 const learnTypes = new Set(["lesson", "video"]);
@@ -15,7 +16,7 @@ function ActivityCard({ activity, isNext = false, onWatched, returnTo }) {
         <div className="flex min-w-0 gap-3">
           <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 ${activity.complete ? "border-green-500 bg-green-500 text-white" : activity.status === "locked" ? "border-slate-300 text-slate-400 dark:border-slate-600" : "border-blue-300 text-blue-600 dark:border-blue-700"}`}>{activity.complete ? <Check size={16} /> : activity.status === "locked" ? <Lock size={14} /> : ""}</span>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">{isNext ? <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-bold uppercase text-white">Next</span> : null}<span className="text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">{activity.activity_label}</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${activity.is_required ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" : "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"}`}>{activity.requirement_label}</span>{activity.estimated_minutes ? <span className="inline-flex items-center gap-1 text-xs text-slate-500"><Clock size={12} />{activity.estimated_minutes} min</span> : null}</div>
+            <div className="flex flex-wrap items-center gap-2">{isNext ? <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-bold uppercase text-white">Next</span> : null}<span className="text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">{activity.activity_label}</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${activity.is_required ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" : "bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300"}`}>{activity.requirement_label}</span>{activity.activity_type === "video" ? <JobRelevanceBadge value={activity.job_relevance} /> : null}{activity.estimated_minutes ? <span className="inline-flex items-center gap-1 text-xs text-slate-500"><Clock size={12} />{activity.estimated_minutes} min</span> : null}</div>
             <h3 className="mt-1 font-bold text-slate-900 dark:text-white">{activity.title}</h3>
             {activity.description ? <p className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{activity.description}</p> : null}
             {activity.score_percent != null ? <p className="mt-2 text-sm font-semibold text-green-700 dark:text-green-300">Quiz score: {activity.score}/{activity.total} ({activity.score_percent}%)</p> : null}
@@ -73,6 +74,17 @@ export default function TrainingWeekPage() {
         {week.learning_goals?.length ? <div className="mt-5"><h2 className="font-bold text-slate-900 dark:text-white">Learning goals</h2><ul className="mt-2 grid gap-1 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-2">{week.learning_goals.map((goal) => <li key={goal} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-blue-600" />{goal}</li>)}</ul></div> : null}
       </header>
       <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100"><strong>Your required path:</strong> Learn → Quiz → Practice → Review. Complete these sections in order; extra practice is optional and collapsed below.</div>
+      {requiredLearn.some((item) => item.activity_type === "video") ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300">
+          <span className="font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Video importance:</span>
+          {Object.entries(JOB_RELEVANCE_TAGS).map(([key, tag]) => (
+            <span key={key} className="inline-flex items-center gap-1.5">
+              <JobRelevanceBadge value={key} />
+              {key === "job_critical" ? "comfortable using/explaining on the job" : key === "know_it" ? "recall for troubleshooting/interviews" : "recognize the concept"}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <ActivitySection title="1. Learn" description="Build the core knowledge for this week." items={requiredLearn} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} />
       <ActivitySection title="2. Quiz" description="Check your understanding and review the explanation after each answer." items={requiredQuiz} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} />
       <ActivitySection title="3. Practice" description="Apply the week’s skills in a realistic task." items={requiredPractice} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} />

@@ -10,12 +10,7 @@ import { getCurrentStudent } from "../hooks/useAuth";
 import { setSelectedProfile } from "../services/profile";
 import { scoreBand } from "../utils/theme";
 import TrainingSubnav from "../components/TrainingSubnav";
-
-const JOB_TAGS = {
-  job_critical: { label: "Job Critical", shortLabel: "Job Critical", cls: "bg-indigo-600 text-white border-indigo-600" },
-  know_it: { label: "Know It", shortLabel: "Know It", cls: "bg-slate-200 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
-  awareness: { label: "Awareness", shortLabel: "Awareness Only", cls: "bg-transparent text-slate-500 border-slate-300 dark:text-slate-300 dark:border-slate-600" },
-};
+import { JobRelevanceBadge } from "../components/ui/Badge";
 
 function ScoreBadge({ pct }) {
   if (pct == null) return null;
@@ -25,11 +20,6 @@ function ScoreBadge({ pct }) {
       {pct}%
     </span>
   );
-}
-
-function JobRelevanceBadge({ value }) {
-  const tag = JOB_TAGS[value] || JOB_TAGS.know_it;
-  return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${tag.cls}`}>{tag.label}</span>;
 }
 
 function SectionBlock({ section, videos, watched, quizScores, onToggleWatch }) {
