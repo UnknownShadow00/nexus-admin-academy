@@ -1289,3 +1289,8 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 ## [2026-08-16T09:47:00Z] Follow-up correction
 - Re-ran `./.venv/bin/python -m pytest -q` for the full suite directly (not through the Codex sandbox) after the entry above: **419 passed in 72.34s, no hang.** The earlier "TestClient hangs" report was a sandbox/harness artifact of that run, not a real regression from the 0048 migration or lesson-link change. No further investigation needed; the "Next" item above is resolved.
 - Also added `frontend/src/components/TicketNoteExercise.jsx` (Anatomy of a Good Ticket formative exercise, client-side only, no XP/mastery impact) and wired video importance badges (`JobRelevanceBadge`, extracted from StudyTrackerPage into `components/ui/Badge.jsx`) plus a legend onto `TrainingWeekPage.jsx` in this same working session — part of the Weeks 1-4 learning-experience phase.
+
+## 2026-08-16T09:46:01Z Task Completed
+- Task: Rebuilt Weeks 1-4 guided labs as deterministic structured exercises and added server-authoritative grading.
+- Files changed: backend/alembic/versions/0049_lab_run_structured_feedback.py, backend/app/models/lab.py, backend/app/schemas/lab.py, backend/app/routers/labs.py, backend/app/services/training_curriculum_seed.py, backend/seed_curriculum.py, backend/tests/test_labs.py, backend/tests/test_training_curriculum_realignment.py, frontend/src/components/StructuredLabExercise.jsx, frontend/src/pages/LabPage.jsx.
+- Result: pass — compile, migration upgrade/downgrade cycle, focused coverage, and full backend test suite passed (Codex's sandboxed run; re-verified independently below).
