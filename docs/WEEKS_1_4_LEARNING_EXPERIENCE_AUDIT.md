@@ -238,6 +238,24 @@ this is a Phase 6/7 implementation concern, not resolved by this audit.
 - Guided Labs inventoried (all weeks): 5 total; **4 of 4** assigned to Weeks 1–4 are SHELL/FAKE; the 1 REAL lab (AD Break-Fix) is in Week 15, out of scope.
 - Structural root causes identified: (1) frontend never renders `job_relevance` on weekly cards despite the API already returning it; (2) `LabPage.jsx` renders one generic template for every `lab_type` with no per-type branching; (3) the 4 Weeks 1–4 lab templates are topically mismatched to the weeks they're assigned to.
 
+## 8. Implementation addendum — Guided Lab rebuild and reshuffle (Phases 4-6)
+
+Implemented on commits `239ecb2`/`1799b1a`/`24531f4`. Final week→lab mapping:
+
+| Week | Lab | lab_type | Status |
+|---|---|---|---|
+| 1 | none (CLI simulator is Practice) | — | `networking_lab` `meet-cli-001` flipped `is_required=True` |
+| 2 | Hardware Component Identification (id 4) | `structured_identification` | Rebuilt: 5 deterministic multiple-choice questions (CPU socket, DDR generation, M.2/NVMe vs SATA, PCIe slot sizing, PSU connectors), moved from Week 1 |
+| 3 | Windows Command-Line Diagnostics (id 3) | `structured_diagnostic` | Rebuilt: 5 questions pairing a symptom with realistic tool output (ipconfig, nslookup, tracert, Event Viewer, Task Manager) and asking for the correct interpretation/next step, moved from Week 4 |
+| 4 | Prioritize the Queue (new, id 6) | `structured_triage` | New: 5 tickets to prioritize against a stated impact rubric (P1-P4) |
+| retired | IP Addressing & Subnetting (id 1), Network Connectivity Scenario (id 2) | — | Unpublished, removed from the required path. Rebuild deferred — subnetting/DNS troubleshooting content belongs to a later networking-focused week, out of this phase's Weeks 1-4 scope |
+
+**Grading**: all three rebuilt/new labs are graded server-side in `submit_lab` — the client posts `{question_id: [selected_option_ids]}`, the server compares against `LabTemplate.success_criteria.questions[].correct` and computes `final_score`/`structured_feedback`. No client-supplied score is trusted. The one real lab (AD Break-Fix, id 5, Week 15) is untouched and keeps its self-attested notes+evidence flow, since it's backed by an actual VM environment.
+
+**Evidence Upload**: `LabPage.jsx` now only renders it when `required_evidence` has actual content — previously showed unconditionally by run status for every lab type.
+
+**Progression safety**: `LabTemplate.week_number` (used by `require_week_reached` gating) and `TrainingWeekActivity.training_week_id` (used for weekly-page display/progress) are independent fields that both had to move together — verified this explicitly against a simulated pre-existing student with `LabRun` history on the retired/moved labs: history survives untouched (LabRun is keyed by `lab_template_id`+`student_id`, never by week), the realignment sync (`sync_weeks_1_4_practice_realignment`) is idempotent (verified by running it 3x with no drift), and `validate_training_curriculum()` reports valid afterward. Full backend suite: 421/421 passing.
+
 ## 7. Not yet done (belongs to implementation phases, not this audit)
 
 - Rebuilding/moving the 4 fake labs.
