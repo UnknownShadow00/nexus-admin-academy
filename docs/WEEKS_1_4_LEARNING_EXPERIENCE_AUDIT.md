@@ -256,12 +256,20 @@ Implemented on commits `239ecb2`/`1799b1a`/`24531f4`. Final week→lab mapping:
 
 **Progression safety**: `LabTemplate.week_number` (used by `require_week_reached` gating) and `TrainingWeekActivity.training_week_id` (used for weekly-page display/progress) are independent fields that both had to move together — verified this explicitly against a simulated pre-existing student with `LabRun` history on the retired/moved labs: history survives untouched (LabRun is keyed by `lab_template_id`+`student_id`, never by week), the realignment sync (`sync_weeks_1_4_practice_realignment`) is idempotent (verified by running it 3x with no drift), and `validate_training_curriculum()` reports valid afterward. Full backend suite: 421/421 passing.
 
-## 7. Not yet done (belongs to implementation phases, not this audit)
+## 7. Implementation status (updated after Phases 2–11)
 
-- Rebuilding/moving the 4 fake labs.
-- Extracting `JobRelevanceBadge` into a shared component and wiring it into `TrainingWeekPage.jsx`.
-- Adding the CLI CTA to lesson 3 and rewriting its summary copy.
-- Verifying lesson 9's summary text against the CLI-diagnostics lab (flagged, not confirmed).
-- Any quiz question-level content edits.
-- Mobile/desktop QA passes (Phases 9–10).
-- Automated test coverage (Phase 11).
+All items below are now complete:
+
+- Rebuilding/moving the 4 fake labs — done, see §8.
+- Extracting `JobRelevanceBadge` into a shared component and wiring it into `TrainingWeekPage.jsx` — done (`29220b4`).
+- Adding the CLI CTA to lesson 3 and rewriting its summary copy — done (`e784bc3`).
+- Verifying lesson 9's summary text against the CLI-diagnostics lab — confirmed it had the same dead-instruction pattern and was softened; no CTA added since that lab's week assignment changed in the reshuffle (`e784bc3`).
+- Ticket-note formative exercise for "Anatomy of a Good Ticket" — done (`6c7de7d`).
+- Practice/Apply section split on the weekly page — done (`a33ec1b`).
+- Mobile/desktop QA passes (Phases 9–10) — done, no horizontal overflow at 375×812 or issues at 1440×1000; covered by `weeks-1-4-quality.spec.js`.
+- Automated test coverage (Phase 11) — done: 421/421 backend tests, 13/13 frontend Playwright tests (`my-training.spec.js` + `weeks-1-4-quality.spec.js`), 13/13 Service Desk integration tests unaffected (verified against a clean baseline run — see PR description).
+
+Not done (explicitly out of scope for this phase, per the brief):
+
+- Any quiz question-level content edits beyond the Weeks 1–4 mismatches already covered.
+- Rebuilding the retired subnetting/DNS-scenario lab content — deferred to their natural networking-focused week.
