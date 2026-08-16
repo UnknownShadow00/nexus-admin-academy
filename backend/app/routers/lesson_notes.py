@@ -9,6 +9,7 @@ from app.models.learning import Lesson, Module
 from app.models.lesson_notes import StudentLessonNote
 from app.models.lesson_progress import StudentLessonProgress
 from app.models.student import Student
+from app.models.training import TrainingWeekActivity
 from app.services.auth_service import get_current_student
 from app.services.progression_service import MODULE_WEEKS, require_week_reached
 from app.utils.responses import ok
@@ -49,6 +50,13 @@ def get_lesson(lesson_id: int, db: Session = Depends(get_db), current_student: S
         if isinstance(raw_outcomes, list)
         else []
     )
+    related_activity_type = None
+    if lesson.related_activity_stable_id:
+        related_activity_type = (
+            db.query(TrainingWeekActivity.activity_type)
+            .filter(TrainingWeekActivity.stable_id == lesson.related_activity_stable_id)
+            .scalar()
+        )
     return ok({
         "id": lesson.id,
         "title": lesson.title,
@@ -57,6 +65,9 @@ def get_lesson(lesson_id: int, db: Session = Depends(get_db), current_student: S
         "video_url": lesson.video_url,
         "module_code": module.code,
         "module_title": module.title,
+        "related_activity_stable_id": lesson.related_activity_stable_id,
+        "related_activity_week_number": MODULE_WEEKS.get(module.code) if lesson.related_activity_stable_id else None,
+        "related_activity_type": related_activity_type,
         "is_orientation": module.code == "MOD-000" and lesson.title == "Welcome to Nexus: Your First Week",
         "is_complete": progress.completed_at is not None,
     })

@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 
 import OrientationPracticePanel from "../components/OrientationPracticePanel";
+import TicketNoteExercise from "../components/TicketNoteExercise";
 import { completeLesson, getLesson, getLessonNote, saveLessonNote } from "../services/api";
 
 function getYouTubeEmbedUrl(url) {
@@ -41,6 +42,11 @@ function LessonSummary({ summary }) {
       {lessonSummaryMarkdown(summary)}
     </ReactMarkdown>
   );
+}
+
+function relatedActivityCtaLabel(activityType) {
+  if (activityType === "networking_lab") return "Start CLI Practice";
+  return "Start related activity";
 }
 
 function LessonNotes({ lessonId, onSaved, orientation }) {
@@ -137,6 +143,9 @@ export default function LessonPage() {
   }
 
   const embedUrl = getYouTubeEmbedUrl(lesson.video_url);
+  const relatedActivityRoute = lesson.related_activity_stable_id && lesson.related_activity_week_number != null
+    ? `/training/week/${lesson.related_activity_week_number}?activity=${encodeURIComponent(lesson.related_activity_stable_id)}`
+    : null;
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-4 pb-20 sm:p-6">
       <Link className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600" to="/training"><ChevronLeft size={16} />My Training</Link>
@@ -164,6 +173,14 @@ export default function LessonPage() {
         </section>
       ) : null}
       {embedUrl ? <section className="aspect-video overflow-hidden rounded-xl bg-black"><iframe src={embedUrl} className="h-full w-full" allowFullScreen title={lesson.title} /></section> : null}
+      {lesson.title === "Anatomy of a Good Ticket" ? <TicketNoteExercise /> : null}
+      {relatedActivityRoute ? <section className="panel flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold">Put this lesson into practice</h2>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Continue with the related activity in this week's training plan.</p>
+        </div>
+        <Link className="btn-primary" to={relatedActivityRoute}>{relatedActivityCtaLabel(lesson.related_activity_type)}</Link>
+      </section> : null}
       {!lesson.is_orientation ? <section className="panel flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold">Ready to move on?</h2>

@@ -1,6 +1,7 @@
 from conftest import auth_headers, make_client, make_student
 from app.models.learning import Lesson, Module
 from app.models.lesson_progress import StudentLessonProgress
+from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.routers.lesson_notes import router as lesson_router
 from app.services.progression_service import derive_current_week
 
@@ -41,6 +42,9 @@ def test_direct_lesson_and_notes_remain_student_scoped(db):
         "video_url": None,
         "module_code": module.code,
         "module_title": module.title,
+        "related_activity_stable_id": None,
+        "related_activity_week_number": None,
+        "related_activity_type": None,
         "is_orientation": False,
         "is_complete": False,
     }
@@ -62,6 +66,33 @@ def test_direct_lesson_and_notes_remain_student_scoped(db):
     assert client.get(f"/api/lessons/{lesson.id}", headers=auth_headers(student)).json()["data"]["is_complete"] is True
     assert client.post(f"/api/lessons/{lesson.id}/complete", headers=auth_headers(other)).status_code == 409
     assert db.query(StudentLessonProgress).filter_by(student_id=other.id, lesson_id=lesson.id).first() is None
+
+
+def test_direct_lesson_exposes_related_weekly_activity(db):
+    student = make_student(db)
+    _, lesson, _ = _seed_lessons(db)
+    stable_id = "week-1-networking_lab-meet-cli-001"
+    lesson.related_activity_stable_id = stable_id
+    week = TrainingWeek(week_number=1, display_order=1, title="Week 1")
+    db.add(week)
+    db.flush()
+    db.add(
+        TrainingWeekActivity(
+            training_week_id=week.id,
+            stable_id=stable_id,
+            activity_type="networking_lab",
+            content_ref="meet-cli-001",
+            display_order=1,
+        )
+    )
+    db.commit()
+
+    response = client.get(f"/api/lessons/{lesson.id}", headers=auth_headers(student))
+
+    assert response.status_code == 200
+    assert response.json()["data"].get("related_activity_stable_id") == stable_id
+    assert response.json()["data"].get("related_activity_week_number") == 1
+    assert response.json()["data"].get("related_activity_type") == "networking_lab"
 
 
 def test_saving_a_note_never_completes_or_unlocks_a_lesson(db):
