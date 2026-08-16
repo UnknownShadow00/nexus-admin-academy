@@ -318,6 +318,73 @@ def test_video_quiz_lab_ticket_and_networking_completion_are_server_derived(db, 
     assert complete["required_complete"] == complete["required_total"]
 
 
+def test_structured_lab_requires_a_passing_graded_submission(db, student):
+    """A deterministic (structured_*) lab must not count as complete just
+    because a LabRun row exists in "submitted" status — it must have gone
+    through server-side structured grading and scored a pass. This also
+    covers the case of a lab template that was rebuilt in place: an old
+    free-text submission against the same template id (no structured_feedback)
+    must not silently satisfy the new exercise."""
+    week = add_week(db, 2, requires_previous=False)
+    lab = LabTemplate(
+        id=31,
+        title="Structured Hardware Check",
+        description="Deterministic questions",
+        lab_type="structured_identification",
+        difficulty=1,
+        week_number=2,
+        is_published=True,
+        environment_requirements={},
+        success_criteria={"questions": [{"id": "q1", "correct": ["a"]}]},
+        required_evidence={},
+        hints={},
+    )
+    db.add(lab)
+    db.flush()
+    activity = add_activity(db, week, "lab", "guided_lab", lab.id, 1)
+    db.commit()
+
+    # Legacy free-text submission against the same template id: submitted,
+    # but never graded through the structured path.
+    db.add(LabRun(lab_template_id=lab.id, student_id=student.id, status="submitted"))
+    db.commit()
+    legacy = build_training_week(db, student, 2)
+    legacy_activity = {item["stable_id"]: item for item in legacy["activities"]}[activity.stable_id]
+    assert legacy_activity["complete"] is False
+
+    # A graded-but-failing structured attempt must not count either.
+    db.query(LabRun).filter_by(lab_template_id=lab.id, student_id=student.id).delete()
+    db.add(
+        LabRun(
+            lab_template_id=lab.id,
+            student_id=student.id,
+            status="submitted",
+            final_score=50,
+            structured_feedback={"questions": [{"id": "q1", "correct": False}], "score_pct": 50},
+        )
+    )
+    db.commit()
+    failing = build_training_week(db, student, 2)
+    failing_activity = {item["stable_id"]: item for item in failing["activities"]}[activity.stable_id]
+    assert failing_activity["complete"] is False
+
+    # A passing structured attempt counts.
+    db.query(LabRun).filter_by(lab_template_id=lab.id, student_id=student.id).delete()
+    db.add(
+        LabRun(
+            lab_template_id=lab.id,
+            student_id=student.id,
+            status="submitted",
+            final_score=100,
+            structured_feedback={"questions": [{"id": "q1", "correct": True}], "score_pct": 100},
+        )
+    )
+    db.commit()
+    passing = build_training_week(db, student, 2)
+    passing_activity = {item["stable_id"]: item for item in passing["activities"]}[activity.stable_id]
+    assert passing_activity["complete"] is True
+
+
 def test_failed_required_quiz_blocks_until_passed(db, student):
     week = add_week(db, 1, requires_previous=False)
     quiz = add_quiz(db)

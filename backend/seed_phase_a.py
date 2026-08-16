@@ -163,9 +163,11 @@ MODULES = [
                     "the wrong device (cheap fix), a dead disk (data conversation), or a broken bootloader "
                     "(repair procedure). Firmware tells you which: if the disk is VISIBLE in firmware but "
                     "not booting, the disk is alive and the problem is order or bootloader.\n\n"
-                    "PRACTICE (evidence drill): on your own PC or the class VM, enter firmware setup, "
-                    "screenshot the firmware version and current boot order, and submit both. Change "
-                    "nothing else.\n\n"
+                    "SELF-CHECK (optional, no submission needed): if you have access to a PC's firmware "
+                    "setup, practice locating the firmware version and current boot order without changing "
+                    "anything else. This is for your own familiarity — nothing here needs to be submitted, "
+                    "and the Hardware Component Identification exercise later this week covers the graded "
+                    "practice for this week's hardware skills.\n\n"
                     "DO-NOT-TOUCH LIST on corporate devices without approval: Secure Boot, TPM state "
                     "(BitLocker will demand its recovery key), virtualization flags on managed images. "
                     "Changing TPM/Secure Boot casually can lock a company laptop out of its own disk.\n\n"
@@ -173,7 +175,7 @@ MODULES = [
                     "settings); confusing boot order with boot failure."
                 ),
                 "outcomes": [
-                    "Check and change boot order safely and capture firmware evidence",
+                    "Check and change boot order safely",
                     "Differentiate boot-order vs disk vs bootloader causes of 'no OS found'",
                     "List firmware settings never changed without approval on corporate devices",
                 ],

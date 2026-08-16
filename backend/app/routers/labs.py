@@ -45,6 +45,25 @@ def _normalize_hints(value):
     return []
 
 
+_QUESTION_ANSWER_KEY_FIELDS = ("correct", "explanation")
+
+
+def _student_safe_questions(questions: list) -> list:
+    """Strip answer-key fields (`correct`, `explanation`) before a lab's
+    question set reaches a student. Grading always reads the unfiltered
+    ORM `success_criteria` directly (see submit_lab), never this DTO."""
+    return [
+        {key: value for key, value in question.items() if key not in _QUESTION_ANSWER_KEY_FIELDS}
+        for question in questions
+    ]
+
+
+def _student_safe_success_criteria(success_criteria: dict) -> dict:
+    if "questions" not in success_criteria:
+        return success_criteria
+    return {**success_criteria, "questions": _student_safe_questions(success_criteria["questions"])}
+
+
 def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
     status = "not_started"
     if run is not None:
@@ -55,6 +74,7 @@ def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
         else:
             status = "in_progress"
 
+    raw_success_criteria = template.success_criteria or {}
     data = {
         "id": template.id,
         "lesson_id": template.lesson_id,
@@ -65,8 +85,8 @@ def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
         "week_number": template.week_number,
         "estimated_minutes": template.estimated_minutes,
         "setup_instructions": template.setup_instructions,
-        "success_criteria": template.success_criteria or {},
-        "questions": (template.success_criteria or {}).get("questions", []),
+        "success_criteria": _student_safe_success_criteria(raw_success_criteria),
+        "questions": _student_safe_questions(raw_success_criteria.get("questions", [])),
         "required_evidence": template.required_evidence or {},
         "hints": _normalize_hints(template.hints),
         "status": status,

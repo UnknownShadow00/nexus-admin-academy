@@ -408,7 +408,22 @@ class _TrainingContext:
             return {"complete": progress is not None, "in_progress": False, "completed_at": progress.completed_at if progress else None}
         if activity.activity_type == "guided_lab":
             run = self.lab_runs.get(ref)
-            complete = bool(run and run.status in {"submitted", "verified"})
+            lab = self.labs.get(ref)
+            is_structured = bool(lab and (lab.lab_type or "").startswith("structured_"))
+            if is_structured:
+                # Deterministic labs only count as complete once the student has
+                # actually been graded through the structured path and passed —
+                # a submitted run from before the lab was rebuilt (free text,
+                # no structured_feedback) must not silently satisfy the new
+                # exercise, and a failing score must not satisfy it either.
+                complete = bool(
+                    run
+                    and run.status in {"submitted", "verified"}
+                    and run.structured_feedback is not None
+                    and (run.final_score or 0) >= 70
+                )
+            else:
+                complete = bool(run and run.status in {"submitted", "verified"})
             return {
                 "complete": complete,
                 "in_progress": bool(run and not complete),

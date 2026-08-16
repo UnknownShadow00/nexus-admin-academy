@@ -95,7 +95,7 @@ export default function StructuredLabExercise({ questions, feedback, submitted, 
           disabled={!allAnswered || busy}
           onClick={() => onSubmit(answers)}
         >
-          {busy ? "Submitting..." : "Submit Answers"}
+          {busy ? "Submitting..." : feedback ? "Try Again" : "Submit Answers"}
         </button>
       ) : null}
     </div>

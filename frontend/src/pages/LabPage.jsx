@@ -300,7 +300,7 @@ export default function LabPage() {
             <StructuredLabExercise
               questions={structuredQuestions}
               feedback={lab.structured_feedback}
-              submitted={lab.status === "submitted"}
+              submitted={lab.status === "submitted" && (lab.structured_feedback?.score_pct ?? 0) >= 70}
               busy={busy}
               onSubmit={handleStructuredSubmit}
             />

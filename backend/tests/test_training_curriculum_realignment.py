@@ -72,6 +72,18 @@ def test_weeks_1_4_practice_realignment_converges_seeded_curriculum(db):
     db.commit()
 
     initial = sync_initial_training_activities(db)
+
+    # sync_initial_training_activities already seeds each week's Apply step
+    # (a service_desk_scenario activity) ahead of the realignment run, as in
+    # the real curriculum — reuse those to assert Practice lands *before*
+    # Apply, not just appended after it.
+    apply_activities = {
+        number: db.query(TrainingWeekActivity)
+        .filter_by(training_week_id=week.id, activity_type="service_desk_scenario")
+        .one()
+        for number, week in ((n, db.query(TrainingWeek).filter_by(week_number=n).one()) for n in range(1, 5))
+    }
+
     first = sync_weeks_1_4_practice_realignment(db)
 
     assert initial["created"] == 9
@@ -94,6 +106,13 @@ def test_weeks_1_4_practice_realignment_converges_seeded_curriculum(db):
     assert guided_refs[4] == [str(triage.id)]
     assert db.query(TrainingWeekActivity).filter_by(activity_type="networking_lab", content_ref="meet-cli-001").one().is_required is True
     assert validate_training_curriculum(db)["valid"] is True
+
+    # Practice must be sequenced before Apply, not appended after it.
+    for number in (2, 3, 4):
+        week = weeks[number]
+        practice = db.query(TrainingWeekActivity).filter_by(training_week_id=week.id, activity_type="guided_lab").one()
+        apply_activity = db.get(TrainingWeekActivity, apply_activities[number].id)
+        assert practice.display_order < apply_activity.display_order, f"week {number} Practice must precede Apply"
 
     second = sync_weeks_1_4_practice_realignment(db)
     assert second == {

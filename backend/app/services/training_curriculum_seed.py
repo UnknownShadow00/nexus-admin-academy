@@ -356,6 +356,44 @@ def sync_weeks_1_4_practice_realignment(db: Session) -> dict:
             or 0
         ) + 1
 
+    def practice_display_order(week: TrainingWeek) -> int:
+        """Return a display_order that lands before this week's Apply step.
+
+        Practice (guided_lab) must precede Apply (service_desk_scenario /
+        capstone) in the Learn -> Quiz -> Practice -> Apply sequence. Appending
+        to the end of the week (next_display_order) would place Practice after
+        an already-seeded Apply activity, so instead take the slot immediately
+        before the earliest Apply activity and shift everything at/after it
+        down by one to make room.
+        """
+        apply_min = (
+            db.query(func.min(TrainingWeekActivity.display_order))
+            .filter(
+                TrainingWeekActivity.training_week_id == week.id,
+                TrainingWeekActivity.activity_type.in_(["service_desk_scenario", "capstone"]),
+            )
+            .scalar()
+        )
+        if apply_min is None:
+            return next_display_order(week)
+        # Shift highest-first with an immediate flush per row: a single bulk
+        # UPDATE can transiently collide with the (training_week_id,
+        # display_order) unique constraint, since SQLite checks it per row
+        # rather than deferring to end-of-statement.
+        to_shift = (
+            db.query(TrainingWeekActivity)
+            .filter(
+                TrainingWeekActivity.training_week_id == week.id,
+                TrainingWeekActivity.display_order >= apply_min,
+            )
+            .order_by(TrainingWeekActivity.display_order.desc())
+            .all()
+        )
+        for row in to_shift:
+            row.display_order += 1
+            db.flush()
+        return apply_min
+
     def ensure_guided_lab_activity(lab: LabTemplate, week_number: int) -> None:
         week = weeks[week_number]
         candidates = (
@@ -379,7 +417,7 @@ def sync_weeks_1_4_practice_realignment(db: Session) -> dict:
                 stable_id=f"week-{week_number}-guided_lab-{lab.id}",
                 activity_type="guided_lab",
                 content_ref=str(lab.id),
-                display_order=next_display_order(week),
+                display_order=practice_display_order(week),
                 is_required=True,
                 estimated_minutes=lab.estimated_minutes,
                 prerequisite_mode="soft",
@@ -390,11 +428,25 @@ def sync_weeks_1_4_practice_realignment(db: Session) -> dict:
             return
 
         moved = activity.training_week_id != week.id
-        if moved:
-            destination_order = next_display_order(week)
+        apply_min = (
+            db.query(func.min(TrainingWeekActivity.display_order))
+            .filter(
+                TrainingWeekActivity.training_week_id == week.id,
+                TrainingWeekActivity.activity_type.in_(["service_desk_scenario", "capstone"]),
+            )
+            .scalar()
+        )
+        misordered = apply_min is not None and activity.display_order >= apply_min
+        if moved or misordered:
+            # Compute the destination order *before* touching training_week_id:
+            # practice_display_order() issues queries that autoflush pending
+            # changes, and flushing a half-updated training_week_id (new week,
+            # stale display_order) can collide with an existing row already
+            # occupying that display_order in the destination week.
+            new_order = practice_display_order(week)
             activity.training_week_id = week.id
-            activity.display_order = destination_order
-        changed = moved
+            activity.display_order = new_order
+        changed = moved or misordered
         expected_stable_id = f"week-{week_number}-guided_lab-{lab.id}"
         for key, value in {
             "stable_id": expected_stable_id,

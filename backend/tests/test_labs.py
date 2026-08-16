@@ -124,13 +124,26 @@ def test_submit_structured_lab_uses_server_authoritative_grading(db):
     db.add_all([structured, break_fix])
     db.commit()
 
+    before_submit = client.get(f"/api/labs/{structured.id}", headers=auth_headers(student))
+    assert before_submit.status_code == 200
+    for question in before_submit.json()["data"]["questions"]:
+        assert "correct" not in question
+        assert "explanation" not in question
+
     correct = client.post(
         f"/api/labs/{structured.id}/submit",
         json={"notes": "Completed.", "answers": {"component": ["ssd"], "connectors": ["atx"]}},
         headers=auth_headers(student),
     )
     assert correct.status_code == 200
-    assert correct.json()["data"]["questions"] == questions
+    returned_questions = correct.json()["data"]["questions"]
+    assert [q["id"] for q in returned_questions] == [q["id"] for q in questions]
+    for question in returned_questions:
+        assert "correct" not in question
+        assert "explanation" not in question
+    for question in correct.json()["data"]["success_criteria"]["questions"]:
+        assert "correct" not in question
+        assert "explanation" not in question
     assert correct.json()["data"]["structured_feedback"]["score_pct"] == 100
     db.expire_all()
     correct_run = db.query(LabRun).filter_by(lab_template_id=structured.id, student_id=student.id).one()
