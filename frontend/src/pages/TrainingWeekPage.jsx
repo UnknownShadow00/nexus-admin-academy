@@ -61,7 +61,9 @@ export default function TrainingWeekPage() {
   const extra = week.activities.filter((item) => !item.is_required);
   const requiredLearn = required.filter((item) => learnTypes.has(item.activity_type));
   const requiredQuiz = required.filter((item) => item.activity_type === "quiz");
-  const requiredPractice = required.filter((item) => !learnTypes.has(item.activity_type) && item.activity_type !== "quiz");
+  const applyTypes = new Set(["service_desk_scenario", "capstone"]);
+  const requiredPractice = required.filter((item) => !learnTypes.has(item.activity_type) && item.activity_type !== "quiz" && !applyTypes.has(item.activity_type));
+  const requiredApply = required.filter((item) => applyTypes.has(item.activity_type));
   const nextId = week.next_activity?.id;
   const returnTo = `/training/week/${week.week_number}`;
   return (
@@ -73,7 +75,7 @@ export default function TrainingWeekPage() {
         <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto] md:items-end"><div><div className="mb-2 flex justify-between text-sm text-slate-600 dark:text-slate-300"><span>{week.required_complete} of {week.required_total} required complete{week.required_estimated_minutes ? ` · about ${Math.ceil(week.required_estimated_minutes / 60)} hr` : ""}</span><strong>{week.completion_percent}%</strong></div><div className="h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full bg-blue-600" style={{ width: `${week.completion_percent}%` }} /></div></div>{week.next_activity?.destination_route ? <Link className="btn-primary" to={week.next_activity.destination_route}>Continue Next Activity</Link> : null}</div>
         {week.learning_goals?.length ? <div className="mt-5"><h2 className="font-bold text-slate-900 dark:text-white">Learning goals</h2><ul className="mt-2 grid gap-1 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-2">{week.learning_goals.map((goal) => <li key={goal} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-blue-600" />{goal}</li>)}</ul></div> : null}
       </header>
-      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100"><strong>Your required path:</strong> Learn → Quiz → Practice → Review. Complete these sections in order; extra practice is optional and collapsed below.</div>
+      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100"><strong>Your required path:</strong> Learn → Quiz → Practice → Apply. Complete these sections in order; extra practice is optional and collapsed below.</div>
       {requiredLearn.some((item) => item.activity_type === "video") ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300">
           <span className="font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Video importance:</span>
@@ -87,7 +89,8 @@ export default function TrainingWeekPage() {
       ) : null}
       <ActivitySection title="1. Learn" description="Build the core knowledge for this week." items={requiredLearn} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} />
       <ActivitySection title="2. Quiz" description="Check your understanding and review the explanation after each answer." items={requiredQuiz} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} />
-      <ActivitySection title="3. Practice" description="Apply the week’s skills in a realistic task." items={requiredPractice} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} />
+      <ActivitySection title="3. Practice" description="Build the week’s skill in a real, hands-on exercise." items={requiredPractice} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} />
+      <ActivitySection title="4. Apply" description="Use what you learned on a real Service Desk case." items={requiredApply} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} />
       {extra.length ? <details className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 dark:border-violet-900 dark:bg-violet-950/10"><summary className="cursor-pointer font-bold text-violet-900 dark:text-violet-200">Extra practice ({extra.length}) <span className="ml-2 text-sm font-normal text-violet-700 dark:text-violet-300">Optional — does not affect week completion</span></summary><div className="mt-4 space-y-3">{extra.map((item) => <ActivityCard key={item.id} activity={item} onWatched={handleWatched} returnTo={returnTo} />)}</div></details> : null}
       <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/20"><h2 className="text-xl font-bold text-slate-950 dark:text-white">{week.is_complete ? `Week ${week.week_number} Complete` : `Week ${week.week_number} Progress`}</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{week.required_complete} of {week.required_total} required activities complete</p>{week.next_activity?.destination_route ? <Link className="btn-primary mt-4" to={week.next_activity.destination_route}>Continue Next Activity</Link> : <Link className="btn-primary mt-4" to="/training">Return to Weekly Plan</Link>}</section>
     </main>
