@@ -13,6 +13,7 @@ import { PastTicketsModal } from './PastTicketsModal';
 import { ProfileMenuTrigger } from './ProfileMenuTrigger';
 import { useAttemptScore, useSyncStatus } from './TicketSessionProvider';
 import { ToolsPanel } from './ToolsPanel';
+import { useNexusReturnTarget } from './useNexusReturnTarget';
 
 interface HeaderProps {
   currentPath: string;
@@ -25,6 +26,7 @@ export function Header({ currentPath }: HeaderProps) {
   const [pastTicketsOpen, setPastTicketsOpen] = useState(false);
   const router = useRouter();
   const onToolPage = currentPath.startsWith('/tools/');
+  const nexusReturnTarget = useNexusReturnTarget();
 
   return (
     <>
@@ -49,7 +51,7 @@ export function Header({ currentPath }: HeaderProps) {
                 </span>
               </span>
             </Link>
-            <BackToNexusLink />
+            <BackToNexusLink href={nexusReturnTarget?.href} label={nexusReturnTarget?.label} />
             {onToolPage ? (
               <Button
                 className="hidden px-2 text-xs xl:inline-flex"
