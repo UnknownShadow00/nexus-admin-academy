@@ -56,6 +56,16 @@ def _int_ref(value: str) -> int | None:
         return None
 
 
+def _service_desk_ticket_key(stable_key: str) -> str:
+    # Keep this in sync with normalizeTicketKey in TicketSessionProvider.tsx.
+    foundational_ids = {
+        "locked-user-account": "INC2511",
+        "password-reset": "INC2512",
+        "mfa-reset": "INC2513",
+    }
+    return foundational_ids.get(stable_key.lower(), stable_key.upper())
+
+
 def _duration_minutes(value: str | None) -> int | None:
     if not value:
         return None
@@ -349,7 +359,8 @@ class _TrainingContext:
             scenario = self.service_desk_scenarios.get(activity.content_ref)
             if not scenario:
                 return None
-            return _ResolvedContent(title=scenario.title, description=scenario.description, destination_route="/service-desk", estimated_minutes=activity.estimated_minutes)
+            ticket_key = _service_desk_ticket_key(scenario.stable_key)
+            return _ResolvedContent(title=scenario.title, description=scenario.description, destination_route=f"/service-desk/tickets/{ticket_key}", estimated_minutes=activity.estimated_minutes)
         if activity.activity_type == "capstone":
             capstone = self.capstones.get(ref)
             if not capstone:

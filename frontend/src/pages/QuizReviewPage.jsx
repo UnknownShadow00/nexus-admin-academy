@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 
+import BackLink from "../components/BackLink";
 import { getCurrentStudent } from "../hooks/useAuth";
 import Spinner from "../components/Spinner";
 import { getQuizReview } from "../services/api";
@@ -60,7 +60,6 @@ function OptionRow({ letter, text, correctAnswers, studentAnswers }) {
 
 export default function QuizReviewPage() {
   const { quizId } = useParams();
-  const navigate = useNavigate();
   const location = useLocation();
   const studentId = getCurrentStudent()?.id;
   const [data, setData] = useState(null);
@@ -86,9 +85,7 @@ export default function QuizReviewPage() {
     return (
       <main className="mx-auto max-w-4xl p-6">
         <p className="text-slate-500 dark:text-slate-400">{error}</p>
-        <Link to="/quizzes" className="mt-3 inline-block text-blue-600">
-          Back to Quizzes
-        </Link>
+        <BackLink className="mt-3 inline-flex text-blue-600" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />
       </main>
     );
   }
@@ -102,9 +99,7 @@ export default function QuizReviewPage() {
 
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-6">
-      <button onClick={() => navigate("/quizzes")} className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700">
-        <ArrowLeft size={16} /> Back to Quizzes
-      </button>
+      <BackLink className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />
 
       <div className="rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 p-8 text-center text-white shadow-lg">
         <h1 className="mb-3 text-lg font-semibold text-blue-200">{title}</h1>
@@ -174,12 +169,10 @@ export default function QuizReviewPage() {
       })}
 
       <div className="flex gap-3">
-        <Link to={`/quizzes/${quizId}`} className="btn-primary flex-1 text-center">
+        <Link to={`/quizzes/${quizId}`} state={location.state} className="btn-primary flex-1 text-center">
           Retake Quiz
         </Link>
-        <Link to={location.state?.returnTo || "/quizzes"} className="btn-secondary flex-1 text-center">
-          {location.state?.returnTo ? "Return to This Week" : "Back to Quizzes"}
-        </Link>
+        <BackLink className="btn-secondary flex-1 justify-center text-center" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />
       </div>
     </main>
   );

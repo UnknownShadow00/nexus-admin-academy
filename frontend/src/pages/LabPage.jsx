@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import BackLink from "../components/BackLink";
 import Spinner from "../components/Spinner";
 import PrerequisiteLock, { getPrerequisiteLock } from "../components/PrerequisiteLock";
 import StructuredLabExercise from "../components/StructuredLabExercise";
@@ -186,6 +187,7 @@ export default function LabPage() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
+      <BackLink fallbackLabel="Guided Labs" fallbackTo="/labs" />
       <PageHeader
         title={lab.title}
         subtitle={`Week ${lab.week_number} | ${lab.estimated_minutes} minutes | ${lab.lab_type}`}
