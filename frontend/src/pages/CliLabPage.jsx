@@ -1,6 +1,6 @@
-import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import BackLink from "../components/BackLink";
 import EmptyState from "../components/EmptyState";
 import PrerequisiteLock from "../components/PrerequisiteLock";
 import PageHeader from "../components/ui/PageHeader";
@@ -41,10 +41,7 @@ export default function CliLabPage() {
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link to="/cli-labs" className="btn-secondary gap-2">
-          <ArrowLeft size={16} />
-          Networking Labs
-        </Link>
+        <BackLink className="btn-secondary gap-2" fallbackLabel="Networking Labs" fallbackTo="/cli-labs" />
         {nextLesson ? (
           <Link to={`/cli-labs/${nextLesson.id}`} className="btn-secondary">
             Next: {nextLesson.title}

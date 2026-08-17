@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import BackLink from "../components/BackLink";
 import Spinner from "../components/Spinner";
 import PrerequisiteLock, { getPrerequisiteLock } from "../components/PrerequisiteLock";
 import PageHeader from "../components/ui/PageHeader";
@@ -84,6 +85,7 @@ export default function CapstonePage() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
+      <BackLink fallbackLabel="Capstones" fallbackTo="/capstones" />
       <PageHeader
         title={capstone.title}
         subtitle={`Week ${capstone.week_number} | ${capstone.estimated_hours} hours`}

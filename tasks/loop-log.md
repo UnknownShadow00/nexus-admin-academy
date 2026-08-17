@@ -1314,3 +1314,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Post-deploy backup: `~/backups/nexus/nexus-20260817-034827.db.gz` + matching uploads archive — independently verified (gunzip, integrity ok, FK clean, exactly the 7-account real cohort, 0 disposable accounts present). Both this and the pre-deploy backup retained as rollback artifacts; no prior backups overwritten.
 - Deployment log PR: `docs: record PR #23 production deployment` (this entry), created and merged after all 5 CI jobs passed, per repository convention (see PRs #18-#22).
 - Result: **LIVE READY = YES.** All BLOCKER/IMPORTANT findings from this session resolved and independently re-verified live in production. No regression to Week 0, the real 7-student cohort, or Service Desk.
+
+## [2026-08-17T08:15:15Z] Task Completed
+- Task: Fixed the scoped Week 1 Service Desk start flow, inline optional lesson practice, and contextual week return navigation.
+- Files changed: backend/app/services/training_service.py, backend/app/services/training_quiz_mapping.py, backend/app/services/training_curriculum_seed.py, backend/seed_curriculum.py, backend/seed_phase_a.py, frontend/src/components/BackLink.jsx, frontend/src/pages/TrainingWeekPage.jsx, frontend/src/pages/LessonPage.jsx, frontend/src/pages/CliLabPage.jsx, frontend/src/pages/LabPage.jsx, frontend/src/pages/CapstonePage.jsx, frontend/src/pages/QuizPage.jsx, frontend/src/pages/QuizReviewPage.jsx, tasks/loop-log.md.
+- Result: pass — backend compileall, focused backend pytest, and frontend production build passed; branch creation and commit are blocked because the workspace mounts .git read-only.
+- Next: Restore write access to .git, create fix/week1-student-experience from main, and commit the staged scoped changes.

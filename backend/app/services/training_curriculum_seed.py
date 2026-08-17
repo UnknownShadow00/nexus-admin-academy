@@ -19,7 +19,7 @@ from app.models.learning import Lesson, Module
 from app.models.quiz import Quiz
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.quiz_visibility import student_visible_quiz_filters
-from app.services.training_quiz_mapping import OPTIONAL_LESSON_IDS, mapping_metadata, video_is_required
+from app.services.training_quiz_mapping import OPTIONAL_LESSON_IDS, OPTIONAL_LESSON_TITLES, mapping_metadata, video_is_required
 
 
 VIDEO_WEEKS = {
@@ -308,6 +308,36 @@ def reconcile_week_zero_requirements(db: Session) -> dict:
         )
         if bool(activity.is_required) != should_be_required:
             activity.is_required = should_be_required
+            updated += 1
+    db.commit()
+    return {"updated": updated, "skipped": False}
+
+
+def reconcile_optional_lesson_requirements(db: Session) -> dict:
+    """Retire selected standalone lessons without removing their activities or history."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+
+    optional_ids = {
+        str(lesson.id)
+        for lesson in db.query(Lesson).filter(Lesson.title.in_(OPTIONAL_LESSON_TITLES)).all()
+    }
+    if not optional_ids:
+        return {"updated": 0, "skipped": True, "reason": "optional_lessons_missing"}
+
+    updated = 0
+    activities = (
+        db.query(TrainingWeekActivity)
+        .filter(
+            TrainingWeekActivity.activity_type == "lesson",
+            TrainingWeekActivity.content_ref.in_(optional_ids),
+        )
+        .all()
+    )
+    for activity in activities:
+        if activity.is_required:
+            activity.is_required = False
             updated += 1
     db.commit()
     return {"updated": updated, "skipped": False}
@@ -603,7 +633,7 @@ def sync_initial_training_activities(db: Session) -> dict:
             0 if module_order == 0 else module_order - 1,
             "lesson",
             lesson.id,
-            lesson.id not in OPTIONAL_LESSON_IDS,
+            lesson.id not in OPTIONAL_LESSON_IDS and lesson.title not in OPTIONAL_LESSON_TITLES,
             lesson.estimated_minutes,
         )
 
