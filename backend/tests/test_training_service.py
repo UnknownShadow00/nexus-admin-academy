@@ -156,7 +156,7 @@ def test_service_desk_activity_is_validated_and_completed_only_by_passed_attempt
     assert validate_training_curriculum(db)["valid"] is True
     before = build_training_week(db, student, 1)["activities"][0]
     assert before["complete"] is False
-    assert before["destination_route"] == "/service-desk/tickets/TRAINING-SERVICE-DESK"
+    assert before["destination_route"] == "/service-desk/tickets/TRAINING-SERVICE-DESK?returnTo=%2Ftraining%2Fweek%2F1"
 
     db.add(ServiceDeskAttempt(student_id=student.id, scenario_version_id=version.id, mode="learning", status="completed", current_state={}, current_state_hash="b" * 64, state_version=0, attempt_number=1, score=100, passed=True))
     db.commit()

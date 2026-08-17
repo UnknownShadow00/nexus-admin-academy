@@ -1,6 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
@@ -360,7 +361,9 @@ class _TrainingContext:
             if not scenario:
                 return None
             ticket_key = _service_desk_ticket_key(scenario.stable_key)
-            return _ResolvedContent(title=scenario.title, description=scenario.description, destination_route=f"/service-desk/tickets/{ticket_key}", estimated_minutes=activity.estimated_minutes)
+            # Kept in sync with the allowlist in service-desk-app/apps/web/lib/nexus-return.ts.
+            return_to = quote(f"/training/week/{week_number}", safe="")
+            return _ResolvedContent(title=scenario.title, description=scenario.description, destination_route=f"/service-desk/tickets/{ticket_key}?returnTo={return_to}", estimated_minutes=activity.estimated_minutes)
         if activity.activity_type == "capstone":
             capstone = self.capstones.get(ref)
             if not capstone:
