@@ -45,6 +45,25 @@ def _normalize_hints(value):
     return []
 
 
+_QUESTION_ANSWER_KEY_FIELDS = ("correct", "explanation")
+
+
+def _student_safe_questions(questions: list) -> list:
+    """Strip answer-key fields (`correct`, `explanation`) before a lab's
+    question set reaches a student. Grading always reads the unfiltered
+    ORM `success_criteria` directly (see submit_lab), never this DTO."""
+    return [
+        {key: value for key, value in question.items() if key not in _QUESTION_ANSWER_KEY_FIELDS}
+        for question in questions
+    ]
+
+
+def _student_safe_success_criteria(success_criteria: dict) -> dict:
+    if "questions" not in success_criteria:
+        return success_criteria
+    return {**success_criteria, "questions": _student_safe_questions(success_criteria["questions"])}
+
+
 def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
     status = "not_started"
     if run is not None:
@@ -55,7 +74,8 @@ def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
         else:
             status = "in_progress"
 
-    return {
+    raw_success_criteria = template.success_criteria or {}
+    data = {
         "id": template.id,
         "lesson_id": template.lesson_id,
         "title": template.title,
@@ -65,7 +85,8 @@ def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
         "week_number": template.week_number,
         "estimated_minutes": template.estimated_minutes,
         "setup_instructions": template.setup_instructions,
-        "success_criteria": template.success_criteria or {},
+        "success_criteria": _student_safe_success_criteria(raw_success_criteria),
+        "questions": _student_safe_questions(raw_success_criteria.get("questions", [])),
         "required_evidence": template.required_evidence or {},
         "hints": _normalize_hints(template.hints),
         "status": status,
@@ -74,6 +95,9 @@ def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
         "started_at": run.started_at if run else None,
         "submitted_at": run.submitted_at if run else None,
     }
+    if run is not None and run.structured_feedback is not None:
+        data["structured_feedback"] = run.structured_feedback
+    return data
 
 
 def _as_utc(value: datetime | None) -> datetime | None:
@@ -436,6 +460,14 @@ def submit_lab(
 ):
     lab = _get_published_lab(db, lab_id)
     require_week_reached(db, current_student, lab.week_number)
+    is_structured_lab = (lab.lab_type or "").startswith("structured_")
+    questions = []
+    if is_structured_lab:
+        if not payload.answers:
+            raise HTTPException(status_code=400, detail="Structured lab submissions require answers")
+        questions = (lab.success_criteria or {}).get("questions", [])
+        if not questions:
+            raise HTTPException(status_code=400, detail="Structured lab has no configured questions")
     run = _get_lab_run(db, lab_id, current_student.id)
     now = datetime.now(UTC)
 
@@ -455,7 +487,23 @@ def submit_lab(
     run.status = "submitted"
     run.submitted_at = now
     run.notes = payload.notes.strip()
-    if run.final_score is None:
+    if is_structured_lab:
+        feedback_questions = []
+        correct_count = 0
+        for question in questions:
+            is_correct = set(payload.answers.get(question["id"], [])) == set(question["correct"])
+            correct_count += int(is_correct)
+            feedback_questions.append(
+                {
+                    "id": question["id"],
+                    "correct": is_correct,
+                    "explanation": question["explanation"],
+                }
+            )
+        score_pct = round(100 * correct_count / len(questions))
+        run.final_score = score_pct
+        run.structured_feedback = {"questions": feedback_questions, "score_pct": score_pct}
+    elif run.final_score is None:
         run.final_score = 10
 
     db.commit()

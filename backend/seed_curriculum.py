@@ -5,7 +5,11 @@ sys.path.insert(0, ".")
 
 from app.database import SessionLocal
 from app.models.curriculum_video import CurriculumVideo
-from app.services.training_curriculum_seed import reconcile_week_zero_requirements, sync_initial_training_activities
+from app.services.training_curriculum_seed import (
+    reconcile_week_zero_requirements,
+    sync_initial_training_activities,
+    sync_weeks_1_4_practice_realignment,
+)
 from app.services.training_reference_seed import ensure_training_reference_content
 
 CURRICULUM = [
@@ -157,9 +161,11 @@ try:
     db.commit()
     training_result = sync_initial_training_activities(db)
     week_zero_result = reconcile_week_zero_requirements(db)
+    practice_realignment_result = sync_weeks_1_4_practice_realignment(db)
     print(
         f"Curriculum seeded successfully; references: {reference_result}; "
-        f"weekly activities: {training_result}; Week 0 requirements: {week_zero_result}"
+        f"weekly activities: {training_result}; Week 0 requirements: {week_zero_result}; "
+        f"Weeks 1-4 practice: {practice_realignment_result}"
     )
 finally:
     db.close()

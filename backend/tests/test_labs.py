@@ -74,6 +74,104 @@ def test_start_and_submit_lab_updates_run_state(db):
     assert body["notes"] == "Calculated the broadcast address and host range."
 
 
+def test_submit_structured_lab_uses_server_authoritative_grading(db):
+    student = make_student(db)
+    questions = [
+        {
+            "id": "component",
+            "prompt": "Which component stores data?",
+            "context": None,
+            "type": "single_choice",
+            "options": [{"id": "ssd", "label": "SSD"}, {"id": "ram", "label": "RAM"}],
+            "correct": ["ssd"],
+            "explanation": "An SSD provides persistent storage.",
+        },
+        {
+            "id": "connectors",
+            "prompt": "Select the board power connector.",
+            "context": None,
+            "type": "multi_choice",
+            "options": [{"id": "atx", "label": "24-pin ATX"}, {"id": "sata", "label": "SATA power"}],
+            "correct": ["atx"],
+            "explanation": "The 24-pin ATX connector powers the motherboard.",
+        },
+    ]
+    structured = LabTemplate(
+        title="Structured hardware check",
+        description="Deterministic questions",
+        lab_type="structured_identification",
+        difficulty=1,
+        week_number=1,
+        is_published=True,
+        environment_requirements={},
+        success_criteria={"questions": questions},
+        required_evidence={},
+        hints={},
+    )
+    break_fix = LabTemplate(
+        id=5,
+        title="AD Break-Fix",
+        description="Real lab regression guard",
+        lab_type="break_fix",
+        difficulty=4,
+        week_number=15,
+        is_published=True,
+        environment_requirements={},
+        success_criteria={"tasks": ["Repair AD"]},
+        required_evidence={},
+        hints={},
+    )
+    db.add_all([structured, break_fix])
+    db.commit()
+
+    before_submit = client.get(f"/api/labs/{structured.id}", headers=auth_headers(student))
+    assert before_submit.status_code == 200
+    for question in before_submit.json()["data"]["questions"]:
+        assert "correct" not in question
+        assert "explanation" not in question
+
+    correct = client.post(
+        f"/api/labs/{structured.id}/submit",
+        json={"notes": "Completed.", "answers": {"component": ["ssd"], "connectors": ["atx"]}},
+        headers=auth_headers(student),
+    )
+    assert correct.status_code == 200
+    returned_questions = correct.json()["data"]["questions"]
+    assert [q["id"] for q in returned_questions] == [q["id"] for q in questions]
+    for question in returned_questions:
+        assert "correct" not in question
+        assert "explanation" not in question
+    for question in correct.json()["data"]["success_criteria"]["questions"]:
+        assert "correct" not in question
+        assert "explanation" not in question
+    assert correct.json()["data"]["structured_feedback"]["score_pct"] == 100
+    db.expire_all()
+    correct_run = db.query(LabRun).filter_by(lab_template_id=structured.id, student_id=student.id).one()
+    assert correct_run.final_score == 100
+    assert [item["correct"] for item in correct_run.structured_feedback["questions"]] == [True, True]
+
+    wrong = client.post(
+        f"/api/labs/{structured.id}/submit",
+        json={"answers": {"component": ["ram"], "connectors": ["atx"]}},
+        headers=auth_headers(student),
+    )
+    assert wrong.status_code == 200
+    db.expire_all()
+    wrong_run = db.query(LabRun).filter_by(lab_template_id=structured.id, student_id=student.id).one()
+    assert wrong_run.final_score == 50
+    assert [item["correct"] for item in wrong_run.structured_feedback["questions"]] == [False, True]
+
+    missing_answers = client.post(f"/api/labs/{structured.id}/submit", json={"notes": "No answers"}, headers=auth_headers(student))
+    assert missing_answers.status_code == 400
+
+    self_attested = client.post("/api/labs/5/submit", json={"notes": "Fixed the account."}, headers=auth_headers(student))
+    assert self_attested.status_code == 200
+    db.expire_all()
+    break_fix_run = db.query(LabRun).filter_by(lab_template_id=5, student_id=student.id).one()
+    assert break_fix_run.final_score == 10
+    assert break_fix_run.structured_feedback is None
+
+
 def test_get_lab_unauthenticated(db):
     lab = _seed_lab(db)
     res = client.get(f"/api/labs/{lab.id}")

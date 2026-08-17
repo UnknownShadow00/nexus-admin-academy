@@ -69,9 +69,8 @@ MODULES = [
                     "GUI status icons summarize; command output proves. Technicians trust command output "
                     "because it is exact, timestamped, copyable into a ticket, and identical over remote "
                     "sessions where GUIs are slow or unavailable.\n\n"
-                    "ACTIVITY: complete CLI labs 1-9 of the 'meet-the-cli' pack (all 18 for accelerated "
-                    "pace). You will navigate a simulated network device, run show commands, and read "
-                    "real-looking output under guidance.\n\n"
+                    "ACTIVITY: use the CLI practice link below to navigate a simulated network device, run "
+                    "show commands, and read real-looking output under guidance.\n\n"
                     "VERIFICATION HABIT: after any change, run the command that would show the OLD bad "
                     "state and confirm it now shows the new good state. Paste that output into the ticket.\n\n"
                     "COMMON MISTAKES: typing commands from memory into production without checking syntax; "
@@ -83,6 +82,7 @@ MODULES = [
                     "Navigate the simulated CLI and complete guided command drills",
                     "Explain why command output is stronger ticket evidence than GUI status",
                 ],
+                "related_activity_stable_id": "week-1-networking_lab-meet-cli-001",
                 "required_notes_template": NOTES_TEMPLATE,
                 "status": "published",
             },
@@ -163,9 +163,11 @@ MODULES = [
                     "the wrong device (cheap fix), a dead disk (data conversation), or a broken bootloader "
                     "(repair procedure). Firmware tells you which: if the disk is VISIBLE in firmware but "
                     "not booting, the disk is alive and the problem is order or bootloader.\n\n"
-                    "PRACTICE (evidence drill): on your own PC or the class VM, enter firmware setup, "
-                    "screenshot the firmware version and current boot order, and submit both. Change "
-                    "nothing else.\n\n"
+                    "SELF-CHECK (optional, no submission needed): if you have access to a PC's firmware "
+                    "setup, practice locating the firmware version and current boot order without changing "
+                    "anything else. This is for your own familiarity — nothing here needs to be submitted, "
+                    "and the Hardware Component Identification exercise later this week covers the graded "
+                    "practice for this week's hardware skills.\n\n"
                     "DO-NOT-TOUCH LIST on corporate devices without approval: Secure Boot, TPM state "
                     "(BitLocker will demand its recovery key), virtualization flags on managed images. "
                     "Changing TPM/Secure Boot casually can lock a company laptop out of its own disk.\n\n"
@@ -173,7 +175,7 @@ MODULES = [
                     "settings); confusing boot order with boot failure."
                 ),
                 "outcomes": [
-                    "Check and change boot order safely and capture firmware evidence",
+                    "Check and change boot order safely",
                     "Differentiate boot-order vs disk vs bootloader causes of 'no OS found'",
                     "List firmware settings never changed without approval on corporate devices",
                 ],
@@ -268,8 +270,8 @@ MODULES = [
                     "sfc /scannow then DISM /Online /Cleanup-Image /RestoreHealth → system file repair "
                     "sequence (DISM repairs the store sfc repairs from).\n"
                     "chkdsk SAFETY: /f needs a reboot lock; NEVER on a mechanically clicking drive.\n\n"
-                    "ACTIVITY: the existing 'Windows Command-Line Diagnostics' lab — run the full toolkit "
-                    "on your own machine and submit annotated output.\n\n"
+                    "ACTIVITY: practice the toolkit on an approved Windows machine or training VM, and keep "
+                    "notes on what each command's output tells you.\n\n"
                     "COMMON MISTAKES: running commands without reading output; pasting screenshots with no "
                     "sentence saying what they prove."
                 ),
@@ -955,8 +957,9 @@ def seed_phase_a(db) -> dict:
             lesson = (db.query(Lesson)
                       .filter(Lesson.module_id == module.id,
                               Lesson.lesson_order == lspec["lesson_order"]).first())
-            lfields = {k: lspec[k] for k in ("title", "summary", "outcomes",
-                       "estimated_minutes", "required_notes_template", "status")}
+            lfields = {k: lspec.get(k) for k in ("title", "summary", "outcomes",
+                       "estimated_minutes", "required_notes_template", "status",
+                       "related_activity_stable_id")}
             if lesson is None:
                 db.add(Lesson(module_id=module.id, lesson_order=lspec["lesson_order"], **lfields))
                 counts["lessons"] += 1

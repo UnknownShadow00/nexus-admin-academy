@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Spinner from "../components/Spinner";
 import PrerequisiteLock, { getPrerequisiteLock } from "../components/PrerequisiteLock";
+import StructuredLabExercise from "../components/StructuredLabExercise";
 import { DifficultyBadge } from "../components/ui/Badge";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
@@ -122,6 +123,22 @@ export default function LabPage() {
     }
   }
 
+  async function handleStructuredSubmit(answers) {
+    setBusy(true);
+    try {
+      const res = await submitLab(labId, { notes: "", answers });
+      setLab(res.data);
+      setVmAssignment(null);
+      setGuacUrl(null);
+    } catch (err) {
+      const lock = getPrerequisiteLock(err);
+      if (lock) setPrerequisiteLock(lock);
+      else setVmError(err?.userMessage || "Unable to submit your answers.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleEvidenceUpload() {
     if (!evidenceFile || !lab?.run_id) return;
     setEvidenceBusy(true);
@@ -161,7 +178,11 @@ export default function LabPage() {
   const tasks = Array.isArray(lab.success_criteria?.tasks) ? lab.success_criteria.tasks : [];
   const hints = Array.isArray(lab.hints) ? lab.hints : [];
   const status = statusConfig[lab.status] || statusConfig.not_started;
-  const canUploadEvidence = ["in_progress", "assigned"].includes(lab.status) && Boolean(lab.run_id);
+  const isStructured = typeof lab.lab_type === "string" && lab.lab_type.startsWith("structured_");
+  const structuredQuestions = isStructured ? lab.success_criteria?.questions : null;
+  const requiresEvidence = Object.keys(lab.required_evidence?.evidence_types || lab.required_evidence || {}).length > 0;
+  const canUploadEvidence =
+    requiresEvidence && ["in_progress", "assigned"].includes(lab.status) && Boolean(lab.run_id);
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
@@ -199,8 +220,8 @@ export default function LabPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <article className="space-y-4">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <article className="space-y-4 self-start lg:sticky lg:top-20">
           <div className="panel dark:border-slate-700 dark:bg-slate-900">
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Scenario</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300">{lab.description}</p>
@@ -239,17 +260,19 @@ export default function LabPage() {
             </div>
           ) : null}
 
-          <div className="panel dark:border-slate-700 dark:bg-slate-900">
-            <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Verify</h2>
-            <ul className="space-y-2">
-              {tasks.map((task) => (
-                <li key={task} className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-300">
-                  <span className="mt-0.5 h-2.5 w-2.5 rounded-full bg-blue-500" />
-                  <span>{task}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {tasks.length > 0 ? (
+            <div className="panel dark:border-slate-700 dark:bg-slate-900">
+              <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Verify</h2>
+              <ul className="space-y-2">
+                {tasks.map((task) => (
+                  <li key={task} className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-300">
+                    <span className="mt-0.5 h-2.5 w-2.5 rounded-full bg-blue-500" />
+                    <span>{task}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {hints.length > 0 ? (
             <div className="panel dark:border-slate-700 dark:bg-slate-900">
@@ -267,36 +290,50 @@ export default function LabPage() {
 
         <aside className="panel h-fit space-y-4 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Work and explain</h2>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {isStructured ? "Answer the exercise" : "Work and explain"}
+            </h2>
             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${status.cls}`}>{status.label}</span>
           </div>
 
-          <textarea
-            className="input-field min-h-64 w-full"
-            placeholder="Record your evidence, diagnosis, work, and verification. When useful, end with one sentence: What caused the problem?"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            readOnly={Boolean(prerequisiteLock) || busy || lab.status === "submitted"}
-          />
+          {isStructured ? (
+            <StructuredLabExercise
+              questions={structuredQuestions}
+              feedback={lab.structured_feedback}
+              submitted={lab.status === "submitted" && (lab.structured_feedback?.score_pct ?? 0) >= 70}
+              busy={busy}
+              onSubmit={handleStructuredSubmit}
+            />
+          ) : (
+            <>
+              <textarea
+                className="input-field min-h-64 w-full"
+                placeholder="Record your evidence, diagnosis, work, and verification. When useful, end with one sentence: What caused the problem?"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                readOnly={Boolean(prerequisiteLock) || busy || lab.status === "submitted"}
+              />
 
-          {!prerequisiteLock ? (
-            <div className="flex flex-wrap gap-3">
-              {["not_started", "assigned"].includes(lab.status) ? (
-                <button className="btn-secondary" onClick={handleStart} disabled={busy} type="button">
-                  {busy ? "Starting..." : "Start Lab"}
-                </button>
+              {!prerequisiteLock ? (
+                <div className="flex flex-wrap gap-3">
+                  {["not_started", "assigned"].includes(lab.status) ? (
+                    <button className="btn-secondary" onClick={handleStart} disabled={busy} type="button">
+                      {busy ? "Starting..." : "Start Lab"}
+                    </button>
+                  ) : null}
+                  <button className="btn-primary" onClick={handleSubmit} disabled={busy || lab.status === "submitted"} type="button">
+                    {lab.status === "submitted" ? "Submitted" : busy ? "Submitting..." : "Submit Lab"}
+                  </button>
+                </div>
               ) : null}
-              <button className="btn-primary" onClick={handleSubmit} disabled={busy || lab.status === "submitted"} type="button">
-                {lab.status === "submitted" ? "Submitted" : busy ? "Submitting..." : "Submit Lab"}
-              </button>
-            </div>
-          ) : null}
 
-          <div className="text-xs text-slate-500 dark:text-slate-400">
-            {lab.status === "submitted"
-              ? "This lab has been submitted."
-              : "Start the lab to mark it in progress, then submit your notes when finished."}
-          </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                {lab.status === "submitted"
+                  ? "This lab has been submitted."
+                  : "Start the lab to mark it in progress, then submit your notes when finished."}
+              </div>
+            </>
+          )}
         </aside>
       </div>
     </main>

@@ -32,6 +32,7 @@ class Lesson(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     video_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    related_activity_stable_id: Mapped[str | None] = mapped_column(String(160), nullable=True)
     lesson_order: Mapped[int] = mapped_column(Integer, nullable=False)
     outcomes: Mapped[list] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=list)
     estimated_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)

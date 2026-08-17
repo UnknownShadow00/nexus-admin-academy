@@ -103,8 +103,9 @@ def test_completely_fresh_seed_contains_orientation_and_is_idempotent(tmp_path):
     ]
     assert first["week_count"] == 25
     # Legacy support_ticket activities are retired; the reviewed Service Desk
-    # scenarios replace the required curriculum path instead.
-    assert first["activity_count"] == 256
+    # scenarios replace the required curriculum path instead. Weeks 1-4 practice
+    # realignment retires 2 fake guided-lab activities and adds 1 new one (net -1).
+    assert first["activity_count"] == 255
     assert first["legacy_support_ticket_count"] == 0
     assert first["active_video_count"] == 137
     assert first["mod_001_prerequisite"] is None
