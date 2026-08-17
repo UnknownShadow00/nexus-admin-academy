@@ -304,12 +304,27 @@ above for the diff, rationale, and before/after screenshots.
   scrolled 800px) and 375×812 (full page) — no empty-space regression, no
   overflow, mobile stacking unaffected.
 
-**CI and PR status:** filled in below once the pushed commit's GitHub Actions
-run completes.
+**CI and PR status:**
 
-- Commit: _pending_
-- New RC SHA: _pending_
-- CI (5-job matrix): _pending_
+- Commit: `a4ccae4ba080d5c333917ddf41296af1e2787446`
+- New RC SHA: `a4ccae4ba080d5c333917ddf41296af1e2787446`
+- CI (5-job matrix): **all 5 green** —
+  [run 31985650433](https://github.com/UnknownShadow00/nexus-admin-academy/actions/runs/31985650433):
+  Backend quality and tests (pass), Database/migrations/seeds (pass), Frontend
+  validation (pass), Service Desk quality and tests (pass), Playwright browser
+  tests (pass on rerun — see note).
+- PR #23 body updated to drop the "Draft PR" line and record this fix.
+- Note on the Playwright job: the first attempt on this commit failed on an
+  unrelated test (`my-training.spec.js` — "Week 0 unlock is student-scoped,
+  persistent, and links back from Service Desk", a `Start Week 1` link
+  navigation assertion with no relationship to `LabPage.jsx` or the structured
+  labs). The prior CI run on this branch (before this fix, before the
+  automated nightly-snapshot commit) had this same job green, and this PR's
+  diff never touches lesson-routing code, so this reads as a pre-existing
+  environment flake rather than a regression. `gh run rerun --failed` reran
+  only the failed job against the same commit and it passed clean (7m7s, all
+  6 tests including the previously-failing one). Not investigated further as
+  it's outside this task's scope (fixing Finding 1 only).
 - Remaining BLOCKER findings: 0
-- Remaining IMPORTANT findings: 0 (Finding 1 fixed)
-- READY TO MERGE: _pending CI_
+- Remaining IMPORTANT findings: 0 (Finding 1 fixed and verified)
+- **READY TO MERGE: YES**
