@@ -1,7 +1,8 @@
 # Weeks 1-4 Visual QA — PR #23 Release Candidate
 
-Date: 2026-08-16
-RC commit: `54cb22f773889c8938db8fd8f6395c450cbf4af1`
+Date: 2026-08-16, updated 2026-08-17
+RC commit: `54cb22f773889c8938db8fd8f6395c450cbf4af1` (initial QA pass) →
+see "Fix verification" below for the follow-up commit that resolves Finding 1.
 Scope: Student experience for Weeks 1-4 (This Week page, lessons, quizzes,
 structured labs, CLI practice, Apply/Service Desk cards), Today, Progress.
 Viewports: Desktop 1440×1000, Mobile 375×812.
@@ -10,14 +11,12 @@ Method: real-browser Playwright pass against an isolated local stack
 `scripts/e2e/start_local_stack.sh`. No production system touched. No merge,
 no deploy.
 
-**This is a QA-only pass. No application code was changed.**
-
 ## Acceptance result
 
 **PASS, no blockers.** The Weeks 1-4 student experience is clear, internally
-consistent, and free of mobile overflow or clipping. One **IMPORTANT**
-(non-blocking) layout issue was found and is described below, along with two
-informational notes. No code was changed to fix it — see "Any code changes."
+consistent, and free of mobile overflow or clipping. The one **IMPORTANT**
+finding from the initial pass (structured lab left-column empty space) is now
+**FIXED** — see Finding 1. Findings 2-5 remain informational, not defects.
 
 ## Note on fixture setup
 
@@ -54,7 +53,7 @@ visibility, not weekly-page layout. This is the same fixture technique
 | --- | --- | --- |
 | 11 | [`11-week2-full-page.png`](weeks-1-4-visual-qa/11-week2-full-page.png) | PASS |
 | 12 | [`12-week2-hardware-id-card.png`](weeks-1-4-visual-qa/12-week2-hardware-id-card.png) | PASS |
-| 13 | [`13-hardware-id-exercise.png`](weeks-1-4-visual-qa/13-hardware-id-exercise.png) | **NEEDS FIX** — IMPORTANT (see Finding 1) |
+| 13 | [`13-hardware-id-exercise.png`](weeks-1-4-visual-qa/13-hardware-id-exercise.png) (before) → [`13-hardware-id-exercise-AFTER-top.png`](weeks-1-4-visual-qa/13-hardware-id-exercise-AFTER-top.png), [`13-hardware-id-exercise-AFTER-scrolled.png`](weeks-1-4-visual-qa/13-hardware-id-exercise-AFTER-scrolled.png) (after) | **FIXED** (see Finding 1) |
 | 14 | [`14-question-answer-ui.png`](weeks-1-4-visual-qa/14-question-answer-ui.png) | PASS |
 | 15 | [`15-hardware-id-failing-state.png`](weeks-1-4-visual-qa/15-hardware-id-failing-state.png) | PASS |
 | 16 | *(see note below — no separate retry screen exists)* | N/A |
@@ -66,7 +65,7 @@ visibility, not weekly-page layout. This is the same fixture technique
 | # | Capture | Result |
 | --- | --- | --- |
 | 19 | [`19-week3-full-page.png`](weeks-1-4-visual-qa/19-week3-full-page.png) | PASS |
-| 20 | [`20-windows-cli-diagnostics-exercise.png`](weeks-1-4-visual-qa/20-windows-cli-diagnostics-exercise.png) | **NEEDS FIX** — IMPORTANT (see Finding 1) |
+| 20 | [`20-windows-cli-diagnostics-exercise.png`](weeks-1-4-visual-qa/20-windows-cli-diagnostics-exercise.png) (before) → [`20-windows-cli-diagnostics-exercise-AFTER-top.png`](weeks-1-4-visual-qa/20-windows-cli-diagnostics-exercise-AFTER-top.png), [`20-windows-cli-diagnostics-exercise-AFTER-scrolled.png`](weeks-1-4-visual-qa/20-windows-cli-diagnostics-exercise-AFTER-scrolled.png) (after) | **FIXED** (see Finding 1) |
 | 21 | [`21-windows-cli-result-feedback.png`](weeks-1-4-visual-qa/21-windows-cli-result-feedback.png) | PASS |
 | 22 | [`22-week3-apply-card.png`](weeks-1-4-visual-qa/22-week3-apply-card.png) | PASS (see naming note) |
 
@@ -75,7 +74,7 @@ visibility, not weekly-page layout. This is the same fixture technique
 | # | Capture | Result |
 | --- | --- | --- |
 | 23 | [`23-week4-full-page.png`](weeks-1-4-visual-qa/23-week4-full-page.png) | PASS |
-| 24 | [`24-prioritize-queue-exercise.png`](weeks-1-4-visual-qa/24-prioritize-queue-exercise.png) | **NEEDS FIX** — IMPORTANT (see Finding 1) |
+| 24 | [`24-prioritize-queue-exercise.png`](weeks-1-4-visual-qa/24-prioritize-queue-exercise.png) (before) → [`24-prioritize-queue-exercise-AFTER-top.png`](weeks-1-4-visual-qa/24-prioritize-queue-exercise-AFTER-top.png), [`24-prioritize-queue-exercise-AFTER-scrolled.png`](weeks-1-4-visual-qa/24-prioritize-queue-exercise-AFTER-scrolled.png) (after) | **FIXED** (see Finding 1) |
 | 25 | [`25-ranking-interaction.png`](weeks-1-4-visual-qa/25-ranking-interaction.png) | PASS (see naming note) |
 | 26 | [`26-prioritize-queue-result-feedback.png`](weeks-1-4-visual-qa/26-prioritize-queue-result-feedback.png) | PASS |
 | 27 | [`27-week4-apply-card.png`](weeks-1-4-visual-qa/27-week4-apply-card.png) | PASS (see naming note) |
@@ -94,7 +93,7 @@ visibility, not weekly-page layout. This is the same fixture technique
 
 ## Findings
 
-### Finding 1 — IMPORTANT: excessive empty space on structured lab pages (desktop)
+### Finding 1 — FIXED: excessive empty space on structured lab pages (desktop)
 
 **Screens:** `13-hardware-id-exercise.png`, `20-windows-cli-diagnostics-exercise.png`,
 `24-prioritize-queue-exercise.png` (`frontend/src/pages/LabPage.jsx` +
@@ -112,13 +111,78 @@ than the visible viewport itself. This matches the audit checklist's
 in this pass a beginner would visually register as "off," even though it
 doesn't block completing the exercise.
 
-**Not fixed in this pass** — it's a shared layout (`LabPage.jsx`) touching
-all rebuilt structured labs, and the brief says "Do NOT over-fix" / only fix
-"obvious visual/usability problems" with sign-off implied by "STOP before
-merge." Recommend a follow-up: either let the left column scroll
-independently (`sticky` positioning) or stop the grid row from stretching
-(`items-start` / `align-self: start` on the grid container) so the left
-column's height matches its own content instead of the tallest sibling.
+**Root cause, precisely:** the two-column container (`LabPage.jsx`) is a CSS
+grid (`grid gap-6 lg:grid-cols-2`) with the browser default `align-items:
+stretch`, so the left `<article>` grid cell was forced to the row's full
+height (matching the taller right column) even though the article itself has
+no visible background or border — only its child `.panel` cards do. That
+means the *first* fix attempted, adding `items-start` to stop the stretch,
+changed the DOM/layout metrics (confirmed: left cell height dropped from
+matching the right column to its true content height — 378px/398px/300px vs.
+1643px/1875px/1683px measured via `getBoundingClientRect()`) but produced
+**zero visible pixel difference**, because a non-bordered, non-backgrounded
+stretched block renders identically to a shorter block followed by plain
+page background. A raw pixel diff of the `items-start`-only screenshot against
+the original confirmed this (same 1440×1834 dimensions, near-identical file
+size). Fixing the invisible box alone would not have satisfied "confirm no
+new empty-space… issue" — documenting this here since it's a case where the
+"obvious" grid-alignment cause (per the brief's own suggestion) was real but
+insufficient on its own.
+
+**Actual fix applied:** `items-start` on the grid container (still correct
+and now a prerequisite — `position: sticky` has no effect on an item that's
+already stretched to full row height) plus `self-start lg:sticky lg:top-20`
+on the left `<article>`. On desktop, the left Scenario/Task/Hints column now
+tracks the viewport as the student scrolls through the longer question list,
+instead of being left behind above the fold with dead space beneath it. This
+directly targets what a user actually experiences (the column disappearing
+off-screen while still-blank space sits under it) rather than only the
+underlying DOM metric.
+
+```diff
+- <div className="grid gap-6 lg:grid-cols-2">
+-   <article className="space-y-4">
++ <div className="grid items-start gap-6 lg:grid-cols-2">
++   <article className="space-y-4 self-start lg:sticky lg:top-20">
+```
+
+- `lg:` prefix keeps this scoped to the desktop two-column breakpoint —
+  mobile (`<lg`) stays a plain stacked single column with `position: static`,
+  confirmed by an explicit assertion (`getComputedStyle(article).position !==
+  "sticky"` on mobile).
+- No fixed heights were introduced (`top-20` is a scroll offset, not a
+  height cap), so nothing clips a lab with more hints/tasks than these three.
+- Grading, progression, question content, and `StructuredLabExercise.jsx`
+  were not touched. Service Desk was not touched.
+
+**Before/after evidence** (desktop, scrolled ~800px into the question list —
+this is where the original gap was most visible):
+
+| Lab | Before (empty space, no scroll benefit) | After (sticky, scrolled) |
+| --- | --- | --- |
+| Hardware Component Identification | [`13-hardware-id-exercise.png`](weeks-1-4-visual-qa/13-hardware-id-exercise.png) | [`13-hardware-id-exercise-AFTER-scrolled.png`](weeks-1-4-visual-qa/13-hardware-id-exercise-AFTER-scrolled.png) |
+| Windows Command-Line Diagnostics | [`20-windows-cli-diagnostics-exercise.png`](weeks-1-4-visual-qa/20-windows-cli-diagnostics-exercise.png) | [`20-windows-cli-diagnostics-exercise-AFTER-scrolled.png`](weeks-1-4-visual-qa/20-windows-cli-diagnostics-exercise-AFTER-scrolled.png) |
+| Prioritize the Queue | [`24-prioritize-queue-exercise.png`](weeks-1-4-visual-qa/24-prioritize-queue-exercise.png) | [`24-prioritize-queue-exercise-AFTER-scrolled.png`](weeks-1-4-visual-qa/24-prioritize-queue-exercise-AFTER-scrolled.png) |
+
+Mobile re-check (single-column stack preserved, no overflow, left column not
+sticky): [`13-hardware-id-exercise-mobile-AFTER.png`](weeks-1-4-visual-qa/13-hardware-id-exercise-mobile-AFTER.png),
+[`20-windows-cli-diagnostics-exercise-mobile-AFTER.png`](weeks-1-4-visual-qa/20-windows-cli-diagnostics-exercise-mobile-AFTER.png),
+[`24-prioritize-queue-exercise-mobile-AFTER.png`](weeks-1-4-visual-qa/24-prioritize-queue-exercise-mobile-AFTER.png).
+
+**Verification performed after the fix:**
+- Manual `getBoundingClientRect()` measurement on all 3 labs confirms
+  `align-items: flex-start` and left-column height « right-column height.
+- Desktop viewport screenshots at scroll position 0 and 800px on all 3 labs
+  confirm the left column is visible and pinned near the top while scrolling
+  through questions, with no dead space left behind it.
+- Mobile screenshots on all 3 labs confirm single-column stacking is
+  unchanged and `position !== "sticky"` below the `lg` breakpoint.
+- No horizontal overflow (`scrollWidth <= clientWidth + 1px`) on any of the
+  6 re-captured states.
+- `npm run build`, `npm run cli:validate`, `npm run cli:sanity` all pass.
+- The committed `frontend/tests/e2e/weeks-1-4-quality.spec.js` suite (5
+  tests, including the Hardware ID / Windows CLI / Prioritize the Queue
+  structured-exercise checks and the mobile-overflow check) passes unchanged.
 
 ### Finding 2 — informational: no distinct "retry" screen exists
 
@@ -186,18 +250,26 @@ completing its two lessons) cleanly.
 
 No beginner-test answer was unclear from the UI itself in the states captured.
 
+## Fix verification
+
+See `## Fix round 2 — Finding 1 verification` below for the code change, the
+CI run it produced, and the resulting new RC SHA. That section is the
+authoritative record of what shipped; the summary numbers below reflect the
+fixed state.
+
 ## Summary
 
-1. **Desktop result:** PASS — one IMPORTANT, non-blocking layout issue (Finding 1).
-2. **Mobile result:** PASS — no horizontal overflow or clipping in any captured screen.
+1. **Desktop result:** PASS — Finding 1 fixed; no remaining blockers or IMPORTANT issues.
+2. **Mobile result:** PASS — no horizontal overflow or clipping in any captured screen, before or after the fix.
 3. **Week 1 clarity:** Clear/PASS.
-4. **Week 2 clarity:** Clear/PASS, subject to Finding 1.
-5. **Week 3 clarity:** Clear/PASS, subject to Finding 1.
-6. **Week 4 clarity:** Clear/PASS, subject to Finding 1.
+4. **Week 2 clarity:** Clear/PASS.
+5. **Week 3 clarity:** Clear/PASS.
+6. **Week 4 clarity:** Clear/PASS.
 7. **Video badge design result:** PASS — compact single-line legend, distinct but
    restrained colors (indigo Job Critical, gray Know It/Awareness), readable at
    both viewports.
-8. **Structured lab design result:** NEEDS FIX — Finding 1 (empty space); the
+8. **Structured lab design result:** PASS — Finding 1 fixed (left info column now
+   stays usable via sticky positioning instead of leaving dead space); the
    exercises themselves (real MCQ/checkbox questions, per-question feedback,
    score banner) are solid, not a "fake lab" shell.
 9. **CLI flow result:** PASS — CTA → card → terminal launch is smooth on both
@@ -205,11 +277,39 @@ No beginner-test answer was unclear from the UI itself in the states captured.
 10. **Practice → Apply flow result:** PASS — sections are numbered and visually
     distinct; Apply is topically tied to what was just practiced.
 11. **Visual blockers:** none.
-12. **Important issues:** 1 — Finding 1 (structured lab left-column empty space).
+12. **Important issues:** none remaining — Finding 1 fixed and verified.
 13. **Polish issues:** none requiring a fix; Findings 2-5 are informational notes.
-14. **Any code changes:** none. This was a QA-only pass.
-15. **New RC SHA:** unchanged — `54cb22f773889c8938db8fd8f6395c450cbf4af1`.
-16. **CI status:** unchanged — no code was touched, so CI was not re-run.
-17. **READY TO MERGE:** **YES**, no blockers found. Finding 1 is recommended as a
-    fast-follow, not a merge blocker. Stopping here per instructions — no merge,
-    no deploy performed.
+14. **Any code changes:** yes — see "Fix round 2" section: `frontend/src/pages/LabPage.jsx`,
+    a 2-line CSS/Tailwind class change (`items-start` on the grid container,
+    `self-start lg:sticky lg:top-20` on the left column). No grading, content,
+    progression, or backend changes; Service Desk untouched.
+15. **New RC SHA:** see "Fix round 2" section below.
+16. **CI status:** see "Fix round 2" section below.
+17. **READY TO MERGE:** see "Fix round 2" section below (not decided in this
+    section — filled in once CI finishes).
+
+## Fix round 2 — Finding 1 verification
+
+**Change:** `frontend/src/pages/LabPage.jsx`, two-line Tailwind class change on
+the existing two-column grid (`items-start` on the grid container,
+`self-start lg:sticky lg:top-20` on the left `<article>`). See Finding 1
+above for the diff, rationale, and before/after screenshots.
+
+**Local verification before pushing:**
+- `npm run build` — clean.
+- `npm run cli:validate`, `npm run cli:sanity` — clean.
+- `frontend/tests/e2e/weeks-1-4-quality.spec.js` (5 tests) — all passing
+  against the fixed code, run against a fresh isolated local stack.
+- Manual re-capture of all 3 structured labs at 1440×1000 (top-of-page and
+  scrolled 800px) and 375×812 (full page) — no empty-space regression, no
+  overflow, mobile stacking unaffected.
+
+**CI and PR status:** filled in below once the pushed commit's GitHub Actions
+run completes.
+
+- Commit: _pending_
+- New RC SHA: _pending_
+- CI (5-job matrix): _pending_
+- Remaining BLOCKER findings: 0
+- Remaining IMPORTANT findings: 0 (Finding 1 fixed)
+- READY TO MERGE: _pending CI_

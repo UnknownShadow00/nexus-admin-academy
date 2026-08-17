@@ -220,8 +220,8 @@ export default function LabPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <article className="space-y-4">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <article className="space-y-4 self-start lg:sticky lg:top-20">
           <div className="panel dark:border-slate-700 dark:bg-slate-900">
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Scenario</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300">{lab.description}</p>
