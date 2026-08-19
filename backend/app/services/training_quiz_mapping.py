@@ -96,6 +96,12 @@ BEGINNER_REQUIRED_VIDEO_IDS = {
     # Week 0 has exactly two gates: its orientation lesson and checkpoint quiz.
     # Videos remain assigned as optional extra practice.
     0: set(),
+    # Week 2's graded Hardware Component Identification practice tests CPU
+    # socket matching, DIMM generation, M.2/SATA storage interfaces, PCIe
+    # slot sizing, and PSU connectors. Require the videos that actually teach
+    # those components instead of the BIOS-heavy set that used to gate this
+    # week — BIOS/UEFI concepts are covered by the required BIOS/UEFI lesson.
+    2: {30, 32, 35, 36, 37, 44},
     3: {110, 114, 117, 118},
     4: {46, 47, 62, 169, 180},
     7: {137, 138, 143, 156, 157},

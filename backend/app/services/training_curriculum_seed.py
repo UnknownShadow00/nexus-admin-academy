@@ -83,6 +83,7 @@ ORIENTATION_QUIZ_TITLE = "Ticketing Systems Quiz"
 HARDWARE_IDENTIFICATION_QUESTIONS = [
     {
         "id": "cpu-socket",
+        "visualId": "cpu-socket",
         "prompt": "Which component must match the motherboard socket before an Intel desktop CPU can be installed?",
         "context": "The board is labelled LGA1700 and the technician has an Intel Core processor specified for LGA1700.",
         "type": "single_choice",
@@ -97,6 +98,7 @@ HARDWARE_IDENTIFICATION_QUESTIONS = [
     },
     {
         "id": "dimm-generation",
+        "visualId": "dimm-generation",
         "prompt": "Which memory module belongs in this slot?",
         "context": "The motherboard manual calls the memory sockets 'DDR5 DIMM' and the slot key is positioned for DDR5.",
         "type": "single_choice",
@@ -111,6 +113,7 @@ HARDWARE_IDENTIFICATION_QUESTIONS = [
     },
     {
         "id": "storage-interface",
+        "visualId": "storage-interface",
         "prompt": "Which drive is the correct match for the connector shown?",
         "context": "The board has a short M.2 Key M socket marked 'PCIe 4.0 x4 / NVMe'. There is no 2.5-inch drive bay involved.",
         "type": "single_choice",
@@ -125,6 +128,7 @@ HARDWARE_IDENTIFICATION_QUESTIONS = [
     },
     {
         "id": "pcie-slot-size",
+        "visualId": "pcie-slot-size",
         "prompt": "Which slot should be selected for a full-height graphics card that needs a PCIe x16 electrical connection?",
         "context": "The motherboard has one long PCIe x16 slot and several short PCIe x1 slots. The graphics card uses a full-length x16 edge connector.",
         "type": "single_choice",
@@ -139,6 +143,7 @@ HARDWARE_IDENTIFICATION_QUESTIONS = [
     },
     {
         "id": "psu-connectors",
+        "visualId": "psu-connectors",
         "prompt": "Which PSU connector powers the motherboard itself?",
         "context": "A new ATX motherboard needs its main board-power connection. Other components include a SATA SSD and a PCIe graphics card.",
         "type": "single_choice",
@@ -338,6 +343,37 @@ def reconcile_optional_lesson_requirements(db: Session) -> dict:
     for activity in activities:
         if activity.is_required:
             activity.is_required = False
+            updated += 1
+    db.commit()
+    return {"updated": updated, "skipped": False}
+
+
+def reconcile_video_requirements(db: Session) -> dict:
+    """Keep existing video activities' is_required in sync with video_is_required().
+
+    VIDEO_WEEKS and BEGINNER_REQUIRED_VIDEO_IDS only drive is_required for rows
+    created by sync_initial_training_activities(), which never runs again once
+    any activity exists. This reconciler updates already-seeded video rows in
+    place so curriculum edits (e.g. re-scoping which videos gate a week) reach
+    production without resetting student history.
+    """
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+
+    videos = {row.id: row for row in db.query(CurriculumVideo).all()}
+    weeks_by_id = {week.id: week.week_number for week in db.query(TrainingWeek).all()}
+
+    updated = 0
+    activities = db.query(TrainingWeekActivity).filter(TrainingWeekActivity.activity_type == "video").all()
+    for activity in activities:
+        week_number = weeks_by_id.get(activity.training_week_id)
+        video = videos.get(int(activity.content_ref))
+        if week_number is None or video is None:
+            continue
+        should_be_required = video_is_required(week_number, video.id, video.job_relevance)
+        if bool(activity.is_required) != should_be_required:
+            activity.is_required = should_be_required
             updated += 1
     db.commit()
     return {"updated": updated, "skipped": False}

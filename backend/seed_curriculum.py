@@ -8,6 +8,7 @@ from app.models.curriculum_video import CurriculumVideo
 from app.services.training_curriculum_seed import (
     reconcile_week_zero_requirements,
     reconcile_optional_lesson_requirements,
+    reconcile_video_requirements,
     sync_initial_training_activities,
     sync_weeks_1_4_practice_realignment,
 )
@@ -163,10 +164,12 @@ try:
     training_result = sync_initial_training_activities(db)
     week_zero_result = reconcile_week_zero_requirements(db)
     optional_lesson_result = reconcile_optional_lesson_requirements(db)
+    video_requirement_result = reconcile_video_requirements(db)
     practice_realignment_result = sync_weeks_1_4_practice_realignment(db)
     print(
         f"Curriculum seeded successfully; references: {reference_result}; "
         f"weekly activities: {training_result}; Week 0 requirements: {week_zero_result}; Optional lessons: {optional_lesson_result}; "
+        f"Video requirements: {video_requirement_result}; "
         f"Weeks 1-4 practice: {practice_realignment_result}"
     )
 finally:
