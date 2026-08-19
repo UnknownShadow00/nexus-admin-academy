@@ -141,8 +141,8 @@ MODULES = [
                     "POSTs, add parts back one at a time.\n\n"
                     "SCOPE HONESTY: as a remote/junior tech you diagnose and DOCUMENT; board-level repair "
                     "is escalation to depot. Writing a clean diagnostic note ('power verified at wall and "
-                    "cable, minimal boot attempted, 3-beep pattern recorded') IS the win — that is exactly "
-                    "what ticket W2 'Desktop won't turn on' grades.\n\n"
+                    "cable, minimal boot attempted, 3-beep pattern recorded') IS the win — this week's "
+                    "Service Desk ticket is graded on that same isolate-then-document rigor.\n\n"
                     "COMMON MISTAKES: swapping three parts at once (you learn nothing); skipping the wall "
                     "outlet check (embarrassing % of 'dead PCs')."
                 ),

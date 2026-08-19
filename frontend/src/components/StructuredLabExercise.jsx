@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
+import HardwareIdentificationVisual from "./HardwareIdentificationVisual";
 
 function isSelected(answers, questionId, optionId) {
   return (answers[questionId] || []).includes(optionId);
@@ -46,6 +47,7 @@ export default function StructuredLabExercise({ questions, feedback, submitted, 
             <legend className="px-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
               {index + 1}. {question.prompt}
             </legend>
+            {question.visualId ? <HardwareIdentificationVisual visualId={question.visualId} /> : null}
             {question.context ? (
               <pre className="mt-2 whitespace-pre-wrap rounded-md bg-slate-50 p-3 text-xs text-slate-600 dark:bg-slate-950 dark:text-slate-300">
                 {question.context}
