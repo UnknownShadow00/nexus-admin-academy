@@ -97,7 +97,7 @@ jobs:
         working-directory: backend
         # test_orientation_seed.py already runs: migrate an empty DB to
         # head, seed twice, diff the two snapshots for exact equality, and
-        # assert 25 weeks / 255 activities / 137 mapped videos / the single
+        # assert 25 weeks / 273 activities / 137 mapped videos / the single
         # required Week 0 orientation activity / curriculum validation
         # valid:true. Reusing it here avoids re-implementing that diff
         # logic in the workflow.
@@ -168,10 +168,10 @@ jobs:
               data = json.load(f)
           assert data["valid"] is True, data
           assert data["week_count"] == 25, data["week_count"]
-          assert data["activity_count"] == 255, data["activity_count"]
+          assert data["activity_count"] == 273, data["activity_count"]
           assert data["enabled_video_count"] == 137, data["enabled_video_count"]
           assert data["mapped_video_count"] == 137, data["mapped_video_count"]
-          print("curriculum validation counts confirmed: 25 weeks, 255 activities, 137/137 videos mapped")
+          print("curriculum validation counts confirmed: 25 weeks, 273 activities, 137/137 videos mapped")
           PY
 
       - name: Run CLI validate and sanity
