@@ -9,6 +9,7 @@ from app.services.training_curriculum_seed import (
     sync_weeks_11_14_quality,
     sync_weeks_15_18_quality,
     sync_weeks_19_22_quality,
+    sync_weeks_23_24_quality,
     sync_weeks_1_4_practice_realignment,
 )
 from app.services.training_service import validate_training_curriculum
@@ -554,6 +555,83 @@ def test_weeks_19_22_quality_sync_adds_linux_and_cloud_practice(db):
     assert {lab.success_criteria["terminal_profile"] for lab in linux_labs} == {"linux"}
 
     second = sync_weeks_19_22_quality(db)
+    assert second["created_templates"] == 0
+    assert second["created_activities"] == 0
+    assert second["updated_activities"] == 0
+
+
+def test_weeks_23_24_quality_sync_moves_integrated_quiz_and_adds_final_practice(db):
+    week_23 = _add_week(db, 23)
+    week_24 = _add_week(db, 24)
+    db.flush()
+    db.add_all(
+        [
+            TrainingWeekActivity(
+                training_week_id=week_23.id,
+                stable_id="week-23-lesson-61",
+                activity_type="lesson",
+                content_ref="61",
+                display_order=1,
+                is_required=True,
+                prerequisite_mode="soft",
+                metadata_json={},
+            ),
+            TrainingWeekActivity(
+                training_week_id=week_23.id,
+                stable_id="week-23-video-174",
+                activity_type="video",
+                content_ref="174",
+                display_order=2,
+                is_required=True,
+                prerequisite_mode="soft",
+                metadata_json={},
+            ),
+            TrainingWeekActivity(
+                training_week_id=week_23.id,
+                stable_id="week-23-quiz-48",
+                activity_type="quiz",
+                content_ref="48",
+                display_order=3,
+                is_required=True,
+                prerequisite_mode="soft",
+                metadata_json={},
+            ),
+            TrainingWeekActivity(
+                training_week_id=week_24.id,
+                stable_id="week-24-lesson-63",
+                activity_type="lesson",
+                content_ref="63",
+                display_order=1,
+                is_required=True,
+                prerequisite_mode="soft",
+                metadata_json={},
+            ),
+            TrainingWeekActivity(
+                training_week_id=week_24.id,
+                stable_id="week-24-quiz-25",
+                activity_type="quiz",
+                content_ref="25",
+                display_order=2,
+                is_required=True,
+                prerequisite_mode="soft",
+                metadata_json={},
+            ),
+        ]
+    )
+    db.commit()
+
+    first = sync_weeks_23_24_quality(db)
+
+    assert first["skipped"] is False
+    week_23_activities = db.query(TrainingWeekActivity).filter_by(training_week_id=week_23.id).all()
+    week_24_activities = db.query(TrainingWeekActivity).filter_by(training_week_id=week_24.id).all()
+    assert [row.content_ref for row in week_23_activities if row.activity_type == "quiz" and row.is_required] == ["25"]
+    assert not [row for row in week_24_activities if row.activity_type == "quiz"]
+    assert all(not row.is_required for row in week_23_activities + week_24_activities if row.activity_type == "lesson")
+    assert len([row for row in week_23_activities if row.activity_type == "guided_lab" and row.is_required]) == 1
+    assert len([row for row in week_24_activities if row.activity_type == "guided_lab" and row.is_required]) == 1
+
+    second = sync_weeks_23_24_quality(db)
     assert second["created_templates"] == 0
     assert second["created_activities"] == 0
     assert second["updated_activities"] == 0

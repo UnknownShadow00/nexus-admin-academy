@@ -1582,6 +1582,128 @@ WEEKS_19_22_QUALITY = {
 }
 
 
+MIXED_QUEUE_PRACTICE = [
+    {
+        "id": "queue-order",
+        "prompt": "Which item should lead this mixed queue?",
+        "context": "A: one user's printer is offline.\nB: 60 users cannot reach the order system and monitoring confirms the service is down.\nC: an approved software install is due tomorrow.\nD: one user wants a new monitor.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "B — broad business impact and an active outage"},
+            {"id": "b", "label": "A — it arrived first"},
+            {"id": "c", "label": "C — all approved work outranks incidents"},
+            {"id": "d", "label": "D — hardware requests always lead"},
+        ],
+        "correct": ["a"],
+        "explanation": "Prioritize by impact and urgency. A confirmed multi-user business outage leads the queue.",
+    },
+    {
+        "id": "incident-update",
+        "prompt": "Which first incident update is most useful?",
+        "context": "The order system failed at 10:05. The team is checking service and database health. The next update is due at 10:25.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Order system unavailable since 10:05; team investigating service/database health; next update 10:25"},
+            {"id": "b", "label": "Something is broken; no ETA"},
+            {"id": "c", "label": "Database failure caused by the last technician"},
+            {"id": "d", "label": "Wait until the root cause is proven before communicating"},
+        ],
+        "correct": ["a"],
+        "explanation": "An early update should state confirmed impact, current action, and the next communication time without guessing cause.",
+    },
+    {
+        "id": "handoff",
+        "prompt": "Your shift ends before the incident is resolved. What belongs in the handoff?",
+        "context": "Another technician will continue immediately.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Current state and affected scope"},
+            {"id": "b", "label": "What was ruled out, with evidence"},
+            {"id": "c", "label": "The next safest action and any user promise"},
+            {"id": "d", "label": "An unsupported root-cause guess"},
+        ],
+        "correct": ["a", "b", "c"],
+        "explanation": "A handoff preserves state, evidence, next action, and commitments so work continues without repetition.",
+    },
+]
+
+
+CAPSTONE_READINESS_PRACTICE = [
+    {
+        "id": "discovery",
+        "prompt": "Before stabilizing an unfamiliar environment, which discovery evidence is useful?",
+        "context": "Documentation is incomplete and multiple shared services depend on one another.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Systems, owners, roles, dependencies, and current health"},
+            {"id": "b", "label": "Backup jobs plus evidence of the last tested restore"},
+            {"id": "c", "label": "Known alerts, privileged access, and escalation contacts"},
+            {"id": "d", "label": "Unverified assumptions written as facts"},
+        ],
+        "correct": ["a", "b", "c"],
+        "explanation": "A usable baseline identifies assets, dependencies, recovery evidence, access, monitoring, and ownership.",
+    },
+    {
+        "id": "stabilize",
+        "prompt": "An audit finds a filling Linux log, an unverified backup, and a deliberately disabled leaver account. What is the safe response?",
+        "context": "The account disable has an HR reference and should remain in place.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Fix the log cause safely, test restore, and leave the approved account control intact"},
+            {"id": "b", "label": "Delete all logs, assume backup works, and enable the account"},
+            {"id": "c", "label": "Rebuild every server"},
+            {"id": "d", "label": "Resolve the findings without verification"},
+        ],
+        "correct": ["a"],
+        "explanation": "Stabilization addresses measured risk while preserving deliberate security controls and proving recovery.",
+    },
+    {
+        "id": "ready-proof",
+        "prompt": "Which evidence best shows you are ready for the role-gated capstone?",
+        "context": "The capstone evaluates an integrated workflow, not memorized trivia.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "You can scope, gather evidence, act safely, verify, document, and escalate across the course domains"},
+            {"id": "b", "label": "You can recite every command without context"},
+            {"id": "c", "label": "You mark every optional lesson complete"},
+            {"id": "d", "label": "You never ask for approval or escalate"},
+        ],
+        "correct": ["a"],
+        "explanation": "The capstone asks for repeatable support judgment across systems, including knowing when to escalate.",
+    },
+]
+
+
+WEEKS_23_24_QUALITY = {
+    23: {
+        "description": "Prioritize a mixed support queue, communicate during an incident, and hand work off without losing evidence.",
+        "learning_goals": [
+            "Classify each ticket by domain, failing layer, and owner, then prioritize by impact and urgency rather than arrival order.",
+            "During an incident, send an early update with confirmed impact, current action, and the next update time—without guessing cause.",
+            "Preserve evidence and follow the escalation path for suspected compromise; do not improvise a forensic response.",
+            "A useful handoff records current state, evidence-backed eliminations, next action, and promises already made.",
+        ],
+        "required_videos": {174},
+        "required_quiz": 25,
+        "required_service_desk": False,
+        "lab": {"title": "Work the Mixed Support Queue", "lab_type": "structured_operations", "questions": MIXED_QUEUE_PRACTICE, "estimated_minutes": 25},
+    },
+    24: {
+        "description": "Prove you are ready to combine discovery, safe changes, verification, documentation, and escalation in the capstone.",
+        "learning_goals": [
+            "Discover systems, owners, dependencies, monitoring, privileged access, and tested recovery evidence before changing an unfamiliar environment.",
+            "Stabilize measured risks with the smallest safe change while preserving intentional security controls.",
+            "For every action: capture a baseline, change one thing, verify the result, record the rollback, and write the ticket or runbook note.",
+            "Capstone readiness means applying the full workflow and escalating correctly—not memorizing every command or completing optional filler.",
+        ],
+        "required_videos": set(),
+        "required_quiz": None,
+        "required_service_desk": False,
+        "lab": {"title": "Check Your Capstone Readiness", "lab_type": "structured_capstone", "questions": CAPSTONE_READINESS_PRACTICE, "estimated_minutes": 20},
+    },
+}
+
+
 def _sync_quality_batch(db: Session, specs: dict[int, dict]) -> dict:
     weeks = {
         week.week_number: week
@@ -1608,7 +1730,7 @@ def _sync_quality_batch(db: Session, specs: dict[int, dict]) -> dict:
                 result["updated_weeks"] += 1
 
         required_videos = {str(value) for value in spec.get("required_videos", set())}
-        required_quiz = str(spec["required_quiz"])
+        required_quiz = str(spec["required_quiz"]) if spec.get("required_quiz") is not None else None
         required_networking_labs = spec.get("required_networking_labs", set())
         activities = db.query(TrainingWeekActivity).filter_by(training_week_id=week.id).all()
         for activity in activities:
@@ -1629,7 +1751,7 @@ def _sync_quality_batch(db: Session, specs: dict[int, dict]) -> dict:
                 activity.is_required = should_be_required
                 result["updated_activities"] += 1
 
-    required_quiz_ids = {spec["required_quiz"] for spec in specs.values()}
+    required_quiz_ids = {spec["required_quiz"] for spec in specs.values() if spec.get("required_quiz") is not None}
     for quiz in db.query(Quiz).filter(Quiz.id.in_(quiz_activity_ids)).all():
         should_be_required = quiz.id in required_quiz_ids
         expected_purpose = "required" if should_be_required else "practice"
@@ -1831,6 +1953,48 @@ def sync_weeks_19_22_quality(db: Session) -> dict:
     if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
         return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
     return _sync_quality_batch(db, WEEKS_19_22_QUALITY)
+
+
+def sync_weeks_23_24_quality(db: Session) -> dict:
+    """Align the integrated-operations finish and capstone readiness path."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    weeks = {
+        week.week_number: week
+        for week in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_({23, 24})).all()
+    }
+    if set(weeks) != {23, 24}:
+        return {"updated": 0, "skipped": True, "reason": "weeks_missing"}
+
+    # Quiz 25 assesses mixed-queue triage, incident updates, and handoffs—the
+    # Week 23 outcomes. Move its existing activity instead of cloning it so
+    # student activity history remains attached to the same row.
+    readiness_quiz = (
+        db.query(TrainingWeekActivity)
+        .filter_by(activity_type="quiz", content_ref="25")
+        .first()
+    )
+    moved_quiz = False
+    if readiness_quiz is not None and readiness_quiz.training_week_id != weeks[23].id:
+        readiness_quiz.training_week_id = weeks[23].id
+        readiness_quiz.stable_id = "week-23-quiz-25"
+        readiness_quiz.display_order = (
+            db.query(func.max(TrainingWeekActivity.display_order))
+            .filter_by(training_week_id=weeks[23].id)
+            .scalar()
+            or 0
+        ) + 1
+        moved_quiz = True
+    quiz = db.get(Quiz, 25)
+    if quiz is not None and quiz.week_number != 23:
+        quiz.week_number = 23
+    db.flush()
+
+    result = _sync_quality_batch(db, WEEKS_23_24_QUALITY)
+    if moved_quiz:
+        result["updated_activities"] += 1
+    return result
 
 
 def reconcile_week_zero_requirements(db: Session) -> dict:
