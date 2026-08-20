@@ -180,18 +180,30 @@ test("Hardware Component Identification is a real structured exercise, not a tex
   await expect(submit).toBeEnabled();
 });
 
-test("Windows CLI Diagnostics (Week 3) and Prioritize the Queue (Week 4) are structured, not free text", async ({ page }) => {
+test("Weeks 3-6 provide deterministic practice and Week 3 uses the real terminal", async ({ page }) => {
   await studentLogin(page);
 
   await page.goto("/labs/3");
   await expect(page.getByRole("heading", { name: "Windows Command-Line Diagnostics", exact: true })).toBeVisible();
   await expect(page.getByText("Work and explain", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Use the practice terminal first", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Try hostname/ }).click();
+  await page.locator(".xterm-helper-textarea").press("Enter");
+  await expect(page.getByRole("button", { name: /hostname/ })).toContainText("✓");
   await expect(page.locator("fieldset").first()).toBeVisible();
 
   await page.goto("/labs/6");
   await expect(page.getByRole("heading", { name: "Prioritize the Queue", exact: true })).toBeVisible();
   await expect(page.getByText("Work and explain", { exact: false })).toHaveCount(0);
   await expect(page.locator("fieldset").first()).toBeVisible();
+
+  await page.goto("/labs/7");
+  await expect(page.getByRole("heading", { name: "Isolate the Windows Failure", exact: true })).toBeVisible();
+  await expect(page.locator("fieldset")).toHaveCount(3);
+
+  await page.goto("/labs/8");
+  await expect(page.getByRole("heading", { name: "Make the Safe Access Decision", exact: true })).toBeVisible();
+  await expect(page.locator("fieldset")).toHaveCount(3);
 });
 
 test("no mobile horizontal overflow on rebuilt lab pages", async ({ page }) => {

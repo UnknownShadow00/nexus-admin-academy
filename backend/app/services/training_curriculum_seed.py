@@ -203,32 +203,32 @@ WINDOWS_DIAGNOSTICS_QUESTIONS = [
         "explanation": "The trace never reaches even its first hop, so the local path to the configured gateway is the first thing to verify. DNS is not involved when tracing a numeric IP address.",
     },
     {
-        "id": "event-viewer-disk",
-        "prompt": "What is the appropriate interpretation of this Event Viewer entry?",
-        "context": "System log: Source `Disk`, Event ID `153`: 'The IO operation at logical block address ... was retried.' The user reports intermittent application freezes.",
+        "id": "netstat-process",
+        "prompt": "What should you do with the PID in this `netstat -ano` result?",
+        "context": "`TCP  192.168.1.100:52341  203.0.113.40:443  ESTABLISHED  9012`",
         "type": "single_choice",
         "options": [
-            {"id": "a", "label": "Investigate storage health, cabling/controller events, and back up data; this points to retried disk I/O."},
-            {"id": "b", "label": "Treat it as a DNS name-resolution failure."},
-            {"id": "c", "label": "Assume the user has entered a wrong password."},
-            {"id": "d", "label": "Prioritize changing the display resolution."},
+            {"id": "a", "label": "Match PID 9012 to a process in Task Manager Details before deciding whether the connection is expected."},
+            {"id": "b", "label": "Block port 443 immediately because every established connection is malicious."},
+            {"id": "c", "label": "Change the workstation's DNS server."},
+            {"id": "d", "label": "Delete the user profile."},
         ],
         "correct": ["a"],
-        "explanation": "Disk Event ID 153 reports a retried I/O operation, which can correlate with pauses while storage requests are retried. Check storage diagnostics and protect data rather than treating it as a network or display issue.",
+        "explanation": "netstat identifies the connection and PID, but the PID must be matched to its process before the technician can judge whether the traffic is expected.",
     },
     {
-        "id": "task-manager-startup",
-        "prompt": "What is the best first action for this startup-performance symptom?",
-        "context": "Task Manager > Startup apps lists 'Acme Updater' as Enabled with Startup impact 'High'; it is not required for sign-in or endpoint protection. The PC is slow only immediately after sign-in.",
+        "id": "identity-before-action",
+        "prompt": "Why run `hostname` and `whoami` at the start of a remote support session?",
+        "context": "The user has two open remote sessions and says, 'Fix the policy on my laptop.'",
         "type": "single_choice",
         "options": [
-            {"id": "a", "label": "Disable the nonessential updater in Startup apps, then measure the next sign-in before making broader changes."},
-            {"id": "b", "label": "Delete the user profile immediately."},
-            {"id": "c", "label": "Change the IPv4 default gateway."},
-            {"id": "d", "label": "Uninstall the graphics driver."},
+            {"id": "a", "label": "They confirm the computer and signed-in account before you collect evidence or make a change."},
+            {"id": "b", "label": "They reset the computer name and password."},
+            {"id": "c", "label": "They force every Group Policy setting to refresh."},
+            {"id": "d", "label": "They prove that DNS is healthy."},
         ],
         "correct": ["a"],
-        "explanation": "The symptom is limited to sign-in and Task Manager identifies a nonessential, high-impact startup item. Disable that item and retest, preserving security and required management software.",
+        "explanation": "Support evidence is only useful when it comes from the intended device and account. hostname and whoami establish that context before action.",
     },
 ]
 
@@ -280,6 +280,345 @@ TRIAGE_QUESTIONS = [
         "explanation": "This is a single-user request with no outage, no urgent deadline, and a usable device. It fits P4 Low.",
     },
 ]
+
+
+WEEK_3_CLI_COMMANDS = [
+    "hostname",
+    "whoami",
+    "ipconfig /all",
+    "ping 192.168.1.1",
+    "nslookup intranet.nexus.internal",
+    "tracert intranet.nexus.internal",
+    "netstat -ano",
+]
+
+
+WINDOWS_TROUBLESHOOTING_PRACTICE = [
+    {
+        "id": "safe-mode-fork",
+        "prompt": "Windows hangs during a normal boot but reaches the desktop in Safe Mode. What should you investigate first?",
+        "context": "Safe Mode loads only a minimal set of drivers and services.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "A recently added driver, startup app, or third-party service"},
+            {"id": "b", "label": "The monitor cable"},
+            {"id": "c", "label": "A complete Windows reinstall"},
+            {"id": "d", "label": "The user's cloud password"},
+        ],
+        "correct": ["a"],
+        "explanation": "A successful Safe Mode boot points toward software that normal startup loads, so investigate recent drivers, startup apps, and services before destructive repair.",
+    },
+    {
+        "id": "workbook-crash",
+        "prompt": "Excel opens other files but closes when one workbook opens. What is the best first isolation step?",
+        "context": "The problem follows one file, not every Excel session.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Test a copy of that workbook and check the Application log for the crash module"},
+            {"id": "b", "label": "Replace the workstation immediately"},
+            {"id": "c", "label": "Delete the user's Windows profile"},
+            {"id": "d", "label": "Disable the network adapter"},
+        ],
+        "correct": ["a"],
+        "explanation": "When other files work, preserve the original and isolate the file while Event Viewer identifies the faulting application or add-in.",
+    },
+    {
+        "id": "disk-writer",
+        "prompt": "A workstation regains 8 GB after cleanup but fills again every week. What should the ticket's next action be?",
+        "context": "Repeated cleanup treats the symptom, not the cause.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Measure which folder or log is growing and fix the process writing it"},
+            {"id": "b", "label": "Delete unfamiliar folders"},
+            {"id": "c", "label": "Manually remove pagefile.sys"},
+            {"id": "d", "label": "Schedule an automatic weekly deletion of user data"},
+        ],
+        "correct": ["a"],
+        "explanation": "A recurring full disk needs before-and-after measurement and identification of the growing writer so the problem does not return.",
+    },
+]
+
+
+ACCESS_DECISION_PRACTICE = [
+    {
+        "id": "two-permission-gates",
+        "prompt": "Share permissions allow Change, but NTFS permissions allow only Read. What can the user do over the network?",
+        "context": "Remote access must pass both permission gates.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Read files but not change them"},
+            {"id": "b", "label": "Change any file"},
+            {"id": "c", "label": "Take ownership automatically"},
+            {"id": "d", "label": "Nothing; the share is always denied"},
+        ],
+        "correct": ["a"],
+        "explanation": "The most restrictive effective permission wins. Share Change cannot override NTFS Read.",
+    },
+    {
+        "id": "fresh-token",
+        "prompt": "A manager-approved group was added correctly, but the user is still denied. What should happen before changing permissions again?",
+        "context": "The user's current sign-in token was created before the group change.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Have the user sign out and sign back in, then retest"},
+            {"id": "b", "label": "Grant the user Full Control directly"},
+            {"id": "c", "label": "Disable inheritance"},
+            {"id": "d", "label": "Restart the file server"},
+        ],
+        "correct": ["a"],
+        "explanation": "A new logon creates a fresh token containing the updated group membership.",
+    },
+    {
+        "id": "sensitive-access",
+        "prompt": "A contractor requests urgent read access to Payroll and says the CFO is waiting. What is the safe action?",
+        "context": "Urgency changes priority, not authorization.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Escalate with the requester, business reason, duration, and named approver"},
+            {"id": "b", "label": "Grant read-only access for one hour"},
+            {"id": "c", "label": "Add the contractor to the broad Finance group"},
+            {"id": "d", "label": "Close the request without documenting it"},
+        ],
+        "correct": ["a"],
+        "explanation": "Sensitive cross-department access requires authorized approval; a complete escalation is the correct resolution at this support level.",
+    },
+]
+
+
+WEEKS_3_6_BRIEFS = {
+    3: {
+        "description": "Use Windows commands to identify the computer, test network reachability, check DNS, and gather evidence before changing anything.",
+        "learning_goals": [
+            "hostname and whoami confirm which computer and user you are supporting.",
+            "ipconfig /all shows the IP address, gateway, DHCP state, and DNS servers; a 169.254 address usually means DHCP failed.",
+            "Ping the gateway, then an internet IP, then a name to separate local, internet, and DNS failures.",
+            "nslookup tests DNS directly, tracert shows the route, and netstat -ano links connections to process IDs.",
+        ],
+    },
+    4: {
+        "description": "Work the queue by business impact and urgency, then communicate a safe next step without overpromising.",
+        "learning_goals": [
+            "P1 is a broad outage with no workaround; P2 is major degradation; P3 is a limited interruption; P4 is a routine request.",
+            "A workaround lowers urgency, while the number of affected users raises impact.",
+            "An incident restores broken service; a service request asks for something new; risky changes and unauthorized access must be escalated.",
+            "A useful handoff records the current state, evidence, exact next step, and any promised update time.",
+        ],
+    },
+    5: {
+        "description": "Isolate Windows startup, application, and disk problems with the least destructive useful test.",
+        "learning_goals": [
+            "If normal boot fails but Safe Mode works, investigate a recent driver, startup app, or third-party service.",
+            "Event 1000 identifies an application crash module; a hang while opening a network file may be a network problem wearing an app symptom.",
+            "Test another Windows user to separate per-user configuration from a machine-wide application failure.",
+            "Measure what consumes disk space, use approved cleanup tools, and verify both the space recovered and the cause.",
+        ],
+    },
+    6: {
+        "description": "Resolve account and file-access requests without bypassing identity checks, approval, or least privilege.",
+        "learning_goals": [
+            "Verify identity before a password reset, and investigate the saved credential that causes a recurring lockout.",
+            "Remote file access uses both share and NTFS permissions; the most restrictive effective result wins.",
+            "After a group change, sign out and back in so Windows creates a fresh access token.",
+            "Urgency is not authorization: package sensitive access requests with the business reason and approver, then escalate.",
+        ],
+    },
+}
+
+
+WEEKS_3_6_REQUIRED_VIDEOS = {3: {117, 118}, 4: {169}, 5: {162}, 6: {139}}
+WEEKS_3_6_REQUIRED_QUIZZES = {3: 4, 4: 5, 5: 6, 6: 7}
+
+
+def sync_weeks_3_6_quality(db: Session) -> dict:
+    """Align the first post-foundation batch without replacing history rows."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+
+    weeks = {
+        week.week_number: week
+        for week in db.query(TrainingWeek).filter(TrainingWeek.week_number.between(3, 6)).all()
+    }
+    if set(weeks) != {3, 4, 5, 6}:
+        return {"updated": 0, "skipped": True, "reason": "weeks_missing"}
+
+    result = {
+        "updated_weeks": 0,
+        "updated_activities": 0,
+        "updated_templates": 0,
+        "created_templates": 0,
+        "created_activities": 0,
+        "skipped": False,
+    }
+
+    for number, brief in WEEKS_3_6_BRIEFS.items():
+        week = weeks[number]
+        for field, value in brief.items():
+            if getattr(week, field) != value:
+                setattr(week, field, value)
+                result["updated_weeks"] += 1
+
+    quiz_rows = {quiz.id: quiz for quiz in db.query(Quiz).filter(Quiz.id.in_({2, 3, 4, 5, 6, 7})).all()}
+    required_quiz_ids = set(WEEKS_3_6_REQUIRED_QUIZZES.values())
+    for quiz_id, quiz in quiz_rows.items():
+        should_be_required = quiz_id in required_quiz_ids
+        expected_purpose = "required" if should_be_required else "practice"
+        if (
+            bool(quiz.is_required) != should_be_required
+            or bool(quiz.show_in_weekly_checklist) != should_be_required
+            or quiz.quiz_purpose != expected_purpose
+        ):
+            quiz.is_required = should_be_required
+            quiz.show_in_weekly_checklist = should_be_required
+            quiz.quiz_purpose = expected_purpose
+
+    for number, week in weeks.items():
+        required_quiz = str(WEEKS_3_6_REQUIRED_QUIZZES[number])
+        required_videos = {str(item) for item in WEEKS_3_6_REQUIRED_VIDEOS[number]}
+        activities = db.query(TrainingWeekActivity).filter_by(training_week_id=week.id).all()
+        for activity in activities:
+            if activity.activity_type == "lesson":
+                should_be_required = False
+            elif activity.activity_type == "video":
+                should_be_required = activity.content_ref in required_videos
+            elif activity.activity_type == "quiz":
+                should_be_required = activity.content_ref == required_quiz
+            elif activity.activity_type == "service_desk_scenario":
+                should_be_required = number in {5, 6}
+            else:
+                continue
+            if bool(activity.is_required) != should_be_required:
+                activity.is_required = should_be_required
+                result["updated_activities"] += 1
+
+    def update_template(lab: LabTemplate, **values) -> None:
+        changed = False
+        for field, value in values.items():
+            if getattr(lab, field) != value:
+                setattr(lab, field, value)
+                changed = True
+        if changed:
+            result["updated_templates"] += 1
+
+    def ensure_lab(
+        title: str,
+        week_number: int,
+        questions: list,
+        *,
+        cli: bool = False,
+        description: str | None = None,
+        setup_instructions: str | None = None,
+        estimated_minutes: int = 25,
+    ) -> LabTemplate:
+        lab = db.query(LabTemplate).filter(LabTemplate.title == title).first()
+        values = {
+            "description": description or (
+                "Run the required Windows commands in the real Nexus practice terminal, read the output, then diagnose each result."
+                if cli
+                else "Work through realistic support symptoms and choose the safest evidence-based next action."
+            ),
+            "lab_type": "structured_cli" if cli else "structured_diagnostic",
+            "week_number": week_number,
+            "difficulty": 1,
+            "estimated_minutes": estimated_minutes,
+            "is_published": True,
+            "environment_requirements": {},
+            "setup_instructions": setup_instructions or (
+                "Use the command buttons as prompts, run every command, and read what each output proves before answering."
+                if cli
+                else "Read each symptom and evidence block. Choose the next action you could defend in a support ticket."
+            ),
+            "success_criteria": {
+                "questions": questions,
+                **({"required_commands": WEEK_3_CLI_COMMANDS} if cli else {}),
+            },
+            "required_evidence": {},
+            "hints": {},
+        }
+        if lab is None:
+            lab = LabTemplate(title=title, **values)
+            db.add(lab)
+            db.flush()
+            result["created_templates"] += 1
+        else:
+            update_template(lab, **values)
+        return lab
+
+    labs = {
+        3: ensure_lab("Windows Command-Line Diagnostics", 3, WINDOWS_DIAGNOSTICS_QUESTIONS, cli=True),
+        4: ensure_lab(
+            "Prioritize the Queue",
+            4,
+            TRIAGE_QUESTIONS,
+            description=(
+                "Triage five incoming support tickets by business impact. P1 Critical is a broad outage with no workaround; "
+                "P2 High is major multi-user degradation; P3 Medium is a limited interruption; P4 Low is a routine request."
+            ),
+            setup_instructions="Read the impact, urgency, and workaround in each ticket, then choose the priority you could defend to the queue lead.",
+            estimated_minutes=15,
+        ),
+        5: ensure_lab("Isolate the Windows Failure", 5, WINDOWS_TROUBLESHOOTING_PRACTICE),
+        6: ensure_lab("Make the Safe Access Decision", 6, ACCESS_DECISION_PRACTICE),
+    }
+
+    for number, lab in labs.items():
+        week = weeks[number]
+        activity = (
+            db.query(TrainingWeekActivity)
+            .filter_by(training_week_id=week.id, activity_type="guided_lab", content_ref=str(lab.id))
+            .first()
+        )
+        if activity is None:
+            apply_order = (
+                db.query(func.min(TrainingWeekActivity.display_order))
+                .filter(
+                    TrainingWeekActivity.training_week_id == week.id,
+                    TrainingWeekActivity.activity_type.in_(["service_desk_scenario", "capstone"]),
+                )
+                .scalar()
+            )
+            if apply_order is None:
+                display_order = (
+                    db.query(func.max(TrainingWeekActivity.display_order))
+                    .filter_by(training_week_id=week.id)
+                    .scalar()
+                    or 0
+                ) + 1
+            else:
+                rows = (
+                    db.query(TrainingWeekActivity)
+                    .filter(
+                        TrainingWeekActivity.training_week_id == week.id,
+                        TrainingWeekActivity.display_order >= apply_order,
+                    )
+                    .order_by(TrainingWeekActivity.display_order.desc())
+                    .all()
+                )
+                for row in rows:
+                    row.display_order += 1
+                    db.flush()
+                display_order = apply_order
+            activity = TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-{number}-guided_lab-{lab.id}",
+                activity_type="guided_lab",
+                content_ref=str(lab.id),
+                display_order=display_order,
+                is_required=True,
+                estimated_minutes=lab.estimated_minutes,
+                prerequisite_mode="soft",
+                metadata_json={},
+            )
+            db.add(activity)
+            result["created_activities"] += 1
+        else:
+            for field, value in {"is_required": True, "estimated_minutes": lab.estimated_minutes}.items():
+                if getattr(activity, field) != value:
+                    setattr(activity, field, value)
+                    result["updated_activities"] += 1
+
+    db.commit()
+    return result
 
 
 def reconcile_week_zero_requirements(db: Session) -> dict:

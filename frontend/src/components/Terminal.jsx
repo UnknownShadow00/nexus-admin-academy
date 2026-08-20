@@ -6,13 +6,17 @@ import "@xterm/xterm/css/xterm.css";
 function processCommand(cmd, term) {
   const command = cmd.trim().toLowerCase();
 
-  if (command === "ipconfig") {
+  if (command === "ipconfig" || command === "ipconfig /all") {
     term.writeln("Windows IP Configuration");
     term.writeln("");
     term.writeln("Ethernet adapter Ethernet:");
     term.writeln("   IPv4 Address. . . . . . . . . . . : 192.168.1.100");
     term.writeln("   Subnet Mask . . . . . . . . . . . : 255.255.255.0");
     term.writeln("   Default Gateway . . . . . . . . . : 192.168.1.1");
+    if (command === "ipconfig /all") {
+      term.writeln("   DHCP Enabled. . . . . . . . . . . : Yes");
+      term.writeln("   DNS Servers . . . . . . . . . . . : 10.20.0.10");
+    }
   } else if (command.startsWith("ping ")) {
     const target = command.split(" ")[1] || "unknown";
     term.writeln(`Pinging ${target} with 32 bytes of data:`);
@@ -46,6 +50,19 @@ function processCommand(cmd, term) {
     term.writeln(`Changed directory to ${dir}`);
   } else if (command === "whoami") {
     term.writeln("NEXUS\\student01");
+  } else if (command === "hostname") {
+    term.writeln("NX-WS-101");
+  } else if (command === "systeminfo") {
+    term.writeln("Host Name:                 NX-WS-101");
+    term.writeln("OS Name:                   Microsoft Windows 11 Enterprise");
+    term.writeln("System Type:               x64-based PC");
+  } else if (command === "gpresult /r" || command === "gpresult") {
+    term.writeln("COMPUTER SETTINGS");
+    term.writeln("    Applied Group Policy Objects");
+    term.writeln("        Nexus Workstation Baseline");
+    term.writeln("USER SETTINGS");
+    term.writeln("    Applied Group Policy Objects");
+    term.writeln("        Nexus Standard User Policy");
   } else if (command === "id") {
     term.writeln("uid=1001(student01) gid=1001(student01) groups=1001(student01),27(sudo)");
   } else if (command === "uptime") {
@@ -86,6 +103,13 @@ function processCommand(cmd, term) {
     term.writeln("Non-authoritative answer:");
     term.writeln(`Name:   ${host}`);
     term.writeln("Address: 93.184.216.34");
+  } else if (command.startsWith("tracert ")) {
+    const host = command.split(" ")[1] || "example.com";
+    term.writeln(`Tracing route to ${host} over a maximum of 30 hops`);
+    term.writeln("  1    <1 ms    <1 ms    <1 ms  192.168.1.1");
+    term.writeln("  2     8 ms     9 ms     8 ms  10.20.0.1");
+    term.writeln(`  3    12 ms    11 ms    12 ms  ${host}`);
+    term.writeln("Trace complete.");
   } else if (command.startsWith("dig ")) {
     const host = command.split(" ")[1] || "example.com";
     term.writeln(`; <<>> DiG 9.16.1-Ubuntu <<>> ${host}`);
@@ -167,7 +191,8 @@ function processCommand(cmd, term) {
     term.clear();
   } else if (!command || command === "help") {
     term.writeln("Available commands:");
-    term.writeln("  ipconfig, ping [host], get-service, get-process, netstat, nslookup, arp");
+    term.writeln("  ipconfig /all, ping [host], tracert [host], nslookup [host], netstat, arp");
+    term.writeln("  hostname, systeminfo, whoami, gpresult /r, get-service, get-process");
     term.writeln("  ls, pwd, cd, whoami, id, uptime, free, df, ps, find, grep, cat");
     term.writeln("  tasklist, sc query <service>, netsh, dmesg, journalctl, ssh, curl, wget");
     term.writeln("  systemctl status/start/stop/restart <service>, chmod, chown, mkdir, kill");

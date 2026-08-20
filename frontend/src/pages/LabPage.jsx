@@ -124,10 +124,10 @@ export default function LabPage() {
     }
   }
 
-  async function handleStructuredSubmit(answers) {
+  async function handleStructuredSubmit(answers, terminalSession = "") {
     setBusy(true);
     try {
-      const res = await submitLab(labId, { notes: "", answers });
+      const res = await submitLab(labId, { notes: terminalSession, answers });
       setLab(res.data);
       setVmAssignment(null);
       setGuacUrl(null);
@@ -301,6 +301,7 @@ export default function LabPage() {
           {isStructured ? (
             <StructuredLabExercise
               questions={structuredQuestions}
+              requiredCommands={lab.success_criteria?.required_commands}
               feedback={lab.structured_feedback}
               submitted={lab.status === "submitted" && (lab.structured_feedback?.score_pct ?? 0) >= 70}
               busy={busy}

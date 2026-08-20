@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 import HardwareIdentificationVisual from "./HardwareIdentificationVisual";
+import TerminalWidget from "./Terminal";
 
 function isSelected(answers, questionId, optionId) {
   return (answers[questionId] || []).includes(optionId);
@@ -15,12 +16,18 @@ function toggleAnswer(answers, question, optionId) {
   return { ...answers, [question.id]: [optionId] };
 }
 
-export default function StructuredLabExercise({ questions, feedback, submitted, busy, onSubmit }) {
+export default function StructuredLabExercise({ questions, requiredCommands = [], feedback, submitted, busy, onSubmit }) {
   const [answers, setAnswers] = useState({});
+  const [prefillCommand, setPrefillCommand] = useState("");
+  const [terminalSession, setTerminalSession] = useState("");
 
   const list = Array.isArray(questions) ? questions : [];
+  const commands = Array.isArray(requiredCommands) ? requiredCommands : [];
   const feedbackById = new Map((feedback?.questions || []).map((item) => [item.id, item]));
   const allAnswered = list.every((question) => (answers[question.id] || []).length > 0);
+  const normalizedSession = terminalSession.toLowerCase().replaceAll(/\s+/g, " ");
+  const commandWasRun = (command) => normalizedSession.includes(command.toLowerCase().replaceAll(/\s+/g, " "));
+  const allCommandsRun = commands.every(commandWasRun);
 
   return (
     <div className="space-y-4">
@@ -33,6 +40,31 @@ export default function StructuredLabExercise({ questions, feedback, submitted, 
           }`}
         >
           Score: {feedback.score_pct}% correct
+        </div>
+      ) : null}
+
+      {commands.length ? (
+        <div className="space-y-3 rounded-lg border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-900 dark:bg-blue-950/20">
+          <div>
+            <h3 className="font-semibold text-slate-900 dark:text-white">Use the practice terminal first</h3>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+              Run each command and read its output. Then use that evidence to answer the diagnostic questions.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {commands.map((command) => (
+              <button
+                key={command}
+                type="button"
+                className={commandWasRun(command) ? "btn-secondary border-emerald-500 text-emerald-700" : "btn-secondary"}
+                disabled={submitted || busy}
+                onClick={() => setPrefillCommand(command)}
+              >
+                {commandWasRun(command) ? "✓ " : "Try "}<code>{command}</code>
+              </button>
+            ))}
+          </div>
+          <TerminalWidget prefillCommand={prefillCommand} onSessionChange={setTerminalSession} />
         </div>
       ) : null}
 
@@ -94,8 +126,8 @@ export default function StructuredLabExercise({ questions, feedback, submitted, 
         <button
           type="button"
           className="btn-primary"
-          disabled={!allAnswered || busy}
-          onClick={() => onSubmit(answers)}
+          disabled={!allAnswered || !allCommandsRun || busy}
+          onClick={() => onSubmit(answers, terminalSession)}
         >
           {busy ? "Submitting..." : feedback ? "Try Again" : "Submit Answers"}
         </button>
