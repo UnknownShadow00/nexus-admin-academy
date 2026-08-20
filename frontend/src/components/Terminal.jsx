@@ -3,7 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
-function processCommand(cmd, term) {
+function processCommand(cmd, term, profile = "windows") {
   const command = cmd.trim().toLowerCase();
 
   if (command === "ipconfig" || command === "ipconfig /all") {
@@ -31,6 +31,18 @@ function processCommand(cmd, term) {
     term.writeln("Running  Dnscache           DNS Client");
     term.writeln("Stopped  Spooler            Print Spooler");
     term.writeln("Running  W32Time            Windows Time");
+  } else if (command === "get-command") {
+    term.writeln("CommandType  Name             Version  Source");
+    term.writeln("-----------  ----             -------  ------");
+    term.writeln("Cmdlet       Get-Service      7.4.0.0  Microsoft.PowerShell.Management");
+    term.writeln("Cmdlet       Get-Help         7.4.0.0  Microsoft.PowerShell.Core");
+    term.writeln("Cmdlet       Get-Member       7.4.0.0  Microsoft.PowerShell.Utility");
+  } else if (command === "get-help" || command.startsWith("get-help ")) {
+    const topic = cmd.trim().split(/\s+/).slice(1).join(" ") || "Get-Help";
+    term.writeln(`NAME`);
+    term.writeln(`    ${topic}`);
+    term.writeln("SYNOPSIS");
+    term.writeln("    Displays command help, syntax, parameters, and examples.");
   } else if (command === "get-process") {
     term.writeln("Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  ProcessName");
     term.writeln("-------  ------    -----      -----     ------     --  -----------");
@@ -44,12 +56,12 @@ function processCommand(cmd, term) {
     term.writeln("-rw-r--r--  1 root root 3526 Jan 14 09:23 .bashrc");
     term.writeln("drwxr-xr-x  3 root root 4096 Jan 14 09:23 var");
   } else if (command === "pwd") {
-    term.writeln("C:\\Users\\Student");
+    term.writeln(profile === "linux" ? "/home/student01" : "C:\\Users\\Student");
   } else if (command.startsWith("cd ")) {
     const dir = command.split(" ")[1] || "~";
     term.writeln(`Changed directory to ${dir}`);
   } else if (command === "whoami") {
-    term.writeln("NEXUS\\student01");
+    term.writeln(profile === "linux" ? "student01" : "NEXUS\\student01");
   } else if (command === "hostname") {
     term.writeln("NX-WS-101");
   } else if (command === "systeminfo") {
@@ -63,6 +75,10 @@ function processCommand(cmd, term) {
     term.writeln("USER SETTINGS");
     term.writeln("    Applied Group Policy Objects");
     term.writeln("        Nexus Standard User Policy");
+  } else if (command === "gpupdate /force" || command === "gpupdate") {
+    term.writeln("Updating policy...");
+    term.writeln("Computer Policy update has completed successfully.");
+    term.writeln("User Policy update has completed successfully.");
   } else if (command === "id") {
     term.writeln("uid=1001(student01) gid=1001(student01) groups=1001(student01),27(sudo)");
   } else if (command === "uptime") {
@@ -192,7 +208,8 @@ function processCommand(cmd, term) {
   } else if (!command || command === "help") {
     term.writeln("Available commands:");
     term.writeln("  ipconfig /all, ping [host], tracert [host], nslookup [host], netstat, arp");
-    term.writeln("  hostname, systeminfo, whoami, gpresult /r, get-service, get-process");
+    term.writeln("  hostname, systeminfo, whoami, gpresult /r, gpupdate /force");
+    term.writeln("  get-command, get-help [command], get-service, get-process");
     term.writeln("  ls, pwd, cd, whoami, id, uptime, free, df, ps, find, grep, cat");
     term.writeln("  tasklist, sc query <service>, netsh, dmesg, journalctl, ssh, curl, wget");
     term.writeln("  systemctl status/start/stop/restart <service>, chmod, chown, mkdir, kill");
@@ -204,7 +221,7 @@ function processCommand(cmd, term) {
   term.writeln("");
 }
 
-export default function TerminalWidget({ prefillCommand, onSessionChange }) {
+export default function TerminalWidget({ prefillCommand, onSessionChange, profile = "windows" }) {
   const terminalRef = useRef(null);
   const termRef = useRef(null);
   const currentLineRef = useRef("");
@@ -247,11 +264,12 @@ export default function TerminalWidget({ prefillCommand, onSessionChange }) {
 
     termRef.current = term;
 
-    const prompt = "PS C:\\Users\\Student> ";
+    const isLinux = profile === "linux";
+    const prompt = isLinux ? "student01@nexus:~$ " : "PS C:\\Users\\Student> ";
 
     const writePrompt = () => term.write(prompt);
 
-    term.writeln("Windows PowerShell Practice Terminal");
+    term.writeln(isLinux ? "Linux Shell Practice Terminal" : "Windows PowerShell Practice Terminal");
     term.writeln("Type commands to practice (simulated environment)");
     term.writeln("Type help for command list");
     term.writeln("");
@@ -266,7 +284,7 @@ export default function TerminalWidget({ prefillCommand, onSessionChange }) {
           historyIndexRef.current = -1;
         }
         sessionLinesRef.current.push(`${prompt}${command}`);
-        processCommand(command, term);
+        processCommand(command, term, profile);
         sessionLinesRef.current.push("");
         currentLineRef.current = "";
         writePrompt();
@@ -321,7 +339,7 @@ export default function TerminalWidget({ prefillCommand, onSessionChange }) {
       termRef.current = null;
       term.dispose();
     };
-  }, []);
+  }, [profile]);
 
   useEffect(() => {
     if (!prefillCommand || !termRef.current) return;

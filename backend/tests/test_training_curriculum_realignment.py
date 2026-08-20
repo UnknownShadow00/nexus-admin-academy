@@ -7,6 +7,7 @@ from app.services.training_curriculum_seed import (
     sync_weeks_3_6_quality,
     sync_weeks_7_10_quality,
     sync_weeks_11_14_quality,
+    sync_weeks_15_18_quality,
     sync_weeks_1_4_practice_realignment,
 )
 from app.services.training_service import validate_training_curriculum
@@ -409,6 +410,81 @@ def test_weeks_7_10_quality_sync_rebuilds_network_practice_and_uses_cli_labs(db)
     assert required_switching == {"dev-sw-act-04", "dev-sw-act-18"}
 
     second = sync_weeks_7_10_quality(db)
+    assert second["created_templates"] == 0
+    assert second["created_activities"] == 0
+    assert second["updated_activities"] == 0
+
+
+def test_weeks_15_18_quality_sync_rebuilds_fake_lab_and_adds_command_practice(db):
+    weeks = {number: _add_week(db, number) for number in range(15, 19)}
+    quizzes = {15: 17, 16: 18, 17: 19, 18: 20}
+    videos = {15: "135", 16: "178", 17: "170", 18: "128"}
+    db.flush()
+    for number, week in weeks.items():
+        db.add_all(
+            [
+                TrainingWeekActivity(
+                    training_week_id=week.id,
+                    stable_id=f"week-{number}-lesson-test",
+                    activity_type="lesson",
+                    content_ref=str(number),
+                    display_order=1,
+                    is_required=True,
+                    prerequisite_mode="soft",
+                    metadata_json={},
+                ),
+                TrainingWeekActivity(
+                    training_week_id=week.id,
+                    stable_id=f"week-{number}-video-{videos[number]}",
+                    activity_type="video",
+                    content_ref=videos[number],
+                    display_order=2,
+                    is_required=number != 18,
+                    prerequisite_mode="soft",
+                    metadata_json={},
+                ),
+                TrainingWeekActivity(
+                    training_week_id=week.id,
+                    stable_id=f"week-{number}-quiz-{quizzes[number]}",
+                    activity_type="quiz",
+                    content_ref=str(quizzes[number]),
+                    display_order=3,
+                    is_required=False,
+                    prerequisite_mode="soft",
+                    metadata_json={},
+                ),
+            ]
+        )
+    _add_lab(db, 5, "AD Break-Fix: locked and misplaced account on a live domain", 15, "break_fix")
+    db.add(
+        TrainingWeekActivity(
+            training_week_id=weeks[15].id,
+            stable_id="week-15-guided_lab-5",
+            activity_type="guided_lab",
+            content_ref="5",
+            display_order=4,
+            is_required=True,
+            prerequisite_mode="soft",
+            metadata_json={},
+        )
+    )
+    db.commit()
+
+    first = sync_weeks_15_18_quality(db)
+
+    assert first["skipped"] is False
+    rebuilt = db.get(LabTemplate, 5)
+    assert (rebuilt.title, rebuilt.lab_type) == ("Diagnose the Group Policy Result", "structured_cli")
+    assert rebuilt.success_criteria["required_commands"] == ["whoami", "gpresult /r", "gpupdate /force"]
+    for number, week in weeks.items():
+        activities = db.query(TrainingWeekActivity).filter_by(training_week_id=week.id).all()
+        assert all(not row.is_required for row in activities if row.activity_type == "lesson")
+        assert [row.content_ref for row in activities if row.activity_type == "quiz" and row.is_required] == [str(quizzes[number])]
+        assert len([row for row in activities if row.activity_type == "guided_lab" and row.is_required]) == 1
+    linux_lab = db.query(LabTemplate).filter_by(week_number=18, title="Investigate the Linux Host").one()
+    assert linux_lab.success_criteria["terminal_profile"] == "linux"
+
+    second = sync_weeks_15_18_quality(db)
     assert second["created_templates"] == 0
     assert second["created_activities"] == 0
     assert second["updated_activities"] == 0

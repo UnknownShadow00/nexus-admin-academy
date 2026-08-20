@@ -16,7 +16,7 @@ function toggleAnswer(answers, question, optionId) {
   return { ...answers, [question.id]: [optionId] };
 }
 
-export default function StructuredLabExercise({ questions, requiredCommands = [], feedback, submitted, busy, onSubmit }) {
+export default function StructuredLabExercise({ questions, requiredCommands = [], terminalProfile = "windows", feedback, submitted, busy, onSubmit }) {
   const [answers, setAnswers] = useState({});
   const [prefillCommand, setPrefillCommand] = useState("");
   const [terminalSession, setTerminalSession] = useState("");
@@ -64,7 +64,7 @@ export default function StructuredLabExercise({ questions, requiredCommands = []
               </button>
             ))}
           </div>
-          <TerminalWidget prefillCommand={prefillCommand} onSessionChange={setTerminalSession} />
+          <TerminalWidget prefillCommand={prefillCommand} onSessionChange={setTerminalSession} profile={terminalProfile} />
         </div>
       ) : null}
 

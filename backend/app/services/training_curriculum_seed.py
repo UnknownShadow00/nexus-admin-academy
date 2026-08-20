@@ -1033,7 +1033,7 @@ DOMAIN_OPERATIONS_PRACTICE = [
         "id": "missing-drive",
         "prompt": "A newly added group member still cannot see the mapped drive. Which checks belong in your next step?",
         "context": "The access request was approved and the correct group was used.",
-        "type": "multi_select",
+        "type": "multi_choice",
         "options": [
             {"id": "a", "label": "Have the user sign out and back in to refresh the token"},
             {"id": "b", "label": "Check Group Policy drive-map processing"},
@@ -1098,6 +1098,246 @@ WEEKS_11_14_QUALITY = {
         "required_quiz": 16,
         "required_service_desk": False,
         "lab": {"title": "Repair Domain Access Safely", "lab_type": "structured_windows", "questions": DOMAIN_OPERATIONS_PRACTICE, "estimated_minutes": 25},
+    },
+}
+
+
+GROUP_POLICY_CLI_PRACTICE = [
+    {
+        "id": "applied-gpo",
+        "prompt": "Which command output proves which user and computer policies actually applied?",
+        "context": "The terminal shows separate COMPUTER SETTINGS and USER SETTINGS sections.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "gpresult /r"},
+            {"id": "b", "label": "ipconfig /all"},
+            {"id": "c", "label": "nslookup"},
+            {"id": "d", "label": "sfc /scannow"},
+        ],
+        "correct": ["a"],
+        "explanation": "gpresult reports the resultant user and computer policy instead of making you guess from the GPO editor.",
+    },
+    {
+        "id": "wrong-ou",
+        "prompt": "A drive-map GPO is linked to the Finance Users OU, but gpresult does not list it for the user. What should you verify next?",
+        "context": "The GPO is enabled and other Finance users receive the drive.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "The user's OU placement and security filtering"},
+            {"id": "b", "label": "The user's monitor driver"},
+            {"id": "c", "label": "The switch native VLAN"},
+            {"id": "d", "label": "The printer toner level"},
+        ],
+        "correct": ["a"],
+        "explanation": "A working policy for peers points to scope: the object must be under the link and allowed by filtering.",
+    },
+    {
+        "id": "refresh-policy",
+        "prompt": "After correcting scope, what is the safe verification sequence?",
+        "context": "The policy is a user setting and the user's work is saved.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Run gpupdate, sign out/in if needed, then confirm with gpresult"},
+            {"id": "b", "label": "Reboot every domain controller"},
+            {"id": "c", "label": "Disable inheritance for the domain"},
+            {"id": "d", "label": "Edit the local registry until the setting appears"},
+        ],
+        "correct": ["a"],
+        "explanation": "Refresh the affected client and verify resultant policy; broad infrastructure changes are unnecessary.",
+    },
+]
+
+
+POWERSHELL_SERVER_PRACTICE = [
+    {
+        "id": "discover-first",
+        "prompt": "You do not remember the syntax for inspecting a service. What should you do before changing anything?",
+        "context": "The practice terminal provides Get-Command, Get-Help, and Get-Service.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Use Get-Command to discover available commands"},
+            {"id": "b", "label": "Use Get-Help Get-Service to inspect syntax"},
+            {"id": "c", "label": "Guess a Stop-Service command in production"},
+            {"id": "d", "label": "Use Get-Service to read current state"},
+        ],
+        "correct": ["a", "b", "d"],
+        "explanation": "PowerShell supports a safe discover → inspect → act workflow; read state before issuing a change.",
+    },
+    {
+        "id": "dhcp-reservation",
+        "prompt": "A network printer needs the same address while remaining centrally managed. What should the DHCP admin create?",
+        "context": "The printer is currently a normal DHCP client.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "A reservation for the printer's MAC address"},
+            {"id": "b", "label": "A duplicate manual address inside the pool"},
+            {"id": "c", "label": "A public DNS record"},
+            {"id": "d", "label": "A second default gateway"},
+        ],
+        "correct": ["a"],
+        "explanation": "A reservation keeps central DHCP control while consistently assigning the same address.",
+    },
+    {
+        "id": "whatif",
+        "prompt": "A PowerShell command would change 200 directory objects. What safety step belongs before execution?",
+        "context": "The cmdlet supports the common -WhatIf parameter.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Run it with -WhatIf and inspect the exact targets"},
+            {"id": "b", "label": "Turn off audit logging"},
+            {"id": "c", "label": "Test directly against all 200 objects"},
+            {"id": "d", "label": "Restart Active Directory first"},
+        ],
+        "correct": ["a"],
+        "explanation": "-WhatIf previews supported changes so scope mistakes can be caught before mutation.",
+    },
+]
+
+
+SERVER_RECOVERY_PRACTICE = [
+    {
+        "id": "restore-proof",
+        "prompt": "A deleted department file has been restored. What must you verify before resolving the ticket?",
+        "context": "The restore tool reports Success.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "The file opens and contains the expected data"},
+            {"id": "b", "label": "The expected owner and permissions were restored"},
+            {"id": "c", "label": "The user can access it from their normal path"},
+            {"id": "d", "label": "The backup job name sounds correct"},
+        ],
+        "correct": ["a", "b", "c"],
+        "explanation": "A successful job is not proof of a usable restore. Validate content, permissions, and the user's access path.",
+    },
+    {
+        "id": "scheduled-task",
+        "prompt": "A nightly task started failing immediately after its service-account password changed. What is the likely cause?",
+        "context": "The task history records a logon failure at its normal start time.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "The task still stores the old run-as credential"},
+            {"id": "b", "label": "The DNS zone was deleted"},
+            {"id": "c", "label": "Every server needs replacement"},
+            {"id": "d", "label": "The user's desktop is asleep"},
+        ],
+        "correct": ["a"],
+        "explanation": "The timing and logon error point to stale scheduled-task credentials.",
+    },
+    {
+        "id": "patch-plan",
+        "prompt": "Which plan is appropriate before patching a production server?",
+        "context": "The service has a maintenance window and affects many users.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Confirm backup/rollback, notify users, patch in-window, and verify service health"},
+            {"id": "b", "label": "Install immediately with no rollback plan"},
+            {"id": "c", "label": "Disable monitoring so alerts stay quiet"},
+            {"id": "d", "label": "Delete old event logs before recording a baseline"},
+        ],
+        "correct": ["a"],
+        "explanation": "Shared services need a rollback, controlled timing, communication, and post-change verification.",
+    },
+]
+
+
+LINUX_CLI_PRACTICE = [
+    {
+        "id": "read-permissions",
+        "prompt": "ls -l shows -rw-r----- root support app.conf. Who can read the file?",
+        "context": "The first triplet is owner, the second group, and the third others.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "root and members of the support group"},
+            {"id": "b", "label": "Every local user"},
+            {"id": "c", "label": "Only users with sudo, regardless of ownership"},
+            {"id": "d", "label": "Nobody"},
+        ],
+        "correct": ["a"],
+        "explanation": "Owner has read/write, group has read, and others have no permissions.",
+    },
+    {
+        "id": "service-evidence",
+        "prompt": "Before restarting a Linux service, which evidence should you capture?",
+        "context": "The terminal supports systemctl status and journalctl.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Current service state and recent errors"},
+            {"id": "b", "label": "Relevant journal entries"},
+            {"id": "c", "label": "The user's wallpaper"},
+            {"id": "d", "label": "The exact time and affected scope"},
+        ],
+        "correct": ["a", "b", "d"],
+        "explanation": "State, logs, time, and scope preserve the evidence needed to explain whether a restart helped.",
+    },
+    {
+        "id": "least-permission",
+        "prompt": "A technician suggests chmod 777 because an application cannot read one file. What is the better approach?",
+        "context": "The application runs under a known service account and group.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Inspect owner/group/mode and grant only the needed access"},
+            {"id": "b", "label": "Give everyone full control"},
+            {"id": "c", "label": "Delete and recreate the server"},
+            {"id": "d", "label": "Run the application as root permanently"},
+        ],
+        "correct": ["a"],
+        "explanation": "Fix the specific ownership or mode problem; 777 creates unnecessary write and execute access.",
+    },
+]
+
+
+WEEKS_15_18_QUALITY = {
+    15: {
+        "description": "Use resultant-policy evidence to fix Group Policy scope and refresh problems without guessing.",
+        "learning_goals": [
+            "GPOs link to sites, domains, or OUs; computer settings apply to machines and user settings apply at user logon.",
+            "Processing is Local → Site → Domain → OU, with closer applicable policy normally winning unless inheritance controls change it.",
+            "Use gpresult /r to see what applied or was filtered, then verify OU placement and security filtering.",
+            "After a scoped correction, refresh policy, sign out/in when required, and use gpresult again as proof.",
+        ],
+        "required_videos": set(),
+        "required_quiz": 17,
+        "required_service_desk": False,
+        "lab": {"id": 5, "title": "AD Break-Fix: locked and misplaced account on a live domain", "new_title": "Diagnose the Group Policy Result", "lab_type": "structured_cli", "questions": GROUP_POLICY_CLI_PRACTICE, "required_commands": ["whoami", "gpresult /r", "gpupdate /force"], "estimated_minutes": 25},
+    },
+    16: {
+        "description": "Use PowerShell safely to inspect Windows services and support DNS, DHCP, and directory operations.",
+        "learning_goals": [
+            "PowerShell cmdlets return objects: discover with Get-Command, learn syntax with Get-Help, and inspect properties before acting.",
+            "Use -WhatIf and a narrowly verified target set before supported bulk changes.",
+            "AD clients locate domain controllers through DNS; DHCP reservations give managed devices stable addresses without unmanaged statics.",
+            "A full DHCP scope causes clients in that subnet to lose leases; gather scope and lease evidence before changing exclusions or duration.",
+        ],
+        "required_videos": {178, 179},
+        "required_quiz": 18,
+        "required_service_desk": False,
+        "lab": {"title": "Investigate with PowerShell First", "lab_type": "structured_cli", "questions": POWERSHELL_SERVER_PRACTICE, "required_commands": ["get-command", "get-help get-service", "get-service"], "estimated_minutes": 25},
+    },
+    17: {
+        "description": "Operate shared servers with evidence, tested restores, rollback plans, and careful verification.",
+        "learning_goals": [
+            "For a failed service or task, capture status, the first relevant error, time, scope, and run-as identity before restarting it.",
+            "A backup is useful only when restore is tested; verify restored content, ownership, permissions, and user access.",
+            "Patch shared servers in a maintenance window with notification, a tested rollback, baseline evidence, and post-change checks.",
+            "A junior assists rather than independently leading a Domain Controller or AD system-state recovery.",
+        ],
+        "required_videos": {170},
+        "required_quiz": 19,
+        "required_service_desk": False,
+        "lab": {"title": "Verify the Server Recovery Plan", "lab_type": "structured_operations", "questions": SERVER_RECOVERY_PRACTICE, "estimated_minutes": 20},
+    },
+    18: {
+        "description": "Use the existing practice terminal to navigate Linux, read permissions, and gather service evidence safely.",
+        "learning_goals": [
+            "Linux starts at /; configuration usually lives in /etc, logs in /var/log, and user files in /home.",
+            "Read ls -l as owner, group, and others; change only the ownership or permissions the service actually needs.",
+            "Use id for group membership, systemctl status for service state, and journalctl for recent event evidence.",
+            "Use sudo only for the specific approved command; avoid chmod 777 and permanent root execution as shortcuts.",
+        ],
+        "required_videos": {128, 129, 130},
+        "required_quiz": 20,
+        "required_service_desk": False,
+        "lab": {"title": "Investigate the Linux Host", "lab_type": "structured_cli", "questions": LINUX_CLI_PRACTICE, "required_commands": ["pwd", "ls -l", "id", "systemctl status ssh", "journalctl"], "terminal_profile": "linux", "estimated_minutes": 30},
     },
 }
 
@@ -1237,6 +1477,7 @@ def _sync_quality_batch(db: Session, specs: dict[int, dict]) -> dict:
             "success_criteria": {
                 "questions": lab_spec["questions"],
                 **({"required_commands": lab_spec["required_commands"]} if lab_spec.get("required_commands") else {}),
+                **({"terminal_profile": lab_spec["terminal_profile"]} if lab_spec.get("terminal_profile") else {}),
             },
             "required_evidence": {},
             "hints": {},
@@ -1334,6 +1575,14 @@ def sync_weeks_11_14_quality(db: Session) -> dict:
     if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
         return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
     return _sync_quality_batch(db, WEEKS_11_14_QUALITY)
+
+
+def sync_weeks_15_18_quality(db: Session) -> dict:
+    """Align Group Policy, server operations, and Linux with real practice."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    return _sync_quality_batch(db, WEEKS_15_18_QUALITY)
 
 
 def reconcile_week_zero_requirements(db: Session) -> dict:

@@ -14,6 +14,7 @@ from app.services.training_curriculum_seed import (
     sync_weeks_3_6_quality,
     sync_weeks_7_10_quality,
     sync_weeks_11_14_quality,
+    sync_weeks_15_18_quality,
 )
 from app.services.training_reference_seed import ensure_training_reference_content
 
@@ -172,12 +173,14 @@ try:
     weeks_3_6_result = sync_weeks_3_6_quality(db)
     weeks_7_10_result = sync_weeks_7_10_quality(db)
     weeks_11_14_result = sync_weeks_11_14_quality(db)
+    weeks_15_18_result = sync_weeks_15_18_quality(db)
     print(
         f"Curriculum seeded successfully; references: {reference_result}; "
         f"weekly activities: {training_result}; Week 0 requirements: {week_zero_result}; Optional lessons: {optional_lesson_result}; "
         f"Video requirements: {video_requirement_result}; "
         f"Weeks 1-4 practice: {practice_realignment_result}; Weeks 3-6 quality: {weeks_3_6_result}; "
-        f"Weeks 7-10 quality: {weeks_7_10_result}; Weeks 11-14 quality: {weeks_11_14_result}"
+        f"Weeks 7-10 quality: {weeks_7_10_result}; Weeks 11-14 quality: {weeks_11_14_result}; "
+        f"Weeks 15-18 quality: {weeks_15_18_result}"
     )
 finally:
     db.close()
