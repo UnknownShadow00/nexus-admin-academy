@@ -468,8 +468,8 @@ def submit_lab(
         questions = (lab.success_criteria or {}).get("questions", [])
         if not questions:
             raise HTTPException(status_code=400, detail="Structured lab has no configured questions")
-        if lab.lab_type == "structured_cli":
-            required_commands = (lab.success_criteria or {}).get("required_commands", [])
+        required_commands = (lab.success_criteria or {}).get("required_commands", [])
+        if required_commands:
             terminal_session = " ".join(payload.notes.lower().split())
             if any(" ".join(command.lower().split()) not in terminal_session for command in required_commands):
                 raise HTTPException(

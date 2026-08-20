@@ -1642,48 +1642,109 @@ MIXED_QUEUE_PRACTICE = [
 ]
 
 
-CAPSTONE_READINESS_PRACTICE = [
+FINAL_SUPPORT_SHIFT_PRACTICE = [
     {
-        "id": "discovery",
-        "prompt": "Before stabilizing an unfamiliar environment, which discovery evidence is useful?",
-        "context": "Documentation is incomplete and multiple shared services depend on one another.",
+        "id": "shift-triage",
+        "prompt": "Your shift starts with four tickets at once. Which two do you work first?",
+        "context": (
+            "(A) VPN authentication is failing for the entire remote workforce. "
+            "(B) One user's mapped drive is slow. "
+            "(C) A manager's routine password reset is queued. "
+            "(D) A laptop's antivirus just logged a real-time malware detection; the user has not reported anything yet."
+        ),
         "type": "multi_choice",
         "options": [
-            {"id": "a", "label": "Systems, owners, roles, dependencies, and current health"},
-            {"id": "b", "label": "Backup jobs plus evidence of the last tested restore"},
-            {"id": "c", "label": "Known alerts, privileged access, and escalation contacts"},
-            {"id": "d", "label": "Unverified assumptions written as facts"},
+            {"id": "a", "label": "(A) the organization-wide VPN outage"},
+            {"id": "b", "label": "(B) the one user's slow mapped drive"},
+            {"id": "c", "label": "(C) the manager's routine password reset"},
+            {"id": "d", "label": "(D) the unreported antivirus detection"},
         ],
-        "correct": ["a", "b", "c"],
-        "explanation": "A usable baseline identifies assets, dependencies, recovery evidence, access, monitoring, and ownership.",
+        "correct": ["a", "d"],
+        "explanation": "Impact and urgency drive priority, not arrival order or title: a wide-scale outage and a live security signal outrank a single slow drive and a routine reset.",
     },
     {
-        "id": "stabilize",
-        "prompt": "An audit finds a filling Linux log, an unverified backup, and a deliberately disabled leaver account. What is the safe response?",
-        "context": "The account disable has an HR reference and should remain in place.",
+        "id": "windows-evidence",
+        "prompt": "The practice terminal's ipconfig /all reports a DNS Servers entry pointing at 10.20.0.10, the correct internal resolver. Users still cannot reach the internal helpdesk site by name. What do you check next?",
+        "context": "Use the practice terminal to run ipconfig /all before answering.",
         "type": "single_choice",
         "options": [
-            {"id": "a", "label": "Fix the log cause safely, test restore, and leave the approved account control intact"},
-            {"id": "b", "label": "Delete all logs, assume backup works, and enable the account"},
-            {"id": "c", "label": "Rebuild every server"},
-            {"id": "d", "label": "Resolve the findings without verification"},
+            {"id": "a", "label": "Run nslookup for the helpdesk hostname to see what address it actually resolves to"},
+            {"id": "b", "label": "Reinstall the network adapter driver"},
+            {"id": "c", "label": "Assume the DNS server itself is fully broken and escalate immediately"},
+            {"id": "d", "label": "Change the user's IP address to static"},
         ],
         "correct": ["a"],
-        "explanation": "Stabilization addresses measured risk while preserving deliberate security controls and proving recovery.",
+        "explanation": "The resolver address is correct, so the next evidence to gather is what that resolver actually returns for the failing name.",
+    },
+    {
+        "id": "dns-evidence",
+        "prompt": "nslookup helpdesk.nexus.internal returns a stale IP address that stopped being used after last month's server move. What is the correct next action?",
+        "context": "Other recently rebooted machines resolve the name correctly.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Confirm on a second host, then clear the affected client's DNS resolver cache before escalating further"},
+            {"id": "b", "label": "Edit every workstation's hosts file by hand"},
+            {"id": "c", "label": "Delete the DNS server's zone file"},
+            {"id": "d", "label": "Tell the user to ignore it"},
+        ],
+        "correct": ["a"],
+        "explanation": "A stale answer that clears on other hosts points at a cached record on this client; verify with a second host, then clear the local cache instead of a destructive server-side change.",
+    },
+    {
+        "id": "account-access",
+        "prompt": "gpresult /r shows the current Nexus Standard User Policy applied, but the user's permissions still match an older, retired policy. What is the next diagnostic step?",
+        "context": "The account's group membership changed yesterday.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Run gpupdate /force and confirm the refreshed result before making any manual change"},
+            {"id": "b", "label": "Manually edit the local registry to match the new policy"},
+            {"id": "c", "label": "Delete the user's profile"},
+            {"id": "d", "label": "Add the user to every security group to be safe"},
+        ],
+        "correct": ["a"],
+        "explanation": "A stale applied policy after a group change is usually a refresh timing issue; force a policy update and re-verify before any manual workaround.",
+    },
+    {
+        "id": "remediate-or-escalate",
+        "prompt": "Back to ticket (D): the antivirus detection is confirmed real, on a laptop with access to shared finance drives. What do you do?",
+        "context": "You have not yet involved the security team.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Isolate the device from the network, preserve evidence, and escalate to security immediately"},
+            {"id": "b", "label": "Quietly re-image the laptop yourself and close the ticket"},
+            {"id": "c", "label": "Ignore it since no user has complained"},
+            {"id": "d", "label": "Delete the detected file and move on"},
+        ],
+        "correct": ["a"],
+        "explanation": "A confirmed detection with access to sensitive shares is a suspected-compromise case: contain, preserve evidence, and escalate rather than improvising a fix.",
+    },
+    {
+        "id": "documentation",
+        "prompt": "You are closing out the VPN outage ticket. Which pieces belong in the ticket note?",
+        "context": "Another technician may pick this up on the next shift.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Confirmed impact and current state"},
+            {"id": "b", "label": "The evidence gathered (command output, logs) and what it ruled out"},
+            {"id": "c", "label": "The action taken and how the fix was verified"},
+            {"id": "d", "label": "An unverified guess about root cause written as fact"},
+        ],
+        "correct": ["a", "b", "c"],
+        "explanation": "A usable handoff records state, evidence-backed eliminations, and a verified action — never a guess presented as confirmed cause.",
     },
     {
         "id": "ready-proof",
-        "prompt": "Which evidence best shows you are ready for the role-gated capstone?",
+        "prompt": "Looking back at this shift, which best shows you are ready for the role-gated capstone?",
         "context": "The capstone evaluates an integrated workflow, not memorized trivia.",
         "type": "single_choice",
         "options": [
-            {"id": "a", "label": "You can scope, gather evidence, act safely, verify, document, and escalate across the course domains"},
+            {"id": "a", "label": "You can prioritize, gather evidence, diagnose, remediate or escalate, and document across the course domains"},
             {"id": "b", "label": "You can recite every command without context"},
             {"id": "c", "label": "You mark every optional lesson complete"},
             {"id": "d", "label": "You never ask for approval or escalate"},
         ],
         "correct": ["a"],
-        "explanation": "The capstone asks for repeatable support judgment across systems, including knowing when to escalate.",
+        "explanation": "The capstone asks for repeatable support judgment across systems, including knowing when to escalate — this shift practiced exactly that.",
     },
 ]
 
@@ -1703,17 +1764,23 @@ WEEKS_23_24_QUALITY = {
         "lab": {"title": "Work the Mixed Support Queue", "lab_type": "structured_operations", "questions": MIXED_QUEUE_PRACTICE, "estimated_minutes": 25},
     },
     24: {
-        "description": "Prove you are ready to combine discovery, safe changes, verification, documentation, and escalation in the capstone.",
+        "description": "Run a full support shift: triage the queue, gather CLI evidence, diagnose, choose remediation or escalation, and document the outcome.",
         "learning_goals": [
-            "Discover systems, owners, dependencies, monitoring, privileged access, and tested recovery evidence before changing an unfamiliar environment.",
-            "Stabilize measured risks with the smallest safe change while preserving intentional security controls.",
-            "For every action: capture a baseline, change one thing, verify the result, record the rollback, and write the ticket or runbook note.",
-            "Capstone readiness means applying the full workflow and escalating correctly—not memorizing every command or completing optional filler.",
+            "Prioritize a mixed queue by impact and urgency, not arrival order or ticket title.",
+            "Use ipconfig, nslookup, and gpresult evidence from the practice terminal to diagnose network, DNS, and Group Policy problems.",
+            "Recognize when a finding needs escalation—such as a suspected compromise—instead of an improvised local fix.",
+            "Write a ticket note that preserves state, evidence, and verification for the next technician.",
         ],
         "required_videos": set(),
         "required_quiz": None,
         "required_service_desk": False,
-        "lab": {"title": "Check Your Capstone Readiness", "lab_type": "structured_capstone", "questions": CAPSTONE_READINESS_PRACTICE, "estimated_minutes": 20},
+        "lab": {
+            "title": "Final Support Shift",
+            "lab_type": "structured_capstone",
+            "questions": FINAL_SUPPORT_SHIFT_PRACTICE,
+            "required_commands": ["ipconfig /all", "nslookup helpdesk.nexus.internal", "gpresult /r"],
+            "estimated_minutes": 35,
+        },
     },
 }
 
@@ -2019,6 +2086,10 @@ def sync_weeks_23_24_quality(db: Session) -> dict:
     if quiz is not None and quiz.week_number != 23:
         quiz.week_number = 23
     db.flush()
+
+    week_24_title = "Capstone: Final Support Shift"
+    if weeks[24].title != week_24_title:
+        weeks[24].title = week_24_title
 
     result = _sync_quality_batch(db, WEEKS_23_24_QUALITY)
     if moved_quiz:

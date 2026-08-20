@@ -692,6 +692,15 @@ def test_weeks_23_24_quality_sync_moves_integrated_quiz_and_adds_final_practice(
     assert len([row for row in week_23_activities if row.activity_type == "guided_lab" and row.is_required]) == 1
     assert len([row for row in week_24_activities if row.activity_type == "guided_lab" and row.is_required]) == 1
 
+    capstone_ref = next(row.content_ref for row in week_24_activities if row.activity_type == "guided_lab" and row.is_required)
+    capstone_lab = db.get(LabTemplate, int(capstone_ref))
+    assert capstone_lab.title == "Final Support Shift"
+    assert capstone_lab.lab_type == "structured_capstone"
+    assert len(capstone_lab.success_criteria["questions"]) == 7
+    assert capstone_lab.success_criteria["required_commands"] == ["ipconfig /all", "nslookup helpdesk.nexus.internal", "gpresult /r"]
+    db.refresh(week_24)
+    assert week_24.title == "Capstone: Final Support Shift"
+
     second = sync_weeks_23_24_quality(db)
     assert second["created_templates"] == 0
     assert second["created_activities"] == 0
