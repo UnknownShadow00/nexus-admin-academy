@@ -6,6 +6,7 @@ from app.services.training_curriculum_seed import (
     sync_initial_training_activities,
     sync_weeks_3_6_quality,
     sync_weeks_7_10_quality,
+    sync_weeks_11_14_quality,
     sync_weeks_1_4_practice_realignment,
 )
 from app.services.training_service import validate_training_curriculum
@@ -206,6 +207,84 @@ def test_weeks_3_6_quality_sync_builds_aligned_required_paths_idempotently(db):
     ]
 
     second = sync_weeks_3_6_quality(db)
+    assert second["created_templates"] == 0
+    assert second["created_activities"] == 0
+    assert second["updated_activities"] == 0
+
+
+def test_weeks_11_14_quality_sync_replaces_reading_gates_with_practice(db):
+    weeks = {number: _add_week(db, number) for number in range(11, 15)}
+    quizzes = {11: 13, 12: 14, 13: 15, 14: 16}
+    videos = {11: "9", 12: "141", 13: "140"}
+    db.flush()
+    for number, week in weeks.items():
+        rows = [
+            TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-{number}-lesson-test",
+                activity_type="lesson",
+                content_ref=str(number),
+                display_order=1,
+                is_required=True,
+                prerequisite_mode="soft",
+                metadata_json={},
+            ),
+            TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-{number}-quiz-{quizzes[number]}",
+                activity_type="quiz",
+                content_ref=str(quizzes[number]),
+                display_order=3,
+                is_required=False,
+                prerequisite_mode="soft",
+                metadata_json={},
+            ),
+            TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-{number}-service-desk-test",
+                activity_type="service_desk_scenario",
+                content_ref=f"scenario-{number}",
+                display_order=4,
+                is_required=True,
+                prerequisite_mode="soft",
+                metadata_json={},
+            ),
+        ]
+        if number in videos:
+            rows.append(
+                TrainingWeekActivity(
+                    training_week_id=week.id,
+                    stable_id=f"week-{number}-video-{videos[number]}",
+                    activity_type="video",
+                    content_ref=videos[number],
+                    display_order=2,
+                    is_required=True,
+                    prerequisite_mode="soft",
+                    metadata_json={},
+                )
+            )
+        db.add_all(rows)
+    db.commit()
+
+    first = sync_weeks_11_14_quality(db)
+
+    assert first["skipped"] is False
+    for number, week in weeks.items():
+        activities = db.query(TrainingWeekActivity).filter_by(training_week_id=week.id).all()
+        assert all(not row.is_required for row in activities if row.activity_type == "lesson")
+        assert [row.content_ref for row in activities if row.activity_type == "quiz" and row.is_required] == [str(quizzes[number])]
+        assert not [row for row in activities if row.activity_type == "service_desk_scenario" and row.is_required]
+        practice = [row for row in activities if row.activity_type == "guided_lab" and row.is_required]
+        assert len(practice) == 1
+        apply_rows = [row for row in activities if row.activity_type == "service_desk_scenario"]
+        assert practice[0].display_order < min(row.display_order for row in apply_rows)
+    assert not db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[12].id,
+        activity_type="video",
+        is_required=True,
+    ).count()
+
+    second = sync_weeks_11_14_quality(db)
     assert second["created_templates"] == 0
     assert second["created_activities"] == 0
     assert second["updated_activities"] == 0

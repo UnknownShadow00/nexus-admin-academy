@@ -848,6 +848,260 @@ WEEKS_7_10_QUALITY = {
 }
 
 
+NETWORK_SERVICE_PATH_PRACTICE = [
+    {
+        "id": "trunk-scope",
+        "prompt": "VLAN 10 works across both switches, but VLAN 20 fails only on the newly added switch. What should you check first?",
+        "context": "Access ports and client addressing are correct. The switches connect through one trunk.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Whether VLAN 20 is allowed on the trunk at both ends"},
+            {"id": "b", "label": "Every workstation network driver"},
+            {"id": "c", "label": "The public DNS resolver"},
+            {"id": "d", "label": "The printer queue"},
+        ],
+        "correct": ["a"],
+        "explanation": "One working VLAN proves the link is alive. A single VLAN failing across it points to trunk membership or a mismatch.",
+    },
+    {
+        "id": "relay-scope",
+        "prompt": "Every client in a new VLAN gets 169.254 addresses; other VLANs receive leases normally. What is the best diagnosis?",
+        "context": "The central DHCP server is healthy and has a scope for the new VLAN.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "The new VLAN's DHCP relay/helper path is missing or wrong"},
+            {"id": "b", "label": "The central DHCP service is down for everyone"},
+            {"id": "c", "label": "DNS is returning an old record"},
+            {"id": "d", "label": "The clients need unmanaged static addresses"},
+        ],
+        "correct": ["a"],
+        "explanation": "DHCP broadcasts do not cross a router without relay. The working VLANs show the server itself is available.",
+    },
+    {
+        "id": "svi-scope",
+        "prompt": "A PC reaches peers in its own VLAN but cannot reach any other subnet. Which evidence should you gather next?",
+        "context": "Its address and mask are correct.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Default gateway reachability and the VLAN SVI/router-interface state"},
+            {"id": "b", "label": "The PC's display resolution"},
+            {"id": "c", "label": "The switch fan speed"},
+            {"id": "d", "label": "The user's mailbox quota"},
+        ],
+        "correct": ["a"],
+        "explanation": "Same-VLAN traffic does not need routing. Cross-subnet failure points to the gateway or inter-VLAN route.",
+    },
+    {
+        "id": "dns-scope",
+        "prompt": "A server opens by IP address but not by hostname. What should the ticket say?",
+        "context": "Ping to the server IP succeeds from the affected PC.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "IP reachability works; capture nslookup output and investigate DNS"},
+            {"id": "b", "label": "The entire network is down"},
+            {"id": "c", "label": "Replace the client network adapter"},
+            {"id": "d", "label": "Disable the firewall permanently"},
+        ],
+        "correct": ["a"],
+        "explanation": "Successful IP traffic isolates the failure to name resolution rather than basic connectivity.",
+    },
+]
+
+
+SECURE_NETWORK_ADMIN_PRACTICE = [
+    {
+        "id": "ssh-not-telnet",
+        "prompt": "A switch accepts Telnet but not SSH. What is the safe support goal?",
+        "context": "Remote administration is required; Telnet sends credentials without encryption.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Configure and verify SSH, then restrict VTY access to SSH"},
+            {"id": "b", "label": "Keep Telnet because it is faster"},
+            {"id": "c", "label": "Expose the console port to the internet"},
+            {"id": "d", "label": "Disable authentication on VTY lines"},
+        ],
+        "correct": ["a"],
+        "explanation": "SSH provides encrypted remote administration; Telnet should not remain as the shortcut.",
+    },
+    {
+        "id": "port-security",
+        "prompt": "A desk port is err-disabled and the log reports a port-security violation. What comes first?",
+        "context": "A small unmanaged switch was connected at the desk.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Remove or approve the unexpected device, then recover and verify the port"},
+            {"id": "b", "label": "Run no shutdown repeatedly without checking the trigger"},
+            {"id": "c", "label": "Delete the user's VLAN"},
+            {"id": "d", "label": "Turn off port security everywhere"},
+        ],
+        "correct": ["a"],
+        "explanation": "Recovering the port without resolving the violation causes another shutdown and ignores a security signal.",
+    },
+    {
+        "id": "evidence-escalation",
+        "prompt": "Which escalation gives the network team the most useful starting point?",
+        "context": "About 60 users in VLAN 30 lost access at 09:15.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "VLAN 30 only; SVI is down in show ip interface brief; no change made"},
+            {"id": "b", "label": "The network is broken—please fix"},
+            {"id": "c", "label": "Probably DNS; reboot everything"},
+            {"id": "d", "label": "One user says the internet feels slow"},
+        ],
+        "correct": ["a"],
+        "explanation": "Scope, time, command evidence, and actions taken let the next technician act safely.",
+    },
+]
+
+
+AD_ACCOUNT_PRACTICE = [
+    {
+        "id": "disabled-user",
+        "prompt": "A manager asks you to re-enable a disabled employee account immediately. What should you do first?",
+        "context": "The ticket does not explain why the account was disabled.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Verify the disable reason and required approval before changing it"},
+            {"id": "b", "label": "Enable it because a manager asked"},
+            {"id": "c", "label": "Delete and recreate the account"},
+            {"id": "d", "label": "Add the user to Domain Admins"},
+        ],
+        "correct": ["a"],
+        "explanation": "A disabled account may be a leaver or security hold. Confirm the authority and reason first.",
+    },
+    {
+        "id": "group-access",
+        "prompt": "Five Finance employees need the same folder access. What is the maintainable change?",
+        "context": "An approved Finance security group already exists.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Add the users to the approved Finance group"},
+            {"id": "b", "label": "Grant five separate user permissions"},
+            {"id": "c", "label": "Give Everyone full control"},
+            {"id": "d", "label": "Make all five local administrators"},
+        ],
+        "correct": ["a"],
+        "explanation": "Group-based access is auditable and keeps the resource permission model consistent.",
+    },
+    {
+        "id": "repeat-lockout",
+        "prompt": "An AD account is unlocked but locks again minutes later. What should you investigate?",
+        "context": "The user recently changed their password and has a phone and laptop.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "A device or service repeatedly using the old password"},
+            {"id": "b", "label": "The user's monitor cable"},
+            {"id": "c", "label": "The domain's folder naming convention"},
+            {"id": "d", "label": "Whether the printer has paper"},
+        ],
+        "correct": ["a"],
+        "explanation": "Repeated lockout after a password change commonly comes from stored stale credentials.",
+    },
+]
+
+
+DOMAIN_OPERATIONS_PRACTICE = [
+    {
+        "id": "join-dns",
+        "prompt": "A new PC can browse the web but says the domain cannot be found during join. What should you inspect first?",
+        "context": "ipconfig /all shows the home router as the DNS server.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Point the client at the approved domain DNS and retry after verifying resolution"},
+            {"id": "b", "label": "Reinstall Windows"},
+            {"id": "c", "label": "Disable the computer account"},
+            {"id": "d", "label": "Use a public resolver"},
+        ],
+        "correct": ["a"],
+        "explanation": "Domain join depends on DNS records that locate a domain controller; ordinary internet access does not prove that lookup works.",
+    },
+    {
+        "id": "secure-channel",
+        "prompt": "A restored laptop reports that its trust relationship failed. What is the least disruptive first repair?",
+        "context": "Peer laptops authenticate normally and the computer account still exists.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Repair the computer secure channel with approved credentials"},
+            {"id": "b", "label": "Delete the user's account"},
+            {"id": "c", "label": "Rebuild the domain"},
+            {"id": "d", "label": "Always unjoin and rejoin first"},
+        ],
+        "correct": ["a"],
+        "explanation": "A secure-channel repair addresses the broken machine trust without the disruption of a full unjoin/rejoin.",
+    },
+    {
+        "id": "missing-drive",
+        "prompt": "A newly added group member still cannot see the mapped drive. Which checks belong in your next step?",
+        "context": "The access request was approved and the correct group was used.",
+        "type": "multi_select",
+        "options": [
+            {"id": "a", "label": "Have the user sign out and back in to refresh the token"},
+            {"id": "b", "label": "Check Group Policy drive-map processing"},
+            {"id": "c", "label": "Grant direct Full Control to bypass groups"},
+            {"id": "d", "label": "Check effective share and NTFS access"},
+        ],
+        "correct": ["a", "b", "d"],
+        "explanation": "Token refresh, policy processing, and effective permissions are the relevant evidence; direct grants undermine the group model.",
+    },
+]
+
+
+WEEKS_11_14_QUALITY = {
+    11: {
+        "description": "Trace a network-service failure across VLAN trunks, gateways, DHCP relay, routing, and DNS.",
+        "learning_goals": [
+            "An access port carries one VLAN; a trunk carries tagged VLANs, and both ends must agree on allowed and native VLANs.",
+            "Same-VLAN traffic is switched; traffic to another subnet needs a reachable gateway, an up router/SVI interface, and a route.",
+            "A whole VLAN getting APIPA while other VLANs work points to that VLAN's DHCP relay/helper path.",
+            "IP works but names fail means gather DNS evidence; do not call it a total network outage.",
+        ],
+        "required_videos": {9, 10, 11},
+        "required_quiz": 13,
+        "required_service_desk": False,
+        "lab": {"title": "Trace the Network Service Failure", "lab_type": "structured_network", "questions": NETWORK_SERVICE_PATH_PRACTICE, "estimated_minutes": 20},
+    },
+    12: {
+        "description": "Troubleshoot shared network equipment safely and hand off evidence that another technician can use.",
+        "learning_goals": [
+            "Manage switches with encrypted SSH, keep a verified off-device configuration backup, and read logs before changing state.",
+            "Err-disabled plus a port-security violation is a security clue: remove or approve the trigger before recovering the port.",
+            "Work bottom-up: physical link, VLAN/trunk, addressing/routing, then DNS, firewall, and application.",
+            "For shared infrastructure, change one thing, verify it, know the rollback, and escalate broad-impact changes with scope and command evidence.",
+        ],
+        "required_videos": set(),
+        "required_quiz": 14,
+        "required_service_desk": False,
+        "lab": {"title": "Make the Safe Network Admin Decision", "lab_type": "structured_security", "questions": SECURE_NETWORK_ADMIN_PRACTICE, "estimated_minutes": 20},
+    },
+    13: {
+        "description": "Use Active Directory structure and safety checks to handle common account and group requests.",
+        "learning_goals": [
+            "A domain centralizes users, computers, and policy; OUs organize objects and receive Group Policy.",
+            "Security groups grant access; distribution groups are email lists. Prefer group membership over direct user permissions.",
+            "For resets, unlocks, disabled accounts, and access changes: verify identity or approval, make the smallest change, and document it.",
+            "A repeat lockout after a password change usually means a device or service still holds the old credential.",
+        ],
+        "required_videos": {140},
+        "required_quiz": 15,
+        "required_service_desk": False,
+        "lab": {"title": "Handle the AD Account Request", "lab_type": "structured_security", "questions": AD_ACCOUNT_PRACTICE, "estimated_minutes": 20},
+    },
+    14: {
+        "description": "Diagnose domain-join, secure-channel, and group-based file-access failures without disruptive shortcuts.",
+        "learning_goals": [
+            "A client must use the domain's DNS to locate a domain controller before a domain join can work.",
+            "A trust-relationship error means the computer secure channel is broken; repair it before reaching for unjoin/rejoin.",
+            "Use Accounts → Global group → Domain Local group → Permissions so access remains auditable and maintainable.",
+            "After a group change, refresh the sign-in token and check Group Policy plus effective share and NTFS permissions.",
+        ],
+        "required_videos": set(),
+        "required_quiz": 16,
+        "required_service_desk": False,
+        "lab": {"title": "Repair Domain Access Safely", "lab_type": "structured_windows", "questions": DOMAIN_OPERATIONS_PRACTICE, "estimated_minutes": 25},
+    },
+}
+
+
 def _sync_quality_batch(db: Session, specs: dict[int, dict]) -> dict:
     weeks = {
         week.week_number: week
@@ -1072,6 +1326,14 @@ def sync_weeks_7_10_quality(db: Session) -> dict:
                 result["updated_activities"] += 1
         db.commit()
     return result
+
+
+def sync_weeks_11_14_quality(db: Session) -> dict:
+    """Align network services and directory foundations with graded practice."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    return _sync_quality_batch(db, WEEKS_11_14_QUALITY)
 
 
 def reconcile_week_zero_requirements(db: Session) -> dict:
