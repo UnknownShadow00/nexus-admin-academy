@@ -1,5 +1,6 @@
 from app.models.cli_lab import CliLab
 from app.models.lab import LabTemplate
+from app.models.quiz import Quiz
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.training_curriculum_seed import (
@@ -213,6 +214,66 @@ def test_weeks_3_6_quality_sync_builds_aligned_required_paths_idempotently(db):
     assert second["created_templates"] == 0
     assert second["created_activities"] == 0
     assert second["updated_activities"] == 0
+
+
+def test_weeks_3_6_quality_sync_preserves_promotion_gate_quiz_purpose(db):
+    """Quiz 5 backs PROMOTION_GATES Gate 1 (seed.py: {"week": 4}). Production
+
+    curates it to quiz_purpose="gate" outside the ordinary seed. The sync must
+    never downgrade that to "required"/"practice" or the gate becomes
+    permanently unsatisfiable (progression_service only counts quiz_purpose
+    == "gate" toward a required_quiz gate).
+    """
+    weeks = {number: _add_week(db, number) for number in range(3, 7)}
+    db.flush()
+    for number, week in weeks.items():
+        db.add(
+            TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-{number}-lesson-{number}",
+                activity_type="lesson",
+                content_ref=str(number),
+                display_order=1,
+                is_required=True,
+                prerequisite_mode="soft",
+                metadata_json={},
+            )
+        )
+        db.add(
+            TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-{number}-quiz-{ {3: 4, 4: 5, 5: 6, 6: 7}[number] }",
+                activity_type="quiz",
+                content_ref=str({3: 4, 4: 5, 5: 6, 6: 7}[number]),
+                display_order=2,
+                is_required=False,
+                prerequisite_mode="soft",
+                metadata_json={},
+            )
+        )
+        db.add(
+            TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-{number}-video-{next(iter({3: {117}, 4: {169}, 5: {162}, 6: {139}}[number]))}",
+                activity_type="video",
+                content_ref=str(next(iter({3: {117}, 4: {169}, 5: {162}, 6: {139}}[number]))),
+                display_order=3,
+                is_required=False,
+                prerequisite_mode="soft",
+                metadata_json={},
+            )
+        )
+    db.add(Quiz(id=5, title="Help-Desk Operations", week_number=4, quiz_purpose="gate", is_required=True, show_in_weekly_checklist=True))
+    db.add(Quiz(id=4, title="Other Quiz", week_number=3, quiz_purpose="practice", is_required=False))
+    _add_lab(db, 3, "Windows Command-Line Diagnostics", 3, "structured_diagnostic")
+    db.commit()
+
+    sync_weeks_3_6_quality(db)
+
+    gate_quiz = db.get(Quiz, 5)
+    assert gate_quiz.quiz_purpose == "gate"
+    assert gate_quiz.is_required is True
+    assert gate_quiz.show_in_weekly_checklist is True
 
 
 def test_weeks_11_14_quality_sync_replaces_reading_gates_with_practice(db):

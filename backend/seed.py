@@ -200,10 +200,13 @@ PROMOTION_GATES = [
         "config": {},
     },
     # ---- GATE 5 (GRADUATION): Junior Systems Technician → Junior Infrastructure Administrator (end of Week 24) ----
+    # The readiness quiz (id 25) lives at Week 23 — training_curriculum_seed.py
+    # moved it there because it assesses Week 23's mixed-queue/incident/handoff
+    # outcomes. Keep this gate pointed at the quiz's actual week.
     {
         "role": "Junior Infrastructure Administrator",
         "requirement_type": "required_quiz",
-        "config": {"week": 24},
+        "config": {"week": 23},
     },
     {
         "role": "Junior Infrastructure Administrator",

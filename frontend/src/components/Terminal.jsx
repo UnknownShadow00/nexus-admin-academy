@@ -111,7 +111,7 @@ function processCommand(cmd, term, profile = "windows") {
   } else if (command.startsWith("systemctl status")) {
     const svc = command.split(" ")[2] || "nginx";
     term.writeln(`● ${svc}.service - ${svc} service`);
-    term.writeln("   Loaded: loaded (/lib/systemd/system/nginx.service; enabled)");
+    term.writeln(`   Loaded: loaded (/lib/systemd/system/${svc}.service; enabled)`);
     term.writeln("   Active: active (running) since Mon 2025-01-14 09:00:00 UTC; 5h ago");
     term.writeln("  Process: 1234 ExecStart=/usr/sbin/nginx (code=exited, status=0/SUCCESS)");
   } else if (command.startsWith("systemctl stop") || command.startsWith("systemctl start") || command.startsWith("systemctl restart")) {

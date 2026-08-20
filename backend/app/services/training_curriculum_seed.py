@@ -473,7 +473,10 @@ def sync_weeks_3_6_quality(db: Session) -> dict:
     required_quiz_ids = set(WEEKS_3_6_REQUIRED_QUIZZES.values())
     for quiz_id, quiz in quiz_rows.items():
         should_be_required = quiz_id in required_quiz_ids
-        expected_purpose = "required" if should_be_required else "practice"
+        # A quiz already marked "gate" backs a role-promotion requirement
+        # (see PROMOTION_GATES in seed.py). Never downgrade that purpose here
+        # or the gate becomes permanently unsatisfiable.
+        expected_purpose = quiz.quiz_purpose if quiz.quiz_purpose == "gate" else ("required" if should_be_required else "practice")
         if (
             bool(quiz.is_required) != should_be_required
             or bool(quiz.show_in_weekly_checklist) != should_be_required
@@ -1777,7 +1780,10 @@ def _sync_quality_batch(db: Session, specs: dict[int, dict]) -> dict:
     required_quiz_ids = {spec["required_quiz"] for spec in specs.values() if spec.get("required_quiz") is not None}
     for quiz in db.query(Quiz).filter(Quiz.id.in_(quiz_activity_ids)).all():
         should_be_required = quiz.id in required_quiz_ids
-        expected_purpose = "required" if should_be_required else "practice"
+        # A quiz already marked "gate" backs a role-promotion requirement
+        # (see PROMOTION_GATES in seed.py). Never downgrade that purpose here
+        # or the gate becomes permanently unsatisfiable.
+        expected_purpose = quiz.quiz_purpose if quiz.quiz_purpose == "gate" else ("required" if should_be_required else "practice")
         quiz.is_required = should_be_required
         quiz.show_in_weekly_checklist = should_be_required
         quiz.quiz_purpose = expected_purpose
