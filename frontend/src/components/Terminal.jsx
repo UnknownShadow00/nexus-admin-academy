@@ -3,16 +3,20 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
-function processCommand(cmd, term) {
+function processCommand(cmd, term, profile = "windows") {
   const command = cmd.trim().toLowerCase();
 
-  if (command === "ipconfig") {
+  if (command === "ipconfig" || command === "ipconfig /all") {
     term.writeln("Windows IP Configuration");
     term.writeln("");
     term.writeln("Ethernet adapter Ethernet:");
     term.writeln("   IPv4 Address. . . . . . . . . . . : 192.168.1.100");
     term.writeln("   Subnet Mask . . . . . . . . . . . : 255.255.255.0");
     term.writeln("   Default Gateway . . . . . . . . . : 192.168.1.1");
+    if (command === "ipconfig /all") {
+      term.writeln("   DHCP Enabled. . . . . . . . . . . : Yes");
+      term.writeln("   DNS Servers . . . . . . . . . . . : 10.20.0.10");
+    }
   } else if (command.startsWith("ping ")) {
     const target = command.split(" ")[1] || "unknown";
     term.writeln(`Pinging ${target} with 32 bytes of data:`);
@@ -27,6 +31,18 @@ function processCommand(cmd, term) {
     term.writeln("Running  Dnscache           DNS Client");
     term.writeln("Stopped  Spooler            Print Spooler");
     term.writeln("Running  W32Time            Windows Time");
+  } else if (command === "get-command") {
+    term.writeln("CommandType  Name             Version  Source");
+    term.writeln("-----------  ----             -------  ------");
+    term.writeln("Cmdlet       Get-Service      7.4.0.0  Microsoft.PowerShell.Management");
+    term.writeln("Cmdlet       Get-Help         7.4.0.0  Microsoft.PowerShell.Core");
+    term.writeln("Cmdlet       Get-Member       7.4.0.0  Microsoft.PowerShell.Utility");
+  } else if (command === "get-help" || command.startsWith("get-help ")) {
+    const topic = cmd.trim().split(/\s+/).slice(1).join(" ") || "Get-Help";
+    term.writeln(`NAME`);
+    term.writeln(`    ${topic}`);
+    term.writeln("SYNOPSIS");
+    term.writeln("    Displays command help, syntax, parameters, and examples.");
   } else if (command === "get-process") {
     term.writeln("Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  ProcessName");
     term.writeln("-------  ------    -----      -----     ------     --  -----------");
@@ -40,14 +56,39 @@ function processCommand(cmd, term) {
     term.writeln("-rw-r--r--  1 root root 3526 Jan 14 09:23 .bashrc");
     term.writeln("drwxr-xr-x  3 root root 4096 Jan 14 09:23 var");
   } else if (command === "pwd") {
-    term.writeln("C:\\Users\\Student");
+    term.writeln(profile === "linux" ? "/home/student01" : "C:\\Users\\Student");
   } else if (command.startsWith("cd ")) {
     const dir = command.split(" ")[1] || "~";
     term.writeln(`Changed directory to ${dir}`);
   } else if (command === "whoami") {
-    term.writeln("NEXUS\\student01");
+    term.writeln(profile === "linux" ? "student01" : "NEXUS\\student01");
+  } else if (command === "hostname") {
+    term.writeln("NX-WS-101");
+  } else if (command === "systeminfo") {
+    term.writeln("Host Name:                 NX-WS-101");
+    term.writeln("OS Name:                   Microsoft Windows 11 Enterprise");
+    term.writeln("System Type:               x64-based PC");
+  } else if (command === "gpresult /r" || command === "gpresult") {
+    term.writeln("COMPUTER SETTINGS");
+    term.writeln("    Applied Group Policy Objects");
+    term.writeln("        Nexus Workstation Baseline");
+    term.writeln("USER SETTINGS");
+    term.writeln("    Applied Group Policy Objects");
+    term.writeln("        Nexus Standard User Policy");
+  } else if (command === "gpupdate /force" || command === "gpupdate") {
+    term.writeln("Updating policy...");
+    term.writeln("Computer Policy update has completed successfully.");
+    term.writeln("User Policy update has completed successfully.");
   } else if (command === "id") {
     term.writeln("uid=1001(student01) gid=1001(student01) groups=1001(student01),27(sudo)");
+  } else if (command === "ip a" || command === "ip addr") {
+    term.writeln("2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 state UP");
+    term.writeln("    inet 192.168.1.50/24 brd 192.168.1.255 scope global eth0");
+  } else if (command === "ip r" || command === "ip route") {
+    term.writeln("default via 192.168.1.1 dev eth0");
+    term.writeln("192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.50");
+  } else if (command === "crontab -l") {
+    term.writeln("0 2 * * * /usr/local/bin/backup.sh >> /var/log/backup.log 2>&1");
   } else if (command === "uptime") {
     term.writeln(" 14:32:10 up 3 days,  4:21,  2 users,  load average: 0.12, 0.08, 0.05");
   } else if (command === "free" || command.startsWith("free ")) {
@@ -58,6 +99,10 @@ function processCommand(cmd, term) {
     term.writeln("Filesystem     1K-blocks    Used Available Use% Mounted on");
     term.writeln("/dev/sda1       51475068 8234092  40633584  17% /");
     term.writeln("tmpfs            8192000       0   8192000   0% /dev/shm");
+  } else if (command.startsWith("du ")) {
+    term.writeln("8.1G    /var/log");
+    term.writeln("1.4G    /var/lib");
+    term.writeln("240M    /var/cache");
   } else if (command === "ps" || command.startsWith("ps ")) {
     term.writeln("  PID TTY          TIME CMD");
     term.writeln(" 1234 pts/0    00:00:00 bash");
@@ -66,7 +111,7 @@ function processCommand(cmd, term) {
   } else if (command.startsWith("systemctl status")) {
     const svc = command.split(" ")[2] || "nginx";
     term.writeln(`● ${svc}.service - ${svc} service`);
-    term.writeln("   Loaded: loaded (/lib/systemd/system/nginx.service; enabled)");
+    term.writeln(`   Loaded: loaded (/lib/systemd/system/${svc}.service; enabled)`);
     term.writeln("   Active: active (running) since Mon 2025-01-14 09:00:00 UTC; 5h ago");
     term.writeln("  Process: 1234 ExecStart=/usr/sbin/nginx (code=exited, status=0/SUCCESS)");
   } else if (command.startsWith("systemctl stop") || command.startsWith("systemctl start") || command.startsWith("systemctl restart")) {
@@ -86,6 +131,13 @@ function processCommand(cmd, term) {
     term.writeln("Non-authoritative answer:");
     term.writeln(`Name:   ${host}`);
     term.writeln("Address: 93.184.216.34");
+  } else if (command.startsWith("tracert ")) {
+    const host = command.split(" ")[1] || "example.com";
+    term.writeln(`Tracing route to ${host} over a maximum of 30 hops`);
+    term.writeln("  1    <1 ms    <1 ms    <1 ms  192.168.1.1");
+    term.writeln("  2     8 ms     9 ms     8 ms  10.20.0.1");
+    term.writeln(`  3    12 ms    11 ms    12 ms  ${host}`);
+    term.writeln("Trace complete.");
   } else if (command.startsWith("dig ")) {
     const host = command.split(" ")[1] || "example.com";
     term.writeln(`; <<>> DiG 9.16.1-Ubuntu <<>> ${host}`);
@@ -150,6 +202,14 @@ function processCommand(cmd, term) {
     term.writeln("Jan 14 09:00:01 server systemd[1]: Starting Session 1 of user student01.");
     term.writeln("Jan 14 09:00:02 server sshd[1234]: Accepted publickey for student01");
     term.writeln("Jan 14 09:15:33 server nginx[5678]: 192.168.1.50 - GET / HTTP/1.1 200");
+  } else if (command === "nginx -t") {
+    term.writeln("nginx: the configuration file /etc/nginx/nginx.conf syntax is ok");
+    term.writeln("nginx: configuration file /etc/nginx/nginx.conf test is successful");
+  } else if (command === "ufw status") {
+    term.writeln("Status: active");
+    term.writeln("To                         Action      From");
+    term.writeln("22/tcp                     ALLOW       10.20.0.0/16");
+    term.writeln("80/tcp                     ALLOW       Anywhere");
   } else if (command.startsWith("chmod ")) {
     term.writeln("Permissions updated.");
   } else if (command.startsWith("chown ")) {
@@ -167,8 +227,11 @@ function processCommand(cmd, term) {
     term.clear();
   } else if (!command || command === "help") {
     term.writeln("Available commands:");
-    term.writeln("  ipconfig, ping [host], get-service, get-process, netstat, nslookup, arp");
-    term.writeln("  ls, pwd, cd, whoami, id, uptime, free, df, ps, find, grep, cat");
+    term.writeln("  ipconfig /all, ping [host], tracert [host], nslookup [host], netstat, arp");
+    term.writeln("  hostname, systeminfo, whoami, gpresult /r, gpupdate /force");
+    term.writeln("  get-command, get-help [command], get-service, get-process");
+    term.writeln("  ls, pwd, cd, whoami, id, ip a, ip r, uptime, free, df, du, ps");
+    term.writeln("  find, grep, cat, crontab -l, nginx -t, ufw status");
     term.writeln("  tasklist, sc query <service>, netsh, dmesg, journalctl, ssh, curl, wget");
     term.writeln("  systemctl status/start/stop/restart <service>, chmod, chown, mkdir, kill");
     term.writeln("  cls/clear");
@@ -179,7 +242,7 @@ function processCommand(cmd, term) {
   term.writeln("");
 }
 
-export default function TerminalWidget({ prefillCommand, onSessionChange }) {
+export default function TerminalWidget({ prefillCommand, onSessionChange, profile = "windows" }) {
   const terminalRef = useRef(null);
   const termRef = useRef(null);
   const currentLineRef = useRef("");
@@ -222,11 +285,12 @@ export default function TerminalWidget({ prefillCommand, onSessionChange }) {
 
     termRef.current = term;
 
-    const prompt = "PS C:\\Users\\Student> ";
+    const isLinux = profile === "linux";
+    const prompt = isLinux ? "student01@nexus:~$ " : "PS C:\\Users\\Student> ";
 
     const writePrompt = () => term.write(prompt);
 
-    term.writeln("Windows PowerShell Practice Terminal");
+    term.writeln(isLinux ? "Linux Shell Practice Terminal" : "Windows PowerShell Practice Terminal");
     term.writeln("Type commands to practice (simulated environment)");
     term.writeln("Type help for command list");
     term.writeln("");
@@ -241,7 +305,7 @@ export default function TerminalWidget({ prefillCommand, onSessionChange }) {
           historyIndexRef.current = -1;
         }
         sessionLinesRef.current.push(`${prompt}${command}`);
-        processCommand(command, term);
+        processCommand(command, term, profile);
         sessionLinesRef.current.push("");
         currentLineRef.current = "";
         writePrompt();
@@ -296,7 +360,7 @@ export default function TerminalWidget({ prefillCommand, onSessionChange }) {
       termRef.current = null;
       term.dispose();
     };
-  }, []);
+  }, [profile]);
 
   useEffect(() => {
     if (!prefillCommand || !termRef.current) return;

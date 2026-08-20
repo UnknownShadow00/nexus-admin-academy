@@ -439,9 +439,14 @@ def _check_lessons_requirement(student_id: int, config: dict, db: Session) -> di
     """Lesson completion = an explicit, server-stored completion record.
 
     Config: {"weeks": [1,2,3,4]} or {"module_codes": ["MOD-001", ...]}.
-    Requires explicit completion for every published lesson in scope.
+    Requires explicit completion for every published lesson in scope, except
+    a lesson the weekly curriculum explicitly marks optional (a "lesson"
+    TrainingWeekActivity with is_required=False). A lesson with no weekly
+    activity row at all stays required, matching legacy/unlinked content.
+    Optional content must never silently gate promotion.
     """
     from app.models.lesson_progress import StudentLessonProgress
+    from app.models.training import TrainingWeekActivity
 
     cfg = config or {}
     lesson_query = db.query(Lesson.id).filter(Lesson.status == "published")
@@ -452,7 +457,15 @@ def _check_lessons_requirement(student_id: int, config: dict, db: Session) -> di
         )
         scope_desc = f"modules {', '.join(cfg['module_codes'])}"
 
-    required_ids = {row.id for row in lesson_query.all()}
+    all_ids = {row.id for row in lesson_query.all()}
+    optional_ids = {
+        int(row.content_ref)
+        for row in db.query(TrainingWeekActivity.content_ref)
+        .filter(TrainingWeekActivity.activity_type == "lesson", TrainingWeekActivity.is_required.is_(False))
+        .all()
+        if row.content_ref and row.content_ref.isdigit()
+    }
+    required_ids = all_ids - optional_ids
     done_ids = {
         row.lesson_id
         for row in db.query(StudentLessonProgress.lesson_id)
@@ -468,7 +481,7 @@ def _check_lessons_requirement(student_id: int, config: dict, db: Session) -> di
             "completed": len(required_ids) - len(missing),
             "missing_lesson_ids": missing,
         },
-        "met": len(missing) == 0 and len(required_ids) > 0,
+        "met": len(missing) == 0,
     }
 
 

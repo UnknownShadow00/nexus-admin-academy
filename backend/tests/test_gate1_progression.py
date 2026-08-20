@@ -104,6 +104,46 @@ def test_gate1_fails_on_missing_lessons(db):
     assert types == ["min_completed_lessons"]
 
 
+def test_gate1_optional_lesson_does_not_block_promotion(db):
+    """A lesson the weekly curriculum marks optional (is_required=False) must
+
+    not silently gate promotion — only the still-required lesson has to be
+    completed. Reproduces the Weeks 3-24 curriculum-quality pattern where
+    wall-of-text lessons are demoted to optional Extra Practice.
+    """
+    from app.models.training import TrainingWeek, TrainingWeekActivity
+
+    role = _seed_gate(db)
+    module, lessons, sim, easy = _seed_curriculum(db)
+    student = make_student(db)
+    week = TrainingWeek(week_number=1, display_order=1, title="Week 1", learning_goals=[], requires_previous_week=False)
+    db.add(week)
+    db.flush()
+    db.add(
+        TrainingWeekActivity(
+            training_week_id=week.id,
+            stable_id="week-1-lesson-optional",
+            activity_type="lesson",
+            content_ref=str(lessons[1].id),
+            display_order=1,
+            is_required=False,
+            prerequisite_mode="soft",
+            metadata_json={},
+        )
+    )
+    db.commit()
+
+    _fulfill_everything(db, student, lessons, sim, easy)
+    # The student never completes the lesson the curriculum marked optional.
+    db.query(StudentLessonProgress).filter(
+        StudentLessonProgress.student_id == student.id, StudentLessonProgress.lesson_id == lessons[1].id
+    ).delete()
+    db.commit()
+
+    result = check_promotion_eligibility(student.id, role.id, db)
+    assert result["eligible"] is True, result["requirements_missing"]
+
+
 def test_gate1_fails_on_low_mastery(db):
     role = _seed_gate(db)
     module, lessons, sim, easy = _seed_curriculum(db)

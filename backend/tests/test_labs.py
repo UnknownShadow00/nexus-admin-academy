@@ -172,6 +172,105 @@ def test_submit_structured_lab_uses_server_authoritative_grading(db):
     assert break_fix_run.structured_feedback is None
 
 
+def test_structured_cli_lab_requires_the_configured_commands(db):
+    student = make_student(db)
+    lab = LabTemplate(
+        title="Windows CLI diagnosis",
+        description="Use commands before choosing a diagnosis.",
+        lab_type="structured_cli",
+        difficulty=1,
+        week_number=1,
+        is_published=True,
+        environment_requirements={},
+        success_criteria={
+            "required_commands": ["ipconfig /all", "ping 192.168.1.1", "nslookup intranet.nexus.internal"],
+            "questions": [
+                {
+                    "id": "diagnosis",
+                    "prompt": "What failed?",
+                    "type": "single_choice",
+                    "options": [{"id": "dns", "label": "DNS"}, {"id": "dhcp", "label": "DHCP"}],
+                    "correct": ["dns"],
+                    "explanation": "The name lookup failed after IP reachability succeeded.",
+                }
+            ],
+        },
+        required_evidence={},
+        hints={},
+    )
+    db.add(lab)
+    db.commit()
+
+    missing = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json={"notes": "PS> ipconfig /all", "answers": {"diagnosis": ["dns"]}},
+        headers=auth_headers(student),
+    )
+
+    assert missing.status_code == 400
+    assert missing.json()["detail"] == "Run every required command in the practice terminal before submitting"
+
+    completed = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json={
+            "notes": (
+                "PS C:\\Users\\Student> ipconfig /all\n"
+                "PS C:\\Users\\Student> ping 192.168.1.1\n"
+                "PS C:\\Users\\Student> nslookup intranet.nexus.internal"
+            ),
+            "answers": {"diagnosis": ["dns"]},
+        },
+        headers=auth_headers(student),
+    )
+
+    assert completed.status_code == 200
+    assert completed.json()["data"]["structured_feedback"]["score_pct"] == 100
+
+
+def test_week_24_final_support_shift_capstone_grades_and_requires_evidence(db):
+    from app.services.training_curriculum_seed import FINAL_SUPPORT_SHIFT_PRACTICE
+
+    student = make_student(db)
+    lab = LabTemplate(
+        title="Final Support Shift",
+        description="Triage, diagnose with CLI evidence, decide escalation, and document the outcome.",
+        lab_type="structured_capstone",
+        difficulty=1,
+        week_number=24,
+        is_published=True,
+        environment_requirements={},
+        success_criteria={
+            "questions": FINAL_SUPPORT_SHIFT_PRACTICE,
+            "required_commands": ["ipconfig /all", "nslookup helpdesk.nexus.internal", "gpresult /r"],
+        },
+        required_evidence={},
+        hints={},
+    )
+    db.add(lab)
+    db.commit()
+    answers = {question["id"]: question["correct"] for question in FINAL_SUPPORT_SHIFT_PRACTICE}
+
+    blocked = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json={"notes": "no terminal evidence gathered", "answers": answers},
+        headers=auth_headers(student),
+    )
+    assert blocked.status_code == 400
+
+    completed = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json={
+            "notes": "ipconfig /all\nnslookup helpdesk.nexus.internal\ngpresult /r",
+            "answers": answers,
+        },
+        headers=auth_headers(student),
+    )
+    assert completed.status_code == 200
+    body = completed.json()["data"]
+    assert body["status"] == "submitted"
+    assert body["structured_feedback"]["score_pct"] == 100
+
+
 def test_get_lab_unauthenticated(db):
     lab = _seed_lab(db)
     res = client.get(f"/api/labs/{lab.id}")

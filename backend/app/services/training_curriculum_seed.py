@@ -203,32 +203,32 @@ WINDOWS_DIAGNOSTICS_QUESTIONS = [
         "explanation": "The trace never reaches even its first hop, so the local path to the configured gateway is the first thing to verify. DNS is not involved when tracing a numeric IP address.",
     },
     {
-        "id": "event-viewer-disk",
-        "prompt": "What is the appropriate interpretation of this Event Viewer entry?",
-        "context": "System log: Source `Disk`, Event ID `153`: 'The IO operation at logical block address ... was retried.' The user reports intermittent application freezes.",
+        "id": "netstat-process",
+        "prompt": "What should you do with the PID in this `netstat -ano` result?",
+        "context": "`TCP  192.168.1.100:52341  203.0.113.40:443  ESTABLISHED  9012`",
         "type": "single_choice",
         "options": [
-            {"id": "a", "label": "Investigate storage health, cabling/controller events, and back up data; this points to retried disk I/O."},
-            {"id": "b", "label": "Treat it as a DNS name-resolution failure."},
-            {"id": "c", "label": "Assume the user has entered a wrong password."},
-            {"id": "d", "label": "Prioritize changing the display resolution."},
+            {"id": "a", "label": "Match PID 9012 to a process in Task Manager Details before deciding whether the connection is expected."},
+            {"id": "b", "label": "Block port 443 immediately because every established connection is malicious."},
+            {"id": "c", "label": "Change the workstation's DNS server."},
+            {"id": "d", "label": "Delete the user profile."},
         ],
         "correct": ["a"],
-        "explanation": "Disk Event ID 153 reports a retried I/O operation, which can correlate with pauses while storage requests are retried. Check storage diagnostics and protect data rather than treating it as a network or display issue.",
+        "explanation": "netstat identifies the connection and PID, but the PID must be matched to its process before the technician can judge whether the traffic is expected.",
     },
     {
-        "id": "task-manager-startup",
-        "prompt": "What is the best first action for this startup-performance symptom?",
-        "context": "Task Manager > Startup apps lists 'Acme Updater' as Enabled with Startup impact 'High'; it is not required for sign-in or endpoint protection. The PC is slow only immediately after sign-in.",
+        "id": "identity-before-action",
+        "prompt": "Why run `hostname` and `whoami` at the start of a remote support session?",
+        "context": "The user has two open remote sessions and says, 'Fix the policy on my laptop.'",
         "type": "single_choice",
         "options": [
-            {"id": "a", "label": "Disable the nonessential updater in Startup apps, then measure the next sign-in before making broader changes."},
-            {"id": "b", "label": "Delete the user profile immediately."},
-            {"id": "c", "label": "Change the IPv4 default gateway."},
-            {"id": "d", "label": "Uninstall the graphics driver."},
+            {"id": "a", "label": "They confirm the computer and signed-in account before you collect evidence or make a change."},
+            {"id": "b", "label": "They reset the computer name and password."},
+            {"id": "c", "label": "They force every Group Policy setting to refresh."},
+            {"id": "d", "label": "They prove that DNS is healthy."},
         ],
         "correct": ["a"],
-        "explanation": "The symptom is limited to sign-in and Task Manager identifies a nonessential, high-impact startup item. Disable that item and retest, preserving security and required management software.",
+        "explanation": "Support evidence is only useful when it comes from the intended device and account. hostname and whoami establish that context before action.",
     },
 ]
 
@@ -280,6 +280,1821 @@ TRIAGE_QUESTIONS = [
         "explanation": "This is a single-user request with no outage, no urgent deadline, and a usable device. It fits P4 Low.",
     },
 ]
+
+
+WEEK_3_CLI_COMMANDS = [
+    "hostname",
+    "whoami",
+    "ipconfig /all",
+    "ping 192.168.1.1",
+    "nslookup intranet.nexus.internal",
+    "tracert intranet.nexus.internal",
+    "netstat -ano",
+]
+
+
+WINDOWS_TROUBLESHOOTING_PRACTICE = [
+    {
+        "id": "safe-mode-fork",
+        "prompt": "Windows hangs during a normal boot but reaches the desktop in Safe Mode. What should you investigate first?",
+        "context": "Safe Mode loads only a minimal set of drivers and services.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "A recently added driver, startup app, or third-party service"},
+            {"id": "b", "label": "The monitor cable"},
+            {"id": "c", "label": "A complete Windows reinstall"},
+            {"id": "d", "label": "The user's cloud password"},
+        ],
+        "correct": ["a"],
+        "explanation": "A successful Safe Mode boot points toward software that normal startup loads, so investigate recent drivers, startup apps, and services before destructive repair.",
+    },
+    {
+        "id": "workbook-crash",
+        "prompt": "Excel opens other files but closes when one workbook opens. What is the best first isolation step?",
+        "context": "The problem follows one file, not every Excel session.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Test a copy of that workbook and check the Application log for the crash module"},
+            {"id": "b", "label": "Replace the workstation immediately"},
+            {"id": "c", "label": "Delete the user's Windows profile"},
+            {"id": "d", "label": "Disable the network adapter"},
+        ],
+        "correct": ["a"],
+        "explanation": "When other files work, preserve the original and isolate the file while Event Viewer identifies the faulting application or add-in.",
+    },
+    {
+        "id": "disk-writer",
+        "prompt": "A workstation regains 8 GB after cleanup but fills again every week. What should the ticket's next action be?",
+        "context": "Repeated cleanup treats the symptom, not the cause.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Measure which folder or log is growing and fix the process writing it"},
+            {"id": "b", "label": "Delete unfamiliar folders"},
+            {"id": "c", "label": "Manually remove pagefile.sys"},
+            {"id": "d", "label": "Schedule an automatic weekly deletion of user data"},
+        ],
+        "correct": ["a"],
+        "explanation": "A recurring full disk needs before-and-after measurement and identification of the growing writer so the problem does not return.",
+    },
+]
+
+
+ACCESS_DECISION_PRACTICE = [
+    {
+        "id": "two-permission-gates",
+        "prompt": "Share permissions allow Change, but NTFS permissions allow only Read. What can the user do over the network?",
+        "context": "Remote access must pass both permission gates.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Read files but not change them"},
+            {"id": "b", "label": "Change any file"},
+            {"id": "c", "label": "Take ownership automatically"},
+            {"id": "d", "label": "Nothing; the share is always denied"},
+        ],
+        "correct": ["a"],
+        "explanation": "The most restrictive effective permission wins. Share Change cannot override NTFS Read.",
+    },
+    {
+        "id": "fresh-token",
+        "prompt": "A manager-approved group was added correctly, but the user is still denied. What should happen before changing permissions again?",
+        "context": "The user's current sign-in token was created before the group change.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Have the user sign out and sign back in, then retest"},
+            {"id": "b", "label": "Grant the user Full Control directly"},
+            {"id": "c", "label": "Disable inheritance"},
+            {"id": "d", "label": "Restart the file server"},
+        ],
+        "correct": ["a"],
+        "explanation": "A new logon creates a fresh token containing the updated group membership.",
+    },
+    {
+        "id": "sensitive-access",
+        "prompt": "A contractor requests urgent read access to Payroll and says the CFO is waiting. What is the safe action?",
+        "context": "Urgency changes priority, not authorization.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Escalate with the requester, business reason, duration, and named approver"},
+            {"id": "b", "label": "Grant read-only access for one hour"},
+            {"id": "c", "label": "Add the contractor to the broad Finance group"},
+            {"id": "d", "label": "Close the request without documenting it"},
+        ],
+        "correct": ["a"],
+        "explanation": "Sensitive cross-department access requires authorized approval; a complete escalation is the correct resolution at this support level.",
+    },
+]
+
+
+WEEKS_3_6_BRIEFS = {
+    3: {
+        "description": "Use Windows commands to identify the computer, test network reachability, check DNS, and gather evidence before changing anything.",
+        "learning_goals": [
+            "hostname and whoami confirm which computer and user you are supporting.",
+            "ipconfig /all shows the IP address, gateway, DHCP state, and DNS servers; a 169.254 address usually means DHCP failed.",
+            "Ping the gateway, then an internet IP, then a name to separate local, internet, and DNS failures.",
+            "nslookup tests DNS directly, tracert shows the route, and netstat -ano links connections to process IDs.",
+        ],
+    },
+    4: {
+        "description": "Work the queue by business impact and urgency, then communicate a safe next step without overpromising.",
+        "learning_goals": [
+            "P1 is a broad outage with no workaround; P2 is major degradation; P3 is a limited interruption; P4 is a routine request.",
+            "A workaround lowers urgency, while the number of affected users raises impact.",
+            "An incident restores broken service; a service request asks for something new; risky changes and unauthorized access must be escalated.",
+            "A useful handoff records the current state, evidence, exact next step, and any promised update time.",
+        ],
+    },
+    5: {
+        "description": "Isolate Windows startup, application, and disk problems with the least destructive useful test.",
+        "learning_goals": [
+            "If normal boot fails but Safe Mode works, investigate a recent driver, startup app, or third-party service.",
+            "Event 1000 identifies an application crash module; a hang while opening a network file may be a network problem wearing an app symptom.",
+            "Test another Windows user to separate per-user configuration from a machine-wide application failure.",
+            "Measure what consumes disk space, use approved cleanup tools, and verify both the space recovered and the cause.",
+        ],
+    },
+    6: {
+        "description": "Resolve account and file-access requests without bypassing identity checks, approval, or least privilege.",
+        "learning_goals": [
+            "Verify identity before a password reset, and investigate the saved credential that causes a recurring lockout.",
+            "Remote file access uses both share and NTFS permissions; the most restrictive effective result wins.",
+            "After a group change, sign out and back in so Windows creates a fresh access token.",
+            "Urgency is not authorization: package sensitive access requests with the business reason and approver, then escalate.",
+        ],
+    },
+}
+
+
+WEEKS_3_6_REQUIRED_VIDEOS = {3: {117, 118}, 4: {169}, 5: {162}, 6: {139}}
+WEEKS_3_6_REQUIRED_QUIZZES = {3: 4, 4: 5, 5: 6, 6: 7}
+
+
+def sync_weeks_3_6_quality(db: Session) -> dict:
+    """Align the first post-foundation batch without replacing history rows."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    weeks = {
+        week.week_number: week
+        for week in db.query(TrainingWeek).filter(TrainingWeek.week_number.between(3, 6)).all()
+    }
+    if set(weeks) != {3, 4, 5, 6}:
+        return {"updated": 0, "skipped": True, "reason": "weeks_missing"}
+    seeded_week_ids = {
+        row[0]
+        for row in db.query(TrainingWeekActivity.training_week_id)
+        .filter(
+            TrainingWeekActivity.training_week_id.in_({week.id for week in weeks.values()}),
+            TrainingWeekActivity.activity_type.in_(["lesson", "video", "quiz"]),
+        )
+        .distinct()
+        .all()
+    }
+    if seeded_week_ids != {week.id for week in weeks.values()}:
+        return {"updated": 0, "skipped": True, "reason": "curriculum_not_seeded"}
+
+    result = {
+        "updated_weeks": 0,
+        "updated_activities": 0,
+        "updated_templates": 0,
+        "created_templates": 0,
+        "created_activities": 0,
+        "skipped": False,
+    }
+
+    for number, brief in WEEKS_3_6_BRIEFS.items():
+        week = weeks[number]
+        for field, value in brief.items():
+            if getattr(week, field) != value:
+                setattr(week, field, value)
+                result["updated_weeks"] += 1
+
+    quiz_rows = {quiz.id: quiz for quiz in db.query(Quiz).filter(Quiz.id.in_({2, 3, 4, 5, 6, 7})).all()}
+    required_quiz_ids = set(WEEKS_3_6_REQUIRED_QUIZZES.values())
+    for quiz_id, quiz in quiz_rows.items():
+        should_be_required = quiz_id in required_quiz_ids
+        # A quiz already marked "gate" backs a role-promotion requirement
+        # (see PROMOTION_GATES in seed.py). Never downgrade that purpose here
+        # or the gate becomes permanently unsatisfiable.
+        expected_purpose = quiz.quiz_purpose if quiz.quiz_purpose == "gate" else ("required" if should_be_required else "practice")
+        if (
+            bool(quiz.is_required) != should_be_required
+            or bool(quiz.show_in_weekly_checklist) != should_be_required
+            or quiz.quiz_purpose != expected_purpose
+        ):
+            quiz.is_required = should_be_required
+            quiz.show_in_weekly_checklist = should_be_required
+            quiz.quiz_purpose = expected_purpose
+
+    for number, week in weeks.items():
+        required_quiz = str(WEEKS_3_6_REQUIRED_QUIZZES[number])
+        required_videos = {str(item) for item in WEEKS_3_6_REQUIRED_VIDEOS[number]}
+        activities = db.query(TrainingWeekActivity).filter_by(training_week_id=week.id).all()
+        for activity in activities:
+            if activity.activity_type == "lesson":
+                should_be_required = False
+            elif activity.activity_type == "video":
+                should_be_required = activity.content_ref in required_videos
+            elif activity.activity_type == "quiz":
+                should_be_required = activity.content_ref == required_quiz
+            elif activity.activity_type == "service_desk_scenario":
+                should_be_required = number in {5, 6}
+            else:
+                continue
+            if bool(activity.is_required) != should_be_required:
+                activity.is_required = should_be_required
+                result["updated_activities"] += 1
+
+    def update_template(lab: LabTemplate, **values) -> None:
+        changed = False
+        for field, value in values.items():
+            if getattr(lab, field) != value:
+                setattr(lab, field, value)
+                changed = True
+        if changed:
+            result["updated_templates"] += 1
+
+    def ensure_lab(
+        title: str,
+        week_number: int,
+        questions: list,
+        *,
+        cli: bool = False,
+        description: str | None = None,
+        setup_instructions: str | None = None,
+        estimated_minutes: int = 25,
+    ) -> LabTemplate:
+        lab = db.query(LabTemplate).filter(LabTemplate.title == title).first()
+        values = {
+            "description": description or (
+                "Run the required Windows commands in the real Nexus practice terminal, read the output, then diagnose each result."
+                if cli
+                else "Work through realistic support symptoms and choose the safest evidence-based next action."
+            ),
+            "lab_type": "structured_cli" if cli else "structured_diagnostic",
+            "week_number": week_number,
+            "difficulty": 1,
+            "estimated_minutes": estimated_minutes,
+            "is_published": True,
+            "environment_requirements": {},
+            "setup_instructions": setup_instructions or (
+                "Use the command buttons as prompts, run every command, and read what each output proves before answering."
+                if cli
+                else "Read each symptom and evidence block. Choose the next action you could defend in a support ticket."
+            ),
+            "success_criteria": {
+                "questions": questions,
+                **({"required_commands": WEEK_3_CLI_COMMANDS} if cli else {}),
+            },
+            "required_evidence": {},
+            "hints": {},
+        }
+        if lab is None:
+            lab = LabTemplate(title=title, **values)
+            db.add(lab)
+            db.flush()
+            result["created_templates"] += 1
+        else:
+            update_template(lab, **values)
+        return lab
+
+    labs = {
+        3: ensure_lab("Windows Command-Line Diagnostics", 3, WINDOWS_DIAGNOSTICS_QUESTIONS, cli=True),
+        4: ensure_lab(
+            "Prioritize the Queue",
+            4,
+            TRIAGE_QUESTIONS,
+            description=(
+                "Triage five incoming support tickets by business impact. P1 Critical is a broad outage with no workaround; "
+                "P2 High is major multi-user degradation; P3 Medium is a limited interruption; P4 Low is a routine request."
+            ),
+            setup_instructions="Read the impact, urgency, and workaround in each ticket, then choose the priority you could defend to the queue lead.",
+            estimated_minutes=15,
+        ),
+        5: ensure_lab("Isolate the Windows Failure", 5, WINDOWS_TROUBLESHOOTING_PRACTICE),
+        6: ensure_lab("Make the Safe Access Decision", 6, ACCESS_DECISION_PRACTICE),
+    }
+
+    for number, lab in labs.items():
+        week = weeks[number]
+        activity = (
+            db.query(TrainingWeekActivity)
+            .filter_by(training_week_id=week.id, activity_type="guided_lab", content_ref=str(lab.id))
+            .first()
+        )
+        if activity is None:
+            apply_order = (
+                db.query(func.min(TrainingWeekActivity.display_order))
+                .filter(
+                    TrainingWeekActivity.training_week_id == week.id,
+                    TrainingWeekActivity.activity_type.in_(["service_desk_scenario", "capstone"]),
+                )
+                .scalar()
+            )
+            if apply_order is None:
+                display_order = (
+                    db.query(func.max(TrainingWeekActivity.display_order))
+                    .filter_by(training_week_id=week.id)
+                    .scalar()
+                    or 0
+                ) + 1
+            else:
+                rows = (
+                    db.query(TrainingWeekActivity)
+                    .filter(
+                        TrainingWeekActivity.training_week_id == week.id,
+                        TrainingWeekActivity.display_order >= apply_order,
+                    )
+                    .order_by(TrainingWeekActivity.display_order.desc())
+                    .all()
+                )
+                for row in rows:
+                    row.display_order += 1
+                    db.flush()
+                display_order = apply_order
+            activity = TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-{number}-guided_lab-{lab.id}",
+                activity_type="guided_lab",
+                content_ref=str(lab.id),
+                display_order=display_order,
+                is_required=True,
+                estimated_minutes=lab.estimated_minutes,
+                prerequisite_mode="soft",
+                metadata_json={},
+            )
+            db.add(activity)
+            result["created_activities"] += 1
+        else:
+            for field, value in {"is_required": True, "estimated_minutes": lab.estimated_minutes}.items():
+                if getattr(activity, field) != value:
+                    setattr(activity, field, value)
+                    result["updated_activities"] += 1
+
+    db.commit()
+    return result
+
+
+ENDPOINT_RESPONSE_PRACTICE = [
+    {
+        "id": "active-compromise",
+        "prompt": "Defender quarantined malware, but the workstation still makes unusual outbound connections. What should the help desk do next?",
+        "context": "The detection may be contained, but there are signs the compromise is still active.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Disconnect the network, preserve evidence, record the timeline, and escalate to security"},
+            {"id": "b", "label": "Delete the quarantine and return the PC to the user"},
+            {"id": "c", "label": "Turn off Defender so the alert stops"},
+            {"id": "d", "label": "Power off the PC immediately without recording anything"},
+        ],
+        "correct": ["a"],
+        "explanation": "Active indicators require containment and escalation. Keep the machine powered on so volatile evidence is not lost.",
+    },
+    {
+        "id": "phished-credentials",
+        "prompt": "A user entered their password into a fake sign-in page. Which action has priority?",
+        "context": "Assume the password and active sessions may now be controlled by someone else.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Reset the password from a trusted device, revoke sessions, and escalate with the timeline"},
+            {"id": "b", "label": "Only delete the email"},
+            {"id": "c", "label": "Open the link again to confirm it is fake"},
+            {"id": "d", "label": "Wait for another alert before acting"},
+        ],
+        "correct": ["a"],
+        "explanation": "Credential theft needs immediate account containment; a malware scan alone does not revoke stolen credentials or sessions.",
+    },
+    {
+        "id": "firewall-finding",
+        "prompt": "An application works only while Windows Firewall is disabled. What is the correct next step?",
+        "context": "Disabling the firewall proved where to investigate, but it weakened the endpoint.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Re-enable the firewall and identify the narrow approved rule the application needs"},
+            {"id": "b", "label": "Leave the firewall disabled and close the ticket"},
+            {"id": "c", "label": "Disable Defender as well"},
+            {"id": "d", "label": "Reimage the endpoint immediately"},
+        ],
+        "correct": ["a"],
+        "explanation": "A disabled firewall is a diagnostic finding, not a safe resolution. Restore protection and fix the specific rule or escalate.",
+    },
+]
+
+
+CLIENT_NETWORK_CLI_PRACTICE = [
+    {
+        "id": "apipa-local",
+        "prompt": "One workstation shows 169.254.40.7 while nearby workstations have valid leases. Which fault domain should you check first?",
+        "context": "`ipconfig /all` shows DHCP Enabled: Yes and no default gateway.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "That workstation's link, adapter, switch port, or DHCP path"},
+            {"id": "b", "label": "The public DNS root servers"},
+            {"id": "c", "label": "Every office router"},
+            {"id": "d", "label": "The user's browser cache"},
+        ],
+        "correct": ["a"],
+        "explanation": "APIPA on one machine points to its local path to DHCP, not a broad DNS or internet outage.",
+    },
+    {
+        "id": "upstream-failure",
+        "prompt": "The gateway replies, but `ping 1.1.1.1` fails. What evidence-based escalation should you make?",
+        "context": "The client has a valid address, gateway, and DNS configuration.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Upstream routing failure, with both ping results attached"},
+            {"id": "b", "label": "Local keyboard failure"},
+            {"id": "c", "label": "Configured DNS failure"},
+            {"id": "d", "label": "User profile corruption"},
+        ],
+        "correct": ["a"],
+        "explanation": "The local path reaches the gateway, while numeric internet reachability fails beyond it. DNS has not been tested yet and is not needed for a numeric IP.",
+    },
+    {
+        "id": "configured-dns",
+        "prompt": "The configured resolver times out, but `nslookup intranet.nexus.internal 1.1.1.1` gets a response. What should you diagnose?",
+        "context": "IP connectivity is already confirmed.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "The configured DNS server or the client's DNS setting"},
+            {"id": "b", "label": "The Ethernet cable"},
+            {"id": "c", "label": "The monitor driver"},
+            {"id": "d", "label": "The user's password"},
+        ],
+        "correct": ["a"],
+        "explanation": "A known alternate resolver answering after the configured one fails isolates the problem to the configured DNS path or setting.",
+    },
+]
+
+
+SUBNET_SUPPORT_PRACTICE = [
+    {
+        "id": "gateway-same-subnet",
+        "prompt": "A PC is 192.168.10.45/24 and its gateway is 192.168.20.1. What is wrong?",
+        "context": "A host must be able to reach its gateway on the local subnet before it can send remote traffic.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "The gateway is outside the PC's /24 subnet"},
+            {"id": "b", "label": "The PC address is a broadcast address"},
+            {"id": "c", "label": "The mask should always be /16"},
+            {"id": "d", "label": "Nothing is wrong"},
+        ],
+        "correct": ["a"],
+        "explanation": "192.168.10.0/24 and 192.168.20.0/24 are different networks, so the PC cannot reach that gateway directly.",
+    },
+    {
+        "id": "slash-26-bracket",
+        "prompt": "Which subnet contains 192.168.1.70/26?",
+        "context": "/26 has a block size of 64: .0, .64, .128, .192.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "192.168.1.64/26"},
+            {"id": "b", "label": "192.168.1.0/26"},
+            {"id": "c", "label": "192.168.1.128/26"},
+            {"id": "d", "label": "192.168.1.192/26"},
+        ],
+        "correct": ["a"],
+        "explanation": "70 falls between the .64 network address and .127 broadcast address.",
+    },
+    {
+        "id": "slash-28-hosts",
+        "prompt": "How many usable host addresses are in a /28 subnet?",
+        "context": "A /28 contains 16 total addresses; network and broadcast are reserved.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "14"},
+            {"id": "b", "label": "16"},
+            {"id": "c", "label": "30"},
+            {"id": "d", "label": "8"},
+        ],
+        "correct": ["a"],
+        "explanation": "Sixteen total addresses minus the network and broadcast addresses leaves fourteen usable hosts.",
+    },
+    {
+        "id": "slash-27-broadcast",
+        "prompt": "What is the broadcast address for the subnet containing 10.1.1.100/27?",
+        "context": "/27 has a block size of 32. The address 100 is in the .96-.127 block.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "10.1.1.127"},
+            {"id": "b", "label": "10.1.1.95"},
+            {"id": "c", "label": "10.1.1.128"},
+            {"id": "d", "label": "10.1.1.255"},
+        ],
+        "correct": ["a"],
+        "explanation": "The .96/27 subnet ends at .127, so .127 is its broadcast address.",
+    },
+]
+
+
+WEEKS_7_10_QUALITY = {
+    7: {
+        "description": "Recognize endpoint threats, contain risk without destroying evidence, and escalate at the right moment.",
+        "learning_goals": [
+            "For active compromise: disconnect the network, keep power on, preserve what the user saw, and escalate with a timeline.",
+            "If credentials entered a fake page, reset them from a trusted device and revoke active sessions immediately.",
+            "Defender Protection History records the detection and action; quick, full, and offline scans serve different levels of suspicion.",
+            "Turning off the firewall can isolate a cause, but it is never the final fix; restore it and use the narrow approved rule.",
+        ],
+        "required_videos": {137, 138, 143},
+        "required_quiz": 8,
+        "required_service_desk": False,
+        "lab": {
+            "title": "Choose the Safe Endpoint Response",
+            "lab_type": "structured_security",
+            "questions": ENDPOINT_RESPONSE_PRACTICE,
+            "estimated_minutes": 20,
+        },
+    },
+    8: {
+        "description": "Use a repeatable command sequence to separate local, upstream, and DNS failures on a Windows client.",
+        "learning_goals": [
+            "Start with ipconfig /all: 169.254 means DHCP failed; a missing or off-subnet gateway blocks remote traffic.",
+            "Ping the gateway, then 1.1.1.1, then a hostname so each result narrows the fault domain.",
+            "If an alternate resolver works while the configured resolver fails, diagnose the configured DNS server or client setting.",
+            "Do not hide DHCP failure with an unmanaged static address; it can create a later address conflict.",
+        ],
+        "required_videos": {6, 18, 61, 123},
+        "required_quiz": 9,
+        "required_service_desk": False,
+        "lab": {
+            "id": 2,
+            "title": "Troubleshoot a Network Connectivity Scenario",
+            "new_title": "Diagnose the Client Network",
+            "lab_type": "structured_cli",
+            "questions": CLIENT_NETWORK_CLI_PRACTICE,
+            "required_commands": ["ipconfig /all", "ping 192.168.1.1", "ping 1.1.1.1", "nslookup intranet.nexus.internal"],
+            "estimated_minutes": 25,
+        },
+    },
+    9: {
+        "description": "Read an IPv4 address and mask well enough to spot a bad gateway, find the subnet, and avoid assigning network or broadcast addresses.",
+        "learning_goals": [
+            "Hosts on the same subnet use ARP and switch directly; different subnets send traffic to the default gateway.",
+            "/24 has 254 usable hosts; /25 splits the last octet in half; /26 uses blocks of 64; /27 uses 32; /28 uses 16.",
+            "Network is the first address in a block, broadcast is the last, and usable hosts sit between them.",
+            "For entry-level support, use block size to answer 'same subnet?' and validate a static address—not to design a complex VLSM plan.",
+        ],
+        "required_videos": {14, 15},
+        "required_quiz": 10,
+        "required_service_desk": False,
+        "lab": {
+            "id": 1,
+            "title": "IP Addressing & Subnetting Practice",
+            "lab_type": "structured_subnet",
+            "questions": SUBNET_SUPPORT_PRACTICE,
+            "estimated_minutes": 25,
+        },
+    },
+    10: {
+        "description": "Read switch state, recover a disabled port, and place an access port in the correct VLAN using the existing Cisco CLI simulator.",
+        "learning_goals": [
+            "The prompt shows the CLI mode: > user, # privileged, (config)# global configuration, and (config-if)# interface configuration.",
+            "Use show interfaces status and show vlan brief before changing a port, then run no shutdown only when the evidence supports it.",
+            "An access port belongs to one VLAN; a device moved to a port in the wrong VLAN may receive the wrong subnet or no lease.",
+            "Use change → verify → save so a working running-config survives reboot.",
+        ],
+        "required_videos": {12, 13},
+        "required_quiz": 12,
+        "required_service_desk": False,
+        "required_networking_labs": {"dev-sw-act-04", "dev-sw-act-18"},
+    },
+}
+
+
+NETWORK_SERVICE_PATH_PRACTICE = [
+    {
+        "id": "trunk-scope",
+        "prompt": "VLAN 10 works across both switches, but VLAN 20 fails only on the newly added switch. What should you check first?",
+        "context": "Access ports and client addressing are correct. The switches connect through one trunk.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Whether VLAN 20 is allowed on the trunk at both ends"},
+            {"id": "b", "label": "Every workstation network driver"},
+            {"id": "c", "label": "The public DNS resolver"},
+            {"id": "d", "label": "The printer queue"},
+        ],
+        "correct": ["a"],
+        "explanation": "One working VLAN proves the link is alive. A single VLAN failing across it points to trunk membership or a mismatch.",
+    },
+    {
+        "id": "relay-scope",
+        "prompt": "Every client in a new VLAN gets 169.254 addresses; other VLANs receive leases normally. What is the best diagnosis?",
+        "context": "The central DHCP server is healthy and has a scope for the new VLAN.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "The new VLAN's DHCP relay/helper path is missing or wrong"},
+            {"id": "b", "label": "The central DHCP service is down for everyone"},
+            {"id": "c", "label": "DNS is returning an old record"},
+            {"id": "d", "label": "The clients need unmanaged static addresses"},
+        ],
+        "correct": ["a"],
+        "explanation": "DHCP broadcasts do not cross a router without relay. The working VLANs show the server itself is available.",
+    },
+    {
+        "id": "svi-scope",
+        "prompt": "A PC reaches peers in its own VLAN but cannot reach any other subnet. Which evidence should you gather next?",
+        "context": "Its address and mask are correct.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Default gateway reachability and the VLAN SVI/router-interface state"},
+            {"id": "b", "label": "The PC's display resolution"},
+            {"id": "c", "label": "The switch fan speed"},
+            {"id": "d", "label": "The user's mailbox quota"},
+        ],
+        "correct": ["a"],
+        "explanation": "Same-VLAN traffic does not need routing. Cross-subnet failure points to the gateway or inter-VLAN route.",
+    },
+    {
+        "id": "dns-scope",
+        "prompt": "A server opens by IP address but not by hostname. What should the ticket say?",
+        "context": "Ping to the server IP succeeds from the affected PC.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "IP reachability works; capture nslookup output and investigate DNS"},
+            {"id": "b", "label": "The entire network is down"},
+            {"id": "c", "label": "Replace the client network adapter"},
+            {"id": "d", "label": "Disable the firewall permanently"},
+        ],
+        "correct": ["a"],
+        "explanation": "Successful IP traffic isolates the failure to name resolution rather than basic connectivity.",
+    },
+]
+
+
+SECURE_NETWORK_ADMIN_PRACTICE = [
+    {
+        "id": "ssh-not-telnet",
+        "prompt": "A switch accepts Telnet but not SSH. What is the safe support goal?",
+        "context": "Remote administration is required; Telnet sends credentials without encryption.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Configure and verify SSH, then restrict VTY access to SSH"},
+            {"id": "b", "label": "Keep Telnet because it is faster"},
+            {"id": "c", "label": "Expose the console port to the internet"},
+            {"id": "d", "label": "Disable authentication on VTY lines"},
+        ],
+        "correct": ["a"],
+        "explanation": "SSH provides encrypted remote administration; Telnet should not remain as the shortcut.",
+    },
+    {
+        "id": "port-security",
+        "prompt": "A desk port is err-disabled and the log reports a port-security violation. What comes first?",
+        "context": "A small unmanaged switch was connected at the desk.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Remove or approve the unexpected device, then recover and verify the port"},
+            {"id": "b", "label": "Run no shutdown repeatedly without checking the trigger"},
+            {"id": "c", "label": "Delete the user's VLAN"},
+            {"id": "d", "label": "Turn off port security everywhere"},
+        ],
+        "correct": ["a"],
+        "explanation": "Recovering the port without resolving the violation causes another shutdown and ignores a security signal.",
+    },
+    {
+        "id": "evidence-escalation",
+        "prompt": "Which escalation gives the network team the most useful starting point?",
+        "context": "About 60 users in VLAN 30 lost access at 09:15.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "VLAN 30 only; SVI is down in show ip interface brief; no change made"},
+            {"id": "b", "label": "The network is broken—please fix"},
+            {"id": "c", "label": "Probably DNS; reboot everything"},
+            {"id": "d", "label": "One user says the internet feels slow"},
+        ],
+        "correct": ["a"],
+        "explanation": "Scope, time, command evidence, and actions taken let the next technician act safely.",
+    },
+]
+
+
+AD_ACCOUNT_PRACTICE = [
+    {
+        "id": "disabled-user",
+        "prompt": "A manager asks you to re-enable a disabled employee account immediately. What should you do first?",
+        "context": "The ticket does not explain why the account was disabled.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Verify the disable reason and required approval before changing it"},
+            {"id": "b", "label": "Enable it because a manager asked"},
+            {"id": "c", "label": "Delete and recreate the account"},
+            {"id": "d", "label": "Add the user to Domain Admins"},
+        ],
+        "correct": ["a"],
+        "explanation": "A disabled account may be a leaver or security hold. Confirm the authority and reason first.",
+    },
+    {
+        "id": "group-access",
+        "prompt": "Five Finance employees need the same folder access. What is the maintainable change?",
+        "context": "An approved Finance security group already exists.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Add the users to the approved Finance group"},
+            {"id": "b", "label": "Grant five separate user permissions"},
+            {"id": "c", "label": "Give Everyone full control"},
+            {"id": "d", "label": "Make all five local administrators"},
+        ],
+        "correct": ["a"],
+        "explanation": "Group-based access is auditable and keeps the resource permission model consistent.",
+    },
+    {
+        "id": "repeat-lockout",
+        "prompt": "An AD account is unlocked but locks again minutes later. What should you investigate?",
+        "context": "The user recently changed their password and has a phone and laptop.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "A device or service repeatedly using the old password"},
+            {"id": "b", "label": "The user's monitor cable"},
+            {"id": "c", "label": "The domain's folder naming convention"},
+            {"id": "d", "label": "Whether the printer has paper"},
+        ],
+        "correct": ["a"],
+        "explanation": "Repeated lockout after a password change commonly comes from stored stale credentials.",
+    },
+]
+
+
+DOMAIN_OPERATIONS_PRACTICE = [
+    {
+        "id": "join-dns",
+        "prompt": "A new PC can browse the web but says the domain cannot be found during join. What should you inspect first?",
+        "context": "ipconfig /all shows the home router as the DNS server.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Point the client at the approved domain DNS and retry after verifying resolution"},
+            {"id": "b", "label": "Reinstall Windows"},
+            {"id": "c", "label": "Disable the computer account"},
+            {"id": "d", "label": "Use a public resolver"},
+        ],
+        "correct": ["a"],
+        "explanation": "Domain join depends on DNS records that locate a domain controller; ordinary internet access does not prove that lookup works.",
+    },
+    {
+        "id": "secure-channel",
+        "prompt": "A restored laptop reports that its trust relationship failed. What is the least disruptive first repair?",
+        "context": "Peer laptops authenticate normally and the computer account still exists.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Repair the computer secure channel with approved credentials"},
+            {"id": "b", "label": "Delete the user's account"},
+            {"id": "c", "label": "Rebuild the domain"},
+            {"id": "d", "label": "Always unjoin and rejoin first"},
+        ],
+        "correct": ["a"],
+        "explanation": "A secure-channel repair addresses the broken machine trust without the disruption of a full unjoin/rejoin.",
+    },
+    {
+        "id": "missing-drive",
+        "prompt": "A newly added group member still cannot see the mapped drive. Which checks belong in your next step?",
+        "context": "The access request was approved and the correct group was used.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Have the user sign out and back in to refresh the token"},
+            {"id": "b", "label": "Check Group Policy drive-map processing"},
+            {"id": "c", "label": "Grant direct Full Control to bypass groups"},
+            {"id": "d", "label": "Check effective share and NTFS access"},
+        ],
+        "correct": ["a", "b", "d"],
+        "explanation": "Token refresh, policy processing, and effective permissions are the relevant evidence; direct grants undermine the group model.",
+    },
+]
+
+
+WEEKS_11_14_QUALITY = {
+    11: {
+        "description": "Trace a network-service failure across VLAN trunks, gateways, DHCP relay, routing, and DNS.",
+        "learning_goals": [
+            "An access port carries one VLAN; a trunk carries tagged VLANs, and both ends must agree on allowed and native VLANs.",
+            "Same-VLAN traffic is switched; traffic to another subnet needs a reachable gateway, an up router/SVI interface, and a route.",
+            "A whole VLAN getting APIPA while other VLANs work points to that VLAN's DHCP relay/helper path.",
+            "IP works but names fail means gather DNS evidence; do not call it a total network outage.",
+        ],
+        "required_videos": {9, 10, 11},
+        "required_quiz": 13,
+        "required_service_desk": False,
+        "lab": {"title": "Trace the Network Service Failure", "lab_type": "structured_network", "questions": NETWORK_SERVICE_PATH_PRACTICE, "estimated_minutes": 20},
+    },
+    12: {
+        "description": "Troubleshoot shared network equipment safely and hand off evidence that another technician can use.",
+        "learning_goals": [
+            "Manage switches with encrypted SSH, keep a verified off-device configuration backup, and read logs before changing state.",
+            "Err-disabled plus a port-security violation is a security clue: remove or approve the trigger before recovering the port.",
+            "Work bottom-up: physical link, VLAN/trunk, addressing/routing, then DNS, firewall, and application.",
+            "For shared infrastructure, change one thing, verify it, know the rollback, and escalate broad-impact changes with scope and command evidence.",
+        ],
+        "required_videos": set(),
+        "required_quiz": 14,
+        "required_service_desk": False,
+        "lab": {"title": "Make the Safe Network Admin Decision", "lab_type": "structured_security", "questions": SECURE_NETWORK_ADMIN_PRACTICE, "estimated_minutes": 20},
+    },
+    13: {
+        "description": "Use Active Directory structure and safety checks to handle common account and group requests.",
+        "learning_goals": [
+            "A domain centralizes users, computers, and policy; OUs organize objects and receive Group Policy.",
+            "Security groups grant access; distribution groups are email lists. Prefer group membership over direct user permissions.",
+            "For resets, unlocks, disabled accounts, and access changes: verify identity or approval, make the smallest change, and document it.",
+            "A repeat lockout after a password change usually means a device or service still holds the old credential.",
+        ],
+        "required_videos": {140},
+        "required_quiz": 15,
+        "required_service_desk": False,
+        "lab": {"title": "Handle the AD Account Request", "lab_type": "structured_security", "questions": AD_ACCOUNT_PRACTICE, "estimated_minutes": 20},
+    },
+    14: {
+        "description": "Diagnose domain-join, secure-channel, and group-based file-access failures without disruptive shortcuts.",
+        "learning_goals": [
+            "A client must use the domain's DNS to locate a domain controller before a domain join can work.",
+            "A trust-relationship error means the computer secure channel is broken; repair it before reaching for unjoin/rejoin.",
+            "Use Accounts → Global group → Domain Local group → Permissions so access remains auditable and maintainable.",
+            "After a group change, refresh the sign-in token and check Group Policy plus effective share and NTFS permissions.",
+        ],
+        "required_videos": set(),
+        "required_quiz": 16,
+        "required_service_desk": False,
+        "lab": {"title": "Repair Domain Access Safely", "lab_type": "structured_windows", "questions": DOMAIN_OPERATIONS_PRACTICE, "estimated_minutes": 25},
+    },
+}
+
+
+GROUP_POLICY_CLI_PRACTICE = [
+    {
+        "id": "applied-gpo",
+        "prompt": "Which command output proves which user and computer policies actually applied?",
+        "context": "The terminal shows separate COMPUTER SETTINGS and USER SETTINGS sections.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "gpresult /r"},
+            {"id": "b", "label": "ipconfig /all"},
+            {"id": "c", "label": "nslookup"},
+            {"id": "d", "label": "sfc /scannow"},
+        ],
+        "correct": ["a"],
+        "explanation": "gpresult reports the resultant user and computer policy instead of making you guess from the GPO editor.",
+    },
+    {
+        "id": "wrong-ou",
+        "prompt": "A drive-map GPO is linked to the Finance Users OU, but gpresult does not list it for the user. What should you verify next?",
+        "context": "The GPO is enabled and other Finance users receive the drive.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "The user's OU placement and security filtering"},
+            {"id": "b", "label": "The user's monitor driver"},
+            {"id": "c", "label": "The switch native VLAN"},
+            {"id": "d", "label": "The printer toner level"},
+        ],
+        "correct": ["a"],
+        "explanation": "A working policy for peers points to scope: the object must be under the link and allowed by filtering.",
+    },
+    {
+        "id": "refresh-policy",
+        "prompt": "After correcting scope, what is the safe verification sequence?",
+        "context": "The policy is a user setting and the user's work is saved.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Run gpupdate, sign out/in if needed, then confirm with gpresult"},
+            {"id": "b", "label": "Reboot every domain controller"},
+            {"id": "c", "label": "Disable inheritance for the domain"},
+            {"id": "d", "label": "Edit the local registry until the setting appears"},
+        ],
+        "correct": ["a"],
+        "explanation": "Refresh the affected client and verify resultant policy; broad infrastructure changes are unnecessary.",
+    },
+]
+
+
+POWERSHELL_SERVER_PRACTICE = [
+    {
+        "id": "discover-first",
+        "prompt": "You do not remember the syntax for inspecting a service. What should you do before changing anything?",
+        "context": "The practice terminal provides Get-Command, Get-Help, and Get-Service.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Use Get-Command to discover available commands"},
+            {"id": "b", "label": "Use Get-Help Get-Service to inspect syntax"},
+            {"id": "c", "label": "Guess a Stop-Service command in production"},
+            {"id": "d", "label": "Use Get-Service to read current state"},
+        ],
+        "correct": ["a", "b", "d"],
+        "explanation": "PowerShell supports a safe discover → inspect → act workflow; read state before issuing a change.",
+    },
+    {
+        "id": "dhcp-reservation",
+        "prompt": "A network printer needs the same address while remaining centrally managed. What should the DHCP admin create?",
+        "context": "The printer is currently a normal DHCP client.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "A reservation for the printer's MAC address"},
+            {"id": "b", "label": "A duplicate manual address inside the pool"},
+            {"id": "c", "label": "A public DNS record"},
+            {"id": "d", "label": "A second default gateway"},
+        ],
+        "correct": ["a"],
+        "explanation": "A reservation keeps central DHCP control while consistently assigning the same address.",
+    },
+    {
+        "id": "whatif",
+        "prompt": "A PowerShell command would change 200 directory objects. What safety step belongs before execution?",
+        "context": "The cmdlet supports the common -WhatIf parameter.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Run it with -WhatIf and inspect the exact targets"},
+            {"id": "b", "label": "Turn off audit logging"},
+            {"id": "c", "label": "Test directly against all 200 objects"},
+            {"id": "d", "label": "Restart Active Directory first"},
+        ],
+        "correct": ["a"],
+        "explanation": "-WhatIf previews supported changes so scope mistakes can be caught before mutation.",
+    },
+]
+
+
+SERVER_RECOVERY_PRACTICE = [
+    {
+        "id": "restore-proof",
+        "prompt": "A deleted department file has been restored. What must you verify before resolving the ticket?",
+        "context": "The restore tool reports Success.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "The file opens and contains the expected data"},
+            {"id": "b", "label": "The expected owner and permissions were restored"},
+            {"id": "c", "label": "The user can access it from their normal path"},
+            {"id": "d", "label": "The backup job name sounds correct"},
+        ],
+        "correct": ["a", "b", "c"],
+        "explanation": "A successful job is not proof of a usable restore. Validate content, permissions, and the user's access path.",
+    },
+    {
+        "id": "scheduled-task",
+        "prompt": "A nightly task started failing immediately after its service-account password changed. What is the likely cause?",
+        "context": "The task history records a logon failure at its normal start time.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "The task still stores the old run-as credential"},
+            {"id": "b", "label": "The DNS zone was deleted"},
+            {"id": "c", "label": "Every server needs replacement"},
+            {"id": "d", "label": "The user's desktop is asleep"},
+        ],
+        "correct": ["a"],
+        "explanation": "The timing and logon error point to stale scheduled-task credentials.",
+    },
+    {
+        "id": "patch-plan",
+        "prompt": "Which plan is appropriate before patching a production server?",
+        "context": "The service has a maintenance window and affects many users.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Confirm backup/rollback, notify users, patch in-window, and verify service health"},
+            {"id": "b", "label": "Install immediately with no rollback plan"},
+            {"id": "c", "label": "Disable monitoring so alerts stay quiet"},
+            {"id": "d", "label": "Delete old event logs before recording a baseline"},
+        ],
+        "correct": ["a"],
+        "explanation": "Shared services need a rollback, controlled timing, communication, and post-change verification.",
+    },
+]
+
+
+LINUX_CLI_PRACTICE = [
+    {
+        "id": "read-permissions",
+        "prompt": "ls -l shows -rw-r----- root support app.conf. Who can read the file?",
+        "context": "The first triplet is owner, the second group, and the third others.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "root and members of the support group"},
+            {"id": "b", "label": "Every local user"},
+            {"id": "c", "label": "Only users with sudo, regardless of ownership"},
+            {"id": "d", "label": "Nobody"},
+        ],
+        "correct": ["a"],
+        "explanation": "Owner has read/write, group has read, and others have no permissions.",
+    },
+    {
+        "id": "service-evidence",
+        "prompt": "Before restarting a Linux service, which evidence should you capture?",
+        "context": "The terminal supports systemctl status and journalctl.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Current service state and recent errors"},
+            {"id": "b", "label": "Relevant journal entries"},
+            {"id": "c", "label": "The user's wallpaper"},
+            {"id": "d", "label": "The exact time and affected scope"},
+        ],
+        "correct": ["a", "b", "d"],
+        "explanation": "State, logs, time, and scope preserve the evidence needed to explain whether a restart helped.",
+    },
+    {
+        "id": "least-permission",
+        "prompt": "A technician suggests chmod 777 because an application cannot read one file. What is the better approach?",
+        "context": "The application runs under a known service account and group.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Inspect owner/group/mode and grant only the needed access"},
+            {"id": "b", "label": "Give everyone full control"},
+            {"id": "c", "label": "Delete and recreate the server"},
+            {"id": "d", "label": "Run the application as root permanently"},
+        ],
+        "correct": ["a"],
+        "explanation": "Fix the specific ownership or mode problem; 777 creates unnecessary write and execute access.",
+    },
+]
+
+
+WEEKS_15_18_QUALITY = {
+    15: {
+        "description": "Use resultant-policy evidence to fix Group Policy scope and refresh problems without guessing.",
+        "learning_goals": [
+            "GPOs link to sites, domains, or OUs; computer settings apply to machines and user settings apply at user logon.",
+            "Processing is Local → Site → Domain → OU, with closer applicable policy normally winning unless inheritance controls change it.",
+            "Use gpresult /r to see what applied or was filtered, then verify OU placement and security filtering.",
+            "After a scoped correction, refresh policy, sign out/in when required, and use gpresult again as proof.",
+        ],
+        "required_videos": set(),
+        "required_quiz": 17,
+        "required_service_desk": False,
+        "lab": {"id": 5, "title": "AD Break-Fix: locked and misplaced account on a live domain", "new_title": "Diagnose the Group Policy Result", "lab_type": "structured_cli", "questions": GROUP_POLICY_CLI_PRACTICE, "required_commands": ["whoami", "gpresult /r", "gpupdate /force"], "estimated_minutes": 25},
+    },
+    16: {
+        "description": "Use PowerShell safely to inspect Windows services and support DNS, DHCP, and directory operations.",
+        "learning_goals": [
+            "PowerShell cmdlets return objects: discover with Get-Command, learn syntax with Get-Help, and inspect properties before acting.",
+            "Use -WhatIf and a narrowly verified target set before supported bulk changes.",
+            "AD clients locate domain controllers through DNS; DHCP reservations give managed devices stable addresses without unmanaged statics.",
+            "A full DHCP scope causes clients in that subnet to lose leases; gather scope and lease evidence before changing exclusions or duration.",
+        ],
+        "required_videos": {178, 179},
+        "required_quiz": 18,
+        "required_service_desk": False,
+        "lab": {"title": "Investigate with PowerShell First", "lab_type": "structured_cli", "questions": POWERSHELL_SERVER_PRACTICE, "required_commands": ["get-command", "get-help get-service", "get-service"], "estimated_minutes": 25},
+    },
+    17: {
+        "description": "Operate shared servers with evidence, tested restores, rollback plans, and careful verification.",
+        "learning_goals": [
+            "For a failed service or task, capture status, the first relevant error, time, scope, and run-as identity before restarting it.",
+            "A backup is useful only when restore is tested; verify restored content, ownership, permissions, and user access.",
+            "Patch shared servers in a maintenance window with notification, a tested rollback, baseline evidence, and post-change checks.",
+            "A junior assists rather than independently leading a Domain Controller or AD system-state recovery.",
+        ],
+        "required_videos": {170},
+        "required_quiz": 19,
+        "required_service_desk": False,
+        "lab": {"title": "Verify the Server Recovery Plan", "lab_type": "structured_operations", "questions": SERVER_RECOVERY_PRACTICE, "estimated_minutes": 20},
+    },
+    18: {
+        "description": "Use the existing practice terminal to navigate Linux, read permissions, and gather service evidence safely.",
+        "learning_goals": [
+            "Linux starts at /; configuration usually lives in /etc, logs in /var/log, and user files in /home.",
+            "Read ls -l as owner, group, and others; change only the ownership or permissions the service actually needs.",
+            "Use id for group membership, systemctl status for service state, and journalctl for recent event evidence.",
+            "Use sudo only for the specific approved command; avoid chmod 777 and permanent root execution as shortcuts.",
+        ],
+        "required_videos": {128, 129, 130},
+        "required_quiz": 20,
+        "required_service_desk": False,
+        "lab": {"title": "Investigate the Linux Host", "lab_type": "structured_cli", "questions": LINUX_CLI_PRACTICE, "required_commands": ["pwd", "ls -l", "id", "systemctl status ssh", "journalctl"], "terminal_profile": "linux", "estimated_minutes": 30},
+    },
+}
+
+
+LINUX_SERVICE_PRACTICE = [
+    {
+        "id": "failed-service",
+        "prompt": "A service is enabled but inactive after boot. What should you read before restarting it?",
+        "context": "systemctl status reports failed and names the unit; journalctl contains its recent messages.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "systemctl status for current state"},
+            {"id": "b", "label": "journalctl for the first relevant error"},
+            {"id": "c", "label": "The desktop wallpaper"},
+            {"id": "d", "label": "The time and affected service scope"},
+        ],
+        "correct": ["a", "b", "d"],
+        "explanation": "Capture state, the causal error, time, and scope so a restart does not erase the useful story.",
+    },
+    {
+        "id": "linux-network",
+        "prompt": "A Linux host has an address but no remote connectivity. Which command output identifies its default gateway?",
+        "context": "You ran ip a and ip r in the practice terminal.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "ip r"},
+            {"id": "b", "label": "ls -l"},
+            {"id": "c", "label": "crontab -l"},
+            {"id": "d", "label": "whoami"},
+        ],
+        "correct": ["a"],
+        "explanation": "ip r shows the routing table, including the default route and interface.",
+    },
+    {
+        "id": "cron-time",
+        "prompt": "What does 0 2 * * * mean at the start of a cron entry?",
+        "context": "The five fields are minute, hour, day of month, month, and day of week.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Run every day at 02:00"},
+            {"id": "b", "label": "Run every two minutes"},
+            {"id": "c", "label": "Run only on February 2"},
+            {"id": "d", "label": "Run at noon"},
+        ],
+        "correct": ["a"],
+        "explanation": "Minute 0 and hour 2 with wildcards for the remaining fields means daily at 02:00.",
+    },
+]
+
+
+LINUX_PRODUCTION_PRACTICE = [
+    {
+        "id": "test-config",
+        "prompt": "What should you do immediately before reloading nginx after a configuration edit?",
+        "context": "The practice terminal's nginx -t reports whether syntax is valid.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Run nginx -t and stop if validation fails"},
+            {"id": "b", "label": "Delete the old configuration"},
+            {"id": "c", "label": "Open every firewall port"},
+            {"id": "d", "label": "Reboot the server without testing"},
+        ],
+        "correct": ["a"],
+        "explanation": "Syntax validation catches a bad change before a reload turns it into an outage.",
+    },
+    {
+        "id": "disk-full",
+        "prompt": "df reports / is 96% full and du shows /var/log uses 8.1 GB. What is the next safe action?",
+        "context": "The application recently began writing a large repeated error.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Find the growing log and its cause, then use the approved rotation/cleanup path"},
+            {"id": "b", "label": "Delete random files under /var"},
+            {"id": "c", "label": "Restart only the application and ignore capacity"},
+            {"id": "d", "label": "Run chmod 777 on /var/log"},
+        ],
+        "correct": ["a"],
+        "explanation": "Measure first, address the error generating growth, and clean up through a controlled retention process.",
+    },
+    {
+        "id": "local-not-remote",
+        "prompt": "A web service responds locally but remote clients are refused. Which evidence is most relevant next?",
+        "context": "The service is listening and nginx configuration validation succeeds.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Listening address and port"},
+            {"id": "b", "label": "Host or upstream firewall rules"},
+            {"id": "c", "label": "The user's local screen resolution"},
+            {"id": "d", "label": "Whether the failure affects all remote sources"},
+        ],
+        "correct": ["a", "b", "d"],
+        "explanation": "Local success proves the process responds; listener binding, firewall, and scope isolate the remote path.",
+    },
+]
+
+
+CLOUD_IDENTITY_PRACTICE = [
+    {
+        "id": "signin-log",
+        "prompt": "A user can sign into their laptop but not Microsoft 365. What should you inspect first?",
+        "context": "The organization synchronizes identities from on-premises AD to Entra ID.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Entra sign-in logs and synchronization state"},
+            {"id": "b", "label": "The laptop display driver"},
+            {"id": "c", "label": "The office printer queue"},
+            {"id": "d", "label": "Reset every authentication method immediately"},
+        ],
+        "correct": ["a"],
+        "explanation": "The split between local and cloud sign-in points to cloud policy, sign-in evidence, or directory synchronization.",
+    },
+    {
+        "id": "mfa-lost-phone",
+        "prompt": "A caller says their phone was lost and asks for an MFA reset. What is the first required action?",
+        "context": "The caller is in a hurry and can provide their username.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Verify identity using the approved recovery process"},
+            {"id": "b", "label": "Remove MFA based on the username"},
+            {"id": "c", "label": "Give them an administrator's phone number"},
+            {"id": "d", "label": "Disable Conditional Access"},
+        ],
+        "correct": ["a"],
+        "explanation": "An MFA reset changes an account's trust boundary, so identity verification comes first.",
+    },
+    {
+        "id": "responsibility",
+        "prompt": "An application service inside an Azure IaaS VM has stopped. Who owns that operating-system fix?",
+        "context": "Azure reports that the VM and host platform are healthy.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Your organization, because IaaS customers manage the guest OS"},
+            {"id": "b", "label": "The cloud provider, because every cloud layer is theirs"},
+            {"id": "c", "label": "The user's internet provider"},
+            {"id": "d", "label": "Nobody"},
+        ],
+        "correct": ["a"],
+        "explanation": "In IaaS the provider runs the physical platform, while the customer operates the guest OS and applications.",
+    },
+]
+
+
+AZURE_TRIAGE_PRACTICE = [
+    {
+        "id": "ssh-layer",
+        "prompt": "A running Azure Linux VM cannot be reached by SSH. Which cloud-layer evidence should you check before changing the guest?",
+        "context": "The VM overview reports Running and boot diagnostics look normal.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Effective NSG rules for TCP 22 and the source range"},
+            {"id": "b", "label": "The current public IP and whether it changed"},
+            {"id": "c", "label": "The user's keyboard layout"},
+            {"id": "d", "label": "Azure activity log for recent network changes"},
+        ],
+        "correct": ["a", "b", "d"],
+        "explanation": "NSG, endpoint address, and control-plane changes are the cloud wrapper around an otherwise normal SSH service.",
+    },
+    {
+        "id": "safe-rdp",
+        "prompt": "Which NSG rule is safer for temporary RDP support?",
+        "context": "Only one approved administrator public IP needs access during the maintenance window.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Allow TCP 3389 from the approved admin IP only, then remove the temporary rule"},
+            {"id": "b", "label": "Allow TCP 3389 from Any forever"},
+            {"id": "c", "label": "Allow every port from the internet"},
+            {"id": "d", "label": "Disable VM authentication"},
+        ],
+        "correct": ["a"],
+        "explanation": "Narrow source, port, and duration reduce exposure while still enabling the approved support action.",
+    },
+    {
+        "id": "sas-expired",
+        "prompt": "An external partner's blob link worked yesterday and now reports authorization failure. What should you verify?",
+        "context": "Internal users can still access the storage account.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "The SAS token expiry and permissions"},
+            {"id": "b", "label": "The partner's monitor cable"},
+            {"id": "c", "label": "Whether the VM needs a reboot"},
+            {"id": "d", "label": "The on-premises domain functional level"},
+        ],
+        "correct": ["a"],
+        "explanation": "A time-limited SAS commonly stops working at expiry while other authorized paths remain healthy.",
+    },
+]
+
+
+WEEKS_19_22_QUALITY = {
+    19: {
+        "description": "Use Linux service, journal, network, and cron evidence to diagnose before restarting or editing.",
+        "learning_goals": [
+            "systemctl status shows current and boot state; journalctl shows the errors that explain a failure.",
+            "On Linux, ip a shows interface addresses, ip r shows the gateway and routes, and dig tests DNS directly.",
+            "Read cron as minute, hour, day-of-month, month, day-of-week; a limited PATH is a common manual-works/cron-fails cause.",
+            "Capture state, first relevant error, time, and scope before a restart so you can verify what changed.",
+        ],
+        "required_videos": set(),
+        "required_quiz": 21,
+        "required_service_desk": False,
+        "lab": {"title": "Diagnose the Linux Service", "lab_type": "structured_cli", "questions": LINUX_SERVICE_PRACTICE, "required_commands": ["systemctl status ssh", "journalctl -u ssh -e", "ip a", "ip r", "crontab -l"], "terminal_profile": "linux", "estimated_minutes": 30},
+    },
+    20: {
+        "description": "Validate web configuration, isolate remote-access failures, and respond to capacity alerts with evidence.",
+        "learning_goals": [
+            "Test nginx configuration before reload; a working service with 403 often points to web-root ownership or permissions.",
+            "If a service works locally but not remotely, inspect its listening address, firewall path, and affected scope.",
+            "Use df to find a full filesystem and du to find the consuming path; do not delete random logs or restart around a full disk.",
+            "Treat an alert as a lead: confirm it is real, identify impact and cause, act safely, then verify recovery.",
+        ],
+        "required_videos": set(),
+        "required_quiz": 22,
+        "required_service_desk": False,
+        "lab": {"title": "Triage the Linux Production Alert", "lab_type": "structured_cli", "questions": LINUX_PRODUCTION_PRACTICE, "required_commands": ["nginx -t", "systemctl status nginx", "df -h", "du -sh /var/*", "ufw status"], "terminal_profile": "linux", "estimated_minutes": 30},
+    },
+    21: {
+        "description": "Route cloud tickets by shared responsibility and handle Entra identity problems with sign-in evidence and verification.",
+        "learning_goals": [
+            "In IaaS the provider owns hardware and virtualization while your organization owns the guest OS, services, and data.",
+            "Azure resources sit under tenant → subscription → resource group → resource; identify the right scope before acting.",
+            "Start Entra login triage with sign-in logs, block state, Conditional Access result, and hybrid synchronization evidence.",
+            "Verify identity before MFA reset or unblock, and change a synced identity at its authoritative directory.",
+        ],
+        "required_videos": {53, 54, 55, 56},
+        "required_quiz": 23,
+        "required_service_desk": False,
+        "lab": {"title": "Route the Cloud Identity Ticket", "lab_type": "structured_cloud", "questions": CLOUD_IDENTITY_PRACTICE, "estimated_minutes": 20},
+    },
+    22: {
+        "description": "Separate Azure control-plane failures from guest-OS failures and make narrowly scoped access changes.",
+        "learning_goals": [
+            "For an unreachable VM, check state, current IP, NSG rules, boot diagnostics, and activity log before blaming the guest OS.",
+            "Never expose RDP or SSH from Any as a convenience; scope source, port, and duration to the approved need.",
+            "A stopped/deallocated VM can lose a dynamic public IP; compare the current endpoint before troubleshooting credentials.",
+            "For storage, check SAS expiry and permission plus network access rules; the activity log answers who changed a cloud resource and when.",
+        ],
+        "required_videos": set(),
+        "required_quiz": 24,
+        "required_service_desk": False,
+        "lab": {"title": "Diagnose the Azure Access Path", "lab_type": "structured_cloud", "questions": AZURE_TRIAGE_PRACTICE, "estimated_minutes": 25},
+    },
+}
+
+
+MIXED_QUEUE_PRACTICE = [
+    {
+        "id": "queue-order",
+        "prompt": "Which item should lead this mixed queue?",
+        "context": "A: one user's printer is offline.\nB: 60 users cannot reach the order system and monitoring confirms the service is down.\nC: an approved software install is due tomorrow.\nD: one user wants a new monitor.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "B — broad business impact and an active outage"},
+            {"id": "b", "label": "A — it arrived first"},
+            {"id": "c", "label": "C — all approved work outranks incidents"},
+            {"id": "d", "label": "D — hardware requests always lead"},
+        ],
+        "correct": ["a"],
+        "explanation": "Prioritize by impact and urgency. A confirmed multi-user business outage leads the queue.",
+    },
+    {
+        "id": "incident-update",
+        "prompt": "Which first incident update is most useful?",
+        "context": "The order system failed at 10:05. The team is checking service and database health. The next update is due at 10:25.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Order system unavailable since 10:05; team investigating service/database health; next update 10:25"},
+            {"id": "b", "label": "Something is broken; no ETA"},
+            {"id": "c", "label": "Database failure caused by the last technician"},
+            {"id": "d", "label": "Wait until the root cause is proven before communicating"},
+        ],
+        "correct": ["a"],
+        "explanation": "An early update should state confirmed impact, current action, and the next communication time without guessing cause.",
+    },
+    {
+        "id": "handoff",
+        "prompt": "Your shift ends before the incident is resolved. What belongs in the handoff?",
+        "context": "Another technician will continue immediately.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Current state and affected scope"},
+            {"id": "b", "label": "What was ruled out, with evidence"},
+            {"id": "c", "label": "The next safest action and any user promise"},
+            {"id": "d", "label": "An unsupported root-cause guess"},
+        ],
+        "correct": ["a", "b", "c"],
+        "explanation": "A handoff preserves state, evidence, next action, and commitments so work continues without repetition.",
+    },
+]
+
+
+FINAL_SUPPORT_SHIFT_PRACTICE = [
+    {
+        "id": "shift-triage",
+        "prompt": "Your shift starts with four tickets at once. Which two do you work first?",
+        "context": (
+            "(A) VPN authentication is failing for the entire remote workforce. "
+            "(B) One user's mapped drive is slow. "
+            "(C) A manager's routine password reset is queued. "
+            "(D) A laptop's antivirus just logged a real-time malware detection; the user has not reported anything yet."
+        ),
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "(A) the organization-wide VPN outage"},
+            {"id": "b", "label": "(B) the one user's slow mapped drive"},
+            {"id": "c", "label": "(C) the manager's routine password reset"},
+            {"id": "d", "label": "(D) the unreported antivirus detection"},
+        ],
+        "correct": ["a", "d"],
+        "explanation": "Impact and urgency drive priority, not arrival order or title: a wide-scale outage and a live security signal outrank a single slow drive and a routine reset.",
+    },
+    {
+        "id": "windows-evidence",
+        "prompt": "The practice terminal's ipconfig /all reports a DNS Servers entry pointing at 10.20.0.10, the correct internal resolver. Users still cannot reach the internal helpdesk site by name. What do you check next?",
+        "context": "Use the practice terminal to run ipconfig /all before answering.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Run nslookup for the helpdesk hostname to see what address it actually resolves to"},
+            {"id": "b", "label": "Reinstall the network adapter driver"},
+            {"id": "c", "label": "Assume the DNS server itself is fully broken and escalate immediately"},
+            {"id": "d", "label": "Change the user's IP address to static"},
+        ],
+        "correct": ["a"],
+        "explanation": "The resolver address is correct, so the next evidence to gather is what that resolver actually returns for the failing name.",
+    },
+    {
+        "id": "dns-evidence",
+        "prompt": "nslookup helpdesk.nexus.internal returns a stale IP address that stopped being used after last month's server move. What is the correct next action?",
+        "context": "Other recently rebooted machines resolve the name correctly.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Confirm on a second host, then clear the affected client's DNS resolver cache before escalating further"},
+            {"id": "b", "label": "Edit every workstation's hosts file by hand"},
+            {"id": "c", "label": "Delete the DNS server's zone file"},
+            {"id": "d", "label": "Tell the user to ignore it"},
+        ],
+        "correct": ["a"],
+        "explanation": "A stale answer that clears on other hosts points at a cached record on this client; verify with a second host, then clear the local cache instead of a destructive server-side change.",
+    },
+    {
+        "id": "account-access",
+        "prompt": "gpresult /r shows the current Nexus Standard User Policy applied, but the user's permissions still match an older, retired policy. What is the next diagnostic step?",
+        "context": "The account's group membership changed yesterday.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Run gpupdate /force and confirm the refreshed result before making any manual change"},
+            {"id": "b", "label": "Manually edit the local registry to match the new policy"},
+            {"id": "c", "label": "Delete the user's profile"},
+            {"id": "d", "label": "Add the user to every security group to be safe"},
+        ],
+        "correct": ["a"],
+        "explanation": "A stale applied policy after a group change is usually a refresh timing issue; force a policy update and re-verify before any manual workaround.",
+    },
+    {
+        "id": "remediate-or-escalate",
+        "prompt": "Back to ticket (D): the antivirus detection is confirmed real, on a laptop with access to shared finance drives. What do you do?",
+        "context": "You have not yet involved the security team.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Isolate the device from the network, preserve evidence, and escalate to security immediately"},
+            {"id": "b", "label": "Quietly re-image the laptop yourself and close the ticket"},
+            {"id": "c", "label": "Ignore it since no user has complained"},
+            {"id": "d", "label": "Delete the detected file and move on"},
+        ],
+        "correct": ["a"],
+        "explanation": "A confirmed detection with access to sensitive shares is a suspected-compromise case: contain, preserve evidence, and escalate rather than improvising a fix.",
+    },
+    {
+        "id": "documentation",
+        "prompt": "You are closing out the VPN outage ticket. Which pieces belong in the ticket note?",
+        "context": "Another technician may pick this up on the next shift.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Confirmed impact and current state"},
+            {"id": "b", "label": "The evidence gathered (command output, logs) and what it ruled out"},
+            {"id": "c", "label": "The action taken and how the fix was verified"},
+            {"id": "d", "label": "An unverified guess about root cause written as fact"},
+        ],
+        "correct": ["a", "b", "c"],
+        "explanation": "A usable handoff records state, evidence-backed eliminations, and a verified action — never a guess presented as confirmed cause.",
+    },
+    {
+        "id": "ready-proof",
+        "prompt": "Looking back at this shift, which best shows you are ready for the role-gated capstone?",
+        "context": "The capstone evaluates an integrated workflow, not memorized trivia.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "You can prioritize, gather evidence, diagnose, remediate or escalate, and document across the course domains"},
+            {"id": "b", "label": "You can recite every command without context"},
+            {"id": "c", "label": "You mark every optional lesson complete"},
+            {"id": "d", "label": "You never ask for approval or escalate"},
+        ],
+        "correct": ["a"],
+        "explanation": "The capstone asks for repeatable support judgment across systems, including knowing when to escalate — this shift practiced exactly that.",
+    },
+]
+
+
+WEEKS_23_24_QUALITY = {
+    23: {
+        "description": "Prioritize a mixed support queue, communicate during an incident, and hand work off without losing evidence.",
+        "learning_goals": [
+            "Classify each ticket by domain, failing layer, and owner, then prioritize by impact and urgency rather than arrival order.",
+            "During an incident, send an early update with confirmed impact, current action, and the next update time—without guessing cause.",
+            "Preserve evidence and follow the escalation path for suspected compromise; do not improvise a forensic response.",
+            "A useful handoff records current state, evidence-backed eliminations, next action, and promises already made.",
+        ],
+        "required_videos": {174},
+        "required_quiz": 25,
+        "required_service_desk": False,
+        "lab": {"title": "Work the Mixed Support Queue", "lab_type": "structured_operations", "questions": MIXED_QUEUE_PRACTICE, "estimated_minutes": 25},
+    },
+    24: {
+        "description": "Run a full support shift: triage the queue, gather CLI evidence, diagnose, choose remediation or escalation, and document the outcome.",
+        "learning_goals": [
+            "Prioritize a mixed queue by impact and urgency, not arrival order or ticket title.",
+            "Use ipconfig, nslookup, and gpresult evidence from the practice terminal to diagnose network, DNS, and Group Policy problems.",
+            "Recognize when a finding needs escalation—such as a suspected compromise—instead of an improvised local fix.",
+            "Write a ticket note that preserves state, evidence, and verification for the next technician.",
+        ],
+        "required_videos": set(),
+        "required_quiz": None,
+        "required_service_desk": False,
+        "lab": {
+            "title": "Final Support Shift",
+            "lab_type": "structured_capstone",
+            "questions": FINAL_SUPPORT_SHIFT_PRACTICE,
+            "required_commands": ["ipconfig /all", "nslookup helpdesk.nexus.internal", "gpresult /r"],
+            "estimated_minutes": 35,
+        },
+    },
+}
+
+
+def _sync_quality_batch(db: Session, specs: dict[int, dict]) -> dict:
+    weeks = {
+        week.week_number: week
+        for week in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_(set(specs))).all()
+    }
+    if set(weeks) != set(specs):
+        return {"updated": 0, "skipped": True, "reason": "weeks_missing"}
+    seeded_week_ids = {
+        row[0]
+        for row in db.query(TrainingWeekActivity.training_week_id)
+        .filter(
+            TrainingWeekActivity.training_week_id.in_({week.id for week in weeks.values()}),
+            TrainingWeekActivity.activity_type.in_(["lesson", "video", "quiz"]),
+        )
+        .distinct()
+        .all()
+    }
+    if seeded_week_ids != {week.id for week in weeks.values()}:
+        return {"updated": 0, "skipped": True, "reason": "curriculum_not_seeded"}
+
+    result = {
+        "updated_weeks": 0,
+        "updated_activities": 0,
+        "updated_templates": 0,
+        "created_templates": 0,
+        "created_activities": 0,
+        "skipped": False,
+    }
+
+    quiz_activity_ids = set()
+    for number, spec in specs.items():
+        week = weeks[number]
+        for field in ("description", "learning_goals"):
+            if getattr(week, field) != spec[field]:
+                setattr(week, field, spec[field])
+                result["updated_weeks"] += 1
+
+        required_videos = {str(value) for value in spec.get("required_videos", set())}
+        required_quiz = str(spec["required_quiz"]) if spec.get("required_quiz") is not None else None
+        required_networking_labs = spec.get("required_networking_labs", set())
+        activities = db.query(TrainingWeekActivity).filter_by(training_week_id=week.id).all()
+        for activity in activities:
+            if activity.activity_type == "lesson":
+                should_be_required = False
+            elif activity.activity_type == "video":
+                should_be_required = activity.content_ref in required_videos
+            elif activity.activity_type == "quiz":
+                quiz_activity_ids.add(int(activity.content_ref))
+                should_be_required = activity.content_ref == required_quiz
+            elif activity.activity_type == "service_desk_scenario":
+                should_be_required = bool(spec.get("required_service_desk"))
+            elif activity.activity_type == "networking_lab":
+                should_be_required = activity.content_ref in required_networking_labs
+            else:
+                continue
+            if bool(activity.is_required) != should_be_required:
+                activity.is_required = should_be_required
+                result["updated_activities"] += 1
+
+    required_quiz_ids = {spec["required_quiz"] for spec in specs.values() if spec.get("required_quiz") is not None}
+    for quiz in db.query(Quiz).filter(Quiz.id.in_(quiz_activity_ids)).all():
+        should_be_required = quiz.id in required_quiz_ids
+        # A quiz already marked "gate" backs a role-promotion requirement
+        # (see PROMOTION_GATES in seed.py). Never downgrade that purpose here
+        # or the gate becomes permanently unsatisfiable.
+        expected_purpose = quiz.quiz_purpose if quiz.quiz_purpose == "gate" else ("required" if should_be_required else "practice")
+        quiz.is_required = should_be_required
+        quiz.show_in_weekly_checklist = should_be_required
+        quiz.quiz_purpose = expected_purpose
+
+    def ensure_practice_activity(week: TrainingWeek, lab: LabTemplate) -> None:
+        activity = (
+            db.query(TrainingWeekActivity)
+            .filter_by(training_week_id=week.id, activity_type="guided_lab", content_ref=str(lab.id))
+            .first()
+        )
+        if activity is not None:
+            for field, value in {"is_required": True, "estimated_minutes": lab.estimated_minutes}.items():
+                if getattr(activity, field) != value:
+                    setattr(activity, field, value)
+                    result["updated_activities"] += 1
+            return
+
+        apply_order = (
+            db.query(func.min(TrainingWeekActivity.display_order))
+            .filter(
+                TrainingWeekActivity.training_week_id == week.id,
+                TrainingWeekActivity.activity_type.in_(["service_desk_scenario", "capstone"]),
+            )
+            .scalar()
+        )
+        if apply_order is None:
+            display_order = (
+                db.query(func.max(TrainingWeekActivity.display_order)).filter_by(training_week_id=week.id).scalar() or 0
+            ) + 1
+        else:
+            rows = (
+                db.query(TrainingWeekActivity)
+                .filter(
+                    TrainingWeekActivity.training_week_id == week.id,
+                    TrainingWeekActivity.display_order >= apply_order,
+                )
+                .order_by(TrainingWeekActivity.display_order.desc())
+                .all()
+            )
+            for row in rows:
+                row.display_order += 1
+                db.flush()
+            display_order = apply_order
+        db.add(
+            TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-{week.week_number}-guided_lab-{lab.id}",
+                activity_type="guided_lab",
+                content_ref=str(lab.id),
+                display_order=display_order,
+                is_required=True,
+                estimated_minutes=lab.estimated_minutes,
+                prerequisite_mode="soft",
+                metadata_json={},
+            )
+        )
+        result["created_activities"] += 1
+
+    for number, spec in specs.items():
+        lab_spec = spec.get("lab")
+        if not lab_spec:
+            continue
+        lab = db.get(LabTemplate, lab_spec.get("id")) if lab_spec.get("id") else None
+        if lab is None:
+            lab = db.query(LabTemplate).filter(LabTemplate.title == lab_spec["title"]).first()
+        values = {
+            "title": lab_spec.get("new_title", lab_spec["title"]),
+            "description": lab_spec.get(
+                "description",
+                "Work through realistic evidence and choose the safest support action before moving to an independent case.",
+            ),
+            "lab_type": lab_spec["lab_type"],
+            "week_number": number,
+            "difficulty": 1,
+            "estimated_minutes": lab_spec.get("estimated_minutes", 20),
+            "is_published": True,
+            "environment_requirements": {},
+            "setup_instructions": lab_spec.get(
+                "setup_instructions",
+                "Read each symptom and evidence block. Choose the action you could defend in a support ticket.",
+            ),
+            "success_criteria": {
+                "questions": lab_spec["questions"],
+                **({"required_commands": lab_spec["required_commands"]} if lab_spec.get("required_commands") else {}),
+                **({"terminal_profile": lab_spec["terminal_profile"]} if lab_spec.get("terminal_profile") else {}),
+            },
+            "required_evidence": {},
+            "hints": {},
+        }
+        if lab is None:
+            lab = LabTemplate(**values)
+            db.add(lab)
+            db.flush()
+            result["created_templates"] += 1
+        else:
+            changed = False
+            for field, value in values.items():
+                if getattr(lab, field) != value:
+                    setattr(lab, field, value)
+                    changed = True
+            if changed:
+                result["updated_templates"] += 1
+        ensure_practice_activity(weeks[number], lab)
+
+    db.commit()
+    return result
+
+
+def sync_weeks_7_10_quality(db: Session) -> dict:
+    """Align endpoint and networking foundations with real practice."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    result = _sync_quality_batch(db, WEEKS_7_10_QUALITY)
+    if result.get("skipped"):
+        return result
+
+    # Accounts & Access cases remain locked until two Desktop Support passes.
+    # Week 6 follows only one required Desktop case, so requiring inc2505 there
+    # creates a dead Apply button. Move the already-unlocked password-reset
+    # scenario from its old, mismatched Week 3 slot into Week 6 instead. The
+    # scenario and every historical attempt remain unchanged.
+    weeks = {
+        week.week_number: week
+        for week in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_({3, 6})).all()
+    }
+    password_reset = (
+        db.query(TrainingWeekActivity)
+        .filter_by(activity_type="service_desk_scenario", content_ref="password-reset")
+        .first()
+    )
+    if set(weeks) == {3, 6} and password_reset is not None:
+        week_6 = weeks[6]
+        if password_reset.training_week_id != week_6.id:
+            apply_order = (
+                db.query(func.min(TrainingWeekActivity.display_order))
+                .filter_by(training_week_id=week_6.id, activity_type="service_desk_scenario")
+                .scalar()
+            )
+            if apply_order is None:
+                apply_order = (
+                    db.query(func.max(TrainingWeekActivity.display_order))
+                    .filter_by(training_week_id=week_6.id)
+                    .scalar()
+                    or 0
+                ) + 1
+            else:
+                rows = (
+                    db.query(TrainingWeekActivity)
+                    .filter(
+                        TrainingWeekActivity.training_week_id == week_6.id,
+                        TrainingWeekActivity.display_order >= apply_order,
+                    )
+                    .order_by(TrainingWeekActivity.display_order.desc())
+                    .all()
+                )
+                for row in rows:
+                    row.display_order += 1
+                    db.flush()
+            password_reset.training_week_id = week_6.id
+            password_reset.display_order = apply_order
+            password_reset.stable_id = "week-6-service_desk_scenario-password-reset"
+            result["updated_activities"] += 1
+            db.flush()
+        for activity in db.query(TrainingWeekActivity).filter_by(
+            training_week_id=week_6.id,
+            activity_type="service_desk_scenario",
+        ):
+            should_be_required = activity.content_ref == "password-reset"
+            if bool(activity.is_required) != should_be_required:
+                activity.is_required = should_be_required
+                result["updated_activities"] += 1
+        db.commit()
+    return result
+
+
+def sync_weeks_11_14_quality(db: Session) -> dict:
+    """Align network services and directory foundations with graded practice."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    return _sync_quality_batch(db, WEEKS_11_14_QUALITY)
+
+
+def sync_weeks_15_18_quality(db: Session) -> dict:
+    """Align Group Policy, server operations, and Linux with real practice."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    return _sync_quality_batch(db, WEEKS_15_18_QUALITY)
+
+
+def sync_weeks_19_22_quality(db: Session) -> dict:
+    """Align Linux production and cloud support with deterministic practice."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    return _sync_quality_batch(db, WEEKS_19_22_QUALITY)
+
+
+def sync_weeks_23_24_quality(db: Session) -> dict:
+    """Align the integrated-operations finish and capstone readiness path."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    weeks = {
+        week.week_number: week
+        for week in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_({23, 24})).all()
+    }
+    if set(weeks) != {23, 24}:
+        return {"updated": 0, "skipped": True, "reason": "weeks_missing"}
+
+    # Quiz 25 assesses mixed-queue triage, incident updates, and handoffs—the
+    # Week 23 outcomes. Move its existing activity instead of cloning it so
+    # student activity history remains attached to the same row.
+    readiness_quiz = (
+        db.query(TrainingWeekActivity)
+        .filter_by(activity_type="quiz", content_ref="25")
+        .first()
+    )
+    moved_quiz = False
+    if readiness_quiz is not None and readiness_quiz.training_week_id != weeks[23].id:
+        readiness_quiz.training_week_id = weeks[23].id
+        readiness_quiz.stable_id = "week-23-quiz-25"
+        readiness_quiz.display_order = (
+            db.query(func.max(TrainingWeekActivity.display_order))
+            .filter_by(training_week_id=weeks[23].id)
+            .scalar()
+            or 0
+        ) + 1
+        moved_quiz = True
+    quiz = db.get(Quiz, 25)
+    if quiz is not None and quiz.week_number != 23:
+        quiz.week_number = 23
+    db.flush()
+
+    week_24_title = "Capstone: Final Support Shift"
+    if weeks[24].title != week_24_title:
+        weeks[24].title = week_24_title
+
+    result = _sync_quality_batch(db, WEEKS_23_24_QUALITY)
+    if moved_quiz:
+        result["updated_activities"] += 1
+    return result
 
 
 def reconcile_week_zero_requirements(db: Session) -> dict:

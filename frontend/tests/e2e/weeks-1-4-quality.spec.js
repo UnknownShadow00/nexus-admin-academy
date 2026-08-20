@@ -127,23 +127,22 @@ test("Week 1 journey: labels, CLI CTA, Practice/Apply split, and formative ticke
     await expect(applySection.locator('article[data-activity-type="service_desk_scenario"]')).toBeVisible();
 
     // Phase 3: "Meet the Command Line" no longer claims a dead requirement, CTA works
+    await page.locator("details > summary").click();
     await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Meet the Command Line" }).getByRole("link").click();
     await expect(page.getByRole("heading", { name: "Meet the Command Line", exact: true })).toBeVisible();
     await expect(page.getByText(/complete CLI labs 1-9/i)).toHaveCount(0);
     const cta = page.getByRole("link", { name: "Start CLI Practice" });
     await expect(cta).toBeVisible();
-    await cta.click();
-    await expect(page).toHaveURL(/\/training\/week\/1\?activity=/);
-    const cliCard = page.locator('article[data-activity-type="networking_lab"]');
-    await expect(cliCard).toBeVisible();
-    await cliCard.getByRole("link").click();
+    const cliPracticeRoute = await cta.getAttribute("href");
+    expect(cliPracticeRoute).toBe("/cli-labs/meet-cli-001");
+    await page.goto(cliPracticeRoute);
     await expect(page).toHaveURL(/\/cli-labs\/meet-cli-001$/);
     await expect(page.getByRole("heading", { name: "First Contact", exact: true })).toBeVisible();
 
     // Phase 3: "Anatomy of a Good Ticket" has a real formative exercise
     await page.goto("/training/week/1");
-    await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Anatomy of a Good Ticket" }).getByRole("link").click();
-    await expect(page.getByRole("heading", { name: "Anatomy of a Good Ticket", exact: true })).toBeVisible();
+    await page.locator("details > summary").click();
+    await expect(page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Anatomy of a Good Ticket" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Rewrite this bad ticket note" })).toBeVisible();
     await page.getByRole("button", { name: "Check my note" }).click();
     await expect(page.getByText("Not filled in yet.").first()).toBeVisible();
@@ -180,18 +179,30 @@ test("Hardware Component Identification is a real structured exercise, not a tex
   await expect(submit).toBeEnabled();
 });
 
-test("Windows CLI Diagnostics (Week 3) and Prioritize the Queue (Week 4) are structured, not free text", async ({ page }) => {
+test("Weeks 3-6 provide deterministic practice and Week 3 uses the real terminal", async ({ page }) => {
   await studentLogin(page);
 
   await page.goto("/labs/3");
   await expect(page.getByRole("heading", { name: "Windows Command-Line Diagnostics", exact: true })).toBeVisible();
   await expect(page.getByText("Work and explain", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Use the practice terminal first", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Try hostname/ }).click();
+  await page.locator(".xterm-helper-textarea").press("Enter");
+  await expect(page.getByRole("button", { name: /hostname/ })).toContainText("✓");
   await expect(page.locator("fieldset").first()).toBeVisible();
 
   await page.goto("/labs/6");
   await expect(page.getByRole("heading", { name: "Prioritize the Queue", exact: true })).toBeVisible();
   await expect(page.getByText("Work and explain", { exact: false })).toHaveCount(0);
   await expect(page.locator("fieldset").first()).toBeVisible();
+
+  await page.goto("/labs/7");
+  await expect(page.getByRole("heading", { name: "Isolate the Windows Failure", exact: true })).toBeVisible();
+  await expect(page.locator("fieldset")).toHaveCount(3);
+
+  await page.goto("/labs/8");
+  await expect(page.getByRole("heading", { name: "Make the Safe Access Decision", exact: true })).toBeVisible();
+  await expect(page.locator("fieldset")).toHaveCount(3);
 });
 
 test("no mobile horizontal overflow on rebuilt lab pages", async ({ page }) => {
