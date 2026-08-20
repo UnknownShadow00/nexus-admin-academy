@@ -621,6 +621,459 @@ def sync_weeks_3_6_quality(db: Session) -> dict:
     return result
 
 
+ENDPOINT_RESPONSE_PRACTICE = [
+    {
+        "id": "active-compromise",
+        "prompt": "Defender quarantined malware, but the workstation still makes unusual outbound connections. What should the help desk do next?",
+        "context": "The detection may be contained, but there are signs the compromise is still active.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Disconnect the network, preserve evidence, record the timeline, and escalate to security"},
+            {"id": "b", "label": "Delete the quarantine and return the PC to the user"},
+            {"id": "c", "label": "Turn off Defender so the alert stops"},
+            {"id": "d", "label": "Power off the PC immediately without recording anything"},
+        ],
+        "correct": ["a"],
+        "explanation": "Active indicators require containment and escalation. Keep the machine powered on so volatile evidence is not lost.",
+    },
+    {
+        "id": "phished-credentials",
+        "prompt": "A user entered their password into a fake sign-in page. Which action has priority?",
+        "context": "Assume the password and active sessions may now be controlled by someone else.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Reset the password from a trusted device, revoke sessions, and escalate with the timeline"},
+            {"id": "b", "label": "Only delete the email"},
+            {"id": "c", "label": "Open the link again to confirm it is fake"},
+            {"id": "d", "label": "Wait for another alert before acting"},
+        ],
+        "correct": ["a"],
+        "explanation": "Credential theft needs immediate account containment; a malware scan alone does not revoke stolen credentials or sessions.",
+    },
+    {
+        "id": "firewall-finding",
+        "prompt": "An application works only while Windows Firewall is disabled. What is the correct next step?",
+        "context": "Disabling the firewall proved where to investigate, but it weakened the endpoint.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Re-enable the firewall and identify the narrow approved rule the application needs"},
+            {"id": "b", "label": "Leave the firewall disabled and close the ticket"},
+            {"id": "c", "label": "Disable Defender as well"},
+            {"id": "d", "label": "Reimage the endpoint immediately"},
+        ],
+        "correct": ["a"],
+        "explanation": "A disabled firewall is a diagnostic finding, not a safe resolution. Restore protection and fix the specific rule or escalate.",
+    },
+]
+
+
+CLIENT_NETWORK_CLI_PRACTICE = [
+    {
+        "id": "apipa-local",
+        "prompt": "One workstation shows 169.254.40.7 while nearby workstations have valid leases. Which fault domain should you check first?",
+        "context": "`ipconfig /all` shows DHCP Enabled: Yes and no default gateway.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "That workstation's link, adapter, switch port, or DHCP path"},
+            {"id": "b", "label": "The public DNS root servers"},
+            {"id": "c", "label": "Every office router"},
+            {"id": "d", "label": "The user's browser cache"},
+        ],
+        "correct": ["a"],
+        "explanation": "APIPA on one machine points to its local path to DHCP, not a broad DNS or internet outage.",
+    },
+    {
+        "id": "upstream-failure",
+        "prompt": "The gateway replies, but `ping 1.1.1.1` fails. What evidence-based escalation should you make?",
+        "context": "The client has a valid address, gateway, and DNS configuration.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Upstream routing failure, with both ping results attached"},
+            {"id": "b", "label": "Local keyboard failure"},
+            {"id": "c", "label": "Configured DNS failure"},
+            {"id": "d", "label": "User profile corruption"},
+        ],
+        "correct": ["a"],
+        "explanation": "The local path reaches the gateway, while numeric internet reachability fails beyond it. DNS has not been tested yet and is not needed for a numeric IP.",
+    },
+    {
+        "id": "configured-dns",
+        "prompt": "The configured resolver times out, but `nslookup intranet.nexus.internal 1.1.1.1` gets a response. What should you diagnose?",
+        "context": "IP connectivity is already confirmed.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "The configured DNS server or the client's DNS setting"},
+            {"id": "b", "label": "The Ethernet cable"},
+            {"id": "c", "label": "The monitor driver"},
+            {"id": "d", "label": "The user's password"},
+        ],
+        "correct": ["a"],
+        "explanation": "A known alternate resolver answering after the configured one fails isolates the problem to the configured DNS path or setting.",
+    },
+]
+
+
+SUBNET_SUPPORT_PRACTICE = [
+    {
+        "id": "gateway-same-subnet",
+        "prompt": "A PC is 192.168.10.45/24 and its gateway is 192.168.20.1. What is wrong?",
+        "context": "A host must be able to reach its gateway on the local subnet before it can send remote traffic.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "The gateway is outside the PC's /24 subnet"},
+            {"id": "b", "label": "The PC address is a broadcast address"},
+            {"id": "c", "label": "The mask should always be /16"},
+            {"id": "d", "label": "Nothing is wrong"},
+        ],
+        "correct": ["a"],
+        "explanation": "192.168.10.0/24 and 192.168.20.0/24 are different networks, so the PC cannot reach that gateway directly.",
+    },
+    {
+        "id": "slash-26-bracket",
+        "prompt": "Which subnet contains 192.168.1.70/26?",
+        "context": "/26 has a block size of 64: .0, .64, .128, .192.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "192.168.1.64/26"},
+            {"id": "b", "label": "192.168.1.0/26"},
+            {"id": "c", "label": "192.168.1.128/26"},
+            {"id": "d", "label": "192.168.1.192/26"},
+        ],
+        "correct": ["a"],
+        "explanation": "70 falls between the .64 network address and .127 broadcast address.",
+    },
+    {
+        "id": "slash-28-hosts",
+        "prompt": "How many usable host addresses are in a /28 subnet?",
+        "context": "A /28 contains 16 total addresses; network and broadcast are reserved.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "14"},
+            {"id": "b", "label": "16"},
+            {"id": "c", "label": "30"},
+            {"id": "d", "label": "8"},
+        ],
+        "correct": ["a"],
+        "explanation": "Sixteen total addresses minus the network and broadcast addresses leaves fourteen usable hosts.",
+    },
+    {
+        "id": "slash-27-broadcast",
+        "prompt": "What is the broadcast address for the subnet containing 10.1.1.100/27?",
+        "context": "/27 has a block size of 32. The address 100 is in the .96-.127 block.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "10.1.1.127"},
+            {"id": "b", "label": "10.1.1.95"},
+            {"id": "c", "label": "10.1.1.128"},
+            {"id": "d", "label": "10.1.1.255"},
+        ],
+        "correct": ["a"],
+        "explanation": "The .96/27 subnet ends at .127, so .127 is its broadcast address.",
+    },
+]
+
+
+WEEKS_7_10_QUALITY = {
+    7: {
+        "description": "Recognize endpoint threats, contain risk without destroying evidence, and escalate at the right moment.",
+        "learning_goals": [
+            "For active compromise: disconnect the network, keep power on, preserve what the user saw, and escalate with a timeline.",
+            "If credentials entered a fake page, reset them from a trusted device and revoke active sessions immediately.",
+            "Defender Protection History records the detection and action; quick, full, and offline scans serve different levels of suspicion.",
+            "Turning off the firewall can isolate a cause, but it is never the final fix; restore it and use the narrow approved rule.",
+        ],
+        "required_videos": {137, 138, 143},
+        "required_quiz": 8,
+        "required_service_desk": False,
+        "lab": {
+            "title": "Choose the Safe Endpoint Response",
+            "lab_type": "structured_security",
+            "questions": ENDPOINT_RESPONSE_PRACTICE,
+            "estimated_minutes": 20,
+        },
+    },
+    8: {
+        "description": "Use a repeatable command sequence to separate local, upstream, and DNS failures on a Windows client.",
+        "learning_goals": [
+            "Start with ipconfig /all: 169.254 means DHCP failed; a missing or off-subnet gateway blocks remote traffic.",
+            "Ping the gateway, then 1.1.1.1, then a hostname so each result narrows the fault domain.",
+            "If an alternate resolver works while the configured resolver fails, diagnose the configured DNS server or client setting.",
+            "Do not hide DHCP failure with an unmanaged static address; it can create a later address conflict.",
+        ],
+        "required_videos": {6, 18, 61, 123},
+        "required_quiz": 9,
+        "required_service_desk": False,
+        "lab": {
+            "id": 2,
+            "title": "Troubleshoot a Network Connectivity Scenario",
+            "new_title": "Diagnose the Client Network",
+            "lab_type": "structured_cli",
+            "questions": CLIENT_NETWORK_CLI_PRACTICE,
+            "required_commands": ["ipconfig /all", "ping 192.168.1.1", "ping 1.1.1.1", "nslookup intranet.nexus.internal"],
+            "estimated_minutes": 25,
+        },
+    },
+    9: {
+        "description": "Read an IPv4 address and mask well enough to spot a bad gateway, find the subnet, and avoid assigning network or broadcast addresses.",
+        "learning_goals": [
+            "Hosts on the same subnet use ARP and switch directly; different subnets send traffic to the default gateway.",
+            "/24 has 254 usable hosts; /25 splits the last octet in half; /26 uses blocks of 64; /27 uses 32; /28 uses 16.",
+            "Network is the first address in a block, broadcast is the last, and usable hosts sit between them.",
+            "For entry-level support, use block size to answer 'same subnet?' and validate a static address—not to design a complex VLSM plan.",
+        ],
+        "required_videos": {14, 15},
+        "required_quiz": 10,
+        "required_service_desk": False,
+        "lab": {
+            "id": 1,
+            "title": "IP Addressing & Subnetting Practice",
+            "lab_type": "structured_subnet",
+            "questions": SUBNET_SUPPORT_PRACTICE,
+            "estimated_minutes": 25,
+        },
+    },
+    10: {
+        "description": "Read switch state, recover a disabled port, and place an access port in the correct VLAN using the existing Cisco CLI simulator.",
+        "learning_goals": [
+            "The prompt shows the CLI mode: > user, # privileged, (config)# global configuration, and (config-if)# interface configuration.",
+            "Use show interfaces status and show vlan brief before changing a port, then run no shutdown only when the evidence supports it.",
+            "An access port belongs to one VLAN; a device moved to a port in the wrong VLAN may receive the wrong subnet or no lease.",
+            "Use change → verify → save so a working running-config survives reboot.",
+        ],
+        "required_videos": {12, 13},
+        "required_quiz": 12,
+        "required_service_desk": False,
+        "required_networking_labs": {"dev-sw-act-04", "dev-sw-act-18"},
+    },
+}
+
+
+def _sync_quality_batch(db: Session, specs: dict[int, dict]) -> dict:
+    weeks = {
+        week.week_number: week
+        for week in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_(set(specs))).all()
+    }
+    if set(weeks) != set(specs):
+        return {"updated": 0, "skipped": True, "reason": "weeks_missing"}
+
+    result = {
+        "updated_weeks": 0,
+        "updated_activities": 0,
+        "updated_templates": 0,
+        "created_templates": 0,
+        "created_activities": 0,
+        "skipped": False,
+    }
+
+    quiz_activity_ids = set()
+    for number, spec in specs.items():
+        week = weeks[number]
+        for field in ("description", "learning_goals"):
+            if getattr(week, field) != spec[field]:
+                setattr(week, field, spec[field])
+                result["updated_weeks"] += 1
+
+        required_videos = {str(value) for value in spec.get("required_videos", set())}
+        required_quiz = str(spec["required_quiz"])
+        required_networking_labs = spec.get("required_networking_labs", set())
+        activities = db.query(TrainingWeekActivity).filter_by(training_week_id=week.id).all()
+        for activity in activities:
+            if activity.activity_type == "lesson":
+                should_be_required = False
+            elif activity.activity_type == "video":
+                should_be_required = activity.content_ref in required_videos
+            elif activity.activity_type == "quiz":
+                quiz_activity_ids.add(int(activity.content_ref))
+                should_be_required = activity.content_ref == required_quiz
+            elif activity.activity_type == "service_desk_scenario":
+                should_be_required = bool(spec.get("required_service_desk"))
+            elif activity.activity_type == "networking_lab":
+                should_be_required = activity.content_ref in required_networking_labs
+            else:
+                continue
+            if bool(activity.is_required) != should_be_required:
+                activity.is_required = should_be_required
+                result["updated_activities"] += 1
+
+    required_quiz_ids = {spec["required_quiz"] for spec in specs.values()}
+    for quiz in db.query(Quiz).filter(Quiz.id.in_(quiz_activity_ids)).all():
+        should_be_required = quiz.id in required_quiz_ids
+        expected_purpose = "required" if should_be_required else "practice"
+        quiz.is_required = should_be_required
+        quiz.show_in_weekly_checklist = should_be_required
+        quiz.quiz_purpose = expected_purpose
+
+    def ensure_practice_activity(week: TrainingWeek, lab: LabTemplate) -> None:
+        activity = (
+            db.query(TrainingWeekActivity)
+            .filter_by(training_week_id=week.id, activity_type="guided_lab", content_ref=str(lab.id))
+            .first()
+        )
+        if activity is not None:
+            for field, value in {"is_required": True, "estimated_minutes": lab.estimated_minutes}.items():
+                if getattr(activity, field) != value:
+                    setattr(activity, field, value)
+                    result["updated_activities"] += 1
+            return
+
+        apply_order = (
+            db.query(func.min(TrainingWeekActivity.display_order))
+            .filter(
+                TrainingWeekActivity.training_week_id == week.id,
+                TrainingWeekActivity.activity_type.in_(["service_desk_scenario", "capstone"]),
+            )
+            .scalar()
+        )
+        if apply_order is None:
+            display_order = (
+                db.query(func.max(TrainingWeekActivity.display_order)).filter_by(training_week_id=week.id).scalar() or 0
+            ) + 1
+        else:
+            rows = (
+                db.query(TrainingWeekActivity)
+                .filter(
+                    TrainingWeekActivity.training_week_id == week.id,
+                    TrainingWeekActivity.display_order >= apply_order,
+                )
+                .order_by(TrainingWeekActivity.display_order.desc())
+                .all()
+            )
+            for row in rows:
+                row.display_order += 1
+                db.flush()
+            display_order = apply_order
+        db.add(
+            TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-{week.week_number}-guided_lab-{lab.id}",
+                activity_type="guided_lab",
+                content_ref=str(lab.id),
+                display_order=display_order,
+                is_required=True,
+                estimated_minutes=lab.estimated_minutes,
+                prerequisite_mode="soft",
+                metadata_json={},
+            )
+        )
+        result["created_activities"] += 1
+
+    for number, spec in specs.items():
+        lab_spec = spec.get("lab")
+        if not lab_spec:
+            continue
+        lab = db.get(LabTemplate, lab_spec.get("id")) if lab_spec.get("id") else None
+        if lab is None:
+            lab = db.query(LabTemplate).filter(LabTemplate.title == lab_spec["title"]).first()
+        values = {
+            "title": lab_spec.get("new_title", lab_spec["title"]),
+            "description": lab_spec.get(
+                "description",
+                "Work through realistic evidence and choose the safest support action before moving to an independent case.",
+            ),
+            "lab_type": lab_spec["lab_type"],
+            "week_number": number,
+            "difficulty": 1,
+            "estimated_minutes": lab_spec.get("estimated_minutes", 20),
+            "is_published": True,
+            "environment_requirements": {},
+            "setup_instructions": lab_spec.get(
+                "setup_instructions",
+                "Read each symptom and evidence block. Choose the action you could defend in a support ticket.",
+            ),
+            "success_criteria": {
+                "questions": lab_spec["questions"],
+                **({"required_commands": lab_spec["required_commands"]} if lab_spec.get("required_commands") else {}),
+            },
+            "required_evidence": {},
+            "hints": {},
+        }
+        if lab is None:
+            lab = LabTemplate(**values)
+            db.add(lab)
+            db.flush()
+            result["created_templates"] += 1
+        else:
+            changed = False
+            for field, value in values.items():
+                if getattr(lab, field) != value:
+                    setattr(lab, field, value)
+                    changed = True
+            if changed:
+                result["updated_templates"] += 1
+        ensure_practice_activity(weeks[number], lab)
+
+    db.commit()
+    return result
+
+
+def sync_weeks_7_10_quality(db: Session) -> dict:
+    """Align endpoint and networking foundations with real practice."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    result = _sync_quality_batch(db, WEEKS_7_10_QUALITY)
+    if result.get("skipped"):
+        return result
+
+    # Accounts & Access cases remain locked until two Desktop Support passes.
+    # Week 6 follows only one required Desktop case, so requiring inc2505 there
+    # creates a dead Apply button. Move the already-unlocked password-reset
+    # scenario from its old, mismatched Week 3 slot into Week 6 instead. The
+    # scenario and every historical attempt remain unchanged.
+    weeks = {
+        week.week_number: week
+        for week in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_({3, 6})).all()
+    }
+    password_reset = (
+        db.query(TrainingWeekActivity)
+        .filter_by(activity_type="service_desk_scenario", content_ref="password-reset")
+        .first()
+    )
+    if set(weeks) == {3, 6} and password_reset is not None:
+        week_6 = weeks[6]
+        if password_reset.training_week_id != week_6.id:
+            apply_order = (
+                db.query(func.min(TrainingWeekActivity.display_order))
+                .filter_by(training_week_id=week_6.id, activity_type="service_desk_scenario")
+                .scalar()
+            )
+            if apply_order is None:
+                apply_order = (
+                    db.query(func.max(TrainingWeekActivity.display_order))
+                    .filter_by(training_week_id=week_6.id)
+                    .scalar()
+                    or 0
+                ) + 1
+            else:
+                rows = (
+                    db.query(TrainingWeekActivity)
+                    .filter(
+                        TrainingWeekActivity.training_week_id == week_6.id,
+                        TrainingWeekActivity.display_order >= apply_order,
+                    )
+                    .order_by(TrainingWeekActivity.display_order.desc())
+                    .all()
+                )
+                for row in rows:
+                    row.display_order += 1
+                    db.flush()
+            password_reset.training_week_id = week_6.id
+            password_reset.display_order = apply_order
+            password_reset.stable_id = "week-6-service_desk_scenario-password-reset"
+            result["updated_activities"] += 1
+            db.flush()
+        for activity in db.query(TrainingWeekActivity).filter_by(
+            training_week_id=week_6.id,
+            activity_type="service_desk_scenario",
+        ):
+            should_be_required = activity.content_ref == "password-reset"
+            if bool(activity.is_required) != should_be_required:
+                activity.is_required = should_be_required
+                result["updated_activities"] += 1
+        db.commit()
+    return result
+
+
 def reconcile_week_zero_requirements(db: Session) -> dict:
     """Keep only the current orientation lesson and checkpoint quiz required.
 

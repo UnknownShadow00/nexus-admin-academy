@@ -5,6 +5,7 @@ from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.training_curriculum_seed import (
     sync_initial_training_activities,
     sync_weeks_3_6_quality,
+    sync_weeks_7_10_quality,
     sync_weeks_1_4_practice_realignment,
 )
 from app.services.training_service import validate_training_curriculum
@@ -205,6 +206,130 @@ def test_weeks_3_6_quality_sync_builds_aligned_required_paths_idempotently(db):
     ]
 
     second = sync_weeks_3_6_quality(db)
+    assert second["created_templates"] == 0
+    assert second["created_activities"] == 0
+    assert second["updated_activities"] == 0
+
+
+def test_weeks_7_10_quality_sync_rebuilds_network_practice_and_uses_cli_labs(db):
+    weeks = {number: _add_week(db, number) for number in range(7, 11)}
+    week_3 = _add_week(db, 3)
+    week_6 = _add_week(db, 6)
+    db.flush()
+    required_quizzes = {7: 8, 8: 9, 9: 10, 10: 12}
+    sample_videos = {7: 137, 8: 18, 9: 14, 10: 12}
+    for number, week in weeks.items():
+        db.add_all(
+            [
+                TrainingWeekActivity(
+                    training_week_id=week.id,
+                    stable_id=f"week-{number}-lesson-test",
+                    activity_type="lesson",
+                    content_ref=str(number),
+                    display_order=1,
+                    is_required=True,
+                    prerequisite_mode="soft",
+                    metadata_json={},
+                ),
+                TrainingWeekActivity(
+                    training_week_id=week.id,
+                    stable_id=f"week-{number}-video-{sample_videos[number]}",
+                    activity_type="video",
+                    content_ref=str(sample_videos[number]),
+                    display_order=2,
+                    is_required=False,
+                    prerequisite_mode="soft",
+                    metadata_json={},
+                ),
+                TrainingWeekActivity(
+                    training_week_id=week.id,
+                    stable_id=f"week-{number}-quiz-{required_quizzes[number]}",
+                    activity_type="quiz",
+                    content_ref=str(required_quizzes[number]),
+                    display_order=3,
+                    is_required=False,
+                    prerequisite_mode="soft",
+                    metadata_json={},
+                ),
+                TrainingWeekActivity(
+                    training_week_id=week.id,
+                    stable_id=f"week-{number}-service-desk-test",
+                    activity_type="service_desk_scenario",
+                    content_ref=f"scenario-{number}",
+                    display_order=4,
+                    is_required=True,
+                    prerequisite_mode="soft",
+                    metadata_json={},
+                ),
+            ]
+        )
+    for order, lab_id in enumerate(("dev-sw-act-04", "dev-sw-act-18"), start=5):
+        db.add(CliLab(id=lab_id, compartment_id="switching", vendor_id="cisco", title=lab_id, order_index=order, content={}))
+        db.add(
+            TrainingWeekActivity(
+                training_week_id=weeks[10].id,
+                stable_id=f"week-10-networking_lab-{lab_id}",
+                activity_type="networking_lab",
+                content_ref=lab_id,
+                display_order=order,
+                is_required=False,
+                prerequisite_mode="soft",
+                metadata_json={},
+            )
+        )
+    _add_lab(db, 1, "IP Addressing & Subnetting Practice", 2)
+    _add_lab(db, 2, "Troubleshoot a Network Connectivity Scenario", 3)
+    db.add_all(
+        [
+            TrainingWeekActivity(
+                training_week_id=week_3.id,
+                stable_id="week-3-service_desk_scenario-password-reset",
+                activity_type="service_desk_scenario",
+                content_ref="password-reset",
+                display_order=9,
+                is_required=False,
+                prerequisite_mode="soft",
+                metadata_json={},
+            ),
+            TrainingWeekActivity(
+                training_week_id=week_6.id,
+                stable_id="week-6-service_desk_scenario-inc2505",
+                activity_type="service_desk_scenario",
+                content_ref="inc2505",
+                display_order=9,
+                is_required=True,
+                prerequisite_mode="soft",
+                metadata_json={},
+            ),
+        ]
+    )
+    db.commit()
+
+    first = sync_weeks_7_10_quality(db)
+
+    assert first["skipped"] is False
+    assert (db.get(LabTemplate, 1).week_number, db.get(LabTemplate, 1).lab_type, db.get(LabTemplate, 1).is_published) == (9, "structured_subnet", True)
+    assert (db.get(LabTemplate, 2).week_number, db.get(LabTemplate, 2).lab_type, db.get(LabTemplate, 2).is_published) == (8, "structured_cli", True)
+    for number, week in weeks.items():
+        activities = db.query(TrainingWeekActivity).filter_by(training_week_id=week.id).all()
+        assert all(not row.is_required for row in activities if row.activity_type == "lesson")
+        assert [row.content_ref for row in activities if row.activity_type == "quiz" and row.is_required] == [str(required_quizzes[number])]
+        assert not [row for row in activities if row.activity_type == "service_desk_scenario" and row.is_required]
+    week_6_apply = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=week_6.id,
+        activity_type="service_desk_scenario",
+    ).all()
+    assert [(row.content_ref, row.is_required) for row in week_6_apply] == [
+        ("password-reset", True),
+        ("inc2505", False),
+    ]
+    required_switching = {
+        row.content_ref
+        for row in db.query(TrainingWeekActivity).filter_by(training_week_id=weeks[10].id, activity_type="networking_lab", is_required=True)
+    }
+    assert required_switching == {"dev-sw-act-04", "dev-sw-act-18"}
+
+    second = sync_weeks_7_10_quality(db)
     assert second["created_templates"] == 0
     assert second["created_activities"] == 0
     assert second["updated_activities"] == 0
