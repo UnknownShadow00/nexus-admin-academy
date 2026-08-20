@@ -81,6 +81,14 @@ function processCommand(cmd, term, profile = "windows") {
     term.writeln("User Policy update has completed successfully.");
   } else if (command === "id") {
     term.writeln("uid=1001(student01) gid=1001(student01) groups=1001(student01),27(sudo)");
+  } else if (command === "ip a" || command === "ip addr") {
+    term.writeln("2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 state UP");
+    term.writeln("    inet 192.168.1.50/24 brd 192.168.1.255 scope global eth0");
+  } else if (command === "ip r" || command === "ip route") {
+    term.writeln("default via 192.168.1.1 dev eth0");
+    term.writeln("192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.50");
+  } else if (command === "crontab -l") {
+    term.writeln("0 2 * * * /usr/local/bin/backup.sh >> /var/log/backup.log 2>&1");
   } else if (command === "uptime") {
     term.writeln(" 14:32:10 up 3 days,  4:21,  2 users,  load average: 0.12, 0.08, 0.05");
   } else if (command === "free" || command.startsWith("free ")) {
@@ -91,6 +99,10 @@ function processCommand(cmd, term, profile = "windows") {
     term.writeln("Filesystem     1K-blocks    Used Available Use% Mounted on");
     term.writeln("/dev/sda1       51475068 8234092  40633584  17% /");
     term.writeln("tmpfs            8192000       0   8192000   0% /dev/shm");
+  } else if (command.startsWith("du ")) {
+    term.writeln("8.1G    /var/log");
+    term.writeln("1.4G    /var/lib");
+    term.writeln("240M    /var/cache");
   } else if (command === "ps" || command.startsWith("ps ")) {
     term.writeln("  PID TTY          TIME CMD");
     term.writeln(" 1234 pts/0    00:00:00 bash");
@@ -190,6 +202,14 @@ function processCommand(cmd, term, profile = "windows") {
     term.writeln("Jan 14 09:00:01 server systemd[1]: Starting Session 1 of user student01.");
     term.writeln("Jan 14 09:00:02 server sshd[1234]: Accepted publickey for student01");
     term.writeln("Jan 14 09:15:33 server nginx[5678]: 192.168.1.50 - GET / HTTP/1.1 200");
+  } else if (command === "nginx -t") {
+    term.writeln("nginx: the configuration file /etc/nginx/nginx.conf syntax is ok");
+    term.writeln("nginx: configuration file /etc/nginx/nginx.conf test is successful");
+  } else if (command === "ufw status") {
+    term.writeln("Status: active");
+    term.writeln("To                         Action      From");
+    term.writeln("22/tcp                     ALLOW       10.20.0.0/16");
+    term.writeln("80/tcp                     ALLOW       Anywhere");
   } else if (command.startsWith("chmod ")) {
     term.writeln("Permissions updated.");
   } else if (command.startsWith("chown ")) {
@@ -210,7 +230,8 @@ function processCommand(cmd, term, profile = "windows") {
     term.writeln("  ipconfig /all, ping [host], tracert [host], nslookup [host], netstat, arp");
     term.writeln("  hostname, systeminfo, whoami, gpresult /r, gpupdate /force");
     term.writeln("  get-command, get-help [command], get-service, get-process");
-    term.writeln("  ls, pwd, cd, whoami, id, uptime, free, df, ps, find, grep, cat");
+    term.writeln("  ls, pwd, cd, whoami, id, ip a, ip r, uptime, free, df, du, ps");
+    term.writeln("  find, grep, cat, crontab -l, nginx -t, ufw status");
     term.writeln("  tasklist, sc query <service>, netsh, dmesg, journalctl, ssh, curl, wget");
     term.writeln("  systemctl status/start/stop/restart <service>, chmod, chown, mkdir, kill");
     term.writeln("  cls/clear");

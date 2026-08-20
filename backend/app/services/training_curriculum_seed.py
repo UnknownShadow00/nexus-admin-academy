@@ -1342,6 +1342,246 @@ WEEKS_15_18_QUALITY = {
 }
 
 
+LINUX_SERVICE_PRACTICE = [
+    {
+        "id": "failed-service",
+        "prompt": "A service is enabled but inactive after boot. What should you read before restarting it?",
+        "context": "systemctl status reports failed and names the unit; journalctl contains its recent messages.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "systemctl status for current state"},
+            {"id": "b", "label": "journalctl for the first relevant error"},
+            {"id": "c", "label": "The desktop wallpaper"},
+            {"id": "d", "label": "The time and affected service scope"},
+        ],
+        "correct": ["a", "b", "d"],
+        "explanation": "Capture state, the causal error, time, and scope so a restart does not erase the useful story.",
+    },
+    {
+        "id": "linux-network",
+        "prompt": "A Linux host has an address but no remote connectivity. Which command output identifies its default gateway?",
+        "context": "You ran ip a and ip r in the practice terminal.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "ip r"},
+            {"id": "b", "label": "ls -l"},
+            {"id": "c", "label": "crontab -l"},
+            {"id": "d", "label": "whoami"},
+        ],
+        "correct": ["a"],
+        "explanation": "ip r shows the routing table, including the default route and interface.",
+    },
+    {
+        "id": "cron-time",
+        "prompt": "What does 0 2 * * * mean at the start of a cron entry?",
+        "context": "The five fields are minute, hour, day of month, month, and day of week.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Run every day at 02:00"},
+            {"id": "b", "label": "Run every two minutes"},
+            {"id": "c", "label": "Run only on February 2"},
+            {"id": "d", "label": "Run at noon"},
+        ],
+        "correct": ["a"],
+        "explanation": "Minute 0 and hour 2 with wildcards for the remaining fields means daily at 02:00.",
+    },
+]
+
+
+LINUX_PRODUCTION_PRACTICE = [
+    {
+        "id": "test-config",
+        "prompt": "What should you do immediately before reloading nginx after a configuration edit?",
+        "context": "The practice terminal's nginx -t reports whether syntax is valid.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Run nginx -t and stop if validation fails"},
+            {"id": "b", "label": "Delete the old configuration"},
+            {"id": "c", "label": "Open every firewall port"},
+            {"id": "d", "label": "Reboot the server without testing"},
+        ],
+        "correct": ["a"],
+        "explanation": "Syntax validation catches a bad change before a reload turns it into an outage.",
+    },
+    {
+        "id": "disk-full",
+        "prompt": "df reports / is 96% full and du shows /var/log uses 8.1 GB. What is the next safe action?",
+        "context": "The application recently began writing a large repeated error.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Find the growing log and its cause, then use the approved rotation/cleanup path"},
+            {"id": "b", "label": "Delete random files under /var"},
+            {"id": "c", "label": "Restart only the application and ignore capacity"},
+            {"id": "d", "label": "Run chmod 777 on /var/log"},
+        ],
+        "correct": ["a"],
+        "explanation": "Measure first, address the error generating growth, and clean up through a controlled retention process.",
+    },
+    {
+        "id": "local-not-remote",
+        "prompt": "A web service responds locally but remote clients are refused. Which evidence is most relevant next?",
+        "context": "The service is listening and nginx configuration validation succeeds.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Listening address and port"},
+            {"id": "b", "label": "Host or upstream firewall rules"},
+            {"id": "c", "label": "The user's local screen resolution"},
+            {"id": "d", "label": "Whether the failure affects all remote sources"},
+        ],
+        "correct": ["a", "b", "d"],
+        "explanation": "Local success proves the process responds; listener binding, firewall, and scope isolate the remote path.",
+    },
+]
+
+
+CLOUD_IDENTITY_PRACTICE = [
+    {
+        "id": "signin-log",
+        "prompt": "A user can sign into their laptop but not Microsoft 365. What should you inspect first?",
+        "context": "The organization synchronizes identities from on-premises AD to Entra ID.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Entra sign-in logs and synchronization state"},
+            {"id": "b", "label": "The laptop display driver"},
+            {"id": "c", "label": "The office printer queue"},
+            {"id": "d", "label": "Reset every authentication method immediately"},
+        ],
+        "correct": ["a"],
+        "explanation": "The split between local and cloud sign-in points to cloud policy, sign-in evidence, or directory synchronization.",
+    },
+    {
+        "id": "mfa-lost-phone",
+        "prompt": "A caller says their phone was lost and asks for an MFA reset. What is the first required action?",
+        "context": "The caller is in a hurry and can provide their username.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Verify identity using the approved recovery process"},
+            {"id": "b", "label": "Remove MFA based on the username"},
+            {"id": "c", "label": "Give them an administrator's phone number"},
+            {"id": "d", "label": "Disable Conditional Access"},
+        ],
+        "correct": ["a"],
+        "explanation": "An MFA reset changes an account's trust boundary, so identity verification comes first.",
+    },
+    {
+        "id": "responsibility",
+        "prompt": "An application service inside an Azure IaaS VM has stopped. Who owns that operating-system fix?",
+        "context": "Azure reports that the VM and host platform are healthy.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Your organization, because IaaS customers manage the guest OS"},
+            {"id": "b", "label": "The cloud provider, because every cloud layer is theirs"},
+            {"id": "c", "label": "The user's internet provider"},
+            {"id": "d", "label": "Nobody"},
+        ],
+        "correct": ["a"],
+        "explanation": "In IaaS the provider runs the physical platform, while the customer operates the guest OS and applications.",
+    },
+]
+
+
+AZURE_TRIAGE_PRACTICE = [
+    {
+        "id": "ssh-layer",
+        "prompt": "A running Azure Linux VM cannot be reached by SSH. Which cloud-layer evidence should you check before changing the guest?",
+        "context": "The VM overview reports Running and boot diagnostics look normal.",
+        "type": "multi_choice",
+        "options": [
+            {"id": "a", "label": "Effective NSG rules for TCP 22 and the source range"},
+            {"id": "b", "label": "The current public IP and whether it changed"},
+            {"id": "c", "label": "The user's keyboard layout"},
+            {"id": "d", "label": "Azure activity log for recent network changes"},
+        ],
+        "correct": ["a", "b", "d"],
+        "explanation": "NSG, endpoint address, and control-plane changes are the cloud wrapper around an otherwise normal SSH service.",
+    },
+    {
+        "id": "safe-rdp",
+        "prompt": "Which NSG rule is safer for temporary RDP support?",
+        "context": "Only one approved administrator public IP needs access during the maintenance window.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "Allow TCP 3389 from the approved admin IP only, then remove the temporary rule"},
+            {"id": "b", "label": "Allow TCP 3389 from Any forever"},
+            {"id": "c", "label": "Allow every port from the internet"},
+            {"id": "d", "label": "Disable VM authentication"},
+        ],
+        "correct": ["a"],
+        "explanation": "Narrow source, port, and duration reduce exposure while still enabling the approved support action.",
+    },
+    {
+        "id": "sas-expired",
+        "prompt": "An external partner's blob link worked yesterday and now reports authorization failure. What should you verify?",
+        "context": "Internal users can still access the storage account.",
+        "type": "single_choice",
+        "options": [
+            {"id": "a", "label": "The SAS token expiry and permissions"},
+            {"id": "b", "label": "The partner's monitor cable"},
+            {"id": "c", "label": "Whether the VM needs a reboot"},
+            {"id": "d", "label": "The on-premises domain functional level"},
+        ],
+        "correct": ["a"],
+        "explanation": "A time-limited SAS commonly stops working at expiry while other authorized paths remain healthy.",
+    },
+]
+
+
+WEEKS_19_22_QUALITY = {
+    19: {
+        "description": "Use Linux service, journal, network, and cron evidence to diagnose before restarting or editing.",
+        "learning_goals": [
+            "systemctl status shows current and boot state; journalctl shows the errors that explain a failure.",
+            "On Linux, ip a shows interface addresses, ip r shows the gateway and routes, and dig tests DNS directly.",
+            "Read cron as minute, hour, day-of-month, month, day-of-week; a limited PATH is a common manual-works/cron-fails cause.",
+            "Capture state, first relevant error, time, and scope before a restart so you can verify what changed.",
+        ],
+        "required_videos": set(),
+        "required_quiz": 21,
+        "required_service_desk": False,
+        "lab": {"title": "Diagnose the Linux Service", "lab_type": "structured_cli", "questions": LINUX_SERVICE_PRACTICE, "required_commands": ["systemctl status ssh", "journalctl -u ssh -e", "ip a", "ip r", "crontab -l"], "terminal_profile": "linux", "estimated_minutes": 30},
+    },
+    20: {
+        "description": "Validate web configuration, isolate remote-access failures, and respond to capacity alerts with evidence.",
+        "learning_goals": [
+            "Test nginx configuration before reload; a working service with 403 often points to web-root ownership or permissions.",
+            "If a service works locally but not remotely, inspect its listening address, firewall path, and affected scope.",
+            "Use df to find a full filesystem and du to find the consuming path; do not delete random logs or restart around a full disk.",
+            "Treat an alert as a lead: confirm it is real, identify impact and cause, act safely, then verify recovery.",
+        ],
+        "required_videos": set(),
+        "required_quiz": 22,
+        "required_service_desk": False,
+        "lab": {"title": "Triage the Linux Production Alert", "lab_type": "structured_cli", "questions": LINUX_PRODUCTION_PRACTICE, "required_commands": ["nginx -t", "systemctl status nginx", "df -h", "du -sh /var/*", "ufw status"], "terminal_profile": "linux", "estimated_minutes": 30},
+    },
+    21: {
+        "description": "Route cloud tickets by shared responsibility and handle Entra identity problems with sign-in evidence and verification.",
+        "learning_goals": [
+            "In IaaS the provider owns hardware and virtualization while your organization owns the guest OS, services, and data.",
+            "Azure resources sit under tenant → subscription → resource group → resource; identify the right scope before acting.",
+            "Start Entra login triage with sign-in logs, block state, Conditional Access result, and hybrid synchronization evidence.",
+            "Verify identity before MFA reset or unblock, and change a synced identity at its authoritative directory.",
+        ],
+        "required_videos": {53, 54, 55, 56},
+        "required_quiz": 23,
+        "required_service_desk": False,
+        "lab": {"title": "Route the Cloud Identity Ticket", "lab_type": "structured_cloud", "questions": CLOUD_IDENTITY_PRACTICE, "estimated_minutes": 20},
+    },
+    22: {
+        "description": "Separate Azure control-plane failures from guest-OS failures and make narrowly scoped access changes.",
+        "learning_goals": [
+            "For an unreachable VM, check state, current IP, NSG rules, boot diagnostics, and activity log before blaming the guest OS.",
+            "Never expose RDP or SSH from Any as a convenience; scope source, port, and duration to the approved need.",
+            "A stopped/deallocated VM can lose a dynamic public IP; compare the current endpoint before troubleshooting credentials.",
+            "For storage, check SAS expiry and permission plus network access rules; the activity log answers who changed a cloud resource and when.",
+        ],
+        "required_videos": set(),
+        "required_quiz": 24,
+        "required_service_desk": False,
+        "lab": {"title": "Diagnose the Azure Access Path", "lab_type": "structured_cloud", "questions": AZURE_TRIAGE_PRACTICE, "estimated_minutes": 25},
+    },
+}
+
+
 def _sync_quality_batch(db: Session, specs: dict[int, dict]) -> dict:
     weeks = {
         week.week_number: week
@@ -1583,6 +1823,14 @@ def sync_weeks_15_18_quality(db: Session) -> dict:
     if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
         return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
     return _sync_quality_batch(db, WEEKS_15_18_QUALITY)
+
+
+def sync_weeks_19_22_quality(db: Session) -> dict:
+    """Align Linux production and cloud support with deterministic practice."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    return _sync_quality_batch(db, WEEKS_19_22_QUALITY)
 
 
 def reconcile_week_zero_requirements(db: Session) -> dict:
