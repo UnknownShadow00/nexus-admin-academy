@@ -434,13 +434,24 @@ def sync_weeks_3_6_quality(db: Session) -> dict:
     bind = db.get_bind()
     if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
         return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
-
     weeks = {
         week.week_number: week
         for week in db.query(TrainingWeek).filter(TrainingWeek.week_number.between(3, 6)).all()
     }
     if set(weeks) != {3, 4, 5, 6}:
         return {"updated": 0, "skipped": True, "reason": "weeks_missing"}
+    seeded_week_ids = {
+        row[0]
+        for row in db.query(TrainingWeekActivity.training_week_id)
+        .filter(
+            TrainingWeekActivity.training_week_id.in_({week.id for week in weeks.values()}),
+            TrainingWeekActivity.activity_type.in_(["lesson", "video", "quiz"]),
+        )
+        .distinct()
+        .all()
+    }
+    if seeded_week_ids != {week.id for week in weeks.values()}:
+        return {"updated": 0, "skipped": True, "reason": "curriculum_not_seeded"}
 
     result = {
         "updated_weeks": 0,
@@ -1711,6 +1722,18 @@ def _sync_quality_batch(db: Session, specs: dict[int, dict]) -> dict:
     }
     if set(weeks) != set(specs):
         return {"updated": 0, "skipped": True, "reason": "weeks_missing"}
+    seeded_week_ids = {
+        row[0]
+        for row in db.query(TrainingWeekActivity.training_week_id)
+        .filter(
+            TrainingWeekActivity.training_week_id.in_({week.id for week in weeks.values()}),
+            TrainingWeekActivity.activity_type.in_(["lesson", "video", "quiz"]),
+        )
+        .distinct()
+        .all()
+    }
+    if seeded_week_ids != {week.id for week in weeks.values()}:
+        return {"updated": 0, "skipped": True, "reason": "curriculum_not_seeded"}
 
     result = {
         "updated_weeks": 0,

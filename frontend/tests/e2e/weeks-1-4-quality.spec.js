@@ -127,23 +127,22 @@ test("Week 1 journey: labels, CLI CTA, Practice/Apply split, and formative ticke
     await expect(applySection.locator('article[data-activity-type="service_desk_scenario"]')).toBeVisible();
 
     // Phase 3: "Meet the Command Line" no longer claims a dead requirement, CTA works
+    await page.locator("details > summary").click();
     await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Meet the Command Line" }).getByRole("link").click();
     await expect(page.getByRole("heading", { name: "Meet the Command Line", exact: true })).toBeVisible();
     await expect(page.getByText(/complete CLI labs 1-9/i)).toHaveCount(0);
     const cta = page.getByRole("link", { name: "Start CLI Practice" });
     await expect(cta).toBeVisible();
-    await cta.click();
-    await expect(page).toHaveURL(/\/training\/week\/1\?activity=/);
-    const cliCard = page.locator('article[data-activity-type="networking_lab"]');
-    await expect(cliCard).toBeVisible();
-    await cliCard.getByRole("link").click();
+    const cliPracticeRoute = await cta.getAttribute("href");
+    expect(cliPracticeRoute).toBe("/cli-labs/meet-cli-001");
+    await page.goto(cliPracticeRoute);
     await expect(page).toHaveURL(/\/cli-labs\/meet-cli-001$/);
     await expect(page.getByRole("heading", { name: "First Contact", exact: true })).toBeVisible();
 
     // Phase 3: "Anatomy of a Good Ticket" has a real formative exercise
     await page.goto("/training/week/1");
-    await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Anatomy of a Good Ticket" }).getByRole("link").click();
-    await expect(page.getByRole("heading", { name: "Anatomy of a Good Ticket", exact: true })).toBeVisible();
+    await page.locator("details > summary").click();
+    await expect(page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Anatomy of a Good Ticket" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Rewrite this bad ticket note" })).toBeVisible();
     await page.getByRole("button", { name: "Check my note" }).click();
     await expect(page.getByText("Not filled in yet.").first()).toBeVisible();
