@@ -13,6 +13,46 @@ This file is a concise implementation guide for coding assistants. Use
   Cloudflare HTTPS, persistent uploads, and local Ollama-compatible AI.
 - Production and restore procedures are in `docs/DEPLOYMENT.md`.
 
+## Production change rule
+
+`backend/nexus.db` in this checkout is not a sandbox copy — it is the live
+database for `nexus-admin-academy.service` (confirm with
+`systemctl cat nexus-admin-academy.service`). The same applies to any other
+file, service, or environment variable this checkout's systemd units read
+directly, and to any remote host reachable from here that is designated
+production.
+
+**Unless explicitly authorized in the current conversation/turn, do NOT:**
+
+- modify the production database
+- run `seed.py` (or any seed module) against production
+- run Alembic migrations against production
+- deploy code
+- restart production services
+- modify production environment variables
+- delete or modify production files
+- create, delete, or reset production VMs
+- perform any other destructive infrastructure action
+- run a command whose target is ambiguous between dev/test and production —
+  resolve the ambiguity (or ask) before running it, never guess
+
+Read-only inspection (status checks, `SELECT`-only queries, log reads,
+`systemctl status`) is always allowed.
+
+**Before any explicitly-authorized production mutation**, work through this
+in order and say so as you go:
+
+1. Identify the exact production target (file path, host, service).
+2. Take or verify the required backup.
+3. State the intended mutation before running it.
+4. Perform the minimum change needed — nothing bundled in.
+5. Verify health/state afterward.
+6. Report exactly what changed.
+
+**Approval does not carry forward.** Authorization for one production
+mutation, in one turn, is not standing permission for the next one — even a
+related follow-up in the same session requires asking again.
+
 ## Repository map
 
 ```text
@@ -139,5 +179,8 @@ push to main. Reproduce any CI job locally with the commands and
 - `docs/DEPLOYMENT.md`: deploy, backup, restore, health checks, and CI.
 - `docs/AUTHORING_CONFIG_SECURITY.md`: content authoring, environment variables,
   and current security controls.
+- `docs/PROGRESSION_CONTRACT.md`: what current progression means — authoritative
+  vs. non-authoritative systems, every seeded gate's semantics, and Gate 4's
+  deferred Windows Server/AD coverage.
 - `docs/MENTOR_GUIDE.md` and `docs/STUDENT_GUIDE.md`: operating guides.
 - `TASKS.md`: current roadmap only.

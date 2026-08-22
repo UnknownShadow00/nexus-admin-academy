@@ -125,6 +125,16 @@ types can no longer be satisfied by new students. The evaluators still exist in
 rows, but `seed_promotion_gates` actively deletes rows of these two types on every run.
 Service Desk assessment results are the authoritative practical-evidence source now.
 
+New/edited gate rows are validated by `validate_promotion_gates_config()`
+(`app/services/promotion_gate_validation.py`) before `seed_promotion_gates`
+writes anything — an unknown type, retired type, unresolvable domain/pack
+reference, invalid threshold, or duplicate `(role, type)` pair aborts the
+seed run instead of reaching the database.
+
+See `docs/PROGRESSION_CONTRACT.md` for what every currently seeded gate is
+intended to prove, its exact evidence source, and known gaps (Gate 4's
+deferred Windows Server/AD coverage in particular).
+
 Do not build a second progression system — extend this one.
 
 ---
