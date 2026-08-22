@@ -824,20 +824,43 @@ def seed_default_student_roles(db):
 
 
 def seed_promotion_gates(db):
+    from app.services.promotion_gate_validation import validate_promotion_gates_config
+    from app.services.service_desk_progression import SERVICE_DESK_PACKS
+
+    issues = validate_promotion_gates_config(
+        PROMOTION_GATES,
+        service_desk_pack_keys={pack.key for pack in SERVICE_DESK_PACKS},
+    )
+    if issues:
+        raise RuntimeError(
+            "Refusing to seed PROMOTION_GATES: " + "; ".join(issues)
+        )
+
+    keep_pairs = set()
     for gate in PROMOTION_GATES:
         role = db.query(Role).filter(Role.name == gate["role"]).first()
         if not role:
             continue
+        keep_pairs.add((role.id, gate["requirement_type"]))
         exists = db.query(PromotionGate).filter(PromotionGate.role_id == role.id, PromotionGate.requirement_type == gate["requirement_type"]).first()
         if exists:
             exists.requirement_config = gate["config"]
         else:
             db.add(PromotionGate(role_id=role.id, requirement_type=gate["requirement_type"], requirement_config=gate["config"]))
-    db.query(PromotionGate).filter(
-        PromotionGate.requirement_type.in_(
-            ("min_verified_tickets_by_difficulty", "practical_checkpoint")
-        )
-    ).delete(synchronize_session=False)
+    db.flush()
+
+    # PromotionGate rows are exclusively seed-authored (the only admin router
+    # touching this table, admin_content.list_promotion_gates, is read-only),
+    # so it is safe to prune any row whose (role, requirement_type) no longer
+    # appears in PROMOTION_GATES above at all — not just the two ticket-based
+    # types retired by name. A row orphaned this way (its type simply removed
+    # from the active config, e.g. an old min_mastery_by_domain sub-requirement)
+    # would otherwise survive re-seeding forever and keep enforcing a
+    # config that was deliberately deleted, exactly as Gate 4's stale
+    # windows_server/active_directory row did in production until this fix.
+    for row in db.query(PromotionGate).all():
+        if (row.role_id, row.requirement_type) not in keep_pairs:
+            db.delete(row)
 
 
 def seed_module0_and_methodology(db):
