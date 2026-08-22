@@ -337,10 +337,18 @@ def _check_service_desk_requirement(student_id: int, config: dict, db: Session) 
 
     cfg = config or {}
     pack_key = str(cfg.get("pack_key", ""))
-    required = int(cfg.get("min_passed", 0))
+    required = cfg.get("min_passed")
     pack = next((item for item in SERVICE_DESK_PACKS if item.key == pack_key), None)
-    scenario_keys = set(pack.scenario_keys) if pack else set()
-    passed = len(scenario_keys & _passed_scenario_keys(db, student_id))
+    # A missing/zero threshold or an unrecognized pack_key is a misconfigured
+    # gate, not a satisfied one — fail closed instead of auto-passing on 0 >= 0.
+    if pack is None or not isinstance(required, int) or required <= 0:
+        return {
+            "type": "min_service_desk_passes",
+            "description": f"Service Desk scenarios passed in {pack_key or '(unconfigured)'}",
+            "progress": {"pack_key": pack_key, "current": 0, "required": required},
+            "met": False,
+        }
+    passed = len(set(pack.scenario_keys) & _passed_scenario_keys(db, student_id))
     return {
         "type": "min_service_desk_passes",
         "description": f"Service Desk scenarios passed in {pack_key}",
@@ -363,8 +371,6 @@ def _check_mastery_requirement(student_id: int, config: dict, db: Session) -> di
         "software_troubleshooting": "3.0",
         "security": "4.0",
         "procedures": "4.0",
-        "windows_server": "4.0",
-        "active_directory": "4.0",
     }
     progress = {}
     met = True

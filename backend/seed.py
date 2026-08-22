@@ -177,11 +177,6 @@ PROMOTION_GATES = [
     },
     {
         "role": "Junior Systems Technician",
-        "requirement_type": "min_mastery_by_domain",
-        "config": {"thresholds": {"windows_server": 75, "active_directory": 75}},
-    },
-    {
-        "role": "Junior Systems Technician",
         "requirement_type": "min_service_desk_passes",
         "config": {"pack_key": "networking", "min_passed": 4},
     },

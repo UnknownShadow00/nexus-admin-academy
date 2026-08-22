@@ -187,26 +187,48 @@ def test_seeded_gate_1_uses_service_desk_passes_without_legacy_tickets(db):
     assert db.query(TicketSubmission).count() == 0
 
 
-def test_seeded_gate_4_mastery_aliases_resolve_to_domain_4(db):
+def test_seeded_gate_4_has_no_unsatisfiable_mastery_domain_requirement(db):
+    """Gate 4 previously required mastery in domains ("windows_server",
+    "active_directory") that never existed in StudentDomainMastery, making the
+    gate permanently unsatisfiable. Aliasing them onto the unrelated
+    "security"/"procedures" domain (4.0) would let students pass this gate
+    using evidence that has nothing to do with Windows Server/AD — a
+    gate-bypass via domain mismatch, not a real fix. Since this phase must
+    not invent new mastery-domain taxonomy, the correct minimal fix is to
+    drop the unsatisfiable sub-requirement rather than mis-map it.
+    """
     _seed_real_progression_config(db)
-    student = make_student(db, "gate-4-mastery-aliases")
+    role = db.query(Role).filter_by(name="Junior Systems Technician").one()
+    gate_types = {
+        row.requirement_type
+        for row in db.query(PromotionGate).filter_by(role_id=role.id).all()
+    }
+    assert "min_mastery_by_domain" not in gate_types
+
+
+def test_service_desk_gate_fails_closed_on_malformed_config(db):
+    """A misconfigured min_service_desk_passes gate (unknown pack_key, or a
+    missing/zero min_passed) must never silently auto-pass."""
+    _seed_real_progression_config(db)
+    student = make_student(db, "malformed-service-desk-gate")
+
+    role = db.query(Role).filter_by(name="Support Technician I").one()
+    db.query(PromotionGate).filter_by(
+        role_id=role.id, requirement_type="min_service_desk_passes"
+    ).delete()
     db.add(
-        StudentDomainMastery(
-            student_id=student.id,
-            domain_id="4.0",
-            mastery_percent=75,
+        PromotionGate(
+            role_id=role.id,
+            requirement_type="min_service_desk_passes",
+            requirement_config={"pack_key": "does-not-exist"},
         )
     )
     db.commit()
 
-    role = db.query(Role).filter_by(name="Junior Systems Technician").one()
     result = check_promotion_eligibility(student.id, role.id, db)
-    mastery = next(
+    sd_result = next(
         item
-        for item in result["requirements_met"]
-        if item["type"] == "min_mastery_by_domain"
+        for item in result["requirements_missing"]
+        if item["type"] == "min_service_desk_passes"
     )
-    assert mastery["progress"] == {
-        "windows_server": {"current": 75.0, "required": 75},
-        "active_directory": {"current": 75.0, "required": 75},
-    }
+    assert sd_result["met"] is False
