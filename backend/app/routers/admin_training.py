@@ -16,6 +16,7 @@ from app.services.training_service import (
     validate_video_quiz_mapping,
 )
 from app.services.quiz_visibility import student_visible_quiz_filters
+from app.services.curriculum_structure import STAGE_BY_ID, module_for_week, public_module, public_stage
 from app.utils.responses import ok
 
 
@@ -89,6 +90,8 @@ def _serialize_activity(row: TrainingWeekActivity) -> dict:
 
 
 def _serialize_week(row: TrainingWeek) -> dict:
+    module = module_for_week(row.week_number)
+    stage = STAGE_BY_ID.get(module.stage_id) if module else None
     return {
         "id": row.id,
         "week_number": row.week_number,
@@ -99,6 +102,8 @@ def _serialize_week(row: TrainingWeek) -> dict:
         "estimated_minutes": row.estimated_minutes,
         "is_active": row.is_active,
         "requires_previous_week": row.requires_previous_week,
+        "module": public_module(module) if module else None,
+        "stage": public_stage(stage) if stage else None,
         "activities": [_serialize_activity(item) for item in sorted(row.activities, key=lambda item: (item.display_order, item.id))],
     }
 

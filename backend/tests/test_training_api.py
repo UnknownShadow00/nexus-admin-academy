@@ -55,6 +55,10 @@ def test_training_routes_return_only_authenticated_students_own_progress(db):
     unauthorized = client.get("/api/training")
     response = client.get("/api/training", headers=auth_headers(student))
     week = client.get("/api/training/weeks/1", headers=auth_headers(student))
+    module = client.get(
+        "/api/training/modules/module.endpoint.support_workflow",
+        headers=auth_headers(student),
+    )
     progress = client.get("/api/training/progress", headers=auth_headers(student))
     spoofed = client.get(f"/api/training?student_id={other.id}", headers=auth_headers(student))
 
@@ -62,7 +66,10 @@ def test_training_routes_return_only_authenticated_students_own_progress(db):
     assert response.status_code == 200
     assert response.json()["data"]["current_week"]["week_number"] == 1
     assert week.status_code == 200
-    assert week.json()["data"]["activities"][0]["destination_route"] == "/training/week/1?activity=week-1-video-10"
+    assert week.json()["data"]["activities"][0]["destination_route"] == "/training/module/module.endpoint.support_workflow?activity=week-1-video-10"
+    assert module.status_code == 200
+    assert module.json()["data"]["stage"]["stable_id"] == "stage.endpoint_foundations"
+    assert module.json()["data"]["activities"][0]["learning_role"] == "learn"
     assert progress.status_code == 200
     assert "student_id" not in response.text
     assert "other-student" not in response.text
@@ -98,6 +105,12 @@ def test_locked_week_does_not_expose_activity_details(db):
     client = make_client(training.router)
 
     response = client.get("/api/training/weeks/2", headers=auth_headers(student))
+    module_response = client.get(
+        "/api/training/modules/module.endpoint.pc_hardware",
+        headers=auth_headers(student),
+    )
 
     assert response.status_code == 403
     assert "mentor_note" not in response.text
+    assert module_response.status_code == 403
+    assert "mentor_note" not in module_response.text

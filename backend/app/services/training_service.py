@@ -24,6 +24,17 @@ from app.services.mastery_service import list_student_mastery
 from app.services.progression_service import get_promotion_status
 from app.services.quiz_visibility import student_visible_quiz_filters
 from app.services.training_quiz_mapping import CONFIDENCE_BY_BASIS, EXACT, TOPIC_GROUP, WEEK_FALLBACK
+from app.services.curriculum_structure import (
+    LEARNING_ROLES,
+    MODULES,
+    STAGES,
+    STAGE_BY_ID,
+    learning_role_for,
+    module_for_week,
+    public_module,
+    public_stage,
+    structure_definition_issues,
+)
 
 
 PRACTICE_ACTIVITY_TYPES = {
@@ -65,6 +76,11 @@ def _service_desk_ticket_key(stable_key: str) -> str:
         "mfa-reset": "INC2513",
     }
     return foundational_ids.get(stable_key.lower(), stable_key.upper())
+
+
+def _module_route_for_week(week_number: int) -> str:
+    module = module_for_week(week_number)
+    return f"/training/module/{module.stable_id}" if module else f"/training/week/{week_number}"
 
 
 def _duration_minutes(value: str | None) -> int | None:
@@ -299,7 +315,7 @@ class _TrainingContext:
             return _ResolvedContent(
                 title=video.title,
                 description=video.section,
-                destination_route=f"/training/week/{week_number}?activity={activity.stable_id}",
+                destination_route=f"{_module_route_for_week(week_number)}?activity={activity.stable_id}",
                 external_url=video.url,
                 estimated_minutes=_duration_minutes(video.duration),
                 job_relevance=video.job_relevance,
@@ -362,7 +378,7 @@ class _TrainingContext:
                 return None
             ticket_key = _service_desk_ticket_key(scenario.stable_key)
             # Kept in sync with the allowlist in service-desk-app/apps/web/lib/nexus-return.ts.
-            return_to = quote(f"/training/week/{week_number}", safe="")
+            return_to = quote(_module_route_for_week(week_number), safe="")
             return _ResolvedContent(title=scenario.title, description=scenario.description, destination_route=f"/service-desk/tickets/{ticket_key}?returnTo={return_to}", estimated_minutes=activity.estimated_minutes)
         if activity.activity_type == "capstone":
             capstone = self.capstones.get(ref)
@@ -399,7 +415,7 @@ class _TrainingContext:
             return _ResolvedContent(
                 title=(activity.metadata_json or {}).get("title", "Weekly Review"),
                 description=(activity.metadata_json or {}).get("description", "Review this week's required work."),
-                destination_route=f"/training/week/{week_number}",
+                destination_route=_module_route_for_week(week_number),
                 estimated_minutes=activity.estimated_minutes,
             )
         return None
@@ -508,6 +524,7 @@ def _serialize_activity(context: _TrainingContext, activity: TrainingWeekActivit
         "stable_id": activity.stable_id,
         "activity_type": activity.activity_type,
         "activity_label": ACTIVITY_LABELS.get(activity.activity_type, activity.activity_type.replace("_", " ").title()),
+        "learning_role": learning_role_for(activity.activity_type, activity.metadata_json),
         "content_ref": activity.content_ref,
         "display_order": activity.display_order,
         "is_required": activity.is_required,
@@ -560,6 +577,8 @@ def _serialize_week(
         status = "in_progress"
     else:
         status = "not_started"
+    module = module_for_week(week.week_number)
+    stage = STAGE_BY_ID.get(module.stage_id) if module else None
     return {
         "id": week.id,
         "week_number": week.week_number,
@@ -581,7 +600,72 @@ def _serialize_week(
         "locked": locked,
         "lock_reason": lock_reason,
         "lock_requirements": lock_requirements or [],
+        "module": public_module(module) if module else None,
+        "stage": public_stage(stage) if stage else None,
     }
+
+
+def _serialize_module(state: dict, activities: list[dict] | None = None) -> dict | None:
+    module = module_for_week(state["week_number"])
+    if module is None:
+        return None
+    result = {
+        "stable_id": module.stable_id,
+        "stage_id": module.stage_id,
+        "title": module.title,
+        "purpose": module.purpose,
+        "display_order": module.display_order,
+        "route": f"/training/module/{module.stable_id}",
+        "learning_outcomes": state.get("learning_goals") or [],
+        "required_estimated_minutes": state["required_estimated_minutes"],
+        "required_complete": state["required_complete"],
+        "required_total": state["required_total"],
+        "optional_complete": state["optional_complete"],
+        "optional_total": state["optional_total"],
+        "completed_activity_count": state["completed_activity_count"],
+        "total_activity_count": state["total_activity_count"],
+        "completion_percent": state["completion_percent"],
+        "status": state["status"],
+        "is_complete": state["is_complete"],
+        "locked": state["locked"],
+        "lock_reason": state["lock_reason"],
+        "lock_requirements": state["lock_requirements"],
+    }
+    if activities is not None:
+        result["activities"] = activities
+    return result
+
+
+def _build_stage_path(week_states: list[tuple]) -> list[dict]:
+    state_by_week = {state["week_number"]: (state, items) for _, state, items in week_states}
+    stages = []
+    for stage in sorted(STAGES, key=lambda item: item.display_order):
+        modules = []
+        for module in sorted(
+            (item for item in MODULES if item.stage_id == stage.stable_id),
+            key=lambda item: item.display_order,
+        ):
+            entry = state_by_week.get(module.source_week_number)
+            if entry:
+                modules.append(_serialize_module(entry[0]))
+        if not modules:
+            continue
+        if all(module["is_complete"] for module in modules):
+            status = "complete"
+        elif all(module["locked"] for module in modules):
+            status = "locked"
+        elif any(module["status"] == "in_progress" for module in modules):
+            status = "in_progress"
+        else:
+            status = "available"
+        stages.append({
+            **public_stage(stage),
+            "status": status,
+            "is_complete": status == "complete",
+            "locked": status == "locked",
+            "modules": modules,
+        })
+    return stages
 
 
 def _build_state(db: Session, student: Student):
@@ -673,6 +757,12 @@ def build_training_overview(db: Session, student: Student) -> dict:
             None,
         )
     current_week = current_entry[1] if current_entry else (public_weeks[-1] if public_weeks else None)
+    current_module = _serialize_module(current_week) if current_week else None
+    stages = _build_stage_path(week_states)
+    current_stage = next(
+        (stage for stage in stages if stage["stable_id"] == current_module["stage_id"]),
+        None,
+    ) if current_module else None
     recently_completed = sorted(
         [item for _, _, items in week_states for item in items if item["complete"] and item.get("completed_at")],
         key=lambda item: item["completed_at"] if isinstance(item["completed_at"], datetime) else datetime.min,
@@ -682,6 +772,10 @@ def build_training_overview(db: Session, student: Student) -> dict:
         "current_week": current_week,
         "current_week_activities": current_entry[2] if current_entry else [],
         "weeks": public_weeks,
+        "current_stage": current_stage,
+        "current_module": current_module,
+        "current_activity": next_activity,
+        "stages": stages,
         "next_activity": next_activity,
         "recently_completed": recently_completed[0] if recently_completed else None,
         "training_complete": training_complete,
@@ -699,6 +793,19 @@ def build_training_week(db: Session, student: Student, week_number: int) -> dict
         )
         return {**state, "activities": items, "next_activity": next_activity}
     return None
+
+
+def build_training_module(db: Session, student: Student, module_id: str) -> dict | None:
+    module = next((item for item in MODULES if item.stable_id == module_id), None)
+    if module is None:
+        return None
+    detail = build_training_week(db, student, module.source_week_number)
+    if detail is None:
+        return None
+    result = _serialize_module(detail, detail["activities"])
+    result["next_activity"] = detail["next_activity"]
+    result["stage"] = public_stage(STAGE_BY_ID[module.stage_id])
+    return result
 
 
 def _metric(states: list[dict], activity_types: set[str], *, complete_key="complete") -> dict:
@@ -987,6 +1094,8 @@ def build_training_progress(db: Session, student: Student) -> dict:
     accessible_capstones = [item for item in states if item["activity_type"] == "capstone" and not item["permission_locked"]]
     return {
         "current_week": overview["current_week"],
+        "current_stage": overview["current_stage"],
+        "current_module": overview["current_module"],
         "weeks_completed": sum(1 for _, state, _ in week_states if state["is_complete"]),
         "total_weeks": len(week_states),
         "weekly_roadmap": overview["weeks"],
@@ -1149,16 +1258,25 @@ def validate_training_curriculum(db: Session) -> dict:
         .order_by(TrainingWeek.display_order, TrainingWeek.week_number)
         .all()
     )
-    issues = []
+    issues = structure_definition_issues()
     activities = [activity for week in weeks for activity in week.activities]
     active_weeks = [week for week in weeks if week.is_active]
     active_activities = [activity for week in active_weeks for activity in week.activities]
     cycle_ids = _hard_prerequisite_cycles(activities)
     activity_by_id = {activity.id: activity for activity in activities}
+    stable_id_counts = defaultdict(int)
+    for activity in activities:
+        stable_id_counts[activity.stable_id] += 1
+    for stable_id, count in stable_id_counts.items():
+        if count > 1:
+            issues.append({"code": "DUPLICATE_ACTIVITY_STABLE_ID", "severity": "error", "stable_id": stable_id, "message": "Activity stable ID is assigned more than once."})
     mapping_counts = defaultdict(int)
     if active_weeks and active_weeks[0].requires_previous_week:
         issues.append({"code": "FIRST_WEEK_LOCKED", "severity": "error", "week_number": active_weeks[0].week_number, "message": "The first active week cannot require a previous week."})
     for week in weeks:
+        module = module_for_week(week.week_number)
+        if week.is_active and module is None:
+            issues.append({"code": "UNMAPPED_ACTIVE_WEEK", "severity": "error", "week_number": week.week_number, "message": "Active storage week has no Stage/Module mapping."})
         if week.is_active and not week.activities:
             issues.append({"code": "EMPTY_WEEK", "severity": "error", "week_number": week.week_number, "message": "Active week has no activities and no completion path."})
         if week.is_active and week.activities and not any(item.is_required for item in week.activities):
@@ -1166,6 +1284,11 @@ def validate_training_curriculum(db: Session) -> dict:
         seen_orders = set()
         seen_required_refs = set()
         for activity in week.activities:
+            if week.is_active and module is None:
+                issues.append({"code": "UNMAPPED_ACTIVE_ACTIVITY", "severity": "error", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "Active activity has no Stage/Module mapping."})
+            role = learning_role_for(activity.activity_type, activity.metadata_json)
+            if role not in LEARNING_ROLES:
+                issues.append({"code": "INVALID_LEARNING_ROLE", "severity": "error", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "Activity learning role must be Learn, Check, Practice, Troubleshoot, or Prove."})
             if activity.display_order in seen_orders:
                 issues.append({"code": "DUPLICATE_ACTIVITY_ORDER", "severity": "warning", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "Two activities share a display order."})
             seen_orders.add(activity.display_order)
@@ -1206,6 +1329,12 @@ def validate_training_curriculum(db: Session) -> dict:
         "valid": not any(issue["severity"] == "error" for issue in issues),
         "week_count": len(weeks),
         "activity_count": sum(len(week.activities) for week in weeks),
+        "stage_count": len(STAGES),
+        "module_count": len(MODULES),
+        "mapped_activity_count": sum(len(week.activities) for week in active_weeks if module_for_week(week.week_number)),
+        "required_mapped_activity_count": sum(1 for activity in active_activities if activity.is_required and module_for_week(activity.week.week_number)),
+        "optional_mapped_activity_count": sum(1 for activity in active_activities if not activity.is_required and module_for_week(activity.week.week_number)),
+        "unmapped_activity_count": sum(1 for activity in active_activities if module_for_week(activity.week.week_number) is None),
         "enabled_video_count": len(enabled_video_ids),
         "mapped_video_count": sum(mapping_counts.values()),
         "mapping_summary": dict(mapping_counts),
