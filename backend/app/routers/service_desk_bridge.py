@@ -47,6 +47,19 @@ class ServiceDeskSkillCount(BaseModel):
     completed: int
 
 
+class ActiveServiceDeskAttempt(BaseModel):
+    attempt_id: int
+    scenario_title: str
+    started_at: str
+
+
+class RecentMentorFeedback(BaseModel):
+    scenario_title: str
+    feedback: str
+    feedback_by: str | None
+    feedback_at: str
+
+
 class ServiceDeskProgressSummary(BaseModel):
     tickets_completed: int
     passed_first_try: int
@@ -56,6 +69,8 @@ class ServiceDeskProgressSummary(BaseModel):
     skills: list[ServiceDeskSkillCount]
     needs_practice: list[str]
     recent_activity: list[RecentServiceDeskActivity]
+    active_attempt: ActiveServiceDeskAttempt | None = None
+    recent_mentor_feedback: RecentMentorFeedback | None = None
 
 
 def _isoformat(value: datetime) -> str:
@@ -175,6 +190,71 @@ def get_service_desk_progress_summary(
         .scalar()
         or 0
     )
+
+    active_row = (
+        db.query(ServiceDeskAttempt, ServiceDeskScenario)
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+        )
+        .join(
+            ServiceDeskScenario,
+            ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id,
+        )
+        .filter(
+            ServiceDeskAttempt.student_id == current_student.id,
+            ServiceDeskAttempt.status == "in_progress",
+        )
+        .order_by(ServiceDeskAttempt.started_at.desc(), ServiceDeskAttempt.id.desc())
+        .first()
+    )
+    active_attempt = (
+        ActiveServiceDeskAttempt(
+            attempt_id=active_row[0].id,
+            scenario_title=active_row[1].title,
+            started_at=_isoformat(active_row[0].started_at),
+        )
+        if active_row
+        else None
+    )
+
+    feedback_row = (
+        db.query(ServiceDeskAttemptGrade, ServiceDeskScenario)
+        .join(
+            ServiceDeskAttempt,
+            ServiceDeskAttempt.id == ServiceDeskAttemptGrade.attempt_id,
+        )
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+        )
+        .join(
+            ServiceDeskScenario,
+            ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id,
+        )
+        .filter(
+            ServiceDeskAttempt.student_id == current_student.id,
+            ServiceDeskAttemptGrade.mentor_feedback.isnot(None),
+        )
+        .order_by(
+            ServiceDeskAttemptGrade.mentor_feedback_at.desc(),
+            ServiceDeskAttemptGrade.id.desc(),
+        )
+        .first()
+    )
+    recent_mentor_feedback = (
+        RecentMentorFeedback(
+            scenario_title=feedback_row[1].title,
+            feedback=feedback_row[0].mentor_feedback,
+            feedback_by=feedback_row[0].mentor_feedback_by,
+            feedback_at=_isoformat(
+                feedback_row[0].mentor_feedback_at or feedback_row[0].calculated_at
+            ),
+        )
+        if feedback_row
+        else None
+    )
+
     return ServiceDeskProgressSummary(
         tickets_completed=len(passed_scenarios),
         passed_first_try=passed_first_try,
@@ -199,6 +279,8 @@ def get_service_desk_progress_summary(
             )
             for grade, scenario in recent_unique[:5]
         ],
+        active_attempt=active_attempt,
+        recent_mentor_feedback=recent_mentor_feedback,
     )
 
 
