@@ -11,6 +11,7 @@ from app.models.service_desk import (
 )
 from app.models.student import Student
 from app.models.training import TrainingWeek, TrainingWeekActivity
+from app.services.curriculum_structure import module_for_week
 from app.services.progression_service import derive_current_week
 
 
@@ -234,12 +235,18 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         week_met = current_week >= next_pack.required_week
         pass_count = passed_by_pack[prior_pack.key] if prior_pack else 0
         passes_met = pass_count >= next_pack.required_prior_passes
+        # The first pack becomes available after orientation; later packs use
+        # the module at their historical numeric progression threshold.
+        required_module = module_for_week(0 if next_index == 0 else next_pack.required_week)
+        required_module_title = (
+            required_module.title if required_module else "the required training module"
+        )
         if next_index == 0:
-            reason = "Complete Week 0 to begin your first Service Desk shift."
+            reason = "Complete Nexus Orientation to begin your first Service Desk shift."
         else:
             pending = []
             if not week_met:
-                pending.append(f"reach Week {next_pack.required_week}")
+                pending.append(f"reach {required_module_title}")
             if not passes_met:
                 remaining = next_pack.required_prior_passes - pass_count
                 pending.append(
@@ -251,6 +258,8 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
             "key": next_pack.key,
             "name": next_pack.name,
             "required_week": next_pack.required_week,
+            "required_module_id": required_module.stable_id if required_module else None,
+            "required_module_title": required_module_title,
             "required_passes": next_pack.required_prior_passes,
             "source_pack_name": prior_pack.name if prior_pack else None,
             "source_pack_passes": pass_count,
@@ -258,9 +267,9 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
             "requirements": {
                 "week": {
                     "label": (
-                        "Complete Week 0 training"
+                        "Complete Nexus Orientation"
                         if next_index == 0
-                        else f"Reach Week {next_pack.required_week} training"
+                        else f"Reach {required_module_title}"
                     ),
                     "met": week_met,
                 },

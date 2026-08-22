@@ -8,6 +8,7 @@ from app.models.training import TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.auth_service import get_current_student
 from app.services.training_service import (
+    build_training_module,
     build_training_overview,
     build_training_progress,
     build_training_week,
@@ -48,6 +49,20 @@ def get_training_week(
     return ok(week)
 
 
+@router.get("/modules/{module_id}")
+def get_training_module(
+    module_id: str,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    module = build_training_module(db, current_student, module_id)
+    if module is None:
+        raise HTTPException(status_code=404, detail="Training module not found")
+    if module["locked"] and not current_student.is_mentor:
+        raise HTTPException(status_code=403, detail=module["lock_reason"] or "Training module is locked")
+    return ok(module)
+
+
 @router.get("/next-activity")
 def get_next_training_activity(
     db: Session = Depends(get_db),
@@ -57,6 +72,8 @@ def get_next_training_activity(
     return ok(
         {
             "current_week": overview["current_week"],
+            "current_stage": overview["current_stage"],
+            "current_module": overview["current_module"],
             "next_activity": overview["next_activity"],
             "training_complete": overview["training_complete"],
         }

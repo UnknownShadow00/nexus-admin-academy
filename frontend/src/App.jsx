@@ -53,7 +53,7 @@ const adminNavItems = [
     label: "Learning Content",
     children: [
       { to: "/admin/modules", label: "Modules, Lessons & Quizzes" },
-      { to: "/admin/training", label: "Weekly Training" },
+      { to: "/admin/training", label: "Curriculum Structure" },
       { to: "/admin/curriculum", label: "Study Curriculum" },
       { to: "/admin/curriculum-tags", label: "Job Relevance Tags" },
       { to: "/admin/bookmarklet", label: "ExamCompass Import" },
@@ -368,6 +368,7 @@ export default function App() {
         <Route path="/learning-path" element={<RequireAuth><TrainingDashboardPage /></RequireAuth>} />
         <Route path="/training" element={<Navigate to="/learning-path" replace />} />
         <Route path="/training/week/:weekId" element={<RequireAuth><TrainingWeekPage /></RequireAuth>} />
+        <Route path="/training/module/:moduleId" element={<RequireAuth><TrainingWeekPage /></RequireAuth>} />
         <Route path="/training/content" element={<RequireAuth><StudyTrackerPage /></RequireAuth>} />
         <Route path="/skills" element={<RequireAuth><TrainingProgressPage /></RequireAuth>} />
         <Route path="/progress" element={<Navigate to="/skills" replace />} />

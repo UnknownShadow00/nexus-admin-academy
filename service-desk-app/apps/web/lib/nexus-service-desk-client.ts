@@ -46,6 +46,8 @@ export interface NexusServiceDeskProgression {
     key: string;
     name: string;
     reason: string;
+    required_module_id?: string | null;
+    required_module_title?: string | null;
     required_passes: number;
     required_week: number;
     source_pack_name: string;

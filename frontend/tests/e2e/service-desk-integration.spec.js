@@ -248,7 +248,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
 
     await pageA.goto("/service-desk");
     await expect(pageA.getByRole("heading", { name: "My Service Desk" })).toBeVisible();
-    await expect(pageA.getByText("Complete Week 0 to begin your first Service Desk shift.")).toBeVisible();
+    await expect(pageA.getByText("Complete Nexus Orientation to begin your first Service Desk shift.")).toBeVisible();
     await expect(pageA.getByRole("region", { name: "Assigned" })).toHaveCount(0);
     await expect(pageA.locator('a[href^="/service-desk/tickets/"]')).toHaveCount(0);
     await pageA.goto("/service-desk/tickets/INC2511");
@@ -272,7 +272,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await expect(pageA.getByText("No mastered cases yet", { exact: false })).toBeVisible();
     await expect(pageA.getByText("Next case pack", { exact: true })).toBeVisible();
     await expect(pageA.getByRole("heading", { name: "Desktop Support" })).toBeVisible();
-    await expect(pageA.getByText("○ Reach Week 3 training")).toBeVisible();
+    await expect(pageA.getByText("○ Reach Windows Fundamentals & Diagnostics")).toBeVisible();
     await expect(pageA.getByText(/○ Successfully resolve 2 Starter Support cases \(0\/2\)/)).toBeVisible();
     await expect(pageA.locator('a[href^="/service-desk/tickets/"]')).toHaveCount(4);
     await expect(pageA.getByText("Desktop opens with a temporary Windows profile")).toHaveCount(0);
@@ -302,7 +302,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const studentBAssignments = await (await pageB.request.get("/api/service-desk/assignments")).json();
     expect(studentBAssignments).toHaveLength(0);
     await pageB.goto("/service-desk");
-    await expect(pageB.getByText("Complete Week 0 to begin your first Service Desk shift.")).toBeVisible();
+    await expect(pageB.getByText("Complete Nexus Orientation to begin your first Service Desk shift.")).toBeVisible();
     await expect(pageB.locator('a[href^="/service-desk/tickets/"]')).toHaveCount(0);
     await contextB.close();
   });

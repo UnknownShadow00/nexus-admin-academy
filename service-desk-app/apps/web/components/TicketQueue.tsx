@@ -79,7 +79,8 @@ export function TicketQueue() {
             Your first shift is almost ready
           </p>
           <h2 className="mt-2 font-display text-xl font-bold text-zinc-100">
-            Complete Week 0 to begin your first Service Desk shift.
+            {progression.next_pack?.reason ||
+              'Complete Nexus Orientation to begin your first Service Desk shift.'}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
             Finish the Nexus orientation lesson and pass its checkpoint. Your

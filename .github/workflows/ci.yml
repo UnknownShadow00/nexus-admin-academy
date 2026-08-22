@@ -169,9 +169,14 @@ jobs:
           assert data["valid"] is True, data
           assert data["week_count"] == 25, data["week_count"]
           assert data["activity_count"] == 273, data["activity_count"]
+          assert data["stage_count"] == 9, data["stage_count"]
+          assert data["module_count"] == 25, data["module_count"]
+          assert data["mapped_activity_count"] == data["activity_count"], data
+          assert data["unmapped_activity_count"] == 0, data
+          assert data["required_mapped_activity_count"] + data["optional_mapped_activity_count"] == data["mapped_activity_count"], data
           assert data["enabled_video_count"] == 137, data["enabled_video_count"]
           assert data["mapped_video_count"] == 137, data["mapped_video_count"]
-          print("curriculum validation counts confirmed: 25 weeks, 273 activities, 137/137 videos mapped")
+          print("curriculum validation counts confirmed: 9 stages, 25 modules, 273/273 activities, 137/137 videos mapped")
           PY
 
       - name: Run CLI validate and sanity

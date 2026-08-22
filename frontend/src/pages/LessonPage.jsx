@@ -119,16 +119,16 @@ export default function LessonPage() {
         if (!cancelled) {
           const locked = requestError?.response?.status === 403;
           setError({
-            message: locked ? requestError?.userMessage || "Complete the previous week's required work first." : "This lesson could not be loaded.",
+            message: locked ? requestError?.userMessage || "Complete the current module's required work first." : "This lesson could not be loaded.",
             nextRoute: requestError?.response?.data?.data?.next_action_route || "/learning-path",
-            requiredWeek: requestError?.response?.data?.data?.required_week,
+            requiredModuleTitle: requestError?.response?.data?.data?.required_module_title,
           });
         }
       });
     return () => { cancelled = true; };
   }, [lessonId]);
 
-  if (error) return <main className="mx-auto max-w-3xl p-6"><BackLink className="mb-4 inline-flex items-center gap-1 text-blue-600" fallbackLabel="Learning Path" fallbackTo="/learning-path" /><div className="panel" role="alert"><h1 className="text-xl font-bold">{error.requiredWeek ? `Week ${error.requiredWeek} locked` : "Lesson locked"}</h1><p className="mt-2 text-slate-700 dark:text-slate-300">{error.message}</p><Link className="btn-primary mt-4" to={error.nextRoute}>Complete remaining work</Link></div></main>;
+  if (error) return <main className="mx-auto max-w-3xl p-6"><BackLink className="mb-4 inline-flex items-center gap-1 text-blue-600" fallbackLabel="Learning Path" fallbackTo="/learning-path" /><div className="panel" role="alert"><h1 className="text-xl font-bold">{error.requiredModuleTitle ? `${error.requiredModuleTitle} locked` : "Lesson locked"}</h1><p className="mt-2 text-slate-700 dark:text-slate-300">{error.message}</p><Link className="btn-primary mt-4" to={error.nextRoute}>Complete remaining work</Link></div></main>;
   if (!lesson) return <main className="mx-auto max-w-4xl p-6"><div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
 
   async function markComplete() {
@@ -143,8 +143,8 @@ export default function LessonPage() {
   }
 
   const embedUrl = getYouTubeEmbedUrl(lesson.video_url);
-  const relatedActivityRoute = lesson.related_activity_stable_id && lesson.related_activity_week_number != null
-    ? `/training/week/${lesson.related_activity_week_number}?activity=${encodeURIComponent(lesson.related_activity_stable_id)}`
+  const relatedActivityRoute = lesson.related_activity_stable_id && lesson.related_training_module_id
+    ? `/training/module/${lesson.related_training_module_id}?activity=${encodeURIComponent(lesson.related_activity_stable_id)}`
     : null;
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-4 pb-20 sm:p-6">
@@ -177,7 +177,7 @@ export default function LessonPage() {
       {relatedActivityRoute ? <section className="panel flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold">Put this lesson into practice</h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Continue with the related activity in this week's training plan.</p>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Continue with the related activity in this module.</p>
         </div>
         <Link className="btn-primary" to={relatedActivityRoute}>{relatedActivityCtaLabel(lesson.related_activity_type)}</Link>
       </section> : null}

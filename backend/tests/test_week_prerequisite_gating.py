@@ -107,10 +107,14 @@ def test_fresh_student_ticket_lock_has_exact_prerequisite_contract(db):
     assert response.json() == {
         "success": False,
         "code": "PREREQUISITE_NOT_MET",
-        "error": "Complete Week 0's required quiz first.",
+        "error": "Complete the required quiz in Nexus Orientation first.",
         "data": {
             "required_week": 1,
             "current_week": 0,
+            "required_module_id": "module.endpoint.support_workflow",
+            "required_module_title": "Support Workflow Essentials",
+            "current_module_id": "module.orientation.nexus",
+            "current_module_title": "Nexus Orientation",
             "next_action_route": "/quizzes/1",
         },
     }
@@ -171,9 +175,13 @@ def test_later_week_ticket_remains_locked_by_general_week_rule(db):
     assert response.json()["data"] == {
         "required_week": 3,
         "current_week": 1,
+        "required_module_id": "module.windows.fundamentals",
+        "required_module_title": "Windows Fundamentals & Diagnostics",
+        "current_module_id": "module.endpoint.support_workflow",
+        "current_module_title": "Support Workflow Essentials",
         "next_action_route": "/training",
     }
-    assert response.json()["error"] == "You'll unlock this once you reach Week 3."
+    assert response.json()["error"] == "You'll unlock this when you reach Windows Fundamentals & Diagnostics."
 
 
 def test_a_plus_video_progress_never_changes_hands_on_week_access(db):
@@ -248,7 +256,9 @@ def test_mod_001_learning_path_uses_current_week_zero_requirements(db):
 
     fresh = week_one_state()
     assert fresh["unlocked"] is False
-    assert fresh["unlock_requirements"] == ["Complete Week 0's required work first."]
+    assert fresh["unlock_requirements"] == [
+        "Complete Nexus Orientation's required work first."
+    ]
 
     db.add(
         StudentLessonProgress(

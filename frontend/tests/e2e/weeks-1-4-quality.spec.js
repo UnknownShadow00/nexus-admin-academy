@@ -89,7 +89,7 @@ async function deleteStudent(page, studentId) {
   expect(deleteResponse.ok()).toBeTruthy();
 }
 
-test("Week 1 journey: labels, CLI CTA, Practice/Apply split, and formative ticket exercise", async ({ page }) => {
+test("Support Workflow Essentials: learning roles, CLI CTA, and formative ticket exercise", async ({ page }) => {
   test.setTimeout(120_000);
   let studentId;
   try {
@@ -97,7 +97,7 @@ test("Week 1 journey: labels, CLI CTA, Practice/Apply split, and formative ticke
     studentId = created.studentId;
 
     await page.goto("/training/week/1");
-    await expect(page.getByRole("heading", { name: "IT Support and Ticket Basics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Support Workflow Essentials" })).toBeVisible();
 
     // Phase 2: video importance labels + legend
     await expect(page.getByText("Video importance:")).toBeVisible();
@@ -116,14 +116,14 @@ test("Week 1 journey: labels, CLI CTA, Practice/Apply split, and formative ticke
     expect(badgedCount).toBeGreaterThan(0);
     await assertNoHorizontalOverflow(page);
 
-    // Phase 6/8: Practice and Apply are distinct sections; no required Guided Lab in Week 1
+    // Practice and Troubleshoot are distinct roles; this module has no required Guided Lab.
     await expect(page.getByRole("heading", { name: "3. Practice" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "4. Apply" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "4. Troubleshoot" })).toBeVisible();
     await expect(page.locator('article[data-activity-type="guided_lab"]')).toHaveCount(0);
     await expect(page.locator('article[data-activity-type="networking_lab"]')).toHaveCount(1);
     const practiceSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "3. Practice" }) });
     await expect(practiceSection.locator('article[data-activity-type="networking_lab"]')).toBeVisible();
-    const applySection = page.locator("section").filter({ has: page.getByRole("heading", { name: "4. Apply" }) });
+    const applySection = page.locator("section").filter({ has: page.getByRole("heading", { name: "4. Troubleshoot" }) });
     await expect(applySection.locator('article[data-activity-type="service_desk_scenario"]')).toBeVisible();
 
     // Phase 3: "Meet the Command Line" no longer claims a dead requirement, CTA works
@@ -215,10 +215,10 @@ test("no mobile horizontal overflow on rebuilt lab pages", async ({ page }) => {
   }
 });
 
-test("admin Weekly Training reflects the Weeks 1-4 realignment", async ({ page }) => {
+test("admin Curriculum Structure reflects the early-module realignment", async ({ page }) => {
   await adminLogin(page);
   await page.getByRole("button", { name: /Learning Content/ }).click();
-  await page.getByRole("menuitem", { name: "Weekly Training" }).click();
-  await expect(page.getByRole("heading", { name: "Weekly Training" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Curriculum Structure" }).click();
+  await expect(page.getByRole("heading", { name: "Curriculum Structure" })).toBeVisible();
   await expect(page.getByText("References valid")).toBeVisible();
 });

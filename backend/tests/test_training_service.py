@@ -21,10 +21,19 @@ from app.models.service_desk import ServiceDeskAttempt, ServiceDeskScenario, Ser
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.training_service import (
+    build_training_module,
     build_training_overview,
     build_training_progress,
     build_training_week,
     validate_training_curriculum,
+)
+from app.services.curriculum_structure import (
+    MODULES,
+    STAGES,
+    ModuleDefinition,
+    StageDefinition,
+    learning_role_for,
+    structure_definition_issues,
 )
 from app.services.training_curriculum_seed import reconcile_week_zero_requirements, sync_initial_training_activities
 from app.services.training_curriculum_seed import VIDEO_WEEKS
@@ -142,6 +151,88 @@ def test_week_and_activity_ordering_and_optional_items(db, student):
     assert detail["optional_total"] == 1
 
 
+def test_stage_module_definitions_have_stable_unique_ids_and_one_week_mapping():
+    assert structure_definition_issues() == []
+    assert len({stage.stable_id for stage in STAGES}) == len(STAGES)
+    assert len({module.stable_id for module in MODULES}) == len(MODULES)
+    assert len({module.source_week_number for module in MODULES}) == len(MODULES) == 25
+
+
+def test_structure_validation_fails_loudly_for_duplicate_or_orphaned_metadata():
+    stages = (
+        StageDefinition("stage.test", "Test", "Test stage", 0),
+        StageDefinition("stage.test", "Duplicate", "Duplicate stage", 1),
+    )
+    modules = (
+        ModuleDefinition("module.test.one", "stage.missing", "One", "One", 0, 1),
+        ModuleDefinition("module.test.two", "stage.test", "Two", "Two", 0, 1),
+    )
+    codes = {issue["code"] for issue in structure_definition_issues(stages, modules)}
+    assert {"DUPLICATE_STAGE_ID", "MISSING_STAGE", "DUPLICATE_MODULE_MAPPING"}.issubset(codes)
+
+
+def test_learning_roles_are_presentation_metadata_not_completion_evidence():
+    assert learning_role_for("lesson") == "learn"
+    assert learning_role_for("quiz") == "check"
+    assert learning_role_for("guided_lab") == "practice"
+    assert learning_role_for("service_desk_scenario") == "troubleshoot"
+    assert learning_role_for("capstone") == "prove"
+    assert learning_role_for("guided_lab", {"learning_role": "prove"}) == "prove"
+
+
+def test_fresh_advanced_and_completed_students_resolve_stages_and_modules(db, student):
+    weeks = [add_week(db, number, requires_previous=number > 0) for number in range(3)]
+    videos = [add_video(db, 100 + number, title=f"Video {number}") for number in range(3)]
+    for number, (week, video) in enumerate(zip(weeks, videos, strict=True)):
+        add_activity(db, week, f"activity-{number}", "video", video.id, 1)
+    db.commit()
+
+    fresh = build_training_overview(db, student)
+    assert fresh["current_stage"]["stable_id"] == "stage.orientation"
+    assert fresh["current_module"]["stable_id"] == "module.orientation.nexus"
+    assert fresh["current_activity"]["stable_id"] == "activity-0"
+
+    db.add(VideoWatch(student_id=student.id, video_key=videos[0].video_key))
+    db.commit()
+    advanced = build_training_overview(db, student)
+    assert advanced["current_stage"]["stable_id"] == "stage.endpoint_foundations"
+    assert advanced["current_module"]["stable_id"] == "module.endpoint.support_workflow"
+    assert build_training_module(db, student, "module.orientation.nexus")["is_complete"] is True
+
+    db.add_all(VideoWatch(student_id=student.id, video_key=video.video_key) for video in videos[1:])
+    db.commit()
+    completed = build_training_overview(db, student)
+    assert completed["training_complete"] is True
+    assert completed["current_module"]["stable_id"] == "module.endpoint.pc_hardware"
+
+
+def test_existing_activity_completion_remains_authoritative_after_module_mapping(db, student):
+    week = add_week(db, 5, requires_previous=False)
+    video = add_video(db, 105, title="Existing completed activity")
+    activity = add_activity(db, week, "stable-existing-completion", "video", video.id, 1)
+    db.add(VideoWatch(student_id=student.id, video_key=video.video_key))
+    db.commit()
+
+    detail = build_training_module(db, student, "module.windows.troubleshooting")
+
+    assert detail["activities"][0]["stable_id"] == activity.stable_id
+    assert detail["activities"][0]["complete"] is True
+    assert detail["is_complete"] is True
+
+
+def test_unmapped_active_activity_and_invalid_learning_role_fail_validation(db, student):
+    week = add_week(db, 99, requires_previous=False)
+    video = add_video(db, 199)
+    add_activity(db, week, "unmapped", "video", video.id, 1, metadata={"learning_role": "mastered"})
+    db.commit()
+
+    validation = validate_training_curriculum(db)
+    codes = {issue["code"] for issue in validation["issues"]}
+    assert {"UNMAPPED_ACTIVE_WEEK", "UNMAPPED_ACTIVE_ACTIVITY", "INVALID_LEARNING_ROLE"}.issubset(codes)
+    assert validation["unmapped_activity_count"] == 1
+    assert validation["valid"] is False
+
+
 def test_service_desk_activity_is_validated_and_completed_only_by_passed_attempt(db, student):
     week = add_week(db, 1, requires_previous=False)
     scenario = ServiceDeskScenario(stable_key="training-service-desk", title="Training Service Desk", description="A test scenario for curriculum integration.", category="Identity", difficulty=1, status="active")
@@ -156,7 +247,7 @@ def test_service_desk_activity_is_validated_and_completed_only_by_passed_attempt
     assert validate_training_curriculum(db)["valid"] is True
     before = build_training_week(db, student, 1)["activities"][0]
     assert before["complete"] is False
-    assert before["destination_route"] == "/service-desk/tickets/TRAINING-SERVICE-DESK?returnTo=%2Ftraining%2Fweek%2F1"
+    assert before["destination_route"] == "/service-desk/tickets/TRAINING-SERVICE-DESK?returnTo=%2Ftraining%2Fmodule%2Fmodule.endpoint.support_workflow"
 
     db.add(ServiceDeskAttempt(student_id=student.id, scenario_version_id=version.id, mode="learning", status="completed", current_state={}, current_state_hash="b" * 64, state_version=0, attempt_number=1, score=100, passed=True))
     db.commit()

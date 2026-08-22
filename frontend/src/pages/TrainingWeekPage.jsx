@@ -5,15 +5,13 @@ import BackLink from "../components/BackLink";
 import TicketNoteExercise from "../components/TicketNoteExercise";
 import TrainingSubnav from "../components/TrainingSubnav";
 import { JOB_RELEVANCE_TAGS, JobRelevanceBadge } from "../components/ui/Badge";
-import { getTrainingWeek, markTrainingVideoWatched } from "../services/api";
+import { getTrainingModule, getTrainingWeek, markTrainingVideoWatched } from "../services/api";
 
-const learnTypes = new Set(["lesson", "video"]);
-
-function ActivityCard({ activity, cliPracticeRoute, isNext = false, onWatched, returnTo, weekNumber }) {
+function ActivityCard({ activity, cliPracticeRoute, isNext = false, onWatched, returnTo }) {
   const quiz = activity.linked_quiz;
   const actionLabel = activity.complete ? "Review" : activity.status === "in_progress" ? "Continue" : "Start";
-  const isWeekOneTicketLesson = weekNumber === 1 && activity.title === "Anatomy of a Good Ticket";
-  const isWeekOneCliLesson = weekNumber === 1 && activity.title === "Meet the Command Line";
+  const isWeekOneTicketLesson = activity.stable_id === "week-1-lesson-2";
+  const isWeekOneCliLesson = activity.stable_id === "week-1-lesson-3";
   const isInlineWeekOneLesson = isWeekOneTicketLesson || isWeekOneCliLesson;
   return (
     <article id={activity.stable_id} data-activity-type={activity.activity_type} className={`rounded-xl border bg-white p-4 dark:bg-slate-900 ${isNext ? "border-blue-500 ring-2 ring-blue-100 dark:border-blue-400 dark:ring-blue-950" : "border-slate-200 dark:border-slate-700"}`}>
@@ -44,52 +42,70 @@ function ActivityCard({ activity, cliPracticeRoute, isNext = false, onWatched, r
   );
 }
 
-function ActivitySection({ cliPracticeRoute, description, items, nextId, onWatched, returnTo, title, weekNumber }) {
+function ActivitySection({ cliPracticeRoute, description, items, nextId, onWatched, returnTo, title }) {
   if (!items.length) return null;
-  return <section className="space-y-3"><div><h2 className="text-2xl font-bold text-slate-950 dark:text-white">{title}</h2><p className="text-sm text-slate-600 dark:text-slate-300">{description}</p></div>{items.map((item) => <ActivityCard key={item.id} activity={item} cliPracticeRoute={cliPracticeRoute} isNext={item.id === nextId} onWatched={onWatched} returnTo={returnTo} weekNumber={weekNumber} />)}</section>;
+  return <section className="space-y-3"><div><h2 className="text-2xl font-bold text-slate-950 dark:text-white">{title}</h2><p className="text-sm text-slate-600 dark:text-slate-300">{description}</p></div>{items.map((item) => <ActivityCard key={item.id} activity={item} cliPracticeRoute={cliPracticeRoute} isNext={item.id === nextId} onWatched={onWatched} returnTo={returnTo} />)}</section>;
+}
+
+function normalizeModule(data) {
+  if (data?.stable_id?.startsWith("module.")) return data;
+  if (!data?.module) return null;
+  return {
+    ...data,
+    stable_id: data.module.stable_id,
+    stage_id: data.module.stage_id,
+    title: data.module.title,
+    purpose: data.module.purpose,
+    route: data.module.route,
+    learning_outcomes: data.learning_goals || [],
+  };
 }
 
 export default function TrainingWeekPage() {
-  const { weekId } = useParams();
+  const { moduleId, weekId } = useParams();
   const location = useLocation();
-  const [week, setWeek] = useState(null);
+  const [module, setModule] = useState(null);
   const [error, setError] = useState("");
-  const load = useCallback(() => getTrainingWeek(weekId, { suppressToast: true }).then((res) => { setWeek(res.data); setError(""); }).catch((err) => setError(err?.response?.status === 403 ? (err?.userMessage || "This week is locked. Complete the previous week's required work first.") : "This training week could not be loaded.")), [weekId]);
+  const load = useCallback(() => {
+    const request = moduleId ? getTrainingModule(moduleId, { suppressToast: true }) : getTrainingWeek(weekId, { suppressToast: true });
+    return request.then((res) => {
+      const normalized = normalizeModule(res.data);
+      if (!normalized) throw new Error("Missing module mapping");
+      setModule(normalized);
+      setError("");
+    }).catch((err) => setError(err?.response?.status === 403 ? (err?.userMessage || "This module is locked. Complete the current module first.") : "This training module could not be loaded."));
+  }, [moduleId, weekId]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     const activityId = new URLSearchParams(location.search).get("activity");
-    if (week && activityId) requestAnimationFrame(() => document.getElementById(activityId)?.scrollIntoView({ behavior: "smooth", block: "center" }));
-  }, [location.search, week]);
+    if (module && activityId) requestAnimationFrame(() => document.getElementById(activityId)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }, [location.search, module]);
   const handleWatched = async (activity) => {
     await markTrainingVideoWatched(activity.id);
     await load();
   };
   if (error) return <main className="mx-auto max-w-3xl p-6"><BackLink className="mb-4 inline-flex items-center gap-1 text-blue-600" fallbackLabel="Learning Path" fallbackTo="/learning-path" /><div role="alert" className="panel">{error}</div></main>;
-  if (!week) return <main className="mx-auto max-w-5xl p-6"><div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
-  const required = week.activities.filter((item) => item.is_required);
-  const extra = week.activities.filter((item) => !item.is_required);
-  const requiredLearn = required.filter((item) => learnTypes.has(item.activity_type));
-  const requiredQuiz = required.filter((item) => item.activity_type === "quiz");
-  const applyTypes = new Set(["service_desk_scenario", "capstone"]);
-  const requiredPractice = required.filter((item) => !learnTypes.has(item.activity_type) && item.activity_type !== "quiz" && !applyTypes.has(item.activity_type));
-  const requiredApply = required.filter((item) => applyTypes.has(item.activity_type));
-  const nextId = week.next_activity?.id;
-  const returnTo = `/training/week/${week.week_number}`;
-  const cliPracticeRoute = week.week_number === 1 ? week.activities.find((item) => item.stable_id === "week-1-networking_lab-meet-cli-001")?.destination_route : null;
+  if (!module) return <main className="mx-auto max-w-5xl p-6"><div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
+  const required = module.activities.filter((item) => item.is_required);
+  const extra = module.activities.filter((item) => !item.is_required);
+  const byRole = (role) => required.filter((item) => item.learning_role === role);
+  const nextId = module.next_activity?.id;
+  const returnTo = module.route;
+  const cliPracticeRoute = module.activities.find((item) => item.stable_id === "week-1-networking_lab-meet-cli-001")?.destination_route;
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6">
       <Link className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to="/learning-path"><ChevronLeft size={16} />Learning Path</Link>
       <TrainingSubnav />
       <header className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900 sm:p-7">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">Week {week.week_number}</p><h1 className="mt-2 text-3xl font-bold text-slate-950 dark:text-white">{week.title}</h1><p className="mt-2 max-w-3xl text-slate-600 dark:text-slate-300">{week.description}</p>
-        <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto] md:items-end"><div><div className="mb-2 flex justify-between text-sm text-slate-600 dark:text-slate-300"><span>{week.required_complete} of {week.required_total} required complete{week.required_estimated_minutes ? ` · about ${Math.ceil(week.required_estimated_minutes / 60)} hr` : ""}</span><strong>{week.completion_percent}%</strong></div><div className="h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full bg-blue-600" style={{ width: `${week.completion_percent}%` }} /></div></div>{week.next_activity?.destination_route ? week.next_activity.activity_type === "service_desk_scenario" ? <a className="btn-primary" href={week.next_activity.destination_route}>Continue Next Activity</a> : <Link className="btn-primary" to={week.next_activity.destination_route} state={{ returnTo }}>Continue Next Activity</Link> : null}</div>
-        {week.learning_goals?.length ? <div className="mt-5"><h2 className="font-bold text-slate-900 dark:text-white">What to know before the quiz</h2><ul className="mt-2 grid gap-2 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-2">{week.learning_goals.map((goal) => <li key={goal} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-blue-600" />{goal}</li>)}</ul></div> : null}
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">{module.stage?.title || "Learning Path"} · Module</p><h1 className="mt-2 text-3xl font-bold text-slate-950 dark:text-white">{module.title}</h1><p className="mt-2 max-w-3xl text-slate-600 dark:text-slate-300">{module.purpose}</p>
+        <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto] md:items-end"><div><div className="mb-2 flex justify-between text-sm text-slate-600 dark:text-slate-300"><span>{module.required_complete} of {module.required_total} required complete{module.required_estimated_minutes ? ` · about ${Math.ceil(module.required_estimated_minutes / 60)} hr` : ""}</span><strong>{module.completion_percent}%</strong></div><div className="h-3 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full bg-blue-600" style={{ width: `${module.completion_percent}%` }} /></div></div>{module.next_activity?.destination_route ? module.next_activity.activity_type === "service_desk_scenario" ? <a className="btn-primary" href={module.next_activity.destination_route}>Continue Current Activity</a> : <Link className="btn-primary" to={module.next_activity.destination_route} state={{ returnTo }}>Continue Current Activity</Link> : null}</div>
+        {module.learning_outcomes?.length ? <div className="mt-5"><h2 className="font-bold text-slate-900 dark:text-white">What you will learn</h2><ul className="mt-2 grid gap-2 text-sm text-slate-600 dark:text-slate-300 sm:grid-cols-2">{module.learning_outcomes.map((goal) => <li key={goal} className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-blue-600" />{goal}</li>)}</ul></div> : null}
       </header>
-      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100"><strong>Your required path:</strong> Learn → Quiz → Practice → Apply. Complete these sections in order; extra practice is optional and collapsed below.</div>
-      {requiredLearn.some((item) => item.activity_type === "video") ? (
+      <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100"><strong>Your learning pattern:</strong> Learn → Check → Practice → Troubleshoot → Prove. This labels the kind of learning activity; competency evidence is still evaluated separately.</div>
+      {byRole("learn").some((item) => item.activity_type === "video") ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300">
           <span className="font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Video importance:</span>
-          {Object.entries(JOB_RELEVANCE_TAGS).map(([key, tag]) => (
+          {Object.keys(JOB_RELEVANCE_TAGS).map((key) => (
             <span key={key} className="inline-flex items-center gap-1.5">
               <JobRelevanceBadge value={key} />
               {key === "job_critical" ? "comfortable using/explaining on the job" : key === "know_it" ? "recall for troubleshooting/interviews" : "recognize the concept"}
@@ -97,12 +113,13 @@ export default function TrainingWeekPage() {
           ))}
         </div>
       ) : null}
-      <ActivitySection title="1. Learn" description="Build the core knowledge for this week." items={requiredLearn} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} weekNumber={week.week_number} cliPracticeRoute={cliPracticeRoute} />
-      <ActivitySection title="2. Quiz" description="Check your understanding and review the explanation after each answer." items={requiredQuiz} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} weekNumber={week.week_number} cliPracticeRoute={cliPracticeRoute} />
-      <ActivitySection title="3. Practice" description="Build the week’s skill in a real, hands-on exercise." items={requiredPractice} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} weekNumber={week.week_number} cliPracticeRoute={cliPracticeRoute} />
-      <ActivitySection title="4. Apply" description="Use what you learned in a realistic support case." items={requiredApply} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} weekNumber={week.week_number} cliPracticeRoute={cliPracticeRoute} />
-      {extra.length ? <details className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 dark:border-violet-900 dark:bg-violet-950/10"><summary className="cursor-pointer font-bold text-violet-900 dark:text-violet-200">Extra practice ({extra.length}) <span className="ml-2 text-sm font-normal text-violet-700 dark:text-violet-300">Optional — does not affect week completion</span></summary><div className="mt-4 space-y-3">{extra.map((item) => <ActivityCard key={item.id} activity={item} cliPracticeRoute={cliPracticeRoute} onWatched={handleWatched} returnTo={returnTo} weekNumber={week.week_number} />)}</div></details> : null}
-      <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/20"><h2 className="text-xl font-bold text-slate-950 dark:text-white">{week.is_complete ? `Week ${week.week_number} Complete` : `Week ${week.week_number} Progress`}</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{week.required_complete} of {week.required_total} required activities complete</p>{week.next_activity?.destination_route ? week.next_activity.activity_type === "service_desk_scenario" ? <a className="btn-primary mt-4" href={week.next_activity.destination_route}>Continue Next Activity</a> : <Link className="btn-primary mt-4" to={week.next_activity.destination_route} state={{ returnTo }}>Continue Next Activity</Link> : <Link className="btn-primary mt-4" to="/learning-path">Return to Learning Path</Link>}</section>
+      <ActivitySection title="1. Learn" description="Build the core knowledge for this module." items={byRole("learn")} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} cliPracticeRoute={cliPracticeRoute} />
+      <ActivitySection title="2. Check" description="Check your understanding and review the explanations." items={byRole("check")} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} cliPracticeRoute={cliPracticeRoute} />
+      <ActivitySection title="3. Practice" description="Use the concepts in a guided or hands-on exercise." items={byRole("practice")} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} cliPracticeRoute={cliPracticeRoute} />
+      <ActivitySection title="4. Troubleshoot" description="Apply a support process to a realistic problem." items={byRole("troubleshoot")} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} cliPracticeRoute={cliPracticeRoute} />
+      <ActivitySection title="5. Prove" description="Complete an integrated challenge or project when one is available." items={byRole("prove")} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} cliPracticeRoute={cliPracticeRoute} />
+      {extra.length ? <details className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 dark:border-violet-900 dark:bg-violet-950/10"><summary className="cursor-pointer font-bold text-violet-900 dark:text-violet-200">Optional practice ({extra.length}) <span className="ml-2 text-sm font-normal text-violet-700 dark:text-violet-300">Does not affect module completion</span></summary><div className="mt-4 space-y-3">{extra.map((item) => <ActivityCard key={item.id} activity={item} cliPracticeRoute={cliPracticeRoute} onWatched={handleWatched} returnTo={returnTo} />)}</div></details> : null}
+      <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/20"><h2 className="text-xl font-bold text-slate-950 dark:text-white">{module.is_complete ? "Module Complete" : "Module Progress"}</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{module.required_complete} of {module.required_total} required activities complete</p>{module.next_activity?.destination_route ? module.next_activity.activity_type === "service_desk_scenario" ? <a className="btn-primary mt-4" href={module.next_activity.destination_route}>Continue Current Activity</a> : <Link className="btn-primary mt-4" to={module.next_activity.destination_route} state={{ returnTo }}>Continue Current Activity</Link> : <Link className="btn-primary mt-4" to="/learning-path">Return to Learning Path</Link>}</section>
     </main>
   );
 }
