@@ -32,37 +32,59 @@ export default function TrainingProgressPage() {
   if (!data) return <main className="mx-auto max-w-5xl p-6"><div className="h-56 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
   const current = data.current_week;
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6">
-      <div><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Progress</h1><p className="mt-1 text-slate-600 dark:text-slate-300">Review your weekly completion, scores, practice, rank, and capstone readiness.</p></div>
-      <section className="rounded-2xl bg-slate-950 p-5 text-white dark:bg-blue-950 sm:p-7"><div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-sm font-semibold uppercase tracking-wide text-blue-300">Course progress</p><p className="mt-2 text-4xl font-bold">{data.overall_training.percent}%</p><p className="mt-2 text-sm text-slate-300">{data.overall_training.completed} of {data.overall_training.total} required activities complete</p>{current ? <p className="mt-3 text-sm text-white">Current: Week {current.week_number} — {current.title}</p> : null}</div><Link className="inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 font-bold text-blue-700" to="/training">Continue Training</Link></div></section>
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Metric label="Videos Watched" metric={data.videos} Icon={PlayCircle} /><Metric label="Quizzes Completed" metric={data.quizzes} Icon={Trophy} note={`Average quiz score: ${data.quizzes.average_score_percent ?? 0}% · Best quiz score: ${data.quizzes.best_score_percent ?? 0}%`} /><Metric label="Required Practice" metric={data.practice} Icon={FlaskConical} /><Metric label="Guided Labs" metric={data.guided_labs} Icon={CheckCircle2} /><Metric label="Service Desk Scenarios" metric={data.service_desk} Icon={Ticket} /><Metric label="Weeks Completed" metric={{ completed: data.weeks_completed, total: data.total_weeks, percent: data.total_weeks ? Math.round(data.weeks_completed / data.total_weeks * 100) : 0 }} Icon={Target} /></section>
+    <main className="mx-auto max-w-5xl space-y-8 p-4 pb-20 sm:p-6">
+      <div><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Skills</h1><p className="mt-1 text-slate-600 dark:text-slate-300">What you've completed, and where the evidence of real skill comes from.</p></div>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-950 dark:text-white">Training Progress</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">How much of the course you've completed — not yet a measure of independent skill.</p>
+        </div>
+        <div className="rounded-2xl bg-slate-950 p-5 text-white dark:bg-blue-950 sm:p-7">
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-300">Course progress</p>
+          <p className="mt-2 text-4xl font-bold">{data.overall_training.percent}%</p>
+          <p className="mt-2 text-sm text-slate-300">{data.overall_training.completed} of {data.overall_training.total} required activities complete</p>
+          {current ? <p className="mt-3 text-sm text-white">Current: Week {current.week_number} — {current.title}</p> : null}
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Metric label="Videos Watched" metric={data.videos} Icon={PlayCircle} /><Metric label="Quizzes Completed" metric={data.quizzes} Icon={Trophy} note={`Average quiz score: ${data.quizzes.average_score_percent ?? 0}% · Best quiz score: ${data.quizzes.best_score_percent ?? 0}%`} /><Metric label="Required Practice" metric={data.practice} Icon={FlaskConical} /><Metric label="Guided Labs" metric={data.guided_labs} Icon={CheckCircle2} /><Metric label="Tickets" metric={data.service_desk} Icon={Ticket} /><Metric label="Weeks Completed" metric={{ completed: data.weeks_completed, total: data.total_weeks, percent: data.total_weeks ? Math.round(data.weeks_completed / data.total_weeks * 100) : 0 }} Icon={Target} /></div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="panel"><div className="flex items-center gap-2"><Award className="text-violet-600" /><h3 className="text-lg font-bold">Rank Progress</h3></div><p className="mt-3 text-sm text-slate-600 dark:text-slate-300">Current role: <strong>{data.rank_progress?.current_role?.name || data.rank_progress?.current_role || "Trainee"}</strong></p><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{data.rank_progress?.next_role ? `Next role: ${data.rank_progress.next_role.name || data.rank_progress.next_role}` : "Highest configured role reached"}</p></div>
+          <div className="panel"><h3 className="text-lg font-bold">Capstone Readiness</h3><p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{data.capstone_readiness?.available ? "You can access the capstones appropriate for your current role." : "Keep completing weekly requirements and role gates to unlock capstones."}</p><p className="mt-2 text-sm font-semibold text-blue-600 dark:text-blue-400">{data.capstone_readiness?.available || 0} of {data.capstone_readiness?.total || 0} available</p></div>
+        </div>
+        <p className="text-sm"><Link className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to="/learning-path">View full learning path →</Link></p>
+      </section>
+
       {serviceDeskSummary ? (
-        <section className="panel">
-          <h2 className="text-xl font-bold">Service Desk Simulator</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div><p className="text-sm text-slate-500 dark:text-slate-400">Scenarios completed</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.tickets_completed}</p></div>
-            <div><p className="text-sm text-slate-500 dark:text-slate-400">Passed first try</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.passed_first_try}</p></div>
-            <div><p className="text-sm text-slate-500 dark:text-slate-400">Needed revision</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.needed_revision}</p></div>
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-950 dark:text-white">Skill Evidence</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Based on tickets you've actually resolved — real evidence, not a completion count.</p>
           </div>
-          {serviceDeskSummary.skills?.length ? <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700"><h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Skills practiced</h3><div className="mt-2 flex flex-wrap gap-2">{serviceDeskSummary.skills.map((skill) => <span className="rounded-full bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 dark:bg-blue-950/30 dark:text-blue-200" key={skill.name}>{skill.name} · {skill.completed}</span>)}</div></div> : null}
-          {serviceDeskSummary.needs_practice?.length ? <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/20"><h3 className="font-semibold text-amber-900 dark:text-amber-200">Needs practice</h3><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800 dark:text-amber-300">{serviceDeskSummary.needs_practice.map((title) => <li key={title}>{title}</li>)}</ul></div> : null}
-          {serviceDeskSummary.recent_activity?.length ? (
-            <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Recent activity</h3>
-              <ul className="mt-2 divide-y divide-slate-200 dark:divide-slate-700">
-                {serviceDeskSummary.recent_activity.map((activity, index) => (
-                  <li className="flex items-start justify-between gap-4 py-2" key={`${activity.created_at}-${index}`}>
-                    <div><p className="font-medium">{activity.title}</p>{activity.detail ? <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{activity.detail}</p> : null}</div>
-                    <time className="shrink-0 text-xs text-slate-500 dark:text-slate-400" dateTime={activity.created_at}>{formatShortDate(activity.created_at)}</time>
-                  </li>
-                ))}
-              </ul>
+          <div className="panel">
+            <h3 className="text-lg font-bold">Tickets</h3>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div><p className="text-sm text-slate-500 dark:text-slate-400">Resolved</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.tickets_completed}</p></div>
+              <div><p className="text-sm text-slate-500 dark:text-slate-400">Resolved first try</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.passed_first_try}</p></div>
+              <div><p className="text-sm text-slate-500 dark:text-slate-400">Needed a second attempt</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.needed_revision}</p></div>
             </div>
-          ) : null}
+            {serviceDeskSummary.skills?.length ? <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700"><h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Skills practiced</h4><div className="mt-2 flex flex-wrap gap-2">{serviceDeskSummary.skills.map((skill) => <span className="rounded-full bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 dark:bg-blue-950/30 dark:text-blue-200" key={skill.name}>{skill.name} · {skill.completed}</span>)}</div></div> : null}
+            {serviceDeskSummary.needs_practice?.length ? <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/20"><h4 className="font-semibold text-amber-900 dark:text-amber-200">Needs practice</h4><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800 dark:text-amber-300">{serviceDeskSummary.needs_practice.map((title) => <li key={title}>{title}</li>)}</ul></div> : null}
+            {serviceDeskSummary.recent_activity?.length ? (
+              <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Recent activity</h4>
+                <ul className="mt-2 divide-y divide-slate-200 dark:divide-slate-700">
+                  {serviceDeskSummary.recent_activity.map((activity, index) => (
+                    <li className="flex items-start justify-between gap-4 py-2" key={`${activity.created_at}-${index}`}>
+                      <div><p className="font-medium">{activity.title}</p>{activity.detail ? <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{activity.detail}</p> : null}</div>
+                      <time className="shrink-0 text-xs text-slate-500 dark:text-slate-400" dateTime={activity.created_at}>{formatShortDate(activity.created_at)}</time>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
         </section>
       ) : null}
-      <section className="grid gap-4 md:grid-cols-2"><div className="panel"><div className="flex items-center gap-2"><Award className="text-violet-600" /><h2 className="text-xl font-bold">Rank Progress</h2></div><p className="mt-3 text-sm text-slate-600 dark:text-slate-300">Current role: <strong>{data.rank_progress?.current_role?.name || data.rank_progress?.current_role || "Trainee"}</strong></p><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{data.rank_progress?.next_role ? `Next role: ${data.rank_progress.next_role.name || data.rank_progress.next_role}` : "Highest configured role reached"}</p></div><div className="panel"><h2 className="text-xl font-bold">Capstone Readiness</h2><p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{data.capstone_readiness?.available ? "You can access the capstones appropriate for your current role." : "Keep completing weekly requirements and role gates to unlock capstones."}</p><p className="mt-2 text-sm font-semibold text-blue-600 dark:text-blue-400">{data.capstone_readiness?.available || 0} of {data.capstone_readiness?.total || 0} available</p></div></section>
-      <section><h2 className="text-xl font-bold">Weekly Roadmap</h2><div className="mt-3 space-y-2">{data.weekly_roadmap.map((week) => <Link key={week.id} to={week.locked ? "/progress" : `/training/week/${week.week_number}`} aria-disabled={week.locked} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"><div><p className="font-semibold">Week {week.week_number} — {week.title}</p><p className="text-xs text-slate-500">{week.required_complete} of {week.required_total} required</p></div><span className="text-sm font-bold text-slate-600 dark:text-slate-300">{week.locked ? "Locked" : week.is_complete ? "Complete" : `${week.completion_percent}%`}</span></Link>)}</div></section>
     </main>
   );
 }
