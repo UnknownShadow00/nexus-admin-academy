@@ -113,9 +113,17 @@ Gates are seeded in `seed.py`'s `PROMOTION_GATES`. Supported requirement types:
 |---|---|---|
 | `min_completed_lessons` | `{"module_codes": ["MOD-005"]}` | all published lessons in those modules have submitted notes |
 | `min_mastery_by_domain` | `{"thresholds": {"networking": 70}}` | quiz mastery ≥ N% per domain |
-| `min_verified_tickets_by_difficulty` | `{"thresholds": {"2": 8, "3": 2}}` | counts of verified tickets by difficulty |
-| `practical_checkpoint` | `{"ticket_title": "Multi-Ticket Simulation 2", "max_hints": 1, "min_score": 7}` | a named ticket passed within hint/score limits |
+| `min_service_desk_passes` | `{"pack_key": "desktop-support", "min_passed": 5}` | distinct assessment-mode Service Desk scenarios passed within that pack |
+| `min_cli_labs` | `{"min_completed": 9}` | CLI lab completions |
 | `no_unresolved_flags` | `{}` | no open mentor flags |
+
+`min_verified_tickets_by_difficulty` and `practical_checkpoint` (legacy Ticket-based)
+are retired from the active seeded config as of the progression-foundation refactor —
+the legacy Ticket product has no student-facing path to earn new submissions, so these
+types can no longer be satisfied by new students. The evaluators still exist in
+`progression_service.py` for backward compatibility with any stray historical gate
+rows, but `seed_promotion_gates` actively deletes rows of these two types on every run.
+Service Desk assessment results are the authoritative practical-evidence source now.
 
 Do not build a second progression system — extend this one.
 
