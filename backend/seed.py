@@ -92,13 +92,8 @@ PROMOTION_GATES = [
     },
     {
         "role": "Support Technician I",
-        "requirement_type": "min_verified_tickets_by_difficulty",
-        "config": {"thresholds": {"1": 4, "2": 2}},
-    },
-    {
-        "role": "Support Technician I",
-        "requirement_type": "practical_checkpoint",
-        "config": {"ticket_title": "Multi-Ticket Simulation 1", "max_hints": 0, "min_score": 7},
+        "requirement_type": "min_service_desk_passes",
+        "config": {"pack_key": "starter-support", "min_passed": 4},
     },
     {
         "role": "Support Technician I",
@@ -111,7 +106,8 @@ PROMOTION_GATES = [
         "config": {},
     },
     # ---- GATE 2: Support Technician I → Support Technician II (end of Week 8) ----
-    # Ticket/mastery thresholds per the master doc; checkpoint is Simulation 2.
+    # Mastery threshold per the master doc; practical evidence is the
+    # desktop-support Service Desk pack (see SERVICE_DESK_PACKS).
     {
         "role": "Support Technician II",
         "requirement_type": "required_quiz",
@@ -129,13 +125,8 @@ PROMOTION_GATES = [
     },
     {
         "role": "Support Technician II",
-        "requirement_type": "min_verified_tickets_by_difficulty",
-        "config": {"thresholds": {"1": 6, "2": 8, "3": 2}},
-    },
-    {
-        "role": "Support Technician II",
-        "requirement_type": "practical_checkpoint",
-        "config": {"ticket_title": "Multi-Ticket Simulation 2", "max_hints": 1, "min_score": 7},
+        "requirement_type": "min_service_desk_passes",
+        "config": {"pack_key": "desktop-support", "min_passed": 5},
     },
     {
         "role": "Support Technician II",
@@ -160,8 +151,8 @@ PROMOTION_GATES = [
     },
     {
         "role": "Network Support Technician",
-        "requirement_type": "min_verified_tickets_by_difficulty",
-        "config": {"thresholds": {"3": 3, "4": 2}},
+        "requirement_type": "min_service_desk_passes",
+        "config": {"pack_key": "accounts-access", "min_passed": 4},
     },
     {
         "role": "Network Support Technician",
@@ -186,13 +177,8 @@ PROMOTION_GATES = [
     },
     {
         "role": "Junior Systems Technician",
-        "requirement_type": "min_mastery_by_domain",
-        "config": {"thresholds": {"windows_server": 75, "active_directory": 75}},
-    },
-    {
-        "role": "Junior Systems Technician",
-        "requirement_type": "min_verified_tickets_by_difficulty",
-        "config": {"thresholds": {"3": 3, "4": 1}},
+        "requirement_type": "min_service_desk_passes",
+        "config": {"pack_key": "networking", "min_passed": 4},
     },
     {
         "role": "Junior Systems Technician",
@@ -215,13 +201,8 @@ PROMOTION_GATES = [
     },
     {
         "role": "Junior Infrastructure Administrator",
-        "requirement_type": "min_verified_tickets_by_difficulty",
-        "config": {"thresholds": {"3": 3, "4": 3}},
-    },
-    {
-        "role": "Junior Infrastructure Administrator",
-        "requirement_type": "practical_checkpoint",
-        "config": {"ticket_title": "Multi-Ticket Simulation 3", "max_hints": 1, "min_score": 7},
+        "requirement_type": "min_service_desk_passes",
+        "config": {"pack_key": "advanced-troubleshooting", "min_passed": 4},
     },
     {
         "role": "Junior Infrastructure Administrator",
@@ -843,15 +824,43 @@ def seed_default_student_roles(db):
 
 
 def seed_promotion_gates(db):
+    from app.services.promotion_gate_validation import validate_promotion_gates_config
+    from app.services.service_desk_progression import SERVICE_DESK_PACKS
+
+    issues = validate_promotion_gates_config(
+        PROMOTION_GATES,
+        service_desk_pack_keys={pack.key for pack in SERVICE_DESK_PACKS},
+    )
+    if issues:
+        raise RuntimeError(
+            "Refusing to seed PROMOTION_GATES: " + "; ".join(issues)
+        )
+
+    keep_pairs = set()
     for gate in PROMOTION_GATES:
         role = db.query(Role).filter(Role.name == gate["role"]).first()
         if not role:
             continue
+        keep_pairs.add((role.id, gate["requirement_type"]))
         exists = db.query(PromotionGate).filter(PromotionGate.role_id == role.id, PromotionGate.requirement_type == gate["requirement_type"]).first()
         if exists:
             exists.requirement_config = gate["config"]
         else:
             db.add(PromotionGate(role_id=role.id, requirement_type=gate["requirement_type"], requirement_config=gate["config"]))
+    db.flush()
+
+    # PromotionGate rows are exclusively seed-authored (the only admin router
+    # touching this table, admin_content.list_promotion_gates, is read-only),
+    # so it is safe to prune any row whose (role, requirement_type) no longer
+    # appears in PROMOTION_GATES above at all — not just the two ticket-based
+    # types retired by name. A row orphaned this way (its type simply removed
+    # from the active config, e.g. an old min_mastery_by_domain sub-requirement)
+    # would otherwise survive re-seeding forever and keep enforcing a
+    # config that was deliberately deleted, exactly as Gate 4's stale
+    # windows_server/active_directory row did in production until this fix.
+    for row in db.query(PromotionGate).all():
+        if (row.role_id, row.requirement_type) not in keep_pairs:
+            db.delete(row)
 
 
 def seed_module0_and_methodology(db):
