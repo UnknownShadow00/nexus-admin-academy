@@ -1,14 +1,14 @@
 import { NavLink } from "react-router-dom";
 
 const items = [
-  { to: "/training", label: "Weekly Plan", end: true },
+  { to: "/learning-path", label: "Overview", end: true },
   { to: "/training/content", label: "All Course Content" },
   { to: "/quizzes", label: "Quiz Library" },
 ];
 
 export default function TrainingSubnav() {
   return (
-    <nav aria-label="My Training sections" className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
+    <nav aria-label="Learning Path sections" className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
       {items.map((item) => (
         <NavLink
           key={item.to}

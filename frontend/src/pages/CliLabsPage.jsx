@@ -1,6 +1,7 @@
 import { CheckCircle2, ChevronDown, ChevronRight, Clock, Network } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import BackLink from "../components/BackLink";
 import PageHeader from "../components/ui/PageHeader";
 import { cliLabCompartments, cliLessons } from "../features/cli-labs/data/lessonCatalog";
 import { getCliLabs } from "../services/api";
@@ -38,6 +39,7 @@ export default function CliLabsPage() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 p-6">
+      <BackLink fallbackLabel="Labs" fallbackTo="/labs" />
       <div className="panel dark:border-slate-700 dark:bg-slate-900">
         <PageHeader
           title="Networking Labs"

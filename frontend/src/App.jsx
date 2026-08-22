@@ -40,20 +40,11 @@ const CurriculumTagsPage = lazy(() => import("./pages/admin/CurriculumTagsPage")
 const QuizEditorPage = lazy(() => import("./pages/admin/QuizEditorPage"));
 const AdminTrainingPage = lazy(() => import("./pages/admin/AdminTrainingPage"));
 const studentNavItems = [
-  { to: "/", label: "Today" },
-  { to: "/training", label: "This Week" },
-  { to: "/service-desk", label: "Service Desk", external: true },
-  { to: "/progress", label: "Progress" },
-  {
-    label: "Extra Practice",
-    children: [
-      { to: "/labs", label: "Guided Labs" },
-      { to: "/cli-labs", label: "Networking Labs" },
-      { to: "/capstones", label: "Capstones" },
-      { to: "/commands", label: "Command Library" },
-      { to: "/terminal", label: "Terminal Practice" },
-    ],
-  },
+  { to: "/", label: "Dashboard" },
+  { to: "/learning-path", label: "Learning Path" },
+  { to: "/service-desk", label: "Tickets", external: true },
+  { to: "/labs", label: "Labs" },
+  { to: "/skills", label: "Skills" },
 ];
 
 const adminNavItems = [
@@ -95,7 +86,7 @@ function NotFoundPage() {
       <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Page not found</p>
       <h1 className="mt-2 text-3xl font-bold">That page is not part of your learning path.</h1>
       <p className="mt-3 text-slate-600 dark:text-slate-300">Return to Today to continue with your next required activity.</p>
-      <Link className="btn-primary mt-6 inline-flex" to="/">Go to Today</Link>
+      <Link className="btn-primary mt-6 inline-flex" to="/">Go to Dashboard</Link>
     </main>
   );
 }
@@ -233,16 +224,8 @@ export default function App() {
       if (!adminAuthenticated) return [];
       return adminNavItems;
     }
-    const items = studentNavItems.map((item) => item.children ? { ...item, children: [...item.children] } : item);
-    if (!currentStudent?.is_mentor && currentStudent?.has_unlocked_capstones === false) {
-      return items.map((item) =>
-        item.children
-          ? { ...item, children: item.children.filter((child) => child.to !== "/capstones") }
-          : item
-      );
-    }
-    return items;
-  }, [adminAuthenticated, currentStudent?.has_unlocked_capstones, currentStudent?.is_mentor, isAdminRoute]);
+    return studentNavItems;
+  }, [adminAuthenticated, isAdminRoute]);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -381,12 +364,13 @@ export default function App() {
       <Routes>
         <Route path="/" element={<RequireAuth><StudentHome /></RequireAuth>} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/learning-path" element={<Navigate to="/training" replace />} />
         <Route path="/lessons/:lessonId" element={<RequireAuth><LessonPage /></RequireAuth>} />
-        <Route path="/training" element={<RequireAuth><TrainingDashboardPage /></RequireAuth>} />
+        <Route path="/learning-path" element={<RequireAuth><TrainingDashboardPage /></RequireAuth>} />
+        <Route path="/training" element={<Navigate to="/learning-path" replace />} />
         <Route path="/training/week/:weekId" element={<RequireAuth><TrainingWeekPage /></RequireAuth>} />
         <Route path="/training/content" element={<RequireAuth><StudyTrackerPage /></RequireAuth>} />
-        <Route path="/progress" element={<RequireAuth><TrainingProgressPage /></RequireAuth>} />
+        <Route path="/skills" element={<RequireAuth><TrainingProgressPage /></RequireAuth>} />
+        <Route path="/progress" element={<Navigate to="/skills" replace />} />
         <Route path="/quizzes" element={<RequireAuth><QuizzesPage /></RequireAuth>} />
         <Route path="/study-tracker" element={<Navigate to="/training/content" replace />} />
         <Route path="/quizzes/:quizId" element={<RequireAuth><QuizPage /></RequireAuth>} />

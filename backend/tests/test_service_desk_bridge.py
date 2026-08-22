@@ -1,8 +1,33 @@
+from datetime import datetime, timezone
+
+from app.models.service_desk import (
+    ServiceDeskAttempt,
+    ServiceDeskAttemptGrade,
+    ServiceDeskScenario,
+    ServiceDeskScenarioVersion,
+)
 from app.models.xp_ledger import XPLedger
 from app.routers import service_desk_bridge
 from app.services.admin_auth import issue_admin_session, revoke_admin_session
 from app.services.auth_service import STUDENT_SESSION_COOKIE, create_access_token
 from conftest import auth_headers, make_client, make_student
+
+
+def _scenario_version(db, stable_key):
+    scenario = ServiceDeskScenario(stable_key=stable_key, title=f"{stable_key} title", category="service_desk", difficulty=1)
+    db.add(scenario)
+    db.flush()
+    version = ServiceDeskScenarioVersion(
+        scenario_id=scenario.id,
+        version_number=1,
+        definition_json={},
+        definition_hash=stable_key.ljust(64, "0")[:64],
+        validation_status="valid",
+        status="published",
+    )
+    db.add(version)
+    db.flush()
+    return scenario, version
 
 
 def test_untrusted_progress_events_cannot_create_progress_or_xp(db):
@@ -52,6 +77,8 @@ def test_untrusted_progress_events_cannot_create_progress_or_xp(db):
         "skills": [],
         "needs_practice": [],
         "recent_activity": [],
+        "active_attempt": None,
+        "recent_mentor_feedback": None,
     }
 
 
@@ -168,3 +195,113 @@ def test_admin_authorize_requires_mentor_or_active_admin_session(db):
         assert client.get("/api/service-desk/admin-authorize").status_code == 204
     finally:
         revoke_admin_session(admin_token)
+
+
+def test_progress_summary_surfaces_active_attempt_for_dashboard(db):
+    student = make_student(db, username="active-ticket-student")
+    _, version = _scenario_version(db, "dashboard-active")
+    attempt = ServiceDeskAttempt(
+        student_id=student.id,
+        scenario_version_id=version.id,
+        mode="simulation",
+        experience_mode="assessment",
+        status="in_progress",
+        current_state={},
+        current_state_hash="a" * 64,
+        state_version=1,
+        attempt_number=1,
+        started_at=datetime.now(timezone.utc),
+    )
+    db.add(attempt)
+    db.commit()
+
+    client = make_client(service_desk_bridge.router)
+    response = client.get("/api/service-desk/progress-summary", headers=auth_headers(student))
+
+    assert response.status_code == 200
+    active = response.json()["active_attempt"]
+    assert active["attempt_id"] == attempt.id
+    assert active["scenario_title"] == "dashboard-active title"
+
+
+def test_progress_summary_surfaces_most_recent_mentor_feedback_only_for_owner(db):
+    student = make_student(db, username="feedback-owner")
+    other_student = make_student(db, username="feedback-other")
+    _, version = _scenario_version(db, "dashboard-feedback")
+
+    attempt = ServiceDeskAttempt(
+        student_id=student.id,
+        scenario_version_id=version.id,
+        mode="simulation",
+        experience_mode="assessment",
+        status="completed",
+        current_state={},
+        current_state_hash="b" * 64,
+        state_version=1,
+        attempt_number=1,
+        passed=True,
+        score=90,
+    )
+    other_attempt = ServiceDeskAttempt(
+        student_id=other_student.id,
+        scenario_version_id=version.id,
+        mode="simulation",
+        experience_mode="assessment",
+        status="completed",
+        current_state={},
+        current_state_hash="c" * 64,
+        state_version=1,
+        attempt_number=1,
+        passed=True,
+        score=90,
+    )
+    db.add_all([attempt, other_attempt])
+    db.flush()
+    db.add_all(
+        [
+            ServiceDeskAttemptGrade(
+                attempt_id=attempt.id,
+                scenario_version_id=version.id,
+                rubric_version="test",
+                technical_complete=True,
+                critical_failure=False,
+                overall_score=90,
+                passed=True,
+                feedback_summary="ok",
+                details_json={},
+                mentor_feedback="Nice work verifying the requester first.",
+                mentor_feedback_by="Mentor Jordan",
+                mentor_feedback_at=datetime.now(timezone.utc),
+            ),
+            ServiceDeskAttemptGrade(
+                attempt_id=other_attempt.id,
+                scenario_version_id=version.id,
+                rubric_version="test",
+                technical_complete=True,
+                critical_failure=False,
+                overall_score=90,
+                passed=True,
+                feedback_summary="ok",
+                details_json={},
+                mentor_feedback="This should never appear for the other student.",
+                mentor_feedback_by="Mentor Jordan",
+                mentor_feedback_at=datetime.now(timezone.utc),
+            ),
+        ]
+    )
+    db.commit()
+
+    client = make_client(service_desk_bridge.router)
+    response = client.get("/api/service-desk/progress-summary", headers=auth_headers(student))
+
+    assert response.status_code == 200
+    feedback = response.json()["recent_mentor_feedback"]
+    assert feedback["feedback"] == "Nice work verifying the requester first."
+    assert feedback["feedback_by"] == "Mentor Jordan"
+
+    other_response = client.get(
+        "/api/service-desk/progress-summary", headers=auth_headers(other_student)
+    )
+    other_feedback = other_response.json()["recent_mentor_feedback"]
+    assert other_feedback["feedback"] == "This should never appear for the other student."
+    assert other_feedback["feedback"] != feedback["feedback"]
