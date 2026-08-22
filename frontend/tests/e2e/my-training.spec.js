@@ -137,7 +137,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Learning Path", exact: true })).toBeVisible();
   await expect(page.getByText("Current Stage", { exact: true })).toBeVisible();
   await expect(page.getByText("Current Module", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Nexus Orientation", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Nexus Orientation", exact: true }).first()).toBeVisible();
   await expect(page.getByText(/^Week \d+/)).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
 
