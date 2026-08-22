@@ -120,7 +120,7 @@ export default function LessonPage() {
           const locked = requestError?.response?.status === 403;
           setError({
             message: locked ? requestError?.userMessage || "Complete the previous week's required work first." : "This lesson could not be loaded.",
-            nextRoute: requestError?.response?.data?.data?.next_action_route || "/training",
+            nextRoute: requestError?.response?.data?.data?.next_action_route || "/learning-path",
             requiredWeek: requestError?.response?.data?.data?.required_week,
           });
         }
@@ -128,7 +128,7 @@ export default function LessonPage() {
     return () => { cancelled = true; };
   }, [lessonId]);
 
-  if (error) return <main className="mx-auto max-w-3xl p-6"><BackLink className="mb-4 inline-flex items-center gap-1 text-blue-600" fallbackLabel="My Training" fallbackTo="/training" /><div className="panel" role="alert"><h1 className="text-xl font-bold">{error.requiredWeek ? `Week ${error.requiredWeek} locked` : "Lesson locked"}</h1><p className="mt-2 text-slate-700 dark:text-slate-300">{error.message}</p><Link className="btn-primary mt-4" to={error.nextRoute}>Complete remaining work</Link></div></main>;
+  if (error) return <main className="mx-auto max-w-3xl p-6"><BackLink className="mb-4 inline-flex items-center gap-1 text-blue-600" fallbackLabel="Learning Path" fallbackTo="/learning-path" /><div className="panel" role="alert"><h1 className="text-xl font-bold">{error.requiredWeek ? `Week ${error.requiredWeek} locked` : "Lesson locked"}</h1><p className="mt-2 text-slate-700 dark:text-slate-300">{error.message}</p><Link className="btn-primary mt-4" to={error.nextRoute}>Complete remaining work</Link></div></main>;
   if (!lesson) return <main className="mx-auto max-w-4xl p-6"><div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
 
   async function markComplete() {
@@ -148,7 +148,7 @@ export default function LessonPage() {
     : null;
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-4 pb-20 sm:p-6">
-      <BackLink fallbackLabel="My Training" fallbackTo="/training" />
+      <BackLink fallbackLabel="Learning Path" fallbackTo="/learning-path" />
       <header className="panel">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">{lesson.is_orientation ? "Welcome to Nexus" : lesson.module_code}</p>
         <h1 className="mt-2 text-3xl font-bold">{lesson.is_orientation ? "Welcome to Nexus" : lesson.title}</h1>

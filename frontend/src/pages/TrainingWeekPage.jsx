@@ -54,7 +54,7 @@ export default function TrainingWeekPage() {
   const location = useLocation();
   const [week, setWeek] = useState(null);
   const [error, setError] = useState("");
-  const load = useCallback(() => getTrainingWeek(weekId, { suppressToast: true }).then((res) => { setWeek(res.data); setError(""); }).catch((err) => setError(err?.response?.status === 403 ? "This week is locked. Complete the previous week first." : "This training week could not be loaded.")), [weekId]);
+  const load = useCallback(() => getTrainingWeek(weekId, { suppressToast: true }).then((res) => { setWeek(res.data); setError(""); }).catch((err) => setError(err?.response?.status === 403 ? (err?.userMessage || "This week is locked. Complete the previous week's required work first.") : "This training week could not be loaded.")), [weekId]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     const activityId = new URLSearchParams(location.search).get("activity");
@@ -64,7 +64,7 @@ export default function TrainingWeekPage() {
     await markTrainingVideoWatched(activity.id);
     await load();
   };
-  if (error) return <main className="mx-auto max-w-3xl p-6"><BackLink className="mb-4 inline-flex items-center gap-1 text-blue-600" fallbackLabel="My Training" fallbackTo="/training" /><div role="alert" className="panel">{error}</div></main>;
+  if (error) return <main className="mx-auto max-w-3xl p-6"><BackLink className="mb-4 inline-flex items-center gap-1 text-blue-600" fallbackLabel="Learning Path" fallbackTo="/learning-path" /><div role="alert" className="panel">{error}</div></main>;
   if (!week) return <main className="mx-auto max-w-5xl p-6"><div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
   const required = week.activities.filter((item) => item.is_required);
   const extra = week.activities.filter((item) => !item.is_required);
@@ -78,7 +78,7 @@ export default function TrainingWeekPage() {
   const cliPracticeRoute = week.week_number === 1 ? week.activities.find((item) => item.stable_id === "week-1-networking_lab-meet-cli-001")?.destination_route : null;
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6">
-      <Link className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to="/training"><ChevronLeft size={16} />Weekly Plan</Link>
+      <Link className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to="/learning-path"><ChevronLeft size={16} />Learning Path</Link>
       <TrainingSubnav />
       <header className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900 sm:p-7">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">Week {week.week_number}</p><h1 className="mt-2 text-3xl font-bold text-slate-950 dark:text-white">{week.title}</h1><p className="mt-2 max-w-3xl text-slate-600 dark:text-slate-300">{week.description}</p>
@@ -102,7 +102,7 @@ export default function TrainingWeekPage() {
       <ActivitySection title="3. Practice" description="Build the week’s skill in a real, hands-on exercise." items={requiredPractice} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} weekNumber={week.week_number} cliPracticeRoute={cliPracticeRoute} />
       <ActivitySection title="4. Apply" description="Use what you learned in a realistic support case." items={requiredApply} nextId={nextId} onWatched={handleWatched} returnTo={returnTo} weekNumber={week.week_number} cliPracticeRoute={cliPracticeRoute} />
       {extra.length ? <details className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 dark:border-violet-900 dark:bg-violet-950/10"><summary className="cursor-pointer font-bold text-violet-900 dark:text-violet-200">Extra practice ({extra.length}) <span className="ml-2 text-sm font-normal text-violet-700 dark:text-violet-300">Optional — does not affect week completion</span></summary><div className="mt-4 space-y-3">{extra.map((item) => <ActivityCard key={item.id} activity={item} cliPracticeRoute={cliPracticeRoute} onWatched={handleWatched} returnTo={returnTo} weekNumber={week.week_number} />)}</div></details> : null}
-      <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/20"><h2 className="text-xl font-bold text-slate-950 dark:text-white">{week.is_complete ? `Week ${week.week_number} Complete` : `Week ${week.week_number} Progress`}</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{week.required_complete} of {week.required_total} required activities complete</p>{week.next_activity?.destination_route ? week.next_activity.activity_type === "service_desk_scenario" ? <a className="btn-primary mt-4" href={week.next_activity.destination_route}>Continue Next Activity</a> : <Link className="btn-primary mt-4" to={week.next_activity.destination_route} state={{ returnTo }}>Continue Next Activity</Link> : <Link className="btn-primary mt-4" to="/training">Return to Weekly Plan</Link>}</section>
+      <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/20"><h2 className="text-xl font-bold text-slate-950 dark:text-white">{week.is_complete ? `Week ${week.week_number} Complete` : `Week ${week.week_number} Progress`}</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{week.required_complete} of {week.required_total} required activities complete</p>{week.next_activity?.destination_route ? week.next_activity.activity_type === "service_desk_scenario" ? <a className="btn-primary mt-4" href={week.next_activity.destination_route}>Continue Next Activity</a> : <Link className="btn-primary mt-4" to={week.next_activity.destination_route} state={{ returnTo }}>Continue Next Activity</Link> : <Link className="btn-primary mt-4" to="/learning-path">Return to Learning Path</Link>}</section>
     </main>
   );
 }
