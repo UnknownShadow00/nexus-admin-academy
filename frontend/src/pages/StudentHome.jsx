@@ -1,11 +1,11 @@
-import { ArrowRight, BookOpen, Brain, CheckCircle2, Circle, Clock3, Flame, Ticket, Trophy, Zap } from "lucide-react";
+import { ArrowRight, BookOpen, Brain, CheckCircle2, Circle, Clock3, FlaskConical, Flame, MessageSquare, Ticket, Trophy, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import FlashcardReviewPanel from "../components/FlashcardReviewPanel";
 import { XPBadge } from "../components/ui/Badge";
 import PageHeader from "../components/ui/PageHeader";
 import { getCurrentStudent } from "../hooks/useAuth";
-import { checkInStudent, getStudentStats, getTrainingDashboard } from "../services/api";
+import { checkInStudent, getLabs, getServiceDeskProgressSummary, getStudentStats, getTrainingDashboard } from "../services/api";
 import { iconSizes, scoreBand } from "../utils/theme";
 
 function SkeletonCard() {
@@ -16,6 +16,8 @@ export default function StudentHome() {
   const studentId = getCurrentStudent()?.id;
   const [stats, setStats] = useState(null);
   const [training, setTraining] = useState(null);
+  const [serviceDeskSummary, setServiceDeskSummary] = useState(null);
+  const [activeLab, setActiveLab] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
@@ -50,11 +52,26 @@ export default function StudentHome() {
     run();
   }, [retryKey, studentId]);
 
+  useEffect(() => {
+    if (!studentId) return;
+    // Best-effort widgets: an active ticket, active lab, or mentor feedback
+    // missing must never block the rest of the dashboard from rendering.
+    getServiceDeskProgressSummary({ suppressToast: true })
+      .then((res) => setServiceDeskSummary(res?.data || null))
+      .catch(() => setServiceDeskSummary(null));
+    getLabs(undefined, { suppressToast: true })
+      .then((res) => {
+        const rows = Array.isArray(res?.data) ? res.data : [];
+        setActiveLab(rows.find((lab) => lab.status === "in_progress") || null);
+      })
+      .catch(() => setActiveLab(null));
+  }, [studentId, retryKey]);
+
   const continueTarget = useMemo(() => {
     const week = training?.current_week;
     const next = training?.next_activity;
-    if (!week) return { label: "Open My Training", to: "/training", title: "My Training", detail: "Open your weekly training plan." };
-    if (training.training_complete) return { label: "Review Training", to: "/training", title: "Training Complete", detail: "Review completed weeks or revisit course content." };
+    if (!week) return { label: "Open Learning Path", to: "/learning-path", title: "Learning Path", detail: "Open your learning path." };
+    if (training.training_complete) return { label: "Review Training", to: "/learning-path", title: "Training Complete", detail: "Review completed weeks or revisit course content." };
     const fresh = week.week_number === 0 && week.required_complete === 0;
     return {
       label: fresh ? "Start Training" : "Continue Training",
@@ -90,19 +107,23 @@ export default function StudentHome() {
   const weekActivities = training?.current_week_activities || [];
   const requiredActivities = weekActivities.filter((item) => item.is_required);
   const optionalActivities = weekActivities.filter((item) => !item.is_required);
-  const statCards = [
-    { label: "Total XP", value: stats.total_xp || 0, to: "/progress", Icon: Zap, accent: "text-blue-600 dark:text-blue-400", card: "sm:col-span-2 lg:col-span-1" },
-    { label: "Day Streak", value: stats.streak || 0, to: "/progress", Icon: Flame, accent: "text-orange-500 dark:text-orange-300" },
-    { label: "Quizzes Done", value: stats.quizzes_completed || 0, to: "/quizzes", Icon: Trophy, accent: "text-emerald-600 dark:text-emerald-400" },
-    { label: "Service Desk Passed", value: stats.service_desk_completed || 0, to: "/service-desk", Icon: Ticket, accent: "text-violet-600 dark:text-violet-400" },
+  const statChips = [
+    { label: "Total XP", value: stats.total_xp || 0, to: "/skills", Icon: Zap },
+    { label: "Day Streak", value: stats.streak || 0, to: "/skills", Icon: Flame },
+    { label: "Quizzes Done", value: stats.quizzes_completed || 0, to: "/quizzes", Icon: Trophy },
+    { label: "Tickets Passed", value: stats.service_desk_completed || 0, to: "/service-desk", Icon: Ticket },
   ];
+  const activeTicket = serviceDeskSummary?.active_attempt;
+  const recentFeedback = serviceDeskSummary?.recent_mentor_feedback;
+  const needsPractice = serviceDeskSummary?.needs_practice || [];
+  const hasFollowUpWidgets = Boolean(activeTicket || activeLab || recentFeedback);
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
-      <PageHeader title={stats.name || "Today"} subtitle="Your next lesson, quiz, or Service Desk scenario, picked for you." />
+      <PageHeader title={stats.name || "Dashboard"} subtitle="Your next lesson, quiz, or ticket, picked for you." />
 
       <section className="rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-700 p-5 text-white shadow-lg sm:p-7">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">My Training</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">Learning Path</p>
         <h2 className="mt-2 text-2xl font-bold sm:text-3xl">{continueTarget.title}</h2>
         <p className="mt-2 text-blue-100">{continueTarget.detail}</p>
         {training?.next_activity ? (
@@ -123,7 +144,7 @@ export default function StudentHome() {
         <section className="panel space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">This Week</p><h2 className="mt-1 text-xl font-semibold text-slate-900 dark:text-white">Week {training.current_week.week_number} — {training.current_week.title}</h2></div>
-            <Link className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to={`/training/week/${training.current_week.week_number}`}>View weekly plan</Link>
+            <Link className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to={`/training/week/${training.current_week.week_number}`}>Open this week</Link>
           </div>
           <ol className="divide-y divide-slate-200 dark:divide-slate-700">
             {requiredActivities.map((item) => {
@@ -135,25 +156,57 @@ export default function StudentHome() {
         </section>
       ) : null}
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map(({ label, value, to, Icon, accent, card }) => (
-          <Link
-            key={label}
-            to={to}
-            className={`panel group flex min-h-28 flex-col justify-between gap-4 p-4 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:hover:border-blue-700 ${card || ""}`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
-                <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-100">{value}</p>
-              </div>
-              <span className={`rounded-xl bg-slate-100 p-2 dark:bg-slate-800 ${accent}`}>
-                <Icon size={iconSizes.heading} aria-hidden="true" />
-              </span>
+      {hasFollowUpWidgets ? (
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {activeTicket ? (
+            <a href="/service-desk" className="panel flex flex-col gap-2 p-4 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:hover:border-blue-700">
+              <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-violet-700 dark:text-violet-300"><Ticket size={14} aria-hidden="true" />Active Ticket</span>
+              <p className="font-semibold text-slate-900 dark:text-slate-100">{activeTicket.scenario_title}</p>
+              <span className="mt-auto text-sm font-medium text-blue-600 dark:text-blue-400">Resume in Tickets</span>
+            </a>
+          ) : null}
+          {activeLab ? (
+            <Link to={`/labs/${activeLab.id}`} className="panel flex flex-col gap-2 p-4 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:hover:border-blue-700">
+              <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-blue-700 dark:text-blue-300"><FlaskConical size={14} aria-hidden="true" />Active Lab</span>
+              <p className="font-semibold text-slate-900 dark:text-slate-100">{activeLab.title}</p>
+              <span className="mt-auto text-sm font-medium text-blue-600 dark:text-blue-400">Resume lab</span>
+            </Link>
+          ) : null}
+          {recentFeedback ? (
+            <div className="panel flex flex-col gap-2 p-4">
+              <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300"><MessageSquare size={14} aria-hidden="true" />Mentor Feedback</span>
+              <p className="font-semibold text-slate-900 dark:text-slate-100">{recentFeedback.scenario_title}</p>
+              <p className="line-clamp-3 text-sm text-slate-600 dark:text-slate-300">{recentFeedback.feedback}</p>
             </div>
-            <span className="text-sm font-medium text-blue-600 transition group-hover:text-blue-700 dark:text-blue-400 dark:group-hover:text-blue-300">Open {label.toLowerCase()}</span>
-          </Link>
-        ))}
+          ) : null}
+        </section>
+      ) : null}
+
+      {needsPractice.length ? (
+        <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/20">
+          <h2 className="font-semibold text-amber-900 dark:text-amber-200">Could use more practice</h2>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800 dark:text-amber-300">
+            {needsPractice.slice(0, 3).map((title) => <li key={title}>{title}</li>)}
+          </ul>
+        </section>
+      ) : null}
+
+      <section aria-label="Your stats" className="flex flex-wrap gap-3">
+        {statChips.map(({ label, value, to, Icon }) => {
+          const chipClassName = "group flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm hover:border-blue-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-700";
+          const chipContent = (
+            <>
+              <Icon className="text-slate-400 group-hover:text-blue-600 dark:text-slate-500 dark:group-hover:text-blue-400" size={iconSizes.inline} aria-hidden="true" />
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{value}</span>
+              <span className="text-slate-500 dark:text-slate-400">{label}</span>
+            </>
+          );
+          return to === "/service-desk" ? (
+            <a key={label} href={to} className={chipClassName}>{chipContent}</a>
+          ) : (
+            <Link key={label} to={to} className={chipClassName}>{chipContent}</Link>
+          );
+        })}
       </section>
 
       <section className="space-y-3">
@@ -171,7 +224,7 @@ export default function StudentHome() {
       <section className="panel space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Recent Activity</h2>
-          <Link className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" to="/progress">View progress</Link>
+          <Link className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" to="/skills">View skills</Link>
         </div>
         {recent.length ? recent.map((item, index) => {
           const Icon = item.type === "service_desk" ? Ticket : BookOpen;
