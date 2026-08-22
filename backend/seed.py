@@ -92,13 +92,8 @@ PROMOTION_GATES = [
     },
     {
         "role": "Support Technician I",
-        "requirement_type": "min_verified_tickets_by_difficulty",
-        "config": {"thresholds": {"1": 4, "2": 2}},
-    },
-    {
-        "role": "Support Technician I",
-        "requirement_type": "practical_checkpoint",
-        "config": {"ticket_title": "Multi-Ticket Simulation 1", "max_hints": 0, "min_score": 7},
+        "requirement_type": "min_service_desk_passes",
+        "config": {"pack_key": "starter-support", "min_passed": 4},
     },
     {
         "role": "Support Technician I",
@@ -111,7 +106,8 @@ PROMOTION_GATES = [
         "config": {},
     },
     # ---- GATE 2: Support Technician I → Support Technician II (end of Week 8) ----
-    # Ticket/mastery thresholds per the master doc; checkpoint is Simulation 2.
+    # Mastery threshold per the master doc; practical evidence is the
+    # desktop-support Service Desk pack (see SERVICE_DESK_PACKS).
     {
         "role": "Support Technician II",
         "requirement_type": "required_quiz",
@@ -129,13 +125,8 @@ PROMOTION_GATES = [
     },
     {
         "role": "Support Technician II",
-        "requirement_type": "min_verified_tickets_by_difficulty",
-        "config": {"thresholds": {"1": 6, "2": 8, "3": 2}},
-    },
-    {
-        "role": "Support Technician II",
-        "requirement_type": "practical_checkpoint",
-        "config": {"ticket_title": "Multi-Ticket Simulation 2", "max_hints": 1, "min_score": 7},
+        "requirement_type": "min_service_desk_passes",
+        "config": {"pack_key": "desktop-support", "min_passed": 5},
     },
     {
         "role": "Support Technician II",
@@ -160,8 +151,8 @@ PROMOTION_GATES = [
     },
     {
         "role": "Network Support Technician",
-        "requirement_type": "min_verified_tickets_by_difficulty",
-        "config": {"thresholds": {"3": 3, "4": 2}},
+        "requirement_type": "min_service_desk_passes",
+        "config": {"pack_key": "accounts-access", "min_passed": 4},
     },
     {
         "role": "Network Support Technician",
@@ -191,8 +182,8 @@ PROMOTION_GATES = [
     },
     {
         "role": "Junior Systems Technician",
-        "requirement_type": "min_verified_tickets_by_difficulty",
-        "config": {"thresholds": {"3": 3, "4": 1}},
+        "requirement_type": "min_service_desk_passes",
+        "config": {"pack_key": "networking", "min_passed": 4},
     },
     {
         "role": "Junior Systems Technician",
@@ -215,13 +206,8 @@ PROMOTION_GATES = [
     },
     {
         "role": "Junior Infrastructure Administrator",
-        "requirement_type": "min_verified_tickets_by_difficulty",
-        "config": {"thresholds": {"3": 3, "4": 3}},
-    },
-    {
-        "role": "Junior Infrastructure Administrator",
-        "requirement_type": "practical_checkpoint",
-        "config": {"ticket_title": "Multi-Ticket Simulation 3", "max_hints": 1, "min_score": 7},
+        "requirement_type": "min_service_desk_passes",
+        "config": {"pack_key": "advanced-troubleshooting", "min_passed": 4},
     },
     {
         "role": "Junior Infrastructure Administrator",
@@ -852,6 +838,11 @@ def seed_promotion_gates(db):
             exists.requirement_config = gate["config"]
         else:
             db.add(PromotionGate(role_id=role.id, requirement_type=gate["requirement_type"], requirement_config=gate["config"]))
+    db.query(PromotionGate).filter(
+        PromotionGate.requirement_type.in_(
+            ("min_verified_tickets_by_difficulty", "practical_checkpoint")
+        )
+    ).delete(synchronize_session=False)
 
 
 def seed_module0_and_methodology(db):

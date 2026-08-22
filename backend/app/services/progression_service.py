@@ -189,14 +189,6 @@ def get_module_mastery(student_id: int, module_id: int, db: Session) -> float:
             or 0
         )
 
-        ticket_avg = (
-            db.query(func.coalesce(func.avg(TicketSubmission.final_score), 0))
-            .join(Ticket, TicketSubmission.ticket_id == Ticket.id)
-            .filter(TicketSubmission.student_id == student_id, Ticket.lesson_id == lesson.id, TicketSubmission.status == "passed")
-            .scalar()
-            or 0
-        )
-
         lab_avg = (
             db.query(func.coalesce(func.avg(LabRun.final_score), 0))
             .join(LabTemplate, LabRun.lab_template_id == LabTemplate.id)
@@ -205,7 +197,7 @@ def get_module_mastery(student_id: int, module_id: int, db: Session) -> float:
             or 0
         )
 
-        lesson_score = (float(quiz_avg) * 0.3) + (float(ticket_avg) * 0.4) + (float(lab_avg) * 0.3)
+        lesson_score = (float(quiz_avg) * 0.5) + (float(lab_avg) * 0.5)
         total_score += lesson_score
 
     return round((total_score / len(lessons)) * 10, 1)
@@ -221,6 +213,8 @@ def check_promotion_eligibility(student_id: int, target_role_id: int, db: Sessio
         config = gate.requirement_config or {}
         if req_type == "min_verified_tickets_by_difficulty":
             result = _check_ticket_requirement(student_id, config, db)
+        elif req_type == "min_service_desk_passes":
+            result = _check_service_desk_requirement(student_id, config, db)
         elif req_type == "min_mastery_by_domain":
             result = _check_mastery_requirement(student_id, config, db)
         elif req_type == "practical_checkpoint":
@@ -335,6 +329,30 @@ def _check_ticket_requirement(student_id: int, config: dict, db: Session) -> dic
     }
 
 
+def _check_service_desk_requirement(student_id: int, config: dict, db: Session) -> dict:
+    from app.services.service_desk_progression import (
+        SERVICE_DESK_PACKS,
+        _passed_scenario_keys,
+    )
+
+    cfg = config or {}
+    pack_key = str(cfg.get("pack_key", ""))
+    required = int(cfg.get("min_passed", 0))
+    pack = next((item for item in SERVICE_DESK_PACKS if item.key == pack_key), None)
+    scenario_keys = set(pack.scenario_keys) if pack else set()
+    passed = len(scenario_keys & _passed_scenario_keys(db, student_id))
+    return {
+        "type": "min_service_desk_passes",
+        "description": f"Service Desk scenarios passed in {pack_key}",
+        "progress": {
+            "pack_key": pack_key,
+            "current": passed,
+            "required": required,
+        },
+        "met": passed >= required,
+    }
+
+
 def _check_mastery_requirement(student_id: int, config: dict, db: Session) -> dict:
     from app.models.mastery import StudentDomainMastery
 
@@ -345,6 +363,8 @@ def _check_mastery_requirement(student_id: int, config: dict, db: Session) -> di
         "software_troubleshooting": "3.0",
         "security": "4.0",
         "procedures": "4.0",
+        "windows_server": "4.0",
+        "active_directory": "4.0",
     }
     progress = {}
     met = True
