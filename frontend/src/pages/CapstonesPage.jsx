@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ClipboardCheck } from "lucide-react";
 import { Link } from "react-router-dom";
+import BackLink from "../components/BackLink";
 import EmptyState from "../components/EmptyState";
 import Spinner from "../components/Spinner";
 import PageHeader from "../components/ui/PageHeader";
@@ -73,6 +74,7 @@ export default function CapstonesPage() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
+      <BackLink fallbackLabel="Labs" fallbackTo="/labs" />
       <div className="panel dark:border-slate-700 dark:bg-slate-900">
         <PageHeader
           title="Capstone Projects"

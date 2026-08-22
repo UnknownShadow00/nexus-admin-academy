@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import BackLink from "../components/BackLink";
 import Banner from "../components/ui/Banner";
 import FilterBar from "../components/ui/FilterBar";
 import PageHeader from "../components/ui/PageHeader";
@@ -79,6 +80,7 @@ export default function CommandReferencePage() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
+      <BackLink fallbackLabel="Labs" fallbackTo="/labs" />
       <PageHeader title="Command Library" subtitle={countText} />
 
       <FilterBar>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import BackLink from "../components/BackLink";
 import TerminalWidget from "../components/Terminal";
 import { searchCommands } from "../services/api";
 import PageHeader from "../components/ui/PageHeader";
@@ -28,7 +29,8 @@ export default function TerminalCommandsPage() {
   }, [commands]);
 
   return (
-    <main className="mx-auto max-w-7xl p-6">
+    <main className="mx-auto max-w-7xl space-y-4 p-6">
+      <BackLink fallbackLabel="Labs" fallbackTo="/labs" />
       <PageHeader title="Terminal Practice" />
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="panel min-w-0 dark:border-slate-700 dark:bg-slate-900">

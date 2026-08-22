@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { FlaskConical } from "lucide-react";
+import { ArrowRight, ClipboardCheck, FlaskConical, Network, SquareTerminal, TerminalSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import EmptyState from "../components/EmptyState";
 import Spinner from "../components/Spinner";
 import { DifficultyBadge } from "../components/ui/Badge";
 import PageHeader from "../components/ui/PageHeader";
 import WeekAccordion from "../components/ui/WeekAccordion";
+import { getCurrentStudent } from "../hooks/useAuth";
 import { getLabs } from "../services/api";
 
 const statusConfig = {
@@ -15,10 +16,12 @@ const statusConfig = {
 };
 
 export default function LabsPage() {
+  const currentStudent = getCurrentStudent();
   const [week, setWeek] = useState(1);
   const [allWeeks, setAllWeeks] = useState(false);
   const [loading, setLoading] = useState(true);
   const [labs, setLabs] = useState([]);
+  const [currentLab, setCurrentLab] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +49,21 @@ export default function LabsPage() {
       cancelled = true;
     };
   }, [week, allWeeks]);
+
+  useEffect(() => {
+    // Independent of the week filter above — finds any in-progress guided
+    // lab so the "Current Lab" banner is accurate regardless of what week
+    // the student happens to be browsing.
+    let cancelled = false;
+    getLabs(undefined, { suppressToast: true })
+      .then((res) => {
+        if (cancelled) return;
+        const rows = Array.isArray(res.data) ? res.data : [];
+        setCurrentLab(rows.find((lab) => lab.status === "in_progress") || null);
+      })
+      .catch(() => { if (!cancelled) setCurrentLab(null); });
+    return () => { cancelled = true; };
+  }, []);
 
   const renderLab = (lab) => (
     <article key={lab.id} className="panel space-y-4 dark:border-slate-700 dark:bg-slate-900">
@@ -76,10 +94,50 @@ export default function LabsPage() {
     </article>
   );
 
+  const practiceAreas = [
+    { to: "/cli-labs", label: "Networking Practice", description: "Cisco IOS command-line labs.", Icon: Network },
+    ...(currentStudent?.is_mentor || currentStudent?.has_unlocked_capstones !== false
+      ? [{ to: "/capstones", label: "Capstones", description: "Bigger, multi-step projects.", Icon: ClipboardCheck }]
+      : []),
+  ];
+  const tools = [
+    { to: "/commands", label: "Command Library", description: "Look up a command's syntax.", Icon: SquareTerminal },
+    { to: "/terminal", label: "Terminal Practice", description: "Free-play command line sandbox.", Icon: TerminalSquare },
+  ];
+
   return (
-    <main className="mx-auto max-w-7xl space-y-4 p-6">
+    <main className="mx-auto max-w-7xl space-y-6 p-6">
+      <PageHeader title="Labs" subtitle="Hands-on practice: guided exercises, networking labs, and capstones." />
+
+      {currentLab ? (
+        <Link to={`/labs/${currentLab.id}`} className="panel flex flex-wrap items-center justify-between gap-3 border-blue-300 bg-blue-50 hover:shadow-md dark:border-blue-800 dark:bg-blue-950/20">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wide text-blue-700 dark:text-blue-300">Current Lab</span>
+            <p className="mt-1 font-semibold text-slate-900 dark:text-slate-100">{currentLab.title}</p>
+          </div>
+          <span className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 dark:text-blue-300">Resume<ArrowRight size={16} aria-hidden="true" /></span>
+        </Link>
+      ) : null}
+
+      <section className="grid gap-3 sm:grid-cols-2">
+        {practiceAreas.map(({ to, label, description, Icon }) => (
+          <Link key={to} to={to} className="panel flex items-start gap-3 p-4 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:hover:border-blue-700">
+            <span className="rounded-xl bg-blue-50 p-2 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"><Icon size={20} aria-hidden="true" /></span>
+            <span>
+              <span className="block font-semibold text-slate-900 dark:text-slate-100">{label}</span>
+              <span className="block text-sm text-slate-500 dark:text-slate-400">{description}</span>
+            </span>
+          </Link>
+        ))}
+      </section>
+
       <div className="panel dark:border-slate-700 dark:bg-slate-900">
-        <PageHeader title="Lab Exercises" subtitle="Hands-on text-based exercises you can complete without a VM." />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Guided Labs</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Hands-on text-based exercises you can complete without a VM.</p>
+          </div>
+        </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
             Week:
@@ -123,6 +181,21 @@ export default function LabsPage() {
           {labs.map(renderLab)}
         </div>
       )}
+
+      <section>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Tools</h2>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          {tools.map(({ to, label, description, Icon }) => (
+            <Link key={to} to={to} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 hover:border-blue-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-700">
+              <span className="rounded-lg bg-slate-100 p-2 text-slate-600 dark:bg-slate-800 dark:text-slate-300"><Icon size={18} aria-hidden="true" /></span>
+              <span>
+                <span className="block text-sm font-semibold text-slate-900 dark:text-slate-100">{label}</span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400">{description}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
