@@ -44,6 +44,7 @@ def test_direct_lesson_and_notes_remain_student_scoped(db):
         "module_title": module.title,
         "related_activity_stable_id": None,
         "related_activity_week_number": None,
+        "related_training_module_id": None,
         "related_activity_type": None,
         "is_orientation": False,
         "is_complete": False,
@@ -92,6 +93,7 @@ def test_direct_lesson_exposes_related_weekly_activity(db):
     assert response.status_code == 200
     assert response.json()["data"].get("related_activity_stable_id") == stable_id
     assert response.json()["data"].get("related_activity_week_number") == 1
+    assert response.json()["data"].get("related_training_module_id") == "module.endpoint.support_workflow"
     assert response.json()["data"].get("related_activity_type") == "networking_lab"
 
 

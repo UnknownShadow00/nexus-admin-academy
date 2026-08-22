@@ -259,6 +259,8 @@ export const getTrainingDashboard = (requestOptions) =>
   request(() => api.get("/api/training"), requestOptions);
 export const getTrainingWeek = (weekNumber, requestOptions) =>
   request(() => api.get(`/api/training/weeks/${weekNumber}`), requestOptions);
+export const getTrainingModule = (moduleId, requestOptions) =>
+  request(() => api.get(`/api/training/modules/${encodeURIComponent(moduleId)}`), requestOptions);
 export const getTrainingProgress = (requestOptions) =>
   request(() => api.get("/api/training/progress"), requestOptions);
 export const markTrainingVideoWatched = (activityId, requestOptions) =>

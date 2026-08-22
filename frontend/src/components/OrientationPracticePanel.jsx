@@ -54,20 +54,20 @@ export default function OrientationPracticePanel({ completing, onMarkComplete, r
   }, [progress?.is_complete, progress?.week_one_unlocked]);
 
   if (!progress) {
-    return <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">Loading your Week 0 checklist…</div>;
+    return <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">Loading your orientation checklist…</div>;
   }
 
   const steps = progress.steps || {};
   const remainingMessage = !steps.lesson_completion && !steps.quiz
-    ? "Complete the orientation and pass the Ticketing Systems Quiz to unlock Week 1."
+    ? "Complete the orientation and pass the Ticketing Systems Quiz to unlock Support Workflow Essentials."
     : !steps.lesson_completion
-      ? "Mark the orientation complete to unlock Week 1."
-      : "Pass the Ticketing Systems Quiz to unlock Week 1.";
+      ? "Mark the orientation complete to unlock Support Workflow Essentials."
+      : "Pass the Ticketing Systems Quiz to unlock Support Workflow Essentials.";
 
   return (
     <section className="panel space-y-4" aria-labelledby="week-zero-checklist">
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Your Week 0 checklist</p>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Orientation Module</p>
         <h2 className="mt-1 text-xl font-bold" id="week-zero-checklist">Two quick steps</h2>
       </div>
 
@@ -93,11 +93,11 @@ export default function OrientationPracticePanel({ completing, onMarkComplete, r
 
       {progress.is_complete && progress.week_one_unlocked ? (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
-          <p className="font-bold">✓ Week 0 complete</p>
+          <p className="font-bold">✓ Orientation complete</p>
           {nextAction ? (
-            <Link className="btn-primary mt-3 text-sm" to={nextAction.route}>Start Week 1</Link>
+            <Link className="btn-primary mt-3 text-sm" to={nextAction.route}>Start Next Module</Link>
           ) : (
-            <Link className="btn-primary mt-3 text-sm" to="/training/week/1">Start Week 1</Link>
+            <Link className="btn-primary mt-3 text-sm" to="/training/module/module.endpoint.support_workflow">Start Next Module</Link>
           )}
         </div>
       ) : (

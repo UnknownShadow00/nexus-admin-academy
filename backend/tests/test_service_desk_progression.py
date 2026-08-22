@@ -280,9 +280,10 @@ def test_week_zero_incomplete_hides_starter_cases_and_rejects_direct_start(
     }
     assert progression.json()["next_pack"]["key"] == "starter-support"
     assert progression.json()["next_pack"]["requirements"]["week"] == {
-        "label": "Complete Week 0 training",
+        "label": "Complete Nexus Orientation",
         "met": False,
     }
+    assert progression.json()["next_pack"]["required_module_id"] == "module.orientation.nexus"
     for stable_key in SERVICE_DESK_PACKS[0].scenario_keys:
         starter_scenario, _ = scenarios[stable_key]
         direct = client.post(
@@ -321,7 +322,7 @@ def test_fresh_student_sees_only_four_starter_assignments_and_next_pack_preview(
     next_pack = progression.json()["next_pack"]
     assert next_pack["key"] == "desktop-support"
     assert next_pack["requirements"] == {
-        "week": {"label": "Reach Week 3 training", "met": False},
+        "week": {"label": "Reach Windows Fundamentals & Diagnostics", "met": False},
         "passes": {
             "label": "Successfully resolve 2 Starter Support cases",
             "met": False,
@@ -329,6 +330,7 @@ def test_fresh_student_sees_only_four_starter_assignments_and_next_pack_preview(
             "required": 2,
         },
     }
+    assert next_pack["required_module_id"] == "module.windows.fundamentals"
 
 
 def test_new_student_accounts_receive_managed_assignment_inventory(db):

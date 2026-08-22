@@ -55,7 +55,7 @@ ACTIVITY_LABELS = {
     "networking_lab": "Networking Lab",
     "command_exercise": "Command Exercise",
     "terminal_exercise": "Terminal Exercise",
-    "review": "Weekly Review",
+    "review": "Module Review",
     "capstone": "Capstone",
     "service_desk_scenario": "Service Desk Scenario",
 }
@@ -413,8 +413,8 @@ class _TrainingContext:
             )
         if activity.activity_type == "review":
             return _ResolvedContent(
-                title=(activity.metadata_json or {}).get("title", "Weekly Review"),
-                description=(activity.metadata_json or {}).get("description", "Review this week's required work."),
+                title=(activity.metadata_json or {}).get("title", "Module Review"),
+                description=(activity.metadata_json or {}).get("description", "Review this module's required work."),
                 destination_route=_module_route_for_week(week_number),
                 estimated_minutes=activity.estimated_minutes,
             )
@@ -727,7 +727,8 @@ def _build_state(db: Session, student: Student):
         )
         week_states.append((week, state, items))
         prior_required_complete = prior_required_complete and state["is_complete"]
-        prior_title = f"Week {week.week_number} — {week.title}"
+        mapped_module = module_for_week(week.week_number)
+        prior_title = mapped_module.title if mapped_module else week.title
         prior_missing_required = [
             item["title"]
             for item in items
@@ -771,6 +772,7 @@ def build_training_overview(db: Session, student: Student) -> dict:
     return {
         "current_week": current_week,
         "current_week_activities": current_entry[2] if current_entry else [],
+        "current_module_activities": current_entry[2] if current_entry else [],
         "weeks": public_weeks,
         "current_stage": current_stage,
         "current_module": current_module,
@@ -1021,7 +1023,8 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
             week_states.append(week_state)
             all_activity_states.extend(activity_states)
             prior_required_complete = prior_required_complete and week_state["is_complete"]
-            prior_title = f"Week {week.week_number} — {week.title}"
+            mapped_module = module_for_week(week.week_number)
+            prior_title = mapped_module.title if mapped_module else week.title
 
         training_complete = bool(week_states) and all(
             week_state["is_complete"] for week_state in week_states
@@ -1098,6 +1101,8 @@ def build_training_progress(db: Session, student: Student) -> dict:
         "current_module": overview["current_module"],
         "weeks_completed": sum(1 for _, state, _ in week_states if state["is_complete"]),
         "total_weeks": len(week_states),
+        "modules_completed": sum(1 for _, state, _ in week_states if state["is_complete"]),
+        "total_modules": len(week_states),
         "weekly_roadmap": overview["weeks"],
         "overall_training": {
             "completed": required_complete,

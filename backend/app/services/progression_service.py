@@ -8,6 +8,7 @@ from app.models.progression import PromotionGate, Role
 from app.models.quiz import Quiz, QuizAttempt
 from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
+from app.services.curriculum_structure import module_for_week
 from app.services.quiz_progression import is_quiz_passed, required_quizzes_for_week
 
 
@@ -120,20 +121,24 @@ def require_week_reached(db: Session, student, required_week: int) -> dict:
         (quiz for quiz in required_quizzes_for_week(db, current_week) if not is_quiz_passed(db, student.id, quiz)),
         None,
     )
+    current_module = module_for_week(current_week)
+    required_module = module_for_week(required_week)
+    current_label = current_module.title if current_module else "the current training section"
+    required_label = required_module.title if required_module else "the requested training section"
     if lesson_incomplete and incomplete_quiz is not None:
-        error = f"Complete Week {current_week}'s required lesson and quiz first."
+        error = f"Complete the required lesson and quiz in {current_label} first."
         next_action_route = "/training"
     elif incomplete_quiz is not None:
-        error = f"Complete Week {current_week}'s required quiz first."
+        error = f"Complete the required quiz in {current_label} first."
         next_action_route = f"/quizzes/{incomplete_quiz.id}"
     elif required_week > current_week + 1:
-        error = f"You'll unlock this once you reach Week {required_week}."
+        error = f"You'll unlock this when you reach {required_label}."
         next_action_route = "/training"
     elif lesson_incomplete:
-        error = f"Complete Week {current_week}'s required lesson first."
+        error = f"Complete the required lesson in {current_label} first."
         next_action_route = "/training"
     else:
-        error = f"Complete Week {current_week}'s required work first."
+        error = f"Complete the required work in {current_label} first."
         next_action_route = "/training"
 
     raise HTTPException(
@@ -145,6 +150,10 @@ def require_week_reached(db: Session, student, required_week: int) -> dict:
             "data": {
                 "required_week": required_week,
                 "current_week": current_week,
+                "required_module_id": required_module.stable_id if required_module else None,
+                "required_module_title": required_module.title if required_module else None,
+                "current_module_id": current_module.stable_id if current_module else None,
+                "current_module_title": current_module.title if current_module else None,
                 "next_action_route": next_action_route,
             },
         },
@@ -162,7 +171,11 @@ def check_module_unlock(student_id: int, module_id: int, db: Session) -> dict:
     if student and not student.is_mentor and mapped_week is not None:
         current_week = derive_current_week(student_id, db)
         if mapped_week > current_week:
-            requirements_missing.append(f"Complete Week {current_week}'s required work first.")
+            current_module = module_for_week(current_week)
+            current_label = current_module.title if current_module else "your current module"
+            requirements_missing.append(
+                f"Complete {current_label}'s required work first."
+            )
 
     if module.prerequisite_module_id:
         prereq_mastery = get_module_mastery(student_id, module.prerequisite_module_id, db)

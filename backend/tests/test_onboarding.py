@@ -108,7 +108,7 @@ def test_fresh_student_can_resume_and_complete_orientation_without_ticket_gradin
 
     locked = client.get(f"/api/lessons/{first_week_one_lesson.id}", headers=auth_headers(student))
     assert locked.status_code == 403
-    assert locked.json()["error"] == "Complete Week 0's required lesson and quiz first."
+    assert locked.json()["error"] == "Complete the required lesson and quiz in Nexus Orientation first."
 
     note = save_lesson_note(
         orientation.id,
@@ -129,7 +129,7 @@ def test_fresh_student_can_resume_and_complete_orientation_without_ticket_gradin
     assert orientation_only["is_complete"] is False
     locked = client.get(f"/api/lessons/{first_week_one_lesson.id}", headers=auth_headers(student))
     assert locked.status_code == 403
-    assert locked.json()["error"] == "Complete Week 0's required quiz first."
+    assert locked.json()["error"] == "Complete the required quiz in Nexus Orientation first."
 
     # The existing quiz endpoint has its own scoring coverage. Seed its normal
     # persisted result here so this regression stays focused on onboarding
@@ -217,7 +217,7 @@ def test_quiz_without_orientation_keeps_week_one_locked(db):
     assert progress["week_one_unlocked"] is False
     locked = client.get(f"/api/lessons/{first_week_one_lesson.id}", headers=auth_headers(student))
     assert locked.status_code == 403
-    assert locked.json()["error"] == "Complete Week 0's required lesson first."
+    assert locked.json()["error"] == "Complete the required lesson in Nexus Orientation first."
 
 
 def test_orientation_completion_unlocks_week_one_without_retired_methodology_lesson(db):

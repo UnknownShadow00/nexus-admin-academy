@@ -70,7 +70,7 @@ export default function AdminTrainingPage() {
       is_active: week.is_active,
       requires_previous_week: week.requires_previous_week,
     });
-    setMessage(`Saved Week ${week.week_number}.`);
+    setMessage(`Saved ${week.module?.title || `storage week ${week.week_number}`}.`);
     await load();
   };
 
@@ -136,8 +136,8 @@ export default function AdminTrainingPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-blue-600">Learning Content</p>
-          <h1 className="mt-1 text-3xl font-bold">Weekly Training</h1>
-          <p className="mt-1 text-slate-600 dark:text-slate-300">Reference existing content, set order and requirements, and validate links.</p>
+          <h1 className="mt-1 text-3xl font-bold">Curriculum Structure</h1>
+          <p className="mt-1 text-slate-600 dark:text-slate-300">Maintain the Stage → Module → Activity path. Historical week numbers remain storage identifiers during the transition.</p>
         </div>
         {validation ? (
           <span className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-bold ${validation.valid ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
@@ -149,10 +149,11 @@ export default function AdminTrainingPage() {
 
       {message ? <p role="status" className="rounded-xl bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-950/30 dark:text-blue-200">{message}</p> : null}
 
-      {validation ? <section className="panel flex flex-wrap gap-x-6 gap-y-2 text-sm"><span><strong>{validation.mapped_video_count} of {validation.enabled_video_count}</strong> enabled videos mapped</span><span><strong>{validation.mapping_summary?.Exact || 0}</strong> exact</span><span><strong>{validation.mapping_summary?.["Strong topical"] || 0}</strong> topic-group</span><span><strong>{validation.mapping_summary?.["Week-level fallback"] || 0}</strong> week fallback</span></section> : null}
+      {validation ? <section className="panel flex flex-wrap gap-x-6 gap-y-2 text-sm"><span><strong>{validation.stage_count}</strong> stages</span><span><strong>{validation.module_count}</strong> modules</span><span><strong>{validation.mapped_activity_count}</strong> activities mapped</span><span><strong>{validation.mapped_video_count} of {validation.enabled_video_count}</strong> enabled videos mapped</span><span><strong>{validation.mapping_summary?.Exact || 0}</strong> exact</span><span><strong>{validation.mapping_summary?.["Strong topical"] || 0}</strong> topic-group</span><span><strong>{validation.mapping_summary?.["Week-level fallback"] || 0}</strong> week fallback</span></section> : null}
 
       <section className="panel">
-        <h2 className="font-bold">Create a week</h2>
+        <h2 className="font-bold">Create a legacy storage container</h2>
+        <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">A new active container must also be added to the authoritative Stage/Module map or validation will fail.</p>
         <div className="mt-3 grid gap-2 md:grid-cols-[8rem_1fr_2fr_auto]">
           <input className="input-field" type="number" min="0" placeholder="Week #" value={newWeek.week_number} onChange={(event) => setNewWeek({ ...newWeek, week_number: event.target.value })} />
           <input className="input-field" placeholder="Title" value={newWeek.title} onChange={(event) => setNewWeek({ ...newWeek, title: event.target.value })} />
@@ -167,7 +168,7 @@ export default function AdminTrainingPage() {
           <ul className="mt-2 space-y-1 text-sm">
             {validation.issues.map((issue, index) => (
               <li key={`${issue.code}-${index}`} className={issue.severity === "error" ? "text-red-700 dark:text-red-300" : "text-amber-700 dark:text-amber-300"}>
-                Week {issue.week_number}: {issue.message}{issue.stable_id ? ` (${issue.stable_id})` : ""}
+                {issue.week_number != null ? `Storage week ${issue.week_number}: ` : ""}{issue.message}{issue.stable_id ? ` (${issue.stable_id})` : ""}
               </li>
             ))}
           </ul>
@@ -181,7 +182,7 @@ export default function AdminTrainingPage() {
               <button aria-label={`Move Week ${week.week_number} up`} className="rounded p-2 hover:bg-slate-100 disabled:opacity-30 dark:hover:bg-slate-800" disabled={weekIndex === 0} onClick={() => moveWeek(weekIndex, -1)} type="button"><ChevronUp size={16} /></button>
               <button aria-label={`Move Week ${week.week_number} down`} className="rounded p-2 hover:bg-slate-100 disabled:opacity-30 dark:hover:bg-slate-800" disabled={weekIndex === weeks.length - 1} onClick={() => moveWeek(weekIndex, 1)} type="button"><ChevronDown size={16} /></button>
               <button type="button" onClick={() => setOpenWeek(openWeek === week.id ? null : week.id)} className="flex flex-1 items-center justify-between gap-3 rounded-lg p-2 text-left hover:bg-slate-50 dark:hover:bg-slate-800">
-                <div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Week {week.week_number} · {week.activities.length} activities · {week.is_active ? "Enabled" : "Disabled"}</p><h2 className="mt-1 text-lg font-bold">{week.title}</h2></div>
+                <div><p className="text-xs font-bold uppercase tracking-wide text-blue-600">{week.stage?.title || "Unmapped stage"}</p><h2 className="mt-1 text-lg font-bold">{week.module?.title || week.title}</h2><p className="mt-1 text-xs text-slate-500">Storage week {week.week_number} · {week.activities.length} activities · {week.is_active ? "Enabled" : "Disabled"}</p></div>
                 {openWeek === week.id ? <ChevronUp /> : <ChevronDown />}
               </button>
             </div>
@@ -195,7 +196,7 @@ export default function AdminTrainingPage() {
                   <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={week.is_active} onChange={(event) => patchWeek(week.id, { is_active: event.target.checked })} />Enabled</label>
                   <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={week.requires_previous_week} onChange={(event) => patchWeek(week.id, { requires_previous_week: event.target.checked })} />Require previous week</label>
                 </div>
-                <div className="flex flex-wrap gap-2"><button className="btn-primary" type="button" onClick={() => saveWeek(week)}><Save size={15} />Save week</button><Link className="btn-secondary" to={`/training/week/${week.week_number}`} target="_blank"><Eye size={15} />Preview as student</Link></div>
+                <div className="flex flex-wrap gap-2"><button className="btn-primary" type="button" onClick={() => saveWeek(week)}><Save size={15} />Save module content</button><Link className="btn-secondary" to={week.module?.route || `/training/week/${week.week_number}`} target="_blank"><Eye size={15} />Preview as student</Link></div>
 
                 <div>
                   <h3 className="font-bold">Activities</h3>

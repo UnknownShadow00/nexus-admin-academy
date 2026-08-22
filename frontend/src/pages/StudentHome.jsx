@@ -68,16 +68,17 @@ export default function StudentHome() {
   }, [studentId, retryKey]);
 
   const continueTarget = useMemo(() => {
-    const week = training?.current_week;
+    const module = training?.current_module;
+    const stage = training?.current_stage;
     const next = training?.next_activity;
-    if (!week) return { label: "Open Learning Path", to: "/learning-path", title: "Learning Path", detail: "Open your learning path." };
-    if (training.training_complete) return { label: "Review Training", to: "/learning-path", title: "Training Complete", detail: "Review completed weeks or revisit course content." };
-    const fresh = week.week_number === 0 && week.required_complete === 0;
+    if (!module) return { label: "Open Learning Path", to: "/learning-path", title: "Learning Path", detail: "Open your learning path." };
+    if (training.training_complete) return { label: "Review Training", to: "/learning-path", title: "Training Complete", detail: "Review completed modules or revisit course content." };
+    const fresh = module.stable_id === "module.orientation.nexus" && module.required_complete === 0;
     return {
       label: fresh ? "Start Training" : "Continue Training",
-      to: next?.destination_route || `/training/week/${week.week_number}`,
+      to: next?.destination_route || module.route,
       title: fresh ? "Begin Your IT Training" : "Continue where you left off",
-      detail: `Week ${week.week_number} — ${week.title}`,
+      detail: `${stage?.title || "Learning Path"} — ${module.title}`,
     };
   }, [training]);
 
@@ -104,9 +105,9 @@ export default function StudentHome() {
   }
 
   const recent = (stats.recent_activity || []).slice(0, 5);
-  const weekActivities = training?.current_week_activities || [];
-  const requiredActivities = weekActivities.filter((item) => item.is_required);
-  const optionalActivities = weekActivities.filter((item) => !item.is_required);
+  const moduleActivities = training?.current_module_activities || [];
+  const requiredActivities = moduleActivities.filter((item) => item.is_required);
+  const optionalActivities = moduleActivities.filter((item) => !item.is_required);
   const statChips = [
     { label: "Total XP", value: stats.total_xp || 0, to: "/skills", Icon: Zap },
     { label: "Day Streak", value: stats.streak || 0, to: "/skills", Icon: Flame },
@@ -136,15 +137,15 @@ export default function StudentHome() {
             <ArrowRight className="hidden shrink-0 text-blue-200 sm:block" size={20} aria-hidden="true" />
           </div>
         ) : null}
-        {training?.current_week ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{training.current_week.required_complete} of {training.current_week.required_total} required activities complete</span><strong>{training.current_week.completion_percent}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${training.current_week.completion_percent}%` }} /></div></div> : null}
+        {training?.current_module ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{training.current_module.required_complete} of {training.current_module.required_total} required activities complete</span><strong>{training.current_module.completion_percent}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${training.current_module.completion_percent}%` }} /></div></div> : null}
         <Link className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 font-bold text-blue-700 hover:bg-blue-50" to={continueTarget.to}>{continueTarget.label}</Link>
       </section>
 
-      {training?.current_week ? (
+      {training?.current_module ? (
         <section className="panel space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">This Week</p><h2 className="mt-1 text-xl font-semibold text-slate-900 dark:text-white">Week {training.current_week.week_number} — {training.current_week.title}</h2></div>
-            <Link className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to={`/training/week/${training.current_week.week_number}`}>Open this week</Link>
+            <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">Current Module</p><h2 className="mt-1 text-xl font-semibold text-slate-900 dark:text-white">{training.current_module.title}</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{training.current_stage?.title}</p></div>
+            <Link className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to={training.current_module.route}>Open module</Link>
           </div>
           <ol className="divide-y divide-slate-200 dark:divide-slate-700">
             {requiredActivities.map((item) => {
@@ -152,7 +153,7 @@ export default function StudentHome() {
               return <li className={`flex items-center gap-3 py-2.5 ${isNext ? "font-semibold text-blue-700 dark:text-blue-300" : "text-slate-700 dark:text-slate-300"}`} key={item.id}>{item.complete ? <CheckCircle2 className="shrink-0 text-emerald-500" size={18} /> : isNext ? <ArrowRight className="shrink-0 text-blue-600" size={18} /> : <Circle className="shrink-0 text-slate-300 dark:text-slate-600" size={18} />}<span className="min-w-0 flex-1 truncate">{item.title}</span><span className="shrink-0 text-xs font-medium text-slate-500">{isNext ? "Next" : item.complete ? "Done" : "Upcoming"}</span></li>;
             })}
           </ol>
-          {optionalActivities.length ? <p className="rounded-lg bg-violet-50 px-3 py-2 text-sm text-violet-800 dark:bg-violet-950/30 dark:text-violet-200"><strong>Optional practice:</strong> {optionalActivities.length} item{optionalActivities.length === 1 ? "" : "s"}. These do not block your next week.</p> : null}
+          {optionalActivities.length ? <p className="rounded-lg bg-violet-50 px-3 py-2 text-sm text-violet-800 dark:bg-violet-950/30 dark:text-violet-200"><strong>Optional practice:</strong> {optionalActivities.length} item{optionalActivities.length === 1 ? "" : "s"}. These do not block your next module.</p> : null}
         </section>
       ) : null}
 

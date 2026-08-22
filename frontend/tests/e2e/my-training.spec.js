@@ -135,15 +135,18 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await page.getByRole("link", { name: "Learning Path", exact: true }).click();
   await expect(page).toHaveURL(/\/learning-path$/);
   await expect(page.getByRole("heading", { name: "Learning Path", exact: true })).toBeVisible();
-  await expect(page.getByText(/View full learning path/)).toBeVisible();
-  await page.getByText(/View full learning path/).click();
-  await expect(page.getByText(/Week 0 — Welcome to Nexus/).first()).toBeVisible();
+  await expect(page.getByText("Current Stage", { exact: true })).toBeVisible();
+  await expect(page.getByText("Current Module", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Nexus Orientation", exact: true })).toBeVisible();
+  await expect(page.getByText(/^Week \d+/)).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
 
+  // The historical URL remains compatible, but renders the module concept.
   await page.goto("/training/week/0");
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Welcome to Nexus", exact: true })).toBeVisible();
-  await page.getByText(/Extra practice \(/).click();
+  await expect(page.getByRole("heading", { name: "Nexus Orientation", exact: true })).toBeVisible();
+  await expect(page.getByText("Technician Orientation · Module", { exact: true })).toBeVisible();
+  await page.getByText(/Optional practice \(/).click();
   const ticketingVideo = page.locator("article").filter({ hasText: "Ticketing Systems" }).filter({ has: page.getByRole("link", { name: "Take Quiz" }) }).first();
   await expect(ticketingVideo.getByRole("link", { name: "Take Quiz" })).toHaveAttribute("href", /\/quizzes\/42$/);
   const markButton = ticketingVideo.getByRole("button", { name: "Mark Watched" });
@@ -192,6 +195,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Skills", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Training Progress", exact: true })).toBeVisible();
   await expect(page.getByText("Course progress", { exact: true })).toBeVisible();
+  await expect(page.getByText("Modules Completed", { exact: true })).toBeVisible();
   await expect(page.getByText(/Average quiz score: .*Best quiz score:/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Continue Training", exact: true })).toHaveCount(0);
 
@@ -238,7 +242,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Skills", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Extra Practice/ })).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
-  await page.goto("/training/week/0");
+  await page.goto("/training/module/module.orientation.nexus");
   await assertNoHorizontalOverflow(page);
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /Begin Your IT Training|Continue where you left off/ })).toBeVisible();
@@ -270,23 +274,23 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   expect(monitor.httpErrors).toEqual([]);
 });
 
-test("admin can open Weekly Training under Learning Content", async ({ page }) => {
+test("admin can open Curriculum Structure under Learning Content", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await adminLogin(page);
   const monitor = monitorPage(page);
   await page.getByRole("button", { name: /Learning Content/ }).click();
-  await page.getByRole("menuitem", { name: "Weekly Training" }).click();
-  await expect(page.getByRole("heading", { name: "Weekly Training" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Curriculum Structure" }).click();
+  await expect(page.getByRole("heading", { name: "Curriculum Structure" })).toBeVisible();
   await expect(page.getByText("References valid")).toBeVisible();
   await expect(page.getByText("137 of 137", { exact: false })).toBeVisible();
-  await expect(page.getByText(/Week \d+ · \d+ activities/)).toHaveCount(25);
-  await expect(page.getByText(/Week 0 ·/).first()).toBeVisible();
-  await page.getByText(/Week 0 ·/).first().click();
+  await expect(page.getByText(/Storage week \d+ · \d+ activities/)).toHaveCount(25);
+  await expect(page.getByRole("heading", { name: "Nexus Orientation", exact: true })).toBeVisible();
+  await page.getByRole("heading", { name: "Nexus Orientation", exact: true }).click();
   await expect(page.getByLabel(/Quiz for week-0-video-/).first()).toBeVisible();
   await assertNoHorizontalOverflow(page);
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Weekly Training" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Curriculum Structure" })).toBeVisible();
   const adminRoutes = [
     ["/admin/modules", "Module Manager"],
     ["/admin/students", "Student Activity Overview"],
@@ -434,8 +438,8 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
 
     monitor.pause();
     await page.goto(weekOneLessonPath);
-    await expect(page.getByRole("heading", { name: "Week 1 locked" })).toBeVisible();
-    await expect(page.getByText("Complete Week 0's required lesson and quiz first.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Support Workflow Essentials locked" })).toBeVisible();
+    await expect(page.getByText("Complete the required lesson and quiz in Nexus Orientation first.")).toBeVisible();
     monitor.resume();
     await page.goto(orientationLessonPath);
 
@@ -451,7 +455,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
 
     monitor.pause();
     await page.goto(weekOneLessonPath);
-    await expect(page.getByText("Complete Week 0's required quiz first.")).toBeVisible();
+    await expect(page.getByText("Complete the required quiz in Nexus Orientation first.")).toBeVisible();
     monitor.resume();
     await page.goto(orientationLessonPath);
     await page.getByRole("link", { name: "Take quiz", exact: true }).click();
@@ -486,13 +490,13 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await expect(page.getByText("2 of 2 required activities complete").first()).toBeVisible();
     const weekHeaderText = await page.locator("main > header").innerText();
     expect(weekHeaderText).toContain("2 of 2 required complete");
-    await expect(page.getByRole("heading", { name: "Week 0 Complete" })).toBeVisible();
-    await page.getByText(/Extra practice \(/).click();
+    await expect(page.getByRole("heading", { name: "Module Complete" })).toBeVisible();
+    await page.getByText(/Optional practice \(/).click();
     await expect(page.locator('article[data-activity-type="video"]').filter({ hasText: "How to Pass Your A+" }).first().getByRole("button", { name: "Mark Watched" })).toBeVisible();
 
     await page.goto(orientationLessonPath);
-    await expect(page.getByText("✓ Week 0 complete")).toBeVisible();
-    await page.getByRole("link", { name: "Start Week 1" }).click();
+    await expect(page.getByText("✓ Orientation complete")).toBeVisible();
+    await page.getByRole("link", { name: "Start Next Module" }).click();
     await expect(page).toHaveURL(new RegExp(`${weekOneLessonPath}$`));
     await expect(page.getByRole("heading", { name: "Anatomy of a Good Ticket" })).toBeVisible();
     await page.reload();
@@ -500,13 +504,12 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
 
     await page.goto("/training");
     await expect(page).toHaveURL(/\/learning-path$/);
-    await page.getByText(/View full learning path/).click();
-    const weekOne = page.locator('a[href="/training/week/1"]');
-    await expect(weekOne).toBeVisible();
-    await expect(weekOne).not.toContainText("Locked");
+    const supportModule = page.locator('a[href="/training/module/module.endpoint.support_workflow"]');
+    await expect(supportModule).toBeVisible();
+    await expect(supportModule).not.toContainText("Locked");
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Continue where you left off" })).toBeVisible();
-    await expect(page.getByText(/Week 1 —/).first()).toBeVisible();
+    await expect(page.getByText(/Endpoint Foundations — Support Workflow Essentials/).first()).toBeVisible();
 
     monitor.pause();
     await page.getByRole("button", { name: "Disposable Browser Flow Student" }).click();
@@ -514,7 +517,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await studentLogin(page, username, password);
     monitor.resume();
     await expect(page.getByRole("heading", { name: "Continue where you left off" })).toBeVisible();
-    await expect(page.getByText(/Week 1 —/).first()).toBeVisible();
+    await expect(page.getByText(/Endpoint Foundations — Support Workflow Essentials/).first()).toBeVisible();
     await page.goto("/training/week/0");
     await expect(page.getByText("2 of 2 required activities complete").first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
@@ -545,8 +548,8 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await secondPage.setViewportSize({ width: 375, height: 812 });
     await studentLogin(secondPage, secondUsername, password);
     await secondPage.goto(weekOneLessonPath);
-    await expect(secondPage.getByRole("heading", { name: "Week 1 locked" })).toBeVisible();
-    await expect(secondPage.getByText("Complete Week 0's required lesson and quiz first.")).toBeVisible();
+    await expect(secondPage.getByRole("heading", { name: "Support Workflow Essentials locked" })).toBeVisible();
+    await expect(secondPage.getByText("Complete the required lesson and quiz in Nexus Orientation first.")).toBeVisible();
     await assertNoHorizontalOverflow(secondPage);
     await secondContext.close();
   } finally {

@@ -215,10 +215,10 @@ test("no mobile horizontal overflow on rebuilt lab pages", async ({ page }) => {
   }
 });
 
-test("admin Weekly Training reflects the Weeks 1-4 realignment", async ({ page }) => {
+test("admin Curriculum Structure reflects the early-module realignment", async ({ page }) => {
   await adminLogin(page);
   await page.getByRole("button", { name: /Learning Content/ }).click();
-  await page.getByRole("menuitem", { name: "Weekly Training" }).click();
-  await expect(page.getByRole("heading", { name: "Weekly Training" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Curriculum Structure" }).click();
+  await expect(page.getByRole("heading", { name: "Curriculum Structure" })).toBeVisible();
   await expect(page.getByText("References valid")).toBeVisible();
 });
