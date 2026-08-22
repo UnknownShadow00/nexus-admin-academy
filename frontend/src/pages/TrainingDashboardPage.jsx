@@ -80,7 +80,7 @@ export default function TrainingDashboardPage() {
 
       <section className="space-y-4" aria-label="Full learning path">
         {(data.stages || []).map((pathStage) => (
-          <details className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" key={pathStage.stable_id} defaultOpen={pathStage.stable_id === stage?.stable_id}>
+          <details className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" key={pathStage.stable_id} open={pathStage.stable_id === stage?.stable_id}>
             <summary className="cursor-pointer list-none px-4 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"><span className="flex items-center justify-between gap-3"><span className="inline-flex min-w-0 items-center gap-2"><ChevronRight className="shrink-0 transition-transform [details[open]_&]:rotate-90" size={17} /><span><span className="block text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">Stage {pathStage.display_order}</span><span className="block truncate font-bold text-slate-900 dark:text-white">{pathStage.title}</span></span></span><StatusBadge status={pathStage.status} /></span></summary>
             <div className="border-t border-slate-200 p-4 dark:border-slate-700"><p className="mb-4 text-sm text-slate-600 dark:text-slate-300">{pathStage.description}</p><div className="grid gap-3 md:grid-cols-2">{pathStage.modules.map((pathModule) => <ModuleCard currentModuleId={module?.stable_id} key={pathModule.stable_id} module={pathModule} />)}</div></div>
           </details>

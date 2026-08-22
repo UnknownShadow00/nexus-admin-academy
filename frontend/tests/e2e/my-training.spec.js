@@ -451,7 +451,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
 
     await page.getByRole("button", { name: "Mark lesson complete", exact: true }).click();
     await expect(page.getByRole("button", { name: "Orientation complete", exact: true })).toBeVisible();
-    await expect(page.getByText("Pass the Ticketing Systems Quiz to unlock Week 1.")).toBeVisible();
+    await expect(page.getByText("Pass the Ticketing Systems Quiz to unlock Support Workflow Essentials.")).toBeVisible();
 
     monitor.pause();
     await page.goto(weekOneLessonPath);
