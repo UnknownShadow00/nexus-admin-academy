@@ -22,6 +22,7 @@ htmlcov/
 .coverage
 .mypy_cache/
 .ruff_cache/
+/.turbo/
 .DS_Store
 Thumbs.db
 playwright-report/
