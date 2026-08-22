@@ -303,9 +303,11 @@ def _check_required_quiz(student_id: int, config: dict, db: Session) -> dict:
     week = int((config or {}).get("week", -1))
     gate_quizzes = [quiz for quiz in required_quizzes_for_week(db, week) if quiz.quiz_purpose == "gate"]
     passed = bool(gate_quizzes) and all(is_quiz_passed(db, student_id, quiz) for quiz in gate_quizzes)
+    module = module_for_week(week)
+    module_label = module.title if module else "the required training module"
     return {
         "type": "required_quiz",
-        "description": f"Pass the Week {week} promotion-gate quiz",
+        "description": f"Pass the {module_label} promotion-gate quiz",
         "progress": {
             "week": week,
             "required": len(gate_quizzes),
