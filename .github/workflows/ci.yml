@@ -97,7 +97,7 @@ jobs:
         working-directory: backend
         # test_orientation_seed.py already runs: migrate an empty DB to
         # head, seed twice, diff the two snapshots for exact equality, and
-        # assert 25 weeks / 273 activities / 137 mapped videos / the single
+        # assert 35 modules / 320 activities / 137 mapped videos / the single
         # required Week 0 orientation activity / curriculum validation
         # valid:true. Reusing it here avoids re-implementing that diff
         # logic in the workflow.
@@ -167,16 +167,16 @@ jobs:
           with open("/tmp/curriculum-validation.json") as f:
               data = json.load(f)
           assert data["valid"] is True, data
-          assert data["week_count"] == 25, data["week_count"]
-          assert data["activity_count"] == 273, data["activity_count"]
-          assert data["stage_count"] == 9, data["stage_count"]
-          assert data["module_count"] == 25, data["module_count"]
+          assert data["week_count"] == 35, data["week_count"]
+          assert data["activity_count"] == 320, data["activity_count"]
+          assert data["stage_count"] == 11, data["stage_count"]
+          assert data["module_count"] == 35, data["module_count"]
           assert data["mapped_activity_count"] == data["activity_count"], data
           assert data["unmapped_activity_count"] == 0, data
           assert data["required_mapped_activity_count"] + data["optional_mapped_activity_count"] == data["mapped_activity_count"], data
           assert data["enabled_video_count"] == 137, data["enabled_video_count"]
           assert data["mapped_video_count"] == 137, data["mapped_video_count"]
-          print("curriculum validation counts confirmed: 9 stages, 25 modules, 273/273 activities, 137/137 videos mapped")
+          print("curriculum validation counts confirmed: 11 stages, 35 modules, 320/320 activities, 137/137 videos mapped")
           PY
 
       - name: Run CLI validate and sanity
