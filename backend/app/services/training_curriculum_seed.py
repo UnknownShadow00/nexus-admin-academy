@@ -3230,9 +3230,13 @@ def sync_microsoft_workplace_foundations(db: Session) -> dict:
             )
     db.flush()
 
-    # 10. One integrated Prove-level capstone at the end of the stage.
+    # 10. One integrated Prove-level capstone at the end of the stage. Role-gated
+    # like every other seeded capstone (seed.py's seed_capstones) -- an
+    # ungated role_level would surface "Capstones" in nav for every student,
+    # including a brand-new Trainee, regardless of curriculum position.
     capstone = db.query(CapstoneTemplate).filter_by(title=_M365_CAPSTONE["title"]).first()
     if capstone is None:
+        capstone_role = db.query(Role).filter_by(name="Junior Systems Technician").first()
         capstone = CapstoneTemplate(
             title=_M365_CAPSTONE["title"],
             description=_M365_CAPSTONE["description"],
@@ -3242,6 +3246,7 @@ def sync_microsoft_workplace_foundations(db: Session) -> dict:
             deliverables=_M365_CAPSTONE["deliverables"],
             estimated_hours=_M365_CAPSTONE["estimated_hours"],
             rubric=_M365_CAPSTONE["rubric"],
+            role_level=capstone_role.id if capstone_role is not None else None,
         )
         db.add(capstone)
         db.flush()

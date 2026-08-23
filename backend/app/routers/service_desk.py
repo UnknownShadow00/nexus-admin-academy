@@ -742,6 +742,8 @@ def _action_allowed(
         "locked-user-account",
         "password-reset",
         "mfa-reset",
+        "m365-entra-auth-method",
+        "m365-signin-conditional-access",
         "inc2405",
         "inc2406",
     }
@@ -785,12 +787,20 @@ def _action_allowed(
             for objective in category.objectives
         )
 
-    if key in {"locked-user-account", "password-reset", "mfa-reset"}:
+    if key in {
+        "locked-user-account",
+        "password-reset",
+        "mfa-reset",
+        "m365-entra-auth-method",
+        "m365-signin-conditional-access",
+    }:
         if event_type == "directory.verify_identity":
             ticket_id_by_key = {
                 "locked-user-account": "INC2511",
                 "password-reset": "INC2512",
                 "mfa-reset": "INC2513",
+                "m365-entra-auth-method": "INC2601",
+                "m365-signin-conditional-access": "INC2602",
             }
             if not has_trusted(
                 "chat.verify_identity",
