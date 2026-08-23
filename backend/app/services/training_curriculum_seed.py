@@ -6,7 +6,10 @@ runs migrations before the ordinary seed scripts have created content, so
 weekly configuration is never overwritten.
 """
 
+import hashlib
+import json
 from collections import defaultdict
+from datetime import datetime, timezone
 
 from sqlalchemy import func, inspect
 from sqlalchemy.orm import Session
@@ -16,7 +19,9 @@ from app.models.cli_lab import CliLab
 from app.models.curriculum_video import CurriculumVideo
 from app.models.lab import LabTemplate
 from app.models.learning import Lesson, Module
-from app.models.quiz import Quiz
+from app.models.progression import PromotionGate, Role
+from app.models.quiz import Question, Quiz
+from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.quiz_visibility import student_visible_quiz_filters
 from app.services.training_quiz_mapping import OPTIONAL_LESSON_IDS, OPTIONAL_LESSON_TITLES, mapping_metadata, video_is_required
@@ -1578,7 +1583,12 @@ WEEKS_19_22_QUALITY = {
         "required_videos": {53, 54, 55, 56},
         "required_quiz": 23,
         "required_service_desk": False,
-        "lab": {"title": "Route the Cloud Identity Ticket", "lab_type": "structured_cloud", "questions": CLOUD_IDENTITY_PRACTICE, "estimated_minutes": 20},
+        # No "lab" spec here: Phase 4B.1 (sync_microsoft_workplace_foundations)
+        # moves this week's guided lab ("Route the Cloud Identity Ticket",
+        # LabTemplate id 19) to the new Entra module at week 26, since its
+        # content fits there far better than this general-cloud module. Do
+        # not re-add a lab spec here or _sync_quality_batch will recreate a
+        # duplicate on every re-seed after the move has happened.
     },
     22: {
         "description": "Separate Azure control-plane failures from guest-OS failures and make narrowly scoped access changes.",
@@ -2579,10 +2589,354 @@ _ADVANCED_NETWORKING_RESEQUENCE_TARGETS = {
 }
 
 
+_M365_MOVED_LAB_19_UPDATE = {
+    "title": "Investigate the Entra Identity Ticket",
+    "week_number": 26,
+    "success_criteria": {
+        "questions": [
+            {
+                "id": "signin-log",
+                "prompt": "A user can sign into their laptop but not Microsoft 365. What should you inspect first?",
+                "context": "The organization synchronizes identities from on-premises AD to Entra ID.",
+                "type": "single_choice",
+                "options": [
+                    {"id": "a", "label": "Entra sign-in logs and synchronization state"},
+                    {"id": "b", "label": "The laptop display driver"},
+                    {"id": "c", "label": "The office printer queue"},
+                    {"id": "d", "label": "Reset every authentication method immediately"},
+                ],
+                "correct": ["a"],
+                "explanation": "The split between local and cloud sign-in points to cloud policy, sign-in evidence, or directory synchronization.",
+            },
+            {
+                "id": "mfa-lost-phone",
+                "prompt": "A caller says their phone was lost and asks for an MFA reset. What is the first required action?",
+                "context": "The caller is in a hurry and can provide their username.",
+                "type": "single_choice",
+                "options": [
+                    {"id": "a", "label": "Verify identity using the approved recovery process"},
+                    {"id": "b", "label": "Remove MFA based on the username"},
+                    {"id": "c", "label": "Give them an administrator's phone number"},
+                    {"id": "d", "label": "Disable Conditional Access"},
+                ],
+                "correct": ["a"],
+                "explanation": "An MFA reset changes an account's trust boundary, so identity verification comes first.",
+            },
+            {
+                "id": "group-vs-individual",
+                "prompt": "A department needs five new hires to have the same file and app access as the rest of the team. What is the safest way to grant it?",
+                "context": "Individual access grants for this team are already inconsistent from past one-off requests.",
+                "type": "single_choice",
+                "options": [
+                    {"id": "a", "label": "Add each new hire to the team's existing Entra group"},
+                    {"id": "b", "label": "Grant each new hire Global Administrator to be safe"},
+                    {"id": "c", "label": "Copy permissions individually from a random existing employee"},
+                    {"id": "d", "label": "Leave access ungranted until someone complains"},
+                ],
+                "correct": ["a"],
+                "explanation": "Group-based access is the same discipline from on-prem AD, still true in Entra: consistent, auditable, and reversible in one place.",
+            },
+        ],
+    },
+}
+
+_M365_NEW_LABS = {
+    27: {
+        "title": "Investigate the Suspicious MFA Prompt",
+        "lab_type": "structured_cloud",
+        "description": "Recognize account-takeover risk in an MFA event and choose the safe response instead of the fast one.",
+        "estimated_minutes": 20,
+        "questions": [
+            {
+                "id": "unexpected-prompt",
+                "prompt": "A user reports approving an MFA prompt they didn't expect, then immediately became worried. What should you do first?",
+                "context": "The user says they tapped Approve before thinking, from their home wifi, during their normal work hours.",
+                "type": "single_choice",
+                "options": [
+                    {"id": "a", "label": "Treat this as a possible account compromise: investigate sign-in activity and involve security escalation, not just reset MFA and close the ticket"},
+                    {"id": "b", "label": "Reset MFA and close the ticket -- the user is fine now"},
+                    {"id": "c", "label": "Tell the user it's nothing to worry about"},
+                    {"id": "d", "label": "Ignore it since no data loss was reported"},
+                ],
+                "correct": ["a"],
+                "explanation": "An unexpected approved MFA prompt is a classic account-takeover indicator (MFA fatigue/push-bombing). A reset alone doesn't establish whether the account was already accessed -- investigate sign-in activity and escalate per policy.",
+            },
+            {
+                "id": "not-auto-reset",
+                "prompt": "Why is 'just reset their MFA and move on' the wrong first move for a suspicious-prompt ticket, even though it's the correct move for a lost-phone ticket?",
+                "context": "Compare this to a routine 'I lost my phone' MFA-reset request.",
+                "type": "single_choice",
+                "options": [
+                    {"id": "a", "label": "A suspicious prompt may mean the account is already compromised -- resetting MFA without investigating could let an attacker re-register a new method just as easily as the legitimate user"},
+                    {"id": "b", "label": "It's actually the same situation and the same fix applies"},
+                    {"id": "c", "label": "Resetting MFA is technically impossible for this ticket type"},
+                    {"id": "d", "label": "The user hasn't paid for MFA reset support"},
+                ],
+                "correct": ["a"],
+                "explanation": "A lost-phone request has a known, verifiable cause. A suspicious prompt has an unknown cause that might be active compromise -- the investigation step changes what's safe to do next.",
+            },
+            {
+                "id": "escalation-criteria",
+                "prompt": "What should you document and hand off if you escalate a suspicious-MFA ticket to security/a senior technician?",
+                "context": "You are not authorized to make the final compromise determination yourself.",
+                "type": "single_choice",
+                "options": [
+                    {"id": "a", "label": "The exact prompt timing, sign-in log evidence you reviewed, and why the pattern looked suspicious"},
+                    {"id": "b", "label": "Nothing -- just forward the ticket with no notes"},
+                    {"id": "c", "label": "Your guess about who the attacker might be"},
+                    {"id": "d", "label": "A promise that you already reset the account, so no further action is needed"},
+                ],
+                "correct": ["a"],
+                "explanation": "A useful escalation hands off the evidence you gathered, not just the ticket -- that's what lets the next responder act quickly without repeating your investigation.",
+            },
+        ],
+    },
+    28: {
+        "title": "Diagnose the Mailbox Permission Ticket",
+        "lab_type": "structured_cloud",
+        "description": "Work through a shared-mailbox permission report and an Outlook client complaint using the right evidence for each.",
+        "estimated_minutes": 20,
+        "questions": [
+            {
+                "id": "full-access-no-send",
+                "prompt": "Daniel reports: 'I can open the shared mailbox but I can't send from it.' Evidence shows Full Access is granted and Send As is not. What should you do?",
+                "context": "The original request only asked for Daniel to be able to read and triage messages in the shared mailbox.",
+                "type": "single_choice",
+                "options": [
+                    {"id": "a", "label": "Confirm what Daniel is actually authorized to do, then grant Send As or Send on Behalf only if that authorization covers sending"},
+                    {"id": "b", "label": "Grant Send As immediately since he asked"},
+                    {"id": "c", "label": "Remove his Full Access instead"},
+                    {"id": "d", "label": "Tell him it's impossible to send from a shared mailbox"},
+                ],
+                "correct": ["a"],
+                "explanation": "Full Access without Send As/Send on Behalf is expected behavior, not a bug -- the fix is confirming authorization before granting more than was originally requested.",
+            },
+            {
+                "id": "outlook-vs-server",
+                "prompt": "A user's desktop Outlook keeps prompting for credentials and won't finish connecting. Outlook on the web works fine for the same account. Where is the problem?",
+                "context": "No other users report mail delivery issues.",
+                "type": "single_choice",
+                "options": [
+                    {"id": "a", "label": "Local to the desktop Outlook profile/cache, not the mailbox"},
+                    {"id": "b", "label": "The Exchange Online service is down"},
+                    {"id": "c", "label": "The mailbox has been deleted"},
+                    {"id": "d", "label": "The user's license was revoked"},
+                ],
+                "correct": ["a"],
+                "explanation": "A working web client with a failing desktop client isolates the fault to the local profile/cache, not the server side.",
+            },
+            {
+                "id": "least-privilege-mailbox",
+                "prompt": "A manager asks for Full Access AND Send As on a shared mailbox 'just in case,' but the actual task is only reading incoming orders. What should you do?",
+                "context": "You have the technical ability to grant both immediately.",
+                "type": "single_choice",
+                "options": [
+                    {"id": "a", "label": "Grant only what the stated task requires, and note that broader access can be requested separately with justification"},
+                    {"id": "b", "label": "Grant everything requested to avoid a follow-up ticket"},
+                    {"id": "c", "label": "Deny all access since the request seems excessive"},
+                    {"id": "d", "label": "Grant Global Administrator instead"},
+                ],
+                "correct": ["a"],
+                "explanation": "Least privilege applies to mailbox permissions like anything else -- match the grant to the justified task, not the broadest possible ask.",
+            },
+        ],
+    },
+    29: {
+        "title": "Diagnose the Collaboration Ticket",
+        "lab_type": "structured_cloud",
+        "description": "Work through OneDrive sync and SharePoint access reports using the identity/permission-first approach.",
+        "estimated_minutes": 20,
+        "questions": [
+            {
+                "id": "onedrive-wrong-account",
+                "prompt": "A user says OneDrive stopped syncing this morning. The sync icon shows a personal Microsoft account, not their work account. What is the fix?",
+                "context": "The user recently set up a new laptop and signed into several apps quickly.",
+                "type": "single_choice",
+                "options": [
+                    {"id": "a", "label": "Sign OneDrive out of the personal account and back in with the correct work account"},
+                    {"id": "b", "label": "Reinstall Windows"},
+                    {"id": "c", "label": "Delete all local files and start over"},
+                    {"id": "d", "label": "Escalate to network engineering"},
+                ],
+                "correct": ["a"],
+                "explanation": "Wrong-account sign-in is one of the most common OneDrive 'stopped syncing' causes, especially on freshly set-up devices.",
+            },
+            {
+                "id": "known-folder-move",
+                "prompt": "A user says their Desktop files 'disappeared' right after IT rolled out a new OneDrive policy. What should you check before treating this as data loss?",
+                "context": "The organization recently enabled Known Folder Move for all managed devices.",
+                "type": "single_choice",
+                "options": [
+                    {"id": "a", "label": "Whether Known Folder Move redirected their Desktop/Documents into their OneDrive folder"},
+                    {"id": "b", "label": "Whether the hard drive failed"},
+                    {"id": "c", "label": "Whether their license was removed"},
+                    {"id": "d", "label": "Whether the files were emailed to someone else"},
+                ],
+                "correct": ["a"],
+                "explanation": "Known Folder Move relocates, not deletes, these folders -- checking there avoids an unnecessary data-loss escalation.",
+            },
+            {
+                "id": "sharepoint-permission-not-sync",
+                "prompt": "A user reports a SharePoint-synced folder 'won't update' with a colleague's changes, and Explorer shows a padlock on the files. What is the likely cause?",
+                "context": "The library recently changed its permission and checkout requirements for this team.",
+                "type": "single_choice",
+                "options": [
+                    {"id": "a", "label": "The user's SharePoint permission level, not a broken sync client"},
+                    {"id": "b", "label": "A corrupted OneDrive installation that must be reinstalled first"},
+                    {"id": "c", "label": "A DNS problem"},
+                    {"id": "d", "label": "A hardware fault on their device"},
+                ],
+                "correct": ["a"],
+                "explanation": "A padlock and stale content after a permission change point at the SharePoint permission/checkout layer, not the sync engine -- confirm access before touching the client.",
+            },
+        ],
+    },
+}
+
+_M365_SERVICE_DESK_TICKETS = json.loads(r'''[
+{
+  "id": "INC2601",
+  "stableKey": "m365-entra-auth-method",
+  "title": "Authenticator stopped working after a device upgrade",
+  "category": "access",
+  "priority": "medium",
+  "status": "open",
+  "assignedTo": "you",
+  "escalated": false,
+  "createdAt": "2026-08-10T08:20:00.000Z",
+  "requester": {
+    "name": "Priya Nair",
+    "department": "Marketing",
+    "email": "priya.nair@nexus.example",
+    "location": "North Campus",
+    "contact": "Employee support portal"
+  },
+  "device": {
+    "assetTag": "NX-5140",
+    "deviceName": "MKT-LT-19",
+    "kind": "laptop",
+    "operatingSystem": "Windows 11 Enterprise",
+    "state": "active"
+  },
+  "description": {
+    "issue": "I set up my new phone yesterday and now Microsoft Authenticator won't approve my sign-in prompts. My password still works fine.",
+    "businessImpact": "Priya cannot reach the campaign approval dashboard before this afternoon's deadline.",
+    "reportedByLine": "Submitted through the employee support portal after the password step succeeded twice.",
+    "troubleshooting": [
+      "Confirmed the password step succeeds every time.",
+      "The old phone was traded in as part of a carrier upgrade.",
+      "Has not attempted to approve any prompts she doesn't recognize."
+    ]
+  },
+  "sla": {"target": "Respond within 4 hours", "dueAt": "2026-08-10T12:20:00.000Z"},
+  "hints": [
+    "Confirm the password step succeeds separately from the second-factor problem.",
+    "Review the registered authentication methods after the approved identity check.",
+    "Re-register only the unusable method, then verify the account is ready to sign in."
+  ],
+  "notes": [],
+  "activity": [
+    {"id": "INC2601-created", "label": "Ticket created", "timestamp": "2026-08-10T08:20:00.000Z", "detail": "Created from the employee support portal."},
+    {"id": "INC2601-assigned", "label": "Assigned to you", "timestamp": "2026-08-10T08:24:00.000Z", "detail": "Starter Support routed this case to your shift.", "tone": "info"}
+  ],
+  "suggestedTools": ["directory", "documentation"],
+  "objective_catalog_version": "process-v3"
+},
+{
+  "id": "INC2602",
+  "stableKey": "m365-signin-conditional-access",
+  "title": "Sign-in blocked even though the password is correct",
+  "category": "access",
+  "priority": "high",
+  "status": "open",
+  "assignedTo": "you",
+  "escalated": false,
+  "createdAt": "2026-08-11T09:05:00.000Z",
+  "requester": {
+    "name": "Owen Mackay",
+    "department": "Field Sales",
+    "email": "owen.mackay@nexus.example",
+    "location": "Remote - Traveling",
+    "contact": "Employee support portal"
+  },
+  "device": {
+    "assetTag": "NX-6203",
+    "deviceName": "SALES-LT-08",
+    "kind": "laptop",
+    "operatingSystem": "Windows 11 Enterprise",
+    "state": "attention"
+  },
+  "description": {
+    "issue": "My password is definitely correct but Microsoft 365 won't let me sign in. It just says my sign-in was blocked.",
+    "businessImpact": "Owen cannot access the client order system while traveling for a same-day meeting.",
+    "reportedByLine": "Submitted from an airport lounge network, confirmed the password step succeeded before the block appeared.",
+    "troubleshooting": [
+      "Confirmed the password is correct.",
+      "Tried again from the same network with the same result.",
+      "Has not tried from a different network yet."
+    ]
+  },
+  "sla": {"target": "Respond within 2 hours", "dueAt": "2026-08-11T11:05:00.000Z"},
+  "hints": [
+    "Check the sign-in log's Authentication Details tab for the exact block reason before assuming a password problem.",
+    "Determine whether this was a Conditional Access policy block tied to a risk signal, not a credential failure.",
+    "Confirm identity before re-enabling the account, the same as any other account-state change."
+  ],
+  "notes": [],
+  "activity": [
+    {"id": "INC2602-created", "label": "Ticket created", "timestamp": "2026-08-11T09:05:00.000Z", "detail": "Created from the employee support portal.", "tone": "warning"},
+    {"id": "INC2602-assigned", "label": "Assigned to you", "timestamp": "2026-08-11T09:09:00.000Z", "detail": "Starter Support routed this case to your shift.", "tone": "info"}
+  ],
+  "suggestedTools": ["directory", "documentation"],
+  "objective_catalog_version": "process-v3"
+}
+]''')
+
+_M365_CAPSTONE = {
+    "title": "Microsoft Workplace Support Shift",
+    "description": (
+        "A short realistic shift with several unrelated Microsoft 365 requests. Prioritize, investigate, "
+        "resolve or escalate, verify, and document each one -- the same integrated skill as a real first-line shift, "
+        "scoped to this stage's content."
+    ),
+    "week_number": 29,
+    "estimated_hours": 2,
+    "requirements": {
+        "tickets": [
+            {"summary": "A user cannot sign in; password is correct.", "expected_skill": "Distinguish a Conditional Access block from a credential failure using sign-in log evidence."},
+            {"summary": "A user has a mailbox permission complaint (can open, can't send as).", "expected_skill": "Distinguish Full Access from Send As and grant only what was authorized."},
+            {"summary": "A user reports OneDrive sync failure.", "expected_skill": "Rule out wrong-account sign-in and Known Folder Move before treating it as data loss."},
+            {"summary": "A suspicious, unrequested MFA approval prompt.", "expected_skill": "Recognize account-takeover risk and escalate instead of resetting and closing."},
+        ],
+        "process": ["prioritize", "investigate", "resolve_or_escalate", "verify", "document"],
+    },
+    "deliverables": {
+        "notes": "One documented resolution or escalation per ticket, each stating the evidence reviewed and the action taken.",
+    },
+    "rubric": {
+        "prioritization": "Addressed the suspicious-MFA and blocked-sign-in tickets before the lower-urgency requests.",
+        "evidence_first": "Investigated before acting on every ticket, especially the two identity-adjacent ones.",
+        "safe_process": "Did not reset or grant access beyond what each ticket's evidence and authorization supported.",
+        "documentation": "Left a clear, evidence-based note or escalation reason for every ticket.",
+    },
+}
+
+
 def sync_advanced_networking_resequence(db: Session) -> dict:
     """Idempotently move weeks 10-12 (advanced networking) after weeks 13-15
     (Identity & Access) in TrainingWeek.display_order. Safe to call whether or
-    not the swap has already been applied; never touches week_number."""
+    not the swap has already been applied; never touches week_number.
+
+    Once Phase 4B.1 (sync_microsoft_workplace_foundations) has run, its own
+    _M365_DISPLAY_ORDER_SHIFT further moves weeks 10-12 from display_order
+    13-15 to 18-20 to make room for the new Microsoft Workplace weeks. This
+    function's _ADVANCED_NETWORKING_RESEQUENCE_TARGETS predates that and
+    would otherwise "fix" weeks 10-12 back to their now-stale 13-15 targets
+    on every later idempotent re-seed. Skip once week 25 exists -- Phase
+    4B.1's shift is authoritative for those rows from that point on.
+    """
+    if db.query(TrainingWeek).filter(TrainingWeek.week_number == 25).first():
+        return {"weeks_checked": 0, "weeks_updated": 0, "skipped": True, "reason": "superseded_by_microsoft_workplace_shift"}
     weeks = {
         row.week_number: row
         for row in db.query(TrainingWeek)
@@ -2599,3 +2953,823 @@ def sync_advanced_networking_resequence(db: Session) -> dict:
             updated += 1
     db.commit()
     return {"weeks_checked": len(weeks), "weeks_updated": updated}
+
+
+def sync_microsoft_workplace_foundations(db: Session) -> dict:
+    """Idempotently build the Phase 4B.1 Microsoft 365, Entra & Endpoint
+    Management stage: new weeks 25-29, their content, and the System B
+    (progression_service.py / service_desk_progression.py) reconciliation
+    documented in docs/MICROSOFT_WORKPLACE_CURRICULUM.md.
+
+    Safe to call whether or not it has already run. Never renumbers an
+    existing week_number; only shifts TrainingWeek.display_order for the 12
+    rows in _M365_DISPLAY_ORDER_SHIFT, and only moves (not deletes) Lesson 58
+    and LabTemplate 19 out of week 21 into the new week 26.
+    """
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeek.__tablename__):
+        return {"skipped": True, "reason": "migration_not_applied"}
+    if db.query(TrainingWeek).filter(TrainingWeek.week_number == 25).first():
+        return {"skipped": True, "reason": "already_applied"}
+    # This function is called both from migration 0057's upgrade() (self-
+    # contained production deploy, matching sync_weeks_23_24_quality's
+    # established pattern) and again from seed_curriculum.py after
+    # sync_initial_training_activities. On a truly fresh/empty database the
+    # migration runs before any base-curriculum TrainingWeekActivity rows
+    # exist; creating rows here first would trip
+    # sync_initial_training_activities's own "already configured" guard and
+    # silently skip populating weeks 0-24 entirely. Defer to the later call.
+    base_curriculum_seeded = (
+        db.query(TrainingWeekActivity.id)
+        .join(TrainingWeek, TrainingWeek.id == TrainingWeekActivity.training_week_id)
+        .filter(TrainingWeek.week_number == 0)
+        .first()
+    )
+    if not base_curriculum_seeded:
+        return {"skipped": True, "reason": "base_curriculum_not_seeded"}
+
+    result = {"skipped": False, "weeks_created": 0, "weeks_shifted": 0, "modules_created": 0,
+               "lessons_created": 0, "quizzes_created": 0, "questions_created": 0,
+               "labs_created": 0, "labs_moved": 0, "tickets_created": 0, "capstones_created": 0,
+               "activities_created": 0, "activities_moved": 0, "gates_updated": 0}
+
+    # 1. Shift display_order for the 12 existing weeks that must move to make
+    # room -- week_number is never touched.
+    existing_weeks = {
+        row.week_number: row
+        for row in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_(_M365_DISPLAY_ORDER_SHIFT)).all()
+    }
+    for week_number, new_order in _M365_DISPLAY_ORDER_SHIFT.items():
+        week = existing_weeks.get(week_number)
+        if week is not None and week.display_order != new_order:
+            week.display_order = new_order
+            result["weeks_shifted"] += 1
+    db.flush()
+
+    # 2. Create the 5 new TrainingWeek rows.
+    new_weeks: dict[int, TrainingWeek] = {}
+    for week_number, spec in _M365_NEW_WEEKS.items():
+        week = TrainingWeek(
+            week_number=week_number,
+            display_order=spec["display_order"],
+            title=spec["title"],
+            description=spec["description"],
+            learning_goals=spec["learning_goals"],
+            is_active=True,
+            requires_previous_week=True,
+        )
+        db.add(week)
+        new_weeks[week_number] = week
+        result["weeks_created"] += 1
+    db.flush()
+
+    # 3. Create the 5 legacy Module rows (MOD-025..029) so System B
+    # (progression_service.MODULE_WEEKS, min_completed_lessons gates) has a
+    # concrete container to point at, matching the MOD-000..024 pattern.
+    legacy_modules: dict[int, Module] = {}
+    for week_number, (code, title) in _M365_LEGACY_MODULES.items():
+        module = db.query(Module).filter_by(code=code).first()
+        if module is None:
+            module = Module(
+                code=code,
+                title=title,
+                description=_M365_NEW_WEEKS[week_number]["description"],
+                module_order=week_number + 1,
+                difficulty_band=3,
+                active=True,
+            )
+            db.add(module)
+            result["modules_created"] += 1
+        legacy_modules[week_number] = module
+    db.flush()
+
+    # 4. New Lesson rows (weeks 25, 27, 28, 29). Week 26 reuses the existing,
+    # moved Lesson 58 instead of a new row (see step 6).
+    lessons: dict[int, Lesson] = {}
+    for week_number, spec in _M365_LESSONS.items():
+        lesson = Lesson(
+            module_id=legacy_modules[week_number].id,
+            title=spec["title"],
+            summary=spec["summary"],
+            lesson_order=1,
+            outcomes=spec["outcomes"],
+            estimated_minutes=12,
+            status="published",
+        )
+        db.add(lesson)
+        lessons[week_number] = lesson
+        result["lessons_created"] += 1
+    db.flush()
+
+    # 5. Move Lesson 58 ("Entra ID: Cloud Identity Administration") out of
+    # week 21 / MOD-021 into the new week 26 / MOD-026. Lesson.id is
+    # unchanged, so StudentLessonProgress (keyed on lesson_id) is untouched.
+    moved_lesson = db.get(Lesson, 58)
+    if moved_lesson is not None and moved_lesson.module_id != legacy_modules[26].id:
+        moved_lesson.module_id = legacy_modules[26].id
+        moved_lesson.lesson_order = 1
+        lessons[26] = moved_lesson
+        result["activities_moved"] += 1
+    elif moved_lesson is not None:
+        lessons[26] = moved_lesson
+
+    # 6. New Quiz + Question rows.
+    quizzes: dict[int, Quiz] = {}
+    for week_number, spec in _M365_QUIZZES.items():
+        quiz = Quiz(
+            title=spec["title"],
+            week_number=week_number,
+            domain_id="4.0",
+            status="published",
+            quiz_purpose=spec.get("quiz_purpose", "required"),
+            is_required=True,
+            show_in_weekly_checklist=True,
+            show_in_practice_library=True,
+            editorial_status="validated",
+            question_count=len(spec["questions"]),
+            answer_keys_validated=True,
+            explanations_complete=True,
+            is_active=True,
+        )
+        db.add(quiz)
+        db.flush()
+        quizzes[week_number] = quiz
+        result["quizzes_created"] += 1
+        for index, question in enumerate(spec["questions"], start=1):
+            db.add(
+                Question(
+                    quiz_id=quiz.id,
+                    question_text=question["question_text"],
+                    option_a=question["option_a"],
+                    option_b=question["option_b"],
+                    option_c=question["option_c"],
+                    option_d=question["option_d"],
+                    correct_answer=question["correct_answer"],
+                    explanation=question["explanation"],
+                    difficulty=2,
+                    seed_key=f"m365-week{week_number}-q{index}",
+                )
+            )
+            result["questions_created"] += 1
+    db.flush()
+
+    # 7. New LabTemplate rows (weeks 27, 28, 29) -- evidence-interpretation
+    # troubleshooting exercises. Exchange/OneDrive/SharePoint have no live
+    # simulation tool surface (see service_desk_progression.py comment), so
+    # these use the same question-based guided_lab mechanism as the existing
+    # "Route the Cloud Identity Ticket" lab rather than fabricated tool
+    # evidence the grader cannot evaluate.
+    labs: dict[int, LabTemplate] = {}
+    for week_number, spec in _M365_NEW_LABS.items():
+        lab = LabTemplate(
+            title=spec["title"],
+            description=spec["description"],
+            lab_type=spec["lab_type"],
+            week_number=week_number,
+            difficulty=2,
+            estimated_minutes=spec["estimated_minutes"],
+            is_published=True,
+            environment_requirements={},
+            setup_instructions="Read each symptom and evidence block. Choose the action you could defend in a support ticket.",
+            success_criteria={"questions": spec["questions"]},
+            required_evidence={},
+            hints={},
+        )
+        db.add(lab)
+        db.flush()
+        labs[week_number] = lab
+        result["labs_created"] += 1
+
+    # 8. Move LabTemplate 19 ("Route the Cloud Identity Ticket") out of week
+    # 21 into week 26, trimmed to its Entra-relevant questions plus one new
+    # group-based-access question (the cloud-responsibility/IaaS question it
+    # previously carried stays out of scope for this module).
+    # Looked up by its ORIGINAL title, not a hardcoded id: on an existing
+    # (production) database this row already exists from history, at
+    # whatever id it was originally assigned, and moving it (not recreating
+    # it) preserves any LabRun history tied to that id. On a truly fresh
+    # install nothing creates "Route the Cloud Identity Ticket" any more
+    # (its old WEEKS_19_22_QUALITY spec entry was intentionally removed, see
+    # that constant's comment) -- there, no row exists to move, so one is
+    # created directly under its final identity instead, same as the other
+    # _M365_NEW_LABS.
+    moved_lab = db.query(LabTemplate).filter_by(title="Route the Cloud Identity Ticket").first()
+    if moved_lab is not None:
+        if moved_lab.week_number != 26:
+            moved_lab.title = _M365_MOVED_LAB_19_UPDATE["title"]
+            moved_lab.week_number = _M365_MOVED_LAB_19_UPDATE["week_number"]
+            moved_lab.success_criteria = _M365_MOVED_LAB_19_UPDATE["success_criteria"]
+            result["labs_moved"] += 1
+        labs[26] = moved_lab
+    else:
+        moved_lab = db.query(LabTemplate).filter_by(title=_M365_MOVED_LAB_19_UPDATE["title"]).first()
+        if moved_lab is None:
+            moved_lab = LabTemplate(
+                title=_M365_MOVED_LAB_19_UPDATE["title"],
+                description="Work through realistic evidence and choose the safest support action before moving to an independent case.",
+                lab_type="structured_cloud",
+                week_number=_M365_MOVED_LAB_19_UPDATE["week_number"],
+                difficulty=2,
+                estimated_minutes=20,
+                is_published=True,
+                environment_requirements={},
+                setup_instructions="Read each symptom and evidence block. Choose the action you could defend in a support ticket.",
+                success_criteria=_M365_MOVED_LAB_19_UPDATE["success_criteria"],
+                required_evidence={},
+                hints={},
+            )
+            db.add(moved_lab)
+            db.flush()
+            result["labs_created"] += 1
+        labs[26] = moved_lab
+
+    # 9. Service Desk scenarios (live, server-graded tickets). Objectives
+    # live in app.services.service_desk_objectives.SCENARIO_OBJECTIVES,
+    # keyed by these same stable_key values.
+    scenarios: dict[str, ServiceDeskScenario] = {}
+    for ticket in _M365_SERVICE_DESK_TICKETS:
+        stable_key = ticket["stableKey"]
+        scenario = db.query(ServiceDeskScenario).filter_by(stable_key=stable_key).first()
+        if scenario is None:
+            scenario = ServiceDeskScenario(
+                stable_key=stable_key,
+                title=ticket["title"],
+                description=f'{ticket["description"]["issue"]} {ticket["description"]["businessImpact"]}',
+                category=ticket["category"],
+                difficulty=2,
+                status="active",
+            )
+            db.add(scenario)
+            db.flush()
+            result["tickets_created"] += 1
+        scenarios[stable_key] = scenario
+        definition_hash = hashlib.sha256(json.dumps(ticket, sort_keys=True).encode("utf-8")).hexdigest()
+        version_exists = (
+            db.query(ServiceDeskScenarioVersion)
+            .filter_by(scenario_id=scenario.id, definition_hash=definition_hash)
+            .first()
+        )
+        if version_exists is None:
+            next_version = (
+                db.query(ServiceDeskScenarioVersion.version_number)
+                .filter_by(scenario_id=scenario.id)
+                .order_by(ServiceDeskScenarioVersion.version_number.desc())
+                .first()
+            )
+            db.add(
+                ServiceDeskScenarioVersion(
+                    scenario_id=scenario.id,
+                    version_number=(next_version[0] if next_version else 0) + 1,
+                    definition_json=ticket,
+                    definition_hash=definition_hash,
+                    validation_status="valid",
+                    status="published",
+                    published_at=datetime.now(timezone.utc),
+                    published_by="seed",
+                )
+            )
+    db.flush()
+
+    # 10. One integrated Prove-level capstone at the end of the stage.
+    capstone = db.query(CapstoneTemplate).filter_by(title=_M365_CAPSTONE["title"]).first()
+    if capstone is None:
+        capstone = CapstoneTemplate(
+            title=_M365_CAPSTONE["title"],
+            description=_M365_CAPSTONE["description"],
+            week_number=_M365_CAPSTONE["week_number"],
+            is_published=True,
+            requirements=_M365_CAPSTONE["requirements"],
+            deliverables=_M365_CAPSTONE["deliverables"],
+            estimated_hours=_M365_CAPSTONE["estimated_hours"],
+            rubric=_M365_CAPSTONE["rubric"],
+        )
+        db.add(capstone)
+        db.flush()
+        result["capstones_created"] += 1
+
+    # 11. Wire everything into TrainingWeekActivity. Evidence-interpretation
+    # labs and the tickets are all troubleshooting work by design (Step 9/10
+    # of the Phase 4B.1 brief), so their learning_role is explicitly
+    # overridden to "troubleshoot" rather than the guided_lab default of
+    # "practice" -- these are diagnostic exercises, not build/practice labs.
+    def add_activity(week_number, activity_type, content_ref, is_required, minutes=None, metadata=None):
+        week = new_weeks.get(week_number) or existing_weeks.get(week_number)
+        if week is None:
+            return
+        order = (
+            db.query(func.coalesce(func.max(TrainingWeekActivity.display_order), 0))
+            .filter_by(training_week_id=week.id)
+            .scalar()
+            or 0
+        ) + 1
+        db.add(
+            TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-{week_number}-{activity_type}-{content_ref}",
+                activity_type=activity_type,
+                content_ref=str(content_ref),
+                display_order=order,
+                is_required=is_required,
+                estimated_minutes=minutes,
+                prerequisite_mode="soft",
+                metadata_json=metadata or {},
+            )
+        )
+        db.flush()
+        result["activities_created"] += 1
+
+    for week_number, lesson in lessons.items():
+        add_activity(week_number, "lesson", lesson.id, True, lesson.estimated_minutes)
+    for week_number, quiz in quizzes.items():
+        add_activity(week_number, "quiz", quiz.id, True, 15)
+    for week_number, lab in labs.items():
+        add_activity(week_number, "guided_lab", lab.id, True, lab.estimated_minutes, {"learning_role": "troubleshoot"})
+    for ticket in _M365_SERVICE_DESK_TICKETS:
+        week_number = 26 if ticket["stableKey"] == "m365-entra-auth-method" else 27
+        add_activity(week_number, "service_desk_scenario", ticket["stableKey"], True, 30)
+    add_activity(29, "capstone", capstone.id, False, (capstone.estimated_hours or 2) * 60)
+
+    # 12. Remove the old week-21 TrainingWeekActivity rows for the moved
+    # lesson/lab (they now live at week 26) and compact week 21's remaining
+    # display_order.
+    if moved_lesson is not None or moved_lab is not None:
+        old_week_21 = existing_weeks.get(21) or db.query(TrainingWeek).filter_by(week_number=21).first()
+        if old_week_21 is not None:
+            stale_ids = []
+            if moved_lesson is not None:
+                stale_ids.append(f"week-21-lesson-{moved_lesson.id}")
+            if moved_lab is not None:
+                stale_ids.append(f"week-21-guided_lab-{moved_lab.id}")
+            stale_rows = (
+                db.query(TrainingWeekActivity)
+                .filter(TrainingWeekActivity.training_week_id == old_week_21.id, TrainingWeekActivity.stable_id.in_(stale_ids))
+                .all()
+            )
+            for row in stale_rows:
+                db.delete(row)
+                result["activities_moved"] += 1
+            db.flush()
+            remaining = (
+                db.query(TrainingWeekActivity)
+                .filter_by(training_week_id=old_week_21.id)
+                .order_by(TrainingWeekActivity.display_order)
+                .all()
+            )
+            for order, row in enumerate(remaining, start=1):
+                row.display_order = order
+
+    # 13. Reconcile System B (progression_service.MODULE_WEEKS is a code-level
+    # dict updated separately; here we update the seeded PromotionGate rows
+    # for the graduating role so required Microsoft-stage content is not
+    # silently skippable). See docs/MICROSOFT_WORKPLACE_CURRICULUM.md.
+    final_role = db.query(Role).filter_by(name="Junior Infrastructure Administrator").first()
+    if final_role is not None:
+        lessons_gate = (
+            db.query(PromotionGate)
+            .filter_by(role_id=final_role.id, requirement_type="min_completed_lessons")
+            .first()
+        )
+        if lessons_gate is not None:
+            codes = list(lessons_gate.requirement_config.get("module_codes", []))
+            new_codes = [code for _, (code, _) in _M365_LEGACY_MODULES.items() if code not in codes]
+            if new_codes:
+                lessons_gate.requirement_config = {"module_codes": codes + new_codes}
+                result["gates_updated"] += 1
+
+        if not db.query(PromotionGate).filter_by(role_id=final_role.id, requirement_type="required_quiz", requirement_config={"week": 27}).first():
+            db.add(
+                PromotionGate(
+                    role_id=final_role.id,
+                    requirement_type="required_quiz",
+                    requirement_config={"week": 27},
+                )
+            )
+            result["gates_updated"] += 1
+
+        if not db.query(PromotionGate).filter_by(role_id=final_role.id, requirement_type="min_service_desk_passes", requirement_config={"pack_key": "microsoft-workplace", "min_passed": 2}).first():
+            db.add(
+                PromotionGate(
+                    role_id=final_role.id,
+                    requirement_type="min_service_desk_passes",
+                    requirement_config={"pack_key": "microsoft-workplace", "min_passed": 2},
+                )
+            )
+            result["gates_updated"] += 1
+
+    db.commit()
+    return result
+
+
+# Phase 4B.1: Microsoft 365, Entra & Endpoint Management stage (job-ready
+# curriculum content build). See docs/MICROSOFT_WORKPLACE_CURRICULUM.md for
+# the full research/design record, including exactly why this uses new
+# week_number 25-29 (never reusing/renumbering 0-24) and how System A
+# (TrainingWeek.display_order) and System B (progression_service.py,
+# service_desk_progression.py) both had to be updated so this content is
+# neither invisible to graduation nor stuck as a parallel path. Only
+# TrainingWeek.display_order moves for the 12 existing rows below; their
+# week_number is untouched.
+_M365_DISPLAY_ORDER_SHIFT = {
+    # week_number -> new display_order (+5, opening 13-17 for the new weeks)
+    10: 18, 11: 19, 12: 20,
+    16: 21, 17: 22,
+    18: 23, 19: 24, 20: 25,
+    21: 26, 22: 27,
+    23: 28, 24: 29,
+}
+
+_M365_NEW_WEEKS = {
+    25: {
+        "display_order": 13,
+        "title": "Microsoft 365 Support Foundations",
+        "description": "Relate the M365 tenant, licensing, and admin centers to the accounts and services a technician actually touches.",
+        "learning_goals": [
+            "Explain how M365 services relate to one Entra identity",
+            "Locate which admin center answers a given support question",
+            "Distinguish a licensing/permission problem from an application problem",
+        ],
+    },
+    26: {
+        "display_order": 14,
+        "title": "Entra Users, Groups & Access",
+        "description": "Administer Entra users/groups and investigate account-state and sign-in failures with evidence.",
+        "learning_goals": [
+            "Administer Entra users/groups with the same safety rails as on-prem AD",
+            "Investigate sign-in failures via the Entra sign-in log instead of guessing",
+            "Handle MFA-reset requests with strict identity verification",
+        ],
+    },
+    27: {
+        "display_order": 15,
+        "title": "Sign-In & MFA Troubleshooting",
+        "description": "Read sign-in and Conditional Access evidence, and handle MFA support safely under account-takeover risk.",
+        "learning_goals": [
+            "Distinguish a Conditional Access block from an authentication-method failure using sign-in log evidence",
+            "Explain current authentication-method guidance and the SSPR registration requirement",
+            "Follow a diagnostic order that avoids guessing at MFA fixes",
+        ],
+    },
+    28: {
+        "display_order": 16,
+        "title": "Exchange Online & Outlook Support",
+        "description": "Diagnose mailbox permission and Outlook client problems technicians see every day.",
+        "learning_goals": [
+            "Distinguish Full Access, Send As, and Send on Behalf and pick the correct one for a request",
+            "Separate an Outlook client problem from a mailbox/server problem",
+            "Grant only the specific permission a request and its authorization justify",
+        ],
+    },
+    29: {
+        "display_order": 17,
+        "title": "Teams, OneDrive & SharePoint Support",
+        "description": "Troubleshoot the collaboration tools that generate the highest-volume M365 tickets.",
+        "learning_goals": [
+            "Separate a Teams client issue from an OS device-permission issue",
+            "Diagnose common OneDrive sync failures including Known Folder Move confusion",
+            "Recognize when a SharePoint 'sync' failure is really a lost permission",
+        ],
+    },
+}
+
+_M365_LEGACY_MODULES = {
+    25: ("MOD-025", "Microsoft 365 Support Foundations"),
+    26: ("MOD-026", "Entra Users, Groups & Access"),
+    27: ("MOD-027", "Sign-In & MFA Troubleshooting"),
+    28: ("MOD-028", "Exchange Online & Outlook Support"),
+    29: ("MOD-029", "Teams, OneDrive & SharePoint Support"),
+}
+
+_M365_QUIZZES = {
+    25: {
+        "title": "Microsoft 365 Support Foundations Check",
+        "questions": [
+            {
+                "question_text": "A user reports that a Microsoft 365 app is greyed out and won't open. What should you check first?",
+                "option_a": "Reinstall the Microsoft 365 apps",
+                "option_b": "Whether a license is assigned to the user",
+                "option_c": "Restart their computer",
+                "option_d": "Reset their password",
+                "correct_answer": "B",
+                "explanation": "A greyed-out or missing app is very often a licensing gap, checkable on the account, not a broken install.",
+            },
+            {
+                "question_text": "Which admin surface would you use to review a user's Conditional Access policy?",
+                "option_a": "Microsoft 365 admin center",
+                "option_b": "Exchange admin center",
+                "option_c": "Entra admin center",
+                "option_d": "SharePoint admin center",
+                "correct_answer": "C",
+                "explanation": "Conditional Access, MFA, and sign-in logs live in the Entra admin center, separate from the M365 admin center's user/license work.",
+            },
+            {
+                "question_text": "A user can't find a file a colleague shared with them. What is the more likely first cause?",
+                "option_a": "Group or permission membership",
+                "option_b": "A tenant-wide outage",
+                "option_c": "A licensing outage",
+                "option_d": "The file was deleted",
+                "correct_answer": "A",
+                "explanation": "Sharing/permission scope, usually group-based, is the far more common cause than an outage or deletion.",
+            },
+            {
+                "question_text": "A technician reinstalls Teams before checking whether the user's account or license is correct. What is the risk of this order?",
+                "option_a": "None -- reinstalling is always a safe first step",
+                "option_b": "It wastes time solving a client problem that isn't the actual cause",
+                "option_c": "It will delete the user's mailbox",
+                "option_d": "It automatically escalates the ticket",
+                "correct_answer": "B",
+                "explanation": "Checking account/license/permission first avoids fixing the wrong layer.",
+            },
+        ],
+    },
+    26: {
+        "title": "Entra Users, Groups & Access Check",
+        "questions": [
+            {
+                "question_text": "A user's account shows 'Block sign-in' enabled in Entra. What should you do first?",
+                "option_a": "Re-enable sign-in immediately since the user is asking",
+                "option_b": "Find out why sign-in was blocked before re-enabling",
+                "option_c": "Delete and recreate the account",
+                "option_d": "Ignore it -- Block sign-in is cosmetic",
+                "correct_answer": "B",
+                "explanation": "Same rule as an on-prem disabled account: find out why before undoing it.",
+            },
+            {
+                "question_text": "A lockout ticket comes in with no other detail. Where should you start investigating?",
+                "option_a": "The Entra sign-in log for that user",
+                "option_b": "The user's personal email",
+                "option_c": "A guess based on the ticket title",
+                "option_d": "The company's public website status page",
+                "correct_answer": "A",
+                "explanation": "The sign-in log shows success/failure, the reason, and where the attempt came from -- start there, not with guessing.",
+            },
+            {
+                "question_text": "A user's password works on their laptop but sign-in to Microsoft 365 fails, and the organization syncs on-prem AD to Entra. What should you suspect?",
+                "option_a": "A hybrid identity / Entra Connect sync issue",
+                "option_b": "A broken keyboard",
+                "option_c": "An expired Microsoft 365 license only",
+                "option_d": "A SharePoint permission problem",
+                "correct_answer": "A",
+                "explanation": "A password that works locally but not in the cloud often means the change happened in the wrong place, or sync is unhealthy.",
+            },
+            {
+                "question_text": "Which is the correct order of operations for an MFA-reset request?",
+                "option_a": "Reset MFA immediately, then verify identity afterward",
+                "option_b": "Verify identity through the approved process, then reset MFA",
+                "option_c": "Ask a coworker to confirm the request",
+                "option_d": "Reset MFA only if the user sounds confident",
+                "correct_answer": "B",
+                "explanation": "An MFA reset changes the account's trust boundary; identity verification always comes first.",
+            },
+        ],
+    },
+    27: {
+        "title": "Sign-In & MFA Troubleshooting Check",
+        "quiz_purpose": "gate",
+        "questions": [
+            {
+                "question_text": "A user's password is correct, but Entra sign-in logs show a Conditional Access failure. What should you investigate next?",
+                "option_a": "The specific Conditional Access policy that blocked the attempt, and why",
+                "option_b": "Whether the password is really correct",
+                "option_c": "Nothing -- reset MFA immediately",
+                "option_d": "The user's internet speed",
+                "correct_answer": "A",
+                "explanation": "A Conditional Access block is a policy/device conversation, not a password conversation -- the Authentication Details tab shows the exact policy and reason.",
+            },
+            {
+                "question_text": "A user says their Authenticator app stopped working after they got a new phone. What is happening in 2026 terms?",
+                "option_a": "Their previously registered authentication method needs to be re-registered on the new device",
+                "option_b": "Their license expired",
+                "option_c": "SharePoint permissions changed",
+                "option_d": "The tenant is down",
+                "correct_answer": "A",
+                "explanation": "This is the standard 'lost/replaced device' MFA scenario -- the fix is re-registration under verified identity, not a mailbox or license fix.",
+            },
+            {
+                "question_text": "A user asks why Self-Service Password Reset (SSPR) won't work for them. What is a likely, current (2026) cause?",
+                "option_a": "SSPR requires a registered authentication method, and none is registered",
+                "option_b": "SSPR was permanently discontinued",
+                "option_c": "Their mailbox is full",
+                "option_d": "Their device is out of storage",
+                "correct_answer": "A",
+                "explanation": "SSPR now requires an explicitly registered recovery method; unregistered users can't self-serve until they register one.",
+            },
+            {
+                "question_text": "What is the correct diagnostic order for a 'can't sign in' ticket?",
+                "option_a": "Reset MFA, then check the password, then check policy",
+                "option_b": "Check whether the password step alone succeeds, then the authentication method used, then Conditional Access",
+                "option_c": "Escalate immediately without investigating",
+                "option_d": "Ask the user to guess what's wrong",
+                "correct_answer": "B",
+                "explanation": "Isolating password, then method, then policy prevents guessing and identifies the actual failing layer.",
+            },
+        ],
+    },
+    28: {
+        "title": "Exchange Online & Outlook Support Check",
+        "questions": [
+            {
+                "question_text": "A user can open a shared mailbox but gets a permission error when trying to send AS that mailbox. Which permission should you investigate?",
+                "option_a": "Full Access",
+                "option_b": "Send As",
+                "option_c": "Calendar permissions",
+                "option_d": "Mailbox storage quota",
+                "correct_answer": "B",
+                "explanation": "Full Access alone lets someone open a mailbox but cannot send as it -- that requires Send As (or Send on Behalf, which appears differently to recipients).",
+            },
+            {
+                "question_text": "Outlook on the desktop repeatedly prompts to sign in, but Outlook on the web works fine for the same account. What does this tell you?",
+                "option_a": "The mailbox itself is broken",
+                "option_b": "The problem is local to the desktop Outlook profile/cache",
+                "option_c": "The account is locked",
+                "option_d": "The license was removed",
+                "correct_answer": "B",
+                "explanation": "If the web client works, the server-side mailbox is healthy -- the fault is local to that client's cached profile.",
+            },
+            {
+                "question_text": "A request asks only for a user to be able to read a shared mailbox's messages. What should you grant?",
+                "option_a": "Full Access only",
+                "option_b": "Full Access plus Send As, to be safe",
+                "option_c": "Global Administrator",
+                "option_d": "Send As only",
+                "correct_answer": "A",
+                "explanation": "Grant exactly what the request and its authorization justify -- Full Access covers reading; adding Send As beyond what was requested is over-granting.",
+            },
+            {
+                "question_text": "What is the practical difference between Send As and Send on Behalf?",
+                "option_a": "There is no difference",
+                "option_b": "Send As shows mail as coming from the shared mailbox; Send on Behalf shows the delegate's name alongside it",
+                "option_c": "Send on Behalf is more restrictive and blocks sending entirely",
+                "option_d": "Send As only works for distribution groups",
+                "correct_answer": "B",
+                "explanation": "Recipients see a different From line depending on which permission was used -- a real, visible distinction, not just an admin technicality.",
+            },
+        ],
+    },
+    29: {
+        "title": "Teams, OneDrive & SharePoint Support Check",
+        "questions": [
+            {
+                "question_text": "A user says, 'my files stopped syncing.' What should you check before touching the OneDrive client?",
+                "option_a": "Whether the requester still has permission on the affected library, and which account OneDrive is signed into",
+                "option_b": "The building's WiFi router",
+                "option_c": "The user's printer",
+                "option_d": "The user's mailbox size",
+                "correct_answer": "A",
+                "explanation": "Lost permission and wrong-account sign-in are the most common causes -- rule those out before resetting the client.",
+            },
+            {
+                "question_text": "A user says all their Desktop files disappeared after a Windows update. What should you investigate first?",
+                "option_a": "Assume data loss and restore from backup immediately",
+                "option_b": "Whether Known Folder Move redirected Desktop/Documents/Pictures into OneDrive",
+                "option_c": "Reformat the drive",
+                "option_d": "Reset the user's password",
+                "correct_answer": "B",
+                "explanation": "Known Folder Move commonly explains 'disappeared' files that are actually just relocated into OneDrive.",
+            },
+            {
+                "question_text": "Synced files from a SharePoint library show a padlock icon in File Explorer. What does that most likely mean?",
+                "option_a": "The files are corrupted",
+                "option_b": "The user has read-only access, or the library requires checkout",
+                "option_c": "OneDrive is out of storage",
+                "option_d": "The tenant is offline",
+                "correct_answer": "B",
+                "explanation": "A padlock indicates a permission or checkout restriction, not file corruption.",
+            },
+            {
+                "question_text": "A user's camera doesn't work in Teams meetings, but works fine in other apps. What should you check?",
+                "option_a": "The Teams license",
+                "option_b": "OS-level camera privacy/permission settings for Teams specifically",
+                "option_c": "The user's SharePoint permissions",
+                "option_d": "The Exchange mailbox size",
+                "correct_answer": "B",
+                "explanation": "A camera that works elsewhere but not in Teams usually means Teams is blocked at the OS privacy-permission level, not a hardware fault.",
+            },
+        ],
+    },
+}
+
+
+_M365_LESSONS = {
+    25: {
+        "title": "Microsoft 365 Support Foundations",
+        "summary": (
+            "Microsoft 365 is a bundle of cloud services (Exchange Online, Teams, OneDrive, SharePoint, and more) tied "
+            "together by ONE identity: the user's Entra account. Understand this and most 'random' M365 tickets stop "
+            "being random.\n\n"
+            "THE TENANT: your organization has one Microsoft 365 tenant. Every user, license, and mailbox lives inside "
+            "it. A user 'not having access' to something is almost always a LICENSE or GROUP question, not a broken app.\n\n"
+            "LICENSING, AT TECHNICIAN DEPTH: users are assigned license SKUs that light up which services they can use. "
+            "You don't need to memorize SKU names -- you need to know that 'the app is greyed out / missing' is often "
+            "'no license assigned,' checkable from the user's account, not from reinstalling anything.\n\n"
+            "ADMIN CENTERS: the Microsoft 365 admin center is where user/license work happens; there is a SEPARATE "
+            "Entra admin center for identity/security (Conditional Access, MFA, sign-in logs), and separate admin "
+            "surfaces for Exchange, Teams, and SharePoint. Knowing WHICH center answers WHICH question is itself a "
+            "skill.\n\n"
+            "WHY A TECH NEEDS THIS: 'I can't open the file,' 'Teams won't load,' and 'my email didn't come through' "
+            "all trace back to the same small set of questions: is the account healthy, is the right license assigned, "
+            "and does the user have permission on the specific resource.\n\n"
+            "COMMON MISTAKE: troubleshooting an app in isolation (reinstalling Teams, clearing Outlook cache) before "
+            "checking whether the account/license/permission layer underneath is even correct."
+        ),
+        "outcomes": [
+            "Explain how M365 services relate to one Entra identity",
+            "Locate which admin center answers a given support question",
+            "Distinguish a licensing/permission problem from an application problem",
+        ],
+    },
+    27: {
+        "title": "Reading Sign-In Evidence & Conditional Access",
+        "summary": (
+            "Most 'I can't sign in even though my password is right' tickets are not password problems -- they're "
+            "SECOND-FACTOR or POLICY problems. This goes one layer deeper than the account administration you learned "
+            "in the Entra module: how to read WHY a sign-in was blocked, not just THAT it was blocked.\n\n"
+            "CONDITIONAL ACCESS, IN ONE SENTENCE: a rule engine that adds conditions on top of a correct password -- "
+            "e.g. 'block sign-in from an unmanaged device,' 'require MFA from outside the corporate network,' 'block "
+            "a sign-in flagged as risky.' A user can be 100% correct on their password and still be blocked -- that's "
+            "not a bug, it's policy working.\n\n"
+            "THE SIGN-IN LOG'S AUTHENTICATION DETAILS TAB shows the exact policy that fired and why. Read it BEFORE "
+            "guessing. 'Blocked by Conditional Access policy X' is a completely different ticket than 'invalid "
+            "credentials' -- the first is a policy/device conversation, the second is a password conversation.\n\n"
+            "AUTHENTICATION METHODS TODAY: Microsoft Authenticator (push or passkey) is the default method Entra "
+            "pushes users toward -- passkeys became the default MFA prompt in September 2026, and SMS/voice is being "
+            "phased out as a Microsoft-hosted delivery option. A 'broken MFA' ticket today is usually a lost/replaced "
+            "device with a registered Authenticator/passkey, not a lost phone number. Self-Service Password Reset "
+            "(SSPR) now requires the user to have already registered a recovery method -- 'SSPR isn't working' is "
+            "often 'nothing is registered,' which the technician fixes going forward, not by bypassing verification "
+            "now.\n\n"
+            "DIAGNOSTIC ORDER: (1) does the password step alone succeed? (2) which authentication method did they "
+            "attempt, and is it the one actually registered? (3) did Conditional Access block the attempt, and why? "
+            "Answer in that order and you stop guessing.\n\n"
+            "COMMON MISTAKE: resetting or re-registering MFA before confirming which layer failed -- a Conditional "
+            "Access block looks identical to a broken authenticator from the user's seat, but the fix is completely "
+            "different, and a bypass in the wrong case creates real risk."
+        ),
+        "outcomes": [
+            "Distinguish a Conditional Access block from an authentication-method failure using sign-in log evidence",
+            "Explain current authentication-method guidance and the SSPR registration requirement",
+            "Follow a diagnostic order that avoids guessing at MFA fixes",
+        ],
+    },
+    28: {
+        "title": "Exchange Mailbox Permissions & Outlook Support",
+        "summary": (
+            "Two completely different kinds of ticket live here: 'I can't access this mailbox the way I expect' (a "
+            "PERMISSIONS question) and 'Outlook is broken on my machine' (a CLIENT question). Mixing them up wastes "
+            "time.\n\n"
+            "SHARED MAILBOX PERMISSIONS -- the most common confusion:\n"
+            "- FULL ACCESS lets someone OPEN and read a mailbox's content. It does NOT let them send mail as that "
+            "mailbox.\n"
+            "- SEND AS makes outgoing mail look like it came FROM the shared mailbox itself.\n"
+            "- SEND ON BEHALF makes outgoing mail show '[User] on behalf of [Mailbox]' -- a visible difference "
+            "recipients will notice.\n"
+            "'I can open it but can't send as it' is almost always Full Access granted, Send As missing -- not a "
+            "broken mailbox.\n\n"
+            "DISTRIBUTION GROUPS VS. M365 GROUPS (awareness): a distribution group is mail-routing only. An M365 "
+            "Group also provisions a shared mailbox, calendar, and Teams/SharePoint presence. 'Add me to the DL' and "
+            "'add me to the Team' can both look like a groups request but resolve very differently.\n\n"
+            "OUTLOOK CLIENT PROBLEMS: repeated sign-in prompts, a stuck 'Trying to connect,' or mail not updating are "
+            "usually a broken/expired cached profile, not a server-side mail problem. Fast diagnostic: does Outlook "
+            "on the web work for the same account? If web works and the desktop client doesn't, the problem is local "
+            "to that Outlook profile/cache.\n\n"
+            "MAIL FLOW (awareness only): Autodiscover is what points the client at the right mailbox; 'Outlook can't "
+            "find my mailbox' right after a new setup is often an Autodiscover propagation delay, not a broken "
+            "account.\n\n"
+            "COMMON MISTAKE: granting broader mailbox permission than the ticket actually asked for because it's the "
+            "'easy' fix -- Full Access is not a substitute for reading what the requester actually needs to do."
+        ),
+        "outcomes": [
+            "Distinguish Full Access, Send As, and Send on Behalf and pick the correct one for a request",
+            "Separate an Outlook client problem from a mailbox/server problem",
+            "Grant only the specific permission a request and its authorization justify",
+        ],
+    },
+    29: {
+        "title": "Teams, OneDrive & SharePoint Support",
+        "summary": (
+            "These three tools share one identity (the same Entra account) and, for Teams/SharePoint-backed files, "
+            "the same underlying storage -- which is exactly why their problems get confused.\n\n"
+            "TEAMS: most 'Teams is broken' tickets are sign-in, cache, or device-permission issues (camera/mic "
+            "blocked at the OS level, not inside Teams), not real outages. A clean sign-out/sign-in and cache clear "
+            "resolves a large share of client complaints. Teams identity comes straight from Entra -- a Teams "
+            "sign-in problem is usually an account-state problem you already know how to read.\n\n"
+            "ONEDRIVE: 'my files stopped syncing' has a short list of real causes: signed into the WRONG account "
+            "(very common on a personal + work device), a sync CONFLICT/error the client is flagging, or a "
+            "storage/path problem (unsupported characters, a path that's too long). 'All my Desktop files "
+            "disappeared' is frequently KNOWN FOLDER MOVE -- OneDrive redirected the Desktop/Documents/Pictures "
+            "folders into itself -- not deleted files; look there before escalating as data loss.\n\n"
+            "SHAREPOINT: files 'not syncing' from a Teams channel or SharePoint library is very often a PERMISSIONS "
+            "change, not a sync-engine failure -- confirm the user still has access to the site/library/channel "
+            "before touching the sync client. A padlock icon on synced files means read-only sync (no edit "
+            "permission, or a library requiring checkout), not corruption.\n\n"
+            "THE THROUGH-LINE: for all three, check identity and permission FIRST. The client-side fix (restart, "
+            "re-sign-in, reset sync) is usually the second step, not the first.\n\n"
+            "COMMON MISTAKE: resetting/reinstalling the sync client before confirming the user still has permission "
+            "on the underlying site or library -- that just reproduces the same failure."
+        ),
+        "outcomes": [
+            "Separate a Teams client issue from an OS device-permission issue",
+            "Diagnose common OneDrive sync failures including Known Folder Move confusion",
+            "Recognize when a SharePoint 'sync' failure is really a lost permission",
+        ],
+    },
+}

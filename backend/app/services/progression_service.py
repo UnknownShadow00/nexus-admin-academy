@@ -47,6 +47,20 @@ MODULE_WEEKS = {
     "MOD-022": 22,
     "MOD-023": 23,
     "MOD-024": 24,
+    # Phase 4B.1 Microsoft Workplace stage. New week_number values only --
+    # existing MOD-000..024/week 0-24 are never renumbered. See
+    # docs/MICROSOFT_WORKPLACE_CURRICULUM.md "Dual progression systems" for
+    # why this range must stay derived from MODULE_WEEKS rather than
+    # hardcoded: legacy System B (this module, and
+    # service_desk_progression.SERVICE_DESK_PACKS/curriculum_unlocked_keys)
+    # previously assumed valid curriculum ended at week 24, which would have
+    # made required Microsoft-stage content silently unreachable/ungraded by
+    # every check in this file.
+    "MOD-025": 25,
+    "MOD-026": 26,
+    "MOD-027": 27,
+    "MOD-028": 28,
+    "MOD-029": 29,
 }
 
 
@@ -54,7 +68,7 @@ def derive_current_week(student_id: int, db: Session) -> int:
     """Return the earliest curriculum week with incomplete required work."""
     from app.models.lesson_progress import StudentLessonProgress
 
-    for week in range(25):
+    for week in range(max(MODULE_WEEKS.values()) + 1):
         codes = [code for code, mapped_week in MODULE_WEEKS.items() if mapped_week == week]
         lesson_ids = set()
         if codes:

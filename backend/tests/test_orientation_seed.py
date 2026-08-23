@@ -101,12 +101,12 @@ def test_completely_fresh_seed_contains_orientation_and_is_idempotent(tmp_path):
         ("week-0-video-168", "video", "168", 4, 0),
         ("week-0-quiz-42", "quiz", "42", 5, 1),
     ]
-    assert first["week_count"] == 25
+    assert first["week_count"] == 30
     # Legacy support_ticket activities are retired; the reviewed Service Desk
     # scenarios replace the required curriculum path instead. The Weeks 3-24
     # quality syncs preserve the historical rows and add deterministic practice
     # activities where the required path previously had no real skill exercise.
-    assert first["activity_count"] == 273
+    assert first["activity_count"] == 288
     assert first["legacy_support_ticket_count"] == 0
     assert first["active_video_count"] == 137
     assert first["mod_001_prerequisite"] is None
