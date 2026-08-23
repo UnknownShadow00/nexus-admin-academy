@@ -4,6 +4,18 @@ This report records Phase 4 inputs discovered while grouping the existing
 curriculum. Phase 3 intentionally does not solve these content and ordering
 issues.
 
+**Phase 4A update:** the full audit, module classification, activity-mix
+data, and the Microsoft 365/Entra/Intune and endpoint-support blueprints
+referenced below now live in
+[`docs/JOB_READY_CURRICULUM_BLUEPRINT.md`](JOB_READY_CURRICULUM_BLUEPRINT.md).
+That document also records a structural finding that governs everything
+below: Stage/Module metadata only controls Learning Path *grouping/labels*,
+not the actual unlock sequence (`TrainingWeek.display_order` does that). The
+networking split and Microsoft Workplace placeholder stage described here
+were implemented in Phase 4A as code-only, zero-risk changes; the remaining
+items below stay open, tracked in the blueprint's Phase 4B/4C lists rather
+than duplicated here.
+
 ## Highest-priority gaps
 
 - Microsoft 365 administration and troubleshooting are not represented as a
