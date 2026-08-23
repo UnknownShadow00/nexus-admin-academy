@@ -29,6 +29,7 @@ from app.services.curriculum_structure import (
     MODULES,
     STAGES,
     STAGE_BY_ID,
+    intended_module_sequence,
     learning_role_for,
     module_for_week,
     public_module,
@@ -1267,6 +1268,45 @@ def validate_training_curriculum(db: Session) -> dict:
     activities = [activity for week in weeks for activity in week.activities]
     active_weeks = [week for week in weeks if week.is_active]
     active_activities = [activity for week in active_weeks for activity in week.activities]
+
+    # Detect drift between the intended Stage/Module order (curriculum_structure.py)
+    # and the authoritative TrainingWeek.display_order sequence. These must be
+    # kept in agreement deliberately; this catches the case where one changes
+    # without the other (e.g. Stage metadata says a module comes later, but
+    # its TrainingWeek row was never resequenced, or a later edit accidentally
+    # restores an old display_order).
+    week_display_order_by_number = {week.week_number: week.display_order for week in active_weeks}
+    last_order, last_module = None, None
+    for module in intended_module_sequence():
+        actual_order = week_display_order_by_number.get(module.source_week_number)
+        if actual_order is None:
+            # Informational only: a module's TrainingWeek can legitimately be
+            # absent or inactive (a staged/isolated test fixture, or content
+            # temporarily pulled for revision in production) without that
+            # meaning the curriculum mapping itself is broken. UNMAPPED_ACTIVE_WEEK
+            # / UNMAPPED_ACTIVE_ACTIVITY above already catch the reverse and
+            # more consequential case -- an active week/activity with no
+            # module -- as errors.
+            issues.append({
+                "code": "MODULE_WEEK_MISSING",
+                "severity": "warning",
+                "stable_id": module.stable_id,
+                "week_number": module.source_week_number,
+                "message": "Module has no active TrainingWeek row backing its intended sequence position.",
+            })
+            continue
+        if last_order is not None and actual_order <= last_order:
+            issues.append({
+                "code": "SEQUENCE_DRIFT",
+                "severity": "error",
+                "stable_id": module.stable_id,
+                "week_number": module.source_week_number,
+                "message": (
+                    f"TrainingWeek.display_order ({actual_order}) for {module.title!r} does not come after "
+                    f"{last_module.title!r} ({last_order}), contradicting the intended Stage/Module order."
+                ),
+            })
+        last_order, last_module = actual_order, module
     cycle_ids = _hard_prerequisite_cycles(activities)
     activity_by_id = {activity.id: activity for activity in activities}
     stable_id_counts = defaultdict(int)

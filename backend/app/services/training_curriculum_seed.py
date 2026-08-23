@@ -2555,3 +2555,47 @@ def sync_initial_training_activities(db: Session) -> dict:
 
     db.commit()
     return {"created": sum(len(rows) for rows in rows_by_week.values()), "skipped": False}
+
+
+# Phase 4A.1: sequence advanced/infrastructure networking (Switching & VLANs,
+# Routing & Network Services, Secure Network Administration -- weeks 10-12)
+# after Identity & Access (weeks 13-15) and the future Microsoft 365/Entra/
+# Endpoint Management stage, matching the job-ready Stage order documented in
+# docs/JOB_READY_CURRICULUM_BLUEPRINT.md. Only TrainingWeek.display_order
+# changes here. week_number is the stable identity key used everywhere else
+# (MODULE_WEEKS, CLI_PACK_WEEKS, SERVICE_DESK_PACKS, curriculum_structure.py
+# source_week_number, Quiz.week_number, legacy Module.code mapping, and every
+# activity/progress record) and is intentionally left untouched, so this is a
+# presentation/sequencing change only -- it does not move, duplicate, or
+# reset any student's completion evidence.
+_ADVANCED_NETWORKING_RESEQUENCE_TARGETS = {
+    # week_number -> new display_order
+    10: 13,  # Switching & VLANs
+    11: 14,  # Routing & Network Services
+    12: 15,  # Secure Network Administration
+    13: 10,  # Active Directory Foundations
+    14: 11,  # Domain Operations & File Services
+    15: 12,  # Group Policy
+}
+
+
+def sync_advanced_networking_resequence(db: Session) -> dict:
+    """Idempotently move weeks 10-12 (advanced networking) after weeks 13-15
+    (Identity & Access) in TrainingWeek.display_order. Safe to call whether or
+    not the swap has already been applied; never touches week_number."""
+    weeks = {
+        row.week_number: row
+        for row in db.query(TrainingWeek)
+        .filter(TrainingWeek.week_number.in_(_ADVANCED_NETWORKING_RESEQUENCE_TARGETS))
+        .all()
+    }
+    updated = 0
+    for week_number, desired_order in _ADVANCED_NETWORKING_RESEQUENCE_TARGETS.items():
+        week = weeks.get(week_number)
+        if week is None:
+            continue
+        if week.display_order != desired_order:
+            week.display_order = desired_order
+            updated += 1
+    db.commit()
+    return {"weeks_checked": len(weeks), "weeks_updated": updated}
