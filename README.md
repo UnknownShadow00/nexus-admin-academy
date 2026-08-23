@@ -1,6 +1,6 @@
 ﻿# Nexus Admin Academy
 
-Nexus IT Academy (Nexus Admin Academy) is a private, self-hosted training platform that runs like a simulated IT workplace. Complete-beginner students progress through a six-role career ladder (Trainee → Support Technician I/II → Network Support Technician → Junior Systems Technician → Junior Infrastructure Administrator) by working realistic tickets, labs, and simulations — not by memorizing exam objectives. The 25-week curriculum (Week 0 through Week 24) is seeded; see `docs/STUDENT_GUIDE.md` and `docs/MENTOR_GUIDE.md`.
+Nexus IT Academy (Nexus Admin Academy) is a private, self-hosted training platform that runs like a simulated IT workplace. Complete-beginner students progress through a six-role career ladder (Trainee → Support Technician I/II → Network Support Technician → Junior Systems Technician → Junior Infrastructure Administrator) by working realistic tickets, labs, and simulations — not by memorizing exam objectives. The 35-module curriculum uses stable storage week numbers 0 through 34; see `docs/STUDENT_GUIDE.md` and `docs/MENTOR_GUIDE.md`.
 
 
 > **Documentation verified 2026-07-22.** The active production architecture is

@@ -276,7 +276,7 @@ Not currently modeled as distinct activities; recommended placement:
 | Wi-Fi, VPN | Networking for Support Technicians (client_triage already partially covers; confirm/expand in 4C) | WORKING KNOWLEDGE |
 | Browser problems, Office apps | Windows Support (windows.fundamentals) | WORKING KNOWLEDGE |
 | Windows Update, drivers | Windows Support (windows.troubleshooting) | WORKING KNOWLEDGE |
-| BitLocker | Windows Support (endpoint_security, already present) | WORKING KNOWLEDGE |
+| BitLocker | ~~Windows Support (endpoint_security, already present)~~ **Correction (Phase 4B.2, 2026-08-23): "already present" was inaccurate.** `windows.endpoint_security` (week 7) only carried a one-line BitLocker warning and an unused draft Service Desk scenario -- no real lesson content, no guided practice, no live grading. Genuine BitLocker recovery coverage (lesson content, a guided troubleshooting lab, and the live, server-graded `bitlocker-recovery` Service Desk scenario) was built in Phase 4B.2 under `module.intune.windows11_troubleshooting` (week 33), not week 7. | MUST PERFORM (safety-critical: never disclose the recovery key before identity verification) |
 | Imaging/deployment concepts | Microsoft Workplace stage (Device Enrollment module, Autopilot-adjacent) | RECOGNIZE |
 | Hardware replacement, asset handling | Endpoint Foundations (pc_hardware) | RECOGNIZE |
 
