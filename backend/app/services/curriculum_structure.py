@@ -4,6 +4,20 @@ TrainingWeek remains the transitional storage and sequencing container.  This
 module is the single presentation mapping from those containers to durable,
 student-facing concepts.  Student progress remains attached to the underlying
 activity/content identities, never to a stage/module label or array position.
+
+IMPORTANT: Stage.display_order and Module.display_order only control how the
+Learning Path groups and labels content (see training_service._build_stage_path).
+They do NOT control the actual unlock/progression sequence a student
+experiences week to week -- that sequence is driven independently by
+TrainingWeek.display_order in the database (see training_service._active_weeks
+and _build_state). Today, the two happen to be kept in lockstep (module
+source_week_number order matches Stage/Module display_order), but relabeling
+or regrouping Stage/Module metadata here does not move a module earlier or
+later in the student's actual required path. Physically resequencing content
+requires an authorized TrainingWeek.display_order data change, not just an
+edit to this file. See docs/JOB_READY_CURRICULUM_BLUEPRINT.md for the
+distinction between structural (safe, code-only) and sequence (data,
+authorization-gated) reordering.
 """
 
 from dataclasses import asdict, dataclass
@@ -49,12 +63,14 @@ STAGES = (
     StageDefinition("stage.orientation", "Technician Orientation", "Learn how Nexus works and how support work is completed safely.", 0),
     StageDefinition("stage.endpoint_foundations", "Endpoint Foundations", "Build the support workflow and hardware foundation used throughout the path.", 1),
     StageDefinition("stage.windows_support", "Windows Support", "Diagnose and resolve common Windows, account, application, and endpoint-security problems.", 2),
-    StageDefinition("stage.networking_foundations", "Networking Foundations", "Trace client and infrastructure connectivity from addressing through network services.", 3),
-    StageDefinition("stage.identity_access", "Identity & Access", "Support directory accounts, domain access, permissions, and policy safely.", 4),
-    StageDefinition("stage.server_foundations", "Systems & Server Foundations", "Investigate and operate shared Windows services with evidence and rollback discipline.", 5),
-    StageDefinition("stage.linux_support", "Linux Support", "Use Linux commands, services, logs, and network evidence to support production systems.", 6),
-    StageDefinition("stage.cloud_infrastructure", "Cloud & Infrastructure Foundations", "Reason about cloud responsibility, identity, compute, storage, and access paths.", 7),
-    StageDefinition("stage.integrated_support", "Integrated Support & Capstone", "Combine triage, troubleshooting, communication, and evidence in complete support shifts.", 8),
+    StageDefinition("stage.networking_support", "Networking for Support Technicians", "Trace client connectivity from addressing through name resolution the way a help-desk technician does.", 3),
+    StageDefinition("stage.network_administration", "Network Administration & Infrastructure", "Go deeper into switching, routing, and network services administration. Role-dependent, later-career material.", 4),
+    StageDefinition("stage.identity_access", "Identity & Access", "Support directory accounts, domain access, permissions, and policy safely.", 5),
+    StageDefinition("stage.microsoft_workplace", "Microsoft 365, Entra & Endpoint Management", "Coming soon: Microsoft 365, Entra ID, Intune, and endpoint-management support work. Planned in Phase 4B; see docs/JOB_READY_CURRICULUM_BLUEPRINT.md.", 6),
+    StageDefinition("stage.server_foundations", "Systems & Server Foundations", "Investigate and operate shared Windows services with evidence and rollback discipline.", 7),
+    StageDefinition("stage.linux_support", "Linux Support", "Use Linux commands, services, logs, and network evidence to support production systems.", 8),
+    StageDefinition("stage.cloud_infrastructure", "Cloud & Infrastructure Foundations", "Reason about cloud responsibility, identity, compute, storage, and access paths.", 9),
+    StageDefinition("stage.integrated_support", "Integrated Support & Capstone", "Combine triage, troubleshooting, communication, and evidence in complete support shifts.", 10),
 )
 
 
@@ -67,11 +83,11 @@ MODULES = (
     ModuleDefinition("module.windows.troubleshooting", "stage.windows_support", "Windows Troubleshooting", "Isolate startup, application, storage, and device failures with low-risk tests.", 2, 5),
     ModuleDefinition("module.windows.accounts_permissions", "stage.windows_support", "Accounts & Permissions", "Resolve local account and access requests without bypassing verification or least privilege.", 3, 6),
     ModuleDefinition("module.windows.endpoint_security", "stage.windows_support", "Endpoint Security & Remote Support", "Contain endpoint risk, support users remotely, and escalate with useful evidence.", 4, 7),
-    ModuleDefinition("module.networking.client_triage", "stage.networking_foundations", "Client Network Triage", "Separate local, upstream, and name-resolution failures on a client endpoint.", 0, 8),
-    ModuleDefinition("module.networking.ip_addressing", "stage.networking_foundations", "IP Addressing & Packet Flow", "Reason about IPv4 addressing, subnets, gateways, ARP, and packet paths.", 1, 9),
-    ModuleDefinition("module.networking.switching_vlans", "stage.networking_foundations", "Switching & VLANs", "Inspect switch state and safely correct access-port and VLAN problems.", 2, 10),
-    ModuleDefinition("module.networking.routing_services", "stage.networking_foundations", "Routing & Network Services", "Trace failures across trunks, gateways, routing, DHCP, and DNS.", 3, 11),
-    ModuleDefinition("module.networking.secure_admin", "stage.networking_foundations", "Secure Network Administration", "Troubleshoot shared network equipment safely and produce a usable handoff.", 4, 12),
+    ModuleDefinition("module.networking.client_triage", "stage.networking_support", "Client Network Triage", "Separate local, upstream, and name-resolution failures on a client endpoint.", 0, 8),
+    ModuleDefinition("module.networking.ip_addressing", "stage.networking_support", "IP Addressing & Packet Flow", "Reason about IPv4 addressing, subnets, gateways, ARP, and packet paths.", 1, 9),
+    ModuleDefinition("module.networking.switching_vlans", "stage.network_administration", "Switching & VLANs", "Inspect switch state and safely correct access-port and VLAN problems.", 0, 10),
+    ModuleDefinition("module.networking.routing_services", "stage.network_administration", "Routing & Network Services", "Trace failures across trunks, gateways, routing, DHCP, and DNS.", 1, 11),
+    ModuleDefinition("module.networking.secure_admin", "stage.network_administration", "Secure Network Administration", "Troubleshoot shared network equipment safely and produce a usable handoff.", 2, 12),
     ModuleDefinition("module.identity.active_directory", "stage.identity_access", "Active Directory Foundations", "Handle common directory account and group requests with appropriate safeguards.", 0, 13),
     ModuleDefinition("module.identity.domain_access", "stage.identity_access", "Domain Operations & File Access", "Diagnose domain trust, computer-account, and group-based access failures.", 1, 14),
     ModuleDefinition("module.identity.group_policy", "stage.identity_access", "Group Policy", "Use resultant-policy evidence to diagnose scope and refresh issues.", 2, 15),
