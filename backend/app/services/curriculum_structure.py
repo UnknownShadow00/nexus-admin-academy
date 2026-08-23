@@ -10,14 +10,25 @@ Learning Path groups and labels content (see training_service._build_stage_path)
 They do NOT control the actual unlock/progression sequence a student
 experiences week to week -- that sequence is driven independently by
 TrainingWeek.display_order in the database (see training_service._active_weeks
-and _build_state). Today, the two happen to be kept in lockstep (module
-source_week_number order matches Stage/Module display_order), but relabeling
-or regrouping Stage/Module metadata here does not move a module earlier or
-later in the student's actual required path. Physically resequencing content
-requires an authorized TrainingWeek.display_order data change, not just an
-edit to this file. See docs/JOB_READY_CURRICULUM_BLUEPRINT.md for the
-distinction between structural (safe, code-only) and sequence (data,
-authorization-gated) reordering.
+and _build_state). Editing this file alone never moves a module earlier or
+later in a student's actual required path; the two must be kept in
+agreement deliberately. STAGES/MODULES here express the *intended* order
+(see intended_module_sequence() below); training_service.validate_training_curriculum
+detects drift between this intended order and the real TrainingWeek.display_order
+data (SEQUENCE_DRIFT / MODULE_WEEK_MISSING issue codes) so the two cannot
+silently disagree again. Phase 4A.1
+(app.services.training_curriculum_seed.sync_advanced_networking_resequence)
+is the current example: it moves TrainingWeek.display_order for weeks 10-12
+to match the network_administration Stage's post-Identity/post-M365 position
+already expressed here. See docs/JOB_READY_CURRICULUM_BLUEPRINT.md.
+
+Also note: this only reorders the Learning Path/Today progression system.
+A separate, legacy, week_number-indexed system (progression_service.py's
+derive_current_week/MODULE_WEEKS/CLI_PACK_WEEKS, and
+service_desk_progression.py's SERVICE_DESK_PACKS) gates Service Desk packs,
+CLI packs, and legacy ticket/lab/capstone access independently of
+TrainingWeek.display_order, and is NOT reordered by changes here. See the
+Phase 4A.1 report for the full analysis of that split.
 """
 
 from dataclasses import asdict, dataclass
@@ -64,9 +75,9 @@ STAGES = (
     StageDefinition("stage.endpoint_foundations", "Endpoint Foundations", "Build the support workflow and hardware foundation used throughout the path.", 1),
     StageDefinition("stage.windows_support", "Windows Support", "Diagnose and resolve common Windows, account, application, and endpoint-security problems.", 2),
     StageDefinition("stage.networking_support", "Networking for Support Technicians", "Trace client connectivity from addressing through name resolution the way a help-desk technician does.", 3),
-    StageDefinition("stage.network_administration", "Network Administration & Infrastructure", "Go deeper into switching, routing, and network services administration. Role-dependent, later-career material.", 4),
-    StageDefinition("stage.identity_access", "Identity & Access", "Support directory accounts, domain access, permissions, and policy safely.", 5),
-    StageDefinition("stage.microsoft_workplace", "Microsoft 365, Entra & Endpoint Management", "Coming soon: Microsoft 365, Entra ID, Intune, and endpoint-management support work. Planned in Phase 4B; see docs/JOB_READY_CURRICULUM_BLUEPRINT.md.", 6),
+    StageDefinition("stage.identity_access", "Identity & Access", "Support directory accounts, domain access, permissions, and policy safely.", 4),
+    StageDefinition("stage.microsoft_workplace", "Microsoft 365, Entra & Endpoint Management", "Coming soon: Microsoft 365, Entra ID, Intune, and endpoint-management support work. Planned in Phase 4B; see docs/JOB_READY_CURRICULUM_BLUEPRINT.md.", 5),
+    StageDefinition("stage.network_administration", "Network Administration & Infrastructure", "Go deeper into switching, routing, and network services administration. Role-dependent, later-career material.", 6),
     StageDefinition("stage.server_foundations", "Systems & Server Foundations", "Investigate and operate shared Windows services with evidence and rollback discipline.", 7),
     StageDefinition("stage.linux_support", "Linux Support", "Use Linux commands, services, logs, and network evidence to support production systems.", 8),
     StageDefinition("stage.cloud_infrastructure", "Cloud & Infrastructure Foundations", "Reason about cloud responsibility, identity, compute, storage, and access paths.", 9),
@@ -106,6 +117,15 @@ MODULES = (
 STAGE_BY_ID = {stage.stable_id: stage for stage in STAGES}
 MODULE_BY_ID = {module.stable_id: module for module in MODULES}
 MODULE_BY_WEEK = {module.source_week_number: module for module in MODULES}
+
+
+def intended_module_sequence() -> list[ModuleDefinition]:
+    """Return MODULES in the intended Stage/Module presentation order: Stage
+    display_order first, then Module display_order within that Stage. This is
+    the "should" order; whether TrainingWeek.display_order actually agrees is
+    a data question checked separately (see
+    training_service.validate_training_curriculum, DRIFT issue codes)."""
+    return sorted(MODULES, key=lambda module: (STAGE_BY_ID[module.stage_id].display_order, module.display_order))
 
 
 def learning_role_for(activity_type: str, metadata: dict | None = None) -> str | None:
