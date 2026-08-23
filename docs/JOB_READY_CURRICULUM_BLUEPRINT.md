@@ -4,6 +4,31 @@ Status: Phase 4A — audit, classification, and blueprint. Structural (code-only
 changes implemented; full sequence reorder deferred pending authorization (see
 "Structural constraint" below). Content authoring is Phase 4B/4C.
 
+**Phase 4A.1 update (see the Phase 4A.1 report for full detail):** two things
+in this document have since changed and should be read as historical
+Phase 4A context, not current state:
+
+1. §5/§6 originally left `stage.network_administration` positioned *before*
+   Identity & Access (a structural relabel only, sequence unchanged).
+   Phase 4A.1 corrected the Stage order itself to the target in that phase's
+   prompt: Networking for Support → Identity & Access → Microsoft Workplace →
+   **Network Administration & Infrastructure** → Systems & Server. The STAGES
+   tuple in `curriculum_structure.py` now reflects this directly.
+2. §0's "structural constraint" is still accurate for the Learning Path/Today
+   system, but Phase 4A.1 discovered a **second**, independent, legacy
+   week_number-indexed progression system
+   (`progression_service.derive_current_week`/`MODULE_WEEKS`/`CLI_PACK_WEEKS`,
+   and `service_desk_progression.SERVICE_DESK_PACKS`) that gates Service Desk
+   packs, CLI packs, and legacy ticket/lab/capstone access independently of
+   `TrainingWeek.display_order`. Phase 4A.1 deliberately did not reorder that
+   system — see its report for the full analysis and the promotion-gate
+   implications (`docs/PROGRESSION_CONTRACT.md` Gate 3/Gate 4).
+
+The `TrainingWeek.display_order` code is now written and validated
+(`training_curriculum_seed.sync_advanced_networking_resequence`, migration
+`0056_advanced_networking_resequence`) but **not yet applied to production** —
+that requires the explicit authorization described in the Phase 4A.1 report.
+
 ## 0. Structural constraint discovered during this phase
 
 `curriculum_structure.py` (Stage/Module metadata) only controls how the
