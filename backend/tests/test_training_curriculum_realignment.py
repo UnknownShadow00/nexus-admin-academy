@@ -602,7 +602,12 @@ def test_weeks_19_22_quality_sync_adds_linux_and_cloud_practice(db):
         activities = db.query(TrainingWeekActivity).filter_by(training_week_id=week.id).all()
         assert all(not row.is_required for row in activities if row.activity_type == "lesson")
         assert [row.content_ref for row in activities if row.activity_type == "quiz" and row.is_required] == [str(quizzes[number])]
-        assert len([row for row in activities if row.activity_type == "guided_lab" and row.is_required]) == 1
+        # Week 21 no longer gets a guided lab from this sync: Phase 4B.1
+        # (sync_microsoft_workplace_foundations) owns that content now,
+        # relocated to week 26's Entra module. See that constant's comment
+        # in training_curriculum_seed.py's WEEKS_19_22_QUALITY week 21 entry.
+        expected_lab_count = 0 if number == 21 else 1
+        assert len([row for row in activities if row.activity_type == "guided_lab" and row.is_required]) == expected_lab_count
     required_week_21_videos = {
         row.content_ref
         for row in db.query(TrainingWeekActivity).filter_by(

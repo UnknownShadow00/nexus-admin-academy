@@ -159,7 +159,7 @@ def test_stage_module_definitions_have_stable_unique_ids_and_one_week_mapping():
     assert structure_definition_issues() == []
     assert len({stage.stable_id for stage in STAGES}) == len(STAGES)
     assert len({module.stable_id for module in MODULES}) == len(MODULES)
-    assert len({module.source_week_number for module in MODULES}) == len(MODULES) == 25
+    assert len({module.source_week_number for module in MODULES}) == len(MODULES) == 30
 
 
 def test_structure_validation_fails_loudly_for_duplicate_or_orphaned_metadata():

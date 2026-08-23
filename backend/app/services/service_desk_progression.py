@@ -67,6 +67,34 @@ SERVICE_DESK_PACKS = (
         required_week=10,
         required_prior_passes=3,
     ),
+    # Phase 4B.1. required_week=26 is a new week_number (Entra Users, Groups
+    # & Access), never a renumbering of an existing week. It sits after
+    # every other pack's required_week so it unlocks once the rest of the
+    # legacy-numbered curriculum (weeks 0-24) is done -- see
+    # docs/MICROSOFT_WORKPLACE_CURRICULUM.md "Dual progression systems" for
+    # why that stagger against the Learning Path's earlier display position
+    # is intentional, not a bug.
+    #
+    # Only two scenario_keys: server-side grading in service_desk_objectives.py
+    # only has evidence vocabulary for directory/account-state actions
+    # (directory.inspect_account, .reset_mfa, .verify_identity, etc.) -- there
+    # is no mailbox/OneDrive/SharePoint tool surface, and no "forbidden
+    # action" primitive to penalize an unsafe shortcut (e.g. resetting MFA on
+    # a suspicious prompt instead of escalating). Those topics are guided_lab
+    # evidence-interpretation exercises instead (see
+    # docs/MICROSOFT_WORKPLACE_CURRICULUM.md "Practical environment
+    # strategy") rather than live simulation tickets the grader cannot
+    # actually evaluate.
+    ServiceDeskPack(
+        key="microsoft-workplace",
+        name="Microsoft Workplace Support",
+        scenario_keys=(
+            "m365-entra-auth-method",
+            "m365-signin-conditional-access",
+        ),
+        required_week=26,
+        required_prior_passes=3,
+    ),
 )
 
 PACK_BY_SCENARIO = {

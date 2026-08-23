@@ -2,14 +2,24 @@ import os
 import sqlite3
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
+
+import pytest
 
 from app.models.learning import Lesson, Module
 from seed import ORIENTATION_SUMMARY, seed_module0_and_methodology
 
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = BACKEND_ROOT.parent
 ORIENTATION_TITLE = "Welcome to Nexus: Your First Week"
+
+# The last commit before Phase 4B.1 (Microsoft Workplace Support Core) began.
+# Intentionally pinned, not derived (e.g. via merge-base), because it anchors
+# a fixed historical baseline for the regression test below and must never
+# silently move forward as later work lands on this branch.
+_PRE_PHASE_4B1_COMMIT = "0966389e036ecde65564d508fba1bdebd1c347e5"
 
 
 def _run(command: list[str], database_url: str) -> subprocess.CompletedProcess[str]:
@@ -26,6 +36,125 @@ def _run(command: list[str], database_url: str) -> subprocess.CompletedProcess[s
         capture_output=True,
         check=True,
         text=True,
+    )
+
+
+def _active_curriculum_identity(database_path: Path) -> set[tuple]:
+    """(week_number, activity_type, content title/key, is_required) for every
+    active TrainingWeekActivity. Deliberately resolves content_ref to its
+    referenced row's title/key rather than comparing raw ids: LabTemplate ids
+    (and other content ids) are ordinary auto-increment primary keys with no
+    stability guarantee across independently-built installations -- only
+    intra-installation stability is guaranteed. Comparing by resolved title
+    isolates genuine curriculum-identity drift from harmless id offsets.
+    """
+    with sqlite3.connect(database_path) as connection:
+        rows = connection.execute(
+            """
+            SELECT weeks.week_number, activities.activity_type,
+                   CASE activities.activity_type
+                       WHEN 'guided_lab' THEN (SELECT title FROM lab_templates WHERE id = activities.content_ref)
+                       WHEN 'lesson' THEN (SELECT title FROM lessons WHERE id = activities.content_ref)
+                       WHEN 'quiz' THEN (SELECT title FROM quizzes WHERE id = activities.content_ref)
+                       WHEN 'capstone' THEN (SELECT title FROM capstone_templates WHERE id = activities.content_ref)
+                       ELSE activities.content_ref
+                   END,
+                   activities.is_required
+              FROM training_week_activities AS activities
+              JOIN training_weeks AS weeks ON weeks.id = activities.training_week_id
+            """
+        ).fetchall()
+        return {tuple(row) for row in rows}
+
+
+def test_fresh_seed_matches_upgraded_historical_seed_for_active_curriculum(tmp_path):
+    """Phase 4B.1 regression test: a brand-new install and a genuinely
+    historical pre-Phase-4B.1 install (built with the actual pre-4B.1 code,
+    then upgraded through migration 0057 only -- no reseed, matching how
+    production is actually upgraded) must converge on the exact same active
+    curriculum identity. Historical completion rows are untouched by this
+    test; only the *active curriculum structure* is required to converge.
+    """
+    git_check = subprocess.run(
+        ["git", "cat-file", "-e", f"{_PRE_PHASE_4B1_COMMIT}^{{commit}}"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+    )
+    if git_check.returncode != 0:
+        pytest.skip(
+            "pre-Phase-4B.1 commit not reachable (likely a shallow checkout); "
+            "run with full git history to exercise this regression test"
+        )
+
+    python = sys.executable
+
+    # 1. Fresh install under the CURRENT code: migrate to head, seed.
+    fresh_db = tmp_path / "fresh.db"
+    _run([python, "-m", "alembic", "upgrade", "head"], f"sqlite:///{fresh_db}")
+    _run([python, "seed.py"], f"sqlite:///{fresh_db}")
+    _run([python, "seed_curriculum.py"], f"sqlite:///{fresh_db}")
+
+    # 2. A genuinely historical install: extract the actual pre-Phase-4B.1
+    #    backend source into a scratch directory and run ITS OWN seed
+    #    pipeline there, producing a DB shaped exactly like real production
+    #    before this feature existed (273 activities / 25 weeks).
+    legacy_src = tmp_path / "legacy_src"
+    legacy_src.mkdir()
+    archive_path = tmp_path / "legacy_backend.tar"
+    with archive_path.open("wb") as archive_file:
+        subprocess.run(
+            ["git", "archive", _PRE_PHASE_4B1_COMMIT, "backend"],
+            cwd=REPO_ROOT,
+            stdout=archive_file,
+            check=True,
+        )
+    with tarfile.open(archive_path) as archive:
+        archive.extractall(legacy_src, filter="data")
+    legacy_backend_root = legacy_src / "backend"
+
+    historical_db = tmp_path / "historical.db"
+    historical_url = f"sqlite:///{historical_db}"
+    environment = os.environ.copy()
+    environment["DATABASE_URL"] = historical_url
+    subprocess.run(
+        [python, "-m", "alembic", "upgrade", "head"],
+        cwd=legacy_backend_root,
+        env=environment,
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    subprocess.run(
+        [python, "seed.py"],
+        cwd=legacy_backend_root,
+        env=environment,
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    subprocess.run(
+        [python, "seed_curriculum.py"],
+        cwd=legacy_backend_root,
+        env=environment,
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    with sqlite3.connect(historical_db) as connection:
+        pre_upgrade_count = connection.execute("SELECT count(*) FROM training_week_activities").fetchone()[0]
+    assert pre_upgrade_count == 273, "pre-Phase-4B.1 baseline drifted; update this test's expectations deliberately"
+
+    # 3. Upgrade the historical DB through CURRENT migration head, matching
+    #    how production is actually upgraded: migration only, no reseed.
+    _run([python, "-m", "alembic", "upgrade", "head"], historical_url)
+
+    fresh_identity = _active_curriculum_identity(fresh_db)
+    historical_identity = _active_curriculum_identity(historical_db)
+
+    assert len(fresh_identity) == 288
+    assert len(historical_identity) == 288
+    assert fresh_identity == historical_identity, (
+        "fresh install and upgraded-historical install diverged in active curriculum identity"
     )
 
 
@@ -101,12 +230,12 @@ def test_completely_fresh_seed_contains_orientation_and_is_idempotent(tmp_path):
         ("week-0-video-168", "video", "168", 4, 0),
         ("week-0-quiz-42", "quiz", "42", 5, 1),
     ]
-    assert first["week_count"] == 25
+    assert first["week_count"] == 30
     # Legacy support_ticket activities are retired; the reviewed Service Desk
     # scenarios replace the required curriculum path instead. The Weeks 3-24
     # quality syncs preserve the historical rows and add deterministic practice
     # activities where the required path previously had no real skill exercise.
-    assert first["activity_count"] == 273
+    assert first["activity_count"] == 288
     assert first["legacy_support_ticket_count"] == 0
     assert first["active_video_count"] == 137
     assert first["mod_001_prerequisite"] is None
@@ -156,3 +285,33 @@ def test_seed_updates_existing_orientation_in_place_without_replacing_history(db
     assert updated.estimated_minutes == 3
     assert updated.required_notes_template is None
     assert updated.status == "published"
+
+
+def test_microsoft_workplace_capstone_is_role_gated(tmp_path):
+    """Every seeded capstone requires a role_level (seed.py's seed_capstones
+    always sets one); an ungated Microsoft Workplace capstone would surface
+    "Capstones" in student nav for every student, including a brand-new
+    Trainee, regardless of curriculum position (LabsPage.jsx gates the nav
+    entry on has_unlocked_capstones, which is true whenever ANY accessible
+    capstone exists for the student's rank)."""
+    database_path = tmp_path / "capstone-gate.db"
+    database_url = f"sqlite:///{database_path}"
+    python = sys.executable
+    _run([python, "-m", "alembic", "upgrade", "head"], database_url)
+    _run([python, "seed.py"], database_url)
+    _run([python, "seed_curriculum.py"], database_url)
+
+    with sqlite3.connect(database_path) as connection:
+        row = connection.execute(
+            """
+            SELECT capstones.role_level, roles.name
+              FROM capstone_templates AS capstones
+              LEFT JOIN roles ON roles.id = capstones.role_level
+             WHERE capstones.title = 'Microsoft Workplace Support Shift'
+            """
+        ).fetchone()
+
+    assert row is not None, "expected the Microsoft Workplace capstone to exist"
+    role_level, role_name = row
+    assert role_level is not None, "Microsoft Workplace capstone must require a role, not be visible to every student"
+    assert role_name == "Junior Systems Technician"
