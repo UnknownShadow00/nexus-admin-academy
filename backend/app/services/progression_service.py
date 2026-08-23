@@ -61,6 +61,14 @@ MODULE_WEEKS = {
     "MOD-027": 27,
     "MOD-028": 28,
     "MOD-029": 29,
+    # Phase 4B.2 (Intune & endpoint management) -- same reasoning as above,
+    # range(max(MODULE_WEEKS.values()) + 1) below already generalizes, so
+    # this extension needs no other code change here.
+    "MOD-030": 30,
+    "MOD-031": 31,
+    "MOD-032": 32,
+    "MOD-033": 33,
+    "MOD-034": 34,
 }
 
 

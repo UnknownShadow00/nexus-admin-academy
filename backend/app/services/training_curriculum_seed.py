@@ -3778,3 +3778,1699 @@ _M365_LESSONS = {
         ],
     },
 }
+
+
+# Phase 4B.2: Intune & Windows 11 Endpoint Management (job-ready curriculum
+# content build). See docs/INTUNE_ENDPOINT_MANAGEMENT_CURRICULUM.md for the
+# full research/design record and docs/JOB_READY_CURRICULUM_BLUEPRINT.md
+# section 9 for the original module plan this fulfills. Uses new
+# week_number 30-34 (never reusing/renumbering 0-29) inside the existing
+# stage.microsoft_workplace Stage -- its description text already earmarked
+# this. Only TrainingWeek.display_order moves for the 12 existing rows
+# below; their week_number is untouched. Sources verified 2026-08-23; see
+# the doc for per-topic freshness notes (Windows 10 EOL, Autopilot Device
+# Preparation, and the platform-specific Company Portal / Intune app split).
+
+_INTUNE_DISPLAY_ORDER_SHIFT = {
+    # week_number -> new display_order (+5, opening 18-22 for the new weeks)
+    10: 23, 11: 24, 12: 25,
+    16: 26, 17: 27,
+    18: 28, 19: 29, 20: 30,
+    21: 31, 22: 32,
+    23: 33, 24: 34,
+}
+
+_INTUNE_NEW_WEEKS = {
+    30: {
+        "display_order": 18,
+        "title": "Intune & Managed Endpoint Foundations",
+        "description": "Read a device record and determine its identity, management, and compliance state before touching anything.",
+        "learning_goals": [
+            "Explain what Intune/MDM management means for a Windows device",
+            "Distinguish Entra registered, joined, and hybrid joined",
+            "Read a device record to determine join type, management state, and likely ownership",
+        ],
+    },
+    31: {
+        "display_order": 19,
+        "title": "Windows Enrollment & Autopilot",
+        "description": "Diagnose how a Windows 11 device reaches Intune management and why enrollment sometimes fails.",
+        "learning_goals": [
+            "Explain automatic MDM enrollment and BYOD/Company Portal enrollment",
+            "Compare Windows Autopilot and Autopilot Device Preparation",
+            "Diagnose a device that is Entra joined but not Intune managed",
+        ],
+    },
+    32: {
+        "display_order": 20,
+        "title": "Policies, Compliance & Applications",
+        "description": "Trace why a setting, app, or access decision did or did not reach a managed device.",
+        "learning_goals": [
+            "Distinguish configuration policy from compliance policy",
+            "Trace the device state -> compliance -> Conditional Access -> access chain",
+            "Diagnose a failed application install using detection-rule evidence",
+        ],
+    },
+    33: {
+        "display_order": 21,
+        "title": "Windows 11 Endpoint Troubleshooting & BitLocker",
+        "description": "Support update, driver, and BitLocker recovery problems, and weigh device-action risk before acting.",
+        "learning_goals": [
+            "Triage common Windows Update and driver/firmware problems",
+            "Handle a BitLocker recovery request safely, with identity verification first",
+            "Choose the correctly-scoped device action for a given risk level",
+        ],
+    },
+    34: {
+        "display_order": 22,
+        "title": "Device Lifecycle, Onboarding, Offboarding & Mobile",
+        "description": "Run a device through its full lifecycle safely, including the highest-risk offboarding handoffs.",
+        "learning_goals": [
+            "Complete the device/M365 side of a new-hire onboarding",
+            "Offboard a device safely without leaving open access or losing data-handling steps",
+            "Recognize basic mobile MDM concepts and the safe retire-vs-wipe decision",
+        ],
+    },
+}
+
+_INTUNE_LEGACY_MODULES = {
+    30: ("MOD-030", "Intune & Managed Endpoint Foundations"),
+    31: ("MOD-031", "Windows Enrollment & Autopilot"),
+    32: ("MOD-032", "Policies, Compliance & Applications"),
+    33: ("MOD-033", "Windows 11 Endpoint Troubleshooting & BitLocker"),
+    34: ("MOD-034", "Device Lifecycle, Onboarding, Offboarding & Mobile"),
+}
+
+# Each week now carries more than one lesson (unlike the single-lesson-per-week
+# _M365_LESSONS shape), so this is keyed by week_number -> an ordered list of
+# lesson specs.
+_INTUNE_LESSONS: dict[int, list[dict]] = {
+    30: [
+        {
+            "title": "What Intune Actually Does",
+            "summary": (
+                "Intune is Microsoft's cloud service for managing Windows, iOS/iPadOS, and Android devices -- it is "
+                "how an organization pushes settings, deploys apps, and checks whether a device meets its security "
+                "requirements, all without an admin physically touching the machine. This lesson is the foundation "
+                "for every other lesson in this module: what 'managed' means, and how to read a device record.\n\n"
+                "MANAGED VS UNMANAGED: a 'managed' device has enrolled in Intune and is receiving policy from it. An "
+                "unmanaged device (a personal phone with no MDM profile, a brand-new laptop before enrollment) gets "
+                "none of that -- no pushed settings, no compliance evaluation, no ability for IT to act on it "
+                "remotely. Most 'why isn't this policy applying' tickets start with confirming the device is even "
+                "managed in the first place.\n\n"
+                "THE DEVICE RECORD: every managed device has a record in Intune with fields a technician reads "
+                "constantly: owner (corporate vs personal), primary user, join type, enrollment date, OS version, "
+                "management state, compliance state, and last check-in time. Reading this record correctly, before "
+                "guessing, is the single most useful skill in this whole module.\n\n"
+                "LAST CHECK-IN MATTERS: a device only reports its current state when it checks in (roughly every "
+                "few hours by default, or immediately after a manual Sync). A device that hasn't checked in for "
+                "days might be off, asleep, offline, or genuinely broken -- 'last check-in: 6 days ago' is itself "
+                "important evidence, not just a timestamp to skim past.\n\n"
+                "WINDOWS 11 IS THE BASELINE: general servicing for Windows 10 reached end of support on October 14, "
+                "2025. Extended Security Updates and separately serviced LTSC releases are explicit exceptions, not "
+                "a reason to present Windows 10 as the current endpoint baseline. Microsoft still allows a Windows "
+                "10 device to enroll in Intune, but explicitly "
+                "does not guarantee full functionality on an unsupported OS. Treat a Windows 10 device you encounter "
+                "as a legacy/at-risk device worth flagging, not the normal endpoint you're troubleshooting toward. "
+                "Windows 11 is the expected device throughout the rest of this module.\n\n"
+                "COMMON MISTAKE: assuming a device is managed just because it's a company laptop. Ownership and "
+                "management are different facts -- always confirmed from the record, never assumed from context."
+            ),
+            "outcomes": [
+                "Explain what 'managed' means and why an unmanaged device receives no policy",
+                "Identify the core device-record fields technicians read: owner, join type, enrollment, compliance, last check-in",
+                "State why Windows 11 is the baseline device and Windows 10 is legacy/at-risk",
+            ],
+        },
+        {
+            "title": "Entra Device Identity: Registered, Joined, Hybrid Joined",
+            "summary": (
+                "Before a device can be managed, it has an identity relationship with Entra ID -- and that "
+                "relationship is one of three kinds. Getting this right predicts whether a device even CAN receive "
+                "management or Conditional-Access-gated resources, before you look at anything else.\n\n"
+                "ENTRA REGISTERED: the weakest relationship. A personal device (phone, home PC) that added a work or "
+                "school account -- think 'added a work account on a personal device.' It does not make the "
+                "organization account the Windows sign-in. This is the normal BYOD identity shape, but registration "
+                "alone does NOT tell you whether Intune MDM enrollment exists: depending on tenant policy and the "
+                "enrollment flow, a registered personal device can be unmanaged, app-protected only, or enrolled in "
+                "Intune. Read the management state separately.\n\n"
+                "ENTRA JOINED: the normal corporate-owned Windows 11 device. The organization's account is the "
+                "primary sign-in at the Windows lock screen itself, the device gets a full trust token (a PRT) at "
+                "sign-in, and it's the standard path into full Intune management and Autopilot. When this course "
+                "says 'a managed corporate laptop,' this is almost always what it means.\n\n"
+                "ENTRA HYBRID JOINED: joined to an on-premises Active Directory domain AND registered in Entra at "
+                "the same time. This exists in organizations still running on-prem AD alongside the cloud -- the "
+                "device gets GPO from on-prem AND cloud policy from Intune. The classic failure mode: a hybrid-"
+                "joined device needs periodic line-of-sight to a domain controller to keep its Entra registration "
+                "healthy, and when that sync breaks, the device can look 'stuck,' with cloud policy simply not "
+                "arriving even though the device seems fine locally.\n\n"
+                "WHY THIS MATTERS FIRST: before troubleshooting 'why didn't this policy apply' or 'why can't this "
+                "user reach that resource,' the very first fact to establish is which of these three the device is "
+                "in -- it changes what's even possible, not just what's likely.\n\n"
+                "OUT OF SCOPE: how federation or Entra Connect sync is architected/configured. You need to "
+                "recognize a hybrid-join sync problem from symptoms, not configure the sync engine yourself."
+            ),
+            "outcomes": [
+                "Define Entra registered, joined, and hybrid joined at a support level",
+                "Explain why hybrid-joined devices can have delayed or stuck cloud policy",
+                "Identify which relationship a device likely has from support-visible evidence",
+            ],
+        },
+    ],
+    31: [
+        {
+            "title": "How a Windows 11 Device Gets Into Intune",
+            "summary": (
+                "A device doesn't become 'managed' by accident -- it enrolls through one of a few known paths, and "
+                "knowing which path a device took explains a lot about what's wrong when it isn't managed yet.\n\n"
+                "AUTOMATIC MDM ENROLLMENT: the most common ad-hoc path. A user Entra-joins a Windows 11 device (at "
+                "setup, or later through Settings > Accounts > Access work or school) and the device automatically "
+                "enrolls into Intune on that same sign-in, as long as auto-enrollment is configured for the tenant. "
+                "This is the path for a device that wasn't pre-staged through Autopilot -- most commonly an "
+                "already-purchased or reassigned machine.\n\n"
+                "BYOD / USER ENROLLMENT: a personal Windows device can add a work account through Settings or use "
+                "Company Portal, depending on the organization's enrollment design. Company Portal remains current "
+                "on Windows, iOS/iPadOS, macOS, and Android; some Android scenarios use the separate Microsoft Intune "
+                "app. A BYOD device is commonly Entra REGISTERED, but its management state must still be checked: it "
+                "might be unmanaged, protected only at the app layer, or enrolled in Intune MDM. Personal ownership "
+                "does not by itself mean 'app-only.'\n\n"
+                "GROUP POLICY / CO-MANAGEMENT (RECOGNIZE ONLY): older organizations sometimes still enroll via "
+                "Group Policy, or run co-management with an on-prem tool like Configuration Manager alongside "
+                "Intune. You should recognize this exists as a bridge/legacy pattern -- you are not expected to "
+                "configure it.\n\n"
+                "WINDOWS AUTOPILOT AND AUTOPILOT DEVICE PREPARATION are the ZERO-TOUCH paths -- pre-staged before "
+                "the device ever reaches the user, covered in full in the next lesson.\n\n"
+                "READING WHICH PATH A DEVICE TOOK: the device record's enrollment type field, combined with join "
+                "type (registered commonly indicates a BYOD/user-enrollment path; joined/hybrid joined commonly "
+                "indicates automatic enrollment or Autopilot), helps narrow which path a device came through. Confirm "
+                "the enrollment type rather than inferring management from join type alone.\n\n"
+                "COMMON MISTAKE: assuming every unmanaged device needs to be re-imaged. Most of the time it needs "
+                "the right enrollment path completed, not a rebuild."
+            ),
+            "outcomes": [
+                "Describe automatic MDM enrollment and BYOD/Company Portal enrollment",
+                "Recognize Group Policy/co-management enrollment as a legacy bridge pattern",
+                "Determine which enrollment path a device likely took from its record",
+            ],
+        },
+        {
+            "title": "Windows Autopilot vs Autopilot Device Preparation",
+            "summary": (
+                "Microsoft currently runs TWO zero-touch Windows provisioning systems side by side, and as of 2026 "
+                "you'll see both in the wild -- teaching only one would leave you unable to support the other.\n\n"
+                "WINDOWS AUTOPILOT (the classic system): hardware is pre-registered by the vendor or IT (its "
+                "hardware hash is uploaded ahead of time), then shipped straight to the user. On first boot, the "
+                "Autopilot profile takes over the out-of-box setup experience (OOBE), the device Entra-joins (or "
+                "hybrid-joins -- Autopilot supports both), auto-enrolls into Intune, and pulls its assigned apps and "
+                "policies. Supports several deployment modes (User-Driven being the common one you'll see).\n\n"
+                "AUTOPILOT DEVICE PREPARATION (the newer system, Windows-11-focused, actively updated through "
+                "2026): does NOT require pre-registering the hardware hash ahead of time -- a real reduction in "
+                "deployment friction. Entra-JOINED only (no hybrid-join support in its current form), faster "
+                "provisioning, and near-real-time deployment status instead of the standard delay. Its first "
+                "release supports fewer deployment modes than classic Autopilot.\n\n"
+                "WHERE THEY OVERLAP: both get a device from unboxed to fully Entra-joined, Intune-enrolled, and "
+                "policy/app-configured with no IT hands-on-keyboard. Both produce a device you'd read the same way "
+                "afterward.\n\n"
+                "WHERE THEY DIFFER (what actually matters to you): if a device needs hybrid join, it must use "
+                "classic Autopilot -- Device Preparation can't do that yet. If both a classic Autopilot profile and "
+                "Device Preparation could apply to the same device, the Autopilot profile takes priority.\n\n"
+                "WHAT YOU DO NOT NEED: you are not provisioning hardware hashes or designing deployment profiles "
+                "yourself -- that's deployment-engineer work. You need to recognize which system a stuck/failed "
+                "device went through and read its deployment status evidence, covered next.\n\n"
+                "COMMON MISTAKE: assuming a deployment failure means 'imaging is broken' and reaching for an old-"
+                "style reimage. Both systems fail in specific, diagnosable ways from their own status/evidence -- "
+                "that's the skill, not starting over."
+            ),
+            "outcomes": [
+                "Compare Windows Autopilot and Autopilot Device Preparation on join type, pre-registration, and status",
+                "Explain when hybrid join forces classic Autopilot over Device Preparation",
+                "Avoid defaulting to a full reimage when a specific deployment-status diagnosis is available",
+            ],
+        },
+    ],
+    32: [
+        {
+            "title": "Configuration Profiles & the Settings Catalog",
+            "summary": (
+                "A configuration profile is how Intune PUSHES a setting to a device -- Wi-Fi configuration, a "
+                "desktop restriction, a certificate, anything the organization wants set consistently. This lesson "
+                "is entirely about reading whether that push actually worked.\n\n"
+                "SETTINGS CATALOG: the current, unified way to build a configuration profile -- pick individual "
+                "settings from a searchable catalog rather than a fixed template. You are not expected to build "
+                "these; you need to read what one is reporting.\n\n"
+                "TARGETING: a profile is assigned to a group of USERS or a group of DEVICES. This matters "
+                "diagnostically -- a user-targeted profile follows the person across devices; a device-targeted "
+                "profile applies no matter who signs in. 'It works on my other computer' or 'it doesn't apply for "
+                "this one user' are both targeting clues.\n\n"
+                "THE FOUR PROFILE STATUS STATES, which you must be able to read on sight:\n"
+                "  - CONFORMS: applied successfully. Working as intended.\n"
+                "  - PENDING: the device hasn't reported back yet -- it hasn't checked in, or the check-in hasn't "
+                "happened since assignment. Often resolves with time or a manual Sync.\n"
+                "  - CONFLICT: two policies disagree on the same setting, or something already configured on the "
+                "device is blocking it. This needs investigation, not just waiting.\n"
+                "  - NOT APPLICABLE: the setting doesn't apply to this device's platform/edition. Not an error -- "
+                "expected behavior for a mismatched target.\n\n"
+                "POLICY REFRESH: devices don't get new policy instantly -- they check in periodically, or "
+                "immediately after a manual Sync action. 'I just assigned this five minutes ago and it's not there '"
+                "yet' is very often simply Pending, not a defect.\n\n"
+                "COMMON MISTAKE: treating every Pending status as broken and escalating immediately, instead of "
+                "confirming the device has actually checked in since the assignment was made."
+            ),
+            "outcomes": [
+                "Explain what a configuration profile does and how the Settings Catalog works at a support level",
+                "Distinguish user-targeted from device-targeted profile assignment",
+                "Read and correctly interpret Conforms, Pending, Conflict, and Not applicable profile states",
+            ],
+        },
+        {
+            "title": "Compliance Policy vs Configuration Policy, and Conditional Access",
+            "summary": (
+                "This is the single most important distinction in this whole module, and it's commonly confused: "
+                "configuration policy and compliance policy sound similar but do fundamentally different jobs.\n\n"
+                "CONFIGURATION POLICY pushes and enforces a setting. It changes something on the device. It "
+                "reports Conforms/Pending/Conflict/Not applicable -- states about whether the PUSH succeeded.\n\n"
+                "COMPLIANCE POLICY evaluates and reports whether a device meets a set of rules -- minimum OS "
+                "version, BitLocker enabled, not jailbroken/rooted, and similar. It changes NOTHING on the device by "
+                "itself. It reports the device as COMPLIANT or NONCOMPLIANT, plus which specific rule failed.\n\n"
+                "THE CHAIN THAT MATTERS MOST ON THE JOB:\n"
+                "  DEVICE STATE -> INTUNE COMPLIANCE -> CONDITIONAL ACCESS -> RESOURCE ACCESS\n"
+                "A device's real state (is BitLocker on? is the OS current?) is evaluated by a compliance policy. "
+                "That compliance result is reported to Entra ID. Conditional Access policies can then use "
+                "'require compliant device' as a condition for reaching a resource (email, SharePoint, an app). A "
+                "noncompliant device isn't 'broken' -- it's correctly being blocked from a resource until whatever "
+                "rule failed is fixed.\n\n"
+                "WHY THE FIX IS NEVER 'WEAKEN THE POLICY': the temptation on a single blocked user is to loosen "
+                "Conditional Access or turn off a compliance rule to make the block go away. That fixes one ticket "
+                "by breaking the security guarantee for everyone -- the correct fix is bringing the DEVICE into "
+                "compliance (enable BitLocker, update the OS, whatever the specific failed rule says), never "
+                "weakening the policy.\n\n"
+                "COMPLIANCE EVALUATION TIMING: like configuration profiles, compliance status updates on check-in, "
+                "not instantly -- a device that just became compliant may still show noncompliant until its next "
+                "evaluation or a manual Sync.\n\n"
+                "COMMON MISTAKE: confusing a Pending configuration profile with a Noncompliant device -- read which "
+                "one the evidence is actually reporting before deciding what's wrong."
+            ),
+            "outcomes": [
+                "State the distinction between configuration policy (pushes settings) and compliance policy (evaluates rules)",
+                "Trace the device state -> compliance -> Conditional Access -> access chain",
+                "Explain why weakening a policy to fix one user is the wrong response to a compliance block",
+            ],
+        },
+        {
+            "title": "Application Deployment & the Detection-Rule Trap",
+            "summary": (
+                "Getting an app onto a managed device involves assignment, install, and DETECTION -- and the gap "
+                "between 'installed fine' and 'detected as installed' is where most real app tickets live.\n\n"
+                "REQUIRED VS AVAILABLE: a Required app installs automatically for its assigned group. An Available "
+                "app shows up in Company Portal / the Intune app for the user to install on demand. 'The app isn't "
+                "there for the user to install' vs 'the app was supposed to install automatically and didn't' are "
+                "different tickets depending on which assignment type is in play.\n\n"
+                "APP TYPES AT A GLANCE: Microsoft Store apps (simplest), and Win32 apps (traditional installers "
+                "wrapped for Intune, most common for line-of-business software). You do not need packaging depth -- "
+                "you need to read install status.\n\n"
+                "THE DETECTION-RULE TRAP: after a Win32 app installs, Intune runs a DETECTION RULE to confirm it's "
+                "actually there (checking a registry key, a file, or an MSI product code, depending on how it was "
+                "packaged) -- both right after install and periodically afterward. If the detection rule is "
+                "wrong or too narrow, a genuinely successful install can still show as FAILED, because Intune "
+                "never found evidence it recognizes. This is the single most common real-world app-deployment "
+                "failure mode, and it looks identical to a truly failed install from the support seat.\n\n"
+                "READING APP STATUS: assigned, in progress, failed, and (where available) the specific error "
+                "detail. A failure right after assignment often means a targeting/prerequisite problem; a failure "
+                "that alternates with evidence the app is actually present is the detection-rule pattern above.\n\n"
+                "WHAT A TECHNICIAN DOES: check whether the app is genuinely present on the device (ask the user, "
+                "or check locally) before assuming the install itself failed -- and retry/Sync before escalating a "
+                "packaging-level fix, which is out of scope for this role.\n\n"
+                "COMMON MISTAKE: reporting every 'Failed' app status as a broken install without first checking "
+                "whether the app is actually sitting right there on the device."
+            ),
+            "outcomes": [
+                "Distinguish required from available app assignment",
+                "Explain the Win32 app detection-rule concept and why a successful install can still show Failed",
+                "Investigate whether an app is genuinely missing before assuming the install itself failed",
+            ],
+        },
+    ],
+    33: [
+        {
+            "title": "Windows Update, Drivers & Firmware at the Support Desk",
+            "summary": (
+                "Most Windows Update tickets a support technician sees are not update-engineering problems -- "
+                "they're restart, driver, or firmware problems wearing an update costume.\n\n"
+                "MANAGED UPDATE AWARENESS: organizations commonly control WHEN updates install through policy "
+                "(deferral/pause windows), not whether they install at all. A device 'stuck' on an old update may "
+                "simply be inside its organization's deferral window -- not broken, not neglected.\n\n"
+                "RESTART REQUIREMENTS: many updates need a restart to finish applying, and Windows will nag "
+                "increasingly about it. 'This computer has felt slow/off since the update' is very often 'the "
+                "update is still pending a restart' -- check that before deeper troubleshooting.\n\n"
+                "UPDATE FAILURES: a failed update can leave a device in a partially-updated state. Standard first "
+                "moves: confirm sufficient disk space, confirm connectivity, retry. Deep update-engine repair is "
+                "beyond this role's depth -- know when a failure needs escalation instead of repeated manual "
+                "retries.\n\n"
+                "DRIVER AND FIRMWARE PROBLEMS: a new problem appearing right after an update (a device that won't "
+                "wake properly, a peripheral that stops working, a device that suddenly asks for a BitLocker "
+                "recovery key -- covered next lesson) often traces to a driver or firmware change bundled with that "
+                "update, not the update mechanism itself.\n\n"
+                "ROLLBACK AWARENESS: Windows keeps the ability to roll back a recent feature update for a limited "
+                "time after install. Know this exists as an option to consider/escalate for a update that clearly "
+                "broke something -- you are not expected to be the one architecting an org-wide rollback policy.\n\n"
+                "COMMON MISTAKE: treating 'the update broke my computer' as always requiring a rebuild, instead of "
+                "checking the much more common causes first: pending restart, and a driver/firmware side effect."
+            ),
+            "outcomes": [
+                "Recognize managed update deferral as expected behavior, not a fault",
+                "Diagnose a pending-restart symptom before deeper troubleshooting",
+                "Connect a post-update driver/firmware problem to its likely cause",
+            ],
+        },
+        {
+            "title": "BitLocker, Windows Hello, and Device-Action Risk",
+            "summary": (
+                "This lesson covers the module's two highest-stakes topics: safely handling a BitLocker recovery "
+                "request, and understanding that Intune's remote device actions are NOT interchangeable in risk.\n\n"
+                "WHAT BITLOCKER PROTECTS: full-disk encryption -- if a drive is removed from its device, its data "
+                "is unreadable without the recovery key. It's a data-protection control, not a login screen.\n\n"
+                "WHY RECOVERY PROMPTS APPEAR: a firmware/BIOS update, a TPM change, disabling Secure Boot, or "
+                "certain hardware changes can make the device's boot measurements no longer match what BitLocker "
+                "expects, triggering a recovery prompt as a genuine, expected safety response -- not corruption.\n\n"
+                "WHERE THE RECOVERY KEY LIVES: for an Intune-managed device, the recovery key auto-escrows to "
+                "Entra ID at encryption time. A signed-in user can often retrieve their OWN device's key themselves "
+                "through the account portal -- that's the first thing to point them to. When a technician retrieves "
+                "one on a user's behalf, it is a logged, audited, role-gated administrative action, the same "
+                "sensitivity tier as reading someone else's password.\n\n"
+                "THE RULE THAT MATTERS MOST: NEVER disclose a recovery key before verifying both the requester's "
+                "identity and that the device is genuinely theirs. A caller who sounds legitimate is not evidence. "
+                "This is a safety-critical rule you will be assessed on, not a suggestion.\n\n"
+                "WHEN NOT TO DISABLE BITLOCKER: disabling encryption to make a recovery prompt 'go away' removes "
+                "real data protection -- never do this as a shortcut.\n\n"
+                "WINDOWS HELLO (narrow): a PIN is tied to the specific device and its TPM -- it never travels over "
+                "the network the way a password does. 'Wrong PIN' is usually a credential problem; 'Hello won't set "
+                "up at all' often points to a TPM/device problem instead. Keep this distinction; you don't need "
+                "deeper Hello depth for this role.\n\n"
+                "DEVICE-ACTION RISK LADDER (technician-risk awareness, not a rigid platform-universal ordering):\n"
+                "  LOWER RISK: Sync (just forces check-in), Restart (disruptive but reversible).\n"
+                "  HIGHER RISK: Retire (removes managed data/profiles), Delete (removes the Intune record and "
+                "initiates retirement), Fresh Start (removes apps/settings; retention and re-enrollment behavior "
+                "depends on the selected user-data option), Autopilot Reset (wipes files/apps/settings while "
+                "preserving the managed deployment relationship), and Wipe (factory reset; Windows offers variants, "
+                "including a keep-enrollment option, but the destructive/default paths remove data and can make a "
+                "device unusable if interrupted).\n"
+                "SYNC AND WIPE ARE NOT THE SAME KIND OF ACTION. Every higher-risk action needs real authorization "
+                "and verification before you touch it, never habit or convenience."
+            ),
+            "outcomes": [
+                "Explain what BitLocker protects and why a recovery prompt is a legitimate safety response",
+                "State the mandatory identity/device verification rule before disclosing a recovery key",
+                "Rank Intune device actions by risk and explain why Sync and Wipe are not equivalent",
+            ],
+        },
+    ],
+    34: [
+        {
+            "title": "The Device Lifecycle: Received to Retired",
+            "summary": (
+                "Every managed device moves through the same lifecycle, and knowing where a device sits in it "
+                "tells you what should be true about it right now.\n\n"
+                "THE LIFECYCLE: DEVICE RECEIVED -> ASSIGNED (to a person/purpose) -> ENROLLED (Intune management "
+                "begins) -> CONFIGURED (policies/apps land) -> SUPPORTED (normal day-to-day) -> REPLACED / "
+                "REASSIGNED (hardware swap, new owner) -> RETIRED / WIPED (removed from service).\n\n"
+                "WHY THIS MATTERS FOR TRIAGE: a device stuck between ASSIGNED and ENROLLED has a completely "
+                "different problem than one stuck between CONFIGURED and SUPPORTED -- knowing the expected stage "
+                "narrows what's actually wrong before you look at anything else.\n\n"
+                "REPLACEMENT/REASSIGNMENT: when a device changes hands (new employee inherits an old laptop, a "
+                "broken device is swapped), the record's primary user needs to change and the device typically "
+                "needs a reset step first -- carrying over the previous person's profile/data to a new assignee is "
+                "a data-handling mistake, not a shortcut.\n\n"
+                "THIS LESSON SETS UP THE NEXT TWO: onboarding is the ASSIGNED-through-SUPPORTED stretch of this "
+                "lifecycle done right; offboarding is the safe path into RETIRED/REASSIGNED when someone leaves.\n\n"
+                "COMMON MISTAKE: treating every device problem as a fresh mystery instead of first asking 'what "
+                "lifecycle stage is this device supposed to be in right now, and does the evidence match that.'"
+            ),
+            "outcomes": [
+                "State the full device lifecycle from received to retired",
+                "Use lifecycle stage as a first triage question",
+                "Explain why reassigning a device to a new owner requires a reset step, not a handoff as-is",
+            ],
+        },
+        {
+            "title": "Endpoint Onboarding: Beyond the AD Account",
+            "summary": (
+                "Onboarding a new hire's ACCOUNT (creating the directory account, license, and group membership) "
+                "is only the identity half of the job -- this lesson covers the device/M365 half that has to "
+                "happen alongside it, building directly on the account-creation skills you already have.\n\n"
+                "WHAT'S ALREADY COVERED ELSEWHERE: creating the AD account, assigning groups, and granting basic "
+                "access are directory/identity tasks you've already practiced -- this lesson does not re-teach "
+                "them.\n\n"
+                "THE DEVICE/M365 LAYER a technician adds on top:\n"
+                "  - PREREQUISITES: confirm the account exists and has the right license assigned before anything "
+                "device-related -- a device enrolling for an unlicensed account will surface confusing gaps later.\n"
+                "  - DEVICE ASSIGNMENT: the specific device (new or reassigned, see the lifecycle lesson) is "
+                "recorded as belonging to this person.\n"
+                "  - ENROLLMENT: the device is Entra-joined and Intune-enrolled through whichever path applies "
+                "(automatic, Autopilot, or Device Preparation).\n"
+                "  - APPS AND POLICIES: confirm the expected required apps and configuration profiles actually "
+                "landed -- using the profile/app status evidence from earlier in this module, not just assuming.\n"
+                "  - MFA REGISTRATION: the new hire registers their authentication method as part of first sign-"
+                "in -- a step that's easy to skip and then surfaces later as a confusing sign-in ticket.\n"
+                "  - ACCESS VERIFICATION: confirm the person can actually reach what they need (mail, Teams, the "
+                "specific shares/sites their role requires) before calling onboarding done.\n"
+                "  - DOCUMENTATION: record what was done -- the device assigned, what was verified -- the same "
+                "documentation discipline as every other ticket type in this program.\n\n"
+                "COMMON MISTAKE: calling onboarding complete once the account exists, without ever confirming the "
+                "device actually enrolled, received its apps/policies, and that access was verified end to end."
+            ),
+            "outcomes": [
+                "Identify the device/M365 steps onboarding adds on top of AD account creation",
+                "Explain why license and account prerequisites must be confirmed before device work",
+                "State the verification and documentation steps that complete an onboarding request",
+            ],
+        },
+        {
+            "title": "Offboarding Safely, and Mobile Device Basics",
+            "summary": (
+                "Offboarding is the highest-risk routine task in this whole module -- getting it wrong leaves "
+                "either open access for a departed employee or a mishandled corporate device. This lesson also "
+                "covers the small amount of mobile MDM awareness this program expects.\n\n"
+                "OFFBOARDING, IN ORDER:\n"
+                "  1. AUTHORIZATION -- confirm the offboarding request is genuinely authorized (HR/manager), the "
+                "same discipline as verifying identity before any other account-state change.\n"
+                "  2. ACCOUNT AND ACCESS STATE -- block sign-in and revoke active sessions so access stops "
+                "immediately, not just 'eventually.'\n"
+                "  3. CORPORATE DEVICE RECOVERY -- the device needs to physically come back or be confirmed "
+                "returned before the next step; you cannot safely reset a device you don't have.\n"
+                "  4. DATA HANDLING -- corporate data on the device needs proper handling (per your organization's "
+                "policy) before the device is repurposed -- this is exactly why a reset happens before reassignment, "
+                "not after.\n"
+                "  5. DEVICE STATE/REASSIGNMENT -- the correct lifecycle action (reset, then reassign or retire) "
+                "runs only once authorization, access removal, and data handling are all already done -- never "
+                "before.\n"
+                "  6. DOCUMENTATION -- record what was done and confirmed.\n\n"
+                "WHY ORDER MATTERS: resetting/reassigning a device before access is revoked or before data handling "
+                "is confirmed is the same category of mistake as disclosing a BitLocker key before verifying "
+                "identity -- a safety-critical failure, not a shortcut.\n\n"
+                "MOBILE DEVICE BASICS (kept intentionally small): iOS/iPadOS and Android both support enrollment "
+                "through Company Portal or, for supported Android scenarios, the Microsoft Intune app. ANDROID WORK "
+                "PROFILE creates a genuinely separate container on a personal device -- Intune policy only touches "
+                "the work side; personal apps/data are untouched. The same MANAGED VS PERSONAL distinction applies "
+                "as everywhere else in this module. For a lost or departing-employee mobile device: RETIRE removes "
+                "only the managed/work data, leaving personal data on a BYOD device alone -- the appropriate default. "
+                "WIPE resets the entire device and is reserved for a corporate-owned device or a security-critical "
+                "situation -- choosing between them is a real decision with real consequences, not a coin flip."
+            ),
+            "outcomes": [
+                "Execute the offboarding sequence in the correct order and explain why order matters",
+                "Explain the managed/personal boundary on a mobile device via work profile / User Enrollment",
+                "Choose correctly between Retire and Wipe for a mobile device based on ownership and risk",
+            ],
+        },
+    ],
+}
+
+_INTUNE_QUIZZES = {
+    30: {
+        "title": "Intune & Managed Endpoint Foundations Check",
+        "questions": [
+            {
+                "question_text": "A laptop is company-owned but its Intune record shows no enrollment. What does this mean?",
+                "option_a": "It is managed because the company owns it",
+                "option_b": "It is not receiving any Intune policy, regardless of who owns it",
+                "option_c": "It will automatically enroll within 24 hours with no action needed",
+                "option_d": "Ownership and management are the same thing",
+                "correct_answer": "B",
+                "explanation": "Ownership and management are separate facts. An unmanaged device gets no pushed policy no matter who owns the hardware.",
+            },
+            {
+                "question_text": "A device is Entra registered rather than joined. What does that tell you?",
+                "option_a": "It is the strongest possible management relationship",
+                "option_b": "It is likely a personal (BYOD) identity relationship; its separate management state still determines whether it is unmanaged, app-protected, or Intune-enrolled",
+                "option_c": "It is definitely hybrid joined",
+                "option_d": "It cannot run Windows 11",
+                "correct_answer": "B",
+                "explanation": "Registered typically describes a personal/BYOD identity relationship, but it does not prove the management state. Registered Windows devices can also enroll in Intune MDM.",
+            },
+            {
+                "question_text": "A device's last check-in was 6 days ago. What should you conclude?",
+                "option_a": "The device is definitely broken",
+                "option_b": "This is meaningless and can be ignored",
+                "option_c": "The record is stale -- the device may be off, offline, or genuinely having a problem, and this needs investigating, not ignoring",
+                "option_d": "Check-in time only matters for compliance, never for anything else",
+                "correct_answer": "C",
+                "explanation": "A stale check-in is real evidence worth investigating, not a fact to skim past or over-interpret as a guaranteed failure.",
+            },
+            {
+                "question_text": "A user's device is running Windows 10. What is the correct framing for 2026?",
+                "option_a": "Windows 10 is the modern business standard, same as Windows 11",
+                "option_b": "General Windows 10 servicing ended in October 2025; absent an explicit ESU/LTSC exception, treat it as a legacy, at-risk device to flag, not the normal endpoint",
+                "option_c": "Windows 10 devices can never enroll in Intune",
+                "option_d": "Windows 10 is newer than Windows 11",
+                "correct_answer": "B",
+                "explanation": "General Windows 10 servicing ended Oct 14, 2025. ESU and separately serviced LTSC releases are explicit exceptions; Windows 11 remains the normal supported baseline.",
+            },
+        ],
+    },
+    31: {
+        "title": "Windows Enrollment & Autopilot Check",
+        "questions": [
+            {
+                "question_text": "A user Entra-joins their Windows 11 laptop through Settings, and it enrolls into Intune on the same sign-in with no other action. What enrollment path is this?",
+                "option_a": "Windows Autopilot",
+                "option_b": "Automatic MDM enrollment",
+                "option_c": "Autopilot Device Preparation",
+                "option_d": "Group Policy enrollment",
+                "correct_answer": "B",
+                "explanation": "This is the automatic MDM enrollment path -- the device Entra-joins and auto-enrolls without any pre-staging.",
+            },
+            {
+                "question_text": "A device needs to be hybrid joined during its zero-touch deployment. Which system supports that?",
+                "option_a": "Only Autopilot Device Preparation",
+                "option_b": "Neither system supports hybrid join",
+                "option_c": "Windows Autopilot (classic)",
+                "option_d": "Only BYOD/Company Portal enrollment",
+                "correct_answer": "C",
+                "explanation": "Autopilot Device Preparation is Entra-joined only in its current form. Hybrid join requires classic Windows Autopilot.",
+            },
+            {
+                "question_text": "What is a genuine advantage of Autopilot Device Preparation over classic Autopilot?",
+                "option_a": "It requires more manual imaging steps",
+                "option_b": "It does not require pre-registering the device's hardware hash ahead of time, and gives near-real-time deployment status",
+                "option_c": "It is the only option that can ever enroll a device",
+                "option_d": "It replaces the need for Intune entirely",
+                "correct_answer": "B",
+                "explanation": "Device Preparation removes the pre-registration step and reports status in near-real-time -- a real reduction in deployment friction, not a replacement for Intune.",
+            },
+            {
+                "question_text": "A device is Entra joined but its Intune record shows it was never enrolled. What is the most useful next step?",
+                "option_a": "Reimage the device immediately",
+                "option_b": "Assume the device is unfixable",
+                "option_c": "Check whether auto-enrollment is configured and whether the user has actually signed in with the work account since joining",
+                "option_d": "Delete the device record and start over with no investigation",
+                "correct_answer": "C",
+                "explanation": "Entra-joined-but-not-enrolled is a specific, diagnosable gap -- check the auto-enrollment configuration and sign-in history before reaching for a rebuild.",
+            },
+        ],
+    },
+    32: {
+        "title": "Policies, Compliance & Applications Check",
+        "questions": [
+            {
+                "question_text": "A configuration profile shows status 'Pending' for a device. What does that mean?",
+                "option_a": "The setting failed and needs troubleshooting immediately",
+                "option_b": "The device has not reported back since the profile was assigned -- it hasn't checked in yet",
+                "option_c": "The setting does not apply to this device",
+                "option_d": "Two policies are in conflict",
+                "correct_answer": "B",
+                "explanation": "Pending means the device hasn't checked in and reported status since assignment -- often resolves with time or a manual Sync, not an error by itself.",
+            },
+            {
+                "question_text": "What is the key difference between a configuration policy and a compliance policy?",
+                "option_a": "There is no real difference; the terms are interchangeable",
+                "option_b": "A configuration policy pushes/enforces a setting; a compliance policy evaluates and reports whether the device meets a rule, without changing anything",
+                "option_c": "Compliance policies always push settings, configuration policies only report",
+                "option_d": "Configuration policies only apply to mobile devices",
+                "correct_answer": "B",
+                "explanation": "Configuration = push/enforce a setting. Compliance = evaluate/report pass-fail against a rule. They do fundamentally different jobs.",
+            },
+            {
+                "question_text": "A device is marked noncompliant because BitLocker is disabled, and the user is blocked from email by Conditional Access. What is the correct fix?",
+                "option_a": "Weaken the Conditional Access policy so the user can get through",
+                "option_b": "Turn off the compliance rule that's causing the block",
+                "option_c": "Bring the device into compliance by enabling BitLocker, which will then satisfy the Conditional Access requirement",
+                "option_d": "Tell the user email is not available for security reasons and take no further action",
+                "correct_answer": "C",
+                "explanation": "The correct fix addresses the actual device state (enable BitLocker), not weakening policy to bypass the check for one user.",
+            },
+            {
+                "question_text": "A Win32 app shows as 'Failed' immediately after what looked like a successful install. What is a likely cause worth checking before assuming the install failed?",
+                "option_a": "The detection rule may not be matching a genuinely successful install",
+                "option_b": "Win32 apps never actually install correctly",
+                "option_c": "The device has been wiped",
+                "option_d": "The app was never assigned to anyone",
+                "correct_answer": "A",
+                "explanation": "A detection-rule mismatch is the most common real-world cause of a 'Failed' status on an app that actually installed -- worth checking before assuming the install itself failed.",
+            },
+            {
+                "question_text": "What is the difference between a Required and an Available app assignment?",
+                "option_a": "Required apps install automatically for the assigned group; Available apps are offered for the user to install on demand",
+                "option_b": "There is no difference",
+                "option_c": "Available apps always install automatically; Required apps never do",
+                "option_d": "Required apps can only be Microsoft Store apps",
+                "correct_answer": "A",
+                "explanation": "Required = automatic install for the assignment. Available = shown in Company Portal / the Intune app for the user to choose to install.",
+            },
+        ],
+    },
+    33: {
+        "quiz_purpose": "gate",
+        "title": "Windows 11 Endpoint Troubleshooting & BitLocker Check",
+        "questions": [
+            {
+                "question_text": "A user says their computer has felt slow and off since a Windows update. What is a common, simple first check?",
+                "option_a": "Immediately reimage the device",
+                "option_b": "Whether the update is still pending a restart",
+                "option_c": "Assume the update engine is permanently broken",
+                "option_d": "Disable future updates for that device",
+                "correct_answer": "B",
+                "explanation": "Many post-update symptoms trace to a pending restart the update is waiting on -- check that before deeper troubleshooting.",
+            },
+            {
+                "question_text": "A device asks for a BitLocker recovery key right after a firmware update. What does this most likely mean?",
+                "option_a": "The disk is corrupted",
+                "option_b": "The firmware change altered the boot measurements BitLocker expects, triggering a legitimate recovery prompt",
+                "option_c": "The user is being hacked",
+                "option_d": "BitLocker has failed permanently and must be disabled",
+                "correct_answer": "B",
+                "explanation": "Firmware/TPM changes commonly trigger a legitimate BitLocker recovery prompt as an expected safety response, not corruption or compromise.",
+            },
+            {
+                "question_text": "A caller asks for their BitLocker recovery key over the phone, sounding confident and providing their name. What must happen before you disclose it?",
+                "option_a": "Nothing further -- sounding legitimate is enough",
+                "option_b": "Verify the caller's identity and that the device is genuinely theirs through the approved process, every time",
+                "option_c": "Only verify identity if the caller sounds suspicious",
+                "option_d": "Disclose it, then verify identity afterward",
+                "correct_answer": "B",
+                "explanation": "Identity and device ownership must always be verified before disclosure -- sounding legitimate is never sufficient evidence.",
+            },
+            {
+                "question_text": "Which of these device actions is the LEAST risky to perform?",
+                "option_a": "Wipe",
+                "option_b": "Sync",
+                "option_c": "Autopilot Reset",
+                "option_d": "Fresh Start",
+                "correct_answer": "B",
+                "explanation": "Sync simply forces a check-in and changes nothing destructive on the device -- the lowest-risk action on the list.",
+            },
+            {
+                "question_text": "Why should a technician never disable BitLocker just to stop a recovery prompt from appearing?",
+                "option_a": "It's technically impossible to disable BitLocker",
+                "option_b": "Disabling it removes real data protection from the device as a shortcut around a legitimate prompt",
+                "option_c": "It has no real effect either way",
+                "option_d": "It automatically re-enables itself within a day",
+                "correct_answer": "B",
+                "explanation": "Disabling encryption to make a recovery prompt go away trades away real data protection -- never an acceptable shortcut.",
+            },
+        ],
+    },
+    34: {
+        "title": "Device Lifecycle, Onboarding, Offboarding & Mobile Check",
+        "questions": [
+            {
+                "question_text": "What is the correct device lifecycle order?",
+                "option_a": "Received -> Assigned -> Enrolled -> Configured -> Supported -> Replaced/Reassigned -> Retired/Wiped",
+                "option_b": "Retired -> Received -> Supported -> Enrolled",
+                "option_c": "Enrolled -> Received -> Configured -> Retired",
+                "option_d": "There is no meaningful order",
+                "correct_answer": "A",
+                "explanation": "Knowing the expected lifecycle stage narrows what should be true about a device before troubleshooting anything else.",
+            },
+            {
+                "question_text": "An onboarding ticket's AD account and license are already created. What does a technician still need to confirm before calling it done?",
+                "option_a": "Nothing further is needed once the account exists",
+                "option_b": "Device assignment, enrollment, apps/policies landing, MFA registration, and access verification",
+                "option_c": "Only that the user has an email address",
+                "option_d": "Only that the device powers on",
+                "correct_answer": "B",
+                "explanation": "The account is only half the job -- device enrollment, app/policy delivery, MFA registration, and access verification complete an onboarding.",
+            },
+            {
+                "question_text": "During offboarding, why must a device be reset before it's reassigned to someone else?",
+                "option_a": "It doesn't matter -- resetting is optional",
+                "option_b": "So the previous employee's corporate data and access do not carry over to the new assignee",
+                "option_c": "Resetting is only needed for mobile devices",
+                "option_d": "To make the device slower on purpose",
+                "correct_answer": "B",
+                "explanation": "Carrying over a previous person's profile/data to a new assignee is a data-handling failure -- the device must be reset first.",
+            },
+            {
+                "question_text": "What is the correct order-of-operations risk in offboarding?",
+                "option_a": "Order doesn't matter as long as everything eventually happens",
+                "option_b": "Resetting/reassigning the device before access is revoked and data handling is confirmed is a safety-critical mistake",
+                "option_c": "Access should be revoked last, after the device is already reassigned",
+                "option_d": "Authorization can be skipped if the requester seems trustworthy",
+                "correct_answer": "B",
+                "explanation": "Resetting or reassigning before authorization, access revocation, and data handling are confirmed can create real security exposure -- order matters.",
+            },
+            {
+                "question_text": "A personal (BYOD) mobile device with a work profile needs to be handled because the employee is leaving. What is the appropriate default action?",
+                "option_a": "Wipe the entire device including personal data",
+                "option_b": "Retire, which removes only the managed/work data and leaves personal data untouched",
+                "option_c": "Do nothing since it's a personal device",
+                "option_d": "Physically confiscate the phone",
+                "correct_answer": "B",
+                "explanation": "Retire is the appropriate default for a BYOD device -- it removes only the managed/work side, respecting the personal/work data boundary.",
+            },
+        ],
+    },
+}
+
+# Guided simulation labs -- evidence-interpretation exercises, the same
+# question-based guided_lab mechanism the M365 stage uses for topics with no
+# live Service Desk tool surface. "role" here drives the TrainingWeekActivity
+# metadata_json learning_role override applied in the sync function below:
+# practice labs use the guided_lab default (no override needed), troubleshoot
+# and prove labs are explicitly overridden -- see Step 10 of the user's brief
+# ("do not merely label every guided lab Troubleshoot").
+_INTUNE_NEW_LABS: dict[int, list[dict]] = {
+    30: [
+        {
+            "role": "practice",
+            "title": "Read a Device Record",
+            "lab_type": "structured_endpoint",
+            "description": "Walk through a real device record field by field and state what each one tells you.",
+            "estimated_minutes": 15,
+            "questions": [
+                {
+                    "id": "read-join-type",
+                    "prompt": "A device record shows: Join type: Microsoft Entra joined. Primary user: Dana Ruiz. Management state: Managed. What can you conclude?",
+                    "context": "This is a straightforward evidence-reading exercise -- read the fields, don't guess beyond them.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "This is a corporate device, fully joined, currently under Intune management, primarily used by Dana Ruiz"},
+                        {"id": "b", "label": "This is a personal device with no management"},
+                        {"id": "c", "label": "The join type field is irrelevant to support work"},
+                        {"id": "d", "label": "Management state has no bearing on what policy the device receives"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Each field states a specific fact -- joined + managed together describe a normal, fully-managed corporate device belonging to the listed primary user.",
+                },
+                {
+                    "id": "read-last-checkin",
+                    "prompt": "The same record shows: Last check-in: 11 minutes ago. Compliance: Compliant. What does this tell you about the reliability of the compliance status?",
+                    "context": "Recency of check-in affects how much you should trust a status field.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "The compliance status is current and can be trusted as an accurate, recent evaluation"},
+                        {"id": "b", "label": "The compliance status is meaningless without a check-in"},
+                        {"id": "c", "label": "Compliance status never depends on check-in recency"},
+                        {"id": "d", "label": "The device is definitely broken"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "A recent check-in means the reported status reflects the device's current real state, not a stale snapshot.",
+                },
+            ],
+        },
+        {
+            "role": "troubleshoot",
+            "title": "Diagnose Join, Management & Ownership",
+            "lab_type": "structured_endpoint",
+            "description": "Given a realistic device record, determine join type, management state, likely ownership, and whether a reported problem is identity-side, enrollment-side, or device-side.",
+            "estimated_minutes": 20,
+            "questions": [
+                {
+                    "id": "identity-vs-enrollment",
+                    "prompt": "A device record shows: Join type: Microsoft Entra registered. Management state: Unmanaged. The user says 'IT policies aren't applying to my laptop.' What is actually going on?",
+                    "context": "The user believes this should be a fully managed corporate laptop.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "This is registered and currently unmanaged -- likely a personal device that has not completed an Intune MDM enrollment; confirm the intended BYOD enrollment policy before promising full management"},
+                        {"id": "b", "label": "The device is broken and needs a reimage"},
+                        {"id": "c", "label": "The user's account is locked"},
+                        {"id": "d", "label": "Policies always apply eventually regardless of join type"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Registered commonly describes BYOD identity, while Unmanaged is the field proving that no Intune policy is arriving. Registered personal Windows devices can be MDM-enrolled, so read both fields.",
+                },
+                {
+                    "id": "hybrid-stuck-policy",
+                    "prompt": "A device is Entra hybrid joined. Cloud (Intune) policy hasn't applied in over a week, but the device works fine on the local domain network. What should you suspect first?",
+                    "context": "The device is on-site and connects to the corporate network daily.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "A hybrid-join sync health problem preventing the device from completing its cloud registration/check-in properly"},
+                        {"id": "b", "label": "The device has been stolen"},
+                        {"id": "c", "label": "Cloud policy never applies to hybrid-joined devices"},
+                        {"id": "d", "label": "The user's password is wrong"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "A hybrid-joined device needing periodic domain-controller line-of-sight to keep its Entra registration healthy is the classic cause of stuck cloud policy despite normal local domain function.",
+                },
+                {
+                    "id": "ownership-vs-management",
+                    "prompt": "A device is confirmed company-owned (asset tag on file) but its record shows Management state: Unmanaged. Is this a contradiction?",
+                    "context": "The requester is confused because 'the company owns it, so it should be managed.'",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "No -- ownership and management are separate facts; a company-owned device can still be unenrolled and therefore unmanaged"},
+                        {"id": "b", "label": "Yes -- ownership always implies management"},
+                        {"id": "c", "label": "The record must be wrong and should be deleted"},
+                        {"id": "d", "label": "Unmanaged devices cannot be company-owned by definition"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Ownership and management are independent facts on the device record -- this lesson's core distinction, applied here to a real evidence read.",
+                },
+            ],
+        },
+    ],
+    31: [
+        {
+            "role": "practice",
+            "title": "Read Enrollment Evidence",
+            "lab_type": "structured_endpoint",
+            "description": "Read a device's enrollment fields and identify how it was enrolled.",
+            "estimated_minutes": 15,
+            "questions": [
+                {
+                    "id": "read-enrollment-type",
+                    "prompt": "A device record shows: Enrollment type: Automatic MDM enrollment. Enrolled: same day as Entra join. What does this tell you about how the device reached management?",
+                    "context": "Read the field directly -- this is not a diagnosis exercise yet.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "The user Entra-joined the device and it auto-enrolled on the same sign-in, without any pre-staging"},
+                        {"id": "b", "label": "The device was pre-staged through Windows Autopilot"},
+                        {"id": "c", "label": "The device enrolled through Group Policy"},
+                        {"id": "d", "label": "Enrollment type never affects troubleshooting"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "This is the automatic MDM enrollment signature -- join and enrollment happening together, with no Autopilot profile involved.",
+                },
+                {
+                    "id": "read-autopilot-profile",
+                    "prompt": "A different device record shows: Enrolled via: Windows Autopilot profile 'Sales-Onboarding'. What does the presence of a named Autopilot profile tell you?",
+                    "context": "Compare this to the automatic-enrollment record above.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "This device was pre-staged and went through zero-touch provisioning under that specific profile"},
+                        {"id": "b", "label": "This is identical to automatic MDM enrollment"},
+                        {"id": "c", "label": "Autopilot profiles are irrelevant to how a device was set up"},
+                        {"id": "d", "label": "The device is definitely unmanaged"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "A named Autopilot profile is direct evidence of zero-touch, pre-staged deployment -- a different path than ad-hoc automatic enrollment.",
+                },
+            ],
+        },
+        {
+            "role": "troubleshoot",
+            "title": "Entra Joined But Not Intune Managed",
+            "lab_type": "structured_endpoint",
+            "description": "A device is Entra joined but its Intune record shows it was never enrolled. Work out why.",
+            "estimated_minutes": 20,
+            "questions": [
+                {
+                    "id": "narrow-the-cause",
+                    "prompt": "A laptop's record shows: Join type: Microsoft Entra joined (confirmed 3 days ago). Intune enrollment: none on record. The user has not opened Company Portal. What is the most likely explanation?",
+                    "context": "Auto-enrollment is confirmed enabled for this tenant.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "The user joined the device but hasn't yet completed the sign-in step that triggers automatic enrollment (or enrollment silently failed) -- worth having them sign in again and checking for an enrollment error"},
+                        {"id": "b", "label": "Entra join and Intune enrollment are unrelated and this is expected forever"},
+                        {"id": "c", "label": "The device must be reimaged immediately"},
+                        {"id": "d", "label": "This can only be fixed by deleting the Entra join"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Join without enrollment is a specific, diagnosable gap -- check whether the triggering sign-in actually completed, and look for an enrollment error, before anything more drastic.",
+                },
+                {
+                    "id": "identity-side-vs-device-side",
+                    "prompt": "You confirm the same user's OTHER device enrolled successfully last month with no issue. What does that tell you about where the problem likely sits?",
+                    "context": "Same user, same tenant, same license -- one device enrolled fine.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "The problem is more likely device-side (this specific machine) than identity-side (the user's account), since the account clearly works for enrollment elsewhere"},
+                        {"id": "b", "label": "The problem must be the user's account since accounts cause every issue"},
+                        {"id": "c", "label": "This comparison provides no useful information"},
+                        {"id": "d", "label": "The license must be revoked"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "A working enrollment elsewhere for the same identity narrows the cause toward this specific device rather than the account/license layer.",
+                },
+            ],
+        },
+        {
+            "role": "troubleshoot",
+            "title": "Autopilot Deployment Stuck",
+            "lab_type": "structured_endpoint",
+            "description": "A new device's Autopilot/Device Preparation deployment is stuck partway through. Read the status evidence to diagnose it.",
+            "estimated_minutes": 20,
+            "questions": [
+                {
+                    "id": "stuck-at-apps",
+                    "prompt": "Deployment status shows: Device Entra-joined: complete. Intune enrollment: complete. App installation: 2 of 5 required apps installed, stuck for 40 minutes. What should you check first?",
+                    "context": "The device has completed the identity/enrollment steps successfully.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "Whether the specific stuck app assignments have a known issue (e.g. a detection-rule or network problem), since the identity/enrollment steps already succeeded"},
+                        {"id": "b", "label": "Restart the entire Autopilot profile from scratch"},
+                        {"id": "c", "label": "Assume Entra join failed"},
+                        {"id": "d", "label": "Delete the device from Entra"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Since join and enrollment both succeeded, the stuck stage is specifically app installation -- investigate that stage, not the already-completed earlier ones.",
+                },
+                {
+                    "id": "device-prep-vs-autopilot-symptom",
+                    "prompt": "Two brand-new laptops both fail deployment during OOBE. One shows near-real-time status updates as it fails; the other shows the standard delayed status. What does that difference suggest?",
+                    "context": "Both devices are Windows 11 and Entra-joined only, no hybrid join involved.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "The near-real-time one is likely going through Autopilot Device Preparation, and the delayed one through classic Autopilot -- worth confirming which profile applies to each before troubleshooting further"},
+                        {"id": "b", "label": "Status timing has no diagnostic value"},
+                        {"id": "c", "label": "Both are definitely on the exact same deployment path"},
+                        {"id": "d", "label": "This means one device is defective hardware"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Near-real-time status is a distinguishing trait of Autopilot Device Preparation versus classic Autopilot's standard delay -- useful evidence for narrowing which system's failure mode you're actually looking at.",
+                },
+            ],
+        },
+    ],
+    32: [
+        {
+            "role": "practice",
+            "title": "Read Profile Status Evidence",
+            "lab_type": "structured_endpoint",
+            "description": "Practice reading and correctly interpreting the four configuration-profile status states.",
+            "estimated_minutes": 15,
+            "questions": [
+                {
+                    "id": "read-conflict",
+                    "prompt": "A profile shows status: Conflict, with the detail 'setting already configured by another profile.' What should you do?",
+                    "context": "This is a status-reading exercise -- interpret the evidence given.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "Investigate which two policies disagree on this setting -- Conflict needs investigation, it will not resolve itself by waiting"},
+                        {"id": "b", "label": "Wait 24 hours and it will fix itself like Pending does"},
+                        {"id": "c", "label": "This means the setting doesn't apply to this device"},
+                        {"id": "d", "label": "This always means the device is broken"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Conflict is a distinct state from Pending -- it means two policies actively disagree, and needs investigation rather than a wait-and-see approach.",
+                },
+                {
+                    "id": "read-not-applicable",
+                    "prompt": "A profile targeting a Windows-only setting shows 'Not applicable' for a specific device. Is this an error?",
+                    "context": "Check what you know about this specific status.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "No -- Not applicable is expected behavior when a setting doesn't match the device's platform/edition, not a failure"},
+                        {"id": "b", "label": "Yes -- this always requires escalation"},
+                        {"id": "c", "label": "Not applicable and Conflict mean the same thing"},
+                        {"id": "d", "label": "This means the device is unmanaged"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Not applicable is expected, not an error -- it simply means the setting doesn't match this device's platform or edition.",
+                },
+            ],
+        },
+        {
+            "role": "troubleshoot",
+            "title": "The App That Says It Failed",
+            "lab_type": "structured_endpoint",
+            "description": "An assigned app shows Failed. Work out whether this is a real install failure, an assignment problem, or a detection-rule mismatch.",
+            "estimated_minutes": 20,
+            "questions": [
+                {
+                    "id": "app-present-but-failed",
+                    "prompt": "An app shows 'Failed' in Intune, but the user confirms the app is right there on their desktop and works fine. What is the most likely explanation?",
+                    "context": "The app genuinely works when the user opens it.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "A detection-rule mismatch -- Intune isn't recognizing evidence of the successful install, even though the app is genuinely present"},
+                        {"id": "b", "label": "The user is mistaken and the app isn't really there"},
+                        {"id": "c", "label": "The device must be reimaged"},
+                        {"id": "d", "label": "Failed status is always accurate and the app must be reinstalled destructively"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "This is the classic detection-rule trap -- a genuinely successful install can still show Failed if Intune's detection check doesn't recognize it.",
+                },
+                {
+                    "id": "app-truly-missing",
+                    "prompt": "A different app shows 'Failed,' and the user confirms it is NOT present anywhere on the device. What does that change about your next step?",
+                    "context": "This time, the app is genuinely absent.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "This points toward a real install failure (prerequisite, network, or targeting issue) rather than a detection-rule mismatch, and a retry/Sync plus checking assignment is the reasonable next step"},
+                        {"id": "b", "label": "Treat it identically to the detection-rule case above"},
+                        {"id": "c", "label": "Nothing can be done and the ticket should be closed"},
+                        {"id": "d", "label": "Immediately escalate to app packaging without any further evidence"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Confirming the app is genuinely absent (not just misreported) changes the likely cause -- now a real install problem, worth a retry/Sync and an assignment check before escalating.",
+                },
+            ],
+        },
+        {
+            "role": "troubleshoot",
+            "title": "Blocked and Stuck: Compliance Meets a Pending Profile",
+            "lab_type": "structured_endpoint",
+            "description": "A user is blocked from a resource by Conditional Access, and a separate configuration profile shows Pending. Work out which fact explains the access block, and what's actually needed to fix the profile.",
+            "estimated_minutes": 20,
+            "questions": [
+                {
+                    "id": "which-fact-blocks-access",
+                    "prompt": "Device evidence: Compliance: Noncompliant (reason: BitLocker not enabled). A separate Wi-Fi configuration profile: Pending. The user is blocked from SharePoint by Conditional Access. Which fact explains the block?",
+                    "context": "Two different pieces of evidence exist -- only one is directly relevant to the access block.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "The Noncompliant status -- Conditional Access is gating on compliance, and the Pending Wi-Fi profile is a separate, unrelated fact"},
+                        {"id": "b", "label": "The Pending Wi-Fi profile is the cause of the access block"},
+                        {"id": "c", "label": "Both facts are equally responsible and unrelated to each other"},
+                        {"id": "d", "label": "Neither fact is relevant; the block is random"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Compliance state is what Conditional Access checks -- the noncompliant BitLocker reason is the actual cause. The Pending Wi-Fi profile is a separate, unrelated piece of evidence.",
+                },
+                {
+                    "id": "correct-fix-not-bypass",
+                    "prompt": "The user asks you to just get them into SharePoint right now. What is the correct response?",
+                    "context": "The user is frustrated and wants a fast fix.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "Explain that the fix is enabling BitLocker to bring the device into compliance, not bypassing the Conditional Access policy"},
+                        {"id": "b", "label": "Temporarily disable Conditional Access for this user"},
+                        {"id": "c", "label": "Mark the device compliant manually without fixing anything"},
+                        {"id": "d", "label": "Tell the user there is no possible fix"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "The correct, safe fix addresses the real device state -- weakening policy or manually overriding compliance defeats the security control for everyone.",
+                },
+            ],
+        },
+        {
+            "role": "prove",
+            "title": "Diagnose the Multi-Signal Ticket",
+            "lab_type": "structured_endpoint",
+            "description": "An unfamiliar ticket arrives with several device, app, and policy evidence points at once and no walkthrough. Determine the actual cause yourself.",
+            "estimated_minutes": 25,
+            "questions": [
+                {
+                    "id": "multi-signal-diagnosis",
+                    "prompt": "A user reports: 'My new required timesheet app never showed up, and now I also can't get into the timesheet SharePoint site.' Evidence: device compliance: Compliant. App 'TimeTrack': assignment status shows 'Not targeted' for this device's group. A separate configuration profile unrelated to either symptom: Conforms. What is the actual root cause?",
+                    "context": "You are given the evidence, not the diagnosis -- decide which facts matter.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "The app was never assigned to this device's group in the first place -- this is an assignment/targeting problem, not an install failure, a compliance block, or the unrelated Conforms profile"},
+                        {"id": "b", "label": "The device is noncompliant and that's blocking everything"},
+                        {"id": "c", "label": "The unrelated Conforms profile is the cause"},
+                        {"id": "d", "label": "This cannot be diagnosed without live access to the tenant"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "The device is compliant (rules out a Conditional Access block) and the unrelated profile conforms (not the cause) -- 'Not targeted' directly means the app assignment itself never reached this device's group, which also explains the missing SharePoint access if that access depends on app-driven provisioning.",
+                },
+                {
+                    "id": "explain-your-reasoning",
+                    "prompt": "What made the compliance and unrelated-profile evidence NOT the answer here, even though they were presented alongside the real cause?",
+                    "context": "Reflect on how you ruled out the distractors.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "Compliant and Conforms both describe states that are working correctly -- they rule themselves out as the cause of a failure, leaving the assignment/targeting gap as the only evidence that actually explains the symptom"},
+                        {"id": "b", "label": "There was no way to distinguish the evidence"},
+                        {"id": "c", "label": "All evidence should always be treated as equally suspicious regardless of what it reports"},
+                        {"id": "d", "label": "The unrelated profile was actually the most important clue"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Working-as-expected evidence (Compliant, Conforms) doesn't explain a failure symptom -- the skill is recognizing which evidence is actually abnormal.",
+                },
+            ],
+        },
+    ],
+    33: [
+        {
+            "role": "practice",
+            "title": "Read Update and Driver Evidence",
+            "lab_type": "structured_endpoint",
+            "description": "Practice reading Windows Update and device-health evidence to identify what it's telling you.",
+            "estimated_minutes": 15,
+            "questions": [
+                {
+                    "id": "read-pending-restart",
+                    "prompt": "Device status shows: Update installed: yes. Restart required: yes, pending 3 days. What is the most useful first thing to tell the user?",
+                    "context": "This is a straightforward evidence read.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "The update installed but needs a restart to finish applying -- restarting will likely resolve the symptom"},
+                        {"id": "b", "label": "The update completely failed"},
+                        {"id": "c", "label": "The device needs to be reimaged"},
+                        {"id": "d", "label": "Restart requirements are unrelated to update behavior"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "A completed install with a long-pending restart is a direct, simple explanation for lingering symptoms -- restart first.",
+                },
+                {
+                    "id": "read-deferral",
+                    "prompt": "Device status shows: Update policy: deferred 14 days (organizational policy). Current OS build: one cycle behind latest. Is this a problem?",
+                    "context": "The organization intentionally staggers updates.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "No -- this is expected behavior under a deliberate deferral policy, not neglect or a fault"},
+                        {"id": "b", "label": "Yes -- any device behind the latest build is automatically broken"},
+                        {"id": "c", "label": "Deferral policies don't actually exist"},
+                        {"id": "d", "label": "This always means the device is unmanaged"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "A managed deferral window is intentional -- a device lagging behind within its policy window is expected, not a problem to fix.",
+                },
+            ],
+        },
+        {
+            "role": "troubleshoot",
+            "title": "Choose the Right Device Action",
+            "lab_type": "structured_endpoint",
+            "description": "Given a support request, choose the correctly-scoped device action and justify the risk involved.",
+            "estimated_minutes": 20,
+            "questions": [
+                {
+                    "id": "just-force-checkin",
+                    "prompt": "A newly-assigned policy should have reached a device an hour ago. The user wants to know if it's stuck. What is the appropriate first action?",
+                    "context": "There is no evidence yet of anything actually wrong.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "Sync -- it forces a check-in with no destructive risk, and is the proportionate first step"},
+                        {"id": "b", "label": "Wipe the device to force a clean policy pull"},
+                        {"id": "c", "label": "Retire the device"},
+                        {"id": "d", "label": "Delete the device record"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Sync is the lowest-risk action that directly addresses 'has this device checked in and gotten current policy yet' -- always the proportionate first move.",
+                },
+                {
+                    "id": "repurpose-not-wipe",
+                    "prompt": "A working laptop is being repurposed for a different department and needs OEM bloat and old settings cleared, but should stay enrolled in Intune under the new profile. What action fits?",
+                    "context": "The device is not leaving the organization, just changing roles.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "Fresh Start, after reviewing the user-data option and expected re-enrollment behavior -- it removes OEM apps/settings without treating the device as permanently retired"},
+                        {"id": "b", "label": "Wipe -- fully unenrolls the device, which isn't appropriate since it's staying in service"},
+                        {"id": "c", "label": "Delete the device record"},
+                        {"id": "d", "label": "Sync -- does nothing destructive so it won't clear anything"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Fresh Start is designed to remove OEM apps/settings, but its data and MDM outcome depends on the selected option. Verify those choices instead of assuming enrollment is always retained.",
+                },
+                {
+                    "id": "authorization-before-destructive",
+                    "prompt": "A user asks you to Wipe their laptop right now because 'it's acting weird.' What must happen before you take that action?",
+                    "context": "Wipe is the most destructive action on the risk ladder.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "Confirm this is actually the appropriate, authorized action for the situation -- a vague 'acting weird' complaint does not justify the most destructive available action without further investigation and authorization"},
+                        {"id": "b", "label": "Perform the Wipe immediately since the user asked"},
+                        {"id": "c", "label": "Skip investigation since Wipe fixes everything"},
+                        {"id": "d", "label": "Authorization is never required for device actions"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "The most destructive action requires real justification and authorization, not just a user's request -- matching the module's core safety principle.",
+                },
+            ],
+        },
+    ],
+    34: [
+        {
+            "role": "practice",
+            "title": "Walk the Onboarding Checklist",
+            "lab_type": "structured_endpoint",
+            "description": "Given a new-hire request with the AD account already created, work through the remaining device/M365 onboarding steps in order.",
+            "estimated_minutes": 15,
+            "questions": [
+                {
+                    "id": "next-step-after-account",
+                    "prompt": "A new hire's AD account and license are confirmed. What is the next step in the onboarding checklist?",
+                    "context": "This is a guided walkthrough -- follow the checklist order from the lesson.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "Confirm/assign the specific device this person will use"},
+                        {"id": "b", "label": "Immediately reset the device"},
+                        {"id": "c", "label": "Skip straight to access verification with no device involved"},
+                        {"id": "d", "label": "Offboard a different employee first"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Device assignment is the step that follows account/license confirmation, before enrollment can even begin.",
+                },
+                {
+                    "id": "verify-before-closing",
+                    "prompt": "The device is enrolled, and required apps/policies show landed. What must still happen before the onboarding ticket is complete?",
+                    "context": "The checklist has more steps after technical setup.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "Confirm MFA registration and verify the new hire can actually access what they need, then document what was done"},
+                        {"id": "b", "label": "Nothing further -- technical setup completing is sufficient"},
+                        {"id": "c", "label": "Immediately begin offboarding preparation"},
+                        {"id": "d", "label": "Delete the device record"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "MFA registration and access verification, plus documentation, are the closing steps -- technical setup alone doesn't confirm the person can actually work.",
+                },
+            ],
+        },
+        {
+            "role": "troubleshoot",
+            "title": "Lost Phone: Retire or Wipe",
+            "lab_type": "structured_endpoint",
+            "description": "A mobile device is reported lost. Decide between Retire and Wipe based on ownership and risk, and justify the choice.",
+            "estimated_minutes": 15,
+            "questions": [
+                {
+                    "id": "byod-lost-phone",
+                    "prompt": "An employee's PERSONAL phone, enrolled as BYOD with a work profile, is reported lost. What is the appropriate action?",
+                    "context": "The phone contains the employee's personal photos, apps, and accounts alongside the work profile.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "Retire -- removes only the managed work data/profile, leaving the employee's personal data on the device untouched"},
+                        {"id": "b", "label": "Wipe -- resets the entire device including all personal data"},
+                        {"id": "c", "label": "Take no action since it's a personal device"},
+                        {"id": "d", "label": "There is no difference between Retire and Wipe for this case"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Retire is the correct default for a lost BYOD device -- it protects corporate data without destroying the owner's personal data.",
+                },
+                {
+                    "id": "corporate-owned-security-critical",
+                    "prompt": "A CORPORATE-OWNED phone containing sensitive client data is reported stolen, not just lost, with signs of active tampering. What changes about the appropriate action?",
+                    "context": "This is a security-critical situation, not a routine misplaced-device report.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "A full Wipe is now appropriate given the corporate ownership and the active security risk, following escalation/authorization procedure for a security-critical event"},
+                        {"id": "b", "label": "Retire is still sufficient regardless of the theft/tampering signals"},
+                        {"id": "c", "label": "No action should be taken until the device is physically recovered"},
+                        {"id": "d", "label": "Ownership and risk level never affect which action is appropriate"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Corporate ownership plus active compromise risk changes the calculus -- Wipe is appropriate here, unlike the BYOD lost-phone case above. Recognizing when the situation escalates is the actual skill.",
+                },
+            ],
+        },
+    ],
+}
+
+# The two live, server-graded endpoint-management tickets. deviceId/contactId
+# values here must exactly match the device_id/requester_contact_id/ticket_id
+# arguments passed to _device_process() in service_desk_objectives.py.
+_INTUNE_SERVICE_DESK_TICKETS = json.loads(r'''[
+{
+  "id": "INC3001",
+  "stableKey": "bitlocker-recovery",
+  "title": "BitLocker recovery key requested after a firmware update",
+  "category": "hardware",
+  "priority": "high",
+  "status": "open",
+  "assignedTo": "you",
+  "escalated": false,
+  "createdAt": "2026-08-12T07:40:00.000Z",
+  "requester": {
+    "name": "Morgan Ellis",
+    "department": "Finance Operations",
+    "email": "morgan.ellis@nexus.example",
+    "location": "North Campus - Level 3",
+    "contact": "Employee support portal"
+  },
+  "device": {
+    "assetTag": "NX-2214",
+    "deviceName": "NEX-LT-2214",
+    "kind": "laptop",
+    "operatingSystem": "Windows 11 Enterprise",
+    "state": "attention"
+  },
+  "description": {
+    "issue": "My laptop rebooted after a firmware update overnight and now it's asking for a BitLocker recovery key. I need access right now for month-end close.",
+    "businessImpact": "Morgan cannot reach the month-end reconciliation workbook until the device unlocks.",
+    "reportedByLine": "Submitted through the employee support portal immediately after the recovery prompt appeared.",
+    "troubleshooting": [
+      "Confirmed the recovery prompt appears on every boot attempt.",
+      "The firmware update was pushed by IT overnight per the standard maintenance window.",
+      "Has not attempted to enter any recovery key yet."
+    ]
+  },
+  "sla": {"target": "Respond within 1 hour", "dueAt": "2026-08-12T08:40:00.000Z"},
+  "hints": [
+    "Inspect the device record before anything else -- confirm this is genuinely NEX-LT-2214, not a similar asset tag.",
+    "Verify Morgan's identity through the approved process before touching the recovery key.",
+    "Record why the recovery prompt appeared (the overnight firmware update) as the diagnosis before releasing the key.",
+    "After providing the key through the approved channel, confirm the device actually boots successfully before closing."
+  ],
+  "notes": [],
+  "activity": [
+    {"id": "INC3001-created", "label": "Ticket created", "timestamp": "2026-08-12T07:40:00.000Z", "detail": "Created from the employee support portal.", "tone": "warning"},
+    {"id": "INC3001-assigned", "label": "Assigned to you", "timestamp": "2026-08-12T07:43:00.000Z", "detail": "Endpoint Management routed this case to your shift.", "tone": "info"}
+  ],
+  "suggestedTools": ["device-management", "company-chat", "documentation"],
+  "objective_catalog_version": "process-v3"
+},
+{
+  "id": "INC3002",
+  "stableKey": "offboarding-device-reassignment",
+  "title": "Returned laptop from a departed employee needs reassignment",
+  "category": "access",
+  "priority": "medium",
+  "status": "open",
+  "assignedTo": "you",
+  "escalated": false,
+  "createdAt": "2026-08-13T10:15:00.000Z",
+  "requester": {
+    "name": "Adebayo Coker",
+    "department": "Human Resources",
+    "email": "adebayo.coker@nexus.example",
+    "location": "Central Office - HR",
+    "contact": "Employee support portal"
+  },
+  "device": {
+    "assetTag": "NX-3390",
+    "deviceName": "NEX-LT-3390",
+    "kind": "laptop",
+    "operatingSystem": "Windows 11 Enterprise",
+    "state": "active"
+  },
+  "description": {
+    "issue": "A former employee's laptop was returned to the office this morning. We have a new hire starting Monday who needs a device -- can this one be prepared for them?",
+    "businessImpact": "The incoming employee has no assigned device for their start date if this laptop isn't ready in time.",
+    "reportedByLine": "Submitted by HR after physically receiving the returned device at the front desk.",
+    "troubleshooting": [
+      "Confirmed the device physically arrived at the office today.",
+      "The employment termination was processed in the HR system three days ago.",
+      "The offboarding record confirms sign-in was blocked and active sessions were revoked before the device handoff.",
+      "A similar laptop, NX-3391, remains checked out to a current employee and is not part of this request."
+    ]
+  },
+  "sla": {"target": "Respond within 1 business day", "dueAt": "2026-08-14T10:15:00.000Z"},
+  "hints": [
+    "Inspect the device record and confirm it's genuinely NEX-LT-3390 -- a similar asset tag (NX-3391) belongs to a different, still-active employee and is not part of this request.",
+    "Verify the offboarding/termination authorization with HR before taking any action on the device.",
+    "Record that authorization, access revocation, and corporate-data reset handling are all confirmed before resetting anything.",
+    "Confirm the device is genuinely ready for a new assignee before closing -- don't hand it off unresolved."
+  ],
+  "notes": [],
+  "activity": [
+    {"id": "INC3002-created", "label": "Ticket created", "timestamp": "2026-08-13T10:15:00.000Z", "detail": "Created from the employee support portal."},
+    {"id": "INC3002-assigned", "label": "Assigned to you", "timestamp": "2026-08-13T10:18:00.000Z", "detail": "Endpoint Management routed this case to your shift.", "tone": "info"}
+  ],
+  "suggestedTools": ["device-management", "company-chat", "documentation"],
+  "objective_catalog_version": "process-v3"
+}
+]''')
+
+
+def sync_intune_endpoint_management(db: Session) -> dict:
+    """Idempotently build the Phase 4B.2 Intune & Windows 11 endpoint
+    management content: new weeks 30-34 inside the existing
+    stage.microsoft_workplace Stage, and the System B reconciliation
+    documented in docs/INTUNE_ENDPOINT_MANAGEMENT_CURRICULUM.md.
+
+    Safe to call whether or not it has already run. Never renumbers an
+    existing week_number; only shifts TrainingWeek.display_order for the 12
+    rows in _INTUNE_DISPLAY_ORDER_SHIFT. Unlike Phase 4B.1, nothing existing
+    is moved/relocated -- every row this function creates is new.
+    """
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeek.__tablename__):
+        return {"skipped": True, "reason": "migration_not_applied"}
+    if db.query(TrainingWeek).filter(TrainingWeek.week_number == 30).first():
+        return {"skipped": True, "reason": "already_applied"}
+    # Same base_curriculum_seeded guard as sync_microsoft_workplace_foundations,
+    # for the same reason: called both from migration 0058's upgrade() and
+    # again from seed_curriculum.py, and must defer to the later call on a
+    # truly fresh database so sync_initial_training_activities isn't tricked
+    # into skipping the entire base curriculum.
+    base_curriculum_seeded = (
+        db.query(TrainingWeekActivity.id)
+        .join(TrainingWeek, TrainingWeek.id == TrainingWeekActivity.training_week_id)
+        .filter(TrainingWeek.week_number == 0)
+        .first()
+    )
+    if not base_curriculum_seeded:
+        return {"skipped": True, "reason": "base_curriculum_not_seeded"}
+    # Also defer until Phase 4B.1's weeks 25-29 exist -- this function shifts
+    # display_order for weeks currently sitting after them (18-29), and must
+    # run after sync_microsoft_workplace_foundations, not before it.
+    if not db.query(TrainingWeek).filter(TrainingWeek.week_number == 25).first():
+        return {"skipped": True, "reason": "microsoft_workplace_not_seeded"}
+
+    result = {"skipped": False, "weeks_created": 0, "weeks_shifted": 0, "modules_created": 0,
+              "lessons_created": 0, "quizzes_created": 0, "questions_created": 0,
+              "labs_created": 0, "tickets_created": 0,
+              "activities_created": 0, "gates_updated": 0}
+
+    # 1. Shift display_order for the 12 existing weeks that must move to make
+    # room -- week_number is never touched.
+    existing_weeks = {
+        row.week_number: row
+        for row in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_(_INTUNE_DISPLAY_ORDER_SHIFT)).all()
+    }
+    for week_number, new_order in _INTUNE_DISPLAY_ORDER_SHIFT.items():
+        week = existing_weeks.get(week_number)
+        if week is not None and week.display_order != new_order:
+            week.display_order = new_order
+            result["weeks_shifted"] += 1
+    db.flush()
+
+    # 2. Create the 5 new TrainingWeek rows.
+    new_weeks: dict[int, TrainingWeek] = {}
+    for week_number, spec in _INTUNE_NEW_WEEKS.items():
+        week = TrainingWeek(
+            week_number=week_number,
+            display_order=spec["display_order"],
+            title=spec["title"],
+            description=spec["description"],
+            learning_goals=spec["learning_goals"],
+            is_active=True,
+            requires_previous_week=True,
+        )
+        db.add(week)
+        new_weeks[week_number] = week
+        result["weeks_created"] += 1
+    db.flush()
+
+    # 3. Create the 5 legacy Module rows (MOD-030..034) for System B.
+    legacy_modules: dict[int, Module] = {}
+    for week_number, (code, title) in _INTUNE_LEGACY_MODULES.items():
+        module = db.query(Module).filter_by(code=code).first()
+        if module is None:
+            module = Module(
+                code=code,
+                title=title,
+                description=_INTUNE_NEW_WEEKS[week_number]["description"],
+                module_order=week_number + 1,
+                difficulty_band=3,
+                active=True,
+            )
+            db.add(module)
+            result["modules_created"] += 1
+        legacy_modules[week_number] = module
+    db.flush()
+
+    # 4. New Lesson rows, several per week.
+    lessons_by_week: dict[int, list[Lesson]] = {}
+    for week_number, specs in _INTUNE_LESSONS.items():
+        lessons_by_week[week_number] = []
+        for order, spec in enumerate(specs, start=1):
+            existing_lesson = (
+                db.query(Lesson)
+                .filter_by(module_id=legacy_modules[week_number].id, title=spec["title"])
+                .first()
+            )
+            if existing_lesson is not None:
+                lessons_by_week[week_number].append(existing_lesson)
+                continue
+            lesson = Lesson(
+                module_id=legacy_modules[week_number].id,
+                title=spec["title"],
+                summary=spec["summary"],
+                lesson_order=order,
+                outcomes=spec["outcomes"],
+                estimated_minutes=12,
+                status="published",
+            )
+            db.add(lesson)
+            lessons_by_week[week_number].append(lesson)
+            result["lessons_created"] += 1
+    db.flush()
+
+    # 5. New Quiz + Question rows.
+    quizzes: dict[int, Quiz] = {}
+    for week_number, spec in _INTUNE_QUIZZES.items():
+        quiz = Quiz(
+            title=spec["title"],
+            week_number=week_number,
+            domain_id="4.0",
+            status="published",
+            quiz_purpose=spec.get("quiz_purpose", "required"),
+            is_required=True,
+            show_in_weekly_checklist=True,
+            show_in_practice_library=True,
+            editorial_status="validated",
+            question_count=len(spec["questions"]),
+            answer_keys_validated=True,
+            explanations_complete=True,
+            is_active=True,
+        )
+        db.add(quiz)
+        db.flush()
+        quizzes[week_number] = quiz
+        result["quizzes_created"] += 1
+        for index, question in enumerate(spec["questions"], start=1):
+            db.add(
+                Question(
+                    quiz_id=quiz.id,
+                    question_text=question["question_text"],
+                    option_a=question["option_a"],
+                    option_b=question["option_b"],
+                    option_c=question["option_c"],
+                    option_d=question["option_d"],
+                    correct_answer=question["correct_answer"],
+                    explanation=question["explanation"],
+                    difficulty=2,
+                    seed_key=f"intune-week{week_number}-q{index}",
+                )
+            )
+            result["questions_created"] += 1
+    db.flush()
+
+    # 6. New LabTemplate rows (guided simulations), several per week.
+    labs_by_week: dict[int, list[tuple[LabTemplate, str]]] = {}
+    for week_number, specs in _INTUNE_NEW_LABS.items():
+        labs_by_week[week_number] = []
+        for spec in specs:
+            existing_lab = db.query(LabTemplate).filter_by(title=spec["title"]).first()
+            if existing_lab is not None:
+                labs_by_week[week_number].append((existing_lab, spec["role"]))
+                continue
+            lab = LabTemplate(
+                title=spec["title"],
+                description=spec["description"],
+                lab_type=spec["lab_type"],
+                week_number=week_number,
+                difficulty=2,
+                estimated_minutes=spec["estimated_minutes"],
+                is_published=True,
+                environment_requirements={},
+                setup_instructions="Read each symptom and evidence block. Choose the action you could defend in a support ticket.",
+                success_criteria={"questions": spec["questions"]},
+                required_evidence={},
+                hints={},
+            )
+            db.add(lab)
+            db.flush()
+            labs_by_week[week_number].append((lab, spec["role"]))
+            result["labs_created"] += 1
+
+    # 7. Service Desk scenarios (live, server-graded tickets). Objectives
+    # live in app.services.service_desk_objectives.SCENARIO_OBJECTIVES,
+    # keyed by these same stable_key values.
+    scenarios: dict[str, ServiceDeskScenario] = {}
+    for ticket in _INTUNE_SERVICE_DESK_TICKETS:
+        stable_key = ticket["stableKey"]
+        scenario = db.query(ServiceDeskScenario).filter_by(stable_key=stable_key).first()
+        if scenario is None:
+            scenario = ServiceDeskScenario(
+                stable_key=stable_key,
+                title=ticket["title"],
+                description=f'{ticket["description"]["issue"]} {ticket["description"]["businessImpact"]}',
+                category=ticket["category"],
+                difficulty=3,
+                status="active",
+            )
+            db.add(scenario)
+            db.flush()
+            result["tickets_created"] += 1
+        scenarios[stable_key] = scenario
+        definition_hash = hashlib.sha256(json.dumps(ticket, sort_keys=True).encode("utf-8")).hexdigest()
+        version_exists = (
+            db.query(ServiceDeskScenarioVersion)
+            .filter_by(scenario_id=scenario.id, definition_hash=definition_hash)
+            .first()
+        )
+        if version_exists is None:
+            next_version = (
+                db.query(ServiceDeskScenarioVersion.version_number)
+                .filter_by(scenario_id=scenario.id)
+                .order_by(ServiceDeskScenarioVersion.version_number.desc())
+                .first()
+            )
+            db.add(
+                ServiceDeskScenarioVersion(
+                    scenario_id=scenario.id,
+                    version_number=(next_version[0] if next_version else 0) + 1,
+                    definition_json=ticket,
+                    definition_hash=definition_hash,
+                    validation_status="valid",
+                    status="published",
+                    published_at=datetime.now(timezone.utc),
+                    published_by="seed",
+                )
+            )
+    db.flush()
+
+    # 8. Wire everything into TrainingWeekActivity. Guided labs get their
+    # learning_role explicitly set from spec["role"] -- practice labs use
+    # the guided_lab default ("practice") so no override is written, but
+    # troubleshoot/prove labs are explicitly overridden. This is
+    # deliberately not "everything is Troubleshoot" (see Step 10 of the
+    # Phase 4B.2 brief).
+    def add_activity(week_number, activity_type, content_ref, is_required, minutes=None, metadata=None):
+        week = new_weeks.get(week_number) or existing_weeks.get(week_number)
+        if week is None:
+            return
+        order = (
+            db.query(func.coalesce(func.max(TrainingWeekActivity.display_order), 0))
+            .filter_by(training_week_id=week.id)
+            .scalar()
+            or 0
+        ) + 1
+        db.add(
+            TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-{week_number}-{activity_type}-{content_ref}",
+                activity_type=activity_type,
+                content_ref=str(content_ref),
+                display_order=order,
+                is_required=is_required,
+                estimated_minutes=minutes,
+                prerequisite_mode="soft",
+                metadata_json=metadata or {},
+            )
+        )
+        db.flush()
+        result["activities_created"] += 1
+
+    for week_number, week_lessons in lessons_by_week.items():
+        for lesson in week_lessons:
+            add_activity(week_number, "lesson", lesson.id, True, lesson.estimated_minutes)
+    for week_number, quiz in quizzes.items():
+        add_activity(week_number, "quiz", quiz.id, True, 15)
+    for week_number, week_labs in labs_by_week.items():
+        for lab, role in week_labs:
+            metadata = {"learning_role": role} if role != "practice" else None
+            add_activity(week_number, "guided_lab", lab.id, True, lab.estimated_minutes, metadata)
+    add_activity(33, "service_desk_scenario", "bitlocker-recovery", True, 30)
+    add_activity(34, "service_desk_scenario", "offboarding-device-reassignment", True, 30)
+
+    # 9. Reconcile System B: extend the seeded PromotionGate rows for the
+    # graduating role so required endpoint-management content is not
+    # silently skippable. progression_service.MODULE_WEEKS and
+    # service_desk_progression.SERVICE_DESK_PACKS are code-level and were
+    # already extended directly (see those files).
+    final_role = db.query(Role).filter_by(name="Junior Infrastructure Administrator").first()
+    if final_role is not None:
+        lessons_gate = (
+            db.query(PromotionGate)
+            .filter_by(role_id=final_role.id, requirement_type="min_completed_lessons")
+            .first()
+        )
+        if lessons_gate is not None:
+            codes = list(lessons_gate.requirement_config.get("module_codes", []))
+            new_codes = [code for _, (code, _) in _INTUNE_LEGACY_MODULES.items() if code not in codes]
+            if new_codes:
+                lessons_gate.requirement_config = {
+                    **lessons_gate.requirement_config,
+                    "module_codes": codes + new_codes,
+                }
+                result["gates_updated"] += 1
+
+        if not db.query(PromotionGate).filter_by(role_id=final_role.id, requirement_type="required_quiz", requirement_config={"week": 33}).first():
+            db.add(
+                PromotionGate(
+                    role_id=final_role.id,
+                    requirement_type="required_quiz",
+                    requirement_config={"week": 33},
+                )
+            )
+            result["gates_updated"] += 1
+
+        if not db.query(PromotionGate).filter_by(role_id=final_role.id, requirement_type="min_service_desk_passes", requirement_config={"pack_key": "endpoint-management", "min_passed": 2}).first():
+            db.add(
+                PromotionGate(
+                    role_id=final_role.id,
+                    requirement_type="min_service_desk_passes",
+                    requirement_config={"pack_key": "endpoint-management", "min_passed": 2},
+                )
+            )
+            result["gates_updated"] += 1
+
+    db.commit()
+    return result
