@@ -30,6 +30,8 @@ const CHAT_CONTACT_BY_TICKET_ID: Readonly<Record<string, string>> = {
   INC2511: 'directory-user-taylor-morgan',
   INC2512: 'directory-user-jordan-lee',
   INC2513: 'directory-user-camille-reyes',
+  INC3001: 'directory-user-morgan-ellis',
+  INC3002: 'directory-user-hr-adebayo-coker',
 };
 
 function suggestedToolHref(
@@ -42,7 +44,11 @@ function suggestedToolHref(
   }
 
   if (tool.slug === 'company-chat' && CHAT_CONTACT_BY_TICKET_ID[ticketId]) {
-    return `${tool.path}?contact=${CHAT_CONTACT_BY_TICKET_ID[ticketId]}`;
+    return `${tool.path}?contact=${CHAT_CONTACT_BY_TICKET_ID[ticketId]}&ticket=${ticketId}`;
+  }
+
+  if (tool.slug === 'device-management') {
+    return `${tool.path}?ticket=${ticketId}`;
   }
 
   return tool.path;

@@ -609,3 +609,46 @@ def test_required_weekly_case_unlocks_exactly_without_unlocking_its_future_pack(
         ).status_code
         == 201
     )
+
+
+def test_endpoint_cases_do_not_unlock_before_their_safety_curriculum(monkeypatch, db):
+    student = make_student(db, "endpoint-curriculum-boundary")
+    scenarios = _seed_pack_assignments(db, student)
+    _map_required_case(db, 33, "bitlocker-recovery")
+    _map_required_case(db, 34, "offboarding-device-reassignment")
+    current_week = 33
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: current_week,
+    )
+
+    rows = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+    assert next(
+        row for row in rows if row["scenario"]["stable_key"] == "bitlocker-recovery"
+    )["queue_type"] == "assigned"
+
+    offboarding_scenario, _ = scenarios["offboarding-device-reassignment"]
+    offboarding_assignment = (
+        db.query(ServiceDeskAssignment)
+        .filter_by(student_id=student.id, scenario_id=offboarding_scenario.id)
+        .one()
+    )
+    assert (
+        client.post(
+            f"/api/service-desk/assignments/{offboarding_assignment.id}/attempts",
+            headers=auth_headers(student),
+        ).status_code
+        == 403
+    )
+
+    current_week = 34
+    rows = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+    assert next(
+        row
+        for row in rows
+        if row["scenario"]["stable_key"] == "offboarding-device-reassignment"
+    )["queue_type"] == "assigned"

@@ -10,14 +10,27 @@ import { TICKET_FIXTURES } from './ticket-fixtures';
 
 describe('directory fixtures', () => {
   it('contains the directory roster and seven groups', () => {
-    expect(DIRECTORY_USER_FIXTURES).toHaveLength(40);
+    expect(DIRECTORY_USER_FIXTURES).toHaveLength(42);
     expect(DIRECTORY_GROUP_NAMES).toHaveLength(7);
     expect(new Set(DIRECTORY_USER_FIXTURES.map((user) => user.id)).size).toBe(
-      40,
+      42,
     );
     expect(
       new Set(DIRECTORY_USER_FIXTURES.map((user) => user.username)).size,
-    ).toBe(40);
+    ).toBe(42);
+  });
+
+  it('contains the two endpoint-scenario authorization contacts', () => {
+    expect(
+      DIRECTORY_USER_FIXTURES.find(
+        (user) => user.id === 'directory-user-morgan-ellis',
+      )?.availableIdentityVerificationMethods,
+    ).toContain('employee-id-directory-match');
+    expect(
+      DIRECTORY_USER_FIXTURES.find(
+        (user) => user.id === 'directory-user-hr-adebayo-coker',
+      )?.availableIdentityVerificationMethods,
+    ).toContain('manager-confirmation');
   });
 
   it.each([

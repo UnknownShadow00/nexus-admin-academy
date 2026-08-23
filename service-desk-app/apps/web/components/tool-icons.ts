@@ -1,6 +1,7 @@
 import {
   IconBooks,
   IconDeviceDesktop,
+  IconDeviceLaptop,
   IconDevicesPc,
   IconDisc,
   IconMessages,
@@ -18,6 +19,7 @@ export const TOOL_ICONS: Record<ToolSlug, ToolIcon> = {
   'company-chat': IconMessages,
   'computer-deployment': IconDisc,
   directory: IconUsers,
+  'device-management': IconDeviceLaptop,
   documentation: IconBooks,
   'pc-shelf': IconDevicesPc,
   'remote-desktop': IconDeviceDesktop,

@@ -23,6 +23,11 @@ interface DirectoryActionPayload {
   directoryUserId: string;
 }
 
+interface DeviceActionPayload {
+  deviceId: string;
+  ticketId: string;
+}
+
 interface ChatActionPayload {
   contactId: string;
 }
@@ -158,6 +163,31 @@ export interface UpdateDirectoryGroupsAction {
     add: string[];
     remove: string[];
   };
+}
+
+export interface InspectDeviceRecordAction {
+  type: 'device.inspect_record';
+  payload: DeviceActionPayload;
+}
+
+export interface RecordDeviceDiagnosisAction {
+  type: 'device.record_diagnosis';
+  payload: DeviceActionPayload & { diagnosis: string };
+}
+
+export interface RevealDeviceRecoveryKeyAction {
+  type: 'device.reveal_recovery_key';
+  payload: DeviceActionPayload;
+}
+
+export interface ReassignDeviceAction {
+  type: 'device.reassign_device';
+  payload: DeviceActionPayload & { action: 'reset-and-reassign' };
+}
+
+export interface VerifyDeviceAccessAction {
+  type: 'device.verify_access';
+  payload: DeviceActionPayload & { check: string };
 }
 
 export interface SendChatMessageAction {
@@ -572,6 +602,13 @@ export type DirectorySimulationAction =
   | ResetDirectoryMfaAction
   | UpdateDirectoryGroupsAction;
 
+export type DeviceSimulationAction =
+  | InspectDeviceRecordAction
+  | RecordDeviceDiagnosisAction
+  | RevealDeviceRecoveryKeyAction
+  | ReassignDeviceAction
+  | VerifyDeviceAccessAction;
+
 export type TicketSimulationAction =
   | AssignTicketAction
   | UnassignTicketAction
@@ -656,6 +693,7 @@ export type ShippingSimulationAction =
 export type SimulationAction =
   | TicketSimulationAction
   | DirectorySimulationAction
+  | DeviceSimulationAction
   | ChatSimulationAction
   | AssetSimulationAction
   | PcShelfSimulationAction

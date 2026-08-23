@@ -43,6 +43,7 @@ import {
 import type {
   AssetSimulationAction,
   ChatSimulationAction,
+  DeviceSimulationAction,
   DirectorySimulationAction,
   DeploymentSimulationAction,
   PcShelfSimulationAction,
@@ -102,6 +103,8 @@ const ACCOUNT_CASE_USER_BY_TICKET: Readonly<Record<string, string>> = {
   INC2512: 'directory-user-jordan-lee',
   INC2513: 'directory-user-camille-reyes',
 };
+
+const INTEGRATED_ENDPOINT_TICKET_IDS = new Set(['INC3001', 'INC3002']);
 
 function createId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random()
@@ -173,7 +176,10 @@ function ticketRejectReason(
     ? attempt.directoryOverlays[accountUserId]
     : undefined;
 
-  if (!fixture) {
+  if (
+    !fixture &&
+    !INTEGRATED_ENDPOINT_TICKET_IDS.has(action.payload.ticketId)
+  ) {
     return 'The requested ticket does not exist in this simulation.';
   }
 
@@ -227,8 +233,9 @@ function ticketRejectReason(
       ) {
         return 'Hints are unavailable until this assessment is complete.';
       }
-      if (action.payload.step > fixture.hints.length) {
-        return `Only ${fixture.hints.length} hints are available for this ticket.`;
+      const hintCount = fixture?.hints.length ?? 0;
+      if (action.payload.step > hintCount) {
+        return `Only ${hintCount} hints are available for this ticket.`;
       }
       if (action.payload.step <= overlay.hintsRevealedCount) {
         return `Hint ${action.payload.step} has already been revealed.`;
@@ -617,6 +624,8 @@ const CHAT_REQUESTER_BY_TICKET: Readonly<Record<string, string>> = {
   INC2511: 'directory-user-taylor-morgan',
   INC2512: 'directory-user-jordan-lee',
   INC2513: 'directory-user-camille-reyes',
+  INC3001: 'directory-user-morgan-ellis',
+  INC3002: 'directory-user-hr-adebayo-coker',
 };
 
 function chatRejectReason(action: ChatSimulationAction): string | null {
@@ -633,7 +642,10 @@ function chatRejectReason(action: ChatSimulationAction): string | null {
   ) {
     return 'This contact is not the requester for that support workflow.';
   }
-  if (action.type === 'chat.verify_identity' && !contact.supportIssue) {
+  if (
+    action.type === 'chat.verify_identity' &&
+    contact.availableIdentityVerificationMethods.length === 0
+  ) {
     return 'This workflow does not require an identity-administration verification.';
   }
   if (
@@ -2828,6 +2840,12 @@ function isDirectoryAction(
   return action.type.startsWith('directory.');
 }
 
+function isDeviceAction(
+  action: SimulationAction,
+): action is DeviceSimulationAction {
+  return action.type.startsWith('device.');
+}
+
 function isChatAction(
   action: SimulationAction,
 ): action is ChatSimulationAction {
@@ -3157,6 +3175,33 @@ export function applyAction(
         serverRoomOverlays: { ...attempt.serverRoomOverlays },
         remoteDesktopOverlays: { ...attempt.remoteDesktopOverlays },
         grades: { ...attempt.grades },
+      },
+      event,
+    };
+  }
+
+  if (isDeviceAction(action)) {
+    const currentOverlay =
+      attempt.ticketOverlays[action.payload.ticketId] ??
+      createTicketOverlay(action.payload.ticketId);
+    const event = createEvent(
+      attempt,
+      actorId,
+      action,
+      null,
+      eventId,
+      createdAt,
+    );
+    return {
+      attempt: {
+        ...attempt,
+        ticketOverlays: {
+          ...attempt.ticketOverlays,
+          [action.payload.ticketId]: {
+            ...currentOverlay,
+            events: [...currentOverlay.events, event],
+          },
+        },
       },
       event,
     };

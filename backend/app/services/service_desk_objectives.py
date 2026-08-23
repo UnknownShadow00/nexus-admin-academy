@@ -792,6 +792,101 @@ def _account_process(
     )
 
 
+def _device_process(
+    *,
+    ticket_id: str,
+    device_id: str,
+    requester_contact_id: str,
+    diagnosis: str,
+    remediation: EvidenceRule,
+    verification_check: str,
+    identity_methods: tuple[str, ...],
+) -> ScenarioObjectiveDefinition:
+    """Phase 4B.2's device-evidence analog of _account_process().
+
+    Deliberately reuses chat.verify_identity/chat.request_resolution_confirmation/
+    ticket.add_note verbatim (zero new vocabulary there) and adds exactly 4 new
+    device.* event types (inspect_record, record_diagnosis, verify_access, plus
+    whichever single remediation event the caller supplies) -- the minimum
+    needed to express investigate -> diagnose -> remediate -> verify -> document
+    for a device instead of an account. No general-purpose Intune/device
+    simulation engine; this is intentionally as narrow as _account_process().
+    Ordering/safety is enforced by the same generic
+    service_desk.py._action_allowed() category-prerequisite mechanism used for
+    every other process-profile scenario -- see ordered_workflows there.
+    """
+    return _process(
+        ProcessCategory(
+            "investigation",
+            (
+                _objective(
+                    "device-record-inspected",
+                    EvidenceRule(
+                        "device.inspect_record",
+                        {"ticketId": ticket_id, "deviceId": device_id},
+                    ),
+                ),
+                _objective(
+                    "requester-identity-verified",
+                    *(
+                        EvidenceRule(
+                            "chat.verify_identity",
+                            {"ticketId": ticket_id, "contactId": requester_contact_id, "method": method},
+                        )
+                        for method in identity_methods
+                    ),
+                ),
+            ),
+        ),
+        ProcessCategory(
+            "diagnosis",
+            (
+                _objective(
+                    "root-cause-recorded",
+                    EvidenceRule(
+                        "device.record_diagnosis",
+                        {
+                            "ticketId": ticket_id,
+                            "deviceId": device_id,
+                            "diagnosis": diagnosis,
+                        },
+                    ),
+                ),
+            ),
+        ),
+        ProcessCategory("remediation", (_objective("safe-device-action", remediation),)),
+        ProcessCategory(
+            "verification",
+            (
+                _objective(
+                    "device-state-verified",
+                    EvidenceRule(
+                        "device.verify_access",
+                        {
+                            "ticketId": ticket_id,
+                            "deviceId": device_id,
+                            "check": verification_check,
+                        },
+                    ),
+                ),
+            ),
+        ),
+        ProcessCategory(
+            "documentation",
+            (
+                _objective(
+                    "requester-confirmed-original-symptom",
+                    EvidenceRule("chat.request_resolution_confirmation", {"ticketId": ticket_id, "contactId": requester_contact_id}),
+                ),
+                _objective(
+                    "meaningful-resolution-note",
+                    EvidenceRule("ticket.add_note", {"ticketId": ticket_id}),
+                ),
+            ),
+        ),
+    )
+
+
 SCENARIO_OBJECTIVES.update(
     {
         "locked-user-account": _account_process(
@@ -863,6 +958,59 @@ SCENARIO_OBJECTIVES.update(
                 {"directoryUserId": "directory-user-owen-mackay"},
             ),
             verification_check="account-enabled",
+        ),
+    }
+)
+
+
+# Phase 4B.2. Only these two endpoint scenarios are live-gradable with the
+# current trusted-event vocabulary; the rest of the endpoint-management
+# content is guided-lab simulation instead of a live Service Desk ticket --
+# see docs/INTUNE_ENDPOINT_MANAGEMENT_CURRICULUM.md.
+SCENARIO_OBJECTIVES.update(
+    {
+        # A firmware/TPM-triggered BitLocker recovery prompt. The critical
+        # failure this scenario is designed to catch: revealing the recovery
+        # key before the requester's identity and the device are both
+        # verified. device.reveal_recovery_key only earns "safe-device-action"
+        # credit for the one approved device id below -- targeting the
+        # similar-looking decoy device id is rejected by the authoritative
+        # action endpoint, matching the account scenarios' wrong-user
+        # protection.
+        "bitlocker-recovery": _device_process(
+            ticket_id="INC3001",
+            device_id="device-nex-lt-2214",
+            requester_contact_id="directory-user-morgan-ellis",
+            diagnosis="firmware-update-triggered-recovery",
+            identity_methods=("employee-id-directory-match", "manager-confirmation"),
+            remediation=EvidenceRule(
+                "device.reveal_recovery_key",
+                {"ticketId": "INC3001", "deviceId": "device-nex-lt-2214"},
+            ),
+            verification_check="boot-unlocked",
+        ),
+        # A returned former employee's laptop needs to be safely reassigned.
+        # The critical failure this scenario is designed to catch: resetting
+        # the wrong (decoy) device, or resetting/reassigning before the
+        # termination/offboarding authorization is verified and the
+        # data-handling diagnosis is recorded. requester_contact_id here is
+        # the authorizing manager/HR contact, not the former employee --
+        # verifying *their* identity is what authorizes the reassignment.
+        "offboarding-device-reassignment": _device_process(
+            ticket_id="INC3002",
+            device_id="device-nex-lt-3390",
+            requester_contact_id="directory-user-hr-adebayo-coker",
+            diagnosis="offboarding-authorized-access-revoked-data-reset-required",
+            identity_methods=("manager-confirmation", "employee-id-directory-match"),
+            remediation=EvidenceRule(
+                "device.reassign_device",
+                {
+                    "ticketId": "INC3002",
+                    "deviceId": "device-nex-lt-3390",
+                    "action": "reset-and-reassign",
+                },
+            ),
+            verification_check="ready-for-new-assignee",
         ),
     }
 )

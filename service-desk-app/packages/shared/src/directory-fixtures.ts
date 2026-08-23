@@ -232,6 +232,34 @@ export const DIRECTORY_USER_FIXTURES: readonly DirectoryUserTemplate[] = [
     supportIssue: 'mfa-factor-unavailable',
   }),
   createDirectoryUser({
+    id: 'directory-user-morgan-ellis',
+    fullName: 'Morgan Ellis',
+    department: 'Finance Operations',
+    jobTitle: 'Finance Operations Analyst',
+    assetTag: 'NX-2214',
+    groups: ['All Staff', 'Finance Operations Updates'],
+    availableIdentityVerificationMethods: [
+      'employee-id-directory-match',
+      'manager-confirmation',
+    ],
+    identityVerificationContext:
+      'The employee ID and approved manager are available in trusted company records for the BitLocker recovery request.',
+  }),
+  createDirectoryUser({
+    id: 'directory-user-hr-adebayo-coker',
+    fullName: 'Adebayo Coker',
+    department: 'People Operations',
+    jobTitle: 'HR Operations Manager',
+    assetTag: 'NX-2098',
+    groups: ['All Staff'],
+    availableIdentityVerificationMethods: [
+      'manager-confirmation',
+      'employee-id-directory-match',
+    ],
+    identityVerificationContext:
+      'The HR offboarding authorization and employee ID are available in trusted company records.',
+  }),
+  createDirectoryUser({
     id: AVERY_BROOKS_DIRECTORY_USER_ID,
     fullName: 'Avery Brooks',
     department: 'Finance Operations',

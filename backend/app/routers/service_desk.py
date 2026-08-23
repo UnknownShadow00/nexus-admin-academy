@@ -59,6 +59,10 @@ _EVENT_PREFIX_TOOLS = {
     "directory.": "directory",
     "chat.": "chat",
     "remote_desktop.": "remote_desktop",
+    # Phase 4B.2's minimal device.* vocabulary (bitlocker-recovery,
+    # offboarding-device-reassignment) -- see service_desk_objectives.py's
+    # _device_process().
+    "device.": "device",
 }
 
 
@@ -99,6 +103,10 @@ def _validate_event_shape(event_type: str, tool: str, payload: dict) -> None:
         payload.get("assetTag"), str
     ):
         raise HTTPException(422, "Remote Desktop events require assetTag")
+    if event_type.startswith("device.") and not isinstance(payload.get("deviceId"), str):
+        raise HTTPException(422, "Device events require deviceId")
+    if event_type.startswith("device.") and not isinstance(payload.get("ticketId"), str):
+        raise HTTPException(422, "Device events require ticketId")
 
 
 def _hash_state(value: dict) -> str:
@@ -744,6 +752,8 @@ def _action_allowed(
         "mfa-reset",
         "m365-entra-auth-method",
         "m365-signin-conditional-access",
+        "bitlocker-recovery",
+        "offboarding-device-reassignment",
         "inc2405",
         "inc2406",
     }
@@ -893,7 +903,21 @@ def request_action(
             rule.event_type == body.event_type for rule in definition.authorized_rules
         )
     )
-    if (objective_action or protected_identity_action) and not trusted:
+    # A wrong-target recovery-key disclosure or destructive reassignment is a
+    # safety failure, not an ordinary untrusted UI action. Protect the event
+    # type as well as the exact objective payload so a handcrafted request
+    # cannot turn a wrong ticket/device target into an accepted audit event.
+    protected_device_action = (
+        definition
+        and body.event_type
+        in {"device.reveal_recovery_key", "device.reassign_device"}
+        and any(
+            rule.event_type == body.event_type for rule in definition.authorized_rules
+        )
+    )
+    if (
+        objective_action or protected_identity_action or protected_device_action
+    ) and not trusted:
         raise HTTPException(
             409,
             "Action is not available in the current server-authoritative attempt state",
