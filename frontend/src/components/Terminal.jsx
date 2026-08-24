@@ -27,7 +27,7 @@ export function resolveCaseCommand(caseProfile, commandValue) {
     return {
       recognized: false,
       inspectionId: null,
-      output: ["That command is unavailable in this focused case. Use help to review tool categories."],
+      output: [caseProfile?.unknown_command_message || "That command is unavailable in this focused case. Use help to review tool categories."],
     };
   }
   return {

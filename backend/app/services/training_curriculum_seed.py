@@ -1606,7 +1606,7 @@ WEEKS_19_22_QUALITY = {
         "required_videos": set(),
         "required_quiz": 24,
         "required_service_desk": False,
-        "lab": {"title": "Diagnose the Azure Access Path", "lab_type": "structured_cloud", "questions": AZURE_TRIAGE_PRACTICE, "estimated_minutes": 25},
+        "lab": {"id": 20, "title": "Diagnose the Azure Access Path", "lab_type": "structured_cloud", "questions": AZURE_TRIAGE_PRACTICE, "estimated_minutes": 25},
     },
 }
 
@@ -1776,7 +1776,7 @@ WEEKS_23_24_QUALITY = {
         "required_videos": {174},
         "required_quiz": 25,
         "required_service_desk": False,
-        "lab": {"title": "Work the Mixed Support Queue", "lab_type": "structured_operations", "questions": MIXED_QUEUE_PRACTICE, "estimated_minutes": 25},
+        "lab": {"id": 21, "title": "Work the Mixed Support Queue", "lab_type": "structured_operations", "questions": MIXED_QUEUE_PRACTICE, "estimated_minutes": 25},
     },
     24: {
         "description": "Run a full support shift: triage the queue, gather CLI evidence, diagnose, choose remediation or escalation, and document the outcome.",
@@ -1790,6 +1790,7 @@ WEEKS_23_24_QUALITY = {
         "required_quiz": None,
         "required_service_desk": False,
         "lab": {
+            "id": 22,
             "title": "Final Support Shift",
             "lab_type": "structured_capstone",
             "questions": FINAL_SUPPORT_SHIFT_PRACTICE,
@@ -1959,7 +1960,7 @@ def _sync_quality_batch(db: Session, specs: dict[int, dict]) -> dict:
             "hints": {},
         }
         if lab is None:
-            lab = LabTemplate(**values)
+            lab = LabTemplate(**({"id": lab_spec["id"]} if lab_spec.get("id") else {}), **values)
             db.add(lab)
             db.flush()
             result["created_templates"] += 1
@@ -2360,9 +2361,14 @@ def sync_weeks_1_4_practice_realignment(db: Session) -> dict:
 
     hardware = db.get(LabTemplate, 4)
     windows_diagnostics = db.get(LabTemplate, 3)
-    retired_labs = [db.get(LabTemplate, 1), db.get(LabTemplate, 2)]
-    if hardware is None or windows_diagnostics is None or any(lab is None for lab in retired_labs):
+    legacy_retirement_candidates = [db.get(LabTemplate, 1), db.get(LabTemplate, 2)]
+    if hardware is None or windows_diagnostics is None or any(lab is None for lab in legacy_retirement_candidates):
         return {"updated": 0, "skipped": True, "reason": "legacy_lab_templates_missing"}
+    # IDs 1 and 2 were later repurposed as the canonical Week 9 and Week 8
+    # practicals. Retire them only while they still belong to the original
+    # Week 1-4 scope; otherwise a repeat seed deletes and recreates historical
+    # activity identities in those networking modules.
+    retired_labs = [lab for lab in legacy_retirement_candidates if lab.week_number in {1, 2, 3, 4}]
 
     update_template(
         hardware,
@@ -2651,6 +2657,7 @@ _M365_MOVED_LAB_19_UPDATE = {
 
 _M365_NEW_LABS = {
     27: {
+        "id": 23,
         "title": "Investigate the Suspicious MFA Prompt",
         "lab_type": "structured_cloud",
         "description": "Recognize account-takeover risk in an MFA event and choose the safe response instead of the fast one.",
@@ -2701,6 +2708,7 @@ _M365_NEW_LABS = {
         ],
     },
     28: {
+        "id": 24,
         "title": "Diagnose the Mailbox Permission Ticket",
         "lab_type": "structured_cloud",
         "description": "Work through a shared-mailbox permission report and an Outlook client complaint using the right evidence for each.",
@@ -2751,6 +2759,7 @@ _M365_NEW_LABS = {
         ],
     },
     29: {
+        "id": 25,
         "title": "Diagnose the Collaboration Ticket",
         "lab_type": "structured_cloud",
         "description": "Work through OneDrive sync and SharePoint access reports using the identity/permission-first approach.",
@@ -3131,6 +3140,7 @@ def sync_microsoft_workplace_foundations(db: Session) -> dict:
     labs: dict[int, LabTemplate] = {}
     for week_number, spec in _M365_NEW_LABS.items():
         lab = LabTemplate(
+            id=spec["id"],
             title=spec["title"],
             description=spec["description"],
             lab_type=spec["lab_type"],
@@ -3174,6 +3184,7 @@ def sync_microsoft_workplace_foundations(db: Session) -> dict:
         moved_lab = db.query(LabTemplate).filter_by(title=_M365_MOVED_LAB_19_UPDATE["title"]).first()
         if moved_lab is None:
             moved_lab = LabTemplate(
+                id=19,
                 title=_M365_MOVED_LAB_19_UPDATE["title"],
                 description="Work through realistic evidence and choose the safest support action before moving to an independent case.",
                 lab_type="structured_cloud",
