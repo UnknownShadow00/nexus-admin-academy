@@ -68,6 +68,15 @@ export const TOOL_CATALOG = [
   {
     category: 'management',
     description:
+      'Inspect managed endpoint records and perform narrowly authorized device actions.',
+    displayName: 'Device Management',
+    menuLabel: 'Device Management',
+    path: '/tools/device-management',
+    slug: 'device-management',
+  },
+  {
+    category: 'management',
+    description:
       'Track equipment ownership and its place in the device lifecycle.',
     displayName: 'Asset Management',
     menuLabel: 'Asset Management',

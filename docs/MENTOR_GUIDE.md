@@ -6,9 +6,9 @@ command is needed, it's spelled out.
 
 ## What's built and ready
 
-The complete seed currently contains 25 modules, 63 lessons, 25 quizzes (189
-questions), 48 tickets, 5 lab templates, 48 networking CLI labs, and 3
-capstones across the 25-week curriculum (Week 0 through Week 24). The Week 1–8 foundation includes the
+The complete seed currently contains 35 curriculum modules with lessons,
+required quizzes, guided labs, live Service Desk scenarios, networking CLI
+labs, and capstones across stable storage weeks 0 through 34. The Week 1–8 foundation includes the
 first two promotion gates. Everything below can run **without** automated VM
 provisioning—on students' own Windows machines or a VM cloned by hand. The VM
 application code is repaired, but real Proxmox/Guacamole infrastructure still
@@ -26,7 +26,7 @@ export DATABASE_URL="sqlite:///./nexus.db"   # example for a local trial
 
 alembic upgrade head                      # create/upgrade all tables
 python scripts/seed_users.py              # create the 5 student + mentor accounts
-python seed.py                            # load roles, gates, and all 25 weeks
+python seed.py                            # load roles, gates, and the base curriculum
 python seed_curriculum.py                 # required Study Tracker catalog
 ```
 

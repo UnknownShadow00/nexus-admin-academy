@@ -49,6 +49,8 @@ FRESH_A_USERNAME_GEN="browser-fresh-student-a"
 FRESH_A_PASSWORD_GEN="$(rand)"
 FRESH_B_USERNAME_GEN="browser-fresh-student-b"
 FRESH_B_PASSWORD_GEN="$(rand)"
+ENDPOINT_USERNAME_GEN="browser-endpoint-student"
+ENDPOINT_PASSWORD_GEN="$(rand)"
 
 export DATABASE_URL="sqlite:///$SCRATCH_DIR/e2e.db"
 export JWT_SECRET_KEY="$(rand)$(rand)"
@@ -169,6 +171,7 @@ create_student "$STUDENT_C_USERNAME_GEN" "$STUDENT_C_PASSWORD_GEN" "Browser Trai
 create_student "$STUDENT_D_USERNAME_GEN" "$STUDENT_D_PASSWORD_GEN" "Browser Training Student D"
 create_student "$FRESH_A_USERNAME_GEN" "$FRESH_A_PASSWORD_GEN" "Fresh Progression Student A"
 create_student "$FRESH_B_USERNAME_GEN" "$FRESH_B_PASSWORD_GEN" "Fresh Progression Student B"
+create_student "$ENDPOINT_USERNAME_GEN" "$ENDPOINT_PASSWORD_GEN" "Endpoint Management Student"
 
 # There is no admin API for directly granting a role — promotion is normally
 # earned by completing gates. For the capstone-visibility fixture we grant a
@@ -230,6 +233,39 @@ for username in sys.argv[2:]:
                 "WHERE student_id = ? AND scenario_id = ? AND mode = 'simulation'",
                 (row[0], scenario_id),
             )
+db.commit()
+PY
+
+# Give one isolated browser fixture exactly the two Phase 4B.2 endpoint cases.
+# This is an instructor-assignment override on the disposable database so the
+# browser can exercise the live workflows without manufacturing weeks 0-31 of
+# unrelated completion history.
+"$PYTHON" - "$SCRATCH_DIR/e2e.db" "$ENDPOINT_USERNAME_GEN" <<'PY'
+import sqlite3
+import sys
+
+db = sqlite3.connect(sys.argv[1])
+student_id = db.execute("SELECT id FROM students WHERE username = ?", (sys.argv[2],)).fetchone()[0]
+scenario_ids = [
+    row[0]
+    for row in db.execute(
+        "SELECT id FROM service_desk_scenarios WHERE stable_key IN (?, ?)",
+        ("bitlocker-recovery", "offboarding-device-reassignment"),
+    )
+]
+assert len(scenario_ids) == 2, scenario_ids
+for scenario_id in scenario_ids:
+    db.execute(
+        "INSERT INTO service_desk_assignments (student_id, scenario_id, mode, is_required, assigned_by) "
+        "SELECT ?, ?, 'simulation', 1, 'e2e-endpoint' WHERE NOT EXISTS "
+        "(SELECT 1 FROM service_desk_assignments WHERE student_id = ? AND scenario_id = ? AND mode = 'simulation')",
+        (student_id, scenario_id, student_id, scenario_id),
+    )
+    db.execute(
+        "UPDATE service_desk_assignments SET assigned_by = 'e2e-endpoint', is_required = 1 "
+        "WHERE student_id = ? AND scenario_id = ? AND mode = 'simulation'",
+        (student_id, scenario_id),
+    )
 db.commit()
 PY
 
@@ -303,6 +339,8 @@ STACK_ENV="$SCRATCH_DIR/stack.env"
     echo "NEXUS_E2E_FRESH_B_PASSWORD=$FRESH_B_PASSWORD_GEN"
     echo "NEXUS_E2E_QUALIFIED_USERNAME=$QUALIFIED_USERNAME_GEN"
     echo "NEXUS_E2E_QUALIFIED_PASSWORD=$QUALIFIED_PASSWORD_GEN"
+    echo "NEXUS_E2E_ENDPOINT_USERNAME=$ENDPOINT_USERNAME_GEN"
+    echo "NEXUS_E2E_ENDPOINT_PASSWORD=$ENDPOINT_PASSWORD_GEN"
 } > "$STACK_ENV"
 chmod 600 "$STACK_ENV"
 

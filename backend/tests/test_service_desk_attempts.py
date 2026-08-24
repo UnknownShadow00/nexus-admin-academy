@@ -165,6 +165,8 @@ def _tool_for(rule):
         return "shipping"
     if rule.event_type.startswith("ticket."):
         return "ticket"
+    if rule.event_type.startswith("device."):
+        return "device"
     return "remote_desktop"
 
 

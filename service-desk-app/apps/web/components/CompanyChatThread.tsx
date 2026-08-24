@@ -86,6 +86,8 @@ export function CompanyChatThread({ contact, thread }: CompanyChatThreadProps) {
     'directory-user-jordan-lee': 'INC2512',
     'directory-user-sloane-rivera': 'INC2405',
     'directory-user-taylor-morgan': 'INC2511',
+    'directory-user-morgan-ellis': 'INC3001',
+    'directory-user-hr-adebayo-coker': 'INC3002',
   };
   const ticketId = ticketByContact[contact.id];
   const availableVerificationMethods =
@@ -179,7 +181,7 @@ export function CompanyChatThread({ contact, thread }: CompanyChatThreadProps) {
 
       {ticketId ? (
         <section className="space-y-3 border-t border-zinc-800 bg-zinc-900/70 p-4">
-          {contact.supportIssue ? (
+          {availableVerificationMethods.length > 0 ? (
             <div className="space-y-2">
               <p className="text-xs leading-relaxed text-zinc-400">
                 {contact.identityVerificationContext}

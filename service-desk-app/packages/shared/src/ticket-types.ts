@@ -56,6 +56,7 @@ export type SuggestedToolSlug = Extract<
   | 'asset-management'
   | 'company-chat'
   | 'directory'
+  | 'device-management'
   | 'documentation'
   | 'computer-deployment'
   | 'remote-desktop'

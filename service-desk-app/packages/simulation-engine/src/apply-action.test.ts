@@ -24,6 +24,115 @@ function apply(
 }
 
 describe('applyAction happy paths', () => {
+  it('records the minimal endpoint device vocabulary against its related ticket', () => {
+    const inspected = apply(createAttempt(), {
+      type: 'device.inspect_record',
+      payload: {
+        ticketId: 'INC3001',
+        deviceId: 'device-nex-lt-2214',
+      },
+    });
+
+    expect(inspected.event.success).toBe(true);
+    expect(inspected.attempt.ticketOverlays.INC3001?.events.at(-1)?.type).toBe(
+      'device.inspect_record',
+    );
+  });
+
+  it('rejects a premature endpoint remediation locally before it can enter the sync outbox', () => {
+    const result = apply(createAttempt(), {
+      type: 'device.reveal_recovery_key',
+      payload: {
+        ticketId: 'INC3001',
+        deviceId: 'device-nex-lt-2214',
+      },
+    });
+
+    expect(result.event.success).toBe(false);
+    expect(result.event.rejectReason).toContain(
+      'before diagnosis or remediation',
+    );
+  });
+
+  it('also rejects premature offboarding reassignment locally', () => {
+    const result = apply(createAttempt(), {
+      type: 'device.reassign_device',
+      payload: {
+        ticketId: 'INC3002',
+        deviceId: 'device-nex-lt-3390',
+        action: 'reset-and-reassign',
+      },
+    });
+
+    expect(result.event.success).toBe(false);
+    expect(result.event.rejectReason).toContain(
+      'before diagnosis or remediation',
+    );
+  });
+
+  it('accepts the endpoint remediation after the required local evidence sequence', () => {
+    let attempt = apply(createAttempt(), {
+      type: 'device.inspect_record',
+      payload: {
+        ticketId: 'INC3001',
+        deviceId: 'device-nex-lt-2214',
+      },
+    }).attempt;
+    attempt = apply(attempt, {
+      type: 'chat.verify_identity',
+      payload: {
+        ticketId: 'INC3001',
+        contactId: 'directory-user-morgan-ellis',
+        method: 'employee-id-directory-match',
+      },
+    }).attempt;
+    attempt = apply(attempt, {
+      type: 'device.record_diagnosis',
+      payload: {
+        ticketId: 'INC3001',
+        deviceId: 'device-nex-lt-2214',
+        diagnosis: 'firmware-update-triggered-recovery',
+      },
+    }).attempt;
+
+    const result = apply(attempt, {
+      type: 'device.reveal_recovery_key',
+      payload: {
+        ticketId: 'INC3001',
+        deviceId: 'device-nex-lt-2214',
+      },
+    });
+
+    expect(result.event.success).toBe(true);
+  });
+
+  it('allows trusted ticket documentation for API-projected endpoint cases', () => {
+    const noted = apply(createAttempt(), {
+      type: 'ticket.add_note',
+      payload: {
+        ticketId: 'INC3001',
+        body: 'Verified the approved recovery workflow and successful boot.',
+      },
+    });
+
+    expect(noted.event.success).toBe(true);
+    expect(noted.attempt.ticketOverlays.INC3001?.notes).toHaveLength(1);
+
+    const closed = apply(noted.attempt, {
+      type: 'ticket.close',
+      payload: {
+        ticketId: 'INC3001',
+        resolutionNote:
+          'Verified the approved recovery workflow and successful boot.',
+        verifiedResolved: true,
+      },
+    });
+    expect(closed.event.success).toBe(true);
+    expect(closed.attempt.ticketOverlays.INC3001?.status).toBe(
+      TicketStatus.Resolved,
+    );
+  });
+
   it('applies assign, unassign, status, note, escalation, hint, and close actions', () => {
     const assigned = apply(createAttempt(), {
       type: 'ticket.assign',

@@ -95,6 +95,24 @@ SERVICE_DESK_PACKS = (
         required_week=26,
         required_prior_passes=3,
     ),
+    # Phase 4B.2: only 2 endpoint-management tickets are live-gradable with
+    # the current trusted-event vocabulary (bitlocker-recovery,
+    # offboarding-device-reassignment) -- the other candidate endpoint
+    # scenarios (enrollment failure, app install failure, noncompliant
+    # device, policy-not-applied, Autopilot failure) are guided
+    # simulations, not live Service Desk tickets, because the grading
+    # engine cannot yet authoritatively verify that evidence. See
+    # docs/INTUNE_ENDPOINT_MANAGEMENT_CURRICULUM.md.
+    ServiceDeskPack(
+        key="endpoint-management",
+        name="Endpoint Management Support",
+        scenario_keys=(
+            "bitlocker-recovery",
+            "offboarding-device-reassignment",
+        ),
+        required_week=34,
+        required_prior_passes=2,
+    ),
 )
 
 PACK_BY_SCENARIO = {

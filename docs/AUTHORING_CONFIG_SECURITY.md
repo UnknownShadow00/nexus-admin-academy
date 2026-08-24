@@ -7,7 +7,7 @@ variable, and the security posture after the Phase 1 audit.
 
 # Part 1 — Content Authoring Guide
 
-All 25 weeks of content (Week 0 through Week 24) live in structured Python seed sources, not in the
+All 35 modules (stable storage weeks 0 through 34) live in structured Python seed sources, not in the
 database directly. Edit the source, re-run `python seed.py`, and the change
 propagates. Seeds are idempotent — matched by stable keys — so student work is
 never touched.
@@ -15,6 +15,8 @@ never touched.
 - **Weeks 1–4:** `backend/seed_phase_a.py`
 - **Weeks 5–8:** `backend/seed_phase_b.py`
 - **Weeks 9–24:** `backend/seed_phase_c.py` through `backend/seed_phase_g.py`
+- **Weeks 25–34 (Microsoft workplace and endpoint management):**
+  `backend/app/services/training_curriculum_seed.py`
 - **Roles, gates, base tickets, labs, capstones, methodology:** `backend/seed.py`
 
 ## Adding or editing a lesson

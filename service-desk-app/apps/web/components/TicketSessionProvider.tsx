@@ -68,6 +68,7 @@ import {
   type RemoteDesktopScenarioProgress,
   type TicketSimulationAction,
   type DirectorySimulationAction,
+  type DeviceSimulationAction,
   type RemoteDesktopSimulationAction,
   type ShippingSimulationAction,
 } from '@service-desk/simulation-engine';
@@ -204,6 +205,22 @@ interface CompanyChatSessionContextValue {
     method: IdentityVerificationMethod,
   ) => ActionEvent;
   unreadThreadCount: number;
+}
+
+interface DeviceManagementSessionContextValue {
+  inspectRecord: (ticketId: string, deviceId: string) => ActionEvent;
+  recordDiagnosis: (
+    ticketId: string,
+    deviceId: string,
+    diagnosis: string,
+  ) => ActionEvent;
+  reassignDevice: (ticketId: string, deviceId: string) => ActionEvent;
+  revealRecoveryKey: (ticketId: string, deviceId: string) => ActionEvent;
+  verifyAccess: (
+    ticketId: string,
+    deviceId: string,
+    check: string,
+  ) => ActionEvent;
 }
 
 export interface AssetInventoryRecord {
@@ -451,6 +468,8 @@ const DirectorySessionContext =
   createContext<DirectorySessionContextValue | null>(null);
 const CompanyChatSessionContext =
   createContext<CompanyChatSessionContextValue | null>(null);
+const DeviceManagementSessionContext =
+  createContext<DeviceManagementSessionContextValue | null>(null);
 const AssetManagementSessionContext =
   createContext<AssetManagementSessionContextValue | null>(null);
 const PcShelfSessionContext = createContext<PcShelfSessionContextValue | null>(
@@ -568,6 +587,7 @@ type NexusEvidenceAction =
   | AssetSimulationAction
   | TicketSimulationAction
   | DirectorySimulationAction
+  | DeviceSimulationAction
   | ChatSimulationAction
   | RemoteDesktopSimulationAction
   | ShippingSimulationAction;
@@ -579,6 +599,7 @@ interface NexusActionSyncDetails {
     | 'asset'
     | 'chat'
     | 'directory'
+    | 'device'
     | 'remote_desktop'
     | 'shipping'
     | 'ticket';
@@ -607,6 +628,8 @@ export function normalizeTicketKey(value: string): string {
     'locked-user-account': 'INC2511',
     'password-reset': 'INC2512',
     'mfa-reset': 'INC2513',
+    'bitlocker-recovery': 'INC3001',
+    'offboarding-device-reassignment': 'INC3002',
   };
   const foundationalId = foundationalIds[value.toLowerCase()];
   if (foundationalId) return foundationalId;
@@ -617,6 +640,12 @@ function isDirectorySimulationAction(
   action: SimulationAction,
 ): action is DirectorySimulationAction {
   return action.type.startsWith('directory.');
+}
+
+function isDeviceSimulationAction(
+  action: SimulationAction,
+): action is DeviceSimulationAction {
+  return action.type.startsWith('device.');
 }
 
 function isChatSimulationAction(
@@ -695,6 +724,17 @@ export function getNexusActionSyncDetails(
       },
       ticketId,
       tool: 'directory',
+    };
+  }
+
+  if (isDeviceSimulationAction(action)) {
+    return {
+      resultingState: {
+        eventType: action.type,
+        deviceId: action.payload.deviceId,
+      },
+      ticketId: action.payload.ticketId,
+      tool: 'device',
     };
   }
 
@@ -903,27 +943,27 @@ function projectTickets(
     if (!overlay) {
       return {
         ...fixture,
-        activity: [...fixture.activity],
-        hints: [...fixture.hints],
+        activity: [...(fixture.activity ?? [])],
+        hints: [...(fixture.hints ?? [])],
         hintsRevealedCount: 0,
-        notes: [...fixture.notes],
-        suggestedTools: [...fixture.suggestedTools],
+        notes: [...(fixture.notes ?? [])],
+        suggestedTools: [...(fixture.suggestedTools ?? [])],
       };
     }
 
     return {
       ...fixture,
       activity: [
-        ...fixture.activity,
+        ...(fixture.activity ?? []),
         ...overlay.events.map(actionEventToActivity),
       ],
       assignedTo: overlay.assignedTo,
       escalated: overlay.escalated,
-      hints: [...fixture.hints],
+      hints: [...(fixture.hints ?? [])],
       hintsRevealedCount: overlay.hintsRevealedCount,
       notes: [...overlay.notes],
       status: overlay.status,
-      suggestedTools: [...fixture.suggestedTools],
+      suggestedTools: [...(fixture.suggestedTools ?? [])],
     };
   });
 }
@@ -1453,8 +1493,9 @@ export function TicketSessionProvider({
             return;
           }
           if (completedAttempt?.grade) {
-            completedGrades[normalizeTicketKey(assignment.scenario.stable_key)] =
-              completedAttempt.grade;
+            completedGrades[
+              normalizeTicketKey(assignment.scenario.stable_key)
+            ] = completedAttempt.grade;
           }
         }
         if (Object.keys(completedGrades).length > 0) {
@@ -1725,12 +1766,16 @@ export function TicketSessionProvider({
         event: ActionEvent;
       }> = [{ action, event: result.event }];
       if (result.event.success && isRemoteDesktopSimulationAction(action)) {
-        const before = attemptRef.current.remoteDesktopOverlays[
-          action.payload.assetTag
-        ];
-        const after = result.attempt.remoteDesktopOverlays[action.payload.assetTag];
+        const before =
+          attemptRef.current.remoteDesktopOverlays[action.payload.assetTag];
+        const after =
+          result.attempt.remoteDesktopOverlays[action.payload.assetTag];
         if (before && after) {
-          const derived = derivedRemoteDesktopWorkflowAction(action, before, after);
+          const derived = derivedRemoteDesktopWorkflowAction(
+            action,
+            before,
+            after,
+          );
           if (derived) {
             const derivedResult = applyAction(nextAttempt, actorId, derived);
             nextAttempt = derivedResult.attempt;
@@ -1807,12 +1852,15 @@ export function TicketSessionProvider({
           !NEXUS_INTEGRATION_ENABLED ||
           !syncedEvent.success ||
           isRemoteDesktopSessionUiAction(syncedAction) ||
-          !(isTicketSimulationAction(syncedAction) ||
+          !(
+            isTicketSimulationAction(syncedAction) ||
             isChatSimulationAction(syncedAction) ||
             isAssetSimulationAction(syncedAction) ||
             isDirectorySimulationAction(syncedAction) ||
+            isDeviceSimulationAction(syncedAction) ||
             isRemoteDesktopSimulationAction(syncedAction) ||
-            isShippingSimulationAction(syncedAction))
+            isShippingSimulationAction(syncedAction)
+          )
         ) {
           continue;
         }
@@ -1820,7 +1868,10 @@ export function TicketSessionProvider({
         // by a clean browser context.  Publish it before queueing so the
         // snapshot includes this action rather than the preceding one.
         attemptRef.current = nextAttempt;
-        const syncDetails = getNexusActionSyncDetails(syncedAction, nextAttempt);
+        const syncDetails = getNexusActionSyncDetails(
+          syncedAction,
+          nextAttempt,
+        );
         if (syncDetails) {
           queueNexusActionSync(
             syncedAction,
@@ -1853,6 +1904,7 @@ export function TicketSessionProvider({
           isChatSimulationAction(action) ||
           isAssetSimulationAction(action) ||
           isDirectorySimulationAction(action) ||
+          isDeviceSimulationAction(action) ||
           isRemoteDesktopSimulationAction(action) ||
           isShippingSimulationAction(action)
         )
@@ -2099,6 +2151,37 @@ export function TicketSessionProvider({
     }),
     [directoryUsers, dispatchAction, hydrated],
   );
+  const deviceManagementSessionValue =
+    useMemo<DeviceManagementSessionContextValue>(
+      () => ({
+        inspectRecord: (ticketId, deviceId) =>
+          dispatchAction({
+            type: 'device.inspect_record',
+            payload: { ticketId, deviceId },
+          }),
+        recordDiagnosis: (ticketId, deviceId, diagnosis) =>
+          dispatchAction({
+            type: 'device.record_diagnosis',
+            payload: { ticketId, deviceId, diagnosis },
+          }),
+        reassignDevice: (ticketId, deviceId) =>
+          dispatchAction({
+            type: 'device.reassign_device',
+            payload: { ticketId, deviceId, action: 'reset-and-reassign' },
+          }),
+        revealRecoveryKey: (ticketId, deviceId) =>
+          dispatchAction({
+            type: 'device.reveal_recovery_key',
+            payload: { ticketId, deviceId },
+          }),
+        verifyAccess: (ticketId, deviceId, check) =>
+          dispatchAction({
+            type: 'device.verify_access',
+            payload: { ticketId, deviceId, check },
+          }),
+      }),
+      [dispatchAction],
+    );
   const companyChatSessionValue = useMemo<CompanyChatSessionContextValue>(
     () => ({
       chatThreads: attempt.chatThreads,
@@ -2519,33 +2602,37 @@ export function TicketSessionProvider({
         <AttemptScoreContext.Provider value={scoreValue}>
           <ProgressContext.Provider value={progressValue}>
             <DirectorySessionContext.Provider value={directorySessionValue}>
-              <CompanyChatSessionContext.Provider
-                value={companyChatSessionValue}
+              <DeviceManagementSessionContext.Provider
+                value={deviceManagementSessionValue}
               >
-                <AssetManagementSessionContext.Provider
-                  value={assetManagementSessionValue}
+                <CompanyChatSessionContext.Provider
+                  value={companyChatSessionValue}
                 >
-                  <PcShelfSessionContext.Provider value={pcShelfSessionValue}>
-                    <ServerRoomSessionContext.Provider
-                      value={serverRoomSessionValue}
-                    >
-                      <RemoteDesktopSessionContext.Provider
-                        value={remoteDesktopSessionValue}
+                  <AssetManagementSessionContext.Provider
+                    value={assetManagementSessionValue}
+                  >
+                    <PcShelfSessionContext.Provider value={pcShelfSessionValue}>
+                      <ServerRoomSessionContext.Provider
+                        value={serverRoomSessionValue}
                       >
-                        <ComputerDeploymentSessionContext.Provider
-                          value={computerDeploymentSessionValue}
+                        <RemoteDesktopSessionContext.Provider
+                          value={remoteDesktopSessionValue}
                         >
-                          <ShippingManagerSessionContext.Provider
-                            value={shippingManagerSessionValue}
+                          <ComputerDeploymentSessionContext.Provider
+                            value={computerDeploymentSessionValue}
                           >
-                            {children}
-                          </ShippingManagerSessionContext.Provider>
-                        </ComputerDeploymentSessionContext.Provider>
-                      </RemoteDesktopSessionContext.Provider>
-                    </ServerRoomSessionContext.Provider>
-                  </PcShelfSessionContext.Provider>
-                </AssetManagementSessionContext.Provider>
-              </CompanyChatSessionContext.Provider>
+                            <ShippingManagerSessionContext.Provider
+                              value={shippingManagerSessionValue}
+                            >
+                              {children}
+                            </ShippingManagerSessionContext.Provider>
+                          </ComputerDeploymentSessionContext.Provider>
+                        </RemoteDesktopSessionContext.Provider>
+                      </ServerRoomSessionContext.Provider>
+                    </PcShelfSessionContext.Provider>
+                  </AssetManagementSessionContext.Provider>
+                </CompanyChatSessionContext.Provider>
+              </DeviceManagementSessionContext.Provider>
             </DirectorySessionContext.Provider>
           </ProgressContext.Provider>
         </AttemptScoreContext.Provider>
@@ -2631,6 +2718,18 @@ export function useDirectorySession() {
   if (!value) {
     throw new Error(
       'useDirectorySession must be used inside TicketSessionProvider.',
+    );
+  }
+
+  return value;
+}
+
+export function useDeviceManagementSession() {
+  const value = useContext(DeviceManagementSessionContext);
+
+  if (!value) {
+    throw new Error(
+      'useDeviceManagementSession must be used inside TicketSessionProvider.',
     );
   }
 

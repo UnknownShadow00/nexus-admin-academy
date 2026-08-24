@@ -46,6 +46,7 @@ export {
   type CompleteRemoteDesktopUpdateInstallAction,
   type RestartRemoteDesktopAfterUpdateAction,
   type DirectorySimulationAction,
+  type DeviceSimulationAction,
   type DeploymentSimulationAction,
   type DisableDirectoryAccountAction,
   type EnableDirectoryAccountAction,

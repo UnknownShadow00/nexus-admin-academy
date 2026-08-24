@@ -283,7 +283,7 @@ test("admin can open Curriculum Structure under Learning Content", async ({ page
   await expect(page.getByRole("heading", { name: "Curriculum Structure" })).toBeVisible();
   await expect(page.getByText("References valid")).toBeVisible();
   await expect(page.getByText("137 of 137", { exact: false })).toBeVisible();
-  await expect(page.getByText(/Storage week \d+ · \d+ activities/)).toHaveCount(30);
+  await expect(page.getByText(/Storage week \d+ · \d+ activities/)).toHaveCount(35);
   await expect(page.getByRole("heading", { name: "Nexus Orientation", exact: true })).toBeVisible();
   await page.getByRole("heading", { name: "Nexus Orientation", exact: true }).click();
   await expect(page.getByLabel(/Quiz for week-0-video-/).first()).toBeVisible();

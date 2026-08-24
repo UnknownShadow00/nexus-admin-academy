@@ -7,6 +7,7 @@ import { CompanyChatTool } from '../../../../components/CompanyChatTool';
 import { ComputerDeploymentTool } from '../../../../components/ComputerDeploymentTool';
 import { AssetManagementTool } from '../../../../components/AssetManagementTool';
 import { DirectoryTool } from '../../../../components/DirectoryTool';
+import { DeviceManagementTool } from '../../../../components/DeviceManagementTool';
 import { DocumentationTool } from '../../../../components/DocumentationTool';
 import { PcShelfTool } from '../../../../components/PcShelfTool';
 import { RemoteDesktopTool } from '../../../../components/RemoteDesktopTool';
@@ -48,6 +49,14 @@ export default async function ToolPage({ params }: ToolPageProps) {
     return (
       <Suspense fallback={<ToolLoadingState label="documentation" />}>
         <DocumentationTool />
+      </Suspense>
+    );
+  }
+
+  if (tool.slug === 'device-management') {
+    return (
+      <Suspense fallback={<ToolLoadingState label="device management" />}>
+        <DeviceManagementTool />
       </Suspense>
     );
   }

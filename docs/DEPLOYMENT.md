@@ -290,7 +290,7 @@ Five independent jobs, so a failure is easy to attribute:
   the full `pytest` suite, and a manifest-based `pip-audit` against
   `backend/requirements.txt`.
 - **Database, migrations, and seeds** — migrates an empty database to head,
-  confirms the head revision, seeds it, and confirms 25 weeks / 296
+  confirms the head revision, seeds it, and confirms 35 modules / 320
   activities / 137 mapped videos / one required Week 0 orientation activity /
   no duplicate seed records / clean SQLite integrity and foreign-key checks.
   `backend/tests/test_orientation_seed.py` (also run here) is the source of

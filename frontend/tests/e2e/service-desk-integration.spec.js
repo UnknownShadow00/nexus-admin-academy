@@ -43,6 +43,8 @@ const freshBUsername = requireEnv("NEXUS_E2E_FRESH_B_USERNAME");
 const freshBPassword = requireEnv("NEXUS_E2E_FRESH_B_PASSWORD");
 const adminUsername = requireEnv("NEXUS_E2E_ADMIN_USERNAME");
 const adminPassword = requireEnv("NEXUS_E2E_ADMIN_PASSWORD");
+const endpointUsername = requireEnv("NEXUS_E2E_ENDPOINT_USERNAME");
+const endpointPassword = requireEnv("NEXUS_E2E_ENDPOINT_PASSWORD");
 
 const TICKET_ID = "INC2401";
 const SCENARIO_STABLE_KEY = "inc2401";
@@ -110,6 +112,70 @@ async function getMyAssignment(page, stableKey) {
   const assignment = assignments.find((a) => a.scenario.stable_key === stableKey);
   expect(assignment, `assignment for ${stableKey} should exist`).toBeTruthy();
   return assignment;
+}
+
+async function clickAndWaitForTrustedAction(page, buttonName) {
+  const responsePromise = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /\/api\/service-desk\/attempts\/\d+\/actions$/.test(response.url()),
+  );
+  await page.getByRole("button", { name: buttonName, exact: true }).click();
+  const response = await responsePromise;
+  expect(response.status()).toBe(201);
+}
+
+async function resolveEndpointCase(page, scenario) {
+  const assignment = await getMyAssignment(page, scenario.stableKey);
+  const started = await page.request.post(
+    `/api/service-desk/assignments/${assignment.id}/attempts`,
+    withOrigin({}),
+  );
+  expect([200, 201]).toContain(started.status());
+  const attemptId = (await started.json()).id;
+
+  await page.goto(`/service-desk/tools/device-management?ticket=${scenario.ticketId}`);
+  await expect(page.getByRole("heading", { name: "Device Management" })).toBeVisible();
+  await page.getByLabel("Hostname or asset tag from the ticket").fill(scenario.deviceName);
+  await clickAndWaitForTrustedAction(page, "Inspect device record");
+  await page.getByLabel("Evidence-based diagnosis").selectOption(scenario.diagnosis);
+  await page.getByRole("button", { name: scenario.remediationLabel, exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: "Inspect the device record and verify the requester or authorization before diagnosis or remediation.",
+    }),
+  ).toBeVisible();
+
+  await page.goto(
+    `/service-desk/tools/company-chat?contact=${scenario.contactId}&ticket=${scenario.ticketId}`,
+  );
+  await clickAndWaitForTrustedAction(page, "Run approved identity check");
+
+  await page.goto(`/service-desk/tools/device-management?ticket=${scenario.ticketId}`);
+  await page.getByLabel("Hostname or asset tag from the ticket").fill(scenario.deviceName);
+  await clickAndWaitForTrustedAction(page, "Inspect device record");
+  await page.getByLabel("Evidence-based diagnosis").selectOption(scenario.diagnosis);
+  await clickAndWaitForTrustedAction(page, "Record selected diagnosis");
+  await clickAndWaitForTrustedAction(page, scenario.remediationLabel);
+  await clickAndWaitForTrustedAction(page, "Verify resulting device state");
+
+  await page.goto(
+    `/service-desk/tools/company-chat?contact=${scenario.contactId}&ticket=${scenario.ticketId}`,
+  );
+  await clickAndWaitForTrustedAction(page, "Ask user to retest original symptom");
+
+  await page.goto(`/service-desk/tickets/${scenario.ticketId}`);
+  await page.getByLabel("Add a note").fill(scenario.note);
+  await clickAndWaitForTrustedAction(page, "Add internal note");
+  await page.getByRole("button", { name: "Resolve / close" }).click();
+  await page.getByLabel("I verified the requester has a working outcome").check();
+  await page.getByRole("button", { name: "Continue to review" }).click();
+  await page.getByRole("button", { name: "Resolve ticket", exact: true }).click();
+
+  await expect.poll(async () => {
+    const attempts = await (await page.request.get("/api/service-desk/attempts")).json();
+    return attempts.find((attempt) => attempt.id === attemptId);
+  }).toMatchObject({ status: "completed", score: 100, passed: true });
 }
 
 
@@ -235,6 +301,47 @@ async function prepareInc2401Workflow(page) {
 }
 
 test.describe("Service Desk integration (requires an integrated stack)", () => {
+
+  test("BitLocker and offboarding are fully playable live endpoint workflows", async ({ browser }) => {
+    test.setTimeout(300_000);
+    const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+    const page = await context.newPage();
+    await studentLogin(page, endpointUsername, endpointPassword);
+
+    const cases = [
+      {
+        contactId: "directory-user-morgan-ellis",
+        deviceName: "NEX-LT-2214",
+        diagnosis: "firmware-update-triggered-recovery",
+        note: "Verified Morgan and NEX-LT-2214, recorded the firmware-triggered recovery diagnosis, released the key through the approved channel, and confirmed the device booted.",
+        remediationLabel: "Use approved recovery workflow",
+        stableKey: "bitlocker-recovery",
+        ticketId: "INC3001",
+      },
+      {
+        contactId: "directory-user-hr-adebayo-coker",
+        deviceName: "NEX-LT-3390",
+        diagnosis: "offboarding-authorized-access-revoked-data-reset-required",
+        note: "Verified HR authorization and NEX-LT-3390, confirmed access revocation and corporate-data reset handling, completed the reset and reassignment, and verified readiness for the new assignee.",
+        remediationLabel: "Apply authorized lifecycle action",
+        stableKey: "offboarding-device-reassignment",
+        ticketId: "INC3002",
+      },
+    ];
+
+    for (const scenario of cases) {
+      await resolveEndpointCase(page, scenario);
+    }
+
+    const attempts = await (await page.request.get("/api/service-desk/attempts")).json();
+    expect(attempts.filter((attempt) => attempt.passed && attempt.score === 100)).toHaveLength(2);
+    const dimensions = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
+    await context.close();
+  });
 
   test("Week 0 unlocks an isolated four-ticket starter queue with a compact next-pack preview", async ({ browser }) => {
     test.setTimeout(180_000);

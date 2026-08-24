@@ -245,7 +245,9 @@ def get_student_stats(
     level, level_name = level_from_xp(student.total_xp)
 
     required_quizzes = [
-        quiz for week in range(25) for quiz in required_quizzes_for_week(db, week)
+        quiz
+        for week in range(max(MODULE_WEEKS.values()) + 1)
+        for quiz in required_quizzes_for_week(db, week)
     ]
     completed_required = [
         quiz for quiz in required_quizzes if is_quiz_passed(db, student_id, quiz)
