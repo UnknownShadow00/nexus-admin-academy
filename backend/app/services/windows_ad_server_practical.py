@@ -33,12 +33,24 @@ def _question(
     context: str | None = None,
 ) -> dict:
     answers = [correct] if isinstance(correct, str) else correct
+    ordered_options = list(options)
+    # Authors keep the supported answer next to the key for reviewability, but
+    # students must not learn that the first option is always correct. Rotate
+    # it to a stable, content-derived display position.
+    supported_index = next(
+        (index for index, (option_id, _) in enumerate(ordered_options) if option_id == answers[0]),
+        None,
+    )
+    if supported_index is not None and ordered_options:
+        supported_option = ordered_options.pop(supported_index)
+        display_index = sum(ord(character) for character in f"{question_id}:{prompt}") % (len(ordered_options) + 1)
+        ordered_options.insert(display_index, supported_option)
     return {
         "id": question_id,
         "prompt": prompt,
         "context": context,
         "type": "multi_choice" if len(answers) > 1 else "single_choice",
-        "options": [{"id": option_id, "label": label} for option_id, label in options],
+        "options": [{"id": option_id, "label": label} for option_id, label in ordered_options],
         "correct": answers,
         "explanation": explanation,
     }
@@ -307,13 +319,13 @@ WINDOWS_AD_SERVER_CASES: dict[int, dict] = {
                     _command("gpupdate /force", None, "Updating policy...", "User Policy update completed successfully.", "Finance Drive Map remains filtered: Denied (Security)."),
                 ],
             ),
-            "verification": _verification("Resultant-policy verification", ("Approved membership", "GG-Finance-Drive-Eligible present"), ("gpupdate", "User policy refresh completed"), ("gpresult", "Finance Drive Map applied"), ("Mapped drive", "F: opens \\\\FS01\\Finance")),
+            "verification": _verification("Resultant-policy verification", ("Approved membership", "GG-Finance-Drive-Eligible present"), ("User session", "Fresh sign-in token includes the approved group"), ("gpupdate", "User policy refresh completed"), ("gpresult", "Finance Drive Map applied"), ("Mapped drive", "F: opens \\\\FS01\\Finance")),
             "documentation_required": True,
         },
         "questions": [
             _question("scope", "Does the missing setting belong to user or computer policy?", [("user", "User policy, linked to the Finance Users OU"), ("computer", "Computer policy, linked to Workstations"), ("local", "Local policy only"), ("domain", "A domain-controller security policy")], "user", "The GPO contains User Configuration and is linked where the user object resides."),
             _question("cause", "Why is the expected policy absent?", [("filter", "The user is outside the GPO's security filter even though OU and basic Finance membership are correct"), ("dns", "The share hostname does not resolve"), ("refresh", "gpupdate has never been run, so filtering cannot apply"), ("computer-ou", "The computer is not in the Finance Users OU")], "filter", "gpresult explicitly reports Denied (Security), and the eligibility group is missing."),
-            _question("action", "What is the safe next action?", [("approved-group", "Confirm approval for the eligibility group, correct that scoped membership, refresh, and prove application with gpresult"), ("authenticated-users", "Change the GPO filter to Authenticated Users"), ("direct-map", "Map the drive manually and close the ticket"), ("relink", "Link the GPO to the domain root")], "approved-group", "The scoped approved membership corrects the actual filter without broadening the policy."),
+            _question("action", "What is the safe next action?", [("approved-group", "Confirm approval for the eligibility group, correct that scoped membership, establish a fresh sign-in token, refresh, and prove application with gpresult"), ("authenticated-users", "Change the GPO filter to Authenticated Users"), ("direct-map", "Map the drive manually and close the ticket"), ("relink", "Link the GPO to the domain root")], "approved-group", "The scoped approved membership and fresh user token correct the actual filter without broadening the policy."),
         ],
     },
     16: {
@@ -344,7 +356,7 @@ WINDOWS_AD_SERVER_CASES: dict[int, dict] = {
                 [
                     _command("Get-Service NexusPayrollApp", None, "Status   Name              DisplayName", "Running  NexusPayrollApp  Nexus Payroll Application", aliases=["get-service -name nexuspayrollapp"]),
                     _command("Get-NetIPConfiguration", "terminal:net-ip", "InterfaceAlias       : Ethernet0", "IPv4Address          : 10.20.16.22", "IPv4DefaultGateway   : 10.20.16.1", "DNSServer            : 10.20.99.10"),
-                    _command("Resolve-DnsName db01.nexus.internal", "terminal:dns", "Resolve-DnsName: db01.nexus.internal : DNS name does not exist", "Server: 10.20.99.10", "Query timed out."),
+                    _command("Resolve-DnsName db01.nexus.internal", "terminal:dns", "Server: 10.20.99.10", "Resolve-DnsName: db01.nexus.internal : This operation returned because the timeout period expired", "CategoryInfo: OperationTimeout"),
                     _command("Test-NetConnection 10.20.16.25 -Port 1433", None, "ComputerName     : 10.20.16.25", "RemotePort       : 1433", "InterfaceAlias   : Ethernet0", "TcpTestSucceeded : True"),
                     _command("Test-NetConnection db01.nexus.internal -Port 1433", None, "WARNING: Name resolution of db01.nexus.internal failed", "TcpTestSucceeded : False"),
                 ],
@@ -385,8 +397,8 @@ WINDOWS_AD_SERVER_CASES: dict[int, dict] = {
                 "Focused PowerShell case on SRV-OPS-01. Inspect current state and the first relevant overnight failure before choosing a response.",
                 ["Service state", "Relevant event log", "Scheduled task result", "Resource state", "Remote port state"],
                 [
-                    _command("Get-Service NexusDeptSync", "terminal:service", "Status   Name            DisplayName", "Stopped  NexusDeptSync   Nexus Department Sync"),
-                    _command("Get-WinEvent -FilterHashtable @{LogName='System'; Id=7038} -MaxEvents 5", "terminal:event", "TimeCreated : 01:00:03", "Id          : 7038", "Message     : NexusDeptSync could not log on as NEXUS\\svc-deptsync due to the following error: The user name or password is incorrect."),
+                    _command("Get-Service NexusDeptSync", "terminal:service", "Status   Name            DisplayName", "Stopped  NexusDeptSync   Nexus Department Sync", aliases=["Get-Service -Name NexusDeptSync", "Get-Service *DeptSync*"]),
+                    _command("Get-WinEvent -FilterHashtable @{LogName='System'; Id=7038} -MaxEvents 5", "terminal:event", "TimeCreated : 01:00:03", "Id          : 7038", "Message     : NexusDeptSync could not log on as NEXUS\\svc-deptsync due to the following error: The user name or password is incorrect.", aliases=["Get-WinEvent -LogName System -MaxEvents 5", "Get-WinEvent -LogName System"]),
                     _command("Get-ScheduledTaskInfo -TaskName 'Department Sync Nightly'", None, "LastRunTime    : Today 01:00:00", "LastTaskResult : 2147943726 (logon failure)", "NextRunTime    : Tomorrow 01:00:00"),
                     _command("Get-PSDrive C", None, "Name Used (GB) Free (GB) Provider Root", "C    382.1     93.9      FileSystem C:\\"),
                     _command("Test-NetConnection SRV-OPS-01 -Port 445", None, "ComputerName     : SRV-OPS-01", "RemotePort       : 445", "TcpTestSucceeded : True"),
@@ -426,12 +438,28 @@ def sync_windows_ad_server_practical_upgrade(db: Session) -> dict:
     if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
         return {"updated_templates": 0, "updated_activities": 0, "skipped": True, "reason": "migration_not_applied"}
 
+    targets = {
+        week_number: (*_target_rows(db, week_number, spec["lab_id"]), spec)
+        for week_number, spec in WINDOWS_AD_SERVER_CASES.items()
+    }
+    missing_targets = [
+        {"week_number": week_number, "lab_id": spec["lab_id"]}
+        for week_number, (lab, activity, spec) in targets.items()
+        if lab is None or activity is None
+    ]
+    if missing_targets:
+        if len(missing_targets) == len(targets):
+            return {
+                "updated_templates": 0,
+                "updated_activities": 0,
+                "missing_targets": missing_targets,
+                "skipped": True,
+                "reason": "curriculum_not_seeded",
+            }
+        raise RuntimeError(f"Phase 4C.1 target set is incomplete; refusing a partial upgrade: {missing_targets}")
+
     result = {"updated_templates": 0, "updated_activities": 0, "missing_targets": [], "skipped": False}
-    for week_number, spec in WINDOWS_AD_SERVER_CASES.items():
-        lab, activity = _target_rows(db, week_number, spec["lab_id"])
-        if lab is None or activity is None:
-            result["missing_targets"].append({"week_number": week_number, "lab_id": spec["lab_id"]})
-            continue
+    for week_number, (lab, activity, spec) in targets.items():
 
         values = {
             "title": spec["title"],
@@ -500,11 +528,22 @@ def restore_pre_4c1_practical_labs(db: Session) -> dict:
     for number in (15, 16, 17):
         legacy_specs[number] = deepcopy(WEEKS_15_18_QUALITY[number]["lab"])
 
+    targets = {
+        week_number: (*_target_rows(db, week_number, case["lab_id"]), case)
+        for week_number, case in WINDOWS_AD_SERVER_CASES.items()
+    }
+    missing_targets = [
+        {"week_number": week_number, "lab_id": case["lab_id"]}
+        for week_number, (lab, activity, case) in targets.items()
+        if lab is None or activity is None
+    ]
+    if missing_targets:
+        if len(missing_targets) == len(targets):
+            return {"restored": 0, "skipped": True, "reason": "curriculum_not_seeded"}
+        raise RuntimeError(f"Phase 4C.1 target set is incomplete; refusing a partial downgrade: {missing_targets}")
+
     restored = 0
-    for week_number, case in WINDOWS_AD_SERVER_CASES.items():
-        lab, activity = _target_rows(db, week_number, case["lab_id"])
-        if lab is None or activity is None:
-            continue
+    for week_number, (lab, activity, case) in targets.items():
         legacy = legacy_specs[week_number]
         if week_number in {5, 6}:
             values = {

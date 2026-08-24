@@ -389,6 +389,30 @@ def test_evidence_case_workbench_is_server_verified_and_isolated_per_student(db)
         "action": "Coordinated the credential update.",
         "verification": "Controlled sync completed.",
     }
+    other_lab = LabTemplate(
+        title="Different server evidence case",
+        description=lab.description,
+        lab_type=lab.lab_type,
+        difficulty=lab.difficulty,
+        week_number=lab.week_number,
+        is_published=True,
+        environment_requirements={},
+        success_criteria=json.loads(json.dumps(lab.success_criteria)),
+        required_evidence={},
+        hints={},
+    )
+    db.add(other_lab)
+    db.commit()
+    cross_lab_submit = client.post(
+        f"/api/labs/{other_lab.id}/submit",
+        json={
+            "answers": {"diagnosis": ["credential"]},
+            "notes": json.dumps(base_notes | {"handoff": "Identity Operations owns the update."}),
+        },
+        headers=auth_headers(student),
+    )
+    assert cross_lab_submit.status_code == 409
+
     missing_handoff = client.post(
         f"/api/labs/{lab.id}/submit",
         json={"answers": {"diagnosis": ["credential"]}, "notes": json.dumps(base_notes)},

@@ -37,20 +37,24 @@ test("fresh seeded 0059 serves the representative Windows, AD, GPO, and server c
   await page.keyboard.press("Enter");
   await expect(page.getByText("GG-Finance-Users not present", { exact: true })).toBeVisible();
 
+  await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/labs/5");
   await expect(page.getByRole("heading", { name: "Group Policy evidence case" })).toBeVisible();
   await terminalCommand(page, "gpresult /r", "Filtering: Denied (Security)");
   await terminalCommand(page, "gpupdate /force", "remains filtered: Denied (Security)");
+  const terminalWidths = await page.evaluate(() => ({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
+  expect(terminalWidths.scroll).toBeLessThanOrEqual(terminalWidths.client + 1);
 
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/labs/14");
   await expect(page.getByRole("heading", { name: "Windows Server investigation" })).toBeVisible();
   await terminalCommand(page, "Get-NetIPConfiguration", "DNSServer            : 10.20.99.10");
-  await terminalCommand(page, "Resolve-DnsName db01.nexus.internal", "Query timed out");
+  await terminalCommand(page, "Resolve-DnsName db01.nexus.internal", "timeout period expired");
 
   await page.goto("/labs/15");
   await expect(page.getByRole("heading", { name: "Windows Server prove case" })).toBeVisible();
   await expect(page.getByText("Prove case", { exact: true })).toBeVisible();
-  await terminalCommand(page, "Get-Service NexusDeptSync", "Stopped  NexusDeptSync");
-  await terminalCommand(page, "Get-WinEvent -FilterHashtable @{LogName='System'; Id=7038} -MaxEvents 5", "password is incorrect");
+  await terminalCommand(page, "Get-Service -Name NexusDeptSync", "Stopped  NexusDeptSync");
+  await terminalCommand(page, "Get-WinEvent -LogName System -MaxEvents 5", "password is incorrect");
   await expect(page.getByRole("textbox", { name: "Escalation / handoff", exact: true })).toBeVisible();
 });
