@@ -4,11 +4,12 @@ import BackLink from "../components/BackLink";
 import Spinner from "../components/Spinner";
 import PrerequisiteLock, { getPrerequisiteLock } from "../components/PrerequisiteLock";
 import EndpointEvidenceWorkbench from "../components/EndpointEvidenceWorkbench";
+import EvidenceCaseWorkbench from "../components/EvidenceCaseWorkbench";
 import StructuredLabExercise from "../components/StructuredLabExercise";
 import { DifficultyBadge } from "../components/ui/Badge";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
-import { createLabVmAccess, getLab, getLabVmStatus, startLab, submitLab, uploadLabEvidence, verifyEndpointLab } from "../services/api";
+import { createLabVmAccess, getLab, getLabVmStatus, startLab, submitLab, uploadLabEvidence, verifyEvidenceLab } from "../services/api";
 
 const provisioningStatuses = new Set(["provisioning", "starting", "waiting_for_ip", "configuring_connection"]);
 
@@ -141,10 +142,10 @@ export default function LabPage() {
     }
   }
 
-  async function handleEndpointVerify(answers, inspectedPanelIds) {
+  async function handleEvidenceVerify(answers, inspectedPanelIds) {
     setBusy(true);
     try {
-      const res = await verifyEndpointLab(labId, answers, inspectedPanelIds);
+      const res = await verifyEvidenceLab(labId, answers, inspectedPanelIds);
       return res.data;
     } catch (err) {
       const lock = getPrerequisiteLock(err);
@@ -314,15 +315,28 @@ export default function LabPage() {
             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${status.cls}`}>{status.label}</span>
           </div>
 
-          {lab.success_criteria?.endpoint_workbench ? (
+          {lab.success_criteria?.evidence_case_workbench ? (
+            <EvidenceCaseWorkbench
+              key={`evidence-case-${lab.id}`}
+              workbench={lab.success_criteria.evidence_case_workbench}
+              questions={structuredQuestions}
+              feedback={lab.structured_feedback}
+              initialNotes={lab.notes}
+              submitted={lab.status === "submitted" && (lab.structured_feedback?.score_pct ?? 0) >= 70}
+              busy={busy}
+              onVerify={handleEvidenceVerify}
+              onSubmit={handleStructuredSubmit}
+            />
+          ) : lab.success_criteria?.endpoint_workbench ? (
             <EndpointEvidenceWorkbench
+              key={`endpoint-evidence-${lab.id}`}
               workbench={lab.success_criteria.endpoint_workbench}
               questions={structuredQuestions}
               feedback={lab.structured_feedback}
               initialNotes={lab.notes}
               submitted={lab.status === "submitted" && (lab.structured_feedback?.score_pct ?? 0) >= 70}
               busy={busy}
-              onVerify={handleEndpointVerify}
+              onVerify={handleEvidenceVerify}
               onSubmit={handleStructuredSubmit}
             />
           ) : isStructured ? (

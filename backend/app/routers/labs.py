@@ -47,6 +47,7 @@ def _normalize_hints(value):
 
 
 _QUESTION_ANSWER_KEY_FIELDS = ("correct", "explanation")
+_WORKBENCH_KEYS = ("evidence_case_workbench", "endpoint_workbench")
 
 
 def _student_safe_questions(questions: list) -> list:
@@ -63,14 +64,23 @@ def _student_safe_success_criteria(success_criteria: dict) -> dict:
     safe = dict(success_criteria)
     if "questions" in safe:
         safe["questions"] = _student_safe_questions(safe["questions"])
-    workbench = safe.get("endpoint_workbench")
-    if isinstance(workbench, dict):
-        # The simulated after-state is outcome evidence. Do not preload it in
-        # browser state before the server accepts the student's exact plan.
-        safe["endpoint_workbench"] = {
-            key: value for key, value in workbench.items() if key != "verification"
-        }
+    for workbench_key in _WORKBENCH_KEYS:
+        workbench = safe.get(workbench_key)
+        if isinstance(workbench, dict):
+            # The simulated after-state is outcome evidence. Do not preload it
+            # before the server accepts the student's exact plan.
+            safe[workbench_key] = {
+                key: value for key, value in workbench.items() if key != "verification"
+            }
     return safe
+
+
+def _configured_workbench(success_criteria: dict) -> tuple[str | None, dict]:
+    for key in _WORKBENCH_KEYS:
+        workbench = success_criteria.get(key)
+        if isinstance(workbench, dict) and workbench:
+            return key, workbench
+    return None, {}
 
 
 def _normalized_workbench_answers(questions: list, answers: dict[str, list[str]]) -> dict[str, list[str]]:
@@ -80,10 +90,15 @@ def _normalized_workbench_answers(questions: list, answers: dict[str, list[str]]
     }
 
 
-def _workbench_verification_record(questions: list, answers: dict[str, list[str]], inspected_panel_ids: list[str]) -> str:
+def _workbench_verification_record(
+    workbench_key: str,
+    questions: list,
+    answers: dict[str, list[str]],
+    inspected_panel_ids: list[str],
+) -> str:
     return json.dumps(
         {
-            "kind": "endpoint_workbench_verification",
+            "kind": f"{workbench_key}_verification",
             "answers": _normalized_workbench_answers(questions, answers),
             "inspected_panel_ids": sorted(set(inspected_panel_ids)),
         },
@@ -479,13 +494,13 @@ def create_vm_access(
 
 
 @router.post("/{lab_id}/verify")
-def verify_endpoint_workbench(
+def verify_evidence_workbench(
     lab_id: int,
     payload: LabVerifyRequest,
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
-    """Check a guided endpoint plan without exposing its answer key.
+    """Check an evidence-case plan without exposing its answer key.
 
     This intentionally does not create a second grading or persistence path:
     final scoring still happens only in submit_lab. It gates simulated
@@ -494,10 +509,10 @@ def verify_endpoint_workbench(
     lab = _get_published_lab(db, lab_id)
     require_week_reached(db, current_student, lab.week_number)
     criteria = lab.success_criteria or {}
-    workbench = criteria.get("endpoint_workbench")
+    workbench_key, workbench = _configured_workbench(criteria)
     questions = criteria.get("questions", [])
-    if not workbench or not questions:
-        raise HTTPException(status_code=400, detail="Lab has no endpoint workbench")
+    if not workbench_key or not workbench or not questions:
+        raise HTTPException(status_code=400, detail="Lab has no evidence workbench")
     required_inspections = set(workbench.get("required_inspections", []))
     inspections_complete = required_inspections.issubset(set(payload.inspected_panel_ids))
     ready = inspections_complete and all(
@@ -526,7 +541,12 @@ def verify_endpoint_workbench(
     if run.status in {"assigned", "not_started"}:
         run.status = "in_progress"
     run.verified_at = now
-    run.feedback = _workbench_verification_record(questions, payload.answers, payload.inspected_panel_ids)
+    run.feedback = _workbench_verification_record(
+        workbench_key,
+        questions,
+        payload.answers,
+        payload.inspected_panel_ids,
+    )
     db.commit()
     return ok({"ready": True, "verification": workbench.get("verification", {})})
 
@@ -557,8 +577,8 @@ def submit_lab(
                     status_code=400,
                     detail="Run every required command in the practice terminal before submitting",
                 )
-        endpoint_workbench = (lab.success_criteria or {}).get("endpoint_workbench", {})
-        if endpoint_workbench:
+        workbench_key, workbench = _configured_workbench(lab.success_criteria or {})
+        if workbench_key:
             run = _get_lab_run(db, lab_id, current_student.id)
             try:
                 verification_record = json.loads(run.feedback) if run and run.feedback else {}
@@ -568,25 +588,36 @@ def submit_lab(
             if (
                 not run
                 or run.verified_at is None
-                or verification_record.get("kind") != "endpoint_workbench_verification"
+                or verification_record.get("kind") != f"{workbench_key}_verification"
                 or verification_record.get("answers") != expected_answers
             ):
                 raise HTTPException(
                     status_code=409,
                     detail="Run the simulated verification for this exact plan before submitting",
                 )
-        if endpoint_workbench.get("documentation_required"):
+        if workbench.get("documentation_required"):
             try:
                 support_note = json.loads(payload.notes)
             except (json.JSONDecodeError, TypeError):
                 support_note = {}
-            required_note_fields = ("issue", "evidence", "action", "verification")
+            additional_fields = workbench.get("additional_note_fields", [])
+            required_note_fields = (
+                "issue",
+                "evidence",
+                "action",
+                "verification",
+                *(field.get("id") for field in additional_fields if isinstance(field, dict) and field.get("id")),
+            )
             if not isinstance(support_note, dict) or any(
                 not str(support_note.get(field, "")).strip() for field in required_note_fields
             ):
                 raise HTTPException(
                     status_code=400,
-                    detail="Complete all four support-note fields before submitting",
+                    detail=(
+                        "Complete all four support-note fields before submitting"
+                        if not additional_fields
+                        else "Complete every required support-note field before submitting"
+                    ),
                 )
     run = _get_lab_run(db, lab_id, current_student.id)
     now = datetime.now(UTC)
