@@ -18,6 +18,14 @@ async function terminalCommand(page, command, expected) {
   await expect(page.locator(".xterm-rows")).toContainText(expected);
 }
 
+async function expectNoPageOverflow(page) {
+  const widths = await page.evaluate(() => ({
+    client: document.documentElement.clientWidth,
+    scroll: document.documentElement.scrollWidth,
+  }));
+  expect(widths.scroll).toBeLessThanOrEqual(widths.client + 1);
+}
+
 test("Phase 4C.2 cases are coherent, progressive, and usable at mobile width", async ({ page }) => {
   await login(page);
   await page.setViewportSize({ width: 375, height: 812 });
@@ -29,8 +37,7 @@ test("Phase 4C.2 cases are coherent, progressive, and usable at mobile width", a
   await terminalCommand(page, "nslookup intranet.nexus.internal", "Non-existent domain");
   await terminalCommand(page, "get-diagnosis", "unavailable in this focused case");
   await expect(page.getByRole("button", { name: "Submit evidence case" })).toBeDisabled();
-  const widths = await page.evaluate(() => ({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
-  expect(widths.scroll).toBeLessThanOrEqual(widths.client + 1);
+  await expectNoPageOverflow(page);
 
   await page.goto("/labs/10");
   await expect(page.getByRole("heading", { name: "Routing and network-services troubleshoot" })).toBeVisible();
@@ -40,8 +47,8 @@ test("Phase 4C.2 cases are coherent, progressive, and usable at mobile width", a
   await expect(page.getByText(/169\.254\.32\.18/)).toBeVisible();
 
   await page.goto("/labs/11");
-  await expect(page.getByRole("heading", { name: "Secure network administration prove case" })).toBeVisible();
-  await expect(page.getByText("Prove case", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Secure network administration troubleshoot" })).toBeVisible();
+  await expect(page.getByText("Troubleshoot case", { exact: true })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Handoff / escalation", exact: true })).toBeVisible();
 
   await page.goto("/labs/16");
@@ -54,12 +61,14 @@ test("Phase 4C.2 cases are coherent, progressive, and usable at mobile width", a
   await expect(page.getByRole("heading", { name: "Linux service troubleshoot" })).toBeVisible();
   await terminalCommand(page, "systemctl status nginx", "Active: failed");
   await terminalCommand(page, "ss -lntp", "python3");
+  await expectNoPageOverflow(page);
 
   await page.goto("/labs/18");
   await expect(page.getByRole("heading", { name: "Linux production prove case" })).toBeVisible();
   await expect(page.getByText("Investigation hint:")).toHaveCount(0);
   await terminalCommand(page, "df -h", "100%");
   await terminalCommand(page, "nginx -t", "syntax is ok");
+  await expectNoPageOverflow(page);
 
   await page.goto("/labs/20");
   await expect(page.getByRole("heading", { name: "Azure VM access troubleshoot" })).toBeVisible();
@@ -67,6 +76,7 @@ test("Phase 4C.2 cases are coherent, progressive, and usable at mobile width", a
   await page.getByRole("tab", { name: "Resource" }).click();
   await expect(page.getByText("vm-inventory-22 — Running", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Run simulated verification" })).toHaveCount(0);
+  await expectNoPageOverflow(page);
 });
 
 test("Phase 4C.1 and Phase 4B.2 evidence workbenches still render", async ({ page }) => {

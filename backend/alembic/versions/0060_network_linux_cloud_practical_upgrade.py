@@ -6,7 +6,7 @@ Create Date: 2026-08-24
 
 Schema-free and reversible. Seven existing LabTemplate rows and their
 TrainingWeekActivity role metadata are updated without replacing identities,
-and three existing Week 21 videos become optional. No activity, completion,
+and two existing Week 21 videos become optional. No activity, completion,
 LabRun, CLI attempt, or video-watch row is created or deleted.
 """
 

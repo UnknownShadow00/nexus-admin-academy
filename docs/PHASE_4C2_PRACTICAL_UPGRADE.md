@@ -2,7 +2,7 @@
 
 ## Verified baseline and scope
 
-The checked-in production-shaped baseline is Alembic `0059` with 35 modules,
+The pinned production-lineage baseline is Alembic `0059` with 35 modules,
 320 activities, 143 required, 177 optional, and no unmapped activities. Its
 learning-role totals are Learn 216, Check 38, Practice 29, Troubleshoot 31,
 and Prove 6.
@@ -47,24 +47,28 @@ healthy while the full root filesystem and runaway logs explain the outage.
 
 ## Curation and final totals
 
-Week 21 videos 54, 55, and 56 become optional; video 53 remains the concise
-required cloud-responsibility foundation. Existing Week 10 and Week 20 media
-remain accessible under their already-optional status.
+Week 21 videos 54 and 56 become optional. Video 55, "Cloud Models," remains
+required because it is the concise teaching source for IaaS/PaaS/SaaS
+responsibility boundaries assessed by the required Week 21 check; video 53
+also remains required. Existing Week 10 and Week 20 media remain accessible
+under their already-optional status.
 
-The resulting totals are 35 modules, 320 activities, 140 required, 180
-optional, Learn 216, Check 38, Practice 23, Troubleshoot 35, Prove 8, and zero
+The resulting totals are 35 modules, 320 activities, 141 required, 179
+optional, Learn 216, Check 38, Practice 23, Troubleshoot 36, Prove 7, and zero
 unmapped activities.
 
 ## Migration and progress contract
 
 Migration `0060_network_linux_cloud_practical_upgrade` is schema-free and
 reversible. Upgrade requires the complete set of seven target lab/activity
-pairs and the three Week 21 video rows before changing anything; a partial
+pairs and the two Week 21 video rows before changing anything; a partial
 canonical state fails before mutation. Completely unseeded databases remain
 safe for the subsequent canonical seed.
 
 Downgrade restores the exact 0059 lab payloads, roles, terminal profile names,
-and Week 21 required flags. Upgrade, downgrade, re-upgrade, and repeated seed do
+and Week 21 required flags. Week 12 remains a Troubleshoot case because its
+structured choice mechanics do not meet the independent-performance Prove bar.
+Upgrade, downgrade, re-upgrade, and repeated seed do
 not replace target rows. Existing LabRuns, CLI attempts, video completion,
 student XP/rank data, and activity IDs remain attached to their original
 records.
@@ -83,3 +87,27 @@ activity, and create an obsolete network template; it could also recreate the
 Week 8 activity. Base seeding now prefers IDs 1–4 over stale titles, preserves
 evolved structured/evidence templates, and restricts retirement to templates
 that still belong to Weeks 1–4.
+
+## Future migration maintenance note
+
+Revision 0060 imports its upgrade and downgrade functions from mutable
+application service code. This is safe enough for the current branch because
+the imported 4C.2 definitions and the exact 0059 restoration payload are
+covered by a pinned historical-lineage upgrade/downgrade/re-upgrade test, and
+the seed entrypoint applies the 4C.2 synchronization only when the database is
+exactly at revision 0060. Current application code run against a database
+intentionally pinned at 0059 is also tested not to inject 0060 definitions.
+
+Future migration authors must not assume that a fresh database upgraded
+directly through 0061 or later will receive 4C.2 data from the seed gate. Before
+adding the next revision they must either freeze the 0060-owned constants and
+restore payload in migration-stable code, or deliberately carry the 4C.2
+canonicalization forward in the new revision/seed gate. They must preserve the
+same LabTemplate and TrainingWeekActivity identities and must not make the 0060
+downgrade depend on future-mutated definitions.
+
+The permanent regression is the pinned real-lineage cycle: build the historical
+database through the pinned 0059 sources, prove current seeding at 0059 is a
+no-op for 0060 content, upgrade 0059 → 0060, downgrade 0060 → 0059, then
+re-upgrade 0059 → 0060 while checking target identities, progress, quiz/role
+records, requirement flags, and fresh-install convergence.

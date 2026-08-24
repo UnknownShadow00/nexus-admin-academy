@@ -1,7 +1,7 @@
 """Phase 4C.2 network, Linux, and cloud practical upgrades.
 
 The phase owns seven existing LabTemplate rows, their existing activity role
-metadata, and three Week 21 video requirement flags. It deliberately does not
+metadata, and two Week 21 video requirement flags. It deliberately does not
 create curriculum identities, shell execution, or another simulator.
 """
 
@@ -179,7 +179,7 @@ NETWORK_LINUX_CLOUD_CASES: dict[int, dict] = {
     },
     12: {
         "lab_id": 11,
-        "role": "prove",
+        "role": "troubleshoot",
         "lab_type": "structured_evidence_case",
         "difficulty": 3,
         "estimated_minutes": 30,
@@ -187,9 +187,9 @@ NETWORK_LINUX_CLOUD_CASES: dict[int, dict] = {
         "description": "Independently evaluate a risky shared-network change, verify intended access, and hand off what exceeds junior authority.",
         "setup_instructions": "Review the access request, current evidence, and change scope. Do not weaken a broad control to make one test pass. Choose a safe response, verify the intended path, and prepare a concise escalation.",
         "workbench": {
-            "title": "Secure network administration prove case",
+            "title": "Secure network administration troubleshoot",
             "domain": "secure_network",
-            "guidance_level": "prove",
+            "guidance_level": "troubleshoot",
             "complaint": "A vendor support session cannot reach the maintenance portal after last night's approved restriction change.",
             "required_inspections": ["request", "acl", "logs", "change"],
             "panels": [
@@ -236,7 +236,7 @@ NETWORK_LINUX_CLOUD_CASES: dict[int, dict] = {
                     _command("pwd", "terminal:path", "/home/samira"),
                     _command("ls", None, "notes  tickets"),
                     _command("ls -l", None, "drwxr-x--- 2 samira support 4096 Aug 24 08:10 notes", "drwx------ 2 samira samira  4096 Aug 24 08:12 tickets"),
-                    _command("cd /var/log/nexus", None, "Directory changed to /var/log/nexus."),
+                    _command("ls -ld /var/log/nexus", None, "drwxr-x--- 2 nexusapp support 4096 Aug 24 08:00 /var/log/nexus"),
                     _command("ls -l /var/log/nexus/orders.log", "terminal:permissions", "-rw-r----- nexusapp support 18432 Aug 24 08:17 /var/log/nexus/orders.log", aliases=("ls -l orders.log",)),
                     _command("cat /var/log/nexus/orders.log", None, "cat: /var/log/nexus/orders.log: Permission denied", aliases=("cat orders.log",)),
                     _command("id samira", "terminal:identity", "uid=1104(samira) gid=1104(samira) groups=1104(samira),100(users)", aliases=("id",)),
@@ -385,7 +385,7 @@ NETWORK_LINUX_CLOUD_CASES: dict[int, dict] = {
 }
 
 
-WEEK_21_OPTIONAL_VIDEO_IDS = {"54", "55", "56"}
+WEEK_21_OPTIONAL_VIDEO_IDS = {"54", "56"}
 
 
 def _target_rows(db: Session, week_number: int, lab_id: int) -> tuple[LabTemplate | None, TrainingWeekActivity | None]:
@@ -431,7 +431,12 @@ def sync_network_linux_cloud_practical_upgrade(db: Session) -> dict:
         if lab is None or activity is None
     ]
     cloud_rows = _week_21_video_rows(db)
-    if missing_targets or len(cloud_rows) != len(WEEK_21_OPTIONAL_VIDEO_IDS):
+    cloud_refs = {row.content_ref for row in cloud_rows}
+    if (
+        missing_targets
+        or len(cloud_rows) != len(WEEK_21_OPTIONAL_VIDEO_IDS)
+        or cloud_refs != WEEK_21_OPTIONAL_VIDEO_IDS
+    ):
         if len(missing_targets) == len(targets) and not cloud_rows:
             return {
                 "updated_templates": 0,
@@ -517,7 +522,12 @@ def restore_pre_4c2_practical_labs(db: Session) -> dict:
         if lab is None or activity is None
     ]
     cloud_rows = _week_21_video_rows(db)
-    if missing_targets or len(cloud_rows) != len(WEEK_21_OPTIONAL_VIDEO_IDS):
+    cloud_refs = {row.content_ref for row in cloud_rows}
+    if (
+        missing_targets
+        or len(cloud_rows) != len(WEEK_21_OPTIONAL_VIDEO_IDS)
+        or cloud_refs != WEEK_21_OPTIONAL_VIDEO_IDS
+    ):
         if len(missing_targets) == len(targets) and not cloud_rows:
             return {"restored": 0, "skipped": True, "reason": "curriculum_not_seeded"}
         raise RuntimeError(

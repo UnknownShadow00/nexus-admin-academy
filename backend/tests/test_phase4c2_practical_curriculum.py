@@ -17,7 +17,7 @@ def test_phase4c2_converts_exactly_seven_existing_lab_templates_in_place():
     assert {week: case["role"] for week, case in NETWORK_LINUX_CLOUD_CASES.items()} == {
         8: "troubleshoot",
         11: "troubleshoot",
-        12: "prove",
+        12: "troubleshoot",
         18: "practice",
         19: "troubleshoot",
         20: "prove",
@@ -56,6 +56,18 @@ def test_guidance_fades_from_linux_fundamentals_to_production():
     assert week_20["guidance_level"] == "prove"
     assert "guidance" not in week_20
     assert len(week_18["terminal_profile"]["help_topics"]) > len(week_20["terminal_profile"]["help_topics"])
+
+
+def test_week_12_is_not_role_inflated_to_prove():
+    case = NETWORK_LINUX_CLOUD_CASES[12]
+    assert case["role"] == "troubleshoot"
+    assert case["workbench"]["guidance_level"] == "troubleshoot"
+
+
+def test_week_18_profile_does_not_claim_persistent_directory_state():
+    commands = {item["command"] for item in NETWORK_LINUX_CLOUD_CASES[18]["workbench"]["terminal_profile"]["commands"]}
+    assert "cd /var/log/nexus" not in commands
+    assert "ls -ld /var/log/nexus" in commands
 
 
 def test_client_network_terminal_is_incident_specific_and_layered():
