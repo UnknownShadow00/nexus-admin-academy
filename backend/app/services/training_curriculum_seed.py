@@ -4022,8 +4022,9 @@ _INTUNE_LESSONS: dict[int, list[dict]] = {
                 "diagnostically -- a user-targeted profile follows the person across devices; a device-targeted "
                 "profile applies no matter who signs in. 'It works on my other computer' or 'it doesn't apply for "
                 "this one user' are both targeting clues.\n\n"
-                "THE FOUR PROFILE STATUS STATES, which you must be able to read on sight:\n"
-                "  - CONFORMS: applied successfully. Working as intended.\n"
+                "THE FIVE PROFILE STATUS STATES, which you must be able to read on sight:\n"
+                "  - SUCCEEDED: applied successfully. Working as intended.\n"
+                "  - ERROR: the policy failed to apply. Read the error code and setting-level detail.\n"
                 "  - PENDING: the device hasn't reported back yet -- it hasn't checked in, or the check-in hasn't "
                 "happened since assignment. Often resolves with time or a manual Sync.\n"
                 "  - CONFLICT: two policies disagree on the same setting, or something already configured on the "
@@ -4039,7 +4040,7 @@ _INTUNE_LESSONS: dict[int, list[dict]] = {
             "outcomes": [
                 "Explain what a configuration profile does and how the Settings Catalog works at a support level",
                 "Distinguish user-targeted from device-targeted profile assignment",
-                "Read and correctly interpret Conforms, Pending, Conflict, and Not applicable profile states",
+                "Read and correctly interpret Succeeded, Error, Pending, Conflict, and Not applicable profile states",
             ],
         },
         {
@@ -4048,7 +4049,7 @@ _INTUNE_LESSONS: dict[int, list[dict]] = {
                 "This is the single most important distinction in this whole module, and it's commonly confused: "
                 "configuration policy and compliance policy sound similar but do fundamentally different jobs.\n\n"
                 "CONFIGURATION POLICY pushes and enforces a setting. It changes something on the device. It "
-                "reports Conforms/Pending/Conflict/Not applicable -- states about whether the PUSH succeeded.\n\n"
+                "reports Succeeded/Error/Pending/Conflict/Not applicable -- states about whether the PUSH succeeded.\n\n"
                 "COMPLIANCE POLICY evaluates and reports whether a device meets a set of rules -- minimum OS "
                 "version, BitLocker enabled, not jailbroken/rooted, and similar. It changes NOTHING on the device by "
                 "itself. It reports the device as COMPLIANT or NONCOMPLIANT, plus which specific rule failed.\n\n"
@@ -4152,9 +4153,12 @@ _INTUNE_LESSONS: dict[int, list[dict]] = {
                 "WHY RECOVERY PROMPTS APPEAR: a firmware/BIOS update, a TPM change, disabling Secure Boot, or "
                 "certain hardware changes can make the device's boot measurements no longer match what BitLocker "
                 "expects, triggering a recovery prompt as a genuine, expected safety response -- not corruption.\n\n"
-                "WHERE THE RECOVERY KEY LIVES: for an Intune-managed device, the recovery key auto-escrows to "
-                "Entra ID at encryption time. A signed-in user can often retrieve their OWN device's key themselves "
-                "through the account portal -- that's the first thing to point them to. When a technician retrieves "
+                "WHERE THE RECOVERY KEY LIVES: Intune management by itself does not prove that a key was escrowed. "
+                "For Microsoft Entra joined devices, organizations should configure BitLocker recovery policy to "
+                "back up recovery information to Entra ID, ideally before encryption is allowed. Confirm that the "
+                "expected key exists for the exact device before relying on it. If tenant policy permits, a signed-in "
+                "user can often retrieve their OWN device's key through the account portal -- that's the first thing "
+                "to point them to. When a technician retrieves "
                 "one on a user's behalf, it is a logged, audited, role-gated administrative action, the same "
                 "sensitivity tier as reading someone else's password.\n\n"
                 "THE RULE THAT MATTERS MOST: NEVER disclose a recovery key before verifying both the requester's "
@@ -4557,13 +4561,13 @@ _INTUNE_NEW_LABS: dict[int, list[dict]] = {
                     "context": "Recency of check-in affects how much you should trust a status field.",
                     "type": "single_choice",
                     "options": [
-                        {"id": "a", "label": "The compliance status is current and can be trusted as an accurate, recent evaluation"},
+                        {"id": "a", "label": "The status is recent evidence and less likely to be stale, but important decisions should still be correlated with the policy and device details"},
                         {"id": "b", "label": "The compliance status is meaningless without a check-in"},
                         {"id": "c", "label": "Compliance status never depends on check-in recency"},
                         {"id": "d", "label": "The device is definitely broken"},
                     ],
                     "correct": ["a"],
-                    "explanation": "A recent check-in means the reported status reflects the device's current real state, not a stale snapshot.",
+                    "explanation": "A recent check-in makes the status more useful and less likely to be stale; it does not make a single status field infallible or replace corroborating evidence.",
                 },
             ],
         },
@@ -4853,17 +4857,17 @@ _INTUNE_NEW_LABS: dict[int, list[dict]] = {
             "questions": [
                 {
                     "id": "multi-signal-diagnosis",
-                    "prompt": "A user reports: 'My new required timesheet app never showed up, and now I also can't get into the timesheet SharePoint site.' Evidence: device compliance: Compliant. App 'TimeTrack': assignment status shows 'Not targeted' for this device's group. A separate configuration profile unrelated to either symptom: Conforms. What is the actual root cause?",
+                    "prompt": "A user reports: 'My new required timesheet app never showed up.' Evidence: device compliance: Compliant. App 'TimeTrack': assignment status shows 'Not targeted' for this device's group. A separate configuration profile unrelated to the symptom: Succeeded. What is the actual root cause?",
                     "context": "You are given the evidence, not the diagnosis -- decide which facts matter.",
                     "type": "single_choice",
                     "options": [
-                        {"id": "a", "label": "The app was never assigned to this device's group in the first place -- this is an assignment/targeting problem, not an install failure, a compliance block, or the unrelated Conforms profile"},
+                        {"id": "a", "label": "The app was never assigned to this device's group in the first place -- this is an assignment/targeting problem, not an install failure, a compliance block, or the unrelated Succeeded profile"},
                         {"id": "b", "label": "The device is noncompliant and that's blocking everything"},
-                        {"id": "c", "label": "The unrelated Conforms profile is the cause"},
+                        {"id": "c", "label": "The unrelated Succeeded profile is the cause"},
                         {"id": "d", "label": "This cannot be diagnosed without live access to the tenant"},
                     ],
                     "correct": ["a"],
-                    "explanation": "The device is compliant (rules out a Conditional Access block) and the unrelated profile conforms (not the cause) -- 'Not targeted' directly means the app assignment itself never reached this device's group, which also explains the missing SharePoint access if that access depends on app-driven provisioning.",
+                    "explanation": "The device is compliant and the unrelated profile succeeded, while 'Not targeted' directly means the app assignment never reached this device's group. That evidence explains the missing app without inventing an unrelated authorization dependency.",
                 },
                 {
                     "id": "explain-your-reasoning",
@@ -4871,13 +4875,13 @@ _INTUNE_NEW_LABS: dict[int, list[dict]] = {
                     "context": "Reflect on how you ruled out the distractors.",
                     "type": "single_choice",
                     "options": [
-                        {"id": "a", "label": "Compliant and Conforms both describe states that are working correctly -- they rule themselves out as the cause of a failure, leaving the assignment/targeting gap as the only evidence that actually explains the symptom"},
+                        {"id": "a", "label": "Compliant and Succeeded both describe states that are working correctly -- they rule themselves out as the cause of this failure, leaving the assignment/targeting gap as the evidence that explains the symptom"},
                         {"id": "b", "label": "There was no way to distinguish the evidence"},
                         {"id": "c", "label": "All evidence should always be treated as equally suspicious regardless of what it reports"},
                         {"id": "d", "label": "The unrelated profile was actually the most important clue"},
                     ],
                     "correct": ["a"],
-                    "explanation": "Working-as-expected evidence (Compliant, Conforms) doesn't explain a failure symptom -- the skill is recognizing which evidence is actually abnormal.",
+                    "explanation": "Working-as-expected evidence (Compliant, Succeeded) doesn't explain this failure symptom -- the skill is recognizing which evidence is actually abnormal.",
                 },
             ],
         },

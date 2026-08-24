@@ -2846,6 +2846,88 @@ function isDeviceAction(
   return action.type.startsWith('device.');
 }
 
+function hasSuccessfulDeviceEvent(
+  attempt: Attempt,
+  ticketId: string,
+  eventType: string,
+): boolean {
+  return (attempt.ticketOverlays[ticketId]?.events ?? []).some(
+    (event) => event.success && event.type === eventType,
+  );
+}
+
+function hasSuccessfulRequesterVerification(
+  attempt: Attempt,
+  ticketId: string,
+): boolean {
+  return Object.values(attempt.chatThreads).some((thread) =>
+    thread.events.some(
+      (event) =>
+        event.success &&
+        event.type === 'chat.verify_identity' &&
+        event.payload.ticketId === ticketId,
+    ),
+  );
+}
+
+/**
+ * Mirror the endpoint cases' safety order in the local reducer so the UI
+ * cannot optimistically report a protected action as successful while the
+ * authoritative API rejects it. The API remains the grading authority.
+ */
+function deviceRejectReason(
+  attempt: Attempt,
+  action: DeviceSimulationAction,
+): string | null {
+  const inspected = hasSuccessfulDeviceEvent(
+    attempt,
+    action.payload.ticketId,
+    'device.inspect_record',
+  );
+  const requesterVerified = hasSuccessfulRequesterVerification(
+    attempt,
+    action.payload.ticketId,
+  );
+  const diagnosed = hasSuccessfulDeviceEvent(
+    attempt,
+    action.payload.ticketId,
+    'device.record_diagnosis',
+  );
+  const remediated =
+    hasSuccessfulDeviceEvent(
+      attempt,
+      action.payload.ticketId,
+      'device.reveal_recovery_key',
+    ) ||
+    hasSuccessfulDeviceEvent(
+      attempt,
+      action.payload.ticketId,
+      'device.reassign_device',
+    );
+
+  if (action.type === 'device.inspect_record') return null;
+  if (!inspected || !requesterVerified) {
+    return 'Inspect the device record and verify the requester or authorization before diagnosis or remediation.';
+  }
+  if (action.type === 'device.record_diagnosis') return null;
+  if (!diagnosed) {
+    return 'Record the evidence-based diagnosis before remediation.';
+  }
+  if (
+    action.type === 'device.reveal_recovery_key' ||
+    action.type === 'device.reassign_device'
+  ) {
+    return null;
+  }
+  if (action.type === 'device.verify_access') {
+    if (!remediated) {
+      return 'Complete the authorized remediation before verifying the resulting device state.';
+    }
+    return null;
+  }
+  return 'This action is not available for the selected endpoint support case.';
+}
+
 function isChatAction(
   action: SimulationAction,
 ): action is ChatSimulationAction {
@@ -3184,11 +3266,12 @@ export function applyAction(
     const currentOverlay =
       attempt.ticketOverlays[action.payload.ticketId] ??
       createTicketOverlay(action.payload.ticketId);
+    const rejectReason = deviceRejectReason(attempt, action);
     const event = createEvent(
       attempt,
       actorId,
       action,
-      null,
+      rejectReason,
       eventId,
       createdAt,
     );

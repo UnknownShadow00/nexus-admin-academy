@@ -136,6 +136,12 @@ async function resolveEndpointCase(page, scenario) {
 
   await page.goto(`/service-desk/tools/device-management?ticket=${scenario.ticketId}`);
   await expect(page.getByRole("heading", { name: "Device Management" })).toBeVisible();
+  await page.getByRole("button", { name: `4. ${scenario.remediationLabel}` }).click();
+  await expect(
+    page.getByRole("alert").filter({
+      hasText: "Inspect the device record and verify the requester or authorization before diagnosis or remediation.",
+    }),
+  ).toBeVisible();
   await clickAndWaitForTrustedAction(page, "1. Inspect device record");
 
   await page.goto(
