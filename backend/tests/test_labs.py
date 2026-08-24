@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import importlib
+import json
 import time
 
 from conftest import auth_headers, make_client, make_student
@@ -300,6 +301,146 @@ def test_endpoint_workbench_hides_answer_keys_and_requires_structured_documentat
     assert completed.status_code == 200
     assert completed.json()["data"]["structured_feedback"]["score_pct"] == 100
     assert completed.json()["data"]["notes"] == completion_payload["notes"]
+
+
+def test_evidence_case_workbench_is_server_verified_and_isolated_per_student(db):
+    student = make_student(db, "case-owner")
+    other = make_student(db, "case-other")
+    lab = LabTemplate(
+        title="Server evidence case",
+        description="Inspect incident-specific state.",
+        lab_type="structured_evidence_case",
+        difficulty=3,
+        week_number=1,
+        is_published=True,
+        environment_requirements={},
+        success_criteria={
+            "evidence_case_workbench": {
+                "title": "Windows Server evidence case",
+                "guidance_level": "prove",
+                "complaint": "The department service stopped overnight.",
+                "required_inspections": ["service", "terminal:event"],
+                "panels": [
+                    {"id": "service", "label": "Service", "fields": [{"label": "State", "value": "Stopped"}]},
+                ],
+                "terminal_profile": {
+                    "id": "service-failure",
+                    "commands": [
+                        {
+                            "command": "Get-WinEvent -MaxEvents 5",
+                            "inspection_id": "terminal:event",
+                            "output": ["Logon failure after credential rotation"],
+                        }
+                    ],
+                },
+                "verification": {
+                    "label": "Service state after approved response",
+                    "description": "Deterministic training evidence.",
+                    "fields": [{"label": "State", "value": "Running"}],
+                },
+                "documentation_required": True,
+                "additional_note_fields": [{"id": "handoff", "label": "Escalation / handoff"}],
+            },
+            "questions": [
+                {
+                    "id": "diagnosis",
+                    "prompt": "What failed?",
+                    "type": "single_choice",
+                    "options": [{"id": "credential", "label": "Stored credential"}, {"id": "disk", "label": "Disk"}],
+                    "correct": ["credential"],
+                    "explanation": "The event correlates with credential rotation.",
+                }
+            ],
+        },
+        required_evidence={},
+        hints={},
+    )
+    db.add(lab)
+    db.commit()
+
+    fetched = client.get(f"/api/labs/{lab.id}", headers=auth_headers(student))
+    assert fetched.status_code == 200
+    safe_case = fetched.json()["data"]["success_criteria"]["evidence_case_workbench"]
+    assert safe_case["terminal_profile"]["commands"][0]["output"] == ["Logon failure after credential rotation"]
+    assert "verification" not in safe_case
+
+    wrong = client.post(
+        f"/api/labs/{lab.id}/verify",
+        json={"answers": {"diagnosis": ["disk"]}, "inspected_panel_ids": ["service", "terminal:event"]},
+        headers=auth_headers(student),
+    )
+    assert wrong.status_code == 200
+    assert wrong.json()["data"]["ready"] is False
+
+    verified = client.post(
+        f"/api/labs/{lab.id}/verify",
+        json={"answers": {"diagnosis": ["credential"]}, "inspected_panel_ids": ["service", "terminal:event"]},
+        headers=auth_headers(student),
+    )
+    assert verified.status_code == 200
+    assert verified.json()["data"]["verification"]["fields"][0]["value"] == "Running"
+    db.expire_all()
+    run = db.query(LabRun).filter_by(lab_template_id=lab.id, student_id=student.id).one()
+    assert '"kind":"evidence_case_workbench_verification"' in run.feedback
+
+    base_notes = {
+        "issue": "Department sync stopped.",
+        "evidence": "Service event reports a logon failure.",
+        "action": "Coordinated the credential update.",
+        "verification": "Controlled sync completed.",
+    }
+    other_lab = LabTemplate(
+        title="Different server evidence case",
+        description=lab.description,
+        lab_type=lab.lab_type,
+        difficulty=lab.difficulty,
+        week_number=lab.week_number,
+        is_published=True,
+        environment_requirements={},
+        success_criteria=json.loads(json.dumps(lab.success_criteria)),
+        required_evidence={},
+        hints={},
+    )
+    db.add(other_lab)
+    db.commit()
+    cross_lab_submit = client.post(
+        f"/api/labs/{other_lab.id}/submit",
+        json={
+            "answers": {"diagnosis": ["credential"]},
+            "notes": json.dumps(base_notes | {"handoff": "Identity Operations owns the update."}),
+        },
+        headers=auth_headers(student),
+    )
+    assert cross_lab_submit.status_code == 409
+
+    missing_handoff = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json={"answers": {"diagnosis": ["credential"]}, "notes": json.dumps(base_notes)},
+        headers=auth_headers(student),
+    )
+    assert missing_handoff.status_code == 400
+    assert missing_handoff.json()["detail"] == "Complete every required support-note field before submitting"
+
+    other_submit = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json={
+            "answers": {"diagnosis": ["credential"]},
+            "notes": json.dumps(base_notes | {"handoff": "Identity Operations owns the update."}),
+        },
+        headers=auth_headers(other),
+    )
+    assert other_submit.status_code == 409
+
+    completed = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json={
+            "answers": {"diagnosis": ["credential"]},
+            "notes": json.dumps(base_notes | {"handoff": "Identity Operations owns the update."}),
+        },
+        headers=auth_headers(student),
+    )
+    assert completed.status_code == 200
+    assert completed.json()["data"]["structured_feedback"]["score_pct"] == 100
 
 
 def test_structured_cli_lab_requires_the_configured_commands(db):

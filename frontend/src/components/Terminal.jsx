@@ -3,8 +3,54 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
-function processCommand(cmd, term, profile = "windows") {
+function normalizeCommand(value) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function resolveCaseCommand(caseProfile, commandValue) {
+  const command = normalizeCommand(commandValue);
+  if (command === "help" || command === "get-help" || !command) {
+    return {
+      recognized: true,
+      inspectionId: null,
+      output: [
+        "Suggested tool categories for this case:",
+        ...(caseProfile?.help_topics || []).map((topic) => `  - ${topic}`),
+        "Choose a relevant command; no required sequence is shown.",
+      ],
+    };
+  }
+  const configured = (caseProfile?.commands || []).find((item) =>
+    [item.command, ...(item.aliases || [])].some((candidate) => normalizeCommand(candidate) === command),
+  );
+  if (!configured) {
+    return {
+      recognized: false,
+      inspectionId: null,
+      output: ["That command is unavailable in this focused case. Use help to review tool categories."],
+    };
+  }
+  return {
+    recognized: true,
+    inspectionId: configured.inspection_id || null,
+    output: configured.output || [],
+  };
+}
+
+function processCommand(cmd, term, profile = "windows", caseProfile = null) {
   const command = cmd.trim().toLowerCase();
+
+  if (caseProfile) {
+    if (command === "cls" || command === "clear") {
+      term.clear();
+      term.writeln("");
+      return { recognized: true, inspectionId: null, output: [] };
+    }
+    const result = resolveCaseCommand(caseProfile, command);
+    result.output.forEach((line) => term.writeln(line));
+    term.writeln("");
+    return result;
+  }
 
   if (command === "ipconfig" || command === "ipconfig /all") {
     term.writeln("Windows IP Configuration");
@@ -242,7 +288,7 @@ function processCommand(cmd, term, profile = "windows") {
   term.writeln("");
 }
 
-export default function TerminalWidget({ prefillCommand, onSessionChange, profile = "windows" }) {
+export default function TerminalWidget({ prefillCommand, onSessionChange, onCommandResult, profile = "windows", caseProfile = null, compact = false }) {
   const terminalRef = useRef(null);
   const termRef = useRef(null);
   const currentLineRef = useRef("");
@@ -250,10 +296,15 @@ export default function TerminalWidget({ prefillCommand, onSessionChange, profil
   const historyIndexRef = useRef(-1);
   const sessionLinesRef = useRef([]);
   const onSessionChangeRef = useRef(onSessionChange);
+  const onCommandResultRef = useRef(onCommandResult);
 
   useEffect(() => {
     onSessionChangeRef.current = onSessionChange;
   }, [onSessionChange]);
+
+  useEffect(() => {
+    onCommandResultRef.current = onCommandResult;
+  }, [onCommandResult]);
 
   const clearCurrentLine = (term) => {
     for (let i = 0; i < currentLineRef.current.length; i += 1) {
@@ -286,13 +337,13 @@ export default function TerminalWidget({ prefillCommand, onSessionChange, profil
     termRef.current = term;
 
     const isLinux = profile === "linux";
-    const prompt = isLinux ? "student01@nexus:~$ " : "PS C:\\Users\\Student> ";
+    const prompt = caseProfile?.prompt || (isLinux ? "student01@nexus:~$ " : "PS C:\\Users\\Student> ");
 
     const writePrompt = () => term.write(prompt);
 
-    term.writeln(isLinux ? "Linux Shell Practice Terminal" : "Windows PowerShell Practice Terminal");
-    term.writeln("Type commands to practice (simulated environment)");
-    term.writeln("Type help for command list");
+    term.writeln(caseProfile ? "Focused Evidence Terminal" : isLinux ? "Linux Shell Practice Terminal" : "Windows PowerShell Practice Terminal");
+    term.writeln(caseProfile?.intro || "Type commands to practice (simulated environment)");
+    term.writeln(caseProfile ? "Type help for tool categories" : "Type help for command list");
     term.writeln("");
     writePrompt();
 
@@ -305,11 +356,12 @@ export default function TerminalWidget({ prefillCommand, onSessionChange, profil
           historyIndexRef.current = -1;
         }
         sessionLinesRef.current.push(`${prompt}${command}`);
-        processCommand(command, term, profile);
+        const result = processCommand(command, term, profile, caseProfile);
         sessionLinesRef.current.push("");
         currentLineRef.current = "";
         writePrompt();
         onSessionChangeRef.current?.(sessionLinesRef.current.join("\n"));
+        onCommandResultRef.current?.({ command, ...(result || {}) });
       } else if (data === "\u0003") {
         term.write("^C\r\n");
         currentLineRef.current = "";
@@ -360,7 +412,7 @@ export default function TerminalWidget({ prefillCommand, onSessionChange, profil
       termRef.current = null;
       term.dispose();
     };
-  }, [profile]);
+  }, [caseProfile, profile]);
 
   useEffect(() => {
     if (!prefillCommand || !termRef.current) return;
@@ -372,8 +424,8 @@ export default function TerminalWidget({ prefillCommand, onSessionChange, profil
 
   return (
     <div className="min-w-0 overflow-hidden rounded-lg border border-slate-300 bg-white p-4 shadow dark:border-slate-700 dark:bg-slate-900">
-      <div className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Practice Terminal</div>
-      <div ref={terminalRef} style={{ height: "400px" }} className="min-w-0 overflow-hidden rounded border border-slate-300 dark:border-slate-700" />
+      <div className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">{caseProfile ? "Focused case terminal" : "Practice Terminal"}</div>
+      <div ref={terminalRef} style={{ height: compact ? "280px" : "400px" }} className="min-w-0 overflow-hidden rounded border border-slate-300 dark:border-slate-700" />
     </div>
   );
 }

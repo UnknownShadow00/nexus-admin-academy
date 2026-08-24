@@ -530,6 +530,11 @@ def sync_weeks_3_6_quality(db: Session) -> dict:
         estimated_minutes: int = 25,
     ) -> LabTemplate:
         lab = db.query(LabTemplate).filter(LabTemplate.title == title).first()
+        # Phase 4C.1 converts selected labs after this legacy quality batch.
+        # On later seed runs, do not transiently replace the newer evidence
+        # case and then rebuild it again at the end of seed_curriculum.py.
+        if lab is not None and (lab.success_criteria or {}).get("evidence_case_workbench"):
+            return lab
         values = {
             "description": description or (
                 "Run the required Windows commands in the real Nexus practice terminal, read the output, then diagnose each result."
@@ -1926,6 +1931,9 @@ def _sync_quality_batch(db: Session, specs: dict[int, dict]) -> dict:
         lab = db.get(LabTemplate, lab_spec.get("id")) if lab_spec.get("id") else None
         if lab is None:
             lab = db.query(LabTemplate).filter(LabTemplate.title == lab_spec["title"]).first()
+        if lab is not None and (lab.success_criteria or {}).get("evidence_case_workbench"):
+            ensure_practice_activity(weeks[number], lab)
+            continue
         values = {
             "title": lab_spec.get("new_title", lab_spec["title"]),
             "description": lab_spec.get(
@@ -2363,13 +2371,14 @@ def sync_weeks_1_4_practice_realignment(db: Session) -> dict:
         required_evidence={},
         success_criteria={"questions": HARDWARE_IDENTIFICATION_QUESTIONS},
     )
-    update_template(
-        windows_diagnostics,
-        week_number=3,
-        lab_type="structured_diagnostic",
-        required_evidence={},
-        success_criteria={"questions": WINDOWS_DIAGNOSTICS_QUESTIONS},
-    )
+    if not (windows_diagnostics.success_criteria or {}).get("evidence_case_workbench"):
+        update_template(
+            windows_diagnostics,
+            week_number=3,
+            lab_type="structured_diagnostic",
+            required_evidence={},
+            success_criteria={"questions": WINDOWS_DIAGNOSTICS_QUESTIONS},
+        )
     ensure_guided_lab_activity(hardware, 2)
     ensure_guided_lab_activity(windows_diagnostics, 3)
 
