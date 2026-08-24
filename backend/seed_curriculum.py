@@ -3,6 +3,8 @@ import sys
 
 sys.path.insert(0, ".")
 
+from sqlalchemy import text
+
 from app.database import SessionLocal
 from app.models.curriculum_video import CurriculumVideo
 from app.services.training_curriculum_seed import (
@@ -23,6 +25,7 @@ from app.services.training_curriculum_seed import (
 )
 from app.services.training_reference_seed import ensure_training_reference_content
 from app.services.windows_ad_server_practical import sync_windows_ad_server_practical_upgrade
+from app.services.network_linux_cloud_practical import sync_network_linux_cloud_practical_upgrade
 
 CURRICULUM = [
     # (section, section_order, title, duration, url, quiz_title, video_order)
@@ -186,6 +189,12 @@ try:
     microsoft_workplace_result = sync_microsoft_workplace_foundations(db)
     intune_endpoint_result = sync_intune_endpoint_management(db)
     windows_ad_server_result = sync_windows_ad_server_practical_upgrade(db)
+    current_revision = db.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
+    network_linux_cloud_result = (
+        sync_network_linux_cloud_practical_upgrade(db)
+        if current_revision == "0060_network_linux_cloud_practical_upgrade"
+        else {"skipped": f"requires 0060; database is {current_revision or 'unversioned'}"}
+    )
     print(
         f"Curriculum seeded successfully; references: {reference_result}; "
         f"weekly activities: {training_result}; Week 0 requirements: {week_zero_result}; Optional lessons: {optional_lesson_result}; "
@@ -196,7 +205,8 @@ try:
         f"Weeks 23-24 quality: {weeks_23_24_result}; Advanced networking resequence: {networking_resequence_result}; "
         f"Microsoft Workplace foundations: {microsoft_workplace_result}; "
         f"Intune endpoint management: {intune_endpoint_result}; "
-        f"Windows/AD/server practical upgrade: {windows_ad_server_result}"
+        f"Windows/AD/server practical upgrade: {windows_ad_server_result}; "
+        f"Network/Linux/cloud practical upgrade: {network_linux_cloud_result}"
     )
 finally:
     db.close()

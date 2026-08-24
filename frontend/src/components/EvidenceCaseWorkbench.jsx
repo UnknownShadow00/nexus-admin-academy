@@ -45,6 +45,7 @@ export default function EvidenceCaseWorkbench({ workbench, questions, feedback, 
   const panels = Array.isArray(workbench?.panels) ? workbench.panels : [];
   const requiredInspections = Array.isArray(workbench?.required_inspections) ? workbench.required_inspections : [];
   const reinforcementScenarios = Array.isArray(workbench?.reinforcement_scenarios) ? workbench.reinforcement_scenarios : [];
+  const networkSimulatorLabs = Array.isArray(workbench?.network_simulator_labs) ? workbench.network_simulator_labs : [];
   const list = Array.isArray(questions) ? questions : [];
   const fields = useMemo(() => noteFields(workbench), [workbench]);
   const [opened, setOpened] = useState([]);
@@ -234,6 +235,21 @@ export default function EvidenceCaseWorkbench({ workbench, questions, feedback, 
             {reinforcementScenarios.map((scenario) => (
               <a key={scenario.key} className="flex min-w-0 items-start justify-between gap-3 rounded-md border border-slate-200 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:text-blue-300 dark:hover:bg-blue-950/20" href={`/service-desk/tickets/${scenario.ticket_id}`}>
                 <span className="min-w-0"><strong>{scenario.ticket_id}: {scenario.label}</strong><span className="mt-0.5 block break-words text-xs text-slate-500 dark:text-slate-400">{scenario.note}</span></span>
+                <ExternalLink className="mt-0.5 shrink-0" size={15} aria-hidden="true" />
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {networkSimulatorLabs.length ? (
+        <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+          <h4 className="font-semibold text-slate-900 dark:text-white">Related stateful network practice</h4>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">These existing simulator labs remain optional here and retain their own state, hints, grading, and progress.</p>
+          <div className="mt-3 grid gap-2">
+            {networkSimulatorLabs.map((lab) => (
+              <a key={lab.id} className="flex min-w-0 items-start justify-between gap-3 rounded-md border border-slate-200 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-700 dark:text-blue-300 dark:hover:bg-blue-950/20" href={`/cli-labs/${lab.id}`}>
+                <span className="min-w-0"><strong>{lab.label}</strong><span className="mt-0.5 block break-words text-xs text-slate-500 dark:text-slate-400">{lab.note}</span></span>
                 <ExternalLink className="mt-0.5 shrink-0" size={15} aria-hidden="true" />
               </a>
             ))}

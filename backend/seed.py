@@ -1312,10 +1312,20 @@ def seed_tickets(db):
 
 def seed_labs(db):
     existing_by_title = {row.title: row for row in db.query(LabTemplate).all()}
-    for lab in LABS:
-        row = existing_by_title.get(lab["title"])
+    for lab_id, lab in enumerate(LABS, start=1):
+        # The four base templates own IDs 1-4. Later curriculum phases evolve
+        # those identities in place (including renaming ID 2 and moving IDs 1
+        # and 2 to Weeks 9 and 8). Prefer the stable identity over the old
+        # title and never regress an evolved structured/evidence template.
+        row = db.get(LabTemplate, lab_id) or existing_by_title.get(lab["title"])
+        if row is not None and (
+            row.lab_type.startswith("structured_")
+            or (row.success_criteria or {}).get("evidence_case_workbench")
+        ):
+            continue
         if row is None:
             row = LabTemplate(
+                id=lab_id,
                 title=lab["title"],
                 environment_requirements={},
                 required_evidence={},
