@@ -2,6 +2,11 @@ import { expect, test } from "@playwright/test";
 
 const username = process.env.NEXUS_E2E_STUDENT_USERNAME || "browser-training-student";
 const password = process.env.NEXUS_E2E_STUDENT_PASSWORD || "BrowserTraining!2026";
+const verificationFixture = {
+  label: "Simulated device state after action",
+  description: "Deterministic training evidence; no real device changed.",
+  fields: [{ label: "Install state", value: "Installed" }],
+};
 
 async function login(page) {
   await page.goto("/login");
@@ -36,12 +41,7 @@ function labPayload({ role = "practice", guidance, panelCount = 3, status = "not
         brief: "The assigned application is missing from a managed Windows 11 device.",
         ...(guidance ? { guidance } : {}),
         panels,
-        required_inspections: ["device", "applications"],
-        verification: {
-          label: "Simulated device state after action",
-          description: "Deterministic training evidence; no real device changed.",
-          fields: [{ label: "Install state", value: "Installed" }],
-        },
+        required_inspections: role === "prove" ? ["device", "applications", "compliance", "access"] : ["device", "applications"],
         documentation_required: true,
       },
       questions: [
@@ -71,13 +71,17 @@ function labPayload({ role = "practice", guidance, panelCount = 3, status = "not
 async function mockLab(page, initial) {
   let current = initial;
   let submissionBody;
+  let verificationBody;
   await page.route("**/api/labs/9001/verify", async (route) => {
-    const answers = route.request().postDataJSON()?.answers || {};
-    const ready = initial.success_criteria.questions.every((question) => answers[question.id]?.includes("a"));
+    verificationBody = route.request().postDataJSON();
+    const answers = verificationBody?.answers || {};
+    const inspected = verificationBody?.inspected_panel_ids || [];
+    const required = initial.success_criteria.endpoint_workbench.required_inspections;
+    const ready = required.every((panelId) => inspected.includes(panelId)) && initial.success_criteria.questions.every((question) => answers[question.id]?.includes("a"));
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ success: true, data: ready ? { ready: true, verification: initial.success_criteria.endpoint_workbench.verification } : { ready: false, message: "The selected path did not produce the expected state. Re-open the evidence and revise the unsupported decision." } }),
+      body: JSON.stringify({ success: true, data: ready ? { ready: true, verification: verificationFixture } : { ready: false, message: "The selected path did not produce the expected state. Re-open the evidence and revise the unsupported decision." } }),
     });
   });
   await page.route("**/api/labs/9001/submit", async (route) => {
@@ -97,12 +101,13 @@ async function mockLab(page, initial) {
         })),
       },
     });
+    current.notes = submissionBody.notes;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: current }) });
   });
   await page.route("**/api/labs/9001", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, data: current }) });
   });
-  return () => submissionBody;
+  return { getSubmission: () => submissionBody, getVerification: () => verificationBody };
 }
 
 async function inspectRequiredEvidence(page) {
@@ -128,7 +133,7 @@ async function documentCase(page) {
 test("Practice workbench requires inspect, decide, verify, and documentation on mobile", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await login(page);
-  const getSubmission = await mockLab(page, labPayload({ guidance: "Compare the app install and detection fields." }));
+  const requests = await mockLab(page, labPayload({ guidance: "Compare the app install and detection fields." }));
   await page.goto("/labs/9001");
 
   await expect(page.getByText("Investigation hint:")).toBeVisible();
@@ -144,7 +149,8 @@ test("Practice workbench requires inspect, decide, verify, and documentation on 
   await page.getByRole("button", { name: "Submit evidence case" }).click();
   await expect(page.getByText("Server-graded result: 100%")).toBeVisible();
 
-  const notes = JSON.parse(getSubmission().notes);
+  expect(requests.getVerification().inspected_panel_ids.sort()).toEqual(["applications", "device"]);
+  const notes = JSON.parse(requests.getSubmission().notes);
   expect(Object.keys(notes).sort()).toEqual(["action", "evidence", "issue", "verification"]);
   const widths = await page.evaluate(() => ({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
   expect(widths.scroll).toBeLessThanOrEqual(widths.client + 1);
@@ -182,7 +188,28 @@ test("Prove workbench supplies distractors but no walkthrough", async ({ page })
   await expect(page.getByText("Investigation hint:")).toHaveCount(0);
   await expect(page.getByRole("tab")).toHaveCount(5);
   await expect(page.getByRole("tab", { name: "Policies" })).toBeVisible();
-  await inspectRequiredEvidence(page);
+  await page.getByRole("tab", { name: "Device" }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("tab", { name: "Applications" }).click();
+  await page.getByRole("tab", { name: "Compliance" }).click();
+  await page.getByRole("tab", { name: "Access" }).click();
+  await expect(page.getByRole("tab", { name: "Policies" })).not.toHaveAccessibleName(/✓/);
   await answerAll(page);
   await expect(page.getByRole("button", { name: "Submit evidence case" })).toBeDisabled();
+  await page.getByRole("button", { name: "Run simulated verification" }).click();
+  await documentCase(page);
+  await page.getByRole("button", { name: "Submit evidence case" }).click();
+  await expect(page.getByText("Server-graded result: 100%")).toBeVisible();
+});
+
+test("Persisted structured support notes are restored after reload", async ({ page }) => {
+  await login(page);
+  const saved = JSON.stringify({ issue: "Saved issue", evidence: "Saved evidence", action: "Saved action", verification: "Saved verification" });
+  const initial = labPayload({ status: "submitted", feedback: { score_pct: 100, questions: [] } });
+  initial.notes = saved;
+  await mockLab(page, initial);
+  await page.goto("/labs/9001");
+
+  await expect(page.getByRole("textbox", { name: "Issue", exact: true })).toHaveValue("Saved issue");
+  await expect(page.getByRole("textbox", { name: "Verification", exact: true })).toHaveValue("Saved verification");
 });

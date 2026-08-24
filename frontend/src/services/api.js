@@ -195,8 +195,8 @@ export const createLabVmAccess = (labId, requestOptions) =>
   request(() => api.post(`/api/labs/${labId}/vm-access`), requestOptions);
 export const submitLab = (labId, payload, requestOptions) =>
   request(() => api.post(`/api/labs/${labId}/submit`, payload), requestOptions);
-export const verifyEndpointLab = (labId, answers, requestOptions) =>
-  request(() => api.post(`/api/labs/${labId}/verify`, { answers }), requestOptions);
+export const verifyEndpointLab = (labId, answers, inspectedPanelIds, requestOptions) =>
+  request(() => api.post(`/api/labs/${labId}/verify`, { answers, inspected_panel_ids: inspectedPanelIds }), requestOptions);
 export const getCliLabs = (requestOptions) => request(() => api.get("/api/cli-labs"), requestOptions);
 export const getCliLab = (labId, requestOptions) => request(() => api.get(`/api/cli-labs/${labId}`), requestOptions);
 export const completeCliLab = (labId, payload, requestOptions) =>

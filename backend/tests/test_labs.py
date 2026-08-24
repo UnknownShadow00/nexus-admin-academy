@@ -191,7 +191,11 @@ def test_endpoint_workbench_hides_answer_keys_and_requires_structured_documentat
                     {"id": "device", "label": "Device", "fields": [{"label": "Managed", "value": "Yes"}]},
                     {"id": "apps", "label": "Applications", "fields": [{"label": "Detection", "value": "Failed"}]},
                 ],
-                "verification": {"label": "Simulated device state after action", "fields": []},
+                "verification": {
+                    "label": "Simulated device state after action",
+                    "description": "This is training evidence, not a claim that a real device changed.",
+                    "fields": [],
+                },
                 "documentation_required": True,
             },
             "questions": [
@@ -215,12 +219,22 @@ def test_endpoint_workbench_hides_answer_keys_and_requires_structured_documentat
     assert fetched.status_code == 200
     body = fetched.json()["data"]
     assert body["success_criteria"]["endpoint_workbench"]["required_inspections"] == ["device", "apps"]
+    assert "verification" not in body["success_criteria"]["endpoint_workbench"]
     assert "correct" not in body["success_criteria"]["questions"][0]
     assert "explanation" not in body["success_criteria"]["questions"][0]
 
+    missing_inspection = client.post(
+        f"/api/labs/{lab.id}/verify",
+        json={"answers": {"diagnosis": ["detection"]}, "inspected_panel_ids": ["device"]},
+        headers=auth_headers(student),
+    )
+    assert missing_inspection.status_code == 200
+    assert missing_inspection.json()["data"]["ready"] is False
+    assert "verification" not in missing_inspection.json()["data"]
+
     wrong_verification = client.post(
         f"/api/labs/{lab.id}/verify",
-        json={"answers": {"diagnosis": ["wrong"]}},
+        json={"answers": {"diagnosis": ["wrong"]}, "inspected_panel_ids": ["device", "apps"]},
         headers=auth_headers(student),
     )
     assert wrong_verification.status_code == 200
@@ -230,14 +244,45 @@ def test_endpoint_workbench_hides_answer_keys_and_requires_structured_documentat
     }
     assert "verification" not in wrong_verification.json()["data"]
 
+    completion_payload = {
+        "answers": {"diagnosis": ["detection"]},
+        "notes": '{"issue":"App missing","evidence":"Detection failed","action":"Correct detection rule","verification":"App reports installed"}',
+    }
+    unverified = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json=completion_payload,
+        headers=auth_headers(student),
+    )
+    assert unverified.status_code == 409
+    assert unverified.json()["detail"] == "Run the simulated verification for this exact plan before submitting"
+
     correct_verification = client.post(
         f"/api/labs/{lab.id}/verify",
-        json={"answers": {"diagnosis": ["detection"]}},
+        json={"answers": {"diagnosis": ["detection"]}, "inspected_panel_ids": ["device", "apps"]},
         headers=auth_headers(student),
     )
     assert correct_verification.status_code == 200
     assert correct_verification.json()["data"]["ready"] is True
     assert correct_verification.json()["data"]["verification"]["label"] == "Simulated device state after action"
+    assert "not a claim that a real device changed" in correct_verification.json()["data"]["verification"]["description"]
+    db.expire_all()
+    verified_run = db.query(LabRun).filter_by(lab_template_id=lab.id, student_id=student.id).one()
+    assert verified_run.verified_at is not None
+    assert '"diagnosis":["detection"]' in verified_run.feedback
+
+    changed_after_verification = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json=completion_payload | {"answers": {"diagnosis": ["wrong"]}},
+        headers=auth_headers(student),
+    )
+    assert changed_after_verification.status_code == 409
+
+    whitespace_note = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json=completion_payload | {"notes": '{"issue":"App missing","evidence":"  ","action":"Correct detection rule","verification":"App reports installed"}'},
+        headers=auth_headers(student),
+    )
+    assert whitespace_note.status_code == 400
 
     missing_note = client.post(
         f"/api/labs/{lab.id}/submit",
@@ -249,14 +294,12 @@ def test_endpoint_workbench_hides_answer_keys_and_requires_structured_documentat
 
     completed = client.post(
         f"/api/labs/{lab.id}/submit",
-        json={
-            "answers": {"diagnosis": ["detection"]},
-            "notes": '{"issue":"App missing","evidence":"Detection failed","action":"Correct detection rule","verification":"App reports installed"}',
-        },
+        json=completion_payload,
         headers=auth_headers(student),
     )
     assert completed.status_code == 200
     assert completed.json()["data"]["structured_feedback"]["score_pct"] == 100
+    assert completed.json()["data"]["notes"] == completion_payload["notes"]
 
 
 def test_structured_cli_lab_requires_the_configured_commands(db):

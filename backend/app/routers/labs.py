@@ -1,9 +1,9 @@
-from datetime import UTC, datetime, timedelta
 import json
 import logging
 import os
-from pathlib import Path
 import uuid
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Response, UploadFile
 from sqlalchemy.exc import IntegrityError
@@ -60,9 +60,36 @@ def _student_safe_questions(questions: list) -> list:
 
 
 def _student_safe_success_criteria(success_criteria: dict) -> dict:
-    if "questions" not in success_criteria:
-        return success_criteria
-    return {**success_criteria, "questions": _student_safe_questions(success_criteria["questions"])}
+    safe = dict(success_criteria)
+    if "questions" in safe:
+        safe["questions"] = _student_safe_questions(safe["questions"])
+    workbench = safe.get("endpoint_workbench")
+    if isinstance(workbench, dict):
+        # The simulated after-state is outcome evidence. Do not preload it in
+        # browser state before the server accepts the student's exact plan.
+        safe["endpoint_workbench"] = {
+            key: value for key, value in workbench.items() if key != "verification"
+        }
+    return safe
+
+
+def _normalized_workbench_answers(questions: list, answers: dict[str, list[str]]) -> dict[str, list[str]]:
+    return {
+        question["id"]: sorted(set(answers.get(question["id"], [])))
+        for question in questions
+    }
+
+
+def _workbench_verification_record(questions: list, answers: dict[str, list[str]], inspected_panel_ids: list[str]) -> str:
+    return json.dumps(
+        {
+            "kind": "endpoint_workbench_verification",
+            "answers": _normalized_workbench_answers(questions, answers),
+            "inspected_panel_ids": sorted(set(inspected_panel_ids)),
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    )
 
 
 def _serialize_lab(template: LabTemplate, run: LabRun | None = None) -> dict:
@@ -471,7 +498,9 @@ def verify_endpoint_workbench(
     questions = criteria.get("questions", [])
     if not workbench or not questions:
         raise HTTPException(status_code=400, detail="Lab has no endpoint workbench")
-    ready = all(
+    required_inspections = set(workbench.get("required_inspections", []))
+    inspections_complete = required_inspections.issubset(set(payload.inspected_panel_ids))
+    ready = inspections_complete and all(
         set(payload.answers.get(question["id"], [])) == set(question["correct"])
         for question in questions
     )
@@ -482,6 +511,23 @@ def verify_endpoint_workbench(
                 "message": "The selected path did not produce the expected state. Re-open the evidence and revise the unsupported decision.",
             }
         )
+    run = _get_lab_run(db, lab_id, current_student.id)
+    now = datetime.now(UTC)
+    if run is None:
+        run = LabRun(
+            lab_template_id=lab.id,
+            student_id=current_student.id,
+            status="in_progress",
+            started_at=now,
+        )
+        db.add(run)
+    elif run.started_at is None:
+        run.started_at = now
+    if run.status in {"assigned", "not_started"}:
+        run.status = "in_progress"
+    run.verified_at = now
+    run.feedback = _workbench_verification_record(questions, payload.answers, payload.inspected_panel_ids)
+    db.commit()
     return ok({"ready": True, "verification": workbench.get("verification", {})})
 
 
@@ -512,6 +558,23 @@ def submit_lab(
                     detail="Run every required command in the practice terminal before submitting",
                 )
         endpoint_workbench = (lab.success_criteria or {}).get("endpoint_workbench", {})
+        if endpoint_workbench:
+            run = _get_lab_run(db, lab_id, current_student.id)
+            try:
+                verification_record = json.loads(run.feedback) if run and run.feedback else {}
+            except (json.JSONDecodeError, TypeError):
+                verification_record = {}
+            expected_answers = _normalized_workbench_answers(questions, payload.answers)
+            if (
+                not run
+                or run.verified_at is None
+                or verification_record.get("kind") != "endpoint_workbench_verification"
+                or verification_record.get("answers") != expected_answers
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="Run the simulated verification for this exact plan before submitting",
+                )
         if endpoint_workbench.get("documentation_required"):
             try:
                 support_note = json.loads(payload.notes)

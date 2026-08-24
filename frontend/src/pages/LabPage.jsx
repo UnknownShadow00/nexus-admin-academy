@@ -141,10 +141,10 @@ export default function LabPage() {
     }
   }
 
-  async function handleEndpointVerify(answers) {
+  async function handleEndpointVerify(answers, inspectedPanelIds) {
     setBusy(true);
     try {
-      const res = await verifyEndpointLab(labId, answers);
+      const res = await verifyEndpointLab(labId, answers, inspectedPanelIds);
       return res.data;
     } catch (err) {
       const lock = getPrerequisiteLock(err);
@@ -319,6 +319,7 @@ export default function LabPage() {
               workbench={lab.success_criteria.endpoint_workbench}
               questions={structuredQuestions}
               feedback={lab.structured_feedback}
+              initialNotes={lab.notes}
               submitted={lab.status === "submitted" && (lab.structured_feedback?.score_pct ?? 0) >= 70}
               busy={busy}
               onVerify={handleEndpointVerify}

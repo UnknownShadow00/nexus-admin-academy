@@ -21,7 +21,16 @@ const NOTE_FIELDS = [
   ["verification", "Verification", "Record what proves the expected outcome."],
 ];
 
-export default function EndpointEvidenceWorkbench({ workbench, questions, feedback, submitted, busy, onVerify, onSubmit }) {
+function restoredNotes(value) {
+  try {
+    const parsed = JSON.parse(value || "{}");
+    return Object.fromEntries(NOTE_FIELDS.map(([field]) => [field, typeof parsed?.[field] === "string" ? parsed[field] : ""]));
+  } catch {
+    return { issue: "", evidence: "", action: "", verification: "" };
+  }
+}
+
+export default function EndpointEvidenceWorkbench({ workbench, questions, feedback, initialNotes, submitted, busy, onVerify, onSubmit }) {
   const panels = Array.isArray(workbench?.panels) ? workbench.panels : [];
   const requiredInspections = Array.isArray(workbench?.required_inspections) ? workbench.required_inspections : [];
   const list = Array.isArray(questions) ? questions : [];
@@ -29,9 +38,9 @@ export default function EndpointEvidenceWorkbench({ workbench, questions, feedba
   const [activePanel, setActivePanel] = useState(null);
   const [answers, setAnswers] = useState({});
   const [questionIndex, setQuestionIndex] = useState(0);
-  const [verificationOpened, setVerificationOpened] = useState(false);
+  const [verification, setVerification] = useState(null);
   const [verificationMessage, setVerificationMessage] = useState("");
-  const [notes, setNotes] = useState({ issue: "", evidence: "", action: "", verification: "" });
+  const [notes, setNotes] = useState(() => restoredNotes(initialNotes));
 
   const feedbackById = useMemo(
     () => new Map((feedback?.questions || []).map((item) => [item.id, item])),
@@ -55,13 +64,13 @@ export default function EndpointEvidenceWorkbench({ workbench, questions, feedba
 
   function chooseAnswer(question, optionId) {
     setAnswers((current) => updateAnswer(current, question, optionId));
-    setVerificationOpened(false);
+    setVerification(null);
     setVerificationMessage("");
   }
 
   async function verifyPlan() {
-    const result = await onVerify(answers);
-    setVerificationOpened(Boolean(result?.ready));
+    const result = await onVerify(answers, opened);
+    setVerification(result?.ready ? result.verification : null);
     setVerificationMessage(result?.message || "");
   }
 
@@ -166,14 +175,14 @@ export default function EndpointEvidenceWorkbench({ workbench, questions, feedba
 
       <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
         <div className="flex items-center gap-2"><ShieldCheck size={17} aria-hidden="true" /><h4 className="font-semibold text-slate-900 dark:text-white">3. Verify the expected outcome</h4></div>
-        {!decisionsComplete ? <p className="mt-2 text-sm text-slate-500">Complete every decision before verification becomes available.</p> : !verificationOpened ? (
+        {!decisionsComplete ? <p className="mt-2 text-sm text-slate-500">Complete every decision before verification becomes available.</p> : !verification ? (
           <button type="button" className="btn-secondary mt-3" disabled={busy} onClick={verifyPlan}>{busy ? "Checking evidence..." : "Run simulated verification"}</button>
         ) : (
           <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-900 dark:bg-emerald-950/20" role="status">
-            <p className="font-semibold text-emerald-800 dark:text-emerald-200">{workbench?.verification?.label}</p>
-            <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">{workbench?.verification?.description}</p>
+            <p className="font-semibold text-emerald-800 dark:text-emerald-200">{verification.label}</p>
+            <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">{verification.description}</p>
             <dl className="mt-3 grid gap-2 sm:grid-cols-2">
-              {(workbench?.verification?.fields || []).map((field) => <div key={`${field.label}-${field.value}`}><dt className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">{field.label}</dt><dd className="break-words text-sm text-emerald-900 dark:text-emerald-100">{field.value}</dd></div>)}
+              {(verification.fields || []).map((field) => <div key={`${field.label}-${field.value}`}><dt className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">{field.label}</dt><dd className="break-words text-sm text-emerald-900 dark:text-emerald-100">{field.value}</dd></div>)}
             </dl>
           </div>
         )}
@@ -192,7 +201,7 @@ export default function EndpointEvidenceWorkbench({ workbench, questions, feedba
       </div>
 
       {!submitted ? (
-        <button type="button" className="btn-primary w-full sm:w-auto" disabled={!verificationOpened || !documentationComplete || !decisionsComplete || busy} onClick={() => onSubmit(answers, JSON.stringify(notes))}>
+        <button type="button" className="btn-primary w-full sm:w-auto" disabled={!verification || !documentationComplete || !decisionsComplete || busy} onClick={() => onSubmit(answers, JSON.stringify(notes))}>
           {busy ? "Submitting..." : feedback ? "Submit revised conclusion" : "Submit evidence case"}
         </button>
       ) : null}

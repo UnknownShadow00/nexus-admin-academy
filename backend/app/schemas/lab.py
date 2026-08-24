@@ -8,3 +8,4 @@ class LabSubmitRequest(BaseModel):
 
 class LabVerifyRequest(BaseModel):
     answers: dict[str, list[str]]
+    inspected_panel_ids: list[str] = Field(default_factory=list, max_length=100)

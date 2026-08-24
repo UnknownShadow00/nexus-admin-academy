@@ -39,6 +39,13 @@ def test_all_endpoint_guided_labs_use_the_evidence_workbench_contract():
     assert len(prove["questions"]) >= 3
     assert len(_INTUNE_ENDPOINT_WORKBENCHES[prove["title"]]["panels"]) >= 5
 
+    for lab in (item for item in labs if item["role"] == "troubleshoot"):
+        assert [question["id"].rsplit("-", 1)[-1] for question in lab["questions"]] == [
+            "diagnosis",
+            "action",
+            "verification",
+        ], lab["title"]
+
 
 def _seed_bridge(db):
     role = Role(name="Junior Infrastructure Administrator", rank_order=6, description="graduating role")
