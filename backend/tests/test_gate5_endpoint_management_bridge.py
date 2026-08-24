@@ -15,6 +15,31 @@ from conftest import make_student
 ENDPOINT_MODULE_CODES = ["MOD-030", "MOD-031", "MOD-032", "MOD-033", "MOD-034"]
 
 
+def test_all_endpoint_guided_labs_use_the_evidence_workbench_contract():
+    from app.services.training_curriculum_seed import _INTUNE_ENDPOINT_WORKBENCHES, _INTUNE_NEW_LABS
+
+    labs = [lab for week_labs in _INTUNE_NEW_LABS.values() for lab in week_labs]
+    assert len(labs) == 13
+    assert set(_INTUNE_ENDPOINT_WORKBENCHES) == {lab["title"] for lab in labs}
+
+    for lab in labs:
+        workbench = _INTUNE_ENDPOINT_WORKBENCHES[lab["title"]]
+        assert workbench["guidance_level"] == lab["role"]
+        assert len(workbench["panels"]) >= 3
+        assert len(workbench["required_inspections"]) >= 2
+        assert workbench["documentation_required"] is True
+        assert workbench["verification"]["label"] == "Simulated device state after action"
+        if lab["role"] == "practice":
+            assert workbench.get("guidance")
+        else:
+            assert "guidance" not in workbench
+
+    prove = next(lab for lab in labs if lab["role"] == "prove")
+    assert prove["title"] == "Diagnose the Multi-Signal Ticket"
+    assert len(prove["questions"]) >= 3
+    assert len(_INTUNE_ENDPOINT_WORKBENCHES[prove["title"]]["panels"]) >= 5
+
+
 def _seed_bridge(db):
     role = Role(name="Junior Infrastructure Administrator", rank_order=6, description="graduating role")
     db.add(role)

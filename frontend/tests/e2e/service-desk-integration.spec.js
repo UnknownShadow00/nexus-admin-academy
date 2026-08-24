@@ -136,13 +136,15 @@ async function resolveEndpointCase(page, scenario) {
 
   await page.goto(`/service-desk/tools/device-management?ticket=${scenario.ticketId}`);
   await expect(page.getByRole("heading", { name: "Device Management" })).toBeVisible();
-  await page.getByRole("button", { name: `4. ${scenario.remediationLabel}` }).click();
+  await page.getByLabel("Hostname or asset tag from the ticket").fill(scenario.deviceName);
+  await clickAndWaitForTrustedAction(page, "Inspect device record");
+  await page.getByLabel("Evidence-based diagnosis").selectOption(scenario.diagnosis);
+  await page.getByRole("button", { name: scenario.remediationLabel, exact: true }).click();
   await expect(
     page.getByRole("alert").filter({
       hasText: "Inspect the device record and verify the requester or authorization before diagnosis or remediation.",
     }),
   ).toBeVisible();
-  await clickAndWaitForTrustedAction(page, "1. Inspect device record");
 
   await page.goto(
     `/service-desk/tools/company-chat?contact=${scenario.contactId}&ticket=${scenario.ticketId}`,
@@ -150,9 +152,12 @@ async function resolveEndpointCase(page, scenario) {
   await clickAndWaitForTrustedAction(page, "Run approved identity check");
 
   await page.goto(`/service-desk/tools/device-management?ticket=${scenario.ticketId}`);
-  await clickAndWaitForTrustedAction(page, "3. Record evidence-based diagnosis");
-  await clickAndWaitForTrustedAction(page, `4. ${scenario.remediationLabel}`);
-  await clickAndWaitForTrustedAction(page, "5. Verify resulting device state");
+  await page.getByLabel("Hostname or asset tag from the ticket").fill(scenario.deviceName);
+  await clickAndWaitForTrustedAction(page, "Inspect device record");
+  await page.getByLabel("Evidence-based diagnosis").selectOption(scenario.diagnosis);
+  await clickAndWaitForTrustedAction(page, "Record selected diagnosis");
+  await clickAndWaitForTrustedAction(page, scenario.remediationLabel);
+  await clickAndWaitForTrustedAction(page, "Verify resulting device state");
 
   await page.goto(
     `/service-desk/tools/company-chat?contact=${scenario.contactId}&ticket=${scenario.ticketId}`,
@@ -306,15 +311,19 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const cases = [
       {
         contactId: "directory-user-morgan-ellis",
+        deviceName: "NEX-LT-2214",
+        diagnosis: "firmware-update-triggered-recovery",
         note: "Verified Morgan and NEX-LT-2214, recorded the firmware-triggered recovery diagnosis, released the key through the approved channel, and confirmed the device booted.",
-        remediationLabel: "Reveal recovery key through approved channel",
+        remediationLabel: "Use approved recovery workflow",
         stableKey: "bitlocker-recovery",
         ticketId: "INC3001",
       },
       {
         contactId: "directory-user-hr-adebayo-coker",
+        deviceName: "NEX-LT-3390",
+        diagnosis: "offboarding-authorized-access-revoked-data-reset-required",
         note: "Verified HR authorization and NEX-LT-3390, confirmed access revocation and corporate-data reset handling, completed the reset and reassignment, and verified readiness for the new assignee.",
-        remediationLabel: "Reset and reassign device",
+        remediationLabel: "Apply authorized lifecycle action",
         stableKey: "offboarding-device-reassignment",
         ticketId: "INC3002",
       },

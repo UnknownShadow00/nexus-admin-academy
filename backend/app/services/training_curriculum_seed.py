@@ -4525,9 +4525,9 @@ _INTUNE_QUIZZES = {
     },
 }
 
-# Guided simulation labs -- evidence-interpretation exercises, the same
-# question-based guided_lab mechanism the M365 stage uses for topics with no
-# live Service Desk tool surface. "role" here drives the TrainingWeekActivity
+# Guided endpoint labs use the reusable evidence workbench declared below:
+# students open evidence, make staged decisions, verify a deterministic
+# simulated outcome, and document a support conclusion. "role" drives the TrainingWeekActivity
 # metadata_json learning_role override applied in the sync function below:
 # practice labs use the guided_lab default (no override needed), troubleshoot
 # and prove labs are explicitly overridden -- see Step 10 of the user's brief
@@ -4857,31 +4857,45 @@ _INTUNE_NEW_LABS: dict[int, list[dict]] = {
             "questions": [
                 {
                     "id": "multi-signal-diagnosis",
-                    "prompt": "A user reports: 'My new required timesheet app never showed up.' Evidence: device compliance: Compliant. App 'TimeTrack': assignment status shows 'Not targeted' for this device's group. A separate configuration profile unrelated to the symptom: Succeeded. What is the actual root cause?",
-                    "context": "You are given the evidence, not the diagnosis -- decide which facts matter.",
-                    "type": "single_choice",
+                    "prompt": "Which two evidence findings explain the missing TimeTrack app and the SharePoint block?",
+                    "context": "Select only findings that directly explain a reported symptom.",
+                    "type": "multi_choice",
                     "options": [
-                        {"id": "a", "label": "The app was never assigned to this device's group in the first place -- this is an assignment/targeting problem, not an install failure, a compliance block, or the unrelated Succeeded profile"},
-                        {"id": "b", "label": "The device is noncompliant and that's blocking everything"},
-                        {"id": "c", "label": "The unrelated Succeeded profile is the cause"},
-                        {"id": "d", "label": "This cannot be diagnosed without live access to the tenant"},
+                        {"id": "a", "label": "TimeTrack is not targeted to the device's group, so no install was attempted"},
+                        {"id": "b", "label": "BitLocker noncompliance fails the Conditional Access grant requirement for SharePoint"},
+                        {"id": "c", "label": "The successful wallpaper profile caused both symptoms"},
+                        {"id": "d", "label": "The device must be wiped because two symptoms exist"},
                     ],
-                    "correct": ["a"],
-                    "explanation": "The device is compliant and the unrelated profile succeeded, while 'Not targeted' directly means the app assignment never reached this device's group. That evidence explains the missing app without inventing an unrelated authorization dependency.",
+                    "correct": ["a", "b"],
+                    "explanation": "Not targeted explains why no app install occurred. BitLocker noncompliance separately explains why Conditional Access blocked SharePoint.",
                 },
                 {
-                    "id": "explain-your-reasoning",
-                    "prompt": "What made the compliance and unrelated-profile evidence NOT the answer here, even though they were presented alongside the real cause?",
-                    "context": "Reflect on how you ruled out the distractors.",
+                    "id": "multi-signal-action",
+                    "prompt": "What is the safest repair plan?",
+                    "context": "Address each supported cause without weakening access controls or using destructive device actions.",
                     "type": "single_choice",
                     "options": [
-                        {"id": "a", "label": "Compliant and Succeeded both describe states that are working correctly -- they rule themselves out as the cause of this failure, leaving the assignment/targeting gap as the evidence that explains the symptom"},
-                        {"id": "b", "label": "There was no way to distinguish the evidence"},
-                        {"id": "c", "label": "All evidence should always be treated as equally suspicious regardless of what it reports"},
-                        {"id": "d", "label": "The unrelated profile was actually the most important clue"},
+                        {"id": "a", "label": "Correct TimeTrack targeting, enable and escrow BitLocker through the approved process, sync, then re-evaluate compliance and access"},
+                        {"id": "b", "label": "Exclude the user from Conditional Access and manually mark the app installed"},
+                        {"id": "c", "label": "Wipe the device and hope both symptoms disappear"},
+                        {"id": "d", "label": "Change the successful wallpaper profile"},
                     ],
                     "correct": ["a"],
-                    "explanation": "Working-as-expected evidence (Compliant, Succeeded) doesn't explain this failure symptom -- the skill is recognizing which evidence is actually abnormal.",
+                    "explanation": "The safe plan repairs both evidenced causes and verifies them without bypassing Conditional Access or destroying the device.",
+                },
+                {
+                    "id": "multi-signal-verification",
+                    "prompt": "Which evidence set proves the case is resolved?",
+                    "context": "Do not close on an action alone; require outcome evidence for both symptoms.",
+                    "type": "single_choice",
+                    "options": [
+                        {"id": "a", "label": "TimeTrack is targeted and reports Installed; compliance reports Compliant after sync; SharePoint access satisfies the Conditional Access grant"},
+                        {"id": "b", "label": "The remediation buttons were clicked"},
+                        {"id": "c", "label": "The wallpaper profile still reports Succeeded"},
+                        {"id": "d", "label": "The user says it probably works now"},
+                    ],
+                    "correct": ["a"],
+                    "explanation": "Resolution requires resulting evidence for app delivery, compliance, and the access decision—not merely attempted actions.",
                 },
             ],
         },
@@ -5052,6 +5066,188 @@ _INTUNE_NEW_LABS: dict[int, list[dict]] = {
             ],
         },
     ],
+}
+
+
+def _endpoint_panel(panel_id: str, label: str, *fields: tuple[str, str]) -> dict:
+    return {
+        "id": panel_id,
+        "label": label,
+        "fields": [{"label": field_label, "value": value} for field_label, value in fields],
+    }
+
+
+def _endpoint_workbench(
+    role: str,
+    brief: str,
+    panels: list[dict],
+    verification_fields: list[tuple[str, str]],
+    guidance: str | None = None,
+    required_inspections: list[str] | None = None,
+) -> dict:
+    workbench = {
+        "guidance_level": role,
+        "brief": brief,
+        "panels": panels,
+        "required_inspections": required_inspections or [panel["id"] for panel in panels],
+        "verification": {
+            "label": "Simulated device state after action",
+            "description": "This is deterministic training evidence, not a claim that a real device changed.",
+            "fields": [
+                {"label": field_label, "value": value}
+                for field_label, value in verification_fields
+            ],
+        },
+        "documentation_required": True,
+    }
+    if guidance:
+        workbench["guidance"] = guidance
+    return workbench
+
+
+# One deliberately small evidence-workbench schema serves all endpoint guided
+# labs. It is presentation data for deterministic training cases, not a device
+# model, Intune API, or alternate grading engine. Answer keys remain solely in
+# each lab's server-side question definitions.
+_INTUNE_ENDPOINT_WORKBENCHES = {
+    "Read a Device Record": _endpoint_workbench(
+        "practice",
+        "Dana's managed laptop is healthy. Read the record and judge what each field actually proves.",
+        [
+            _endpoint_panel("device", "Device", ("Hostname", "NEX-LT-1042"), ("Serial", "NX7-DANA-1042"), ("Owner", "Corporate"), ("Primary user", "Dana Ruiz"), ("OS", "Windows 11 Enterprise")),
+            _endpoint_panel("identity", "Identity & management", ("Join type", "Microsoft Entra joined"), ("Management state", "Managed"), ("Enrollment", "Intune MDM")),
+            _endpoint_panel("health", "Health", ("Compliance", "Compliant"), ("Last check-in", "11 minutes ago")),
+        ],
+        [("Check-in", "Current"), ("Compliance", "Still compliant after refresh")],
+        "Open Device, then compare Identity & management with Health. Do not infer more than the fields prove.",
+    ),
+    "Diagnose Join, Management & Ownership": _endpoint_workbench(
+        "troubleshoot",
+        "Jordan can sign in to Windows, but the laptop never receives company policy.",
+        [
+            _endpoint_panel("device", "Device", ("Hostname", "JORDAN-BYOD"), ("Owner", "Personal"), ("Asset record", "No corporate asset match")),
+            _endpoint_panel("identity", "Identity", ("Join type", "Microsoft Entra registered"), ("Primary user", "Jordan Lee")),
+            _endpoint_panel("management", "Management", ("Management state", "Unmanaged"), ("MDM enrollment", "No record"), ("Last Intune check-in", "Never")),
+        ],
+        [("Next evidence", "Confirm intended BYOD enrollment policy"), ("Safety", "Do not promise corporate policy until enrollment is confirmed")],
+    ),
+    "Read Enrollment Evidence": _endpoint_workbench(
+        "practice",
+        "Compare two healthy Windows 11 devices that reached management through different enrollment paths.",
+        [
+            _endpoint_panel("device-a", "Device A", ("Join", "Microsoft Entra joined"), ("Enrollment", "Automatic MDM enrollment"), ("Joined / enrolled", "09:14 / 09:14")),
+            _endpoint_panel("device-b", "Device B", ("Enrollment", "Windows Autopilot"), ("Deployment profile", "Sales-Onboarding"), ("Pre-provisioned", "Yes")),
+            _endpoint_panel("assignment", "Assignment", ("Device A profile", "None"), ("Device B profile", "Sales-Onboarding")),
+        ],
+        [("Device A", "Managed after user-driven join"), ("Device B", "Managed through its assigned Autopilot deployment profile")],
+        "Open both device records and compare the Enrollment and Deployment profile fields.",
+    ),
+    "Entra Joined But Not Intune Managed": _endpoint_workbench(
+        "troubleshoot",
+        "A Windows 11 laptop joined Microsoft Entra ID three days ago, but company applications never arrived.",
+        [
+            _endpoint_panel("identity", "Identity", ("Join type", "Microsoft Entra joined"), ("Join date", "3 days ago"), ("User license", "Intune enabled")),
+            _endpoint_panel("enrollment", "Enrollment", ("Intune record", "None"), ("Automatic enrollment scope", "User included"), ("Enrollment event", "Sign-in trigger did not complete")),
+            _endpoint_panel("comparison", "Comparison device", ("Same user", "Enrolled successfully last month"), ("Tenant / license", "Same")),
+        ],
+        [("Simulated retry", "Enrollment sign-in completed"), ("Management state", "Managed"), ("Next check", "Confirm policy and app delivery")],
+    ),
+    "Autopilot Deployment Stuck": _endpoint_workbench(
+        "troubleshoot",
+        "A new Windows 11 laptop stalls during out-of-box provisioning.",
+        [
+            _endpoint_panel("deployment", "Deployment", ("Microsoft Entra join", "Complete"), ("Intune enrollment", "Complete"), ("Required apps", "2 of 5 installed; no progress for 40 minutes")),
+            _endpoint_panel("applications", "Applications", ("Finance Client", "Installing"), ("Detection", "No result"), ("Content download", "Timed out")),
+            _endpoint_panel("profile", "Profile", ("Deployment type", "Autopilot Device Preparation"), ("Status reporting", "Near real time"), ("Assigned group", "Finance-NewDevices")),
+        ],
+        [("App content retry", "Download resumed"), ("Required apps", "5 of 5 installed"), ("Provisioning", "Ready to continue")],
+    ),
+    "Read Profile Status Evidence": _endpoint_workbench(
+        "practice",
+        "Two configuration settings did not report Succeeded. Decide which one is a fault and which is expected.",
+        [
+            _endpoint_panel("profile-a", "Profile A", ("Profile", "Windows Security Baseline"), ("Setting", "Firewall enabled"), ("Status", "Conflict"), ("Detail", "Configured differently by another profile")),
+            _endpoint_panel("profile-b", "Profile B", ("Profile", "Windows Enterprise Kiosk"), ("Device edition", "Windows 11 Pro"), ("Status", "Not applicable")),
+            _endpoint_panel("assignment", "Assignments", ("Profile A", "All corporate Windows devices"), ("Profile B", "Kiosk pilot")),
+        ],
+        [("Conflict", "Escalate policy overlap for correction"), ("Not applicable", "Document as expected for this edition")],
+        "Compare status, detail, platform, and assignment. Conflict and Not applicable do not mean the same thing.",
+    ),
+    "The App That Says It Failed": _endpoint_workbench(
+        "troubleshoot",
+        "A user can launch the assigned finance application, but Intune reports the deployment as Failed.",
+        [
+            _endpoint_panel("applications", "Applications", ("App", "Finance Desktop"), ("Assignment", "Required / Finance Devices"), ("Install command", "Exit code 0"), ("Install state", "Failed")),
+            _endpoint_panel("detection", "Detection", ("Expected file", "C:\\Program Files\\Finance\\finance.exe"), ("Observed file", "C:\\Program Files\\Finance Desktop\\finance.exe"), ("Detection result", "Not detected")),
+            _endpoint_panel("device", "Device", ("User launch test", "Application opens"), ("Last check-in", "8 minutes ago")),
+        ],
+        [("Detection rule", "Corrected path evaluated"), ("Install state", "Installed"), ("User launch", "Successful")],
+    ),
+    "Blocked and Stuck: Compliance Meets a Pending Profile": _endpoint_workbench(
+        "troubleshoot",
+        "A user can sign in to Windows but SharePoint access is blocked. A Wi-Fi profile is also pending.",
+        [
+            _endpoint_panel("access", "Access", ("Resource", "SharePoint"), ("Conditional Access", "Blocked"), ("Grant control", "Require compliant device")),
+            _endpoint_panel("compliance", "Compliance", ("Overall", "Noncompliant"), ("Reason", "BitLocker required"), ("Last evaluation", "6 minutes ago")),
+            _endpoint_panel("policies", "Policies", ("Wi-Fi profile", "Pending"), ("Security baseline", "Succeeded")),
+        ],
+        [("BitLocker", "Enabled in simulation"), ("Compliance after sync", "Compliant"), ("Conditional Access evaluation", "Grant requirements satisfied")],
+    ),
+    "Diagnose the Multi-Signal Ticket": _endpoint_workbench(
+        "prove",
+        "Finance reports that TimeTrack was assigned yesterday but is unavailable, and this device is blocked from SharePoint. Resolve the evidence case without a walkthrough.",
+        [
+            _endpoint_panel("device", "Device", ("Hostname", "FIN-LT-2088"), ("Join type", "Microsoft Entra joined"), ("Management", "Intune enrolled")),
+            _endpoint_panel("applications", "Applications", ("TimeTrack assignment", "Not targeted for Finance-Pilot"), ("Install state", "No install attempted"), ("Detection", "No result")),
+            _endpoint_panel("compliance", "Compliance", ("Overall", "Noncompliant"), ("Reason", "BitLocker required")),
+            _endpoint_panel("access", "Access", ("SharePoint", "Blocked"), ("Conditional Access", "Require compliant device")),
+            _endpoint_panel("policies", "Policies", ("Wallpaper profile", "Succeeded"), ("Relevance", "No reported wallpaper symptom")),
+        ],
+        [("App targeting", "Finance-Pilot assignment corrected"), ("BitLocker", "Enabled and escrow confirmed"), ("Compliance", "Compliant after sync"), ("SharePoint", "Grant requirements satisfied")],
+        required_inspections=["device", "applications", "compliance", "access"],
+    ),
+    "Read Update and Driver Evidence": _endpoint_workbench(
+        "practice",
+        "A Windows 11 laptop behaves differently after an update window. Read update, restart, and driver evidence before acting.",
+        [
+            _endpoint_panel("updates", "Updates", ("Quality update", "Installed"), ("Restart required", "Yes — pending 3 days"), ("Deferral policy", "14 days")),
+            _endpoint_panel("device", "Device", ("Current build", "One approved cycle behind latest"), ("Last restart", "17 days ago")),
+            _endpoint_panel("drivers", "Drivers", ("Display driver", "Healthy"), ("Device Manager errors", "None")),
+        ],
+        [("Simulated restart", "Completed"), ("Restart required", "No"), ("Update policy", "Still within approved deferral")],
+        "Open Updates first, then compare restart age and driver health. Start with the least disruptive explanation.",
+    ),
+    "Choose the Right Device Action": _endpoint_workbench(
+        "troubleshoot",
+        "A managed laptop has a recently assigned policy and a vague request for a destructive reset.",
+        [
+            _endpoint_panel("device", "Device", ("Hostname", "OPS-LT-4402"), ("Owner", "Corporate"), ("Management", "Managed"), ("Last check-in", "2 hours ago")),
+            _endpoint_panel("policies", "Policies", ("New profile", "Assigned 1 hour ago"), ("Evaluation", "Pending next check-in")),
+            _endpoint_panel("request", "Request & authorization", ("User request", "Wipe it; it is acting weird"), ("Destructive action approval", "Not present"), ("Device disposition", "Staying in service")),
+        ],
+        [("Safe first action", "Sync requested"), ("Policy evaluation", "Succeeded"), ("Destructive action", "Not performed")],
+    ),
+    "Walk the Onboarding Checklist": _endpoint_workbench(
+        "practice",
+        "A new hire starts Monday. The account and license exist; complete the remaining endpoint evidence trail.",
+        [
+            _endpoint_panel("identity", "Identity", ("User", "Priya Shah"), ("Account", "Enabled"), ("License", "Assigned"), ("MFA", "Registration pending")),
+            _endpoint_panel("device", "Device", ("Assigned asset", "None"), ("Enrollment", "Not started")),
+            _endpoint_panel("readiness", "Readiness", ("Required apps", "Not evaluated"), ("Policies", "Not evaluated"), ("Access test", "Not performed")),
+        ],
+        [("Assigned device", "NEX-LT-5120"), ("Enrollment / apps / policies", "Complete"), ("MFA and access test", "Verified with user")],
+        "Follow the evidence gap: identity exists, but a device must be assigned before enrollment, delivery, and user verification.",
+    ),
+    "Lost Phone: Retire or Wipe": _endpoint_workbench(
+        "troubleshoot",
+        "A phone is reported missing. Decide the least destructive safe action from ownership, enrollment, and risk evidence.",
+        [
+            _endpoint_panel("device", "Device", ("Platform", "Android"), ("Ownership", "Personal / BYOD"), ("Enrollment", "Personally owned work profile")),
+            _endpoint_panel("risk", "Risk & report", ("Status", "Lost"), ("Active tampering", "No evidence"), ("Corporate data", "Work profile only")),
+            _endpoint_panel("actions", "Action impact", ("Retire", "Remove managed work data/profile"), ("Wipe", "Factory reset; personal data at risk"), ("Authorization", "Routine lost-BYOD procedure approved")),
+        ],
+        [("Simulated action", "Retire command accepted"), ("Managed work profile", "Removal requested"), ("Personal side", "Not targeted")],
+    ),
 }
 
 # The two live, server-graded endpoint-management tickets. deviceId/contactId
@@ -5333,8 +5529,11 @@ def sync_intune_endpoint_management(db: Session) -> dict:
                 estimated_minutes=spec["estimated_minutes"],
                 is_published=True,
                 environment_requirements={},
-                setup_instructions="Read each symptom and evidence block. Choose the action you could defend in a support ticket.",
-                success_criteria={"questions": spec["questions"]},
+                setup_instructions="Inspect the available evidence, decide on a safe response, verify the simulated outcome, and write a concise support note.",
+                success_criteria={
+                    "questions": spec["questions"],
+                    "endpoint_workbench": _INTUNE_ENDPOINT_WORKBENCHES[spec["title"]],
+                },
                 required_evidence={},
                 hints={},
             )

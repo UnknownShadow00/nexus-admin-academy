@@ -172,6 +172,93 @@ def test_submit_structured_lab_uses_server_authoritative_grading(db):
     assert break_fix_run.structured_feedback is None
 
 
+def test_endpoint_workbench_hides_answer_keys_and_requires_structured_documentation(db):
+    student = make_student(db)
+    lab = LabTemplate(
+        title="Endpoint evidence case",
+        description="Inspect evidence before deciding.",
+        lab_type="structured_endpoint",
+        difficulty=2,
+        week_number=1,
+        is_published=True,
+        environment_requirements={},
+        success_criteria={
+            "endpoint_workbench": {
+                "guidance_level": "troubleshoot",
+                "brief": "A managed app is missing.",
+                "required_inspections": ["device", "apps"],
+                "panels": [
+                    {"id": "device", "label": "Device", "fields": [{"label": "Managed", "value": "Yes"}]},
+                    {"id": "apps", "label": "Applications", "fields": [{"label": "Detection", "value": "Failed"}]},
+                ],
+                "verification": {"label": "Simulated device state after action", "fields": []},
+                "documentation_required": True,
+            },
+            "questions": [
+                {
+                    "id": "diagnosis",
+                    "prompt": "What explains the symptom?",
+                    "type": "single_choice",
+                    "options": [{"id": "detection", "label": "Detection mismatch"}],
+                    "correct": ["detection"],
+                    "explanation": "The install exists but detection failed.",
+                }
+            ],
+        },
+        required_evidence={},
+        hints={},
+    )
+    db.add(lab)
+    db.commit()
+
+    fetched = client.get(f"/api/labs/{lab.id}", headers=auth_headers(student))
+    assert fetched.status_code == 200
+    body = fetched.json()["data"]
+    assert body["success_criteria"]["endpoint_workbench"]["required_inspections"] == ["device", "apps"]
+    assert "correct" not in body["success_criteria"]["questions"][0]
+    assert "explanation" not in body["success_criteria"]["questions"][0]
+
+    wrong_verification = client.post(
+        f"/api/labs/{lab.id}/verify",
+        json={"answers": {"diagnosis": ["wrong"]}},
+        headers=auth_headers(student),
+    )
+    assert wrong_verification.status_code == 200
+    assert wrong_verification.json()["data"] == {
+        "ready": False,
+        "message": "The selected path did not produce the expected state. Re-open the evidence and revise the unsupported decision.",
+    }
+    assert "verification" not in wrong_verification.json()["data"]
+
+    correct_verification = client.post(
+        f"/api/labs/{lab.id}/verify",
+        json={"answers": {"diagnosis": ["detection"]}},
+        headers=auth_headers(student),
+    )
+    assert correct_verification.status_code == 200
+    assert correct_verification.json()["data"]["ready"] is True
+    assert correct_verification.json()["data"]["verification"]["label"] == "Simulated device state after action"
+
+    missing_note = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json={"answers": {"diagnosis": ["detection"]}, "notes": "Clicked through."},
+        headers=auth_headers(student),
+    )
+    assert missing_note.status_code == 400
+    assert missing_note.json()["detail"] == "Complete all four support-note fields before submitting"
+
+    completed = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json={
+            "answers": {"diagnosis": ["detection"]},
+            "notes": '{"issue":"App missing","evidence":"Detection failed","action":"Correct detection rule","verification":"App reports installed"}',
+        },
+        headers=auth_headers(student),
+    )
+    assert completed.status_code == 200
+    assert completed.json()["data"]["structured_feedback"]["score_pct"] == 100
+
+
 def test_structured_cli_lab_requires_the_configured_commands(db):
     student = make_student(db)
     lab = LabTemplate(

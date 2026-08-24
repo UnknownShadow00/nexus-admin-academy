@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+import json
 import logging
 import os
 from pathlib import Path
@@ -13,7 +14,7 @@ from app.models.evidence import EvidenceArtifact
 from app.models.lab import LabRun, LabTemplate
 from app.models.student import Student
 from app.models.vm_assignment import VmAssignment
-from app.schemas.lab import LabSubmitRequest
+from app.schemas.lab import LabSubmitRequest, LabVerifyRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import get_current_student
 from app.services.progression_service import require_week_reached
@@ -450,6 +451,40 @@ def create_vm_access(
     return ok({"url": access["url"], "expires_at": assignment.expires_at})
 
 
+@router.post("/{lab_id}/verify")
+def verify_endpoint_workbench(
+    lab_id: int,
+    payload: LabVerifyRequest,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    """Check a guided endpoint plan without exposing its answer key.
+
+    This intentionally does not create a second grading or persistence path:
+    final scoring still happens only in submit_lab. It gates simulated
+    after-state evidence so an incorrect action cannot appear successful.
+    """
+    lab = _get_published_lab(db, lab_id)
+    require_week_reached(db, current_student, lab.week_number)
+    criteria = lab.success_criteria or {}
+    workbench = criteria.get("endpoint_workbench")
+    questions = criteria.get("questions", [])
+    if not workbench or not questions:
+        raise HTTPException(status_code=400, detail="Lab has no endpoint workbench")
+    ready = all(
+        set(payload.answers.get(question["id"], [])) == set(question["correct"])
+        for question in questions
+    )
+    if not ready:
+        return ok(
+            {
+                "ready": False,
+                "message": "The selected path did not produce the expected state. Re-open the evidence and revise the unsupported decision.",
+            }
+        )
+    return ok({"ready": True, "verification": workbench.get("verification", {})})
+
+
 @router.post("/{lab_id}/submit")
 def submit_lab(
     lab_id: int,
@@ -475,6 +510,20 @@ def submit_lab(
                 raise HTTPException(
                     status_code=400,
                     detail="Run every required command in the practice terminal before submitting",
+                )
+        endpoint_workbench = (lab.success_criteria or {}).get("endpoint_workbench", {})
+        if endpoint_workbench.get("documentation_required"):
+            try:
+                support_note = json.loads(payload.notes)
+            except (json.JSONDecodeError, TypeError):
+                support_note = {}
+            required_note_fields = ("issue", "evidence", "action", "verification")
+            if not isinstance(support_note, dict) or any(
+                not str(support_note.get(field, "")).strip() for field in required_note_fields
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Complete all four support-note fields before submitting",
                 )
     run = _get_lab_run(db, lab_id, current_student.id)
     now = datetime.now(UTC)

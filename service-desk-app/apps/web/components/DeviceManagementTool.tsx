@@ -13,7 +13,7 @@ interface EndpointScenario {
   assetTag: string;
   deviceId: string;
   deviceName: string;
-  diagnosis: string;
+  diagnoses: readonly { label: string; value: string }[];
   remediationLabel: string;
   verificationCheck: string;
 }
@@ -23,16 +23,24 @@ const ENDPOINT_SCENARIOS: Readonly<Record<string, EndpointScenario>> = {
     assetTag: 'NX-2214',
     deviceId: 'device-nex-lt-2214',
     deviceName: 'NEX-LT-2214',
-    diagnosis: 'firmware-update-triggered-recovery',
-    remediationLabel: 'Reveal recovery key through approved channel',
+    diagnoses: [
+      { label: 'Firmware update triggered expected BitLocker recovery', value: 'firmware-update-triggered-recovery' },
+      { label: 'Windows sign-in password expired', value: 'password-expired' },
+      { label: 'Device is no longer managed', value: 'management-lost' },
+    ],
+    remediationLabel: 'Use approved recovery workflow',
     verificationCheck: 'boot-unlocked',
   },
   INC3002: {
     assetTag: 'NX-3390',
     deviceId: 'device-nex-lt-3390',
     deviceName: 'NEX-LT-3390',
-    diagnosis: 'offboarding-authorized-access-revoked-data-reset-required',
-    remediationLabel: 'Reset and reassign device',
+    diagnoses: [
+      { label: 'Authorized offboarding; access revoked; data reset required before reassignment', value: 'offboarding-authorized-access-revoked-data-reset-required' },
+      { label: 'Routine repair for the currently assigned employee', value: 'routine-repair' },
+      { label: 'Device can be handed to the new hire without reset', value: 'immediate-handoff' },
+    ],
+    remediationLabel: 'Apply authorized lifecycle action',
     verificationCheck: 'ready-for-new-assignee',
   },
 };
@@ -68,13 +76,41 @@ export function DeviceManagementTool() {
     verifyAccess,
   } = useDeviceManagementSession();
   const [lastEvent, setLastEvent] = useState<ActionEvent | null>(null);
+  const [deviceQuery, setDeviceQuery] = useState('');
+  const [recordInspected, setRecordInspected] = useState(false);
+  const [selectedDiagnosis, setSelectedDiagnosis] = useState('');
+  const [remediationPerformed, setRemediationPerformed] = useState(false);
+
+  function resolvedDeviceId() {
+    const normalized = deviceQuery.trim().toUpperCase();
+    if (normalized === scenario.assetTag || normalized === scenario.deviceName)
+      return scenario.deviceId;
+    return `device-${normalized.toLowerCase() || 'unknown'}`;
+  }
+
+  function inspect() {
+    const event = inspectRecord(ticketId, resolvedDeviceId());
+    setLastEvent(event);
+    setRecordInspected(event.success);
+    if (!event.success) {
+      setRemediationPerformed(false);
+    }
+  }
+
+  function diagnose() {
+    if (!selectedDiagnosis) return;
+    const event = recordDiagnosis(ticketId, resolvedDeviceId(), selectedDiagnosis);
+    setLastEvent(event);
+    if (!event.success) setRemediationPerformed(false);
+  }
 
   function remediate() {
-    setLastEvent(
+    const event =
       ticketId === 'INC3001'
-        ? revealRecoveryKey(ticketId, scenario.deviceId)
-        : reassignDevice(ticketId, scenario.deviceId),
-    );
+        ? revealRecoveryKey(ticketId, resolvedDeviceId())
+        : reassignDevice(ticketId, resolvedDeviceId());
+    setLastEvent(event);
+    setRemediationPerformed(event.success);
   }
 
   return (
@@ -124,8 +160,20 @@ export function DeviceManagementTool() {
 
       <div className="grid gap-4 p-4 sm:p-5">
         <Card>
-          <CardHeader meta={ticketId} title={scenario.deviceName} />
-          <dl className="grid gap-3 p-4 text-sm sm:grid-cols-3">
+          <CardHeader meta={ticketId} title="Find the device record" />
+          <div className="grid gap-3 p-4 sm:grid-cols-[1fr_auto]">
+            <label className="text-sm font-bold text-zinc-200">
+              Hostname or asset tag from the ticket
+              <input
+                className="sd-focus-ring mt-2 min-h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 py-2 font-normal text-zinc-100"
+                onChange={(event) => setDeviceQuery(event.target.value)}
+                placeholder="Search managed devices"
+                value={deviceQuery}
+              />
+            </label>
+            <Button onClick={inspect} variant="soft">Inspect device record</Button>
+          </div>
+          {recordInspected ? <dl className="grid gap-3 border-t border-zinc-800 p-4 text-sm sm:grid-cols-3">
             <div>
               <dt className="text-xs font-bold uppercase text-zinc-500">
                 Asset tag
@@ -146,60 +194,47 @@ export function DeviceManagementTool() {
                 <Badge variant="sky">Intune managed</Badge>
               </dd>
             </div>
-          </dl>
+          </dl> : <p className="border-t border-zinc-800 p-4 text-sm text-zinc-500">The record remains hidden until the ticket identifier is investigated.</p>}
         </Card>
 
         <Card>
           <CardHeader
-            meta="Investigate → diagnose → remediate → verify"
-            title="Authorized endpoint workflow"
+            meta="Evidence controls what becomes available"
+            title="Investigate and respond"
           />
-          <div className="grid gap-3 p-4 sm:grid-cols-2">
-            <Button
-              onClick={() =>
-                setLastEvent(inspectRecord(ticketId, scenario.deviceId))
-              }
-              variant="soft"
-            >
-              1. Inspect device record
-            </Button>
+          <div className="grid gap-3 p-4">
+            {recordInspected ? <>
             <Link
               className="sd-button sd-button--light sd-focus-ring inline-flex min-h-10 items-center justify-center rounded-sm border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-extrabold uppercase text-zinc-900"
               href={`/tools/company-chat?contact=${ticketId === 'INC3001' ? 'directory-user-morgan-ellis' : 'directory-user-hr-adebayo-coker'}&ticket=${ticketId}`}
             >
-              2. Verify requester / authorization
+              Investigate requester / authorization in Company Chat
             </Link>
-            <Button
-              onClick={() =>
-                setLastEvent(
-                  recordDiagnosis(
-                    ticketId,
-                    scenario.deviceId,
-                    scenario.diagnosis,
-                  ),
-                )
-              }
-              variant="soft"
-            >
-              3. Record evidence-based diagnosis
-            </Button>
-            <Button onClick={remediate} variant="soft">
-              4. {scenario.remediationLabel}
-            </Button>
+            <label className="text-sm font-bold text-zinc-200">
+              Evidence-based diagnosis
+              <select className="sd-focus-ring mt-2 min-h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 py-2 font-normal text-zinc-100" value={selectedDiagnosis} onChange={(event) => setSelectedDiagnosis(event.target.value)}>
+                <option value="">Choose from the evidence…</option>
+                {scenario.diagnoses.map((diagnosis) => <option key={diagnosis.value} value={diagnosis.value}>{diagnosis.label}</option>)}
+              </select>
+            </label>
+            <Button disabled={!selectedDiagnosis} onClick={diagnose} variant="soft">Record selected diagnosis</Button>
+            </> : <p className="text-sm text-zinc-500">Inspect the correct managed-device record to reveal investigation tools.</p>}
+            {selectedDiagnosis ? <Button onClick={remediate} variant="soft">{scenario.remediationLabel}</Button> : null}
+            {remediationPerformed ?
             <Button
               onClick={() =>
                 setLastEvent(
                   verifyAccess(
                     ticketId,
-                    scenario.deviceId,
+                    resolvedDeviceId(),
                     scenario.verificationCheck,
                   ),
                 )
               }
               variant="soft"
             >
-              5. Verify resulting device state
-            </Button>
+              Verify resulting device state
+            </Button> : null}
           </div>
           <p className="px-4 pb-4 text-xs leading-relaxed text-zinc-500">
             The Nexus API enforces this order. A recovery key or destructive

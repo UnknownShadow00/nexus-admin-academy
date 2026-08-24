@@ -3,11 +3,12 @@ import { useParams } from "react-router-dom";
 import BackLink from "../components/BackLink";
 import Spinner from "../components/Spinner";
 import PrerequisiteLock, { getPrerequisiteLock } from "../components/PrerequisiteLock";
+import EndpointEvidenceWorkbench from "../components/EndpointEvidenceWorkbench";
 import StructuredLabExercise from "../components/StructuredLabExercise";
 import { DifficultyBadge } from "../components/ui/Badge";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
-import { createLabVmAccess, getLab, getLabVmStatus, startLab, submitLab, uploadLabEvidence } from "../services/api";
+import { createLabVmAccess, getLab, getLabVmStatus, startLab, submitLab, uploadLabEvidence, verifyEndpointLab } from "../services/api";
 
 const provisioningStatuses = new Set(["provisioning", "starting", "waiting_for_ip", "configuring_connection"]);
 
@@ -135,6 +136,21 @@ export default function LabPage() {
       const lock = getPrerequisiteLock(err);
       if (lock) setPrerequisiteLock(lock);
       else setVmError(err?.userMessage || "Unable to submit your answers.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEndpointVerify(answers) {
+    setBusy(true);
+    try {
+      const res = await verifyEndpointLab(labId, answers);
+      return res.data;
+    } catch (err) {
+      const lock = getPrerequisiteLock(err);
+      if (lock) setPrerequisiteLock(lock);
+      else setVmError(err?.userMessage || "Unable to verify the simulated outcome.");
+      return { ready: false, message: "Verification could not be completed." };
     } finally {
       setBusy(false);
     }
@@ -298,7 +314,17 @@ export default function LabPage() {
             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${status.cls}`}>{status.label}</span>
           </div>
 
-          {isStructured ? (
+          {lab.success_criteria?.endpoint_workbench ? (
+            <EndpointEvidenceWorkbench
+              workbench={lab.success_criteria.endpoint_workbench}
+              questions={structuredQuestions}
+              feedback={lab.structured_feedback}
+              submitted={lab.status === "submitted" && (lab.structured_feedback?.score_pct ?? 0) >= 70}
+              busy={busy}
+              onVerify={handleEndpointVerify}
+              onSubmit={handleStructuredSubmit}
+            />
+          ) : isStructured ? (
             <StructuredLabExercise
               questions={structuredQuestions}
               requiredCommands={lab.success_criteria?.required_commands}
