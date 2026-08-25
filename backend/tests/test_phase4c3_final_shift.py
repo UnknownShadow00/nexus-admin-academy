@@ -13,6 +13,7 @@ from app.models.lab import LabRun, LabTemplate
 from app.models.progression import PromotionGate, Role, StudentRole
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.routers.final_shift import router
+from app.routers.labs import router as labs_router
 from app.services.final_shift_grading import compute_final_shift_grade
 from app.services.integrated_support_final_shift import WEEK_24_CASE
 from app.services.progression_service import check_promotion_eligibility
@@ -22,6 +23,7 @@ REVISION_0060 = "0060_network_linux_cloud_practical_upgrade"
 REVISION_0061 = "0061_integrated_support_prove"
 
 client = make_client(router)
+labs_client = make_client(labs_router)
 
 
 def _run(command: list[str], database_url: str) -> None:
@@ -316,6 +318,19 @@ def _mentor_student(db, username):
     db.commit()
     db.refresh(student)
     return student
+
+
+def test_generic_lab_endpoint_never_leaks_final_shift_answer_key(db):
+    """LabPage.jsx calls GET /api/labs/{id} before it knows the lab_type, so
+    the generic labs router must never forward success_criteria.final_shift
+    (which carries diagnosis.correct, actions[].safe, and verification) —
+    only /api/final-shift/{id} may serve the redacted case content."""
+    student = _mentor_student(db, "fs-leak-check")
+    lab = _seed_final_shift_lab(db)
+
+    res = labs_client.get(f"/api/labs/{lab.id}", headers=auth_headers(student))
+    assert res.status_code == 200
+    assert "final_shift" not in res.json()["data"]["success_criteria"]
 
 
 def test_get_before_start_shows_not_started_and_hides_answers(db):

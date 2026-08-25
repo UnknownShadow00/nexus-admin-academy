@@ -198,6 +198,16 @@ export const submitLab = (labId, payload, requestOptions) =>
 export const verifyEvidenceLab = (labId, answers, inspectedPanelIds, requestOptions) =>
   request(() => api.post(`/api/labs/${labId}/verify`, { answers, inspected_panel_ids: inspectedPanelIds }), requestOptions);
 export const verifyEndpointLab = verifyEvidenceLab;
+export const getFinalShift = (labId, requestOptions) =>
+  request(() => api.get(`/api/final-shift/${labId}`), requestOptions);
+export const startFinalShift = (labId, requestOptions) =>
+  request(() => api.post(`/api/final-shift/${labId}/start`), requestOptions);
+export const openFinalShiftIncident = (labId, incidentKey, requestOptions) =>
+  request(() => api.post(`/api/final-shift/${labId}/incidents/${incidentKey}/open`), requestOptions);
+export const attemptFinalShiftIncident = (labId, incidentKey, payload, requestOptions) =>
+  request(() => api.post(`/api/final-shift/${labId}/incidents/${incidentKey}/attempt`, payload), requestOptions);
+export const submitFinalShiftHandoff = (labId, payload, requestOptions) =>
+  request(() => api.post(`/api/final-shift/${labId}/handoff`, payload), requestOptions);
 export const getCliLabs = (requestOptions) => request(() => api.get("/api/cli-labs"), requestOptions);
 export const getCliLab = (labId, requestOptions) => request(() => api.get(`/api/cli-labs/${labId}`), requestOptions);
 export const completeCliLab = (labId, payload, requestOptions) =>
