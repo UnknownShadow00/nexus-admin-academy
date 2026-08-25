@@ -22,6 +22,7 @@ from app.routers import (
     cli_labs,
     commands,
     evidence,
+    final_shift,
     flashcards,
     labs,
     lesson_notes,
@@ -254,6 +255,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(quizzes.router)
     app.include_router(labs.router)
+    app.include_router(final_shift.router)
     app.include_router(capstones.router)
     app.include_router(cli_labs.router)
     # Retained as dormant, authenticated historical-record APIs. Student and

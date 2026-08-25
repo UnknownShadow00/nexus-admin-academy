@@ -209,6 +209,14 @@ PROMOTION_GATES = [
         "requirement_type": "no_unresolved_flags",
         "config": {},
     },
+    # Phase 4C.3: the Week 24 Final Support Shift (LabTemplate 22) becomes an
+    # exact graduation requirement. Only a LabRun graded under the versioned
+    # final-shift rubric counts — see progression_service._check_required_lab_pass.
+    {
+        "role": "Junior Infrastructure Administrator",
+        "requirement_type": "required_lab_pass",
+        "config": {"lab_id": 22, "min_score_pct": 80},
+    },
 ]
 
 ORIENTATION_TITLE = "Welcome to Nexus: Your First Week"

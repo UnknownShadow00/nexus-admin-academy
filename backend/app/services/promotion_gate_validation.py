@@ -23,6 +23,7 @@ ACTIVE_REQUIREMENT_TYPES = {
     "min_service_desk_passes",
     "min_cli_labs",
     "no_unresolved_flags",
+    "required_lab_pass",
 }
 
 RETIRED_REQUIREMENT_TYPES = {
@@ -125,5 +126,15 @@ def validate_promotion_gates_config(gates: list[dict], *, service_desk_pack_keys
         elif requirement_type == "no_unresolved_flags":
             if config:
                 issues.append(f"{role}: no_unresolved_flags takes no config (got {config!r})")
+
+        elif requirement_type == "required_lab_pass":
+            lab_id = config.get("lab_id")
+            min_score_pct = config.get("min_score_pct")
+            if not isinstance(lab_id, int) or lab_id <= 0:
+                issues.append(f"{role}: required_lab_pass needs a positive integer 'lab_id' (got {lab_id!r})")
+            if not isinstance(min_score_pct, int) or not (0 < min_score_pct <= 100):
+                issues.append(
+                    f"{role}: required_lab_pass needs a 'min_score_pct' integer in (0, 100] (got {min_score_pct!r})"
+                )
 
     return issues
