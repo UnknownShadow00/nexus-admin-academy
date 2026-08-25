@@ -122,9 +122,9 @@ WEEK_24_INCIDENTS = [
         correct_diagnosis="group",
         diagnosis_explanation="The account is healthy and the folder path is unchanged; the change record shows the cleanup script removed her from the required group.",
         actions=[
-            _action("readd", "Request the approved re-add of Priya to Finance-Reports-RW, have her sign out and back in, then verify access", safe=True),
             _action("domain_admin", "Add Priya as a Domain Admin so nothing can block her again", safe=False),
             _action("everyone", "Grant Everyone Full Control on the Finance Reports folder to unblock her immediately", safe=False),
+            _action("readd", "Request the approved re-add of Priya to Finance-Reports-RW, have her sign out and back in, then verify access", safe=True),
             _action("disable_group", "Disable the Finance-Reports-RW group entirely", safe=False),
         ],
         correct_action_id="readd",
@@ -162,8 +162,8 @@ WEEK_24_INCIDENTS = [
         correct_diagnosis="compliance",
         diagnosis_explanation="Sign-in works from the phone and the account is healthy; only the noncompliant laptop is blocked by the conditional access policy.",
         actions=[
-            _action("fix_compliance", "Have him re-check disk encryption to clear compliance, use OWA in a browser for the call meanwhile, and verify Outlook/Teams resume once compliant", safe=True),
             _action("exempt", "Add a permanent conditional-access exemption for his laptop", safe=False),
+            _action("fix_compliance", "Have him re-check disk encryption to clear compliance, use OWA in a browser for the call meanwhile, and verify Outlook/Teams resume once compliant", safe=True),
             _action("disable_policy", "Disable the conditional access policy company-wide so this can't happen again", safe=False),
             _action("reset_license", "Remove and reassign his whole M365 license to force a resync", safe=False),
         ],
@@ -202,10 +202,10 @@ WEEK_24_INCIDENTS = [
         correct_diagnosis="config_perms",
         diagnosis_explanation="Kiosks reach the server fine over the network; the server-side log shows the service crash-looping on a permissions error introduced by the patch.",
         actions=[
-            _action("escalate", "Escalate to Server Operations with the service status, the exact error, and the config path — restarting/repairing this production host is outside technician scope", safe=True),
             _action("remote_chmod", "Remote into the production server and chmod 777 the config file to force it to start", safe=False),
             _action("hard_reboot", "Reboot the physical server again with no further evidence", safe=False),
             _action("phones", "Tell branch staff to permanently clock in from personal phones instead", safe=False),
+            _action("escalate", "Escalate to Server Operations with the service status, the exact error, and the config path — restarting/repairing this production host is outside technician scope", safe=True),
         ],
         correct_action_id="escalate",
         action_explanation="Repairing file ownership on a production Linux host is outside a junior technician's authorized scope; the safe move is a well-evidenced escalation.",
@@ -268,8 +268,8 @@ WEEK_23_INCIDENTS = [
         correct_diagnosis="stale_creds",
         diagnosis_explanation="The account and sign-in are fine; the printer mapping still holds the password from before the reset.",
         actions=[
-            _action("remap", "Have her remove and re-add the printer connection so it re-prompts for the current password", safe=True),
             _action("admin_creds", "Save your own admin credentials into her printer mapping so it always works", safe=False),
+            _action("remap", "Have her remove and re-add the printer connection so it re-prompts for the current password", safe=True),
             _action("disable_auth", "Turn off authentication on the print share for everyone", safe=False),
         ],
         correct_action_id="remap",
@@ -336,9 +336,9 @@ WEEK_23_INCIDENTS = [
         correct_diagnosis="ip_conflict",
         diagnosis_explanation="Only the break-room area is affected and the evidence shows a duplicate-address conflict from an unauthorized access point, not a company-wide DHCP failure.",
         actions=[
-            _action("escalate_rogue", "Escalate to Network Operations to locate and remove the rogue access point — that authority is outside technician scope", safe=True),
             _action("static_ip", "Manually assign a permanent static IP outside the DHCP scope to work around it", safe=False),
             _action("disable_wifi", "Disable Wi-Fi for the entire building until it's found", safe=False),
+            _action("escalate_rogue", "Escalate to Network Operations to locate and remove the rogue access point — that authority is outside technician scope", safe=True),
         ],
         correct_action_id="escalate_rogue",
         action_explanation="Locating and removing unauthorized network hardware is outside a junior technician's scope; a well-evidenced escalation is the safe response — this is the same escalation pattern Week 24 will expect you to use independently.",

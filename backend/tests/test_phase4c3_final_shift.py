@@ -81,6 +81,29 @@ def test_migration_upgrade_converts_week_23_24_and_adds_gate(tmp_path):
         assert gate.requirement_config == {"lab_id": 22, "min_score_pct": 80}
 
     assert _active_totals(database_path) == (35, 320, 141, 179)
+    assert _role_counts(database_path) == {
+        "learn": 216,
+        "check": 38,
+        "practice": 21,
+        "troubleshoot": 37,
+        "prove": 8,
+    }
+
+
+def _role_counts(database_path):
+    from app.services.curriculum_structure import learning_role_for
+
+    engine = create_engine(f"sqlite:///{database_path}")
+    with Session(engine) as db:
+        counts = {"learn": 0, "check": 0, "practice": 0, "troubleshoot": 0, "prove": 0}
+        for activity_type, metadata_json in db.execute(
+            text("SELECT activity_type, metadata_json FROM training_week_activities")
+        ):
+            import json as _json
+
+            metadata = _json.loads(metadata_json) if metadata_json else None
+            counts[learning_role_for(activity_type, metadata)] += 1
+        return counts
 
 
 def _active_totals(database_path):
