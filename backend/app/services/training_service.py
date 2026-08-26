@@ -124,7 +124,14 @@ class _ResolvedContent:
 
 
 class _TrainingContext:
-    def __init__(self, db: Session, student: Student, activities: list[TrainingWeekActivity]):
+    def __init__(
+        self,
+        db: Session,
+        student: Student,
+        activities: list[TrainingWeekActivity],
+        *,
+        include_service_desk_access: bool = True,
+    ):
         self.db = db
         self.student = student
         self.activities = activities
@@ -201,7 +208,9 @@ class _TrainingContext:
         # gap that can make the two disagree: a missing assignment row (see
         # its docstring for which account-creation path leaves that gap).
         self.service_desk_progression = (
-            build_service_desk_progression(db, student) if refs["service_desk_scenario"] else None
+            build_service_desk_progression(db, student)
+            if refs["service_desk_scenario"] and include_service_desk_access
+            else None
         )
         if self.service_desk_progression:
             ensure_assigned_scenarios(db, student, self.service_desk_progression)
@@ -214,6 +223,25 @@ class _TrainingContext:
         service_attempts = db.query(ServiceDeskAttempt).filter(ServiceDeskAttempt.student_id == student.id, ServiceDeskAttempt.scenario_version_id.in_(service_version_ids), ServiceDeskAttempt.passed.is_(True), ServiceDeskAttempt.experience_mode == "assessment").order_by(ServiceDeskAttempt.completed_at.desc()).all() if service_version_ids else []
         self.service_desk_completed_attempts = _latest_by(
             service_attempts, lambda row: row.scenario_version_id
+        )
+        active_service_attempts = (
+            db.query(ServiceDeskAttempt)
+            .filter(
+                ServiceDeskAttempt.student_id == student.id,
+                ServiceDeskAttempt.scenario_version_id.in_(service_version_ids),
+                ServiceDeskAttempt.status == "in_progress",
+                ServiceDeskAttempt.experience_mode == "assessment",
+            )
+            .order_by(
+                ServiceDeskAttempt.started_at.desc(),
+                ServiceDeskAttempt.id.desc(),
+            )
+            .all()
+            if service_version_ids
+            else []
+        )
+        self.service_desk_active_attempts = _latest_by(
+            active_service_attempts, lambda row: row.scenario_version_id
         )
 
         video_keys = [row.video_key for row in self.videos.values()]
@@ -523,9 +551,17 @@ class _TrainingContext:
                 ),
                 None,
             )
+            active_attempt = next(
+                (
+                    self.service_desk_active_attempts.get(version_id)
+                    for (version_id,) in versions
+                    if version_id in self.service_desk_active_attempts
+                ),
+                None,
+            )
             return {
                 "complete": completed_attempt is not None,
-                "in_progress": False,
+                "in_progress": completed_attempt is None and active_attempt is not None,
                 "completed_at": completed_attempt.completed_at if completed_attempt else None,
                 "score": completed_attempt.score if completed_attempt else None,
             }
@@ -552,6 +588,39 @@ def _active_weeks(db: Session) -> list[TrainingWeek]:
         .order_by(TrainingWeek.display_order.asc(), TrainingWeek.week_number.asc(), TrainingWeek.id.asc())
         .all()
     )
+
+
+def derive_training_current_week(db: Session, student: Student) -> int | None:
+    """Return the current source week from authoritative required activities.
+
+    This deliberately uses the same ``_TrainingContext.progress`` rules as the
+    Learning Path.  Service Desk availability is omitted while calculating the
+    answer because Service Desk itself consumes the current-week result; passed
+    attempts remain part of activity completion.
+    """
+    weeks = _active_weeks(db)
+    if not weeks:
+        return None
+    activities = [
+        activity
+        for week in weeks
+        for activity in sorted(
+            week.activities, key=lambda item: (item.display_order, item.id)
+        )
+    ]
+    context = _TrainingContext(
+        db, student, activities, include_service_desk_access=False
+    )
+    for week in weeks:
+        required = [
+            activity
+            for activity in week.activities
+            if activity.is_required
+            and activity.activity_type not in UNTRACKED_ACTIVITY_TYPES | {"review"}
+        ]
+        if any(not context.progress(activity)["complete"] for activity in required):
+            return week.week_number
+    return weeks[-1].week_number
 
 
 def _serialize_activity(context: _TrainingContext, activity: TrainingWeekActivity) -> dict:

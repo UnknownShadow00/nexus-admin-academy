@@ -22,13 +22,11 @@ is the current example: it moves TrainingWeek.display_order for weeks 10-12
 to match the network_administration Stage's post-Identity/post-M365 position
 already expressed here. See docs/JOB_READY_CURRICULUM_BLUEPRINT.md.
 
-Also note: this only reorders the Learning Path/Today progression system.
-A separate, legacy, week_number-indexed system (progression_service.py's
-derive_current_week/MODULE_WEEKS/CLI_PACK_WEEKS, and
-service_desk_progression.py's SERVICE_DESK_PACKS) gates Service Desk packs,
-CLI packs, and legacy ticket/lab/capstone access independently of
-TrainingWeek.display_order, and is NOT reordered by changes here. See the
-Phase 4A.1 report for the full analysis of that split.
+Progression gates now derive the student's current source week from the same
+required TrainingWeek activities as Learning Path and compare weeks by
+TrainingWeek.display_order. MODULE_WEEKS/CLI_PACK_WEEKS remain compatibility
+mappings from legacy content records to source weeks, not a second completion
+calculation.
 """
 
 from dataclasses import asdict, dataclass

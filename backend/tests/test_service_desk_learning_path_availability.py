@@ -20,7 +20,12 @@ lazily/idempotently backfills the one missing precondition (the assignment
 row itself) from both the Learning Path and Service Desk's own endpoints.
 """
 
-from app.models.service_desk import ServiceDeskAssignment, ServiceDeskScenario
+from app.models.service_desk import (
+    ServiceDeskAssignment,
+    ServiceDeskAttempt,
+    ServiceDeskScenario,
+    ServiceDeskScenarioVersion,
+)
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.routers.service_desk import router
 from app.services.training_service import build_training_overview
@@ -95,6 +100,41 @@ def test_missing_assignment_row_is_self_healed_and_learning_path_matches_service
         ).status_code
         == 201
     )
+
+
+def test_learning_path_marks_an_active_assessment_attempt_resumable(monkeypatch, db):
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+    student = make_student(db, "resumable-learning-path-student")
+    _seed_pack_assignments(db, student)
+    _map_required_case(db, 1, "locked-user-account")
+    scenario = db.query(ServiceDeskScenario).filter_by(
+        stable_key="locked-user-account"
+    ).one()
+    version = db.query(ServiceDeskScenarioVersion).filter_by(
+        scenario_id=scenario.id, status="published"
+    ).one()
+    db.add(
+        ServiceDeskAttempt(
+            student_id=student.id,
+            scenario_version_id=version.id,
+            mode="simulation",
+            experience_mode="assessment",
+            status="in_progress",
+            current_state={},
+            current_state_hash="a" * 64,
+            state_version=1,
+            attempt_number=1,
+        )
+    )
+    db.commit()
+
+    activity = _week1_activity(build_training_overview(db, student))
+    assert activity["complete"] is False
+    assert activity["status"] == "in_progress"
+    assert activity["destination_route"] is not None
 
 
 def test_service_desk_endpoints_also_self_heal_without_visiting_learning_path(

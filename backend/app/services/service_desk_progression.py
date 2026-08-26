@@ -12,7 +12,7 @@ from app.models.service_desk import (
 from app.models.student import Student
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.curriculum_structure import module_for_week
-from app.services.progression_service import derive_current_week
+from app.services.progression_service import derive_current_week, week_has_been_reached
 
 
 # assigned_by value for assignment rows lazily backfilled by
@@ -225,7 +225,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         .distinct()
         .all()
     }
-    curriculum_rows = (
+    all_curriculum_rows = (
         db.query(TrainingWeek.week_number, TrainingWeekActivity.content_ref)
         .join(
             TrainingWeekActivity,
@@ -234,10 +234,14 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         .filter(
             TrainingWeekActivity.activity_type == "service_desk_scenario",
             TrainingWeekActivity.is_required.is_(True),
-            TrainingWeek.week_number <= current_week,
         )
         .all()
     )
+    curriculum_rows = [
+        (week_number, stable_key)
+        for week_number, stable_key in all_curriculum_rows
+        if week_has_been_reached(db, current_week, week_number)
+    ]
     # A required weekly case is an exact curriculum assignment. It can be
     # started when that week is reached without unlocking the case's pack.
     curriculum_unlocked_keys = {stable_key for _, stable_key in curriculum_rows}
@@ -253,14 +257,16 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
     unlocked_pack_keys = set()
 
     starter_pack = SERVICE_DESK_PACKS[0]
-    if student.is_mentor or current_week >= starter_pack.required_week:
+    if student.is_mentor or week_has_been_reached(
+        db, current_week, starter_pack.required_week
+    ):
         unlocked_pack_keys.add(starter_pack.key)
 
     for index, pack in enumerate(SERVICE_DESK_PACKS[1:], start=1):
         prior_pack = SERVICE_DESK_PACKS[index - 1]
         if (
             prior_pack.key in unlocked_pack_keys
-            and current_week >= pack.required_week
+            and week_has_been_reached(db, current_week, pack.required_week)
             and passed_by_pack[prior_pack.key] >= pack.required_prior_passes
         ):
             unlocked_pack_keys.add(pack.key)
@@ -283,7 +289,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
     if next_pack:
         next_index = PACK_INDEX[next_pack.key]
         prior_pack = SERVICE_DESK_PACKS[next_index - 1] if next_index else None
-        week_met = current_week >= next_pack.required_week
+        week_met = week_has_been_reached(db, current_week, next_pack.required_week)
         pass_count = passed_by_pack[prior_pack.key] if prior_pack else 0
         passes_met = pass_count >= next_pack.required_prior_passes
         # The first pack becomes available after orientation; later packs use
