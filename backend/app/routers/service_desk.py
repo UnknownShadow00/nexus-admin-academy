@@ -40,6 +40,7 @@ from app.services.service_desk_grading import AttemptNotClosedError, compute_gra
 from app.services.service_desk_progression import (
     build_service_desk_progression,
     difficulty_presentation,
+    ensure_assigned_scenarios,
     require_scenario_unlocked,
     scenario_access,
 )
@@ -229,6 +230,7 @@ def list_assignments(
     db: Session = Depends(get_db),
 ):
     progression = build_service_desk_progression(db, current_student)
+    ensure_assigned_scenarios(db, current_student, progression)
     rows = (
         db.query(ServiceDeskAssignment, ServiceDeskScenario)
         .join(
@@ -379,6 +381,7 @@ def get_progression(
     db: Session = Depends(get_db),
 ):
     progression = build_service_desk_progression(db, current_student)
+    ensure_assigned_scenarios(db, current_student, progression)
     assignments = (
         db.query(ServiceDeskAssignment, ServiceDeskScenario)
         .join(

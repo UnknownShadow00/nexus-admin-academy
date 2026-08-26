@@ -15,6 +15,11 @@ from app.services.curriculum_structure import module_for_week
 from app.services.progression_service import derive_current_week
 
 
+# assigned_by value for assignment rows lazily backfilled by
+# ensure_assigned_scenarios (see that function's docstring).
+CURRICULUM_SYNC_ASSIGNED_BY = "curriculum-sync"
+
+
 @dataclass(frozen=True)
 class ServiceDeskPack:
     key: str
@@ -196,7 +201,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
     )
     # Seed and account-creation rows are catalog inventory. Any other owner is
     # an intentional instructor assignment for that exact case only.
-    catalog_owners = {"seed", "student-create", "migration-0047"}
+    catalog_owners = {"seed", "student-create", "migration-0047", CURRICULUM_SYNC_ASSIGNED_BY}
     direct_assignment_override_keys = {
         stable_key
         for stable_key, assigned_by in managed_assignments
@@ -448,3 +453,66 @@ def require_scenario_unlocked(
             },
         },
     )
+
+
+def ensure_assigned_scenarios(db: Session, student: Student, progression: dict) -> bool:
+    """Backfill any ServiceDeskAssignment row a student's own progression says
+    they need right now, but doesn't yet have.
+
+    Two account-creation paths (the admin student-create endpoint and
+    seed.py's seed_service_desk_assignments) pre-provision the full managed
+    scenario catalog as inventory rows. A third path, scripts/seed_users.py,
+    inserts Student rows directly and does not run either provisioning step
+    -- an account created that way (or any future path with the same gap)
+    ends up with zero ServiceDeskAssignment rows. Nexus's curriculum-driven
+    availability (training_service.py's service_desk_scenario resolution)
+    and Service Desk's own assignment-row-gated queue
+    (list_assignments/require_scenario_unlocked) must agree on one
+    authoritative answer -- see scenario_access, which both now consult.
+    That answer is only actionable if the row backing it actually exists,
+    so this call is the other half: it makes the row's existence match what
+    scenario_access already promises, called from both the Learning Path
+    (training_service.py) and Service Desk's own endpoints so either one
+    heals the gap on first visit, order-independent.
+
+    Idempotent and scoped to exactly progression["assigned_keys"] (a handful
+    of scenarios), not the full catalog -- cheap to call on every request.
+    """
+    needed_keys = set(progression["assigned_keys"])
+    if not needed_keys:
+        return False
+    existing_keys = {
+        stable_key
+        for (stable_key,) in db.query(ServiceDeskScenario.stable_key)
+        .join(
+            ServiceDeskAssignment,
+            ServiceDeskAssignment.scenario_id == ServiceDeskScenario.id,
+        )
+        .filter(ServiceDeskAssignment.student_id == student.id)
+        .all()
+    }
+    missing_keys = needed_keys - existing_keys
+    if not missing_keys:
+        return False
+    missing_scenarios = (
+        db.query(ServiceDeskScenario)
+        .filter(
+            ServiceDeskScenario.stable_key.in_(missing_keys),
+            ServiceDeskScenario.status == "active",
+        )
+        .all()
+    )
+    if not missing_scenarios:
+        return False
+    for scenario in missing_scenarios:
+        db.add(
+            ServiceDeskAssignment(
+                student_id=student.id,
+                scenario_id=scenario.id,
+                mode="simulation",
+                is_required=False,
+                assigned_by=CURRICULUM_SYNC_ASSIGNED_BY,
+            )
+        )
+    db.commit()
+    return True
