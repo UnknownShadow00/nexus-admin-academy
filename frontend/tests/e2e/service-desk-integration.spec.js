@@ -389,8 +389,11 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     }));
     expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
 
+    const resumableAssignment = assignments.find(
+      (assignment) => assignment.scenario.stable_key === "locked-user-account",
+    );
     const started = await pageA.request.post(
-      "/api/service-desk/assignments/" + assignments[0].id + "/attempts",
+      "/api/service-desk/assignments/" + resumableAssignment.id + "/attempts",
       withOrigin({}),
     );
     expect(started.status()).toBe(201);
@@ -398,6 +401,12 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await expect(progressA.getByText("3", { exact: true })).toBeVisible();
     await expect(progressA.getByText("1", { exact: true })).toBeVisible();
     await expect(progressA.getByText("In progress", { exact: true })).toBeVisible();
+
+    await pageA.goto("/training/module/module.endpoint.support_workflow");
+    const resumableActivity = pageA.locator('article[data-activity-type="service_desk_scenario"]').filter({
+      hasText: resumableAssignment.scenario.title,
+    });
+    await expect(resumableActivity.getByRole("link", { name: "Resume", exact: true })).toBeVisible();
 
     await pageA.goto("/service-desk/tickets/INC2408");
     await expect(pageA.getByRole("heading", { name: "Case unavailable" })).toBeVisible();
@@ -487,6 +496,11 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
         most_recent_attempt: { status: "completed" },
       });
     }
+    await page.goto("/training/module/module.endpoint.support_workflow");
+    const completedActivity = page.locator('article[data-activity-type="service_desk_scenario"]').filter({
+      hasText: cases[0].title,
+    });
+    await expect(completedActivity.getByRole("link", { name: "Review", exact: true })).toBeVisible();
     const dimensions = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,

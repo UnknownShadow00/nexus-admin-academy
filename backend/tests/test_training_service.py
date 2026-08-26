@@ -27,6 +27,7 @@ from app.services.training_service import (
     build_training_week,
     validate_training_curriculum,
 )
+from app.services.progression_service import derive_current_week, require_week_reached
 from app.services.curriculum_structure import (
     MODULES,
     STAGES,
@@ -326,6 +327,51 @@ def test_required_activity_blocks_next_week_but_optional_does_not(db, student):
     assert after["weeks"][1]["status"] == "in_progress"
     assert after["current_week"]["week_number"] == 2
     assert after["next_activity"]["stable_id"] == "w2-required"
+
+
+def test_optional_lesson_does_not_split_learning_path_and_week_gates(db, student):
+    week_one = add_week(db, 1, requires_previous=False)
+    week_two = add_week(db, 25)
+    week_two.display_order = 2
+    module = Module(code="MOD-001", title="Week 1", module_order=1)
+    db.add(module)
+    db.flush()
+    optional_lesson = Lesson(
+        module_id=module.id,
+        title="Optional deep dive",
+        lesson_order=1,
+        status="published",
+    )
+    required_video = add_video(db, 12, title="Required foundation")
+    next_video = add_video(db, 13, title="Modern module activity")
+    db.add(optional_lesson)
+    db.flush()
+    add_activity(
+        db,
+        week_one,
+        "w1-optional-lesson",
+        "lesson",
+        optional_lesson.id,
+        1,
+        required=False,
+    )
+    add_activity(db, week_one, "w1-required-video", "video", required_video.id, 2)
+    add_activity(db, week_two, "w25-required-video", "video", next_video.id, 1)
+    db.commit()
+
+    assert derive_current_week(student.id, db) == 1
+    db.add(VideoWatch(student_id=student.id, video_key=required_video.video_key))
+    db.commit()
+
+    overview = build_training_overview(db, student)
+    assert overview["weeks"][0]["is_complete"] is True
+    assert overview["weeks"][0]["optional_complete"] == 0
+    assert overview["current_week"]["week_number"] == 25
+    assert derive_current_week(student.id, db) == 25
+    assert require_week_reached(db, student, 25) == {
+        "required_week": 25,
+        "current_week": 25,
+    }
 
 
 def test_lesson_note_does_not_complete_a_required_training_activity(db, student):

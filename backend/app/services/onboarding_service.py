@@ -7,7 +7,7 @@ from app.models.quiz import Quiz
 from app.models.student import Student
 from app.models.ticket import TicketSubmission
 from app.models.xp_ledger import XPLedger
-from app.services.progression_service import derive_current_week
+from app.services.progression_service import has_reached_week
 from app.services.quiz_progression import is_quiz_passed
 
 ORIENTATION_LESSON_TITLE = "Welcome to Nexus: Your First Week"
@@ -44,7 +44,7 @@ def get_orientation_state(db: Session, student: Student) -> dict:
         )
     quiz_passed = bool(quiz and is_quiz_passed(db, student.id, quiz))
     lesson_complete = lesson_progress is not None
-    week_one_unlocked = derive_current_week(student.id, db) >= 1
+    week_one_unlocked = has_reached_week(db, student.id, 1)
     complete = bool(lesson_complete and quiz_passed)
     remaining_week_zero_lessons = []
     if complete and lesson:

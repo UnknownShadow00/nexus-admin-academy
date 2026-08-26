@@ -74,6 +74,19 @@ MODULE_WEEKS = {
 
 def derive_current_week(student_id: int, db: Session) -> int:
     """Return the earliest curriculum week with incomplete required work."""
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if student is not None:
+        # Local import avoids the training_service -> progression_service
+        # module cycle. The helper disables Service Desk availability lookup,
+        # so this call cannot recurse through service_desk_progression.
+        from app.services.training_service import derive_training_current_week
+
+        current_week = derive_training_current_week(db, student)
+        if current_week is not None:
+            return current_week
+
+    # Compatibility for pre-0032 databases and focused unit fixtures that do
+    # not have TrainingWeek rows yet.
     from app.models.lesson_progress import StudentLessonProgress
 
     for week in range(max(MODULE_WEEKS.values()) + 1):
@@ -107,6 +120,46 @@ def derive_current_week(student_id: int, db: Session) -> int:
     return max(MODULE_WEEKS.values())
 
 
+def week_has_been_reached(db: Session, current_week: int, required_week: int) -> bool:
+    """Compare source weeks by the canonical TrainingWeek display sequence."""
+    from app.models.training import TrainingWeek
+
+    rows = (
+        db.query(TrainingWeek.week_number, TrainingWeek.display_order)
+        .filter(
+            TrainingWeek.is_active.is_(True),
+            TrainingWeek.week_number.in_({int(current_week), int(required_week)}),
+        )
+        .all()
+    )
+    positions = {week_number: display_order for week_number, display_order in rows}
+    if current_week in positions and required_week in positions:
+        return positions[required_week] <= positions[current_week]
+    return int(required_week) <= int(current_week)
+
+
+def has_reached_week(db: Session, student_id: int, required_week: int) -> bool:
+    return week_has_been_reached(
+        db, derive_current_week(student_id, db), int(required_week or 0)
+    )
+
+
+def _week_is_beyond_next(db: Session, current_week: int, required_week: int) -> bool:
+    """Return whether required_week is more than one curriculum step ahead."""
+    from app.models.training import TrainingWeek
+
+    ordered = [
+        week_number
+        for (week_number,) in db.query(TrainingWeek.week_number)
+        .filter(TrainingWeek.is_active.is_(True))
+        .order_by(TrainingWeek.display_order, TrainingWeek.week_number)
+        .all()
+    ]
+    if current_week in ordered and required_week in ordered:
+        return ordered.index(required_week) > ordered.index(current_week) + 1
+    return int(required_week) > int(current_week) + 1
+
+
 def require_week_reached(db: Session, student, required_week: int) -> dict:
     """Require the student to have reached an item's curriculum week.
 
@@ -118,7 +171,7 @@ def require_week_reached(db: Session, student, required_week: int) -> dict:
         return {"required_week": required_week, "current_week": required_week}
 
     current_week = derive_current_week(student.id, db)
-    if required_week <= current_week:
+    if week_has_been_reached(db, current_week, required_week):
         return {"required_week": required_week, "current_week": current_week}
 
     from app.models.lesson_progress import StudentLessonProgress
@@ -153,7 +206,7 @@ def require_week_reached(db: Session, student, required_week: int) -> dict:
     elif incomplete_quiz is not None:
         error = f"Complete the required quiz in {current_label} first."
         next_action_route = f"/quizzes/{incomplete_quiz.id}"
-    elif required_week > current_week + 1:
+    elif _week_is_beyond_next(db, current_week, required_week):
         error = f"You'll unlock this when you reach {required_label}."
         next_action_route = "/training"
     elif lesson_incomplete:
@@ -192,7 +245,7 @@ def check_module_unlock(student_id: int, module_id: int, db: Session) -> dict:
     mapped_week = MODULE_WEEKS.get(module.code)
     if student and not student.is_mentor and mapped_week is not None:
         current_week = derive_current_week(student_id, db)
-        if mapped_week > current_week:
+        if not week_has_been_reached(db, current_week, mapped_week):
             current_module = module_for_week(current_week)
             current_label = current_module.title if current_module else "your current module"
             requirements_missing.append(

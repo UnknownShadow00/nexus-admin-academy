@@ -9,7 +9,11 @@ import { getTrainingModule, getTrainingWeek, markTrainingVideoWatched } from "..
 
 function ActivityCard({ activity, cliPracticeRoute, isNext = false, onWatched, returnTo }) {
   const quiz = activity.linked_quiz;
-  const actionLabel = activity.complete ? "Review" : activity.status === "in_progress" ? "Continue" : "Start";
+  const actionLabel = activity.complete
+    ? "Review"
+    : activity.status === "in_progress"
+      ? activity.activity_type === "service_desk_scenario" ? "Resume" : "Continue"
+      : "Start";
   const isWeekOneTicketLesson = activity.stable_id === "week-1-lesson-2";
   const isWeekOneCliLesson = activity.stable_id === "week-1-lesson-3";
   const isInlineWeekOneLesson = isWeekOneTicketLesson || isWeekOneCliLesson;
