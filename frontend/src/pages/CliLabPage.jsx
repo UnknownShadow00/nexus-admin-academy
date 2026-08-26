@@ -7,6 +7,7 @@ import PageHeader from "../components/ui/PageHeader";
 import LabRunner from "../features/cli-labs/components/LabRunner";
 import { findCliLesson, nextCliLesson } from "../features/cli-labs/data/lessonCatalog";
 import { getCliLab } from "../services/api";
+import { setMonitoringContext } from "../monitoring/sentry";
 
 export default function CliLabPage() {
   const { labId } = useParams();
@@ -29,6 +30,17 @@ export default function CliLabPage() {
       cancelled = true;
     };
   }, [labId]);
+
+  useEffect(() => {
+    if (!lesson) return;
+    setMonitoringContext({
+      nexus_area: "lab",
+      lab_template_id: lesson.id,
+      module_name: lesson.title,
+      activity_stable_id: lesson.id,
+      activity_type: "networking_lab",
+    });
+  }, [lesson]);
 
   if (!lesson) {
     return (

@@ -2,9 +2,12 @@ import { ChevronDown, LogOut, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AdminAccessGate from "./components/AdminAccessGate";
+import ReportIssueButton from "./components/ReportIssueButton";
 import RequireAuth from "./components/RequireAuth";
 import { clearAuthSession, getCurrentStudent, isAuthenticated } from "./hooks/useAuth";
 import { useDarkMode } from "./hooks/useDarkMode";
+import { setStudentMonitoringUser, syncRouteMonitoringContext } from "./monitoring/sentry";
+import { withSentryReactRouterV7Routing } from "@sentry/react";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import LoginPage from "./pages/LoginPage";
 import StudentHome from "./pages/StudentHome";
@@ -79,6 +82,7 @@ const navLinkBase = "rounded-lg px-3 py-2 text-sm font-medium transition-colors 
 const navLinkInactive = "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100";
 const navLinkActive = "bg-blue-600 text-white";
 const iconButtonClass = "rounded-lg border border-slate-300 p-2 text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus-visible:ring-offset-slate-900";
+const MonitoredRoutes = withSentryReactRouterV7Routing(Routes);
 
 function NotFoundPage() {
   return (
@@ -235,6 +239,11 @@ export default function App() {
   }, [location.pathname]);
 
   useEffect(() => {
+    syncRouteMonitoringContext(location);
+    setStudentMonitoringUser(!isAdminRoute ? currentStudent : null);
+  }, [currentStudent?.id, isAdminRoute, location.pathname, location.search]);
+
+  useEffect(() => {
     if (!showSearch || !searchOpen) return;
     const timer = setTimeout(async () => {
       const q = searchQuery.trim();
@@ -319,6 +328,8 @@ export default function App() {
                 </div>
               ) : null}
 
+              {!isAdminRoute ? <ReportIssueButton compact /> : null}
+
               <button
                 className={iconButtonClass}
                 onClick={() => setIsDark(!isDark)}
@@ -344,6 +355,9 @@ export default function App() {
                 <div className="flex flex-col gap-3">
                   <AppNav items={navItems} isAdminRoute={isAdminRoute} onNavigate={() => setMobileOpen(false)} mobile />
                   {!isAdminRoute ? (
+                    <ReportIssueButton />
+                  ) : null}
+                  {!isAdminRoute ? (
                     <button
                       className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 dark:border-slate-700 dark:text-slate-200"
                       onClick={handleLogout}
@@ -361,7 +375,7 @@ export default function App() {
       ) : null}
 
       <Suspense fallback={<div className="mx-auto max-w-3xl p-6" role="status">Loading page...</div>}>
-      <Routes>
+      <MonitoredRoutes>
         <Route path="/" element={<RequireAuth><StudentHome /></RequireAuth>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/lessons/:lessonId" element={<RequireAuth><LessonPage /></RequireAuth>} />
@@ -401,7 +415,7 @@ export default function App() {
         <Route path="/admin/quizzes/:quizId/edit" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><QuizEditorPage /></AdminAccessGate>} />
         <Route path="/admin/ai-costs" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AICostDashboard /></AdminAccessGate>} />
         <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+      </MonitoredRoutes>
       </Suspense>
     </div>
   );

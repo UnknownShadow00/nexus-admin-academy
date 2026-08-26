@@ -11,6 +11,7 @@ import { DifficultyBadge } from "../components/ui/Badge";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
 import { createLabVmAccess, getLab, getLabVmStatus, startLab, submitLab, uploadLabEvidence, verifyEvidenceLab } from "../services/api";
+import { setMonitoringContext } from "../monitoring/sentry";
 
 const provisioningStatuses = new Set(["provisioning", "starting", "waiting_for_ip", "configuring_connection"]);
 
@@ -58,6 +59,17 @@ export default function LabPage() {
       cancelled = true;
     };
   }, [labId]);
+
+  useEffect(() => {
+    if (!lab) return;
+    setMonitoringContext({
+      nexus_area: lab.lab_type === "structured_final_shift" ? "final_shift" : "lab",
+      training_week: lab.week_number,
+      lab_template_id: labId,
+      module_name: lab.title,
+      activity_type: lab.lab_type,
+    });
+  }, [lab, labId]);
 
   useEffect(() => {
     if (!vmAssignment || !provisioningStatuses.has(vmAssignment.status)) return undefined;

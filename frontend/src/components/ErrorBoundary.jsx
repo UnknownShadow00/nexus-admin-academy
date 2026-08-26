@@ -1,4 +1,5 @@
 import { Component } from "react";
+import { captureBoundaryError } from "../monitoring/sentry";
 
 export default class ErrorBoundary extends Component {
   state = { hasError: false };
@@ -8,6 +9,7 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
+    captureBoundaryError(error, info.componentStack);
     console.error("ErrorBoundary caught:", error, info);
   }
 
@@ -28,4 +30,3 @@ export default class ErrorBoundary extends Component {
     return this.props.children;
   }
 }
-
