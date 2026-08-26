@@ -1,5 +1,5 @@
 import { ChevronDown, LogOut, Menu, Moon, Search, Sun, X } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import AdminAccessGate from "./components/AdminAccessGate";
 import ReportIssueButton from "./components/ReportIssueButton";
@@ -238,7 +238,7 @@ export default function App() {
     setSearchResults({ lessons: [], commands: [] });
   }, [location.pathname]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     syncRouteMonitoringContext(location);
     setStudentMonitoringUser(!isAdminRoute ? currentStudent : null);
   }, [currentStudent?.id, isAdminRoute, location.pathname, location.search]);

@@ -11,6 +11,13 @@ const CONTEXT_TAG_KEYS = new Set([
   "service_desk_scenario_id",
 ]);
 
+const ACTIVITY_CONTEXT_TAG_KEYS = [
+  "activity_stable_id",
+  "activity_type",
+  "lab_template_id",
+  "service_desk_scenario_id",
+];
+
 function safeIdentifier(value) {
   if (value === null || value === undefined) return undefined;
   const normalized = String(value).trim();
@@ -74,6 +81,30 @@ export function mergeSafeLearningContext(base, candidate = {}) {
   return {
     tags,
     context: { ...(base?.context || {}), ...Object.fromEntries(Object.entries(tags).filter(([key]) => CONTEXT_TAG_KEYS.has(key))) },
+  };
+}
+
+export function mergeSafeRouteContext(base, location, viewport = {}, release) {
+  const route = createSafeRouteContext(location, viewport, release);
+  if (base?.context?.route !== route.context.route) return route;
+
+  const tags = { ...(base?.tags || {}) };
+  const previousActivity = tags.activity_stable_id;
+  const nextActivity = route.tags.activity_stable_id;
+  if (nextActivity && previousActivity && nextActivity !== previousActivity) {
+    for (const key of ACTIVITY_CONTEXT_TAG_KEYS) delete tags[key];
+  }
+  Object.assign(tags, route.tags);
+
+  const nonLearningContext = Object.fromEntries(
+    Object.entries(base?.context || {}).filter(([key]) => !CONTEXT_TAG_KEYS.has(key)),
+  );
+  const learningContext = Object.fromEntries(
+    Object.entries(tags).filter(([key]) => CONTEXT_TAG_KEYS.has(key)),
+  );
+  return {
+    tags,
+    context: { ...nonLearningContext, ...route.context, ...learningContext },
   };
 }
 

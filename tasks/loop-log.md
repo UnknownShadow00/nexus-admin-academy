@@ -1477,3 +1477,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/src/monitoring/sentry.js, frontend/src/monitoring/sentry.test.js, tasks/loop-log.md
 - Result: pass against connection and privacy acceptance criteria; exactly one real error and one real feedback report were accepted by Sentry, the app stayed healthy, the final fake-intake browser test covered login, Learning Path, lesson, lab, Service Desk navigation, and safe context with no query, fragment, credential, cookie, email, notes, documentation, or request-body leakage, 11/11 Vitest tests passed, Vite build passed, CLI validation/sanity passed, npm audit found zero vulnerabilities, and git diff checks passed.
 - Next: Push feature/sentry-student-bug-reporting for independent review and confirm the error event and replay availability in the Sentry dashboard; deployment remains separately authorized and was not performed.
+
+## [2026-08-26T20:51:57Z] Task Completed
+- Task: Fixed only the two Medium independent Nexus Sentry review findings by stabilizing safe route/page monitoring context and preventing re-entrant feedback forms.
+- Files changed: frontend/src/App.jsx, frontend/src/monitoring/context.js, frontend/src/monitoring/context.test.js, frontend/src/monitoring/sentry.js, frontend/src/monitoring/sentry.test.js, tasks/loop-log.md
+- Result: pass against acceptance criteria; route sync now preserves current-page detail while clearing stale activity context and SDK tags, feedback creation is single-flight with close/failure cleanup, 22/22 Vitest tests passed, the Vite build passed, npm audit found zero vulnerabilities, git diff checks passed, privacy controls remained intact, and production was untouched.
+- Next: Independently review and merge feature/sentry-student-bug-reporting when approved; the listed Low findings remain follow-ups and no deployment is authorized by this task.

@@ -13,13 +13,18 @@ const sentry = vi.hoisted(() => ({
   reactRouterV7BrowserTracingIntegration: vi.fn(() => ({ name: "router" })),
   replayIntegration: vi.fn(() => ({ name: "replay" })),
   setContext: vi.fn(),
+  setTag: vi.fn(),
   setTags: vi.fn(),
   setUser: vi.fn(),
 }));
 
 vi.mock("@sentry/react", () => sentry);
 
-import { initSentry, openIssueReport, scrubBreadcrumb, scrubEvent, scrubFeedbackEvent, scrubPreparedFeedbackEvent, scrubReplayRecordingEvent } from "./sentry";
+import { initSentry, openIssueReport, scrubBreadcrumb, scrubEvent, scrubFeedbackEvent, scrubPreparedFeedbackEvent, scrubReplayRecordingEvent, setMonitoringContext, syncRouteMonitoringContext } from "./sentry";
+
+function closeLatestFeedbackForm() {
+  sentry.createForm.mock.calls.at(-1)?.[0]?.onFormClose?.();
+}
 
 describe("Sentry initialization and privacy", () => {
   beforeEach(() => {
@@ -62,6 +67,98 @@ describe("Sentry initialization and privacy", () => {
     expect(sentry.createForm).toHaveBeenCalledOnce();
     expect(sentry.dialog.appendToDom).toHaveBeenCalledOnce();
     expect(sentry.dialog.open).toHaveBeenCalledOnce();
+    closeLatestFeedbackForm();
+  });
+
+  it("calls createForm once for rapid double invocation", async () => {
+    let resolveForm;
+    sentry.createForm.mockReturnValueOnce(new Promise((resolve) => { resolveForm = resolve; }));
+    initSentry({ VITE_SENTRY_DSN: "https://public@example.invalid/1" });
+    sentry.isInitialized.mockReturnValue(true);
+
+    const first = openIssueReport();
+    const second = openIssueReport();
+    resolveForm(sentry.dialog);
+
+    await expect(Promise.all([first, second])).resolves.toEqual([true, false]);
+    expect(sentry.createForm).toHaveBeenCalledOnce();
+    closeLatestFeedbackForm();
+  });
+
+  it("ignores a second request while form creation is in flight", async () => {
+    let resolveForm;
+    sentry.createForm.mockReturnValueOnce(new Promise((resolve) => { resolveForm = resolve; }));
+    initSentry({ VITE_SENTRY_DSN: "https://public@example.invalid/1" });
+    sentry.isInitialized.mockReturnValue(true);
+
+    const first = openIssueReport();
+    await expect(openIssueReport()).resolves.toBe(false);
+    expect(sentry.createForm).toHaveBeenCalledOnce();
+
+    resolveForm(sentry.dialog);
+    await first;
+    closeLatestFeedbackForm();
+  });
+
+  it("can open another form after the current form closes", async () => {
+    initSentry({ VITE_SENTRY_DSN: "https://public@example.invalid/1" });
+    sentry.isInitialized.mockReturnValue(true);
+
+    await expect(openIssueReport()).resolves.toBe(true);
+    closeLatestFeedbackForm();
+    await expect(openIssueReport()).resolves.toBe(true);
+
+    expect(sentry.createForm).toHaveBeenCalledTimes(2);
+    closeLatestFeedbackForm();
+  });
+
+  it("allows retry after createForm fails", async () => {
+    sentry.createForm.mockRejectedValueOnce(new Error("SDK load failed"));
+    initSentry({ VITE_SENTRY_DSN: "https://public@example.invalid/1" });
+    sentry.isInitialized.mockReturnValue(true);
+
+    await expect(openIssueReport()).rejects.toThrow("SDK load failed");
+    await expect(openIssueReport()).resolves.toBe(true);
+
+    expect(sentry.createForm).toHaveBeenCalledTimes(2);
+    closeLatestFeedbackForm();
+  });
+
+  it("removes closed feedback forms without leaking or stacking DOM dialogs", async () => {
+    const firstDialog = { appendToDom: vi.fn(), open: vi.fn(), removeFromDom: vi.fn() };
+    const secondDialog = { appendToDom: vi.fn(), open: vi.fn(), removeFromDom: vi.fn() };
+    sentry.createForm.mockResolvedValueOnce(firstDialog).mockResolvedValueOnce(secondDialog);
+    initSentry({ VITE_SENTRY_DSN: "https://public@example.invalid/1" });
+    sentry.isInitialized.mockReturnValue(true);
+
+    await openIssueReport();
+    closeLatestFeedbackForm();
+    await openIssueReport();
+
+    expect(firstDialog.removeFromDom).toHaveBeenCalledOnce();
+    expect(firstDialog.appendToDom).toHaveBeenCalledOnce();
+    expect(secondDialog.appendToDom).toHaveBeenCalledOnce();
+    closeLatestFeedbackForm();
+    expect(secondDialog.removeFromDom).toHaveBeenCalledOnce();
+  });
+
+  it("unsets stale SDK tags after leaving an activity for a generic page", () => {
+    sentry.isInitialized.mockReturnValue(true);
+    syncRouteMonitoringContext({ pathname: "/labs/sdk-clear-test" }, { innerWidth: 1280, innerHeight: 720 });
+    setMonitoringContext({
+      module_name: "Endpoint Support",
+      activity_stable_id: "endpoint-practice",
+      activity_type: "structured_lab",
+      service_desk_scenario_id: "scenario-stale",
+    });
+
+    syncRouteMonitoringContext({ pathname: "/dashboard" }, { innerWidth: 1280, innerHeight: 720 });
+
+    expect(sentry.setTag).toHaveBeenCalledWith("lab_template_id", undefined);
+    expect(sentry.setTag).toHaveBeenCalledWith("module_name", undefined);
+    expect(sentry.setTag).toHaveBeenCalledWith("activity_stable_id", undefined);
+    expect(sentry.setTag).toHaveBeenCalledWith("activity_type", undefined);
+    expect(sentry.setTag).toHaveBeenCalledWith("service_desk_scenario_id", undefined);
   });
 
   it("removes credentials, cookies, bodies, PII, and query strings", () => {

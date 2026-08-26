@@ -6,7 +6,7 @@ import {
   useLocation,
   useNavigationType,
 } from "react-router-dom";
-import { createSafeRouteContext, mergeSafeLearningContext } from "./context";
+import { mergeSafeLearningContext, mergeSafeRouteContext } from "./context";
 
 const SENSITIVE_KEY = /authorization|cookie|password|passwd|secret|token|session|email|request.?body|response.?body/i;
 const SENSITIVE_VALUE = /(bearer\s+[a-z0-9._~+/-]+=*|password\s*[:=]|authorization\s*[:=]|session[_-]?token\s*[:=])/i;
@@ -14,6 +14,7 @@ const URL_KEY = /(?:^|[._-])(url|uri|href|src|from|to)(?:$|[._-])/i;
 
 let feedback;
 let feedbackDialog;
+let feedbackOpening = false;
 let currentContext = { tags: {}, context: {} };
 
 function numberFromEnv(value, fallback) {
@@ -158,35 +159,63 @@ export function setStudentMonitoringUser(student) {
   Sentry.setUser(studentId ? { id: studentId, student_id: studentId } : null);
 }
 
-export function setMonitoringContext(candidate) {
-  currentContext = mergeSafeLearningContext(currentContext, candidate);
-  if (!Sentry.isInitialized()) return currentContext;
+function publishMonitoringContext(previousContext) {
+  if (!Sentry.isInitialized()) return;
+  for (const key of Object.keys(previousContext?.tags || {})) {
+    if (!(key in currentContext.tags)) Sentry.setTag(key, undefined);
+  }
   Sentry.setTags(currentContext.tags);
   Sentry.setContext("nexus", currentContext.context);
+}
+
+export function setMonitoringContext(candidate) {
+  const previousContext = currentContext;
+  currentContext = mergeSafeLearningContext(currentContext, candidate);
+  publishMonitoringContext(previousContext);
   return currentContext;
 }
 
 export function syncRouteMonitoringContext(location, viewport = window) {
-  currentContext = createSafeRouteContext(
+  const previousContext = currentContext;
+  currentContext = mergeSafeRouteContext(
+    currentContext,
     location,
     { width: viewport.innerWidth, height: viewport.innerHeight },
     import.meta.env.VITE_SENTRY_RELEASE,
   );
-  if (Sentry.isInitialized()) {
-    Sentry.setTags(currentContext.tags);
-    Sentry.setContext("nexus", currentContext.context);
-  }
+  publishMonitoringContext(previousContext);
   return currentContext;
 }
 
 export async function openIssueReport() {
   if (!Sentry.isInitialized() || !feedback) return false;
+  if (feedbackOpening || feedbackDialog) return false;
+
+  feedbackOpening = true;
   Sentry.addBreadcrumb({ category: "student.feedback", message: "Opened Report Issue", level: "info" });
-  feedbackDialog?.removeFromDom();
-  feedbackDialog = await feedback.createForm({ tags: currentContext.tags });
-  feedbackDialog.appendToDom();
-  feedbackDialog.open();
-  return true;
+  let dialog;
+  const releaseDialog = () => {
+    if (feedbackDialog !== dialog) return;
+    dialog.removeFromDom();
+    feedbackDialog = undefined;
+  };
+  try {
+    dialog = await feedback.createForm({
+      tags: currentContext.tags,
+      onFormClose: releaseDialog,
+      onFormSubmitted: releaseDialog,
+    });
+    feedbackDialog = dialog;
+    dialog.appendToDom();
+    dialog.open();
+    return true;
+  } catch (error) {
+    if (feedbackDialog === dialog) feedbackDialog = undefined;
+    dialog?.removeFromDom();
+    throw error;
+  } finally {
+    feedbackOpening = false;
+  }
 }
 
 export function captureBoundaryError(error, componentStack) {
