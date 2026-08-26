@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from app.models.cli_lab import CliLab, CliLabAttempt
+from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.lesson_progress import StudentLessonProgress
 from app.models.mastery import StudentDomainMastery
@@ -533,6 +534,23 @@ def _satisfy_every_requirement_on_gate(db, student, role):
 
         elif gate.requirement_type == "no_unresolved_flags":
             pass
+
+        elif gate.requirement_type == "required_lab_pass":
+            if not db.query(LabTemplate).filter_by(id=cfg["lab_id"]).first():
+                db.add(LabTemplate(id=cfg["lab_id"], title=f"satisfiability-check-lab-{cfg['lab_id']}"))
+                db.flush()
+            db.add(
+                LabRun(
+                    lab_template_id=cfg["lab_id"],
+                    student_id=student.id,
+                    status="submitted",
+                    submitted_at=datetime.now(timezone.utc),
+                    final_score=100,
+                    structured_feedback={
+                        "grading": {"passed": True, "rubric_version": "final-shift-v1"},
+                    },
+                )
+            )
 
         else:
             raise AssertionError(f"unhandled requirement_type {gate.requirement_type!r} in satisfiability check")

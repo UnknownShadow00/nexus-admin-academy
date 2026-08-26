@@ -6,6 +6,7 @@ import PrerequisiteLock, { getPrerequisiteLock } from "../components/Prerequisit
 import EndpointEvidenceWorkbench from "../components/EndpointEvidenceWorkbench";
 import EvidenceCaseWorkbench from "../components/EvidenceCaseWorkbench";
 import StructuredLabExercise from "../components/StructuredLabExercise";
+import FinalSupportShiftPage from "./FinalSupportShiftPage";
 import { DifficultyBadge } from "../components/ui/Badge";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
@@ -191,6 +192,10 @@ export default function LabPage() {
 
   if (error) {
     return <main className="mx-auto max-w-4xl p-6 text-sm text-slate-500 dark:text-slate-300">{error}</main>;
+  }
+
+  if (lab.lab_type === "structured_final_shift") {
+    return <FinalSupportShiftPage labId={labId} />;
   }
 
   const tasks = Array.isArray(lab.success_criteria?.tasks) ? lab.success_criteria.tasks : [];

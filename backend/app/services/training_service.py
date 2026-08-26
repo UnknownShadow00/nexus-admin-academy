@@ -23,6 +23,11 @@ from app.models.video_watch import VideoWatch
 from app.services.mastery_service import list_student_mastery
 from app.services.progression_service import get_promotion_status
 from app.services.quiz_visibility import student_visible_quiz_filters
+from app.services.service_desk_progression import (
+    build_service_desk_progression,
+    ensure_assigned_scenarios,
+    scenario_access,
+)
 from app.services.training_quiz_mapping import CONFIDENCE_BY_BASIS, EXACT, TOPIC_GROUP, WEEK_FALLBACK
 from app.services.curriculum_structure import (
     LEARNING_ROLES,
@@ -190,6 +195,16 @@ class _TrainingContext:
             row.stable_key: row
             for row in db.query(ServiceDeskScenario).filter(ServiceDeskScenario.stable_key.in_(refs["service_desk_scenario"])).all()
         } if refs["service_desk_scenario"] else {}
+        # Single authoritative availability answer, shared with Service Desk's
+        # own endpoints (see scenario_access) -- never re-derived from
+        # curriculum metadata alone. ensure_assigned_scenarios heals the one
+        # gap that can make the two disagree: a missing assignment row (see
+        # its docstring for which account-creation path leaves that gap).
+        self.service_desk_progression = (
+            build_service_desk_progression(db, student) if refs["service_desk_scenario"] else None
+        )
+        if self.service_desk_progression:
+            ensure_assigned_scenarios(db, student, self.service_desk_progression)
         service_version_ids = [
             row.id for row in db.query(ServiceDeskScenarioVersion.id)
             .join(ServiceDeskScenario, ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id)
@@ -377,10 +392,32 @@ class _TrainingContext:
             scenario = self.service_desk_scenarios.get(activity.content_ref)
             if not scenario:
                 return None
+            # Same authoritative unlock answer Service Desk itself enforces
+            # (require_scenario_unlocked uses this exact function) -- never
+            # inferred independently from curriculum metadata alone, so the
+            # Learning Path can never promise a case Service Desk will reject.
+            access = scenario_access(self.service_desk_progression, scenario.stable_key)
+            permission_locked = not access["unlocked"]
+            permission_reason = None
+            if permission_locked:
+                next_pack = self.service_desk_progression["next_pack"]
+                pack_key = access.get("pack_key")
+                permission_reason = (
+                    next_pack["reason"]
+                    if next_pack and next_pack["key"] == pack_key
+                    else "Complete the earlier Service Desk cases first."
+                )
             ticket_key = _service_desk_ticket_key(scenario.stable_key)
             # Kept in sync with the allowlist in service-desk-app/apps/web/lib/nexus-return.ts.
             return_to = quote(_module_route_for_week(week_number), safe="")
-            return _ResolvedContent(title=scenario.title, description=scenario.description, destination_route=f"/service-desk/tickets/{ticket_key}?returnTo={return_to}", estimated_minutes=activity.estimated_minutes)
+            return _ResolvedContent(
+                title=scenario.title,
+                description=scenario.description,
+                destination_route=None if permission_locked else f"/service-desk/tickets/{ticket_key}?returnTo={return_to}",
+                estimated_minutes=activity.estimated_minutes,
+                permission_locked=permission_locked,
+                permission_reason=permission_reason,
+            )
         if activity.activity_type == "capstone":
             capstone = self.capstones.get(ref)
             if not capstone:

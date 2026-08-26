@@ -72,6 +72,13 @@ def _student_safe_success_criteria(success_criteria: dict) -> dict:
             safe[workbench_key] = {
                 key: value for key, value in workbench.items() if key != "verification"
             }
+    if "final_shift" in safe:
+        # The Final Support Shift's queue/incident content, including its
+        # answer key, is served exclusively by /api/final-shift/{lab_id}
+        # (see app/routers/final_shift.py), which strips diagnosis.correct,
+        # actions[].safe, and verification before responding. This generic
+        # lab endpoint must never forward the raw case data.
+        safe = {key: value for key, value in safe.items() if key != "final_shift"}
     return safe
 
 

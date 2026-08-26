@@ -262,6 +262,8 @@ def check_promotion_eligibility(student_id: int, target_role_id: int, db: Sessio
             result = _check_no_flags(student_id, config, db)
         elif req_type == "required_quiz":
             result = _check_required_quiz(student_id, config, db)
+        elif req_type == "required_lab_pass":
+            result = _check_required_lab_pass(student_id, config, db)
         else:
             # Unknown types are ignored for forward-compatibility, and must not
             # count toward the completion denominator (previously they did,
@@ -336,6 +338,44 @@ def _check_required_quiz(student_id: int, config: dict, db: Session) -> dict:
             "passed": sum(is_quiz_passed(db, student_id, quiz) for quiz in gate_quizzes),
         },
         "met": passed,
+    }
+
+
+def _check_required_lab_pass(student_id: int, config: dict, db: Session) -> dict:
+    """Config: {"lab_id": int, "min_score_pct": int}. Only counts a LabRun
+    graded under the versioned rubric it names (structured_feedback.grading
+    .rubric_version), so a weaker pre-upgrade completion of the same
+    LabTemplate id can never silently satisfy a strengthened requirement —
+    see Phase 4C.3's historical-completion policy."""
+    cfg = config or {}
+    lab_id = cfg.get("lab_id")
+    min_score_pct = int(cfg.get("min_score_pct", 100))
+    description = "Pass the required final assessment"
+    lab = db.query(LabTemplate).filter(LabTemplate.id == lab_id).first() if lab_id else None
+    if lab is not None:
+        description = f"Pass {lab.title} (≥ {min_score_pct}%)"
+
+    runs = (
+        db.query(LabRun)
+        .filter(LabRun.lab_template_id == lab_id, LabRun.student_id == student_id, LabRun.status == "submitted")
+        .all()
+    )
+    best_score = 0
+    met = False
+    for run in runs:
+        feedback = run.structured_feedback or {}
+        grading = feedback.get("grading") or {}
+        if not grading.get("rubric_version", "").startswith("final-shift-"):
+            continue
+        score = int(run.final_score or 0)
+        best_score = max(best_score, score)
+        if grading.get("passed") and score >= min_score_pct:
+            met = True
+    return {
+        "type": "required_lab_pass",
+        "description": description,
+        "progress": {"lab_id": lab_id, "best_score": best_score, "required_score": min_score_pct},
+        "met": met,
     }
 
 

@@ -26,6 +26,7 @@ from app.services.training_curriculum_seed import (
 from app.services.training_reference_seed import ensure_training_reference_content
 from app.services.windows_ad_server_practical import sync_windows_ad_server_practical_upgrade
 from app.services.network_linux_cloud_practical import sync_network_linux_cloud_practical_upgrade
+from app.services.integrated_support_final_shift import sync_integrated_support_final_shift_upgrade
 
 CURRICULUM = [
     # (section, section_order, title, duration, url, quiz_title, video_order)
@@ -192,8 +193,13 @@ try:
     current_revision = db.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
     network_linux_cloud_result = (
         sync_network_linux_cloud_practical_upgrade(db)
-        if current_revision == "0060_network_linux_cloud_practical_upgrade"
+        if current_revision in {"0060_network_linux_cloud_practical_upgrade", "0061_integrated_support_prove"}
         else {"skipped": f"requires 0060; database is {current_revision or 'unversioned'}"}
+    )
+    integrated_support_final_shift_result = (
+        sync_integrated_support_final_shift_upgrade(db)
+        if current_revision == "0061_integrated_support_prove"
+        else {"skipped": f"requires 0061; database is {current_revision or 'unversioned'}"}
     )
     print(
         f"Curriculum seeded successfully; references: {reference_result}; "
@@ -206,7 +212,8 @@ try:
         f"Microsoft Workplace foundations: {microsoft_workplace_result}; "
         f"Intune endpoint management: {intune_endpoint_result}; "
         f"Windows/AD/server practical upgrade: {windows_ad_server_result}; "
-        f"Network/Linux/cloud practical upgrade: {network_linux_cloud_result}"
+        f"Network/Linux/cloud practical upgrade: {network_linux_cloud_result}; "
+        f"Integrated support final shift: {integrated_support_final_shift_result}"
     )
 finally:
     db.close()
