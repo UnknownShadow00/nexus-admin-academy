@@ -17,6 +17,17 @@ disabled until configured and tested.
 
 ## Active self-hosted deployment
 
+### Hard invariant: never checkout a dev/review branch in the production WorkingDirectory
+
+The production checkout's working directory (see `WorkingDirectory=` in
+`systemctl cat nexus-admin-academy.service`) is not a sandbox — its
+`backend/nexus.db`, `.env`, and any file the systemd unit reads directly are
+live production state. Development, review, and testing branches must never
+be checked out there. Use an isolated `git worktree` (or an equivalent
+disposable clone) for any feature work, independent review, or exploratory
+testing, and confirm production remains on its intended commit/branch
+afterward. This applies to every agent and contributor, not just this phase.
+
 The backend runs from `backend/.venv` under
 `nexus-admin-academy.service` on port 8000. The `nexus-frontend` nginx
 container serves the Vite build on port 80 and proxies `/api`, `/auth`,

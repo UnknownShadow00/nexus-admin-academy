@@ -498,3 +498,179 @@ def test_retry_after_submission_starts_a_fresh_run_and_preserves_history(db):
 
     old_run = db.get(LabRun, first_run_id)
     assert old_run is not None and old_run.status == "submitted"
+
+
+# ---------------------------------------------------------------------------
+# XP integration
+# ---------------------------------------------------------------------------
+
+
+def _pass_all_incidents(lab, student, *, queue_order=None):
+    incidents = WEEK_24_CASE["final_shift"]["incidents"]
+    order = queue_order or [incident["key"] for incident in incidents]
+    by_key = {incident["key"]: incident for incident in incidents}
+    for key in order:
+        incident = by_key[key]
+        client.post(f"/api/final-shift/{lab.id}/incidents/{key}/open", headers=auth_headers(student))
+        doc = {"issue": "x", "evidence": "x", "action": "x", "verification": "x"}
+        if incident["requires_user_update"]:
+            doc["user_update"] = "told them"
+        if incident["requires_escalation"]:
+            doc["escalation"] = "escalated"
+        attempt = client.post(
+            f"/api/final-shift/{lab.id}/incidents/{key}/attempt",
+            headers=auth_headers(student),
+            json={
+                "inspected_panel_ids": incident["required_inspections"],
+                "diagnosis_answer": incident["diagnosis"]["correct"],
+                "action_choice": incident["correct_action_id"],
+                "documentation": doc,
+            },
+        )
+        assert attempt.json()["data"]["ready"] is True
+
+
+def _xp_ledger_rows(db, student_id, source_type="final_shift"):
+    from app.models.xp_ledger import XPLedger
+
+    return db.query(XPLedger).filter_by(student_id=student_id, source_type=source_type).all()
+
+
+def test_first_pass_awards_xp_once(db):
+    student = _mentor_student(db, "fs-xp-first")
+    lab = _seed_final_shift_lab(db)
+    starting_xp = student.total_xp
+
+    client.post(f"/api/final-shift/{lab.id}/start", headers=auth_headers(student))
+    _pass_all_incidents(lab, student)
+    handoff = client.post(
+        f"/api/final-shift/{lab.id}/handoff",
+        headers=auth_headers(student),
+        json={"resolved": "a, b", "escalated": "c", "watch_items": "none"},
+    )
+    data = handoff.json()["data"]
+    assert data["grading"]["passed"] is True
+    assert data["xp_awarded"] == 150
+
+    db.refresh(student)
+    assert student.total_xp == starting_xp + 150
+    rows = _xp_ledger_rows(db, student.id)
+    assert len(rows) == 1
+    assert rows[0].source_id == lab.id
+
+
+def test_retry_after_pass_does_not_award_xp_again(db):
+    student = _mentor_student(db, "fs-xp-retry")
+    lab = _seed_final_shift_lab(db)
+
+    client.post(f"/api/final-shift/{lab.id}/start", headers=auth_headers(student))
+    _pass_all_incidents(lab, student)
+    client.post(
+        f"/api/final-shift/{lab.id}/handoff",
+        headers=auth_headers(student),
+        json={"resolved": "a, b", "escalated": "c", "watch_items": "none"},
+    )
+    db.refresh(student)
+    xp_after_first_pass = student.total_xp
+
+    client.post(f"/api/final-shift/{lab.id}/start", headers=auth_headers(student))
+    _pass_all_incidents(lab, student)
+    second_handoff = client.post(
+        f"/api/final-shift/{lab.id}/handoff",
+        headers=auth_headers(student),
+        json={"resolved": "a, b", "escalated": "c", "watch_items": "none"},
+    )
+    data = second_handoff.json()["data"]
+    assert data["grading"]["passed"] is True
+    assert data["xp_awarded"] == 0
+
+    db.refresh(student)
+    assert student.total_xp == xp_after_first_pass
+    assert len(_xp_ledger_rows(db, student.id)) == 1
+
+
+def test_failed_attempt_awards_no_xp(db):
+    """Every incident reaches resolved/escalated (so handoff is allowed) but
+    a reversed priority order plus blank documentation pulls the overall
+    score under the 80% pass threshold — a realistic "handed off but failed"
+    shift, which must never award completion XP."""
+    student = _mentor_student(db, "fs-xp-fail")
+    lab = _seed_final_shift_lab(db)
+    starting_xp = student.total_xp
+
+    client.post(f"/api/final-shift/{lab.id}/start", headers=auth_headers(student))
+    incidents = WEEK_24_CASE["final_shift"]["incidents"]
+    by_key = {incident["key"]: incident for incident in incidents}
+    # Exact reverse of the expected-priority order, so every one of the 3
+    # pairwise comparisons is wrong (priority dimension scores 0, not just
+    # "reduced") — see final_shift_grading._priority_score.
+    correct_order = sorted(by_key, key=lambda key: by_key[key]["expected_priority_rank"])
+    worst_order = list(reversed(correct_order))
+    for key in worst_order:
+        incident = by_key[key]
+        client.post(f"/api/final-shift/{lab.id}/incidents/{key}/open", headers=auth_headers(student))
+        attempt = client.post(
+            f"/api/final-shift/{lab.id}/incidents/{key}/attempt",
+            headers=auth_headers(student),
+            json={
+                "inspected_panel_ids": incident["required_inspections"],
+                "diagnosis_answer": incident["diagnosis"]["correct"],
+                "action_choice": incident["correct_action_id"],
+                "documentation": {},
+            },
+        )
+        assert attempt.json()["data"]["ready"] is True
+
+    handoff = client.post(
+        f"/api/final-shift/{lab.id}/handoff",
+        headers=auth_headers(student),
+        json={"resolved": "a", "escalated": "b", "watch_items": "c"},
+    )
+    data = handoff.json()["data"]
+    assert data["grading"]["passed"] is False
+    assert data["grading"]["overall_score"] < 80
+    assert data["xp_awarded"] == 0
+
+    db.refresh(student)
+    assert student.total_xp == starting_xp
+    assert _xp_ledger_rows(db, student.id) == []
+
+
+def test_week_23_rehearsal_pass_never_awards_final_shift_xp(db):
+    """Week 23 (LabTemplate 21, role=troubleshoot) is a rehearsal, not the
+    graded gate — passing it must never award the Final Support Shift XP."""
+    student = _mentor_student(db, "fs-xp-week23")
+    lab = _seed_final_shift_lab(db, lab_id=21, week_number=23)
+
+    client.post(f"/api/final-shift/{lab.id}/start", headers=auth_headers(student))
+    incidents = WEEK_24_CASE["final_shift"]["incidents"]
+    for incident in incidents:
+        client.post(f"/api/final-shift/{lab.id}/incidents/{incident['key']}/open", headers=auth_headers(student))
+        doc = {"issue": "x", "evidence": "x", "action": "x", "verification": "x"}
+        if incident["requires_user_update"]:
+            doc["user_update"] = "told them"
+        if incident["requires_escalation"]:
+            doc["escalation"] = "escalated"
+        client.post(
+            f"/api/final-shift/{lab.id}/incidents/{incident['key']}/attempt",
+            headers=auth_headers(student),
+            json={
+                "inspected_panel_ids": incident["required_inspections"],
+                "diagnosis_answer": incident["diagnosis"]["correct"],
+                "action_choice": incident["correct_action_id"],
+                "documentation": doc,
+            },
+        )
+
+    handoff = client.post(
+        f"/api/final-shift/{lab.id}/handoff",
+        headers=auth_headers(student),
+        json={"resolved": "a", "escalated": "b", "watch_items": "c"},
+    )
+    data = handoff.json()["data"]
+    assert data["grading"]["passed"] is True
+    assert data["xp_awarded"] == 0
+
+    db.refresh(student)
+    assert student.total_xp == 0
+    assert _xp_ledger_rows(db, student.id) == []

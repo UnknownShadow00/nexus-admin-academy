@@ -22,12 +22,18 @@ from app.schemas.final_shift import (
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import get_current_student
 from app.services.final_shift_grading import compute_final_shift_grade
+from app.services.integrated_support_final_shift import FINAL_SHIFT_GRADED_LAB_ID
 from app.services.progression_service import require_week_reached
+from app.services.xp_service import award_xp
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/final-shift", tags=["final-shift"])
 
 FINAL_SHIFT_VERSION = "4c3"
+# Matches the highest routine per-attempt award in the codebase
+# (service_desk_mastery, up to 100) plus a premium for this being the
+# graduation-defining Prove gate covering three full incident pipelines.
+FINAL_SHIFT_PASS_XP = 150
 
 
 def _get_case_lab(db: Session, lab_id: int) -> LabTemplate:
@@ -280,6 +286,30 @@ def submit_handoff(
     grade = compute_final_shift_grade(case, feedback)
     feedback["grading"] = grade
 
+    # Only the graded Week 24 shift (not the Week 23 rehearsal) is XP
+    # eligible, and only its first passing submission ever awards it — mirror
+    # quizzes.py's is_first_attempt pattern: check prior *submitted* runs
+    # before this one flips to "submitted" below, so a retry after an
+    # already-passed run can never award again, and failed attempts never do.
+    xp_awarded = 0
+    if grade["passed"] and lab.id == FINAL_SHIFT_GRADED_LAB_ID:
+        prior_passed = any(
+            ((prior.structured_feedback or {}).get("grading") or {}).get("passed")
+            for prior in db.query(LabRun)
+            .filter(LabRun.lab_template_id == lab.id, LabRun.student_id == current_student.id, LabRun.status == "submitted")
+            .all()
+        )
+        if not prior_passed:
+            xp_awarded = FINAL_SHIFT_PASS_XP
+            award_xp(
+                db,
+                student_id=current_student.id,
+                delta=xp_awarded,
+                source_type="final_shift",
+                source_id=lab.id,
+                description=f"Final Support Shift passed: {lab.title}",
+            )
+
     now = datetime.now(UTC)
     run.structured_feedback = feedback
     run.status = "submitted"
@@ -290,4 +320,4 @@ def submit_handoff(
     db.refresh(run)
     mark_student_active(db, current_student.id)
     log_activity(db, current_student.id, "lab_submitted", lab.title, "Final shift submitted")
-    return ok({"run_id": run.id, "status": run.status, "grading": grade})
+    return ok({"run_id": run.id, "status": run.status, "grading": grade, "xp_awarded": xp_awarded})
