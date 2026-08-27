@@ -28,6 +28,54 @@ disposable clone) for any feature work, independent review, or exploratory
 testing, and confirm production remains on its intended commit/branch
 afterward. This applies to every agent and contributor, not just this phase.
 
+### Deploying a change (the only supported procedure)
+
+The serving checkout is **deploy-only**. It carries no branch work, no
+uncommitted edits, and no automated commits:
+
+- The nightly workspace snapshot (`/opt/apps/nightly-snapshot.sh`) treats this
+  checkout as *protected* — it never runs `git add`/`commit`/`push` here. It
+  only records `HEAD`, and if it ever finds the tree dirty it archives the
+  drift to `~/backups/nexus/drift/` and logs a warning. Investigate any such
+  warning: something wrote to the serving checkout outside this procedure.
+- All feature, review, and hotfix work happens in a `git worktree`
+  (`git worktree add ~/worktrees/<name> -b <branch> origin/main`), never here.
+
+A deploy is a single command:
+
+```bash
+# from the serving checkout only (it refuses to run anywhere else)
+scripts/deploy.sh [options] [<ref>]      # <ref> default: origin/main
+```
+
+`scripts/deploy.sh`:
+
+1. refuses to run unless it is the checkout `nexus-admin-academy.service`
+   actually serves, and refuses a dirty working tree;
+2. `git fetch`, then `git checkout --detach` the pinned target commit
+   (a branch/tag ref is resolved to a concrete SHA first);
+3. runs `scripts/predeploy_check.sh` (read-only gate — env, migrations
+   ancestry, disk, container/nginx/JWT, health); a failing gate aborts the
+   deploy unless you pass `--force-predeploy` after reviewing every `FAIL`
+   line (each is written to the deploy log);
+4. `pip install -r backend/requirements.txt` then `alembic upgrade head`
+   (skip with `--skip-deps` / `--skip-migrations` for a code-only change whose
+   reviewed diff has no migration);
+5. `sudo systemctl restart nexus-admin-academy.service`, then verifies
+   `http://127.0.0.1:8000/health`; on failure it checks the old commit back
+   out, restarts, and exits non-zero;
+6. with `--frontend`, additionally rebuilds the Vite bundle and reloads the
+   `nexus-frontend` nginx container (the manual steps below);
+7. appends one line per run to `~/deploy-logs/nexus-deploy.log`
+   (timestamp, operator, old SHA, new SHA).
+
+Use `--dry-run` to preview the resolved SHAs without touching anything.
+
+Rollback is just another deploy: `scripts/deploy.sh <previous-good-sha>`.
+
+The manual backend/frontend command sequences below are what `deploy.sh`
+automates; run them by hand only if the script is unavailable.
+
 The backend runs from `backend/.venv` under
 `nexus-admin-academy.service` on port 8000. The `nexus-frontend` nginx
 container serves the Vite build on port 80 and proxies `/api`, `/auth`,
