@@ -1598,3 +1598,16 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
   skip-migrations happy paths now `db_head` first). All pass.
 - Docs: `docs/DEPLOYMENT.md` + `P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md` §13.
   PR #29 NOT merged.
+
+## 2026-08-28 01:25 UTC — P1-1 / PR #29: review round 10 (R22, R23)
+
+- R22 (P1): `$NEXUS_SYSTEMCTL stop || fail` ran `fail` before `SERVICE_STOPPED=1`,
+  so a stop that failed *after* downing the unit left `on_exit` thinking nothing
+  changed -> backend down, no rollback. Fix: set `SERVICE_STOPPED=1` before the
+  stop. Test S22.
+- R23 (P2): the documented schema-rollback recipe (`deploy.sh --allow-db-ahead
+  <old-sha>` after stopping the service) aborts at the predeploy live-health
+  gate. Fix: recipe now uses `--allow-db-ahead --force-predeploy`, explains why,
+  and says which FAIL lines are expected; `--force-predeploy` help updated.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 41 cases / 157 assertions.
+  All pass. PR #29 NOT merged.

@@ -130,7 +130,14 @@ place. `deploy.sh` detects this (step 6) and refuses. To do it safely:
    head (from `~/backups/nexus/`, e.g. the `predeploy-<sha>-*` backup that
    deploy.sh took just before that migration) — stop the service, replace
    `backend/nexus.db`, remove stale `-wal`/`-shm`;
-3. `scripts/deploy.sh --allow-db-ahead <old-sha>` — restart on the old code.
+3. `scripts/deploy.sh --allow-db-ahead --force-predeploy <old-sha>` — restart on
+   the old code. **Both flags are required here:** `--allow-db-ahead` because
+   you have deliberately put the DB behind the current tree, and
+   `--force-predeploy` because you stopped the service in step 2, so
+   `predeploy_check.sh`'s live-backend health/liveness checks *will* fail. Read
+   every `FAIL` line it logs to `~/deploy-logs/nexus-deploy.log` and confirm the
+   only failures are the expected "backend not responding" ones before letting
+   the deploy continue.
 
 Prefer forward-fixing (a new migration + release) over a schema downgrade
 whenever the newer migration is not cleanly reversible.

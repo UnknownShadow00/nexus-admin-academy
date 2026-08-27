@@ -615,13 +615,46 @@ S21 (default lock path is `/run/lock/...`, pre-created world-writable). Existing
 
 ---
 
+## 14. Review round 10 — stop-failure rollback; runnable documented rollback
+
+### R22 (P1) — `fail` before `SERVICE_STOPPED=1` left the backend down with no recovery
+
+`$NEXUS_SYSTEMCTL stop … || fail …` ran `fail` *before* `SERVICE_STOPPED=1`. A
+stop that exits non-zero after already downing the unit (timed-out stop job, or
+a kill) therefore hit `on_exit` with both `SERVICE_STOPPED` and `CHECKOUT_MOVED`
+still `0` → "nothing to roll back" → production left down on the old release.
+**Fix:** set `SERVICE_STOPPED=1` *before* issuing the stop, so a failed stop
+still routes through `do_rollback` (which stops idempotently, then starts the
+old SHA and health-checks it).
+
+### R23 (P2) — the documented schema rollback wasn't runnable as written
+
+`docs/DEPLOYMENT.md` said: stop the service, restore the DB backup, run
+`deploy.sh --allow-db-ahead <old-sha>`. But step 4 runs `predeploy_check.sh`
+expecting the backend live, so it aborts on the health check before the
+checkout moves. **Fix:** the rollback recipe now specifies
+`--allow-db-ahead --force-predeploy`, explains *why* both are needed, and tells
+the operator to confirm in the log that the only predeploy `FAIL` lines are the
+expected "backend not responding" ones. `deploy.sh`'s `--force-predeploy` help
+text notes this stopped-service rollback as an expected use.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **41 cases / 157 assertions**. New:
+S22 (a `systemctl stop` that reports failure still arms rollback and the backend
+is brought back up on the old SHA — log shows the rollback start + health, never
+"nothing to roll back").
+
+---
+
 ## Final state of `scripts/deploy.sh`
 
-21 review findings across 9 Codex rounds, all fixed with tests. The script now:
+23 review findings across 10 Codex rounds, all fixed with tests. The script now:
 resolves the serving checkout from the systemd unit (launcher works from
 anywhere) and refreshes the out-of-tree launcher only after the serving-checkout
 *and* clean-tree checks pass; serializes on a shared `/run/lock` file (not a
-per-account path); refuses `--skip-migrations` when a migration is actually due;
+per-account path); arms rollback before stopping the backend so even a failed
+stop recovers; refuses `--skip-migrations` when a migration is actually due;
 takes atomic (non-nesting) venv snapshots;
 takes a host-wide lock; keeps an out-of-tree launcher copy; runs predeploy
 while the old backend is up; **stops the backend before touching the checkout**

@@ -75,7 +75,9 @@
 #                      target commit. Only after restoring a matching DB backup.
 #   --force-predeploy  Continue even if scripts/predeploy_check.sh fails. Its
 #                      full output (every FAIL line) is written to the deploy
-#                      log. Use only after reviewing each failure.
+#                      log. Use only after reviewing each failure. Also the
+#                      expected mode for a manual schema rollback where you have
+#                      already stopped the backend (its live checks then fail).
 #   --dry-run          Print the plan and resolved SHAs, change nothing.
 #   -h, --help         Show this header.
 #
@@ -423,8 +425,11 @@ fi
 # release passes health. Zero-downtime would need a separate release directory
 # with an atomic switch, or blue/green -- out of scope here (see DEPLOYMENT.md).
 log "stopping $SERVICE for deployment"
-$NEXUS_SYSTEMCTL stop "$SERVICE" || fail "could not stop $SERVICE"
+# Arm rollback BEFORE issuing the stop: a stop that exits non-zero (timed-out
+# job, or the unit was killed) may still have taken the backend down, and the
+# EXIT handler must then run recovery instead of reporting "nothing changed".
 SERVICE_STOPPED=1
+$NEXUS_SYSTEMCTL stop "$SERVICE" || fail "could not stop $SERVICE cleanly"
 
 # --- 6. Move the checkout ----------------------------------------------------
 if [ "$OLD_SHA" = "$NEW_SHA" ]; then

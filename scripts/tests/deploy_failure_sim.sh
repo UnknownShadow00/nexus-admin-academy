@@ -23,7 +23,7 @@ SIM_VARS="SIM_PREDEPLOY_FAIL SIM_BACKUP_FAIL SIM_ALEMBIC_FAIL SIM_ALEMBIC_CURREN
 SIM_PIP_FAIL SIM_SYSTEMCTL_RESTART_FAIL SIM_SYSTEMCTL_START_FAIL SIM_HEALTH_FAIL
 SIM_NEW_UNHEALTHY SIM_NPM_FAIL SIM_DOCKER_FAIL SIM_HISTORY_RC
 SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL SIM_MULTI_HEAD SIM_MULTI_DB_REV
-SIM_WORKDIR_OVERRIDE SIM_CP_HARDLINK_EXDEV"
+SIM_WORKDIR_OVERRIDE SIM_CP_HARDLINK_EXDEV SIM_SYSTEMCTL_STOP_FAIL"
 reset_sims() { for v in $SIM_VARS; do unset "$v"; done; }
 
 # ---------------------------------------------------------------------------
@@ -59,7 +59,10 @@ case "$cmd" in
     [ -n "${SIM_SYSTEMCTL_RESTART_FAIL:-}" ] && exit 1
     mark_from_head; exit 0 ;;
   stop)
-    echo "stop $*" >> "$WORK/systemctl.log"; rm -f "$WORK/new_active"; exit 0 ;;
+    echo "stop $*" >> "$WORK/systemctl.log"; rm -f "$WORK/new_active"
+    # models a stop that took the unit DOWN but still reported failure
+    [ -n "${SIM_SYSTEMCTL_STOP_FAIL:-}" ] && exit 1
+    exit 0 ;;
   start)
     echo "start $*" >> "$WORK/systemctl.log"
     # only the forward start (on NEW) fails; a rollback start (on OLD) succeeds
@@ -568,6 +571,17 @@ case_start "S20 --dry-run changes nothing and does not refresh the launcher"
   a_out "DRY RUN"
   [ ! -e "$WORK/launcher/nexus-deploy" ] && ok "--dry-run did not install the launcher" \
     || bad "--dry-run installed the launcher"
+teardown_env
+
+case_start "S22 a failing 'systemctl stop' still arms rollback (backend restored on OLD)"
+  db_head
+  export SIM_SYSTEMCTL_STOP_FAIL=1
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_ne0; a_head_old
+  a_log "could not stop nexus-admin-academy.service cleanly"
+  a_log "ROLLBACK: starting nexus-admin-academy.service on"
+  a_log "ROLLBACK: backend healthy on"
+  a_nolog "nothing to roll back"
 teardown_env
 
 case_start "S21 the default deploy lock is account-independent (not under \$HOME)"
