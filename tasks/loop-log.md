@@ -1494,3 +1494,21 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/nginx.host.conf, frontend/src/monitoring/nginxCsp.test.js, frontend/tests/e2e/sentry-csp.spec.js, tasks/loop-log.md
 - Result: pass against acceptance criteria; the no-fast-forward merge was conflict-free, 25/25 Vitest tests and 3/3 focused CSP tests passed, the Vite build, npm audit, CLI validation, CLI sanity, git diff checks, isolated nginx syntax validation, exact CSP security assertions, and sole Alembic source head 0061 checks passed; production remained untouched.
 - Next: Perform a separately authorized controlled Sentry production deployment; no deployment was performed by this task.
+
+## [2026-08-27T08:01:26Z] Task Completed
+- Task: Performed the authorized production WorkingDirectory safety recovery by inspecting the clean checkout, verifying unchanged live backend/frontend/service/Alembic state, and detaching the production checkout at the exact deployed baseline 8ea625af271d29b22e3541a4e99e83b8b1b89068 without deploying Sentry.
+- Files changed: tasks/loop-log.md; production source checkout restored by Git to 8ea625af271d29b22e3541a4e99e83b8b1b89068
+- Result: pass against recovery acceptance criteria; backend remained healthy with the same PID/start time, live frontend container and bundle checksums remained unchanged, Alembic remained 0061_integrated_support_prove, remote main remained 6227745219eafe6cd680dd4db5643f189b3a6494, and no rebuild, restart, database change, migration, seed, environment change, container change, deployment, stash operation, or unrelated file removal occurred.
+- Next: Perform all Sentry deployment preparation and any branch/review work in an isolated worktree or clone; never use the production service WorkingDirectory for development checkout activity.
+
+## [2026-08-27T13:34:38Z] Task Completed
+- Task: Attempted the separately authorized Sentry frontend production deployment from approved main SHA 6227745219eafe6cd680dd4db5643f189b3a6494, detected a production CSP blocker during post-deploy verification, and rolled the live frontend and production source checkout back to the exact known deployed baseline.
+- Files changed: tasks/loop-log.md; temporary live frontend artifact/configuration copy was fully rolled back; production source checkout restored to 8ea625af271d29b22e3541a4e99e83b8b1b89068
+- Result: fail against Sentry deployment acceptance criteria because the approved nginx CSP permits only connect-src 'self' and therefore blocks the configured Sentry ingestion origin; rollback passed, restoring the prior frontend index/bundle checksums, healthy backend and Service Desk, Alembic 0061_integrated_support_prove, unchanged backend PID/start time, and untouched protected stash object 18269429c9b4e1e26c0813281b9a0c9fbd29ed41.
+- Next: Review and approve a source change that adds only the exact configured Sentry ingestion origin to the production CSP (and validates any Replay worker CSP requirement), merge it to main, then re-run the isolated build and deployment. Do not deploy the current 6227745 release unchanged.
+
+## [2026-08-27T18:28:14Z] Task Completed
+- Task: Deployed the independently approved Nexus Sentry frontend integration and CSP fix from main release 44b772398dd1e8bef5da7edaca8f00a7c96af1bb, with the production source checkout aligned to that exact release.
+- Files changed: tasks/loop-log.md; production nexus-frontend static assets; production nexus-frontend nginx configuration; production source checkout updated from 8ea625af271d29b22e3541a4e99e83b8b1b89068 to 44b772398dd1e8bef5da7edaca8f00a7c96af1bb
+- Result: pass against deployment acceptance criteria; candidate and served bundle checksums match, local and public frontend health are 200, backend and Service Desk remain healthy without restart, the exact Sentry ingest origin and blob Replay worker CSP are live, an intercepted production-browser smoke observed exact-origin envelopes and a blob worker without sending a real event, Alembic remains 0061_integrated_support_prove, and the protected stash remains untouched.
+- Next: Monitor Sentry ingestion and privacy telemetry under normal production use; source-map upload remains disabled until separately configured with build-side SENTRY_AUTH_TOKEN, SENTRY_ORG, and SENTRY_PROJECT.
