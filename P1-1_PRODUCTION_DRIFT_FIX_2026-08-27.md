@@ -444,3 +444,49 @@ frontend swap failure after a migration keeps code+DB and rolls back only the
 frontend (S10a, S10b); DB file mode 0640 reapplied on restore (S11);
 introspection failure fails closed / proceeds only with `--allow-db-ahead`
 (S9a, S9b).
+
+---
+
+## 9. Review round 5 — no mixed-release window; deploy lock
+
+Codex re-reviewed §8 and raised two more.
+
+### R12 (P1) — isolate the running service from the checkout being replaced
+
+Because the backend runs *from* the checkout and its handlers do lazy imports
+(e.g. `routers/labs.py` importing `proxmox_service` on demand), a request
+served in the window between `git checkout` and the restart could load
+new-release code into the old process — a mixed release, even on the success
+path. **Fix within the shared-checkout constraint:** the service is now
+**stopped before the checkout for every deploy** and started only after the
+new release passes health (step 4 → step 8). Predeploy runs first, while the
+old backend is still up, so its live-health checks stay meaningful.
+
+Every deploy is now a short maintenance window. True zero-downtime needs a
+separate release directory with an atomic switch (or blue/green) and
+relocating `nexus.db` / `.env` / `uploads` / `.venv` out of the checkout —
+explicitly out of scope for P1-1 (see §2) and noted as the future path in
+`docs/DEPLOYMENT.md`.
+
+### R13 (P2) — serialize concurrent deploys
+
+Two operators could both pass the clean-tree check and race on the checkout /
+venv / service / DB. **Fix:** `deploy.sh` now takes a non-blocking host-wide
+`flock` on `~/deploy-logs/nexus-deploy.lock` before it reads any state, held
+(via an open fd) for the whole run and released on any exit. A second
+concurrent invocation aborts with "another deploy is in progress".
+
+### Final deploy order
+
+`flock` → predeploy (old backend up) → **stop backend** → checkout →
+venv snapshot + pip (+ `--frontend` build) → schema guard (fail-closed) →
+*(migration: backup → alembic upgrade)* → **start backend + health → COMMIT** →
+*(frontend swap + reload + health)* → done. Rollback before COMMIT = full
+unwind; after = frontend only.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **27 cases / 117 assertions**, adding:
+backend stopped before the checkout is touched, and predeploy before the stop
+(S12); a second concurrent run refused by the lock (S13); `SIM_SYSTEMCTL_START_FAIL`
+rolls fully back and recovers on the old SHA (S3).

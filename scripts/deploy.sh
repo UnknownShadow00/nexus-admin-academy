@@ -6,46 +6,55 @@
 # it). All feature work happens in a git worktree elsewhere. See
 # docs/DEPLOYMENT.md -> "Deploying a change".
 #
-# What it does, in order (every step after the checkout is covered by an
-# automatic rollback if a later step fails -- see "Rollback" below):
+# It takes a host-wide flock first, so concurrent deploys cannot race.
+#
+# What it does, in order (every step after "stop" is covered by an automatic
+# rollback if a later step fails -- see "Rollback" below):
 #   1. Refuses to run anywhere except the live serving checkout.
 #   2. Refuses to run with a dirty working tree.
-#   3. git fetch, then checkout --detach the pinned target commit.
-#   4. Snapshots the virtualenv, then installs target backend deps (unless
-#      --skip-deps) -- BEFORE predeploy_check and any target-tree Alembic call,
-#      which import the target's models/services.
-#   5. With --frontend: `npm ci` + build NOW, before anything touches the
-#      backend/DB, so a build failure never causes a database rollback.
-#   6. Runs scripts/predeploy_check.sh (read-only gate; full output tee'd to
-#      the deploy log). A failing gate aborts unless --force-predeploy.
-#   7. FAILS CLOSED if it cannot confirm the live schema is compatible with the
+#   3. git fetch, then resolve the pinned target commit to a SHA.
+#   4. Runs scripts/predeploy_check.sh while the OLD backend is still up (its
+#      live-health / container / env checks need it running). Full output tee'd
+#      to the deploy log; a failing gate aborts unless --force-predeploy.
+#   5. STOPS the backend. It runs from this checkout and its handlers do lazy
+#      imports, so files must not change under a live process. It stays down
+#      until step 11.
+#   6. checkout --detach the target SHA.
+#   7. Snapshots the virtualenv, then installs target backend deps (unless
+#      --skip-deps) -- before any target-tree Alembic call.
+#   8. With --frontend: `npm ci` + Vite build (backend already down).
+#   9. FAILS CLOSED if it cannot confirm the live schema is compatible with the
 #      target (DB revision ahead of / absent from the target tree), unless
 #      --allow-db-ahead. Runs even with --skip-migrations.
-#   8. If a migration will actually run: stops the service, takes a fresh
-#      SQLite + uploads backup (scripts/backup_sqlite.sh), then
-#      `alembic upgrade head` -- all with the service down so no write is lost.
-#   9. (Re)starts the backend and verifies /health. Once healthy, the code +
-#      schema are COMMITTED (see Rollback).
-#  10. With --frontend: snapshots the live container assets/config, swaps in the
-#      build from step 5, `nginx -t`, reload, re-checks frontend /health.
-#  11. Appends timestamped lines to ~/deploy-logs/nexus-deploy.log for every run.
+#  10. If a migration will actually run: fresh SQLite + uploads backup
+#      (scripts/backup_sqlite.sh), then `alembic upgrade head`.
+#  11. Starts the backend on the new release and verifies /health. Once
+#      healthy, the code + schema are COMMITTED (see Rollback).
+#  12. With --frontend: snapshots the live container assets/config, swaps in the
+#      build from step 8, `nginx -t`, reload, re-checks frontend /health.
+#  13. Appends timestamped lines to ~/deploy-logs/nexus-deploy.log for every run.
 #
-# Rollback (automatic, on ANY failure after step 3):
-#   - BEFORE the step-9 health check passes -- full unwind: check the old SHA
+# The backend is DOWN from step 5 until step 11 -- every deploy is a short
+# maintenance window (seconds for code-only, longer with deps/migration/build).
+# Zero-downtime would need a separate release directory with an atomic switch,
+# or blue/green; that is out of scope for this single-process, shared-checkout
+# deployment.
+#
+# Rollback (automatic, on ANY failure once the backend has been stopped):
+#   - BEFORE the step-11 health check passes -- full unwind: check the old SHA
 #     back out; restore the pre-deploy virtualenv snapshot (if deps installed);
 #     restore the pre-migration database backup (if a migration was attempted --
 #     SQLite DDL here is non-transactional, so a half-applied migration is
 #     possible and the backup is the only safe restore, with the live DB's
-#     owner/mode reapplied); (re)start the service on the old SHA and
-#     re-health-check.
-#   - AFTER step 9 (only the frontend swap can fail now) -- the NEW backend has
+#     owner/mode reapplied); start the service on the old SHA and re-health-check.
+#   - AFTER step 11 (only the frontend swap can fail now) -- the NEW backend has
 #     begun accepting writes, so the database is NOT rolled back. Only the
 #     frontend snapshot is restored; the backend stays on NEW and the frontend
 #     is fixed forward.
 #   Rolling back a PAST deploy that changed the schema is NOT just
 #   `deploy.sh <old-sha>`: you must first restore a database backup taken at or
 #   before that commit's migration head, then re-run with --allow-db-ahead.
-#   deploy.sh detects and refuses the unsafe case (step 7).
+#   deploy.sh detects and refuses the unsafe case (step 9).
 #
 # Usage:
 #   scripts/deploy.sh [options] [<ref>]
@@ -90,6 +99,7 @@ set -euo pipefail
 : "${NEXUS_HEALTH_RETRIES:=15}"
 : "${NEXUS_HEALTH_DELAY:=2}"
 : "${NEXUS_SYSTEMCTL:=sudo systemctl}"  # tests set NEXUS_SYSTEMCTL=systemctl with a fake on PATH
+: "${NEXUS_DEPLOY_LOCK:=}"              # resolved to $LOG_DIR/nexus-deploy.lock below
 
 SERVICE="$NEXUS_SERVICE"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -124,6 +134,15 @@ mkdir -p "$LOG_DIR"
 
 log()  { printf '%s  %s\n' "$(date -Is)" "$*" | tee -a "$LOG"; }
 abort() { echo "ABORT: $*" >&2; exit 1; }
+
+# --- 0. Host-wide deploy lock (held for the whole run, released on any exit) --
+# Serializes concurrent deploys before any state is read, so two operators
+# cannot race on the checkout / venv / service / database.
+[ -n "$NEXUS_DEPLOY_LOCK" ] || NEXUS_DEPLOY_LOCK="$LOG_DIR/nexus-deploy.lock"
+exec 9>"$NEXUS_DEPLOY_LOCK" || abort "cannot open deploy lock $NEXUS_DEPLOY_LOCK"
+if ! flock -n 9; then
+  abort "another deploy is in progress (lock: $NEXUS_DEPLOY_LOCK). Wait for it to finish, or clear a stale lock only if no deploy.sh is running."
+fi
 
 alembic_backend() { ( cd "$REPO_ROOT/backend" && ./.venv/bin/python -m alembic "$@" ); }
 
@@ -310,10 +329,10 @@ on_exit() {
     exit "$ec"
   fi
   log "deploy FAILED (exit $ec)"
-  if [ "$CHECKOUT_MOVED" = "1" ]; then
+  if [ "$CHECKOUT_MOVED" = "1" ] || [ "$SERVICE_STOPPED" = "1" ]; then
     do_rollback
   else
-    log "nothing to roll back (no checkout move happened)"
+    log "nothing to roll back (no state changed yet)"
   fi
   exit "$ec"
 }
@@ -321,46 +340,10 @@ trap on_exit EXIT
 
 fail() { log "ERROR: $*"; exit 1; }
 
-# --- 4. Move the checkout -------------------------------------------------------
-if [ "$OLD_SHA" = "$NEW_SHA" ]; then
-  log "already at ${NEW_SHA:0:12} — no checkout needed"
-  CHECKOUT_MOVED=1
-else
-  git checkout --detach "$NEW_SHA" --quiet || fail "git checkout of $NEW_SHA failed"
-  CHECKOUT_MOVED=1
-  log "checked out ${NEW_SHA:0:12}"
-fi
-
-# --- 5. Target dependency environment ------------------------------------------
-# Deps go in BEFORE predeploy_check and any target-tree Alembic call: env.py
-# imports every model and several migrations import services, so a release that
-# adds a dependency would make even `alembic current/heads` fail under the old
-# virtualenv. Snapshot the venv first so rollback can undo it.
-if [ "$SKIP_DEPS" = "1" ]; then
-  log "skipping backend dependency install (--skip-deps)"
-else
-  VENV_SNAPSHOT="$NEXUS_BACKUP_DIR/venv-rollback-${NEW_SHA:0:12}-$(date +%s)"
-  mkdir -p "$NEXUS_BACKUP_DIR"
-  cp -al "$VENV" "$VENV_SNAPSHOT" 2>/dev/null \
-    || cp -a "$VENV" "$VENV_SNAPSHOT" \
-    || fail "could not snapshot $VENV for rollback"
-  DEPS_INSTALLED=1
-  ./backend/.venv/bin/pip install -q -r backend/requirements.txt || fail "backend dependency install failed"
-  log "backend dependencies installed (rollback snapshot: $VENV_SNAPSHOT)"
-fi
-
-# --- 5b. Build the frontend NOW (if requested) -----------------------------
-# Do the slow, failure-prone build before anything touches the backend/DB, so a
-# build failure never triggers a database rollback. The container swap + reload
-# happens later (step 10), after the backend is confirmed healthy.
-if [ "$DO_FRONTEND" = "1" ]; then
-  ( cd frontend && npm ci ) || fail "frontend: npm ci failed"
-  ( cd frontend && VITE_API_URL= npm run build ) || fail "frontend: build failed"
-  [ -f frontend/dist/index.html ] || fail "frontend: build produced no dist/index.html"
-  log "frontend build complete"
-fi
-
-# --- 6. Read-only pre-deploy gate (full output to the deploy log) ----------
+# --- 4. Read-only pre-deploy gate (while the OLD service is still up) -------
+# Run this BEFORE stopping the backend so its live-health / container / env
+# checks are meaningful. The target-tree schema check is deploy.sh's own job
+# (step 9). Full output is tee'd to the deploy log.
 set +e
 ./scripts/predeploy_check.sh 2>&1 | tee -a "$LOG"
 PREDEPLOY_RC=${PIPESTATUS[0]}
@@ -374,7 +357,52 @@ else
 Re-run with --force-predeploy only after reviewing every FAIL line."
 fi
 
-# --- 7. Schema compatibility guard (ALWAYS, even with --skip-migrations) ------
+# --- 5. Quiesce the service for the whole deployment -----------------------
+# The backend runs FROM this checkout and its request handlers do lazy imports,
+# so replacing files under a live process yields a mixed release (new code /
+# old schema). Stop it before the checkout and keep it down until the new
+# release passes health. Zero-downtime would need a separate release directory
+# with an atomic switch, or blue/green -- out of scope here (see DEPLOYMENT.md).
+log "stopping $SERVICE for deployment"
+$NEXUS_SYSTEMCTL stop "$SERVICE" || fail "could not stop $SERVICE"
+SERVICE_STOPPED=1
+
+# --- 6. Move the checkout ----------------------------------------------------
+if [ "$OLD_SHA" = "$NEW_SHA" ]; then
+  log "already at ${NEW_SHA:0:12} — no checkout needed"
+else
+  git checkout --detach "$NEW_SHA" --quiet || fail "git checkout of $NEW_SHA failed"
+  log "checked out ${NEW_SHA:0:12}"
+fi
+CHECKOUT_MOVED=1
+
+# --- 7. Target dependency environment ------------------------------------------
+# Snapshot the venv (so rollback can undo it), then install target deps BEFORE
+# any target-tree Alembic call: env.py imports every model and several
+# migrations import services, so a release that adds a dependency would make
+# even `alembic current/heads` fail under the old virtualenv.
+if [ "$SKIP_DEPS" = "1" ]; then
+  log "skipping backend dependency install (--skip-deps)"
+else
+  VENV_SNAPSHOT="$NEXUS_BACKUP_DIR/venv-rollback-${NEW_SHA:0:12}-$(date +%s)"
+  mkdir -p "$NEXUS_BACKUP_DIR"
+  cp -al "$VENV" "$VENV_SNAPSHOT" 2>/dev/null \
+    || cp -a "$VENV" "$VENV_SNAPSHOT" \
+    || fail "could not snapshot $VENV for rollback"
+  DEPS_INSTALLED=1
+  ./backend/.venv/bin/pip install -q -r backend/requirements.txt || fail "backend dependency install failed"
+  log "backend dependencies installed (rollback snapshot: $VENV_SNAPSHOT)"
+fi
+
+# --- 8. Build the frontend (if requested) --------------------------------
+if [ "$DO_FRONTEND" = "1" ]; then
+  ( cd frontend && npm ci ) || fail "frontend: npm ci failed"
+  ( cd frontend && VITE_API_URL= npm run build ) || fail "frontend: build failed"
+  [ -f frontend/dist/index.html ] || fail "frontend: build produced no dist/index.html"
+  log "frontend build complete"
+fi
+
+# --- 9. Schema compatibility guard (ALWAYS, even with --skip-migrations) ------
 # --skip-migrations only means "don't run alembic upgrade"; it must not let old
 # code deploy against a newer schema. This FAILS CLOSED: real Alembic exits
 # non-zero without a revision precisely when the live DB is stamped with a
@@ -408,19 +436,12 @@ Checkout is being restored to ${OLD_SHA:0:12}."
   fi
 fi
 
-# --- 8. Migration: quiesce the service, back up, then upgrade --------------
+# --- 10. Migration: back up, then upgrade (service already stopped, step 5) --
 if [ "$SKIP_MIGRATIONS" = "1" ]; then
   log "skipping alembic upgrade (--skip-migrations)"
 elif [ -n "$DB_REV" ] && [ "$DB_REV" = "$TARGET_HEAD" ]; then
   log "database already at target head $TARGET_HEAD — no migration to run"
 else
-  # Stop the service for the whole schema-change window so no writes land
-  # after the backup is taken (they would be lost on rollback) and nothing
-  # runs old code against a half-applied schema.
-  log "stopping $SERVICE for the migration window"
-  $NEXUS_SYSTEMCTL stop "$SERVICE" || fail "could not stop $SERVICE before migration"
-  SERVICE_STOPPED=1
-
   STAMP="predeploy-${NEW_SHA:0:12}-$(date +%Y%m%d-%H%M%S)"
   log "taking pre-migration backup (stamp $STAMP)"
   if NEXUS_SQLITE_DB="$DB_PATH" NEXUS_BACKUP_DIR="$NEXUS_BACKUP_DIR" NEXUS_BACKUP_STAMP="$STAMP" \
@@ -436,23 +457,19 @@ else
   log "alembic upgrade head complete (service stopped)"
 fi
 
-# --- 9. (Re)start + health --------------------------------------------------
+# --- 11. Start the backend on the new release + health --------------------
 SERVICE_RESTARTED=1
-if [ "$SERVICE_STOPPED" = "1" ]; then
-  $NEXUS_SYSTEMCTL start "$SERVICE" || fail "systemctl start $SERVICE failed"
-else
-  $NEXUS_SYSTEMCTL restart "$SERVICE" || fail "systemctl restart $SERVICE failed"
-fi
+$NEXUS_SYSTEMCTL start "$SERVICE" || fail "systemctl start $SERVICE failed"
 if ! health_ok "$NEXUS_HEALTH_URL"; then
   $NEXUS_SYSTEMCTL show -p ActiveState -p SubState "$SERVICE" 2>/dev/null | tee -a "$LOG" || true
-  fail "backend health check failed after restart ($NEXUS_HEALTH_URL)"
+  fail "backend health check failed after start ($NEXUS_HEALTH_URL)"
 fi
 # Point of no return for the database: from here a failure rolls back only the
 # frontend, never the schema (the NEW backend has begun accepting writes).
 BACKEND_COMMITTED=1
 log "backend healthy on ${NEW_SHA:0:12} — code + schema committed"
 
-# --- 10. Optional frontend swap (build already done in step 5b) -----------
+# --- 12. Optional frontend swap (build already done in step 8) -----------
 if [ "$DO_FRONTEND" = "1" ]; then
   FRONTEND_SNAPSHOT="$(mktemp -d "${TMPDIR:-/tmp}/nexus-fe-rollback.XXXXXX")"
   mkdir -p "$FRONTEND_SNAPSHOT/html"

@@ -61,7 +61,9 @@ case "$cmd" in
     echo "stop $*" >> "$WORK/systemctl.log"; rm -f "$WORK/new_active"; exit 0 ;;
   start)
     echo "start $*" >> "$WORK/systemctl.log"
-    [ -n "${SIM_SYSTEMCTL_START_FAIL:-}" ] && exit 1
+    # only the forward start (on NEW) fails; a rollback start (on OLD) succeeds
+    if [ -n "${SIM_SYSTEMCTL_START_FAIL:-}" ] \
+       && [ "$(git -C "$SERVING" rev-parse HEAD 2>/dev/null)" = "$NEW_SHA" ]; then exit 1; fi
     mark_from_head; exit 0 ;;
   *) exit 0 ;;
 esac
@@ -210,6 +212,7 @@ run_deploy() {
     cd "$SERVING" && PATH="$FAKEBIN:$PATH" HOME="$WORK" \
       NEXUS_SYSTEMCTL=systemctl \
       NEXUS_DEPLOY_LOG_DIR="$WORK/deploy-logs" \
+      NEXUS_DEPLOY_LOCK="${NEXUS_DEPLOY_LOCK:-$WORK/deploy.lock}" \
       NEXUS_BACKUP_DIR="$WORK/backups" \
       NEXUS_SQLITE_DB="$SERVING/backend/nexus.db" \
       NEXUS_BACKUP_SCRIPT="$SERVING/scripts/backup_sqlite.sh" \
@@ -280,7 +283,7 @@ case_start "S2  migration failure restores the pre-migration database"
   export SIM_ALEMBIC_FAIL=1
   run_deploy --skip-deps origin/main
   a_rc_ne0; a_head_old
-  a_log "stopping nexus-admin-academy.service for the migration window"
+  a_log "stopping nexus-admin-academy.service for deployment"
   a_log "alembic upgrade head failed"; a_log "restoring database from"; a_db "OLD"
   sctl_order stop start
 teardown_env
@@ -297,7 +300,7 @@ teardown_env
 case_start "S2c migration quiesces the service BEFORE the backup (no lost writes)"
   run_deploy --skip-deps origin/main
   a_rc_0; a_head_new
-  a_order "stopping nexus-admin-academy.service for the migration window" "taking pre-migration backup"
+  a_order "stopping nexus-admin-academy.service for deployment" "taking pre-migration backup"
   a_order "taking pre-migration backup" "alembic upgrade head complete"
 teardown_env
 
@@ -307,20 +310,38 @@ case_start "S2d target deps are installed before any target-tree Alembic call"
   a_order "backend dependencies installed" "alembic upgrade head complete"
 teardown_env
 
-case_start "S3  systemctl restart failure rolls back and cycles the service"
-  export SIM_SYSTEMCTL_RESTART_FAIL=1
+case_start "S3  backend start failure on the new release rolls fully back"
+  export SIM_SYSTEMCTL_START_FAIL=1
   run_deploy --skip-deps --skip-migrations origin/main
   a_rc_ne0; a_head_old
-  a_log "systemctl restart"; a_log "ROLLBACK: starting"
+  a_log "systemctl start"; a_log "ROLLBACK: backend healthy on"
   grep -q '^stop'  "$WORK/systemctl.log" && ok "rollback stopped service"  || bad "no stop in rollback"
   grep -q '^start' "$WORK/systemctl.log" && ok "rollback started service" || bad "no start in rollback"
+teardown_env
+
+case_start "S12 the backend is stopped BEFORE the checkout is touched (no mixed release)"
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_0; a_head_new
+  a_order "stopping nexus-admin-academy.service for deployment" "checked out"
+  a_order "predeploy_check passed" "stopping nexus-admin-academy.service for deployment"
+teardown_env
+
+case_start "S13 a second concurrent deploy is refused by the host lock"
+  ( exec 9>"$WORK/deploy.lock"; flock -n 9 || exit 1; sleep 5 ) &
+  holder=$!
+  sleep 0.5
+  NEXUS_DEPLOY_LOCK="$WORK/deploy.lock" run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_ne0
+  a_out "another deploy is in progress"
+  a_head_old
+  kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null
 teardown_env
 
 case_start "S4a backend health failure on new release, rollback recovers"
   export SIM_NEW_UNHEALTHY=1
   run_deploy --skip-deps --skip-migrations origin/main
   a_rc_ne0; a_head_old
-  a_log "health check failed after restart"
+  a_log "health check failed after start"
   a_log "ROLLBACK: backend healthy on"; a_nolog "MANUAL INTERVENTION"
 teardown_env
 
@@ -331,15 +352,16 @@ case_start "S4b backend health failure that rollback cannot fix is flagged"
   a_log "MANUAL INTERVENTION NEEDED"
 teardown_env
 
-case_start "S5  frontend build runs early: build failure never touches backend/DB"
+case_start "S5  frontend build failure never advances the DB and fully rolls back"
   export SIM_NPM_FAIL=1
   run_deploy --frontend origin/main
   a_rc_ne0; a_head_old
   a_log "frontend: npm ci failed"
   a_nolog "code + schema committed"
-  a_nolog "stopping nexus-admin-academy.service for the migration window"
+  a_nolog "alembic upgrade head complete"
   a_db "OLD"
   a_venv 1
+  a_log "ROLLBACK: backend healthy on"
 teardown_env
 
 case_start "S10a frontend swap fails AFTER a migration -> DB kept, only frontend rolled back"

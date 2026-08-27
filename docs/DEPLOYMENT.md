@@ -48,51 +48,51 @@ A deploy is a single command:
 scripts/deploy.sh [options] [<ref>]      # <ref> default: origin/main
 ```
 
-`scripts/deploy.sh`, in order:
+`scripts/deploy.sh` takes a **host-wide `flock`** first (`~/deploy-logs/nexus-deploy.lock`)
+so two operators can't race, then, in order:
 
 1. refuses to run unless it is the checkout `nexus-admin-academy.service`
    actually serves, and refuses a dirty working tree;
-2. `git fetch`, then `git checkout --detach` the pinned target commit
-   (a branch/tag ref is resolved to a concrete SHA first);
-3. **snapshots `backend/.venv`** (same-filesystem hardlink copy), then
-   `pip install -r backend/requirements.txt` — *before* `predeploy_check.sh`
-   and any target-tree Alembic call, since `backend/alembic/env.py` and
-   several migrations import application modules that a new release may have
-   added a dependency for (skip with `--skip-deps`);
-4. with `--frontend`, runs `npm ci` + the Vite build **now** — before anything
-   touches the backend or database — so a build failure never causes a
-   database rollback;
-5. runs `scripts/predeploy_check.sh` (read-only gate — env, migrations
-   ancestry, disk, container/nginx/JWT, health). Its **full output is tee'd to
-   the deploy log**. A failing gate aborts unless you pass `--force-predeploy`
-   after reviewing every `FAIL` line (which are now in the log);
+2. `git fetch`, then resolves the pinned target ref to a concrete SHA;
+3. runs `scripts/predeploy_check.sh` **while the old backend is still up** (its
+   live-health / container / env checks need it running). **Full output tee'd
+   to the deploy log**; a failing gate aborts unless `--force-predeploy` (after
+   you review every `FAIL` line in the log). The *target*-schema check is
+   step 6, not this;
+4. **stops the backend.** It runs from this checkout and its handlers do lazy
+   imports, so files must not change under a live process. It stays down until
+   step 8;
+5. `git checkout --detach` the target SHA; then **snapshot `backend/.venv`**
+   (same-filesystem hardlink copy) and `pip install -r backend/requirements.txt`
+   — before any target-tree Alembic call (`env.py` / migrations import app
+   modules a new release may add a dependency for). Skip with `--skip-deps`.
+   With `--frontend`, `npm ci` + Vite build here too;
 6. **schema compatibility guard — fails closed.** Refuses unless it can
-   positively confirm the live DB revision is contained in the target tree;
-   an Alembic introspection error (its behaviour when the DB is stamped with a
+   positively confirm the live DB revision is contained in the target tree; an
+   Alembic introspection error (its behaviour when the DB is stamped with a
    revision the tree lacks) is treated as *incompatible*, not "unknown". Runs
    **even with `--skip-migrations`**. Override with `--allow-db-ahead` only
    after restoring a matching DB backup;
-7. if a migration will actually run: **stops the service**, takes a fresh
-   SQLite + uploads backup (`scripts/backup_sqlite.sh`, stamp
-   `predeploy-<sha>-<ts>`), then `alembic upgrade head` — all with the service
-   down, so no write lands after the backup and no old code sees a
-   half-applied schema. `--skip-migrations` skips this step for a reviewed
-   code-only change;
-8. `sudo systemctl restart` (or `start`, if step 7 stopped it), then polls
-   `http://127.0.0.1:8000/health`. **Once healthy, the code + schema are
-   committed** (see Rollback);
+7. if a migration will actually run: fresh SQLite + uploads backup
+   (`scripts/backup_sqlite.sh`, stamp `predeploy-<sha>-<ts>`), then
+   `alembic upgrade head` — the service is already down (step 4), so no write
+   lands after the backup. `--skip-migrations` skips this;
+8. `sudo systemctl start`, then polls `http://127.0.0.1:8000/health`.
+   **Once healthy, the code + schema are committed** (see Rollback);
 9. with `--frontend`, snapshots the live container assets/config, swaps in the
-   build from step 4, `nginx -t`, reloads, re-checks `http://127.0.0.1/health`;
+   build from step 5, `nginx -t`, reloads, re-checks `http://127.0.0.1/health`;
 10. appends timestamped lines to `~/deploy-logs/nexus-deploy.log` for every run
     (plan, each stage, and any rollback).
 
 Use `--dry-run` to preview the resolved SHAs without touching anything.
-**A migration deploy takes the backend down** from step 7 until it is healthy
-again — treat schema releases as a maintenance window. Code-only deploys are
-just the step-8 restart blip.
+**Every deploy is a short maintenance window** — the backend is down from
+step 4 to step 8 (seconds for a code-only deploy, longer with
+deps/migration/build). Zero-downtime would need a separate release directory
+with an atomic switch, or blue/green — out of scope for this single-process,
+shared-checkout deployment.
 
-**Rollback — automatic on any failure after the checkout (step 2).**
-`deploy.sh` installs an exit trap the moment the checkout moves.
+**Rollback — automatic on any failure once the backend has been stopped
+(step 4).**
 
 - **Before the step-8 health check passes** — full unwind: check the previous
   SHA back out; if deps were installed, **restore the `backend/.venv`
@@ -100,7 +100,7 @@ just the step-8 restart blip.
   if a migration was attempted, **restore the pre-migration database backup**
   (SQLite DDL here is non-transactional, so a half-applied migration is
   possible — the backup is the only safe restore; the live DB's owner and mode
-  are reapplied to the restored file); (re)start the service on the old SHA and
+  are reapplied to the restored file); start the service on the old SHA and
   re-health-check (`MANUAL INTERVENTION NEEDED` in the log if it still can't
   come up).
 - **After step 8** — only the `--frontend` swap can still fail, and the NEW
