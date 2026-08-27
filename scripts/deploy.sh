@@ -305,9 +305,14 @@ restore_venv() {
   local staged="${VENV_SNAPSHOT}.staged.$$"
   if snapshot_tree "$VENV_SNAPSHOT" "$staged" && rm -rf "$VENV" && mv "$staged" "$VENV"; then
     log "ROLLBACK: virtualenv restored"
+    # Restoration is verified good -> drop the snapshot so repeated transient
+    # failures don't pile whole virtualenv trees up under $NEXUS_BACKUP_DIR.
+    # (Kept on the failure path below for manual recovery.)
+    rm -rf "$VENV_SNAPSHOT" 2>/dev/null || true
+    VENV_SNAPSHOT=""
   else
     rm -rf "$staged"
-    log "ROLLBACK WARNING: virtualenv restore failed — MANUAL INTERVENTION NEEDED"
+    log "ROLLBACK WARNING: virtualenv restore failed — snapshot kept at $VENV_SNAPSHOT — MANUAL INTERVENTION NEEDED"
     return 1
   fi
 }

@@ -277,6 +277,10 @@ a_log()     { case "$LOGTXT" in *"$1"*) ok "log ~ '$1'";; *) bad "log missing '$
 a_nolog()   { case "$LOGTXT" in *"$1"*) bad "log unexpectedly has '$1'" "$LOGTXT";; *) ok "log lacks '$1'";; esac; }
 a_db()      { local c; c="$(cat "$SERVING/backend/nexus.db")"; [ "$c" = "$1" ] && ok "db == '$1'" || bad "db == '$c' want '$1'"; }
 a_out()     { case "$OUT" in *"$1"*) ok "output ~ '$1'";; *) bad "output missing '$1'" "$OUT";; esac; }
+a_no_venv_snapshot() { # no venv-rollback-* left under the backup dir after a rollback
+  if [ -z "$(ls -d "$WORK/backups"/venv-rollback-* 2>/dev/null)" ]
+    then ok "venv snapshot cleaned up after successful rollback"
+    else bad "venv snapshot left behind: $(ls -d "$WORK/backups"/venv-rollback-* 2>/dev/null)"; fi; }
 a_venv()    { # 1 = expect marker-OLD present and marker-NEW gone (venv restored)
   if [ -f "$SERVING/backend/.venv/marker-OLD" ] && [ ! -f "$SERVING/backend/.venv/marker-NEW" ]
     then ok "virtualenv restored (marker-OLD back, marker-NEW gone)"
@@ -322,14 +326,17 @@ case_start "S1  dependency-install failure rolls back checkout and virtualenv"
   a_rc_ne0; a_head_old
   a_log "backend dependency install failed"; a_log "ROLLBACK: complete"
   a_venv 1
+  a_no_venv_snapshot
 teardown_env
 
 case_start "S1b deps installed, later health failure -> virtualenv restored"
+  db_head
   export SIM_NEW_UNHEALTHY=1
-  run_deploy --skip-migrations origin/main
+  run_deploy origin/main
   a_rc_ne0; a_head_old
   a_log "ROLLBACK: restoring virtualenv"
   a_venv 1
+  a_no_venv_snapshot
 teardown_env
 
 case_start "S2  migration failure restores the pre-migration database"

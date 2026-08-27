@@ -691,9 +691,31 @@ step 6 and never started). The Alembic stub now honours `DATABASE_URL`; a fake
 
 ---
 
+## 16. Review round 12 — clean up the venv snapshot after a rollback
+
+### R27 (P2) — rollback left the pre-deploy venv snapshot on disk
+
+`restore_venv` restored from `$VENV_SNAPSHOT` but never deleted it; only the
+success path deletes snapshots, and a rollback never reaches it. Repeated
+transient pre-commit failures would pile whole virtualenv trees under
+`$NEXUS_BACKUP_DIR` until it filled. **Fix:** `restore_venv` now `rm -rf`s the
+snapshot once restoration is verified good (and clears `VENV_SNAPSHOT`); it is
+deliberately *kept* on the failure path, with its location logged, for manual
+recovery.
+
+Round 12 raised **no P1 findings** — this was the only item.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **45 cases / 175 assertions**. S1 and
+S1b now also assert no `venv-rollback-*` directory remains under the backup dir
+after a successful rollback.
+
+---
+
 ## Final state of `scripts/deploy.sh`
 
-26 review findings across 11 Codex rounds, all fixed with tests. The script now:
+27 review findings across 12 Codex rounds, all fixed with tests. The script now:
 resolves the serving checkout from the systemd unit (launcher works from
 anywhere) and refreshes the out-of-tree launcher only after the serving-checkout
 *and* clean-tree checks pass; serializes on a shared `/run/lock` file (not a

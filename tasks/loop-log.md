@@ -1629,3 +1629,13 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Tests: `scripts/tests/deploy_failure_sim.sh` now 44 cases / 173 assertions
   (S23 ambient DATABASE_URL, S24 allow-db-ahead rollback no auto-start, S25
   dirty checkout). All pass. PR #29 NOT merged.
+
+## 2026-08-28 02:35 UTC — P1-1 / PR #29: review round 12 (R27) — no P1s
+
+- R27 (P2): `restore_venv` restored from `$VENV_SNAPSHOT` but never deleted it,
+  so repeated transient rollbacks accumulate full virtualenv trees under
+  `$NEXUS_BACKUP_DIR`. Fix: delete the snapshot once restoration is verified
+  good (clear `VENV_SNAPSHOT`); keep + log it only on the failure path.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 45 cases / 175 assertions
+  (S1/S1b assert no leftover venv-rollback-* after rollback). All pass.
+- Round 12 raised NO P1 findings. PR #29 NOT merged.
