@@ -490,3 +490,50 @@ unwind; after = frontend only.
 backend stopped before the checkout is touched, and predeploy before the stop
 (S12); a second concurrent run refused by the lock (S13); `SIM_SYSTEMCTL_START_FAIL`
 rolls fully back and recovers on the old SHA (S3).
+
+---
+
+## 10. Review round 6 — launcher survives historical rollback; strict head count
+
+### R14 (P1) — keep the deploy entry point after a rollback to a pre-`deploy.sh` commit
+
+Rolling the checkout back to a commit older than this script removes
+`scripts/deploy.sh`, leaving no supported way to run the next deploy. **Fix:**
+every run refreshes a standalone copy at `~/bin/nexus-deploy`
+(`NEXUS_DEPLOY_LAUNCHER`) *before* the checkout can move, so the newest working
+version always exists outside the mutable tree. `docs/DEPLOYMENT.md` points
+operators at it for that case.
+
+### R15 (P2) — reject a divergent migration tree / branched DB instead of taking the first head
+
+`alembic heads | awk '...exit'` kept only the first head; if the target had
+divergent heads and the DB sat at that first one, the "already at head" check
+skipped a migration that was actually needed (predeploy runs against the old
+tree and can't catch it). **Fix:** the guard now counts heads and current
+revisions and `fail`s unless there is exactly one of each.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **30 cases / 126 assertions**: standalone
+launcher kept + matches deploy.sh (S14); multiple target heads rejected (S15);
+branched live DB rejected (S16).
+
+---
+
+## Final state of `scripts/deploy.sh`
+
+15 review findings across 6 Codex rounds, all fixed with tests. The script now:
+takes a host-wide lock; keeps an out-of-tree launcher copy; runs predeploy
+while the old backend is up; **stops the backend before touching the checkout**
+(no mixed-release window); snapshots + restores the venv; fail-closed schema
+guard requiring exactly one head/revision, honoured even with
+`--skip-migrations`; stops-quiesces for the migration + pre-migration backup;
+starts + health-checks the new release as the commit point (later failures roll
+back the frontend only, never the DB); preserves DB owner/mode on restore;
+tee's predeploy output to the log; staged rollback covering every stage.
+
+**Accepted limitation:** every deploy is a brief maintenance window (backend
+down step 4→8). True zero-downtime needs a separate release directory with an
+atomic switch (or blue/green) and moving `nexus.db` / `.env` / `uploads` /
+`.venv` out of the checkout — explicitly out of scope for P1-1 (§2), noted in
+`docs/DEPLOYMENT.md` as the future path.

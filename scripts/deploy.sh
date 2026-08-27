@@ -100,6 +100,7 @@ set -euo pipefail
 : "${NEXUS_HEALTH_DELAY:=2}"
 : "${NEXUS_SYSTEMCTL:=sudo systemctl}"  # tests set NEXUS_SYSTEMCTL=systemctl with a fake on PATH
 : "${NEXUS_DEPLOY_LOCK:=}"              # resolved to $LOG_DIR/nexus-deploy.lock below
+: "${NEXUS_DEPLOY_LAUNCHER:=$HOME/bin/nexus-deploy}"  # stable copy, survives rollback to a pre-deploy.sh commit
 
 SERVICE="$NEXUS_SERVICE"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -142,6 +143,18 @@ abort() { echo "ABORT: $*" >&2; exit 1; }
 exec 9>"$NEXUS_DEPLOY_LOCK" || abort "cannot open deploy lock $NEXUS_DEPLOY_LOCK"
 if ! flock -n 9; then
   abort "another deploy is in progress (lock: $NEXUS_DEPLOY_LOCK). Wait for it to finish, or clear a stale lock only if no deploy.sh is running."
+fi
+
+# Keep a standalone copy of this script OUTSIDE the checkout. Rolling the
+# checkout back to a commit that predates scripts/deploy.sh would otherwise
+# leave no way to run the next deploy. Refresh it every run (before the
+# checkout can move) so it is always the newest version that executed.
+if [ "${BASH_SOURCE[0]}" -ef "$NEXUS_DEPLOY_LAUNCHER" ]; then
+  :  # we ARE the standalone copy — nothing to refresh
+else
+  mkdir -p "$(dirname "$NEXUS_DEPLOY_LAUNCHER")" 2>/dev/null \
+    && install -m 0755 "${BASH_SOURCE[0]}" "$NEXUS_DEPLOY_LAUNCHER" 2>/dev/null \
+    || echo "warning: could not refresh standalone launcher at $NEXUS_DEPLOY_LAUNCHER" >&2
 fi
 
 alembic_backend() { ( cd "$REPO_ROOT/backend" && ./.venv/bin/python -m alembic "$@" ); }
@@ -408,8 +421,25 @@ fi
 # non-zero without a revision precisely when the live DB is stamped with a
 # revision the target tree does not contain -- the exact case this catches.
 db_intro_rc=0
-DB_REV="$(alembic_backend current 2>>"$LOG" | awk 'NF{print $1; exit}')" || db_intro_rc=1
-TARGET_HEAD="$(alembic_backend heads 2>>"$LOG" | awk 'NF{print $1; exit}')" || db_intro_rc=1
+DB_REVS="$(alembic_backend current 2>>"$LOG" | awk 'NF{print $1}')" || db_intro_rc=1
+TARGET_HEADS="$(alembic_backend heads 2>>"$LOG" | awk 'NF{print $1}')" || db_intro_rc=1
+db_rev_count="$(printf '%s\n' "$DB_REVS" | grep -c . || true)"
+target_head_count="$(printf '%s\n' "$TARGET_HEADS" | grep -c . || true)"
+
+# Divergent target heads or a branched DB would let the "already at head" check
+# below skip a migration that is actually needed. Never guess -- require one.
+if [ "$target_head_count" -gt 1 ]; then
+  fail "target commit ${NEW_SHA:0:12} has $target_head_count Alembic heads:
+$TARGET_HEADS
+Merge them to a single head before deploying."
+fi
+if [ "$db_rev_count" -gt 1 ]; then
+  fail "the live database reports $db_rev_count current Alembic revisions:
+$DB_REVS
+Resolve the branched revision before deploying."
+fi
+DB_REV="$(printf '%s\n' "$DB_REVS" | awk 'NF{print;exit}')"
+TARGET_HEAD="$(printf '%s\n' "$TARGET_HEADS" | awk 'NF{print;exit}')"
 
 if [ "$db_intro_rc" != "0" ] || [ -z "$DB_REV" ] || [ -z "$TARGET_HEAD" ]; then
   if [ "$ALLOW_DB_AHEAD" = "1" ]; then

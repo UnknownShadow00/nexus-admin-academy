@@ -49,7 +49,9 @@ scripts/deploy.sh [options] [<ref>]      # <ref> default: origin/main
 ```
 
 `scripts/deploy.sh` takes a **host-wide `flock`** first (`~/deploy-logs/nexus-deploy.lock`)
-so two operators can't race, then, in order:
+so two operators can't race, refreshes a **standalone copy of itself at
+`~/bin/nexus-deploy`** (use that if a rollback target predates the in-repo
+script), then, in order:
 
 1. refuses to run unless it is the checkout `nexus-admin-academy.service`
    actually serves, and refuses a dirty working tree;
@@ -67,12 +69,13 @@ so two operators can't race, then, in order:
    — before any target-tree Alembic call (`env.py` / migrations import app
    modules a new release may add a dependency for). Skip with `--skip-deps`.
    With `--frontend`, `npm ci` + Vite build here too;
-6. **schema compatibility guard — fails closed.** Refuses unless it can
-   positively confirm the live DB revision is contained in the target tree; an
-   Alembic introspection error (its behaviour when the DB is stamped with a
-   revision the tree lacks) is treated as *incompatible*, not "unknown". Runs
-   **even with `--skip-migrations`**. Override with `--allow-db-ahead` only
-   after restoring a matching DB backup;
+6. **schema compatibility guard — fails closed.** Requires exactly one target
+   Alembic head and one live DB revision (rejects a divergent migration tree or
+   a branched DB); refuses unless it can positively confirm the live revision is
+   contained in the target tree; an Alembic introspection error (its behaviour
+   when the DB is stamped with a revision the tree lacks) is treated as
+   *incompatible*, not "unknown". Runs **even with `--skip-migrations`**.
+   Override with `--allow-db-ahead` only after restoring a matching DB backup;
 7. if a migration will actually run: fresh SQLite + uploads backup
    (`scripts/backup_sqlite.sh`, stamp `predeploy-<sha>-<ts>`), then
    `alembic upgrade head` — the service is already down (step 4), so no write

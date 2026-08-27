@@ -22,7 +22,7 @@ bad() { FAIL=$((FAIL + 1)); printf '  \033[31mFAIL\033[0m %s\n' "$1"; [ -n "${2:
 SIM_VARS="SIM_PREDEPLOY_FAIL SIM_BACKUP_FAIL SIM_ALEMBIC_FAIL SIM_ALEMBIC_CURRENT_FAIL
 SIM_PIP_FAIL SIM_SYSTEMCTL_RESTART_FAIL SIM_SYSTEMCTL_START_FAIL SIM_HEALTH_FAIL
 SIM_NEW_UNHEALTHY SIM_NPM_FAIL SIM_DOCKER_FAIL SIM_HISTORY_RC
-SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL"
+SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL SIM_MULTI_HEAD SIM_MULTI_DB_REV"
 reset_sims() { for v in $SIM_VARS; do unset "$v"; done; }
 
 # ---------------------------------------------------------------------------
@@ -142,8 +142,11 @@ if [ "${1:-}" = "-m" ] && [ "${2:-}" = "alembic" ]; then
       # Real Alembic exits non-zero without a revision when the DB is stamped
       # with a revision the tree does not contain.
       [ -n "${SIM_ALEMBIC_CURRENT_FAIL:-}" ] && { echo "FAILED: Can't locate revision identified by '$rev'" >&2; exit 255; }
-      echo "$rev (head)" ;;
-    heads)   echo "rev_head (head)" ;;
+      echo "$rev (head)"
+      [ -n "${SIM_MULTI_DB_REV:-}" ] && echo "rev_other" ;;
+    heads)
+      echo "rev_head (head)"
+      [ -n "${SIM_MULTI_HEAD:-}" ] && echo "rev_branch (head)" ;;
     history) exit "${SIM_HISTORY_RC:-0}" ;;
     upgrade)
       if [ -n "${SIM_ALEMBIC_FAIL:-}" ]; then echo PARTIAL > "$db"; echo "sim alembic failure" >&2; exit 1; fi
@@ -213,6 +216,7 @@ run_deploy() {
       NEXUS_SYSTEMCTL=systemctl \
       NEXUS_DEPLOY_LOG_DIR="$WORK/deploy-logs" \
       NEXUS_DEPLOY_LOCK="${NEXUS_DEPLOY_LOCK:-$WORK/deploy.lock}" \
+      NEXUS_DEPLOY_LAUNCHER="$WORK/launcher/nexus-deploy" \
       NEXUS_BACKUP_DIR="$WORK/backups" \
       NEXUS_SQLITE_DB="$SERVING/backend/nexus.db" \
       NEXUS_BACKUP_SCRIPT="$SERVING/scripts/backup_sqlite.sh" \
@@ -462,6 +466,27 @@ case_start "S9b introspection failure + --allow-db-ahead proceeds with a warning
   run_deploy --skip-deps --skip-migrations --allow-db-ahead origin/main
   a_rc_0; a_head_new
   a_log "continuing on --allow-db-ahead"
+teardown_env
+
+case_start "S14 a standalone launcher copy is kept outside the checkout"
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_0
+  [ -x "$WORK/launcher/nexus-deploy" ] && ok "launcher exists and is executable" || bad "launcher missing/non-exec"
+  cmp -s "$WORK/launcher/nexus-deploy" "$SERVING/scripts/deploy.sh" && ok "launcher matches deploy.sh" || bad "launcher differs from deploy.sh"
+teardown_env
+
+case_start "S15 target commit with multiple Alembic heads is rejected"
+  export SIM_MULTI_HEAD=1
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_ne0; a_head_old
+  a_log "has 2 Alembic heads"
+teardown_env
+
+case_start "S16 a branched live database (multiple current revisions) is rejected"
+  export SIM_MULTI_DB_REV=1
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_ne0; a_head_old
+  a_log "current Alembic revisions"
 teardown_env
 
 # ===========================================================================
