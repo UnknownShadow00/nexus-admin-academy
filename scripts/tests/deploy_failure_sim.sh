@@ -24,7 +24,8 @@ SIM_PIP_FAIL SIM_SYSTEMCTL_RESTART_FAIL SIM_SYSTEMCTL_START_FAIL SIM_HEALTH_FAIL
 SIM_NEW_UNHEALTHY SIM_NPM_FAIL SIM_DOCKER_FAIL SIM_HISTORY_RC
 SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL SIM_MULTI_HEAD SIM_MULTI_DB_REV
 SIM_WORKDIR_OVERRIDE SIM_CP_HARDLINK_EXDEV SIM_SYSTEMCTL_STOP_FAIL
-SIM_DIRTY_AFTER_CHECKOUT SIM_STOP_LEAVES_ACTIVE SIM_GUNZIP_FAIL"
+SIM_DIRTY_AFTER_CHECKOUT SIM_STOP_LEAVES_ACTIVE SIM_GUNZIP_FAIL
+SIM_VENV_RESTORE_FAIL"
 reset_sims() { for v in $SIM_VARS; do unset "$v"; done; }
 
 # ---------------------------------------------------------------------------
@@ -121,6 +122,11 @@ EOF
 # destination dir + a partial subtree, THEN fails EXDEV. `cp -a` (the fallback)
 # works. Anything else passes straight through to the real cp.
 REAL_CP=/bin/cp; [ -x "$REAL_CP" ] || REAL_CP=/usr/bin/cp
+# Fail every copy into restore_venv's staging path (models a broken rollback
+# venv restore: copy / remove / move cannot complete).
+if [ -n "${SIM_VENV_RESTORE_FAIL:-}" ]; then
+  case " $* " in *.staged.*) echo "cp: sim virtualenv restore failure" >&2; exit 1 ;; esac
+fi
 if [ -n "${SIM_CP_HARDLINK_EXDEV:-}" ] && [ "${1:-}" = "-al" ]; then
   for d in "$@"; do :; done   # d = last arg = destination
   mkdir -p "$d/bin"; : > "$d/PARTIAL-do-not-use"
@@ -656,7 +662,8 @@ case_start "S25 a checkout that advances HEAD but leaves the worktree dirty is c
   a_log "left the worktree dirty"          # step 6 detected the half-applied checkout
   a_nolog "code + schema committed"        # and never started the new release
   a_log "ROLLBACK: checkout -> "           # rollback was attempted
-  a_log "ROLLBACK WARNING"                 # ... and flagged that it could not fully clean the tree
+  a_log "one or more restore steps FAILED" # ... could not produce a clean old checkout
+  a_log "service left stopped"
 teardown_env
 
 case_start "S26 rollback aborts if the service cannot be confirmed stopped"
@@ -675,10 +682,21 @@ case_start "S27 a failed database restore leaves the service DOWN (no start agai
   run_deploy --skip-deps origin/main
   a_rc_ne0
   a_log "alembic upgrade head complete"
-  a_log "database restore FAILED"
+  a_log "one or more restore steps FAILED"
   a_log "service left stopped"
   a_nolog "ROLLBACK: starting nexus-admin-academy.service on"
   a_nolog "ROLLBACK: backend healthy on"
+teardown_env
+
+case_start "S28 a failed virtualenv restore leaves the service DOWN"
+  db_head
+  export SIM_NEW_UNHEALTHY=1 SIM_VENV_RESTORE_FAIL=1
+  run_deploy origin/main
+  a_rc_ne0
+  a_log "virtualenv restore failed"
+  a_log "one or more restore steps FAILED"
+  a_log "service left stopped"
+  a_nolog "ROLLBACK: starting nexus-admin-academy.service on"
 teardown_env
 
 case_start "S21 the default deploy lock is account-independent (not under \$HOME)"

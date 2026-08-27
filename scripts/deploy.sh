@@ -397,18 +397,27 @@ do_rollback() {
 
   [ "$FRONTEND_APPLIED" = "1" ] && restore_frontend
 
+  # Any restore step that cannot complete leaves runtime state (code / venv /
+  # schema) in an indeterminate mix. Track that: if ANY of them failed we do NOT
+  # restart -- a service brought up on half-restored state is worse than one
+  # that is cleanly down with a MANUAL INTERVENTION line.
+  local rollback_incomplete=0
+
   if [ "$CHECKOUT_MOVED" = "1" ]; then
     log "ROLLBACK: checkout -> ${OLD_SHA:0:12}"
-    git checkout --detach "$OLD_SHA" --quiet || log "ROLLBACK WARNING: git checkout of old SHA failed"
-    [ -n "$(git status --porcelain)" ] && \
+    if ! git checkout --detach "$OLD_SHA" --quiet; then
+      log "ROLLBACK WARNING: git checkout of ${OLD_SHA:0:12} failed — MANUAL INTERVENTION NEEDED"
+      rollback_incomplete=1
+    elif [ -n "$(git status --porcelain)" ]; then
       log "ROLLBACK WARNING: worktree still dirty after checking out ${OLD_SHA:0:12} — some files were not restored — MANUAL INTERVENTION NEEDED"
+      rollback_incomplete=1
+    fi
   fi
 
-  [ "$DEPS_INSTALLED" = "1" ] && restore_venv
+  [ "$DEPS_INSTALLED" = "1" ] && { restore_venv || rollback_incomplete=1; }
 
-  local db_restore_failed=0
   if [ "$MIGRATION_ATTEMPTED" = "1" ]; then
-    restore_database || db_restore_failed=1
+    restore_database || rollback_incomplete=1
   fi
 
   # If --allow-db-ahead was in play and we did NOT take a pre-migration backup
@@ -423,11 +432,10 @@ do_rollback() {
     return
   fi
 
-  # A failed database restore means the file on disk is now some indeterminate
-  # mix of pre- and post-migration state. Starting ANY release against it can
-  # corrupt further. Leave the service down.
-  if [ "$db_restore_failed" = "1" ]; then
-    log "ROLLBACK: database restore FAILED — NOT starting $SERVICE against a partially-restored database. Restore a known-good backup by hand. MANUAL INTERVENTION NEEDED."
+  # One or more restore steps failed -> the checkout / venv / database on disk
+  # is not a coherent old release. Do not start anything against it.
+  if [ "$rollback_incomplete" = "1" ]; then
+    log "ROLLBACK: one or more restore steps FAILED — NOT starting $SERVICE against half-restored state. Fix the flagged item(s) by hand, then start $SERVICE. MANUAL INTERVENTION NEEDED."
     log "ROLLBACK: complete (service left stopped)"
     return
   fi

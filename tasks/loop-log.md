@@ -1658,3 +1658,18 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
   (S26 rollback-abort-if-not-stopped, S27 failed-DB-restore-leaves-down).
 - 13 rounds in, Codex is still surfacing P1s each round — flagging
   non-convergence to the user in the summary. PR #29 NOT merged.
+
+## 2026-08-28 03:35 UTC — P1-1 / PR #29: review round 14 (R31, R32)
+
+- R31/R32 (P1): same objection as R28/R29 for the other rollback restore steps —
+  a failed rollback `git checkout` only warned, a failed `restore_venv` was
+  ignored, and the service was started anyway.
+- Unified fix: `do_rollback` now uses one `rollback_incomplete` flag set by a
+  failed checkout / dirty worktree / failed restore_venv / failed
+  restore_database. If set -> log MANUAL INTERVENTION, leave the service STOPPED,
+  do not start. Replaces round-13's single `db_restore_failed`.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 49 cases / 193 assertions
+  (S28 venv-restore-fail; S25/S27 updated). All pass.
+- STOPPING the round-by-round loop here (14 rounds). do_rollback is now
+  comprehensively fail-safe; remaining Codex items are polish + R30 (out of
+  scope). Delivering summary; PR #29 left for human merge review, NOT merged.

@@ -754,11 +754,40 @@ never starts the old release).
 
 ---
 
+## 18. Review round 14 — make `do_rollback` fail-safe as a whole
+
+Round 14 raised R31 and R32: the same objection as R28/R29 applied to the two
+*other* restore steps — a failed rollback `git checkout` only warned, and a
+failed `restore_venv` was ignored, and in both cases the service was still
+started afterwards.
+
+### R31 / R32 (P1) — any failed restore step must stop the restart
+
+**Fix:** `do_rollback` now carries one `rollback_incomplete` flag. The rollback
+checkout sets it if `git checkout` fails *or* the worktree is dirty afterwards;
+`restore_venv` and `restore_database` set it on any non-zero return. If the flag
+is set, the rollback logs `MANUAL INTERVENTION NEEDED` and **leaves the service
+stopped** instead of starting it against a half-restored checkout / virtualenv /
+database. (This replaces the single-purpose `db_restore_failed` from round 13.)
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **49 cases / 193 assertions**. New:
+S28 (a failed virtualenv restore leaves the service stopped); S25/S27 updated to
+assert the unified "one or more restore steps FAILED — service left stopped"
+outcome.
+
+---
+
 ## Final state of `scripts/deploy.sh`
 
-29 review findings across 13 Codex rounds — 28 fixed with tests; 1 (R30, the
-pre-commit write-exposure window) mitigated + documented, its full fix being the
-out-of-scope blue/green work. The script now:
+32 review findings across 14 Codex rounds — 31 fixed with regression tests; 1
+(R30, the pre-commit write-exposure window) mitigated + documented, its full fix
+being the out-of-scope blue/green work. `do_rollback` is now fail-safe end to
+end: it verifies the unit is actually stopped before touching anything, and any
+restore step that cannot complete leaves the service cleanly **down** with a
+`MANUAL INTERVENTION` line rather than up on indeterminate state. The script
+also:
 resolves the serving checkout from the systemd unit (launcher works from
 anywhere) and refreshes the out-of-tree launcher only after the serving-checkout
 *and* clean-tree checks pass; serializes on a shared `/run/lock` file (not a
