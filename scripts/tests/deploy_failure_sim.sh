@@ -23,7 +23,7 @@ SIM_VARS="SIM_PREDEPLOY_FAIL SIM_BACKUP_FAIL SIM_ALEMBIC_FAIL SIM_ALEMBIC_CURREN
 SIM_PIP_FAIL SIM_SYSTEMCTL_RESTART_FAIL SIM_SYSTEMCTL_START_FAIL SIM_HEALTH_FAIL
 SIM_NEW_UNHEALTHY SIM_NPM_FAIL SIM_DOCKER_FAIL SIM_HISTORY_RC
 SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL SIM_MULTI_HEAD SIM_MULTI_DB_REV
-SIM_WORKDIR_OVERRIDE"
+SIM_WORKDIR_OVERRIDE SIM_CP_HARDLINK_EXDEV"
 reset_sims() { for v in $SIM_VARS; do unset "$v"; done; }
 
 # ---------------------------------------------------------------------------
@@ -100,6 +100,20 @@ if [ "${1:-}" = "cp" ]; then
 fi
 [ "${1:-}" = "exec" ] && [ -n "${SIM_FRONTEND_RELOAD_FAIL:-}" ] && exit 1
 exit 0
+EOF
+  cat > "$FAKEBIN/cp" <<'EOF'
+#!/usr/bin/env bash
+# Simulate $NEXUS_BACKUP_DIR on a different filesystem: `cp -al` creates the
+# destination dir + a partial subtree, THEN fails EXDEV. `cp -a` (the fallback)
+# works. Anything else passes straight through to the real cp.
+REAL_CP=/bin/cp; [ -x "$REAL_CP" ] || REAL_CP=/usr/bin/cp
+if [ -n "${SIM_CP_HARDLINK_EXDEV:-}" ] && [ "${1:-}" = "-al" ]; then
+  for d in "$@"; do :; done   # d = last arg = destination
+  mkdir -p "$d/bin"; : > "$d/PARTIAL-do-not-use"
+  echo "cp: cannot create hard link: Invalid cross-device link" >&2
+  exit 1
+fi
+exec "$REAL_CP" "$@"
 EOF
   chmod +x "$FAKEBIN"/*
 
@@ -514,6 +528,27 @@ case_start "S18 running scripts/deploy.sh from a tree that is NOT the serving ch
   a_rc_ne0
   a_head_old
   a_out "refusing to deploy"
+  [ ! -e "$WORK/launcher/nexus-deploy" ] && ok "wrong-tree run did NOT overwrite the launcher" \
+    || bad "launcher was refreshed from a non-serving tree"
+teardown_env
+
+case_start "S19 a cross-filesystem venv snapshot (cp -al EXDEV) still rolls back cleanly"
+  export SIM_CP_HARDLINK_EXDEV=1 SIM_PIP_FAIL=1
+  run_deploy --skip-migrations origin/main
+  a_rc_ne0; a_head_old
+  a_venv 1
+  [ ! -e "$SERVING/backend/.venv/PARTIAL-do-not-use" ] \
+    && [ ! -d "$SERVING/backend/.venv"/venv-rollback-* ] \
+    && ok "restored virtualenv is not a nested wrapper" \
+    || bad "virtualenv restore nested the snapshot dir inside .venv"
+teardown_env
+
+case_start "S20 --dry-run changes nothing and does not refresh the launcher"
+  run_deploy --dry-run origin/main
+  a_rc_0; a_head_old
+  a_out "DRY RUN"
+  [ ! -e "$WORK/launcher/nexus-deploy" ] && ok "--dry-run did not install the launcher" \
+    || bad "--dry-run installed the launcher"
 teardown_env
 
 case_start "S15 target commit with multiple Alembic heads is rejected"

@@ -538,19 +538,52 @@ the actionable message rather than a bare `cd` failure.
 
 ### Tests
 
-`scripts/tests/deploy_failure_sim.sh` → **32 cases / 136 assertions**. New:
-the copied launcher, executed from `$HOME` after a checkout rollback, resolves
-the serving checkout from the unit and completes a deploy (S17); running an
-in-repo `scripts/deploy.sh` whose tree is not what the unit serves is refused
-with "refusing to deploy" (S18).
+`scripts/tests/deploy_failure_sim.sh` → the copied launcher, executed from
+`$HOME` after a checkout rollback, resolves the serving checkout from the unit
+and completes a deploy (S17); an in-repo `scripts/deploy.sh` whose tree is not
+what the unit serves is refused with "refusing to deploy" (S18).
+
+---
+
+## 12. Review round 8 — snapshot atomicity; launcher-refresh ordering
+
+### R17 (P1) — a cross-filesystem venv snapshot could nest itself
+
+`cp -al "$VENV" "$VENV_SNAPSHOT" 2>/dev/null || cp -a "$VENV" "$VENV_SNAPSHOT"`:
+when `$NEXUS_BACKUP_DIR` is on a different mount than the checkout (e.g. `/home`
+vs `/opt`), `cp -al` creates the destination dir and part of the tree before
+failing `EXDEV`. The `cp -a` fallback then copies `$VENV` *inside* that
+leftover dir (`$VENV_SNAPSHOT/.venv/...`), and rollback later `mv`s that
+wrapper onto `backend/.venv`, so `.venv/bin/python` is missing and the old
+backend can't restart. **Fix:** a `snapshot_tree()` helper that `rm -rf`s the
+destination before *each* attempt (`cp -al`, then `cp -a`), used for both the
+step-7 venv snapshot and the `restore_venv` staging copy.
+
+### R18 (P2) — the launcher was refreshed before the serving-checkout check
+
+`install -m 0755 … "$NEXUS_DEPLOY_LAUNCHER"` ran in step 0, before step 1
+rejected an accidental run from a dev worktree — so that aborted run still
+overwrote `~/bin/nexus-deploy` with unreviewed worktree code, which a later
+recovery deploy would then execute against production. **Fix:** the refresh
+now runs only *after* the step-1 identity check passes, and is skipped entirely
+on `--dry-run`.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **35 cases / 145 assertions**. New:
+S19 (fake `cp` that fails `cp -al` with a partial dir like a real `EXDEV`;
+rollback still restores a flat, usable virtualenv — no nested wrapper);
+S20 (`--dry-run` installs no launcher and changes nothing); S18 extended to
+assert a wrong-tree run leaves `~/bin/nexus-deploy` untouched.
 
 ---
 
 ## Final state of `scripts/deploy.sh`
 
-16 review findings across 7 Codex rounds, all fixed with tests. The script now:
+18 review findings across 8 Codex rounds, all fixed with tests. The script now:
 resolves the serving checkout from the systemd unit (launcher works from
-anywhere);
+anywhere) and only refreshes the out-of-tree launcher after that check passes;
+takes atomic (non-nesting) venv snapshots;
 takes a host-wide lock; keeps an out-of-tree launcher copy; runs predeploy
 while the old backend is up; **stops the backend before touching the checkout**
 (no mixed-release window); snapshots + restores the venv; fail-closed schema

@@ -49,9 +49,10 @@ scripts/deploy.sh [options] [<ref>]      # <ref> default: origin/main
 ```
 
 `scripts/deploy.sh` takes a **host-wide `flock`** first (`~/deploy-logs/nexus-deploy.lock`)
-so two operators can't race, refreshes a **standalone copy of itself at
-`~/bin/nexus-deploy`** (use that if a rollback target predates the in-repo
-script), then, in order:
+so two operators can't race, then — **after** confirming it is the serving
+checkout (step 1) and unless `--dry-run` — refreshes a **standalone copy of
+itself at `~/bin/nexus-deploy`** (use that if a rollback target predates the
+in-repo script). In order:
 
 1. **resolves the serving checkout from `nexus-admin-academy.service`'s
    `WorkingDirectory`, not from its own path** — so `~/bin/nexus-deploy` works

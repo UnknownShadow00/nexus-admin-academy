@@ -162,18 +162,6 @@ if ! flock -n 9; then
   abort "another deploy is in progress (lock: $NEXUS_DEPLOY_LOCK). Wait for it to finish, or clear a stale lock only if no deploy.sh is running."
 fi
 
-# Keep a standalone copy of this script OUTSIDE the checkout. Rolling the
-# checkout back to a commit that predates scripts/deploy.sh would otherwise
-# leave no way to run the next deploy. Refresh it every run (before the
-# checkout can move) so it is always the newest version that executed.
-if [ "${BASH_SOURCE[0]}" -ef "$NEXUS_DEPLOY_LAUNCHER" ]; then
-  :  # we ARE the standalone copy — nothing to refresh
-else
-  mkdir -p "$(dirname "$NEXUS_DEPLOY_LAUNCHER")" 2>/dev/null \
-    && install -m 0755 "${BASH_SOURCE[0]}" "$NEXUS_DEPLOY_LAUNCHER" 2>/dev/null \
-    || echo "warning: could not refresh standalone launcher at $NEXUS_DEPLOY_LAUNCHER" >&2
-fi
-
 alembic_backend() { ( cd "$REPO_ROOT/backend" && ./.venv/bin/python -m alembic "$@" ); }
 
 resolve_db_path() {
@@ -201,6 +189,20 @@ health_ok() {
   return 1
 }
 
+# Point-in-time copy of a directory tree: same-filesystem hardlink copy when
+# possible, otherwise a deep copy. Always starts from a clean destination --
+# `cp -al` can create the target dir and some subdirs before failing EXDEV on a
+# cross-filesystem $NEXUS_BACKUP_DIR, and a leftover dir would make the `cp -a`
+# fallback nest the source INSIDE it ($dest/$(basename src)/...) instead of
+# replacing it, which later breaks the rollback that moves $dest into place.
+snapshot_tree() {
+  local src="$1" dest="$2"
+  rm -rf "$dest"
+  cp -al "$src" "$dest" 2>/dev/null && return 0
+  rm -rf "$dest"
+  cp -a "$src" "$dest"
+}
+
 # --- 1. Must be THE serving checkout -----------------------------------------
 # REPO_ROOT was derived from the unit's WorkingDirectory above. Re-assert the
 # unit was actually queryable, and -- when we were launched from a checkout tree
@@ -219,6 +221,17 @@ fi
 # Only now is REPO_ROOT confirmed to be the live serving checkout -- safe to
 # enter it and touch git / the venv / the database.
 cd "$REPO_ROOT" || abort "serving checkout $REPO_ROOT is not accessible"
+
+# Keep a standalone copy of this script OUTSIDE the checkout so a rollback to a
+# commit that predates scripts/deploy.sh still leaves a working entry point.
+# Only AFTER the serving-checkout check above -- an accidental run from a
+# worktree must not overwrite ~/bin/nexus-deploy with unreviewed code -- and
+# never on --dry-run. Still well before the checkout can move (step 6).
+if [ "$DRY_RUN" != "1" ] && ! [ "${BASH_SOURCE[0]}" -ef "$NEXUS_DEPLOY_LAUNCHER" ]; then
+  mkdir -p "$(dirname "$NEXUS_DEPLOY_LAUNCHER")" 2>/dev/null \
+    && install -m 0755 "${BASH_SOURCE[0]}" "$NEXUS_DEPLOY_LAUNCHER" 2>/dev/null \
+    || echo "warning: could not refresh standalone launcher at $NEXUS_DEPLOY_LAUNCHER" >&2
+fi
 
 # --- 2. Clean tree ----------------------------------------------------------
 if [ -n "$(git status --porcelain)" ]; then
@@ -265,9 +278,7 @@ restore_venv() {
   }
   log "ROLLBACK: restoring virtualenv from $VENV_SNAPSHOT"
   local staged="${VENV_SNAPSHOT}.staged.$$"
-  rm -rf "$staged"
-  if { cp -al "$VENV_SNAPSHOT" "$staged" 2>/dev/null || cp -a "$VENV_SNAPSHOT" "$staged"; } \
-       && rm -rf "$VENV" && mv "$staged" "$VENV"; then
+  if snapshot_tree "$VENV_SNAPSHOT" "$staged" && rm -rf "$VENV" && mv "$staged" "$VENV"; then
     log "ROLLBACK: virtualenv restored"
   else
     rm -rf "$staged"
@@ -425,9 +436,7 @@ if [ "$SKIP_DEPS" = "1" ]; then
 else
   VENV_SNAPSHOT="$NEXUS_BACKUP_DIR/venv-rollback-${NEW_SHA:0:12}-$(date +%s)"
   mkdir -p "$NEXUS_BACKUP_DIR"
-  cp -al "$VENV" "$VENV_SNAPSHOT" 2>/dev/null \
-    || cp -a "$VENV" "$VENV_SNAPSHOT" \
-    || fail "could not snapshot $VENV for rollback"
+  snapshot_tree "$VENV" "$VENV_SNAPSHOT" || fail "could not snapshot $VENV for rollback"
   DEPS_INSTALLED=1
   ./backend/.venv/bin/pip install -q -r backend/requirements.txt || fail "backend dependency install failed"
   log "backend dependencies installed (rollback snapshot: $VENV_SNAPSHOT)"

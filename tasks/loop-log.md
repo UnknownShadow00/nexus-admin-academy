@@ -1564,3 +1564,19 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
   (S17 launcher-from-$HOME deploy, S18 wrong-tree refusal). All pass locally.
 - Docs: `docs/DEPLOYMENT.md` step 1 + `P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md`
   §11 updated. PR #29 NOT merged.
+
+## 2026-08-28 00:20 UTC — P1-1 / PR #29: review round 8 (R17, R18)
+
+- R17 (P1): `cp -al || cp -a` venv snapshot could nest itself when
+  `$NEXUS_BACKUP_DIR` is on another filesystem (`cp -al` makes a partial dir,
+  then `cp -a` copies INTO it). Rollback then `mv`s a broken wrapper onto
+  `backend/.venv`. Fix: `snapshot_tree()` helper that `rm -rf`s the dest before
+  each attempt; used for the step-7 snapshot and the `restore_venv` staging copy.
+- R18 (P2): the `~/bin/nexus-deploy` refresh ran in step 0, before the
+  serving-checkout check, so an accidental run from a worktree overwrote the
+  launcher with unreviewed code. Fix: refresh only after step 1 passes, and
+  never on `--dry-run`.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 35 cases / 145 assertions
+  (S19 EXDEV snapshot, S20 dry-run installs nothing, S18 extended). All pass.
+- Docs: `docs/DEPLOYMENT.md` + `P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md` §12.
+  PR #29 NOT merged.
