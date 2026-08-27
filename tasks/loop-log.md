@@ -1611,3 +1611,21 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
   and says which FAIL lines are expected; `--force-predeploy` help updated.
 - Tests: `scripts/tests/deploy_failure_sim.sh` now 41 cases / 157 assertions.
   All pass. PR #29 NOT merged.
+
+## 2026-08-28 02:05 UTC — P1-1 / PR #29: review round 11 (R24, R25, R26)
+
+- R24 (P1): Alembic honoured an ambient `DATABASE_URL` (config loads .env with
+  override=False), so the guard/migration could hit a different DB than the
+  backup + restart. Fix: `alembic_backend()` exports
+  `DATABASE_URL="sqlite:///$DB_PATH"`; canonicalise `DB_PATH`; log if ambient set.
+- R25 (P1): a failed historical schema rollback (`--allow-db-ahead`, operator
+  swapped the DB by hand) auto-started OLD_SHA (the newer release) against the
+  downgraded DB. Fix: when `--allow-db-ahead` and no pre-migration backup exists,
+  `do_rollback` stops after checkout/venv restore, logs MANUAL INTERVENTION,
+  leaves the service down. DEPLOYMENT.md step 1 says keep the pre-swap backup.
+- R26 (P1): `git checkout` can advance HEAD, print "unable to unlink old", exit
+  0, and leave stale files. Fix: re-check `git status --porcelain` after the
+  step-6 checkout and abort if dirty; rollback checkout warns the same way.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 44 cases / 173 assertions
+  (S23 ambient DATABASE_URL, S24 allow-db-ahead rollback no auto-start, S25
+  dirty checkout). All pass. PR #29 NOT merged.

@@ -83,7 +83,10 @@ script). In order:
    *incompatible*, not "unknown". Runs **even with `--skip-migrations`**, and
    **`--skip-migrations` is itself refused unless the live DB is already at the
    target head** (you can't skip a migration that's actually due).
-   Override with `--allow-db-ahead` only after restoring a matching DB backup;
+   Override with `--allow-db-ahead` only after restoring a matching DB backup.
+   Alembic is **pinned to the `.env` database** for this and the migration step
+   (an ambient `DATABASE_URL` in your shell is ignored, so the guard, the
+   backup, the migration and the restart all act on the same file);
 7. if a migration will actually run: fresh SQLite + uploads backup
    (`scripts/backup_sqlite.sh`, stamp `predeploy-<sha>-<ts>`), then
    `alembic upgrade head` — the service is already down (step 4), so no write
@@ -125,7 +128,11 @@ The venv and frontend snapshots are deleted on a successful deploy.
 `deploy.sh <old-sha>`.** Checking out older code leaves the newer schema in
 place. `deploy.sh` detects this (step 6) and refuses. To do it safely:
 
-1. `scripts/backup_sqlite.sh` — snapshot the current (newer) DB first, in case;
+1. `scripts/backup_sqlite.sh` — snapshot the current (newer) DB first. **Keep
+   this file.** If step 3 fails partway, `deploy.sh` cannot restore it for you
+   (it never saw the pre-swap state): its automatic rollback will stop, log
+   `MANUAL INTERVENTION NEEDED`, and leave the service down — you then restore
+   *this* snapshot by hand before retrying or starting the service;
 2. restore a database backup taken at or before the target commit's migration
    head (from `~/backups/nexus/`, e.g. the `predeploy-<sha>-*` backup that
    deploy.sh took just before that migration) — stop the service, replace

@@ -647,14 +647,60 @@ is brought back up on the old SHA — log shows the rollback start + health, nev
 
 ---
 
+## 15. Review round 11 — DB binding, historical-rollback safety, checkout verification
+
+### R24 (P1) — Alembic could act on a different database than the backup/restart
+
+`app/config.py` loads `.env` with `override=False`, and `alembic/env.py` honours
+`os.getenv("DATABASE_URL")`. An operator whose shell already exported
+`DATABASE_URL` would make the schema guard and `alembic upgrade` inspect/migrate
+*that* database, while `DB_PATH` (backup, `stat`/`chmod`, rollback) came from the
+production `.env` — the guard could green-light a test DB, then the service would
+start against an unmigrated production DB. **Fix:** `alembic_backend()` now
+exports `DATABASE_URL="sqlite:///$DB_PATH"` for every Alembic call, and `DB_PATH`
+is canonicalised once; a set ambient `DATABASE_URL` is logged as ignored.
+
+### R25 (P1) — a failed historical schema rollback could auto-start new code on the downgraded DB
+
+In the documented flow the operator swaps `backend/nexus.db` for an older
+snapshot before running `deploy.sh --allow-db-ahead …`. If that run then failed,
+automatic rollback checked out `OLD_SHA` (the *newer* release) and started it
+against the hand-downgraded database. **Fix:** when `--allow-db-ahead` is set and
+no pre-migration backup was taken, `do_rollback` now stops after restoring the
+checkout/venv — it logs `MANUAL INTERVENTION NEEDED` and leaves the service down
+so the operator restores their own pre-recovery DB backup. `docs/DEPLOYMENT.md`
+step 1 now says to keep that backup for exactly this case.
+
+### R26 (P1) — a checkout that half-applied could still be deployed
+
+`git checkout` can advance `HEAD`, print `unable to unlink old '<path>'`, and
+still exit 0 when it can't replace a file (parent-dir perms) — old contents then
+linger in the "new" release. **Fix:** after the step-6 checkout, `deploy.sh`
+re-checks `git status --porcelain` and `fail`s if the worktree is dirty; the
+rollback checkout does the same check and warns on a dirty tree.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **44 cases / 173 assertions**. New:
+S23 (a bogus ambient `DATABASE_URL` doesn't divert Alembic — the real DB is
+migrated, the ambient target is untouched); S24 (a failed `--allow-db-ahead`
+recovery does *not* auto-start the old code, logs `MANUAL INTERVENTION`, leaves
+the service stopped); S25 (a checkout that leaves the tree dirty is caught at
+step 6 and never started). The Alembic stub now honours `DATABASE_URL`; a fake
+`git` models the exit-0-but-dirty checkout.
+
+---
+
 ## Final state of `scripts/deploy.sh`
 
-23 review findings across 10 Codex rounds, all fixed with tests. The script now:
+26 review findings across 11 Codex rounds, all fixed with tests. The script now:
 resolves the serving checkout from the systemd unit (launcher works from
 anywhere) and refreshes the out-of-tree launcher only after the serving-checkout
 *and* clean-tree checks pass; serializes on a shared `/run/lock` file (not a
 per-account path); arms rollback before stopping the backend so even a failed
-stop recovers; refuses `--skip-migrations` when a migration is actually due;
+stop recovers; verifies the worktree actually matches the target after checkout;
+pins Alembic to the `.env` database; refuses `--skip-migrations` when a migration
+is actually due; will not auto-start old code over an operator-swapped database;
 takes atomic (non-nesting) venv snapshots;
 takes a host-wide lock; keeps an out-of-tree launcher copy; runs predeploy
 while the old backend is up; **stops the backend before touching the checkout**

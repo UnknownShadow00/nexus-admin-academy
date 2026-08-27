@@ -23,7 +23,8 @@ SIM_VARS="SIM_PREDEPLOY_FAIL SIM_BACKUP_FAIL SIM_ALEMBIC_FAIL SIM_ALEMBIC_CURREN
 SIM_PIP_FAIL SIM_SYSTEMCTL_RESTART_FAIL SIM_SYSTEMCTL_START_FAIL SIM_HEALTH_FAIL
 SIM_NEW_UNHEALTHY SIM_NPM_FAIL SIM_DOCKER_FAIL SIM_HISTORY_RC
 SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL SIM_MULTI_HEAD SIM_MULTI_DB_REV
-SIM_WORKDIR_OVERRIDE SIM_CP_HARDLINK_EXDEV SIM_SYSTEMCTL_STOP_FAIL"
+SIM_WORKDIR_OVERRIDE SIM_CP_HARDLINK_EXDEV SIM_SYSTEMCTL_STOP_FAIL
+SIM_DIRTY_AFTER_CHECKOUT"
 reset_sims() { for v in $SIM_VARS; do unset "$v"; done; }
 
 # ---------------------------------------------------------------------------
@@ -118,6 +119,19 @@ if [ -n "${SIM_CP_HARDLINK_EXDEV:-}" ] && [ "${1:-}" = "-al" ]; then
 fi
 exec "$REAL_CP" "$@"
 EOF
+  cat > "$FAKEBIN/git" <<'EOF'
+#!/usr/bin/env bash
+# Pass through to the real git. With SIM_DIRTY_AFTER_CHECKOUT set, model the
+# git bug where `checkout` advances HEAD, prints "unable to unlink old ...",
+# but still exits 0 and leaves a tracked file un-updated (dirty worktree).
+REAL_GIT=/usr/bin/git; [ -x "$REAL_GIT" ] || REAL_GIT=/bin/git
+"$REAL_GIT" "$@"; rc=$?
+if [ -n "${SIM_DIRTY_AFTER_CHECKOUT:-}" ] && [ "${1:-}" = "checkout" ]; then
+  echo "sim: unable to unlink old 'deployed_marker': Permission denied" >&2
+  printf 'TAMPERED' >> "$SERVING/deployed_marker" 2>/dev/null || true
+fi
+exit $rc
+EOF
   chmod +x "$FAKEBIN"/*
 
   # --- stub scripts inside the serving checkout -------------------------
@@ -146,7 +160,13 @@ EOF
 #!/usr/bin/env bash
 if [ "${1:-}" = "-m" ] && [ "${2:-}" = "alembic" ]; then
   shift 2; sub="${1:-}"
-  db="${NEXUS_SQLITE_DB:-$PWD/nexus.db}"
+  # Mirror real env.py: DATABASE_URL (if set) selects the database. deploy.sh
+  # must pin this to the .env DB, not any stray ambient value.
+  case "${DATABASE_URL:-}" in
+    sqlite:////*) db="/${DATABASE_URL#sqlite:////}" ;;
+    sqlite:///*)  db="${DATABASE_URL#sqlite:///}" ;;
+    *)            db="${NEXUS_SQLITE_DB:-$PWD/nexus.db}" ;;
+  esac
   content="$(cat "$db" 2>/dev/null || echo OLD)"
   case "$content" in
     OLD*)      rev=rev_old ;;
@@ -582,6 +602,38 @@ case_start "S22 a failing 'systemctl stop' still arms rollback (backend restored
   a_log "ROLLBACK: starting nexus-admin-academy.service on"
   a_log "ROLLBACK: backend healthy on"
   a_nolog "nothing to roll back"
+teardown_env
+
+case_start "S23 a stray ambient DATABASE_URL does not divert Alembic off the production DB"
+  export DATABASE_URL="sqlite:///$WORK/bogus-ambient.db"
+  run_deploy --skip-deps origin/main
+  a_rc_0; a_head_new
+  a_db "MIGRATED"
+  [ ! -e "$WORK/bogus-ambient.db" ] && ok "ambient DATABASE_URL target left untouched" \
+    || bad "Alembic migrated the ambient DATABASE_URL database instead of the .env one"
+  a_log "Alembic is pinned to the .env database"
+teardown_env
+
+case_start "S24 a failed --allow-db-ahead recovery does NOT auto-start old code against the swapped DB"
+  printf 'FUTURE' > "$SERVING/backend/nexus.db"     # operator-swapped state (rev_future)
+  export SIM_HISTORY_RC=1 SIM_NEW_UNHEALTHY=1
+  run_deploy --skip-deps --skip-migrations --allow-db-ahead origin/main
+  a_rc_ne0; a_head_old
+  a_log "MANUAL INTERVENTION NEEDED"
+  a_log "service left stopped"
+  a_nolog "ROLLBACK: starting nexus-admin-academy.service on"
+  a_nolog "ROLLBACK: backend healthy on"
+teardown_env
+
+case_start "S25 a checkout that advances HEAD but leaves the worktree dirty is caught, not deployed"
+  db_head
+  export SIM_DIRTY_AFTER_CHECKOUT=1
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_ne0
+  a_log "left the worktree dirty"          # step 6 detected the half-applied checkout
+  a_nolog "code + schema committed"        # and never started the new release
+  a_log "ROLLBACK: checkout -> "           # rollback was attempted
+  a_log "ROLLBACK WARNING"                 # ... and flagged that it could not fully clean the tree
 teardown_env
 
 case_start "S21 the default deploy lock is account-independent (not under \$HOME)"

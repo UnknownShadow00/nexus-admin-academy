@@ -172,7 +172,13 @@ if ! flock -n 9; then
   abort "another deploy is in progress (lock: $NEXUS_DEPLOY_LOCK). Wait for it to finish, or clear a stale lock only if no deploy.sh is running."
 fi
 
-alembic_backend() { ( cd "$REPO_ROOT/backend" && ./.venv/bin/python -m alembic "$@" ); }
+# Always pin Alembic to the SAME database file that DB_PATH / the rollback
+# backup use. app/config.py loads .env with override=False, so a DATABASE_URL
+# already exported in the operator's shell would otherwise make Alembic inspect
+# and migrate a DIFFERENT database than the one we back up and restart against.
+alembic_backend() {
+  ( cd "$REPO_ROOT/backend" && DATABASE_URL="sqlite:///$DB_PATH" ./.venv/bin/python -m alembic "$@" )
+}
 
 resolve_db_path() {
   [ -n "$NEXUS_SQLITE_DB" ] && { printf '%s\n' "$NEXUS_SQLITE_DB"; return; }
@@ -252,6 +258,11 @@ fi
 
 OLD_SHA="$(git rev-parse HEAD)"
 DB_PATH="$(resolve_db_path)"
+# Canonicalise so the backup, stat/chmod, rollback and the Alembic URL all name
+# the exact same file (the .env value can be relative, e.g. sqlite:///./nexus.db).
+if [ -d "$(dirname "$DB_PATH")" ]; then
+  DB_PATH="$(cd "$(dirname "$DB_PATH")" && pwd)/$(basename "$DB_PATH")"
+fi
 
 # --- 3. Resolve target ----------------------------------------------------------
 git fetch --prune origin
@@ -266,6 +277,9 @@ if [ "$DRY_RUN" = "1" ]; then
 fi
 
 log "deploy start: $PLAN"
+if [ -n "${DATABASE_URL:-}" ]; then
+  log "note: DATABASE_URL is set in the environment; Alembic is pinned to the .env database ($DB_PATH) regardless"
+fi
 
 # --- Rollback machinery ------------------------------------------------------
 VENV="$REPO_ROOT/backend/.venv"
@@ -366,10 +380,24 @@ do_rollback() {
   if [ "$CHECKOUT_MOVED" = "1" ]; then
     log "ROLLBACK: checkout -> ${OLD_SHA:0:12}"
     git checkout --detach "$OLD_SHA" --quiet || log "ROLLBACK WARNING: git checkout of old SHA failed"
+    [ -n "$(git status --porcelain)" ] && \
+      log "ROLLBACK WARNING: worktree still dirty after checking out ${OLD_SHA:0:12} — some files were not restored — MANUAL INTERVENTION NEEDED"
   fi
 
   [ "$DEPS_INSTALLED" = "1" ] && restore_venv
   [ "$MIGRATION_ATTEMPTED" = "1" ] && restore_database
+
+  # If --allow-db-ahead was in play and we did NOT take a pre-migration backup
+  # (the documented historical-schema rollback: the operator swapped the DB file
+  # by hand before running deploy.sh), we have no way to put the database back
+  # the way it was. Auto-starting OLD_SHA now would run it against whatever
+  # schema the operator left in place. Stop here and hand it back.
+  if [ "$ALLOW_DB_AHEAD" = "1" ] && [ "$MIGRATION_ATTEMPTED" != "1" ]; then
+    log "ROLLBACK: --allow-db-ahead was set and the database may have been changed outside deploy.sh."
+    log "ROLLBACK: NOT auto-starting ${OLD_SHA:0:12} against it. Restore your own pre-recovery database backup, then start $SERVICE by hand. MANUAL INTERVENTION NEEDED."
+    log "ROLLBACK: complete (service left stopped)"
+    return
+  fi
 
   if [ "$cycle_service" = "1" ]; then
     log "ROLLBACK: starting $SERVICE on ${OLD_SHA:0:12}"
@@ -435,7 +463,16 @@ $NEXUS_SYSTEMCTL stop "$SERVICE" || fail "could not stop $SERVICE cleanly"
 if [ "$OLD_SHA" = "$NEW_SHA" ]; then
   log "already at ${NEW_SHA:0:12} — no checkout needed"
 else
+  CHECKOUT_MOVED=1   # HEAD may move even on a partial/failed checkout
   git checkout --detach "$NEW_SHA" --quiet || fail "git checkout of $NEW_SHA failed"
+  # git can advance HEAD, print "unable to unlink old '<path>'", and still exit
+  # zero when it cannot replace a file (parent dir perms). The SHA then looks
+  # right while old file contents linger in the new release -- verify the
+  # worktree actually matches.
+  if [ -n "$(git status --porcelain)" ]; then
+    git status --short >&2
+    fail "git checkout of $NEW_SHA left the worktree dirty — some files were not updated; not deploying a half-applied release"
+  fi
   log "checked out ${NEW_SHA:0:12}"
 fi
 CHECKOUT_MOVED=1
