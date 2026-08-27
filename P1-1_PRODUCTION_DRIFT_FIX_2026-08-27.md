@@ -387,3 +387,60 @@ quiesces the service *before* the backup, asserted by log/systemctl ordering
 (S2, S2c); deps installed before any Alembic call (S2d); schema-ahead refused
 under `--skip-migrations` and under `--skip-migrations --force-predeploy`
 (S7d, S7e).
+
+---
+
+## 8. Review round 4 — fail-closed introspection, write-safety window, DB perms
+
+Codex re-reviewed §7 and raised three more P1s. All fixed.
+
+### R9 — schema guard must fail closed on an Alembic introspection error
+
+Real Alembic exits non-zero **without** a revision precisely when the DB is
+stamped with a revision the target tree lacks — the exact case the guard
+exists for. The previous code turned that into an empty `DB_REV` and skipped
+the guard, so `--skip-migrations --force-predeploy <old-sha>` could still land
+old code on a newer schema. **Fix:** an introspection failure (or empty
+`current`/`heads`) now **aborts** with the schema-ahead guidance unless
+`--allow-db-ahead` is passed.
+
+### R10 — keep the database un-rollback-able only until the new backend is proven, and build the frontend first
+
+Two changes:
+
+1. `--frontend` now runs `npm ci` + the Vite build **as step 4**, before
+   anything touches the backend or DB. A build failure can no longer trigger a
+   database rollback (nothing was changed yet).
+2. Once the **new backend passes its health check (step 8), the code + schema
+   are committed** (`BACKEND_COMMITTED`). The only thing that can fail after
+   that is the frontend container swap, and by then the new backend has begun
+   accepting writes — so `do_rollback` restores **only the frontend** and
+   leaves the backend on the new commit (fix the frontend forward). It never
+   restores a database backup over writes the new backend already took.
+
+### R11 — preserve the live DB's ownership and mode on restore
+
+`restore_database` wrote a fresh temp file (operator uid + umask) and moved it
+over `backend/nexus.db`, dropping the production `nexus:nexus 0640`. **Fix:**
+it now captures the live file's mode and owner with `stat` and reapplies them
+to the restored file before the `mv`, logging a warning if it lacks the
+privilege (i.e. run rollback as the service user).
+
+### Deploy order (final)
+
+checkout → **venv snapshot + pip** → **frontend build (if `--frontend`)** →
+predeploy (tee'd) → **schema guard (fail-closed, always)** → *(migration: stop
+→ backup → alembic upgrade)* → (re)start + health → **[commit point]** →
+*(frontend: snapshot → swap → reload + health)* → done.
+
+Rollback before the commit point = full unwind (frontend · checkout · venv ·
+DB · service). After it = frontend only.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **25 cases / 109 assertions**, adding:
+happy `--frontend` deploy (S0b); build failure never touches backend/DB (S5);
+frontend swap failure after a migration keeps code+DB and rolls back only the
+frontend (S10a, S10b); DB file mode 0640 reapplied on restore (S11);
+introspection failure fails closed / proceeds only with `--allow-db-ahead`
+(S9a, S9b).

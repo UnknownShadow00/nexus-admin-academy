@@ -19,9 +19,10 @@ PASS=0 FAIL=0
 ok()  { PASS=$((PASS + 1)); printf '  \033[32mok\033[0m   %s\n' "$1"; }
 bad() { FAIL=$((FAIL + 1)); printf '  \033[31mFAIL\033[0m %s\n' "$1"; [ -n "${2:-}" ] && printf '%s\n' "$2" | sed 's/^/       | /'; }
 
-SIM_VARS="SIM_PREDEPLOY_FAIL SIM_BACKUP_FAIL SIM_ALEMBIC_FAIL SIM_PIP_FAIL
-SIM_SYSTEMCTL_RESTART_FAIL SIM_SYSTEMCTL_START_FAIL SIM_HEALTH_FAIL
-SIM_NEW_UNHEALTHY SIM_NPM_FAIL SIM_DOCKER_FAIL SIM_HISTORY_RC"
+SIM_VARS="SIM_PREDEPLOY_FAIL SIM_BACKUP_FAIL SIM_ALEMBIC_FAIL SIM_ALEMBIC_CURRENT_FAIL
+SIM_PIP_FAIL SIM_SYSTEMCTL_RESTART_FAIL SIM_SYSTEMCTL_START_FAIL SIM_HEALTH_FAIL
+SIM_NEW_UNHEALTHY SIM_NPM_FAIL SIM_DOCKER_FAIL SIM_HISTORY_RC
+SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL"
 reset_sims() { for v in $SIM_VARS; do unset "$v"; done; }
 
 # ---------------------------------------------------------------------------
@@ -85,12 +86,16 @@ EOF
 [ -n "${SIM_DOCKER_FAIL:-}" ] && exit 1
 if [ "${1:-}" = "cp" ]; then
   src="${2:-}"; dst="${3:-}"
+  case "$dst" in
+    *:*) [ -n "${SIM_FRONTEND_SWAP_FAIL:-}" ] && exit 1 ;;   # copy INTO container
+  esac
   case "$src" in
-    *:*) mkdir -p "$(dirname "$dst")" 2>/dev/null || true
+    *:*) mkdir -p "$(dirname "$dst")" 2>/dev/null || true    # copy OUT of container
          if [ "${src: -2}" = "/." ]; then mkdir -p "$dst"; echo old > "$dst/old-asset";
          else echo old-conf > "$dst"; fi ;;
   esac
 fi
+[ "${1:-}" = "exec" ] && [ -n "${SIM_FRONTEND_RELOAD_FAIL:-}" ] && exit 1
 exit 0
 EOF
   chmod +x "$FAKEBIN"/*
@@ -131,7 +136,11 @@ if [ "${1:-}" = "-m" ] && [ "${2:-}" = "alembic" ]; then
     *)         rev=rev_old ;;
   esac
   case "$sub" in
-    current) echo "$rev (head)" ;;
+    current)
+      # Real Alembic exits non-zero without a revision when the DB is stamped
+      # with a revision the tree does not contain.
+      [ -n "${SIM_ALEMBIC_CURRENT_FAIL:-}" ] && { echo "FAILED: Can't locate revision identified by '$rev'" >&2; exit 255; }
+      echo "$rev (head)" ;;
     heads)   echo "rev_head (head)" ;;
     history) exit "${SIM_HISTORY_RC:-0}" ;;
     upgrade)
@@ -243,6 +252,14 @@ case_start "S0  happy path, code-only deploy"
   a_rc_0; a_head_new; a_log "deploy OK"; a_nolog "ROLLBACK"
 teardown_env
 
+case_start "S0b happy path: deps + migration + frontend all succeed"
+  run_deploy --frontend origin/main
+  a_rc_0; a_head_new
+  a_log "frontend build complete"; a_log "alembic upgrade head complete"
+  a_log "frontend swapped in and nginx reloaded"; a_log "deploy OK"
+  a_nolog "ROLLBACK"
+teardown_env
+
 case_start "S1  dependency-install failure rolls back checkout and virtualenv"
   export SIM_PIP_FAIL=1
   run_deploy --skip-migrations origin/main
@@ -314,18 +331,43 @@ case_start "S4b backend health failure that rollback cannot fix is flagged"
   a_log "MANUAL INTERVENTION NEEDED"
 teardown_env
 
-case_start "S5  frontend build failure rolls back backend too"
+case_start "S5  frontend build runs early: build failure never touches backend/DB"
   export SIM_NPM_FAIL=1
-  run_deploy --skip-deps --skip-migrations --frontend origin/main
+  run_deploy --frontend origin/main
   a_rc_ne0; a_head_old
-  a_log "frontend: npm ci failed"; a_log "ROLLBACK: starting"
+  a_log "frontend: npm ci failed"
+  a_nolog "code + schema committed"
+  a_nolog "stopping nexus-admin-academy.service for the migration window"
+  a_db "OLD"
+  a_venv 1
 teardown_env
 
-case_start "S5b frontend reload failure triggers frontend + backend rollback"
-  export SIM_DOCKER_FAIL=1
+case_start "S10a frontend swap fails AFTER a migration -> DB kept, only frontend rolled back"
+  export SIM_FRONTEND_SWAP_FAIL=1
+  run_deploy --skip-deps --frontend origin/main
+  a_rc_ne0
+  a_head_new
+  a_db "MIGRATED"
+  a_log "backend healthy on"
+  a_log "rolling back the frontend only"
+  a_log "backend stays on"
+  a_nolog "restoring database from"
+teardown_env
+
+case_start "S10b frontend reload fails AFTER a code-only deploy -> backend kept"
+  export SIM_FRONTEND_RELOAD_FAIL=1
   run_deploy --skip-deps --skip-migrations --frontend origin/main
-  a_rc_ne0; a_head_old
-  a_out "frontend:"; a_log "ROLLBACK"
+  a_rc_ne0; a_head_new
+  a_log "rolling back the frontend only"; a_nolog "checkout -> "
+teardown_env
+
+case_start "S11 migration rollback reapplies the live DB file mode (0640)"
+  chmod 640 "$SERVING/backend/nexus.db"
+  export SIM_ALEMBIC_FAIL=1
+  run_deploy --skip-deps origin/main
+  a_rc_ne0; a_head_old; a_db "OLD"
+  m="$(stat -c '%a' "$SERVING/backend/nexus.db")"
+  [ "$m" = "640" ] && ok "restored DB mode is 640" || bad "restored DB mode is $m, want 640"
 teardown_env
 
 case_start "S6  --force-predeploy records every FAIL line in the deploy log"
@@ -384,6 +426,20 @@ case_start "S7e schema-ahead + --skip-migrations + --force-predeploy is STILL re
   run_deploy --skip-deps --skip-migrations --force-predeploy origin/main
   a_rc_ne0; a_head_old
   a_log "live database is at revision 'rev_future'"
+teardown_env
+
+case_start "S9a alembic introspection failure fails CLOSED even with --skip-migrations --force-predeploy"
+  export SIM_ALEMBIC_CURRENT_FAIL=1 SIM_PREDEPLOY_FAIL=1
+  run_deploy --skip-deps --skip-migrations --force-predeploy origin/main
+  a_rc_ne0; a_head_old
+  a_log "could not confirm the live database is compatible"
+teardown_env
+
+case_start "S9b introspection failure + --allow-db-ahead proceeds with a warning"
+  export SIM_ALEMBIC_CURRENT_FAIL=1
+  run_deploy --skip-deps --skip-migrations --allow-db-ahead origin/main
+  a_rc_0; a_head_new
+  a_log "continuing on --allow-db-ahead"
 teardown_env
 
 # ===========================================================================

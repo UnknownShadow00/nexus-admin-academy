@@ -12,35 +12,40 @@
 #   2. Refuses to run with a dirty working tree.
 #   3. git fetch, then checkout --detach the pinned target commit.
 #   4. Snapshots the virtualenv, then installs target backend deps (unless
-#      --skip-deps) -- BEFORE any target-tree Alembic call, which imports the
-#      target's models/services.
-#   5. Runs scripts/predeploy_check.sh (read-only gate; full output tee'd to
+#      --skip-deps) -- BEFORE predeploy_check and any target-tree Alembic call,
+#      which import the target's models/services.
+#   5. With --frontend: `npm ci` + build NOW, before anything touches the
+#      backend/DB, so a build failure never causes a database rollback.
+#   6. Runs scripts/predeploy_check.sh (read-only gate; full output tee'd to
 #      the deploy log). A failing gate aborts unless --force-predeploy.
-#   6. Refuses if the live database schema is AHEAD of the target commit
-#      (old code + newer schema) unless --allow-db-ahead is given. Runs even
-#      with --skip-migrations.
-#   7. If a migration will actually run: stops the service, takes a fresh
+#   7. FAILS CLOSED if it cannot confirm the live schema is compatible with the
+#      target (DB revision ahead of / absent from the target tree), unless
+#      --allow-db-ahead. Runs even with --skip-migrations.
+#   8. If a migration will actually run: stops the service, takes a fresh
 #      SQLite + uploads backup (scripts/backup_sqlite.sh), then
 #      `alembic upgrade head` -- all with the service down so no write is lost.
-#   8. (Re)starts the backend and verifies /health.
-#   9. Optionally rebuilds + reloads the nginx frontend (--frontend), with the
-#      previous container assets/config snapshotted for rollback.
-#  10. Appends timestamped lines to ~/deploy-logs/nexus-deploy.log for every run.
+#   9. (Re)starts the backend and verifies /health. Once healthy, the code +
+#      schema are COMMITTED (see Rollback).
+#  10. With --frontend: snapshots the live container assets/config, swaps in the
+#      build from step 5, `nginx -t`, reload, re-checks frontend /health.
+#  11. Appends timestamped lines to ~/deploy-logs/nexus-deploy.log for every run.
 #
 # Rollback (automatic, on ANY failure after step 3):
-#   - the working tree is checked back out to the previous SHA;
-#   - if deps were installed, the pre-deploy virtualenv snapshot is restored;
-#   - if a migration was attempted this run, the pre-migration database backup
-#     is restored (SQLite DDL here is non-transactional, so a half-applied
-#     migration is possible -- the backup is the only safe restore);
-#   - if the service was stopped/restarted, it is (re)started on the old SHA
-#     and re-health-checked;
-#   - if frontend assets were swapped, the snapshot is restored and nginx
-#     reloaded.
+#   - BEFORE the step-9 health check passes -- full unwind: check the old SHA
+#     back out; restore the pre-deploy virtualenv snapshot (if deps installed);
+#     restore the pre-migration database backup (if a migration was attempted --
+#     SQLite DDL here is non-transactional, so a half-applied migration is
+#     possible and the backup is the only safe restore, with the live DB's
+#     owner/mode reapplied); (re)start the service on the old SHA and
+#     re-health-check.
+#   - AFTER step 9 (only the frontend swap can fail now) -- the NEW backend has
+#     begun accepting writes, so the database is NOT rolled back. Only the
+#     frontend snapshot is restored; the backend stays on NEW and the frontend
+#     is fixed forward.
 #   Rolling back a PAST deploy that changed the schema is NOT just
 #   `deploy.sh <old-sha>`: you must first restore a database backup taken at or
 #   before that commit's migration head, then re-run with --allow-db-ahead.
-#   deploy.sh detects and refuses the unsafe case (step 6).
+#   deploy.sh detects and refuses the unsafe case (step 7).
 #
 # Usage:
 #   scripts/deploy.sh [options] [<ref>]
@@ -187,6 +192,7 @@ DEPS_INSTALLED=0        # pip install ran against the shared virtualenv
 MIGRATION_ATTEMPTED=0   # alembic upgrade was started (DDL here is non-transactional)
 SERVICE_STOPPED=0       # service was stopped for the migration window
 SERVICE_RESTARTED=0     # service was (re)started on NEW_SHA
+BACKEND_COMMITTED=0     # NEW backend passed health -> code+schema are the point of no return
 FRONTEND_APPLIED=0      # new assets/config copied into the frontend container
 DB_BACKUP_BEFORE=""     # pre-migration backup, set when MIGRATION_ATTEMPTED
 VENV_SNAPSHOT=""        # hardlink copy of the pre-deploy virtualenv
@@ -219,11 +225,18 @@ restore_database() {
     return 1
   }
   log "ROLLBACK: restoring database from $DB_BACKUP_BEFORE"
+  # Preserve the live DB's ownership and mode (production is nexus:nexus 0640);
+  # a fresh temp file would otherwise take the operator's uid and umask.
+  local ref_mode ref_owner
+  ref_mode="$(stat -c '%a' "$DB_PATH" 2>/dev/null || echo 640)"
+  ref_owner="$(stat -c '%U:%G' "$DB_PATH" 2>/dev/null || echo nexus:nexus)"
   local tmp="$DB_PATH.rollback.$$"
   if gunzip -c "$DB_BACKUP_BEFORE" > "$tmp"; then
+    chmod "$ref_mode" "$tmp" 2>/dev/null || log "ROLLBACK WARNING: could not set mode $ref_mode on restored DB"
+    chown "$ref_owner" "$tmp" 2>/dev/null || log "ROLLBACK WARNING: could not set owner $ref_owner on restored DB (run rollback as the service user)"
     mv -f "$tmp" "$DB_PATH"
     rm -f "$DB_PATH-wal" "$DB_PATH-shm"
-    log "ROLLBACK: database file restored"
+    log "ROLLBACK: database file restored (mode $ref_mode, owner $ref_owner)"
   else
     rm -f "$tmp"
     log "ROLLBACK WARNING: could not decompress $DB_BACKUP_BEFORE — MANUAL INTERVENTION NEEDED"
@@ -246,6 +259,18 @@ do_rollback() {
   [ "$IN_ROLLBACK" = "1" ] && return
   IN_ROLLBACK=1
   set +e
+
+  # Point of no return: once the NEW backend passed its health check, the
+  # code + schema are committed. A later failure (only the frontend can fail
+  # after this) must NOT roll the database back over writes the NEW backend
+  # has since accepted -- roll back just the frontend and stay on NEW.
+  if [ "$BACKEND_COMMITTED" = "1" ]; then
+    log "ROLLBACK: backend + database already committed and healthy on ${NEW_SHA:0:12}; rolling back the frontend only"
+    [ "$FRONTEND_APPLIED" = "1" ] && restore_frontend
+    log "ROLLBACK: frontend restored — backend stays on ${NEW_SHA:0:12}; redeploy the frontend once fixed"
+    return
+  fi
+
   log "ROLLBACK: starting (target ${OLD_SHA:0:12})"
 
   # Cycle the service if anything it reads at runtime (code, venv, schema) was
@@ -324,6 +349,17 @@ else
   log "backend dependencies installed (rollback snapshot: $VENV_SNAPSHOT)"
 fi
 
+# --- 5b. Build the frontend NOW (if requested) -----------------------------
+# Do the slow, failure-prone build before anything touches the backend/DB, so a
+# build failure never triggers a database rollback. The container swap + reload
+# happens later (step 10), after the backend is confirmed healthy.
+if [ "$DO_FRONTEND" = "1" ]; then
+  ( cd frontend && npm ci ) || fail "frontend: npm ci failed"
+  ( cd frontend && VITE_API_URL= npm run build ) || fail "frontend: build failed"
+  [ -f frontend/dist/index.html ] || fail "frontend: build produced no dist/index.html"
+  log "frontend build complete"
+fi
+
 # --- 6. Read-only pre-deploy gate (full output to the deploy log) ----------
 set +e
 ./scripts/predeploy_check.sh 2>&1 | tee -a "$LOG"
@@ -340,12 +376,25 @@ fi
 
 # --- 7. Schema compatibility guard (ALWAYS, even with --skip-migrations) ------
 # --skip-migrations only means "don't run alembic upgrade"; it must not let old
-# code deploy against a newer schema. Introspection is best-effort (if alembic
-# can't be read we still take a pre-migration backup before touching anything).
-DB_REV="$(alembic_backend current 2>/dev/null | awk 'NF{print $1; exit}')" || DB_REV=""
-TARGET_HEAD="$(alembic_backend heads 2>/dev/null | awk 'NF{print $1; exit}')" || TARGET_HEAD=""
-if [ -n "$DB_REV" ] && [ -n "$TARGET_HEAD" ] && [ "$DB_REV" != "$TARGET_HEAD" ]; then
-  if alembic_backend history -r "${DB_REV}:${TARGET_HEAD}" >/dev/null 2>&1; then
+# code deploy against a newer schema. This FAILS CLOSED: real Alembic exits
+# non-zero without a revision precisely when the live DB is stamped with a
+# revision the target tree does not contain -- the exact case this catches.
+db_intro_rc=0
+DB_REV="$(alembic_backend current 2>>"$LOG" | awk 'NF{print $1; exit}')" || db_intro_rc=1
+TARGET_HEAD="$(alembic_backend heads 2>>"$LOG" | awk 'NF{print $1; exit}')" || db_intro_rc=1
+
+if [ "$db_intro_rc" != "0" ] || [ -z "$DB_REV" ] || [ -z "$TARGET_HEAD" ]; then
+  if [ "$ALLOW_DB_AHEAD" = "1" ]; then
+    log "WARNING: could not confirm DB<->target schema compatibility (alembic introspection failed / empty); continuing on --allow-db-ahead"
+  else
+    fail "could not confirm the live database is compatible with target ${NEW_SHA:0:12}:
+alembic could not read 'current'/'heads' (rc=$db_intro_rc, db_rev='${DB_REV:-}', target_head='${TARGET_HEAD:-}').
+This usually means the DB is stamped with a revision the target tree does not contain.
+Restore a database backup taken at/before the target's migration head, then re-run
+with --allow-db-ahead; or choose a compatible target. Checkout restored to ${OLD_SHA:0:12}."
+  fi
+elif [ "$DB_REV" != "$TARGET_HEAD" ]; then
+  if alembic_backend history -r "${DB_REV}:${TARGET_HEAD}" >/dev/null 2>>"$LOG"; then
     : # DB revision is an ancestor of the target head -> a forward upgrade, fine
   elif [ "$ALLOW_DB_AHEAD" = "1" ]; then
     log "WARNING: live DB revision $DB_REV is not in the target tree; continuing on --allow-db-ahead"
@@ -398,13 +447,13 @@ if ! health_ok "$NEXUS_HEALTH_URL"; then
   $NEXUS_SYSTEMCTL show -p ActiveState -p SubState "$SERVICE" 2>/dev/null | tee -a "$LOG" || true
   fail "backend health check failed after restart ($NEXUS_HEALTH_URL)"
 fi
-log "backend healthy on ${NEW_SHA:0:12}"
+# Point of no return for the database: from here a failure rolls back only the
+# frontend, never the schema (the NEW backend has begun accepting writes).
+BACKEND_COMMITTED=1
+log "backend healthy on ${NEW_SHA:0:12} — code + schema committed"
 
-# --- 9. Optional frontend ----------------------------------------------------
+# --- 10. Optional frontend swap (build already done in step 5b) -----------
 if [ "$DO_FRONTEND" = "1" ]; then
-  ( cd frontend && npm ci ) || fail "frontend: npm ci failed"
-  ( cd frontend && VITE_API_URL= npm run build ) || fail "frontend: build failed"
-
   FRONTEND_SNAPSHOT="$(mktemp -d "${TMPDIR:-/tmp}/nexus-fe-rollback.XXXXXX")"
   mkdir -p "$FRONTEND_SNAPSHOT/html"
   docker cp "$NEXUS_FRONTEND_CONTAINER:/usr/share/nginx/html/." "$FRONTEND_SNAPSHOT/html/" \
@@ -420,7 +469,7 @@ if [ "$DO_FRONTEND" = "1" ]; then
   if ! health_ok "$NEXUS_FRONTEND_HEALTH_URL"; then
     fail "frontend health check failed after reload ($NEXUS_FRONTEND_HEALTH_URL)"
   fi
-  log "frontend rebuilt and nginx reloaded"
+  log "frontend swapped in and nginx reloaded"
 fi
 
 DEPLOY_OK=1
