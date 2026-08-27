@@ -578,11 +578,50 @@ assert a wrong-tree run leaves `~/bin/nexus-deploy` untouched.
 
 ---
 
+## 13. Review round 9 — skip-migrations behind head; shared lock; launcher vs. dirty tree
+
+### R19 (P1) — `--skip-migrations` could start new code against a behind schema
+
+Step 9 treated "live DB revision is an ancestor of the target head" as a
+harmless forward upgrade. With `--skip-migrations` the upgrade is then skipped
+and step 11 starts the new release against a schema that is missing its
+migrations. **Fix:** after the compatibility block, if `--skip-migrations` is
+set and `DB_REV != TARGET_HEAD` (and not `--allow-db-ahead`), `fail` — you may
+only skip migrations when the DB is already exactly at the target head.
+
+### R20 (P2) — the "host-wide" lock was actually per-account
+
+`NEXUS_DEPLOY_LOCK` defaulted to `$LOG_DIR/nexus-deploy.lock` =
+`$HOME/deploy-logs/...`, so two operators on different Unix accounts would take
+different lock files and could deploy concurrently. **Fix:** default is now
+`/run/lock/nexus-admin-academy-deploy.lock` (account-independent), pre-created
+world-writable (`umask 000`) so either account can open it for `flock`.
+
+### R21 (P2) — launcher refreshed before the clean-tree check
+
+R18 moved the `~/bin/nexus-deploy` refresh after the step-1 identity check but
+still before step 2 (clean tree). An uncommitted edit to `scripts/deploy.sh`
+itself would be copied to the recovery launcher before the dirty-tree abort.
+**Fix:** the refresh now runs after step 2 as well — serving checkout confirmed
+*and* tree clean — still before the checkout can move.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **39 cases / 151 assertions**. New:
+S0c (`--skip-migrations` refused when the live DB is behind the target head);
+S21 (default lock path is `/run/lock/...`, pre-created world-writable). Existing
+`--skip-migrations` happy-path cases now put the sim DB at head first
+(`db_head`), matching the new contract.
+
+---
+
 ## Final state of `scripts/deploy.sh`
 
-18 review findings across 8 Codex rounds, all fixed with tests. The script now:
+21 review findings across 9 Codex rounds, all fixed with tests. The script now:
 resolves the serving checkout from the systemd unit (launcher works from
-anywhere) and only refreshes the out-of-tree launcher after that check passes;
+anywhere) and refreshes the out-of-tree launcher only after the serving-checkout
+*and* clean-tree checks pass; serializes on a shared `/run/lock` file (not a
+per-account path); refuses `--skip-migrations` when a migration is actually due;
 takes atomic (non-nesting) venv snapshots;
 takes a host-wide lock; keeps an out-of-tree launcher copy; runs predeploy
 while the old backend is up; **stops the backend before touching the checkout**

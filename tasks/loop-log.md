@@ -1580,3 +1580,21 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
   (S19 EXDEV snapshot, S20 dry-run installs nothing, S18 extended). All pass.
 - Docs: `docs/DEPLOYMENT.md` + `P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md` §12.
   PR #29 NOT merged.
+
+## 2026-08-28 00:55 UTC — P1-1 / PR #29: review round 9 (R19, R20, R21)
+
+- R19 (P1): step 9 let `--skip-migrations` through when the live DB was an
+  ancestor of (not equal to) the target head, so new code could start against a
+  behind schema. Fix: refuse `--skip-migrations` unless `DB_REV == TARGET_HEAD`
+  (or `--allow-db-ahead`).
+- R20 (P2): the "host-wide" lock defaulted to `$HOME/deploy-logs/...` — per
+  account. Fix: default `/run/lock/nexus-admin-academy-deploy.lock`, pre-created
+  world-writable so any operator account can flock it.
+- R21 (P2): the `~/bin/nexus-deploy` refresh still ran before the clean-tree
+  check, so an uncommitted edit to deploy.sh could reach the recovery launcher.
+  Fix: refresh only after step 2 (clean tree) as well as step 1 (identity).
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 39 cases / 151 assertions
+  (S0c skip-migrations-behind-head refusal, S21 shared lock; existing
+  skip-migrations happy paths now `db_head` first). All pass.
+- Docs: `docs/DEPLOYMENT.md` + `P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md` §13.
+  PR #29 NOT merged.

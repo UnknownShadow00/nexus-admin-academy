@@ -48,11 +48,13 @@ A deploy is a single command:
 scripts/deploy.sh [options] [<ref>]      # <ref> default: origin/main
 ```
 
-`scripts/deploy.sh` takes a **host-wide `flock`** first (`~/deploy-logs/nexus-deploy.lock`)
-so two operators can't race, then — **after** confirming it is the serving
-checkout (step 1) and unless `--dry-run` — refreshes a **standalone copy of
-itself at `~/bin/nexus-deploy`** (use that if a rollback target predates the
-in-repo script). In order:
+`scripts/deploy.sh` takes a **host-wide `flock`** first
+(`/run/lock/nexus-admin-academy-deploy.lock` — a shared path, not per-account,
+pre-created world-writable) so two operators can't race even from different Unix
+accounts, then — **after** confirming it is the serving checkout (steps 1–2) and
+unless `--dry-run` — refreshes a **standalone copy of itself at
+`~/bin/nexus-deploy`** (use that if a rollback target predates the in-repo
+script). In order:
 
 1. **resolves the serving checkout from `nexus-admin-academy.service`'s
    `WorkingDirectory`, not from its own path** — so `~/bin/nexus-deploy` works
@@ -78,7 +80,9 @@ in-repo script). In order:
    a branched DB); refuses unless it can positively confirm the live revision is
    contained in the target tree; an Alembic introspection error (its behaviour
    when the DB is stamped with a revision the tree lacks) is treated as
-   *incompatible*, not "unknown". Runs **even with `--skip-migrations`**.
+   *incompatible*, not "unknown". Runs **even with `--skip-migrations`**, and
+   **`--skip-migrations` is itself refused unless the live DB is already at the
+   target head** (you can't skip a migration that's actually due).
    Override with `--allow-db-ahead` only after restoring a matching DB backup;
 7. if a migration will actually run: fresh SQLite + uploads backup
    (`scripts/backup_sqlite.sh`, stamp `predeploy-<sha>-<ts>`), then

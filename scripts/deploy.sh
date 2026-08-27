@@ -6,7 +6,8 @@
 # it). All feature work happens in a git worktree elsewhere. See
 # docs/DEPLOYMENT.md -> "Deploying a change".
 #
-# It takes a host-wide flock first, so concurrent deploys cannot race.
+# It takes a host-wide flock first (a shared /run/lock path, not a per-account
+# one), so concurrent deploys -- even from different Unix accounts -- cannot race.
 #
 # What it does, in order (every step after "stop" is covered by an automatic
 # rollback if a later step fails -- see "Rollback" below):
@@ -68,7 +69,8 @@
 #   --frontend         Also rebuild the Vite app and reload the nginx container.
 #   --skip-deps        Skip `pip install -r backend/requirements.txt`.
 #   --skip-migrations  Skip `alembic upgrade head` (use only when the reviewed
-#                      diff contains no migration).
+#                      diff contains no migration). REFUSED if the live DB is
+#                      not already at the target's Alembic head.
 #   --allow-db-ahead   Proceed even though the live DB schema is ahead of the
 #                      target commit. Only after restoring a matching DB backup.
 #   --force-predeploy  Continue even if scripts/predeploy_check.sh fails. Its
@@ -155,9 +157,15 @@ abort() { echo "ABORT: $*" >&2; exit 1; }
 
 # --- 0. Host-wide deploy lock (held for the whole run, released on any exit) --
 # Serializes concurrent deploys before any state is read, so two operators
-# cannot race on the checkout / venv / service / database.
-[ -n "$NEXUS_DEPLOY_LOCK" ] || NEXUS_DEPLOY_LOCK="$LOG_DIR/nexus-deploy.lock"
-exec 9>"$NEXUS_DEPLOY_LOCK" || abort "cannot open deploy lock $NEXUS_DEPLOY_LOCK"
+# cannot race on the checkout / venv / service / database. The default path is
+# ACCOUNT-INDEPENDENT (/run/lock, not $HOME) so two operators on different Unix
+# accounts still contend on the same file; it is pre-created world-writable
+# (sticky dir) so either account can open it for flock.
+[ -n "$NEXUS_DEPLOY_LOCK" ] || NEXUS_DEPLOY_LOCK="/run/lock/nexus-admin-academy-deploy.lock"
+if [ ! -e "$NEXUS_DEPLOY_LOCK" ]; then
+  ( umask 000; : > "$NEXUS_DEPLOY_LOCK" ) 2>/dev/null || true
+fi
+exec 9>"$NEXUS_DEPLOY_LOCK" || abort "cannot open deploy lock $NEXUS_DEPLOY_LOCK (create it world-writable, or set NEXUS_DEPLOY_LOCK to a path you can write)"
 if ! flock -n 9; then
   abort "another deploy is in progress (lock: $NEXUS_DEPLOY_LOCK). Wait for it to finish, or clear a stale lock only if no deploy.sh is running."
 fi
@@ -222,21 +230,22 @@ fi
 # enter it and touch git / the venv / the database.
 cd "$REPO_ROOT" || abort "serving checkout $REPO_ROOT is not accessible"
 
-# Keep a standalone copy of this script OUTSIDE the checkout so a rollback to a
-# commit that predates scripts/deploy.sh still leaves a working entry point.
-# Only AFTER the serving-checkout check above -- an accidental run from a
-# worktree must not overwrite ~/bin/nexus-deploy with unreviewed code -- and
-# never on --dry-run. Still well before the checkout can move (step 6).
-if [ "$DRY_RUN" != "1" ] && ! [ "${BASH_SOURCE[0]}" -ef "$NEXUS_DEPLOY_LAUNCHER" ]; then
-  mkdir -p "$(dirname "$NEXUS_DEPLOY_LAUNCHER")" 2>/dev/null \
-    && install -m 0755 "${BASH_SOURCE[0]}" "$NEXUS_DEPLOY_LAUNCHER" 2>/dev/null \
-    || echo "warning: could not refresh standalone launcher at $NEXUS_DEPLOY_LAUNCHER" >&2
-fi
-
 # --- 2. Clean tree ----------------------------------------------------------
 if [ -n "$(git status --porcelain)" ]; then
   git status --short >&2
   abort "serving checkout has uncommitted changes. This directory is deploy-only."
+fi
+
+# Keep a standalone copy of this script OUTSIDE the checkout so a rollback to a
+# commit that predates scripts/deploy.sh still leaves a working entry point.
+# Only AFTER steps 1-2 have confirmed this is the serving checkout AND its tree
+# is clean -- an accidental run from a worktree, or with an uncommitted edit to
+# deploy.sh itself, must not overwrite ~/bin/nexus-deploy with unreviewed code.
+# Skipped on --dry-run. Still well before the checkout can move (step 6).
+if [ "$DRY_RUN" != "1" ] && ! [ "${BASH_SOURCE[0]}" -ef "$NEXUS_DEPLOY_LAUNCHER" ]; then
+  mkdir -p "$(dirname "$NEXUS_DEPLOY_LAUNCHER")" 2>/dev/null \
+    && install -m 0755 "${BASH_SOURCE[0]}" "$NEXUS_DEPLOY_LAUNCHER" 2>/dev/null \
+    || echo "warning: could not refresh standalone launcher at $NEXUS_DEPLOY_LAUNCHER" >&2
 fi
 
 OLD_SHA="$(git rev-parse HEAD)"
@@ -499,6 +508,17 @@ Deploying would run older code against a newer schema. Either:
   (b) choose a target commit whose migrations include revision $DB_REV.
 Checkout is being restored to ${OLD_SHA:0:12}."
   fi
+fi
+
+# --skip-migrations must not start the new code against a schema that is merely
+# an ANCESTOR of the target head -- that release needs its migration. Only
+# tolerable when the DB is already exactly at the target head, or the operator
+# forces --allow-db-ahead (having migrated out of band).
+if [ "$SKIP_MIGRATIONS" = "1" ] && [ "$ALLOW_DB_AHEAD" != "1" ] \
+   && [ -n "$DB_REV" ] && [ -n "$TARGET_HEAD" ] && [ "$DB_REV" != "$TARGET_HEAD" ]; then
+  fail "--skip-migrations, but the live database is at '$DB_REV' and the target head is '$TARGET_HEAD'.
+The target release needs a migration; starting it now would run new code against a behind schema.
+Re-run WITHOUT --skip-migrations, or (only if the DB was already migrated out of band) with --allow-db-ahead."
 fi
 
 # --- 10. Migration: back up, then upgrade (service already stopped, step 5) --

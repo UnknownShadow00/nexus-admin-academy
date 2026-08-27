@@ -243,6 +243,9 @@ run_deploy() {
 }
 
 head_sha() { git -C "$SERVING" rev-parse HEAD; }
+# Put the live DB at the target head. Required for any --skip-migrations happy
+# path: the schema guard now refuses to skip a migration that is actually due.
+db_head() { printf 'MIGRATED' > "$SERVING/backend/nexus.db"; }
 a_rc_ne0()  { [ "$RC" -ne 0 ] && ok "exit non-zero ($RC)" || bad "expected non-zero exit" "$OUT"; }
 a_rc_0()    { [ "$RC" -eq 0 ] && ok "exit zero" || bad "expected zero exit (got $RC)" "$OUT"; }
 a_head_old(){ [ "$(head_sha)" = "$OLD_SHA" ] && ok "checkout rolled back to OLD" || bad "HEAD=$(head_sha) want OLD=$OLD_SHA"; }
@@ -270,8 +273,16 @@ case_start() { printf '\n\033[1m# %s\033[0m\n' "$1"; reset_sims; setup_env; }
 
 # ===========================================================================
 case_start "S0  happy path, code-only deploy"
+  db_head
   run_deploy --skip-deps --skip-migrations origin/main
   a_rc_0; a_head_new; a_log "deploy OK"; a_nolog "ROLLBACK"
+teardown_env
+
+case_start "S0c --skip-migrations is REFUSED when the live DB is behind the target head"
+  run_deploy --skip-deps --skip-migrations origin/main   # setup_env leaves DB at rev_old
+  a_rc_ne0; a_head_old
+  a_log "the live database is at 'rev_old' and the target head is 'rev_head'"
+  a_nolog "code + schema committed"
 teardown_env
 
 case_start "S0b happy path: deps + migration + frontend all succeed"
@@ -330,6 +341,7 @@ case_start "S2d target deps are installed before any target-tree Alembic call"
 teardown_env
 
 case_start "S3  backend start failure on the new release rolls fully back"
+  db_head
   export SIM_SYSTEMCTL_START_FAIL=1
   run_deploy --skip-deps --skip-migrations origin/main
   a_rc_ne0; a_head_old
@@ -339,6 +351,7 @@ case_start "S3  backend start failure on the new release rolls fully back"
 teardown_env
 
 case_start "S12 the backend is stopped BEFORE the checkout is touched (no mixed release)"
+  db_head
   run_deploy --skip-deps --skip-migrations origin/main
   a_rc_0; a_head_new
   a_order "stopping nexus-admin-academy.service for deployment" "checked out"
@@ -357,6 +370,7 @@ case_start "S13 a second concurrent deploy is refused by the host lock"
 teardown_env
 
 case_start "S4a backend health failure on new release, rollback recovers"
+  db_head
   export SIM_NEW_UNHEALTHY=1
   run_deploy --skip-deps --skip-migrations origin/main
   a_rc_ne0; a_head_old
@@ -365,6 +379,7 @@ case_start "S4a backend health failure on new release, rollback recovers"
 teardown_env
 
 case_start "S4b backend health failure that rollback cannot fix is flagged"
+  db_head
   export SIM_HEALTH_FAIL=1
   run_deploy --skip-deps --skip-migrations origin/main
   a_rc_ne0; a_head_old
@@ -396,6 +411,7 @@ case_start "S10a frontend swap fails AFTER a migration -> DB kept, only frontend
 teardown_env
 
 case_start "S10b frontend reload fails AFTER a code-only deploy -> backend kept"
+  db_head
   export SIM_FRONTEND_RELOAD_FAIL=1
   run_deploy --skip-deps --skip-migrations --frontend origin/main
   a_rc_ne0; a_head_new
@@ -412,6 +428,7 @@ case_start "S11 migration rollback reapplies the live DB file mode (0640)"
 teardown_env
 
 case_start "S6  --force-predeploy records every FAIL line in the deploy log"
+  db_head
   export SIM_PREDEPLOY_FAIL=1
   run_deploy --skip-deps --skip-migrations --force-predeploy origin/main
   a_rc_0; a_head_new
@@ -484,6 +501,7 @@ case_start "S9b introspection failure + --allow-db-ahead proceeds with a warning
 teardown_env
 
 case_start "S14 a standalone launcher copy is kept outside the checkout"
+  db_head
   run_deploy --skip-deps --skip-migrations origin/main
   a_rc_0
   [ -x "$WORK/launcher/nexus-deploy" ] && ok "launcher exists and is executable" || bad "launcher missing/non-exec"
@@ -491,13 +509,14 @@ case_start "S14 a standalone launcher copy is kept outside the checkout"
 teardown_env
 
 case_start "S17 the out-of-tree launcher copy runs from \$HOME and resolves the serving checkout"
+  db_head
   run_deploy --skip-deps --skip-migrations origin/main      # first deploy installs the launcher
   a_rc_0; a_head_new
   [ -x "$WORK/launcher/nexus-deploy" ] && ok "launcher installed" || bad "launcher missing"
   # Roll the checkout back and redeploy VIA the copied launcher, invoked from
   # $HOME (cwd outside any checkout) -- the R16 case.
   ( cd "$SERVING" && git checkout -q --detach "$OLD_SHA" )
-  printf 'OLD' > "$SERVING/backend/nexus.db"
+  db_head
   OUT="$(
     cd "$WORK" && PATH="$FAKEBIN:$PATH" HOME="$WORK" \
       NEXUS_SYSTEMCTL=systemctl \
@@ -549,6 +568,15 @@ case_start "S20 --dry-run changes nothing and does not refresh the launcher"
   a_out "DRY RUN"
   [ ! -e "$WORK/launcher/nexus-deploy" ] && ok "--dry-run did not install the launcher" \
     || bad "--dry-run installed the launcher"
+teardown_env
+
+case_start "S21 the default deploy lock is account-independent (not under \$HOME)"
+  grep -q 'NEXUS_DEPLOY_LOCK="/run/lock/nexus-admin-academy-deploy.lock"' "$DEPLOY_SRC" \
+    && ok "default lock path is /run/lock/..., shared across Unix accounts" \
+    || bad "default lock path is not the shared /run/lock location"
+  grep -q 'umask 000; : > "\$NEXUS_DEPLOY_LOCK"' "$DEPLOY_SRC" \
+    && ok "lock file is pre-created world-writable so either account can flock it" \
+    || bad "lock file is not pre-created world-writable"
 teardown_env
 
 case_start "S15 target commit with multiple Alembic heads is rejected"
