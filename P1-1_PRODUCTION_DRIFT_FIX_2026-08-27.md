@@ -193,4 +193,46 @@ should always be clean and always equal to a real commit on `origin/main`
 
 ## 5. Demonstrated deploy cycle
 
-<!-- filled in after the live run -->
+Run 2026-08-27 ~20:21–20:23 UTC from the serving checkout, code-only
+(`--skip-deps --skip-migrations`, no `--frontend`). A fresh SQLite + uploads
+backup was taken first: `~/backups/nexus/nexus-20260827-p1-1-demo.db.gz`.
+
+Baseline: `MainPID 3007149`, up since 2026-08-26 18:59:26; `HEAD 7b3eed2`
+(== `origin/main`); `alembic current 0061_integrated_support_prove (head)`;
+`:8000/health` OK.
+
+| Step | Command | Result |
+|---|---|---|
+| bootstrap | `git checkout --detach cbee2c5` (one-time — introduces `scripts/deploy.sh`; that commit differs from `origin/main` only in `scripts/deploy.sh`, `docs/DEPLOYMENT.md`, this report — **no runtime change**, no restart) | clean tree at `cbee2c5` |
+| guard check | `scripts/deploy.sh` from a dirty tree / non-serving dir (earlier) | aborted with `This directory is deploy-only.` / `is not the serving checkout` |
+| deploy | `scripts/deploy.sh --skip-deps --skip-migrations --force-predeploy origin/fix/p1-1-deploy-drift` | predeploy gate ran (1 pre-existing FAIL — see below — overridden and logged); `systemctl restart`; `MainPID 3557937`, start 20:22:58; `:8000/health` OK; deploy-log line written |
+| roll back to `origin/main` | `scripts/deploy.sh --skip-deps --skip-migrations --force-predeploy 7b3eed2` | real `git checkout --detach cbee2c5 → 7b3eed2`; `systemctl restart`; `MainPID 3558276`, start 20:23:10; `:8000/health` **and** `https://nexus.builtfromzero.fyi/health` OK |
+
+Final state (verified):
+
+- serving checkout `HEAD` = `7b3eed2` = `origin/main`, `git status` clean;
+- backend healthy, `alembic current` still `0061_integrated_support_prove`
+  (never touched); Service Desk container healthy throughout;
+- every run appended to `~/deploy-logs/nexus-deploy.log`;
+- simulating tonight's nightly snapshot against the (now protected) serving
+  checkout logs `PROTECTED, clean at 7b3eed2 — recorded, no snapshot taken`
+  and leaves the tree untouched.
+
+### Notes / follow-ups surfaced by the demo
+
+- **`predeploy_check.sh` has one pre-existing FAIL in this environment:**
+  `Service Desk production build is missing` — it looks for a host
+  `service-desk-app/apps/web/.next/BUILD_ID`, but the live Service Desk runs
+  from a Docker **image** (`nexus-service-desk:331efc899e72`), so that host
+  artifact is stale/absent. Historically operators rebuilt `.next` on the host
+  before each deploy to satisfy it (see `tasks/loop-log.md`). This is
+  unrelated to the drift fix; `deploy.sh` exposes it via the hard gate and the
+  `--force-predeploy` override (each FAIL logged). Worth deciding separately
+  whether that check should instead validate the running container/image.
+- **Bootstrap caveat:** `scripts/deploy.sh` only exists on this branch, so the
+  very first move onto it needed one manual `git checkout --detach`. Once this
+  PR merges to `main`, the script is permanently present and every subsequent
+  deploy **and rollback** is `scripts/deploy.sh <ref>` with no manual checkout.
+- The one-time bootstrap and the two demo restarts were the only production
+  mutations; no database, migration, env, container, or frontend change was
+  made.
