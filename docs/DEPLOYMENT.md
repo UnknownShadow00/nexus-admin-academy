@@ -53,8 +53,11 @@ so two operators can't race, refreshes a **standalone copy of itself at
 `~/bin/nexus-deploy`** (use that if a rollback target predates the in-repo
 script), then, in order:
 
-1. refuses to run unless it is the checkout `nexus-admin-academy.service`
-   actually serves, and refuses a dirty working tree;
+1. **resolves the serving checkout from `nexus-admin-academy.service`'s
+   `WorkingDirectory`, not from its own path** — so `~/bin/nexus-deploy` works
+   when run from anywhere. Run from an in-repo copy, it additionally refuses
+   unless that copy's tree *is* the serving checkout (so you can't "deploy" a
+   worktree by mistake). Refuses a dirty working tree;
 2. `git fetch`, then resolves the pinned target ref to a concrete SHA;
 3. runs `scripts/predeploy_check.sh` **while the old backend is still up** (its
    live-health / container / env checks need it running). **Full output tee'd

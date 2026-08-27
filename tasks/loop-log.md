@@ -1548,3 +1548,19 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: scripts/deploy.sh (refreshes a standalone launcher copy at ~/bin/nexus-deploy / NEXUS_DEPLOY_LAUNCHER before the checkout can move; schema guard now counts heads + current revisions and fails unless exactly one of each); scripts/tests/deploy_failure_sim.sh (30 cases / 126 assertions — S14 launcher kept + matches, S15 multi-head rejected, S16 branched DB rejected); docs/DEPLOYMENT.md (launcher note + strict-head-count).
 - Result: pass. bash -n clean; failure-sim 126/126 locally; will confirm CI. 15 findings over 6 rounds all fixed with tests. Accepted limitation documented: every deploy is a brief maintenance window (single-process shared-checkout; blue/green is the future path). No production mutation. PR #29 not merged.
 - Next: Confirm CI, reply to + resolve all Codex threads, write summary, stop.
+
+## 2026-08-27 23:55 UTC — P1-1 / PR #29: review round 7 (R16)
+
+- Fresh Codex P1 (thread `_qJV`): the out-of-tree launcher `~/bin/nexus-deploy`
+  (added R14) derived `REPO_ROOT` from `${BASH_SOURCE[0]}/..`, so run from
+  `~/bin` it resolved to `$HOME` and aborted its own serving-checkout check —
+  the rollback recovery path was unusable.
+- Fix (`scripts/deploy.sh`): resolve `REPO_ROOT` from
+  `systemctl show -p WorkingDirectory nexus-admin-academy.service` (strip
+  `/backend`); script-path only as fallback when the unit can't be queried.
+  In-repo copies still refuse unless launched from the serving checkout.
+  Moved the identity check before `cd "$REPO_ROOT"`.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 32 cases / 136 assertions
+  (S17 launcher-from-$HOME deploy, S18 wrong-tree refusal). All pass locally.
+- Docs: `docs/DEPLOYMENT.md` step 1 + `P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md`
+  §11 updated. PR #29 NOT merged.

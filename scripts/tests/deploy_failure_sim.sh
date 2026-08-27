@@ -22,7 +22,8 @@ bad() { FAIL=$((FAIL + 1)); printf '  \033[31mFAIL\033[0m %s\n' "$1"; [ -n "${2:
 SIM_VARS="SIM_PREDEPLOY_FAIL SIM_BACKUP_FAIL SIM_ALEMBIC_FAIL SIM_ALEMBIC_CURRENT_FAIL
 SIM_PIP_FAIL SIM_SYSTEMCTL_RESTART_FAIL SIM_SYSTEMCTL_START_FAIL SIM_HEALTH_FAIL
 SIM_NEW_UNHEALTHY SIM_NPM_FAIL SIM_DOCKER_FAIL SIM_HISTORY_RC
-SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL SIM_MULTI_HEAD SIM_MULTI_DB_REV"
+SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL SIM_MULTI_HEAD SIM_MULTI_DB_REV
+SIM_WORKDIR_OVERRIDE"
 reset_sims() { for v in $SIM_VARS; do unset "$v"; done; }
 
 # ---------------------------------------------------------------------------
@@ -51,7 +52,7 @@ mark_from_head() {
 }
 case "$cmd" in
   show)
-    if printf '%s\n' "$@" | grep -q WorkingDirectory; then echo "$SERVING_BACKEND"
+    if printf '%s\n' "$@" | grep -q WorkingDirectory; then echo "${SIM_WORKDIR_OVERRIDE:-$SERVING_BACKEND}"
     else echo "ActiveState=active"; echo "SubState=running"; fi ;;
   restart)
     echo "restart $*" >> "$WORK/systemctl.log"
@@ -473,6 +474,46 @@ case_start "S14 a standalone launcher copy is kept outside the checkout"
   a_rc_0
   [ -x "$WORK/launcher/nexus-deploy" ] && ok "launcher exists and is executable" || bad "launcher missing/non-exec"
   cmp -s "$WORK/launcher/nexus-deploy" "$SERVING/scripts/deploy.sh" && ok "launcher matches deploy.sh" || bad "launcher differs from deploy.sh"
+teardown_env
+
+case_start "S17 the out-of-tree launcher copy runs from \$HOME and resolves the serving checkout"
+  run_deploy --skip-deps --skip-migrations origin/main      # first deploy installs the launcher
+  a_rc_0; a_head_new
+  [ -x "$WORK/launcher/nexus-deploy" ] && ok "launcher installed" || bad "launcher missing"
+  # Roll the checkout back and redeploy VIA the copied launcher, invoked from
+  # $HOME (cwd outside any checkout) -- the R16 case.
+  ( cd "$SERVING" && git checkout -q --detach "$OLD_SHA" )
+  printf 'OLD' > "$SERVING/backend/nexus.db"
+  OUT="$(
+    cd "$WORK" && PATH="$FAKEBIN:$PATH" HOME="$WORK" \
+      NEXUS_SYSTEMCTL=systemctl \
+      NEXUS_DEPLOY_LOG_DIR="$WORK/deploy-logs" \
+      NEXUS_DEPLOY_LOCK="$WORK/deploy.lock" \
+      NEXUS_DEPLOY_LAUNCHER="$WORK/launcher/nexus-deploy" \
+      NEXUS_BACKUP_DIR="$WORK/backups" \
+      NEXUS_SQLITE_DB="$SERVING/backend/nexus.db" \
+      NEXUS_BACKUP_SCRIPT="$SERVING/scripts/backup_sqlite.sh" \
+      NEXUS_HEALTH_RETRIES=2 NEXUS_HEALTH_DELAY=0 \
+      bash "$WORK/launcher/nexus-deploy" --skip-deps --skip-migrations origin/main 2>&1
+  )"; RC=$?
+  LOGTXT="$(cat "$WORK/deploy-logs/nexus-deploy.log" 2>/dev/null || true)"
+  a_rc_0
+  a_head_new
+  case "$OUT" in
+    *"not the serving checkout"*|*"refusing to deploy"*|*"is not a .../backend path"*)
+      bad "launcher misresolved REPO_ROOT" "$OUT" ;;
+    *) ok "launcher resolved the serving checkout from the systemd unit" ;;
+  esac
+  a_out "invoked via the standalone launcher"
+teardown_env
+
+case_start "S18 running scripts/deploy.sh from a tree that is NOT the serving checkout is refused"
+  mkdir -p "$WORK/other/backend"
+  export SIM_WORKDIR_OVERRIDE="$WORK/other/backend"
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_ne0
+  a_head_old
+  a_out "refusing to deploy"
 teardown_env
 
 case_start "S15 target commit with multiple Alembic heads is rejected"

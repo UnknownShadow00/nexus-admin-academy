@@ -514,15 +514,43 @@ revisions and `fail`s unless there is exactly one of each.
 
 ### Tests
 
-`scripts/tests/deploy_failure_sim.sh` → **30 cases / 126 assertions**: standalone
-launcher kept + matches deploy.sh (S14); multiple target heads rejected (S15);
-branched live DB rejected (S16).
+`scripts/tests/deploy_failure_sim.sh` → standalone launcher kept + matches
+deploy.sh (S14); multiple target heads rejected (S15); branched live DB
+rejected (S16).
+
+---
+
+## 11. Review round 7 — the standalone launcher must resolve the real repo
+
+### R16 (P1) — `~/bin/nexus-deploy` derived `REPO_ROOT` from its own path
+
+The R14 launcher copy computed `REPO_ROOT` from `${BASH_SOURCE[0]}/..`. Run as
+`~/bin/nexus-deploy` (exactly the rollback-to-a-pre-`deploy.sh`-commit case it
+exists for), that resolves to `$HOME`; the script then `cd`s to `$HOME` and the
+serving-checkout check aborts — the recovery entry point was unusable. **Fix:**
+`REPO_ROOT` is now taken from `nexus-admin-academy.service`'s `WorkingDirectory`
+(`systemctl show -p WorkingDirectory`), stripped of the trailing `/backend`;
+the script-path fallback is used only when the unit can't be queried at all. An
+in-repo copy additionally still refuses unless the tree it was launched from
+*is* that serving checkout (worktree-by-mistake protection preserved). The
+identity check now runs **before** `cd "$REPO_ROOT"`, so a mismatch produces
+the actionable message rather than a bare `cd` failure.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **32 cases / 136 assertions**. New:
+the copied launcher, executed from `$HOME` after a checkout rollback, resolves
+the serving checkout from the unit and completes a deploy (S17); running an
+in-repo `scripts/deploy.sh` whose tree is not what the unit serves is refused
+with "refusing to deploy" (S18).
 
 ---
 
 ## Final state of `scripts/deploy.sh`
 
-15 review findings across 6 Codex rounds, all fixed with tests. The script now:
+16 review findings across 7 Codex rounds, all fixed with tests. The script now:
+resolves the serving checkout from the systemd unit (launcher works from
+anywhere);
 takes a host-wide lock; keeps an out-of-tree launcher copy; runs predeploy
 while the old backend is up; **stops the backend before touching the checkout**
 (no mixed-release window); snapshots + restores the venv; fail-closed schema

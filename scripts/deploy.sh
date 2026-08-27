@@ -10,7 +10,9 @@
 #
 # What it does, in order (every step after "stop" is covered by an automatic
 # rollback if a later step fails -- see "Rollback" below):
-#   1. Refuses to run anywhere except the live serving checkout.
+#   1. Resolves the serving checkout from the systemd unit's WorkingDirectory
+#      (so the ~/bin/nexus-deploy copy works from anywhere); an in-repo copy
+#      must additionally be running from that same checkout.
 #   2. Refuses to run with a dirty working tree.
 #   3. git fetch, then resolve the pinned target commit to a SHA.
 #   4. Runs scripts/predeploy_check.sh while the OLD backend is still up (its
@@ -103,7 +105,23 @@ set -euo pipefail
 : "${NEXUS_DEPLOY_LAUNCHER:=$HOME/bin/nexus-deploy}"  # stable copy, survives rollback to a pre-deploy.sh commit
 
 SERVICE="$NEXUS_SERVICE"
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Resolve the serving checkout from the systemd unit itself -- NOT from this
+# script's own path. The standalone launcher copy ($NEXUS_DEPLOY_LAUNCHER) lives
+# OUTSIDE any checkout so it survives a rollback to a commit that predates this
+# script; deriving REPO_ROOT from its location would point at $HOME and abort the
+# WorkingDirectory check below, leaving the promised recovery entry point
+# unusable. The unit's WorkingDirectory is the single source of truth. Fall back
+# to the script-relative path only when the unit cannot be queried at all (the
+# failure-sim harness on a host without this service).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SERVING_WORKDIR="$($NEXUS_SYSTEMCTL show -p WorkingDirectory --value "$SERVICE" 2>/dev/null || true)"
+case "$SERVING_WORKDIR" in
+  */backend) REPO_ROOT="${SERVING_WORKDIR%/backend}" ;;
+  "")        REPO_ROOT="$SCRIPT_REPO_ROOT" ;;   # unit not queryable; step 1 aborts
+  *)         echo "ABORT: $SERVICE WorkingDirectory ('$SERVING_WORKDIR') is not a .../backend path" >&2; exit 1 ;;
+esac
 LOG_DIR="$NEXUS_DEPLOY_LOG_DIR"
 LOG="$LOG_DIR/nexus-deploy.log"
 [ -n "$NEXUS_BACKUP_SCRIPT" ] || NEXUS_BACKUP_SCRIPT="$REPO_ROOT/scripts/backup_sqlite.sh"
@@ -130,7 +148,6 @@ for arg in "$@"; do
   esac
 done
 
-cd "$REPO_ROOT"
 mkdir -p "$LOG_DIR"
 
 log()  { printf '%s  %s\n' "$(date -Is)" "$*" | tee -a "$LOG"; }
@@ -185,14 +202,23 @@ health_ok() {
 }
 
 # --- 1. Must be THE serving checkout -----------------------------------------
-SERVING_DIR="$($NEXUS_SYSTEMCTL show -p WorkingDirectory --value "$SERVICE" 2>/dev/null || true)"
-if [ -z "$SERVING_DIR" ]; then
+# REPO_ROOT was derived from the unit's WorkingDirectory above. Re-assert the
+# unit was actually queryable, and -- when we were launched from a checkout tree
+# rather than the out-of-tree launcher -- that that tree IS the serving checkout
+# (stops an operator "deploying" a worktree by mistake).
+if [ -z "$SERVING_WORKDIR" ]; then
   abort "cannot read WorkingDirectory of $SERVICE (is it installed on this host?)"
 fi
-if [ "$SERVING_DIR" != "$REPO_ROOT/backend" ]; then
-  abort "$REPO_ROOT is not the serving checkout. $SERVICE serves: $SERVING_DIR
-Deploy only from the production checkout; use a git worktree for everything else."
+if [ "${BASH_SOURCE[0]}" -ef "$NEXUS_DEPLOY_LAUNCHER" ]; then
+  echo "info: invoked via the standalone launcher; serving checkout = $REPO_ROOT (from $SERVICE)" >&2
+elif [ "$SCRIPT_REPO_ROOT" != "$REPO_ROOT" ]; then
+  abort "refusing to deploy: launched from $SCRIPT_REPO_ROOT, but $SERVICE serves $REPO_ROOT/backend.
+Run scripts/deploy.sh from the serving checkout (or the $NEXUS_DEPLOY_LAUNCHER copy); use a git worktree for everything else."
 fi
+
+# Only now is REPO_ROOT confirmed to be the live serving checkout -- safe to
+# enter it and touch git / the venv / the database.
+cd "$REPO_ROOT" || abort "serving checkout $REPO_ROOT is not accessible"
 
 # --- 2. Clean tree ----------------------------------------------------------
 if [ -n "$(git status --porcelain)" ]; then
