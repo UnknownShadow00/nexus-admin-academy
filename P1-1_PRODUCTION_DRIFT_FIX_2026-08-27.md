@@ -713,9 +713,52 @@ after a successful rollback.
 
 ---
 
+## 17. Review round 13 — rollback must fail safe
+
+### R28 (P1) — rollback proceeded even if it couldn't stop the service
+
+`do_rollback`'s own `systemctl stop` runs under `set +e`; a stop that failed
+while the unit stayed active would be ignored, and rollback would then rewrite
+the checkout / venv / SQLite file under a live process. **Fix:** after the
+rollback stop, `systemctl is-active` is checked; if still `active`, the rollback
+aborts before any destructive restore and logs `MANUAL INTERVENTION NEEDED`.
+
+### R29 (P1) — a failed DB restore was ignored; old code started on a half-restored DB
+
+`restore_database`'s result was discarded, and its inner `mv` wasn't checked (so
+a failed move still logged "restored"). **Fix:** `restore_database` now checks
+`mv` and returns non-zero on any failure; `do_rollback` captures that and, on
+failure, leaves the service **stopped** with `MANUAL INTERVENTION NEEDED` rather
+than starting a release against an indeterminate database.
+
+### R30 (P1) — write-exposure window before the commit point — *documented, not eliminated*
+
+The new process binds `:8000` and nginx keeps proxying to it, so it is publicly
+reachable between "started" and "first `/health` response"; a write accepted in
+that window on a deploy that then fails health is discarded by the
+restore-pre-migration-DB rollback. The first health probe fires with no delay
+(sub-second for a healthy process), and this is now called out in the log and in
+`docs/DEPLOYMENT.md`. **Fully** closing it means either gating public `/api/`
+traffic for the whole window or never rolling the DB back once the process
+started (which replaces automatic recovery with mandatory manual intervention on
+every failed post-migration deploy) — both are the blue/green / maintenance-mode
+work that the P1-1 task explicitly scoped out. Left for the human reviewer to
+weigh; the thread is **not** auto-resolved.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **47 cases / 187 assertions**. New:
+S26 (rollback aborts, no checkout/venv/DB restore, when the unit can't be
+confirmed stopped); S27 (a failed DB restore leaves the service stopped and
+never starts the old release).
+
+---
+
 ## Final state of `scripts/deploy.sh`
 
-27 review findings across 12 Codex rounds, all fixed with tests. The script now:
+29 review findings across 13 Codex rounds — 28 fixed with tests; 1 (R30, the
+pre-commit write-exposure window) mitigated + documented, its full fix being the
+out-of-scope blue/green work. The script now:
 resolves the serving checkout from the systemd unit (launcher works from
 anywhere) and refreshes the out-of-tree launcher only after the serving-checkout
 *and* clean-tree checks pass; serializes on a shared `/run/lock` file (not a

@@ -330,17 +330,20 @@ restore_database() {
   ref_mode="$(stat -c '%a' "$DB_PATH" 2>/dev/null || echo 640)"
   ref_owner="$(stat -c '%U:%G' "$DB_PATH" 2>/dev/null || echo nexus:nexus)"
   local tmp="$DB_PATH.rollback.$$"
-  if gunzip -c "$DB_BACKUP_BEFORE" > "$tmp"; then
-    chmod "$ref_mode" "$tmp" 2>/dev/null || log "ROLLBACK WARNING: could not set mode $ref_mode on restored DB"
-    chown "$ref_owner" "$tmp" 2>/dev/null || log "ROLLBACK WARNING: could not set owner $ref_owner on restored DB (run rollback as the service user)"
-    mv -f "$tmp" "$DB_PATH"
-    rm -f "$DB_PATH-wal" "$DB_PATH-shm"
-    log "ROLLBACK: database file restored (mode $ref_mode, owner $ref_owner)"
-  else
+  if ! gunzip -c "$DB_BACKUP_BEFORE" > "$tmp"; then
     rm -f "$tmp"
     log "ROLLBACK WARNING: could not decompress $DB_BACKUP_BEFORE — MANUAL INTERVENTION NEEDED"
     return 1
   fi
+  chmod "$ref_mode" "$tmp" 2>/dev/null || log "ROLLBACK WARNING: could not set mode $ref_mode on restored DB"
+  chown "$ref_owner" "$tmp" 2>/dev/null || log "ROLLBACK WARNING: could not set owner $ref_owner on restored DB (run rollback as the service user)"
+  if ! mv -f "$tmp" "$DB_PATH"; then
+    rm -f "$tmp"
+    log "ROLLBACK WARNING: could not move the restored database into place — MANUAL INTERVENTION NEEDED"
+    return 1
+  fi
+  rm -f "$DB_PATH-wal" "$DB_PATH-shm"
+  log "ROLLBACK: database file restored (mode $ref_mode, owner $ref_owner)"
 }
 
 restore_frontend() {
@@ -378,7 +381,19 @@ do_rollback() {
   { [ "$MIGRATION_ATTEMPTED" = "1" ] || [ "$SERVICE_RESTARTED" = "1" ] \
     || [ "$SERVICE_STOPPED" = "1" ] || [ "$DEPS_INSTALLED" = "1" ]; } && cycle_service=1
 
-  [ "$cycle_service" = "1" ] && { log "ROLLBACK: stopping $SERVICE"; $NEXUS_SYSTEMCTL stop "$SERVICE"; }
+  # Everything below replaces files the backend reads at runtime (code, venv,
+  # the SQLite file). If we cannot confirm the unit is actually stopped, doing
+  # that under a live process risks a mixed release or corrupt writes -- abort
+  # and leave it for a human.
+  if [ "$cycle_service" = "1" ]; then
+    log "ROLLBACK: stopping $SERVICE"
+    $NEXUS_SYSTEMCTL stop "$SERVICE"
+    if [ "$($NEXUS_SYSTEMCTL is-active "$SERVICE" 2>/dev/null || true)" = "active" ]; then
+      log "ROLLBACK ABORTED: $SERVICE is still active after stop — NOT restoring the checkout / venv / database under a live process. MANUAL INTERVENTION NEEDED."
+      log "ROLLBACK: complete (aborted — service still up)"
+      return
+    fi
+  fi
 
   [ "$FRONTEND_APPLIED" = "1" ] && restore_frontend
 
@@ -390,7 +405,11 @@ do_rollback() {
   fi
 
   [ "$DEPS_INSTALLED" = "1" ] && restore_venv
-  [ "$MIGRATION_ATTEMPTED" = "1" ] && restore_database
+
+  local db_restore_failed=0
+  if [ "$MIGRATION_ATTEMPTED" = "1" ]; then
+    restore_database || db_restore_failed=1
+  fi
 
   # If --allow-db-ahead was in play and we did NOT take a pre-migration backup
   # (the documented historical-schema rollback: the operator swapped the DB file
@@ -400,6 +419,15 @@ do_rollback() {
   if [ "$ALLOW_DB_AHEAD" = "1" ] && [ "$MIGRATION_ATTEMPTED" != "1" ]; then
     log "ROLLBACK: --allow-db-ahead was set and the database may have been changed outside deploy.sh."
     log "ROLLBACK: NOT auto-starting ${OLD_SHA:0:12} against it. Restore your own pre-recovery database backup, then start $SERVICE by hand. MANUAL INTERVENTION NEEDED."
+    log "ROLLBACK: complete (service left stopped)"
+    return
+  fi
+
+  # A failed database restore means the file on disk is now some indeterminate
+  # mix of pre- and post-migration state. Starting ANY release against it can
+  # corrupt further. Leave the service down.
+  if [ "$db_restore_failed" = "1" ]; then
+    log "ROLLBACK: database restore FAILED — NOT starting $SERVICE against a partially-restored database. Restore a known-good backup by hand. MANUAL INTERVENTION NEEDED."
     log "ROLLBACK: complete (service left stopped)"
     return
   fi
@@ -590,8 +618,16 @@ else
 fi
 
 # --- 11. Start the backend on the new release + health --------------------
+# The unit binds 0.0.0.0:8000 and nginx keeps proxying /api/ + /auth/ to it, so
+# the new process is publicly reachable the moment it starts -- there is a brief
+# window (until the first /health response below) where it could accept a write
+# that an immediately-following rollback would discard. The first health probe
+# fires with no delay, so in practice this is sub-second for a healthy process;
+# a true zero-exposure deploy needs the out-of-scope blue/green setup noted in
+# DEPLOYMENT.md.
 SERVICE_RESTARTED=1
 $NEXUS_SYSTEMCTL start "$SERVICE" || fail "systemctl start $SERVICE failed"
+log "new backend started on ${NEW_SHA:0:12}; verifying /health before committing"
 if ! health_ok "$NEXUS_HEALTH_URL"; then
   $NEXUS_SYSTEMCTL show -p ActiveState -p SubState "$SERVICE" 2>/dev/null | tee -a "$LOG" || true
   fail "backend health check failed after start ($NEXUS_HEALTH_URL)"

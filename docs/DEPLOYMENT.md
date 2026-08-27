@@ -105,18 +105,31 @@ deps/migration/build). Zero-downtime would need a separate release directory
 with an atomic switch, or blue/green — out of scope for this single-process,
 shared-checkout deployment.
 
+One consequence of that same limitation: at step 8 the new process binds
+`:8000` and nginx keeps proxying `/api/` + `/auth/` to it, so it is publicly
+reachable for the brief interval between "started" and "first `/health`
+response". The first health probe is issued with no delay, so for a healthy
+process this is sub-second; but a write accepted in that window on a deploy
+whose health check then fails is discarded by the automatic
+restore-pre-migration-DB rollback. Eliminating that window (not just shrinking
+it) is the same blue/green work noted above.
+
 **Rollback — automatic on any failure once the backend has been stopped
 (step 4).**
 
-- **Before the step-8 health check passes** — full unwind: check the previous
-  SHA back out; if deps were installed, **restore the `backend/.venv`
-  snapshot** (a dependency up/downgrade otherwise outlives the failed release);
-  if a migration was attempted, **restore the pre-migration database backup**
-  (SQLite DDL here is non-transactional, so a half-applied migration is
-  possible — the backup is the only safe restore; the live DB's owner and mode
-  are reapplied to the restored file); start the service on the old SHA and
-  re-health-check (`MANUAL INTERVENTION NEEDED` in the log if it still can't
-  come up).
+- **Before the step-8 health check passes** — full unwind: **confirm the unit
+  is actually inactive** (if a rollback `stop` fails and the unit stays up, the
+  rollback aborts here rather than rewrite files under a live process); check
+  the previous SHA back out (and verify the worktree is clean afterwards); if
+  deps were installed, **restore the `backend/.venv` snapshot** (a dependency
+  up/downgrade otherwise outlives the failed release); if a migration was
+  attempted, **restore the pre-migration database backup** (SQLite DDL here is
+  non-transactional, so a half-applied migration is possible — the backup is the
+  only safe restore; the live DB's owner and mode are reapplied). **If that DB
+  restore itself fails, the service is left stopped** — deploy.sh will not start
+  any release against a half-restored database. Otherwise start the service on
+  the old SHA and re-health-check (`MANUAL INTERVENTION NEEDED` in the log if it
+  still can't come up).
 - **After step 8** — only the `--frontend` swap can still fail, and the NEW
   backend has begun accepting writes, so the **database is not rolled back**.
   Only the frontend snapshot is restored; the backend stays on the new commit

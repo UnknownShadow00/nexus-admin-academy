@@ -24,7 +24,7 @@ SIM_PIP_FAIL SIM_SYSTEMCTL_RESTART_FAIL SIM_SYSTEMCTL_START_FAIL SIM_HEALTH_FAIL
 SIM_NEW_UNHEALTHY SIM_NPM_FAIL SIM_DOCKER_FAIL SIM_HISTORY_RC
 SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL SIM_MULTI_HEAD SIM_MULTI_DB_REV
 SIM_WORKDIR_OVERRIDE SIM_CP_HARDLINK_EXDEV SIM_SYSTEMCTL_STOP_FAIL
-SIM_DIRTY_AFTER_CHECKOUT"
+SIM_DIRTY_AFTER_CHECKOUT SIM_STOP_LEAVES_ACTIVE SIM_GUNZIP_FAIL"
 reset_sims() { for v in $SIM_VARS; do unset "$v"; done; }
 
 # ---------------------------------------------------------------------------
@@ -55,12 +55,22 @@ case "$cmd" in
   show)
     if printf '%s\n' "$@" | grep -q WorkingDirectory; then echo "${SIM_WORKDIR_OVERRIDE:-$SERVING_BACKEND}"
     else echo "ActiveState=active"; echo "SubState=running"; fi ;;
+  is-active)
+    # "active" iff the NEW-release marker is present (rollback stop clears it),
+    # unless SIM_STOP_LEAVES_ACTIVE forced the marker to stick past a failed stop
+    if [ -f "$WORK/new_active" ] || [ -f "$WORK/stuck_active" ]; then echo active; exit 0
+    else echo inactive; exit 3; fi ;;
   restart)
     echo "restart $*" >> "$WORK/systemctl.log"
     [ -n "${SIM_SYSTEMCTL_RESTART_FAIL:-}" ] && exit 1
     mark_from_head; exit 0 ;;
   stop)
-    echo "stop $*" >> "$WORK/systemctl.log"; rm -f "$WORK/new_active"
+    echo "stop $*" >> "$WORK/systemctl.log"
+    if [ -n "${SIM_STOP_LEAVES_ACTIVE:-}" ]; then
+      : > "$WORK/stuck_active"        # stop failed AND the unit stayed up
+      exit 1
+    fi
+    rm -f "$WORK/new_active"
     # models a stop that took the unit DOWN but still reported failure
     [ -n "${SIM_SYSTEMCTL_STOP_FAIL:-}" ] && exit 1
     exit 0 ;;
@@ -118,6 +128,12 @@ if [ -n "${SIM_CP_HARDLINK_EXDEV:-}" ] && [ "${1:-}" = "-al" ]; then
   exit 1
 fi
 exec "$REAL_CP" "$@"
+EOF
+  cat > "$FAKEBIN/gunzip" <<'EOF'
+#!/usr/bin/env bash
+[ -n "${SIM_GUNZIP_FAIL:-}" ] && { echo "gunzip: sim corrupt backup" >&2; exit 1; }
+REAL=/bin/gunzip; [ -x "$REAL" ] || REAL=/usr/bin/gunzip
+exec "$REAL" "$@"
 EOF
   cat > "$FAKEBIN/git" <<'EOF'
 #!/usr/bin/env bash
@@ -641,6 +657,28 @@ case_start "S25 a checkout that advances HEAD but leaves the worktree dirty is c
   a_nolog "code + schema committed"        # and never started the new release
   a_log "ROLLBACK: checkout -> "           # rollback was attempted
   a_log "ROLLBACK WARNING"                 # ... and flagged that it could not fully clean the tree
+teardown_env
+
+case_start "S26 rollback aborts if the service cannot be confirmed stopped"
+  db_head
+  export SIM_STOP_LEAVES_ACTIVE=1
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_ne0; a_head_old
+  a_log "could not stop nexus-admin-academy.service cleanly"
+  a_log "ROLLBACK ABORTED"
+  a_log "MANUAL INTERVENTION NEEDED"
+  a_nolog "ROLLBACK: checkout -> "
+teardown_env
+
+case_start "S27 a failed database restore leaves the service DOWN (no start against a half-restored DB)"
+  export SIM_NEW_UNHEALTHY=1 SIM_GUNZIP_FAIL=1
+  run_deploy --skip-deps origin/main
+  a_rc_ne0
+  a_log "alembic upgrade head complete"
+  a_log "database restore FAILED"
+  a_log "service left stopped"
+  a_nolog "ROLLBACK: starting nexus-admin-academy.service on"
+  a_nolog "ROLLBACK: backend healthy on"
 teardown_env
 
 case_start "S21 the default deploy lock is account-independent (not under \$HOME)"

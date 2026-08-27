@@ -1639,3 +1639,22 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Tests: `scripts/tests/deploy_failure_sim.sh` now 45 cases / 175 assertions
   (S1/S1b assert no leftover venv-rollback-* after rollback). All pass.
 - Round 12 raised NO P1 findings. PR #29 NOT merged.
+
+## 2026-08-28 03:05 UTC — P1-1 / PR #29: review round 13 (R28, R29, R30)
+
+- R28 (P1): do_rollback's own `systemctl stop` ran under `set +e`; a stop that
+  failed with the unit still up would be ignored and rollback would rewrite
+  files under a live process. Fix: check `systemctl is-active` after the
+  rollback stop; abort the rollback (no destructive restore) if still active.
+- R29 (P1): `restore_database` result was ignored and its `mv` unchecked. Fix:
+  check `mv`, return non-zero on any failure; do_rollback leaves the service
+  STOPPED on a failed DB restore instead of starting old code against a
+  half-restored DB.
+- R30 (P1): pre-commit write-exposure window (process reachable via nginx before
+  /health passes). Mitigated (immediate first probe) + documented in
+  DEPLOYMENT.md and the deploy log; full fix = blue/green, out of P1-1 scope.
+  Thread left OPEN for the human reviewer.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 47 cases / 187 assertions
+  (S26 rollback-abort-if-not-stopped, S27 failed-DB-restore-leaves-down).
+- 13 rounds in, Codex is still surfacing P1s each round — flagging
+  non-convergence to the user in the summary. PR #29 NOT merged.
