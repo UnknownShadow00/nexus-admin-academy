@@ -11,31 +11,36 @@
 #   1. Refuses to run anywhere except the live serving checkout.
 #   2. Refuses to run with a dirty working tree.
 #   3. git fetch, then checkout --detach the pinned target commit.
-#   4. Refuses if the live database schema is AHEAD of the target commit
-#      (old code + newer schema) unless --allow-db-ahead is given.
+#   4. Snapshots the virtualenv, then installs target backend deps (unless
+#      --skip-deps) -- BEFORE any target-tree Alembic call, which imports the
+#      target's models/services.
 #   5. Runs scripts/predeploy_check.sh (read-only gate; full output tee'd to
 #      the deploy log). A failing gate aborts unless --force-predeploy.
-#   6. If a migration will actually run, takes a fresh SQLite + uploads backup
-#      (scripts/backup_sqlite.sh) FIRST, then `alembic upgrade head`.
-#   7. Installs backend deps (unless --skip-deps).
-#   8. Restarts the backend and verifies /health.
+#   6. Refuses if the live database schema is AHEAD of the target commit
+#      (old code + newer schema) unless --allow-db-ahead is given. Runs even
+#      with --skip-migrations.
+#   7. If a migration will actually run: stops the service, takes a fresh
+#      SQLite + uploads backup (scripts/backup_sqlite.sh), then
+#      `alembic upgrade head` -- all with the service down so no write is lost.
+#   8. (Re)starts the backend and verifies /health.
 #   9. Optionally rebuilds + reloads the nginx frontend (--frontend), with the
 #      previous container assets/config snapshotted for rollback.
 #  10. Appends timestamped lines to ~/deploy-logs/nexus-deploy.log for every run.
 #
 # Rollback (automatic, on ANY failure after step 3):
 #   - the working tree is checked back out to the previous SHA;
+#   - if deps were installed, the pre-deploy virtualenv snapshot is restored;
 #   - if a migration was attempted this run, the pre-migration database backup
 #     is restored (SQLite DDL here is non-transactional, so a half-applied
 #     migration is possible -- the backup is the only safe restore);
-#   - if the service was restarted, it is restarted again on the old SHA and
-#     re-health-checked;
+#   - if the service was stopped/restarted, it is (re)started on the old SHA
+#     and re-health-checked;
 #   - if frontend assets were swapped, the snapshot is restored and nginx
 #     reloaded.
 #   Rolling back a PAST deploy that changed the schema is NOT just
 #   `deploy.sh <old-sha>`: you must first restore a database backup taken at or
 #   before that commit's migration head, then re-run with --allow-db-ahead.
-#   deploy.sh detects and refuses the unsafe case (step 4).
+#   deploy.sh detects and refuses the unsafe case (step 6).
 #
 # Usage:
 #   scripts/deploy.sh [options] [<ref>]
@@ -176,14 +181,36 @@ fi
 log "deploy start: $PLAN"
 
 # --- Rollback machinery ------------------------------------------------------
+VENV="$REPO_ROOT/backend/.venv"
 CHECKOUT_MOVED=0        # tree may be on NEW_SHA
+DEPS_INSTALLED=0        # pip install ran against the shared virtualenv
 MIGRATION_ATTEMPTED=0   # alembic upgrade was started (DDL here is non-transactional)
-SERVICE_RESTARTED=0     # service was restarted on NEW_SHA
+SERVICE_STOPPED=0       # service was stopped for the migration window
+SERVICE_RESTARTED=0     # service was (re)started on NEW_SHA
 FRONTEND_APPLIED=0      # new assets/config copied into the frontend container
 DB_BACKUP_BEFORE=""     # pre-migration backup, set when MIGRATION_ATTEMPTED
+VENV_SNAPSHOT=""        # hardlink copy of the pre-deploy virtualenv
 FRONTEND_SNAPSHOT=""    # dir holding the previous container html + default.conf
 IN_ROLLBACK=0
 DEPLOY_OK=0
+
+restore_venv() {
+  [ -n "$VENV_SNAPSHOT" ] && [ -d "$VENV_SNAPSHOT" ] || {
+    log "ROLLBACK WARNING: no virtualenv snapshot; dependencies NOT restored — MANUAL INTERVENTION NEEDED"
+    return 1
+  }
+  log "ROLLBACK: restoring virtualenv from $VENV_SNAPSHOT"
+  local staged="${VENV_SNAPSHOT}.staged.$$"
+  rm -rf "$staged"
+  if { cp -al "$VENV_SNAPSHOT" "$staged" 2>/dev/null || cp -a "$VENV_SNAPSHOT" "$staged"; } \
+       && rm -rf "$VENV" && mv "$staged" "$VENV"; then
+    log "ROLLBACK: virtualenv restored"
+  else
+    rm -rf "$staged"
+    log "ROLLBACK WARNING: virtualenv restore failed — MANUAL INTERVENTION NEEDED"
+    return 1
+  fi
+}
 
 restore_database() {
   # Assumes the service is already stopped.
@@ -221,8 +248,11 @@ do_rollback() {
   set +e
   log "ROLLBACK: starting (target ${OLD_SHA:0:12})"
 
+  # Cycle the service if anything it reads at runtime (code, venv, schema) was
+  # touched, so it comes back up consistent with the restored old release.
   local cycle_service=0
-  { [ "$MIGRATION_ATTEMPTED" = "1" ] || [ "$SERVICE_RESTARTED" = "1" ]; } && cycle_service=1
+  { [ "$MIGRATION_ATTEMPTED" = "1" ] || [ "$SERVICE_RESTARTED" = "1" ] \
+    || [ "$SERVICE_STOPPED" = "1" ] || [ "$DEPS_INSTALLED" = "1" ]; } && cycle_service=1
 
   [ "$cycle_service" = "1" ] && { log "ROLLBACK: stopping $SERVICE"; $NEXUS_SYSTEMCTL stop "$SERVICE"; }
 
@@ -233,6 +263,7 @@ do_rollback() {
     git checkout --detach "$OLD_SHA" --quiet || log "ROLLBACK WARNING: git checkout of old SHA failed"
   fi
 
+  [ "$DEPS_INSTALLED" = "1" ] && restore_venv
   [ "$MIGRATION_ATTEMPTED" = "1" ] && restore_database
 
   if [ "$cycle_service" = "1" ]; then
@@ -265,7 +296,7 @@ trap on_exit EXIT
 
 fail() { log "ERROR: $*"; exit 1; }
 
-# --- 4. Move the checkout + schema-ahead guard -----------------------------
+# --- 4. Move the checkout -------------------------------------------------------
 if [ "$OLD_SHA" = "$NEW_SHA" ]; then
   log "already at ${NEW_SHA:0:12} — no checkout needed"
   CHECKOUT_MOVED=1
@@ -275,30 +306,25 @@ else
   log "checked out ${NEW_SHA:0:12}"
 fi
 
-DB_REV=""; TARGET_HEAD=""
-if [ "$SKIP_MIGRATIONS" != "1" ]; then
-  # Introspection is best-effort: if alembic can't be read we still take a
-  # pre-migration backup below before touching the schema, and predeploy_check
-  # runs its own revision-ancestry gate.
-  DB_REV="$(alembic_backend current 2>/dev/null | awk 'NF{print $1; exit}')" || DB_REV=""
-  TARGET_HEAD="$(alembic_backend heads 2>/dev/null | awk 'NF{print $1; exit}')" || TARGET_HEAD=""
-  if [ -n "$DB_REV" ] && [ -n "$TARGET_HEAD" ] && [ "$DB_REV" != "$TARGET_HEAD" ]; then
-    if alembic_backend history -r "${DB_REV}:${TARGET_HEAD}" >/dev/null 2>&1; then
-      : # DB revision is an ancestor of the target head -> upgrade will move forward, fine
-    elif [ "$ALLOW_DB_AHEAD" = "1" ]; then
-      log "WARNING: live DB revision $DB_REV is not in the target tree; continuing on --allow-db-ahead"
-    else
-      fail "live database is at revision '$DB_REV', which the target commit ${NEW_SHA:0:12} does not contain.
-Deploying would run older code against a newer schema. Either:
-  (a) restore a database backup taken at/before that commit's migration head
-      ($TARGET_HEAD), then re-run with --allow-db-ahead; or
-  (b) choose a target commit whose migrations include revision $DB_REV.
-Checkout is being restored to ${OLD_SHA:0:12}."
-    fi
-  fi
+# --- 5. Target dependency environment ------------------------------------------
+# Deps go in BEFORE predeploy_check and any target-tree Alembic call: env.py
+# imports every model and several migrations import services, so a release that
+# adds a dependency would make even `alembic current/heads` fail under the old
+# virtualenv. Snapshot the venv first so rollback can undo it.
+if [ "$SKIP_DEPS" = "1" ]; then
+  log "skipping backend dependency install (--skip-deps)"
+else
+  VENV_SNAPSHOT="$NEXUS_BACKUP_DIR/venv-rollback-${NEW_SHA:0:12}-$(date +%s)"
+  mkdir -p "$NEXUS_BACKUP_DIR"
+  cp -al "$VENV" "$VENV_SNAPSHOT" 2>/dev/null \
+    || cp -a "$VENV" "$VENV_SNAPSHOT" \
+    || fail "could not snapshot $VENV for rollback"
+  DEPS_INSTALLED=1
+  ./backend/.venv/bin/pip install -q -r backend/requirements.txt || fail "backend dependency install failed"
+  log "backend dependencies installed (rollback snapshot: $VENV_SNAPSHOT)"
 fi
 
-# --- 5. Read-only pre-deploy gate (full output to the deploy log) ----------
+# --- 6. Read-only pre-deploy gate (full output to the deploy log) ----------
 set +e
 ./scripts/predeploy_check.sh 2>&1 | tee -a "$LOG"
 PREDEPLOY_RC=${PIPESTATUS[0]}
@@ -312,14 +338,42 @@ else
 Re-run with --force-predeploy only after reviewing every FAIL line."
 fi
 
-# --- 6. Pre-migration backup, then migrate --------------------------------
+# --- 7. Schema compatibility guard (ALWAYS, even with --skip-migrations) ------
+# --skip-migrations only means "don't run alembic upgrade"; it must not let old
+# code deploy against a newer schema. Introspection is best-effort (if alembic
+# can't be read we still take a pre-migration backup before touching anything).
+DB_REV="$(alembic_backend current 2>/dev/null | awk 'NF{print $1; exit}')" || DB_REV=""
+TARGET_HEAD="$(alembic_backend heads 2>/dev/null | awk 'NF{print $1; exit}')" || TARGET_HEAD=""
+if [ -n "$DB_REV" ] && [ -n "$TARGET_HEAD" ] && [ "$DB_REV" != "$TARGET_HEAD" ]; then
+  if alembic_backend history -r "${DB_REV}:${TARGET_HEAD}" >/dev/null 2>&1; then
+    : # DB revision is an ancestor of the target head -> a forward upgrade, fine
+  elif [ "$ALLOW_DB_AHEAD" = "1" ]; then
+    log "WARNING: live DB revision $DB_REV is not in the target tree; continuing on --allow-db-ahead"
+  else
+    fail "live database is at revision '$DB_REV', which the target commit ${NEW_SHA:0:12} does not contain.
+Deploying would run older code against a newer schema. Either:
+  (a) restore a database backup taken at/before that commit's migration head
+      ($TARGET_HEAD), then re-run with --allow-db-ahead; or
+  (b) choose a target commit whose migrations include revision $DB_REV.
+Checkout is being restored to ${OLD_SHA:0:12}."
+  fi
+fi
+
+# --- 8. Migration: quiesce the service, back up, then upgrade --------------
 if [ "$SKIP_MIGRATIONS" = "1" ]; then
   log "skipping alembic upgrade (--skip-migrations)"
 elif [ -n "$DB_REV" ] && [ "$DB_REV" = "$TARGET_HEAD" ]; then
   log "database already at target head $TARGET_HEAD — no migration to run"
 else
+  # Stop the service for the whole schema-change window so no writes land
+  # after the backup is taken (they would be lost on rollback) and nothing
+  # runs old code against a half-applied schema.
+  log "stopping $SERVICE for the migration window"
+  $NEXUS_SYSTEMCTL stop "$SERVICE" || fail "could not stop $SERVICE before migration"
+  SERVICE_STOPPED=1
+
   STAMP="predeploy-${NEW_SHA:0:12}-$(date +%Y%m%d-%H%M%S)"
-  log "taking pre-migration backup (stamp $STAMP) before advancing schema"
+  log "taking pre-migration backup (stamp $STAMP)"
   if NEXUS_SQLITE_DB="$DB_PATH" NEXUS_BACKUP_DIR="$NEXUS_BACKUP_DIR" NEXUS_BACKUP_STAMP="$STAMP" \
        "$NEXUS_BACKUP_SCRIPT" >>"$LOG" 2>&1; then
     DB_BACKUP_BEFORE="$NEXUS_BACKUP_DIR/nexus-$STAMP.db.gz"
@@ -330,20 +384,16 @@ else
   fi
   MIGRATION_ATTEMPTED=1
   alembic_backend upgrade head || fail "alembic upgrade head failed"
-  log "alembic upgrade head complete"
+  log "alembic upgrade head complete (service stopped)"
 fi
 
-# --- 7. Backend deps --------------------------------------------------------
-if [ "$SKIP_DEPS" = "1" ]; then
-  log "skipping backend dependency install (--skip-deps)"
-else
-  ./backend/.venv/bin/pip install -q -r backend/requirements.txt || fail "backend dependency install failed"
-  log "backend dependencies installed"
-fi
-
-# --- 8. Restart + health ------------------------------------------------------
+# --- 9. (Re)start + health --------------------------------------------------
 SERVICE_RESTARTED=1
-$NEXUS_SYSTEMCTL restart "$SERVICE" || fail "systemctl restart $SERVICE failed"
+if [ "$SERVICE_STOPPED" = "1" ]; then
+  $NEXUS_SYSTEMCTL start "$SERVICE" || fail "systemctl start $SERVICE failed"
+else
+  $NEXUS_SYSTEMCTL restart "$SERVICE" || fail "systemctl restart $SERVICE failed"
+fi
 if ! health_ok "$NEXUS_HEALTH_URL"; then
   $NEXUS_SYSTEMCTL show -p ActiveState -p SubState "$SERVICE" 2>/dev/null | tee -a "$LOG" || true
   fail "backend health check failed after restart ($NEXUS_HEALTH_URL)"
@@ -375,6 +425,7 @@ fi
 
 DEPLOY_OK=1
 [ -n "$FRONTEND_SNAPSHOT" ] && { rm -rf "$FRONTEND_SNAPSHOT" 2>/dev/null || true; }
+[ -n "$VENV_SNAPSHOT" ] && { rm -rf "$VENV_SNAPSHOT" 2>/dev/null || true; }
 log "deploy OK: now serving ${NEW_SHA:0:12} (was ${OLD_SHA:0:12})"
 
 }

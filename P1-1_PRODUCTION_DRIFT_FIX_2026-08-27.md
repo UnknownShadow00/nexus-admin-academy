@@ -329,3 +329,61 @@ Wired into CI as the **Deploy script failure simulations** job
 
 No change to `PROTECTED_DIRS` in `/opt/apps/nightly-snapshot.sh`, the
 serving-dir / clean-tree guards, the worktree-only workflow, or the deploy log.
+
+---
+
+## 7. Review round 3 — deeper deploy.sh correctness (Codex re-review of §6)
+
+Codex re-reviewed the §6 hardening and raised four more. All fixed.
+
+### R5 (P1) — pre-migration backup was taken while the service could still write
+
+The snapshot was taken with the old service live; writes committed after it
+(through migrate/deps/restart/frontend) would be silently discarded if
+`restore_database` ran. **Fix:** a migration deploy now **stops the service
+before the backup and keeps it down** through `alembic upgrade head`, then
+`start`s it on the new code. No write can land after the snapshot. Documented
+as a maintenance window for schema releases. Code-only deploys are unchanged
+(just the restart blip).
+
+### R6 (P1) — `pip install` mutated the shared virtualenv with no rollback
+
+A dep up/downgrade for a release that later failed stayed applied, so the
+restored old code could run against the wrong packages. **Fix:** before
+`pip install`, `deploy.sh` takes a **hardlink snapshot of `backend/.venv`**
+into `~/backups/nexus/venv-rollback-<sha>-<ts>`; `do_rollback` restores it
+(staged copy + atomic rename). Near-instant and space-cheap (same-fs
+hardlinks); deleted on success.
+
+### R7 (P2) — schema guard was skipped under `--skip-migrations`
+
+`deploy.sh --skip-migrations --force-predeploy <old-sha>` could put old code on
+a newer schema (the predeploy ancestry failure was overridden along with the
+standing Service Desk one). **Fix:** the schema-ahead guard now runs
+**regardless of `--skip-migrations`**; only the actual `alembic upgrade` is
+gated by that flag. `--allow-db-ahead` remains the separate, explicit override.
+
+### R8 (P2) — target-tree Alembic ran before target deps were installed
+
+`env.py` imports every model and migrations import services, so `alembic
+current/heads/upgrade` (and `predeploy_check.sh`, which also calls Alembic)
+could fail under the old venv for a release that adds a dependency. **Fix:**
+dependency install is now **step 3** — before `predeploy_check.sh` and any
+target-tree Alembic call.
+
+### New deploy order
+
+checkout → **venv snapshot + pip install** → predeploy (tee'd) → **schema-ahead
+guard (always)** → *(migration: stop → backup → alembic upgrade)* → (re)start +
+health → *(frontend: snapshot → build → swap → reload + health)* → done.
+`do_rollback` unwinds, in order: stop service · restore frontend snapshot ·
+checkout old SHA · restore venv snapshot · restore DB backup · start + health.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` grew to **19 cases / 82 assertions**,
+adding: venv restored after a post-install failure (S1, S1b); migration
+quiesces the service *before* the backup, asserted by log/systemctl ordering
+(S2, S2c); deps installed before any Alembic call (S2d); schema-ahead refused
+under `--skip-migrations` and under `--skip-migrations --force-predeploy`
+(S7d, S7e).

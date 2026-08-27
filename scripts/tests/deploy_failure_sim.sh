@@ -38,6 +38,16 @@ setup_env() {
   cat > "$FAKEBIN/systemctl" <<'EOF'
 #!/usr/bin/env bash
 cmd="${1:-}"; shift || true
+# "new_active" marker = the service is running the NEW release. Derived from
+# whatever HEAD the serving checkout is on when start/restart is invoked, so a
+# rollback that checks OLD out first correctly clears it.
+mark_from_head() {
+  if [ "$(git -C "$SERVING" rev-parse HEAD 2>/dev/null)" = "$NEW_SHA" ]; then
+    : > "$WORK/new_active"
+  else
+    rm -f "$WORK/new_active"
+  fi
+}
 case "$cmd" in
   show)
     if printf '%s\n' "$@" | grep -q WorkingDirectory; then echo "$SERVING_BACKEND"
@@ -45,13 +55,13 @@ case "$cmd" in
   restart)
     echo "restart $*" >> "$WORK/systemctl.log"
     [ -n "${SIM_SYSTEMCTL_RESTART_FAIL:-}" ] && exit 1
-    : > "$WORK/new_active"; exit 0 ;;
+    mark_from_head; exit 0 ;;
   stop)
     echo "stop $*" >> "$WORK/systemctl.log"; rm -f "$WORK/new_active"; exit 0 ;;
   start)
     echo "start $*" >> "$WORK/systemctl.log"
     [ -n "${SIM_SYSTEMCTL_START_FAIL:-}" ] && exit 1
-    exit 0 ;;
+    mark_from_head; exit 0 ;;
   *) exit 0 ;;
 esac
 EOF
@@ -136,9 +146,13 @@ EOF
   cat > "$SERVING/backend/.venv/bin/pip" <<'EOF'
 #!/usr/bin/env bash
 [ -n "${SIM_PIP_FAIL:-}" ] && { echo "sim pip failure" >&2; exit 1; }
+# Simulate a dependency change so venv rollback is observable.
+d="$(cd "$(dirname "$0")/.." && pwd)"
+rm -f "$d/marker-OLD"; : > "$d/marker-NEW"
 echo "sim pip ok"
 EOF
   chmod +x "$SERVING/scripts/"*.sh "$SERVING/backend/.venv/bin/"*
+  : > "$SERVING/backend/.venv/marker-OLD"
 
   cp "$DEPLOY_SRC" "$SERVING/scripts/deploy.sh"
   chmod +x "$SERVING/scripts/deploy.sh"
@@ -149,6 +163,7 @@ EOF
   printf 'server { listen 80; }\n' > "$SERVING/frontend/nginx.host.conf"
 
   cat > "$SERVING/.gitignore" <<'EOF'
+backend/.venv/
 backend/nexus.db
 backend/nexus.db-wal
 backend/nexus.db-shm
@@ -174,8 +189,8 @@ EOF
     git push -q origin HEAD:main
     git checkout -q --detach "$(cat "$WORK/OLD_SHA")"
   )
-  OLD_SHA="$(cat "$WORK/OLD_SHA")"
-  NEW_SHA="$(cat "$WORK/NEW_SHA")"
+  export OLD_SHA="$(cat "$WORK/OLD_SHA")"
+  export NEW_SHA="$(cat "$WORK/NEW_SHA")"
   printf 'OLD' > "$SERVING/backend/nexus.db"
 }
 
@@ -205,6 +220,20 @@ a_log()     { case "$LOGTXT" in *"$1"*) ok "log ~ '$1'";; *) bad "log missing '$
 a_nolog()   { case "$LOGTXT" in *"$1"*) bad "log unexpectedly has '$1'" "$LOGTXT";; *) ok "log lacks '$1'";; esac; }
 a_db()      { local c; c="$(cat "$SERVING/backend/nexus.db")"; [ "$c" = "$1" ] && ok "db == '$1'" || bad "db == '$c' want '$1'"; }
 a_out()     { case "$OUT" in *"$1"*) ok "output ~ '$1'";; *) bad "output missing '$1'" "$OUT";; esac; }
+a_venv()    { # 1 = expect marker-OLD present and marker-NEW gone (venv restored)
+  if [ -f "$SERVING/backend/.venv/marker-OLD" ] && [ ! -f "$SERVING/backend/.venv/marker-NEW" ]
+    then ok "virtualenv restored (marker-OLD back, marker-NEW gone)"
+    else bad "virtualenv NOT restored (OLD=$( [ -f "$SERVING/backend/.venv/marker-OLD" ] && echo y || echo n ) NEW=$( [ -f "$SERVING/backend/.venv/marker-NEW" ] && echo y || echo n ))"; fi; }
+a_order()   { # asserts "$1" appears before "$2" in the deploy log
+  local a b; a="$(printf '%s\n' "$LOGTXT" | grep -n -- "$1" | head -1 | cut -d: -f1)"
+  b="$(printf '%s\n' "$LOGTXT" | grep -n -- "$2" | head -1 | cut -d: -f1)"
+  if [ -n "$a" ] && [ -n "$b" ] && [ "$a" -lt "$b" ]; then ok "'$1' logged before '$2'"
+  else bad "order wrong: '$1'@${a:-?} vs '$2'@${b:-?}" "$LOGTXT"; fi; }
+sctl_order() { # asserts systemctl verb "$1" recorded before verb "$2"
+  local a b; a="$(grep -n "^$1" "$WORK/systemctl.log" 2>/dev/null | head -1 | cut -d: -f1)"
+  b="$(grep -n "^$2" "$WORK/systemctl.log" 2>/dev/null | head -1 | cut -d: -f1)"
+  if [ -n "$a" ] && [ -n "$b" ] && [ "$a" -lt "$b" ]; then ok "systemctl '$1' before '$2'"
+  else bad "systemctl order: '$1'@${a:-?} vs '$2'@${b:-?}" "$(cat "$WORK/systemctl.log" 2>/dev/null)"; fi; }
 
 case_start() { printf '\n\033[1m# %s\033[0m\n' "$1"; reset_sims; setup_env; }
 
@@ -214,21 +243,29 @@ case_start "S0  happy path, code-only deploy"
   a_rc_0; a_head_new; a_log "deploy OK"; a_nolog "ROLLBACK"
 teardown_env
 
-case_start "S1  dependency-install failure rolls back the checkout"
+case_start "S1  dependency-install failure rolls back checkout and virtualenv"
   export SIM_PIP_FAIL=1
   run_deploy --skip-migrations origin/main
   a_rc_ne0; a_head_old
   a_log "backend dependency install failed"; a_log "ROLLBACK: complete"
-  [ -f "$WORK/systemctl.log" ] && grep -q '^restart' "$WORK/systemctl.log" \
-    && bad "service was restarted despite earlier failure" || ok "service never restarted"
+  a_venv 1
+teardown_env
+
+case_start "S1b deps installed, later health failure -> virtualenv restored"
+  export SIM_NEW_UNHEALTHY=1
+  run_deploy --skip-migrations origin/main
+  a_rc_ne0; a_head_old
+  a_log "ROLLBACK: restoring virtualenv"
+  a_venv 1
 teardown_env
 
 case_start "S2  migration failure restores the pre-migration database"
   export SIM_ALEMBIC_FAIL=1
   run_deploy --skip-deps origin/main
   a_rc_ne0; a_head_old
-  a_log "taking pre-migration backup"; a_log "alembic upgrade head failed"
-  a_log "restoring database from"; a_db "OLD"
+  a_log "stopping nexus-admin-academy.service for the migration window"
+  a_log "alembic upgrade head failed"; a_log "restoring database from"; a_db "OLD"
+  sctl_order stop start
 teardown_env
 
 case_start "S2b pre-migration backup failure aborts before touching schema"
@@ -237,6 +274,20 @@ case_start "S2b pre-migration backup failure aborts before touching schema"
   a_rc_ne0; a_head_old
   a_log "pre-migration backup failed"; a_nolog "alembic upgrade head complete"
   a_db "OLD"
+  grep -q '^start' "$WORK/systemctl.log" && ok "service restarted in rollback" || bad "service not restarted"
+teardown_env
+
+case_start "S2c migration quiesces the service BEFORE the backup (no lost writes)"
+  run_deploy --skip-deps origin/main
+  a_rc_0; a_head_new
+  a_order "stopping nexus-admin-academy.service for the migration window" "taking pre-migration backup"
+  a_order "taking pre-migration backup" "alembic upgrade head complete"
+teardown_env
+
+case_start "S2d target deps are installed before any target-tree Alembic call"
+  run_deploy origin/main
+  a_rc_0; a_head_new
+  a_order "backend dependencies installed" "alembic upgrade head complete"
 teardown_env
 
 case_start "S3  systemctl restart failure rolls back and cycles the service"
@@ -305,7 +356,7 @@ teardown_env
 case_start "S7b --allow-db-ahead proceeds past the schema-ahead guard"
   printf 'FUTURE' > "$SERVING/backend/nexus.db"
   export SIM_HISTORY_RC=1
-  run_deploy --skip-deps --allow-db-ahead origin/main
+  run_deploy --skip-deps --skip-migrations --allow-db-ahead origin/main
   a_rc_0; a_head_new
   a_log "continuing on --allow-db-ahead"
 teardown_env
@@ -317,6 +368,22 @@ case_start "S7c migration applied then health fails -> DB restored to pre-migrat
   a_log "alembic upgrade head complete"
   a_log "restoring database from"
   a_db "OLD"
+teardown_env
+
+case_start "S7d schema-ahead is refused even with --skip-migrations (not just alembic)"
+  printf 'FUTURE' > "$SERVING/backend/nexus.db"
+  export SIM_HISTORY_RC=1
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_ne0; a_head_old
+  a_log "live database is at revision 'rev_future'"
+teardown_env
+
+case_start "S7e schema-ahead + --skip-migrations + --force-predeploy is STILL refused"
+  printf 'FUTURE' > "$SERVING/backend/nexus.db"
+  export SIM_HISTORY_RC=1 SIM_PREDEPLOY_FAIL=1
+  run_deploy --skip-deps --skip-migrations --force-predeploy origin/main
+  a_rc_ne0; a_head_old
+  a_log "live database is at revision 'rev_future'"
 teardown_env
 
 # ===========================================================================

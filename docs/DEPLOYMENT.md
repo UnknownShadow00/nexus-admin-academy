@@ -48,25 +48,30 @@ A deploy is a single command:
 scripts/deploy.sh [options] [<ref>]      # <ref> default: origin/main
 ```
 
-`scripts/deploy.sh`:
+`scripts/deploy.sh`, in order:
 
 1. refuses to run unless it is the checkout `nexus-admin-academy.service`
    actually serves, and refuses a dirty working tree;
 2. `git fetch`, then `git checkout --detach` the pinned target commit
    (a branch/tag ref is resolved to a concrete SHA first);
-3. refuses if the **live database schema is ahead of the target commit**
-   (would run older code against a newer schema) unless `--allow-db-ahead` is
-   given — see "Rollback" below;
+3. **snapshots `backend/.venv`** (hardlink copy), then
+   `pip install -r backend/requirements.txt` — *before* anything that imports
+   the target's code, since `backend/alembic/env.py` and several migrations
+   import application modules (skip with `--skip-deps`);
 4. runs `scripts/predeploy_check.sh` (read-only gate — env, migrations
    ancestry, disk, container/nginx/JWT, health). Its **full output is tee'd to
    the deploy log**. A failing gate aborts unless you pass `--force-predeploy`
    after reviewing every `FAIL` line (which are now in the log);
-5. if a migration will actually run, takes a fresh SQLite + uploads backup
-   (`scripts/backup_sqlite.sh`, stamp `predeploy-<sha>-<ts>`) **first**, then
-   `alembic upgrade head`;
-6. `pip install -r backend/requirements.txt` (skip with `--skip-deps`;
-   `--skip-migrations` skips step 5 for a reviewed code-only change);
-7. `sudo systemctl restart nexus-admin-academy.service`, then polls
+5. **refuses if the live database schema is ahead of the target commit**
+   (would run older code against a newer schema) unless `--allow-db-ahead` is
+   given. This check runs **even with `--skip-migrations`**;
+6. if a migration will actually run: **stops the service**, takes a fresh
+   SQLite + uploads backup (`scripts/backup_sqlite.sh`, stamp
+   `predeploy-<sha>-<ts>`), then `alembic upgrade head` — all with the service
+   down, so no write lands after the backup and no old code sees a
+   half-applied schema. `--skip-migrations` skips this step for a reviewed
+   code-only change;
+7. `sudo systemctl restart` (or `start`, if step 6 stopped it), then polls
    `http://127.0.0.1:8000/health`;
 8. with `--frontend`, snapshots the current container assets/config, rebuilds
    the Vite bundle, swaps it in, `nginx -t`, reloads, re-checks
@@ -75,25 +80,32 @@ scripts/deploy.sh [options] [<ref>]      # <ref> default: origin/main
    (plan, each stage, and any rollback).
 
 Use `--dry-run` to preview the resolved SHAs without touching anything.
+**A migration deploy takes the backend down** from step 6 until it is healthy
+again — treat schema releases as a maintenance window. Code-only deploys are
+just the step-7 restart blip.
 
 **Rollback — automatic on any failure after the checkout (step 2).**
 `deploy.sh` installs an exit trap the moment the checkout moves. If **any**
-later stage fails (`pip`, `alembic`, `systemctl`, health, or the frontend
-steps), it:
+later stage fails (`pip`, `predeploy`, `alembic`, `systemctl`, health, or the
+frontend steps), it:
 
 - checks the working tree back out to the previous SHA;
+- if deps were installed, **restores the pre-deploy `backend/.venv` snapshot**
+  (a dependency up/downgrade otherwise outlives the failed release);
 - if a migration was attempted this run, **restores the pre-migration database
   backup** — SQLite DDL here is non-transactional, so a partially-applied
-  migration is possible and the backup is the only safe restore. It stops the
-  service before overwriting the DB file and restarts it afterward;
-- if the service had been restarted, restarts it on the old SHA and
-  re-health-checks (logging `MANUAL INTERVENTION NEEDED` if it still can't come
-  up);
+  migration is possible and the backup is the only safe restore;
+- if the service had been stopped or restarted, (re)starts it on the old SHA
+  and re-health-checks (logging `MANUAL INTERVENTION NEEDED` if it still can't
+  come up);
 - if frontend assets had been swapped, restores the snapshot and reloads nginx.
+
+The venv snapshot is a same-filesystem hardlink copy, so it is near-instant and
+cheap; both it and the frontend snapshot are deleted on a successful deploy.
 
 **Rolling back a *past* deploy that changed the schema is not just
 `deploy.sh <old-sha>`.** Checking out older code leaves the newer schema in
-place. `deploy.sh` detects this (step 3) and refuses. To do it safely:
+place. `deploy.sh` detects this (step 5) and refuses. To do it safely:
 
 1. `scripts/backup_sqlite.sh` — snapshot the current (newer) DB first, in case;
 2. restore a database backup taken at or before the target commit's migration
