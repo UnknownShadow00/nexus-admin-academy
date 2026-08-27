@@ -1483,3 +1483,14 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/src/App.jsx, frontend/src/monitoring/context.js, frontend/src/monitoring/context.test.js, frontend/src/monitoring/sentry.js, frontend/src/monitoring/sentry.test.js, tasks/loop-log.md
 - Result: pass against acceptance criteria; route sync now preserves current-page detail while clearing stale activity context and SDK tags, feedback creation is single-flight with close/failure cleanup, 22/22 Vitest tests passed, the Vite build passed, npm audit found zero vulnerabilities, git diff checks passed, privacy controls remained intact, and production was untouched.
 - Next: Independently review and merge feature/sentry-student-bug-reporting when approved; the listed Low findings remain follow-ups and no deployment is authorized by this task.
+## [2026-08-27T13:50:29Z] Task Completed
+- Task: Fixed production CSP compatibility for the approved Sentry frontend integration on isolated branch fix/sentry-csp-replay, adding only the exact ingestion origin and the blob worker permission required by @sentry/replay 10.71.0, with parser and disposable-browser regression coverage.
+- Files changed: frontend/nginx.host.conf, frontend/src/monitoring/nginxCsp.test.js, frontend/tests/e2e/sentry-csp.spec.js, tasks/loop-log.md
+- Result: pass against acceptance criteria; installed-source inspection and Chromium proved Replay uses and starts a blob compression worker, mocked Sentry envelopes were allowed without a real event, Report Issue/login/Learning Path/Labs/Service Desk checks passed in disposable environments, 25 Vitest tests/build/npm audit/CLI checks/git diff/nginx syntax passed, source maps remained build-only with zero maps in the credential-free build, and production remained untouched at 8ea625af/0061.
+- Next: Perform an independent CSP review of fix/sentry-csp-replay; do not merge or deploy under this task.
+
+## [2026-08-27T14:45:07Z] Task Completed
+- Task: Merged the independently approved Nexus Sentry CSP fix into main from the isolated fix/sentry-csp-replay branch without deploying production.
+- Files changed: frontend/nginx.host.conf, frontend/src/monitoring/nginxCsp.test.js, frontend/tests/e2e/sentry-csp.spec.js, tasks/loop-log.md
+- Result: pass against acceptance criteria; the no-fast-forward merge was conflict-free, 25/25 Vitest tests and 3/3 focused CSP tests passed, the Vite build, npm audit, CLI validation, CLI sanity, git diff checks, isolated nginx syntax validation, exact CSP security assertions, and sole Alembic source head 0061 checks passed; production remained untouched.
+- Next: Perform a separately authorized controlled Sentry production deployment; no deployment was performed by this task.
