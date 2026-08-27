@@ -54,24 +54,59 @@ scripts/deploy.sh [options] [<ref>]      # <ref> default: origin/main
    actually serves, and refuses a dirty working tree;
 2. `git fetch`, then `git checkout --detach` the pinned target commit
    (a branch/tag ref is resolved to a concrete SHA first);
-3. runs `scripts/predeploy_check.sh` (read-only gate — env, migrations
-   ancestry, disk, container/nginx/JWT, health); a failing gate aborts the
-   deploy unless you pass `--force-predeploy` after reviewing every `FAIL`
-   line (each is written to the deploy log);
-4. `pip install -r backend/requirements.txt` then `alembic upgrade head`
-   (skip with `--skip-deps` / `--skip-migrations` for a code-only change whose
-   reviewed diff has no migration);
-5. `sudo systemctl restart nexus-admin-academy.service`, then verifies
-   `http://127.0.0.1:8000/health`; on failure it checks the old commit back
-   out, restarts, and exits non-zero;
-6. with `--frontend`, additionally rebuilds the Vite bundle and reloads the
-   `nexus-frontend` nginx container (the manual steps below);
-7. appends one line per run to `~/deploy-logs/nexus-deploy.log`
-   (timestamp, operator, old SHA, new SHA).
+3. refuses if the **live database schema is ahead of the target commit**
+   (would run older code against a newer schema) unless `--allow-db-ahead` is
+   given — see "Rollback" below;
+4. runs `scripts/predeploy_check.sh` (read-only gate — env, migrations
+   ancestry, disk, container/nginx/JWT, health). Its **full output is tee'd to
+   the deploy log**. A failing gate aborts unless you pass `--force-predeploy`
+   after reviewing every `FAIL` line (which are now in the log);
+5. if a migration will actually run, takes a fresh SQLite + uploads backup
+   (`scripts/backup_sqlite.sh`, stamp `predeploy-<sha>-<ts>`) **first**, then
+   `alembic upgrade head`;
+6. `pip install -r backend/requirements.txt` (skip with `--skip-deps`;
+   `--skip-migrations` skips step 5 for a reviewed code-only change);
+7. `sudo systemctl restart nexus-admin-academy.service`, then polls
+   `http://127.0.0.1:8000/health`;
+8. with `--frontend`, snapshots the current container assets/config, rebuilds
+   the Vite bundle, swaps it in, `nginx -t`, reloads, re-checks
+   `http://127.0.0.1/health`;
+9. appends timestamped lines to `~/deploy-logs/nexus-deploy.log` for every run
+   (plan, each stage, and any rollback).
 
 Use `--dry-run` to preview the resolved SHAs without touching anything.
 
-Rollback is just another deploy: `scripts/deploy.sh <previous-good-sha>`.
+**Rollback — automatic on any failure after the checkout (step 2).**
+`deploy.sh` installs an exit trap the moment the checkout moves. If **any**
+later stage fails (`pip`, `alembic`, `systemctl`, health, or the frontend
+steps), it:
+
+- checks the working tree back out to the previous SHA;
+- if a migration was attempted this run, **restores the pre-migration database
+  backup** — SQLite DDL here is non-transactional, so a partially-applied
+  migration is possible and the backup is the only safe restore. It stops the
+  service before overwriting the DB file and restarts it afterward;
+- if the service had been restarted, restarts it on the old SHA and
+  re-health-checks (logging `MANUAL INTERVENTION NEEDED` if it still can't come
+  up);
+- if frontend assets had been swapped, restores the snapshot and reloads nginx.
+
+**Rolling back a *past* deploy that changed the schema is not just
+`deploy.sh <old-sha>`.** Checking out older code leaves the newer schema in
+place. `deploy.sh` detects this (step 3) and refuses. To do it safely:
+
+1. `scripts/backup_sqlite.sh` — snapshot the current (newer) DB first, in case;
+2. restore a database backup taken at or before the target commit's migration
+   head (from `~/backups/nexus/`, e.g. the `predeploy-<sha>-*` backup that
+   deploy.sh took just before that migration) — stop the service, replace
+   `backend/nexus.db`, remove stale `-wal`/`-shm`;
+3. `scripts/deploy.sh --allow-db-ahead <old-sha>` — restart on the old code.
+
+Prefer forward-fixing (a new migration + release) over a schema downgrade
+whenever the newer migration is not cleanly reversible.
+
+The failure/rollback paths are covered by `scripts/tests/deploy_failure_sim.sh`
+(run in CI as the *Deploy script failure simulations* job).
 
 The manual backend/frontend command sequences below are what `deploy.sh`
 automates; run them by hand only if the script is unavailable.

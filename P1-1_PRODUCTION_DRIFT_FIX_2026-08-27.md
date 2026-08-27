@@ -236,3 +236,96 @@ Final state (verified):
 - The one-time bootstrap and the two demo restarts were the only production
   mutations; no database, migration, env, container, or frontend change was
   made.
+
+---
+
+## 6. Review round 2 — deploy.sh failure-handling hardening
+
+A Codex review of PR #29 raised three issues in `scripts/deploy.sh`. All three
+are now fixed properly (not suppressed).
+
+### R1 (P1) — rollback only happened on a failed health check
+
+**Was:** `set -e` made any failure after the checkout (`pip`, `alembic`,
+`systemctl restart`, frontend steps) exit the script immediately, leaving the
+serving checkout on the new SHA with the old process still running.
+
+**Now:** an `EXIT` trap (`on_exit` -> `do_rollback`) is armed the moment the
+checkout moves. Every stage runs as `cmd || fail "..."`; `fail` logs and exits,
+and the trap restores state. `do_rollback` is *staged* from tracked flags:
+
+| flag | set when | rollback action |
+|---|---|---|
+| `CHECKOUT_MOVED` | after `git checkout --detach NEW` | `git checkout --detach OLD` |
+| `MIGRATION_ATTEMPTED` | immediately before `alembic upgrade` | stop service, restore pre-migration DB backup, remove stale `-wal`/`-shm` |
+| `SERVICE_RESTARTED` | immediately before `systemctl restart` | restart on OLD, re-health-check, log `MANUAL INTERVENTION NEEDED` if still down |
+| `FRONTEND_APPLIED` | before the first `docker cp` of new assets | restore the container html+`default.conf` snapshot, `nginx -s reload` |
+
+The whole script is wrapped in a `{ … }` load guard so a mid-run `git checkout`
+that swaps in a different `deploy.sh` version cannot corrupt the running shell.
+
+### R2 (P1) — migration rollback was not actually safe
+
+**Was:** the docs implied "redeploy any previous good SHA". If the failed
+release had advanced Alembic, checking out older code leaves the newer schema
+live, and `predeploy_check.sh` then rejects the DB as "not an ancestor of
+head", so the documented rollback command aborts.
+
+**Now, two mechanisms:**
+
+1. **Same-run auto-rollback is DB-safe.** Before `alembic upgrade head`,
+   `deploy.sh` calls `scripts/backup_sqlite.sh` (SQLite online-backup API, the
+   mechanism the reviewer pointed at) with a `predeploy-<sha>-<ts>` stamp and
+   records the path. If any later stage fails, `do_rollback` stops the service,
+   restores that backup over `backend/nexus.db`, checks out the old code, and
+   restarts. `alembic upgrade` is only started *after* the backup succeeds.
+2. **Later manual rollback across a migration is detected and refused.** After
+   checkout, `deploy.sh` compares the live DB revision to the target tree
+   (`alembic history -r <db_rev>:<target_head>`). If the DB is ahead of / absent
+   from the target, it aborts with an actionable message unless
+   `--allow-db-ahead` is given — which the operator only passes after restoring
+   a matching DB backup. `docs/DEPLOYMENT.md` now documents this instead of
+   promising arbitrary old-SHA rollback, and recommends forward-fixing over a
+   schema downgrade.
+
+### R3 (P2) — `--force-predeploy` didn't log the FAIL lines
+
+**Was:** `predeploy_check.sh` output went to the terminal; the deploy log only
+got a generic `predeploy_check FAILED`.
+
+**Now:** `./scripts/predeploy_check.sh 2>&1 | tee -a "$LOG"` with the real exit
+code taken from `PIPESTATUS[0]`. Every `PASS:`/`FAIL:` line lands in
+`~/deploy-logs/nexus-deploy.log`, followed by either
+`predeploy_check passed` or `… FAILED (rc=N) — continuing on operator override`.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` runs the **real** `deploy.sh` against a
+throwaway git checkout with fake `systemctl`/`curl`/`npm`/`docker` on `PATH`
+and stubbed `predeploy_check.sh` / `backup_sqlite.sh` / venv `python`+`pip`. No
+root, no network, no services. 14 cases / 63 assertions:
+
+| case | asserts |
+|---|---|
+| S0 happy path | code-only deploy reaches `deploy OK`, no rollback |
+| S1 dependency-install failure | checkout rolled back, service never restarted |
+| S2 migration failure | pre-migration backup taken, DB restored to pre-migration bytes |
+| S2b backup failure | aborts before `alembic`, schema untouched |
+| S3 systemctl restart failure | rollback stops + starts the service on OLD |
+| S4a new release unhealthy | rollback restarts OLD and recovers |
+| S4b health broken even after rollback | logs `MANUAL INTERVENTION NEEDED` |
+| S5 frontend build failure | backend (already restarted) rolled back too |
+| S5b frontend reload failure | frontend snapshot + backend rollback attempted |
+| S6 `--force-predeploy` | deploy proceeds; every `FAIL:` line is in the deploy log |
+| S6b predeploy fail, no override | aborts, FAIL line still logged |
+| S7a schema-ahead DB | refused with `--allow-db-ahead` guidance, no backup/migration |
+| S7b `--allow-db-ahead` | proceeds past the guard |
+| S7c migration applied then health fails | DB restored from the pre-migration backup |
+
+Wired into CI as the **Deploy script failure simulations** job
+(`.github/workflows/ci.yml`): `bash -n` both scripts + run the harness.
+
+### Drift protections preserved
+
+No change to `PROTECTED_DIRS` in `/opt/apps/nightly-snapshot.sh`, the
+serving-dir / clean-tree guards, the worktree-only workflow, or the deploy log.
