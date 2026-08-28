@@ -38,3 +38,8 @@ backend/nexus.db.*
 # local e2e stack scratch state (throwaway DB, fixture credentials, PIDs)
 /.e2e-stack-dir
 artifacts/e2e-launch-verification/
+
+# regenerable audit-script outputs — generate on demand, never commit
+# (backend/scripts/audit_question_bank.py, build_editorial_review_worklist.py)
+/docs/editorial_review_worklist.json
+/docs/question_bank_audit.json
