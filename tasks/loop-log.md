@@ -1715,3 +1715,20 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Tests: deploy_failure_sim.sh 54 cases / 226 assertions (S10a/S10b updated,
   S32 restore-fail-keeps-snapshot, S33 success-drops-venv-snapshot). All pass.
 - No other deploy code touched. R30 stays OPEN + documented. PR #29 NOT merged.
+
+## 2026-08-28 06:15 UTC — P1-1 / PR #29: R38 narrow fix (pre-start DB snapshot)
+
+- R38 (P1): main.py lifespan (seed_cli_labs / recompute_weekly_domain_leads /
+  db.commit) writes the DB on every start, incl. --skip-migrations / already-at-
+  head deploys where deploy.sh took no snapshot. A code-only deploy could mutate
+  SQLite at startup, fail health, roll code back, and leave those rows.
+- Fix: step 10 now takes ONE backup_sqlite.sh snapshot unconditionally (service
+  stopped, before any target write) — covers migration + lifespan, no dup.
+  do_rollback restores it when MIGRATION_ATTEMPTED || SERVICE_RESTARTED,
+  pre-commit only; never after BACKEND_COMMITTED. All prior safety preserved
+  (owner/mode, terminal-inactive check, --allow-db-ahead, fail-safe).
+- Tests: deploy_failure_sim.sh 58 cases / 250 assertions. New S34a-d
+  (code-only+startup-mutate+health-fail -> restored; already-at-head -> restored;
+  success -> retained; post-commit frontend fail -> not restored). S2b/S2c/S7a
+  updated for "pre-start database snapshot".
+- No unrelated deploy code touched. R30 stays OPEN + documented. PR #29 NOT merged.

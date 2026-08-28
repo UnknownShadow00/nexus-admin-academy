@@ -855,23 +855,64 @@ restore after a post-commit frontend failure also drops the venv snapshot).
 
 ---
 
+## 21. Review round 17 — snapshot the DB before *every* target start (R38)
+
+### R38 (P1) — a code-only release can mutate SQLite during startup
+
+`backend/app/main.py`'s lifespan always opens the production DB and runs
+`seed_cli_labs(db)`, sometimes `recompute_weekly_domain_leads(db)`, then
+`db.commit()`. Those writes happen even with `--skip-migrations` or when the DB
+is already at the target head — cases where deploy.sh took **no** DB snapshot
+(the snapshot was gated on `MIGRATION_ATTEMPTED`). A code-only deploy could
+therefore start the target, have its lifespan seed target-only rows, fail
+health, roll the *code* back, and leave those rows against the old release.
+
+**Fix:**
+- Step 10 now takes **one** `scripts/backup_sqlite.sh` snapshot
+  **unconditionally**, while the service is stopped, before either the Alembic
+  upgrade *or* the target's startup can write. Same single snapshot covers both
+  (no duplicate backup); `--skip-migrations` skips only the upgrade.
+- `do_rollback` restores that snapshot when `MIGRATION_ATTEMPTED=1` **or**
+  `SERVICE_RESTARTED=1` (the target start was attempted, so its lifespan may
+  have written) — pre-commit only. After `BACKEND_COMMITTED=1` the DB is never
+  rolled back (the new backend may have accepted real writes).
+- All existing safety is preserved: owner/mode reapplied on restore; the unit
+  must be confirmed terminal-inactive before the file is replaced;
+  `--allow-db-ahead` still never auto-starts; a failed DB restore still leaves
+  the service stopped with `MANUAL INTERVENTION`.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **58 cases / 250 assertions**. New: the
+fake `systemctl start` models the lifespan writing + committing the DB.
+- **S34a** — `--skip-migrations` code-only deploy, startup mutates the DB,
+  health fails → the pre-start snapshot is restored (`db == "MIGRATED"`, the
+  `…STARTUP` mutation gone), no `alembic upgrade` ran.
+- **S34b** — already-at-target-head deploy, startup mutates, health fails →
+  pre-start snapshot restored.
+- **S34c** — successful code-only deploy → the lifespan's DB changes are
+  **retained** (`db == "MIGRATEDSTARTUP"`).
+- **S34d** — post-`BACKEND_COMMITTED` frontend failure → DB **not** restored,
+  startup writes kept.
+S2b/S2c/S7a updated for the always-on "pre-start database snapshot".
+
+---
+
 ## Review-loop status
 
-The Codex re-review did **not** self-terminate: 15 broad fix rounds plus this
-final narrow one, and rounds 13-16 each produced genuine refinements of the
-*previous* round's rollback-safety work (verify-stopped → terminal-state;
-DB-restore-fail → every-restore-step-fail → chown-fail; historical-rollback guard
-widening; frontend-path propagation + cleanup). Every genuine finding is now
-fixed with a regression test and green CI. The **only** remaining open thread is
-**R30** (pre-commit write-exposure window) — kept open and documented on purpose,
-its full fix being the out-of-scope blue/green work. PR #29 is left for **human
-merge review**, not auto-merged.
+The Codex re-review did **not** self-terminate: 15 broad fix rounds plus two
+narrow follow-ups (R36/R37 frontend-path, R38 pre-start DB snapshot). Rounds
+13-17 each produced genuine refinements of the *previous* round's rollback-safety
+work. Every genuine finding is now fixed with a regression test and green CI. The
+**only** remaining open thread is **R30** (pre-commit write-exposure window) —
+kept open and documented on purpose, its full fix being the out-of-scope
+blue/green work. PR #29 is left for **human merge review**, not auto-merged.
 
 ---
 
 ## Final state of `scripts/deploy.sh`
 
-37 review findings across 16 Codex rounds — 36 fixed with regression tests; 1
+38 review findings across 17 Codex rounds — 37 fixed with regression tests; 1
 (R30, the pre-commit write-exposure window) mitigated + documented, its full fix
 being the out-of-scope blue/green work. `do_rollback` is now fail-safe end to
 end: it verifies the unit is actually stopped before touching anything, and any

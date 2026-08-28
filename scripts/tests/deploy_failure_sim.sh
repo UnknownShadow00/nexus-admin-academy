@@ -26,7 +26,7 @@ SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL SIM_MULTI_HEAD SIM_MULTI_DB_REV
 SIM_WORKDIR_OVERRIDE SIM_CP_HARDLINK_EXDEV SIM_SYSTEMCTL_STOP_FAIL
 SIM_DIRTY_AFTER_CHECKOUT SIM_STOP_LEAVES_ACTIVE SIM_GUNZIP_FAIL
 SIM_VENV_RESTORE_FAIL SIM_STOP_DEACTIVATING SIM_CHOWN_FAIL
-SIM_FRONTEND_CONFIG_TEST_FAIL SIM_FRONTEND_RESTORE_FAIL"
+SIM_FRONTEND_CONFIG_TEST_FAIL SIM_FRONTEND_RESTORE_FAIL SIM_STARTUP_WRITES_DB"
 reset_sims() { for v in $SIM_VARS; do unset "$v"; done; }
 
 # ---------------------------------------------------------------------------
@@ -83,9 +83,14 @@ case "$cmd" in
     exit 0 ;;
   start)
     echo "start $*" >> "$WORK/systemctl.log"
+    fwd=0; [ "$(git -C "$SERVING" rev-parse HEAD 2>/dev/null)" = "$NEW_SHA" ] && fwd=1
     # only the forward start (on NEW) fails; a rollback start (on OLD) succeeds
-    if [ -n "${SIM_SYSTEMCTL_START_FAIL:-}" ] \
-       && [ "$(git -C "$SERVING" rev-parse HEAD 2>/dev/null)" = "$NEW_SHA" ]; then exit 1; fi
+    [ -n "${SIM_SYSTEMCTL_START_FAIL:-}" ] && [ "$fwd" = 1 ] && exit 1
+    # model the target's lifespan startup mutating + committing the DB
+    if [ -n "${SIM_STARTUP_WRITES_DB:-}" ] && [ "$fwd" = 1 ]; then
+      db="${NEXUS_SQLITE_DB:-$SERVING/backend/nexus.db}"
+      [ -f "$db" ] && printf '%sSTARTUP' "$(cat "$db" 2>/dev/null)" > "$db"
+    fi
     mark_from_head; exit 0 ;;
   *) exit 0 ;;
 esac
@@ -392,20 +397,21 @@ case_start "S2  migration failure restores the pre-migration database"
   sctl_order stop start
 teardown_env
 
-case_start "S2b pre-migration backup failure aborts before touching schema"
+case_start "S2b pre-start DB snapshot failure aborts before starting the target"
   export SIM_BACKUP_FAIL=1
   run_deploy --skip-deps origin/main
   a_rc_ne0; a_head_old
-  a_log "pre-migration backup failed"; a_nolog "alembic upgrade head complete"
+  a_log "pre-start database snapshot failed"; a_nolog "alembic upgrade head complete"
+  a_nolog "new backend started"
   a_db "OLD"
   grep -q '^start' "$WORK/systemctl.log" && ok "service restarted in rollback" || bad "service not restarted"
 teardown_env
 
-case_start "S2c migration quiesces the service BEFORE the backup (no lost writes)"
+case_start "S2c the service is quiesced BEFORE the pre-start DB snapshot (no lost writes)"
   run_deploy --skip-deps origin/main
   a_rc_0; a_head_new
-  a_order "stopping nexus-admin-academy.service for deployment" "taking pre-migration backup"
-  a_order "taking pre-migration backup" "alembic upgrade head complete"
+  a_order "stopping nexus-admin-academy.service for deployment" "taking pre-start database snapshot"
+  a_order "taking pre-start database snapshot" "alembic upgrade head complete"
 teardown_env
 
 case_start "S2d target deps are installed before any target-tree Alembic call"
@@ -552,7 +558,7 @@ case_start "S7a schema-ahead database is refused with actionable guidance"
   a_rc_ne0; a_head_old
   a_log "live database is at revision 'rev_future'"
   a_log "re-run with --allow-db-ahead"
-  a_nolog "taking pre-migration backup"
+  a_nolog "taking pre-start database snapshot"
 teardown_env
 
 case_start "S7b --allow-db-ahead proceeds past the schema-ahead guard"
@@ -563,13 +569,56 @@ case_start "S7b --allow-db-ahead proceeds past the schema-ahead guard"
   a_log "continuing on --allow-db-ahead"
 teardown_env
 
-case_start "S7c migration applied then health fails -> DB restored to pre-migration state"
+case_start "S7c migration applied then health fails -> DB restored to pre-start state"
   export SIM_NEW_UNHEALTHY=1
   run_deploy --skip-deps origin/main
   a_rc_ne0; a_head_old
   a_log "alembic upgrade head complete"
   a_log "restoring database from"
   a_db "OLD"
+teardown_env
+
+# --- R38: a pre-start DB snapshot covers lifespan-startup writes, not just Alembic
+case_start "S34a code-only --skip-migrations: startup mutates the DB, health fails -> pre-start DB restored"
+  db_head
+  export SIM_STARTUP_WRITES_DB=1 SIM_NEW_UNHEALTHY=1
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_ne0; a_head_old
+  a_log "taking pre-start database snapshot"
+  a_nolog "alembic upgrade head complete"
+  a_log "restoring database from"
+  a_db "MIGRATED"          # startup wrote "MIGRATEDSTARTUP"; rollback restored the pre-start snapshot
+teardown_env
+
+case_start "S34b already-at-target-head: startup mutates the DB, health fails -> pre-start DB restored"
+  db_head
+  export SIM_STARTUP_WRITES_DB=1 SIM_NEW_UNHEALTHY=1
+  run_deploy --skip-deps origin/main
+  a_rc_ne0; a_head_old
+  a_log "database already at target head"
+  a_nolog "alembic upgrade head complete"
+  a_log "restoring database from"
+  a_db "MIGRATED"
+teardown_env
+
+case_start "S34c successful code-only deploy: lifespan-startup DB changes are RETAINED"
+  db_head
+  export SIM_STARTUP_WRITES_DB=1
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_0; a_head_new
+  a_log "deploy OK"; a_nolog "ROLLBACK"
+  a_db "MIGRATEDSTARTUP"   # startup writes kept — not rolled back
+teardown_env
+
+case_start "S34d post-BACKEND_COMMITTED frontend failure does NOT restore the DB (startup writes kept)"
+  db_head
+  export SIM_STARTUP_WRITES_DB=1 SIM_FRONTEND_RELOAD_FAIL=1
+  run_deploy --skip-deps --skip-migrations --frontend origin/main
+  a_rc_ne0; a_head_new
+  a_log "backend healthy on"
+  a_log "rolling back the frontend only"
+  a_nolog "restoring database from"
+  a_db "MIGRATEDSTARTUP"
 teardown_env
 
 case_start "S7d schema-ahead is refused even with --skip-migrations (not just alembic)"

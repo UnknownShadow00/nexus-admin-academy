@@ -87,10 +87,14 @@ script). In order:
    Alembic is **pinned to the `.env` database** for this and the migration step
    (an ambient `DATABASE_URL` in your shell is ignored, so the guard, the
    backup, the migration and the restart all act on the same file);
-7. if a migration will actually run: fresh SQLite + uploads backup
-   (`scripts/backup_sqlite.sh`, stamp `predeploy-<sha>-<ts>`), then
-   `alembic upgrade head` — the service is already down (step 4), so no write
-   lands after the backup. `--skip-migrations` skips this;
+7. **always** takes a fresh SQLite + uploads snapshot
+   (`scripts/backup_sqlite.sh`, stamp `predeploy-<sha>-<ts>`) while the service
+   is still down (step 4) — one snapshot that covers both the Alembic upgrade
+   **and** the target's own lifespan startup writes (`seed_cli_labs` /
+   `recompute_weekly_domain_leads` / `db.commit` in `backend/app/main.py`, which
+   run even on a `--skip-migrations` or already-at-head deploy) — then, if a
+   migration is due, `alembic upgrade head`. `--skip-migrations` skips only the
+   upgrade, not the snapshot;
 8. `sudo systemctl start`, then polls `http://127.0.0.1:8000/health`.
    **Once healthy, the code + schema are committed** (see Rollback);
 9. with `--frontend`, snapshots the live container assets/config, swaps in the
@@ -111,7 +115,7 @@ reachable for the brief interval between "started" and "first `/health`
 response". The first health probe is issued with no delay, so for a healthy
 process this is sub-second; but a write accepted in that window on a deploy
 whose health check then fails is discarded by the automatic
-restore-pre-migration-DB rollback. Eliminating that window (not just shrinking
+restore-pre-start-DB rollback. Eliminating that window (not just shrinking
 it) is the same blue/green work noted above.
 
 **Rollback — automatic on any failure once the backend has been stopped
@@ -122,12 +126,13 @@ it) is the same blue/green work noted above.
   rollback aborts here rather than rewrite files under a live process); check
   the previous SHA back out (and verify the worktree is clean afterwards); if
   deps were installed, **restore the `backend/.venv` snapshot** (a dependency
-  up/downgrade otherwise outlives the failed release); if a migration was
-  attempted, **restore the pre-migration database backup** (SQLite DDL here is
-  non-transactional, so a half-applied migration is possible — the backup is the
-  only safe restore; the live DB's owner and mode are reapplied). **If that DB
-  restore itself fails, the service is left stopped** — deploy.sh will not start
-  any release against a half-restored database. Otherwise start the service on
+  up/downgrade otherwise outlives the failed release); if a migration ran **or
+  the target was started at all** (its lifespan startup can write even on a
+  code-only deploy), **restore the pre-start database snapshot** (SQLite DDL here
+  is non-transactional, so a half-applied migration is possible — the snapshot is
+  the only safe restore; the live DB's owner and mode are reapplied). **If that
+  DB restore itself fails, the service is left stopped** — deploy.sh will not
+  start any release against a half-restored database. Otherwise start the service on
   the old SHA and re-health-check (`MANUAL INTERVENTION NEEDED` in the log if it
   still can't come up).
 - **After step 8** — only the `--frontend` swap can still fail, and the NEW

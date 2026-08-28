@@ -29,8 +29,10 @@
 #   9. FAILS CLOSED if it cannot confirm the live schema is compatible with the
 #      target (DB revision ahead of / absent from the target tree), unless
 #      --allow-db-ahead. Runs even with --skip-migrations.
-#  10. If a migration will actually run: fresh SQLite + uploads backup
-#      (scripts/backup_sqlite.sh), then `alembic upgrade head`.
+#  10. ALWAYS takes a fresh SQLite + uploads snapshot (scripts/backup_sqlite.sh)
+#      before the target can write -- covers both the Alembic upgrade and the
+#      target's lifespan startup -- then, if a migration is due, `alembic
+#      upgrade head`.
 #  11. Starts the backend on the new release and verifies /health. Once
 #      healthy, the code + schema are COMMITTED (see Rollback).
 #  12. With --frontend: snapshots the live container assets/config, swaps in the
@@ -46,9 +48,10 @@
 # Rollback (automatic, on ANY failure once the backend has been stopped):
 #   - BEFORE the step-11 health check passes -- full unwind: check the old SHA
 #     back out; restore the pre-deploy virtualenv snapshot (if deps installed);
-#     restore the pre-migration database backup (if a migration was attempted --
+#     restore the pre-start database snapshot (if a migration ran OR the target
+#     was started -- its lifespan startup can write even on a code-only deploy;
 #     SQLite DDL here is non-transactional, so a half-applied migration is
-#     possible and the backup is the only safe restore, with the live DB's
+#     possible and the snapshot is the only safe restore, with the live DB's
 #     owner/mode reapplied); start the service on the old SHA and re-health-check.
 #   - AFTER step 11 (only the frontend swap can fail now) -- the NEW backend has
 #     begun accepting writes, so the database is NOT rolled back. Only the
@@ -290,7 +293,7 @@ SERVICE_STOPPED=0       # service was stopped for the migration window
 SERVICE_RESTARTED=0     # service was (re)started on NEW_SHA
 BACKEND_COMMITTED=0     # NEW backend passed health -> code+schema are the point of no return
 FRONTEND_APPLIED=0      # new assets/config copied into the frontend container
-DB_BACKUP_BEFORE=""     # pre-migration backup, set when MIGRATION_ATTEMPTED
+DB_BACKUP_BEFORE=""     # pre-start DB snapshot (covers migration + lifespan startup writes)
 VENV_SNAPSHOT=""        # hardlink copy of the pre-deploy virtualenv
 FRONTEND_SNAPSHOT=""    # dir holding the previous container html + default.conf
 IN_ROLLBACK=0
@@ -320,7 +323,7 @@ restore_venv() {
 restore_database() {
   # Assumes the service is already stopped.
   [ -n "$DB_BACKUP_BEFORE" ] && [ -f "$DB_BACKUP_BEFORE" ] || {
-    log "ROLLBACK WARNING: no pre-migration backup available; database NOT restored — MANUAL INTERVENTION NEEDED"
+    log "ROLLBACK WARNING: no pre-start database snapshot available; database NOT restored — MANUAL INTERVENTION NEEDED"
     return 1
   }
   log "ROLLBACK: restoring database from $DB_BACKUP_BEFORE"
@@ -447,7 +450,13 @@ do_rollback() {
 
   [ "$DEPS_INSTALLED" = "1" ] && { restore_venv || rollback_incomplete=1; }
 
-  if [ "$MIGRATION_ATTEMPTED" = "1" ]; then
+  # The database may have been mutated by the Alembic upgrade OR by the target's
+  # lifespan startup (seed_cli_labs / recompute_weekly_domain_leads / db.commit
+  # in backend/app/main.py) once we tried to start it. Restore the pre-start
+  # snapshot for either. This branch is pre-commit only -- the BACKEND_COMMITTED
+  # path returned above, so the NEW backend's own accepted writes are never
+  # rolled back here.
+  if [ -n "$DB_BACKUP_BEFORE" ] && { [ "$MIGRATION_ATTEMPTED" = "1" ] || [ "$SERVICE_RESTARTED" = "1" ]; }; then
     restore_database || rollback_incomplete=1
   fi
 
@@ -636,22 +645,30 @@ The target release needs a migration; starting it now would run new code against
 Re-run WITHOUT --skip-migrations, or (only if the DB was already migrated out of band) with --allow-db-ahead."
 fi
 
-# --- 10. Migration: back up, then upgrade (service already stopped, step 5) --
+# --- 10. Pre-start database snapshot, then optional migration --------------
+# The backend is stopped (step 5). Take ONE rollback snapshot NOW, before the
+# database can be mutated -- by the Alembic upgrade below, OR by the target's
+# own lifespan startup in backend/app/main.py (seed_cli_labs /
+# recompute_weekly_domain_leads / db.commit) once step 11 starts it. A code-only
+# or already-at-head deploy writes no migration but its startup still can, so
+# this snapshot is taken unconditionally. It covers both cases (no duplicate
+# backup); any failure before BACKEND_COMMITTED restores it.
+STAMP="predeploy-${NEW_SHA:0:12}-$(date +%Y%m%d-%H%M%S)"
+log "taking pre-start database snapshot (stamp $STAMP)"
+if NEXUS_SQLITE_DB="$DB_PATH" NEXUS_BACKUP_DIR="$NEXUS_BACKUP_DIR" NEXUS_BACKUP_STAMP="$STAMP" \
+     "$NEXUS_BACKUP_SCRIPT" >>"$LOG" 2>&1; then
+  DB_BACKUP_BEFORE="$NEXUS_BACKUP_DIR/nexus-$STAMP.db.gz"
+  [ -f "$DB_BACKUP_BEFORE" ] || fail "backup script reported success but $DB_BACKUP_BEFORE is missing"
+  log "pre-start database snapshot ok: $DB_BACKUP_BEFORE"
+else
+  fail "pre-start database snapshot failed; not starting the target"
+fi
+
 if [ "$SKIP_MIGRATIONS" = "1" ]; then
   log "skipping alembic upgrade (--skip-migrations)"
 elif [ -n "$DB_REV" ] && [ "$DB_REV" = "$TARGET_HEAD" ]; then
   log "database already at target head $TARGET_HEAD — no migration to run"
 else
-  STAMP="predeploy-${NEW_SHA:0:12}-$(date +%Y%m%d-%H%M%S)"
-  log "taking pre-migration backup (stamp $STAMP)"
-  if NEXUS_SQLITE_DB="$DB_PATH" NEXUS_BACKUP_DIR="$NEXUS_BACKUP_DIR" NEXUS_BACKUP_STAMP="$STAMP" \
-       "$NEXUS_BACKUP_SCRIPT" >>"$LOG" 2>&1; then
-    DB_BACKUP_BEFORE="$NEXUS_BACKUP_DIR/nexus-$STAMP.db.gz"
-    [ -f "$DB_BACKUP_BEFORE" ] || fail "backup script reported success but $DB_BACKUP_BEFORE is missing"
-    log "pre-migration backup ok: $DB_BACKUP_BEFORE"
-  else
-    fail "pre-migration backup failed; not touching the schema"
-  fi
   MIGRATION_ATTEMPTED=1
   alembic_backend upgrade head || fail "alembic upgrade head failed"
   log "alembic upgrade head complete (service stopped)"
