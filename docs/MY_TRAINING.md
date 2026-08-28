@@ -139,7 +139,7 @@ video assignments, empty completion paths, required untracked work, required
 work that hard-depends on optional work, or hard-prerequisite cycles. It also
 reports distinct mapping counts and required workload by week. The reviewed
 137-row mapping and workload snapshot is in
-`docs/MY_TRAINING_QUIZ_MAPPING.md`.
+`docs/archive/MY_TRAINING_QUIZ_MAPPING.md`.
 
 ## Deployment and rollback
 
