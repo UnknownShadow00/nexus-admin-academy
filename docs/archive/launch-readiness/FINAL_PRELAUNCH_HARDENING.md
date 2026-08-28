@@ -76,7 +76,7 @@ clutter was reintroduced. Evidence links now open through the authenticated API.
 Programmatic validation reports 25 contiguous weeks (0–24), 296 activities,
 137/137 mapped videos, no missing or empty weeks, no duplicate activity IDs, no
 broken references, no gating dead ends, and no ordering violations in a fresh
-seed. The detailed audit is in `NEXUS_CURRICULUM_AUDIT.md`.
+seed. The detailed audit is in `../reviews/NEXUS_CURRICULUM_AUDIT.md`.
 
 | Week | Required / total activities | Structural note |
 |---:|---:|---|

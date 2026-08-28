@@ -1,7 +1,7 @@
 # Nexus Learning — Full Project Review
 
 **Date:** 2026-07-23 · **Baseline commit:** `15a94103d5b951913875cc5a054fda7b70bede32` (`15a9410`, `main`)
-**Reviewer:** Claude Code · **Scope:** live + source review across 19 phases (see `docs/reviews/`).
+**Reviewer:** Claude Code · **Scope:** live + source review across 19 phases (see `phase-reports/`).
 **Method:** genuine authenticated browser testing (Playwright/Chromium, desktop 1440×1000 + mobile
 375×812) against `https://nexus.builtfromzero.fyi/`, plus full source/DB/migration/test inspection.
 No production deploy, merge, push, flag change, or real-student modification occurred.
@@ -28,7 +28,7 @@ React 18 + Vite SPA (`frontend/`) ↔ FastAPI + SQLAlchemy + Alembic (`backend/`
 prod. Split auth: student signed-JWT HttpOnly cookie; admin separate expiring server-side session
 (`verify_admin`). 28 routers (all mounted), 30 models, 37 services, 47 migrations (head `0035`).
 Middleware: CORS + origin-based CSRF + security headers. Production sits behind Cloudflare with the
-backend apparently on Render. Full detail: `docs/reviews/phase-02-architecture.md`.
+backend apparently on Render. Full detail: `phase-reports/phase-02-architecture.md`.
 
 ## 3. Product strengths
 - **My Training** — sequenced weekly path, clear "what's next", locked weeks with explicit
@@ -198,4 +198,4 @@ expansion (VMs, AI, Postgres); the platform's strength is its focused simplicity
 
 *Companion deliverables:* `NEXUS_FEATURE_DECISION_MATRIX.md`, `NEXUS_IMPLEMENTATION_BACKLOG.md`,
 `NEXUS_CURRICULUM_AUDIT.md`, `NEXUS_NAVIGATION_PROPOSAL.md`, `NEXUS_REVIEW_EVIDENCE.md`, and the
-per-phase reports in `docs/reviews/`.
+per-phase reports in `phase-reports/`.

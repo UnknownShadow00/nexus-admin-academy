@@ -3,7 +3,7 @@
 **Date:** 2026-08-27 · **Reviewer:** Claude Code (Sonnet)
 **Repo:** `UnknownShadow00/nexus-admin-academy` (public)
 **Deployed commit observed at review start:** `8ea625a` (detached) — **advanced to `44b7723` mid-review by host automation** (see P1-1)
-**Prior review:** `NEXUS_FULL_PROJECT_REVIEW.md` (2026-07-23, baseline `15a9410`) — treated as historical only.
+**Prior review:** `docs/archive/reviews/NEXUS_FULL_PROJECT_REVIEW.md` (2026-07-23, baseline `15a9410`) — treated as historical only.
 
 **Method actually performed**
 
@@ -75,15 +75,15 @@ optionally harden the root `.gitignore` (P3-1).
 
 | Doc | Stale claim | Correct |
 |---|---|---|
-| `NEXUS_FULL_PROJECT_REVIEW.md` §2, §4.5, §18 | "backend apparently on **Render**", "Render cold-start" | self-hosted systemd; no cold start |
-| `docs/PRODUCTION_STATE_2026-07-25_schema_ahead_of_code.md` | live doc describing an unmerged-branch state | resolved — should be archived (see P0.3) |
+| `docs/archive/reviews/NEXUS_FULL_PROJECT_REVIEW.md` §2, §4.5, §18 | "backend apparently on **Render**", "Render cold-start" | self-hosted systemd; no cold start |
+| `docs/archive/production-incidents/PRODUCTION_STATE_2026-07-25_schema_ahead_of_code.md` | live doc describing an unmerged-branch state | resolved — should be archived (see P0.3) |
 | `tasks/loop-log.md` (Apr 2026 entries) | "hardened … for Render/Supabase deployment", "Set production env vars on Render/Vercel" | historical; leave but do not treat as current |
 | `README.md` | already fixed — "Railway/Supabase plans are historical" | ✅ accurate |
 | `docs/DEPLOYMENT.md`, `docs/AUTHORING_CONFIG_SECURITY.md` | — | ✅ already describe systemd + SQLite + Cloudflare + nginx accurately |
 
 ## P0.3 — Schema-ahead-of-code: **RESOLVED. The doc is now stale and should be archived.**
 
-`docs/PRODUCTION_STATE_2026-07-25_schema_ahead_of_code.md` recorded that migrations `274729e5d444` and
+`docs/archive/production-incidents/PRODUCTION_STATE_2026-07-25_schema_ahead_of_code.md` recorded that migrations `274729e5d444` and
 `6736e5d5172a` from the then-unmerged `fix/question-bank-integrity-and-import` had been applied to prod
 while the service ran older code, with the explicit exit condition "deploy this branch's code … then this
 file can be archived."
@@ -98,7 +98,7 @@ That happened:
 | Code ↔ schema | `alembic current` (against prod DB) = `0061 (head)`; tree has a **single** head `0061`; fresh empty→head applies clean. No orphaned columns, no migration without model support found. |
 
 **Status: code and schema are in sync.** Residual items:
-- **P3-2:** delete/relocate `docs/PRODUCTION_STATE_2026-07-25_schema_ahead_of_code.md` (move to `docs/reviews/` or an `archive/`); as written it reads as a current warning.
+- **P3-2:** delete/relocate `docs/archive/production-incidents/PRODUCTION_STATE_2026-07-25_schema_ahead_of_code.md` (move to `docs/reviews/` or an `archive/`); as written it reads as a current warning.
 - **P3-3 (dev ergonomics):** `alembic heads` / `alembic upgrade` fail without `PYTHONPATH=.` because
   `alembic/versions/0043_retire_legacy_tickets.py` does `from app.services.service_desk_objectives import …`
   at import time. `alembic current` works. Add `prepend_sys_path = .` to `alembic.ini` or stop importing
@@ -212,9 +212,9 @@ back clean or already-resolved.
 | # | Finding | Evidence |
 |---|---|---|
 | **P3-1** | Root `.gitignore` ignores only `artifacts/e2e-launch-verification/`, not a blanket `artifacts/` or `website-capture/`. Add both to be safe against re-created capture trees. | `.gitignore` |
-| **P3-2** | Archive `docs/PRODUCTION_STATE_2026-07-25_schema_ahead_of_code.md` (resolved — see P0.3); as written it reads as a live warning. | doc body: "this file can be archived" |
+| **P3-2** | Archive `docs/archive/production-incidents/PRODUCTION_STATE_2026-07-25_schema_ahead_of_code.md` (resolved — see P0.3); as written it reads as a live warning. | doc body: "this file can be archived" |
 | **P3-3** | `alembic heads` / `upgrade` need `PYTHONPATH=.` because `alembic/versions/0043_retire_legacy_tickets.py` imports `app.services…` at module load. Add `prepend_sys_path = .` to `alembic.ini`. | `./.venv/bin/alembic heads` → `ModuleNotFoundError: No module named 'app'` |
-| **P3-4** | Fix the prior review's "Render" language in `NEXUS_FULL_PROJECT_REVIEW.md` §2/§4/§18 (or add a header note that it is superseded by this document). | that file |
+| **P3-4** | Fix the prior review's "Render" language in `docs/archive/reviews/NEXUS_FULL_PROJECT_REVIEW.md` §2/§4/§18 (or add a header note that it is superseded by this document). | that file |
 | **P3-5** | `turbo.json` `test` tasks emit `no output files found` warnings for `api`, `shared`, `simulation-engine`, `ui`, `web` — set `outputs: []` on the `test` task to silence. | `pnpm test` output |
 | **P3-6** | CI had two recent red merges on `main` that self-healed (`sentry-student-bug-reporting` merge `33013380468` failure, Phase 4C.3 merge `32946968403` failure). Current `main` (`44b7723`) run `33084046494` is green. Consider blocking merges on red rather than merging then fixing forward. | `gh run list --branch main` |
 
