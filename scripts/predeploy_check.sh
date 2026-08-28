@@ -27,6 +27,34 @@ for raw in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
 PY
 }
 
+# Validate the REAL production Service Desk deployment. Production runs the
+# simulator from the `nexus-service-desk` Docker container (built into an
+# image) on the private `nexus-production` network -- NOT from a host
+# `.next/` build. Echoes a short status word; returns 0 only when the
+# container is present, running, and (if it declares a healthcheck) healthy.
+# The JWT-parity and HTTP health-endpoint checks below cover the rest.
+service_desk_container_ok() {
+    local name="${1:-nexus-service-desk}" state health
+    state="$(docker inspect --format '{{.State.Status}}' "$name" 2>/dev/null)" \
+        || { printf 'absent'; return 1; }
+    if [ "$state" != "running" ]; then
+        printf 'not running (%s)' "$state"
+        return 1
+    fi
+    health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$name" 2>/dev/null)" \
+        || health="unknown"
+    case "$health" in
+        healthy|no-healthcheck) printf 'running (%s)' "$health"; return 0 ;;
+        *)                      printf 'running, health=%s' "$health"; return 1 ;;
+    esac
+}
+
+# Allow `PREDEPLOY_CHECK_SOURCED=1 source predeploy_check.sh` in tests to load
+# the helpers above without executing the gate.
+if [ "${PREDEPLOY_CHECK_SOURCED:-0}" = "1" ]; then
+    return 0 2>/dev/null || exit 0
+fi
+
 cd "$REPO_ROOT"
 info "branch $(git branch --show-current) at $(git rev-parse --short=12 HEAD)"
 if [ -z "$(git status --porcelain)" ]; then pass "working tree is clean"; else fail "working tree is not clean"; fi
@@ -152,7 +180,11 @@ AVAILABLE_KB="$(df -Pk "$REPO_ROOT" | awk 'NR==2 {print $4}')"
 if [ "$AVAILABLE_KB" -ge 2097152 ]; then pass "at least 2 GiB of disk space is available"; else fail "less than 2 GiB of disk space is available"; fi
 
 if [ -f "$REPO_ROOT/frontend/dist/index.html" ]; then pass "frontend production build exists"; else fail "frontend production build is missing"; fi
-if [ -f "$REPO_ROOT/service-desk-app/apps/web/.next/BUILD_ID" ]; then pass "Service Desk production build exists"; else fail "Service Desk production build is missing"; fi
+if SD_CONTAINER_STATUS="$(service_desk_container_ok nexus-service-desk)"; then
+    pass "Service Desk production container is deployable: $SD_CONTAINER_STATUS"
+else
+    fail "Service Desk production container is not deployable: $SD_CONTAINER_STATUS"
+fi
 
 if docker inspect nexus-frontend >/dev/null 2>&1 && docker exec nexus-frontend nginx -t >/dev/null 2>&1; then pass "live nginx configuration syntax is valid"; else fail "live nginx container/configuration is unavailable or invalid"; fi
 if docker inspect nexus-service-desk >/dev/null 2>&1; then
