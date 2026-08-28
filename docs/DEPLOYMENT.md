@@ -28,6 +28,159 @@ disposable clone) for any feature work, independent review, or exploratory
 testing, and confirm production remains on its intended commit/branch
 afterward. This applies to every agent and contributor, not just this phase.
 
+### Deploying a change (the only supported procedure)
+
+The serving checkout is **deploy-only**. It carries no branch work, no
+uncommitted edits, and no automated commits:
+
+- The nightly workspace snapshot (`/opt/apps/nightly-snapshot.sh`) treats this
+  checkout as *protected* — it never runs `git add`/`commit`/`push` here. It
+  only records `HEAD`, and if it ever finds the tree dirty it archives the
+  drift to `~/backups/nexus/drift/` and logs a warning. Investigate any such
+  warning: something wrote to the serving checkout outside this procedure.
+- All feature, review, and hotfix work happens in a `git worktree`
+  (`git worktree add ~/worktrees/<name> -b <branch> origin/main`), never here.
+
+A deploy is a single command:
+
+```bash
+# from the serving checkout only (it refuses to run anywhere else)
+scripts/deploy.sh [options] [<ref>]      # <ref> default: origin/main
+```
+
+`scripts/deploy.sh` takes a **host-wide `flock`** first
+(`/run/lock/nexus-admin-academy-deploy.lock` — a shared path, not per-account,
+pre-created world-writable) so two operators can't race even from different Unix
+accounts, then — **after** confirming it is the serving checkout (steps 1–2) and
+unless `--dry-run` — refreshes **standalone copies of itself at
+`~/bin/nexus-deploy` and of the SQLite backup helper at
+`~/bin/nexus-backup-sqlite`** (both used when a rollback target predates or
+changes the in-repo versions). In order:
+
+1. **resolves the serving checkout from `nexus-admin-academy.service`'s
+   `WorkingDirectory`, not from its own path** — so `~/bin/nexus-deploy` works
+   when run from anywhere. Run from an in-repo copy, it additionally refuses
+   unless that copy's tree *is* the serving checkout (so you can't "deploy" a
+   worktree by mistake). Refuses a dirty working tree;
+2. `git fetch`, then resolves the pinned target ref to a concrete SHA;
+3. runs `scripts/predeploy_check.sh` **while the old backend is still up** (its
+   live-health / container / env checks need it running). **Full output tee'd
+   to the deploy log**; a failing gate aborts unless `--force-predeploy` (after
+   you review every `FAIL` line in the log). The *target*-schema check is
+   step 6, not this;
+4. **stops the backend.** It runs from this checkout and its handlers do lazy
+   imports, so files must not change under a live process. It stays down until
+   step 8;
+5. `git checkout --detach` the target SHA; then **snapshot `backend/.venv`**
+   (same-filesystem hardlink copy) and `pip install -r backend/requirements.txt`
+   — before any target-tree Alembic call (`env.py` / migrations import app
+   modules a new release may add a dependency for). Skip with `--skip-deps`.
+   With `--frontend`, `npm ci` + Vite build here too;
+6. **schema compatibility guard — fails closed.** Requires exactly one target
+   Alembic head and one live DB revision (rejects a divergent migration tree or
+   a branched DB); refuses unless it can positively confirm the live revision is
+   contained in the target tree; an Alembic introspection error (its behaviour
+   when the DB is stamped with a revision the tree lacks) is treated as
+   *incompatible*, not "unknown". Runs **even with `--skip-migrations`**, and
+   **`--skip-migrations` is itself refused unless the live DB is already at the
+   target head** (you can't skip a migration that's actually due).
+   Override with `--allow-db-ahead` only after restoring a matching DB backup.
+   Alembic is **pinned to the `.env` database** for this and the migration step
+   (an ambient `DATABASE_URL` in your shell is ignored, so the guard, the
+   backup, the migration and the restart all act on the same file);
+7. **always** takes a fresh SQLite + uploads snapshot (stamp
+   `predeploy-<sha>-<ts>`) while the service is still down (step 4), using the
+   stable backup helper copied to `~/bin/nexus-backup-sqlite` (not the in-tree
+   `scripts/backup_sqlite.sh`, which a historical rollback may have already
+   checked out to an older/missing version) — one snapshot that covers both the
+   Alembic upgrade
+   **and** the target's own lifespan startup writes (`seed_cli_labs` /
+   `recompute_weekly_domain_leads` / `db.commit` in `backend/app/main.py`, which
+   run even on a `--skip-migrations` or already-at-head deploy) — then, if a
+   migration is due, `alembic upgrade head`. `--skip-migrations` skips only the
+   upgrade, not the snapshot;
+8. `sudo systemctl start`, then polls `http://127.0.0.1:8000/health`.
+   **Once healthy, the code + schema are committed** (see Rollback);
+9. with `--frontend`, snapshots the live container assets/config, swaps in the
+   build from step 5, `nginx -t`, reloads, then verifies the **deployed SPA
+   itself** at `http://127.0.0.1/` — the response must be an HTTP success *and*
+   the Nexus `index.html` (app root div + app `<title>`), not the backend
+   `/health` proxy — so an nginx that is up but serving stale/broken/missing
+   static files is caught and the previous frontend is restored;
+10. appends timestamped lines to `~/deploy-logs/nexus-deploy.log` for every run
+    (plan, each stage, and any rollback).
+
+Use `--dry-run` to preview the resolved SHAs without touching anything.
+**Every deploy is a short maintenance window** — the backend is down from
+step 4 to step 8 (seconds for a code-only deploy, longer with
+deps/migration/build). Zero-downtime would need a separate release directory
+with an atomic switch, or blue/green — out of scope for this single-process,
+shared-checkout deployment.
+
+One consequence of that same limitation: at step 8 the new process binds
+`:8000` and nginx keeps proxying `/api/` + `/auth/` to it, so it is publicly
+reachable for the brief interval between "started" and "first `/health`
+response". The first health probe is issued with no delay, so for a healthy
+process this is sub-second; but a write accepted in that window on a deploy
+whose health check then fails is discarded by the automatic
+restore-pre-start-DB rollback. Eliminating that window (not just shrinking
+it) is the same blue/green work noted above.
+
+**Rollback — automatic on any failure once the backend has been stopped
+(step 4).**
+
+- **Before the step-8 health check passes** — full unwind: **confirm the unit
+  is actually inactive** (if a rollback `stop` fails and the unit stays up, the
+  rollback aborts here rather than rewrite files under a live process); check
+  the previous SHA back out (and verify the worktree is clean afterwards); if
+  deps were installed, **restore the `backend/.venv` snapshot** (a dependency
+  up/downgrade otherwise outlives the failed release); if a migration ran **or
+  the target was started at all** (its lifespan startup can write even on a
+  code-only deploy), **restore the pre-start database snapshot** (SQLite DDL here
+  is non-transactional, so a half-applied migration is possible — the snapshot is
+  the only safe restore; the live DB's owner and mode are reapplied). **If that
+  DB restore itself fails, the service is left stopped** — deploy.sh will not
+  start any release against a half-restored database. Otherwise start the service on
+  the old SHA and re-health-check (`MANUAL INTERVENTION NEEDED` in the log if it
+  still can't come up).
+- **After step 8** — only the `--frontend` swap can still fail, and the NEW
+  backend has begun accepting writes, so the **database is not rolled back**.
+  Only the frontend snapshot is restored; the backend stays on the new commit
+  and the frontend is fixed forward. The deploy still exits non-zero.
+
+The venv and frontend snapshots are deleted on a successful deploy.
+
+**Rolling back a *past* deploy that changed the schema is not just
+`deploy.sh <old-sha>`.** Checking out older code leaves the newer schema in
+place. `deploy.sh` detects this (step 6) and refuses. To do it safely:
+
+1. `scripts/backup_sqlite.sh` — snapshot the current (newer) DB first. **Keep
+   this file.** If step 3 fails partway, `deploy.sh` cannot restore it for you
+   (it never saw the pre-swap state): its automatic rollback will stop, log
+   `MANUAL INTERVENTION NEEDED`, and leave the service down — you then restore
+   *this* snapshot by hand before retrying or starting the service;
+2. restore a database backup taken at or before the target commit's migration
+   head (from `~/backups/nexus/`, e.g. the `predeploy-<sha>-*` backup that
+   deploy.sh took just before that migration) — stop the service, replace
+   `backend/nexus.db`, remove stale `-wal`/`-shm`;
+3. `scripts/deploy.sh --allow-db-ahead --force-predeploy <old-sha>` — restart on
+   the old code. **Both flags are required here:** `--allow-db-ahead` because
+   you have deliberately put the DB behind the current tree, and
+   `--force-predeploy` because you stopped the service in step 2, so
+   `predeploy_check.sh`'s live-backend health/liveness checks *will* fail. Read
+   every `FAIL` line it logs to `~/deploy-logs/nexus-deploy.log` and confirm the
+   only failures are the expected "backend not responding" ones before letting
+   the deploy continue.
+
+Prefer forward-fixing (a new migration + release) over a schema downgrade
+whenever the newer migration is not cleanly reversible.
+
+The failure/rollback paths are covered by `scripts/tests/deploy_failure_sim.sh`
+(run in CI as the *Deploy script failure simulations* job).
+
+The manual backend/frontend command sequences below are what `deploy.sh`
+automates; run them by hand only if the script is unavailable.
+
 The backend runs from `backend/.venv` under
 `nexus-admin-academy.service` on port 8000. The `nexus-frontend` nginx
 container serves the Vite build on port 80 and proxies `/api`, `/auth`,

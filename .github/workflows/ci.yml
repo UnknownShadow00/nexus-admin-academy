@@ -426,3 +426,21 @@ jobs:
             frontend/test-results/
           retention-days: 5
           if-no-files-found: ignore
+
+  deploy-script:
+    name: Deploy script failure simulations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell syntax check
+        run: |
+          bash -n scripts/deploy.sh
+          bash -n scripts/tests/deploy_failure_sim.sh
+
+      - name: Rollback / failure-path simulations
+        # Runs the real scripts/deploy.sh against a throwaway git checkout with
+        # fake systemctl/curl/npm/docker and stubbed predeploy/backup/venv, then
+        # asserts every post-checkout failure rolls code (and DB) back. No root,
+        # no network, no services.
+        run: bash scripts/tests/deploy_failure_sim.sh

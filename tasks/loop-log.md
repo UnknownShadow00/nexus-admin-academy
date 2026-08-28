@@ -1512,3 +1512,249 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: tasks/loop-log.md; production nexus-frontend static assets; production nexus-frontend nginx configuration; production source checkout updated from 8ea625af271d29b22e3541a4e99e83b8b1b89068 to 44b772398dd1e8bef5da7edaca8f00a7c96af1bb
 - Result: pass against deployment acceptance criteria; candidate and served bundle checksums match, local and public frontend health are 200, backend and Service Desk remain healthy without restart, the exact Sentry ingest origin and blob Replay worker CSP are live, an intercepted production-browser smoke observed exact-origin envelopes and a blob worker without sending a real event, Alembic remains 0061_integrated_support_prove, and the protected stash remains untouched.
 - Next: Monitor Sentry ingestion and privacy telemetry under normal production use; source-map upload remains disabled until separately configured with build-side SENTRY_AUTH_TOKEN, SENTRY_ORG, and SENTRY_PROJECT.
+
+## [2026-08-27T20:25:00Z] Task Completed
+- Task: Fixed production working-directory drift (review item P1-1). Identified the two causes — /opt/apps/nightly-snapshot.sh committing + force-pushing inside the live serving checkout, and bare in-place `git checkout` deploys/branch work — then made the serving checkout deploy-only.
+- Files changed: scripts/deploy.sh (new, only supported deploy path); docs/DEPLOYMENT.md ("Deploying a change" procedure); P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md (new report); tasks/loop-log.md. Host file /opt/apps/nightly-snapshot.sh (not in repo) — serving checkout added to PROTECTED_DIRS: never committed/pushed; drift archived to ~/backups/nexus/drift/ and logged instead. Pre-existing uncommitted serving-checkout state (4 loop-log entries + the review doc) committed to origin/main as 7b3eed2.
+- Result: pass. One full deploy cycle demonstrated with scripts/deploy.sh (deploy fix branch -> restart -> health OK -> deploy back to origin/main -> restart -> local + public health OK). Serving checkout ends detached at 7b3eed2 == origin/main, git status clean; Alembic untouched at 0061_integrated_support_prove; nightly-snapshot protected path verified to record-not-commit on a clean tree. Fix delivered on branch fix/p1-1-deploy-drift (PR opened); not merged. No database, migration, env, container, or frontend change.
+- Next: Merge PR; from then on every deploy and rollback is `scripts/deploy.sh <ref>` with no manual checkout. Separately: decide whether predeploy_check.sh's Service Desk build check should validate the running container/image instead of a host .next artifact (currently a standing FAIL requiring --force-predeploy). P2-1 staging/image disk cleanup and the unquoted systemd PATH= line remain open, out of scope here.
+
+## [2026-08-27T21:05:00Z] Task Completed
+- Task: Addressed the three Codex review threads on PR #29 (deploy.sh): (R1/P1) rollback only fired on health-check failure; (R2/P1) migration rollback unsafe — old-SHA checkout leaves a newer schema live; (R3/P2) --force-predeploy did not log the predeploy FAIL lines.
+- Files changed: scripts/deploy.sh (EXIT-trap staged rollback covering checkout/migration/restart/frontend stages; pre-migration backup via scripts/backup_sqlite.sh restored on any post-migration failure; schema-ahead detection refusing unsafe old-SHA rollback unless --allow-db-ahead; predeploy output tee'd to the deploy log via PIPESTATUS; whole script wrapped in a {} load guard); scripts/tests/deploy_failure_sim.sh (new — 14 cases / 63 assertions running the real deploy.sh against fakes, no root/network/services); .github/workflows/ci.yml (new "Deploy script failure simulations" job); docs/DEPLOYMENT.md (honest rollback semantics + new flags); P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md (section 6).
+- Result: pass. bash -n clean; failure-sim harness 63/63 locally; ci.yml YAML valid. Drift protections (nightly-snapshot PROTECTED_DIRS, serving-dir/clean-tree guards, worktree-only workflow) unchanged. No production mutation. PR #29 not merged.
+- Next: Push branch, let full CI run on PR #29, resolve the three review threads, hand back to a human for merge.
+
+## [2026-08-27T21:40:00Z] Task Completed
+- Task: Addressed Codex's round-2 re-review of PR #29 deploy.sh hardening (4 new findings): pre-migration backup taken while service could still write (writes lost on rollback); pip install mutated the shared venv with no rollback; schema-ahead guard bypassed by --skip-migrations; target-tree Alembic ran before target deps installed.
+- Files changed: scripts/deploy.sh (new order: checkout -> venv-snapshot+pip -> predeploy -> schema guard [always, even with --skip-migrations] -> [migration: stop service -> backup -> alembic upgrade, service down the whole window] -> (re)start+health -> frontend; do_rollback also restores the venv hardlink snapshot; restore_venv uses staged copy + atomic rename); scripts/tests/deploy_failure_sim.sh (19 cases / 82 assertions — added venv-restore, service-quiesced-before-backup ordering, deps-before-alembic, schema-guard-under-skip-migrations); docs/DEPLOYMENT.md (new order + migration maintenance-window note + venv snapshot); P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md (section 7).
+- Result: pass. bash -n clean; failure-sim 82/82 locally; will confirm full CI on PR #29. Drift protections unchanged. No production mutation. PR #29 not merged.
+- Next: Push, confirm CI, reply to + resolve the 7 Codex threads (3 original + 4 round-2), hand to human for merge.
+
+## [2026-08-27T22:20:00Z] Task Completed
+- Task: Addressed Codex round-3 re-review of PR #29 deploy.sh (3 P1): schema guard treated an alembic introspection error as "unknown, proceed" instead of failing closed; a migration deploy restarted the backend (writable) before the --frontend steps, so a frontend failure could roll the DB back over new writes; restore_database dropped the live DB's owner/0640 mode.
+- Files changed: scripts/deploy.sh (schema guard fails closed on alembic current/heads error or empty output; --frontend build moved to step 4 before anything touches backend/DB; BACKEND_COMMITTED point-of-no-return after step-8 health check — later failures roll back only the frontend, never the DB; restore_database captures + reapplies the live file's stat mode/owner); scripts/tests/deploy_failure_sim.sh (25 cases / 109 assertions — added S0b happy --frontend, S5 build-never-touches-backend, S10a/S10b frontend-fail-after-commit, S11 mode-0640-preserved, S9a/S9b introspection fail-closed); docs/DEPLOYMENT.md (final 10-step order + two-phase rollback); P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md (section 8).
+- Result: pass. bash -n clean; failure-sim 109/109 locally; will confirm CI. Drift protections unchanged. No production mutation. PR #29 not merged.
+- Next: Push, confirm CI green, reply to + resolve the 10 Codex threads, hand to human for merge.
+
+## [2026-08-27T22:55:00Z] Task Completed
+- Task: Addressed Codex round-4 re-review of PR #29 deploy.sh (2 P1): the backend runs from the checkout and does lazy imports, so any deploy (not just migrations) had a mixed-release window between `git checkout` and restart; concurrent deploys had no lock.
+- Files changed: scripts/deploy.sh (host-wide flock on ~/deploy-logs/nexus-deploy.lock held for the whole run; predeploy now runs while the old backend is still up, THEN the service is stopped before the checkout for EVERY deploy and started only after the new release passes health; on_exit triggers rollback on SERVICE_STOPPED too); scripts/tests/deploy_failure_sim.sh (27 cases / 117 assertions — added S12 stop-before-checkout + predeploy-before-stop ordering, S13 concurrent-lock refusal, S3 now start-failure); docs/DEPLOYMENT.md (flock + always-a-maintenance-window model + zero-downtime is out of scope); P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md (section 9).
+- Result: pass. bash -n clean; failure-sim 117/117 locally; will confirm CI. Drift protections unchanged. No production mutation. PR #29 not merged.
+- Next: Push, confirm CI, reply to + resolve the Codex threads, hand to human. Deploy is now a brief maintenance window per run — accepted tradeoff for a single-process shared-checkout deployment; blue/green noted as the future path.
+
+## [2026-08-27T23:15:00Z] Task Completed
+- Task: Addressed Codex round-5 re-review of PR #29 deploy.sh (1 P1, 1 P2): a rollback to a commit predating scripts/deploy.sh removes the only supported deploy entry point; the schema guard took the first Alembic head via `awk exit`, so a divergent migration tree could skip a needed migration.
+- Files changed: scripts/deploy.sh (refreshes a standalone launcher copy at ~/bin/nexus-deploy / NEXUS_DEPLOY_LAUNCHER before the checkout can move; schema guard now counts heads + current revisions and fails unless exactly one of each); scripts/tests/deploy_failure_sim.sh (30 cases / 126 assertions — S14 launcher kept + matches, S15 multi-head rejected, S16 branched DB rejected); docs/DEPLOYMENT.md (launcher note + strict-head-count).
+- Result: pass. bash -n clean; failure-sim 126/126 locally; will confirm CI. 15 findings over 6 rounds all fixed with tests. Accepted limitation documented: every deploy is a brief maintenance window (single-process shared-checkout; blue/green is the future path). No production mutation. PR #29 not merged.
+- Next: Confirm CI, reply to + resolve all Codex threads, write summary, stop.
+
+## 2026-08-27 23:55 UTC — P1-1 / PR #29: review round 7 (R16)
+
+- Fresh Codex P1 (thread `_qJV`): the out-of-tree launcher `~/bin/nexus-deploy`
+  (added R14) derived `REPO_ROOT` from `${BASH_SOURCE[0]}/..`, so run from
+  `~/bin` it resolved to `$HOME` and aborted its own serving-checkout check —
+  the rollback recovery path was unusable.
+- Fix (`scripts/deploy.sh`): resolve `REPO_ROOT` from
+  `systemctl show -p WorkingDirectory nexus-admin-academy.service` (strip
+  `/backend`); script-path only as fallback when the unit can't be queried.
+  In-repo copies still refuse unless launched from the serving checkout.
+  Moved the identity check before `cd "$REPO_ROOT"`.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 32 cases / 136 assertions
+  (S17 launcher-from-$HOME deploy, S18 wrong-tree refusal). All pass locally.
+- Docs: `docs/DEPLOYMENT.md` step 1 + `P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md`
+  §11 updated. PR #29 NOT merged.
+
+## 2026-08-28 00:20 UTC — P1-1 / PR #29: review round 8 (R17, R18)
+
+- R17 (P1): `cp -al || cp -a` venv snapshot could nest itself when
+  `$NEXUS_BACKUP_DIR` is on another filesystem (`cp -al` makes a partial dir,
+  then `cp -a` copies INTO it). Rollback then `mv`s a broken wrapper onto
+  `backend/.venv`. Fix: `snapshot_tree()` helper that `rm -rf`s the dest before
+  each attempt; used for the step-7 snapshot and the `restore_venv` staging copy.
+- R18 (P2): the `~/bin/nexus-deploy` refresh ran in step 0, before the
+  serving-checkout check, so an accidental run from a worktree overwrote the
+  launcher with unreviewed code. Fix: refresh only after step 1 passes, and
+  never on `--dry-run`.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 35 cases / 145 assertions
+  (S19 EXDEV snapshot, S20 dry-run installs nothing, S18 extended). All pass.
+- Docs: `docs/DEPLOYMENT.md` + `P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md` §12.
+  PR #29 NOT merged.
+
+## 2026-08-28 00:55 UTC — P1-1 / PR #29: review round 9 (R19, R20, R21)
+
+- R19 (P1): step 9 let `--skip-migrations` through when the live DB was an
+  ancestor of (not equal to) the target head, so new code could start against a
+  behind schema. Fix: refuse `--skip-migrations` unless `DB_REV == TARGET_HEAD`
+  (or `--allow-db-ahead`).
+- R20 (P2): the "host-wide" lock defaulted to `$HOME/deploy-logs/...` — per
+  account. Fix: default `/run/lock/nexus-admin-academy-deploy.lock`, pre-created
+  world-writable so any operator account can flock it.
+- R21 (P2): the `~/bin/nexus-deploy` refresh still ran before the clean-tree
+  check, so an uncommitted edit to deploy.sh could reach the recovery launcher.
+  Fix: refresh only after step 2 (clean tree) as well as step 1 (identity).
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 39 cases / 151 assertions
+  (S0c skip-migrations-behind-head refusal, S21 shared lock; existing
+  skip-migrations happy paths now `db_head` first). All pass.
+- Docs: `docs/DEPLOYMENT.md` + `P1-1_PRODUCTION_DRIFT_FIX_2026-08-27.md` §13.
+  PR #29 NOT merged.
+
+## 2026-08-28 01:25 UTC — P1-1 / PR #29: review round 10 (R22, R23)
+
+- R22 (P1): `$NEXUS_SYSTEMCTL stop || fail` ran `fail` before `SERVICE_STOPPED=1`,
+  so a stop that failed *after* downing the unit left `on_exit` thinking nothing
+  changed -> backend down, no rollback. Fix: set `SERVICE_STOPPED=1` before the
+  stop. Test S22.
+- R23 (P2): the documented schema-rollback recipe (`deploy.sh --allow-db-ahead
+  <old-sha>` after stopping the service) aborts at the predeploy live-health
+  gate. Fix: recipe now uses `--allow-db-ahead --force-predeploy`, explains why,
+  and says which FAIL lines are expected; `--force-predeploy` help updated.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 41 cases / 157 assertions.
+  All pass. PR #29 NOT merged.
+
+## 2026-08-28 02:05 UTC — P1-1 / PR #29: review round 11 (R24, R25, R26)
+
+- R24 (P1): Alembic honoured an ambient `DATABASE_URL` (config loads .env with
+  override=False), so the guard/migration could hit a different DB than the
+  backup + restart. Fix: `alembic_backend()` exports
+  `DATABASE_URL="sqlite:///$DB_PATH"`; canonicalise `DB_PATH`; log if ambient set.
+- R25 (P1): a failed historical schema rollback (`--allow-db-ahead`, operator
+  swapped the DB by hand) auto-started OLD_SHA (the newer release) against the
+  downgraded DB. Fix: when `--allow-db-ahead` and no pre-migration backup exists,
+  `do_rollback` stops after checkout/venv restore, logs MANUAL INTERVENTION,
+  leaves the service down. DEPLOYMENT.md step 1 says keep the pre-swap backup.
+- R26 (P1): `git checkout` can advance HEAD, print "unable to unlink old", exit
+  0, and leave stale files. Fix: re-check `git status --porcelain` after the
+  step-6 checkout and abort if dirty; rollback checkout warns the same way.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 44 cases / 173 assertions
+  (S23 ambient DATABASE_URL, S24 allow-db-ahead rollback no auto-start, S25
+  dirty checkout). All pass. PR #29 NOT merged.
+
+## 2026-08-28 02:35 UTC — P1-1 / PR #29: review round 12 (R27) — no P1s
+
+- R27 (P2): `restore_venv` restored from `$VENV_SNAPSHOT` but never deleted it,
+  so repeated transient rollbacks accumulate full virtualenv trees under
+  `$NEXUS_BACKUP_DIR`. Fix: delete the snapshot once restoration is verified
+  good (clear `VENV_SNAPSHOT`); keep + log it only on the failure path.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 45 cases / 175 assertions
+  (S1/S1b assert no leftover venv-rollback-* after rollback). All pass.
+- Round 12 raised NO P1 findings. PR #29 NOT merged.
+
+## 2026-08-28 03:05 UTC — P1-1 / PR #29: review round 13 (R28, R29, R30)
+
+- R28 (P1): do_rollback's own `systemctl stop` ran under `set +e`; a stop that
+  failed with the unit still up would be ignored and rollback would rewrite
+  files under a live process. Fix: check `systemctl is-active` after the
+  rollback stop; abort the rollback (no destructive restore) if still active.
+- R29 (P1): `restore_database` result was ignored and its `mv` unchecked. Fix:
+  check `mv`, return non-zero on any failure; do_rollback leaves the service
+  STOPPED on a failed DB restore instead of starting old code against a
+  half-restored DB.
+- R30 (P1): pre-commit write-exposure window (process reachable via nginx before
+  /health passes). Mitigated (immediate first probe) + documented in
+  DEPLOYMENT.md and the deploy log; full fix = blue/green, out of P1-1 scope.
+  Thread left OPEN for the human reviewer.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 47 cases / 187 assertions
+  (S26 rollback-abort-if-not-stopped, S27 failed-DB-restore-leaves-down).
+- 13 rounds in, Codex is still surfacing P1s each round — flagging
+  non-convergence to the user in the summary. PR #29 NOT merged.
+
+## 2026-08-28 03:35 UTC — P1-1 / PR #29: review round 14 (R31, R32)
+
+- R31/R32 (P1): same objection as R28/R29 for the other rollback restore steps —
+  a failed rollback `git checkout` only warned, a failed `restore_venv` was
+  ignored, and the service was started anyway.
+- Unified fix: `do_rollback` now uses one `rollback_incomplete` flag set by a
+  failed checkout / dirty worktree / failed restore_venv / failed
+  restore_database. If set -> log MANUAL INTERVENTION, leave the service STOPPED,
+  do not start. Replaces round-13's single `db_restore_failed`.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 49 cases / 193 assertions
+  (S28 venv-restore-fail; S25/S27 updated). All pass.
+- STOPPING the round-by-round loop here (14 rounds). do_rollback is now
+  comprehensively fail-safe; remaining Codex items are polish + R30 (out of
+  scope). Delivering summary; PR #29 left for human merge review, NOT merged.
+
+## 2026-08-28 04:05 UTC — P1-1 / PR #29: review round 15 (R33, R34, R35)
+
+- R33 (P1): the round-13 "--allow-db-ahead: don't auto-start" guard only fired
+  when no migration was attempted. Broadened to fire whenever --allow-db-ahead
+  is set (a historical rollback that runs an upgrade must still not auto-start
+  OLD_SHA).
+- R34 (P1): the rollback stop-check only rejected literal "active". A timed-out
+  stop leaves "deactivating". Now positively requires inactive|failed.
+- R35 (P1): chmod/chown failure on the restored DB only warned; /health doesn't
+  touch the DB so rollback could falsely report healthy. restore_database now
+  returns non-zero on a perms failure -> rollback_incomplete -> service stopped.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 52 cases / 207 assertions
+  (S29 deactivating, S30 chown-fail, S31 allow-db-ahead+migration). All pass.
+- Loop still not converging at round 15 (all 3 genuine, all refinements of
+  rounds 13/14). Stopping here regardless; delivering summary. PR #29 NOT merged.
+
+## 2026-08-28 04:25 UTC — P1-1 / PR #29: LOOP CLOSED
+
+- Round 16 (R36 P1 frontend restore failures not propagated, R37 P2 snapshot
+  cleanup on post-commit frontend failure): ACKNOWLEDGED on-thread, NOT actioned
+  on this PR (same fail-safe class, frontend-only, non-blocking). No 16th fix
+  round started.
+- Replied + resolved 18 threads (R17-R29, R31-R35) on PR #29 — all genuinely
+  fixed with regression tests, CI green on a709504.
+- Left OPEN (replied, not resolved): R30 (write-exposure window = out-of-scope
+  blue/green), R36, R37 (frontend-path follow-up).
+- Final: deploy_failure_sim.sh 52 cases / 207 assertions. All 6 CI jobs green.
+  PR #29 OPEN + MERGEABLE, NOT merged — handed to human merge review.
+
+## 2026-08-28 05:10 UTC — P1-1 / PR #29: R36/R37 narrow fix (final)
+
+- R36 (P1): restore_frontend now tracks every docker cp / nginx reload; on any
+  failure it logs "frontend restore FAILED ... MANUAL INTERVENTION NEEDED" and
+  returns non-zero. Post-commit caller reports it + keeps the snapshot;
+  pre-commit path folds it into rollback_incomplete (service left stopped).
+- R37 (P2): post-commit rollback branch deletes the frontend mktemp snapshot
+  when the restore succeeded (keeps it, path logged, on failure), and always
+  drops the pre-deploy venv snapshot there (backend committed on NEW).
+- Tests: deploy_failure_sim.sh 54 cases / 226 assertions (S10a/S10b updated,
+  S32 restore-fail-keeps-snapshot, S33 success-drops-venv-snapshot). All pass.
+- No other deploy code touched. R30 stays OPEN + documented. PR #29 NOT merged.
+
+## 2026-08-28 06:15 UTC — P1-1 / PR #29: R38 narrow fix (pre-start DB snapshot)
+
+- R38 (P1): main.py lifespan (seed_cli_labs / recompute_weekly_domain_leads /
+  db.commit) writes the DB on every start, incl. --skip-migrations / already-at-
+  head deploys where deploy.sh took no snapshot. A code-only deploy could mutate
+  SQLite at startup, fail health, roll code back, and leave those rows.
+- Fix: step 10 now takes ONE backup_sqlite.sh snapshot unconditionally (service
+  stopped, before any target write) — covers migration + lifespan, no dup.
+  do_rollback restores it when MIGRATION_ATTEMPTED || SERVICE_RESTARTED,
+  pre-commit only; never after BACKEND_COMMITTED. All prior safety preserved
+  (owner/mode, terminal-inactive check, --allow-db-ahead, fail-safe).
+- Tests: deploy_failure_sim.sh 58 cases / 250 assertions. New S34a-d
+  (code-only+startup-mutate+health-fail -> restored; already-at-head -> restored;
+  success -> retained; post-commit frontend fail -> not restored). S2b/S2c/S7a
+  updated for "pre-start database snapshot".
+- No unrelated deploy code touched. R30 stays OPEN + documented. PR #29 NOT merged.
+
+## 2026-08-28 10:20 UTC — P1-1 / PR #29: round 18 narrow fix (backup helper OOB + SPA probe)
+
+- P1 A: NEXUS_BACKUP_SCRIPT resolved to $REPO_ROOT/scripts/backup_sqlite.sh, but
+  step 6 checks the target SHA out BEFORE the step 10 snapshot — a historical
+  rollback could swap in an old/incompatible helper or drop it. Fix: new
+  NEXUS_BACKUP_HELPER (default ~/bin/nexus-backup-sqlite), install -m 0755'd from
+  the validated+clean serving checkout in the SAME guarded block as the
+  ~/bin/nexus-deploy launcher (never from a worktree / wrong tree / dirty tree /
+  --dry-run). NEXUS_BACKUP_SCRIPT now resolved AFTER the step 1-2 checks:
+  explicit override wins; else the stable OOB helper; else the in-tree copy.
+- P1 B: NEXUS_FRONTEND_HEALTH_URL defaulted to .../health which nginx proxies to
+  the backend. Fix: default is now http://127.0.0.1/ , checked by new spa_ok()
+  that requires HTTP success AND the Nexus index.html markers (id="root" +
+  <title>Nexus Admin Academy</title>). Failure runs restore_frontend via the
+  EXIT trap; backend stays on NEW. Backend /health check (health_ok on
+  NEXUS_HEALTH_URL, :8000) unchanged.
+- Tests: deploy_failure_sim.sh 63 cases / 287 assertions. Fake curl returns real
+  index.html markers for GET /, honours SIM_SPA_BROKEN / SIM_SPA_HTTP_FAIL;
+  run_deploy gained SIM_NO_BACKUP_OVERRIDE. New S35a-e (incompatible/missing
+  target helper -> stable helper snapshots; wrong tree / dirty tree / --dry-run
+  never overwrite it) and S36a-d (backend OK + SPA body wrong -> frontend
+  rolled back, backend kept; SPA OK -> pass; static serving down -> detected;
+  backend probe unchanged). All pass.
+- docs/DEPLOYMENT.md updated (out-of-tree backup helper; SPA verification wording).
+- No unrelated deploy code touched. R30 stays OPEN + documented. PR #29 NOT merged.
