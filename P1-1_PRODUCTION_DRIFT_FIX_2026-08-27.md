@@ -818,42 +818,60 @@ ran → still no auto-start).
 
 ---
 
-## 20. Review round 16 — acknowledged, not actioned on this PR
+## 20. Review round 16 — frontend-path fail-safe + snapshot cleanup (narrow, final)
 
 Round 16 raised two items in the **frontend** restore path — the same fail-safe
-class as R28-R35:
+class as R28-R35. Both were fixed in a single narrowly-scoped commit (no other
+deploy code touched):
 
-- **R36 (P1)** — `restore_frontend`'s per-step failures are logged but not folded
-  into `rollback_incomplete`.
-- **R37 (P2)** — the frontend / venv snapshots for a `--frontend` deploy aren't
-  cleaned up when a *post-commit* frontend step fails (they leak one small
-  `mktemp -d` / backup dir per failed `--frontend` deploy).
+### R36 (P1) — `restore_frontend` must propagate failure
 
-Both are real and worth a follow-up, but neither blocks this PR: the frontend
-swap only runs with `--frontend`, and a frontend failure *after* the backend
-commit point is already "fixed forward" (backend stays on NEW). These threads
-are replied-to and left **open** for a human reviewer; a 16th fix round was not
-started.
+Each `docker cp` / `nginx -s reload` inside `restore_frontend` only logged a
+warning and the function always returned 0, so a rollback that failed to put the
+old assets/config back still reported success. **Fix:** `restore_frontend` now
+tracks every step, and on any failure logs `frontend restore FAILED … MANUAL
+INTERVENTION NEEDED` and returns non-zero. In the post-commit (frontend-only)
+rollback the caller reports the failure and keeps the snapshot; in the
+pre-commit path the non-zero return feeds `rollback_incomplete` (service left
+stopped) like every other restore step.
+
+### R37 (P2) — clean the snapshots on a post-commit frontend failure
+
+On a `--frontend` deploy that fails *after* the backend commit point, `on_exit`
+returned without removing the `mktemp -d` frontend snapshot or the pre-deploy
+venv snapshot (only the clean-exit path deleted them). **Fix:** the post-commit
+rollback branch now deletes the frontend snapshot when the restore **succeeded**
+(keeps it, with its path logged, when it failed — for manual recovery), and
+always drops the pre-deploy venv snapshot there (the backend is committed on
+NEW, so it is no longer a rollback target).
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **54 cases / 226 assertions**. S10a now
+asserts a failed frontend restore logs `MANUAL INTERVENTION NEEDED` and keeps the
+snapshot; S10b asserts a successful post-commit frontend restore cleans the
+snapshot; new S32 (forced restore failure → snapshot kept) and S33 (successful
+restore after a post-commit frontend failure also drops the venv snapshot).
 
 ---
 
 ## Review-loop status
 
-The Codex re-review did **not** self-terminate: 15 fix rounds, and rounds 13-16
-kept producing genuine P1 refinements of the *previous* round's rollback-safety
-work (verify-stopped → terminal-state; DB-restore-fail → every-restore-step-fail
-→ chown-fail; historical-rollback guard widening; and now the frontend path).
-Every genuine finding through round 15 was fixed with a regression test and green
-CI. The remaining open threads are **R30** (pre-commit write-exposure window —
-its full fix is the out-of-scope blue/green work) and **R36/R37** (frontend-path
-fail-safe + snapshot cleanup — deferred follow-up). PR #29 is left for **human
+The Codex re-review did **not** self-terminate: 15 broad fix rounds plus this
+final narrow one, and rounds 13-16 each produced genuine refinements of the
+*previous* round's rollback-safety work (verify-stopped → terminal-state;
+DB-restore-fail → every-restore-step-fail → chown-fail; historical-rollback guard
+widening; frontend-path propagation + cleanup). Every genuine finding is now
+fixed with a regression test and green CI. The **only** remaining open thread is
+**R30** (pre-commit write-exposure window) — kept open and documented on purpose,
+its full fix being the out-of-scope blue/green work. PR #29 is left for **human
 merge review**, not auto-merged.
 
 ---
 
 ## Final state of `scripts/deploy.sh`
 
-37 review findings across 16 Codex rounds — 34 fixed with regression tests; 3
+37 review findings across 16 Codex rounds — 36 fixed with regression tests; 1
 (R30, the pre-commit write-exposure window) mitigated + documented, its full fix
 being the out-of-scope blue/green work. `do_rollback` is now fail-safe end to
 end: it verifies the unit is actually stopped before touching anything, and any

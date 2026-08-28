@@ -25,7 +25,8 @@ SIM_NEW_UNHEALTHY SIM_NPM_FAIL SIM_DOCKER_FAIL SIM_HISTORY_RC
 SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL SIM_MULTI_HEAD SIM_MULTI_DB_REV
 SIM_WORKDIR_OVERRIDE SIM_CP_HARDLINK_EXDEV SIM_SYSTEMCTL_STOP_FAIL
 SIM_DIRTY_AFTER_CHECKOUT SIM_STOP_LEAVES_ACTIVE SIM_GUNZIP_FAIL
-SIM_VENV_RESTORE_FAIL SIM_STOP_DEACTIVATING SIM_CHOWN_FAIL"
+SIM_VENV_RESTORE_FAIL SIM_STOP_DEACTIVATING SIM_CHOWN_FAIL
+SIM_FRONTEND_CONFIG_TEST_FAIL SIM_FRONTEND_RESTORE_FAIL"
 reset_sims() { for v in $SIM_VARS; do unset "$v"; done; }
 
 # ---------------------------------------------------------------------------
@@ -35,7 +36,7 @@ setup_env() {
   FAKEBIN="$WORK/bin"
   export WORK SERVING
   export SERVING_BACKEND="$SERVING/backend"
-  mkdir -p "$FAKEBIN" "$WORK/deploy-logs" "$WORK/backups" \
+  mkdir -p "$FAKEBIN" "$WORK/deploy-logs" "$WORK/backups" "$WORK/tmp" \
            "$SERVING/scripts" "$SERVING/backend/.venv/bin" "$SERVING/frontend"
 
   # --- fake PATH binaries -------------------------------------------------
@@ -109,6 +110,9 @@ EOF
 [ -n "${SIM_DOCKER_FAIL:-}" ] && exit 1
 if [ "${1:-}" = "cp" ]; then
   src="${2:-}"; dst="${3:-}"
+  case "$src" in
+    *nexus-fe-rollback*) [ -n "${SIM_FRONTEND_RESTORE_FAIL:-}" ] && exit 1 ;;  # ROLLBACK restore copy
+  esac
   case "$dst" in
     *:*) [ -n "${SIM_FRONTEND_SWAP_FAIL:-}" ] && exit 1 ;;   # copy INTO container
   esac
@@ -118,7 +122,13 @@ if [ "${1:-}" = "cp" ]; then
          else echo old-conf > "$dst"; fi ;;
   esac
 fi
-[ "${1:-}" = "exec" ] && [ -n "${SIM_FRONTEND_RELOAD_FAIL:-}" ] && exit 1
+if [ "${1:-}" = "exec" ]; then
+  rest="$*"
+  case "$rest" in
+    *"nginx -t"*)        [ -n "${SIM_FRONTEND_CONFIG_TEST_FAIL:-}" ] && exit 1 ;;
+    *"nginx -s reload"*) [ -n "${SIM_FRONTEND_RELOAD_FAIL:-}" ] && exit 1 ;;
+  esac
+fi
 exit 0
 EOF
   cat > "$FAKEBIN/cp" <<'EOF'
@@ -291,6 +301,7 @@ run_deploy() {
       NEXUS_BACKUP_DIR="$WORK/backups" \
       NEXUS_SQLITE_DB="$SERVING/backend/nexus.db" \
       NEXUS_BACKUP_SCRIPT="$SERVING/scripts/backup_sqlite.sh" \
+      TMPDIR="$WORK/tmp" \
       NEXUS_HEALTH_RETRIES=2 NEXUS_HEALTH_DELAY=0 \
       bash scripts/deploy.sh "$@" 2>&1
   )"
@@ -461,7 +472,7 @@ case_start "S5  frontend build failure never advances the DB and fully rolls bac
   a_log "ROLLBACK: backend healthy on"
 teardown_env
 
-case_start "S10a frontend swap fails AFTER a migration -> DB kept, only frontend rolled back"
+case_start "S10a frontend swap fails AFTER a migration -> DB kept; failed frontend restore flags MANUAL INTERVENTION"
   export SIM_FRONTEND_SWAP_FAIL=1
   run_deploy --skip-deps --frontend origin/main
   a_rc_ne0
@@ -469,16 +480,44 @@ case_start "S10a frontend swap fails AFTER a migration -> DB kept, only frontend
   a_db "MIGRATED"
   a_log "backend healthy on"
   a_log "rolling back the frontend only"
+  a_log "frontend restore FAILED"
+  a_log "MANUAL INTERVENTION NEEDED"
   a_log "backend stays on"
   a_nolog "restoring database from"
+  a_nolog "frontend restored — backend stays"
+  [ -n "$(ls -d "$WORK/tmp"/nexus-fe-rollback.* 2>/dev/null)" ] && ok "frontend snapshot kept for manual recovery" || bad "frontend snapshot deleted despite failed restore"
 teardown_env
 
-case_start "S10b frontend reload fails AFTER a code-only deploy -> backend kept"
+case_start "S10b frontend step fails post-commit, restore succeeds -> backend kept, snapshots cleaned"
   db_head
-  export SIM_FRONTEND_RELOAD_FAIL=1
+  export SIM_FRONTEND_CONFIG_TEST_FAIL=1
   run_deploy --skip-deps --skip-migrations --frontend origin/main
   a_rc_ne0; a_head_new
-  a_log "rolling back the frontend only"; a_nolog "checkout -> "
+  a_log "rolling back the frontend only"
+  a_log "frontend restored — backend stays on"
+  a_nolog "checkout -> "
+  a_nolog "MANUAL INTERVENTION NEEDED"
+  [ -z "$(ls -d "$WORK/tmp"/nexus-fe-rollback.* 2>/dev/null)" ] && ok "frontend snapshot cleaned up after successful restore" || bad "frontend snapshot leaked"
+teardown_env
+
+case_start "S32 a failed frontend RESTORE keeps the snapshot and flags MANUAL INTERVENTION"
+  export SIM_FRONTEND_CONFIG_TEST_FAIL=1 SIM_FRONTEND_RESTORE_FAIL=1
+  run_deploy --skip-deps --frontend origin/main
+  a_rc_ne0; a_head_new
+  a_log "rolling back the frontend only"
+  a_log "frontend restore FAILED"
+  a_log "MANUAL INTERVENTION NEEDED"
+  a_nolog "frontend restored — backend stays"
+  [ -n "$(ls -d "$WORK/tmp"/nexus-fe-rollback.* 2>/dev/null)" ] && ok "snapshot kept for manual recovery" || bad "snapshot deleted despite a failed restore"
+teardown_env
+
+case_start "S33 post-commit frontend failure with a successful restore also drops the venv snapshot"
+  export SIM_FRONTEND_CONFIG_TEST_FAIL=1
+  run_deploy --frontend origin/main
+  a_rc_ne0; a_head_new
+  a_log "frontend restored — backend stays on"
+  a_no_venv_snapshot
+  [ -z "$(ls -d "$WORK/tmp"/nexus-fe-rollback.* 2>/dev/null)" ] && ok "frontend snapshot cleaned up" || bad "frontend snapshot leaked"
 teardown_env
 
 case_start "S11 migration rollback reapplies the live DB file mode (0640)"

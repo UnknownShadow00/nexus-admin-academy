@@ -1702,3 +1702,16 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
   blue/green), R36, R37 (frontend-path follow-up).
 - Final: deploy_failure_sim.sh 52 cases / 207 assertions. All 6 CI jobs green.
   PR #29 OPEN + MERGEABLE, NOT merged — handed to human merge review.
+
+## 2026-08-28 05:10 UTC — P1-1 / PR #29: R36/R37 narrow fix (final)
+
+- R36 (P1): restore_frontend now tracks every docker cp / nginx reload; on any
+  failure it logs "frontend restore FAILED ... MANUAL INTERVENTION NEEDED" and
+  returns non-zero. Post-commit caller reports it + keeps the snapshot;
+  pre-commit path folds it into rollback_incomplete (service left stopped).
+- R37 (P2): post-commit rollback branch deletes the frontend mktemp snapshot
+  when the restore succeeded (keeps it, path logged, on failure), and always
+  drops the pre-deploy venv snapshot there (backend committed on NEW).
+- Tests: deploy_failure_sim.sh 54 cases / 226 assertions (S10a/S10b updated,
+  S32 restore-fail-keeps-snapshot, S33 success-drops-venv-snapshot). All pass.
+- No other deploy code touched. R30 stays OPEN + documented. PR #29 NOT merged.

@@ -357,12 +357,18 @@ restore_database() {
 restore_frontend() {
   [ -n "$FRONTEND_SNAPSHOT" ] && [ -d "$FRONTEND_SNAPSHOT" ] || return 0
   log "ROLLBACK: restoring previous frontend assets/config"
-  docker cp "$FRONTEND_SNAPSHOT/html/." "$NEXUS_FRONTEND_CONTAINER:/usr/share/nginx/html/" || \
-    log "ROLLBACK WARNING: frontend asset restore failed"
-  docker cp "$FRONTEND_SNAPSHOT/default.conf" "$NEXUS_FRONTEND_CONTAINER:/etc/nginx/conf.d/default.conf" || \
-    log "ROLLBACK WARNING: frontend config restore failed"
-  docker exec "$NEXUS_FRONTEND_CONTAINER" nginx -s reload || \
-    log "ROLLBACK WARNING: nginx reload after frontend restore failed"
+  local fe_ok=1
+  docker cp "$FRONTEND_SNAPSHOT/html/." "$NEXUS_FRONTEND_CONTAINER:/usr/share/nginx/html/" || {
+    log "ROLLBACK WARNING: frontend asset restore failed"; fe_ok=0; }
+  docker cp "$FRONTEND_SNAPSHOT/default.conf" "$NEXUS_FRONTEND_CONTAINER:/etc/nginx/conf.d/default.conf" || {
+    log "ROLLBACK WARNING: frontend config restore failed"; fe_ok=0; }
+  docker exec "$NEXUS_FRONTEND_CONTAINER" nginx -s reload || {
+    log "ROLLBACK WARNING: nginx reload after frontend restore failed"; fe_ok=0; }
+  if [ "$fe_ok" != "1" ]; then
+    log "ROLLBACK WARNING: frontend restore FAILED — the nginx container may be serving mixed old/new assets or config. Snapshot kept at $FRONTEND_SNAPSHOT. MANUAL INTERVENTION NEEDED."
+    return 1
+  fi
+  return 0
 }
 
 do_rollback() {
@@ -376,8 +382,19 @@ do_rollback() {
   # has since accepted -- roll back just the frontend and stay on NEW.
   if [ "$BACKEND_COMMITTED" = "1" ]; then
     log "ROLLBACK: backend + database already committed and healthy on ${NEW_SHA:0:12}; rolling back the frontend only"
-    [ "$FRONTEND_APPLIED" = "1" ] && restore_frontend
-    log "ROLLBACK: frontend restored — backend stays on ${NEW_SHA:0:12}; redeploy the frontend once fixed"
+    local fe_restore_rc=0
+    [ "$FRONTEND_APPLIED" = "1" ] && { restore_frontend || fe_restore_rc=1; }
+    if [ "$fe_restore_rc" = "1" ]; then
+      log "ROLLBACK: frontend restore FAILED — backend stays on ${NEW_SHA:0:12}, but the frontend is in an indeterminate state. Redeploy it by hand from $FRONTEND_SNAPSHOT. MANUAL INTERVENTION NEEDED."
+      # keep FRONTEND_SNAPSHOT for that manual recovery
+    else
+      log "ROLLBACK: frontend restored — backend stays on ${NEW_SHA:0:12}; redeploy the frontend once fixed"
+      [ -n "$FRONTEND_SNAPSHOT" ] && { rm -rf "$FRONTEND_SNAPSHOT" 2>/dev/null || true; FRONTEND_SNAPSHOT=""; }
+    fi
+    # The backend is committed on ${NEW_SHA:0:12}, so the pre-deploy virtualenv
+    # snapshot is no longer a rollback target on this path -- drop it.
+    [ -n "$VENV_SNAPSHOT" ] && { rm -rf "$VENV_SNAPSHOT" 2>/dev/null || true; VENV_SNAPSHOT=""; }
+    log "ROLLBACK: complete (frontend-only)"
     return
   fi
 
@@ -409,13 +426,13 @@ do_rollback() {
     esac
   fi
 
-  [ "$FRONTEND_APPLIED" = "1" ] && restore_frontend
-
   # Any restore step that cannot complete leaves runtime state (code / venv /
-  # schema) in an indeterminate mix. Track that: if ANY of them failed we do NOT
-  # restart -- a service brought up on half-restored state is worse than one
-  # that is cleanly down with a MANUAL INTERVENTION line.
+  # schema / frontend) in an indeterminate mix. Track that: if ANY of them
+  # failed we do NOT restart -- a service brought up on half-restored state is
+  # worse than one that is cleanly down with a MANUAL INTERVENTION line.
   local rollback_incomplete=0
+
+  [ "$FRONTEND_APPLIED" = "1" ] && { restore_frontend || rollback_incomplete=1; }
 
   if [ "$CHECKOUT_MOVED" = "1" ]; then
     log "ROLLBACK: checkout -> ${OLD_SHA:0:12}"
