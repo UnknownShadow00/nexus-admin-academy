@@ -26,7 +26,8 @@ SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL SIM_MULTI_HEAD SIM_MULTI_DB_REV
 SIM_WORKDIR_OVERRIDE SIM_CP_HARDLINK_EXDEV SIM_SYSTEMCTL_STOP_FAIL
 SIM_DIRTY_AFTER_CHECKOUT SIM_STOP_LEAVES_ACTIVE SIM_GUNZIP_FAIL
 SIM_VENV_RESTORE_FAIL SIM_STOP_DEACTIVATING SIM_CHOWN_FAIL
-SIM_FRONTEND_CONFIG_TEST_FAIL SIM_FRONTEND_RESTORE_FAIL SIM_STARTUP_WRITES_DB"
+SIM_FRONTEND_CONFIG_TEST_FAIL SIM_FRONTEND_RESTORE_FAIL SIM_STARTUP_WRITES_DB
+SIM_SPA_BROKEN SIM_SPA_HTTP_FAIL"
 reset_sims() { for v in $SIM_VARS; do unset "$v"; done; }
 
 # ---------------------------------------------------------------------------
@@ -98,9 +99,29 @@ EOF
 
   cat > "$FAKEBIN/curl" <<'EOF'
 #!/usr/bin/env bash
-[ -n "${SIM_HEALTH_FAIL:-}" ] && exit 22
-if [ -n "${SIM_NEW_UNHEALTHY:-}" ] && [ -f "$WORK/new_active" ]; then exit 22; fi
-exit 0
+# Last arg is the URL. The backend probe hits :8000; the deployed-SPA probe
+# hits the frontend origin ("/"). They fail independently.
+url="${@: -1}"
+case "$url" in
+  *:8000/*)
+    [ -n "${SIM_HEALTH_FAIL:-}" ] && exit 22
+    if [ -n "${SIM_NEW_UNHEALTHY:-}" ] && [ -f "$WORK/new_active" ]; then exit 22; fi
+    exit 0 ;;
+  *)
+    # Deployed-SPA probe (GET /). SIM_SPA_HTTP_FAIL = nginx/static serving down
+    # (curl --fail sees non-2xx). SIM_SPA_BROKEN = nginx up + HTTP 200 but the
+    # body is NOT the Nexus index.html (default page / 404 / stale/misbuilt).
+    [ -n "${SIM_SPA_HTTP_FAIL:-}" ] && exit 22
+    if [ -n "${SIM_SPA_BROKEN:-}" ]; then
+      printf '<html><head><title>404 Not Found</title></head><body><h1>nginx</h1></body></html>\n'
+      exit 0
+    fi
+    printf '<!doctype html>\n<html lang="en"><head><meta charset="UTF-8" />\n'
+    printf '<title>Nexus Admin Academy</title></head>\n'
+    printf '<body class="bg-slate-50"><div id="root"></div>\n'
+    printf '<script type="module" src="/assets/index-abc123.js"></script></body></html>\n'
+    exit 0 ;;
+esac
 EOF
 
   cat > "$FAKEBIN/npm" <<'EOF'
@@ -297,15 +318,23 @@ EOF
 teardown_env() { [ -n "${WORK:-}" ] && rm -rf "$WORK"; }
 
 run_deploy() {
+  # By default pin an explicit NEXUS_BACKUP_SCRIPT (BACKUP_SCRIPT_OVERRIDDEN=1),
+  # as an operator would for a rehearsal. Set SIM_NO_BACKUP_OVERRIDE=1 to leave
+  # it unset so deploy.sh resolves the stable out-of-checkout helper instead
+  # (NEXUS_BACKUP_HELPER), which is what the P1-A regression cases exercise.
+  local backup_override=(NEXUS_BACKUP_SCRIPT="$SERVING/scripts/backup_sqlite.sh")
+  [ -n "${SIM_NO_BACKUP_OVERRIDE:-}" ] && backup_override=()
   OUT="$(
-    cd "$SERVING" && PATH="$FAKEBIN:$PATH" HOME="$WORK" \
+    cd "$SERVING" && env \
+      PATH="$FAKEBIN:$PATH" HOME="$WORK" \
       NEXUS_SYSTEMCTL=systemctl \
       NEXUS_DEPLOY_LOG_DIR="$WORK/deploy-logs" \
       NEXUS_DEPLOY_LOCK="${NEXUS_DEPLOY_LOCK:-$WORK/deploy.lock}" \
       NEXUS_DEPLOY_LAUNCHER="$WORK/launcher/nexus-deploy" \
+      NEXUS_BACKUP_HELPER="$WORK/stable/nexus-backup-sqlite" \
       NEXUS_BACKUP_DIR="$WORK/backups" \
       NEXUS_SQLITE_DB="$SERVING/backend/nexus.db" \
-      NEXUS_BACKUP_SCRIPT="$SERVING/scripts/backup_sqlite.sh" \
+      ${backup_override[@]+"${backup_override[@]}"} \
       TMPDIR="$WORK/tmp" \
       NEXUS_HEALTH_RETRIES=2 NEXUS_HEALTH_DELAY=0 \
       bash scripts/deploy.sh "$@" 2>&1
@@ -365,7 +394,7 @@ case_start "S0b happy path: deps + migration + frontend all succeed"
   run_deploy --frontend origin/main
   a_rc_0; a_head_new
   a_log "frontend build complete"; a_log "alembic upgrade head complete"
-  a_log "frontend swapped in and nginx reloaded"; a_log "deploy OK"
+  a_log "frontend swapped in, nginx reloaded, and the deployed SPA verified"; a_log "deploy OK"
   a_nolog "ROLLBACK"
 teardown_env
 
@@ -849,6 +878,150 @@ case_start "S16 a branched live database (multiple current revisions) is rejecte
   run_deploy --skip-deps --skip-migrations origin/main
   a_rc_ne0; a_head_old
   a_log "current Alembic revisions"
+teardown_env
+
+# --- P1-A: the SQLite backup helper lives OUTSIDE the mutable checkout -------
+# A historical rollback checks the target SHA out (step 6) BEFORE the pre-start
+# snapshot (step 10). If the snapshot helper were resolved to
+# $REPO_ROOT/scripts/backup_sqlite.sh, that checkout could swap in an
+# old/incompatible copy or drop it entirely. deploy.sh instead installs a
+# reviewed copy at $NEXUS_BACKUP_HELPER from the validated, clean serving
+# checkout, before step 6.
+
+# Build a commit on top of NEW_SHA whose scripts/backup_sqlite.sh is either
+# "broken" (an older helper that always exits 3) or "missing" (git rm'd), then
+# leave the serving checkout back on NEW_SHA (which still has the good helper).
+# Echoes the new commit SHA.
+make_backup_target() {
+  ( cd "$SERVING"
+    git checkout -q --detach "$NEW_SHA"
+    case "$1" in
+      broken)
+        printf '#!/usr/bin/env bash\necho "sim: OLD incompatible backup helper" >&2\nexit 3\n' \
+          > scripts/backup_sqlite.sh
+        chmod +x scripts/backup_sqlite.sh
+        git add scripts/backup_sqlite.sh ;;
+      missing)
+        git rm -q scripts/backup_sqlite.sh ;;
+    esac
+    git commit -qm "sim: $1 backup helper"
+    git rev-parse HEAD
+    git checkout -q --detach "$NEW_SHA"
+  )
+}
+
+case_start "S35a rollback target has an OLD/incompatible backup_sqlite.sh -> the stable helper still snapshots"
+  db_head
+  cp "$SERVING/scripts/backup_sqlite.sh" "$WORK/good-helper-ref"
+  TGT="$(make_backup_target broken)"
+  export SIM_NO_BACKUP_OVERRIDE=1
+  run_deploy --skip-deps --skip-migrations "$TGT"
+  a_rc_0
+  a_log "pre-start database snapshot ok"
+  [ -x "$WORK/stable/nexus-backup-sqlite" ] && ok "stable backup helper installed outside the checkout" \
+    || bad "stable backup helper missing"
+  cmp -s "$WORK/stable/nexus-backup-sqlite" "$WORK/good-helper-ref" \
+    && ok "stable helper is the reviewed copy, not the target's incompatible one" \
+    || bad "stable helper does not match the reviewed serving-checkout copy"
+  grep -q 'OLD incompatible backup helper' "$SERVING/scripts/backup_sqlite.sh" \
+    && ok "the checked-out target really does carry the incompatible helper" \
+    || bad "test setup wrong: target tree has the good helper"
+teardown_env
+
+case_start "S35b rollback target is missing backup_sqlite.sh entirely -> the stable helper still snapshots"
+  db_head
+  TGT="$(make_backup_target missing)"
+  export SIM_NO_BACKUP_OVERRIDE=1
+  run_deploy --skip-deps --skip-migrations "$TGT"
+  a_rc_0
+  a_log "pre-start database snapshot ok"
+  [ ! -f "$SERVING/scripts/backup_sqlite.sh" ] \
+    && ok "the checked-out target really is missing scripts/backup_sqlite.sh" \
+    || bad "test setup wrong: target tree still has the helper"
+  [ -x "$WORK/stable/nexus-backup-sqlite" ] && ok "stable backup helper still present and used" \
+    || bad "stable backup helper missing"
+teardown_env
+
+case_start "S35c a wrong-tree run does NOT install/refresh the stable backup helper"
+  mkdir -p "$WORK/other/backend"
+  export SIM_WORKDIR_OVERRIDE="$WORK/other/backend" SIM_NO_BACKUP_OVERRIDE=1
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_ne0
+  a_out "refusing to deploy"
+  [ ! -e "$WORK/stable/nexus-backup-sqlite" ] \
+    && ok "wrong-tree run did NOT write the stable backup helper" \
+    || bad "stable backup helper was refreshed from a non-serving tree"
+teardown_env
+
+case_start "S35d a dirty serving checkout cannot overwrite the stable backup helper"
+  db_head
+  mkdir -p "$WORK/stable"
+  printf 'SENTINEL-reviewed-helper\n' > "$WORK/stable/nexus-backup-sqlite"
+  chmod +x "$WORK/stable/nexus-backup-sqlite"
+  printf 'tampered\n' >> "$SERVING/scripts/backup_sqlite.sh"   # uncommitted edit in the serving tree
+  export SIM_NO_BACKUP_OVERRIDE=1
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_ne0
+  a_out "uncommitted changes"
+  grep -qx 'SENTINEL-reviewed-helper' "$WORK/stable/nexus-backup-sqlite" \
+    && ok "dirty tree did NOT overwrite the stable backup helper" \
+    || bad "stable backup helper was overwritten from a dirty checkout"
+teardown_env
+
+case_start "S35e --dry-run does not install the stable backup helper"
+  db_head
+  export SIM_NO_BACKUP_OVERRIDE=1
+  run_deploy --dry-run origin/main
+  a_rc_0
+  [ ! -e "$WORK/stable/nexus-backup-sqlite" ] && ok "--dry-run installed no backup helper" \
+    || bad "--dry-run installed the backup helper"
+teardown_env
+
+# --- P1-B: the frontend check probes the DEPLOYED SPA, not the /health proxy -
+# NEXUS_FRONTEND_HEALTH_URL is GET / and must return an HTTP success AND a body
+# that is the Nexus index.html. "any 200" (default nginx page, a 404 body, the
+# backend /health JSON) is not enough.
+
+case_start "S36a nginx up + config valid, but GET / serves the wrong body -> frontend rolled back, backend kept"
+  db_head
+  export SIM_SPA_BROKEN=1
+  run_deploy --skip-deps --skip-migrations --frontend origin/main
+  a_rc_ne0; a_head_new
+  a_log "backend healthy on"                        # backend was committed first
+  a_log "deployed frontend check failed"            # the SPA probe rejected the body
+  a_log "rolling back the frontend only"
+  a_log "frontend restored — backend stays on"
+  a_nolog "restoring database from"                 # DB is never rolled back post-commit
+teardown_env
+
+case_start "S36b GET / returns the Nexus index.html -> the deployed-SPA check passes"
+  db_head
+  run_deploy --skip-deps --skip-migrations --frontend origin/main
+  a_rc_0; a_head_new
+  a_log "the deployed SPA verified"
+  a_log "deploy OK"; a_nolog "ROLLBACK"
+teardown_env
+
+case_start "S36c nginx -t passes but static serving is down (GET / fails) -> detected, frontend rolled back"
+  db_head
+  export SIM_SPA_HTTP_FAIL=1
+  run_deploy --skip-deps --skip-migrations --frontend origin/main
+  a_rc_ne0; a_head_new
+  a_log "deployed frontend check failed"
+  a_log "rolling back the frontend only"
+  a_log "frontend restored — backend stays on"
+teardown_env
+
+case_start "S36d the backend /health probe is unchanged (still :8000, independent of the SPA check)"
+  grep -q 'health_ok "\$NEXUS_HEALTH_URL"' "$DEPLOY_SRC" \
+    && ok "backend health check still calls health_ok on NEXUS_HEALTH_URL" \
+    || bad "backend health check was altered"
+  grep -q 'NEXUS_HEALTH_URL:=http://127.0.0.1:8000/health' "$DEPLOY_SRC" \
+    && ok "backend health URL default still the :8000 /health endpoint" \
+    || bad "backend health URL default changed"
+  grep -q 'NEXUS_FRONTEND_HEALTH_URL:=http://127.0.0.1/' "$DEPLOY_SRC" \
+    && ok "frontend probe default is GET / (the deployed SPA), not /health" \
+    || bad "frontend probe default is not GET /"
 teardown_env
 
 # ===========================================================================

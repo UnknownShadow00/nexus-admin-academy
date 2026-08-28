@@ -29,14 +29,18 @@
 #   9. FAILS CLOSED if it cannot confirm the live schema is compatible with the
 #      target (DB revision ahead of / absent from the target tree), unless
 #      --allow-db-ahead. Runs even with --skip-migrations.
-#  10. ALWAYS takes a fresh SQLite + uploads snapshot (scripts/backup_sqlite.sh)
-#      before the target can write -- covers both the Alembic upgrade and the
-#      target's lifespan startup -- then, if a migration is due, `alembic
-#      upgrade head`.
+#  10. ALWAYS takes a fresh SQLite + uploads snapshot -- via a stable backup
+#      helper kept OUTSIDE the checkout (~/bin/nexus-backup-sqlite), so a
+#      historical rollback whose tree lacks/changes scripts/backup_sqlite.sh
+#      still snapshots -- before the target can write; covers both the Alembic
+#      upgrade and the target's lifespan startup; then, if a migration is due,
+#      `alembic upgrade head`.
 #  11. Starts the backend on the new release and verifies /health. Once
 #      healthy, the code + schema are COMMITTED (see Rollback).
 #  12. With --frontend: snapshots the live container assets/config, swaps in the
-#      build from step 8, `nginx -t`, reload, re-checks frontend /health.
+#      build from step 8, `nginx -t`, reload, then verifies the DEPLOYED SPA
+#      itself (GET / returns the Nexus index.html, not the backend /health
+#      proxy); a failure restores the previous frontend.
 #  13. Appends timestamped lines to ~/deploy-logs/nexus-deploy.log for every run.
 #
 # The backend is DOWN from step 5 until step 11 -- every deploy is a short
@@ -99,9 +103,10 @@ set -euo pipefail
 # --- Overridable knobs (defaults are production; tests override these) -------
 : "${NEXUS_SERVICE:=nexus-admin-academy.service}"
 : "${NEXUS_HEALTH_URL:=http://127.0.0.1:8000/health}"
-: "${NEXUS_FRONTEND_HEALTH_URL:=http://127.0.0.1/health}"
+: "${NEXUS_FRONTEND_HEALTH_URL:=http://127.0.0.1/}"   # probes the DEPLOYED SPA (index.html), not the backend /health proxy
 : "${NEXUS_DEPLOY_LOG_DIR:=$HOME/deploy-logs}"
-: "${NEXUS_BACKUP_SCRIPT:=}"          # resolved to $REPO_ROOT/scripts/backup_sqlite.sh below
+: "${NEXUS_BACKUP_SCRIPT:=}"          # explicit override; otherwise the stable out-of-checkout copy resolved below
+: "${NEXUS_BACKUP_HELPER:=$HOME/bin/nexus-backup-sqlite}"  # stable copy of scripts/backup_sqlite.sh, survives checkout to historical commits
 : "${NEXUS_BACKUP_DIR:=$HOME/backups/nexus}"
 : "${NEXUS_SQLITE_DB:=}"              # resolved from backend/.env / default below
 : "${NEXUS_FRONTEND_CONTAINER:=nexus-frontend}"
@@ -131,7 +136,10 @@ case "$SERVING_WORKDIR" in
 esac
 LOG_DIR="$NEXUS_DEPLOY_LOG_DIR"
 LOG="$LOG_DIR/nexus-deploy.log"
-[ -n "$NEXUS_BACKUP_SCRIPT" ] || NEXUS_BACKUP_SCRIPT="$REPO_ROOT/scripts/backup_sqlite.sh"
+# Whether the operator/tests pinned an explicit backup script. If not, it is
+# resolved to the stable out-of-checkout helper AFTER the step 1-2 checks below.
+BACKUP_SCRIPT_OVERRIDDEN=0
+[ -n "$NEXUS_BACKUP_SCRIPT" ] && BACKUP_SCRIPT_OVERRIDDEN=1
 
 REF="origin/main"
 DO_FRONTEND=0
@@ -208,6 +216,23 @@ health_ok() {
   return 1
 }
 
+# Verify the DEPLOYED SPA itself: GET "/" must return an HTTP success AND a body
+# that is the Nexus index.html (has the app root div and the app <title>). This
+# rejects nginx's default page, a 404 body, and the backend's /health JSON that
+# the "/health" location proxies -- i.e. "any 200" is not enough.
+spa_ok() {
+  local url="$1" body i
+  for ((i = 1; i <= NEXUS_HEALTH_RETRIES; i++)); do
+    if body="$(curl --fail --silent --show-error --max-time 10 "$url" 2>/dev/null)" \
+       && printf '%s' "$body" | grep -q 'id="root"' \
+       && printf '%s' "$body" | grep -q 'Nexus Admin Academy'; then
+      return 0
+    fi
+    sleep "$NEXUS_HEALTH_DELAY"
+  done
+  return 1
+}
+
 # Point-in-time copy of a directory tree: same-filesystem hardlink copy when
 # possible, otherwise a deep copy. Always starts from a clean destination --
 # `cp -al` can create the target dir and some subdirs before failing EXDEV on a
@@ -247,16 +272,39 @@ if [ -n "$(git status --porcelain)" ]; then
   abort "serving checkout has uncommitted changes. This directory is deploy-only."
 fi
 
-# Keep a standalone copy of this script OUTSIDE the checkout so a rollback to a
-# commit that predates scripts/deploy.sh still leaves a working entry point.
-# Only AFTER steps 1-2 have confirmed this is the serving checkout AND its tree
-# is clean -- an accidental run from a worktree, or with an uncommitted edit to
-# deploy.sh itself, must not overwrite ~/bin/nexus-deploy with unreviewed code.
+# Keep standalone copies of this script AND the SQLite backup helper OUTSIDE the
+# checkout, so a rollback to a commit that predates (or changes) them still has a
+# working entry point and a working snapshot helper. Only AFTER steps 1-2 have
+# confirmed this is the serving checkout AND its tree is clean -- an accidental
+# run from a worktree, or with an uncommitted edit, must not overwrite
+# ~/bin/nexus-deploy or ~/bin/nexus-backup-sqlite with unreviewed code.
 # Skipped on --dry-run. Still well before the checkout can move (step 6).
 if [ "$DRY_RUN" != "1" ] && ! [ "${BASH_SOURCE[0]}" -ef "$NEXUS_DEPLOY_LAUNCHER" ]; then
   mkdir -p "$(dirname "$NEXUS_DEPLOY_LAUNCHER")" 2>/dev/null \
     && install -m 0755 "${BASH_SOURCE[0]}" "$NEXUS_DEPLOY_LAUNCHER" 2>/dev/null \
     || echo "warning: could not refresh standalone launcher at $NEXUS_DEPLOY_LAUNCHER" >&2
+
+  # Same idea for the SQLite backup helper. A historical rollback checks out the
+  # target SHA (step 6) BEFORE the pre-start snapshot is taken (step 10); that
+  # checkout can swap in an old/incompatible scripts/backup_sqlite.sh or drop it
+  # entirely. Keep the reviewed copy from THIS (validated, clean) serving
+  # checkout outside the tree so step 10 always has a working one.
+  if [ -f "$REPO_ROOT/scripts/backup_sqlite.sh" ]; then
+    mkdir -p "$(dirname "$NEXUS_BACKUP_HELPER")" 2>/dev/null \
+      && install -m 0755 "$REPO_ROOT/scripts/backup_sqlite.sh" "$NEXUS_BACKUP_HELPER" 2>/dev/null \
+      || echo "warning: could not refresh backup helper at $NEXUS_BACKUP_HELPER" >&2
+  fi
+fi
+
+# Resolve the backup script now: explicit override wins; otherwise the stable
+# out-of-checkout helper installed just above; the in-checkout copy is only a
+# last resort (first run, or the install failed).
+if [ "$BACKUP_SCRIPT_OVERRIDDEN" != "1" ]; then
+  if [ -x "$NEXUS_BACKUP_HELPER" ]; then
+    NEXUS_BACKUP_SCRIPT="$NEXUS_BACKUP_HELPER"
+  else
+    NEXUS_BACKUP_SCRIPT="$REPO_ROOT/scripts/backup_sqlite.sh"
+  fi
 fi
 
 OLD_SHA="$(git rev-parse HEAD)"
@@ -708,10 +756,14 @@ if [ "$DO_FRONTEND" = "1" ]; then
   docker cp frontend/nginx.host.conf "$NEXUS_FRONTEND_CONTAINER:/etc/nginx/conf.d/default.conf" || fail "frontend: config copy failed"
   docker exec "$NEXUS_FRONTEND_CONTAINER" nginx -t || fail "frontend: nginx config test failed"
   docker exec "$NEXUS_FRONTEND_CONTAINER" nginx -s reload || fail "frontend: nginx reload failed"
-  if ! health_ok "$NEXUS_FRONTEND_HEALTH_URL"; then
-    fail "frontend health check failed after reload ($NEXUS_FRONTEND_HEALTH_URL)"
+  # Probe the actual deployed SPA (GET /), not the backend /health proxy: an
+  # nginx that is up and syntactically valid but serving stale/broken/missing
+  # static files must be caught here. A failure triggers the frontend rollback
+  # (restore_frontend) via the EXIT trap -- the backend stays on NEW.
+  if ! spa_ok "$NEXUS_FRONTEND_HEALTH_URL"; then
+    fail "deployed frontend check failed after reload — GET $NEXUS_FRONTEND_HEALTH_URL did not return the Nexus SPA index.html"
   fi
-  log "frontend swapped in and nginx reloaded"
+  log "frontend swapped in, nginx reloaded, and the deployed SPA verified at $NEXUS_FRONTEND_HEALTH_URL"
 fi
 
 DEPLOY_OK=1

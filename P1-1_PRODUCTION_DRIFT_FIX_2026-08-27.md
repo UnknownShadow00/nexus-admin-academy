@@ -898,12 +898,70 @@ S2b/S2c/S7a updated for the always-on "pre-start database snapshot".
 
 ---
 
+## 22. Review round 18 — backup helper out of the checkout; probe the real SPA (narrow)
+
+### P1 A — the SQLite backup helper must live OUTSIDE the mutable checkout
+
+Step 6 checks the target SHA out **before** step 10 takes the pre-start DB
+snapshot. When the snapshot helper was resolved to
+`$REPO_ROOT/scripts/backup_sqlite.sh`, a historical rollback to a commit that
+predates or changes that file would run the snapshot with an
+old/incompatible helper — or none at all.
+
+Fix: mirror the `~/bin/nexus-deploy` pattern. A new `NEXUS_BACKUP_HELPER`
+(default `~/bin/nexus-backup-sqlite`) holds a reviewed copy of
+`scripts/backup_sqlite.sh`, `install -m 0755`'d from the **validated, clean**
+serving checkout in the same guarded block as the launcher refresh — so it is
+never written from a worktree, a wrong tree, a dirty tree, or a `--dry-run`.
+`NEXUS_BACKUP_SCRIPT` is now resolved *after* the step 1–2 checks: an explicit
+operator/test override still wins; otherwise the stable out-of-checkout helper;
+the in-checkout copy only as a first-run/last-resort fallback.
+
+### P1 B — the frontend check must probe the DEPLOYED SPA, not the `/health` proxy
+
+`NEXUS_FRONTEND_HEALTH_URL` defaulted to `http://127.0.0.1/health`, which nginx
+proxies straight to the backend — so an nginx that is up and syntactically
+valid but serving stale/broken/missing static files passed.
+
+Fix: default is now `http://127.0.0.1/`, checked by a new `spa_ok()` that
+requires an HTTP success **and** a body that is the Nexus `index.html` (the app
+root `div` **and** the app `<title>`). "Any 200" — the default nginx page, a
+404 body, the backend `/health` JSON — is rejected. A failure runs the existing
+`restore_frontend` path via the EXIT trap; the backend stays on NEW. The
+separate backend `/health` check (`health_ok "$NEXUS_HEALTH_URL"`, still
+`:8000`) is unchanged.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **63 cases / 287 assertions**. The fake
+`curl` now returns the real Nexus `index.html` markers for `GET /` and honours
+`SIM_SPA_BROKEN` (200 + wrong body) / `SIM_SPA_HTTP_FAIL` (serving down);
+`run_deploy` gained `SIM_NO_BACKUP_OVERRIDE` to exercise the stable-helper path.
+- **S35a** — rollback target carries an OLD/incompatible `backup_sqlite.sh` →
+  the stable helper still snapshots (`pre-start database snapshot ok`), and the
+  stable copy matches the reviewed serving-checkout version, not the target's.
+- **S35b** — rollback target is missing `backup_sqlite.sh` entirely → the
+  stable helper still snapshots.
+- **S35c** — a wrong-tree run does not create/refresh the stable helper.
+- **S35d** — a dirty serving checkout cannot overwrite a pre-existing stable
+  helper (sentinel content survives).
+- **S35e** — `--dry-run` installs no helper.
+- **S36a** — backend `/health` passes but `GET /` returns the wrong body →
+  deploy fails, `restore_frontend` runs, backend stays on NEW, DB untouched.
+- **S36b** — `GET /` returns the Nexus `index.html` → the SPA check passes.
+- **S36c** — `nginx -t` passes but static serving is down (`GET /` fails) →
+  detected, frontend rolled back.
+- **S36d** — the backend `/health` probe is unchanged (still `:8000`).
+
+---
+
 ## Review-loop status
 
-The Codex re-review did **not** self-terminate: 15 broad fix rounds plus two
-narrow follow-ups (R36/R37 frontend-path, R38 pre-start DB snapshot). Rounds
-13-17 each produced genuine refinements of the *previous* round's rollback-safety
-work. Every genuine finding is now fixed with a regression test and green CI. The
+The Codex re-review did **not** self-terminate: 15 broad fix rounds plus three
+narrow follow-ups (R36/R37 frontend-path, R38 pre-start DB snapshot, round 18's
+backup-helper + SPA-probe P1s). Rounds 13-18 each produced genuine refinements of
+the *previous* round's rollback-safety work. Every genuine finding is now fixed
+with a regression test and green CI. The
 **only** remaining open thread is **R30** (pre-commit write-exposure window) —
 kept open and documented on purpose, its full fix being the out-of-scope
 blue/green work. PR #29 is left for **human merge review**, not auto-merged.
@@ -912,7 +970,7 @@ blue/green work. PR #29 is left for **human merge review**, not auto-merged.
 
 ## Final state of `scripts/deploy.sh`
 
-38 review findings across 17 Codex rounds — 37 fixed with regression tests; 1
+40 review findings across 18 Codex rounds — 39 fixed with regression tests; 1
 (R30, the pre-commit write-exposure window) mitigated + documented, its full fix
 being the out-of-scope blue/green work. `do_rollback` is now fail-safe end to
 end: it verifies the unit is actually stopped before touching anything, and any
@@ -920,8 +978,12 @@ restore step that cannot complete leaves the service cleanly **down** with a
 `MANUAL INTERVENTION` line rather than up on indeterminate state. The script
 also:
 resolves the serving checkout from the systemd unit (launcher works from
-anywhere) and refreshes the out-of-tree launcher only after the serving-checkout
-*and* clean-tree checks pass; serializes on a shared `/run/lock` file (not a
+anywhere) and refreshes the out-of-tree launcher **and the SQLite backup
+helper** (`~/bin/nexus-backup-sqlite`, so a rollback that changes/removes
+`scripts/backup_sqlite.sh` still snapshots) only after the serving-checkout
+*and* clean-tree checks pass; after a `--frontend` swap verifies the **deployed
+SPA itself** (`GET /` must return the Nexus `index.html`), not the backend
+`/health` proxy; serializes on a shared `/run/lock` file (not a
 per-account path); arms rollback before stopping the backend so even a failed
 stop recovers; verifies the worktree actually matches the target after checkout;
 pins Alembic to the `.env` database; refuses `--skip-migrations` when a migration

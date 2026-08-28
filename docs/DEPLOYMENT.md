@@ -52,9 +52,10 @@ scripts/deploy.sh [options] [<ref>]      # <ref> default: origin/main
 (`/run/lock/nexus-admin-academy-deploy.lock` — a shared path, not per-account,
 pre-created world-writable) so two operators can't race even from different Unix
 accounts, then — **after** confirming it is the serving checkout (steps 1–2) and
-unless `--dry-run` — refreshes a **standalone copy of itself at
-`~/bin/nexus-deploy`** (use that if a rollback target predates the in-repo
-script). In order:
+unless `--dry-run` — refreshes **standalone copies of itself at
+`~/bin/nexus-deploy` and of the SQLite backup helper at
+`~/bin/nexus-backup-sqlite`** (both used when a rollback target predates or
+changes the in-repo versions). In order:
 
 1. **resolves the serving checkout from `nexus-admin-academy.service`'s
    `WorkingDirectory`, not from its own path** — so `~/bin/nexus-deploy` works
@@ -87,9 +88,12 @@ script). In order:
    Alembic is **pinned to the `.env` database** for this and the migration step
    (an ambient `DATABASE_URL` in your shell is ignored, so the guard, the
    backup, the migration and the restart all act on the same file);
-7. **always** takes a fresh SQLite + uploads snapshot
-   (`scripts/backup_sqlite.sh`, stamp `predeploy-<sha>-<ts>`) while the service
-   is still down (step 4) — one snapshot that covers both the Alembic upgrade
+7. **always** takes a fresh SQLite + uploads snapshot (stamp
+   `predeploy-<sha>-<ts>`) while the service is still down (step 4), using the
+   stable backup helper copied to `~/bin/nexus-backup-sqlite` (not the in-tree
+   `scripts/backup_sqlite.sh`, which a historical rollback may have already
+   checked out to an older/missing version) — one snapshot that covers both the
+   Alembic upgrade
    **and** the target's own lifespan startup writes (`seed_cli_labs` /
    `recompute_weekly_domain_leads` / `db.commit` in `backend/app/main.py`, which
    run even on a `--skip-migrations` or already-at-head deploy) — then, if a
@@ -98,7 +102,11 @@ script). In order:
 8. `sudo systemctl start`, then polls `http://127.0.0.1:8000/health`.
    **Once healthy, the code + schema are committed** (see Rollback);
 9. with `--frontend`, snapshots the live container assets/config, swaps in the
-   build from step 5, `nginx -t`, reloads, re-checks `http://127.0.0.1/health`;
+   build from step 5, `nginx -t`, reloads, then verifies the **deployed SPA
+   itself** at `http://127.0.0.1/` — the response must be an HTTP success *and*
+   the Nexus `index.html` (app root div + app `<title>`), not the backend
+   `/health` proxy — so an nginx that is up but serving stale/broken/missing
+   static files is caught and the previous frontend is restored;
 10. appends timestamped lines to `~/deploy-logs/nexus-deploy.log` for every run
     (plan, each stage, and any rollback).
 

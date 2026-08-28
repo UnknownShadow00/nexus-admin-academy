@@ -1732,3 +1732,29 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
   success -> retained; post-commit frontend fail -> not restored). S2b/S2c/S7a
   updated for "pre-start database snapshot".
 - No unrelated deploy code touched. R30 stays OPEN + documented. PR #29 NOT merged.
+
+## 2026-08-28 10:20 UTC — P1-1 / PR #29: round 18 narrow fix (backup helper OOB + SPA probe)
+
+- P1 A: NEXUS_BACKUP_SCRIPT resolved to $REPO_ROOT/scripts/backup_sqlite.sh, but
+  step 6 checks the target SHA out BEFORE the step 10 snapshot — a historical
+  rollback could swap in an old/incompatible helper or drop it. Fix: new
+  NEXUS_BACKUP_HELPER (default ~/bin/nexus-backup-sqlite), install -m 0755'd from
+  the validated+clean serving checkout in the SAME guarded block as the
+  ~/bin/nexus-deploy launcher (never from a worktree / wrong tree / dirty tree /
+  --dry-run). NEXUS_BACKUP_SCRIPT now resolved AFTER the step 1-2 checks:
+  explicit override wins; else the stable OOB helper; else the in-tree copy.
+- P1 B: NEXUS_FRONTEND_HEALTH_URL defaulted to .../health which nginx proxies to
+  the backend. Fix: default is now http://127.0.0.1/ , checked by new spa_ok()
+  that requires HTTP success AND the Nexus index.html markers (id="root" +
+  <title>Nexus Admin Academy</title>). Failure runs restore_frontend via the
+  EXIT trap; backend stays on NEW. Backend /health check (health_ok on
+  NEXUS_HEALTH_URL, :8000) unchanged.
+- Tests: deploy_failure_sim.sh 63 cases / 287 assertions. Fake curl returns real
+  index.html markers for GET /, honours SIM_SPA_BROKEN / SIM_SPA_HTTP_FAIL;
+  run_deploy gained SIM_NO_BACKUP_OVERRIDE. New S35a-e (incompatible/missing
+  target helper -> stable helper snapshots; wrong tree / dirty tree / --dry-run
+  never overwrite it) and S36a-d (backend OK + SPA body wrong -> frontend
+  rolled back, backend kept; SPA OK -> pass; static serving down -> detected;
+  backend probe unchanged). All pass.
+- docs/DEPLOYMENT.md updated (out-of-tree backup helper; SPA verification wording).
+- No unrelated deploy code touched. R30 stays OPEN + documented. PR #29 NOT merged.
