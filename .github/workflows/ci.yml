@@ -436,7 +436,9 @@ jobs:
       - name: Shell syntax check
         run: |
           bash -n scripts/deploy.sh
+          bash -n scripts/predeploy_check.sh
           bash -n scripts/tests/deploy_failure_sim.sh
+          bash -n scripts/tests/predeploy_service_desk_check_test.sh
 
       - name: Rollback / failure-path simulations
         # Runs the real scripts/deploy.sh against a throwaway git checkout with
@@ -444,3 +446,9 @@ jobs:
         # asserts every post-checkout failure rolls code (and DB) back. No root,
         # no network, no services.
         run: bash scripts/tests/deploy_failure_sim.sh
+
+      - name: Predeploy Service Desk container check
+        # Feeds predeploy_check.sh's service_desk_container_ok() a fake `docker`
+        # and asserts it validates the real production container (running +
+        # healthy) with no dependency on a host .next/BUILD_ID build artifact.
+        run: bash scripts/tests/predeploy_service_desk_check_test.sh
