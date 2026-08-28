@@ -335,14 +335,22 @@ restore_database() {
     log "ROLLBACK WARNING: could not decompress $DB_BACKUP_BEFORE — MANUAL INTERVENTION NEEDED"
     return 1
   fi
-  chmod "$ref_mode" "$tmp" 2>/dev/null || log "ROLLBACK WARNING: could not set mode $ref_mode on restored DB"
-  chown "$ref_owner" "$tmp" 2>/dev/null || log "ROLLBACK WARNING: could not set owner $ref_owner on restored DB (run rollback as the service user)"
+  # Wrong owner/mode here means the service account cannot open its own database.
+  # /health does not touch the DB, so a mis-permissioned rollback would still
+  # report "healthy" -- treat a perms failure as a failed restore.
+  local perms_ok=1
+  chmod "$ref_mode" "$tmp" 2>/dev/null || { log "ROLLBACK WARNING: could not set mode $ref_mode on restored DB"; perms_ok=0; }
+  chown "$ref_owner" "$tmp" 2>/dev/null || { log "ROLLBACK WARNING: could not set owner $ref_owner on restored DB (run rollback as root or the service user)"; perms_ok=0; }
   if ! mv -f "$tmp" "$DB_PATH"; then
     rm -f "$tmp"
     log "ROLLBACK WARNING: could not move the restored database into place — MANUAL INTERVENTION NEEDED"
     return 1
   fi
   rm -f "$DB_PATH-wal" "$DB_PATH-shm"
+  if [ "$perms_ok" != "1" ]; then
+    log "ROLLBACK WARNING: restored database is in place but its owner/mode could not be set to $ref_owner/$ref_mode — the service may not be able to open it. MANUAL INTERVENTION NEEDED."
+    return 1
+  fi
   log "ROLLBACK: database file restored (mode $ref_mode, owner $ref_owner)"
 }
 
@@ -388,11 +396,17 @@ do_rollback() {
   if [ "$cycle_service" = "1" ]; then
     log "ROLLBACK: stopping $SERVICE"
     $NEXUS_SYSTEMCTL stop "$SERVICE"
-    if [ "$($NEXUS_SYSTEMCTL is-active "$SERVICE" 2>/dev/null || true)" = "active" ]; then
-      log "ROLLBACK ABORTED: $SERVICE is still active after stop — NOT restoring the checkout / venv / database under a live process. MANUAL INTERVENTION NEEDED."
-      log "ROLLBACK: complete (aborted — service still up)"
-      return
-    fi
+    # Require a POSITIVE terminal-inactive state. A timed-out stop can leave the
+    # unit "deactivating" (process still winding down) -- anything that is not
+    # clearly inactive/failed means we must NOT rewrite files under it.
+    local rb_state; rb_state="$($NEXUS_SYSTEMCTL is-active "$SERVICE" 2>/dev/null || true)"
+    case "$rb_state" in
+      inactive|failed) : ;;
+      *)
+        log "ROLLBACK ABORTED: $SERVICE is '$rb_state' after stop (not inactive/failed) — NOT restoring the checkout / venv / database under a live process. MANUAL INTERVENTION NEEDED."
+        log "ROLLBACK: complete (aborted — service not confirmed stopped)"
+        return ;;
+    esac
   fi
 
   [ "$FRONTEND_APPLIED" = "1" ] && restore_frontend
@@ -420,14 +434,15 @@ do_rollback() {
     restore_database || rollback_incomplete=1
   fi
 
-  # If --allow-db-ahead was in play and we did NOT take a pre-migration backup
-  # (the documented historical-schema rollback: the operator swapped the DB file
-  # by hand before running deploy.sh), we have no way to put the database back
-  # the way it was. Auto-starting OLD_SHA now would run it against whatever
-  # schema the operator left in place. Stop here and hand it back.
-  if [ "$ALLOW_DB_AHEAD" = "1" ] && [ "$MIGRATION_ATTEMPTED" != "1" ]; then
-    log "ROLLBACK: --allow-db-ahead was set and the database may have been changed outside deploy.sh."
-    log "ROLLBACK: NOT auto-starting ${OLD_SHA:0:12} against it. Restore your own pre-recovery database backup, then start $SERVICE by hand. MANUAL INTERVENTION NEEDED."
+  # --allow-db-ahead means the operator took charge of the database out of band
+  # (the documented historical-schema rollback). deploy.sh cannot know the
+  # correct pre-recovery state -- and if it then ran a migration, restore_database
+  # only puts back the operator's already-downgraded snapshot. Either way,
+  # auto-starting OLD_SHA (which is the *newer* release) could run new code
+  # against an old schema. Never auto-start under --allow-db-ahead.
+  if [ "$ALLOW_DB_AHEAD" = "1" ]; then
+    log "ROLLBACK: --allow-db-ahead was set — the database state is operator-managed and cannot be auto-verified."
+    log "ROLLBACK: NOT auto-starting ${OLD_SHA:0:12}. Restore your own pre-recovery database backup, then start $SERVICE by hand. MANUAL INTERVENTION NEEDED."
     log "ROLLBACK: complete (service left stopped)"
     return
   fi

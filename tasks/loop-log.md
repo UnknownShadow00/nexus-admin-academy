@@ -1673,3 +1673,19 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - STOPPING the round-by-round loop here (14 rounds). do_rollback is now
   comprehensively fail-safe; remaining Codex items are polish + R30 (out of
   scope). Delivering summary; PR #29 left for human merge review, NOT merged.
+
+## 2026-08-28 04:05 UTC — P1-1 / PR #29: review round 15 (R33, R34, R35)
+
+- R33 (P1): the round-13 "--allow-db-ahead: don't auto-start" guard only fired
+  when no migration was attempted. Broadened to fire whenever --allow-db-ahead
+  is set (a historical rollback that runs an upgrade must still not auto-start
+  OLD_SHA).
+- R34 (P1): the rollback stop-check only rejected literal "active". A timed-out
+  stop leaves "deactivating". Now positively requires inactive|failed.
+- R35 (P1): chmod/chown failure on the restored DB only warned; /health doesn't
+  touch the DB so rollback could falsely report healthy. restore_database now
+  returns non-zero on a perms failure -> rollback_incomplete -> service stopped.
+- Tests: `scripts/tests/deploy_failure_sim.sh` now 52 cases / 207 assertions
+  (S29 deactivating, S30 chown-fail, S31 allow-db-ahead+migration). All pass.
+- Loop still not converging at round 15 (all 3 genuine, all refinements of
+  rounds 13/14). Stopping here regardless; delivering summary. PR #29 NOT merged.

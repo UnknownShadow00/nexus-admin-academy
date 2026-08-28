@@ -779,9 +779,48 @@ outcome.
 
 ---
 
+## 19. Review round 15 — tighten the round 13/14 fail-safes
+
+Round 15 refined its own three predecessors:
+
+### R33 (P1) — `--allow-db-ahead` rollback must not auto-start *even after a migration*
+
+The round-13 "don't auto-start" guard only fired when `MIGRATION_ATTEMPTED != 1`.
+A historical rollback that restores a backup from *before* the target head makes
+Alembic run an upgrade (`MIGRATION_ATTEMPTED=1`), which skipped the guard.
+**Fix:** the guard now fires whenever `--allow-db-ahead` is set, period —
+`restore_database` in that mode only ever puts back the operator's already-off
+snapshot, so `OLD_SHA` (the newer release) must never be started automatically.
+
+### R34 (P1) — require a *terminal* inactive state, not merely "not active"
+
+The rollback stop-check tested `is-active = "active"`. A timed-out stop leaves
+the unit `deactivating` (process still winding down), which isn't `"active"`, so
+the check passed and destructive restore proceeded. **Fix:** it now positively
+requires `inactive` or `failed`; any other string (`deactivating`, `activating`,
+`unknown`, …) aborts the rollback.
+
+### R35 (P1) — a failed `chown` on the restored database is a failed restore
+
+`chmod`/`chown` failures on the restored DB only logged warnings. Since `/health`
+doesn't touch the database, a rollback that left the file operator-owned could
+still report "healthy" while the service couldn't open it. **Fix:**
+`restore_database` returns non-zero if the owner/mode can't be reapplied (the
+file is still moved into place so no data is lost), which feeds
+`rollback_incomplete` → service left stopped, `MANUAL INTERVENTION`.
+
+### Tests
+
+`scripts/tests/deploy_failure_sim.sh` → **52 cases / 207 assertions**. New:
+S29 (`deactivating` after stop → rollback aborts), S30 (failed `chown` on the
+restored DB → service stays down), S31 (`--allow-db-ahead` + a migration that
+ran → still no auto-start).
+
+---
+
 ## Final state of `scripts/deploy.sh`
 
-32 review findings across 14 Codex rounds — 31 fixed with regression tests; 1
+35 review findings across 15 Codex rounds — 34 fixed with regression tests; 1
 (R30, the pre-commit write-exposure window) mitigated + documented, its full fix
 being the out-of-scope blue/green work. `do_rollback` is now fail-safe end to
 end: it verifies the unit is actually stopped before touching anything, and any

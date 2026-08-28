@@ -25,7 +25,7 @@ SIM_NEW_UNHEALTHY SIM_NPM_FAIL SIM_DOCKER_FAIL SIM_HISTORY_RC
 SIM_FRONTEND_SWAP_FAIL SIM_FRONTEND_RELOAD_FAIL SIM_MULTI_HEAD SIM_MULTI_DB_REV
 SIM_WORKDIR_OVERRIDE SIM_CP_HARDLINK_EXDEV SIM_SYSTEMCTL_STOP_FAIL
 SIM_DIRTY_AFTER_CHECKOUT SIM_STOP_LEAVES_ACTIVE SIM_GUNZIP_FAIL
-SIM_VENV_RESTORE_FAIL"
+SIM_VENV_RESTORE_FAIL SIM_STOP_DEACTIVATING SIM_CHOWN_FAIL"
 reset_sims() { for v in $SIM_VARS; do unset "$v"; done; }
 
 # ---------------------------------------------------------------------------
@@ -57,6 +57,7 @@ case "$cmd" in
     if printf '%s\n' "$@" | grep -q WorkingDirectory; then echo "${SIM_WORKDIR_OVERRIDE:-$SERVING_BACKEND}"
     else echo "ActiveState=active"; echo "SubState=running"; fi ;;
   is-active)
+    if [ -f "$WORK/deactivating" ]; then echo deactivating; exit 3; fi
     # "active" iff the NEW-release marker is present (rollback stop clears it),
     # unless SIM_STOP_LEAVES_ACTIVE forced the marker to stick past a failed stop
     if [ -f "$WORK/new_active" ] || [ -f "$WORK/stuck_active" ]; then echo active; exit 0
@@ -70,6 +71,10 @@ case "$cmd" in
     if [ -n "${SIM_STOP_LEAVES_ACTIVE:-}" ]; then
       : > "$WORK/stuck_active"        # stop failed AND the unit stayed up
       exit 1
+    fi
+    if [ -n "${SIM_STOP_DEACTIVATING:-}" ]; then
+      : > "$WORK/deactivating"        # stop "succeeded" but the unit is still winding down
+      rm -f "$WORK/new_active"; exit 0
     fi
     rm -f "$WORK/new_active"
     # models a stop that took the unit DOWN but still reported failure
@@ -139,6 +144,12 @@ EOF
 #!/usr/bin/env bash
 [ -n "${SIM_GUNZIP_FAIL:-}" ] && { echo "gunzip: sim corrupt backup" >&2; exit 1; }
 REAL=/bin/gunzip; [ -x "$REAL" ] || REAL=/usr/bin/gunzip
+exec "$REAL" "$@"
+EOF
+  cat > "$FAKEBIN/chown" <<'EOF'
+#!/usr/bin/env bash
+[ -n "${SIM_CHOWN_FAIL:-}" ] && { echo "chown: sim: Operation not permitted" >&2; exit 1; }
+REAL=/bin/chown; [ -x "$REAL" ] || REAL=/usr/bin/chown
 exec "$REAL" "$@"
 EOF
   cat > "$FAKEBIN/git" <<'EOF'
@@ -696,6 +707,36 @@ case_start "S28 a failed virtualenv restore leaves the service DOWN"
   a_log "virtualenv restore failed"
   a_log "one or more restore steps FAILED"
   a_log "service left stopped"
+  a_nolog "ROLLBACK: starting nexus-admin-academy.service on"
+teardown_env
+
+case_start "S29 rollback aborts if the unit is only 'deactivating' after stop"
+  db_head
+  export SIM_NEW_UNHEALTHY=1 SIM_STOP_DEACTIVATING=1
+  run_deploy --skip-deps --skip-migrations origin/main
+  a_rc_ne0
+  a_log "ROLLBACK ABORTED"
+  a_log "not inactive/failed"
+  a_nolog "ROLLBACK: checkout -> "
+teardown_env
+
+case_start "S30 a failed database ownership restore leaves the service DOWN"
+  export SIM_NEW_UNHEALTHY=1 SIM_CHOWN_FAIL=1
+  run_deploy --skip-deps origin/main
+  a_rc_ne0
+  a_log "alembic upgrade head complete"
+  a_log "owner/mode could not be set"
+  a_log "one or more restore steps FAILED"
+  a_log "service left stopped"
+  a_nolog "ROLLBACK: starting nexus-admin-academy.service on"
+teardown_env
+
+case_start "S31 --allow-db-ahead never auto-starts old code, even after a migration ran"
+  export SIM_HISTORY_RC=1 SIM_NEW_UNHEALTHY=1
+  run_deploy --skip-deps --allow-db-ahead origin/main
+  a_rc_ne0
+  a_log "alembic upgrade head complete"
+  a_log "database state is operator-managed"
   a_nolog "ROLLBACK: starting nexus-admin-academy.service on"
 teardown_env
 
