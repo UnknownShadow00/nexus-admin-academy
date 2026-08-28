@@ -1689,3 +1689,16 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
   (S29 deactivating, S30 chown-fail, S31 allow-db-ahead+migration). All pass.
 - Loop still not converging at round 15 (all 3 genuine, all refinements of
   rounds 13/14). Stopping here regardless; delivering summary. PR #29 NOT merged.
+
+## 2026-08-28 04:25 UTC — P1-1 / PR #29: LOOP CLOSED
+
+- Round 16 (R36 P1 frontend restore failures not propagated, R37 P2 snapshot
+  cleanup on post-commit frontend failure): ACKNOWLEDGED on-thread, NOT actioned
+  on this PR (same fail-safe class, frontend-only, non-blocking). No 16th fix
+  round started.
+- Replied + resolved 18 threads (R17-R29, R31-R35) on PR #29 — all genuinely
+  fixed with regression tests, CI green on a709504.
+- Left OPEN (replied, not resolved): R30 (write-exposure window = out-of-scope
+  blue/green), R36, R37 (frontend-path follow-up).
+- Final: deploy_failure_sim.sh 52 cases / 207 assertions. All 6 CI jobs green.
+  PR #29 OPEN + MERGEABLE, NOT merged — handed to human merge review.

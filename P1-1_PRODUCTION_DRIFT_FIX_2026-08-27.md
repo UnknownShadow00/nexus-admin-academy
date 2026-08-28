@@ -818,9 +818,42 @@ ran → still no auto-start).
 
 ---
 
+## 20. Review round 16 — acknowledged, not actioned on this PR
+
+Round 16 raised two items in the **frontend** restore path — the same fail-safe
+class as R28-R35:
+
+- **R36 (P1)** — `restore_frontend`'s per-step failures are logged but not folded
+  into `rollback_incomplete`.
+- **R37 (P2)** — the frontend / venv snapshots for a `--frontend` deploy aren't
+  cleaned up when a *post-commit* frontend step fails (they leak one small
+  `mktemp -d` / backup dir per failed `--frontend` deploy).
+
+Both are real and worth a follow-up, but neither blocks this PR: the frontend
+swap only runs with `--frontend`, and a frontend failure *after* the backend
+commit point is already "fixed forward" (backend stays on NEW). These threads
+are replied-to and left **open** for a human reviewer; a 16th fix round was not
+started.
+
+---
+
+## Review-loop status
+
+The Codex re-review did **not** self-terminate: 15 fix rounds, and rounds 13-16
+kept producing genuine P1 refinements of the *previous* round's rollback-safety
+work (verify-stopped → terminal-state; DB-restore-fail → every-restore-step-fail
+→ chown-fail; historical-rollback guard widening; and now the frontend path).
+Every genuine finding through round 15 was fixed with a regression test and green
+CI. The remaining open threads are **R30** (pre-commit write-exposure window —
+its full fix is the out-of-scope blue/green work) and **R36/R37** (frontend-path
+fail-safe + snapshot cleanup — deferred follow-up). PR #29 is left for **human
+merge review**, not auto-merged.
+
+---
+
 ## Final state of `scripts/deploy.sh`
 
-35 review findings across 15 Codex rounds — 34 fixed with regression tests; 1
+37 review findings across 16 Codex rounds — 34 fixed with regression tests; 3
 (R30, the pre-commit write-exposure window) mitigated + documented, its full fix
 being the out-of-scope blue/green work. `do_rollback` is now fail-safe end to
 end: it verifies the unit is actually stopped before touching anything, and any
