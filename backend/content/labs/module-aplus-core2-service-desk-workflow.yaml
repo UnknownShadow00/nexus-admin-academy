@@ -1,0 +1,110 @@
+labs:
+- title: Triage, Document, Escalate
+  description: 'Prove the student can prioritize support work, create a useful support
+    record, communicate professionally, and plan a safe change.
+
+    '
+  estimated_minutes: 45
+  environment_requirements:
+    environment: Browser/document exercise; no VM required
+  success_criteria:
+    part_a_queue_triage:
+      tickets:
+      - id: INC2402-adapted
+        summary: Warehouse scanner at loading lane 2 disconnects every few minutes;
+          lane is recording orders on paper.
+        target: Restore within 45 minutes
+        impact: Dispatch slowed and manual re-entry created.
+      - id: INC2403-adapted
+        summary: One designer's approved PDF editor crashes during a large annotated
+          export.
+        target: Respond within 4 hours
+        impact: Design review continues, but annotated supplier exports are blocked.
+      - id: INC2405-adapted
+        summary: New coordinator cannot see a shared facilities calendar but can continue
+          orientation.
+        target: Respond by next business day
+        impact: Orientation continues; scheduling access is missing.
+      student_tasks:
+      - Rank the three tickets 1–3.
+      - Give a one-sentence impact/urgency/SLA justification for each.
+      - For the first ticket, list 2–3 intake facts you would confirm before changing
+        anything.
+      expected_order:
+      - INC2402-adapted
+      - INC2403-adapted
+      - INC2405-adapted
+    part_b_document_and_handoff:
+      scenario: 'You are assigned the calendar-access request. The team lead confirms
+        the employee should have the same scheduling access as other coordinators,
+        but the SOP requires manager approval before membership changes. Approval
+        is then recorded. An authorized admin applies the approved change. After synchronization,
+        the user can see the calendar and create/remove a test event.
+
+        '
+      student_tasks:
+      - Write a concise internal progress/resolution note.
+      - Write a 2–3 sentence user-facing update.
+      - State the verification evidence.
+      - State what you would have done if approval had not arrived before your permission
+        boundary/SLA required escalation.
+    part_c_change_request:
+      scenario: IT plans to update the approved PDF editor on 60 workstations.
+      student_tasks:
+      - State the purpose of the change.
+      - Define scope and affected systems.
+      - Identify the main risk.
+      - Describe the sandbox/test plan.
+      - Describe the backup plan separately from rollback.
+      - Describe the rollback/backout plan that restores the previous known-good state.
+      - Identify change type, date/time or maintenance window, and any freeze constraints.
+      - Identify responsible staff and required approval.
+      - Summarize implementation steps.
+      - Define post-change verification/end-user acceptance.
+    rubric:
+      total_points: 20
+      pass_points: 14
+      dimensions:
+      - name: Triage and priority reasoning
+        points: 4
+      - name: Ticket evidence and internal documentation
+        points: 4
+      - name: User communication / expectation setting
+        points: 4
+      - name: Change safety / approval / backup / rollback
+        points: 4
+      - name: Verification and escalation/handoff quality
+        points: 4
+      automatic_fail_conditions:
+      - Student bypasses required access approval.
+      - Student claims the issue is resolved without verification.
+      - Student exposes confidential credentials or private data in the ticket.
+      - Student treats "take a backup" as a complete rollback plan without stating
+        how the failed change would be reversed.
+  required_evidence:
+    student_tasks:
+    - Rank the three tickets 1–3.
+    - Give a one-sentence impact/urgency/SLA justification for each.
+    - For the first ticket, list 2–3 intake facts you would confirm before changing
+      anything.
+    - Write a concise internal progress/resolution note.
+    - Write a 2–3 sentence user-facing update.
+    - State the verification evidence.
+    - State what you would have done if approval had not arrived before your permission
+      boundary/SLA required escalation.
+    - State the purpose of the change.
+    - Define scope and affected systems.
+    - Identify the main risk.
+    - Describe the sandbox/test plan.
+    - Describe the backup plan separately from rollback.
+    - Describe the rollback/backout plan that restores the previous known-good state.
+    - Identify change type, date/time or maintenance window, and any freeze constraints.
+    - Identify responsible staff and required approval.
+    - Summarize implementation steps.
+    - Define post-change verification/end-user acceptance.
+  source_name: 'Part A adapts existing Nexus Service Desk fixtures INC2402, INC2403,
+    and INC2405; Part B/C are curriculum adaptations aligned to current A+ 4.1/4.2/4.7.
+
+    '
+  lab_type: guided
+  is_published: true

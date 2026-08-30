@@ -1,0 +1,251 @@
+{
+  "approved_destination": "/opt/apps/IT TRAINING PROJECT CODE/projects/nexus-admin-academy/references/curriculum-approved/comptia_aplus/comptia_aplus_220-1202/module.aplus.core2.service_desk_workflow/d23f4e5e2b477bc0b12556f62cc066d1ef6d388105ad40bfb94d4facc0943a53",
+  "certification": "comptia_aplus",
+  "classification": "NEW",
+  "created": 416,
+  "domain": "4.0",
+  "explain_count": 4,
+  "lesson_count": 6,
+  "loader_importer_results": {
+    "first": {
+      "by_entity": {
+        "certification": {
+          "created": 1,
+          "unchanged": 1,
+          "updated": 0
+        },
+        "certification_domain": {
+          "created": 9,
+          "unchanged": 9,
+          "updated": 0
+        },
+        "certification_module": {
+          "created": 6,
+          "unchanged": 6,
+          "updated": 0
+        },
+        "certification_objective": {
+          "created": 25,
+          "unchanged": 25,
+          "updated": 0
+        },
+        "certification_version": {
+          "created": 2,
+          "unchanged": 2,
+          "updated": 0
+        },
+        "interview_prompt": {
+          "created": 14,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "interview_prompt_objective": {
+          "created": 17,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lab_template": {
+          "created": 5,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson": {
+          "created": 27,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson_objective": {
+          "created": 35,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson_relationship": {
+          "created": 8,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "module_assessment": {
+          "created": 47,
+          "unchanged": 9,
+          "updated": 38
+        },
+        "question": {
+          "created": 150,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "question_bank_editorial_approval": {
+          "created": 0,
+          "unchanged": 0,
+          "updated": 4
+        },
+        "resource": {
+          "created": 27,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "resource_link": {
+          "created": 41,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "service_desk_scenario": {
+          "created": 1,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "service_desk_scenario_version": {
+          "created": 1,
+          "unchanged": 0,
+          "updated": 0
+        }
+      },
+      "created": 416,
+      "references": {
+        "content_engine_assessments": 38,
+        "content_engine_resolved": 36,
+        "content_engine_unresolved": [
+          "assess.aplus.core1.networking_fundamentals.module_quiz",
+          "assess.aplus.core1.networking_fundamentals.quick_check"
+        ],
+        "service_desk_assessments": 3,
+        "service_desk_resolved": 3
+      },
+      "unchanged": 52,
+      "updated": 42
+    },
+    "references": {
+      "content_engine_assessments": 38,
+      "content_engine_resolved": 36,
+      "content_engine_unresolved": [
+        "assess.aplus.core1.networking_fundamentals.module_quiz",
+        "assess.aplus.core1.networking_fundamentals.quick_check"
+      ],
+      "package_content_engine_unresolved": [],
+      "package_service_desk_unresolved": [],
+      "service_desk_assessments": 3,
+      "service_desk_resolved": 3
+    },
+    "second": {
+      "by_entity": {
+        "certification": {
+          "created": 0,
+          "unchanged": 2,
+          "updated": 0
+        },
+        "certification_domain": {
+          "created": 0,
+          "unchanged": 18,
+          "updated": 0
+        },
+        "certification_module": {
+          "created": 0,
+          "unchanged": 12,
+          "updated": 0
+        },
+        "certification_objective": {
+          "created": 0,
+          "unchanged": 50,
+          "updated": 0
+        },
+        "certification_version": {
+          "created": 0,
+          "unchanged": 4,
+          "updated": 0
+        },
+        "interview_prompt": {
+          "created": 0,
+          "unchanged": 14,
+          "updated": 0
+        },
+        "lab_template": {
+          "created": 0,
+          "unchanged": 5,
+          "updated": 0
+        },
+        "lesson": {
+          "created": 0,
+          "unchanged": 27,
+          "updated": 0
+        },
+        "module_assessment": {
+          "created": 0,
+          "unchanged": 94,
+          "updated": 0
+        },
+        "question": {
+          "created": 0,
+          "unchanged": 150,
+          "updated": 0
+        },
+        "question_bank_editorial_approval": {
+          "created": 0,
+          "unchanged": 4,
+          "updated": 0
+        },
+        "resource": {
+          "created": 0,
+          "unchanged": 27,
+          "updated": 0
+        },
+        "resource_link": {
+          "created": 0,
+          "unchanged": 41,
+          "updated": 0
+        },
+        "service_desk_scenario": {
+          "created": 0,
+          "unchanged": 1,
+          "updated": 0
+        },
+        "service_desk_scenario_version": {
+          "created": 0,
+          "unchanged": 1,
+          "updated": 0
+        }
+      },
+      "created": 0,
+      "references": {
+        "content_engine_assessments": 38,
+        "content_engine_resolved": 36,
+        "content_engine_unresolved": [
+          "assess.aplus.core1.networking_fundamentals.module_quiz",
+          "assess.aplus.core1.networking_fundamentals.quick_check"
+        ],
+        "service_desk_assessments": 3,
+        "service_desk_resolved": 3
+      },
+      "unchanged": 450,
+      "updated": 0
+    }
+  },
+  "module_key": "module.aplus.core2.service_desk_workflow",
+  "module_title": "Service Desk Workflow, Documentation & Professional Communication",
+  "objective_codes": [
+    "4.1",
+    "4.2",
+    "4.7"
+  ],
+  "original_filename": "Nexus_APlus_Module_05_Final.zip",
+  "package_hash": "d23f4e5e2b477bc0b12556f62cc066d1ef6d388105ad40bfb94d4facc0943a53",
+  "practical_present": true,
+  "question_count": 35,
+  "resource_count": 6,
+  "runtime_destinations": [
+    "certifications/comptia_aplus.yaml",
+    "curriculum/comptia_aplus/comptia_aplus_220-1202/module-aplus-core2-service-desk-workflow",
+    "questions/module-aplus-core2-service-desk-workflow.csv",
+    "questions/editorial-approvals.yaml",
+    "resources/module-aplus-core2-service-desk-workflow.yaml",
+    "interview-prompts/module-aplus-core2-service-desk-workflow.yaml",
+    "labs/module-aplus-core2-service-desk-workflow.yaml",
+    "service-desk-scenarios/module-aplus-core2-service-desk-workflow.yaml"
+  ],
+  "service_desk_present": true,
+  "timestamp": "2026-08-30T19:55:28.635221+00:00",
+  "tool_version": "nexus-curriculum-intake/1",
+  "unchanged": 52,
+  "updated": 42,
+  "validation_result": "VALID",
+  "version": "comptia_aplus_220-1202"
+}

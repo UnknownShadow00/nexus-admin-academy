@@ -1,0 +1,207 @@
+scenarios:
+- stable_key: curriculum-aplus-core2-service-desk-workflow-service-desk-01
+  title: Shared Calendar Access Before Orientation
+  description: I can sign in to email, but the Facilities scheduling calendar is missing.
+    I need it for a meeting soon.
+  category: service_desk
+  difficulty: 1
+  definition:
+    id: CURRICULUM-APLUS-CORE2-SERVICE-DESK-WORKFLOW-SERVICE-DESK-01
+    title: Shared Calendar Access Before Orientation
+    slug: curriculum-aplus-core2-service-desk-workflow-service-desk-01
+    category: service_desk
+    priority: low
+    difficulty: easy
+    pointValue: 100
+    explanation: If approval is unavailable, a complete escalation/pending handoff
+      with a user update is a correct professional outcome. Unauthorized access is
+      not.
+    description:
+      issue: I can sign in to email, but the Facilities scheduling calendar is missing.
+        I need it for a meeting soon.
+      reportedByLine: New Facilities Coordinator
+      businessImpact: The employee can continue orientation, but cannot perform scheduling
+        duties.
+      troubleshooting:
+      - The user asks the technician to 'just add me now,' but the approval required
+        by the SOP is not yet recorded.
+      - Confirm requester identity, role, affected service, business impact, and device/session
+        information.
+      - Check the relevant onboarding/access SOP and compare the intended access to
+        an approved peer role.
+      - Do not assume the missing calendar is an application failure.
+      - Identify this as missing authorized access rather than general sign-in failure.
+      - Recognize that the technician cannot bypass the approval requirement.
+      - Follow the approved escalation/authorization path.
+      - After approval, perform or hand off the approved access change according to
+        role permissions.
+      - Have the user refresh/restart the calendar client as appropriate.
+      - Confirm the shared calendar is visible and the required scheduling action
+        works.
+      - Remove any test item created solely for verification.
+      - Record the symptom, impact, approval path, action/hand-off, and verification.
+      - Send a plain-language user update with realistic timing.
+      - Close only after verification or leave a clear pending/escalated state.
+    requester:
+      name: New Facilities Coordinator
+      department: Not specified by approved curriculum package
+      email: Not specified by approved curriculum package
+      contact: Not specified by approved curriculum package
+      location: Not specified by approved curriculum package
+    device:
+      assetTag: CURRICULUM-APLUS-CORE2-SERVICE-DESK-WORKFLOW-SERVICE-DESK-01
+      deviceName: Not specified by approved curriculum package
+      kind: laptop
+      operatingSystem: Not specified by approved curriculum package
+      state: active
+    sla:
+      dueAt: Not specified by approved curriculum package
+      target: Low/standard request according to local rules unless new impact information
+        changes it.
+    initialWorldState:
+      directoryOverlaySeeds: {}
+      assetOverlaySeeds: {}
+      chatMessageSeeds: []
+    objectives:
+    - id: professional-pending-or-completed-outcome
+      description: If approval is unavailable, a complete escalation/pending handoff
+        with a user update is a correct professional outcome. Unauthorized access
+        is not.
+      predicateType: action_event_occurred
+      predicateParams:
+        actionType: ticket.add_note
+        payloadMatch:
+          ticketId: CURRICULUM-APLUS-CORE2-SERVICE-DESK-WORKFLOW-SERVICE-DESK-01
+      required: true
+      pointValue: 100
+    requiredActions:
+    - id: document-professional-outcome
+      actionType: ticket.add_note
+      description: If approval is unavailable, a complete escalation/pending handoff
+        with a user update is a correct professional outcome. Unauthorized access
+        is not.
+      payloadMatch:
+        ticketId: CURRICULUM-APLUS-CORE2-SERVICE-DESK-WORKFLOW-SERVICE-DESK-01
+    forbiddenActions: []
+    hints:
+    - id: hint-01
+      order: 1
+      pointPenalty: 0
+      text: Check whether the user can access personal email/calendar before treating
+        this as a full account problem.
+    - id: hint-02
+      order: 2
+      pointPenalty: 5
+      text: Look for the onboarding/access SOP and required approval path.
+    - id: hint-03
+      order: 3
+      pointPenalty: 5
+      text: Compare the intended role access with another approved coordinator; do
+        not copy permissions without authorization.
+    - id: hint-04
+      order: 4
+      pointPenalty: 5
+      text: If approval is missing, document and escalate rather than granting access
+        yourself.
+    curriculum:
+      title: Shared Calendar Access Before Orientation
+      mode: Learning Mode
+      objectives:
+      - '4.1'
+      - '4.7'
+      reinforces:
+      - 4.2 approval/change-safety concepts
+      source: Adapted from existing Nexus fixture INC2405
+      ticket:
+        requester: New Facilities Coordinator
+        complaint: I can sign in to email, but the Facilities scheduling calendar
+          is missing. I need it for a meeting soon.
+        business_impact: The employee can continue orientation, but cannot perform
+          scheduling duties.
+        initial_priority: Low/standard request according to local rules unless new
+          impact information changes it.
+        twist: The user asks the technician to 'just add me now,' but the approval
+          required by the SOP is not yet recorded.
+      stages:
+        Investigation:
+        - Confirm requester identity, role, affected service, business impact, and
+          device/session information.
+        - Check the relevant onboarding/access SOP and compare the intended access
+          to an approved peer role.
+        - Do not assume the missing calendar is an application failure.
+        Diagnosis:
+        - Identify this as missing authorized access rather than general sign-in failure.
+        - Recognize that the technician cannot bypass the approval requirement.
+        Remediation:
+        - Follow the approved escalation/authorization path.
+        - After approval, perform or hand off the approved access change according
+          to role permissions.
+        Verification:
+        - Have the user refresh/restart the calendar client as appropriate.
+        - Confirm the shared calendar is visible and the required scheduling action
+          works.
+        - Remove any test item created solely for verification.
+        Documentation:
+        - Record the symptom, impact, approval path, action/hand-off, and verification.
+        - Send a plain-language user update with realistic timing.
+        - Close only after verification or leave a clear pending/escalated state.
+      grading_anchors:
+      - name: intake_and_scope
+        weight: 20
+      - name: policy_and_authorization
+        weight: 25
+      - name: safe_action_or_escalation
+        weight: 20
+      - name: verification
+        weight: 20
+      - name: documentation_and_communication
+        weight: 15
+      correct_failure_behavior: If approval is unavailable, a complete escalation/pending
+        handoff with a user update is a correct professional outcome. Unauthorized
+        access is not.
+      hints:
+      - Check whether the user can access personal email/calendar before treating
+        this as a full account problem.
+      - Look for the onboarding/access SOP and required approval path.
+      - Compare the intended role access with another approved coordinator; do not
+        copy permissions without authorization.
+      - If approval is missing, document and escalate rather than granting access
+        yourself.
+    rubric_dimensions:
+      Investigation:
+      - Confirm requester identity, role, affected service, business impact, and device/session
+        information.
+      - Check the relevant onboarding/access SOP and compare the intended access to
+        an approved peer role.
+      - Do not assume the missing calendar is an application failure.
+      Diagnosis:
+      - Identify this as missing authorized access rather than general sign-in failure.
+      - Recognize that the technician cannot bypass the approval requirement.
+      Remediation:
+      - Follow the approved escalation/authorization path.
+      - After approval, perform or hand off the approved access change according to
+        role permissions.
+      Verification:
+      - Have the user refresh/restart the calendar client as appropriate.
+      - Confirm the shared calendar is visible and the required scheduling action
+        works.
+      - Remove any test item created solely for verification.
+      Documentation:
+      - Record the symptom, impact, approval path, action/hand-off, and verification.
+      - Send a plain-language user update with realistic timing.
+      - Close only after verification or leave a clear pending/escalated state.
+    grading_anchors:
+    - name: intake_and_scope
+      weight: 20
+    - name: policy_and_authorization
+      weight: 25
+    - name: safe_action_or_escalation
+      weight: 20
+    - name: verification
+      weight: 20
+    - name: documentation_and_communication
+      weight: 15
+    successful_professional_outcomes:
+    - pending
+    - escalated
+    - handed_off

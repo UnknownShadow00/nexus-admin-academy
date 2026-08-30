@@ -1,24 +1,30 @@
-# Human editorial approvals. A bank is promoted only when its exact file hash
-# matches the reviewed artifact; any later content edit requires another review.
 approvals:
-  - filename: aplus-hardware-support.csv
-    quiz_title: "A+ PC Components, Power & Safe Upgrades — Module Bank"
-    sha256: 226daa2d9fec1fd1b1ca8f502eb947c0b5baed52550549d007680ec41f62520a
-    reviewed_question_count: 25
-    editorial_status: validated
-    reviewed_at: "2026-08-29"
-    review_note: "Phase 3A.1 individual lesson/question editorial review"
-  - filename: aplus-windows-support-tools.csv
-    quiz_title: "A+ Windows Support Tools & Client Configuration — Module Bank"
-    sha256: 3004146b1a9bb25985a858b4988a8810031031000efdfb5ddc874ed2c4651e4b
-    reviewed_question_count: 25
-    editorial_status: validated
-    reviewed_at: "2026-08-29"
-    review_note: "Phase 3A.1 individual lesson/question editorial review"
-  - filename: aplus-windows-troubleshooting.csv
-    quiz_title: "A+ Windows Performance, Startup & Application Troubleshooting — Module Bank"
-    sha256: 41f31fb2bc12fd2eb21fe60481170b498d4fd4f963de8f1bde228d1403185ea1
-    reviewed_question_count: 25
-    editorial_status: validated
-    reviewed_at: "2026-08-29"
-    review_note: "Phase 3A.1 individual lesson/question editorial review"
+- filename: aplus-hardware-support.csv
+  quiz_title: A+ PC Components, Power & Safe Upgrades — Module Bank
+  sha256: 226daa2d9fec1fd1b1ca8f502eb947c0b5baed52550549d007680ec41f62520a
+  reviewed_question_count: 25
+  editorial_status: validated
+  reviewed_at: '2026-08-29'
+  review_note: Phase 3A.1 individual lesson/question editorial review
+- filename: aplus-windows-support-tools.csv
+  quiz_title: A+ Windows Support Tools & Client Configuration — Module Bank
+  sha256: 3004146b1a9bb25985a858b4988a8810031031000efdfb5ddc874ed2c4651e4b
+  reviewed_question_count: 25
+  editorial_status: validated
+  reviewed_at: '2026-08-29'
+  review_note: Phase 3A.1 individual lesson/question editorial review
+- filename: aplus-windows-troubleshooting.csv
+  quiz_title: A+ Windows Performance, Startup & Application Troubleshooting — Module
+    Bank
+  sha256: 41f31fb2bc12fd2eb21fe60481170b498d4fd4f963de8f1bde228d1403185ea1
+  reviewed_question_count: 25
+  editorial_status: validated
+  reviewed_at: '2026-08-29'
+  review_note: Phase 3A.1 individual lesson/question editorial review
+- filename: module-aplus-core2-service-desk-workflow.csv
+  quiz_title: Module 5 Quiz — Service Desk Workflow
+  sha256: df99a8395eaa914381bb81f464cc4c163b3a66d904018a1994f49cac67251218
+  reviewed_question_count: 35
+  editorial_status: validated
+  reviewed_at: '2026-08-30'
+  review_note: External approved package d23f4e5e2b477bc0b12556f62cc066d1ef6d388105ad40bfb94d4facc0943a53

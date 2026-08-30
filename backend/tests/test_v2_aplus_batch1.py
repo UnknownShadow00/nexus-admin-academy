@@ -100,6 +100,7 @@ def test_entry_and_continue_are_generic_across_modules(db):
         "module.aplus.core1.hardware_support",
         "module.aplus.core2.windows_support_tools",
         "module.aplus.core2.windows_troubleshooting",
+        "module.aplus.core2.service_desk_workflow",
     ]
     assert entry["current"]["module"]["key"] == keys[0]
     for key in keys:
@@ -136,9 +137,13 @@ def test_objective_coverage_after_batch_is_transparent(db):
     core1 = certification_version_coverage(db, "comptia_aplus_220-1201")
     core2 = certification_version_coverage(db, "comptia_aplus_220-1202")
     assert {row["objective_code"] for row in core1["covered"]} == {"2.1", "2.5", "3.4", "3.5", "5.1", "5.7"}
-    assert {row["objective_code"] for row in core2["covered"]} == {"1.1", "1.2", "1.6", "3.1"}
+    assert {row["objective_code"] for row in core2["covered"]} == {
+        "1.1", "1.2", "1.6", "3.1", "4.1", "4.2", "4.7"
+    }
     assert {row["objective_code"] for row in core1["uncovered"]} == {"1.1", "1.2", "1.3", "2.2", "3.1", "4.1", "4.2"}
-    assert {row["objective_code"] for row in core2["uncovered"]} == {"2.1", "2.4", "2.7", "3.2", "3.4", "4.1", "4.2", "4.7"}
+    assert {row["objective_code"] for row in core2["uncovered"]} == {
+        "2.1", "2.4", "2.7", "3.2", "3.4"
+    }
 
 
 def test_quick_checks_are_lesson_filtered_and_module_quizzes_follow_blueprints(db):

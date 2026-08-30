@@ -1,249 +1,780 @@
-# Nexus V2 certification metadata (Phase 1A proof-of-concept).
-#
-# This file is DATA. The V2 content loader upserts it idempotently keyed on the
-# stable *_key fields. Adding a new certification version here (or a whole new
-# certification) never requires an application code change.
-#
-# Only CompTIA A+ (220-1201 / 220-1202) is populated in Phase 1A. The remaining
-# six certifications on the roadmap are intentionally NOT seeded yet.
-
 certification:
   cert_key: comptia_aplus
   name: CompTIA A+
   provider: CompTIA
   display_order: 1
-
 versions:
-  - version_key: comptia_aplus_220-1201
-    label: "CompTIA A+ Core 1 (220-1201)"
-    exam_codes: ["220-1201"]
-    is_current: true
-    effective_date: "2025"
-    source_name: "CompTIA A+ Certification Exam Objectives (Core 1, 220-1201)"
-    source_url: "https://www.comptia.org/certifications/a"
-    objectives_file: comptia-a-plus-220-1201.yaml
-    domains:
-      - { domain_key: "1.0", title: "Mobile Devices", weight_percent: 13, display_order: 1 }
-      - { domain_key: "2.0", title: "Networking", weight_percent: 23, display_order: 2 }
-      - { domain_key: "3.0", title: "Hardware", weight_percent: 25, display_order: 3 }
-      - { domain_key: "4.0", title: "Virtualization and Cloud Computing", weight_percent: 11, display_order: 4 }
-      - { domain_key: "5.0", title: "Hardware and Network Troubleshooting", weight_percent: 28, display_order: 5 }
-    modules:
-      - module_key: module.aplus.core1.networking_fundamentals
-        title: "Networking Fundamentals & Client Triage"
-        skill_promise: "Explain core networking concepts and isolate a client connectivity fault."
-        certification_domain_key: "2.0"
-        importance_hint: job_critical
-        display_order: 1
-        # Module assessments REFERENCE existing engines (quiz / lab / Service
-        # Desk scenario) by human-readable key; an unresolved ref is left null,
-        # not an error. Not every module has every role.
-        assessments:
-          - assessment_key: assess.aplus.core1.networking_fundamentals.quick_check
-            assessment_role: quick_check
-            title: "Networking Fundamentals — Quick Check"
-            lesson_key: lesson.aplus.core1.networking_fundamentals.tcp_udp_ports
-            displayed_count: 5
-            pass_percent: 80
-            display_order: 1
-          - assessment_key: assess.aplus.core1.networking_fundamentals.module_quiz
-            assessment_role: module_quiz
-            title: "Networking Fundamentals — Module Quiz"
-            displayed_count: 20
-            pass_percent: 70
-            display_order: 2
-          - assessment_key: assess.aplus.core1.networking_fundamentals.explain
-            assessment_role: explain
-            title: "Networking Fundamentals — Explain"
-            display_order: 3
-      - module_key: module.aplus.core1.hardware_support
-        title: "PC Components, Power & Safe Upgrades"
-        skill_promise: "Select compatible motherboard, CPU, expansion-card, and power components and plan a safe support upgrade."
-        certification_domain_key: "3.0"
-        importance_hint: job_critical
-        display_order: 4
-        assessments:
-          - { assessment_key: assess.aplus.hardware.qc.platform, assessment_role: quick_check, title: "Quick Check — Motherboards and Form Factors", lesson_key: lesson.aplus.core1.hardware_support.platform, quiz_ref: "A+ PC Components, Power & Safe Upgrades — Module Bank", displayed_count: 4, pass_percent: 60, config: { objective_codes: ["3.4"], tags_any: ["motherboard", "form-factor", "compatibility", "tools"] }, display_order: 1 }
-          - { assessment_key: assess.aplus.hardware.qc.cpu, assessment_role: quick_check, title: "Quick Check — CPUs and Cooling", lesson_key: lesson.aplus.core1.hardware_support.cpu_cooling, quiz_ref: "A+ PC Components, Power & Safe Upgrades — Module Bank", displayed_count: 4, pass_percent: 60, config: { objective_codes: ["3.4"], tags_any: ["cpu", "cooling"] }, display_order: 2 }
-          - { assessment_key: assess.aplus.hardware.qc.cards, assessment_role: quick_check, title: "Quick Check — Expansion Cards", lesson_key: lesson.aplus.core1.hardware_support.expansion_cards, quiz_ref: "A+ PC Components, Power & Safe Upgrades — Module Bank", displayed_count: 4, pass_percent: 60, config: { objective_codes: ["3.4"], tags_any: ["expansion", "pcie"] }, display_order: 3 }
-          - { assessment_key: assess.aplus.hardware.qc.power, assessment_role: quick_check, title: "Quick Check — Power Supplies", lesson_key: lesson.aplus.core1.hardware_support.power, quiz_ref: "A+ PC Components, Power & Safe Upgrades — Module Bank", displayed_count: 5, pass_percent: 60, config: { objective_codes: ["3.5"], tags_any: ["psu", "power"] }, display_order: 4 }
-          - { assessment_key: assess.aplus.hardware.qc.upgrade, assessment_role: quick_check, title: "Quick Check — Safe Upgrade Workflow", lesson_key: lesson.aplus.core1.hardware_support.safe_upgrade, quiz_ref: "A+ PC Components, Power & Safe Upgrades — Module Bank", displayed_count: 4, pass_percent: 60, config: { objective_codes: ["3.4", "3.5"], tags_any: ["workflow", "verification", "documentation"] }, display_order: 5 }
-          - assessment_key: assess.aplus.hardware.module_quiz
-            assessment_role: module_quiz
-            title: "Module Quiz — PC Components, Power & Safe Upgrades"
-            quiz_ref: "A+ PC Components, Power & Safe Upgrades — Module Bank"
-            displayed_count: 12
-            pass_percent: 70
-            config:
-              question_blueprint:
-                - { tags_any: ["motherboard", "form-factor", "cpu", "cooling"], count: 4 }
-                - { tags_any: ["expansion", "pcie"], count: 2 }
-                - { objective_codes: ["3.5"], count: 3 }
-                - { tags_any: ["workflow", "safety", "verification", "documentation"], count: 3 }
-            display_order: 6
-          - { assessment_key: assess.aplus.hardware.practical, assessment_role: practical, title: "Practical — Plan a Compatible PC Upgrade", lab_ref: "A+ Practical — Plan a Compatible PC Upgrade", pass_percent: 70, display_order: 7 }
-          - { assessment_key: assess.aplus.hardware.explain, assessment_role: explain, title: "Explain — Hardware Upgrade Decisions", pass_percent: 70, display_order: 8 }
+- version_key: comptia_aplus_220-1201
+  label: CompTIA A+ Core 1 (220-1201)
+  exam_codes:
+  - 220-1201
+  is_current: true
+  effective_date: '2025'
+  source_name: CompTIA A+ Certification Exam Objectives (Core 1, 220-1201)
+  source_url: https://www.comptia.org/certifications/a
+  objectives_file: comptia-a-plus-220-1201.yaml
+  domains:
+  - domain_key: '1.0'
+    title: Mobile Devices
+    weight_percent: 13
+    display_order: 1
+  - domain_key: '2.0'
+    title: Networking
+    weight_percent: 23
+    display_order: 2
+  - domain_key: '3.0'
+    title: Hardware
+    weight_percent: 25
+    display_order: 3
+  - domain_key: '4.0'
+    title: Virtualization and Cloud Computing
+    weight_percent: 11
+    display_order: 4
+  - domain_key: '5.0'
+    title: Hardware and Network Troubleshooting
+    weight_percent: 28
+    display_order: 5
+  modules:
+  - module_key: module.aplus.core1.networking_fundamentals
+    title: Networking Fundamentals & Client Triage
+    skill_promise: Explain core networking concepts and isolate a client connectivity
+      fault.
+    certification_domain_key: '2.0'
+    importance_hint: job_critical
+    display_order: 1
+    assessments:
+    - assessment_key: assess.aplus.core1.networking_fundamentals.quick_check
+      assessment_role: quick_check
+      title: Networking Fundamentals — Quick Check
+      lesson_key: lesson.aplus.core1.networking_fundamentals.tcp_udp_ports
+      displayed_count: 5
+      pass_percent: 80
+      display_order: 1
+    - assessment_key: assess.aplus.core1.networking_fundamentals.module_quiz
+      assessment_role: module_quiz
+      title: Networking Fundamentals — Module Quiz
+      displayed_count: 20
+      pass_percent: 70
+      display_order: 2
+    - assessment_key: assess.aplus.core1.networking_fundamentals.explain
+      assessment_role: explain
+      title: Networking Fundamentals — Explain
+      display_order: 3
+  - module_key: module.aplus.core1.hardware_support
+    title: PC Components, Power & Safe Upgrades
+    skill_promise: Select compatible motherboard, CPU, expansion-card, and power components
+      and plan a safe support upgrade.
+    certification_domain_key: '3.0'
+    importance_hint: job_critical
+    display_order: 4
+    assessments:
+    - assessment_key: assess.aplus.hardware.qc.platform
+      assessment_role: quick_check
+      title: Quick Check — Motherboards and Form Factors
+      lesson_key: lesson.aplus.core1.hardware_support.platform
+      quiz_ref: A+ PC Components, Power & Safe Upgrades — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.4'
+        tags_any:
+        - motherboard
+        - form-factor
+        - compatibility
+        - tools
+      display_order: 1
+    - assessment_key: assess.aplus.hardware.qc.cpu
+      assessment_role: quick_check
+      title: Quick Check — CPUs and Cooling
+      lesson_key: lesson.aplus.core1.hardware_support.cpu_cooling
+      quiz_ref: A+ PC Components, Power & Safe Upgrades — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.4'
+        tags_any:
+        - cpu
+        - cooling
+      display_order: 2
+    - assessment_key: assess.aplus.hardware.qc.cards
+      assessment_role: quick_check
+      title: Quick Check — Expansion Cards
+      lesson_key: lesson.aplus.core1.hardware_support.expansion_cards
+      quiz_ref: A+ PC Components, Power & Safe Upgrades — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.4'
+        tags_any:
+        - expansion
+        - pcie
+      display_order: 3
+    - assessment_key: assess.aplus.hardware.qc.power
+      assessment_role: quick_check
+      title: Quick Check — Power Supplies
+      lesson_key: lesson.aplus.core1.hardware_support.power
+      quiz_ref: A+ PC Components, Power & Safe Upgrades — Module Bank
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.5'
+        tags_any:
+        - psu
+        - power
+      display_order: 4
+    - assessment_key: assess.aplus.hardware.qc.upgrade
+      assessment_role: quick_check
+      title: Quick Check — Safe Upgrade Workflow
+      lesson_key: lesson.aplus.core1.hardware_support.safe_upgrade
+      quiz_ref: A+ PC Components, Power & Safe Upgrades — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.4'
+        - '3.5'
+        tags_any:
+        - workflow
+        - verification
+        - documentation
+      display_order: 5
+    - assessment_key: assess.aplus.hardware.module_quiz
+      assessment_role: module_quiz
+      title: Module Quiz — PC Components, Power & Safe Upgrades
+      quiz_ref: A+ PC Components, Power & Safe Upgrades — Module Bank
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - tags_any:
+          - motherboard
+          - form-factor
+          - cpu
+          - cooling
+          count: 4
+        - tags_any:
+          - expansion
+          - pcie
+          count: 2
+        - objective_codes:
+          - '3.5'
+          count: 3
+        - tags_any:
+          - workflow
+          - safety
+          - verification
+          - documentation
+          count: 3
+      display_order: 6
+    - assessment_key: assess.aplus.hardware.practical
+      assessment_role: practical
+      title: Practical — Plan a Compatible PC Upgrade
+      lab_ref: A+ Practical — Plan a Compatible PC Upgrade
+      pass_percent: 70
+      display_order: 7
+    - assessment_key: assess.aplus.hardware.explain
+      assessment_role: explain
+      title: Explain — Hardware Upgrade Decisions
+      pass_percent: 70
+      display_order: 8
+  - module_key: module.aplus.core1.ip_configuration
+    title: IP Configuration & Basic Connectivity Troubleshooting
+    skill_promise: 'Read a Windows machine''s IPv4 settings, recognise DHCP vs APIPA,
+      explain the default gateway and DNS, and work through common workstation connectivity
+      faults with the right commands.
 
-      # ---- Phase 2A: the first end-to-end V2 curriculum MVP module ----------
-      - module_key: module.aplus.core1.ip_configuration
-        title: "IP Configuration & Basic Connectivity Troubleshooting"
-        skill_promise: >
-          Read a Windows machine's IPv4 settings, recognise DHCP vs APIPA,
-          explain the default gateway and DNS, and work through common
-          workstation connectivity faults with the right commands.
-        certification_domain_key: "2.0"
-        importance_hint: job_critical
-        display_order: 3
-        assessments:
-          # Quick Checks — formative, 3-5 questions each, drawn from the module
-          # bank filtered to the lesson's objective(s). config.objective_codes
-          # is advisory metadata for the quiz layer.
-          - assessment_key: assess.aplus.ipcfg.qc.ipv4_basics
-            assessment_role: quick_check
-            title: "Quick Check — IPv4 Configuration Basics"
-            lesson_key: lesson.aplus.core1.ip_configuration.ipv4_basics
-            quiz_ref: "A+ IP Configuration & Basic Connectivity — Module Bank"
-            displayed_count: 4
-            pass_percent: 60
-            config: { objective_codes: ["2.5"] }
-            display_order: 1
-          - assessment_key: assess.aplus.ipcfg.qc.dhcp_apipa
-            assessment_role: quick_check
-            title: "Quick Check — DHCP and APIPA"
-            lesson_key: lesson.aplus.core1.ip_configuration.dhcp_and_apipa
-            quiz_ref: "A+ IP Configuration & Basic Connectivity — Module Bank"
-            displayed_count: 5
-            pass_percent: 60
-            config: { objective_codes: ["2.5", "5.7"] }
-            display_order: 2
-          - assessment_key: assess.aplus.ipcfg.qc.gateway
-            assessment_role: quick_check
-            title: "Quick Check — Default Gateway and Connectivity"
-            lesson_key: lesson.aplus.core1.ip_configuration.default_gateway
-            quiz_ref: "A+ IP Configuration & Basic Connectivity — Module Bank"
-            displayed_count: 4
-            pass_percent: 60
-            config: { objective_codes: ["2.5", "5.7"] }
-            display_order: 3
-          - assessment_key: assess.aplus.ipcfg.qc.dns
-            assessment_role: quick_check
-            title: "Quick Check — DNS Basics"
-            lesson_key: lesson.aplus.core1.ip_configuration.dns_basics
-            quiz_ref: "A+ IP Configuration & Basic Connectivity — Module Bank"
-            displayed_count: 4
-            pass_percent: 60
-            config: { objective_codes: ["2.5", "5.7"] }
-            display_order: 4
-          - assessment_key: assess.aplus.ipcfg.qc.win_cmds
-            assessment_role: quick_check
-            title: "Quick Check — Windows Network Troubleshooting Commands"
-            lesson_key: lesson.aplus.core1.ip_configuration.windows_commands
-            quiz_ref: "A+ IP Configuration & Basic Connectivity — Module Bank"
-            displayed_count: 5
-            pass_percent: 60
-            config: { objective_codes: ["5.7", "5.1"] }
-            display_order: 5
-          # Module Quiz — the NEW V2 module assessment. NOT wired to TrainingWeek
-          # or the legacy 40% A+ gate.
-          - assessment_key: assess.aplus.ipcfg.module_quiz
-            assessment_role: module_quiz
-            title: "Module Quiz — IP Configuration & Basic Connectivity"
-            quiz_ref: "A+ IP Configuration & Basic Connectivity — Module Bank"
-            displayed_count: 12
-            pass_percent: 70
-            display_order: 6
-          # Practical — a guided/semi-guided inspection task on the existing lab
-          # engine (no broken VM in 2A; that is deferred to 2B).
-          - assessment_key: assess.aplus.ipcfg.practical
-            assessment_role: practical
-            title: "Practical — Inspect a Windows Machine's IP Configuration"
-            lab_ref: "A+ Practical — Inspect Windows IP Configuration"
-            pass_percent: 70
-            display_order: 7
-          # Service Desk — reuses an existing server-graded connectivity ticket.
-          # A dedicated 169.254.x.x APIPA scenario is deferred to 2B (see the
-          # Phase 2A note): the current SD simulator has no network-diagnostics
-          # tool to produce server-verifiable evidence for release/renew.
-          - assessment_key: assess.aplus.ipcfg.service_desk
-            assessment_role: service_desk
-            title: "Service Desk — Workstation Lost Network Connectivity"
-            service_desk_ref: inc2503
-            pass_percent: 70
-            display_order: 8
-          # Explain — data-driven interview/Explain prompts (Phase 1B system).
-          - assessment_key: assess.aplus.ipcfg.explain
-            assessment_role: explain
-            title: "Explain — IP Configuration & Connectivity"
-            pass_percent: 70
-            display_order: 9
-
-  - version_key: comptia_aplus_220-1202
-    label: "CompTIA A+ Core 2 (220-1202)"
-    exam_codes: ["220-1202"]
-    is_current: true
-    effective_date: "2025"
-    source_name: "CompTIA A+ Certification Exam Objectives (Core 2, 220-1202)"
-    source_url: "https://www.comptia.org/certifications/a"
-    objectives_file: comptia-a-plus-220-1202.yaml
-    domains:
-      - { domain_key: "1.0", title: "Operating Systems", weight_percent: 28, display_order: 1 }
-      - { domain_key: "2.0", title: "Security", weight_percent: 28, display_order: 2 }
-      - { domain_key: "3.0", title: "Software Troubleshooting", weight_percent: 23, display_order: 3 }
-      - { domain_key: "4.0", title: "Operational Procedures", weight_percent: 21, display_order: 4 }
-    modules:
-      - module_key: module.aplus.core2.windows_troubleshooting
-        title: "Windows Performance, Startup & Application Troubleshooting"
-        skill_promise: "Use an evidence-first workflow to isolate slow performance, startup failures, shutdowns, and application crashes."
-        certification_domain_key: "3.0"
-        importance_hint: job_critical
-        display_order: 2
-        assessments:
-          - { assessment_key: assess.aplus.wintriage.qc.method, assessment_role: quick_check, title: "Quick Check — Safe Windows Triage", lesson_key: lesson.aplus.core2.windows_troubleshooting.method, quiz_ref: "A+ Windows Performance, Startup & Application Troubleshooting — Module Bank", displayed_count: 4, pass_percent: 60, config: { objective_codes: ["3.1"], tags_any: ["method", "evidence", "scope", "escalation", "reproduce"] }, display_order: 1 }
-          - { assessment_key: assess.aplus.wintriage.qc.performance, assessment_role: quick_check, title: "Quick Check — Slow Performance", lesson_key: lesson.aplus.core2.windows_troubleshooting.performance, quiz_ref: "A+ Windows Performance, Startup & Application Troubleshooting — Module Bank", displayed_count: 5, pass_percent: 60, config: { objective_codes: ["3.1"], tags_any: ["performance", "task-manager", "disk"] }, display_order: 2 }
-          - { assessment_key: assess.aplus.wintriage.qc.startup, assessment_role: quick_check, title: "Quick Check — Startup and Shutdown", lesson_key: lesson.aplus.core2.windows_troubleshooting.startup, quiz_ref: "A+ Windows Performance, Startup & Application Troubleshooting — Module Bank", displayed_count: 4, pass_percent: 60, config: { objective_codes: ["3.1"], tags_any: ["startup", "post", "bsod", "shutdown", "safe-mode", "driver"] }, display_order: 3 }
-          - { assessment_key: assess.aplus.wintriage.qc.crashes, assessment_role: quick_check, title: "Quick Check — Crashes and Reliability", lesson_key: lesson.aplus.core2.windows_troubleshooting.crashes, quiz_ref: "A+ Windows Performance, Startup & Application Troubleshooting — Module Bank", displayed_count: 4, pass_percent: 60, config: { objective_codes: ["3.1"], tags_any: ["crash", "application", "reliability", "event-viewer", "isolation"] }, display_order: 4 }
-          - { assessment_key: assess.aplus.wintriage.qc.verify, assessment_role: quick_check, title: "Quick Check — Fix, Verify, Document", lesson_key: lesson.aplus.core2.windows_troubleshooting.verify, quiz_ref: "A+ Windows Performance, Startup & Application Troubleshooting — Module Bank", displayed_count: 3, pass_percent: 60, config: { objective_codes: ["3.1"], tags_any: ["verification", "documentation"] }, display_order: 5 }
-          - assessment_key: assess.aplus.wintriage.module_quiz
-            assessment_role: module_quiz
-            title: "Module Quiz — Windows Troubleshooting"
-            quiz_ref: "A+ Windows Performance, Startup & Application Troubleshooting — Module Bank"
-            displayed_count: 12
-            pass_percent: 70
-            config:
-              question_blueprint:
-                - { tags_any: ["method", "scope", "escalation", "reproduce"], count: 2 }
-                - { tags_any: ["performance", "task-manager", "disk"], count: 3 }
-                - { tags_any: ["startup", "post", "bsod", "shutdown", "safe-mode", "driver"], count: 3 }
-                - { tags_any: ["crash", "application", "reliability", "event-viewer", "isolation"], count: 2 }
-                - { tags_any: ["verification", "documentation"], count: 2 }
-            display_order: 6
-          - { assessment_key: assess.aplus.wintriage.practical, assessment_role: practical, title: "Practical — Build a Windows Triage Record", lab_ref: "A+ Practical — Build a Windows Triage Record", pass_percent: 70, display_order: 7 }
-          - { assessment_key: assess.aplus.wintriage.service_desk, assessment_role: service_desk, title: "Service Desk — Application Crash Investigation", service_desk_ref: inc2403, pass_percent: 70, display_order: 8 }
-          - { assessment_key: assess.aplus.wintriage.explain, assessment_role: explain, title: "Explain — Windows Troubleshooting", pass_percent: 70, display_order: 9 }
-
-      - module_key: module.aplus.core2.windows_support_tools
-        title: "Windows Support Tools & Client Configuration"
-        skill_promise: "Recognise Windows support boundaries and gather useful evidence with safe command-line and client-network tools."
-        certification_domain_key: "1.0"
-        importance_hint: job_critical
-        display_order: 1
-        assessments:
-          - { assessment_key: assess.aplus.wintools.qc.os, assessment_role: quick_check, title: "Quick Check — Operating Systems and Filesystems", lesson_key: lesson.aplus.core2.windows_support_tools.os_filesystems, quiz_ref: "A+ Windows Support Tools & Client Configuration — Module Bank", displayed_count: 4, pass_percent: 60, config: { objective_codes: ["1.1"], tags_any: ["os", "filesystem", "support", "lifecycle"] }, display_order: 1 }
-          - { assessment_key: assess.aplus.wintools.qc.network_review, assessment_role: quick_check, title: "Quick Check — Network Commands Review", lesson_key: lesson.aplus.core2.windows_support_tools.network_commands, quiz_ref: "A+ Windows Support Tools & Client Configuration — Module Bank", displayed_count: 3, pass_percent: 60, config: { objective_codes: ["1.2"], tags_any: ["network", "dns", "ping"] }, display_order: 2 }
-          - { assessment_key: assess.aplus.wintools.qc.system, assessment_role: quick_check, title: "Quick Check — Windows System Commands", lesson_key: lesson.aplus.core2.windows_support_tools.system_commands, quiz_ref: "A+ Windows Support Tools & Client Configuration — Module Bank", displayed_count: 5, pass_percent: 60, config: { objective_codes: ["1.2"], tags_any: ["netstat", "policy", "sfc", "chkdsk"] }, display_order: 3 }
-          - { assessment_key: assess.aplus.wintools.qc.sharing, assessment_role: quick_check, title: "Quick Check — Workgroups, Domains and Shares", lesson_key: lesson.aplus.core2.windows_support_tools.shares_domains, quiz_ref: "A+ Windows Support Tools & Client Configuration — Module Bank", displayed_count: 4, pass_percent: 60, config: { objective_codes: ["1.6"], tags_any: ["shares", "domain", "workgroup", "unc", "security"] }, display_order: 4 }
-          - { assessment_key: assess.aplus.wintools.qc.client, assessment_role: quick_check, title: "Quick Check — Client Network Settings", lesson_key: lesson.aplus.core2.windows_support_tools.client_settings, quiz_ref: "A+ Windows Support Tools & Client Configuration — Module Bank", displayed_count: 4, pass_percent: 60, config: { objective_codes: ["1.6"], tags_any: ["network", "metered", "proxy", "firewall"] }, display_order: 5 }
-          - assessment_key: assess.aplus.wintools.module_quiz
-            assessment_role: module_quiz
-            title: "Module Quiz — Windows Support Tools & Client Configuration"
-            quiz_ref: "A+ Windows Support Tools & Client Configuration — Module Bank"
-            displayed_count: 12
-            pass_percent: 70
-            config:
-              question_blueprint:
-                - { objective_codes: ["1.1"], count: 3 }
-                - { objective_codes: ["1.2"], count: 5 }
-                - { objective_codes: ["1.6"], count: 4 }
-            display_order: 6
-          - { assessment_key: assess.aplus.wintools.practical, assessment_role: practical, title: "Practical — Collect a Windows Support Snapshot", lab_ref: "A+ Practical — Collect a Windows Support Snapshot", pass_percent: 70, display_order: 7 }
-          - { assessment_key: assess.aplus.wintools.explain, assessment_role: explain, title: "Explain — Windows Support Decisions", pass_percent: 70, display_order: 8 }
+      '
+    certification_domain_key: '2.0'
+    importance_hint: job_critical
+    display_order: 3
+    assessments:
+    - assessment_key: assess.aplus.ipcfg.qc.ipv4_basics
+      assessment_role: quick_check
+      title: Quick Check — IPv4 Configuration Basics
+      lesson_key: lesson.aplus.core1.ip_configuration.ipv4_basics
+      quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '2.5'
+      display_order: 1
+    - assessment_key: assess.aplus.ipcfg.qc.dhcp_apipa
+      assessment_role: quick_check
+      title: Quick Check — DHCP and APIPA
+      lesson_key: lesson.aplus.core1.ip_configuration.dhcp_and_apipa
+      quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '2.5'
+        - '5.7'
+      display_order: 2
+    - assessment_key: assess.aplus.ipcfg.qc.gateway
+      assessment_role: quick_check
+      title: Quick Check — Default Gateway and Connectivity
+      lesson_key: lesson.aplus.core1.ip_configuration.default_gateway
+      quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '2.5'
+        - '5.7'
+      display_order: 3
+    - assessment_key: assess.aplus.ipcfg.qc.dns
+      assessment_role: quick_check
+      title: Quick Check — DNS Basics
+      lesson_key: lesson.aplus.core1.ip_configuration.dns_basics
+      quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '2.5'
+        - '5.7'
+      display_order: 4
+    - assessment_key: assess.aplus.ipcfg.qc.win_cmds
+      assessment_role: quick_check
+      title: Quick Check — Windows Network Troubleshooting Commands
+      lesson_key: lesson.aplus.core1.ip_configuration.windows_commands
+      quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '5.7'
+        - '5.1'
+      display_order: 5
+    - assessment_key: assess.aplus.ipcfg.module_quiz
+      assessment_role: module_quiz
+      title: Module Quiz — IP Configuration & Basic Connectivity
+      quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
+      displayed_count: 12
+      pass_percent: 70
+      display_order: 6
+    - assessment_key: assess.aplus.ipcfg.practical
+      assessment_role: practical
+      title: Practical — Inspect a Windows Machine's IP Configuration
+      lab_ref: A+ Practical — Inspect Windows IP Configuration
+      pass_percent: 70
+      display_order: 7
+    - assessment_key: assess.aplus.ipcfg.service_desk
+      assessment_role: service_desk
+      title: Service Desk — Workstation Lost Network Connectivity
+      service_desk_ref: inc2503
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus.ipcfg.explain
+      assessment_role: explain
+      title: Explain — IP Configuration & Connectivity
+      pass_percent: 70
+      display_order: 9
+- version_key: comptia_aplus_220-1202
+  label: CompTIA A+ Core 2 (220-1202)
+  exam_codes:
+  - 220-1202
+  is_current: true
+  effective_date: '2025'
+  source_name: CompTIA A+ Certification Exam Objectives (Core 2, 220-1202)
+  source_url: https://www.comptia.org/certifications/a
+  objectives_file: comptia-a-plus-220-1202.yaml
+  domains:
+  - domain_key: '1.0'
+    title: Operating Systems
+    weight_percent: 28
+    display_order: 1
+  - domain_key: '2.0'
+    title: Security
+    weight_percent: 28
+    display_order: 2
+  - domain_key: '3.0'
+    title: Software Troubleshooting
+    weight_percent: 23
+    display_order: 3
+  - domain_key: '4.0'
+    title: Operational Procedures
+    weight_percent: 21
+    display_order: 4
+  modules:
+  - module_key: module.aplus.core2.windows_troubleshooting
+    title: Windows Performance, Startup & Application Troubleshooting
+    skill_promise: Use an evidence-first workflow to isolate slow performance, startup
+      failures, shutdowns, and application crashes.
+    certification_domain_key: '3.0'
+    importance_hint: job_critical
+    display_order: 2
+    assessments:
+    - assessment_key: assess.aplus.wintriage.qc.method
+      assessment_role: quick_check
+      title: Quick Check — Safe Windows Triage
+      lesson_key: lesson.aplus.core2.windows_troubleshooting.method
+      quiz_ref: A+ Windows Performance, Startup & Application Troubleshooting — Module
+        Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.1'
+        tags_any:
+        - method
+        - evidence
+        - scope
+        - escalation
+        - reproduce
+      display_order: 1
+    - assessment_key: assess.aplus.wintriage.qc.performance
+      assessment_role: quick_check
+      title: Quick Check — Slow Performance
+      lesson_key: lesson.aplus.core2.windows_troubleshooting.performance
+      quiz_ref: A+ Windows Performance, Startup & Application Troubleshooting — Module
+        Bank
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.1'
+        tags_any:
+        - performance
+        - task-manager
+        - disk
+      display_order: 2
+    - assessment_key: assess.aplus.wintriage.qc.startup
+      assessment_role: quick_check
+      title: Quick Check — Startup and Shutdown
+      lesson_key: lesson.aplus.core2.windows_troubleshooting.startup
+      quiz_ref: A+ Windows Performance, Startup & Application Troubleshooting — Module
+        Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.1'
+        tags_any:
+        - startup
+        - post
+        - bsod
+        - shutdown
+        - safe-mode
+        - driver
+      display_order: 3
+    - assessment_key: assess.aplus.wintriage.qc.crashes
+      assessment_role: quick_check
+      title: Quick Check — Crashes and Reliability
+      lesson_key: lesson.aplus.core2.windows_troubleshooting.crashes
+      quiz_ref: A+ Windows Performance, Startup & Application Troubleshooting — Module
+        Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.1'
+        tags_any:
+        - crash
+        - application
+        - reliability
+        - event-viewer
+        - isolation
+      display_order: 4
+    - assessment_key: assess.aplus.wintriage.qc.verify
+      assessment_role: quick_check
+      title: Quick Check — Fix, Verify, Document
+      lesson_key: lesson.aplus.core2.windows_troubleshooting.verify
+      quiz_ref: A+ Windows Performance, Startup & Application Troubleshooting — Module
+        Bank
+      displayed_count: 3
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.1'
+        tags_any:
+        - verification
+        - documentation
+      display_order: 5
+    - assessment_key: assess.aplus.wintriage.module_quiz
+      assessment_role: module_quiz
+      title: Module Quiz — Windows Troubleshooting
+      quiz_ref: A+ Windows Performance, Startup & Application Troubleshooting — Module
+        Bank
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - tags_any:
+          - method
+          - scope
+          - escalation
+          - reproduce
+          count: 2
+        - tags_any:
+          - performance
+          - task-manager
+          - disk
+          count: 3
+        - tags_any:
+          - startup
+          - post
+          - bsod
+          - shutdown
+          - safe-mode
+          - driver
+          count: 3
+        - tags_any:
+          - crash
+          - application
+          - reliability
+          - event-viewer
+          - isolation
+          count: 2
+        - tags_any:
+          - verification
+          - documentation
+          count: 2
+      display_order: 6
+    - assessment_key: assess.aplus.wintriage.practical
+      assessment_role: practical
+      title: Practical — Build a Windows Triage Record
+      lab_ref: A+ Practical — Build a Windows Triage Record
+      pass_percent: 70
+      display_order: 7
+    - assessment_key: assess.aplus.wintriage.service_desk
+      assessment_role: service_desk
+      title: Service Desk — Application Crash Investigation
+      service_desk_ref: inc2403
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus.wintriage.explain
+      assessment_role: explain
+      title: Explain — Windows Troubleshooting
+      pass_percent: 70
+      display_order: 9
+  - module_key: module.aplus.core2.windows_support_tools
+    title: Windows Support Tools & Client Configuration
+    skill_promise: Recognise Windows support boundaries and gather useful evidence
+      with safe command-line and client-network tools.
+    certification_domain_key: '1.0'
+    importance_hint: job_critical
+    display_order: 1
+    assessments:
+    - assessment_key: assess.aplus.wintools.qc.os
+      assessment_role: quick_check
+      title: Quick Check — Operating Systems and Filesystems
+      lesson_key: lesson.aplus.core2.windows_support_tools.os_filesystems
+      quiz_ref: A+ Windows Support Tools & Client Configuration — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '1.1'
+        tags_any:
+        - os
+        - filesystem
+        - support
+        - lifecycle
+      display_order: 1
+    - assessment_key: assess.aplus.wintools.qc.network_review
+      assessment_role: quick_check
+      title: Quick Check — Network Commands Review
+      lesson_key: lesson.aplus.core2.windows_support_tools.network_commands
+      quiz_ref: A+ Windows Support Tools & Client Configuration — Module Bank
+      displayed_count: 3
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '1.2'
+        tags_any:
+        - network
+        - dns
+        - ping
+      display_order: 2
+    - assessment_key: assess.aplus.wintools.qc.system
+      assessment_role: quick_check
+      title: Quick Check — Windows System Commands
+      lesson_key: lesson.aplus.core2.windows_support_tools.system_commands
+      quiz_ref: A+ Windows Support Tools & Client Configuration — Module Bank
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '1.2'
+        tags_any:
+        - netstat
+        - policy
+        - sfc
+        - chkdsk
+      display_order: 3
+    - assessment_key: assess.aplus.wintools.qc.sharing
+      assessment_role: quick_check
+      title: Quick Check — Workgroups, Domains and Shares
+      lesson_key: lesson.aplus.core2.windows_support_tools.shares_domains
+      quiz_ref: A+ Windows Support Tools & Client Configuration — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '1.6'
+        tags_any:
+        - shares
+        - domain
+        - workgroup
+        - unc
+        - security
+      display_order: 4
+    - assessment_key: assess.aplus.wintools.qc.client
+      assessment_role: quick_check
+      title: Quick Check — Client Network Settings
+      lesson_key: lesson.aplus.core2.windows_support_tools.client_settings
+      quiz_ref: A+ Windows Support Tools & Client Configuration — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '1.6'
+        tags_any:
+        - network
+        - metered
+        - proxy
+        - firewall
+      display_order: 5
+    - assessment_key: assess.aplus.wintools.module_quiz
+      assessment_role: module_quiz
+      title: Module Quiz — Windows Support Tools & Client Configuration
+      quiz_ref: A+ Windows Support Tools & Client Configuration — Module Bank
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '1.1'
+          count: 3
+        - objective_codes:
+          - '1.2'
+          count: 5
+        - objective_codes:
+          - '1.6'
+          count: 4
+      display_order: 6
+    - assessment_key: assess.aplus.wintools.practical
+      assessment_role: practical
+      title: Practical — Collect a Windows Support Snapshot
+      lab_ref: A+ Practical — Collect a Windows Support Snapshot
+      pass_percent: 70
+      display_order: 7
+    - assessment_key: assess.aplus.wintools.explain
+      assessment_role: explain
+      title: Explain — Windows Support Decisions
+      pass_percent: 70
+      display_order: 8
+  - module_key: module.aplus.core2.service_desk_workflow
+    title: Service Desk Workflow, Documentation & Professional Communication
+    skill_promise: null
+    certification_domain_key: '4.0'
+    importance_hint: working_knowledge
+    display_order: 3
+    assessments:
+    - assessment_key: assess.aplus-core2-service-desk-workflow.qc.ticket-intake-triage
+      assessment_role: quick_check
+      title: Quick Check — Ticket Intake, Triage & Ownership
+      lesson_key: lesson.aplus.service_desk.ticket_intake_triage
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q001
+        - Q007
+        - Q009
+        - Q025
+      display_order: 1
+    - assessment_key: assess.aplus-core2-service-desk-workflow.qc.ticket-notes-user-updates
+      assessment_role: quick_check
+      title: Quick Check — Internal Notes, User Updates & Resolution Notes
+      lesson_key: lesson.aplus.service_desk.ticket_notes_user_updates
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q002
+        - Q004
+        - Q005
+        - Q006
+      display_order: 2
+    - assessment_key: assess.aplus-core2-service-desk-workflow.qc.assets-cmdb-docs-slas
+      assessment_role: quick_check
+      title: Quick Check — Assets, CMDBs, SOPs, Knowledge Bases & SLAs
+      lesson_key: lesson.aplus.service_desk.assets_cmdb_docs_slas
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q010
+        - Q011
+        - Q015
+        - Q017
+        - Q018
+      display_order: 3
+    - assessment_key: assess.aplus-core2-service-desk-workflow.qc.escalation-handoffs-sla
+      assessment_role: quick_check
+      title: Quick Check — Escalation, Handoffs & SLA Awareness
+      lesson_key: lesson.aplus.service_desk.escalation_handoffs_sla
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 3
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q003
+        - Q016
+        - Q026
+      display_order: 4
+    - assessment_key: assess.aplus-core2-service-desk-workflow.qc.change-management
+      assessment_role: quick_check
+      title: Quick Check — Change Management Without Breaking Production
+      lesson_key: lesson.aplus.service_desk.change_management
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q012
+        - Q019
+        - Q020
+        - Q021
+        - Q022
+      display_order: 5
+    - assessment_key: assess.aplus-core2-service-desk-workflow.qc.professional-communication
+      assessment_role: quick_check
+      title: Quick Check — Professional Communication & Difficult Users
+      lesson_key: lesson.aplus.service_desk.professional_communication
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q008
+        - Q013
+        - Q027
+        - Q028
+        - Q029
+      display_order: 6
+    - assessment_key: assess.aplus-core2-service-desk-workflow.module_quiz
+      assessment_role: module_quiz
+      title: Module 5 Quiz — Service Desk Workflow
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '4.1'
+          tags_any:
+          - Q001
+          - Q002
+          - Q003
+          - Q004
+          - Q005
+          - Q006
+          - Q009
+          - Q010
+          - Q011
+          - Q014
+          - Q015
+          - Q016
+          - Q017
+          - Q018
+          - Q025
+          - Q026
+          - Q030
+          count: 5
+        - objective_codes:
+          - '4.2'
+          tags_any:
+          - Q012
+          - Q019
+          - Q020
+          - Q021
+          - Q022
+          - Q023
+          - Q024
+          - Q031
+          count: 4
+        - objective_codes:
+          - '4.7'
+          tags_any:
+          - Q007
+          - Q008
+          - Q013
+          - Q027
+          - Q028
+          - Q029
+          - Q033
+          - Q034
+          - Q035
+          count: 3
+        category_requirements:
+        - category: ticket_documentation
+          minimum: 1
+          tags_any:
+          - Q001
+          - Q002
+          - Q003
+          - Q004
+          - Q005
+          - Q006
+          - Q009
+          - Q016
+          - Q026
+        - category: asset_document_system
+          minimum: 1
+          tags_any:
+          - Q010
+          - Q011
+          - Q014
+          - Q015
+          - Q017
+          - Q018
+          - Q030
+        - category: change_planning_scenario
+          minimum: 1
+          tags_any:
+          - Q019
+          - Q020
+          - Q021
+          - Q022
+          - Q023
+          - Q024
+        - category: customer_communication_scenario
+          minimum: 1
+          tags_any:
+          - Q007
+          - Q027
+          - Q028
+          - Q029
+          - Q033
+          - Q034
+          - Q035
+        exclude_question_ids: []
+      display_order: 7
+    - assessment_key: assess.aplus-core2-service-desk-workflow.practical
+      assessment_role: practical
+      title: Triage, Document, Escalate
+      lab_ref: Triage, Document, Escalate
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus-core2-service-desk-workflow.service_desk
+      assessment_role: service_desk
+      title: Service Desk — curriculum-aplus-core2-service-desk-workflow-service-desk-01
+      service_desk_ref: curriculum-aplus-core2-service-desk-workflow-service-desk-01
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core2-service-desk-workflow.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 10
