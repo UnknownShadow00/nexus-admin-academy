@@ -20,6 +20,7 @@ from app.models.certification import (
     LessonObjective,
     LessonV2Meta,
     QuestionV2Meta,
+    QuestionObjective,
 )
 
 
@@ -73,6 +74,18 @@ def certification_version_coverage(db: Session, version: "int | str") -> dict:
         .all()
         if row[0]
     }
+    question_covered_codes.update(
+        code
+        for (code,) in db.query(func.distinct(CertificationObjective.objective_code))
+        .join(QuestionObjective, QuestionObjective.objective_id == CertificationObjective.id)
+        .join(
+            QuestionV2Meta,
+            QuestionV2Meta.id == QuestionObjective.question_v2_meta_id,
+        )
+        .filter(CertificationObjective.certification_version_id == ver.id)
+        .all()
+        if code
+    )
 
     covered = []
     uncovered = []

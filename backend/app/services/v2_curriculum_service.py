@@ -23,6 +23,7 @@ from app.models.certification import (
     ModuleAssessment,
     QuestionV2Meta,
     StudentResourceActivity,
+    question_objective_codes,
 )
 from app.models.grading import GRADE_JOB_GRADED, GRADE_JOB_NEEDS_REVIEW, PendingGrade
 from app.models.lab import LabRun
@@ -46,6 +47,7 @@ from app.models.v2_progress import (
 )
 from app.services.deterministic_grader import grade_short_answer
 from app.services.grading_queue import SOURCE_INTERVIEW, submit_for_grading
+from app.services.v2_assessment_selector import ConstraintSelectionError, select_constrained
 from app.services.v2_progress_service import V2ProgressError, module_progress, record_activity
 
 DONE = {V2_STATUS_COMPLETED, V2_STATUS_PASSED}
@@ -340,27 +342,60 @@ def assessment_questions(db: Session, student_id: int, module_key: str, assessme
     config = assessment.config or {}
     objective_codes = set(config.get("objective_codes") or [])
     if objective_codes:
-        rows = [(q, meta) for q, meta in rows if meta.objective_code in objective_codes]
+        rows = [
+            (q, meta)
+            for q, meta in rows
+            if objective_codes.intersection(question_objective_codes(meta))
+        ]
     rows = [(q, meta) for q, meta in rows if (meta.question_type or "single") != "free_response"]
     tags_any = set(config.get("tags_any") or [])
     if tags_any:
         rows = [pair for pair in rows if tags_any.intersection(pair[0].tags or [])]
 
     limit = assessment.displayed_count or len(rows)
-    selected = []
-    for group in config.get("question_blueprint") or []:
-        group_objectives = set(group.get("objective_codes") or [])
-        group_tags = set(group.get("tags_any") or [])
-        eligible = [
-            pair for pair in rows
-            if pair not in selected
-            and (not group_objectives or pair[1].objective_code in group_objectives)
-            and (not group_tags or group_tags.intersection(pair[0].tags or []))
+    blueprint = config.get("question_blueprint") or []
+    categories = config.get("category_requirements") or []
+    if categories:
+        excluded_ids = {str(value) for value in config.get("exclude_question_ids") or []}
+        candidates = [
+            {
+                "id": str(question.id),
+                "objective_codes": question_objective_codes(meta),
+                "tags": list(question.tags or []),
+                "pair": (question, meta),
+            }
+            for question, meta in rows
         ]
-        selected.extend(_balanced_question_take(eligible, min(int(group.get("count") or 0), limit - len(selected))))
-        if len(selected) >= limit:
-            break
-    selected.extend(_balanced_question_take([pair for pair in rows if pair not in selected], limit - len(selected)))
+        try:
+            constrained = select_constrained(
+                candidates, blueprint, categories, excluded_ids=excluded_ids
+            )
+        except ConstraintSelectionError as exc:
+            raise V2ProgressError(f"This Module Quiz blueprint is invalid: {exc}") from exc
+        selected = [row["pair"] for row in constrained]
+        if len(selected) != limit:
+            raise V2ProgressError(
+                "This Module Quiz blueprint total does not match displayed_count."
+            )
+    else:
+        # Keep the original selection path for all existing simple blueprints.
+        selected = []
+        for group in blueprint:
+            group_objectives = set(group.get("objective_codes") or [])
+            group_tags = set(group.get("tags_any") or [])
+            eligible = [
+                pair for pair in rows
+                if pair not in selected
+                and (
+                    not group_objectives
+                    or group_objectives.intersection(question_objective_codes(pair[1]))
+                )
+                and (not group_tags or group_tags.intersection(pair[0].tags or []))
+            ]
+            selected.extend(_balanced_question_take(eligible, min(int(group.get("count") or 0), limit - len(selected))))
+            if len(selected) >= limit:
+                break
+        selected.extend(_balanced_question_take([pair for pair in rows if pair not in selected], limit - len(selected)))
     questions = []
     for question, meta in selected:
         kind = meta.question_type or ("multi" if question.is_multi_select else "single")

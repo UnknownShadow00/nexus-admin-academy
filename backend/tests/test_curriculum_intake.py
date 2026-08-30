@@ -240,6 +240,42 @@ def _plain_overview(package: Path, title: str = "Client Support Workflow") -> No
     )
 
 
+def _inline_service_desk(package: Path, *, title: str = "Approval-bound access") -> dict:
+    definition = {
+        "title": title,
+        "mode": "Learning Mode",
+        "objectives": ["1.1", "1.2"],
+        "ticket": {
+            "requester": "New coordinator",
+            "complaint": "The approved shared service is missing.",
+            "business_impact": "Orientation can continue while access is pending.",
+            "initial_priority": "Low/standard request",
+            "twist": "Required approval is not yet recorded.",
+        },
+        "stages": {
+            "Investigation": ["Confirm identity and intended access."],
+            "Diagnosis": ["Identify missing authorized access."],
+            "Remediation": ["Follow the approval and escalation path."],
+            "Verification": ["Verify access only after approval."],
+            "Documentation": ["Record the pending or completed outcome."],
+        },
+        "grading_anchors": [
+            {"name": "investigation", "weight": 20},
+            {"name": "diagnosis", "weight": 20},
+            {"name": "safe_action_or_escalation", "weight": 20},
+            {"name": "verification", "weight": 20},
+            {"name": "documentation", "weight": 20},
+        ],
+        "correct_failure_behavior": (
+            "If approval is unavailable, escalation/pending with a user update is correct; "
+            "unauthorized access is not."
+        ),
+        "hints": ["Check approval.", "Respect the permission boundary.", "Document the handoff."],
+    }
+    _write_yaml(package / "service_desk.yaml", definition)
+    return definition
+
+
 @pytest.fixture()
 def intake(tmp_path):
     dropbox = tmp_path / "references" / "curriculum-dropbox"
@@ -593,13 +629,41 @@ def test_optional_service_desk_and_practical(intake, missing):
     assert result["status"].startswith("VALID")
 
 
-def test_unsupported_service_desk_definition_fails_without_rewriting(intake):
+def test_inline_service_desk_generates_stable_key_and_preserves_definition(intake):
+    processor, dropbox, approved, content = intake
+    package = _package(dropbox)
+    source = _inline_service_desk(package)
+    result = processor.process(mode="apply")[0]
+    assert result["status"] == "IMPORTED"
+    key = result["manifest"]["service_desk_keys"][0]
+    assert key == "curriculum-test-client-support-service-desk-01"
+    runtime = next((content / "service-desk-scenarios").glob("*.yaml"))
+    stored = yaml.safe_load(runtime.read_text())["scenarios"][0]
+    assert stored["stable_key"] == key
+    assert stored["definition"]["curriculum"]["stages"] == source["stages"]
+    assert stored["definition"]["curriculum"]["grading_anchors"] == source["grading_anchors"]
+    assert stored["definition"]["successful_professional_outcomes"] == [
+        "pending",
+        "escalated",
+        "handed_off",
+    ]
+    approved_source = Path(result["approved_destination"]) / "source" / "service_desk.yaml"
+    assert yaml.safe_load(approved_source.read_text()) == source
+
+
+def test_inline_service_desk_key_is_deterministic_and_changed_content_is_detected(intake):
     processor, dropbox, *_ = intake
     package = _package(dropbox)
-    _write_yaml(package / "service_desk.yaml", {"definition": {"title": "New scenario"}})
-    result = processor.process(mode="check")[0]
-    assert result["status"] == "INVALID"
-    assert "stable reference" in result["errors"][0]["message"]
+    _inline_service_desk(package)
+    first = processor.process(mode="check")[0]
+    key = first["manifest"]["service_desk_keys"][0]
+    package.rename(dropbox / "saved")
+    second_package = _package(dropbox)
+    _inline_service_desk(second_package, title="Changed approved title")
+    second = processor.process(mode="check")
+    changed = next(row for row in second if row["source"] == second_package.name)
+    assert changed["manifest"]["service_desk_keys"] == [key]
+    assert first["package_hash"] != changed["package_hash"]
 
 
 def test_success_preserves_approved_package_and_cleans_inbox(intake):

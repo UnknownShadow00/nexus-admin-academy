@@ -16,7 +16,7 @@ from app.models.certification import (
     Certification, CertificationModule, CertificationObjective,
     CertificationVersion, InterviewPrompt, LearningResource,
     LearningResourceLink, LessonV2Meta, ModuleAssessment, QuestionV2Meta,
-    StudentResourceActivity,
+    StudentResourceActivity, question_objective_codes,
 )
 from app.models.grading import PendingGrade
 from app.models.lab import LabRun
@@ -121,7 +121,8 @@ def _assessment_misses(db: Session, activities: list[V2ModuleActivity], version_
         .filter(Question.id.in_(list(misses))).all()
     )
     question_by_id = {q.id: (q, meta) for q, meta in pairs}
-    objective_codes = {meta.objective_code for _, meta in pairs if meta.objective_code}
+    codes_by_meta = {meta.id: question_objective_codes(meta) for _, meta in pairs}
+    objective_codes = {code for codes in codes_by_meta.values() for code in codes}
     objectives = {
         row.objective_code: row.objective_text
         for row in db.query(CertificationObjective).filter(
@@ -136,16 +137,20 @@ def _assessment_misses(db: Session, activities: list[V2ModuleActivity], version_
         if qid not in question_by_id:
             continue
         question, meta = question_by_id[qid]
-        objective_text = objectives.get(meta.objective_code)
+        codes = codes_by_meta[meta.id]
+        primary_code = codes[0] if codes else meta.objective_code
+        objective_text = objectives.get(primary_code)
         topic = _friendly_topic(question.tags, objective_text)
         stored.update(
             question_text=question.question_text,
             correct_answer=_correct_answers(question), explanation=question.explanation,
-            objective_code=meta.objective_code, objective_text=objective_text, topic=topic,
+            objective_code=primary_code, objective_codes=codes,
+            objective_text=objective_text,
+            objective_texts=[objectives.get(code) for code in codes], topic=topic,
         )
         output.append(stored)
-        if meta.objective_code:
-            objective_counts[meta.objective_code] += stored["times_missed"]
+        for code in codes:
+            objective_counts[code] += stored["times_missed"]
         topic_counts[topic] += stored["times_missed"]
     weak_objectives = sorted((
         {"objective_code": code, "objective_text": objectives.get(code), "missed_count": count}

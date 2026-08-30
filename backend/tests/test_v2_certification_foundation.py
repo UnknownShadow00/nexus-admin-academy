@@ -22,11 +22,12 @@ from app.models.certification import (
     LessonRelationship,
     LessonV2Meta,
     QuestionV2Meta,
+    QuestionObjective,
     is_publishable_permission,
     normalize_importance,
 )
 from app.models.learning import Lesson, Module
-from app.models.quiz import Question
+from app.models.quiz import Question, Quiz
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services import a_plus_access
 from app.services.question_importer import confirm_import, parse_csv_file, preview_rows
@@ -405,6 +406,65 @@ def test_importer_records_v2_metadata_and_resolves_version_fk(db):
         .one()
     )
     assert meta.certification_version_id == version.id
+
+
+def test_importer_persists_ordered_multi_objective_links_and_primary(db):
+    load_all(db)
+    db.commit()
+    row = _v2_row(objective_code="3.4, 3.5", question_text="Which safe upgrade checks matter?")
+    summary = confirm_import(db, [row], duplicate_policy="skip", source_filename="multi.csv")
+    assert summary["created"] == 1
+    meta = db.query(QuestionV2Meta).one()
+    assert meta.objective_code == "3.4"
+    links = db.query(QuestionObjective).filter_by(question_v2_meta_id=meta.id).order_by(
+        QuestionObjective.position
+    ).all()
+    assert [link.objective.objective_code for link in links] == ["3.4", "3.5"]
+    assert [link.position for link in links] == [0, 1]
+
+
+def test_importer_rejects_unknown_secondary_or_wrong_version_objective(db):
+    load_all(db)
+    db.commit()
+    for value in ("3.4,9.9", "3.4,1.6"):
+        row = _v2_row(objective_code=value, question_text=f"Invalid objective mapping {value}?")
+        preview = preview_rows(db, [row])[0]
+        assert preview.valid is False
+        assert any("objective" in error.lower() for error in preview.errors)
+        summary = confirm_import(db, [row], duplicate_policy="skip", source_filename="bad.csv")
+        assert summary["skipped_invalid"] == 1
+    assert db.query(Question).count() == 0
+
+
+def test_multi_objective_reimport_is_idempotent_and_mapping_change_is_update(db):
+    load_all(db)
+    db.commit()
+    base = _v2_row(objective_code="3.4,3.5", question_text="Idempotent objective mapping?")
+    first = confirm_import(db, [base], duplicate_policy="skip", source_filename="multi.csv")
+    quiz = db.query(Quiz).filter_by(title=base["quiz_title"]).one()
+    quiz.editorial_status = "validated"
+    quiz.answer_keys_validated = True
+    quiz.explanations_complete = True
+    db.commit()
+    second = confirm_import(db, [base], duplicate_policy="update_draft", source_filename="multi.csv")
+    db.refresh(quiz)
+    assert quiz.editorial_status == "validated"
+    changed = confirm_import(
+        db,
+        [{**base, "objective_code": "3.5,3.4"}],
+        duplicate_policy="update_draft",
+        source_filename="multi.csv",
+    )
+    assert first["created"] == 1
+    assert second["unchanged"] == 1
+    assert changed["updated"] == 1
+    db.refresh(quiz)
+    assert quiz.editorial_status == "unreviewed"
+    assert quiz.answer_keys_validated is False
+    assert quiz.explanations_complete is False
+    meta = db.query(QuestionV2Meta).one()
+    assert meta.objective_code == "3.5"
+    assert [link.objective.objective_code for link in sorted(meta.objective_links, key=lambda x: x.position)] == ["3.5", "3.4"]
 
 
 def test_importer_version_fk_is_null_for_unloaded_version(db):

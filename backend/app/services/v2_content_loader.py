@@ -27,8 +27,10 @@ admin action, or ``backend/seed_v2_foundation.py``).
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 import yaml
 from sqlalchemy.orm import Session
@@ -53,7 +55,11 @@ from app.models.certification import (
 )
 from app.models.lab import LabTemplate
 from app.models.quiz import EDITORIAL_STATUS_VALIDATED, Question, Quiz
-from app.models.service_desk import ServiceDeskScenario
+from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
+from app.services.service_desk_scenario_validation import (
+    validate_runtime_definition,
+    validate_scenario_definition,
+)
 
 _HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_CONTENT_DIR = os.path.join(_HERE, "content")
@@ -65,6 +71,9 @@ DEFAULT_CURRICULUM_DIR = os.path.join(DEFAULT_CONTENT_DIR, "curriculum")
 DEFAULT_QUESTIONS_DIR = os.path.join(DEFAULT_CONTENT_DIR, "questions")
 EDITORIAL_APPROVALS_FILE = "editorial-approvals.yaml"
 DEFAULT_LABS_DIR = os.path.join(DEFAULT_CONTENT_DIR, "labs")
+DEFAULT_SERVICE_DESK_SCENARIOS_DIR = os.path.join(
+    DEFAULT_CONTENT_DIR, "service-desk-scenarios"
+)
 
 
 class ContentValidationError(ValueError):
@@ -713,6 +722,93 @@ def load_labs(db: Session, path: str, *, summary: LoadSummary | None = None) -> 
     return summary
 
 
+def load_service_desk_scenarios(
+    db: Session, path: str, *, summary: LoadSummary | None = None
+) -> LoadSummary:
+    """Upsert approved curriculum scenarios into the existing versioned engine."""
+    summary = summary or LoadSummary()
+    doc = _read_yaml(path)
+    rel = os.path.basename(path)
+    for item in doc.get("scenarios") or []:
+        key = str(item.get("stable_key") or "").strip().lower()
+        definition = dict(item.get("definition") or {})
+        if not key:
+            raise ContentValidationError(f"{rel}: Service Desk scenario is missing stable_key")
+        errors = [
+            *validate_scenario_definition(definition),
+            *validate_runtime_definition(key, definition),
+        ]
+        if errors:
+            raise ContentValidationError(f"{rel}: scenario {key!r}: {'; '.join(errors)}")
+        scenario = db.query(ServiceDeskScenario).filter_by(stable_key=key).one_or_none()
+        scenario_fields = {
+            "title": str(item.get("title") or definition.get("title") or "").strip(),
+            "description": item.get("description"),
+            "category": str(item.get("category") or "service_desk"),
+            "difficulty": int(item.get("difficulty") or 1),
+            "status": "active",
+            "created_by": "curriculum_intake",
+        }
+        if not scenario_fields["title"]:
+            raise ContentValidationError(f"{rel}: scenario {key!r}: title is required")
+        if scenario is None:
+            scenario = ServiceDeskScenario(stable_key=key, **scenario_fields)
+            db.add(scenario)
+            db.flush()
+            summary.record("service_desk_scenario", "created")
+        else:
+            summary.record(
+                "service_desk_scenario",
+                "updated" if _apply(scenario, scenario_fields) else "unchanged",
+            )
+
+        encoded = json.dumps(definition, sort_keys=True, separators=(",", ":"))
+        definition_hash = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+        version = db.query(ServiceDeskScenarioVersion).filter_by(
+            scenario_id=scenario.id, definition_hash=definition_hash
+        ).one_or_none()
+        now = datetime.now(timezone.utc)
+        if version is None:
+            for prior in db.query(ServiceDeskScenarioVersion).filter_by(
+                scenario_id=scenario.id, status="published"
+            ):
+                prior.status = "disabled"
+            latest = (
+                db.query(ServiceDeskScenarioVersion.version_number)
+                .filter_by(scenario_id=scenario.id)
+                .order_by(ServiceDeskScenarioVersion.version_number.desc())
+                .first()
+            )
+            version = ServiceDeskScenarioVersion(
+                scenario_id=scenario.id,
+                version_number=(latest[0] if latest else 0) + 1,
+                definition_json=definition,
+                definition_hash=definition_hash,
+                validation_status="valid",
+                status="published",
+                published_at=now,
+                published_by="curriculum_intake",
+            )
+            db.add(version)
+            summary.record("service_desk_scenario_version", "created")
+        else:
+            changed = False
+            if version.status != "published":
+                for prior in db.query(ServiceDeskScenarioVersion).filter_by(
+                    scenario_id=scenario.id, status="published"
+                ):
+                    prior.status = "disabled"
+                version.status = "published"
+                version.published_at = version.published_at or now
+                version.published_by = version.published_by or "curriculum_intake"
+                changed = True
+            summary.record(
+                "service_desk_scenario_version", "updated" if changed else "unchanged"
+            )
+    db.flush()
+    return summary
+
+
 def load_question_banks(
     db: Session, questions_dir: str | None = None, *, summary: LoadSummary | None = None
 ) -> LoadSummary:
@@ -829,6 +925,7 @@ def load_content(
     interview_prompts_dir: str | None = None,
     questions_dir: str | None = None,
     labs_dir: str | None = None,
+    service_desk_scenarios_dir: str | None = None,
     commit: bool = False,
     summary: LoadSummary | None = None,
 ) -> dict:
@@ -847,6 +944,9 @@ def load_content(
     resources_dir = resources_dir or DEFAULT_RESOURCES_DIR
     interview_prompts_dir = interview_prompts_dir or DEFAULT_INTERVIEW_PROMPTS_DIR
     labs_dir = labs_dir or DEFAULT_LABS_DIR
+    service_desk_scenarios_dir = (
+        service_desk_scenarios_dir or DEFAULT_SERVICE_DESK_SCENARIOS_DIR
+    )
     summary = summary if summary is not None else LoadSummary()
 
     if os.path.isdir(curriculum_dir):
@@ -858,6 +958,13 @@ def load_content(
         for name in sorted(os.listdir(labs_dir)):
             if name.endswith((".yaml", ".yml")):
                 load_labs(db, os.path.join(labs_dir, name), summary=summary)
+
+    if os.path.isdir(service_desk_scenarios_dir):
+        for name in sorted(os.listdir(service_desk_scenarios_dir)):
+            if name.endswith((".yaml", ".yml")):
+                load_service_desk_scenarios(
+                    db, os.path.join(service_desk_scenarios_dir, name), summary=summary
+                )
 
     for directory, loader in (
         (resources_dir, load_resources),
@@ -884,6 +991,7 @@ def load_module(
     interview_prompts_dir: str | None = None,
     questions_dir: str | None = None,
     labs_dir: str | None = None,
+    service_desk_scenarios_dir: str | None = None,
     commit: bool = False,
 ) -> dict:
     """One-call, idempotent load of the whole V2 curriculum from ``content/``.
@@ -913,6 +1021,7 @@ def load_module(
         interview_prompts_dir=interview_prompts_dir,
         questions_dir=questions_dir,
         labs_dir=labs_dir,
+        service_desk_scenarios_dir=service_desk_scenarios_dir,
         summary=summary,
     )
     load_all(db, cert_dir=cert_dir, objectives_dir=objectives_dir, summary=summary)

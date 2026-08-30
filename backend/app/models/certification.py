@@ -414,6 +414,50 @@ class QuestionV2Meta(Base):
     )
 
     question = relationship("Question", back_populates="v2_meta")
+    objective_links = relationship(
+        "QuestionObjective",
+        cascade="all, delete-orphan",
+        back_populates="question_meta",
+        order_by="QuestionObjective.position",
+    )
+
+
+class QuestionObjective(Base):
+    """Ordered many-to-many objective mappings for one V2 question.
+
+    ``QuestionV2Meta.objective_code`` remains the first/primary code for
+    backwards compatibility. This table is authoritative for the complete
+    ordered set when links exist.
+    """
+
+    __tablename__ = "question_objectives"
+    __table_args__ = (
+        UniqueConstraint(
+            "question_v2_meta_id", "objective_id", name="uq_question_objectives_mapping"
+        ),
+        UniqueConstraint(
+            "question_v2_meta_id", "position", name="uq_question_objectives_position"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    question_v2_meta_id: Mapped[int] = mapped_column(
+        ForeignKey("question_v2_meta.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    objective_id: Mapped[int] = mapped_column(
+        ForeignKey("certification_objectives.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    question_meta = relationship("QuestionV2Meta", back_populates="objective_links")
+    objective = relationship("CertificationObjective")
+
+
+def question_objective_codes(meta: QuestionV2Meta) -> list[str]:
+    """Return all ordered codes, falling back to the legacy primary field."""
+    linked = [link.objective.objective_code for link in meta.objective_links if link.objective]
+    return linked or ([meta.objective_code] if meta.objective_code else [])
 
 
 def question_permission_status(question) -> str:

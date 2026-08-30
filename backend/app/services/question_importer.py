@@ -16,7 +16,12 @@ from datetime import datetime, timezone
 import openpyxl
 from sqlalchemy.orm import Session
 
-from app.models.certification import CertificationVersion, QuestionV2Meta
+from app.models.certification import (
+    CertificationObjective,
+    CertificationVersion,
+    QuestionObjective,
+    QuestionV2Meta,
+)
 from app.models.quiz import (
     EDITORIAL_STATUS_UNREVIEWED,
     QUIZ_STATUS_DRAFT,
@@ -110,6 +115,18 @@ def _structured_cell(value) -> str:
     return _CONTROL_CHARS_RE.sub("", text).strip()
 
 
+def objective_codes(value) -> list[str]:
+    """Return unique objective codes in authored order.
+
+    The first value remains the primary compatibility objective; no later
+    value is discarded.
+    """
+    if value in (None, ""):
+        return []
+    values = value if isinstance(value, (list, tuple)) else str(value).split(",")
+    return list(dict.fromkeys(sanitize_text(item) for item in values if sanitize_text(item)))
+
+
 def compute_fingerprint(quiz_title: str, question_text: str, option_texts: list[str]) -> str:
     normalized = "|".join(
         [
@@ -159,6 +176,7 @@ def row_to_payload(row: dict) -> dict:
     importance_raw = sanitize_text(row.get("importance")).lower()
     importance = V2_IMPORTANCE_ALIASES.get(importance_raw, importance_raw) or None
     permission_status = sanitize_text(row.get("permission_status")).lower() or DEFAULT_PERMISSION_STATUS
+    objectives = objective_codes(row.get("objective_code"))
     return {
         "quiz_title": sanitize_text(row.get("quiz_title")) or "Imported Questions",
         "question_type": sanitize_text(row.get("question_type")) or None,
@@ -175,7 +193,8 @@ def row_to_payload(row: dict) -> dict:
         "certification_version": sanitize_text(row.get("certification_version")) or None,
         "domain": sanitize_text(row.get("domain")) or None,
         "module": sanitize_text(row.get("module")) or None,
-        "objective_code": sanitize_text(row.get("objective_code")) or None,
+        "objective_code": objectives[0] if objectives else None,
+        "objective_codes": objectives,
         "importance": importance,
         "source_name": sanitize_text(row.get("source_name")) or None,
         "source_url": sanitize_text(row.get("source_url")) or None,
@@ -214,10 +233,11 @@ def preview_rows(db: Session, raw_rows: list[dict]) -> list[PreviewRow]:
         row_number = idx + 2  # header is row 1
         payload = row_to_payload(row)
         result = validate_question(payload)
+        objective_errors = _objective_validation_errors(db, payload)
         fingerprint = None
         is_duplicate = False
         existing_id = None
-        if result.valid:
+        if result.valid and not objective_errors:
             fingerprint = compute_fingerprint(
                 payload["quiz_title"], payload["question_text"], [o.text for o in result.normalized_options]
             )
@@ -227,8 +247,8 @@ def preview_rows(db: Session, raw_rows: list[dict]) -> list[PreviewRow]:
             PreviewRow(
                 row_number=row_number,
                 payload=payload,
-                valid=result.valid,
-                errors=[i.message for i in result.errors],
+                valid=result.valid and not objective_errors,
+                errors=[i.message for i in result.errors] + objective_errors,
                 warnings=[i.message for i in result.warnings],
                 info=[i.message for i in result.info],
                 fingerprint=fingerprint,
@@ -237,6 +257,39 @@ def preview_rows(db: Session, raw_rows: list[dict]) -> list[PreviewRow]:
             )
         )
     return previewed
+
+
+def _objective_validation_errors(db: Session, payload: dict) -> list[str]:
+    codes = payload.get("objective_codes") or []
+    version_key = payload.get("certification_version")
+    if not codes:
+        return []
+    version = (
+        db.query(CertificationVersion).filter_by(version_key=version_key).one_or_none()
+        if version_key
+        else None
+    )
+    # Preserve legacy single-objective imports whose hierarchy is not loaded.
+    # Multi-objective rows cannot be losslessly persisted without a resolved
+    # version and therefore fail explicitly.
+    if version is None:
+        return (
+            [f"Multiple objectives require a loaded certification version; {version_key!r} was not found."]
+            if len(codes) > 1
+            else []
+        )
+    found = {
+        code
+        for (code,) in db.query(CertificationObjective.objective_code).filter(
+            CertificationObjective.certification_version_id == version.id,
+            CertificationObjective.objective_code.in_(codes),
+        )
+    }
+    missing = [code for code in codes if code not in found]
+    return [
+        f"Objective {code!r} is not defined for certification version {version_key!r}."
+        for code in missing
+    ]
 
 
 def confirm_import(
@@ -273,7 +326,7 @@ def confirm_import(
         for row in raw_rows:
             payload = row_to_payload(row)
             result = validate_question(payload)
-            if not result.valid:
+            if not result.valid or _objective_validation_errors(db, payload):
                 skipped_invalid += 1
                 continue
 
@@ -437,6 +490,39 @@ def _upsert_question_v2_meta(
         fields["question_type"] = result.question_type
 
     changed = _diff_set(meta, fields)
+    db.flush()
+
+    codes = list(payload.get("objective_codes") or [])
+    desired: list[tuple[int, int]] = []
+    if version_id and codes:
+        objective_by_code = {
+            objective.objective_code: objective.id
+            for objective in db.query(CertificationObjective).filter(
+                CertificationObjective.certification_version_id == version_id,
+                CertificationObjective.objective_code.in_(codes),
+            )
+        }
+        desired = [(objective_by_code[code], position) for position, code in enumerate(codes)]
+
+    existing = (
+        db.query(QuestionObjective)
+        .filter_by(question_v2_meta_id=meta.id)
+        .order_by(QuestionObjective.position)
+        .all()
+    )
+    if [(link.objective_id, link.position) for link in existing] != desired:
+        for link in existing:
+            db.delete(link)
+        db.flush()
+        for objective_id, position in desired:
+            db.add(
+                QuestionObjective(
+                    question_v2_meta_id=meta.id,
+                    objective_id=objective_id,
+                    position=position,
+                )
+            )
+        changed = True
     return is_new or changed
 
 

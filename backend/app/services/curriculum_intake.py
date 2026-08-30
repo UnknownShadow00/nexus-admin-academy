@@ -11,6 +11,7 @@ import csv
 import hashlib
 import json
 import os
+import random
 import re
 import shutil
 import stat
@@ -26,8 +27,15 @@ from zipfile import BadZipFile, ZipFile
 import openpyxl
 import yaml
 
-from app.services.question_importer import TEMPLATE_COLUMNS, parse_csv_file, parse_xlsx_file, row_to_payload
+from app.services.question_importer import (
+    TEMPLATE_COLUMNS,
+    objective_codes as parse_objective_codes,
+    parse_csv_file,
+    parse_xlsx_file,
+    row_to_payload,
+)
 from app.services.question_validation import validate_question
+from app.services.v2_assessment_selector import ConstraintSelectionError, select_constrained
 
 MAX_ZIP_FILES = 2_000
 MAX_ZIP_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
@@ -437,6 +445,16 @@ def _normalize_quiz_blueprint(doc: dict, notes: set[str]) -> dict:
             for pool in quiz["pools"]
         ]
         notes.add("module quiz pools -> question_blueprint ID-tag selectors")
+    if quiz.get("required_category_coverage") and not quiz.get("category_requirements"):
+        quiz["category_requirements"] = [
+            {
+                "category": str(row.get("category") or ""),
+                "minimum": int(row.get("minimum") or 0),
+                "tags_any": [str(value) for value in row.get("pool") or []],
+            }
+            for row in quiz["required_category_coverage"]
+        ]
+        notes.add("module quiz required_category_coverage -> category_requirements")
     return quiz
 
 
@@ -500,6 +518,155 @@ def _attach_quick_checks(lessons: list[dict], rows: list[dict], notes: set[str])
         }
         assigned.add(lesson_order)
         notes.add(f"Quick Checks sheet row {sheet_row} -> lesson assessment metadata")
+
+
+def _generated_service_desk_key(module_key: str, ordinal: int = 1) -> str:
+    module_slug = _slug(module_key.removeprefix("module."))
+    return f"curriculum-{module_slug}-service-desk-{ordinal:02d}"
+
+
+def _normalize_inline_service_desk(
+    doc: dict,
+    module_key: str,
+    valid_objectives: set[str],
+    notes: set[str],
+) -> tuple[str, dict]:
+    """Map one approved curriculum scenario into the existing versioned engine."""
+    key = str(doc.get("scenario_key") or "").strip() or _generated_service_desk_key(module_key)
+    if not doc.get("scenario_key"):
+        notes.add(f"Service Desk scenario_key derived from module key -> {key}")
+    for field in ("title", "ticket", "stages", "grading_anchors", "correct_failure_behavior"):
+        if doc.get(field) in (None, "", [], {}):
+            raise IntakeError(
+                f"inline Service Desk field {field!r} is required",
+                file="service_desk.yaml",
+                field=field,
+            )
+    ticket = doc["ticket"]
+    for field in ("requester", "complaint", "business_impact", "initial_priority", "twist"):
+        if not str(ticket.get(field) or "").strip():
+            raise IntakeError(
+                f"inline Service Desk ticket field {field!r} is required",
+                file="service_desk.yaml",
+                field=field,
+            )
+    required_stages = (
+        "Investigation", "Diagnosis", "Remediation", "Verification", "Documentation"
+    )
+    if set(doc["stages"]) != set(required_stages):
+        raise IntakeError(
+            f"inline Service Desk stages must be exactly {sorted(required_stages)}",
+            file="service_desk.yaml",
+            field="stages",
+        )
+    codes = [str(value) for value in doc.get("objectives") or []]
+    for code in codes:
+        if code not in valid_objectives:
+            raise IntakeError(
+                f"objective {code!r} is not defined for this certification version",
+                file="service_desk.yaml",
+                field="objectives",
+            )
+    ticket_id = key.upper()
+    priority_text = str(ticket["initial_priority"])
+    priority = next(
+        (value for value in ("critical", "high", "medium", "low") if value in priority_text.casefold()),
+        "medium",
+    )
+    anchors = deepcopy(doc["grading_anchors"])
+    point_value = sum(int(row.get("weight") or 0) for row in anchors) or 100
+    troubleshooting = [str(ticket["twist"])] + [
+        str(step)
+        for stage in required_stages
+        for step in doc["stages"].get(stage) or []
+    ]
+    placeholder = "Not specified by approved curriculum package"
+    hints = [
+        {
+            "id": f"hint-{index:02d}",
+            "order": index,
+            "pointPenalty": 0 if index == 1 else 5,
+            "text": str(text),
+        }
+        for index, text in enumerate(doc.get("hints") or [], 1)
+    ]
+    if len(hints) < 3:
+        raise IntakeError(
+            "inline Service Desk scenario needs at least three approved hints",
+            file="service_desk.yaml",
+            field="hints",
+        )
+    definition = {
+        "id": ticket_id,
+        "title": doc["title"],
+        "slug": key,
+        "category": "service_desk",
+        "priority": priority,
+        "difficulty": "easy",
+        "pointValue": point_value,
+        "explanation": doc["correct_failure_behavior"],
+        "description": {
+            "issue": ticket["complaint"],
+            "reportedByLine": ticket["requester"],
+            "businessImpact": ticket["business_impact"],
+            "troubleshooting": troubleshooting,
+        },
+        "requester": {
+            "name": ticket["requester"],
+            "department": placeholder,
+            "email": placeholder,
+            "contact": placeholder,
+            "location": placeholder,
+        },
+        "device": {
+            "assetTag": ticket_id,
+            "deviceName": placeholder,
+            "kind": "laptop",
+            "operatingSystem": placeholder,
+            "state": "active",
+        },
+        "sla": {"dueAt": placeholder, "target": priority_text},
+        "initialWorldState": {
+            "directoryOverlaySeeds": {},
+            "assetOverlaySeeds": {},
+            "chatMessageSeeds": [],
+        },
+        "objectives": [
+            {
+                "id": "professional-pending-or-completed-outcome",
+                "description": doc["correct_failure_behavior"],
+                "predicateType": "action_event_occurred",
+                "predicateParams": {
+                    "actionType": "ticket.add_note",
+                    "payloadMatch": {"ticketId": ticket_id},
+                },
+                "required": True,
+                "pointValue": point_value,
+            }
+        ],
+        "requiredActions": [
+            {
+                "id": "document-professional-outcome",
+                "actionType": "ticket.add_note",
+                "description": doc["correct_failure_behavior"],
+                "payloadMatch": {"ticketId": ticket_id},
+            }
+        ],
+        "forbiddenActions": [],
+        "hints": hints,
+        "curriculum": deepcopy(doc),
+        "rubric_dimensions": deepcopy(doc["stages"]),
+        "grading_anchors": anchors,
+        "successful_professional_outcomes": ["pending", "escalated", "handed_off"],
+    }
+    return key, {
+        "stable_key": key,
+        "title": str(doc["title"]),
+        "description": str(ticket["complaint"]),
+        "category": "service_desk",
+        "difficulty": 1,
+        "definition": definition,
+    }
 
 
 class CurriculumIntakeProcessor:
@@ -905,6 +1072,7 @@ class CurriculumIntakeProcessor:
         question_provenance: dict[str, int] = {}
         short_answer_count = 0
         free_response_count = 0
+        question_items: list[dict] = []
         workbook = None
         try:
             question_path = self._question_path(root)
@@ -953,15 +1121,13 @@ class CurriculumIntakeProcessor:
             for code in codes:
                 if valid_objectives and code not in valid_objectives:
                     add("BLOCKING_CONTENT", f"objective {code!r} is not defined for {version_key}", file=question_path.name, field="objective", row=row_number, key=qid or None)
-            if len(codes) > 1:
-                add(
-                    "BLOCKING_METADATA",
-                    "current question metadata supports one objective_code, but this row declares multiple objectives",
-                    file=question_path.name,
-                    field="objective",
-                    row=row_number,
-                    key=qid or None,
-                )
+            question_items.append(
+                {
+                    "id": qid,
+                    "objective_codes": codes,
+                    "tags": [tag for tag in str(row.get("tags") or "").split(",") if tag],
+                }
+            )
             row.update(
                 certification=cert_key,
                 certification_version=version_key,
@@ -1120,12 +1286,27 @@ class CurriculumIntakeProcessor:
                 service_doc = _read_yaml(root / "service_desk.yaml")
                 stable_key = str(service_doc.get("scenario_key") or "").strip()
                 if not stable_key:
-                    add(
-                        "BLOCKING_METADATA",
-                        "inline Service Desk scenario has no stable reference (scenario_key) and cannot be mapped to the existing engine without changing its approved outcome",
-                        file="service_desk.yaml",
-                        field="scenario_key",
-                    )
+                    try:
+                        stable_key, _scenario = _normalize_inline_service_desk(
+                            service_doc,
+                            str(module_key or ""),
+                            valid_objectives,
+                            notes,
+                        )
+                        add(
+                            "NORMALIZABLE",
+                            f"inline Service Desk scenario -> existing engine key {stable_key}",
+                            file="service_desk.yaml",
+                            field="scenario_key",
+                            key=stable_key,
+                        )
+                    except IntakeError as exc:
+                        add(
+                            "BLOCKING_METADATA",
+                            str(exc),
+                            file="service_desk.yaml",
+                            field=exc.field,
+                        )
                 elif self.service_desk_keys is not None and stable_key not in self.service_desk_keys:
                     add("BLOCKING_METADATA", f"Service Desk scenario {stable_key!r} is not registered", file="service_desk.yaml", field="scenario_key")
                 for code in [str(value) for value in service_doc.get("objectives") or []]:
@@ -1135,7 +1316,7 @@ class CurriculumIntakeProcessor:
                 add("BLOCKING_METADATA", str(exc), file="service_desk.yaml", field=exc.field)
         summary["service_desk"] = {
             "present": bool(service_doc),
-            "scenario_key": service_doc.get("scenario_key"),
+            "scenario_key": stable_key if service_doc else None,
             "objectives": [str(value) for value in service_doc.get("objectives") or []],
             "reinforces": [str(value) for value in service_doc.get("reinforces") or []],
             "rubric_dimensions": list((service_doc.get("stages") or {}).keys()),
@@ -1160,13 +1341,32 @@ class CurriculumIntakeProcessor:
                     add("BLOCKING_CONTENT", f"objective {code!r} is not defined for {version_key}", file="module_quiz_blueprint.yaml", field="objective", row=index)
             if pools:
                 notes.add("module quiz pools -> question_blueprint ID-tag selectors")
-            if quiz_doc.get("required_category_coverage"):
-                add(
-                    "BLOCKING_METADATA",
-                    "required_category_coverage is approved metadata but the current V2 selector cannot enforce category minima alongside objective pools",
-                    file="module_quiz_blueprint.yaml",
-                    field="required_category_coverage",
-                )
+            normalized_quiz = _normalize_quiz_blueprint(quiz_doc, notes)
+            categories = normalized_quiz.get("category_requirements") or []
+            if categories:
+                try:
+                    selected = select_constrained(
+                        question_items,
+                        normalized_quiz.get("question_blueprint") or [],
+                        categories,
+                        excluded_ids={
+                            str(value)
+                            for value in normalized_quiz.get("exclude_question_ids") or []
+                        },
+                        rng=random.Random(0),
+                    )
+                    displayed = int(normalized_quiz.get("displayed_count") or 0)
+                    if len(selected) != displayed:
+                        raise ConstraintSelectionError(
+                            "objective quota total does not match displayed_count"
+                        )
+                except ConstraintSelectionError as exc:
+                    add(
+                        "BLOCKING_METADATA",
+                        f"Module Quiz constraints are not satisfiable: {exc}",
+                        file="module_quiz_blueprint.yaml",
+                        field="required_category_coverage",
+                    )
         summary["module_quiz"] = {
             "title": quiz_doc.get("quiz_title") or quiz_doc.get("title"),
             "displayed_count": quiz_doc.get("displayed_count") or quiz_doc.get("question_count"),
@@ -1362,9 +1562,9 @@ class CurriculumIntakeProcessor:
             if not validation.valid:
                 message = "; ".join(issue.message for issue in validation.errors)
                 raise IntakeError(message, file=question_path.name, field=f"row {row_number}")
-            objective = str(row.get("objective_code") or "").strip()
-            self._validate_objectives([objective], version["objectives"], question_path.name)
-            objective_codes.add(objective)
+            row_objectives = parse_objective_codes(row.get("objective_code"))
+            self._validate_objectives(row_objectives, version["objectives"], question_path.name)
+            objective_codes.update(row_objectives)
             normalized_rows.append({key: _json_cell(row.get(key)) for key in TEMPLATE_COLUMNS})
         if not normalized_rows:
             raise IntakeError("question bank is empty", file=question_path.name, field="questions")
@@ -1396,7 +1596,9 @@ class CurriculumIntakeProcessor:
         resources = self._normalize_resources(root, version_key, lesson_keys)
         prompts = self._normalize_prompts(root, version_key, module_key, domain, version["objectives"], notes)
         labs, practical_title = self._normalize_practical(root, notes)
-        service_desk_key = self._service_desk(root)
+        service_desk_key, service_desk_scenarios = self._service_desk(
+            root, module_key, version["objectives"], notes
+        )
         assessments = self._build_assessments(module_key, lesson_meta_rows, quiz, quiz_title, practical_title, service_desk_key, bool(prompts))
         module = {
             "module_key": module_key,
@@ -1427,6 +1629,7 @@ class CurriculumIntakeProcessor:
             "explain_count": len(prompts),
             "practical_present": bool(labs),
             "service_desk_present": bool(service_desk_key),
+            "service_desk_keys": [service_desk_key] if service_desk_key else [],
             "provenance": provenance,
         }
         return {
@@ -1440,6 +1643,7 @@ class CurriculumIntakeProcessor:
             "resources": resources,
             "prompts": prompts,
             "labs": labs,
+            "service_desk_scenarios": service_desk_scenarios,
         }
 
     @staticmethod
@@ -1469,7 +1673,9 @@ class CurriculumIntakeProcessor:
             count = 0
             for row in questions:
                 row_tags = {tag.strip().casefold() for tag in str(row.get("tags") or "").split(",") if tag.strip()}
-                if wanted_objectives and str(row.get("objective_code")) not in wanted_objectives:
+                if wanted_objectives and not wanted_objectives.intersection(
+                    parse_objective_codes(row.get("objective_code"))
+                ):
                     continue
                 if wanted_tags and not row_tags.intersection(wanted_tags):
                     continue
@@ -1509,6 +1715,45 @@ class CurriculumIntakeProcessor:
         pass_percent = int(quiz.get("pass_percent") or 70)
         if not 1 <= pass_percent <= 100:
             raise IntakeError("pass_percent must be between 1 and 100", file="module_quiz_blueprint.yaml", field="pass_percent")
+        categories = quiz.get("category_requirements") or []
+        if categories:
+            items = [
+                {
+                    "id": next(
+                        (
+                            tag
+                            for tag in str(row.get("tags") or "").split(",")
+                            if re.fullmatch(r"Q\d+", tag)
+                        ),
+                        str(index),
+                    ),
+                    "objective_codes": parse_objective_codes(row.get("objective_code")),
+                    "tags": [tag for tag in str(row.get("tags") or "").split(",") if tag],
+                }
+                for index, row in enumerate(questions)
+            ]
+            try:
+                selected = select_constrained(
+                    items,
+                    blueprint,
+                    categories,
+                    excluded_ids={
+                        str(value) for value in quiz.get("exclude_question_ids") or []
+                    },
+                    rng=random.Random(0),
+                )
+            except ConstraintSelectionError as exc:
+                raise IntakeError(
+                    f"Module Quiz constraints are not satisfiable: {exc}",
+                    file="module_quiz_blueprint.yaml",
+                    field="category_requirements",
+                ) from exc
+            if len(selected) != displayed:
+                raise IntakeError(
+                    "Module Quiz objective quota total must equal displayed_count",
+                    file="module_quiz_blueprint.yaml",
+                    field="displayed_count",
+                )
 
     def _normalize_resources(self, root: Path, version_key: str, lesson_keys: set[str]) -> list[dict]:
         path = root / "resources.yaml"
@@ -1599,17 +1844,26 @@ class CurriculumIntakeProcessor:
         rows[0].setdefault("is_published", True)
         return rows, str(rows[0]["title"])
 
-    def _service_desk(self, root: Path) -> str | None:
+    def _service_desk(
+        self,
+        root: Path,
+        module_key: str,
+        valid_objectives: set[str],
+        notes: set[str],
+    ) -> tuple[str | None, list[dict]]:
         path = root / "service_desk.yaml"
         if not path.is_file():
-            return None
+            return None, []
         doc = _read_yaml(path)
         key = str(doc.get("scenario_key") or "").strip()
         if not key:
-            raise IntakeError("Service Desk intake currently requires a stable reference to an existing Nexus scenario", file=path.name, field="scenario_key")
+            generated_key, scenario = _normalize_inline_service_desk(
+                doc, module_key, valid_objectives, notes
+            )
+            return generated_key, [scenario]
         if self.service_desk_keys is not None and key not in self.service_desk_keys:
             raise IntakeError(f"Service Desk scenario '{key}' is not registered", file=path.name, field="scenario_key")
-        return key
+        return key, []
 
     @staticmethod
     def _build_assessments(module_key: str, lessons: list[dict], quiz: dict, quiz_title: str, practical_title: str | None, service_desk_key: str | None, has_prompts: bool) -> list[dict]:
@@ -1639,7 +1893,11 @@ class CurriculumIntakeProcessor:
             "quiz_ref": quiz_title,
             "displayed_count": int(quiz.get("displayed_count") or 10),
             "pass_percent": int(quiz.get("pass_percent") or 70),
-            "config": {"question_blueprint": deepcopy(quiz.get("question_blueprint") or [])},
+            "config": {
+                "question_blueprint": deepcopy(quiz.get("question_blueprint") or []),
+                "category_requirements": deepcopy(quiz.get("category_requirements") or []),
+                "exclude_question_ids": deepcopy(quiz.get("exclude_question_ids") or []),
+            },
             "display_order": next_order,
         })
         if practical_title:
@@ -1710,6 +1968,12 @@ class CurriculumIntakeProcessor:
             ("resources", f"{slug}.yaml", "resources", normalized["resources"]),
             ("interview-prompts", f"{slug}.yaml", "prompts", normalized["prompts"]),
             ("labs", f"{slug}.yaml", "labs", normalized["labs"]),
+            (
+                "service-desk-scenarios",
+                f"{slug}.yaml",
+                "scenarios",
+                normalized["service_desk_scenarios"],
+            ),
         ):
             path = content / folder / filename
             if rows:
@@ -1861,7 +2125,8 @@ root = os.environ['NEXUS_CONTENT_DIR']
 kw = {name: os.path.join(root, folder) for name, folder in {
  'cert_dir':'certifications','objectives_dir':'objectives','curriculum_dir':'curriculum',
  'resources_dir':'resources','interview_prompts_dir':'interview-prompts',
- 'questions_dir':'questions','labs_dir':'labs'}.items()}
+ 'questions_dir':'questions','labs_dir':'labs',
+ 'service_desk_scenarios_dir':'service-desk-scenarios'}.items()}
 db = SessionLocal()
 try:
  seed_service_desk_scenarios(db)

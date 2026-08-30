@@ -76,9 +76,11 @@ loader operations against invalid state.
 The generated manifest records package identity, component counts, objectives,
 provenance, and the SHA-256 of the submitted source. Optional resources,
 practical, Explain prompts, and Service Desk components may be absent. A
-Service Desk component currently names an existing stable Nexus scenario key;
-inline scenarios are rejected because Nexus has one Service Desk engine and
-intake must not create a competing or partially gradeable ticket format.
+Service Desk component may name an existing stable Nexus scenario key or
+provide one complete approved inline scenario. For an inline scenario without
+a key, intake deterministically derives one from the canonical module key and
+scenario ordinal, then stages it for the existing versioned Service Desk
+engine. The original scenario remains unchanged in the approved archive.
 
 ## Existing V2 systems used
 
@@ -89,10 +91,23 @@ The processor creates no new teaching runtime. It stages files for:
   validation, fingerprints, provenance, and hash-bound editorial approval;
 - the learning-resource loader under `backend/content/resources/`;
 - `LabTemplate` practicals under `backend/content/labs/`;
-- existing Service Desk scenarios via stable keys;
+- existing and curriculum-owned Service Desk scenarios via stable keys under
+  `backend/content/service-desk-scenarios/`;
 - Explain/interview prompts under `backend/content/interview-prompts/`;
 - certification modules, objectives, Quick Checks, and Module Quiz blueprints
-  through the certification YAML and module-assessment loader.
+through the certification YAML and module-assessment loader.
+
+Question imports may declare one objective or an ordered comma-separated list.
+The first objective remains the backwards-compatible primary value, while the
+complete validated set is stored in the V2 question-objective association.
+Missed-question reporting retains one raw question row and attributes that miss
+to each mapped objective. Lesson/objective links remain the source of truth for
+curriculum coverage.
+
+Module Quiz blueprints may combine exact objective quotas with category
+minimums. A finite exact selector validates and satisfies both constraints
+without duplicate questions or retry-based chance failures. Existing simple
+objective-only blueprints continue through their original selection path.
 
 The question importer owns its database transaction. Intake therefore performs
 all package validation and creates all normalized files in temporary storage,

@@ -5,7 +5,13 @@ from __future__ import annotations
 from conftest import auth_headers, make_client, make_student
 
 from app.models.app_setting import AppSetting
-from app.models.certification import InterviewPrompt, LearningResource, StudentResourceActivity
+from app.models.certification import (
+    CertificationObjective,
+    InterviewPrompt,
+    LearningResource,
+    QuestionObjective,
+    StudentResourceActivity,
+)
 from app.models.grading import PendingGrade
 from app.models.service_desk import (
     ServiceDeskAttempt,
@@ -87,6 +93,39 @@ def test_report_counts_repeated_misses_and_keeps_objectives_isolated(db):
     assert dns_row["topic"] == "DNS troubleshooting"
     assert sum(row["missed_count"] for row in report["weak_objectives"]) == 3
     assert report["current_position"]["title"]
+
+
+def test_multi_objective_miss_counts_question_once_and_each_objective(db):
+    _loaded(db)
+    student = make_student(db, "mentor_multi_objective")
+    question = _question(db, "What does DNS do?")
+    meta = question.v2_meta
+    second = db.query(CertificationObjective).filter_by(
+        certification_version_id=meta.certification_version_id,
+        objective_code="2.1",
+    ).one()
+    db.add(
+        QuestionObjective(
+            question_v2_meta_id=meta.id,
+            objective_id=second.id,
+            position=1,
+        )
+    )
+    db.commit()
+    _quiz_attempt(
+        db,
+        student.id,
+        [{"attempt_number": 1, "results": [_miss(question)]}],
+    )
+
+    report = module_report(db, student.id, MODULE_KEY)
+    assert len(report["missed_questions"]) == 1
+    assert report["missed_questions"][0]["objective_codes"] == [meta.objective_code, "2.1"]
+    assert {row["objective_code"] for row in report["weak_objectives"]} == {
+        meta.objective_code,
+        "2.1",
+    }
+    assert sum(row["missed_count"] for row in report["weak_objectives"]) == 2
 
 
 def test_cohort_aggregation_is_student_based_deterministic_and_external_scores_do_not_count(db):
