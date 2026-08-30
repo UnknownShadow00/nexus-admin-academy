@@ -12,7 +12,12 @@ import openpyxl
 import pytest
 import yaml
 
-from app.services.curriculum_intake import CurriculumIntakeProcessor, safe_extract_zip
+from app.services.curriculum_intake import (
+    CurriculumIntakeProcessor,
+    _normalize_question_row,
+    _quick_check_rows,
+    safe_extract_zip,
+)
 
 
 def _write_yaml(path: Path, value: dict) -> None:
@@ -271,6 +276,48 @@ def _inline_service_desk(package: Path, *, title: str = "Approval-bound access")
             "unauthorized access is not."
         ),
         "hints": ["Check approval.", "Respect the permission boundary.", "Document the handoff."],
+    }
+    _write_yaml(package / "service_desk.yaml", definition)
+    return definition
+
+
+def _author_friendly_inline_service_desk(package: Path) -> dict:
+    definition = {
+        "scenario_key": "service_desk.test.device_and_sync",
+        "title": "Device and sync symptoms",
+        "module_key": "module.test.client_support",
+        "objectives": ["1.1", "1.2"],
+        "reinforces": ["1.1"],
+        "requester": {
+            "name": "Jordan Lee",
+            "department": "Field Operations",
+            "role": "Coordinator",
+            "device": "Managed phone",
+            "location": "Remote",
+        },
+        "complaint": "Charging is intermittent and mail is stale.",
+        "business_impact": "The user needs reliable mobile access later today.",
+        "initial_facts": ["A known-good cable has the same symptom."],
+        "stages": [
+            {"stage": "Investigation", "expectations": ["Collect both symptom sets."]},
+            {"stage": "Diagnosis", "expectations": ["Separate the likely causes."]},
+            {"stage": "Remediation", "expectations": ["Use safe authorized actions."]},
+            {"stage": "Verification", "expectations": ["Verify both workflows."]},
+            {"stage": "Documentation", "expectations": ["Record the outcome."]},
+        ],
+        "correct_outcomes": [
+            "Repair the physical fault and verify sync.",
+            "Escalate safely when authority is unavailable.",
+        ],
+        "incorrect_outcomes": ["Force the damaged connector."],
+        "hints": ["Separate symptoms.", "Check authority.", "Verify independently."],
+        "grading_anchors": {
+            "investigation": "Collects both symptom sets.",
+            "diagnosis": "Separates the causes.",
+            "remediation": "Uses safe actions.",
+            "verification": "Verifies both outcomes.",
+            "documentation": "Records the result.",
+        },
     }
     _write_yaml(package / "service_desk.yaml", definition)
     return definition
@@ -647,6 +694,122 @@ def test_enum_and_workbook_field_normalization(intake):
     assert "objective -> objective_code" in result["normalizations"]
 
 
+def test_title_case_workbook_headers_and_editorial_values_normalize(tmp_path):
+    notes: set[str] = set()
+    row = _normalize_question_row(
+        {
+            "Question ID": "Q001",
+            "Type": "single_choice",
+            "Objective(s)": "1.1,1.2",
+            "Lesson Key": "lesson.test.one",
+            "Prompt": "Which action is safe?",
+            "Option A": "Collect evidence",
+            "Option B": "Guess",
+            "Correct Answer": "A",
+            "Editorial Status": "EDIT",
+            "Provenance": "Reviewed source",
+        },
+        notes,
+    )
+    assert row["question_id"] == "Q001"
+    assert row["question_type"] == "single"
+    assert row["objective_code"] == "1.1,1.2"
+    assert row["lesson_id"] == "lesson.test.one"
+    assert row["question_text"] == "Which action is safe?"
+    assert row["option_a"] == "Collect evidence"
+    assert row["correct_answers"] == "A"
+    assert row["source_name"] == "Reviewed source"
+    assert row["final_validation_status"] == "APPROVED_AFTER_EDIT"
+
+    workbook = openpyxl.Workbook()
+    quick = workbook.active
+    quick.title = "Quick Checks"
+    quick.append(
+        ["Lesson Order", "Lesson Key", "Lesson Title", "Quick Check Question IDs", "Count"]
+    )
+    quick.append([1, "lesson.test.one", "Lesson One", "Q001, Q002", 2])
+    path = tmp_path / "questions.xlsx"
+    workbook.save(path)
+    assert _quick_check_rows(path) == [
+        {
+            "lesson_order": 1,
+            "lesson_key": "lesson.test.one",
+            "lesson_title": "Lesson One",
+            "question_ids": "Q001, Q002",
+            "count": 2,
+        }
+    ]
+
+
+def test_plain_text_free_response_rubric_is_wrapped_without_rewriting():
+    approved = "Full credit requires safe handling and explicit verification."
+    notes: set[str] = set()
+    row = _normalize_question_row(
+        {
+            "Type": "free_response",
+            "Prompt": "Explain the safe workflow.",
+            "Expected Concepts": "safety; verification",
+            "Minimum Concepts": "2 of 2",
+            "Rubric": approved,
+            "Rubric Version": "reviewed-v1",
+        },
+        notes,
+    )
+    assert row["rubric"] == {"approved_text": approved}
+    assert row["min_concepts_for_pass"] == 2
+    assert "plain-text free-response rubric -> rubric.approved_text" in notes
+
+
+def test_optional_resource_can_link_to_module_without_lesson(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    resources_path = package / "resources.yaml"
+    resources = yaml.safe_load(resources_path.read_text())
+    resources["resources"][0]["links"] = [
+        {
+            "module_key": "module.test.client_support",
+            "required": False,
+            "order": 99,
+        }
+    ]
+    _write_yaml(resources_path, resources)
+    result = processor.process(mode="check")[0]
+    assert result["status"].startswith("VALID")
+    assert result["component_summary"]["resources"]["lesson_mappings"] == {
+        "res.test.client_support.reference": [""]
+    }
+
+
+def test_owner_permitted_resource_label_normalizes_to_loader_enum(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    resources_path = package / "resources.yaml"
+    resources = yaml.safe_load(resources_path.read_text())
+    resources["resources"][0]["permission_status"] = "owner-permitted third-party"
+    _write_yaml(resources_path, resources)
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "VALID_WITH_NORMALIZATION"
+    assert "owner-permitted third-party -> permitted" in result["normalizations"]
+
+
+def test_plain_text_explain_rubric_preserves_explicit_constraints(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    prompts_path = package / "explain_prompts.yaml"
+    prompts = yaml.safe_load(prompts_path.read_text())
+    prompt = prompts["prompts"][0]
+    prompt["rubric"] = "Passing requires evidence and verification."
+    prompt["minimum_concepts"] = 2
+    prompt["must_include"] = ["evidence", "verification"]
+    _write_yaml(prompts_path, prompts)
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "VALID_WITH_NORMALIZATION"
+    assert any(
+        "plain-text rubric and explicit constraints -> rubric metadata" in note
+        for note in result["normalizations"]
+    )
+
+
 @pytest.mark.parametrize("missing", ["service_desk", "practical"])
 def test_optional_service_desk_and_practical(intake, missing):
     processor, dropbox, *_ = intake
@@ -690,6 +853,36 @@ def test_inline_service_desk_key_is_deterministic_and_changed_content_is_detecte
     changed = next(row for row in second if row["source"] == second_package.name)
     assert changed["manifest"]["service_desk_keys"] == [key]
     assert first["package_hash"] != changed["package_hash"]
+
+
+def test_author_friendly_inline_service_desk_with_explicit_key_is_promoted(intake):
+    processor, dropbox, approved, content = intake
+    package = _package(dropbox)
+    source = _author_friendly_inline_service_desk(package)
+
+    checked = processor.process(mode="check")[0]
+    assert checked["status"] == "VALID_WITH_NORMALIZATION"
+    assert checked["manifest"]["service_desk_keys"] == [source["scenario_key"]]
+    assert checked["component_summary"]["service_desk"]["rubric_dimensions"] == [
+        "Investigation",
+        "Diagnosis",
+        "Remediation",
+        "Verification",
+        "Documentation",
+    ]
+
+    applied = processor.process(mode="apply")[0]
+    assert applied["status"] == "IMPORTED"
+    runtime = next((content / "service-desk-scenarios").glob("*.yaml"))
+    stored = yaml.safe_load(runtime.read_text())["scenarios"][0]
+    assert stored["stable_key"] == source["scenario_key"]
+    assert stored["definition"]["curriculum"] == source
+    assert stored["definition"]["successful_professional_outcomes"] == source[
+        "correct_outcomes"
+    ]
+    assert stored["definition"]["grading_anchors"] == source["grading_anchors"]
+    approved_source = Path(applied["approved_destination"]) / "source" / "service_desk.yaml"
+    assert yaml.safe_load(approved_source.read_text()) == source
 
 
 def test_success_preserves_approved_package_and_cleans_inbox(intake):

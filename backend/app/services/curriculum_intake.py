@@ -44,11 +44,17 @@ APPROVALS_FILE = "editorial-approvals.yaml"
 FIELD_ALIASES = {
     "type": "question_type",
     "question": "question_text",
+    "prompt": "question_text",
     "correct_answer": "correct_answers",
     "objective": "objective_code",
+    "objectives": "objective_code",
+    "lesson_key": "lesson_id",
     "accepted_variants": "acceptable_answers",
+    "minimum_concepts": "min_concepts_for_pass",
     "min_concepts_pass": "min_concepts_for_pass",
+    "provenance": "source_name",
     "provenance_source": "source_name",
+    "editorial_status": "final_validation_status",
 }
 QUESTION_TYPE_ALIASES = {
     "single-choice": "single",
@@ -59,6 +65,12 @@ QUESTION_TYPE_ALIASES = {
     "short-answer": "short_answer",
     "free-response": "free_response",
     "true-false": "true_false",
+}
+EDITORIAL_STATUS_ALIASES = {
+    "approve": "APPROVED",
+    "approved": "APPROVED",
+    "edit": "APPROVED_AFTER_EDIT",
+    "approved_after_edit": "APPROVED_AFTER_EDIT",
 }
 IMPORTANCE_ALIASES = {
     "job critical": "job_critical",
@@ -374,13 +386,20 @@ def _normalize_question_row(raw: dict, notes: set[str], *, quiz_title: str | Non
     row: dict = {}
     for key, value in raw.items():
         source_key = str(key).strip()
-        canonical = FIELD_ALIASES.get(source_key, source_key)
+        normalized_key = re.sub(r"[^a-z0-9]+", "_", source_key.casefold().replace("(s)", "s")).strip("_")
+        canonical = FIELD_ALIASES.get(normalized_key, normalized_key)
         if canonical != source_key:
             notes.add(f"{source_key} -> {canonical}")
         row[canonical] = value
     row["question_type"] = _normalize_scalar(row.get("question_type"), QUESTION_TYPE_ALIASES, notes)
     row["importance"] = _normalize_scalar(row.get("importance"), IMPORTANCE_ALIASES, notes)
     row["permission_status"] = _permission_status(row.get("permission_status"), notes)
+    editorial = str(row.get("final_validation_status") or "").strip()
+    if editorial:
+        normalized_editorial = EDITORIAL_STATUS_ALIASES.get(editorial.casefold(), editorial)
+        if normalized_editorial != editorial:
+            notes.add(f"editorial status {editorial} -> {normalized_editorial}")
+        row["final_validation_status"] = normalized_editorial
     if quiz_title and not str(row.get("quiz_title") or "").strip():
         row["quiz_title"] = quiz_title
         notes.add("blank quiz_title -> module quiz blueprint title")
@@ -407,6 +426,10 @@ def _normalize_question_row(raw: dict, notes: set[str], *, quiz_title: str | Non
         if concepts:
             row["expected_concepts"] = concepts
             notes.add("semicolon expected_concepts -> expected_concepts list")
+        rubric = row.get("rubric")
+        if isinstance(rubric, str) and rubric.strip() and not rubric.lstrip().startswith(("{", "[")):
+            row["rubric"] = {"approved_text": rubric.strip()}
+            notes.add("plain-text free-response rubric -> rubric.approved_text")
         minimum_raw = str(row.get("min_concepts_for_pass") or "").strip()
         minimum_match = re.match(r"^(\d+)\b", minimum_raw)
         if minimum_match:
@@ -467,7 +490,10 @@ def _quick_check_rows(path: Path) -> list[dict]:
     values = list(workbook["Quick Checks"].iter_rows(values_only=True))
     if not values:
         return []
-    headers = [str(value or "").strip() for value in values[0]]
+    headers = []
+    for value in values[0]:
+        header = re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().casefold()).strip("_")
+        headers.append({"quick_check_question_ids": "question_ids"}.get(header, header))
     return [dict(zip(headers, row)) for row in values[1:] if any(value is not None for value in row)]
 
 
@@ -478,17 +504,24 @@ def _attach_quick_checks(lessons: list[dict], rows: list[dict], notes: set[str])
     assigned: set[int] = set()
     for sheet_row, row in enumerate(rows, 2):
         match = re.fullmatch(r"L(\d+)", str(row.get("lesson_id") or "").strip(), re.IGNORECASE)
-        order = int(match.group(1)) if match else None
+        order_value = row.get("lesson_order")
+        order = int(match.group(1)) if match else int(order_value) if order_value not in (None, "") else None
         lesson = by_order.get(order) if order is not None else None
+        lesson_key = str(row.get("lesson_key") or "").strip()
+        key_lesson = next(
+            (item for item in lessons if str(item.get("lesson_key") or "") == lesson_key),
+            None,
+        ) if lesson_key else None
         title = str(row.get("lesson_title") or "").strip()
         title_lesson = by_title.get(title.casefold()) if title else None
-        if lesson and title_lesson and lesson is not title_lesson:
+        candidates = [item for item in (lesson, key_lesson, title_lesson) if item is not None]
+        if candidates and any(item is not candidates[0] for item in candidates[1:]):
             raise IntakeError(
-                "Quick Check lesson_id and lesson_title identify different lessons",
+                "Quick Check order, lesson key, and title identify different lessons",
                 file="questions_and_editorial_review.xlsx",
                 field=f"Quick Checks row {sheet_row}",
             )
-        lesson = lesson or title_lesson
+        lesson = lesson or key_lesson or title_lesson
         if lesson is None:
             raise IntakeError(
                 "Quick Check row does not resolve to a package lesson",
@@ -525,6 +558,59 @@ def _generated_service_desk_key(module_key: str, ordinal: int = 1) -> str:
     return f"curriculum-{module_slug}-service-desk-{ordinal:02d}"
 
 
+def _has_inline_service_desk_content(doc: dict) -> bool:
+    """Distinguish a stable-key reference from an approved inline definition."""
+    return any(
+        doc.get(field) not in (None, "", [], {})
+        for field in (
+            "ticket",
+            "requester",
+            "complaint",
+            "business_impact",
+            "stages",
+            "grading_anchors",
+            "correct_failure_behavior",
+            "correct_outcomes",
+        )
+    )
+
+
+def _service_desk_stage_map(stages, notes: set[str]) -> dict[str, list]:
+    if isinstance(stages, dict):
+        return deepcopy(stages)
+    if not isinstance(stages, list):
+        raise IntakeError(
+            "inline Service Desk stages must be a mapping or ordered stage list",
+            file="service_desk.yaml",
+            field="stages",
+        )
+    normalized: dict[str, list] = {}
+    for index, row in enumerate(stages, 1):
+        if not isinstance(row, dict):
+            raise IntakeError(
+                f"inline Service Desk stage row {index} must be a mapping",
+                file="service_desk.yaml",
+                field="stages",
+            )
+        name = str(row.get("stage") or "").strip()
+        expectations = row.get("expectations")
+        if not name or not isinstance(expectations, list) or not expectations:
+            raise IntakeError(
+                f"inline Service Desk stage row {index} needs stage and expectations",
+                file="service_desk.yaml",
+                field="stages",
+            )
+        if name in normalized:
+            raise IntakeError(
+                f"duplicate inline Service Desk stage {name!r}",
+                file="service_desk.yaml",
+                field="stages",
+            )
+        normalized[name] = deepcopy(expectations)
+    notes.add("Service Desk ordered stage list -> rubric dimension mapping")
+    return normalized
+
+
 def _normalize_inline_service_desk(
     doc: dict,
     module_key: str,
@@ -532,28 +618,48 @@ def _normalize_inline_service_desk(
     notes: set[str],
 ) -> tuple[str, dict]:
     """Map one approved curriculum scenario into the existing versioned engine."""
+    approved_doc = deepcopy(doc)
     key = str(doc.get("scenario_key") or "").strip() or _generated_service_desk_key(module_key)
     if not doc.get("scenario_key"):
         notes.add(f"Service Desk scenario_key derived from module key -> {key}")
-    for field in ("title", "ticket", "stages", "grading_anchors", "correct_failure_behavior"):
+    for field in ("title", "stages", "grading_anchors"):
         if doc.get(field) in (None, "", [], {}):
             raise IntakeError(
                 f"inline Service Desk field {field!r} is required",
                 file="service_desk.yaml",
                 field=field,
             )
-    ticket = doc["ticket"]
-    for field in ("requester", "complaint", "business_impact", "initial_priority", "twist"):
+    stage_map = _service_desk_stage_map(doc["stages"], notes)
+    ticket = deepcopy(doc.get("ticket") or {})
+    if not ticket:
+        ticket = {
+            "requester": deepcopy(doc.get("requester")),
+            "complaint": doc.get("complaint"),
+            "business_impact": doc.get("business_impact"),
+            "initial_priority": doc.get("initial_priority") or doc.get("priority"),
+            "twist": doc.get("twist"),
+            "initial_facts": deepcopy(doc.get("initial_facts") or []),
+        }
+        notes.add("top-level Service Desk scenario fields -> existing engine ticket")
+    for field in ("requester", "complaint", "business_impact"):
+        value = ticket.get(field)
+        if field == "requester" and isinstance(value, dict):
+            value = value.get("name")
         if not str(ticket.get(field) or "").strip():
+            if field == "requester" and value:
+                continue
             raise IntakeError(
                 f"inline Service Desk ticket field {field!r} is required",
                 file="service_desk.yaml",
                 field=field,
             )
+    if not ticket.get("initial_priority"):
+        ticket["initial_priority"] = "medium"
+        notes.add("missing Service Desk priority -> existing engine default medium")
     required_stages = (
         "Investigation", "Diagnosis", "Remediation", "Verification", "Documentation"
     )
-    if set(doc["stages"]) != set(required_stages):
+    if set(stage_map) != set(required_stages):
         raise IntakeError(
             f"inline Service Desk stages must be exactly {sorted(required_stages)}",
             file="service_desk.yaml",
@@ -574,13 +680,37 @@ def _normalize_inline_service_desk(
         "medium",
     )
     anchors = deepcopy(doc["grading_anchors"])
-    point_value = sum(int(row.get("weight") or 0) for row in anchors) or 100
-    troubleshooting = [str(ticket["twist"])] + [
+    point_value = (
+        sum(int(row.get("weight") or 0) for row in anchors)
+        if isinstance(anchors, list)
+        else 100
+    ) or 100
+    troubleshooting = [str(value) for value in ticket.get("initial_facts") or []]
+    if ticket.get("twist"):
+        troubleshooting.insert(0, str(ticket["twist"]))
+    troubleshooting.extend(
         str(step)
         for stage in required_stages
-        for step in doc["stages"].get(stage) or []
-    ]
+        for step in stage_map.get(stage) or []
+    )
+    correct_failure_behavior = str(doc.get("correct_failure_behavior") or "").strip()
+    correct_outcomes = [str(value) for value in doc.get("correct_outcomes") or []]
+    if not correct_failure_behavior and not correct_outcomes:
+        raise IntakeError(
+            "inline Service Desk needs correct_failure_behavior or correct_outcomes",
+            file="service_desk.yaml",
+            field="correct_outcomes",
+        )
+    outcome_explanation = correct_failure_behavior or "\n".join(correct_outcomes)
+    successful_outcomes = (
+        ["pending", "escalated", "handed_off"]
+        if correct_failure_behavior
+        else correct_outcomes
+    )
     placeholder = "Not specified by approved curriculum package"
+    requester = ticket["requester"]
+    requester_doc = requester if isinstance(requester, dict) else {}
+    requester_name = str(requester_doc.get("name") or requester)
     hints = [
         {
             "id": f"hint-{index:02d}",
@@ -604,24 +734,24 @@ def _normalize_inline_service_desk(
         "priority": priority,
         "difficulty": "easy",
         "pointValue": point_value,
-        "explanation": doc["correct_failure_behavior"],
+        "explanation": outcome_explanation,
         "description": {
             "issue": ticket["complaint"],
-            "reportedByLine": ticket["requester"],
+            "reportedByLine": requester_name,
             "businessImpact": ticket["business_impact"],
             "troubleshooting": troubleshooting,
         },
         "requester": {
-            "name": ticket["requester"],
-            "department": placeholder,
+            "name": requester_name,
+            "department": str(requester_doc.get("department") or placeholder),
             "email": placeholder,
             "contact": placeholder,
-            "location": placeholder,
+            "location": str(requester_doc.get("location") or placeholder),
         },
         "device": {
             "assetTag": ticket_id,
-            "deviceName": placeholder,
-            "kind": "laptop",
+            "deviceName": str(requester_doc.get("device") or placeholder),
+            "kind": "mobile" if requester_doc.get("device") else "laptop",
             "operatingSystem": placeholder,
             "state": "active",
         },
@@ -634,7 +764,7 @@ def _normalize_inline_service_desk(
         "objectives": [
             {
                 "id": "professional-pending-or-completed-outcome",
-                "description": doc["correct_failure_behavior"],
+                "description": outcome_explanation,
                 "predicateType": "action_event_occurred",
                 "predicateParams": {
                     "actionType": "ticket.add_note",
@@ -648,16 +778,16 @@ def _normalize_inline_service_desk(
             {
                 "id": "document-professional-outcome",
                 "actionType": "ticket.add_note",
-                "description": doc["correct_failure_behavior"],
+                "description": outcome_explanation,
                 "payloadMatch": {"ticketId": ticket_id},
             }
         ],
         "forbiddenActions": [],
         "hints": hints,
-        "curriculum": deepcopy(doc),
-        "rubric_dimensions": deepcopy(doc["stages"]),
+        "curriculum": approved_doc,
+        "rubric_dimensions": stage_map,
         "grading_anchors": anchors,
-        "successful_professional_outcomes": ["pending", "escalated", "handed_off"],
+        "successful_professional_outcomes": successful_outcomes,
     }
     return key, {
         "stable_key": key,
@@ -1078,6 +1208,7 @@ class CurriculumIntakeProcessor:
         short_answer_count = 0
         free_response_count = 0
         question_items: list[dict] = []
+        normalized_editorial_statuses: set[str] = set()
         workbook = None
         try:
             question_path = self._question_path(root)
@@ -1101,7 +1232,11 @@ class CurriculumIntakeProcessor:
             row_notes: set[str] = set()
             row = _normalize_question_row(raw, row_notes, quiz_title=quiz_title)
             notes.update(row_notes)
-            qid = str(raw.get("question_id") or "").strip()
+            if row.get("final_validation_status"):
+                normalized_editorial_statuses.add(
+                    str(row["final_validation_status"]).strip()
+                )
+            qid = str(row.get("question_id") or "").strip()
             if qid:
                 if qid in question_ids:
                     add("BLOCKING_METADATA", f"duplicate question_id {qid}", file=question_path.name, field="question_id", row=row_number, key=qid)
@@ -1176,7 +1311,16 @@ class CurriculumIntakeProcessor:
         if workbook and "Quick Checks" in workbook.sheetnames:
             values = list(workbook["Quick Checks"].iter_rows(values_only=True))
             if values:
-                headers = [str(value or "").strip() for value in values[0]]
+                headers = []
+                for value in values[0]:
+                    header = re.sub(
+                        r"[^a-z0-9]+",
+                        "_",
+                        str(value or "").strip().casefold(),
+                    ).strip("_")
+                    headers.append(
+                        {"quick_check_question_ids": "question_ids"}.get(header, header)
+                    )
                 quick_rows = [dict(zip(headers, row)) for row in values[1:] if any(value is not None for value in row)]
             for index, row in enumerate(quick_rows, 2):
                 ids = [value.strip() for value in str(row.get("question_ids") or "").split(",") if value.strip()]
@@ -1195,6 +1339,9 @@ class CurriculumIntakeProcessor:
         for index, row in enumerate(resource_rows, 1):
             key = str(row.get("resource_key") or "").strip()
             resource_type = row.get("resource_type") or row.get("type")
+            permission = str(row.get("permission_status") or "").strip()
+            if permission:
+                _permission_status(permission, notes)
             if row.get("type") and not row.get("resource_type"):
                 note = f"resource {key or index}: type -> resource_type"
                 notes.add(note)
@@ -1286,17 +1433,21 @@ class CurriculumIntakeProcessor:
         # Nexus has one Service Desk engine. Inline definitions cannot silently
         # become a different scenario or reuse a key with different outcomes.
         service_doc: dict = {}
+        service_stage_names: list[str] = []
         if (root / "service_desk.yaml").is_file():
             try:
                 service_doc = _read_yaml(root / "service_desk.yaml")
                 stable_key = str(service_doc.get("scenario_key") or "").strip()
-                if not stable_key:
+                if _has_inline_service_desk_content(service_doc):
                     try:
-                        stable_key, _scenario = _normalize_inline_service_desk(
+                        stable_key, scenario = _normalize_inline_service_desk(
                             service_doc,
                             str(module_key or ""),
                             valid_objectives,
                             notes,
+                        )
+                        service_stage_names = list(
+                            (scenario["definition"].get("rubric_dimensions") or {}).keys()
                         )
                         add(
                             "NORMALIZABLE",
@@ -1314,7 +1465,11 @@ class CurriculumIntakeProcessor:
                         )
                 elif self.service_desk_keys is not None and stable_key not in self.service_desk_keys:
                     add("BLOCKING_METADATA", f"Service Desk scenario {stable_key!r} is not registered", file="service_desk.yaml", field="scenario_key")
-                for code in [str(value) for value in service_doc.get("objectives") or []]:
+                for code in [
+                    str(value)
+                    for field in ("objectives", "reinforces")
+                    for value in service_doc.get(field) or []
+                ]:
                     if valid_objectives and code not in valid_objectives:
                         add("BLOCKING_CONTENT", f"objective {code!r} is not defined for {version_key}", file="service_desk.yaml", field="objectives")
             except IntakeError as exc:
@@ -1324,7 +1479,7 @@ class CurriculumIntakeProcessor:
             "scenario_key": stable_key if service_doc else None,
             "objectives": [str(value) for value in service_doc.get("objectives") or []],
             "reinforces": [str(value) for value in service_doc.get("reinforces") or []],
-            "rubric_dimensions": list((service_doc.get("stages") or {}).keys()),
+            "rubric_dimensions": service_stage_names,
         }
 
         # Human quiz aliases and ID pools map to current blueprint selectors.
@@ -1383,7 +1538,7 @@ class CurriculumIntakeProcessor:
 
         # Editorial status may be proven by unanimous row-level review records.
         editorial = str(provenance.get("editorial_status") or overview.get("editorial_status") or "").strip().lower()
-        statuses = {str(row.get("final_validation_status") or "").strip() for row in raw_questions}
+        statuses = normalized_editorial_statuses
         approved_statuses = {"APPROVED", "APPROVED_AFTER_EDIT"}
         if editorial != "validated":
             if statuses and statuses.issubset(approved_statuses):
@@ -1575,7 +1730,10 @@ class CurriculumIntakeProcessor:
             raise IntakeError("question bank is empty", file=question_path.name, field="questions")
 
         editorial = str(provenance.get("editorial_status") or overview.get("editorial_status") or "").lower()
-        statuses = {str(row.get("final_validation_status") or "").strip() for row in raw_rows}
+        statuses = {
+            str(_normalize_question_row(row, set(), quiz_title=quiz_title).get("final_validation_status") or "").strip()
+            for row in raw_rows
+        }
         if editorial != "validated" and statuses and statuses.issubset(
             {"APPROVED", "APPROVED_AFTER_EDIT"}
         ):
@@ -1598,7 +1756,7 @@ class CurriculumIntakeProcessor:
             self._validate_objectives([str(x) for x in entry.get("objective_codes") or []], version["objectives"], "module_quiz_blueprint.yaml")
         self._validate_assessment_pools(lesson_meta_rows, quiz, normalized_rows)
 
-        resources = self._normalize_resources(root, version_key, lesson_keys)
+        resources = self._normalize_resources(root, version_key, lesson_keys, notes)
         prompts = self._normalize_prompts(root, version_key, module_key, domain, version["objectives"], notes)
         labs, practical_title = self._normalize_practical(root, notes)
         service_desk_key, service_desk_scenarios = self._service_desk(
@@ -1760,7 +1918,13 @@ class CurriculumIntakeProcessor:
                     field="displayed_count",
                 )
 
-    def _normalize_resources(self, root: Path, version_key: str, lesson_keys: set[str]) -> list[dict]:
+    def _normalize_resources(
+        self,
+        root: Path,
+        version_key: str,
+        lesson_keys: set[str],
+        notes: set[str],
+    ) -> list[dict]:
         path = root / "resources.yaml"
         if not path.is_file():
             return []
@@ -1769,9 +1933,19 @@ class CurriculumIntakeProcessor:
             if "type" in row and "resource_type" not in row:
                 row["resource_type"] = row.pop("type")
             row["certification_version"] = version_key
+            row["permission_status"] = _permission_status(
+                row.get("permission_status"), notes
+            )
             for link in row.get("links") or []:
-                if str(link.get("lesson_key")) not in lesson_keys:
+                lesson_key = str(link.get("lesson_key") or "").strip()
+                if lesson_key and lesson_key not in lesson_keys:
                     raise IntakeError("resource links to an unknown package lesson", file=path.name, field="lesson_key")
+                if not lesson_key and not str(link.get("module_key") or "").strip():
+                    raise IntakeError(
+                        "resource link needs a lesson_key or module_key",
+                        file=path.name,
+                        field="links",
+                    )
         return rows
 
     def _normalize_prompts(self, root: Path, version_key: str, module_key: str, domain: str, valid_objectives: set[str], notes: set[str]) -> list[dict]:
@@ -1797,6 +1971,15 @@ class CurriculumIntakeProcessor:
                     "partial_credit": doc.get("partial_credit"),
                 }
                 notes.add(f"Explain {row['prompt_key']}: minimum_for_pass -> rubric metadata")
+            elif isinstance(row.get("rubric"), str) and row["rubric"].strip():
+                row["rubric"] = {
+                    "approved_text": row["rubric"].strip(),
+                    "minimum_concepts": row.get("minimum_concepts"),
+                    "must_include": deepcopy(row.get("must_include") or []),
+                }
+                notes.add(
+                    f"Explain {row['prompt_key']}: plain-text rubric and explicit constraints -> rubric metadata"
+                )
             row["certification_version"] = version_key
             row["module"] = module_key
             row["domain"] = domain
@@ -1861,7 +2044,7 @@ class CurriculumIntakeProcessor:
             return None, []
         doc = _read_yaml(path)
         key = str(doc.get("scenario_key") or "").strip()
-        if not key:
+        if _has_inline_service_desk_content(doc):
             generated_key, scenario = _normalize_inline_service_desk(
                 doc, module_key, valid_objectives, notes
             )
@@ -2154,8 +2337,15 @@ try:
 finally:
  db.close()
 """
-            completed = subprocess.run(
-                [sys.executable, "-c", script], cwd=self.backend_dir, env=env,
-                check=True, capture_output=True, text=True,
-            )
+            try:
+                completed = subprocess.run(
+                    [sys.executable, "-c", script], cwd=self.backend_dir, env=env,
+                    check=True, capture_output=True, text=True,
+                )
+            except subprocess.CalledProcessError as exc:
+                detail = (exc.stderr or exc.stdout or str(exc)).strip()
+                raise IntakeError(
+                    f"scratch V2 loading failed: {detail}",
+                    field="runtime_validation",
+                ) from exc
             return json.loads(completed.stdout.strip().splitlines()[-1])
