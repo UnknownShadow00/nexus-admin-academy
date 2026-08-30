@@ -121,6 +121,15 @@ class Question(Base):
     seed_key: Mapped[str | None] = mapped_column(String(160), nullable=True, unique=True, index=True)
 
     quiz = relationship("Quiz", back_populates="questions")
+    # Nexus V2 hierarchy mapping + provenance lives in the companion table
+    # ``question_v2_meta`` (app.models.certification.QuestionV2Meta), NOT as
+    # columns here, so the legacy ``questions`` schema is unchanged in Phase 1A.
+    v2_meta = relationship(
+        "QuestionV2Meta",
+        uselist=False,
+        cascade="all, delete-orphan",
+        back_populates="question",
+    )
 
     @property
     def all_correct_answers(self) -> list[str]:

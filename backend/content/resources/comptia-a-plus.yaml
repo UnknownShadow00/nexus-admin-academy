@@ -1,0 +1,356 @@
+# Nexus V2 learning resources for CompTIA A+ (Phase 1B fixture).
+#
+# DATA. The V2 content loader (`load_resources`) upserts this idempotently
+# keyed on `resource_key`. URLs, providers, and permission status live here,
+# never hardcoded in application code. `permission_status` is one of
+# owned | permitted | requested | unknown | denied. A resource is *support*
+# for a lesson, never a replacement.
+
+resources:
+  - resource_key: res.aplus.core1.tcp_udp_ports.pcnet_video
+    title: "TCP and UDP Explained"
+    resource_type: video
+    provider: "PowerCert Animated Videos"
+    url: "https://www.youtube.com/watch?v=uwoD5YsGACg"
+    duration: "6m"
+    certification_version: comptia_aplus_220-1201
+    source_name: "PowerCert Animated Videos (YouTube)"
+    source_url: "https://www.youtube.com/@PowerCertAnimatedVideos"
+    permission_status: unknown
+    license_note: "Public YouTube video; linked, not embedded or re-hosted."
+    active: true
+    links:
+      - lesson_key: lesson.aplus.core1.networking_fundamentals.tcp_udp_ports
+        required: true
+        order: 1
+
+  - resource_key: res.aplus.core1.common_ports.reference_table
+    title: "CompTIA A+ Common Ports Reference"
+    resource_type: reference
+    provider: "Professor Messer"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/common-network-ports-220-1201/"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Professor Messer 220-1201 course notes"
+    source_url: "https://www.professormesser.com/"
+    permission_status: permitted
+    license_note: "Free training resource; linked with attribution."
+    active: true
+    links:
+      - lesson_key: lesson.aplus.core1.networking_fundamentals.tcp_udp_ports
+        required: false
+        order: 2
+      - module_key: module.aplus.core1.networking_fundamentals
+        required: false
+        order: 1
+
+  # ---- Phase 2A: module.aplus.core1.ip_configuration ---------------------- #
+  # Professor Messer's A+ course is explicitly free to use; we link to his
+  # pages (not rehost). Microsoft Learn pages are public documentation, linked
+  # with attribution. Exact deep URLs may drift as the courses are refreshed
+  # for 220-1201/1202 — the provider + title are the stable identifiers and a
+  # maintainer can correct a URL here without any code change.
+
+  - resource_key: res.aplus.ipcfg.messer.ipv4_ipv6
+    title: "Professor Messer — IPv4 and IPv6 (220-1201)"
+    resource_type: video
+    provider: "Professor Messer"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    duration: "10m"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Professor Messer CompTIA A+ 220-1201 training course"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    permission_status: permitted
+    license_note: "Free training video; linked with attribution, not rehosted."
+    active: true
+    links:
+      - lesson_key: lesson.aplus.core1.ip_configuration.ipv4_basics
+        required: true
+        order: 1
+      - module_key: module.aplus.core1.ip_configuration
+        required: false
+        order: 1
+
+  - resource_key: res.aplus.ipcfg.mslearn.change_tcpip
+    title: "Microsoft — Change TCP/IP settings"
+    resource_type: documentation
+    provider: "Microsoft"
+    url: "https://support.microsoft.com/en-us/windows/change-tcp-ip-settings-bd0a07af-15f5-cd6a-363f-ca2b6f391ace"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Microsoft Support"
+    source_url: "https://support.microsoft.com/"
+    permission_status: permitted
+    license_note: "Public vendor documentation; linked with attribution."
+    active: true
+    links:
+      - lesson_key: lesson.aplus.core1.ip_configuration.ipv4_basics
+        required: false
+        order: 2
+
+  - resource_key: res.aplus.ipcfg.messer.dhcp
+    title: "Professor Messer — Dynamic Host Configuration Protocol (DHCP) (220-1201)"
+    resource_type: video
+    provider: "Professor Messer"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    duration: "9m"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Professor Messer CompTIA A+ 220-1201 training course"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    permission_status: permitted
+    license_note: "Free training video; linked with attribution, not rehosted."
+    active: true
+    links:
+      - lesson_key: lesson.aplus.core1.ip_configuration.dhcp_and_apipa
+        required: true
+        order: 1
+
+  - resource_key: res.aplus.ipcfg.messer.apipa
+    title: "Professor Messer — APIPA and Link-Local Addresses (220-1201)"
+    resource_type: video
+    provider: "Professor Messer"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    duration: "6m"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Professor Messer CompTIA A+ 220-1201 training course"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    permission_status: permitted
+    license_note: "Free training video; linked with attribution, not rehosted."
+    active: true
+    links:
+      - lesson_key: lesson.aplus.core1.ip_configuration.dhcp_and_apipa
+        required: false
+        order: 2
+
+  - resource_key: res.aplus.ipcfg.messer.soho_config
+    title: "Professor Messer — Configuring a SOHO Network (220-1201)"
+    resource_type: video
+    provider: "Professor Messer"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    duration: "8m"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Professor Messer CompTIA A+ 220-1201 training course"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    permission_status: permitted
+    license_note: "Free training video; linked with attribution, not rehosted."
+    active: true
+    links:
+      - lesson_key: lesson.aplus.core1.ip_configuration.default_gateway
+        required: true
+        order: 1
+
+  - resource_key: res.aplus.ipcfg.messer.dns
+    title: "Professor Messer — Domain Name System (DNS) (220-1201)"
+    resource_type: video
+    provider: "Professor Messer"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    duration: "9m"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Professor Messer CompTIA A+ 220-1201 training course"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    permission_status: permitted
+    license_note: "Free training video; linked with attribution, not rehosted."
+    active: true
+    links:
+      - lesson_key: lesson.aplus.core1.ip_configuration.dns_basics
+        required: true
+        order: 1
+
+  - resource_key: res.aplus.ipcfg.messer.network_troubleshooting
+    title: "Professor Messer — Network Troubleshooting (220-1201)"
+    resource_type: video
+    provider: "Professor Messer"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    duration: "10m"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Professor Messer CompTIA A+ 220-1201 training course"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    permission_status: permitted
+    license_note: "Free training video; linked with attribution, not rehosted."
+    active: true
+    links:
+      - lesson_key: lesson.aplus.core1.ip_configuration.windows_commands
+        required: true
+        order: 1
+      - lesson_key: lesson.aplus.core1.ip_configuration.default_gateway
+        required: false
+        order: 2
+      - lesson_key: lesson.aplus.core1.ip_configuration.dns_basics
+        required: false
+        order: 3
+
+  - resource_key: res.aplus.ipcfg.mslearn.ipconfig
+    title: "Microsoft — ipconfig command reference"
+    resource_type: documentation
+    provider: "Microsoft"
+    url: "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Microsoft Learn — Windows Commands"
+    source_url: "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/windows-commands"
+    permission_status: permitted
+    license_note: "Public vendor documentation; linked with attribution."
+    active: true
+    links:
+      - lesson_key: lesson.aplus.core1.ip_configuration.windows_commands
+        required: true
+        order: 2
+
+  - resource_key: res.aplus.ipcfg.mslearn.ping
+    title: "Microsoft — ping command reference"
+    resource_type: documentation
+    provider: "Microsoft"
+    url: "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ping"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Microsoft Learn — Windows Commands"
+    source_url: "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/windows-commands"
+    permission_status: permitted
+    license_note: "Public vendor documentation; linked with attribution."
+    active: true
+    links:
+      - lesson_key: lesson.aplus.core1.ip_configuration.windows_commands
+        required: false
+        order: 2
+
+  - resource_key: res.aplus.ipcfg.mslearn.nslookup
+    title: "Microsoft — nslookup command reference"
+    resource_type: documentation
+    provider: "Microsoft"
+    url: "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/nslookup"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Microsoft Learn — Windows Commands"
+    source_url: "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/windows-commands"
+    permission_status: permitted
+    license_note: "Public vendor documentation; linked with attribution."
+    active: true
+    links:
+      - lesson_key: lesson.aplus.core1.ip_configuration.dns_basics
+        required: false
+        order: 2
+      - lesson_key: lesson.aplus.core1.ip_configuration.windows_commands
+        required: false
+        order: 3
+
+  # ---- Phase 3A: A+ Batch 1 -------------------------------------------- #
+  - resource_key: res.aplus.hardware.messer.motherboards
+    title: "Professor Messer — Motherboards and CPUs (220-1201)"
+    resource_type: video
+    provider: "Professor Messer"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    duration: "25m"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Professor Messer CompTIA A+ 220-1201 free course"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    permission_status: permitted
+    license_note: "Free training videos; linked with attribution, not rehosted. Reuses legacy Nexus Hardware anchors."
+    links:
+      - { lesson_key: lesson.aplus.core1.hardware_support.platform, required: true, order: 1 }
+      - { lesson_key: lesson.aplus.core1.hardware_support.cpu_cooling, required: true, order: 1 }
+      - { lesson_key: lesson.aplus.core1.hardware_support.expansion_cards, required: true, order: 1 }
+      - { module_key: module.aplus.core1.hardware_support, required: false, order: 1 }
+
+  - resource_key: res.aplus.hardware.messer.power
+    title: "Professor Messer — Computer Power (220-1201)"
+    resource_type: video
+    provider: "Professor Messer"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    duration: "16m"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Professor Messer CompTIA A+ 220-1201 free course"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    permission_status: permitted
+    license_note: "Free training video; linked with attribution, not rehosted. Reuses the legacy Computer Power anchor."
+    links:
+      - { lesson_key: lesson.aplus.core1.hardware_support.power, required: true, order: 1 }
+      - { lesson_key: lesson.aplus.core1.hardware_support.safe_upgrade, required: true, order: 1 }
+
+  - resource_key: res.aplus.wintools.microsoft.lifecycle
+    title: "Microsoft — Windows lifecycle fact sheet"
+    resource_type: documentation
+    provider: "Microsoft"
+    url: "https://learn.microsoft.com/en-us/lifecycle/products/windows-11-home-and-pro"
+    certification_version: comptia_aplus_220-1202
+    source_name: "Microsoft Lifecycle"
+    source_url: "https://learn.microsoft.com/en-us/lifecycle/"
+    permission_status: permitted
+    license_note: "Public vendor documentation; linked with attribution."
+    links:
+      - { lesson_key: lesson.aplus.core2.windows_support_tools.os_filesystems, required: true, order: 1 }
+
+  - resource_key: res.aplus.wintools.microsoft.commands
+    title: "Microsoft — Windows commands reference"
+    resource_type: documentation
+    provider: "Microsoft"
+    url: "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/windows-commands"
+    certification_version: comptia_aplus_220-1202
+    source_name: "Microsoft Learn — Windows Commands"
+    source_url: "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/windows-commands"
+    permission_status: permitted
+    license_note: "Public vendor documentation; linked with attribution."
+    links:
+      - { lesson_key: lesson.aplus.core2.windows_support_tools.network_commands, required: true, order: 1 }
+      - { lesson_key: lesson.aplus.core2.windows_support_tools.system_commands, required: true, order: 1 }
+
+  - resource_key: res.aplus.wintools.microsoft.sharing
+    title: "Microsoft — File sharing over a network in Windows"
+    resource_type: documentation
+    provider: "Microsoft"
+    url: "https://support.microsoft.com/en-us/windows/file-sharing-over-a-network-in-windows-b58704b2-f53a-4b82-7bc1-80f9994725bf"
+    certification_version: comptia_aplus_220-1202
+    source_name: "Microsoft Support"
+    source_url: "https://support.microsoft.com/windows"
+    permission_status: permitted
+    license_note: "Public vendor documentation; linked with attribution."
+    links:
+      - { lesson_key: lesson.aplus.core2.windows_support_tools.shares_domains, required: true, order: 1 }
+
+  - resource_key: res.aplus.wintools.microsoft.network_settings
+    title: "Microsoft — Essential network settings and tasks in Windows"
+    resource_type: documentation
+    provider: "Microsoft"
+    url: "https://support.microsoft.com/en-US/Windows/Experience/Connectivity-Networking/essential-network-settings-and-tasks-in-windows"
+    certification_version: comptia_aplus_220-1202
+    source_name: "Microsoft Support"
+    source_url: "https://support.microsoft.com/windows"
+    permission_status: permitted
+    license_note: "Public vendor documentation; linked with attribution."
+    links:
+      - { lesson_key: lesson.aplus.core2.windows_support_tools.client_settings, required: true, order: 1 }
+
+  - resource_key: res.aplus.wintriage.microsoft.support
+    title: "Microsoft — Windows troubleshooting and recovery"
+    resource_type: documentation
+    provider: "Microsoft"
+    url: "https://support.microsoft.com/en-us/windows/recovery-options-in-windows-31ce2444-7de3-818c-d626-e3b5a3024da5"
+    certification_version: comptia_aplus_220-1202
+    source_name: "Microsoft Support"
+    source_url: "https://support.microsoft.com/windows"
+    permission_status: permitted
+    license_note: "Public vendor documentation; linked with attribution."
+    links:
+      - { lesson_key: lesson.aplus.core2.windows_troubleshooting.method, required: true, order: 1 }
+      - { lesson_key: lesson.aplus.core2.windows_troubleshooting.startup, required: true, order: 1 }
+
+  - resource_key: res.aplus.wintriage.microsoft.performance
+    title: "Microsoft — Tips to improve PC performance in Windows"
+    resource_type: documentation
+    provider: "Microsoft"
+    url: "https://support.microsoft.com/en-us/windows/tips-to-improve-pc-performance-in-windows-b3b3ef5b-5953-fb6a-2528-4bbed82fba96"
+    certification_version: comptia_aplus_220-1202
+    source_name: "Microsoft Support"
+    source_url: "https://support.microsoft.com/windows"
+    permission_status: permitted
+    license_note: "Public vendor documentation; linked with attribution."
+    links:
+      - { lesson_key: lesson.aplus.core2.windows_troubleshooting.performance, required: true, order: 1 }
+
+  - resource_key: res.aplus.wintriage.microsoft.events
+    title: "Microsoft Learn — Explore Windows support and diagnostic tools"
+    resource_type: documentation
+    provider: "Microsoft"
+    url: "https://learn.microsoft.com/en-us/training/modules/explore-support-diagnostic-tools/"
+    certification_version: comptia_aplus_220-1202
+    source_name: "Microsoft Learn"
+    source_url: "https://learn.microsoft.com/"
+    permission_status: permitted
+    license_note: "Public vendor documentation; linked with attribution."
+    links:
+      - { lesson_key: lesson.aplus.core2.windows_troubleshooting.crashes, required: true, order: 1 }
+      - { lesson_key: lesson.aplus.core2.windows_troubleshooting.verify, required: true, order: 1 }

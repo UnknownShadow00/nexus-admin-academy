@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import BackLink from "../components/BackLink";
 import Spinner from "../components/Spinner";
 import PrerequisiteLock, { getPrerequisiteLock } from "../components/PrerequisiteLock";
@@ -10,7 +10,7 @@ import FinalSupportShiftPage from "./FinalSupportShiftPage";
 import { DifficultyBadge } from "../components/ui/Badge";
 import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
-import { createLabVmAccess, getLab, getLabVmStatus, startLab, submitLab, uploadLabEvidence, verifyEvidenceLab } from "../services/api";
+import { createLabVmAccess, getLab, getLabVmStatus, startLab, startV2Lab, submitLab, submitV2Lab, uploadLabEvidence, verifyEvidenceLab } from "../services/api";
 import { setMonitoringContext } from "../monitoring/sentry";
 
 const provisioningStatuses = new Set(["provisioning", "starting", "waiting_for_ip", "configuring_connection"]);
@@ -24,6 +24,10 @@ const statusConfig = {
 
 export default function LabPage() {
   const { labId } = useParams();
+  const [searchParams] = useSearchParams();
+  const v2ModuleKey = searchParams.get("v2Module");
+  const v2AssessmentKey = searchParams.get("v2Assessment");
+  const isV2Practical = Boolean(v2ModuleKey && v2AssessmentKey);
   const [lab, setLab] = useState(null);
   const [guacUrl, setGuacUrl] = useState(null);
   const [vmAssignment, setVmAssignment] = useState(null);
@@ -108,7 +112,9 @@ export default function LabPage() {
     setBusy(true);
     setVmError("");
     try {
-      const res = await startLab(labId);
+      const res = isV2Practical
+        ? await startV2Lab(labId, v2ModuleKey, v2AssessmentKey)
+        : await startLab(labId);
       setLab(res.data);
       setNotes(res.data?.notes || "");
       setEvidenceArtifacts(res.data?.evidence_artifacts || []);
@@ -125,7 +131,9 @@ export default function LabPage() {
   async function handleSubmit() {
     setBusy(true);
     try {
-      const res = await submitLab(labId, { notes });
+      const res = isV2Practical
+        ? await submitV2Lab(labId, v2ModuleKey, v2AssessmentKey, { notes, answers: {} })
+        : await submitLab(labId, { notes });
       setLab(res.data);
       setNotes(res.data?.notes || "");
       setVmAssignment(null);
@@ -221,10 +229,10 @@ export default function LabPage() {
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
-      <BackLink fallbackLabel="Guided Labs" fallbackTo="/labs" />
+      <BackLink fallbackLabel={isV2Practical ? "Back to module" : "Guided Labs"} fallbackTo={isV2Practical ? `/learning-v2/modules/${v2ModuleKey}` : "/labs"} />
       <PageHeader
         title={lab.title}
-        subtitle={`Week ${lab.week_number} | ${lab.estimated_minutes} minutes | ${lab.lab_type}`}
+        subtitle={isV2Practical ? `${lab.estimated_minutes} minutes · Guided practical` : `Week ${lab.week_number} | ${lab.estimated_minutes} minutes | ${lab.lab_type}`}
         actions={<DifficultyBadge level={lab.difficulty} />}
       />
 
@@ -368,7 +376,9 @@ export default function LabPage() {
             />
           ) : (
             <>
+              <label className="text-sm font-semibold" htmlFor="lab-work-notes">Your evidence and answers</label>
               <textarea
+                id="lab-work-notes"
                 className="input-field min-h-64 w-full"
                 placeholder="Record your evidence, diagnosis, work, and verification. When useful, end with one sentence: What caused the problem?"
                 value={notes}

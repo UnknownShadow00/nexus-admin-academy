@@ -1,0 +1,76 @@
+module,item,concept,style,source_group,disposition,editorial_action
+hardware,H01,microATX form factor,foundation,ExamCompass-adapted,EDIT,Corrected provenance and permission
+hardware,H02,CPU platform compatibility,application,ExamCompass-adapted,EDIT,Corrected provenance and permission
+hardware,H03,CPU insertion safety,application,new,APPROVE,None
+hardware,H04,thermal compound,foundation,ExamCompass-adapted,EDIT,Corrected provenance and permission
+hardware,H05,load-related CPU shutdown,troubleshooting,ExamCompass-adapted,EDIT,Replaced giveaway distractors and clarified evidence
+hardware,H06,PCIe x16 graphics slot,foundation,ExamCompass-adapted,EDIT,Corrected provenance and permission
+hardware,H07,GPU load failure power checks,troubleshooting,new,EDIT,Converted to defensible two-answer multi-select
+hardware,H08,expansion-card physical fit,application,new,EDIT,Replaced giveaway distractors
+hardware,H09,network-card verification,troubleshooting,new,APPROVE,None
+hardware,H10,modular PSU definition,foundation,ExamCompass-adapted,EDIT,Corrected provenance and permission
+hardware,H11,modular cable compatibility,application,new,EDIT,Replaced giveaway distractors and tightened safety explanation
+hardware,H12,24-pin ATX connector,foundation,new,APPROVE,None
+hardware,H13,PSU connector suitability,application,new,EDIT,Removed unrelated distractors and clarified approved connectors
+hardware,H14,failed PSU safety,application,new,APPROVE,None
+hardware,H15,PSU headroom,application,new,EDIT,Replaced unrelated distractors and limited the claim
+hardware,H16,internal-work preparation,application,new,EDIT,Converted to three-answer multi-select
+hardware,H17,connection record,application,new,APPROVE,None
+hardware,H18,vendor service manual,application,new,APPROVE,None
+hardware,H19,end-to-end component verification,troubleshooting,new,APPROVE,None
+hardware,H20,one-change troubleshooting,troubleshooting,new,APPROVE,None
+hardware,H21,msinfo32 short answer,foundation,new,EDIT,Added executable-name variant
+hardware,H22,ESD short answer,foundation,new,APPROVE,None
+hardware,H23,PCIe x16 short answer,foundation,new,APPROVE,None
+hardware,H24,compatible platform plan,troubleshooting,new,EDIT,Split rubric concepts and added safe aliases
+hardware,H25,post-GPU restart plan,troubleshooting,new,EDIT,Added seating controlled-change and verification concepts
+wintools,W01,NTFS permissions,foundation,new,APPROVE,None
+wintools,W02,exFAT compatibility,foundation,new,APPROVE,None
+wintools,W03,identify OS before repair,application,new,EDIT,Replaced giveaway distractors
+wintools,W04,vendor lifecycle,foundation,new,APPROVE,None
+wintools,W05,ipconfig tool choice,application,Nexus-reused,APPROVE,None
+wintools,W06,nslookup tool choice,application,Nexus-reused,APPROVE,None
+wintools,W07,ping evidence boundary,reasoning,new,APPROVE,None
+wintools,W08,netstat tool choice,application,Nexus-reused,APPROVE,None
+wintools,W09,gpupdate tool choice,application,Nexus-reused,APPROVE,None
+wintools,W10,SFC verify-only,application,new,APPROVE,None
+wintools,W11,chkdsk read-only evidence,reasoning,new,APPROVE,None
+wintools,W12,missing managed setting,troubleshooting,new,EDIT,Converted to two-action multi-select
+wintools,W13,workgroup versus domain,foundation,new,APPROVE,None
+wintools,W14,UNC path,foundation,new,APPROVE,None
+wintools,W15,mapped-drive isolation,troubleshooting,new,APPROVE,None
+wintools,W16,share least privilege,troubleshooting,new,EDIT,Replaced unrelated distractors and expanded explanation
+wintools,W17,metered connection,foundation,new,APPROVE,None
+wintools,W18,proxy effect,foundation,new,APPROVE,None
+wintools,W19,targeted firewall checks,troubleshooting,new,EDIT,Converted to three-answer multi-select
+wintools,W20,firewall profile fault,troubleshooting,new,EDIT,Replaced unrelated distractors and tightened scope
+wintools,W21,winver short answer,foundation,new,APPROVE,None
+wintools,W22,netstat short answer,application,new,EDIT,Added separated-switch variant
+wintools,W23,net use short answer,application,new,APPROVE,None
+wintools,W24,one-app network failure,troubleshooting,new,EDIT,Expanded rubric concepts aliases and threshold
+wintools,W25,SFC versus chkdsk plan,troubleshooting,new,EDIT,Separated tool concepts and tightened threshold
+wintriage,T01,crash evidence capture,troubleshooting,new,EDIT,Replaced giveaway distractors
+wintriage,T02,safe reproduction,reasoning,new,EDIT,Replaced giveaway distractors
+wintriage,T03,one-app one-user scope,troubleshooting,new,EDIT,Tightened scenario and plausible alternatives
+wintriage,T04,escalation boundary,reasoning,new,APPROVE,None
+wintriage,T05,Task Manager evidence,troubleshooting,Nexus-reused,EDIT,Converted to three-action multi-select
+wintriage,T06,slow after sign-in,troubleshooting,Nexus-reused,EDIT,Corrected lesson tag to avoid startup-lesson leakage
+wintriage,T07,recurring disk growth,troubleshooting,Nexus-reused,REPLACE,Replaced low-value symptom recall with validated seed scenario
+wintriage,T08,high CPU context,reasoning,new,EDIT,Replaced giveaway distractors
+wintriage,T09,startup-load verification,troubleshooting,new,APPROVE,None
+wintriage,T10,no POST boundary,troubleshooting,new,EDIT,Replaced unrelated distractors with layer choices
+wintriage,T11,BSOD stop-code evidence,application,new,APPROVE,None
+wintriage,T12,Safe Mode driver rollback,troubleshooting,new,APPROVE,None
+wintriage,T13,forced shutdown risk,application,new,APPROVE,None
+wintriage,T14,load-related shutdown evidence,troubleshooting,new,APPROVE,None
+wintriage,T15,Reliability Monitor timeline,application,Nexus-reused,EDIT,Replaced giveaway distractors
+wintriage,T16,PDF crash boundary,troubleshooting,Nexus-reused,APPROVE,None
+wintriage,T17,Event 1000 faulting module,troubleshooting,Nexus-reused,REPLACE,Replaced low-value never-delete item with validated seed scenario
+wintriage,T18,crash isolation comparisons,troubleshooting,new,EDIT,Converted to three-answer multi-select
+wintriage,T19,application fix verification,troubleshooting,new,APPROVE,None
+wintriage,T20,ticket documentation,application,new,APPROVE,None
+wintriage,T21,Reliability Monitor short answer,foundation,new,EDIT,Added executable command variant
+wintriage,T22,Safe Mode short answer,foundation,new,EDIT,Added valid Safe Mode variants
+wintriage,T23,Task Manager short answer,foundation,new,EDIT,Added executable-name variant
+wintriage,T24,slow-PC evidence plan,troubleshooting,new,APPROVE,None
+wintriage,T25,crash escalation plan,troubleshooting,new,APPROVE,None

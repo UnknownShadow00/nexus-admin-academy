@@ -24,6 +24,7 @@ from app.routers import (
     evidence,
     final_shift,
     flashcards,
+    grading,
     labs,
     lesson_notes,
     onboarding,
@@ -40,6 +41,10 @@ from app.routers import (
     admin_service_desk,
 )
 from app.routers.admin_curriculum import router as admin_curriculum_router
+from app.routers.admin_grading import router as admin_grading_router
+from app.routers.admin_v2_mentor import router as admin_v2_mentor_router
+from app.routers.v2_progress import router as v2_progress_router
+from app.routers.v2_curriculum import router as v2_curriculum_router
 from app.services.cli_lab_seed import seed_cli_labs
 from app.services.squad_service import get_weekly_domain_leads, recompute_weekly_domain_leads
 from app.services.auth_service import STUDENT_SESSION_COOKIE, validate_jwt_startup_config
@@ -275,6 +280,11 @@ def create_app() -> FastAPI:
     app.include_router(service_desk_bridge.router)
     app.include_router(service_desk.router)
     app.include_router(admin_service_desk.router)
+    app.include_router(grading.router)
+    app.include_router(admin_grading_router)
+    app.include_router(v2_progress_router)
+    app.include_router(v2_curriculum_router)
+    app.include_router(admin_v2_mentor_router)
 
     return app
 

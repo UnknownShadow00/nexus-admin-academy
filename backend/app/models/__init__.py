@@ -27,6 +27,29 @@ from app.models.vm_assignment import VmAssignment
 from app.models.app_setting import AppSetting
 from app.models.onboarding import StudentOnboardingPractice
 from app.models.training import TrainingWeek, TrainingWeekActivity
+from app.models.certification import (
+    Certification,
+    CertificationVersion,
+    CertificationDomain,
+    CertificationModule,
+    CertificationObjective,
+    LessonV2Meta,
+    LessonObjective,
+    LessonRelationship,
+    QuestionV2Meta,
+    LearningResource,
+    LearningResourceLink,
+    StudentResourceActivity,
+    ModuleAssessment,
+    InterviewPrompt,
+    InterviewPromptObjective,
+)
+from app.models.grading import (
+    AIGrade,
+    MentorGradeOverride,
+    PendingGrade,
+)
+from app.models.v2_progress import V2ExplainSubmission, V2ModuleActivity
 from app.models.service_desk import (
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
@@ -87,6 +110,26 @@ __all__ = [
     "StudentOnboardingPractice",
     "TrainingWeek",
     "TrainingWeekActivity",
+    "Certification",
+    "CertificationVersion",
+    "CertificationDomain",
+    "CertificationModule",
+    "CertificationObjective",
+    "LessonV2Meta",
+    "LessonObjective",
+    "LessonRelationship",
+    "QuestionV2Meta",
+    "LearningResource",
+    "LearningResourceLink",
+    "StudentResourceActivity",
+    "ModuleAssessment",
+    "InterviewPrompt",
+    "InterviewPromptObjective",
+    "PendingGrade",
+    "AIGrade",
+    "MentorGradeOverride",
+    "V2ModuleActivity",
+    "V2ExplainSubmission",
     "ServiceDeskScenario",
     "ServiceDeskScenarioVersion",
     "ServiceDeskAttempt",

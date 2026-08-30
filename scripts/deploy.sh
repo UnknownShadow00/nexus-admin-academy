@@ -187,8 +187,15 @@ fi
 # backup use. app/config.py loads .env with override=False, so a DATABASE_URL
 # already exported in the operator's shell would otherwise make Alembic inspect
 # and migrate a DIFFERENT database than the one we back up and restart against.
+#
+# NEXUS_ALLOW_PROD_MIGRATION=1 is the deliberate opt-in required by
+# backend/app/db_guard.py: a bare `alembic upgrade head` (no DATABASE_URL) is
+# refused so it can never silently migrate production again (2026-08-29
+# incident). The deploy path IS the sanctioned way to migrate production, so it
+# opts in explicitly here.
 alembic_backend() {
-  ( cd "$REPO_ROOT/backend" && DATABASE_URL="sqlite:///$DB_PATH" ./.venv/bin/python -m alembic "$@" )
+  ( cd "$REPO_ROOT/backend" \
+    && NEXUS_ALLOW_PROD_MIGRATION=1 DATABASE_URL="sqlite:///$DB_PATH" ./.venv/bin/python -m alembic "$@" )
 }
 
 resolve_db_path() {

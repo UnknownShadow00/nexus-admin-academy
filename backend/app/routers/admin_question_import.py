@@ -27,6 +27,8 @@ def download_template():
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow(TEMPLATE_COLUMNS)
+    # Row 1: a multi-select MCQ (unchanged behaviour). The 7 trailing free-form
+    # columns are blank for MCQ rows.
     writer.writerow(
         [
             "Networking Fundamentals",
@@ -46,6 +48,50 @@ def download_template():
             "help-desk,tickets",
             "Nexus curriculum team",
             "false",
+            # --- Nexus V2 additive metadata columns (all optional) ---
+            "comptia_aplus",
+            "comptia_aplus_220-1202",
+            "4.0",
+            "module.aplus.core2.windows_troubleshooting",
+            "4.1",
+            "working_knowledge",
+            "Nexus curriculum team",
+            "",
+            "owned",
+            # free-form grading columns (blank for MCQ)
+            "", "", "", "", "", "", "",
+        ]
+    )
+    # Row 2: a short_answer question. No options / correct_answers; grading is
+    # deterministic against acceptable_answers (JSON array or pipe-delimited).
+    writer.writerow(
+        [
+            "Networking Fundamentals",
+            "short_answer",
+            "Which port does HTTPS use by default?",
+            "", "", "", "", "", "", "", "",
+            "",  # correct_answers unused
+            "HTTPS runs over TLS on TCP port 443.",
+            "2",
+            "ports,https",
+            "Nexus curriculum team",
+            "false",
+            "comptia_aplus",
+            "comptia_aplus_220-1201",
+            "2.0",
+            "module.aplus.core1.networking_fundamentals",
+            "2.1",
+            "job_critical",
+            "Nexus curriculum team",
+            "",
+            "owned",
+            '["443", "port 443", "tcp 443"]',  # acceptable_answers
+            "",  # expected_concepts (free_response only)
+            "",  # rubric
+            "2026-08-a",  # rubric_version
+            "normalized",  # answer_match_mode
+            "",  # min_concepts_for_pass
+            "",  # partial_credit
         ]
     )
     buffer.seek(0)
@@ -143,10 +189,11 @@ def confirm_import_endpoint(payload: QuestionImportConfirmRequest, db: Session =
         raise HTTPException(status_code=500, detail=f"Import failed and was rolled back: {exc}") from exc
 
     logger.info(
-        "question_import_confirm filename=%s created=%s updated=%s skipped_duplicates=%s skipped_invalid=%s",
+        "question_import_confirm filename=%s created=%s updated=%s unchanged=%s skipped_duplicates=%s skipped_invalid=%s",
         payload.source_filename,
         summary["created"],
         summary["updated"],
+        summary.get("unchanged", 0),
         summary["skipped_duplicates"],
         summary["skipped_invalid"],
     )

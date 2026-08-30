@@ -1758,3 +1758,273 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
   backend probe unchanged). All pass.
 - docs/DEPLOYMENT.md updated (out-of-tree backup helper; SPA verification wording).
 - No unrelated deploy code touched. R30 stays OPEN + documented. PR #29 NOT merged.
+
+## Nexus V2 Phase 1B — content + assessment foundation (2026-08-29)
+
+- Data-driven content loaders: v2_lesson_loader.py (Markdown frontmatter+body ->
+  lesson_v2_meta, SHA-256 body hash, two-pass builds_on/review_of), v2_content_loader
+  extended with load_resources / load_interview_prompts / _sync_module_assessments /
+  load_content. deterministic_grader.py (no-AI short_answer/free_response; graded OR
+  needs_review, never a confident guess on prose). objective_coverage.py (per-version
+  DISTINCT mapped objectives; version-isolated).
+- Migration 0063_v2_content_and_assessment (additive, down_revision 0062, tested
+  downgrade). +8 free-form cols on question_v2_meta; lesson_v2_meta reshaped
+  (lesson_id now nullable, +content/title/hash/provenance); lesson_objectives /
+  lesson_relationships re-keyed to lesson_v2_meta_id. New tables: v2_resources,
+  v2_resource_links, v2_student_resource_activity (reported_score NEVER mastery),
+  module_assessments (REFERENCES quiz/lab/service_desk engines by nullable FK),
+  interview_prompts, interview_prompt_objectives.
+- Importer: short_answer/free_response rows accepted; grading meta parsed from
+  JSON-or-pipe cells -> question_v2_meta; legacy row gets sentinel correct_answer
+  "-" + option_a "". Phase 1A import behaviour unchanged. Template +7 cols +
+  short_answer example row.
+- Fixture content only (1 lesson, 2 resources, 1 Explain prompt, 3 module
+  assessments) — NOT a bulk migration.
+- Verify: backend pytest 618 passed / 0 failed (incl. historical migration lineage
+  tests). New test_v2_content_and_assessment.py 34 passed; updated
+  test_v2_certification_foundation.py 29 passed. alembic up/down/up clean; model
+  <-> migration-head parity identical. compileall + ruff clean.
+- V1 untouched: 40% gate constant == 40; V2 load creates 0 training_weeks rows;
+  legacy questions table has no V2 columns. No deploy, no prod DB, no seed run
+  against prod, no AI service. Phase 1C NOT started.
+
+## Nexus V2 Phase 1C — AI grading infrastructure (2026-08-29)
+
+- Submission-first, deterministic-first grading pipeline + optional local-AI
+  second stage for ambiguous free-response / Explain. Additive only.
+- New deps: NONE. Reused: deterministic_grader (1B), ai_service.extract_json_payload
+  + AI_* env convention, Service Desk append-only event pattern + one-grade-per
+  UniqueConstraint, verify_admin, get_current_student, seed CLI pattern, ok()
+  envelope. Rejected (with reasons in the 1C note): Instructor, Tenacity,
+  APSCheduler, openai SDK, Redis/Celery/etc.
+- Migration 0064_v2_ai_grading_infrastructure (additive, down_revision 0063,
+  tested downgrade): pending_grades (mutable job, unique (source_type,
+  submission_ref)), ai_grades (append-only attempt log), mentor_grade_overrides
+  (append-only, chained supersedes_id).
+- Services: grading_config (AI_GRADING_* env, exp backoff w/ ceiling),
+  grading_schema (Pydantic v2 AIGradeResponse, extra=forbid, schema_version
+  guard, JSON schema for guided decoding), grading_prompt (injection-hardened,
+  no student PII), grading_provider (GradingProvider protocol + HttpGradingProvider
+  OpenAI-compatible httpx, never raises; DisabledGradingProvider), grading_queue
+  (submit_for_grading, claim_due_jobs, process_pending_grade, run_pending_batch,
+  resolve_pending precedence mentor>ai>deterministic, apply_mentor_override,
+  mentor_queue, grading_history).
+- CLI: process_pending_grades.py (systemd-timer / cron, safe concurrent). Routers:
+  admin_grading (queue/detail/override/regrade/run/config, verify_admin) + grading
+  (student status, ownership-enforced 404). Wired in main.py. .env.example updated.
+- vLLM recommended for future RTX 5090 box (guided JSON decoding, throughput);
+  Ollama = simple fallback. GPU server NOT provisioned; no models downloaded.
+- No XP/progression writes anywhere in 1C (deferred to Phase 2) -> no double-award
+  risk. AI outage never loses student work.
+- Verify: new test_v2_ai_grading.py 40 passed; alembic up/down/up clean; model<->
+  migration parity clean; ruff + compileall clean. Full backend suite: see report.
+- V1 untouched: 40% gate == 40; no training_weeks writes; legacy grading tables
+  unchanged; Service Desk/Proxmox/Guacamole untouched. No prod deploy/seed. No AI
+  curriculum generation. Phase 2 NOT started.
+
+## Production-safety hardening — Alembic prod guard + fresh backup (2026-08-29)
+
+- Fresh prod backup via SQLite online-backup API (safe vs live writer):
+  ~/backups/nexus/nexus-prehardening-0064-20260829T080342Z.db (+.gz).
+  Verified: integrity_check ok, foreign_key_check clean, alembic_version =
+  0064_v2_ai_grading_infrastructure, 7 students / 114 quizzes / 35
+  training_weeks present, all V2/1C tables present and empty. Source mtime
+  unchanged (read-only). Not restored.
+- New backend/app/db_guard.py + alembic/env.py wiring: refuses
+  upgrade/downgrade/stamp against backend/nexus.db unless
+  NEXUS_ALLOW_PROD_MIGRATION=1. Read-only current/heads/history unaffected
+  (command-name gated). Uses sqlalchemy.make_url for path resolution.
+- scripts/deploy.sh alembic_backend() now sets NEXUS_ALLOW_PROD_MIGRATION=1
+  (+ existing DATABASE_URL pin). --allow-db-ahead and all predeploy guards
+  untouched. deploy_failure_sim.sh: 287 passed / 0 failed.
+- Tests: backend/tests/test_alembic_prod_guard.py (24 tests: URL resolution,
+  block/allow matrix, env-var opt-in, real CLI subprocess for bare-blocked /
+  readonly-ok / scratch up+down; every case asserts prod mtime unchanged).
+  Full backend suite: 682 passed / 0 failed (was 658).
+- docs/DEPLOYMENT.md: new "Alembic production safety guard" section + fixed
+  the manual "Backend update" alembic line to the opt-in form. Incident
+  lesson (tasks/lessons.md) + memory augmented, not replaced.
+- Follow-up for operator: refresh the stable ~/bin/nexus-deploy copy from the
+  updated scripts/deploy.sh.
+- Prod verification (read-only): service active, /health 200, alembic_version
+  still 0064, integrity ok, legacy counts sane, all V2 tables empty, no seed
+  ran, nexus.db mtime still 07:40:52 (untouched). No prod restart. No V2
+  deploy. Phase 2 NOT started.
+
+## Nexus V2 Phase 2A — first end-to-end A+ curriculum MVP module (2026-08-29)
+
+Module `module.aplus.core1.ip_configuration` ("IP Configuration & Basic
+Connectivity Troubleshooting"), CompTIA A+ Core 1 220-1201, domain 2.0.
+Development/testing only. Production stays at schema 0064, V2 tables empty,
+no seed / deploy / student migration. Alembic prod guard not bypassed.
+
+- Objectives mapped (exact, no invented codes): 2.5 (SOHO IPv4/DHCP/DNS/
+  gateway/APIPA/subnet mask), 5.7 (connectivity troubleshooting, APIPA/
+  link-local), 5.1 (six-step methodology). All exist in
+  content/objectives/comptia-a-plus-220-1201.yaml. Coverage after load:
+  covered {2.1,2.5,5.1,5.7}; all other 220-1201 objectives still uncovered.
+- Content (data only): module + 9 assessments in
+  content/certifications/comptia_aplus.yaml; 5 Markdown lessons in
+  content/curriculum/comptia-a-plus/220-1201/ip-configuration/; ~9 resources
+  (res.aplus.ipcfg.* — Professor Messer + Microsoft Learn, permission
+  permitted, linked not rehosted); 3 Explain prompts (interview.aplus.ipcfg.*,
+  rubric_version ipcfg-2026-08-a); 40-question CSV bank
+  content/questions/aplus-ip-configuration.csv (28 single / 2 multi / 7
+  short_answer / 3 free_response; V2 metadata on every row; permission owned;
+  38 job_critical + 2 working_knowledge); 1 guided practical lab
+  content/labs/comptia-a-plus.yaml (no VM).
+- Loader (app/services/v2_content_loader.py): new load_question_banks()
+  (imports content/questions/*.csv|xlsx through the existing
+  question_importer pipeline — questions never hard-coded in Python) and
+  load_labs() (upserts LabTemplate from content/labs/*.yaml by title).
+  load_content() now runs both. Full wiring = load_all -> load_content ->
+  load_all (2nd pass resolves quiz_ref/lab_ref on module_assessments).
+- Progress/mentor infra: migration 0065_v2_module_activity (ADDITIVE, one
+  new table, downgrade drops it — up/down/up verified on scratch DB via the
+  prod-guard opt-in, never against nexus.db); model
+  app/models/v2_progress.py (V2ModuleActivity, upsert on
+  student_id+activity_type+ref_key); app/services/v2_progress_service.py
+  (record_activity, module_progress); app/services/v2_mentor_service.py
+  (module_report — completion, quiz score, missed questions, objectives of
+  missed questions, weak objectives ranked, Explain state via Phase 1C
+  pending_grades, practical/SD results); routers app/routers/v2_progress.py
+  (student, ownership from token) + app/routers/admin_v2_mentor.py
+  (verify_admin); both registered in app/main.py. Nothing authoritative
+  (gates/XP/mastery/streak/TrainingWeek) reads the new table.
+- Deferred to Phase 2B (documented, not faked): interactive Windows CLI
+  sandbox (cli-labs engine is a Cisco switch sim — no ipconfig/nslookup);
+  broken-VM APIPA connectivity lab; dedicated 169.254 Service Desk scenario
+  (SD validator needs server-verifiable tool evidence; no network-diagnostics
+  tool exists) — 2A maps existing scenario inc2503 instead; AI grading of
+  ambiguous Explain answers (stays pending — GPU server not provisioned).
+- Existing-question audit (read-only, prod nexus.db 1009 rows): 36
+  IP/connectivity-vocabulary rows across ~14 quizzes, none with V2 metadata.
+  ~11 NOT RELEVANT (Net+ depth), ~15 EDIT-before-reuse, 0 import-ready as-is,
+  0 archived. Decision: author fresh 40-Q bank; fold the ~15 EDIT candidates
+  into V2 later (not MVP-blocking); production bank untouched.
+- Tests: backend/tests/test_v2_aplus_ip_module.py (19 new). Full backend
+  suite 701 passed / 0 failed (was 682). Updated (Phase 2A adds content + a
+  migration, not bugs): test_shipped_content_loads_and_reruns_clean
+  (questions re-sync in place — exempt from zero-updated rerun check),
+  test_module_assessments_load_with_roles_and_optional_lesson_ref (role
+  assertion scoped to networking_fundamentals fixture module),
+  test_cli_scratch_database_upgrade_and_downgrade (head assertion made
+  head-agnostic). No frontend code changed -> no npm run.
+- Manual dev smoke (in-memory DB, throwaway dev student, no prod accounts):
+  Lesson -> resource -> Quick Check -> Module Quiz (fail w/ missed ids) ->
+  Practical -> Service Desk -> Explain all recorded via the student router;
+  mentor report returns weak objective 5.7 (missed_count 2) with text.
+- Prod verification (read-only): service active, /health 200,
+  alembic_version still 0064 (0065 NOT applied to prod), all V2 tables
+  present + empty, legacy counts sane (students 7, questions 1009, quizzes
+  114, training_weeks 35). No restart, no deploy, no seed.
+- Operator note: ~/bin/nexus-deploy (Aug 28) still STALE — differs from
+  scripts/deploy.sh and its alembic_backend() lacks
+  NEXUS_ALLOW_PROD_MIGRATION=1, so the prod guard would block its migration
+  step. Needs refresh from scripts/deploy.sh before next deploy. Reported
+  only; not modified.
+- Recommendation: APPROVE the module pattern and expand A+. Two non-blocking
+  clean-ups first: real change-detection skip in load_question_banks; one
+  consolidation pass folding the ~15 legacy EDIT-candidate questions into V2.
+- STOPPING after this one module (per spec). No further A+ module started.
+
+## Nexus V2 Phase 2A.1 — cleanup & QC pass (2026-08-29)
+
+Scope: clean up the first A+ module before expanding. No new module, no
+Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
+0064, V2 tables empty, guard not bypassed.
+
+- Question-sync change detection: question_importer now diff-and-sets
+  (_diff_set helper); _apply_question_fields + _upsert_question_v2_meta return
+  whether anything changed; confirm_import returns a new `unchanged` count and
+  only re-stamps imported_at/import_filename on a real change. new->created,
+  no-op->unchanged, content OR V2-metadata change->updated. Fingerprint
+  dedup / IDs / preview-confirm / admin contract / provenance all preserved.
+  load_module/load_content rerun now reports everything unchanged.
+- Single high-level loader: v2_content_loader.load_module(db, commit=) runs
+  load_all -> load_content -> load_all and returns merged summary +
+  `references` block (content_engine_resolved/unresolved, service_desk_*).
+  load_all/load_content gained optional shared summary= param. Authors no
+  longer need the two-pass sequence.
+- Legacy question re-audit (read-only, prod nexus.db 1009 rows, 81 vocab
+  hits): KEEP/EDIT migrated = 6 (all nexus-authored seeds); DUPLICATE ~20;
+  NOT RELEVANT ~40 (AD/GPO/Linux/Azure/ARP-VLAN Net+/port trivia/DNS record
+  types/tracert-pathping); ARCHIVE CANDIDATE ~15 (ExamCompass-derived,
+  editorial_status=archived, answer_keys_validated=0 — NOT migrated, flagged
+  for platform team); KEEP-as-is 0.
+- Migrated 6 (copied via CSV, prod rows untouched), permission_status=owned,
+  source_name records "adapted from seed <seed_key>": nslookup-vs-known-good-
+  resolver (client-network-triage:03, 5.7); static-from-pool conflict
+  (client-network-triage:05, 2.5); DHCP reservation (server-dns-dhcp:02, 2.5,
+  working_knowledge); DHCP scope exhaustion->APIPA (server-dns-dhcp:08, 5.7);
+  private-ranges multi w/ APIPA contrast (ipv4-addressing:05, 2.5, replaced a
+  weaker single); which-CLI-tools-diagnose-no-internet multi
+  (windows-command-line-diagnostics:04, 5.1).
+- Removed 6 from the original 40 (all superseded): private-range single;
+  ipconfig/renew MCQ (dup of short-answer); flushdns MCQ (dup); ipconfig/all
+  MCQ (dup); a 3rd near-identical APIPA-recognition item; nslookup
+  Non-existent-domain single (overlap). Net 40 -> 40 (count incidental).
+- Final bank 40: type 26 single / 4 multi / 7 short_answer / 3 free_response;
+  style ~20 scenario / 13 terminology / 7 recall-explain; objective 2.5x16 /
+  5.7x21 / 5.1x3 (5.1 intentionally light); importance 37 job_critical / 3
+  working_knowledge / 0 awareness (intentional). No dup fingerprints.
+- Lessons: L1 signposted a forward reference; L2 removed an invented MS Learn
+  APIPA bullet + fixed a misleading "DHCP Enabled: No" sentence; L3/L4/L5
+  Watch/read aligned to linked resources + (required)/(optional) tags; L5
+  dropped an out-of-scope tracert mention. No lesson expanded.
+- Resources: added res.aplus.ipcfg.messer.network_troubleshooting (real free
+  video 3 lessons referenced but had no data entry; required L5, optional
+  L3/L4, stable course URL). Verified URLs/mappings/required-optional/no dups/
+  no paid content; "opened != mastered" confirmed by design.
+- Practical/SD/Explain reviewed: roles complementary; one documented
+  intentional overlap (bank free-response vs InterviewPrompt on 169.254 &
+  name-resolution — different engines/assessment moments). No content change.
+  Broken-VM lab + CLI sandbox still deferred to 2B.
+- ~/bin/nexus-deploy: REFRESHED. Backed up to
+  ~/bin/nexus-deploy.bak.20260829-095712, overwritten from reviewed
+  scripts/deploy.sh, now byte-identical (sha256 02f99a68...). Verified it
+  carries NEXUS_ALLOW_PROD_MIGRATION=1 opt-in, --allow-db-ahead intact,
+  bash -n OK, exec bit kept. File copy + read-only checks only; no deploy, no
+  migration, no prod DB access. No operator action remains for the script.
+- Tests: 705 passed / 0 failed (was 701; +4 net). ruff clean. New:
+  test_question_sync_detects_real_changes,
+  test_load_module_is_one_call_and_resolves_all_refs,
+  test_bank_has_no_duplicate_fingerprints,
+  test_legacy_derived_questions_carry_provenance. Phase 1B
+  test_shipped_content_loads_and_reruns_clean restored to strict
+  created==0 and updated==0.
+- Prod verification (read-only): active, /health 200, alembic_version 0064,
+  v2_module_activity absent in prod, V2 tables empty, legacy counts sane,
+  nexus.db mtime unchanged. No seed/deploy/migration.
+- Recommendation: move to the student-facing V2 UI for this one module
+  (thin), keeping the module frozen as the reference; expand A+ only after
+  the UI has exercised the data contract end to end. STOP — no new module.
+
+## [2026-08-29T10:48:01Z] Task Completed
+- Task: Implemented Nexus V2 Phase 2B, the first feature-flagged, data-driven student experience for the frozen IP Configuration reference module, including composed curriculum APIs, derived progress/Continue logic, reusable lesson/assessment/lab/Service Desk UI, durable Explain submissions, browser validation, and production read-only verification.
+- Files changed: backend/.env.example; backend/alembic/versions/0066_v2_explain_submissions.py; backend/app/main.py; backend/app/models/__init__.py; backend/app/models/v2_progress.py; backend/app/routers/labs.py; backend/app/routers/v2_curriculum.py; backend/app/services/v2_content_loader.py; backend/app/services/v2_curriculum_service.py; backend/app/services/v2_progress_service.py; backend/tests/test_v2_curriculum_api.py; frontend/.env.example; frontend/src/App.jsx; frontend/src/config/features.js; frontend/src/config/features.test.js; frontend/src/services/api.js; frontend/src/styles.css; frontend/src/components/v2/V2Breadcrumbs.jsx; frontend/src/components/v2/V2PageState.jsx; frontend/src/components/v2/V2Status.jsx; frontend/src/pages/LabPage.jsx; frontend/src/pages/v2/V2LearningPage.jsx; frontend/src/pages/v2/V2ModulePage.jsx; frontend/src/pages/v2/V2ModulePage.test.jsx; frontend/src/pages/v2/V2LessonPage.jsx; frontend/src/pages/v2/V2LessonPage.test.jsx; frontend/src/pages/v2/V2AssessmentPage.jsx; frontend/src/pages/v2/V2AssessmentPage.test.jsx; frontend/src/pages/v2/V2ExplainPage.jsx; frontend/src/pages/v2/V2ExplainPage.test.jsx; frontend/src/pages/v2/V2PracticalRedirect.jsx; frontend/src/pages/v2/V2ServiceDeskRedirect.jsx; frontend/tests/e2e/v2-student-experience.spec.js; docs/NEXUS_V2_PHASE_2B_IMPLEMENTATION_NOTE.md; tasks/loop-log.md
+- Result: pass — 715 backend tests, 31 frontend tests, Service Desk tests/lint/typecheck, frontend production build, 10 targeted V2 API tests, full Playwright student flow, scratch migration round-trip, Ruff, and diff checks passed; production remained active/healthy at revision 0064 with V2 off/empty and nexus.db unchanged.
+- Next: Approve this UI pattern before expanding A+; keep production feature flags off and do not apply development migrations until separately approved. Upgrade the development environment's pip tooling from 26.1.2 to 26.2 in a dependency-maintenance task to clear PYSEC-2026-3721.
+
+## [2026-08-29T16:56:00Z] Task Completed
+- Task: Implemented Nexus V2 Phase 2C Mentor View and Progress Intelligence for the frozen IP Configuration reference module, including feature-flagged cohort/detail/grading pages, transparent repeated-miss and cohort weakness composition, deterministic review suggestions, student questions/external-practice separation, authoritative Lab/Service Desk summaries, Cohort Focus, authorization, and disposable five-student browser verification.
+- Files changed: backend/app/routers/admin_v2_mentor.py; backend/app/services/v2_mentor_service.py; backend/app/services/grading_queue.py; backend/tests/test_v2_mentor_intelligence.py; backend/tests/test_v2_aplus_ip_module.py; frontend/src/App.jsx; frontend/src/services/api.js; frontend/src/pages/admin/V2MentorProgressPage.jsx; frontend/src/pages/admin/V2MentorProgressPage.test.jsx; frontend/src/pages/admin/V2MentorStudentPage.jsx; frontend/src/pages/admin/V2MentorStudentPage.test.jsx; frontend/src/pages/admin/V2MentorGradePage.jsx; frontend/src/pages/admin/V2MentorGradePage.test.jsx; frontend/tests/e2e/v2-mentor-progress.spec.js; docs/NEXUS_V2_PHASE_2C_IMPLEMENTATION_NOTE.md; tasks/loop-log.md
+- Result: pass — 722 backend tests, 36 frontend tests, focused Ruff checks, frontend production build, npm audit with 0 vulnerabilities, and 2 Playwright mentor/security tests passed; no Phase 2C migration was added; production remained active/healthy at 0064 with V2 off/empty, seven students unchanged, and nexus.db hash unchanged.
+- Next: Approve the mentor pattern before expanding A+; keep V2 production flags off. Handle the development-only pip 26.1.2 advisory in a separate network-profile dependency-maintenance task.
+## [2026-08-29T17:57:12Z] Task Completed
+- Task: Implemented Nexus V2 Phase 3A A+ Content Expansion Batch 1 with exactly three data-driven modules (PC Components, Power & Safe Upgrades; Windows Support Tools & Client Configuration; Windows Performance, Startup & Application Troubleshooting), 15 lessons, 75 reviewed questions, resources, practicals, Explain prompts, selective Service Desk reuse, multi-module student/mentor navigation, derived cross-module Continue behavior, objective coverage, disposable browser validation, and production read-only verification.
+- Files changed: backend/content/certifications/comptia_aplus.yaml; backend/content/resources/comptia-a-plus.yaml; backend/content/labs/comptia-a-plus.yaml; backend/content/interview-prompts/comptia-a-plus.yaml; backend/content/questions/aplus-hardware-support.csv; backend/content/questions/aplus-windows-support-tools.csv; backend/content/questions/aplus-windows-troubleshooting.csv; backend/content/curriculum/comptia-a-plus/220-1201/hardware-support/ (5 Markdown lessons); backend/content/curriculum/comptia-a-plus/220-1202/windows-support-tools/ (5 Markdown lessons); backend/content/curriculum/comptia-a-plus/220-1202/windows-troubleshooting/ (5 Markdown lessons); backend/app/services/v2_curriculum_service.py; backend/app/services/v2_mentor_service.py; backend/app/services/v2_progress_service.py; backend/tests/test_v2_aplus_batch1.py; backend/tests/test_v2_aplus_ip_module.py; frontend/src/pages/v2/V2LearningPage.jsx; frontend/src/pages/v2/V2LearningPage.test.jsx; frontend/src/pages/admin/V2MentorProgressPage.jsx; frontend/src/pages/admin/V2MentorProgressPage.test.jsx; frontend/src/pages/admin/V2MentorStudentPage.jsx; frontend/tests/e2e/v2-student-experience.spec.js; frontend/tests/e2e/v2-mentor-progress.spec.js; docs/NEXUS_V2_PHASE_3A_A_PLUS_BATCH1.md; tasks/loop-log.md.
+- Result: pass against acceptance criteria — exactly three modules added with valid stored objective codes; 25 questions/module with provenance and no duplicate fingerprints; 5 lessons/Quick Checks and 12-question 70% Module Quiz/module; 3 guided practicals, one reused Service Desk case, and 6 Explain prompts; generic student/mentor multi-module paths passed; 726 backend tests and 39 frontend tests passed; production build and focused Ruff checks passed; npm audit found 0 vulnerabilities; disposable Playwright student (1) and mentor/security (2) flows passed; no migration was created; production stayed active/healthy at 0064 with V2 empty, seven students, and unchanged DB hash cb344b1bae6542f9aab26bd6b3284e1aa1897cb53bbc21005bcb2aee38ddf41b.
+- Next: Owner editorially reviews/validates the three draft banks and module content; recommendation is continue A+ Batch 2 only after approval. Keep V2 production flags off and do not deploy, seed, or migrate production.
+
+## [2026-08-29T18:39:57Z] Task Completed
+- Task: Completed Nexus V2 Phase 3A.1 Editorial Validation & Content Quality Gate by reading all 15 lessons and 75 questions, correcting technical/readability/provenance defects, individually dispositioning every question, reviewing objectives/resources/practicals/INC2403/rubrics, adding lesson-aligned Quick Check filters and data-driven Module Quiz blueprints, and binding editorial validation to exact reviewed bank hashes.
+- Files changed: backend/content/certifications/comptia_aplus.yaml; backend/content/resources/comptia-a-plus.yaml; backend/content/labs/comptia-a-plus.yaml; backend/content/interview-prompts/comptia-a-plus.yaml; backend/content/questions/aplus-hardware-support.csv; backend/content/questions/aplus-windows-support-tools.csv; backend/content/questions/aplus-windows-troubleshooting.csv; backend/content/questions/editorial-approvals.yaml; backend/content/curriculum/comptia-a-plus/220-1201/hardware-support/ (5 Markdown lessons); backend/content/curriculum/comptia-a-plus/220-1202/windows-support-tools/ (5 Markdown lessons); backend/content/curriculum/comptia-a-plus/220-1202/windows-troubleshooting/ (5 Markdown lessons); backend/app/services/question_importer.py; backend/app/services/v2_content_loader.py; backend/app/services/v2_curriculum_service.py; backend/tests/test_v2_aplus_batch1.py; frontend/src/pages/admin/V2MentorStudentPage.jsx; frontend/src/pages/admin/V2MentorStudentPage.test.jsx; docs/NEXUS_V2_PHASE_3A1_QUESTION_AUDIT.csv; docs/NEXUS_V2_PHASE_3A1_EDITORIAL_REVIEW.md; tasks/loop-log.md
+- Result: pass against acceptance criteria — 38 questions approved unchanged, 35 edited then approved, and 2 replaced then approved; all 75 exact bank items are hash-bound as validated with no unresolved review items; module verdicts are READY, READY, and READY WITH MINOR NOTES; 729 backend and 39 frontend tests passed; frontend production build passed; npm audit found 0 vulnerabilities; all 9 anchor resources returned 200; disposable Playwright student (1) and mentor/security (2) flows passed; production remained active/healthy at 0064 with V2 off/empty, seven students, and unchanged DB hash cb344b1bae6542f9aab26bd6b3284e1aa1897cb53bbc21005bcb2aee38ddf41b.
+- Next: Begin A+ Batch 2 only after owner approval, retaining the manual audit and hash-bound editorial gate; keep INC2403 as supplemental rather than sole diagnosis evidence, and keep V2 production flags off.
+
+## [2026-08-30T17:54:32Z] Task Completed
+- Task: Safely checkpointed the completed Nexus V2 platform and curriculum work through Phase 3A.1 from a detached dirty worktree onto a dedicated Git branch, after classifying every dirty path and revalidating the implementation without processing Batch 2 or starting the curriculum dropbox.
+- Files changed: Existing Phase 1A through Phase 3A.1 V2 implementation/content/report files under backend/alembic/versions/0062-0066, backend/app, backend/content, backend/tests, frontend/src, frontend/tests/e2e, docs, scripts/deploy.sh, and tasks/loop-log.md; no generated, runtime, database, secret, dependency, or build artifacts included.
+- Result: pass against acceptance criteria — branch feature/nexus-v2-through-phase-3a1 created; backend 729 passed; frontend 39 passed; production build passed; scratch migration/load through 0066 was idempotent and resolved four modules, objectives, Quick Checks, Module Quizzes, practicals, Explain prompts, and INC2403; 75 audit rows and all three editorial hashes matched; production remained active at 0064 with V2 off/empty, seven students, and unchanged database SHA-256.
+- Next: Begin the separate curriculum-dropbox implementation task from this checkpoint; do not deploy, migrate, seed, or enable V2 production without separate approval.

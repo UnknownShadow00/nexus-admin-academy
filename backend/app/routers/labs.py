@@ -12,12 +12,15 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal, get_db
 from app.models.evidence import EvidenceArtifact
 from app.models.lab import LabRun, LabTemplate
+from app.models.certification import ModuleAssessment, CertificationModule
 from app.models.student import Student
 from app.models.vm_assignment import VmAssignment
 from app.schemas.lab import LabSubmitRequest, LabVerifyRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import get_current_student
 from app.services.progression_service import require_week_reached
+from app.services.v2_progress_service import record_activity
+from app.routers.v2_curriculum import v2_curriculum_enabled
 from app.utils.responses import ok
 
 logger = logging.getLogger(__name__)
@@ -208,6 +211,27 @@ def _get_lab_run(db: Session, lab_id: int, student_id: int) -> LabRun | None:
         .order_by(LabRun.created_at.desc(), LabRun.id.desc())
         .first()
     )
+
+
+def _v2_lab_assessment(db: Session, lab_id: int, module_key: str | None, assessment_key: str | None):
+    if not module_key and not assessment_key:
+        return None
+    if not v2_curriculum_enabled():
+        raise HTTPException(status_code=404, detail="This learning experience is not available.")
+    if not module_key or not assessment_key:
+        raise HTTPException(status_code=422, detail="The V2 lab context is incomplete.")
+    row = db.query(ModuleAssessment, CertificationModule).join(
+        CertificationModule, CertificationModule.id == ModuleAssessment.certification_module_id
+    ).filter(
+        CertificationModule.module_key == module_key,
+        ModuleAssessment.assessment_key == assessment_key,
+        ModuleAssessment.assessment_role == "practical",
+        ModuleAssessment.lab_template_id == lab_id,
+        ModuleAssessment.active.is_(True),
+    ).one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="This practical is not available.")
+    return row
 
 
 def _safe_provisioning_error(exc: Exception) -> str:
@@ -403,9 +427,13 @@ def start_lab(
     response: Response,
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
+    v2_module_key: str | None = None,
+    v2_assessment_key: str | None = None,
 ):
     lab = _get_published_lab(db, lab_id)
-    require_week_reached(db, current_student, lab.week_number)
+    v2_context = _v2_lab_assessment(db, lab_id, v2_module_key, v2_assessment_key)
+    if v2_context is None:
+        require_week_reached(db, current_student, lab.week_number)
     run = _get_lab_run(db, lab_id, current_student.id)
     created = False
 
@@ -429,6 +457,13 @@ def start_lab(
     mark_student_active(db, current_student.id)
     if created:
         log_activity(db, current_student.id, "lab_started", lab.title, "Lab in progress")
+    if v2_context:
+        assessment, module = v2_context
+        record_activity(
+            db, student_id=current_student.id, module_key=module.module_key,
+            activity_type="practical", ref_key=assessment.assessment_key,
+            status="in_progress", detail={"lab_run_id": run.id}, commit=True,
+        )
 
     vm_data = {}
     if lab.proxmox_template_vmid:
@@ -565,9 +600,13 @@ def submit_lab(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
+    v2_module_key: str | None = None,
+    v2_assessment_key: str | None = None,
 ):
     lab = _get_published_lab(db, lab_id)
-    require_week_reached(db, current_student, lab.week_number)
+    v2_context = _v2_lab_assessment(db, lab_id, v2_module_key, v2_assessment_key)
+    if v2_context is None:
+        require_week_reached(db, current_student, lab.week_number)
     is_structured_lab = (lab.lab_type or "").startswith("structured_")
     questions = []
     if is_structured_lab:
@@ -673,6 +712,13 @@ def submit_lab(
         background_tasks.add_task(_destroy_vm_task, assignment.id)
     mark_student_active(db, current_student.id)
     log_activity(db, current_student.id, "lab_submitted", lab.title, "Lab submitted")
+    if v2_context:
+        assessment, module = v2_context
+        record_activity(
+            db, student_id=current_student.id, module_key=module.module_key,
+            activity_type="practical", ref_key=assessment.assessment_key,
+            status="completed", passed=True, detail={"lab_run_id": run.id}, commit=True,
+        )
     return ok(_serialize_lab(lab, run))
 
 

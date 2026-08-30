@@ -12,6 +12,7 @@ import AdminLoginPage from "./pages/AdminLoginPage";
 import LoginPage from "./pages/LoginPage";
 import StudentHome from "./pages/StudentHome";
 import { authLogout, globalSearch } from "./services/api";
+import { V2_CURRICULUM_ENABLED } from "./config/features";
 
 const LessonPage = lazy(() => import("./pages/LessonPage"));
 const CapstonePage = lazy(() => import("./pages/CapstonePage"));
@@ -42,8 +43,19 @@ const CurriculumEditorPage = lazy(() => import("./pages/admin/CurriculumEditorPa
 const CurriculumTagsPage = lazy(() => import("./pages/admin/CurriculumTagsPage"));
 const QuizEditorPage = lazy(() => import("./pages/admin/QuizEditorPage"));
 const AdminTrainingPage = lazy(() => import("./pages/admin/AdminTrainingPage"));
+const V2MentorProgressPage = lazy(() => import("./pages/admin/V2MentorProgressPage"));
+const V2MentorStudentPage = lazy(() => import("./pages/admin/V2MentorStudentPage"));
+const V2MentorGradePage = lazy(() => import("./pages/admin/V2MentorGradePage"));
+const V2LearningPage = lazy(() => import("./pages/v2/V2LearningPage"));
+const V2ModulePage = lazy(() => import("./pages/v2/V2ModulePage"));
+const V2LessonPage = lazy(() => import("./pages/v2/V2LessonPage"));
+const V2AssessmentPage = lazy(() => import("./pages/v2/V2AssessmentPage"));
+const V2ExplainPage = lazy(() => import("./pages/v2/V2ExplainPage"));
+const V2PracticalRedirect = lazy(() => import("./pages/v2/V2PracticalRedirect"));
+const V2ServiceDeskRedirect = lazy(() => import("./pages/v2/V2ServiceDeskRedirect"));
 const studentNavItems = [
   { to: "/", label: "Dashboard" },
+  ...(V2_CURRICULUM_ENABLED ? [{ to: "/learning-v2", label: "Learning V2" }] : []),
   { to: "/learning-path", label: "Learning Path" },
   { to: "/service-desk", label: "Tickets", external: true },
   { to: "/labs", label: "Labs" },
@@ -64,6 +76,7 @@ const adminNavItems = [
     ],
   },
   { to: "/admin/students", label: "Students" },
+  ...(V2_CURRICULUM_ENABLED ? [{ to: "/admin/v2-progress", label: "V2 Student Progress" }] : []),
   {
     label: "Assessments & Labs",
     children: [
@@ -111,7 +124,7 @@ function AppNav({ items, isAdminRoute, onNavigate, mobile = false }) {
   const linkContent = (item) => item.label;
 
   return (
-    <nav className={mobile ? "flex flex-col gap-2" : "hidden items-center gap-3 md:flex"}>
+    <nav className={mobile ? "flex flex-col gap-2" : "hidden items-center gap-3 xl:flex"}>
       {items.map((item) => {
         if (!item.children) {
           if (item.external) {
@@ -280,7 +293,7 @@ export default function App() {
             <AppNav items={navItems} isAdminRoute={isAdminRoute} />
             <div className="ml-auto flex items-center gap-3">
               <button
-                className={`${iconButtonClass} md:hidden`}
+                className={`${iconButtonClass} xl:hidden`}
                 onClick={() => setMobileOpen((o) => !o)}
                 aria-label="Toggle menu"
               >
@@ -351,7 +364,7 @@ export default function App() {
               ) : null}
             </div>
             {mobileOpen ? (
-              <div className="absolute inset-x-0 top-full z-30 border-b border-slate-200 bg-white px-6 py-4 shadow-lg md:hidden dark:border-slate-800 dark:bg-slate-900">
+              <div className="absolute inset-x-0 top-full z-30 border-b border-slate-200 bg-white px-6 py-4 shadow-lg xl:hidden dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex flex-col gap-3">
                   <AppNav items={navItems} isAdminRoute={isAdminRoute} onNavigate={() => setMobileOpen(false)} mobile />
                   {!isAdminRoute ? (
@@ -380,6 +393,15 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/lessons/:lessonId" element={<RequireAuth><LessonPage /></RequireAuth>} />
         <Route path="/learning-path" element={<RequireAuth><TrainingDashboardPage /></RequireAuth>} />
+        {V2_CURRICULUM_ENABLED ? <>
+          <Route path="/learning-v2" element={<RequireAuth><V2LearningPage /></RequireAuth>} />
+          <Route path="/learning-v2/modules/:moduleKey" element={<RequireAuth><V2ModulePage /></RequireAuth>} />
+          <Route path="/learning-v2/modules/:moduleKey/lessons/:lessonKey" element={<RequireAuth><V2LessonPage /></RequireAuth>} />
+          <Route path="/learning-v2/modules/:moduleKey/assessments/:assessmentKey" element={<RequireAuth><V2AssessmentPage /></RequireAuth>} />
+          <Route path="/learning-v2/modules/:moduleKey/explain/:promptKey" element={<RequireAuth><V2ExplainPage /></RequireAuth>} />
+          <Route path="/learning-v2/modules/:moduleKey/practical/:assessmentKey" element={<RequireAuth><V2PracticalRedirect /></RequireAuth>} />
+          <Route path="/learning-v2/modules/:moduleKey/service-desk/:assessmentKey" element={<RequireAuth><V2ServiceDeskRedirect /></RequireAuth>} />
+        </> : null}
         <Route path="/training" element={<Navigate to="/learning-path" replace />} />
         <Route path="/training/week/:weekId" element={<RequireAuth><TrainingWeekPage /></RequireAuth>} />
         <Route path="/training/module/:moduleId" element={<RequireAuth><TrainingWeekPage /></RequireAuth>} />
@@ -404,6 +426,11 @@ export default function App() {
         <Route path="/admin/service-desk-review" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminServiceDeskReviewPage /></AdminAccessGate>} />
         <Route path="/admin/review" element={<Navigate to="/admin/service-desk-review" replace />} />
         <Route path="/admin/students" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminStudentsPage /></AdminAccessGate>} />
+        {V2_CURRICULUM_ENABLED ? <>
+          <Route path="/admin/v2-progress" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><V2MentorProgressPage /></AdminAccessGate>} />
+          <Route path="/admin/v2-progress/students/:studentId" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><V2MentorStudentPage /></AdminAccessGate>} />
+          <Route path="/admin/v2-grading/:pendingGradeId" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><V2MentorGradePage /></AdminAccessGate>} />
+        </> : null}
         <Route path="/admin/modules" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><ModuleManager /></AdminAccessGate>} />
         <Route path="/admin/training" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminTrainingPage /></AdminAccessGate>} />
         <Route path="/admin/labs" element={<AdminAccessGate onAuthenticationChange={setAdminAuthenticated}><AdminLabsPage /></AdminAccessGate>} />

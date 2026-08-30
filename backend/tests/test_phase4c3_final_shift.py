@@ -51,7 +51,9 @@ def _seed(database_url: str) -> None:
 def test_migration_upgrade_converts_week_23_24_and_adds_gate(tmp_path):
     database_path = tmp_path / "fresh.db"
     database_url = f"sqlite:///{database_path}"
-    _run([sys.executable, "-m", "alembic", "upgrade", "head"], database_url)
+    # Pinned to this phase's revision, not "head": later additive migrations
+    # (e.g. the V2 certification foundation) must not perturb this assertion.
+    _run([sys.executable, "-m", "alembic", "upgrade", REVISION_0061], database_url)
     _seed(database_url)
 
     engine = create_engine(database_url)
@@ -127,7 +129,7 @@ def _active_totals(database_path):
 def test_migration_downgrade_restores_prior_content_and_removes_gate(tmp_path):
     database_path = tmp_path / "cycle.db"
     database_url = f"sqlite:///{database_path}"
-    _run([sys.executable, "-m", "alembic", "upgrade", "head"], database_url)
+    _run([sys.executable, "-m", "alembic", "upgrade", REVISION_0061], database_url)
     _seed(database_url)
 
     _run([sys.executable, "-m", "alembic", "downgrade", REVISION_0060], database_url)

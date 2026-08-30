@@ -206,6 +206,57 @@ script plus the matching `csp` request failure; all other console and network
 errors still fail the suite. Remove the flag after the configuration rule is
 active and confirm the beacon no longer appears.
 
+### Alembic production safety guard
+
+`backend/app/db_guard.py` (wired into `alembic/env.py`) refuses any
+schema-mutating Alembic command (`upgrade` / `downgrade` / `stamp`) that
+resolves to the live production SQLite file
+(`backend/nexus.db`) unless the operator explicitly opts in with
+`NEXUS_ALLOW_PROD_MIGRATION=1`. It exists because on 2026-08-29 a bare
+`alembic upgrade head` with `DATABASE_URL` unset fell back to `alembic.ini`
+(`sqlalchemy.url = sqlite:///./nexus.db`) and migrated production
+(`tasks/lessons.md`).
+
+- **Read-only inspection is never blocked** — `alembic current` / `heads` /
+  `history` / `show` work against production with no opt-in, so
+  `predeploy_check.sh` and rollback introspection are unaffected.
+- **`scripts/deploy.sh` opts in for you** — its `alembic_backend()` wrapper
+  sets both `DATABASE_URL` (pinned to the `.env` database) and
+  `NEXUS_ALLOW_PROD_MIGRATION=1`. The sanctioned way to migrate production is
+  a normal `deploy.sh` run; it still enforces `--allow-db-ahead` and every
+  other predeploy guard — this check is additive to those, not a replacement.
+- **The stable `~/bin/nexus-deploy` copy must be refreshed** from the updated
+  `scripts/deploy.sh` (per the "stable copy" note above) so the opt-in is
+  present there too.
+
+Scratch / verification workflow (never touches production):
+
+```bash
+cd backend
+DATABASE_URL="sqlite:////tmp/nexus-scratch.db" ./.venv/bin/python -m alembic upgrade head
+DATABASE_URL="sqlite:////tmp/nexus-scratch.db" ./.venv/bin/python -m alembic downgrade -1
+```
+
+Deliberate manual production migration (only outside `deploy.sh`, e.g.
+recovery):
+
+```bash
+cd backend
+# take a fresh verified backup first (SQLite online-backup API; see below)
+NEXUS_ALLOW_PROD_MIGRATION=1 DATABASE_URL="sqlite:///$(pwd)/nexus.db" \
+  ./.venv/bin/python -m alembic upgrade head
+```
+
+Rules:
+
+- **Never** run Alembic without first confirming the database it resolved to
+  (the guard prints it on refusal; on success, check the `Running upgrade …`
+  lines name the revisions you expect).
+- **Never** suppress migration output with `>/dev/null 2>&1` — you cannot see
+  which database was touched or whether it succeeded.
+- CI is unaffected: the `db-migrations-seeds` job sets `DATABASE_URL` to a
+  throwaway path under `$RUNNER_TEMP`, which never resolves to production.
+
 Before every deployment:
 
 1. Confirm the intended commit and a clean worktree.
@@ -221,7 +272,10 @@ Backend update:
 ```bash
 cd backend
 ./.venv/bin/pip install -r requirements.txt
-./.venv/bin/python -m alembic upgrade head
+# alembic is guarded — either run the migration through scripts/deploy.sh, or
+# opt in explicitly (see "Alembic production safety guard" above):
+NEXUS_ALLOW_PROD_MIGRATION=1 DATABASE_URL="sqlite:///$(pwd)/nexus.db" \
+  ./.venv/bin/python -m alembic upgrade head
 sudo systemctl restart nexus-admin-academy.service
 curl --fail http://127.0.0.1:8000/health
 sudo journalctl -u nexus-admin-academy.service -n 100 --no-pager
