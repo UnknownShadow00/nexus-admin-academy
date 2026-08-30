@@ -175,6 +175,39 @@ def _render_frontmatter(meta: dict, untouched_body: str) -> str:
     return f"---\n{yaml.safe_dump(meta, sort_keys=False)}---{untouched_body}"
 
 
+def _optional_frontmatter(path: Path) -> tuple[dict, str, bool]:
+    """Return optional overview metadata without treating prose as routing."""
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---"):
+        return {}, text, False
+    meta, body = _split_frontmatter(path)
+    return meta, body, True
+
+
+def _markdown_module_title(text: str) -> str | None:
+    """Extract display-only title from a clearly labelled Markdown section."""
+    match = re.search(
+        r"^##[ \t]+Module title[ \t]*\n+(?:[ \t]*\n)*([^\n#].*?)\s*$",
+        text,
+        flags=re.IGNORECASE | re.MULTILINE,
+    )
+    if match:
+        return match.group(1).strip()
+    heading = re.search(r"^#[ \t]+(.+?)\s*$", text, flags=re.MULTILINE)
+    return heading.group(1).strip() if heading else None
+
+
+def _consensus(field: str, evidence: list[tuple[str, object]]) -> str:
+    present = [(source, str(value).strip()) for source, value in evidence if str(value or "").strip()]
+    values = {value for _source, value in present}
+    if len(values) > 1:
+        detail = ", ".join(f"{source}={value!r}" for source, value in present)
+        raise IntakeError(f"conflicting structured {field} values: {detail}", field=field)
+    if not values:
+        raise IntakeError(f"insufficient structured metadata to determine {field}", field=field)
+    return values.pop()
+
+
 def _tree_hash(path: Path) -> str:
     digest = hashlib.sha256()
     for item in sorted(path.rglob("*")):
@@ -286,6 +319,7 @@ class CurriculumIntakeProcessor:
                 "package_hash": package_hash,
                 "approved_destination": str(module_root / package_hash),
                 "classification": classification,
+                "manifest": normalized["manifest"],
             }
             staged_content = workspace / "content"
             shutil.copytree(self.content_dir, staged_content)
@@ -383,34 +417,71 @@ class CurriculumIntakeProcessor:
     def _normalize_and_validate(self, root: Path, original_name: str, package_hash: str) -> dict:
         notes: set[str] = set()
         overview_path = root / "module_overview.md"
-        overview, _overview_body = _split_frontmatter(overview_path)
-        required = ("certification", "certification_version", "domain", "module_key", "title", "skill_promise")
-        for field in required:
-            if not str(overview.get(field) or "").strip():
-                raise IntakeError(f"required package metadata '{field}' is missing", file="module_overview.md", field=field)
+        overview, overview_text, has_overview_frontmatter = _optional_frontmatter(overview_path)
 
-        cert_key = str(overview["certification"]).strip()
-        version_key = str(overview["certification_version"]).strip()
-        domain = str(overview["domain"]).strip()
-        module_key = str(overview["module_key"]).strip()
+        lesson_dir = root / "lessons"
+        if not lesson_dir.is_dir():
+            raise IntakeError("lessons/ directory is required", field="lessons")
+        raw_lessons: list[tuple[Path, dict, str]] = []
+        for path in sorted(lesson_dir.glob("*.md")):
+            meta, body = _split_frontmatter(path)
+            raw_lessons.append((path, meta, body))
+        if not raw_lessons:
+            raise IntakeError("at least one lesson Markdown file is required", field="lessons")
+
+        provenance = _read_yaml(root / "provenance.yaml") if (root / "provenance.yaml").is_file() else {}
+        resources_doc = _read_yaml(root / "resources.yaml") if (root / "resources.yaml").is_file() else {}
+        version_evidence = [("module_overview.md", overview.get("certification_version"))]
+        version_evidence.extend((path.name, meta.get("certification_version")) for path, meta, _body in raw_lessons)
+        version_evidence.extend(
+            (f"resources.yaml:{row.get('resource_key') or index}", row.get("certification_version"))
+            for index, row in enumerate(resources_doc.get("resources") or [], 1)
+        )
+        version_evidence.append(("provenance.yaml", provenance.get("certification_version")))
+        module_evidence = [("module_overview.md", overview.get("module_key"))]
+        module_evidence.extend((path.name, meta.get("module")) for path, meta, _body in raw_lessons)
+        module_evidence.append(("provenance.yaml", provenance.get("module_key")))
+        domain_evidence = [("module_overview.md", overview.get("domain"))]
+        domain_evidence.extend((path.name, meta.get("domain")) for path, meta, _body in raw_lessons)
+
+        version_key = _consensus("certification_version", version_evidence)
+        module_key = _consensus("module_key", module_evidence)
+        domain = _consensus("domain", domain_evidence)
         registry = self._registry()
-        if cert_key not in registry:
-            raise IntakeError(f"certification '{cert_key}' is not in Nexus certification data", field="certification")
-        if version_key not in registry[cert_key]["versions"]:
-            raise IntakeError(f"version '{version_key}' does not belong to '{cert_key}'", field="certification_version")
+        owners = [cert for cert, item in registry.items() if version_key in item["versions"]]
+        if len(owners) != 1:
+            message = (
+                f"version '{version_key}' is not in Nexus certification data"
+                if not owners
+                else f"version '{version_key}' belongs to multiple certifications: {owners}"
+            )
+            raise IntakeError(message, field="certification_version")
+        cert_key = owners[0]
+        explicit_cert = str(overview.get("certification") or "").strip()
+        if explicit_cert and explicit_cert != cert_key:
+            raise IntakeError(
+                f"conflicting structured certification values: module_overview.md={explicit_cert!r}, hierarchy={cert_key!r}",
+                field="certification",
+            )
+        if not explicit_cert:
+            notes.add(f"certification resolved from {version_key} -> {cert_key}")
         version = registry[cert_key]["versions"][version_key]
         if domain not in version["domains"]:
             raise IntakeError(f"domain '{domain}' does not belong to '{version_key}'", field="domain")
 
+        structured_title = str(overview.get("title") or "").strip()
+        prose_title = _markdown_module_title(overview_text)
+        module_title = structured_title or prose_title
+        if not module_title:
+            raise IntakeError("module title is unavailable in structured metadata or the labelled Markdown overview", file="module_overview.md", field="title")
+        if not has_overview_frontmatter:
+            notes.add("module title derived from module_overview.md Markdown")
+
         lessons: list[tuple[str, str]] = []
         lesson_keys: set[str] = set()
         objective_codes: set[str] = set()
-        lesson_dir = root / "lessons"
-        if not lesson_dir.is_dir():
-            raise IntakeError("lessons/ directory is required", field="lessons")
         lesson_meta_rows = []
-        for path in sorted(lesson_dir.glob("*.md")):
-            meta, body = _split_frontmatter(path)
+        for path, meta, body in raw_lessons:
             for field in ("lesson_key", "title", "lesson_order", "importance", "learning_relationship", "objectives"):
                 if meta.get(field) in (None, "", []):
                     raise IntakeError(f"lesson field '{field}' is required", file=path.name, field=field)
@@ -428,9 +499,6 @@ class CurriculumIntakeProcessor:
             lesson_keys.add(key)
             lessons.append((path.name, _render_frontmatter(meta, body)))
             lesson_meta_rows.append(meta)
-        if not lessons:
-            raise IntakeError("at least one lesson Markdown file is required", field="lessons")
-
         question_path = self._question_path(root)
         raw_rows = parse_xlsx_file(question_path.read_bytes()) if question_path.suffix.lower() in {".xlsx", ".xlsm"} else parse_csv_file(question_path.read_bytes())
         normalized_rows = []
@@ -462,7 +530,6 @@ class CurriculumIntakeProcessor:
         if not normalized_rows:
             raise IntakeError("question bank is empty", file=question_path.name, field="questions")
 
-        provenance = _read_yaml(root / "provenance.yaml") if (root / "provenance.yaml").is_file() else {}
         editorial = str(provenance.get("editorial_status") or overview.get("editorial_status") or "").lower()
         if editorial != "validated":
             raise IntakeError("package must have validated editorial status", file="provenance.yaml", field="editorial_status")
@@ -485,11 +552,14 @@ class CurriculumIntakeProcessor:
         assessments = self._build_assessments(module_key, lesson_meta_rows, quiz, quiz_title, practical_title, service_desk_key, bool(prompts))
         module = {
             "module_key": module_key,
-            "title": str(overview["title"]),
-            "skill_promise": str(overview["skill_promise"]),
+            "title": module_title,
+            "skill_promise": str(overview.get("skill_promise") or "") or None,
             "certification_domain_key": domain,
             "importance_hint": _normalize_scalar(overview.get("importance", "working_knowledge"), IMPORTANCE_ALIASES, notes),
-            "display_order": int(overview.get("display_order") or 1),
+            "display_order": int(
+                overview.get("display_order")
+                or max((int(row.get("display_order") or 0) for row in version["data"].get("modules") or []), default=0) + 1
+            ),
             "assessments": assessments,
         }
         manifest = {

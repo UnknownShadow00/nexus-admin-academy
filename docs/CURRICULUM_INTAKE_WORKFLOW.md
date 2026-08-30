@@ -46,6 +46,14 @@ objectives must already exist in `backend/content/certifications/` and
 `backend/content/objectives/`. This makes intake certification-agnostic while
 preventing a package from inventing or crossing objective versions.
 
+`module_overview.md` may be plain Markdown. When it has YAML frontmatter, those
+values are cross-checked against the package. Otherwise, unanimous lesson and
+other structured package metadata determines version, domain, and module; the
+certification is resolved from the existing version hierarchy. A clearly
+labelled Markdown module title may supply display text, but prose is never used
+as certification-routing evidence. Missing evidence or conflicting structured
+values fails safely.
+
 Mechanical normalization includes friendly enum names and workbook column
 aliases such as `Job Critical`, `single-choice`, `question`, and `objective`.
 It does not rewrite lesson prose, question wording, answers, distractors,

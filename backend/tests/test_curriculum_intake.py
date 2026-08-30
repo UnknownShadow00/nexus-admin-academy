@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -232,6 +233,13 @@ def _zip(source: Path, destination: Path) -> Path:
     return destination
 
 
+def _plain_overview(package: Path, title: str = "Client Support Workflow") -> None:
+    (package / "module_overview.md").write_text(
+        f"# Test Certification — Module\n\n## Module title\n{title}\n\nApproved overview prose.\n",
+        encoding="utf-8",
+    )
+
+
 @pytest.fixture()
 def intake(tmp_path):
     dropbox = tmp_path / "references" / "curriculum-dropbox"
@@ -269,6 +277,95 @@ def test_valid_folder_discovery(intake):
     processor, dropbox, *_ = intake
     package = _package(dropbox)
     assert processor.discover() == [package]
+
+
+def test_module_overview_with_frontmatter_still_routes(intake):
+    processor, dropbox, *_ = intake
+    _package(dropbox)
+    result = processor.process(mode="check")[0]
+    assert result["manifest"]["certification_key"] == "test_cert"
+    assert result["manifest"]["version_key"] == "test_cert_v1"
+    assert result["manifest"]["module_key"] == "module.test.client_support"
+
+
+def test_plain_module_overview_routes_from_unanimous_lessons(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    _plain_overview(package)
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "VALID_WITH_NORMALIZATION"
+    assert result["manifest"]["certification_key"] == "test_cert"
+    assert result["manifest"]["version_key"] == "test_cert_v1"
+    assert result["manifest"]["domain_key"] == "1.0"
+    assert result["manifest"]["module_key"] == "module.test.client_support"
+
+
+def test_plain_overview_conflicting_lesson_module_keys_fail(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    _plain_overview(package)
+    lesson = package / "lessons" / "01-evidence.md"
+    duplicate = package / "lessons" / "02-conflict.md"
+    duplicate.write_text(lesson.read_text().replace("module.test.client_support", "module.test.conflict"))
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "INVALID"
+    assert result["errors"][0]["field"] == "module_key"
+    assert "conflicting" in result["errors"][0]["message"]
+
+
+def test_plain_overview_conflicting_certification_versions_fail(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    _plain_overview(package)
+    lesson = package / "lessons" / "01-evidence.md"
+    duplicate = package / "lessons" / "02-conflict.md"
+    duplicate.write_text(lesson.read_text().replace("test_cert_v1", "test_cert_v2"))
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "INVALID"
+    assert result["errors"][0]["field"] == "certification_version"
+
+
+def test_plain_overview_conflicting_domains_fail(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    _plain_overview(package)
+    lesson = package / "lessons" / "01-evidence.md"
+    duplicate = package / "lessons" / "02-conflict.md"
+    duplicate.write_text(lesson.read_text().replace("domain: '1.0'", "domain: '2.0'"))
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "INVALID"
+    assert result["errors"][0]["field"] == "domain"
+
+
+def test_certification_is_resolved_from_version_hierarchy(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    _plain_overview(package)
+    result = processor.process(mode="check")[0]
+    assert result["manifest"]["certification_key"] == "test_cert"
+    assert "certification resolved from test_cert_v1 -> test_cert" in result["normalizations"]
+
+
+def test_plain_markdown_module_title_is_display_metadata(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    _plain_overview(package, "Friendly Display Title")
+    result = processor.process(mode="check")[0]
+    assert result["manifest"]["module_title"] == "Friendly Display Title"
+
+
+def test_plain_overview_with_insufficient_structured_routing_fails(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    _plain_overview(package)
+    lesson = package / "lessons" / "01-evidence.md"
+    text = lesson.read_text()
+    for field in ("certification_version", "domain", "module"):
+        text = re.sub(rf"^{field}:.*\n", "", text, flags=re.MULTILINE)
+    lesson.write_text(text)
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "INVALID"
+    assert result["errors"][0]["field"] in {"certification_version", "domain", "module_key"}
 
 
 def test_valid_zip_discovery_and_wrapped_root(intake):
@@ -310,6 +407,9 @@ def test_missing_required_package_metadata(intake):
     package = _package(dropbox)
     overview = package / "module_overview.md"
     overview.write_text(overview.read_text().replace("module_key: module.test.client_support\n", ""))
+    lesson = package / "lessons" / "01-evidence.md"
+    lesson.write_text(lesson.read_text().replace("module: module.test.client_support\n", ""))
+    # The synthetic provenance has no module key; all structured evidence is now absent.
     result = processor.process(mode="check")[0]
     assert result["status"] == "INVALID"
     assert any(error["field"] == "module_key" for error in result["errors"])
