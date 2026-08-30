@@ -771,10 +771,15 @@ class CurriculumIntakeProcessor:
             shutil.copytree(self.content_dir, staged_content)
             runtime_destinations = self._write_runtime(normalized, staged_content)
             loader_result = self.runtime_validator(staged_content, normalized["manifest"])
-            unresolved = loader_result.get("references", {}).get("content_engine_unresolved", [])
+            references = loader_result.get("references", {})
+            unresolved = references.get("package_content_engine_unresolved")
+            if unresolved is None:
+                # Compatibility for injected/older validators that only
+                # report the global loader result.
+                unresolved = references.get("content_engine_unresolved", [])
             if unresolved:
                 raise IntakeError(f"runtime references did not resolve: {unresolved}", field="assessments")
-            service_unresolved = loader_result.get("references", {}).get("package_service_desk_unresolved", [])
+            service_unresolved = references.get("package_service_desk_unresolved", [])
             if service_unresolved:
                 raise IntakeError(
                     f"Service Desk references did not resolve: {service_unresolved}",
@@ -2136,8 +2141,14 @@ try:
  if second['created'] or second['updated']:
   raise RuntimeError(f"second V2 loader pass was not idempotent: {second}")
  module = db.query(CertificationModule).filter_by(module_key=os.environ['NEXUS_MODULE_KEY']).one()
+ package_assessments = db.query(ModuleAssessment).filter_by(certification_module_id=module.id).all()
+ content_roles = {'quick_check', 'module_quiz', 'practical'}
  sd = db.query(ModuleAssessment).filter_by(certification_module_id=module.id, assessment_role='service_desk').all()
  references = dict(second['references'])
+ references['package_content_engine_unresolved'] = [
+  row.assessment_key for row in package_assessments
+  if row.assessment_role in content_roles and not (row.quiz_id or row.lab_template_id)
+ ]
  references['package_service_desk_unresolved'] = [row.assessment_key for row in sd if not row.service_desk_scenario_id]
  print(json.dumps({'first': first, 'second': second, 'references': references}))
 finally:

@@ -14,6 +14,7 @@ from app.services.question_importer import (
     parse_csv_file,
     parse_xlsx_file,
     preview_rows,
+    row_to_payload,
     sanitize_text,
 )
 from conftest import make_client
@@ -50,6 +51,27 @@ def test_parse_csv_file_basic():
     rows = parse_csv_file(content)
     assert len(rows) == 1
     assert rows[0]["question_text"] == "What port does HTTPS use?"
+
+
+def test_normalized_native_structures_become_valid_json_cells():
+    short = row_to_payload(
+        {
+            "question_type": "short_answer",
+            "question_text": "What does CMDB stand for?",
+            "acceptable_answers": ["Configuration Management Database", "CMDB"],
+        }
+    )
+    free = row_to_payload(
+        {
+            "question_type": "free_response",
+            "question_text": "Explain a safe change.",
+            "expected_concepts": ["rollback", "verification"],
+            "rubric": {"minimum_rule": "both concepts"},
+        }
+    )
+    assert short["acceptable_answers"] == '["Configuration Management Database","CMDB"]'
+    assert free["expected_concepts"] == '["rollback","verification"]'
+    assert free["rubric"] == '{"minimum_rule":"both concepts"}'
 
 
 def test_parse_csv_file_too_large_is_rejected():

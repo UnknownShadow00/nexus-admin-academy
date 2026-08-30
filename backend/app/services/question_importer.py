@@ -9,6 +9,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -111,7 +112,10 @@ def _structured_cell(value) -> str:
     "-1|0|1" would gain a quote. Structured cells are parsed by the validator
     and never re-emitted into a spreadsheet, so we skip the '@=+-' prefixing
     and only remove control characters."""
-    text = "" if value is None else str(value)
+    if isinstance(value, (list, tuple, dict)):
+        text = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    else:
+        text = "" if value is None else str(value)
     return _CONTROL_CHARS_RE.sub("", text).strip()
 
 

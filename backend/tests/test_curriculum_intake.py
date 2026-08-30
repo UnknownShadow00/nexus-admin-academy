@@ -309,6 +309,32 @@ def test_empty_dropbox(intake):
     assert processor.process(mode="check") == []
 
 
+def test_package_runtime_validation_ignores_unrelated_baseline_references(intake):
+    processor, dropbox, *_ = intake
+    _package(dropbox)
+    processor.runtime_validator = lambda _content, _manifest: {
+        "references": {
+            "content_engine_unresolved": ["baseline.optional.quick_check"],
+            "package_content_engine_unresolved": [],
+        }
+    }
+    assert processor.process(mode="check")[0]["status"] == "VALID_WITH_NORMALIZATION"
+
+
+def test_package_runtime_validation_rejects_its_own_unresolved_reference(intake):
+    processor, dropbox, *_ = intake
+    _package(dropbox)
+    processor.runtime_validator = lambda _content, _manifest: {
+        "references": {
+            "content_engine_unresolved": ["baseline.optional.quick_check"],
+            "package_content_engine_unresolved": ["incoming.module_quiz"],
+        }
+    }
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "INVALID"
+    assert "incoming.module_quiz" in result["errors"][0]["message"]
+
+
 def test_valid_folder_discovery(intake):
     processor, dropbox, *_ = intake
     package = _package(dropbox)
