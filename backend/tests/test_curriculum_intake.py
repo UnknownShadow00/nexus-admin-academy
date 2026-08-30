@@ -898,16 +898,23 @@ def test_success_preserves_approved_package_and_cleans_inbox(intake):
 
 
 def test_duplicate_hash_and_identical_rerun_are_idempotent(intake):
-    processor, dropbox, *_ = intake
+    processor, dropbox, _, content = intake
     source = _package(dropbox)
+    overview = source / "module_overview.md"
+    overview.write_text(
+        overview.read_text(encoding="utf-8").replace("display_order: 50\n", ""),
+        encoding="utf-8",
+    )
     saved = source.parent.parent / "saved"
     shutil.copytree(source, saved)
     first = processor.process(mode="apply")[0]
+    certification_before = (content / "certifications" / "test-cert.yaml").read_bytes()
     shutil.copytree(saved, dropbox / "client-support")
     second = processor.process(mode="apply")[0]
     assert first["status"] == "IMPORTED"
     assert second["status"] == "UNCHANGED"
     assert not (dropbox / "client-support").exists()
+    assert (content / "certifications" / "test-cert.yaml").read_bytes() == certification_before
 
 
 def test_changed_package_requires_explicit_apply_and_preserves_history(intake):

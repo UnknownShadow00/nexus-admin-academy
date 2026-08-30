@@ -1763,6 +1763,14 @@ class CurriculumIntakeProcessor:
             root, module_key, version["objectives"], notes
         )
         assessments = self._build_assessments(module_key, lesson_meta_rows, quiz, quiz_title, practical_title, service_desk_key, bool(prompts))
+        existing_module = next(
+            (
+                row
+                for row in version["data"].get("modules") or []
+                if str(row.get("module_key") or "") == module_key
+            ),
+            None,
+        )
         module = {
             "module_key": module_key,
             "title": module_title,
@@ -1771,6 +1779,7 @@ class CurriculumIntakeProcessor:
             "importance_hint": _normalize_scalar(overview.get("importance", "working_knowledge"), IMPORTANCE_ALIASES, notes),
             "display_order": int(
                 overview.get("display_order")
+                or (existing_module or {}).get("display_order")
                 or max((int(row.get("display_order") or 0) for row in version["data"].get("modules") or []), default=0) + 1
             ),
             "assessments": assessments,
