@@ -28,3 +28,10 @@ approvals:
   editorial_status: validated
   reviewed_at: '2026-08-30'
   review_note: External approved package d23f4e5e2b477bc0b12556f62cc066d1ef6d388105ad40bfb94d4facc0943a53
+- filename: module-aplus-core1-mobile-device-support.csv
+  quiz_title: Module 6 Quiz — Mobile Device Support
+  sha256: 10163e857f8f075ce3f40a9d34ff75681b0a5bbf2351a4ff2341238b4f13ceef
+  reviewed_question_count: 36
+  editorial_status: validated
+  reviewed_at: '2026-08-30'
+  review_note: External approved package 21774037c877d9c5f0b7b30454783dc43a41bcc41c2179ce0ecb50c4ca10e8f0

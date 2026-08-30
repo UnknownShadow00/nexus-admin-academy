@@ -136,11 +136,15 @@ def test_objective_coverage_after_batch_is_transparent(db):
     load_module(db, commit=True)
     core1 = certification_version_coverage(db, "comptia_aplus_220-1201")
     core2 = certification_version_coverage(db, "comptia_aplus_220-1202")
-    assert {row["objective_code"] for row in core1["covered"]} == {"2.1", "2.5", "3.4", "3.5", "5.1", "5.7"}
+    assert {row["objective_code"] for row in core1["covered"]} == {
+        "1.1", "1.2", "1.3", "2.1", "2.5", "3.4", "3.5", "5.1", "5.4", "5.7"
+    }
     assert {row["objective_code"] for row in core2["covered"]} == {
         "1.1", "1.2", "1.6", "3.1", "4.1", "4.2", "4.7"
     }
-    assert {row["objective_code"] for row in core1["uncovered"]} == {"1.1", "1.2", "1.3", "2.2", "3.1", "4.1", "4.2"}
+    assert {row["objective_code"] for row in core1["uncovered"]} == {
+        "2.2", "3.1", "4.1", "4.2"
+    }
     assert {row["objective_code"] for row in core2["uncovered"]} == {
         "2.1", "2.4", "2.7", "3.2", "3.4"
     }

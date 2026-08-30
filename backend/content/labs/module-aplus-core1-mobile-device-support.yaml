@@ -1,0 +1,112 @@
+labs:
+- title: Inspect, Isolate, and Document a Mobile Device
+  description: Prove the student can inspect a mobile device, separate connectivity
+    paths, recognize management/sync context, troubleshoot a supplied symptom safely,
+    and document verification.
+  estimated_minutes: 45
+  environment_requirements:
+    environment: Student-owned/provided phone or tablet OR supplied simulated screenshots/evidence.
+      No VM required.
+  success_criteria:
+    practical_key: practical.aplus.mobile.support_inspection
+    module_key: module.aplus.core1.mobile_device_support
+    privacy_note: Do not submit phone numbers, personal messages, contacts, account
+      names, exact location, IMEI/serial, photos, credentials, or other personal data.
+      Redact screenshots.
+    student_instructions:
+    - Use a device you are allowed to inspect. If you do not want to use a personal
+      device, use the supplied simulated evidence set.
+    - Do not open the device, disable organizational security/MDM, factory-reset,
+      or perform destructive repair.
+    - If you observe swelling, liquid damage, dangerous heat, or a physically unsafe
+      condition, stop that part of the practical and document the correct safety/escalation
+      response.
+    tasks:
+    - part: A
+      title: Device and connection inventory
+      steps:
+      - Record device category and OS family/version without recording unique identifiers.
+      - Identify charging/data connector type and one relevant accessory/dock connection.
+      - Inspect available storage and battery/health/status information where the
+        OS exposes it.
+      - Record Wi-Fi, Bluetooth, and cellular/SIM/eSIM availability/status without
+        exposing personal network names or account data.
+      evidence: Redacted checklist or screenshots showing settings categories, not
+        personal content.
+    - part: B
+      title: Connection isolation
+      steps:
+      - Confirm Wi-Fi state and whether a known-safe site/resource is reachable.
+      - If cellular service is available and policy/plan allows, compare the same
+        test over cellular; otherwise describe the exact comparison you would perform.
+      - Inspect Bluetooth and pair a permitted accessory OR document the correct pairing
+        sequence if none is available.
+      - Inspect hotspot/tethering settings and state whether policy/data-cap/carrier
+        constraints allow use. Do not turn it on if prohibited.
+      evidence: Short table of path tested, result, and what the result proves.
+    - part: C
+      title: Business sync and management
+      steps:
+      - Identify whether the example/device shows a work account or management profile.
+        Do not expose the account name.
+      - 'Identify sync categories relevant to work: mail, calendar, contacts, or cloud
+        storage.'
+      - For the supplied sync-failure scenario, list the first three checks you would
+        perform before considering a reset.
+      evidence: Three-step evidence-first sync plan.
+    - part: D
+      title: Troubleshoot a supplied symptom
+      steps:
+      - 'Choose one supplied case: intermittent charging, no Wi-Fi with working cellular,
+        stylus failure with working finger touch, app install blocked, or degraded
+        performance/overheating.'
+      - State the symptom, two likely causes, and the safest next test.
+      - State the change or escalation you would perform only after evidence supports
+        it.
+      - Define how you would verify the original symptom.
+      evidence: Concise technician note using symptom → evidence → action/escalation
+        → verification.
+    expected_results:
+    - Student separates Wi-Fi, cellular, Bluetooth, and sync instead of treating them
+      as one issue.
+    - Student chooses compatible/approved accessories and avoids forcing damaged connectors.
+    - Student recognizes MDM/policy as a possible cause without removing it without
+      authorization.
+    - Student escalates unsafe battery/liquid/physical conditions correctly.
+    - Student verifies the original symptom and documents useful evidence.
+    rubric:
+      total_points: 20
+      pass_points: 14
+      dimensions:
+      - name: Safe device inspection and hardware/accessory identification
+        points: 4
+      - name: Connectivity isolation and evidence quality
+        points: 4
+      - name: MDM/sync understanding and permission boundaries
+        points: 4
+      - name: Troubleshooting reasoning / correct escalation
+        points: 4
+      - name: Verification and documentation
+        points: 4
+      automatic_fail_conditions:
+      - Student intentionally punctures, compresses, heats, or continues charging
+        a suspected swollen/damaged battery.
+      - Student removes MDM/security controls or factory-resets a managed/personal
+        device without explicit authorization.
+      - Student exposes credentials, personal messages, phone numbers, unique device
+        identifiers, exact location, or other private data in submitted evidence.
+      - Student claims resolution without testing the original symptom or documenting
+        a justified escalation.
+    hints:
+    - Treat Wi-Fi and cellular as separate paths.
+    - A known-good cable is evidence only if it is compatible and used without forcing
+      the port.
+    - If finger touch works but the stylus does not, test stylus-specific causes before
+      declaring the digitizer failed.
+    - A factory reset is not an evidence-gathering first step.
+    vm_required: false
+  required_evidence:
+    student_tasks: []
+  source_name: null
+  lab_type: guided
+  is_published: true

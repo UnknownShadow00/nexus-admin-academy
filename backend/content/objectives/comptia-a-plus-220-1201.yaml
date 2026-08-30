@@ -63,6 +63,10 @@ objectives:
     domain_key: "5.0"
     text: "Given a scenario, apply the best practice methodology to resolve problems."
     subtopics: ["Identify the problem", "Establish a theory", "Test the theory", "Plan of action", "Verify full system functionality", "Document"]
+  - code: "5.4"
+    domain_key: "5.0"
+    text: "Given a scenario, troubleshoot common mobile device issues."
+    subtopics: ["Battery and charging", "Physical damage", "Connectivity", "Applications and synchronization", "Performance"]
   - code: "5.7"
     domain_key: "5.0"
     text: "Given a scenario, troubleshoot problems with wired and wireless networks."
