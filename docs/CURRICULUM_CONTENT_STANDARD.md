@@ -1,5 +1,8 @@
 # Nexus V2 — Curriculum Content Standard
 
+Owner-facing ZIP and folder intake is documented in
+[`CURRICULUM_INTAKE_WORKFLOW.md`](CURRICULUM_INTAKE_WORKFLOW.md).
+
 Status: **Phase 0 (planning only).** Defines how V2 curriculum content is
 structured, labelled, authored, and reviewed. No content is produced here.
 
