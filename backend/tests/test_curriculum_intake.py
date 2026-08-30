@@ -288,6 +288,145 @@ def test_module_overview_with_frontmatter_still_routes(intake):
     assert result["manifest"]["module_key"] == "module.test.client_support"
 
 
+def test_explicit_lesson_order_works(intake):
+    processor, dropbox, *_ = intake
+    _package(dropbox)
+    assert processor.process(mode="check")[0]["status"] == "VALID_WITH_NORMALIZATION"
+
+
+def test_numbered_filename_derives_missing_lesson_order(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    lesson = package / "lessons" / "01-evidence.md"
+    lesson.write_text(re.sub(r"^lesson_order:.*\n", "", lesson.read_text(), flags=re.MULTILINE))
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "VALID_WITH_NORMALIZATION"
+    assert "01-evidence.md: lesson_order 1 derived from filename prefix" in result["normalizations"]
+
+
+def test_six_numbered_files_derive_contiguous_sequence(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    original = package / "lessons" / "01-evidence.md"
+    template = re.sub(r"^lesson_order:.*\n", "", original.read_text(), flags=re.MULTILINE)
+    original.write_text(template)
+    for order in range(2, 7):
+        (package / "lessons" / f"{order:02d}-evidence.md").write_text(
+            template.replace(
+                "lesson.test.client_support.evidence",
+                f"lesson.test.client_support.evidence_{order}",
+            ).replace("title: Collect Evidence", f"title: Collect Evidence {order}")
+        )
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "VALID_WITH_NORMALIZATION"
+    assert result["manifest"]["lesson_count"] == 6
+    assert sum("derived from filename prefix" in note for note in result["normalizations"]) == 6
+
+
+def test_explicit_order_conflicting_with_filename_fails(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    lesson = package / "lessons" / "01-evidence.md"
+    lesson.write_text(lesson.read_text().replace("lesson_order: 1", "lesson_order: 5"))
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "INVALID"
+    assert result["errors"][0]["field"] == "lesson_order"
+    assert "conflicting" in result["errors"][0]["message"]
+
+
+def test_duplicate_derived_lesson_orders_fail(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    lesson = package / "lessons" / "01-evidence.md"
+    template = re.sub(r"^lesson_order:.*\n", "", lesson.read_text(), flags=re.MULTILINE)
+    lesson.write_text(template)
+    (package / "lessons" / "01-duplicate.md").write_text(
+        template.replace("lesson.test.client_support.evidence", "lesson.test.client_support.duplicate")
+    )
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "INVALID"
+    assert "duplicate lesson_order 1" in result["errors"][0]["message"]
+
+
+def test_missing_order_without_numeric_evidence_fails(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    lesson = package / "lessons" / "01-evidence.md"
+    text = re.sub(r"^lesson_order:.*\n", "", lesson.read_text(), flags=re.MULTILINE)
+    lesson.rename(package / "lessons" / "evidence.md")
+    (package / "lessons" / "evidence.md").write_text(text)
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "INVALID"
+    assert result["errors"][0]["field"] == "lesson_order"
+
+
+def test_derived_order_changes_runtime_copy_not_approved_source(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    lesson = package / "lessons" / "01-evidence.md"
+    lesson.write_text(re.sub(r"^lesson_order:.*\n", "", lesson.read_text(), flags=re.MULTILINE))
+    result = processor.process(mode="apply")[0]
+    approved = Path(result["approved_destination"]) / "source" / "lessons" / "01-evidence.md"
+    runtime = next((processor.content_dir / "curriculum").rglob("01-evidence.md"))
+    assert "lesson_order:" not in approved.read_text()
+    assert "lesson_order: 1" in runtime.read_text()
+
+
+def test_aggregate_check_reports_independent_component_findings(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox, service_desk=True)
+
+    lesson = package / "lessons" / "01-evidence.md"
+    text = re.sub(r"^lesson_order:.*\n", "", lesson.read_text(), flags=re.MULTILINE)
+    lesson.unlink()
+    (package / "lessons" / "evidence.md").write_text(text)
+
+    rows = _question_rows("module.test.client_support", objective="9.9")
+    _write_workbook(package / "questions_and_editorial_review.xlsx", rows)
+    resources = yaml.safe_load((package / "resources.yaml").read_text())
+    resources["resources"][0]["links"][0]["lesson_key"] = "lesson.unknown"
+    _write_yaml(package / "resources.yaml", resources)
+    prompts = yaml.safe_load((package / "explain_prompts.yaml").read_text())
+    prompts["prompts"][0].pop("objectives")
+    _write_yaml(package / "explain_prompts.yaml", prompts)
+    (package / "practical.yaml").write_text("practical: [unterminated")
+    _write_yaml(package / "service_desk.yaml", {"title": "Inline scenario"})
+    _write_yaml(
+        package / "module_quiz_blueprint.yaml",
+        {
+            "title": "Friendly quiz",
+            "question_count": 10,
+            "pools": [{"objective": "1.1", "choose": 10, "pool": ["Q999"]}],
+        },
+    )
+
+    result = processor.process(mode="check")[0]
+    error_files = {item["file"] for item in result["errors"]}
+    assert result["status"] == "INVALID"
+    assert result["component_summary"]["questions"]["count"] == 20
+    assert result["component_summary"]["resources"]["count"] == 1
+    assert {
+        "evidence.md",
+        "questions_and_editorial_review.xlsx",
+        "resources.yaml",
+        "explain_prompts.yaml",
+        "practical.yaml",
+        "service_desk.yaml",
+        "module_quiz_blueprint.yaml",
+    }.issubset(error_files)
+
+
+def test_check_categorizes_normalizations_and_blockers(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    lesson = package / "lessons" / "01-evidence.md"
+    lesson.write_text(re.sub(r"^lesson_order:.*\n", "", lesson.read_text(), flags=re.MULTILINE))
+    result = processor.process(mode="check")[0]
+    categories = {item["category"] for item in result["findings"]}
+    assert "NORMALIZABLE" in categories
+    assert not any(category.startswith("BLOCKING_") for category in categories)
+
+
 def test_plain_module_overview_routes_from_unanimous_lessons(intake):
     processor, dropbox, *_ = intake
     package = _package(dropbox)

@@ -23,6 +23,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Callable
 from zipfile import BadZipFile, ZipFile
 
+import openpyxl
 import yaml
 
 from app.services.question_importer import TEMPLATE_COLUMNS, parse_csv_file, parse_xlsx_file, row_to_payload
@@ -33,11 +34,13 @@ MAX_ZIP_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
 APPROVALS_FILE = "editorial-approvals.yaml"
 
 FIELD_ALIASES = {
+    "type": "question_type",
     "question": "question_text",
     "correct_answer": "correct_answers",
     "objective": "objective_code",
     "accepted_variants": "acceptable_answers",
     "min_concepts_pass": "min_concepts_for_pass",
+    "provenance_source": "source_name",
 }
 QUESTION_TYPE_ALIASES = {
     "single-choice": "single",
@@ -208,6 +211,78 @@ def _consensus(field: str, evidence: list[tuple[str, object]]) -> str:
     return values.pop()
 
 
+def _lesson_order_evidence(path: Path, meta: dict) -> list[tuple[str, int]]:
+    evidence: list[tuple[str, int]] = []
+    explicit = meta.get("lesson_order")
+    if explicit not in (None, ""):
+        try:
+            evidence.append(("frontmatter lesson_order", int(explicit)))
+        except (TypeError, ValueError) as exc:
+            raise IntakeError(
+                f"lesson_order must be a whole number, got {explicit!r}",
+                file=path.name,
+                field="lesson_order",
+            ) from exc
+    prefix = re.match(r"^(\d+)(?:[-_. ])", path.name)
+    if prefix:
+        evidence.append(("filename prefix", int(prefix.group(1))))
+    lesson_number = meta.get("lesson_number")
+    if lesson_number not in (None, ""):
+        try:
+            evidence.append(("frontmatter lesson_number", int(lesson_number)))
+        except (TypeError, ValueError) as exc:
+            raise IntakeError(
+                f"lesson_number must be a whole number, got {lesson_number!r}",
+                file=path.name,
+                field="lesson_order",
+            ) from exc
+    title_number = re.match(r"^Lesson\s+(\d+)\b", str(meta.get("title") or ""), re.IGNORECASE)
+    if title_number:
+        evidence.append(("numbered lesson title", int(title_number.group(1))))
+    return evidence
+
+
+def _normalize_lesson_orders(raw_lessons: list[tuple[Path, dict, str]], notes: set[str]) -> None:
+    orders: dict[int, str] = {}
+    for path, meta, _body in raw_lessons:
+        evidence = _lesson_order_evidence(path, meta)
+        values = {value for _source, value in evidence}
+        if not values:
+            raise IntakeError(
+                "lesson_order is missing and no numeric filename/title evidence is available",
+                file=path.name,
+                field="lesson_order",
+            )
+        if len(values) > 1:
+            detail = ", ".join(f"{source}={value}" for source, value in evidence)
+            raise IntakeError(
+                f"conflicting lesson order evidence: {detail}",
+                file=path.name,
+                field="lesson_order",
+            )
+        order = values.pop()
+        if order < 1:
+            raise IntakeError("lesson_order must be at least 1", file=path.name, field="lesson_order")
+        if order in orders:
+            raise IntakeError(
+                f"duplicate lesson_order {order} in {orders[order]} and {path.name}",
+                file=path.name,
+                field="lesson_order",
+            )
+        orders[order] = path.name
+        if meta.get("lesson_order") in (None, ""):
+            meta["lesson_order"] = order
+            source = next(source for source, value in evidence if value == order)
+            notes.add(f"{path.name}: lesson_order {order} derived from {source}")
+    expected = list(range(1, len(raw_lessons) + 1))
+    actual = sorted(orders)
+    if actual != expected:
+        raise IntakeError(
+            f"lesson orders must form a contiguous 1..{len(raw_lessons)} sequence; got {actual}",
+            field="lesson_order",
+        )
+
+
 def _tree_hash(path: Path) -> str:
     digest = hashlib.sha256()
     for item in sorted(path.rglob("*")):
@@ -241,6 +316,190 @@ def _json_cell(value) -> str:
     if value in (None, ""):
         return ""
     return json.dumps(value, ensure_ascii=False, separators=(",", ":")) if isinstance(value, (list, dict)) else str(value)
+
+
+def _finding(
+    category: str,
+    message: str,
+    *,
+    file: str,
+    field: str,
+    row: int | None = None,
+    key: str | None = None,
+) -> dict:
+    return {
+        "category": category,
+        "file": file,
+        "row": row,
+        "key": key,
+        "field": field,
+        "expected": None,
+        "actual": None,
+        "message": message,
+    }
+
+
+def _split_friendly_list(value) -> list[str]:
+    if value in (None, ""):
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return [item.strip() for item in re.split(r"[;|]", str(value)) if item.strip()]
+
+
+def _permission_status(value, notes: set[str]) -> str:
+    raw = str(value or "unknown").strip()
+    lowered = raw.casefold()
+    if lowered in {"owned", "permitted", "requested", "unknown", "denied"}:
+        return lowered
+    if "nexus-authored" in lowered or "user-owned" in lowered:
+        normalized = "owned"
+    elif "permitted" in lowered or "official" in lowered or "public reference" in lowered:
+        normalized = "permitted"
+    else:
+        normalized = "unknown"
+    notes.add(f"{raw} -> {normalized}")
+    return normalized
+
+
+def _normalize_question_row(raw: dict, notes: set[str], *, quiz_title: str | None = None) -> dict:
+    row: dict = {}
+    for key, value in raw.items():
+        source_key = str(key).strip()
+        canonical = FIELD_ALIASES.get(source_key, source_key)
+        if canonical != source_key:
+            notes.add(f"{source_key} -> {canonical}")
+        row[canonical] = value
+    row["question_type"] = _normalize_scalar(row.get("question_type"), QUESTION_TYPE_ALIASES, notes)
+    row["importance"] = _normalize_scalar(row.get("importance"), IMPORTANCE_ALIASES, notes)
+    row["permission_status"] = _permission_status(row.get("permission_status"), notes)
+    if quiz_title and not str(row.get("quiz_title") or "").strip():
+        row["quiz_title"] = quiz_title
+        notes.add("blank quiz_title -> module quiz blueprint title")
+
+    tags = [tag.strip() for tag in str(row.get("tags") or "").split(",") if tag.strip()]
+    for field in ("question_id", "lesson_id", "relationship", "style"):
+        value = str(row.get(field) or "").strip()
+        if value:
+            tags.append(value)
+    difficulty = str(row.get("difficulty") or "").strip()
+    if difficulty and not difficulty.isdigit():
+        tags.append(f"difficulty:{_slug(difficulty)}")
+        row["difficulty"] = ""
+        notes.add(f"difficulty label {difficulty!r} preserved as tag")
+    row["tags"] = ",".join(dict.fromkeys(tags))
+
+    if row["question_type"] == "short_answer":
+        variants = _split_friendly_list(row.get("acceptable_answers"))
+        if variants:
+            row["acceptable_answers"] = variants
+            notes.add("semicolon accepted_variants -> acceptable_answers list")
+    if row["question_type"] == "free_response":
+        concepts = _split_friendly_list(row.get("expected_concepts"))
+        if concepts:
+            row["expected_concepts"] = concepts
+            notes.add("semicolon expected_concepts -> expected_concepts list")
+        minimum_raw = str(row.get("min_concepts_for_pass") or "").strip()
+        minimum_match = re.match(r"^(\d+)\b", minimum_raw)
+        if minimum_match:
+            row["min_concepts_for_pass"] = int(minimum_match.group(1))
+            if minimum_raw != minimum_match.group(1):
+                notes.add(f"min_concepts_pass {minimum_raw!r} -> {minimum_match.group(1)}")
+        guidance = str(row.get("partial_credit_guidance") or "").strip()
+        if guidance:
+            row["partial_credit"] = "true"
+            row["rubric"] = {
+                "partial_credit_guidance": guidance,
+                "minimum_rule": minimum_raw,
+            }
+            notes.add("partial_credit_guidance -> free-response rubric")
+    return row
+
+
+def _normalize_quiz_blueprint(doc: dict, notes: set[str]) -> dict:
+    """Translate author-facing quiz aliases into the existing V2 selector shape."""
+    quiz = deepcopy(doc)
+    for source, target in (
+        ("title", "quiz_title"),
+        ("question_count", "displayed_count"),
+        ("pass_threshold_percent", "pass_percent"),
+    ):
+        if source in quiz and target not in quiz:
+            quiz[target] = quiz[source]
+            notes.add(f"module quiz {source} -> {target}")
+    if quiz.get("pools") and not quiz.get("question_blueprint"):
+        quiz["question_blueprint"] = [
+            {
+                "objective_codes": [str(pool["objective"])] if pool.get("objective") else [],
+                "tags_any": [str(value) for value in pool.get("pool") or []],
+                "count": int(pool.get("choose") or 0),
+            }
+            for pool in quiz["pools"]
+        ]
+        notes.add("module quiz pools -> question_blueprint ID-tag selectors")
+    return quiz
+
+
+def _quick_check_rows(path: Path) -> list[dict]:
+    if path.suffix.lower() not in {".xlsx", ".xlsm"}:
+        return []
+    workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    if "Quick Checks" not in workbook.sheetnames:
+        return []
+    values = list(workbook["Quick Checks"].iter_rows(values_only=True))
+    if not values:
+        return []
+    headers = [str(value or "").strip() for value in values[0]]
+    return [dict(zip(headers, row)) for row in values[1:] if any(value is not None for value in row)]
+
+
+def _attach_quick_checks(lessons: list[dict], rows: list[dict], notes: set[str]) -> None:
+    """Attach workbook ID pools to lessons without inventing question content."""
+    by_order = {int(item["lesson_order"]): item for item in lessons}
+    by_title = {str(item["title"]).strip().casefold(): item for item in lessons}
+    assigned: set[int] = set()
+    for sheet_row, row in enumerate(rows, 2):
+        match = re.fullmatch(r"L(\d+)", str(row.get("lesson_id") or "").strip(), re.IGNORECASE)
+        order = int(match.group(1)) if match else None
+        lesson = by_order.get(order) if order is not None else None
+        title = str(row.get("lesson_title") or "").strip()
+        title_lesson = by_title.get(title.casefold()) if title else None
+        if lesson and title_lesson and lesson is not title_lesson:
+            raise IntakeError(
+                "Quick Check lesson_id and lesson_title identify different lessons",
+                file="questions_and_editorial_review.xlsx",
+                field=f"Quick Checks row {sheet_row}",
+            )
+        lesson = lesson or title_lesson
+        if lesson is None:
+            raise IntakeError(
+                "Quick Check row does not resolve to a package lesson",
+                file="questions_and_editorial_review.xlsx",
+                field=f"Quick Checks row {sheet_row}",
+            )
+        lesson_order = int(lesson["lesson_order"])
+        if lesson_order in assigned:
+            raise IntakeError(
+                f"duplicate Quick Check definition for lesson order {lesson_order}",
+                file="questions_and_editorial_review.xlsx",
+                field=f"Quick Checks row {sheet_row}",
+            )
+        ids = [value.strip() for value in str(row.get("question_ids") or "").split(",") if value.strip()]
+        count = int(row.get("count") or len(ids))
+        if count != len(ids):
+            raise IntakeError(
+                "Quick Check count does not match its question_ids",
+                file="questions_and_editorial_review.xlsx",
+                field=f"Quick Checks row {sheet_row}",
+            )
+        lesson["quick_check"] = {
+            "title": f"Quick Check — {lesson['title']}",
+            "displayed_count": count,
+            "pass_percent": 60,
+            "tags_any": ids,
+        }
+        assigned.add(lesson_order)
+        notes.add(f"Quick Checks sheet row {sheet_row} -> lesson assessment metadata")
 
 
 class CurriculumIntakeProcessor:
@@ -304,6 +563,23 @@ class CurriculumIntakeProcessor:
                 root = self._locate_package_root(extracted)
             else:
                 root = self._locate_package_root(source)
+            scan = self._scan_package(root, package_hash)
+            if scan["errors"]:
+                result = {
+                    "source": source.name,
+                    "status": "INVALID",
+                    "errors": scan["errors"],
+                    "warnings": scan["warnings"],
+                    "findings": scan["findings"],
+                    "normalizations": sorted(scan["normalizations"]),
+                    "package_hash": package_hash,
+                    "approved_destination": None,
+                    "classification": scan.get("classification"),
+                    "manifest": scan.get("manifest"),
+                    "component_summary": scan["component_summary"],
+                }
+                self._write_report(source.name, result)
+                return result
             normalized = self._normalize_and_validate(root, source.name, package_hash)
             module_root = (
                 self.approved_dir
@@ -315,11 +591,14 @@ class CurriculumIntakeProcessor:
             base = {
                 "source": source.name,
                 "errors": [],
+                "warnings": scan["warnings"],
+                "findings": scan["findings"],
                 "normalizations": sorted(normalized["normalizations"]),
                 "package_hash": package_hash,
                 "approved_destination": str(module_root / package_hash),
                 "classification": classification,
                 "manifest": normalized["manifest"],
+                "component_summary": scan["component_summary"],
             }
             staged_content = workspace / "content"
             shutil.copytree(self.content_dir, staged_content)
@@ -414,6 +693,561 @@ class CurriculumIntakeProcessor:
             registry[cert_key] = {"path": path, "doc": doc, "versions": versions}
         return registry
 
+    def _scan_package(self, root: Path, package_hash: str) -> dict:
+        """Collect independent compatibility findings without performing writes."""
+        findings: list[dict] = []
+        notes: set[str] = set()
+        summary: dict = {
+            "lessons": {},
+            "questions": {},
+            "resources": {},
+            "quick_checks": {},
+            "module_quiz": {},
+            "practical": {},
+            "service_desk": {},
+            "explain": {},
+            "provenance": {},
+        }
+
+        def add(category: str, message: str, *, file: str, field: str, row=None, key=None):
+            findings.append(
+                _finding(category, message, file=file, field=field, row=row, key=key)
+            )
+
+        overview: dict = {}
+        overview_text = ""
+        try:
+            overview, overview_text, has_frontmatter = _optional_frontmatter(root / "module_overview.md")
+            if not has_frontmatter:
+                notes.add("module title derived from module_overview.md Markdown")
+        except IntakeError as exc:
+            add("BLOCKING_METADATA", str(exc), file="module_overview.md", field=exc.field)
+
+        raw_lessons: list[tuple[Path, dict, str]] = []
+        lesson_dir = root / "lessons"
+        if not lesson_dir.is_dir():
+            add("BLOCKING_METADATA", "lessons/ directory is required", file="lessons", field="lessons")
+        else:
+            for path in sorted(lesson_dir.glob("*.md")):
+                try:
+                    meta, body = _split_frontmatter(path)
+                    raw_lessons.append((path, meta, body))
+                except IntakeError as exc:
+                    add("BLOCKING_METADATA", str(exc), file=path.name, field=exc.field)
+        summary["lessons"]["count"] = len(raw_lessons)
+        summary["lessons"]["keys"] = [
+            str(meta.get("lesson_key") or "") for _path, meta, _body in raw_lessons
+        ]
+        summary["lessons"]["objectives"] = {
+            path.name: [str(value) for value in meta.get("objectives") or []]
+            for path, meta, _body in raw_lessons
+        }
+        summary["lessons"]["importance"] = {
+            path.name: str(meta.get("importance") or "")
+            for path, meta, _body in raw_lessons
+        }
+        summary["lessons"]["learning_relationships"] = {
+            path.name: str(meta.get("learning_relationship") or "")
+            for path, meta, _body in raw_lessons
+        }
+
+        # Ordering is independent per lesson; collect every contradiction and
+        # then check the module-wide uniqueness/contiguity contract.
+        order_rows: list[tuple[int, str]] = []
+        for path, meta, _body in raw_lessons:
+            try:
+                evidence = _lesson_order_evidence(path, meta)
+                values = {value for _source, value in evidence}
+                if not values:
+                    add(
+                        "BLOCKING_METADATA",
+                        "lesson_order is missing and no numeric filename/title evidence is available",
+                        file=path.name,
+                        field="lesson_order",
+                    )
+                    continue
+                if len(values) > 1:
+                    detail = ", ".join(f"{source}={value}" for source, value in evidence)
+                    add(
+                        "BLOCKING_METADATA",
+                        f"conflicting lesson order evidence: {detail}",
+                        file=path.name,
+                        field="lesson_order",
+                    )
+                    continue
+                order = values.pop()
+                order_rows.append((order, path.name))
+                if meta.get("lesson_order") in (None, ""):
+                    source = next(source for source, value in evidence if value == order)
+                    note = f"{path.name}: lesson_order {order} derived from {source}"
+                    notes.add(note)
+                    add("NORMALIZABLE", note, file=path.name, field="lesson_order")
+            except IntakeError as exc:
+                add("BLOCKING_METADATA", str(exc), file=path.name, field=exc.field)
+        duplicates = sorted(order for order, _name in order_rows if sum(value == order for value, _ in order_rows) > 1)
+        for order in sorted(set(duplicates)):
+            names = [name for value, name in order_rows if value == order]
+            add(
+                "BLOCKING_METADATA",
+                f"duplicate lesson_order {order}: {', '.join(names)}",
+                file="lessons",
+                field="lesson_order",
+            )
+        actual_orders = sorted({order for order, _name in order_rows})
+        if order_rows and not duplicates and actual_orders != list(range(1, len(raw_lessons) + 1)):
+            add(
+                "BLOCKING_METADATA",
+                f"lesson orders must form a contiguous 1..{len(raw_lessons)} sequence; got {actual_orders}",
+                file="lessons",
+                field="lesson_order",
+            )
+        summary["lessons"]["orders"] = [
+            {"file": name, "order": order} for order, name in sorted(order_rows)
+        ]
+
+        provenance: dict = {}
+        resources_doc: dict = {}
+        for filename, target in (("provenance.yaml", "provenance"), ("resources.yaml", "resources")):
+            path = root / filename
+            if path.is_file():
+                try:
+                    doc = _read_yaml(path)
+                    if target == "provenance":
+                        provenance = doc
+                    else:
+                        resources_doc = doc
+                except IntakeError as exc:
+                    add("BLOCKING_METADATA", str(exc), file=filename, field=exc.field)
+
+        version_key = module_key = domain = cert_key = None
+        version_evidence = [("module_overview.md", overview.get("certification_version"))]
+        version_evidence.extend((path.name, meta.get("certification_version")) for path, meta, _ in raw_lessons)
+        version_evidence.extend(
+            (f"resources.yaml:{row.get('resource_key') or index}", row.get("certification_version"))
+            for index, row in enumerate(resources_doc.get("resources") or [], 1)
+        )
+        version_evidence.append(("provenance.yaml", provenance.get("certification_version")))
+        module_evidence = [("module_overview.md", overview.get("module_key"))]
+        module_evidence.extend((path.name, meta.get("module")) for path, meta, _ in raw_lessons)
+        module_evidence.append(("provenance.yaml", provenance.get("module_key")))
+        domain_evidence = [("module_overview.md", overview.get("domain"))]
+        domain_evidence.extend((path.name, meta.get("domain")) for path, meta, _ in raw_lessons)
+        for field, evidence in (
+            ("certification_version", version_evidence),
+            ("module_key", module_evidence),
+            ("domain", domain_evidence),
+        ):
+            try:
+                value = _consensus(field, evidence)
+                if field == "certification_version":
+                    version_key = value
+                elif field == "module_key":
+                    module_key = value
+                else:
+                    domain = value
+            except IntakeError as exc:
+                add("BLOCKING_METADATA", str(exc), file="package", field=field)
+
+        registry = self._registry()
+        version = None
+        if version_key:
+            owners = [cert for cert, item in registry.items() if version_key in item["versions"]]
+            if len(owners) == 1:
+                cert_key = owners[0]
+                version = registry[cert_key]["versions"][version_key]
+                explicit_cert = str(overview.get("certification") or "").strip()
+                if explicit_cert and explicit_cert != cert_key:
+                    add(
+                        "BLOCKING_METADATA",
+                        f"overview certification {explicit_cert!r} conflicts with hierarchy {cert_key!r}",
+                        file="module_overview.md",
+                        field="certification",
+                    )
+                elif not explicit_cert:
+                    notes.add(f"certification resolved from {version_key} -> {cert_key}")
+            else:
+                add(
+                    "BLOCKING_METADATA",
+                    f"certification version {version_key!r} does not resolve uniquely in Nexus",
+                    file="package",
+                    field="certification_version",
+                )
+        if version and domain not in version["domains"]:
+            add(
+                "BLOCKING_METADATA",
+                f"domain {domain!r} does not belong to {version_key!r}",
+                file="package",
+                field="domain",
+            )
+        title = str(overview.get("title") or "").strip() or _markdown_module_title(overview_text)
+        if not title:
+            add("BLOCKING_METADATA", "module title could not be resolved", file="module_overview.md", field="title")
+
+        valid_objectives = version["objectives"] if version else set()
+        objective_codes: set[str] = set()
+        lesson_keys = {str(meta.get("lesson_key")) for _path, meta, _body in raw_lessons if meta.get("lesson_key")}
+        for path, meta, _body in raw_lessons:
+            for field in ("lesson_key", "title", "importance", "learning_relationship", "objectives"):
+                if meta.get(field) in (None, "", []):
+                    add("BLOCKING_METADATA", f"lesson field {field!r} is required", file=path.name, field=field)
+            for code in [str(value) for value in meta.get("objectives") or []]:
+                objective_codes.add(code)
+                if valid_objectives and code not in valid_objectives:
+                    add("BLOCKING_CONTENT", f"objective {code!r} is not defined for {version_key}", file=path.name, field="objective")
+
+        # Question workbook and its supporting sheets are inspected even when
+        # lesson metadata has unrelated errors.
+        raw_questions: list[dict] = []
+        question_ids: set[str] = set()
+        question_types: dict[str, int] = {}
+        question_objectives: dict[str, int] = {}
+        question_importance: dict[str, int] = {}
+        question_provenance: dict[str, int] = {}
+        short_answer_count = 0
+        free_response_count = 0
+        workbook = None
+        try:
+            question_path = self._question_path(root)
+            raw_questions = (
+                parse_xlsx_file(question_path.read_bytes())
+                if question_path.suffix.lower() in {".xlsx", ".xlsm"}
+                else parse_csv_file(question_path.read_bytes())
+            )
+            if question_path.suffix.lower() in {".xlsx", ".xlsm"}:
+                workbook = openpyxl.load_workbook(question_path, read_only=True, data_only=True)
+        except Exception as exc:
+            add("BLOCKING_METADATA", f"question workbook could not be read: {exc}", file="questions", field="questions")
+            question_path = root / "questions"
+        quiz_doc = {}
+        try:
+            quiz_doc = _read_yaml(root / "module_quiz_blueprint.yaml")
+        except IntakeError as exc:
+            add("BLOCKING_METADATA", str(exc), file="module_quiz_blueprint.yaml", field=exc.field)
+        quiz_title = str(quiz_doc.get("quiz_title") or quiz_doc.get("title") or "").strip() or None
+        for row_number, raw in enumerate(raw_questions, 2):
+            row_notes: set[str] = set()
+            row = _normalize_question_row(raw, row_notes, quiz_title=quiz_title)
+            notes.update(row_notes)
+            qid = str(raw.get("question_id") or "").strip()
+            if qid:
+                if qid in question_ids:
+                    add("BLOCKING_METADATA", f"duplicate question_id {qid}", file=question_path.name, field="question_id", row=row_number, key=qid)
+                question_ids.add(qid)
+            qtype = str(row.get("question_type") or "")
+            question_types[qtype] = question_types.get(qtype, 0) + 1
+            codes = [part.strip() for part in str(row.get("objective_code") or "").split(",") if part.strip()]
+            objective_codes.update(codes)
+            for code in codes:
+                question_objectives[code] = question_objectives.get(code, 0) + 1
+            importance = str(row.get("importance") or "")
+            question_importance[importance] = question_importance.get(importance, 0) + 1
+            source = str(row.get("source_name") or "")
+            question_provenance[source] = question_provenance.get(source, 0) + 1
+            if qtype == "short_answer" and row.get("acceptable_answers"):
+                short_answer_count += 1
+            if qtype == "free_response" and all(
+                row.get(field)
+                for field in ("expected_concepts", "min_concepts_for_pass", "rubric_version")
+            ):
+                free_response_count += 1
+            for code in codes:
+                if valid_objectives and code not in valid_objectives:
+                    add("BLOCKING_CONTENT", f"objective {code!r} is not defined for {version_key}", file=question_path.name, field="objective", row=row_number, key=qid or None)
+            if len(codes) > 1:
+                add(
+                    "BLOCKING_METADATA",
+                    "current question metadata supports one objective_code, but this row declares multiple objectives",
+                    file=question_path.name,
+                    field="objective",
+                    row=row_number,
+                    key=qid or None,
+                )
+            row.update(
+                certification=cert_key,
+                certification_version=version_key,
+                domain=domain,
+                module=module_key,
+            )
+            validation = validate_question(row)
+            for issue in validation.errors:
+                add("BLOCKING_CONTENT", issue.message, file=question_path.name, field=issue.field, row=row_number, key=qid or None)
+            if not str(row.get("explanation") or "").strip():
+                add("BLOCKING_CONTENT", "question explanation is required", file=question_path.name, field="explanation", row=row_number, key=qid or None)
+            difficulty = str(raw.get("difficulty") or "").strip()
+            if difficulty and not difficulty.isdigit():
+                add(
+                    "WARNING",
+                    f"friendly difficulty {difficulty!r} has no canonical 1-5 mapping and will be retained as a tag",
+                    file=question_path.name,
+                    field="difficulty",
+                    row=row_number,
+                    key=qid or None,
+                )
+        summary["questions"] = {
+            "count": len(raw_questions),
+            "type_distribution": question_types,
+            "objective_distribution": question_objectives,
+            "importance_distribution": question_importance,
+            "provenance_distribution": question_provenance,
+            "short_answer_rows_with_variants": short_answer_count,
+            "free_response_rows_with_rubric": free_response_count,
+            "answers_and_explanations_validated": not any(
+                row["file"] == question_path.name
+                and row["category"] == "BLOCKING_CONTENT"
+                and row["field"] in {"correct_answers", "explanation"}
+                for row in findings
+            ),
+            "ids": sorted(question_ids),
+        }
+
+        # Quick Checks live in an optional workbook sheet in author-friendly packages.
+        quick_rows: list[dict] = []
+        if workbook and "Quick Checks" in workbook.sheetnames:
+            values = list(workbook["Quick Checks"].iter_rows(values_only=True))
+            if values:
+                headers = [str(value or "").strip() for value in values[0]]
+                quick_rows = [dict(zip(headers, row)) for row in values[1:] if any(value is not None for value in row)]
+            for index, row in enumerate(quick_rows, 2):
+                ids = [value.strip() for value in str(row.get("question_ids") or "").split(",") if value.strip()]
+                missing = sorted(set(ids) - question_ids)
+                if missing:
+                    add("BLOCKING_METADATA", f"Quick Check references unknown question IDs: {missing}", file=question_path.name, field="question_ids", row=index)
+                if int(row.get("count") or 0) != len(ids):
+                    add("BLOCKING_METADATA", "Quick Check count does not match its question_ids", file=question_path.name, field="count", row=index)
+                notes.add(f"Quick Checks sheet row {index} -> lesson assessment metadata")
+        if workbook:
+            workbook.close()
+        summary["quick_checks"] = {"count": len(quick_rows), "rows": quick_rows}
+
+        # Resources use the canonical loader shape already; inspect all links.
+        resource_rows = resources_doc.get("resources") or []
+        for index, row in enumerate(resource_rows, 1):
+            key = str(row.get("resource_key") or "").strip()
+            resource_type = row.get("resource_type") or row.get("type")
+            if row.get("type") and not row.get("resource_type"):
+                note = f"resource {key or index}: type -> resource_type"
+                notes.add(note)
+                add("NORMALIZABLE", note, file="resources.yaml", field="resource_type", row=index, key=key or None)
+            for field in ("resource_key", "title", "resource_type", "url", "provider"):
+                value = resource_type if field == "resource_type" else row.get(field)
+                if not str(value or "").strip():
+                    add("BLOCKING_METADATA", f"resource field {field!r} is required", file="resources.yaml", field=field, row=index, key=key or None)
+            for link in row.get("links") or []:
+                lesson_key = str(link.get("lesson_key") or "")
+                if lesson_key and lesson_key not in lesson_keys:
+                    add("BLOCKING_METADATA", f"resource references unknown lesson {lesson_key!r}", file="resources.yaml", field="lesson_key", row=index, key=key or None)
+                linked_module = str(link.get("module_key") or "")
+                if linked_module and module_key and linked_module != module_key:
+                    add("BLOCKING_METADATA", f"resource module {linked_module!r} conflicts with {module_key!r}", file="resources.yaml", field="module_key", row=index, key=key or None)
+        summary["resources"] = {
+            "count": len(resource_rows),
+            "links": sum(len(row.get("links") or []) for row in resource_rows),
+            "lesson_mappings": {
+                str(row.get("resource_key") or ""): [
+                    str(link.get("lesson_key") or "") for link in row.get("links") or []
+                ]
+                for row in resource_rows
+            },
+        }
+
+        # Explain prompts can be normalized mechanically except objective links,
+        # which must be explicit and are never inferred from prose.
+        prompt_rows: list[dict] = []
+        try:
+            prompt_doc = _read_yaml(root / "explain_prompts.yaml") if (root / "explain_prompts.yaml").is_file() else {}
+            prompt_rows = prompt_doc.get("prompts") or []
+            top_rubric_version = prompt_doc.get("rubric_version")
+            for index, row in enumerate(prompt_rows, 1):
+                prompt_id = str(row.get("prompt_key") or row.get("id") or "").strip()
+                if not row.get("prompt_key") and row.get("id") and module_key:
+                    notes.add(f"Explain {row['id']}: stable prompt_key generated from module key and id")
+                if not row.get("rubric_version") and top_rubric_version:
+                    notes.add(f"Explain {prompt_id}: inherited package rubric_version")
+                if not row.get("rubric") and row.get("minimum_for_pass") is not None:
+                    notes.add(f"Explain {prompt_id}: minimum_for_pass -> rubric metadata")
+                codes = [str(code) for code in row.get("objectives") or []]
+                if not codes:
+                    add("BLOCKING_METADATA", "Explain prompt needs explicit objective relationships", file="explain_prompts.yaml", field="objectives", row=index, key=prompt_id or None)
+                for code in codes:
+                    if valid_objectives and code not in valid_objectives:
+                        add("BLOCKING_CONTENT", f"objective {code!r} is not defined for {version_key}", file="explain_prompts.yaml", field="objectives", row=index, key=prompt_id or None)
+        except IntakeError as exc:
+            add("BLOCKING_METADATA", str(exc), file="explain_prompts.yaml", field=exc.field)
+        summary["explain"] = {
+            "count": len(prompt_rows),
+            "prompt_keys": [
+                str(row.get("prompt_key") or row.get("id") or "") for row in prompt_rows
+            ],
+            "objectives": {
+                str(row.get("prompt_key") or row.get("id") or ""): [
+                    str(code) for code in row.get("objectives") or []
+                ]
+                for row in prompt_rows
+            },
+            "concept_and_rubric_rows": sum(
+                bool(row.get("expected_concepts"))
+                and bool(row.get("rubric") or row.get("minimum_for_pass") is not None)
+                for row in prompt_rows
+            ),
+        }
+
+        # Practical top-level documents have a direct LabTemplate mapping.
+        practical_doc: dict = {}
+        if (root / "practical.yaml").is_file():
+            try:
+                practical_doc = _read_yaml(root / "practical.yaml")
+                if practical_doc.get("title") and not practical_doc.get("practical") and not practical_doc.get("labs"):
+                    notes.add("top-level practical fields -> LabTemplate")
+                for code in [str(value) for value in practical_doc.get("objectives") or []]:
+                    if valid_objectives and code not in valid_objectives:
+                        add("BLOCKING_CONTENT", f"objective {code!r} is not defined for {version_key}", file="practical.yaml", field="objectives")
+            except IntakeError as exc:
+                add("BLOCKING_METADATA", str(exc), file="practical.yaml", field=exc.field)
+        summary["practical"] = {
+            "present": bool(practical_doc),
+            "title": practical_doc.get("title")
+            or (practical_doc.get("practical") or {}).get("title"),
+            "objectives": [str(value) for value in practical_doc.get("objectives") or []],
+            "mapping": "LabTemplate" if practical_doc else None,
+            "vm_required": bool(practical_doc.get("proxmox_template_vmid")),
+        }
+
+        # Nexus has one Service Desk engine. Inline definitions cannot silently
+        # become a different scenario or reuse a key with different outcomes.
+        service_doc: dict = {}
+        if (root / "service_desk.yaml").is_file():
+            try:
+                service_doc = _read_yaml(root / "service_desk.yaml")
+                stable_key = str(service_doc.get("scenario_key") or "").strip()
+                if not stable_key:
+                    add(
+                        "BLOCKING_METADATA",
+                        "inline Service Desk scenario has no stable reference (scenario_key) and cannot be mapped to the existing engine without changing its approved outcome",
+                        file="service_desk.yaml",
+                        field="scenario_key",
+                    )
+                elif self.service_desk_keys is not None and stable_key not in self.service_desk_keys:
+                    add("BLOCKING_METADATA", f"Service Desk scenario {stable_key!r} is not registered", file="service_desk.yaml", field="scenario_key")
+                for code in [str(value) for value in service_doc.get("objectives") or []]:
+                    if valid_objectives and code not in valid_objectives:
+                        add("BLOCKING_CONTENT", f"objective {code!r} is not defined for {version_key}", file="service_desk.yaml", field="objectives")
+            except IntakeError as exc:
+                add("BLOCKING_METADATA", str(exc), file="service_desk.yaml", field=exc.field)
+        summary["service_desk"] = {
+            "present": bool(service_doc),
+            "scenario_key": service_doc.get("scenario_key"),
+            "objectives": [str(value) for value in service_doc.get("objectives") or []],
+            "reinforces": [str(value) for value in service_doc.get("reinforces") or []],
+            "rubric_dimensions": list((service_doc.get("stages") or {}).keys()),
+        }
+
+        # Human quiz aliases and ID pools map to current blueprint selectors.
+        if quiz_doc:
+            if "title" in quiz_doc and "quiz_title" not in quiz_doc:
+                notes.add("module quiz title -> quiz_title")
+            if "question_count" in quiz_doc and "displayed_count" not in quiz_doc:
+                notes.add("module quiz question_count -> displayed_count")
+            if "pass_threshold_percent" in quiz_doc and "pass_percent" not in quiz_doc:
+                notes.add("module quiz pass_threshold_percent -> pass_percent")
+            pools = quiz_doc.get("pools") or []
+            for index, pool in enumerate(pools, 1):
+                ids = {str(value) for value in pool.get("pool") or []}
+                missing = sorted(ids - question_ids)
+                if missing:
+                    add("BLOCKING_METADATA", f"quiz pool references unknown question IDs: {missing}", file="module_quiz_blueprint.yaml", field="pool", row=index)
+                code = str(pool.get("objective") or "")
+                if valid_objectives and code and code not in valid_objectives:
+                    add("BLOCKING_CONTENT", f"objective {code!r} is not defined for {version_key}", file="module_quiz_blueprint.yaml", field="objective", row=index)
+            if pools:
+                notes.add("module quiz pools -> question_blueprint ID-tag selectors")
+            if quiz_doc.get("required_category_coverage"):
+                add(
+                    "BLOCKING_METADATA",
+                    "required_category_coverage is approved metadata but the current V2 selector cannot enforce category minima alongside objective pools",
+                    file="module_quiz_blueprint.yaml",
+                    field="required_category_coverage",
+                )
+        summary["module_quiz"] = {
+            "title": quiz_doc.get("quiz_title") or quiz_doc.get("title"),
+            "displayed_count": quiz_doc.get("displayed_count") or quiz_doc.get("question_count"),
+            "pass_percent": quiz_doc.get("pass_percent") or quiz_doc.get("pass_threshold_percent"),
+            "pool_count": len(quiz_doc.get("pools") or quiz_doc.get("question_blueprint") or []),
+            "objective_distribution": quiz_doc.get("objective_distribution") or {},
+            "required_category_coverage": quiz_doc.get("required_category_coverage") or [],
+        }
+
+        # Editorial status may be proven by unanimous row-level review records.
+        editorial = str(provenance.get("editorial_status") or overview.get("editorial_status") or "").strip().lower()
+        statuses = {str(row.get("final_validation_status") or "").strip() for row in raw_questions}
+        approved_statuses = {"APPROVED", "APPROVED_AFTER_EDIT"}
+        if editorial != "validated":
+            if statuses and statuses.issubset(approved_statuses):
+                notes.add("unanimous workbook final_validation_status -> editorial_status validated")
+            else:
+                add("BLOCKING_CONTENT", "editorial validation is not established", file="provenance.yaml", field="editorial_status")
+        reviewed = (provenance.get("question_bank_summary") or {}).get("total_questions") or provenance.get("reviewed_question_count")
+        if reviewed is not None and int(reviewed) != len(raw_questions):
+            add("BLOCKING_CONTENT", f"reviewed count {reviewed} does not match {len(raw_questions)} question rows", file="provenance.yaml", field="reviewed_question_count")
+        summary["provenance"] = {
+            "editorial_status": "validated" if editorial == "validated" or (statuses and statuses.issubset(approved_statuses)) else editorial,
+            "reviewed_question_count": int(reviewed or len(raw_questions)),
+        }
+
+        for required_file in ("CONTENT_STATUS.md", "question_bank_quality_rules.yaml"):
+            if not (root / required_file).is_file():
+                add("WARNING", f"optional review artifact {required_file} is absent", file=required_file, field="file")
+
+        # Every automatic translation appears in both the concise normalization
+        # list and the categorized findings. This makes check-mode output useful
+        # without forcing callers to reconcile two reporting models.
+        reported_normalizations = {
+            row["message"] for row in findings if row["category"] == "NORMALIZABLE"
+        }
+        for note in sorted(notes - reported_normalizations):
+            add("NORMALIZABLE", note, file="package", field="normalization")
+
+        manifest = {
+            "source_package_hash": package_hash,
+            "certification_key": cert_key,
+            "version_key": version_key,
+            "domain_key": domain,
+            "module_key": module_key,
+            "module_title": title,
+            "objectives": sorted(objective_codes),
+            "lesson_count": len(raw_lessons),
+            "question_count": len(raw_questions),
+            "resource_count": len(resource_rows),
+            "explain_count": len(prompt_rows),
+            "practical_present": bool(practical_doc),
+            "service_desk_present": bool(service_doc),
+        }
+        classification = None
+        if cert_key and version_key and module_key:
+            classification = self._classify(
+                self.approved_dir / cert_key / version_key / module_key,
+                package_hash,
+            )
+        routing_priority = {
+            "certification_version": 0,
+            "certification": 1,
+            "domain": 2,
+            "module_key": 3,
+        }
+        errors = sorted(
+            (row for row in findings if row["category"].startswith("BLOCKING_")),
+            key=lambda row: routing_priority.get(row["field"], 10),
+        )
+        warnings = [row for row in findings if row["category"] == "WARNING"]
+        return {
+            "findings": findings,
+            "errors": errors,
+            "warnings": warnings,
+            "normalizations": notes,
+            "manifest": manifest,
+            "classification": classification,
+            "component_summary": summary,
+        }
+
     def _normalize_and_validate(self, root: Path, original_name: str, package_hash: str) -> dict:
         notes: set[str] = set()
         overview_path = root / "module_overview.md"
@@ -428,6 +1262,7 @@ class CurriculumIntakeProcessor:
             raw_lessons.append((path, meta, body))
         if not raw_lessons:
             raise IntakeError("at least one lesson Markdown file is required", field="lessons")
+        _normalize_lesson_orders(raw_lessons, notes)
 
         provenance = _read_yaml(root / "provenance.yaml") if (root / "provenance.yaml").is_file() else {}
         resources_doc = _read_yaml(root / "resources.yaml") if (root / "resources.yaml").is_file() else {}
@@ -482,7 +1317,7 @@ class CurriculumIntakeProcessor:
         objective_codes: set[str] = set()
         lesson_meta_rows = []
         for path, meta, body in raw_lessons:
-            for field in ("lesson_key", "title", "lesson_order", "importance", "learning_relationship", "objectives"):
+            for field in ("lesson_key", "title", "importance", "learning_relationship", "objectives"):
                 if meta.get(field) in (None, "", []):
                     raise IntakeError(f"lesson field '{field}' is required", file=path.name, field=field)
             if str(meta.get("certification_version")) != version_key or str(meta.get("module")) != module_key:
@@ -499,18 +1334,22 @@ class CurriculumIntakeProcessor:
             lesson_keys.add(key)
             lessons.append((path.name, _render_frontmatter(meta, body)))
             lesson_meta_rows.append(meta)
+        quiz = _normalize_quiz_blueprint(
+            _read_yaml(root / "module_quiz_blueprint.yaml"), notes
+        )
+        quiz_title = str(quiz.get("quiz_title") or "").strip()
         question_path = self._question_path(root)
+        _attach_quick_checks(lesson_meta_rows, _quick_check_rows(question_path), notes)
+        # Re-render after workbook Quick Checks have been attached to normalized
+        # lesson frontmatter. Approved Markdown on disk remains untouched.
+        lessons = [
+            (path.name, _render_frontmatter(meta, body))
+            for path, meta, body in raw_lessons
+        ]
         raw_rows = parse_xlsx_file(question_path.read_bytes()) if question_path.suffix.lower() in {".xlsx", ".xlsm"} else parse_csv_file(question_path.read_bytes())
         normalized_rows = []
         for row_number, raw in enumerate(raw_rows, 2):
-            row = {}
-            for key, value in raw.items():
-                canonical = FIELD_ALIASES.get(str(key).strip(), str(key).strip())
-                if canonical != str(key).strip():
-                    notes.add(f"{key} -> {canonical}")
-                row[canonical] = value
-            row["question_type"] = _normalize_scalar(row.get("question_type"), QUESTION_TYPE_ALIASES, notes)
-            row["importance"] = _normalize_scalar(row.get("importance"), IMPORTANCE_ALIASES, notes)
+            row = _normalize_question_row(raw, notes, quiz_title=quiz_title)
             row["certification"] = cert_key
             row["certification_version"] = version_key
             row["domain"] = domain
@@ -531,13 +1370,22 @@ class CurriculumIntakeProcessor:
             raise IntakeError("question bank is empty", file=question_path.name, field="questions")
 
         editorial = str(provenance.get("editorial_status") or overview.get("editorial_status") or "").lower()
+        statuses = {str(row.get("final_validation_status") or "").strip() for row in raw_rows}
+        if editorial != "validated" and statuses and statuses.issubset(
+            {"APPROVED", "APPROVED_AFTER_EDIT"}
+        ):
+            editorial = "validated"
+            notes.add("unanimous workbook final_validation_status -> editorial_status validated")
         if editorial != "validated":
             raise IntakeError("package must have validated editorial status", file="provenance.yaml", field="editorial_status")
-        reviewed_count = int(provenance.get("reviewed_question_count") or len(normalized_rows))
+        reviewed_count = int(
+            (provenance.get("question_bank_summary") or {}).get("total_questions")
+            or provenance.get("reviewed_question_count")
+            or len(normalized_rows)
+        )
         if reviewed_count != len(normalized_rows):
             raise IntakeError("reviewed question count does not match workbook rows", file="provenance.yaml", field="reviewed_question_count")
 
-        quiz = _read_yaml(root / "module_quiz_blueprint.yaml")
         quiz_title = str(quiz.get("quiz_title") or normalized_rows[0].get("quiz_title") or "").strip()
         if not quiz_title:
             raise IntakeError("module quiz title is required", file="module_quiz_blueprint.yaml", field="quiz_title")
@@ -547,7 +1395,7 @@ class CurriculumIntakeProcessor:
 
         resources = self._normalize_resources(root, version_key, lesson_keys)
         prompts = self._normalize_prompts(root, version_key, module_key, domain, version["objectives"], notes)
-        labs, practical_title = self._normalize_practical(root)
+        labs, practical_title = self._normalize_practical(root, notes)
         service_desk_key = self._service_desk(root)
         assessments = self._build_assessments(module_key, lesson_meta_rows, quiz, quiz_title, practical_title, service_desk_key, bool(prompts))
         module = {
@@ -680,8 +1528,25 @@ class CurriculumIntakeProcessor:
         path = root / "explain_prompts.yaml"
         if not path.is_file():
             return []
-        rows = deepcopy(_read_yaml(path).get("prompts") or [])
+        doc = _read_yaml(path)
+        rows = deepcopy(doc.get("prompts") or [])
+        package_rubric_version = doc.get("rubric_version")
         for row in rows:
+            if not row.get("prompt_key") and row.get("id"):
+                row["prompt_key"] = (
+                    f"interview.{_slug(module_key.removeprefix('module.')).replace('-', '.')}."
+                    f"{_slug(str(row['id']))}"
+                )
+                notes.add(f"Explain {row['id']}: stable prompt_key generated from module key and id")
+            if not row.get("rubric_version") and package_rubric_version:
+                row["rubric_version"] = package_rubric_version
+                notes.add(f"Explain {row['prompt_key']}: inherited package rubric_version")
+            if not row.get("rubric") and row.get("minimum_for_pass") is not None:
+                row["rubric"] = {
+                    "minimum_for_pass": int(row["minimum_for_pass"]),
+                    "partial_credit": doc.get("partial_credit"),
+                }
+                notes.add(f"Explain {row['prompt_key']}: minimum_for_pass -> rubric metadata")
             row["certification_version"] = version_key
             row["module"] = module_key
             row["domain"] = domain
@@ -693,12 +1558,41 @@ class CurriculumIntakeProcessor:
         return rows
 
     @staticmethod
-    def _normalize_practical(root: Path) -> tuple[list[dict], str | None]:
+    def _normalize_practical(root: Path, notes: set[str]) -> tuple[list[dict], str | None]:
         path = root / "practical.yaml"
         if not path.is_file():
             return [], None
         doc = _read_yaml(path)
         rows = deepcopy(doc.get("labs") or ([doc["practical"]] if doc.get("practical") else []))
+        if not rows and doc.get("title"):
+            reserved = {
+                "title",
+                "objectives",
+                "environment",
+                "estimated_minutes",
+                "purpose",
+                "provenance",
+            }
+            exercise = {key: deepcopy(value) for key, value in doc.items() if key not in reserved}
+            rows = [
+                {
+                    "title": doc["title"],
+                    "description": doc.get("purpose"),
+                    "estimated_minutes": doc.get("estimated_minutes"),
+                    "environment_requirements": {"environment": doc.get("environment")},
+                    "success_criteria": exercise,
+                    "required_evidence": {
+                        "student_tasks": [
+                            task
+                            for value in exercise.values()
+                            if isinstance(value, dict)
+                            for task in value.get("student_tasks") or []
+                        ]
+                    },
+                    "source_name": doc.get("provenance"),
+                }
+            ]
+            notes.add("top-level practical fields -> LabTemplate")
         if len(rows) != 1 or not str(rows[0].get("title") or "").strip():
             raise IntakeError("practical must define one titled LabTemplate", file=path.name, field="practical")
         rows[0].setdefault("lab_type", "guided")

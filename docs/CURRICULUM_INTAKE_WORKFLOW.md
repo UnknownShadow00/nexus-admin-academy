@@ -54,11 +54,24 @@ labelled Markdown module title may supply display text, but prose is never used
 as certification-routing evidence. Missing evidence or conflicting structured
 values fails safely.
 
+Lesson order may be explicit in frontmatter or derived from an unambiguous
+numeric filename prefix such as `01-`. Explicit, filename, and structured
+lesson-number evidence must agree; duplicate, missing, or non-contiguous
+orders fail. A derived order is added only to the normalized runtime copy, and
+the approved source remains byte-for-byte unchanged.
+
 Mechanical normalization includes friendly enum names and workbook column
 aliases such as `Job Critical`, `single-choice`, `question`, and `objective`.
 It does not rewrite lesson prose, question wording, answers, distractors,
 rubrics, objectives, resources, or practical and Service Desk outcomes. A
 contradiction that cannot be mapped safely is an error.
+
+Check mode scans independent package components even when another component
+has failed. Findings are categorized as `NORMALIZABLE`, `BLOCKING_METADATA`,
+`BLOCKING_CONTENT`, or `WARNING`, with file, field, row, and stable key where
+available. This exposes workbook, resource, Explain, practical, Service Desk,
+quiz, provenance, and lesson issues in one report without attempting dependent
+loader operations against invalid state.
 
 The generated manifest records package identity, component counts, objectives,
 provenance, and the SHA-256 of the submitted source. Optional resources,
