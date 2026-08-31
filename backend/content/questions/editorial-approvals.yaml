@@ -63,3 +63,19 @@ approvals:
   editorial_status: validated
   reviewed_at: '2026-08-31'
   review_note: External approved package ff879a2779425e93467558c32aa4f8767ae4a1f11ec710dcb53e3f394f0d867d
+- filename: module-aplus-core2-windows-admin-cli-networking.csv
+  quiz_title: Module 11 — Windows Administration, Command Line & Client Networking
+    Quiz
+  sha256: 20b237eddfcef031c73b39e64966363e974bcfeacfa0fdf3c78881c52d33cc11
+  reviewed_question_count: 36
+  editorial_status: validated
+  reviewed_at: '2026-08-31'
+  review_note: External approved package 5a242ea944d95925063912147a3c61c13e1a45bd4db7f88aed9316c8cd4ea644
+- filename: module-aplus-core2-cross-platform-app-cloud-support.csv
+  quiz_title: Module 12 — Cross-Platform Desktop, Applications & Cloud Productivity
+    Support Quiz
+  sha256: 6cd78e21866dc0744944805d8d48a63d1971d207ef7da4ba5a68ff3d94563e7e
+  reviewed_question_count: 32
+  editorial_status: validated
+  reviewed_at: '2026-08-31'
+  review_note: External approved package 3205bca048c76c780e47fe48c7203ad5c9d46fa5f3b18f03092baabe9585ac22

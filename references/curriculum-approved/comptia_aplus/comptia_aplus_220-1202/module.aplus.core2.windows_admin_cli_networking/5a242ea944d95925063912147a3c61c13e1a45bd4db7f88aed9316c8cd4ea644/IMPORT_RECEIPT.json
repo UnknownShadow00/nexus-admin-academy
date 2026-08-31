@@ -1,0 +1,252 @@
+{
+  "approved_destination": "/opt/apps/IT TRAINING PROJECT CODE/projects/nexus-admin-academy/references/curriculum-approved/comptia_aplus/comptia_aplus_220-1202/module.aplus.core2.windows_admin_cli_networking/5a242ea944d95925063912147a3c61c13e1a45bd4db7f88aed9316c8cd4ea644",
+  "certification": "comptia_aplus",
+  "classification": "NEW",
+  "created": 1024,
+  "domain": "1.0",
+  "explain_count": 4,
+  "lesson_count": 6,
+  "loader_importer_results": {
+    "first": {
+      "by_entity": {
+        "certification": {
+          "created": 1,
+          "unchanged": 1,
+          "updated": 0
+        },
+        "certification_domain": {
+          "created": 9,
+          "unchanged": 9,
+          "updated": 0
+        },
+        "certification_module": {
+          "created": 12,
+          "unchanged": 12,
+          "updated": 0
+        },
+        "certification_objective": {
+          "created": 64,
+          "unchanged": 64,
+          "updated": 0
+        },
+        "certification_version": {
+          "created": 2,
+          "unchanged": 2,
+          "updated": 0
+        },
+        "interview_prompt": {
+          "created": 38,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "interview_prompt_objective": {
+          "created": 49,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lab_template": {
+          "created": 11,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson": {
+          "created": 62,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson_objective": {
+          "created": 87,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson_relationship": {
+          "created": 8,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "module_assessment": {
+          "created": 105,
+          "unchanged": 15,
+          "updated": 90
+        },
+        "question": {
+          "created": 358,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "question_bank_editorial_approval": {
+          "created": 0,
+          "unchanged": 0,
+          "updated": 10
+        },
+        "resource": {
+          "created": 93,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "resource_link": {
+          "created": 113,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "service_desk_scenario": {
+          "created": 6,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "service_desk_scenario_version": {
+          "created": 6,
+          "unchanged": 0,
+          "updated": 0
+        }
+      },
+      "created": 1024,
+      "references": {
+        "content_engine_assessments": 85,
+        "content_engine_resolved": 83,
+        "content_engine_unresolved": [
+          "assess.aplus.core1.networking_fundamentals.module_quiz",
+          "assess.aplus.core1.networking_fundamentals.quick_check"
+        ],
+        "service_desk_assessments": 8,
+        "service_desk_resolved": 8
+      },
+      "unchanged": 103,
+      "updated": 100
+    },
+    "references": {
+      "content_engine_assessments": 85,
+      "content_engine_resolved": 83,
+      "content_engine_unresolved": [
+        "assess.aplus.core1.networking_fundamentals.module_quiz",
+        "assess.aplus.core1.networking_fundamentals.quick_check"
+      ],
+      "package_content_engine_unresolved": [],
+      "package_service_desk_unresolved": [],
+      "service_desk_assessments": 8,
+      "service_desk_resolved": 8
+    },
+    "second": {
+      "by_entity": {
+        "certification": {
+          "created": 0,
+          "unchanged": 2,
+          "updated": 0
+        },
+        "certification_domain": {
+          "created": 0,
+          "unchanged": 18,
+          "updated": 0
+        },
+        "certification_module": {
+          "created": 0,
+          "unchanged": 24,
+          "updated": 0
+        },
+        "certification_objective": {
+          "created": 0,
+          "unchanged": 128,
+          "updated": 0
+        },
+        "certification_version": {
+          "created": 0,
+          "unchanged": 4,
+          "updated": 0
+        },
+        "interview_prompt": {
+          "created": 0,
+          "unchanged": 38,
+          "updated": 0
+        },
+        "lab_template": {
+          "created": 0,
+          "unchanged": 11,
+          "updated": 0
+        },
+        "lesson": {
+          "created": 0,
+          "unchanged": 62,
+          "updated": 0
+        },
+        "module_assessment": {
+          "created": 0,
+          "unchanged": 210,
+          "updated": 0
+        },
+        "question": {
+          "created": 0,
+          "unchanged": 358,
+          "updated": 0
+        },
+        "question_bank_editorial_approval": {
+          "created": 0,
+          "unchanged": 10,
+          "updated": 0
+        },
+        "resource": {
+          "created": 0,
+          "unchanged": 93,
+          "updated": 0
+        },
+        "resource_link": {
+          "created": 0,
+          "unchanged": 113,
+          "updated": 0
+        },
+        "service_desk_scenario": {
+          "created": 0,
+          "unchanged": 6,
+          "updated": 0
+        },
+        "service_desk_scenario_version": {
+          "created": 0,
+          "unchanged": 6,
+          "updated": 0
+        }
+      },
+      "created": 0,
+      "references": {
+        "content_engine_assessments": 85,
+        "content_engine_resolved": 83,
+        "content_engine_unresolved": [
+          "assess.aplus.core1.networking_fundamentals.module_quiz",
+          "assess.aplus.core1.networking_fundamentals.quick_check"
+        ],
+        "service_desk_assessments": 8,
+        "service_desk_resolved": 8
+      },
+      "unchanged": 1083,
+      "updated": 0
+    }
+  },
+  "module_key": "module.aplus.core2.windows_admin_cli_networking",
+  "module_title": "Windows Administration, Command Line & Client Networking",
+  "objective_codes": [
+    "1.3",
+    "1.4",
+    "1.5",
+    "1.7"
+  ],
+  "original_filename": "Nexus_APlus_Module_11_Final_v2.zip",
+  "package_hash": "5a242ea944d95925063912147a3c61c13e1a45bd4db7f88aed9316c8cd4ea644",
+  "practical_present": true,
+  "question_count": 36,
+  "resource_count": 10,
+  "runtime_destinations": [
+    "certifications/comptia_aplus.yaml",
+    "curriculum/comptia_aplus/comptia_aplus_220-1202/module-aplus-core2-windows-admin-cli-networking",
+    "questions/module-aplus-core2-windows-admin-cli-networking.csv",
+    "questions/editorial-approvals.yaml",
+    "resources/module-aplus-core2-windows-admin-cli-networking.yaml",
+    "interview-prompts/module-aplus-core2-windows-admin-cli-networking.yaml",
+    "labs/module-aplus-core2-windows-admin-cli-networking.yaml",
+    "service-desk-scenarios/module-aplus-core2-windows-admin-cli-networking.yaml"
+  ],
+  "service_desk_present": true,
+  "timestamp": "2026-08-31T19:55:25.778186+00:00",
+  "tool_version": "nexus-curriculum-intake/1",
+  "unchanged": 103,
+  "updated": 100,
+  "validation_result": "VALID",
+  "version": "comptia_aplus_220-1202"
+}

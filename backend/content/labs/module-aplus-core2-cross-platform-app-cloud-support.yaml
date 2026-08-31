@@ -1,0 +1,79 @@
+labs:
+- title: Cross-Platform Support & Deployment Lab
+  description: null
+  estimated_minutes: 60
+  environment_requirements:
+    environment: null
+  success_criteria:
+    practical_key: practical.aplus.cross_platform.support_deploy
+    module_key: module.aplus.core2.cross_platform_app_cloud_support
+    vm_required: false
+    student_goal: Collect safe macOS/Linux evidence, make an application compatibility
+      decision, and troubleshoot a cloud productivity user without unnecessary privileged
+      changes.
+    tasks:
+    - task: macOS support map
+      instructions:
+      - Match supplied symptoms to Force Quit, Disk Utility, Time Machine, FileVault,
+        Keychain, Finder, or System Settings.
+      - Identify `.dmg`, `.pkg`, `.app`, `/Applications`, and user/system library
+        roles.
+      expected_evidence:
+      - tool-to-symptom table
+      - app/file-location notes
+    - task: Linux evidence station
+      instructions:
+      - On a Linux shell if available, or from supplied command output, use/interpret
+        pwd, ls, df, ps/top, ip, dig, and read-only configuration checks.
+      - Explain when sudo is unnecessary and identify one command that can be destructive.
+      expected_evidence:
+      - command/output evidence
+      - safe privilege decision
+      - fault-domain note
+    - task: Application deployment decision
+      instructions:
+      - Compare a supplied device profile with an application’s OS/CPU/RAM/storage/graphics/token
+        requirements.
+      - Choose an approved distribution method and describe device/network/operational/business
+        impact.
+      expected_evidence:
+      - supported/not-supported decision
+      - requirements comparison
+      - deployment/impact plan
+    - task: Cloud productivity support
+      instructions:
+      - Use sign-in, license, sync-folder, client, and provider-status evidence to
+        isolate a supplied symptom.
+      - Document the authorized remediation or handoff and verify the original workflow.
+      expected_evidence:
+      - fault-domain decision
+      - license/sync evidence
+      - ticket note
+      - verification result
+    rubric:
+      total_points: 24
+      pass_points: 17
+      sections:
+      - name: macOS support evidence
+        points: 5
+      - name: Linux command/safety evidence
+        points: 7
+      - name: Application compatibility/deployment
+        points: 6
+      - name: Cloud productivity diagnosis
+        points: 6
+      auto_fail:
+      - Uses sudo/root or destructive Linux commands without a justified task
+      - Deletes macOS system/support files as a first troubleshooting step
+      - Bypasses documented application requirements
+      - Claims cloud issue resolved without verifying license/sync/original workflow
+    hints:
+    - Identify the operating system before choosing tools.
+    - Separate evidence collection from state-changing commands.
+    - A sign-in problem, a license problem, and a sync problem are different fault
+      domains.
+  required_evidence:
+    student_tasks: []
+  source_name: null
+  lab_type: guided
+  is_published: true

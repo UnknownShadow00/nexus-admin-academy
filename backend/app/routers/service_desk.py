@@ -247,6 +247,8 @@ def list_assignments(
     result = []
     for assignment, scenario in rows:
         access = scenario_access(progression, scenario.stable_key)
+        if assignment.mode == "learning":
+            access = {**access, "experience_mode": "guided"}
         if not access["unlocked"]:
             continue
         version = (

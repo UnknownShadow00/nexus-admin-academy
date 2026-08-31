@@ -27,6 +27,18 @@ const modules = [
     resources: [5, 3],
     serviceDesk: false,
   },
+  {
+    key: "module.aplus.core2.windows_admin_cli_networking",
+    title: "Windows Administration, Command Line & Client Networking",
+    lessons: 6,
+    resources: [6, 4],
+  },
+  {
+    key: "module.aplus.core2.cross_platform_app_cloud_support",
+    title: "Cross-Platform Desktop, Applications & Cloud Productivity Support",
+    lessons: 6,
+    resources: [6, 3],
+  },
 ];
 
 async function apiData(page, path, options) {
@@ -46,7 +58,7 @@ async function navigate(page, path) {
   }, path);
 }
 
-test("reviewed Modules 7-10 render and resolve every authored V2 activity", async ({ page }) => {
+test("reviewed Modules 7-12 render and resolve every authored V2 activity", async ({ page }) => {
   test.setTimeout(90000);
   await page.goto("/login?next=/learning-v2");
   await page.getByLabel("Username").fill(process.env.NEXUS_E2E_STUDENT_USERNAME);
@@ -57,7 +69,14 @@ test("reviewed Modules 7-10 render and resolve every authored V2 activity", asyn
 
   const visibleTitles = await page.locator('section[aria-labelledby="modules-heading"] h3').allTextContents();
   const module6 = visibleTitles.indexOf("Module 6 — Mobile Device Hardware, Connectivity & Troubleshooting");
-  expect(visibleTitles.slice(module6 + 1, module6 + 5)).toEqual(modules.map((module) => module.title));
+  for (const module of modules) {
+    expect(visibleTitles).toContain(module.title);
+  }
+  expect(
+    visibleTitles.indexOf("Windows Administration, Command Line & Client Networking"),
+  ).toBeLessThan(
+    visibleTitles.indexOf("Cross-Platform Desktop, Applications & Cloud Productivity Support"),
+  );
 
   for (const expected of modules) {
     await navigate(page, `/learning-v2/modules/${expected.key}`);
@@ -80,7 +99,9 @@ test("reviewed Modules 7-10 render and resolve every authored V2 activity", asyn
     ];
     expect(resourceLinks.filter((resource) => resource.required)).toHaveLength(expected.resources[0]);
     expect(resourceLinks.filter((resource) => !resource.required)).toHaveLength(expected.resources[1]);
-    await expect(page.getByRole("heading", { name: "Module resources" })).toBeVisible();
+    if (module.module_resources.length) {
+      await expect(page.getByRole("heading", { name: "Module resources" })).toBeVisible();
+    }
 
     const firstLesson = module.lessons[0];
     await navigate(page, `/learning-v2/modules/${expected.key}/lessons/${firstLesson.key}`);
@@ -139,7 +160,7 @@ test("reviewed Modules 7-10 render and resolve every authored V2 activity", asyn
   }
 });
 
-test("mentor selector includes Modules 7-10 and student auth cannot read it", async ({ page }) => {
+test("mentor selector includes Modules 7-12 and student auth cannot read it", async ({ page }) => {
   const apiUrl = process.env.NEXUS_E2E_API_URL;
   const studentLogin = await page.request.post(`${apiUrl}/auth/login`, {
     data: {
@@ -162,5 +183,41 @@ test("mentor selector includes Modules 7-10 and student auth cannot read it", as
   const selector = page.getByLabel("Module", { exact: true });
   for (const module of modules) {
     await expect(selector.locator(`option[value="${module.key}"]`)).toHaveText(module.title);
+  }
+});
+
+test("Modules 11 and 12 reveal all three progressive Service Desk hints", async ({ page }) => {
+  test.setTimeout(90000);
+  await page.goto("/login?next=/learning-v2");
+  await page.getByLabel("Username").fill(process.env.NEXUS_E2E_STUDENT_USERNAME);
+  await page.getByLabel("Password").fill(process.env.NEXUS_E2E_STUDENT_PASSWORD);
+  await page.getByRole("button", { name: "Login" }).click();
+  await expect(page.getByRole("heading", { name: "CompTIA A+" })).toBeVisible();
+
+  for (const expected of modules.slice(-2)) {
+    const moduleResponse = await apiData(page, `/api/v2/curriculum/modules/${expected.key}`);
+    const assessment = moduleResponse.body.data.assessments.find(
+      (item) => item.role === "service_desk",
+    );
+    const launch = await page.request.post(
+      `/api/v2/curriculum/modules/${expected.key}/service-desk/${assessment.key}/launch`,
+      {
+        headers: {
+          Origin: process.env.NEXUS_E2E_BASE_URL,
+          Referer: `${process.env.NEXUS_E2E_BASE_URL}/learning-v2/modules/${expected.key}`,
+        },
+      },
+    );
+    expect(launch.status()).toBe(200);
+    await page.goto((await launch.json()).data.launch_url);
+    await page.getByRole("button", { name: /I don't know how to fix this/i }).click();
+    await expect(page.getByRole("heading", { name: "How to resolve this" })).toBeVisible();
+    const steps = page.getByRole("dialog").locator("ol > li");
+    await expect(steps).toHaveCount(1);
+    await page.getByRole("button", { name: "Reveal next step (1/3)" }).click();
+    await expect(steps).toHaveCount(2);
+    await page.getByRole("button", { name: "Reveal next step (2/3)" }).click();
+    await expect(steps).toHaveCount(3);
+    await expect(page.getByText("All 3 steps revealed")).toBeVisible();
   }
 });

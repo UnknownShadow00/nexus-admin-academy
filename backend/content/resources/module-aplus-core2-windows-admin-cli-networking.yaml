@@ -1,0 +1,171 @@
+resources:
+- resource_key: res.aplus.windows_admin.windows_features
+  title: Windows Features (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/windows-features-220-1202/
+  provider: Professor Messer
+  duration: '8:54'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.windows_admin.editions_boundaries
+    module_key: module.aplus.core2.windows_admin_cli_networking
+    required: true
+    order: 1
+- resource_key: res.aplus.windows_admin.mmc
+  title: The Microsoft Management Console (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/the-microsoft-management-console-220-1202/
+  provider: Professor Messer
+  duration: '15:22'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.windows_admin.admin_consoles
+    module_key: module.aplus.core2.windows_admin_cli_networking
+    required: true
+    order: 1
+- resource_key: res.aplus.windows_admin.additional_tools
+  title: Additional Windows Tools (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/additional-windows-tools-220-1202/
+  provider: Professor Messer
+  duration: '12:25'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Optional linked supplement; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.windows_admin.admin_consoles
+    module_key: module.aplus.core2.windows_admin_cli_networking
+    required: false
+    order: 2
+- resource_key: res.aplus.windows_admin.cli_tools
+  title: Windows Command Line Tools (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/windows-command-line-tools-220-1202/
+  provider: Professor Messer
+  duration: '31:07'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.windows_admin.cli_core
+    module_key: module.aplus.core2.windows_admin_cli_networking
+    required: true
+    order: 1
+- resource_key: res.aplus.windows_admin.windows_commands
+  title: Windows commands
+  resource_type: documentation
+  url: https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/windows-commands
+  provider: Microsoft Learn
+  duration: reference
+  certification_version: comptia_aplus_220-1202
+  source_name: Microsoft Learn
+  source_url: https://learn.microsoft.com/
+  permission_status: unknown
+  license_note: Official command reference.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.windows_admin.cli_core
+    module_key: module.aplus.core2.windows_admin_cli_networking
+    required: false
+    order: 2
+- resource_key: res.aplus.windows_admin.network_cli
+  title: The Windows Network Command Line (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/the-windows-network-command-line-220-1202/
+  provider: Professor Messer
+  duration: '18:24'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.windows_admin.cli_diagnostics_policy
+    module_key: module.aplus.core2.windows_admin_cli_networking
+    required: true
+    order: 1
+- resource_key: res.aplus.windows_admin.gpresult
+  title: gpresult
+  resource_type: documentation
+  url: https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/gpresult
+  provider: Microsoft Learn
+  duration: reference
+  certification_version: comptia_aplus_220-1202
+  source_name: Microsoft Learn
+  source_url: https://learn.microsoft.com/
+  permission_status: unknown
+  license_note: Official command reference.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.windows_admin.cli_diagnostics_policy
+    module_key: module.aplus.core2.windows_admin_cli_networking
+    required: false
+    order: 2
+- resource_key: res.aplus.windows_admin.network_technologies
+  title: Windows Network Technologies (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/windows-network-technologies-220-1202/
+  provider: Professor Messer
+  duration: course video
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.windows_admin.client_networking
+    module_key: module.aplus.core2.windows_admin_cli_networking
+    required: true
+    order: 1
+- resource_key: res.aplus.windows_admin.network_connections
+  title: Windows Network Connections (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/windows-network-connections-220-1202/
+  provider: Professor Messer
+  duration: course video
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.windows_admin.firewall_vpn_handoff
+    module_key: module.aplus.core2.windows_admin_cli_networking
+    required: true
+    order: 1
+- resource_key: res.aplus.windows_admin.firewall_rules
+  title: Configure Windows Firewall rules
+  resource_type: documentation
+  url: https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/configure
+  provider: Microsoft Learn
+  duration: reference
+  certification_version: comptia_aplus_220-1202
+  source_name: Microsoft Learn
+  source_url: https://learn.microsoft.com/
+  permission_status: unknown
+  license_note: Optional official documentation for scoped local firewall rules.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.windows_admin.firewall_vpn_handoff
+    module_key: module.aplus.core2.windows_admin_cli_networking
+    required: false
+    order: 2

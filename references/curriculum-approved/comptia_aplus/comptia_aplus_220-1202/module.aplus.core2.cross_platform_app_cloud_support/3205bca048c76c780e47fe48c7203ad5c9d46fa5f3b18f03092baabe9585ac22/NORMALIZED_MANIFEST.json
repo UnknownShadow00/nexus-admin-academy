@@ -1,0 +1,88 @@
+{
+  "certification_key": "comptia_aplus",
+  "domain_key": "1.0",
+  "explain_count": 4,
+  "lesson_count": 6,
+  "lessons": [
+    "lesson.aplus.cross_platform.application_installation",
+    "lesson.aplus.cross_platform.cloud_productivity",
+    "lesson.aplus.cross_platform.linux_admin_network",
+    "lesson.aplus.cross_platform.linux_files_config",
+    "lesson.aplus.cross_platform.macos_apps_folders",
+    "lesson.aplus.cross_platform.macos_support_tools"
+  ],
+  "manifest_version": 1,
+  "module_key": "module.aplus.core2.cross_platform_app_cloud_support",
+  "module_title": "Cross-Platform Desktop, Applications & Cloud Productivity Support",
+  "objectives": [
+    "1.10",
+    "1.11",
+    "1.8",
+    "1.9"
+  ],
+  "original_filename": "Nexus_APlus_Module_12_Final_v2.zip",
+  "practical_present": true,
+  "provenance": {
+    "module_key": "module.aplus.core2.cross_platform_app_cloud_support",
+    "official_sources": [
+      {
+        "permission_status": "reference",
+        "source_name": "CompTIA A+ 220-1202 V15 Exam Objectives",
+        "source_url": "https://assets.ctfassets.net/82ripq7fjls2/6I8WL66IBa1AUovioDGrnM/f74a7eca336fd4e4c8e723a1f893086d/CompTIA-A-220-1202-Exam-Objectives-3.0.pdf",
+        "usage": "Authoritative 1.8/1.9/1.10/1.11 scope."
+      }
+    ],
+    "question_bank_source_mix": {
+      "existing_nexus_concept_adaptations": 8,
+      "nexus_authored_source_guided_current_items": 16,
+      "owner_permitted_examcompass_source_guided_rewrites": 8,
+      "total": 32
+    },
+    "question_sources": [
+      {
+        "permission_status": "Nexus-owned/current historical material",
+        "source_name": "Existing Nexus macOS/Linux/application/cloud concepts",
+        "usage": "Eight concept adaptations; archived banks not restored wholesale."
+      },
+      {
+        "permission_status": "owner-permitted third-party",
+        "source_name": "ExamCompass 220-1202 topic quizzes",
+        "source_url": "https://www.examcompass.com/comptia/a-plus-certification/free-a-plus-practice-tests",
+        "usage": "Eight source-guided rewrites; no verbatim copying."
+      },
+      {
+        "permission_status": "reference",
+        "source_name": "Current official/vendor sources",
+        "usage": "Used for current gap-fill/application scenarios."
+      }
+    ],
+    "teaching_sources": [
+      {
+        "permission_status": "permitted",
+        "source_name": "Professor Messer 220-1202 V15",
+        "source_url": "https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/",
+        "usage": "Primary macOS/Linux/application/cloud productivity video spine; linked, not rehosted."
+      },
+      {
+        "permission_status": "reference",
+        "source_name": "Ubuntu documentation",
+        "source_url": "https://ubuntu.com/tutorials/command-line-for-beginners",
+        "usage": "Optional Linux command-line safety/practice reference."
+      },
+      {
+        "permission_status": "reference",
+        "source_name": "Microsoft Support",
+        "source_url": "https://support.microsoft.com/en-us/onedrive/fix-onedrive-sync-problems",
+        "usage": "Optional representative cloud-sync troubleshooting reference."
+      }
+    ]
+  },
+  "question_count": 32,
+  "resource_count": 9,
+  "service_desk_keys": [
+    "sd.aplus.cross_platform.unlicensed_suite_mac"
+  ],
+  "service_desk_present": true,
+  "source_package_hash": "3205bca048c76c780e47fe48c7203ad5c9d46fa5f3b18f03092baabe9585ac22",
+  "version_key": "comptia_aplus_220-1202"
+}

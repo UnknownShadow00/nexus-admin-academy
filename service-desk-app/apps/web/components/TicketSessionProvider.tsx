@@ -985,7 +985,9 @@ export function ticketsForAssignments(
       ) {
         return [];
       }
-      const legacy = definition.id === expectedId;
+      const legacy =
+        definition.id === expectedId &&
+        Object.values(TicketStatus).includes(definition.status as TicketStatus);
       const projected = legacy
         ? definition
         : {

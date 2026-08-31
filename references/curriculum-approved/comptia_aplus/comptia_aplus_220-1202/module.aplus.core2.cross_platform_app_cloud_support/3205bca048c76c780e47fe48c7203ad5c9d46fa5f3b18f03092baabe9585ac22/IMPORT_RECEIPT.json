@@ -1,0 +1,252 @@
+{
+  "approved_destination": "/opt/apps/IT TRAINING PROJECT CODE/projects/nexus-admin-academy/references/curriculum-approved/comptia_aplus/comptia_aplus_220-1202/module.aplus.core2.cross_platform_app_cloud_support/3205bca048c76c780e47fe48c7203ad5c9d46fa5f3b18f03092baabe9585ac22",
+  "certification": "comptia_aplus",
+  "classification": "NEW",
+  "created": 1108,
+  "domain": "1.0",
+  "explain_count": 4,
+  "lesson_count": 6,
+  "loader_importer_results": {
+    "first": {
+      "by_entity": {
+        "certification": {
+          "created": 1,
+          "unchanged": 1,
+          "updated": 0
+        },
+        "certification_domain": {
+          "created": 9,
+          "unchanged": 9,
+          "updated": 0
+        },
+        "certification_module": {
+          "created": 13,
+          "unchanged": 13,
+          "updated": 0
+        },
+        "certification_objective": {
+          "created": 64,
+          "unchanged": 64,
+          "updated": 0
+        },
+        "certification_version": {
+          "created": 2,
+          "unchanged": 2,
+          "updated": 0
+        },
+        "interview_prompt": {
+          "created": 42,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "interview_prompt_objective": {
+          "created": 53,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lab_template": {
+          "created": 12,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson": {
+          "created": 68,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson_objective": {
+          "created": 93,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson_relationship": {
+          "created": 8,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "module_assessment": {
+          "created": 115,
+          "unchanged": 16,
+          "updated": 99
+        },
+        "question": {
+          "created": 390,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "question_bank_editorial_approval": {
+          "created": 0,
+          "unchanged": 0,
+          "updated": 11
+        },
+        "resource": {
+          "created": 102,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "resource_link": {
+          "created": 122,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "service_desk_scenario": {
+          "created": 7,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "service_desk_scenario_version": {
+          "created": 7,
+          "unchanged": 0,
+          "updated": 0
+        }
+      },
+      "created": 1108,
+      "references": {
+        "content_engine_assessments": 93,
+        "content_engine_resolved": 91,
+        "content_engine_unresolved": [
+          "assess.aplus.core1.networking_fundamentals.module_quiz",
+          "assess.aplus.core1.networking_fundamentals.quick_check"
+        ],
+        "service_desk_assessments": 9,
+        "service_desk_resolved": 9
+      },
+      "unchanged": 105,
+      "updated": 110
+    },
+    "references": {
+      "content_engine_assessments": 93,
+      "content_engine_resolved": 91,
+      "content_engine_unresolved": [
+        "assess.aplus.core1.networking_fundamentals.module_quiz",
+        "assess.aplus.core1.networking_fundamentals.quick_check"
+      ],
+      "package_content_engine_unresolved": [],
+      "package_service_desk_unresolved": [],
+      "service_desk_assessments": 9,
+      "service_desk_resolved": 9
+    },
+    "second": {
+      "by_entity": {
+        "certification": {
+          "created": 0,
+          "unchanged": 2,
+          "updated": 0
+        },
+        "certification_domain": {
+          "created": 0,
+          "unchanged": 18,
+          "updated": 0
+        },
+        "certification_module": {
+          "created": 0,
+          "unchanged": 26,
+          "updated": 0
+        },
+        "certification_objective": {
+          "created": 0,
+          "unchanged": 128,
+          "updated": 0
+        },
+        "certification_version": {
+          "created": 0,
+          "unchanged": 4,
+          "updated": 0
+        },
+        "interview_prompt": {
+          "created": 0,
+          "unchanged": 42,
+          "updated": 0
+        },
+        "lab_template": {
+          "created": 0,
+          "unchanged": 12,
+          "updated": 0
+        },
+        "lesson": {
+          "created": 0,
+          "unchanged": 68,
+          "updated": 0
+        },
+        "module_assessment": {
+          "created": 0,
+          "unchanged": 230,
+          "updated": 0
+        },
+        "question": {
+          "created": 0,
+          "unchanged": 390,
+          "updated": 0
+        },
+        "question_bank_editorial_approval": {
+          "created": 0,
+          "unchanged": 11,
+          "updated": 0
+        },
+        "resource": {
+          "created": 0,
+          "unchanged": 102,
+          "updated": 0
+        },
+        "resource_link": {
+          "created": 0,
+          "unchanged": 122,
+          "updated": 0
+        },
+        "service_desk_scenario": {
+          "created": 0,
+          "unchanged": 7,
+          "updated": 0
+        },
+        "service_desk_scenario_version": {
+          "created": 0,
+          "unchanged": 7,
+          "updated": 0
+        }
+      },
+      "created": 0,
+      "references": {
+        "content_engine_assessments": 93,
+        "content_engine_resolved": 91,
+        "content_engine_unresolved": [
+          "assess.aplus.core1.networking_fundamentals.module_quiz",
+          "assess.aplus.core1.networking_fundamentals.quick_check"
+        ],
+        "service_desk_assessments": 9,
+        "service_desk_resolved": 9
+      },
+      "unchanged": 1169,
+      "updated": 0
+    }
+  },
+  "module_key": "module.aplus.core2.cross_platform_app_cloud_support",
+  "module_title": "Cross-Platform Desktop, Applications & Cloud Productivity Support",
+  "objective_codes": [
+    "1.10",
+    "1.11",
+    "1.8",
+    "1.9"
+  ],
+  "original_filename": "Nexus_APlus_Module_12_Final_v2.zip",
+  "package_hash": "3205bca048c76c780e47fe48c7203ad5c9d46fa5f3b18f03092baabe9585ac22",
+  "practical_present": true,
+  "question_count": 32,
+  "resource_count": 9,
+  "runtime_destinations": [
+    "certifications/comptia_aplus.yaml",
+    "curriculum/comptia_aplus/comptia_aplus_220-1202/module-aplus-core2-cross-platform-app-cloud-support",
+    "questions/module-aplus-core2-cross-platform-app-cloud-support.csv",
+    "questions/editorial-approvals.yaml",
+    "resources/module-aplus-core2-cross-platform-app-cloud-support.yaml",
+    "interview-prompts/module-aplus-core2-cross-platform-app-cloud-support.yaml",
+    "labs/module-aplus-core2-cross-platform-app-cloud-support.yaml",
+    "service-desk-scenarios/module-aplus-core2-cross-platform-app-cloud-support.yaml"
+  ],
+  "service_desk_present": true,
+  "timestamp": "2026-08-31T19:55:29.594273+00:00",
+  "tool_version": "nexus-curriculum-intake/1",
+  "unchanged": 105,
+  "updated": 110,
+  "validation_result": "VALID",
+  "version": "comptia_aplus_220-1202"
+}

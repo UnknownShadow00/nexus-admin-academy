@@ -1,0 +1,220 @@
+scenarios:
+- stable_key: sd.aplus.cross_platform.unlicensed_suite_mac
+  title: Productivity Suite Shows Unlicensed on Replacement Mac
+  description: Desktop productivity suite reports unlicensed after Mac replacement
+  category: service_desk
+  difficulty: 1
+  definition:
+    id: SD.APLUS.CROSS_PLATFORM.UNLICENSED_SUITE_MAC
+    title: Productivity Suite Shows Unlicensed on Replacement Mac
+    slug: sd.aplus.cross_platform.unlicensed_suite_mac
+    category: service_desk
+    priority: medium
+    difficulty: easy
+    pointValue: 100
+    explanation: 'Authorized license assignment followed by successful app activation
+      and document test
+
+      Correct handoff/pending when license administration is outside technician authority'
+    description:
+      issue: Desktop productivity suite reports unlicensed after Mac replacement
+      reportedByLine: Priya Shah
+      businessImpact: The user can access web email but cannot edit project documents
+        in the approved desktop suite.
+      troubleshooting:
+      - Web email sign-in works
+      - Desktop suite launches but reports unlicensed
+      - Other users are unaffected
+      - Correct work account is signed in
+      - Application is present in /Applications
+      - Device meets application requirements
+      - Cloud admin view shows no productivity-suite license assigned to the user
+      - Provider status is healthy
+      - Confirm identity/account and the exact desktop-app symptom
+      - Confirm the application is installed and the device meets requirements
+      - Check license assignment and provider scope/status
+      - Identify missing user license assignment as the supported root cause
+      - Rule out provider-wide outage and device incompatibility from evidence
+      - Assign the approved license only if the technician has authority
+      - Otherwise hand off/pending with complete entitlement evidence
+      - Have the user refresh/sign out-in only after entitlement is corrected
+      - Confirm the desktop app activates
+      - Open and edit a test document using the original user workflow
+      - Record account checked, missing entitlement, authorized action/handoff, and
+        verification
+      - Do not record passwords or sensitive authentication material
+    requester:
+      name: Priya Shah
+      department: Program Management
+      email: Not specified by approved curriculum package
+      contact: Not specified by approved curriculum package
+      location: Not specified by approved curriculum package
+    device:
+      assetTag: SD.APLUS.CROSS_PLATFORM.UNLICENSED_SUITE_MAC
+      deviceName: PM-MAC-14
+      kind: laptop
+      operatingSystem: macOS 16
+      state: active
+    sla:
+      dueAt: Not specified by approved curriculum package
+      target: medium
+    initialWorldState:
+      directoryOverlaySeeds: {}
+      assetOverlaySeeds: {}
+      chatMessageSeeds: []
+    objectives:
+    - id: professional-pending-or-completed-outcome
+      description: 'Authorized license assignment followed by successful app activation
+        and document test
+
+        Correct handoff/pending when license administration is outside technician
+        authority'
+      predicateType: action_event_occurred
+      predicateParams:
+        actionType: ticket.add_note
+        payloadMatch:
+          ticketId: SD.APLUS.CROSS_PLATFORM.UNLICENSED_SUITE_MAC
+      required: true
+      pointValue: 100
+    requiredActions:
+    - id: document-professional-outcome
+      actionType: ticket.add_note
+      description: 'Authorized license assignment followed by successful app activation
+        and document test
+
+        Correct handoff/pending when license administration is outside technician
+        authority'
+      payloadMatch:
+        ticketId: SD.APLUS.CROSS_PLATFORM.UNLICENSED_SUITE_MAC
+    forbiddenActions: []
+    hints:
+    - id: hint-01
+      order: 1
+      pointPenalty: 0
+      text: Because web sign-in works and only the desktop suite reports unlicensed,
+        separate account authentication from desktop application entitlement and activation.
+    - id: hint-02
+      order: 2
+      pointPenalty: 5
+      text: Check the signed-in work account, confirm the application is installed
+        and the Mac meets requirements, then inspect the user's productivity-suite
+        license assignment and the provider's service status.
+    - id: hint-03
+      order: 3
+      pointPenalty: 5
+      text: If the app and device are compatible and service health is normal but
+        the user has no suite entitlement, focus on the missing license assignment—or
+        hand it off if licensing is outside your authority—then refresh activation
+        and verify the user can edit a test document.
+    curriculum:
+      scenario_key: sd.aplus.cross_platform.unlicensed_suite_mac
+      title: Productivity Suite Shows Unlicensed on Replacement Mac
+      module_key: module.aplus.core2.cross_platform_app_cloud_support
+      mode: learning
+      objectives:
+      - '1.11'
+      requester:
+        name: Priya Shah
+        department: Program Management
+        role: Project Coordinator
+      device:
+        name: PM-MAC-14
+        os: macOS 16
+      ticket:
+        summary: Desktop productivity suite reports unlicensed after Mac replacement
+        business_impact: The user can access web email but cannot edit project documents
+          in the approved desktop suite.
+        reported_symptoms:
+        - Web email sign-in works
+        - Desktop suite launches but reports unlicensed
+        - Other users are unaffected
+        starting_evidence:
+        - Correct work account is signed in
+        - Application is present in /Applications
+        - Device meets application requirements
+        - Cloud admin view shows no productivity-suite license assigned to the user
+        - Provider status is healthy
+      stages:
+      - stage: Investigation
+        required_actions:
+        - Confirm identity/account and the exact desktop-app symptom
+        - Confirm the application is installed and the device meets requirements
+        - Check license assignment and provider scope/status
+      - stage: Diagnosis
+        required_actions:
+        - Identify missing user license assignment as the supported root cause
+        - Rule out provider-wide outage and device incompatibility from evidence
+      - stage: Remediation
+        required_actions:
+        - Assign the approved license only if the technician has authority
+        - Otherwise hand off/pending with complete entitlement evidence
+        - Have the user refresh/sign out-in only after entitlement is corrected
+      - stage: Verification
+        required_actions:
+        - Confirm the desktop app activates
+        - Open and edit a test document using the original user workflow
+      - stage: Documentation
+        required_actions:
+        - Record account checked, missing entitlement, authorized action/handoff,
+          and verification
+        - Do not record passwords or sensitive authentication material
+      correct_outcomes:
+      - Authorized license assignment followed by successful app activation and document
+        test
+      - Correct handoff/pending when license administration is outside technician
+        authority
+      unsafe_or_incorrect:
+      - Repeated reinstall despite confirmed missing entitlement
+      - Use another employee’s license/account
+      - Change unrelated network/security settings
+      - Close after web sign-in without verifying the desktop app
+      reinforces:
+      - Module 5 authorization/documentation
+      - Module 10 cloud support boundary
+      hints:
+      - Because web sign-in works and only the desktop suite reports unlicensed, separate
+        account authentication from desktop application entitlement and activation.
+      - Check the signed-in work account, confirm the application is installed and
+        the Mac meets requirements, then inspect the user's productivity-suite license
+        assignment and the provider's service status.
+      - If the app and device are compatible and service health is normal but the
+        user has no suite entitlement, focus on the missing license assignment—or
+        hand it off if licensing is outside your authority—then refresh activation
+        and verify the user can edit a test document.
+    rubric_dimensions:
+      Investigation:
+      - Confirm identity/account and the exact desktop-app symptom
+      - Confirm the application is installed and the device meets requirements
+      - Check license assignment and provider scope/status
+      Diagnosis:
+      - Identify missing user license assignment as the supported root cause
+      - Rule out provider-wide outage and device incompatibility from evidence
+      Remediation:
+      - Assign the approved license only if the technician has authority
+      - Otherwise hand off/pending with complete entitlement evidence
+      - Have the user refresh/sign out-in only after entitlement is corrected
+      Verification:
+      - Confirm the desktop app activates
+      - Open and edit a test document using the original user workflow
+      Documentation:
+      - Record account checked, missing entitlement, authorized action/handoff, and
+        verification
+      - Do not record passwords or sensitive authentication material
+    grading_anchors:
+    - Confirm identity/account and the exact desktop-app symptom
+    - Confirm the application is installed and the device meets requirements
+    - Check license assignment and provider scope/status
+    - Identify missing user license assignment as the supported root cause
+    - Rule out provider-wide outage and device incompatibility from evidence
+    - Assign the approved license only if the technician has authority
+    - Otherwise hand off/pending with complete entitlement evidence
+    - Have the user refresh/sign out-in only after entitlement is corrected
+    - Confirm the desktop app activates
+    - Open and edit a test document using the original user workflow
+    - Record account checked, missing entitlement, authorized action/handoff, and
+      verification
+    - Do not record passwords or sensitive authentication material
+    successful_professional_outcomes:
+    - Authorized license assignment followed by successful app activation and document
+      test
+    - Correct handoff/pending when license administration is outside technician authority

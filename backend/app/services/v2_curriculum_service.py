@@ -567,12 +567,20 @@ def launch_service_desk(db: Session, student_id: int, module_key: str, assessmen
             assessment.service_desk_scenario_id = scenario.id
     if scenario is None:
         raise V2ProgressError("This troubleshooting ticket is not available in this environment.")
+    published = (
+        db.query(ServiceDeskScenarioVersion)
+        .filter_by(scenario_id=scenario.id, status="published")
+        .order_by(ServiceDeskScenarioVersion.version_number.desc())
+        .first()
+    )
+    curriculum = (published.definition_json or {}).get("curriculum", {}) if published else {}
+    assignment_mode = "learning" if curriculum.get("mode") == "learning" else "simulation"
     assignment = db.query(ServiceDeskAssignment).filter_by(
-        student_id=student_id, scenario_id=scenario.id, mode="simulation"
+        student_id=student_id, scenario_id=scenario.id, mode=assignment_mode
     ).one_or_none()
     if assignment is None:
         assignment = ServiceDeskAssignment(
-            student_id=student_id, scenario_id=scenario.id, mode="simulation",
+            student_id=student_id, scenario_id=scenario.id, mode=assignment_mode,
             is_required=True, maximum_attempts=3,
             assigned_by=f"v2_curriculum:{module_key}:{assessment_key}",
         )
@@ -589,7 +597,7 @@ def launch_service_desk(db: Session, student_id: int, module_key: str, assessmen
         # The unique assignment constraint is the final idempotency guard.
         db.rollback()
         assignment = db.query(ServiceDeskAssignment).filter_by(
-            student_id=student_id, scenario_id=scenario.id, mode="simulation"
+            student_id=student_id, scenario_id=scenario.id, mode=assignment_mode
         ).one_or_none()
         if assignment is None:
             raise

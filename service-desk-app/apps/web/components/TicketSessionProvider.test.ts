@@ -1,5 +1,5 @@
 import { createAttempt } from '@service-desk/simulation-engine';
-import { AssetStatus, TICKET_FIXTURES } from '@service-desk/shared';
+import { AssetStatus, TicketStatus, TICKET_FIXTURES } from '@service-desk/shared';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -217,6 +217,62 @@ describe('Nexus evidence attribution', () => {
     expect(tickets.find((ticket) => ticket.id === 'INC2402')?.title).toBe(
       definition.title,
     );
+  });
+
+  it('projects current authored scenarios with a valid runtime ticket status', () => {
+    const definition = {
+      id: 'SD.APLUS.WINDOWS_ADMIN.PROJECT_SHARE_AFTER_VPN',
+      title: 'Project Share Fails After VPN Reconnect',
+      category: 'service_desk',
+      priority: 'medium',
+      description: {
+        issue: 'Mapped drive fails',
+        reportedByLine: 'Jordan Lee',
+        businessImpact: 'Project folder unavailable',
+        troubleshooting: [],
+      },
+      requester: {
+        name: 'Jordan Lee',
+        department: 'Project Operations',
+        email: 'jordan@example.test',
+        contact: 'Chat',
+        location: 'Remote',
+      },
+      device: {
+        assetTag: 'PROJ-LT-22',
+        deviceName: 'PROJ-LT-22',
+        kind: 'laptop',
+        operatingSystem: 'Windows 11 Pro',
+        state: 'active',
+      },
+      sla: { dueAt: 'Today', target: 'medium' },
+      hints: [{ id: 'hint-01', order: 1, text: 'Inspect the mapping.' }],
+    };
+    const [ticket] = ticketsForAssignments([
+      {
+        id: 11,
+        is_required: true,
+        maximum_attempts: null,
+        mode: 'learning',
+        experience_mode: 'guided',
+        guided_completed: false,
+        most_recent_attempt: null,
+        required_this_week: false,
+        scenario_id: 11,
+        scenario: {
+          stable_key: 'sd.aplus.windows_admin.project_share_after_vpn',
+          title: definition.title,
+        },
+        latest_published_version: {
+          definition_json: definition,
+          id: 111,
+          version_number: 1,
+        },
+      },
+    ]);
+
+    expect(ticket?.status).toBe(TicketStatus.Open);
+    expect(ticket?.hints).toEqual(['Inspect the mapping.']);
   });
 
   it('does not reconstruct locked bundled fixtures that were not assigned', () => {

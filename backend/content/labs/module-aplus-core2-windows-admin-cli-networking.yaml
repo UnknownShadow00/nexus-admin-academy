@@ -1,0 +1,79 @@
+labs:
+- title: Windows Support Evidence Runbook
+  description: null
+  estimated_minutes: 55
+  environment_requirements:
+    environment: null
+  success_criteria:
+    practical_key: practical.aplus.windows_admin.evidence_runbook
+    module_key: module.aplus.core2.windows_admin_cli_networking
+    vm_required: false
+    student_goal: Use Windows edition information, built-in consoles, commands, and
+      client-network evidence to make safe support decisions without speculative changes.
+    tasks:
+    - task: Identify the support target
+      instructions:
+      - Record Windows edition/version/build with Settings, winver, or supplied evidence.
+      - Decide whether a requested business feature is supported by that edition.
+      expected_evidence:
+      - edition/build record
+      - supported/unsupported conclusion and approved next step
+    - task: Choose the right Windows console
+      instructions:
+      - For three supplied symptoms, select the most appropriate console/tool.
+      - Capture or interpret one relevant piece of evidence for each.
+      expected_evidence:
+      - tool-to-symptom table
+      - evidence notes
+    - task: Collect command-line evidence
+      instructions:
+      - Use or interpret whoami/hostname, ipconfig, nslookup, net use, and gpresult
+        where appropriate.
+      - Avoid destructive commands and explain why they are unnecessary.
+      expected_evidence:
+      - command/output excerpts
+      - fault-domain reasoning
+    - task: Troubleshoot a mapped-drive case
+      instructions:
+      - Compare a direct UNC test with the saved drive mapping.
+      - If authorized, describe the scoped remap; otherwise document the handoff.
+      - Retest the original workflow.
+      expected_evidence:
+      - UNC vs mapping comparison
+      - authorized remediation or handoff
+      - verification result
+    - task: Make a safe firewall/VPN decision
+      instructions:
+      - Use supplied application/port/profile evidence.
+      - Recommend the narrowest approved action; do not disable broad protections.
+      expected_evidence:
+      - rule/profile decision
+      - safety justification
+    rubric:
+      total_points: 25
+      pass_points: 18
+      sections:
+      - name: Edition/support boundary
+        points: 4
+      - name: Windows console evidence
+        points: 5
+      - name: CLI evidence
+        points: 6
+      - name: Share/mapping diagnosis
+        points: 6
+      - name: Firewall/VPN safety
+        points: 4
+      auto_fail:
+      - Uses format/diskpart/destructive file commands as a diagnostic shortcut
+      - Disables Windows Firewall broadly instead of using scoped evidence/rules
+      - Grants broader share permissions without authorization
+      - Claims resolution without retesting the original symptom
+    hints:
+    - Confirm what the machine supports before changing it.
+    - Prefer evidence-producing tools before state-changing commands.
+    - A working direct UNC path is powerful evidence about a mapped-drive failure.
+  required_evidence:
+    student_tasks: []
+  source_name: null
+  lab_type: guided
+  is_published: true

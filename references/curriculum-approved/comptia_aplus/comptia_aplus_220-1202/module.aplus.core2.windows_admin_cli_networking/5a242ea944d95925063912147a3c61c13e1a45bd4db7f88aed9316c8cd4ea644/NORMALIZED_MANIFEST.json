@@ -1,0 +1,82 @@
+{
+  "certification_key": "comptia_aplus",
+  "domain_key": "1.0",
+  "explain_count": 4,
+  "lesson_count": 6,
+  "lessons": [
+    "lesson.aplus.windows_admin.admin_consoles",
+    "lesson.aplus.windows_admin.cli_core",
+    "lesson.aplus.windows_admin.cli_diagnostics_policy",
+    "lesson.aplus.windows_admin.client_networking",
+    "lesson.aplus.windows_admin.editions_boundaries",
+    "lesson.aplus.windows_admin.firewall_vpn_handoff"
+  ],
+  "manifest_version": 1,
+  "module_key": "module.aplus.core2.windows_admin_cli_networking",
+  "module_title": "Windows Administration, Command Line & Client Networking",
+  "objectives": [
+    "1.3",
+    "1.4",
+    "1.5",
+    "1.7"
+  ],
+  "original_filename": "Nexus_APlus_Module_11_Final_v2.zip",
+  "practical_present": true,
+  "provenance": {
+    "module_key": "module.aplus.core2.windows_admin_cli_networking",
+    "official_sources": [
+      {
+        "permission_status": "reference",
+        "source_name": "CompTIA A+ 220-1202 V15 Exam Objectives",
+        "source_url": "https://assets.ctfassets.net/82ripq7fjls2/6I8WL66IBa1AUovioDGrnM/f74a7eca336fd4e4c8e723a1f893086d/CompTIA-A-220-1202-Exam-Objectives-3.0.pdf",
+        "usage": "Authoritative 1.3/1.4/1.5/1.7 scope."
+      }
+    ],
+    "question_bank_source_mix": {
+      "existing_nexus_concept_adaptations": 9,
+      "nexus_authored_source_guided_current_items": 18,
+      "owner_permitted_examcompass_source_guided_rewrites": 9,
+      "total": 36
+    },
+    "question_sources": [
+      {
+        "permission_status": "Nexus-owned/current historical material",
+        "source_name": "Existing Nexus Windows/CLI/network concepts",
+        "usage": "Nine concept adaptations; archived banks not restored wholesale."
+      },
+      {
+        "permission_status": "owner-permitted third-party",
+        "source_name": "ExamCompass 220-1202 topic quizzes",
+        "source_url": "https://www.examcompass.com/comptia/a-plus-certification/free-a-plus-practice-tests",
+        "usage": "Nine source-guided rewrites; no verbatim copying."
+      },
+      {
+        "permission_status": "reference",
+        "source_name": "Current official/vendor sources",
+        "usage": "Used to author and verify gap-fill scenarios."
+      }
+    ],
+    "teaching_sources": [
+      {
+        "permission_status": "permitted",
+        "source_name": "Professor Messer 220-1202 V15",
+        "source_url": "https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/",
+        "usage": "Primary video spine; linked, not rehosted."
+      },
+      {
+        "permission_status": "reference",
+        "source_name": "Microsoft Learn Windows command/network/firewall documentation",
+        "source_url": "https://learn.microsoft.com/",
+        "usage": "Official command and configuration references."
+      }
+    ]
+  },
+  "question_count": 36,
+  "resource_count": 10,
+  "service_desk_keys": [
+    "sd.aplus.windows_admin.project_share_after_vpn"
+  ],
+  "service_desk_present": true,
+  "source_package_hash": "5a242ea944d95925063912147a3c61c13e1a45bd4db7f88aed9316c8cd4ea644",
+  "version_key": "comptia_aplus_220-1202"
+}
