@@ -113,9 +113,9 @@ def test_load_is_idempotent(db):
     for entity in ("lesson", "resource", "resource_link", "interview_prompt", "lab_template", "question"):
         assert c3["by_entity"].get(entity, {}).get("created", 0) == 0
         assert c3["by_entity"].get(entity, {}).get("updated", 0) == 0
-    assert c3["by_entity"]["question"]["unchanged"] == 186
+    assert c3["by_entity"]["question"]["unchanged"] == 292
     assert db.query(Question).filter(Question.quiz_id == _quiz_id(db)).count() == 40
-    assert c1["by_entity"]["question"]["created"] == 186
+    assert c1["by_entity"]["question"]["created"] == 292
 
 
 def _quiz_id(db) -> int:
@@ -303,7 +303,7 @@ def test_objective_coverage_counts_this_module_only(loaded):
     assert MODULE_OBJECTIVES <= covered
     # ...and objectives that belong to unrelated domains are still uncovered.
     uncovered = {c["objective_code"] for c in cov["uncovered"]}
-    assert {"3.1", "4.1"} <= uncovered
+    assert {"4.1", "4.2"} <= uncovered
     assert cov["coverage_percent"] < 100  # NOT aiming for full A+ coverage
 
 

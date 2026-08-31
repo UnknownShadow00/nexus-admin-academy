@@ -35,3 +35,24 @@ approvals:
   editorial_status: validated
   reviewed_at: '2026-08-30'
   review_note: External approved package 21774037c877d9c5f0b7b30454783dc43a41bcc41c2179ce0ecb50c4ca10e8f0
+- filename: module-aplus-core1-network-services-troubleshooting.csv
+  quiz_title: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+  sha256: 9c7df95b62b1606b80c37d5eb02cbcd0f1824a00622c8a8c49b57b76bb3e2ebf
+  reviewed_question_count: 40
+  editorial_status: validated
+  reviewed_at: '2026-08-31'
+  review_note: External approved package fa07a720cca18f4b3b7156e0322938e261d520b78cbe737c6bcfc8788cce99ec
+- filename: module-aplus-core1-hardware-fault-isolation.csv
+  quiz_title: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+  sha256: 9db0224d9767e1a3837ce24e3231ee8a725ce64727120ba4c91f947e9e9d007d
+  reviewed_question_count: 36
+  editorial_status: validated
+  reviewed_at: '2026-08-31'
+  review_note: External approved package dee6ba3f9f0c079b3bb838381e72fe169370b586d8268193bca0bafcaa73b055
+- filename: module-aplus-core1-printers-mfds.csv
+  quiz_title: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+  sha256: 1532fb95187d1846b39addaa8aac46b0f98fc035e2fff87cab2641707fa7f9f5
+  reviewed_question_count: 30
+  editorial_status: validated
+  reviewed_at: '2026-08-31'
+  review_note: External approved package e8fe208b0f469484c1e5ec679d0b291bfb9d865a50899e001f1959044a5d26a1

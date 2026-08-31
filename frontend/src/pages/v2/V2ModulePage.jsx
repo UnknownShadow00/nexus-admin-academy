@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import V2Breadcrumbs from "../../components/v2/V2Breadcrumbs";
 import { V2Error, V2Loading } from "../../components/v2/V2PageState";
+import V2ResourceCard from "../../components/v2/V2ResourceCard";
 import V2Status from "../../components/v2/V2Status";
 import { getV2Module } from "../../services/api";
 
@@ -48,6 +49,7 @@ export default function V2ModulePage() {
         </li>)}
       </ol>
     </section>
+    {data.module_resources?.length ? <section aria-labelledby="module-resources-heading" className="panel space-y-4"><div><p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Further practice</p><h2 id="module-resources-heading" className="mt-1 text-2xl font-bold">Module resources</h2><p className="mt-1 text-sm text-slate-500">Opening a link does not complete it or count as mastery.</p></div>{data.module_resources.map((resource) => <V2ResourceCard key={resource.key} resource={resource} moduleKey={moduleKey} onChanged={load} />)}</section> : null}
     <section aria-labelledby="apply-heading">
       <div className="mb-4 flex items-center gap-3"><Brain className="text-violet-600" aria-hidden="true" /><div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Check → Practice → Troubleshoot → Explain</p><h2 id="apply-heading" className="text-2xl font-bold">Put it together</h2></div></div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

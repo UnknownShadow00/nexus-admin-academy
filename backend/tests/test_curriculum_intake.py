@@ -16,6 +16,7 @@ from app.services.curriculum_intake import (
     CurriculumIntakeProcessor,
     _normalize_question_row,
     _quick_check_rows,
+    _split_frontmatter,
     safe_extract_zip,
 )
 
@@ -305,7 +306,7 @@ def _author_friendly_inline_service_desk(package: Path) -> dict:
             {"stage": "Verification", "expectations": ["Verify both workflows."]},
             {"stage": "Documentation", "expectations": ["Record the outcome."]},
         ],
-        "correct_outcomes": [
+        "acceptable_outcomes": [
             "Repair the physical fault and verify sync.",
             "Escalate safely when authority is unavailable.",
         ],
@@ -395,6 +396,116 @@ def test_module_overview_with_frontmatter_still_routes(intake):
     assert result["manifest"]["certification_key"] == "test_cert"
     assert result["manifest"]["version_key"] == "test_cert_v1"
     assert result["manifest"]["module_key"] == "module.test.client_support"
+
+
+def test_display_certification_and_domain_labels_normalize_to_registry_keys(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox, certification="Test Certification")
+    overview = package / "module_overview.md"
+    overview.write_text(overview.read_text().replace("domain: '1.0'", "domain: 1.0 Support"))
+
+    result = processor.process(mode="check")[0]
+
+    assert result["status"] == "VALID_WITH_NORMALIZATION", json.dumps(result.get("errors"), indent=2)
+    assert result["manifest"]["certification_key"] == "test_cert"
+    assert result["manifest"]["domain_key"] == "1.0"
+    assert "certification Test Certification -> test_cert" in result["normalizations"]
+    assert "domain 1.0 Support -> 1.0" in result["normalizations"]
+
+
+def test_editorially_ready_lesson_normalizes_to_published_runtime_status(intake):
+    processor, dropbox, _, content = intake
+    package = _package(dropbox)
+    lesson = package / "lessons" / "01-evidence.md"
+    meta, body = _split_frontmatter(lesson)
+    meta["status"] = "ready"
+    lesson.write_text(_frontmatter(meta, body), encoding="utf-8")
+
+    checked = processor.process(mode="check")[0]
+    assert checked["status"] == "VALID_WITH_NORMALIZATION"
+    assert "lesson status ready -> published" in checked["normalizations"]
+
+    applied = processor.process(mode="apply")[0]
+    assert applied["status"] == "IMPORTED"
+    runtime = next((content / "curriculum").rglob("*.md"))
+    runtime_meta, _ = _split_frontmatter(runtime)
+    assert runtime_meta["status"] == "published"
+
+
+def test_reviewed_workbook_aliases_preserve_short_answers_and_editorial_status(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    rows = _question_rows("module.test.client_support")
+    rows[0] = {
+        **rows[0],
+        "question_type": "short_answer",
+        "question": "What evidence should be captured?",
+        "option_a": None,
+        "option_b": None,
+        "correct_answer": "Baseline",
+        "Accepted Answers": "Baseline; baseline evidence",
+        "Editorial Disposition": "APPROVE",
+    }
+    for row in rows[1:]:
+        row["Editorial Disposition"] = "EDIT"
+    _write_workbook(package / "questions_and_editorial_review.xlsx", rows)
+    overview = package / "module_overview.md"
+    overview.write_text(re.sub(r"^editorial_status:.*\n", "", overview.read_text(), flags=re.MULTILINE))
+    provenance = yaml.safe_load((package / "provenance.yaml").read_text())
+    provenance.pop("editorial_status")
+    _write_yaml(package / "provenance.yaml", provenance)
+
+    result = processor.process(mode="check")[0]
+
+    assert result["status"] == "VALID_WITH_NORMALIZATION", result
+    assert result["component_summary"]["questions"]["short_answer_rows_with_variants"] == 1
+    assert result["component_summary"]["provenance"]["editorial_status"] == "validated"
+
+
+def test_quality_rules_quick_checks_and_batch_quiz_aliases_normalize(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    lesson = package / "lessons" / "01-evidence.md"
+    lesson.write_text(re.sub(r"^quick_check:.*?(?=^[a-z_]+:|^---$)", "", lesson.read_text(), flags=re.MULTILINE | re.DOTALL))
+    rows = _question_rows("module.test.client_support")
+    for index, row in enumerate(rows, 1):
+        row["Question ID"] = f"TQ{index:03d}"
+        row["Lesson"] = "lesson.test.client_support.evidence"
+        row["Category"] = "support_workflow"
+        row["Question Style"] = "Scenario/Application"
+    _write_workbook(package / "questions_and_editorial_review.xlsx", rows)
+    _write_yaml(
+        package / "question_bank_quality_rules.yaml",
+        {
+            "quick_checks": {
+                "lesson.test.client_support.evidence": ["TQ001", "TQ002", "TQ003", "TQ004"]
+            }
+        },
+    )
+    _write_yaml(
+        package / "module_quiz_blueprint.yaml",
+        {
+            "title": "Reviewed quiz",
+            "displayed_count": 10,
+            "pass_percent": 70,
+            "objective_targets": {"1.1": 10},
+            "category_minimums": [
+                {"category": "support_workflow", "minimum": 4, "pool": [f"TQ{i:03d}" for i in range(1, 21)]}
+            ],
+            "requirements": {
+                "scenario_application_or_reasoning_minimum": 7,
+                "max_same_narrow_category": 10,
+            },
+            "exclusions": ["TQ020"],
+        },
+    )
+
+    result = processor.process(mode="check")[0]
+
+    assert result["status"] == "VALID_WITH_NORMALIZATION", json.dumps(result.get("errors"), indent=2)
+    assert result["component_summary"]["quick_checks"]["count"] == 1
+    assert result["component_summary"]["module_quiz"]["objective_distribution"] == {"1.1": 10}
+    assert result["component_summary"]["module_quiz"]["required_category_coverage"][0]["minimum"] == 4
 
 
 def test_explicit_lesson_order_works(intake):
@@ -878,7 +989,7 @@ def test_author_friendly_inline_service_desk_with_explicit_key_is_promoted(intak
     assert stored["stable_key"] == source["scenario_key"]
     assert stored["definition"]["curriculum"] == source
     assert stored["definition"]["successful_professional_outcomes"] == source[
-        "correct_outcomes"
+        "acceptable_outcomes"
     ]
     assert stored["definition"]["grading_anchors"] == source["grading_anchors"]
     approved_source = Path(applied["approved_destination"]) / "source" / "service_desk.yaml"

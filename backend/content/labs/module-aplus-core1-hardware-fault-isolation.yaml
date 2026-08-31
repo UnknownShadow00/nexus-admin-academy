@@ -1,0 +1,84 @@
+labs:
+- title: 'Bench Triage: Isolate Hardware Without Making It Worse'
+  description: Prove the student can identify relevant specs, choose safe known-good
+    tests, protect data, diagnose core/storage/display symptoms, and document verification.
+  estimated_minutes: 60
+  environment_requirements:
+    environment: Browser/document bench simulation using component photos/specs, POST
+      evidence, temperature logs, SMART/RAID status, and display test results. Optional
+      supervised physical inspection; no VM required.
+  success_criteria:
+    practical_key: practical.aplus.hardware.bench_triage
+    module_key: module.aplus.core1.hardware_fault_isolation
+    vm_required: false
+    student_instructions:
+    - Do not open a PSU, bypass electrical safety, or work on energized internal hardware.
+    - Do not run write-heavy repair on a mechanically failing drive with unique data.
+    - Use supplied evidence when physical hardware is not available.
+    tasks:
+    - part: A
+      title: Compatibility station
+      steps:
+      - Match RAM modules to compatible systems using form factor/DDR/platform evidence.
+      - Choose a replacement PSU using form factor, connectors, wattage, and supported
+        cable set.
+      - Choose correct display/cable/adapter path for three supplied devices.
+      evidence: Compatibility decision table with one-sentence justification.
+    - part: B
+      title: POST/no-power/thermal station
+      steps:
+      - 'Case 1: no lights/fans. Build an ordered test plan.'
+      - 'Case 2: fans/no POST + diagnostic code. Choose one-variable isolation steps.'
+      - 'Case 3: shutdown under load + rising temperature. Diagnose and choose safe
+        remediation/escalation.'
+      evidence: Three hypothesis → evidence → next test notes.
+    - part: C
+      title: Storage safety station
+      steps:
+      - Interpret SMART warning, clicking HDD, and degraded RAID evidence.
+      - Rank data-preservation steps before repair.
+      - Identify which actions are unsafe or unjustified.
+      evidence: Data-safety response for each case.
+    - part: D
+      title: Display isolation station
+      steps:
+      - Use monitor self-test, input selection, cable swaps, and known-good monitor/source
+        evidence to isolate three display complaints.
+      - State how to verify each original complaint.
+      evidence: Three display diagnostic notes.
+    expected_results:
+    - Student distinguishes compatibility from troubleshooting.
+    - Student uses known-good swaps/minimal configuration instead of multiple simultaneous
+      changes.
+    - Student protects data and observes electrical safety.
+    - Student verifies the original symptom and documents supported escalation.
+    rubric:
+      total_points: 24
+      pass_points: 17
+      dimensions:
+      - name: Compatibility/spec interpretation
+        points: 5
+      - name: Core hardware isolation
+        points: 6
+      - name: Storage/data-safety reasoning
+        points: 5
+      - name: Display isolation
+        points: 4
+      - name: Verification/documentation
+        points: 4
+      automatic_fail_conditions:
+      - Opening/repairing a PSU or continuing energized testing with burning/smoke
+        danger.
+      - Running destructive/write-heavy repair first on a clicking drive with unique
+        data.
+      - Claiming resolution without original-symptom verification.
+    hints:
+    - Component capacity alone does not prove compatibility.
+    - A diagnostic code is evidence—record it before changing hardware.
+    - Known-good substitutions are strongest when you change one variable at a time.
+    - RAID is not a backup.
+  required_evidence:
+    student_tasks: []
+  source_name: null
+  lab_type: guided
+  is_published: true

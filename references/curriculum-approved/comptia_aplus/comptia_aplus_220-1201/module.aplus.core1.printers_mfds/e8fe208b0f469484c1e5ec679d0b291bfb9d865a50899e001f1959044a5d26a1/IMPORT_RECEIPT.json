@@ -1,0 +1,251 @@
+{
+  "approved_destination": "/opt/apps/IT TRAINING PROJECT CODE/projects/nexus-admin-academy/references/curriculum-approved/comptia_aplus/comptia_aplus_220-1201/module.aplus.core1.printers_mfds/e8fe208b0f469484c1e5ec679d0b291bfb9d865a50899e001f1959044a5d26a1",
+  "certification": "comptia_aplus",
+  "classification": "NEW",
+  "created": 836,
+  "domain": "3.0",
+  "explain_count": 4,
+  "lesson_count": 5,
+  "loader_importer_results": {
+    "first": {
+      "by_entity": {
+        "certification": {
+          "created": 1,
+          "unchanged": 1,
+          "updated": 0
+        },
+        "certification_domain": {
+          "created": 9,
+          "unchanged": 9,
+          "updated": 0
+        },
+        "certification_module": {
+          "created": 10,
+          "unchanged": 10,
+          "updated": 0
+        },
+        "certification_objective": {
+          "created": 40,
+          "unchanged": 40,
+          "updated": 0
+        },
+        "certification_version": {
+          "created": 2,
+          "unchanged": 2,
+          "updated": 0
+        },
+        "interview_prompt": {
+          "created": 30,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "interview_prompt_objective": {
+          "created": 40,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lab_template": {
+          "created": 9,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson": {
+          "created": 51,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson_objective": {
+          "created": 76,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson_relationship": {
+          "created": 8,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "module_assessment": {
+          "created": 87,
+          "unchanged": 13,
+          "updated": 74
+        },
+        "question": {
+          "created": 292,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "question_bank_editorial_approval": {
+          "created": 0,
+          "unchanged": 0,
+          "updated": 8
+        },
+        "resource": {
+          "created": 76,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "resource_link": {
+          "created": 95,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "service_desk_scenario": {
+          "created": 5,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "service_desk_scenario_version": {
+          "created": 5,
+          "unchanged": 0,
+          "updated": 0
+        }
+      },
+      "created": 836,
+      "references": {
+        "content_engine_assessments": 70,
+        "content_engine_resolved": 68,
+        "content_engine_unresolved": [
+          "assess.aplus.core1.networking_fundamentals.module_quiz",
+          "assess.aplus.core1.networking_fundamentals.quick_check"
+        ],
+        "service_desk_assessments": 7,
+        "service_desk_resolved": 7
+      },
+      "unchanged": 75,
+      "updated": 82
+    },
+    "references": {
+      "content_engine_assessments": 70,
+      "content_engine_resolved": 68,
+      "content_engine_unresolved": [
+        "assess.aplus.core1.networking_fundamentals.module_quiz",
+        "assess.aplus.core1.networking_fundamentals.quick_check"
+      ],
+      "package_content_engine_unresolved": [],
+      "package_service_desk_unresolved": [],
+      "service_desk_assessments": 7,
+      "service_desk_resolved": 7
+    },
+    "second": {
+      "by_entity": {
+        "certification": {
+          "created": 0,
+          "unchanged": 2,
+          "updated": 0
+        },
+        "certification_domain": {
+          "created": 0,
+          "unchanged": 18,
+          "updated": 0
+        },
+        "certification_module": {
+          "created": 0,
+          "unchanged": 20,
+          "updated": 0
+        },
+        "certification_objective": {
+          "created": 0,
+          "unchanged": 80,
+          "updated": 0
+        },
+        "certification_version": {
+          "created": 0,
+          "unchanged": 4,
+          "updated": 0
+        },
+        "interview_prompt": {
+          "created": 0,
+          "unchanged": 30,
+          "updated": 0
+        },
+        "lab_template": {
+          "created": 0,
+          "unchanged": 9,
+          "updated": 0
+        },
+        "lesson": {
+          "created": 0,
+          "unchanged": 51,
+          "updated": 0
+        },
+        "module_assessment": {
+          "created": 0,
+          "unchanged": 174,
+          "updated": 0
+        },
+        "question": {
+          "created": 0,
+          "unchanged": 292,
+          "updated": 0
+        },
+        "question_bank_editorial_approval": {
+          "created": 0,
+          "unchanged": 8,
+          "updated": 0
+        },
+        "resource": {
+          "created": 0,
+          "unchanged": 76,
+          "updated": 0
+        },
+        "resource_link": {
+          "created": 0,
+          "unchanged": 95,
+          "updated": 0
+        },
+        "service_desk_scenario": {
+          "created": 0,
+          "unchanged": 5,
+          "updated": 0
+        },
+        "service_desk_scenario_version": {
+          "created": 0,
+          "unchanged": 5,
+          "updated": 0
+        }
+      },
+      "created": 0,
+      "references": {
+        "content_engine_assessments": 70,
+        "content_engine_resolved": 68,
+        "content_engine_unresolved": [
+          "assess.aplus.core1.networking_fundamentals.module_quiz",
+          "assess.aplus.core1.networking_fundamentals.quick_check"
+        ],
+        "service_desk_assessments": 7,
+        "service_desk_resolved": 7
+      },
+      "unchanged": 869,
+      "updated": 0
+    }
+  },
+  "module_key": "module.aplus.core1.printers_mfds",
+  "module_title": "Printers, MFDs & Print Troubleshooting",
+  "objective_codes": [
+    "3.7",
+    "3.8",
+    "5.6"
+  ],
+  "original_filename": "Nexus_APlus_Module_09_Final.zip",
+  "package_hash": "e8fe208b0f469484c1e5ec679d0b291bfb9d865a50899e001f1959044a5d26a1",
+  "practical_present": true,
+  "question_count": 30,
+  "resource_count": 12,
+  "runtime_destinations": [
+    "certifications/comptia_aplus.yaml",
+    "curriculum/comptia_aplus/comptia_aplus_220-1201/module-aplus-core1-printers-mfds",
+    "questions/module-aplus-core1-printers-mfds.csv",
+    "questions/editorial-approvals.yaml",
+    "resources/module-aplus-core1-printers-mfds.yaml",
+    "interview-prompts/module-aplus-core1-printers-mfds.yaml",
+    "labs/module-aplus-core1-printers-mfds.yaml",
+    "service-desk-scenarios/module-aplus-core1-printers-mfds.yaml"
+  ],
+  "service_desk_present": true,
+  "timestamp": "2026-08-31T14:13:19.254818+00:00",
+  "tool_version": "nexus-curriculum-intake/1",
+  "unchanged": 75,
+  "updated": 82,
+  "validation_result": "VALID",
+  "version": "comptia_aplus_220-1201"
+}

@@ -500,6 +500,580 @@ versions:
       title: Explain
       pass_percent: 70
       display_order: 10
+  - module_key: module.aplus.core1.network_services_troubleshooting
+    title: Network Services, Devices, Wireless & Troubleshooting
+    skill_promise: null
+    certification_domain_key: '2.0'
+    importance_hint: working_knowledge
+    display_order: 6
+    assessments:
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.ports-protocols
+      assessment_role: quick_check
+      title: Quick Check — Ports, Protocols & What Services Are Listening
+      lesson_key: lesson.aplus.network.ports_protocols
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q001
+        - M7Q002
+        - M7Q004
+        - M7Q005
+      display_order: 1
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.wireless
+      assessment_role: quick_check
+      title: Quick Check — Wireless Networks, Bands & Interference
+      lesson_key: lesson.aplus.network.wireless
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q006
+        - M7Q007
+        - M7Q008
+        - M7Q009
+      display_order: 2
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.host-services
+      assessment_role: quick_check
+      title: Quick Check — Network Host Services & Appliances
+      lesson_key: lesson.aplus.network.host_services
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q010
+        - M7Q011
+        - M7Q012
+        - M7Q013
+      display_order: 3
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.dns-dhcp-vlan-vpn
+      assessment_role: quick_check
+      title: Quick Check — DNS, DHCP, VLANs & VPNs
+      lesson_key: lesson.aplus.network.dns_dhcp_vlan_vpn
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q014
+        - M7Q016
+        - M7Q017
+        - M7Q018
+      display_order: 4
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.devices-poe
+      assessment_role: quick_check
+      title: Quick Check — Routers, Switches, Access Points, Firewalls & PoE
+      lesson_key: lesson.aplus.network.devices_poe
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q020
+        - M7Q021
+        - M7Q022
+        - M7Q023
+      display_order: 5
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.connections-types-tools
+      assessment_role: quick_check
+      title: Quick Check — SOHO Networks, Internet Types & Technician Tools
+      lesson_key: lesson.aplus.network.connections_types_tools
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q025
+        - M7Q027
+        - M7Q028
+        - M7Q029
+      display_order: 6
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — Evidence-First Network Troubleshooting
+      lesson_key: lesson.aplus.network.troubleshooting
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q031
+        - M7Q032
+        - M7Q033
+        - M7Q037
+      display_order: 7
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.module_quiz
+      assessment_role: module_quiz
+      title: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '2.1'
+          count: 1
+        - objective_codes:
+          - '2.2'
+          count: 1
+        - objective_codes:
+          - '2.3'
+          count: 1
+        - objective_codes:
+          - '2.4'
+          count: 2
+        - objective_codes:
+          - '2.5'
+          count: 1
+        - objective_codes:
+          - '2.6'
+          count: 1
+        - objective_codes:
+          - '2.7'
+          count: 1
+        - objective_codes:
+          - '2.8'
+          count: 1
+        - objective_codes:
+          - '5.5'
+          count: 3
+        category_requirements:
+        - category: ports_protocols_or_services
+          minimum: 2
+          question_ids:
+          - M7Q001
+          - M7Q002
+          - M7Q003
+          - M7Q004
+          - M7Q005
+          - M7Q010
+          - M7Q011
+          - M7Q012
+          - M7Q013
+        - category: wireless
+          minimum: 2
+          question_ids:
+          - M7Q006
+          - M7Q007
+          - M7Q008
+          - M7Q009
+          - M7Q033
+        - category: dns_dhcp_vlan_vpn
+          minimum: 2
+          question_ids:
+          - M7Q014
+          - M7Q015
+          - M7Q016
+          - M7Q017
+          - M7Q018
+          - M7Q019
+          - M7Q036
+        - category: devices_tools_connections
+          minimum: 2
+          question_ids:
+          - M7Q020
+          - M7Q021
+          - M7Q022
+          - M7Q023
+          - M7Q024
+          - M7Q025
+          - M7Q026
+          - M7Q027
+          - M7Q028
+          - M7Q029
+          - M7Q030
+        - category: troubleshooting_reasoning
+          minimum: 3
+          question_ids:
+          - M7Q007
+          - M7Q009
+          - M7Q031
+          - M7Q032
+          - M7Q033
+          - M7Q034
+          - M7Q037
+          - M7Q038
+        exclude_question_ids:
+        - M7Q039
+        - M7Q040
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 7
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40% in eligible
+            bank without documented reason.
+      display_order: 8
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.practical
+      assessment_role: practical
+      title: Map, Test, and Diagnose a Small Office Network
+      lab_ref: Map, Test, and Diagnose a Small Office Network
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.service_desk
+      assessment_role: service_desk
+      title: Service Desk — service_desk.aplus.network.loading_dock_wifi
+      service_desk_ref: service_desk.aplus.network.loading_dock_wifi
+      pass_percent: 70
+      display_order: 10
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 11
+  - module_key: module.aplus.core1.hardware_fault_isolation
+    title: PC Hardware, Displays & Fault Isolation
+    skill_promise: null
+    certification_domain_key: '3.0'
+    importance_hint: working_knowledge
+    display_order: 7
+    assessments:
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.qc.displays-attributes
+      assessment_role: quick_check
+      title: 'Quick Check — Displays: Types, Attributes & Choosing the Right Screen'
+      lesson_key: lesson.aplus.hardware.displays_attributes
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M8Q001
+        - M8Q002
+        - M8Q003
+        - M8Q004
+      display_order: 1
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.qc.cables-connectors
+      assessment_role: quick_check
+      title: Quick Check — Cables, Connectors & Adapters Without Guessing
+      lesson_key: lesson.aplus.hardware.cables_connectors
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M8Q005
+        - M8Q006
+        - M8Q007
+        - M8Q008
+      display_order: 2
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.qc.ram
+      assessment_role: quick_check
+      title: 'Quick Check — RAM: DIMMs, SO-DIMMs, DDR, ECC & Channel Configurations'
+      lesson_key: lesson.aplus.hardware.ram
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M8Q010
+        - M8Q011
+        - M8Q012
+        - M8Q013
+      display_order: 3
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.qc.power
+      assessment_role: quick_check
+      title: Quick Check — PC Power Supplies, Connectors & Safe Replacement
+      lesson_key: lesson.aplus.hardware.power
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M8Q014
+        - M8Q015
+        - M8Q016
+        - M8Q017
+      display_order: 4
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.qc.core-fault-isolation
+      assessment_role: quick_check
+      title: Quick Check — POST, No-Power, Thermal & Core Hardware Fault Isolation
+      lesson_key: lesson.aplus.hardware.core_fault_isolation
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M8Q018
+        - M8Q019
+        - M8Q020
+        - M8Q021
+      display_order: 5
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.qc.storage-display-troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — Storage, RAID & Display Troubleshooting
+      lesson_key: lesson.aplus.hardware.storage_display_troubleshooting
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M8Q023
+        - M8Q024
+        - M8Q027
+        - M8Q031
+      display_order: 6
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.module_quiz
+      assessment_role: module_quiz
+      title: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '3.1'
+          count: 2
+        - objective_codes:
+          - '3.2'
+          count: 2
+        - objective_codes:
+          - '3.3'
+          count: 1
+        - objective_codes:
+          - '3.6'
+          count: 1
+        - objective_codes:
+          - '5.1'
+          count: 2
+        - objective_codes:
+          - '5.2'
+          count: 2
+        - objective_codes:
+          - '5.3'
+          count: 2
+        category_requirements:
+        - category: component_specs
+          minimum: 4
+          question_ids:
+          - M8Q001
+          - M8Q002
+          - M8Q003
+          - M8Q004
+          - M8Q005
+          - M8Q006
+          - M8Q007
+          - M8Q008
+          - M8Q009
+          - M8Q010
+          - M8Q011
+          - M8Q012
+          - M8Q013
+          - M8Q014
+          - M8Q015
+          - M8Q016
+        - category: core_hardware_troubleshooting
+          minimum: 2
+          question_ids:
+          - M8Q017
+          - M8Q018
+          - M8Q019
+          - M8Q020
+          - M8Q021
+          - M8Q022
+        - category: storage_troubleshooting
+          minimum: 2
+          question_ids:
+          - M8Q023
+          - M8Q024
+          - M8Q025
+          - M8Q026
+          - M8Q034
+        - category: display_troubleshooting
+          minimum: 2
+          question_ids:
+          - M8Q027
+          - M8Q028
+          - M8Q029
+          - M8Q030
+          - M8Q031
+          - M8Q032
+        exclude_question_ids:
+        - M8Q035
+        - M8Q036
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 7
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 7
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.practical
+      assessment_role: practical
+      title: 'Bench Triage: Isolate Hardware Without Making It Worse'
+      lab_ref: 'Bench Triage: Isolate Hardware Without Making It Worse'
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.service_desk
+      assessment_role: service_desk
+      title: Service Desk — service_desk.aplus.hardware.render_shutdown
+      service_desk_ref: service_desk.aplus.hardware.render_shutdown
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 10
+  - module_key: module.aplus.core1.printers_mfds
+    title: Printers, MFDs & Print Troubleshooting
+    skill_promise: null
+    certification_domain_key: '3.0'
+    importance_hint: working_knowledge
+    display_order: 8
+    assessments:
+    - assessment_key: assess.aplus-core1-printers-mfds.qc.deploy-configure
+      assessment_role: quick_check
+      title: Quick Check — Deploying Printers & Multifunction Devices
+      lesson_key: lesson.aplus.printers.deploy_configure
+      quiz_ref: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M9Q001
+        - M9Q002
+        - M9Q003
+        - M9Q004
+      display_order: 1
+    - assessment_key: assess.aplus-core1-printers-mfds.qc.queues-shares-scan-security
+      assessment_role: quick_check
+      title: Quick Check — Queues, Shares, Secure Print & Scanning
+      lesson_key: lesson.aplus.printers.queues_shares_scan_security
+      quiz_ref: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M9Q005
+        - M9Q006
+        - M9Q007
+        - M9Q008
+      display_order: 2
+    - assessment_key: assess.aplus-core1-printers-mfds.qc.laser
+      assessment_role: quick_check
+      title: Quick Check — Laser Printer Maintenance & Safety
+      lesson_key: lesson.aplus.printers.laser
+      quiz_ref: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M9Q010
+        - M9Q011
+        - M9Q012
+        - M9Q013
+      display_order: 3
+    - assessment_key: assess.aplus-core1-printers-mfds.qc.inkjet-thermal-impact
+      assessment_role: quick_check
+      title: Quick Check — Inkjet, Thermal & Impact Printer Maintenance
+      lesson_key: lesson.aplus.printers.inkjet_thermal_impact
+      quiz_ref: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M9Q014
+        - M9Q015
+        - M9Q016
+        - M9Q017
+      display_order: 4
+    - assessment_key: assess.aplus-core1-printers-mfds.qc.troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — Printer Troubleshooting from Test Page to Hardware
+      lesson_key: lesson.aplus.printers.troubleshooting
+      quiz_ref: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M9Q019
+        - M9Q020
+        - M9Q023
+        - M9Q027
+      display_order: 5
+    - assessment_key: assess.aplus-core1-printers-mfds.module_quiz
+      assessment_role: module_quiz
+      title: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      quiz_ref: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '3.7'
+          count: 4
+        - objective_codes:
+          - '3.8'
+          count: 3
+        - objective_codes:
+          - '5.6'
+          count: 5
+        category_requirements:
+        - category: deployment_and_workflow
+          minimum: 3
+          question_ids:
+          - M9Q001
+          - M9Q002
+          - M9Q003
+          - M9Q004
+          - M9Q005
+          - M9Q006
+          - M9Q007
+          - M9Q008
+          - M9Q009
+          - M9Q028
+        - category: maintenance_by_technology
+          minimum: 3
+          question_ids:
+          - M9Q010
+          - M9Q011
+          - M9Q012
+          - M9Q013
+          - M9Q014
+          - M9Q015
+          - M9Q016
+          - M9Q017
+          - M9Q018
+        - category: troubleshooting_reasoning
+          minimum: 4
+          question_ids:
+          - M9Q007
+          - M9Q009
+          - M9Q019
+          - M9Q020
+          - M9Q021
+          - M9Q022
+          - M9Q023
+          - M9Q024
+          - M9Q025
+          - M9Q026
+          - M9Q027
+        exclude_question_ids:
+        - M9Q030
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 7
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 6
+    - assessment_key: assess.aplus-core1-printers-mfds.practical
+      assessment_role: practical
+      title: 'Print Path Lab: From Application to Paper'
+      lab_ref: 'Print Path Lab: From Application to Paper'
+      pass_percent: 70
+      display_order: 7
+    - assessment_key: assess.aplus-core1-printers-mfds.service_desk
+      assessment_role: service_desk
+      title: Service Desk — service_desk.aplus.printers.hr_queue
+      service_desk_ref: service_desk.aplus.printers.hr_queue
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus-core1-printers-mfds.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 9
 - version_key: comptia_aplus_220-1202
   label: CompTIA A+ Core 2 (220-1202)
   exam_codes:

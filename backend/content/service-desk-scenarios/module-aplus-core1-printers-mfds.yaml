@@ -1,0 +1,200 @@
+scenarios:
+- stable_key: service_desk.aplus.printers.hr_queue
+  title: HR Onboarding Print Jobs Disappear
+  description: On one HR workstation, print jobs briefly appear in the queue and then
+    disappear without reaching the office MFD.
+  category: service_desk
+  difficulty: 1
+  definition:
+    id: SERVICE_DESK.APLUS.PRINTERS.HR_QUEUE
+    title: HR Onboarding Print Jobs Disappear
+    slug: service_desk.aplus.printers.hr_queue
+    category: service_desk
+    priority: medium
+    difficulty: easy
+    pointValue: 100
+    explanation: 'Resolved through approved client queue/spooler/driver correction.
+
+      Escalated to print-server/admin owner with complete affected-PC evidence if
+      managed package/permissions block remediation.'
+    description:
+      issue: On one HR workstation, print jobs briefly appear in the queue and then
+        disappear without reaching the office MFD.
+      reportedByLine: Eli Warren
+      businessImpact: HR cannot print onboarding packets for the morning orientation.
+      troubleshooting:
+      - Printer is powered on and its internal configuration page prints correctly.
+      - The same onboarding document prints successfully from a neighboring workstation.
+      - The affected workstation can reach other network resources.
+      - No jam, low-consumable warning, or printer-wide error is present.
+      - Confirm scope is the affected workstation and capture queue/error behavior.
+      - Print an OS test page from the affected workstation.
+      - Inspect selected printer/port/driver/queue and Print Spooler state according
+        to role.
+      - Compare with the known-good neighboring workstation/queue.
+      - 'Prioritize client print path: driver/queue/spooler/port/share over printer
+        mechanical hardware.'
+      - Identify the exact evidence supporting the selected client-path cause.
+      - Use approved queue/spooler/driver/connection remediation OR escalate managed
+        driver/print-server change to admin.
+      - Do not change printer hardware or clear unrelated users jobs without evidence/approval.
+      - Print an OS test page after remediation.
+      - Print the original onboarding packet from the affected workstation and confirm
+        acceptable output.
+      - Record control-group evidence, affected-PC queue behavior, action/escalation,
+        both verification steps, and HR update.
+    requester:
+      name: Eli Warren
+      department: Human Resources
+      email: Not specified by approved curriculum package
+      contact: Not specified by approved curriculum package
+      location: Not specified by approved curriculum package
+    device:
+      assetTag: SERVICE_DESK.APLUS.PRINTERS.HR_QUEUE
+      deviceName: Not specified by approved curriculum package
+      kind: laptop
+      operatingSystem: Not specified by approved curriculum package
+      state: active
+    sla:
+      dueAt: Not specified by approved curriculum package
+      target: medium
+    initialWorldState:
+      directoryOverlaySeeds: {}
+      assetOverlaySeeds: {}
+      chatMessageSeeds: []
+    objectives:
+    - id: professional-pending-or-completed-outcome
+      description: 'Resolved through approved client queue/spooler/driver correction.
+
+        Escalated to print-server/admin owner with complete affected-PC evidence if
+        managed package/permissions block remediation.'
+      predicateType: action_event_occurred
+      predicateParams:
+        actionType: ticket.add_note
+        payloadMatch:
+          ticketId: SERVICE_DESK.APLUS.PRINTERS.HR_QUEUE
+      required: true
+      pointValue: 100
+    requiredActions:
+    - id: document-professional-outcome
+      actionType: ticket.add_note
+      description: 'Resolved through approved client queue/spooler/driver correction.
+
+        Escalated to print-server/admin owner with complete affected-PC evidence if
+        managed package/permissions block remediation.'
+      payloadMatch:
+        ticketId: SERVICE_DESK.APLUS.PRINTERS.HR_QUEUE
+    forbiddenActions: []
+    hints:
+    - id: hint-01
+      order: 1
+      pointPenalty: 0
+      text: The neighboring workstation is your known-good control.
+    - id: hint-02
+      order: 2
+      pointPenalty: 5
+      text: An internal printer page does not test the Windows client path.
+    - id: hint-03
+      order: 3
+      pointPenalty: 5
+      text: Do not stop after the test page—print the original packet.
+    curriculum:
+      scenario_key: service_desk.aplus.printers.hr_queue
+      title: HR Onboarding Print Jobs Disappear
+      module_key: module.aplus.core1.printers_mfds
+      objectives:
+      - '3.7'
+      - '5.6'
+      reinforces:
+      - '3.8'
+      mode: learning
+      requester:
+        name: Eli Warren
+        department: Human Resources
+        context: Morning onboarding packet printing.
+      complaint: On one HR workstation, print jobs briefly appear in the queue and
+        then disappear without reaching the office MFD.
+      business_impact: HR cannot print onboarding packets for the morning orientation.
+      known_environment:
+      - Printer is powered on and its internal configuration page prints correctly.
+      - The same onboarding document prints successfully from a neighboring workstation.
+      - The affected workstation can reach other network resources.
+      - No jam, low-consumable warning, or printer-wide error is present.
+      stages:
+      - stage: Investigation
+        expectations:
+        - Confirm scope is the affected workstation and capture queue/error behavior.
+        - Print an OS test page from the affected workstation.
+        - Inspect selected printer/port/driver/queue and Print Spooler state according
+          to role.
+        - Compare with the known-good neighboring workstation/queue.
+      - stage: Diagnosis
+        expectations:
+        - 'Prioritize client print path: driver/queue/spooler/port/share over printer
+          mechanical hardware.'
+        - Identify the exact evidence supporting the selected client-path cause.
+      - stage: Remediation
+        expectations:
+        - Use approved queue/spooler/driver/connection remediation OR escalate managed
+          driver/print-server change to admin.
+        - Do not change printer hardware or clear unrelated users jobs without evidence/approval.
+      - stage: Verification
+        expectations:
+        - Print an OS test page after remediation.
+        - Print the original onboarding packet from the affected workstation and confirm
+          acceptable output.
+      - stage: Documentation
+        expectations:
+        - Record control-group evidence, affected-PC queue behavior, action/escalation,
+          both verification steps, and HR update.
+      diagnosis_anchor: The printer-wide hardware path is demonstrated working. The
+        intended fault domain is the affected workstation/shared client print path,
+        with the exact driver/spooler/queue variation supplied by scenario evidence.
+      acceptable_outcomes:
+      - Resolved through approved client queue/spooler/driver correction.
+      - Escalated to print-server/admin owner with complete affected-PC evidence if
+        managed package/permissions block remediation.
+      hints:
+      - The neighboring workstation is your known-good control.
+      - An internal printer page does not test the Windows client path.
+      - Do not stop after the test page—print the original packet.
+      grading_anchors:
+      - Scope/control-group use
+      - Layered test-page evidence
+      - Correct client-path diagnosis
+      - Authorized remediation/escalation
+      - Original packet verification
+      - Clear ticket/user documentation
+    rubric_dimensions:
+      Investigation:
+      - Confirm scope is the affected workstation and capture queue/error behavior.
+      - Print an OS test page from the affected workstation.
+      - Inspect selected printer/port/driver/queue and Print Spooler state according
+        to role.
+      - Compare with the known-good neighboring workstation/queue.
+      Diagnosis:
+      - 'Prioritize client print path: driver/queue/spooler/port/share over printer
+        mechanical hardware.'
+      - Identify the exact evidence supporting the selected client-path cause.
+      Remediation:
+      - Use approved queue/spooler/driver/connection remediation OR escalate managed
+        driver/print-server change to admin.
+      - Do not change printer hardware or clear unrelated users jobs without evidence/approval.
+      Verification:
+      - Print an OS test page after remediation.
+      - Print the original onboarding packet from the affected workstation and confirm
+        acceptable output.
+      Documentation:
+      - Record control-group evidence, affected-PC queue behavior, action/escalation,
+        both verification steps, and HR update.
+    grading_anchors:
+    - Scope/control-group use
+    - Layered test-page evidence
+    - Correct client-path diagnosis
+    - Authorized remediation/escalation
+    - Original packet verification
+    - Clear ticket/user documentation
+    successful_professional_outcomes:
+    - Resolved through approved client queue/spooler/driver correction.
+    - Escalated to print-server/admin owner with complete affected-PC evidence if
+      managed package/permissions block remediation.

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -88,7 +88,7 @@ def _module(db: Session, module_key: str) -> CertificationModule:
 def _lessons(db: Session, module_id: int) -> list[LessonV2Meta]:
     return db.query(LessonV2Meta).filter(
         LessonV2Meta.certification_module_id == module_id,
-        LessonV2Meta.status.in_(("draft", "published")),
+        LessonV2Meta.status.in_(("draft", "ready", "published")),
     ).order_by(LessonV2Meta.content_path, LessonV2Meta.id).all()
 
 
@@ -99,6 +99,41 @@ def _resources(db: Session, lesson_id: int) -> list[tuple[LearningResourceLink, 
         LearningResourceLink.lesson_v2_meta_id == lesson_id,
         LearningResource.active.is_(True),
     ).order_by(LearningResourceLink.display_order, LearningResource.id).all()
+
+
+def _module_resources(
+    db: Session, module_id: int
+) -> list[tuple[LearningResourceLink, LearningResource]]:
+    return db.query(LearningResourceLink, LearningResource).join(
+        LearningResource, LearningResource.id == LearningResourceLink.resource_id
+    ).filter(
+        LearningResourceLink.certification_module_id == module_id,
+        LearningResourceLink.lesson_v2_meta_id.is_(None),
+        LearningResource.active.is_(True),
+    ).order_by(LearningResourceLink.display_order, LearningResource.id).all()
+
+
+def _resource_view(
+    db: Session,
+    student_id: int,
+    link: LearningResourceLink,
+    resource: LearningResource,
+) -> dict:
+    tracked = db.query(StudentResourceActivity).filter_by(
+        student_id=student_id, resource_id=resource.id
+    ).one_or_none()
+    return {
+        "key": resource.resource_key,
+        "title": resource.title,
+        "provider": resource.provider,
+        "type": resource.resource_type,
+        "duration": resource.duration,
+        "url": _safe_url(resource.url),
+        "required": bool(link.is_required),
+        "opened_at": tracked.opened_at.isoformat() if tracked and tracked.opened_at else None,
+        "completed": bool(tracked and tracked.completed),
+        "completed_at": tracked.completed_at.isoformat() if tracked and tracked.completed_at else None,
+    }
 
 
 def _assessments(db: Session, module_id: int) -> list[ModuleAssessment]:
@@ -161,23 +196,10 @@ def _lesson_view(db: Session, student_id: int, lesson: LessonV2Meta, assessments
     objective_rows = db.query(CertificationObjective).join(
         LessonObjective, LessonObjective.objective_id == CertificationObjective.id
     ).filter(LessonObjective.lesson_v2_meta_id == lesson.id).order_by(CertificationObjective.display_order).all()
-    resource_views = []
-    for link, resource in _resources(db, lesson.id):
-        tracked = db.query(StudentResourceActivity).filter_by(
-            student_id=student_id, resource_id=resource.id
-        ).one_or_none()
-        resource_views.append({
-            "key": resource.resource_key,
-            "title": resource.title,
-            "provider": resource.provider,
-            "type": resource.resource_type,
-            "duration": resource.duration,
-            "url": _safe_url(resource.url),
-            "required": bool(link.is_required),
-            "opened_at": tracked.opened_at.isoformat() if tracked and tracked.opened_at else None,
-            "completed": bool(tracked and tracked.completed),
-            "completed_at": tracked.completed_at.isoformat() if tracked and tracked.completed_at else None,
-        })
+    resource_views = [
+        _resource_view(db, student_id, link, resource)
+        for link, resource in _resources(db, lesson.id)
+    ]
     quick_check = next((a for a in assessments if a.lesson_v2_meta_id == lesson.id and a.assessment_role == V2_ACTIVITY_QUICK_CHECK), None)
     result = {
         "key": lesson.lesson_key,
@@ -251,6 +273,10 @@ def module_view(db: Session, student_id: int, module_key: str) -> dict:
             "importance": module.importance_hint,
         },
         "lessons": lessons,
+        "module_resources": [
+            _resource_view(db, student_id, link, resource)
+            for link, resource in _module_resources(db, module.id)
+        ],
         "assessments": assessment_views,
         "explain_prompts": prompts,
         "progress": progress,
@@ -357,18 +383,31 @@ def assessment_questions(db: Session, student_id: int, module_key: str, assessme
     categories = config.get("category_requirements") or []
     if categories:
         excluded_ids = {str(value) for value in config.get("exclude_question_ids") or []}
+        def tagged_value(tags: list[str], prefix: str) -> str:
+            return next(
+                (str(tag).removeprefix(prefix) for tag in tags if str(tag).startswith(prefix)),
+                "",
+            )
+
         candidates = [
             {
                 "id": str(question.id),
                 "objective_codes": question_objective_codes(meta),
                 "tags": list(question.tags or []),
+                "question_type": meta.question_type or ("multi" if question.is_multi_select else "single"),
+                "question_style": tagged_value(list(question.tags or []), "question_style:"),
+                "category": tagged_value(list(question.tags or []), "category:"),
                 "pair": (question, meta),
             }
             for question, meta in rows
         ]
         try:
             constrained = select_constrained(
-                candidates, blueprint, categories, excluded_ids=excluded_ids
+                candidates,
+                blueprint,
+                categories,
+                excluded_ids=excluded_ids,
+                selection_requirements=config.get("selection_requirements") or {},
             )
         except ConstraintSelectionError as exc:
             raise V2ProgressError(f"This Module Quiz blueprint is invalid: {exc}") from exc
@@ -483,11 +522,13 @@ def resource_activity(db: Session, student_id: int, module_key: str, resource_ke
     resource = db.query(LearningResource).filter_by(resource_key=resource_key, active=True).one_or_none()
     if resource is None:
         raise V2ProgressError("This resource is not available.")
-    valid_link = db.query(LearningResourceLink).join(
-        LessonV2Meta, LessonV2Meta.id == LearningResourceLink.lesson_v2_meta_id
-    ).filter(
+    lesson_ids = [lesson.id for lesson in _lessons(db, module.id)]
+    valid_link = db.query(LearningResourceLink).filter(
         LearningResourceLink.resource_id == resource.id,
-        LessonV2Meta.certification_module_id == module.id,
+        or_(
+            LearningResourceLink.certification_module_id == module.id,
+            LearningResourceLink.lesson_v2_meta_id.in_(lesson_ids or [-1]),
+        ),
     ).first()
     if not valid_link:
         raise V2ProgressError("This resource is not part of the module.")

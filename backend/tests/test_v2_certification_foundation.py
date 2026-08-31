@@ -111,7 +111,7 @@ def test_same_objective_code_coexists_across_versions(db):
         .one()
     )
     # Same code, different version, different text — both persist independently.
-    assert "laptop hardware" in o1.objective_text.lower()
+    assert "monitor mobile device hardware" in o1.objective_text.lower()
     assert "operating system" in o2.objective_text.lower()
     assert o1.id != o2.id
 

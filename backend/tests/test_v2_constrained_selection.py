@@ -106,3 +106,34 @@ def test_exclusions_apply_to_authored_ids_and_tags():
     )
     assert all(row["id"] != "Q001" for row in selected)
     assert all("exclude-me" not in row["tags"] for row in selected)
+
+
+def test_authored_style_type_and_narrow_category_requirements_are_enforced():
+    items = [
+        {
+            "id": f"Q{index:03d}",
+            "objective_codes": ["1.1"],
+            "tags": [],
+            "question_type": "multi" if index in {1, 2} else "single",
+            "question_style": "Scenario/Application" if index <= 8 else "Foundation",
+            "category": "common" if index <= 4 else f"category-{index}",
+        }
+        for index in range(1, 13)
+    ]
+    requirements = {
+        "scenario_application_or_reasoning_minimum": 7,
+        "multi_select_minimum": 1,
+        "max_same_narrow_category": 3,
+    }
+
+    for seed in range(20):
+        selected = select_constrained(
+            items,
+            [{"objective_codes": ["1.1"], "count": 8}],
+            [],
+            selection_requirements=requirements,
+            rng=random.Random(seed),
+        )
+        assert sum(row["question_style"] != "Foundation" for row in selected) >= 7
+        assert sum(row["question_type"] == "multi" for row in selected) >= 1
+        assert sum(row["category"] == "common" for row in selected) <= 3

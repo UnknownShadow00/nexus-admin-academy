@@ -1,0 +1,204 @@
+scenarios:
+- stable_key: service_desk.aplus.hardware.render_shutdown
+  title: Design Workstation Shuts Down During Long Renders
+  description: The workstation powers off abruptly 10–20 minutes into long 3D renders.
+    Normal email/web work is stable.
+  category: service_desk
+  difficulty: 1
+  definition:
+    id: SERVICE_DESK.APLUS.HARDWARE.RENDER_SHUTDOWN
+    title: Design Workstation Shuts Down During Long Renders
+    slug: service_desk.aplus.hardware.render_shutdown
+    category: service_desk
+    priority: medium
+    difficulty: easy
+    pointValue: 100
+    explanation: 'Approved airflow/cleaning/cooling correction with sustained verification.
+
+      Hardware/cooling replacement escalation with complete evidence if component
+      service is outside student role.'
+    description:
+      issue: The workstation powers off abruptly 10–20 minutes into long 3D renders.
+        Normal email/web work is stable.
+      reportedByLine: Mina Patel
+      businessImpact: Design exports are delayed and unsaved render progress is lost.
+      troubleshooting:
+      - Workstation is otherwise stable at idle/light load.
+      - Monitoring snapshot shows CPU temperature rising to its thermal limit before
+        shutdown.
+      - Fans become unusually loud under the same workload.
+      - Case intake vents have heavy dust buildup.
+      - No burning smell, smoke, swollen capacitor, or PSU alarm is supplied.
+      - Confirm load correlation and collect temperature/fan/shutdown evidence.
+      - Inspect airflow/vent/fan state with system powered down before physical service.
+      - Review recent hardware changes and ensure no immediate electrical-danger indicators
+        are present.
+      - Rank thermal/cooling fault first based on the supplied correlation.
+      - Keep PSU/RAM/board failure as secondary only if follow-up evidence supports
+        them.
+      - Power down and use approved cleaning/airflow/fan/heatsink remediation within
+        role OR escalate hardware replacement.
+      - Do not open the PSU or replace several parts at once.
+      - Repeat the original render or approved equivalent while monitoring temperature
+        and stability.
+      - Confirm sustained operation beyond the prior failure window.
+      - Record pre-fix temperature/symptom, physical evidence, action/escalation,
+        post-fix temperature/stability, and user update.
+    requester:
+      name: Mina Patel
+      department: Product Design
+      email: Not specified by approved curriculum package
+      contact: Not specified by approved curriculum package
+      location: Not specified by approved curriculum package
+    device:
+      assetTag: SERVICE_DESK.APLUS.HARDWARE.RENDER_SHUTDOWN
+      deviceName: Not specified by approved curriculum package
+      kind: laptop
+      operatingSystem: Not specified by approved curriculum package
+      state: active
+    sla:
+      dueAt: Not specified by approved curriculum package
+      target: medium
+    initialWorldState:
+      directoryOverlaySeeds: {}
+      assetOverlaySeeds: {}
+      chatMessageSeeds: []
+    objectives:
+    - id: professional-pending-or-completed-outcome
+      description: 'Approved airflow/cleaning/cooling correction with sustained verification.
+
+        Hardware/cooling replacement escalation with complete evidence if component
+        service is outside student role.'
+      predicateType: action_event_occurred
+      predicateParams:
+        actionType: ticket.add_note
+        payloadMatch:
+          ticketId: SERVICE_DESK.APLUS.HARDWARE.RENDER_SHUTDOWN
+      required: true
+      pointValue: 100
+    requiredActions:
+    - id: document-professional-outcome
+      actionType: ticket.add_note
+      description: 'Approved airflow/cleaning/cooling correction with sustained verification.
+
+        Hardware/cooling replacement escalation with complete evidence if component
+        service is outside student role.'
+      payloadMatch:
+        ticketId: SERVICE_DESK.APLUS.HARDWARE.RENDER_SHUTDOWN
+    forbiddenActions: []
+    hints:
+    - id: hint-01
+      order: 1
+      pointPenalty: 0
+      text: The time/load/temperature correlation is stronger evidence than a generic
+        “random shutdown.”
+    - id: hint-02
+      order: 2
+      pointPenalty: 5
+      text: Do not open a power supply.
+    - id: hint-03
+      order: 3
+      pointPenalty: 5
+      text: The ticket is not complete when the PC merely turns back on.
+    curriculum:
+      scenario_key: service_desk.aplus.hardware.render_shutdown
+      title: Design Workstation Shuts Down During Long Renders
+      module_key: module.aplus.core1.hardware_fault_isolation
+      objectives:
+      - '5.1'
+      - '3.6'
+      reinforces:
+      - '3.3'
+      mode: learning
+      requester:
+        name: Mina Patel
+        department: Product Design
+        context: Designer running approved 3D rendering workload.
+      complaint: The workstation powers off abruptly 10–20 minutes into long 3D renders.
+        Normal email/web work is stable.
+      business_impact: Design exports are delayed and unsaved render progress is lost.
+      known_environment:
+      - Workstation is otherwise stable at idle/light load.
+      - Monitoring snapshot shows CPU temperature rising to its thermal limit before
+        shutdown.
+      - Fans become unusually loud under the same workload.
+      - Case intake vents have heavy dust buildup.
+      - No burning smell, smoke, swollen capacitor, or PSU alarm is supplied.
+      stages:
+      - stage: Investigation
+        expectations:
+        - Confirm load correlation and collect temperature/fan/shutdown evidence.
+        - Inspect airflow/vent/fan state with system powered down before physical
+          service.
+        - Review recent hardware changes and ensure no immediate electrical-danger
+          indicators are present.
+      - stage: Diagnosis
+        expectations:
+        - Rank thermal/cooling fault first based on the supplied correlation.
+        - Keep PSU/RAM/board failure as secondary only if follow-up evidence supports
+          them.
+      - stage: Remediation
+        expectations:
+        - Power down and use approved cleaning/airflow/fan/heatsink remediation within
+          role OR escalate hardware replacement.
+        - Do not open the PSU or replace several parts at once.
+      - stage: Verification
+        expectations:
+        - Repeat the original render or approved equivalent while monitoring temperature
+          and stability.
+        - Confirm sustained operation beyond the prior failure window.
+      - stage: Documentation
+        expectations:
+        - Record pre-fix temperature/symptom, physical evidence, action/escalation,
+          post-fix temperature/stability, and user update.
+      diagnosis_anchor: Thermal/cooling path is the intended primary diagnosis because
+        the supplied evidence explicitly correlates high temperature, loud fans, blocked
+        vents, and load-related shutdown.
+      acceptable_outcomes:
+      - Approved airflow/cleaning/cooling correction with sustained verification.
+      - Hardware/cooling replacement escalation with complete evidence if component
+        service is outside student role.
+      hints:
+      - The time/load/temperature correlation is stronger evidence than a generic
+        “random shutdown.”
+      - Do not open a power supply.
+      - The ticket is not complete when the PC merely turns back on.
+      grading_anchors:
+      - Evidence-first diagnosis
+      - Safe power-down
+      - One-variable hardware action
+      - No PSU opening
+      - Original-workload verification
+      - Clear documentation/user update
+    rubric_dimensions:
+      Investigation:
+      - Confirm load correlation and collect temperature/fan/shutdown evidence.
+      - Inspect airflow/vent/fan state with system powered down before physical service.
+      - Review recent hardware changes and ensure no immediate electrical-danger indicators
+        are present.
+      Diagnosis:
+      - Rank thermal/cooling fault first based on the supplied correlation.
+      - Keep PSU/RAM/board failure as secondary only if follow-up evidence supports
+        them.
+      Remediation:
+      - Power down and use approved cleaning/airflow/fan/heatsink remediation within
+        role OR escalate hardware replacement.
+      - Do not open the PSU or replace several parts at once.
+      Verification:
+      - Repeat the original render or approved equivalent while monitoring temperature
+        and stability.
+      - Confirm sustained operation beyond the prior failure window.
+      Documentation:
+      - Record pre-fix temperature/symptom, physical evidence, action/escalation,
+        post-fix temperature/stability, and user update.
+    grading_anchors:
+    - Evidence-first diagnosis
+    - Safe power-down
+    - One-variable hardware action
+    - No PSU opening
+    - Original-workload verification
+    - Clear documentation/user update
+    successful_professional_outcomes:
+    - Approved airflow/cleaning/cooling correction with sustained verification.
+    - Hardware/cooling replacement escalation with complete evidence if component
+      service is outside student role.

@@ -27,6 +27,7 @@ from zipfile import BadZipFile, ZipFile
 import openpyxl
 import yaml
 
+from app.models.certification import RESOURCE_TYPE_VALUES
 from app.services.question_importer import (
     TEMPLATE_COLUMNS,
     objective_codes as parse_objective_codes,
@@ -50,11 +51,13 @@ FIELD_ALIASES = {
     "objectives": "objective_code",
     "lesson_key": "lesson_id",
     "accepted_variants": "acceptable_answers",
+    "accepted_answers": "acceptable_answers",
     "minimum_concepts": "min_concepts_for_pass",
     "min_concepts_pass": "min_concepts_for_pass",
     "provenance": "source_name",
     "provenance_source": "source_name",
     "editorial_status": "final_validation_status",
+    "editorial_disposition": "final_validation_status",
 }
 QUESTION_TYPE_ALIASES = {
     "single-choice": "single",
@@ -229,6 +232,34 @@ def _consensus(field: str, evidence: list[tuple[str, object]]) -> str:
     if not values:
         raise IntakeError(f"insufficient structured metadata to determine {field}", field=field)
     return values.pop()
+
+
+def _normalize_domain_evidence(
+    evidence: list[tuple[str, object]], version: dict, notes: set[str]
+) -> list[tuple[str, object]]:
+    aliases: dict[str, str] = {}
+    for row in version["data"].get("domains") or []:
+        key = str(row.get("domain_key") or "").strip()
+        title = str(row.get("title") or "").strip()
+        aliases[key.casefold()] = key
+        if title:
+            aliases[f"{key} {title}".casefold()] = key
+    normalized = []
+    for source, value in evidence:
+        raw = str(value or "").strip()
+        canonical = aliases.get(raw.casefold(), raw)
+        if raw and canonical != raw:
+            notes.add(f"domain {raw} -> {canonical}")
+        normalized.append((source, canonical))
+    return normalized
+
+
+def _certification_matches(explicit: str, cert_key: str, registry_item: dict) -> bool:
+    aliases = {
+        cert_key.casefold(),
+        str((registry_item["doc"].get("certification") or {}).get("name") or "").strip().casefold(),
+    }
+    return explicit.strip().casefold() in aliases
 
 
 def _lesson_order_evidence(path: Path, meta: dict) -> list[tuple[str, int]]:
@@ -409,6 +440,14 @@ def _normalize_question_row(raw: dict, notes: set[str], *, quiz_title: str | Non
         value = str(row.get(field) or "").strip()
         if value:
             tags.append(value)
+    category = str(row.get("category") or "").strip()
+    if category:
+        tags.extend((category, f"category:{_slug(category)}"))
+    question_style = str(row.get("question_style") or "").strip()
+    if question_style:
+        tags.extend((question_style, f"question_style:{_slug(question_style)}"))
+    if row["question_type"]:
+        tags.append(f"question_type:{row['question_type']}")
     difficulty = str(row.get("difficulty") or "").strip()
     if difficulty and not difficulty.isdigit():
         tags.append(f"difficulty:{_slug(difficulty)}")
@@ -478,6 +517,28 @@ def _normalize_quiz_blueprint(doc: dict, notes: set[str]) -> dict:
             for row in quiz["required_category_coverage"]
         ]
         notes.add("module quiz required_category_coverage -> category_requirements")
+    if quiz.get("objective_targets") and not quiz.get("question_blueprint"):
+        quiz["question_blueprint"] = [
+            {"objective_codes": [str(code)], "count": int(count)}
+            for code, count in quiz["objective_targets"].items()
+        ]
+        notes.add("module quiz objective_targets -> question_blueprint")
+    if quiz.get("category_minimums") and not quiz.get("category_requirements"):
+        quiz["category_requirements"] = [
+            {
+                "category": str(row.get("category") or ""),
+                "minimum": int(row.get("minimum") or 0),
+                "question_ids": [str(value) for value in row.get("pool") or []],
+            }
+            for row in quiz["category_minimums"]
+        ]
+        notes.add("module quiz category_minimums -> category_requirements")
+    if quiz.get("exclusions") and not quiz.get("exclude_question_ids"):
+        quiz["exclude_question_ids"] = [str(value) for value in quiz["exclusions"]]
+        notes.add("module quiz exclusions -> exclude_question_ids")
+    if quiz.get("requirements") and not quiz.get("selection_requirements"):
+        quiz["selection_requirements"] = deepcopy(quiz["requirements"])
+        notes.add("module quiz requirements -> selection_requirements")
     return quiz
 
 
@@ -497,7 +558,30 @@ def _quick_check_rows(path: Path) -> list[dict]:
     return [dict(zip(headers, row)) for row in values[1:] if any(value is not None for value in row)]
 
 
-def _attach_quick_checks(lessons: list[dict], rows: list[dict], notes: set[str]) -> None:
+def _quality_rule_quick_checks(root: Path) -> list[dict]:
+    path = root / "question_bank_quality_rules.yaml"
+    if not path.is_file():
+        return []
+    quick_checks = _read_yaml(path).get("quick_checks") or {}
+    if not isinstance(quick_checks, dict):
+        raise IntakeError(
+            "question_bank_quality_rules.yaml quick_checks must be a lesson-key mapping",
+            file=path.name,
+            field="quick_checks",
+        )
+    return [
+        {
+            "lesson_key": str(lesson_key),
+            "question_ids": ",".join(str(value) for value in values or []),
+            "count": len(values or []),
+        }
+        for lesson_key, values in quick_checks.items()
+    ]
+
+
+def _attach_quick_checks(
+    lessons: list[dict], rows: list[dict], notes: set[str], *, source_file: str
+) -> None:
     """Attach workbook ID pools to lessons without inventing question content."""
     by_order = {int(item["lesson_order"]): item for item in lessons}
     by_title = {str(item["title"]).strip().casefold(): item for item in lessons}
@@ -518,21 +602,21 @@ def _attach_quick_checks(lessons: list[dict], rows: list[dict], notes: set[str])
         if candidates and any(item is not candidates[0] for item in candidates[1:]):
             raise IntakeError(
                 "Quick Check order, lesson key, and title identify different lessons",
-                file="questions_and_editorial_review.xlsx",
+                file=source_file,
                 field=f"Quick Checks row {sheet_row}",
             )
         lesson = lesson or key_lesson or title_lesson
         if lesson is None:
             raise IntakeError(
                 "Quick Check row does not resolve to a package lesson",
-                file="questions_and_editorial_review.xlsx",
+                file=source_file,
                 field=f"Quick Checks row {sheet_row}",
             )
         lesson_order = int(lesson["lesson_order"])
         if lesson_order in assigned:
             raise IntakeError(
                 f"duplicate Quick Check definition for lesson order {lesson_order}",
-                file="questions_and_editorial_review.xlsx",
+                file=source_file,
                 field=f"Quick Checks row {sheet_row}",
             )
         ids = [value.strip() for value in str(row.get("question_ids") or "").split(",") if value.strip()]
@@ -540,7 +624,7 @@ def _attach_quick_checks(lessons: list[dict], rows: list[dict], notes: set[str])
         if count != len(ids):
             raise IntakeError(
                 "Quick Check count does not match its question_ids",
-                file="questions_and_editorial_review.xlsx",
+                file=source_file,
                 field=f"Quick Checks row {sheet_row}",
             )
         lesson["quick_check"] = {
@@ -550,7 +634,7 @@ def _attach_quick_checks(lessons: list[dict], rows: list[dict], notes: set[str])
             "tags_any": ids,
         }
         assigned.add(lesson_order)
-        notes.add(f"Quick Checks sheet row {sheet_row} -> lesson assessment metadata")
+        notes.add(f"{source_file} Quick Check {lesson['lesson_key']} -> lesson assessment metadata")
 
 
 def _generated_service_desk_key(module_key: str, ordinal: int = 1) -> str:
@@ -636,9 +720,9 @@ def _normalize_inline_service_desk(
             "requester": deepcopy(doc.get("requester")),
             "complaint": doc.get("complaint"),
             "business_impact": doc.get("business_impact"),
-            "initial_priority": doc.get("initial_priority") or doc.get("priority"),
+            "initial_priority": doc.get("initial_priority") or doc.get("priority") or doc.get("priority_guidance"),
             "twist": doc.get("twist"),
-            "initial_facts": deepcopy(doc.get("initial_facts") or []),
+            "initial_facts": deepcopy(doc.get("initial_facts") or doc.get("known_environment") or []),
         }
         notes.add("top-level Service Desk scenario fields -> existing engine ticket")
     for field in ("requester", "complaint", "business_impact"):
@@ -681,8 +765,8 @@ def _normalize_inline_service_desk(
     )
     anchors = deepcopy(doc["grading_anchors"])
     point_value = (
-        sum(int(row.get("weight") or 0) for row in anchors)
-        if isinstance(anchors, list)
+        sum(int(row.get("weight") or 0) for row in anchors if isinstance(row, dict))
+        if isinstance(anchors, list) and any(isinstance(row, dict) for row in anchors)
         else 100
     ) or 100
     troubleshooting = [str(value) for value in ticket.get("initial_facts") or []]
@@ -694,7 +778,12 @@ def _normalize_inline_service_desk(
         for step in stage_map.get(stage) or []
     )
     correct_failure_behavior = str(doc.get("correct_failure_behavior") or "").strip()
-    correct_outcomes = [str(value) for value in doc.get("correct_outcomes") or []]
+    correct_outcomes = [
+        str(value)
+        for value in doc.get("correct_outcomes") or doc.get("acceptable_outcomes") or []
+    ]
+    if doc.get("acceptable_outcomes") and not doc.get("correct_outcomes"):
+        notes.add("acceptable_outcomes -> correct_outcomes")
     if not correct_failure_behavior and not correct_outcomes:
         raise IntakeError(
             "inline Service Desk needs correct_failure_behavior or correct_outcomes",
@@ -1137,7 +1226,6 @@ class CurriculumIntakeProcessor:
         for field, evidence in (
             ("certification_version", version_evidence),
             ("module_key", module_evidence),
-            ("domain", domain_evidence),
         ):
             try:
                 value = _consensus(field, evidence)
@@ -1145,8 +1233,6 @@ class CurriculumIntakeProcessor:
                     version_key = value
                 elif field == "module_key":
                     module_key = value
-                else:
-                    domain = value
             except IntakeError as exc:
                 add("BLOCKING_METADATA", str(exc), file="package", field=field)
 
@@ -1158,13 +1244,17 @@ class CurriculumIntakeProcessor:
                 cert_key = owners[0]
                 version = registry[cert_key]["versions"][version_key]
                 explicit_cert = str(overview.get("certification") or "").strip()
-                if explicit_cert and explicit_cert != cert_key:
+                if explicit_cert and not _certification_matches(
+                    explicit_cert, cert_key, registry[cert_key]
+                ):
                     add(
                         "BLOCKING_METADATA",
                         f"overview certification {explicit_cert!r} conflicts with hierarchy {cert_key!r}",
                         file="module_overview.md",
                         field="certification",
                     )
+                elif explicit_cert and explicit_cert != cert_key:
+                    notes.add(f"certification {explicit_cert} -> {cert_key}")
                 elif not explicit_cert:
                     notes.add(f"certification resolved from {version_key} -> {cert_key}")
             else:
@@ -1174,6 +1264,13 @@ class CurriculumIntakeProcessor:
                     file="package",
                     field="certification_version",
                 )
+        if version:
+            try:
+                domain = _consensus(
+                    "domain", _normalize_domain_evidence(domain_evidence, version, notes)
+                )
+            except IntakeError as exc:
+                add("BLOCKING_METADATA", str(exc), file="package", field="domain")
         if version and domain not in version["domains"]:
             add(
                 "BLOCKING_METADATA",
@@ -1266,6 +1363,9 @@ class CurriculumIntakeProcessor:
                     "id": qid,
                     "objective_codes": codes,
                     "tags": [tag for tag in str(row.get("tags") or "").split(",") if tag],
+                    "question_type": qtype,
+                    "question_style": str(row.get("question_style") or ""),
+                    "category": str(row.get("category") or ""),
                 }
             )
             row.update(
@@ -1306,8 +1406,9 @@ class CurriculumIntakeProcessor:
             "ids": sorted(question_ids),
         }
 
-        # Quick Checks live in an optional workbook sheet in author-friendly packages.
+        # Quick Checks may live in a workbook sheet or the reviewed quality-rules map.
         quick_rows: list[dict] = []
+        quick_source = question_path.name
         if workbook and "Quick Checks" in workbook.sheetnames:
             values = list(workbook["Quick Checks"].iter_rows(values_only=True))
             if values:
@@ -1322,20 +1423,43 @@ class CurriculumIntakeProcessor:
                         {"quick_check_question_ids": "question_ids"}.get(header, header)
                     )
                 quick_rows = [dict(zip(headers, row)) for row in values[1:] if any(value is not None for value in row)]
-            for index, row in enumerate(quick_rows, 2):
-                ids = [value.strip() for value in str(row.get("question_ids") or "").split(",") if value.strip()]
-                missing = sorted(set(ids) - question_ids)
-                if missing:
-                    add("BLOCKING_METADATA", f"Quick Check references unknown question IDs: {missing}", file=question_path.name, field="question_ids", row=index)
-                if int(row.get("count") or 0) != len(ids):
-                    add("BLOCKING_METADATA", "Quick Check count does not match its question_ids", file=question_path.name, field="count", row=index)
-                notes.add(f"Quick Checks sheet row {index} -> lesson assessment metadata")
+        if not quick_rows:
+            try:
+                quick_rows = _quality_rule_quick_checks(root)
+                if quick_rows:
+                    quick_source = "question_bank_quality_rules.yaml"
+            except IntakeError as exc:
+                add("BLOCKING_METADATA", str(exc), file=exc.file, field=exc.field)
+        question_lesson = {
+            item["id"]: next(
+                (tag for tag in item["tags"] if tag in lesson_keys), None
+            )
+            for item in question_items
+        }
+        for index, row in enumerate(quick_rows, 2):
+            ids = [value.strip() for value in str(row.get("question_ids") or "").split(",") if value.strip()]
+            missing = sorted(set(ids) - question_ids)
+            if missing:
+                add("BLOCKING_METADATA", f"Quick Check references unknown question IDs: {missing}", file=quick_source, field="question_ids", row=index)
+            if int(row.get("count") or 0) != len(ids):
+                add("BLOCKING_METADATA", "Quick Check count does not match its question_ids", file=quick_source, field="count", row=index)
+            lesson_key = str(row.get("lesson_key") or "")
+            if lesson_key and lesson_key not in lesson_keys:
+                add("BLOCKING_METADATA", f"Quick Check references unknown lesson {lesson_key!r}", file=quick_source, field="lesson_key", row=index)
+            mismatched = sorted(
+                qid for qid in ids
+                if question_lesson.get(qid) and lesson_key and question_lesson[qid] != lesson_key
+            )
+            if mismatched:
+                add("BLOCKING_CONTENT", f"Quick Check questions belong to another lesson without an explicit review marker: {mismatched}", file=quick_source, field="question_ids", row=index)
+            notes.add(f"{quick_source} Quick Check row {index} -> lesson assessment metadata")
         if workbook:
             workbook.close()
         summary["quick_checks"] = {"count": len(quick_rows), "rows": quick_rows}
 
         # Resources use the canonical loader shape already; inspect all links.
         resource_rows = resources_doc.get("resources") or []
+        resource_keys: set[str] = set()
         for index, row in enumerate(resource_rows, 1):
             key = str(row.get("resource_key") or "").strip()
             resource_type = row.get("resource_type") or row.get("type")
@@ -1350,6 +1474,17 @@ class CurriculumIntakeProcessor:
                 value = resource_type if field == "resource_type" else row.get(field)
                 if not str(value or "").strip():
                     add("BLOCKING_METADATA", f"resource field {field!r} is required", file="resources.yaml", field=field, row=index, key=key or None)
+            if key in resource_keys:
+                add("BLOCKING_METADATA", f"duplicate resource_key {key!r}", file="resources.yaml", field="resource_key", row=index, key=key or None)
+            resource_keys.add(key)
+            if str(resource_type or "") not in RESOURCE_TYPE_VALUES:
+                add("BLOCKING_METADATA", f"resource type {resource_type!r} is invalid", file="resources.yaml", field="resource_type", row=index, key=key or None)
+            resource_version = str(row.get("certification_version") or "")
+            if not resource_version:
+                notes.add(f"resource {key}: blank certification_version -> {version_key}")
+            elif resource_version != str(version_key or ""):
+                add("BLOCKING_METADATA", f"resource certification_version {resource_version!r} conflicts with {version_key!r}", file="resources.yaml", field="certification_version", row=index, key=key or None)
+            seen_orders: dict[str, set[int]] = {}
             for link in row.get("links") or []:
                 lesson_key = str(link.get("lesson_key") or "")
                 if lesson_key and lesson_key not in lesson_keys:
@@ -1357,6 +1492,22 @@ class CurriculumIntakeProcessor:
                 linked_module = str(link.get("module_key") or "")
                 if linked_module and module_key and linked_module != module_key:
                     add("BLOCKING_METADATA", f"resource module {linked_module!r} conflicts with {module_key!r}", file="resources.yaml", field="module_key", row=index, key=key or None)
+                if link.get("required") is None:
+                    notes.add(f"resource {key}: blank required -> false")
+                elif not isinstance(link.get("required"), bool):
+                    add("BLOCKING_METADATA", "resource link required must be explicitly true or false", file="resources.yaml", field="required", row=index, key=key or None)
+                try:
+                    order = int(link.get("order") or 1)
+                    if link.get("order") is None:
+                        notes.add(f"resource {key}: blank order -> link order")
+                    target = lesson_key or linked_module
+                    if order < 1:
+                        raise ValueError
+                    if order in seen_orders.setdefault(target, set()):
+                        add("BLOCKING_METADATA", f"duplicate resource order {order} for {target!r}", file="resources.yaml", field="order", row=index, key=key or None)
+                    seen_orders[target].add(order)
+                except (TypeError, ValueError):
+                    add("BLOCKING_METADATA", "resource link order must be a positive integer", file="resources.yaml", field="order", row=index, key=key or None)
         summary["resources"] = {
             "count": len(resource_rows),
             "links": sum(len(row.get("links") or []) for row in resource_rows),
@@ -1502,7 +1653,26 @@ class CurriculumIntakeProcessor:
             if pools:
                 notes.add("module quiz pools -> question_blueprint ID-tag selectors")
             normalized_quiz = _normalize_quiz_blueprint(quiz_doc, notes)
+            for index, quota in enumerate(normalized_quiz.get("question_blueprint") or [], 1):
+                for code in [str(value) for value in quota.get("objective_codes") or []]:
+                    if valid_objectives and code not in valid_objectives:
+                        add("BLOCKING_CONTENT", f"objective {code!r} is not defined for {version_key}", file="module_quiz_blueprint.yaml", field="objective", row=index)
             categories = normalized_quiz.get("category_requirements") or []
+            for index, requirement in enumerate(categories, 1):
+                ids = {
+                    str(value)
+                    for field in ("question_ids", "pool")
+                    for value in requirement.get(field) or []
+                }
+                missing = sorted(ids - question_ids)
+                if missing:
+                    add("BLOCKING_METADATA", f"quiz category pool references unknown question IDs: {missing}", file="module_quiz_blueprint.yaml", field="pool", row=index)
+            unknown_exclusions = sorted(
+                set(str(value) for value in normalized_quiz.get("exclude_question_ids") or [])
+                - question_ids
+            )
+            if unknown_exclusions:
+                add("BLOCKING_METADATA", f"quiz exclusions reference unknown question IDs: {unknown_exclusions}", file="module_quiz_blueprint.yaml", field="exclusions")
             if categories:
                 try:
                     selected = select_constrained(
@@ -1513,6 +1683,7 @@ class CurriculumIntakeProcessor:
                             str(value)
                             for value in normalized_quiz.get("exclude_question_ids") or []
                         },
+                        selection_requirements=normalized_quiz.get("selection_requirements") or {},
                         rng=random.Random(0),
                     )
                     displayed = int(normalized_quiz.get("displayed_count") or 0)
@@ -1531,9 +1702,11 @@ class CurriculumIntakeProcessor:
             "title": quiz_doc.get("quiz_title") or quiz_doc.get("title"),
             "displayed_count": quiz_doc.get("displayed_count") or quiz_doc.get("question_count"),
             "pass_percent": quiz_doc.get("pass_percent") or quiz_doc.get("pass_threshold_percent"),
-            "pool_count": len(quiz_doc.get("pools") or quiz_doc.get("question_blueprint") or []),
-            "objective_distribution": quiz_doc.get("objective_distribution") or {},
-            "required_category_coverage": quiz_doc.get("required_category_coverage") or [],
+            "pool_count": len(quiz_doc.get("pools") or quiz_doc.get("question_blueprint") or quiz_doc.get("objective_targets") or []),
+            "objective_distribution": quiz_doc.get("objective_distribution") or quiz_doc.get("objective_targets") or {},
+            "required_category_coverage": quiz_doc.get("required_category_coverage") or quiz_doc.get("category_minimums") or [],
+            "exclusions": quiz_doc.get("exclude_question_ids") or quiz_doc.get("exclusions") or [],
+            "requirements": quiz_doc.get("selection_requirements") or quiz_doc.get("requirements") or {},
         }
 
         # Editorial status may be proven by unanimous row-level review records.
@@ -1641,7 +1814,6 @@ class CurriculumIntakeProcessor:
 
         version_key = _consensus("certification_version", version_evidence)
         module_key = _consensus("module_key", module_evidence)
-        domain = _consensus("domain", domain_evidence)
         registry = self._registry()
         owners = [cert for cert, item in registry.items() if version_key in item["versions"]]
         if len(owners) != 1:
@@ -1653,14 +1825,21 @@ class CurriculumIntakeProcessor:
             raise IntakeError(message, field="certification_version")
         cert_key = owners[0]
         explicit_cert = str(overview.get("certification") or "").strip()
-        if explicit_cert and explicit_cert != cert_key:
+        if explicit_cert and not _certification_matches(
+            explicit_cert, cert_key, registry[cert_key]
+        ):
             raise IntakeError(
                 f"conflicting structured certification values: module_overview.md={explicit_cert!r}, hierarchy={cert_key!r}",
                 field="certification",
             )
-        if not explicit_cert:
+        if explicit_cert and explicit_cert != cert_key:
+            notes.add(f"certification {explicit_cert} -> {cert_key}")
+        elif not explicit_cert:
             notes.add(f"certification resolved from {version_key} -> {cert_key}")
         version = registry[cert_key]["versions"][version_key]
+        domain = _consensus(
+            "domain", _normalize_domain_evidence(domain_evidence, version, notes)
+        )
         if domain not in version["domains"]:
             raise IntakeError(f"domain '{domain}' does not belong to '{version_key}'", field="domain")
 
@@ -1683,6 +1862,16 @@ class CurriculumIntakeProcessor:
             if str(meta.get("certification_version")) != version_key or str(meta.get("module")) != module_key:
                 raise IntakeError("lesson version/module does not match package metadata", file=path.name, field="module")
             meta["domain"] = str(meta.get("domain") or domain)
+            status = str(meta.get("status") or "draft").strip().lower()
+            if status == "ready":
+                meta["status"] = "published"
+                notes.add("lesson status ready -> published")
+            elif status not in {"draft", "published"}:
+                raise IntakeError(
+                    f"unsupported lesson status '{status}'",
+                    file=path.name,
+                    field="status",
+                )
             meta["importance"] = _normalize_scalar(meta["importance"], IMPORTANCE_ALIASES, notes)
             meta["learning_relationship"] = _normalize_scalar(meta["learning_relationship"], RELATIONSHIP_ALIASES, notes)
             lesson_objectives = [str(value) for value in meta.get("objectives") or []]
@@ -1699,7 +1888,14 @@ class CurriculumIntakeProcessor:
         )
         quiz_title = str(quiz.get("quiz_title") or "").strip()
         question_path = self._question_path(root)
-        _attach_quick_checks(lesson_meta_rows, _quick_check_rows(question_path), notes)
+        quick_rows = _quick_check_rows(question_path)
+        quick_source = question_path.name
+        if not quick_rows:
+            quick_rows = _quality_rule_quick_checks(root)
+            quick_source = "question_bank_quality_rules.yaml"
+        _attach_quick_checks(
+            lesson_meta_rows, quick_rows, notes, source_file=quick_source
+        )
         # Re-render after workbook Quick Checks have been attached to normalized
         # lesson frontmatter. Approved Markdown on disk remains untouched.
         lessons = [
@@ -1889,18 +2085,20 @@ class CurriculumIntakeProcessor:
             raise IntakeError("pass_percent must be between 1 and 100", file="module_quiz_blueprint.yaml", field="pass_percent")
         categories = quiz.get("category_requirements") or []
         if categories:
+            def tagged(tags: list[str], prefix: str) -> str:
+                return next(
+                    (tag.removeprefix(prefix) for tag in tags if tag.startswith(prefix)),
+                    "",
+                )
+
             items = [
                 {
-                    "id": next(
-                        (
-                            tag
-                            for tag in str(row.get("tags") or "").split(",")
-                            if re.fullmatch(r"Q\d+", tag)
-                        ),
-                        str(index),
-                    ),
+                    "id": str(index),
                     "objective_codes": parse_objective_codes(row.get("objective_code")),
-                    "tags": [tag for tag in str(row.get("tags") or "").split(",") if tag],
+                    "tags": (tags := [tag for tag in str(row.get("tags") or "").split(",") if tag]),
+                    "question_type": str(row.get("question_type") or ""),
+                    "question_style": tagged(tags, "question_style:"),
+                    "category": tagged(tags, "category:"),
                 }
                 for index, row in enumerate(questions)
             ]
@@ -1912,6 +2110,7 @@ class CurriculumIntakeProcessor:
                     excluded_ids={
                         str(value) for value in quiz.get("exclude_question_ids") or []
                     },
+                    selection_requirements=quiz.get("selection_requirements") or {},
                     rng=random.Random(0),
                 )
             except ConstraintSelectionError as exc:
@@ -2094,6 +2293,7 @@ class CurriculumIntakeProcessor:
                 "question_blueprint": deepcopy(quiz.get("question_blueprint") or []),
                 "category_requirements": deepcopy(quiz.get("category_requirements") or []),
                 "exclude_question_ids": deepcopy(quiz.get("exclude_question_ids") or []),
+                "selection_requirements": deepcopy(quiz.get("selection_requirements") or {}),
             },
             "display_order": next_order,
         })

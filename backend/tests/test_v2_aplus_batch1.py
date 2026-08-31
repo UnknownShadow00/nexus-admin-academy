@@ -98,6 +98,10 @@ def test_entry_and_continue_are_generic_across_modules(db):
     assert keys == [
         "module.aplus.core1.ip_configuration",
         "module.aplus.core1.hardware_support",
+        "module.aplus.core1.mobile_device_support",
+        "module.aplus.core1.network_services_troubleshooting",
+        "module.aplus.core1.hardware_fault_isolation",
+        "module.aplus.core1.printers_mfds",
         "module.aplus.core2.windows_support_tools",
         "module.aplus.core2.windows_troubleshooting",
         "module.aplus.core2.service_desk_workflow",
@@ -137,14 +141,14 @@ def test_objective_coverage_after_batch_is_transparent(db):
     core1 = certification_version_coverage(db, "comptia_aplus_220-1201")
     core2 = certification_version_coverage(db, "comptia_aplus_220-1202")
     assert {row["objective_code"] for row in core1["covered"]} == {
-        "1.1", "1.2", "1.3", "2.1", "2.5", "3.4", "3.5", "5.1", "5.4", "5.7"
+        "1.1", "1.2", "1.3", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6",
+        "2.7", "2.8", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7",
+        "3.8", "5.1", "5.2", "5.3", "5.4", "5.5", "5.6", "5.7",
     }
     assert {row["objective_code"] for row in core2["covered"]} == {
         "1.1", "1.2", "1.6", "3.1", "4.1", "4.2", "4.7"
     }
-    assert {row["objective_code"] for row in core1["uncovered"]} == {
-        "2.2", "3.1", "4.1", "4.2"
-    }
+    assert {row["objective_code"] for row in core1["uncovered"]} == {"4.1", "4.2"}
     assert {row["objective_code"] for row in core2["uncovered"]} == {
         "2.1", "2.4", "2.7", "3.2", "3.4"
     }

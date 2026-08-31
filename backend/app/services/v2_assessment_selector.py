@@ -19,7 +19,7 @@ def _matches_category(item: dict, requirement: dict) -> bool:
         for value in requirement.get(field) or []
     }
     wanted_tags = {str(value) for value in requirement.get("tags_any") or []}
-    return item_id in ids or bool(tags & wanted_tags)
+    return item_id in ids or bool(tags & ids) or bool(tags & wanted_tags)
 
 
 def _matches_quota(item: dict, quota: dict) -> bool:
@@ -38,6 +38,7 @@ def select_constrained(
     category_requirements: list[dict],
     *,
     excluded_ids: set[str] | None = None,
+    selection_requirements: dict | None = None,
     rng=None,
 ) -> list[dict]:
     """Select one exact solution without retry-based randomness.
@@ -49,6 +50,7 @@ def select_constrained(
     if not quotas:
         raise ConstraintSelectionError("A constrained quiz needs at least one objective quota.")
     rng = rng or random.SystemRandom()
+    selection_requirements = selection_requirements or {}
     excluded_ids = {str(value) for value in excluded_ids or set()}
     candidates = [
         item
@@ -75,12 +77,50 @@ def select_constrained(
         tuple(_matches_category(item, requirement) for requirement in category_requirements)
         for item in candidates
     ]
+    scenario_minimum = int(
+        selection_requirements.get("scenario_application_or_reasoning_minimum") or 0
+    )
+    multi_minimum = int(selection_requirements.get("multi_select_minimum") or 0)
+    max_same_category = int(
+        selection_requirements.get("max_same_narrow_category") or 0
+    )
+    narrow_categories = tuple(
+        sorted({str(item.get("category") or "") for item in candidates if item.get("category")})
+    )
+
+    def is_scenario(item: dict) -> bool:
+        style = str(item.get("question_style") or "").casefold()
+        return "scenario" in style or "reasoning" in style or "troubleshooting" in style
+
+    scenario_matches = tuple(is_scenario(item) for item in candidates)
+    multi_matches = tuple(
+        str(item.get("question_type") or "").casefold() in {"multi", "multi_select", "multi-select"}
+        for item in candidates
+    )
+    candidate_category_indexes = tuple(
+        narrow_categories.index(str(item.get("category")))
+        if item.get("category") in narrow_categories
+        else None
+        for item in candidates
+    )
 
     @lru_cache(maxsize=None)
-    def solve(index: int, remaining: tuple[int, ...], covered: tuple[int, ...]):
+    def solve(
+        index: int,
+        remaining: tuple[int, ...],
+        covered: tuple[int, ...],
+        scenario_count: int,
+        multi_count: int,
+        narrow_counts: tuple[int, ...],
+    ):
         slots_needed = sum(remaining)
         if slots_needed == 0:
-            return () if all(value >= minimum for value, minimum in zip(covered, minimums)) else None
+            requirements_met = (
+                scenario_count >= scenario_minimum
+                and multi_count >= multi_minimum
+                and all(value >= minimum for value, minimum in zip(covered, minimums))
+            )
+            return () if requirements_met else None
         if index >= len(candidates) or len(candidates) - index < slots_needed:
             return None
         # If a quota has fewer remaining matching candidates than required,
@@ -92,24 +132,59 @@ def select_constrained(
             missing = max(0, minimum - covered[category_index])
             if missing and sum(matches[category_index] for matches in category_matches[index:]) < missing:
                 return None
+        if scenario_count + sum(scenario_matches[index:]) < scenario_minimum:
+            return None
+        if multi_count + sum(multi_matches[index:]) < multi_minimum:
+            return None
 
         assignments = [
             quota_index for quota_index in quota_matches[index] if remaining[quota_index] > 0
         ]
         rng.shuffle(assignments)
         for quota_index in assignments:
+            category_index = candidate_category_indexes[index]
+            if (
+                max_same_category
+                and category_index is not None
+                and narrow_counts[category_index] >= max_same_category
+            ):
+                continue
             next_remaining = list(remaining)
             next_remaining[quota_index] -= 1
             next_covered = tuple(
                 min(minimums[cat], covered[cat] + int(category_matches[index][cat]))
                 for cat in range(len(minimums))
             )
-            tail = solve(index + 1, tuple(next_remaining), next_covered)
+            next_narrow = list(narrow_counts)
+            if category_index is not None:
+                next_narrow[category_index] += 1
+            tail = solve(
+                index + 1,
+                tuple(next_remaining),
+                next_covered,
+                scenario_count + int(scenario_matches[index]),
+                multi_count + int(multi_matches[index]),
+                tuple(next_narrow),
+            )
             if tail is not None:
                 return ((index, quota_index), *tail)
-        return solve(index + 1, remaining, covered)
+        return solve(
+            index + 1,
+            remaining,
+            covered,
+            scenario_count,
+            multi_count,
+            narrow_counts,
+        )
 
-    solution = solve(0, remaining_start, tuple(0 for _ in minimums))
+    solution = solve(
+        0,
+        remaining_start,
+        tuple(0 for _ in minimums),
+        0,
+        0,
+        tuple(0 for _ in narrow_categories),
+    )
     if solution is None:
         raise ConstraintSelectionError(
             "Blueprint cannot satisfy all objective quotas and category minimums with unique questions."

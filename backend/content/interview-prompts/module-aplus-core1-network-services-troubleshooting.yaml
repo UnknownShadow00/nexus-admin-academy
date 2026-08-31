@@ -1,0 +1,90 @@
+prompts:
+- prompt_key: explain.aplus.network.router_switch_ap
+  title: Router vs Switch vs Access Point
+  objectives:
+  - '2.5'
+  prompt: Explain the difference between a router, a switch, and a wireless access
+    point to a new help-desk technician.
+  expected_concepts:
+  - router moves traffic between networks/default gateway role
+  - switch connects devices within a LAN
+  - access point provides Wi-Fi access to a wired LAN
+  - combined SOHO devices may contain all three functions
+  minimum_concepts: 3
+  rubric:
+    approved_text: 1 point per expected concept; pass 3/4. Equivalent plain-language
+      descriptions accepted.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module7-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.network_services_troubleshooting
+  domain: '2.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.network.dns_dhcp
+  title: DNS vs DHCP
+  objectives:
+  - '2.3'
+  - '2.4'
+  prompt: A user asks what DNS and DHCP do. Explain each and give one symptom that
+    could point to each service.
+  expected_concepts:
+  - DNS resolves names
+  - DHCP provides client IP configuration leases
+  - DNS failure can allow IP reachability while names fail
+  - DHCP failure can produce missing/invalid configuration or APIPA
+  minimum_concepts: 3
+  rubric:
+    approved_text: Pass with 3/4 concepts including both service definitions.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module7-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.network_services_troubleshooting
+  domain: '2.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.network.wifi_isolation
+  title: Intermittent Wi-Fi Investigation
+  objectives:
+  - '2.2'
+  - '5.5'
+  prompt: Explain how you would investigate Wi-Fi that disconnects only in one part
+    of an office.
+  expected_concepts:
+  - compare location/scope
+  - compare multiple clients or known-good device
+  - identify common AP
+  - inspect band/channel/interference/signal evidence
+  - verify after change in original location
+  minimum_concepts: 4
+  rubric:
+    approved_text: 1 point per concept; pass 4/5. Do not require a specific vendor
+      tool name.
+    minimum_concepts: 4
+    must_include: []
+  rubric_version: module7-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.network_services_troubleshooting
+  domain: '2.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.network.toner_vs_tester
+  title: Toner/Probe vs Cable Tester
+  objectives:
+  - '2.8'
+  prompt: Explain when you would use a toner/probe and when you would use a cable
+    tester.
+  expected_concepts:
+  - toner/probe traces/identifies an unlabeled cable
+  - cable tester checks continuity/wiring
+  - they answer different physical-layer questions
+  minimum_concepts: 2
+  rubric:
+    approved_text: Pass 2/3 concepts, but must correctly distinguish tracing from
+      testing continuity/wiring.
+    minimum_concepts: 2
+    must_include: []
+  rubric_version: module7-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.network_services_troubleshooting
+  domain: '2.0'
+  importance: working_knowledge

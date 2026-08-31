@@ -1,0 +1,220 @@
+scenarios:
+- stable_key: service_desk.aplus.network.loading_dock_wifi
+  title: Loading Dock Scanners Drop Wi-Fi Every Few Minutes
+  description: Handheld scanners at two loading lanes disconnect from the warehouse
+    Wi-Fi every few minutes. Restarting one scanner did not fix it.
+  category: service_desk
+  difficulty: 1
+  definition:
+    id: SERVICE_DESK.APLUS.NETWORK.LOADING_DOCK_WIFI
+    title: Loading Dock Scanners Drop Wi-Fi Every Few Minutes
+    slug: service_desk.aplus.network.loading_dock_wifi
+    category: service_desk
+    priority: critical
+    difficulty: easy
+    pointValue: 100
+    explanation: 'Resolved through an approved radio/AP/client correction and sustained
+      verification.
+
+      Escalated to network/infrastructure team with AP/channel/PoE/uplink evidence
+      and a documented temporary workflow.'
+    description:
+      issue: Handheld scanners at two loading lanes disconnect from the warehouse
+        Wi-Fi every few minutes. Restarting one scanner did not fix it.
+      reportedByLine: Noah Vance
+      businessImpact: Outbound orders are being recorded on paper, slowing dispatch
+        and creating re-entry work. Wired packing stations remain connected.
+      troubleshooting:
+      - Affected scanners use Android Enterprise.
+      - Wired packing stations in the same area are stable.
+      - Issue expanded from one loading lane to a second.
+      - A scanner is stable when used in another warehouse area.
+      - Confirm exact locations/devices/time pattern and whether all affected scanners
+        share an AP/band.
+      - Compare a known-good scanner and a scanner moved between affected/normal locations.
+      - Inspect Wi-Fi analyzer/AP health information available to role.
+      - Check AP PoE/uplink/link evidence before assuming all client radios failed.
+      - 'State a ranked hypothesis supported by scope: location/AP/radio interference
+        or AP/uplink/power before global ISP/DNS.'
+      - Keep authentication/DHCP as secondary hypotheses only if lease/auth evidence
+        supports them.
+      - Apply only approved low-risk client/radio/configuration action within role
+        OR escalate infrastructure/channel/PoE/switch work with evidence.
+      - Do not factory-reset APs or make unauthorized channel/VLAN/firewall changes.
+      - Test scanners in the originally affected loading lanes long enough to reproduce
+        the prior failure window.
+      - Confirm business workflow connectivity, not merely an SSID association icon.
+      - Record scope, AP/location comparisons, evidence, action/escalation, and verification.
+      - Give dispatch a plain-language status/update and workaround if escalation
+        is pending.
+    requester:
+      name: Noah Vance
+      department: Distribution
+      email: Not specified by approved curriculum package
+      contact: Not specified by approved curriculum package
+      location: Not specified by approved curriculum package
+    device:
+      assetTag: SERVICE_DESK.APLUS.NETWORK.LOADING_DOCK_WIFI
+      deviceName: Not specified by approved curriculum package
+      kind: laptop
+      operatingSystem: Not specified by approved curriculum package
+      state: active
+    sla:
+      dueAt: Not specified by approved curriculum package
+      target: High/critical operational impact; restore or escalate quickly with evidence.
+    initialWorldState:
+      directoryOverlaySeeds: {}
+      assetOverlaySeeds: {}
+      chatMessageSeeds: []
+    objectives:
+    - id: professional-pending-or-completed-outcome
+      description: 'Resolved through an approved radio/AP/client correction and sustained
+        verification.
+
+        Escalated to network/infrastructure team with AP/channel/PoE/uplink evidence
+        and a documented temporary workflow.'
+      predicateType: action_event_occurred
+      predicateParams:
+        actionType: ticket.add_note
+        payloadMatch:
+          ticketId: SERVICE_DESK.APLUS.NETWORK.LOADING_DOCK_WIFI
+      required: true
+      pointValue: 100
+    requiredActions:
+    - id: document-professional-outcome
+      actionType: ticket.add_note
+      description: 'Resolved through an approved radio/AP/client correction and sustained
+        verification.
+
+        Escalated to network/infrastructure team with AP/channel/PoE/uplink evidence
+        and a documented temporary workflow.'
+      payloadMatch:
+        ticketId: SERVICE_DESK.APLUS.NETWORK.LOADING_DOCK_WIFI
+    forbiddenActions: []
+    hints:
+    - id: hint-01
+      order: 1
+      pointPenalty: 0
+      text: The wired packing stations are an important control group.
+    - id: hint-02
+      order: 2
+      pointPenalty: 5
+      text: 'If the same scanner works elsewhere, ask what changed: location/AP/radio
+        path.'
+    - id: hint-03
+      order: 3
+      pointPenalty: 5
+      text: Association to an SSID is not the same as stable application connectivity.
+    curriculum:
+      scenario_key: service_desk.aplus.network.loading_dock_wifi
+      title: Loading Dock Scanners Drop Wi-Fi Every Few Minutes
+      module_key: module.aplus.core1.network_services_troubleshooting
+      objectives:
+      - '2.2'
+      - '2.5'
+      - '2.8'
+      - '5.5'
+      reinforces:
+      - '2.4'
+      - '2.6'
+      mode: learning
+      requester:
+        name: Noah Vance
+        department: Distribution
+        context: Morning dispatch lead reporting multiple affected handheld scanners.
+      complaint: Handheld scanners at two loading lanes disconnect from the warehouse
+        Wi-Fi every few minutes. Restarting one scanner did not fix it.
+      business_impact: Outbound orders are being recorded on paper, slowing dispatch
+        and creating re-entry work. Wired packing stations remain connected.
+      priority_guidance: High/critical operational impact; restore or escalate quickly
+        with evidence.
+      known_environment:
+      - Affected scanners use Android Enterprise.
+      - Wired packing stations in the same area are stable.
+      - Issue expanded from one loading lane to a second.
+      - A scanner is stable when used in another warehouse area.
+      stages:
+      - stage: Investigation
+        expectations:
+        - Confirm exact locations/devices/time pattern and whether all affected scanners
+          share an AP/band.
+        - Compare a known-good scanner and a scanner moved between affected/normal
+          locations.
+        - Inspect Wi-Fi analyzer/AP health information available to role.
+        - Check AP PoE/uplink/link evidence before assuming all client radios failed.
+      - stage: Diagnosis
+        expectations:
+        - 'State a ranked hypothesis supported by scope: location/AP/radio interference
+          or AP/uplink/power before global ISP/DNS.'
+        - Keep authentication/DHCP as secondary hypotheses only if lease/auth evidence
+          supports them.
+      - stage: Remediation
+        expectations:
+        - Apply only approved low-risk client/radio/configuration action within role
+          OR escalate infrastructure/channel/PoE/switch work with evidence.
+        - Do not factory-reset APs or make unauthorized channel/VLAN/firewall changes.
+      - stage: Verification
+        expectations:
+        - Test scanners in the originally affected loading lanes long enough to reproduce
+          the prior failure window.
+        - Confirm business workflow connectivity, not merely an SSID association icon.
+      - stage: Documentation
+        expectations:
+        - Record scope, AP/location comparisons, evidence, action/escalation, and
+          verification.
+        - Give dispatch a plain-language status/update and workaround if escalation
+          is pending.
+      diagnosis_anchor: Evidence should point toward a location/AP/radio or AP uplink/power
+        path. Exact root cause may vary with supplied randomized evidence; the grader
+        should reward correct isolation and supported escalation.
+      acceptable_outcomes:
+      - Resolved through an approved radio/AP/client correction and sustained verification.
+      - Escalated to network/infrastructure team with AP/channel/PoE/uplink evidence
+        and a documented temporary workflow.
+      hints:
+      - The wired packing stations are an important control group.
+      - 'If the same scanner works elsewhere, ask what changed: location/AP/radio
+        path.'
+      - Association to an SSID is not the same as stable application connectivity.
+      grading_anchors:
+      - Investigation before remediation
+      - Uses location/client/AP comparisons
+      - Uses appropriate Wi-Fi/infrastructure evidence
+      - No unauthorized infrastructure change
+      - Verification in original affected lanes
+      - Clear technician + user-facing documentation
+    rubric_dimensions:
+      Investigation:
+      - Confirm exact locations/devices/time pattern and whether all affected scanners
+        share an AP/band.
+      - Compare a known-good scanner and a scanner moved between affected/normal locations.
+      - Inspect Wi-Fi analyzer/AP health information available to role.
+      - Check AP PoE/uplink/link evidence before assuming all client radios failed.
+      Diagnosis:
+      - 'State a ranked hypothesis supported by scope: location/AP/radio interference
+        or AP/uplink/power before global ISP/DNS.'
+      - Keep authentication/DHCP as secondary hypotheses only if lease/auth evidence
+        supports them.
+      Remediation:
+      - Apply only approved low-risk client/radio/configuration action within role
+        OR escalate infrastructure/channel/PoE/switch work with evidence.
+      - Do not factory-reset APs or make unauthorized channel/VLAN/firewall changes.
+      Verification:
+      - Test scanners in the originally affected loading lanes long enough to reproduce
+        the prior failure window.
+      - Confirm business workflow connectivity, not merely an SSID association icon.
+      Documentation:
+      - Record scope, AP/location comparisons, evidence, action/escalation, and verification.
+      - Give dispatch a plain-language status/update and workaround if escalation
+        is pending.
+    grading_anchors:
+    - Investigation before remediation
+    - Uses location/client/AP comparisons
+    - Uses appropriate Wi-Fi/infrastructure evidence
+    - No unauthorized infrastructure change
+    - Verification in original affected lanes
+    - Clear technician + user-facing documentation
+    successful_professional_outcomes:
+    - Resolved through an approved radio/AP/client correction and sustained verification.
+    - Escalated to network/infrastructure team with AP/channel/PoE/uplink evidence
+      and a documented temporary workflow.
