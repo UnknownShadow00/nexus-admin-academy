@@ -113,9 +113,9 @@ def test_load_is_idempotent(db):
     for entity in ("lesson", "resource", "resource_link", "interview_prompt", "lab_template", "question"):
         assert c3["by_entity"].get(entity, {}).get("created", 0) == 0
         assert c3["by_entity"].get(entity, {}).get("updated", 0) == 0
-    assert c3["by_entity"]["question"]["unchanged"] == 292
+    assert c3["by_entity"]["question"]["unchanged"] == 322
     assert db.query(Question).filter(Question.quiz_id == _quiz_id(db)).count() == 40
-    assert c1["by_entity"]["question"]["created"] == 292
+    assert c1["by_entity"]["question"]["created"] == 322
 
 
 def _quiz_id(db) -> int:
@@ -296,15 +296,14 @@ def test_lesson_objectives_use_only_real_codes(loaded):
     assert MODULE_OBJECTIVES <= real
 
 
-def test_objective_coverage_counts_this_module_only(loaded):
+def test_objective_coverage_includes_completed_core1_catalog(loaded):
     cov = certification_version_coverage(loaded, VERSION_KEY)
     covered = {c["objective_code"] for c in cov["covered"]}
     # This module's three objectives are covered...
     assert MODULE_OBJECTIVES <= covered
-    # ...and objectives that belong to unrelated domains are still uncovered.
-    uncovered = {c["objective_code"] for c in cov["uncovered"]}
-    assert {"4.1", "4.2"} <= uncovered
-    assert cov["coverage_percent"] < 100  # NOT aiming for full A+ coverage
+    # Module 10 closes the remaining Core 1 lesson coverage.
+    assert {c["objective_code"] for c in cov["uncovered"]} == set()
+    assert cov["coverage_percent"] == 100
 
 
 # --------------------------------------------------------------------------- #

@@ -1074,6 +1074,161 @@ versions:
       title: Explain
       pass_percent: 70
       display_order: 9
+  - module_key: module.aplus.core1.virtualization_cloud_foundations
+    title: Virtualization & Cloud Foundations
+    skill_promise: null
+    certification_domain_key: '4.0'
+    importance_hint: working_knowledge
+    display_order: 9
+    assessments:
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.qc.vm-use-cases
+      assessment_role: quick_check
+      title: Quick Check — Why Virtualize? VMs, Sandboxes & Application Isolation
+      lesson_key: lesson.aplus.virtualization_cloud.vm_use_cases
+      quiz_ref: Module 10 — Virtualization & Cloud Foundations Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M10Q001
+        - M10Q002
+        - M10Q003
+        - M10Q025
+      display_order: 1
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.qc.hypervisors-resources
+      assessment_role: quick_check
+      title: Quick Check — Hypervisors, Host Resources & Safe VM Planning
+      lesson_key: lesson.aplus.virtualization_cloud.hypervisors_resources
+      quiz_ref: Module 10 — Virtualization & Cloud Foundations Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M10Q004
+        - M10Q005
+        - M10Q006
+        - M10Q026
+      display_order: 2
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.qc.vdi-containers
+      assessment_role: quick_check
+      title: Quick Check — VDI, Containers & Choosing the Right Virtualization Model
+      lesson_key: lesson.aplus.virtualization_cloud.vdi_containers
+      quiz_ref: Module 10 — Virtualization & Cloud Foundations Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M10Q007
+        - M10Q008
+        - M10Q009
+        - M10Q023
+      display_order: 3
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.qc.cloud-models
+      assessment_role: quick_check
+      title: Quick Check — Cloud Deployment & Service Models
+      lesson_key: lesson.aplus.virtualization_cloud.cloud_models
+      quiz_ref: Module 10 — Virtualization & Cloud Foundations Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M10Q010
+        - M10Q011
+        - M10Q012
+        - M10Q028
+      display_order: 4
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.qc.cloud-characteristics
+      assessment_role: quick_check
+      title: Quick Check — Cloud Characteristics & Support Decisions
+      lesson_key: lesson.aplus.virtualization_cloud.cloud_characteristics
+      quiz_ref: Module 10 — Virtualization & Cloud Foundations Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M10Q013
+        - M10Q014
+        - M10Q015
+        - M10Q029
+      display_order: 5
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.module_quiz
+      assessment_role: module_quiz
+      title: Module 10 — Virtualization & Cloud Foundations Quiz
+      quiz_ref: Module 10 — Virtualization & Cloud Foundations Quiz
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '4.1'
+          count: 6
+        - objective_codes:
+          - '4.2'
+          count: 6
+        category_requirements:
+        - category: virtualization_use_cases
+          minimum: 2
+          question_ids:
+          - M10Q001
+          - M10Q002
+          - M10Q003
+          - M10Q019
+          - M10Q025
+        - category: hypervisors_resources
+          minimum: 2
+          question_ids:
+          - M10Q004
+          - M10Q005
+          - M10Q006
+          - M10Q017
+          - M10Q018
+          - M10Q026
+        - category: vdi_containers
+          minimum: 2
+          question_ids:
+          - M10Q007
+          - M10Q008
+          - M10Q009
+          - M10Q023
+        - category: cloud_models_services
+          minimum: 2
+          question_ids:
+          - M10Q010
+          - M10Q011
+          - M10Q012
+          - M10Q020
+          - M10Q024
+          - M10Q028
+        - category: cloud_characteristics_support
+          minimum: 3
+          question_ids:
+          - M10Q013
+          - M10Q014
+          - M10Q015
+          - M10Q016
+          - M10Q021
+          - M10Q022
+          - M10Q027
+          - M10Q029
+        exclude_question_ids:
+        - M10Q030
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 6
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 6
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.practical
+      assessment_role: practical
+      title: Virtualization & Cloud Decision Lab
+      lab_ref: Virtualization & Cloud Decision Lab
+      pass_percent: 70
+      display_order: 7
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 8
 - version_key: comptia_aplus_220-1202
   label: CompTIA A+ Core 2 (220-1202)
   exam_codes:

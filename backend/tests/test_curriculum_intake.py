@@ -14,6 +14,7 @@ import yaml
 
 from app.services.curriculum_intake import (
     CurriculumIntakeProcessor,
+    _normalize_inline_service_desk,
     _normalize_question_row,
     _quick_check_rows,
     _split_frontmatter,
@@ -381,6 +382,25 @@ def test_package_runtime_validation_rejects_its_own_unresolved_reference(intake)
     result = processor.process(mode="check")[0]
     assert result["status"] == "INVALID"
     assert "incoming.module_quiz" in result["errors"][0]["message"]
+    assert result["package_hash"]
+    assert result["classification"] == "NEW"
+    assert result["manifest"]["module_key"] == "module.test.client_support"
+    assert result["component_summary"]["questions"]["count"] == 20
+    assert result["normalizations"]
+
+
+def test_runtime_exception_preserves_complete_validation_report(intake):
+    processor, dropbox, *_ = intake
+    _package(dropbox)
+    processor.runtime_validator = lambda _content, _manifest: (_ for _ in ()).throw(
+        RuntimeError("published scenario requires progressive hints")
+    )
+    result = processor.process(mode="check")[0]
+    assert result["status"] == "INVALID"
+    assert result["package_hash"]
+    assert result["classification"] == "NEW"
+    assert result["component_summary"]["lessons"]["count"] == 1
+    assert result["errors"][0]["field"] == "runtime_validation"
 
 
 def test_valid_folder_discovery(intake):
@@ -860,7 +880,7 @@ def test_plain_text_free_response_rubric_is_wrapped_without_rewriting():
             "Type": "free_response",
             "Prompt": "Explain the safe workflow.",
             "Expected Concepts": "safety; verification",
-            "Minimum Concepts": "2 of 2",
+            "Minimum Concepts": "At least 2 concepts",
             "Rubric": approved,
             "Rubric Version": "reviewed-v1",
         },
@@ -869,6 +889,80 @@ def test_plain_text_free_response_rubric_is_wrapped_without_rewriting():
     assert row["rubric"] == {"approved_text": approved}
     assert row["min_concepts_for_pass"] == 2
     assert "plain-text free-response rubric -> rubric.approved_text" in notes
+
+
+def test_constructed_response_rubric_supplies_blank_feedback_without_new_content():
+    approved = "Full credit for elasticity or clearly equivalent wording."
+    notes: set[str] = set()
+    row = _normalize_question_row(
+        {
+            "Type": "short_answer",
+            "Question": "What term describes scaling with demand?",
+            "Expected Concepts": "elasticity",
+            "Minimum Concepts": "1",
+            "Rubric": approved,
+            "Explanation": None,
+        },
+        notes,
+    )
+    assert row["explanation"] == approved
+    assert row["rubric"] == {"approved_text": approved}
+    assert "blank constructed-response explanation -> approved rubric text" in notes
+    assert "plain-text short-answer rubric -> rubric.approved_text" in notes
+
+
+def test_required_action_service_desk_shape_maps_without_inventing_content():
+    approved = {
+        "scenario_key": "sd.test.required_actions",
+        "title": "Mapped drive is stale",
+        "module_key": "module.test.client_support",
+        "objectives": ["1.7"],
+        "reinforces": ["Module 5 documentation/authorization"],
+        "requester": {"name": "Jordan", "department": "Projects"},
+        "device": {"name": "PROJ-LT-22", "os": "Windows 11 Pro"},
+        "ticket": {
+            "summary": "Mapped drive fails after VPN reconnect",
+            "business_impact": "The project share is unavailable.",
+            "reported_symptoms": ["VPN is connected"],
+            "starting_evidence": ["The direct UNC path opens"],
+        },
+        "stages": [
+            {"stage": stage, "required_actions": [action]}
+            for stage, action in (
+                ("Investigation", "Inspect the existing mapping"),
+                ("Diagnosis", "Identify the stale path"),
+                ("Remediation", "Remap only when authorized"),
+                ("Verification", "Retest the original workflow"),
+                ("Documentation", "Record evidence and outcome"),
+            )
+        ],
+        "correct_outcomes": ["Authorized remap or complete handoff"],
+    }
+    notes: set[str] = set()
+    key, scenario = _normalize_inline_service_desk(
+        approved,
+        "module.test.client_support",
+        {"1.7"},
+        notes,
+    )
+    definition = scenario["definition"]
+    assert key == approved["scenario_key"]
+    assert definition["description"]["issue"] == approved["ticket"]["summary"]
+    assert definition["description"]["reportedByLine"] == "Jordan"
+    assert definition["device"]["deviceName"] == "PROJ-LT-22"
+    assert definition["device"]["operatingSystem"] == "Windows 11 Pro"
+    assert definition["hints"] == []
+    assert definition["rubric_dimensions"]["Diagnosis"] == ["Identify the stale path"]
+    assert definition["grading_anchors"] == [
+        "Inspect the existing mapping",
+        "Identify the stale path",
+        "Remap only when authorized",
+        "Retest the original workflow",
+        "Record evidence and outcome",
+    ]
+    assert definition["curriculum"] == approved
+    assert "Service Desk required_actions -> rubric dimension expectations" in notes
+    assert "Service Desk stage actions -> grading_anchors" in notes
 
 
 def test_optional_resource_can_link_to_module_without_lesson(intake):

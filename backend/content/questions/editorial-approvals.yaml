@@ -56,3 +56,10 @@ approvals:
   editorial_status: validated
   reviewed_at: '2026-08-31'
   review_note: External approved package e8fe208b0f469484c1e5ec679d0b291bfb9d865a50899e001f1959044a5d26a1
+- filename: module-aplus-core1-virtualization-cloud-foundations.csv
+  quiz_title: Module 10 — Virtualization & Cloud Foundations Quiz
+  sha256: 8d9a5f0cbe29abb4073a7aacf00166706a4222d3ed12cfb386ce4a74273814bc
+  reviewed_question_count: 30
+  editorial_status: validated
+  reviewed_at: '2026-08-31'
+  review_note: External approved package ff879a2779425e93467558c32aa4f8767ae4a1f11ec710dcb53e3f394f0d867d

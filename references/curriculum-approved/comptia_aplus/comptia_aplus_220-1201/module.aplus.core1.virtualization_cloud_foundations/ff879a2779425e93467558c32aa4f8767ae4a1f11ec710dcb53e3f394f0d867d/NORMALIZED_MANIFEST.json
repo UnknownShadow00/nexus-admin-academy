@@ -1,0 +1,78 @@
+{
+  "certification_key": "comptia_aplus",
+  "domain_key": "4.0",
+  "explain_count": 4,
+  "lesson_count": 5,
+  "lessons": [
+    "lesson.aplus.virtualization_cloud.cloud_characteristics",
+    "lesson.aplus.virtualization_cloud.cloud_models",
+    "lesson.aplus.virtualization_cloud.hypervisors_resources",
+    "lesson.aplus.virtualization_cloud.vdi_containers",
+    "lesson.aplus.virtualization_cloud.vm_use_cases"
+  ],
+  "manifest_version": 1,
+  "module_key": "module.aplus.core1.virtualization_cloud_foundations",
+  "module_title": "Virtualization & Cloud Foundations",
+  "objectives": [
+    "4.1",
+    "4.2"
+  ],
+  "original_filename": "Nexus_APlus_Module_10_Final.zip",
+  "practical_present": true,
+  "provenance": {
+    "module_key": "module.aplus.core1.virtualization_cloud_foundations",
+    "official_sources": [
+      {
+        "permission_status": "reference",
+        "source_name": "CompTIA A+ 220-1201 V15 Exam Objectives",
+        "source_url": "https://assets.ctfassets.net/82ripq7fjls2/1oSdlyujpaX3GrM0rir6Ge/91afb2be72785281e8fb4c0d9a70c6f4/CompTIA-A-220-1201-Exam-Objectives-3.0.pdf",
+        "usage": "Authoritative 4.1/4.2 scope."
+      }
+    ],
+    "question_bank_source_mix": {
+      "existing_nexus_concept_adaptations": 6,
+      "nexus_authored_source_guided_current_items": 15,
+      "owner_permitted_examcompass_source_guided_rewrites": 9,
+      "total": 30
+    },
+    "question_sources": [
+      {
+        "permission_status": "Nexus-owned/current historical material",
+        "source_name": "Existing Nexus virtualization/cloud concepts",
+        "usage": "Five concept adaptations; no archived bank restored wholesale."
+      },
+      {
+        "permission_status": "owner-permitted third-party",
+        "source_name": "ExamCompass 220-1201 virtualization/cloud topic quizzes",
+        "source_url": "https://www.examcompass.com/comptia/a-plus-certification/free-a-plus-practice-tests",
+        "usage": "Five source-guided rewrites; no verbatim copying."
+      },
+      {
+        "permission_status": "owner-permitted third-party",
+        "source_name": "Crucial Exams 220-1201 V15",
+        "source_url": "https://crucialexams.com/exams/comptia/a/220-1201/practice-tests-practice-questions",
+        "usage": "Research/optional practice only."
+      }
+    ],
+    "teaching_sources": [
+      {
+        "permission_status": "permitted",
+        "source_name": "Professor Messer 220-1201 V15",
+        "source_url": "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/",
+        "usage": "Primary video spine; linked, not rehosted."
+      },
+      {
+        "permission_status": "reference",
+        "source_name": "Microsoft Learn virtualization docs",
+        "source_url": "https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/host-hardware-requirements",
+        "usage": "Current vendor reference for host requirements/Sandbox."
+      }
+    ]
+  },
+  "question_count": 30,
+  "resource_count": 7,
+  "service_desk_keys": [],
+  "service_desk_present": false,
+  "source_package_hash": "ff879a2779425e93467558c32aa4f8767ae4a1f11ec710dcb53e3f394f0d867d",
+  "version_key": "comptia_aplus_220-1201"
+}

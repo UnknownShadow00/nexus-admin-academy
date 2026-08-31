@@ -18,6 +18,14 @@ const modules = [
     title: "Printers, MFDs & Print Troubleshooting",
     lessons: 5,
     resources: [6, 9],
+    serviceDesk: true,
+  },
+  {
+    key: "module.aplus.core1.virtualization_cloud_foundations",
+    title: "Virtualization & Cloud Foundations",
+    lessons: 5,
+    resources: [5, 3],
+    serviceDesk: false,
   },
 ];
 
@@ -38,7 +46,7 @@ async function navigate(page, path) {
   }, path);
 }
 
-test("reviewed Modules 7-9 render and resolve every V2 activity", async ({ page }) => {
+test("reviewed Modules 7-10 render and resolve every authored V2 activity", async ({ page }) => {
   test.setTimeout(90000);
   await page.goto("/login?next=/learning-v2");
   await page.getByLabel("Username").fill(process.env.NEXUS_E2E_STUDENT_USERNAME);
@@ -49,14 +57,16 @@ test("reviewed Modules 7-9 render and resolve every V2 activity", async ({ page 
 
   const visibleTitles = await page.locator('section[aria-labelledby="modules-heading"] h3').allTextContents();
   const module6 = visibleTitles.indexOf("Module 6 — Mobile Device Hardware, Connectivity & Troubleshooting");
-  expect(visibleTitles.slice(module6 + 1, module6 + 4)).toEqual(modules.map((module) => module.title));
+  expect(visibleTitles.slice(module6 + 1, module6 + 5)).toEqual(modules.map((module) => module.title));
 
   for (const expected of modules) {
     await navigate(page, `/learning-v2/modules/${expected.key}`);
     await expect(page.getByRole("heading", { name: expected.title, exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: /Take the quiz/ })).toBeVisible();
     await expect(page.getByRole("link", { name: /Open practical/ })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Troubleshoot a ticket/ })).toBeVisible();
+    if (expected.serviceDesk !== false) {
+      await expect(page.getByRole("link", { name: /Troubleshoot a ticket/ })).toBeVisible();
+    }
     await expect(page.getByRole("link", { name: /Open Explain/ })).toBeVisible();
 
     const moduleResponse = await apiData(page, `/api/v2/curriculum/modules/${expected.key}`);
@@ -74,7 +84,9 @@ test("reviewed Modules 7-9 render and resolve every V2 activity", async ({ page 
 
     const firstLesson = module.lessons[0];
     await navigate(page, `/learning-v2/modules/${expected.key}/lessons/${firstLesson.key}`);
-    await expect(page.getByRole("heading", { name: firstLesson.title, exact: true })).toBeVisible();
+    await expect(
+      page.locator("header").getByRole("heading", { name: firstLesson.title, exact: true }),
+    ).toBeVisible();
     await expect(page.getByText("Watch / read", { exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Start Quick Check" })).toBeVisible();
     if (firstLesson.resources.some((resource) => resource.required)) {
@@ -110,21 +122,24 @@ test("reviewed Modules 7-9 render and resolve every V2 activity", async ({ page 
     await expect(page.getByLabel("Your response")).toBeVisible();
 
     const serviceDesk = module.assessments.find((assessment) => assessment.role === "service_desk");
-    const launch = await page.request.post(
-      `/api/v2/curriculum/modules/${expected.key}/service-desk/${serviceDesk.key}/launch`,
-      {
-        headers: {
-          Origin: process.env.NEXUS_E2E_BASE_URL,
-          Referer: `${process.env.NEXUS_E2E_BASE_URL}/learning-v2/modules/${expected.key}`,
+    expect(Boolean(serviceDesk)).toBe(expected.serviceDesk !== false);
+    if (serviceDesk) {
+      const launch = await page.request.post(
+        `/api/v2/curriculum/modules/${expected.key}/service-desk/${serviceDesk.key}/launch`,
+        {
+          headers: {
+            Origin: process.env.NEXUS_E2E_BASE_URL,
+            Referer: `${process.env.NEXUS_E2E_BASE_URL}/learning-v2/modules/${expected.key}`,
+          },
         },
-      },
-    );
-    expect(launch.status()).toBe(200);
-    expect((await launch.json()).data.launch_url).toContain("/service-desk/tickets/");
+      );
+      expect(launch.status()).toBe(200);
+      expect((await launch.json()).data.launch_url).toContain("/service-desk/tickets/");
+    }
   }
 });
 
-test("mentor selector includes Modules 7-9 and student auth cannot read it", async ({ page }) => {
+test("mentor selector includes Modules 7-10 and student auth cannot read it", async ({ page }) => {
   const apiUrl = process.env.NEXUS_E2E_API_URL;
   const studentLogin = await page.request.post(`${apiUrl}/auth/login`, {
     data: {

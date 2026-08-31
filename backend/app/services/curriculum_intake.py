@@ -455,6 +455,17 @@ def _normalize_question_row(raw: dict, notes: set[str], *, quiz_title: str | Non
         notes.add(f"difficulty label {difficulty!r} preserved as tag")
     row["tags"] = ",".join(dict.fromkeys(tags))
 
+    if row["question_type"] in {"short_answer", "free_response"}:
+        rubric = row.get("rubric")
+        if isinstance(rubric, str) and rubric.strip() and not rubric.lstrip().startswith(("{", "[")):
+            approved_text = rubric.strip()
+            row["rubric"] = {"approved_text": approved_text}
+            label = row["question_type"].replace("_", "-")
+            notes.add(f"plain-text {label} rubric -> rubric.approved_text")
+            if not str(row.get("explanation") or "").strip():
+                row["explanation"] = approved_text
+                notes.add("blank constructed-response explanation -> approved rubric text")
+
     if row["question_type"] == "short_answer":
         variants = _split_friendly_list(row.get("acceptable_answers"))
         if variants:
@@ -465,12 +476,8 @@ def _normalize_question_row(raw: dict, notes: set[str], *, quiz_title: str | Non
         if concepts:
             row["expected_concepts"] = concepts
             notes.add("semicolon expected_concepts -> expected_concepts list")
-        rubric = row.get("rubric")
-        if isinstance(rubric, str) and rubric.strip() and not rubric.lstrip().startswith(("{", "[")):
-            row["rubric"] = {"approved_text": rubric.strip()}
-            notes.add("plain-text free-response rubric -> rubric.approved_text")
         minimum_raw = str(row.get("min_concepts_for_pass") or "").strip()
-        minimum_match = re.match(r"^(\d+)\b", minimum_raw)
+        minimum_match = re.search(r"\b(\d+)\b", minimum_raw)
         if minimum_match:
             row["min_concepts_for_pass"] = int(minimum_match.group(1))
             if minimum_raw != minimum_match.group(1):
@@ -678,6 +685,10 @@ def _service_desk_stage_map(stages, notes: set[str]) -> dict[str, list]:
             )
         name = str(row.get("stage") or "").strip()
         expectations = row.get("expectations")
+        if expectations in (None, "", []):
+            expectations = row.get("required_actions")
+            if expectations not in (None, "", []):
+                notes.add("Service Desk required_actions -> rubric dimension expectations")
         if not name or not isinstance(expectations, list) or not expectations:
             raise IntakeError(
                 f"inline Service Desk stage row {index} needs stage and expectations",
@@ -706,7 +717,7 @@ def _normalize_inline_service_desk(
     key = str(doc.get("scenario_key") or "").strip() or _generated_service_desk_key(module_key)
     if not doc.get("scenario_key"):
         notes.add(f"Service Desk scenario_key derived from module key -> {key}")
-    for field in ("title", "stages", "grading_anchors"):
+    for field in ("title", "stages"):
         if doc.get(field) in (None, "", [], {}):
             raise IntakeError(
                 f"inline Service Desk field {field!r} is required",
@@ -725,6 +736,17 @@ def _normalize_inline_service_desk(
             "initial_facts": deepcopy(doc.get("initial_facts") or doc.get("known_environment") or []),
         }
         notes.add("top-level Service Desk scenario fields -> existing engine ticket")
+    else:
+        ticket.setdefault("requester", deepcopy(doc.get("requester")))
+        ticket.setdefault("complaint", ticket.get("summary") or doc.get("complaint"))
+        ticket.setdefault("business_impact", doc.get("business_impact"))
+        initial_facts = [
+            *deepcopy(ticket.get("reported_symptoms") or []),
+            *deepcopy(ticket.get("starting_evidence") or []),
+        ]
+        if initial_facts and not ticket.get("initial_facts"):
+            ticket["initial_facts"] = initial_facts
+        notes.add("Service Desk ticket summary/evidence fields -> existing engine ticket")
     for field in ("requester", "complaint", "business_impact"):
         value = ticket.get(field)
         if field == "requester" and isinstance(value, dict):
@@ -763,7 +785,14 @@ def _normalize_inline_service_desk(
         (value for value in ("critical", "high", "medium", "low") if value in priority_text.casefold()),
         "medium",
     )
-    anchors = deepcopy(doc["grading_anchors"])
+    anchors = deepcopy(doc.get("grading_anchors") or [])
+    if not anchors:
+        anchors = [
+            str(action)
+            for stage in required_stages
+            for action in stage_map.get(stage) or []
+        ]
+        notes.add("Service Desk stage actions -> grading_anchors")
     point_value = (
         sum(int(row.get("weight") or 0) for row in anchors if isinstance(row, dict))
         if isinstance(anchors, list) and any(isinstance(row, dict) for row in anchors)
@@ -809,12 +838,7 @@ def _normalize_inline_service_desk(
         }
         for index, text in enumerate(doc.get("hints") or [], 1)
     ]
-    if len(hints) < 3:
-        raise IntakeError(
-            "inline Service Desk scenario needs at least three approved hints",
-            file="service_desk.yaml",
-            field="hints",
-        )
+    device_doc = deepcopy(doc.get("device") or {})
     definition = {
         "id": ticket_id,
         "title": doc["title"],
@@ -839,9 +863,9 @@ def _normalize_inline_service_desk(
         },
         "device": {
             "assetTag": ticket_id,
-            "deviceName": str(requester_doc.get("device") or placeholder),
-            "kind": "mobile" if requester_doc.get("device") else "laptop",
-            "operatingSystem": placeholder,
+            "deviceName": str(device_doc.get("name") or requester_doc.get("device") or placeholder),
+            "kind": str(device_doc.get("kind") or ("mobile" if requester_doc.get("device") else "laptop")),
+            "operatingSystem": str(device_doc.get("os") or placeholder),
             "state": "active",
         },
         "sla": {"dueAt": placeholder, "target": priority_text},
@@ -989,21 +1013,39 @@ class CurriculumIntakeProcessor:
             staged_content = workspace / "content"
             shutil.copytree(self.content_dir, staged_content)
             runtime_destinations = self._write_runtime(normalized, staged_content)
-            loader_result = self.runtime_validator(staged_content, normalized["manifest"])
-            references = loader_result.get("references", {})
-            unresolved = references.get("package_content_engine_unresolved")
-            if unresolved is None:
-                # Compatibility for injected/older validators that only
-                # report the global loader result.
-                unresolved = references.get("content_engine_unresolved", [])
-            if unresolved:
-                raise IntakeError(f"runtime references did not resolve: {unresolved}", field="assessments")
-            service_unresolved = references.get("package_service_desk_unresolved", [])
-            if service_unresolved:
-                raise IntakeError(
-                    f"Service Desk references did not resolve: {service_unresolved}",
-                    field="service_desk",
+            try:
+                loader_result = self.runtime_validator(staged_content, normalized["manifest"])
+                references = loader_result.get("references", {})
+                unresolved = references.get("package_content_engine_unresolved")
+                if unresolved is None:
+                    # Compatibility for injected/older validators that only
+                    # report the global loader result.
+                    unresolved = references.get("content_engine_unresolved", [])
+                if unresolved:
+                    raise IntakeError(
+                        f"runtime references did not resolve: {unresolved}",
+                        field="assessments",
+                    )
+                service_unresolved = references.get("package_service_desk_unresolved", [])
+                if service_unresolved:
+                    raise IntakeError(
+                        f"Service Desk references did not resolve: {service_unresolved}",
+                        field="service_desk",
+                    )
+            except Exception as exc:
+                issue = (
+                    exc.as_dict()
+                    if isinstance(exc, IntakeError)
+                    else IntakeError(str(exc), field="runtime_validation").as_dict()
                 )
+                result = {
+                    **base,
+                    "status": "INVALID",
+                    "errors": [issue],
+                    "runtime_destinations": runtime_destinations,
+                }
+                self._write_report(source.name, result)
+                return result
 
             if classification == "CHANGED" and not allow_changed:
                 result = {**base, "status": "CHANGED_REQUIRES_REVIEW", "runtime_destinations": runtime_destinations}
@@ -1616,10 +1658,10 @@ class CurriculumIntakeProcessor:
                         )
                 elif self.service_desk_keys is not None and stable_key not in self.service_desk_keys:
                     add("BLOCKING_METADATA", f"Service Desk scenario {stable_key!r} is not registered", file="service_desk.yaml", field="scenario_key")
-                for code in [
+                for code in [str(value) for value in service_doc.get("objectives") or []] + [
                     str(value)
-                    for field in ("objectives", "reinforces")
-                    for value in service_doc.get(field) or []
+                    for value in service_doc.get("reinforces") or []
+                    if re.fullmatch(r"\d+\.\d+", str(value).strip())
                 ]:
                     if valid_objectives and code not in valid_objectives:
                         add("BLOCKING_CONTENT", f"objective {code!r} is not defined for {version_key}", file="service_desk.yaml", field="objectives")

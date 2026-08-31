@@ -1,64 +1,133 @@
-# CompTIA A+ Core 2 (220-1202) — official exam objectives (representative subset).
+# CompTIA A+ Core 2 (220-1202) V15 official exam objectives.
 #
 # DATA loaded idempotently by the V2 content loader, keyed on
-# (certification version, objective_code). Objective codes here deliberately
-# overlap with 220-1201 codes ("1.1", "2.1", ...) with different text, which is
-# exactly the version-coexistence case the Phase 1A tests assert.
+# (certification version, objective_code). Objective codes deliberately overlap
+# with 220-1201 codes and remain isolated by certification version.
 
 version_key: comptia_aplus_220-1202
-source_name: "CompTIA A+ Certification Exam Objectives (Core 2, 220-1202)"
-source_url: "https://www.comptia.org/certifications/a"
-retrieved: "2026-08-29"
+source_name: "CompTIA A+ Core 2 (220-1202) Certification Exam Objectives Version 2.0"
+source_url: "https://comptiacdn.azureedge.net/webcontent/docs/default-source/exam-objectives/comptia-a-220-1202-exam-objectives.pdf"
+retrieved: "2026-08-31"
 
 objectives:
   - code: "1.1"
     domain_key: "1.0"
-    text: "Explain common operating system types and their purposes."
-    subtopics: ["Workstation OS", "Cell phone/tablet OS", "Various filesystem types", "Vendor life-cycle limitations"]
+    text: "Explain common operating system (OS) types and their purposes."
   - code: "1.2"
     domain_key: "1.0"
-    text: "Given a scenario, use the appropriate Microsoft command-line tool."
-    subtopics: ["ipconfig", "ping", "nslookup", "netstat", "gpupdate", "sfc", "chkdsk"]
+    text: "Given a scenario, perform OS installations and upgrades in a diverse environment."
+  - code: "1.3"
+    domain_key: "1.0"
+    text: "Compare and contrast basic features of Microsoft Windows editions."
+    subtopics: ["Windows 10 and 11 editions", "Feature differences", "Hardware requirements", "Upgrade paths"]
+  - code: "1.4"
+    domain_key: "1.0"
+    text: "Given a scenario, use the appropriate Microsoft Windows 10 or Windows 11 Control Panel utility."
+    subtopics: ["Administrative tools", "Microsoft Management Console", "Event Viewer", "Disk Management", "Device Manager"]
+  - code: "1.5"
+    domain_key: "1.0"
+    text: "Given a scenario, use the appropriate Windows command-line tool."
+    subtopics: ["Navigation and files", "Identity and policy", "Disk and repair", "Network diagnostics"]
   - code: "1.6"
     domain_key: "1.0"
+    text: "Given a scenario, configure Microsoft Windows settings."
+  - code: "1.7"
+    domain_key: "1.0"
     text: "Given a scenario, configure Microsoft Windows networking features on a client/desktop."
-    subtopics: ["Workgroup vs domain", "Network shares", "Proxy settings", "Metered connections", "Firewall settings"]
+    subtopics: ["Network connections", "Proxy and metered connections", "Domain and workgroup", "Mapped drives", "Local firewall", "Client IP configuration"]
+  - code: "1.8"
+    domain_key: "1.0"
+    text: "Explain common features and tools of the macOS/desktop operating system."
+    subtopics: ["System Settings", "Disk Utility", "FileVault", "Terminal", "Force Quit", "Time Machine", "System folders"]
+  - code: "1.9"
+    domain_key: "1.0"
+    text: "Identify common features and tools of the Linux client/desktop operating system."
+    subtopics: ["File management", "Filesystem management", "Administrative commands", "Package management", "Network commands", "Configuration files"]
+  - code: "1.10"
+    domain_key: "1.0"
+    text: "Given a scenario, install applications according to requirements."
+    subtopics: ["System requirements", "Distribution methods", "Compatibility", "Impact considerations"]
+  - code: "1.11"
+    domain_key: "1.0"
+    text: "Given a scenario, install and configure cloud-based productivity tools."
+    subtopics: ["Identity synchronization", "Licensing assignment", "Email", "Storage and sync", "Collaboration tools"]
 
   - code: "2.1"
     domain_key: "2.0"
     text: "Summarize various security measures and their purposes."
-    subtopics: ["Physical security", "Logical security", "Mobile device management (MDM)", "Active Directory"]
+  - code: "2.2"
+    domain_key: "2.0"
+    text: "Given a scenario, configure and apply basic Microsoft Windows OS security settings."
+  - code: "2.3"
+    domain_key: "2.0"
+    text: "Compare and contrast wireless security protocols and authentication methods."
   - code: "2.4"
     domain_key: "2.0"
-    text: "Explain common social-engineering attacks, threats, and vulnerabilities."
-    subtopics: ["Phishing", "Impersonation", "Shoulder surfing", "Tailgating", "Zero-day attack"]
+    text: "Summarize types of malware and tools/methods for detection, removal, and prevention."
+  - code: "2.5"
+    domain_key: "2.0"
+    text: "Compare and contrast common social engineering attacks, threats, and vulnerabilities."
+  - code: "2.6"
+    domain_key: "2.0"
+    text: "Given a scenario, implement procedures for basic small office/home office (SOHO) malware removal."
   - code: "2.7"
     domain_key: "2.0"
-    text: "Given a scenario, secure a small office/home office (SOHO) wired and wireless network."
-    subtopics: ["Change default passwords", "Firmware updates", "WPA3", "Guest network", "Disable unused ports"]
+    text: "Given a scenario, apply workstation security options and hardening techniques."
+  - code: "2.8"
+    domain_key: "2.0"
+    text: "Given a scenario, apply common methods for securing mobile devices."
+  - code: "2.9"
+    domain_key: "2.0"
+    text: "Compare and contrast common data destruction and disposal methods."
+  - code: "2.10"
+    domain_key: "2.0"
+    text: "Given a scenario, apply security settings on SOHO wireless and wired networks."
+  - code: "2.11"
+    domain_key: "2.0"
+    text: "Given a scenario, configure relevant security settings in a browser."
 
   - code: "3.1"
     domain_key: "3.0"
-    text: "Given a scenario, troubleshoot common Windows OS problems."
-    subtopics: ["Blue screen of death (BSOD)", "Boot problems", "Frequent shutdowns", "Slow performance", "Application crashes"]
+    text: "Given a scenario, troubleshoot common Windows OS issues."
   - code: "3.2"
     domain_key: "3.0"
-    text: "Given a scenario, troubleshoot common personal computer (PC) security issues."
-    subtopics: ["Malware removal best practices", "Browser redirection", "Certificate warnings"]
+    text: "Given a scenario, troubleshoot common mobile OS and application issues."
+  - code: "3.3"
+    domain_key: "3.0"
+    text: "Given a scenario, troubleshoot common mobile OS and application security issues."
   - code: "3.4"
     domain_key: "3.0"
-    text: "Given a scenario, troubleshoot common mobile OS and application issues."
-    subtopics: ["Slow performance", "Battery life issues", "Connectivity issues", "App crashes"]
+    text: "Given a scenario, troubleshoot common personal computer (PC) security issues."
 
   - code: "4.1"
     domain_key: "4.0"
-    text: "Given a scenario, implement best practices associated with documentation and support-system information management."
-    subtopics: ["Ticketing systems", "Asset management", "Knowledge base/articles", "Acceptable use policy"]
+    text: "Given a scenario, implement best practices associated with documentation and support systems information management."
   - code: "4.2"
     domain_key: "4.0"
-    text: "Explain basic change-management best practices."
-    subtopics: ["Documented business processes", "Rollback plan", "Sandbox testing", "Responsible staff member"]
+    text: "Given a scenario, apply change management procedures."
+  - code: "4.3"
+    domain_key: "4.0"
+    text: "Given a scenario, implement workstation backup and recovery methods."
+  - code: "4.4"
+    domain_key: "4.0"
+    text: "Given a scenario, use common safety procedures."
+  - code: "4.5"
+    domain_key: "4.0"
+    text: "Summarize environmental impacts and local environment controls."
+  - code: "4.6"
+    domain_key: "4.0"
+    text: "Explain the importance of prohibited content/activity and privacy, licensing, and policy concepts."
   - code: "4.7"
     domain_key: "4.0"
     text: "Given a scenario, use proper communication techniques and professionalism."
-    subtopics: ["Use proper language", "Maintain a positive attitude", "Actively listen", "Set and meet expectations"]
+  - code: "4.8"
+    domain_key: "4.0"
+    text: "Explain the basics of scripting."
+  - code: "4.9"
+    domain_key: "4.0"
+    text: "Given a scenario, use remote access technologies."
+    subtopics: ["RDP", "VPN", "VNC", "SSH", "RMM", "SPICE", "WinRM", "Third-party tools", "Security considerations"]
+  - code: "4.10"
+    domain_key: "4.0"
+    text: "Explain basic concepts related to artificial intelligence (AI)."
+    subtopics: ["Private vs. public", "Application integration", "Policy", "Bias", "Hallucinations", "Accuracy", "Data security and privacy"]
