@@ -15,6 +15,7 @@ import yaml
 from app.services.curriculum_intake import (
     CurriculumIntakeProcessor,
     _normalize_inline_service_desk,
+    _normalize_quiz_blueprint,
     _normalize_question_row,
     _quick_check_rows,
     _split_frontmatter,
@@ -528,6 +529,45 @@ def test_quality_rules_quick_checks_and_batch_quiz_aliases_normalize(intake):
     assert result["component_summary"]["module_quiz"]["required_category_coverage"][0]["minimum"] == 4
 
 
+def test_mapping_quiz_minima_and_integrated_quota_normalize_to_existing_selector():
+    notes: set[str] = set()
+    quiz = _normalize_quiz_blueprint(
+        {
+            "objective_targets": {"2.1": 3, "cross_objective": 1},
+            "category_minimums": {
+                "scenario_application_or_reasoning": 5,
+                "job_critical": 7,
+                "multi_select": 1,
+            },
+        },
+        notes,
+    )
+    assert quiz["question_blueprint"] == [
+        {"count": 3, "objective_codes": ["2.1"]},
+        {"count": 1, "objective_codes": [], "tags_any": ["multi_objective"]},
+    ]
+    assert quiz["category_requirements"] == [
+        {
+            "category": "scenario_application_or_reasoning",
+            "minimum": 5,
+            "tags_any": [
+                "question_style:scenario-application",
+                "question_style:troubleshooting-reasoning",
+            ],
+        },
+        {
+            "category": "job_critical",
+            "minimum": 7,
+            "tags_any": ["importance:job_critical"],
+        },
+        {
+            "category": "multi_select",
+            "minimum": 1,
+            "tags_any": ["question_type:multi"],
+        },
+    ]
+
+
 def test_explicit_lesson_order_works(intake):
     processor, dropbox, *_ = intake
     _package(dropbox)
@@ -872,6 +912,34 @@ def test_title_case_workbook_headers_and_editorial_values_normalize(tmp_path):
     ]
 
 
+def test_lesson_header_preserves_question_lesson_mapping():
+    row = _normalize_question_row(
+        {
+            "Question ID": "Q001",
+            "Lesson": "lesson.test.one",
+            "Type": "single_choice",
+            "Objectives": "1.1",
+        },
+        set(),
+    )
+    assert row["lesson_id"] == "lesson.test.one"
+    assert "lesson.test.one" in row["tags"].split(",")
+
+
+def test_claimed_quick_checks_without_authored_mapping_are_blocking(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox)
+    (package / "CONTENT_STATUS.md").write_text(
+        "Quick Checks: 4 total references; 4 per lesson; all resolve.\n",
+        encoding="utf-8",
+    )
+
+    result = processor.process(mode="check")[0]
+
+    assert result["status"] == "INVALID"
+    assert any(error["field"] == "quick_checks" for error in result["errors"])
+
+
 def test_plain_text_free_response_rubric_is_wrapped_without_rewriting():
     approved = "Full credit requires safe handling and explicit verification."
     notes: set[str] = set()
@@ -889,6 +957,21 @@ def test_plain_text_free_response_rubric_is_wrapped_without_rewriting():
     assert row["rubric"] == {"approved_text": approved}
     assert row["min_concepts_for_pass"] == 2
     assert "plain-text free-response rubric -> rubric.approved_text" in notes
+
+
+def test_explain_title_alias_is_used_as_prompt_without_rewriting(intake):
+    processor, dropbox, *_ = intake
+    package = _package(dropbox, explain=True)
+    path = package / "explain_prompts.yaml"
+    doc = yaml.safe_load(path.read_text())
+    authored = doc["prompts"][0].pop("prompt")
+    doc["prompts"][0]["title"] = authored
+    _write_yaml(path, doc)
+
+    result = processor.process(mode="check")[0]
+
+    assert result["status"] == "VALID_WITH_NORMALIZATION"
+    assert f"Explain {doc['prompts'][0]['prompt_key']}: title -> prompt" in result["normalizations"]
 
 
 def test_constructed_response_rubric_supplies_blank_feedback_without_new_content():
@@ -937,6 +1020,11 @@ def test_required_action_service_desk_shape_maps_without_inventing_content():
             )
         ],
         "correct_outcomes": ["Authorized remap or complete handoff"],
+        "hints": [
+            "Narrow the scope.",
+            "Inspect the mapping evidence.",
+            "Use the authorized path.",
+        ],
     }
     notes: set[str] = set()
     key, scenario = _normalize_inline_service_desk(
@@ -951,7 +1039,7 @@ def test_required_action_service_desk_shape_maps_without_inventing_content():
     assert definition["description"]["reportedByLine"] == "Jordan"
     assert definition["device"]["deviceName"] == "PROJ-LT-22"
     assert definition["device"]["operatingSystem"] == "Windows 11 Pro"
-    assert definition["hints"] == []
+    assert [row["order"] for row in definition["hints"]] == [1, 2, 3]
     assert definition["rubric_dimensions"]["Diagnosis"] == ["Identify the stale path"]
     assert definition["grading_anchors"] == [
         "Inspect the existing mapping",
@@ -963,6 +1051,63 @@ def test_required_action_service_desk_shape_maps_without_inventing_content():
     assert definition["curriculum"] == approved
     assert "Service Desk required_actions -> rubric dimension expectations" in notes
     assert "Service Desk stage actions -> grading_anchors" in notes
+
+
+def test_service_desk_name_expected_and_intended_outcome_aliases_preserve_authored_text():
+    approved = {
+        "scenario_key": "sd.test.reviewed_aliases",
+        "title": "Reviewed aliases",
+        "objectives": ["1.1"],
+        "reinforcement_objectives": ["1.2"],
+        "requester": {"name": "Alex", "department": "Support"},
+        "ticket": {
+            "summary": "A reviewed issue",
+            "business_impact": "Work is blocked.",
+            "reported_symptoms": ["The original task fails."],
+        },
+        "stages": [
+            {"name": name, "expected": [text]}
+            for name, text in (
+                ("Investigation", "Inspect evidence."),
+                ("Diagnosis", "Identify the cause."),
+                ("Remediation", "Use the approved action."),
+                ("Verification", "Retest the task."),
+                ("Documentation", "Record the result."),
+            )
+        ],
+        "hints": [
+            "Start with scope.",
+            "Inspect the evidence area.",
+            "Follow the stronger diagnostic path.",
+        ],
+        "grading_anchors": {"diagnosis": "Identifies the cause."},
+        "intended_outcome": "Restore the approved workflow or escalate safely.",
+    }
+    notes: set[str] = set()
+    _, scenario = _normalize_inline_service_desk(
+        approved,
+        "module.test.client_support",
+        {"1.1", "1.2"},
+        notes,
+    )
+    definition = scenario["definition"]
+    assert definition["curriculum"] == approved
+    assert definition["successful_professional_outcomes"] == [approved["intended_outcome"]]
+    assert definition["rubric_dimensions"]["Diagnosis"] == ["Identify the cause."]
+    assert "Service Desk name/expected stage fields -> stage/expectations" in notes
+    assert "Service Desk intended_outcome -> correct_outcomes" in notes
+
+
+def test_service_desk_fewer_than_three_authored_hints_is_blocking(tmp_path):
+    approved = _author_friendly_inline_service_desk(tmp_path)
+    approved["hints"] = ["One.", "Two."]
+    with pytest.raises(ValueError, match="at least 3"):
+        _normalize_inline_service_desk(
+            approved,
+            "module.test.client_support",
+            {"1.1", "1.2"},
+            set(),
+        )
 
 
 def test_optional_resource_can_link_to_module_without_lesson(intake):

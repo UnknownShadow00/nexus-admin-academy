@@ -49,6 +49,7 @@ FIELD_ALIASES = {
     "correct_answer": "correct_answers",
     "objective": "objective_code",
     "objectives": "objective_code",
+    "lesson": "lesson_id",
     "lesson_key": "lesson_id",
     "accepted_variants": "acceptable_answers",
     "accepted_answers": "acceptable_answers",
@@ -448,6 +449,10 @@ def _normalize_question_row(raw: dict, notes: set[str], *, quiz_title: str | Non
         tags.extend((question_style, f"question_style:{_slug(question_style)}"))
     if row["question_type"]:
         tags.append(f"question_type:{row['question_type']}")
+    if row["importance"]:
+        tags.append(f"importance:{row['importance']}")
+    if len(parse_objective_codes(row.get("objective_code"))) > 1:
+        tags.append("multi_objective")
     difficulty = str(row.get("difficulty") or "").strip()
     if difficulty and not difficulty.isdigit():
         tags.append(f"difficulty:{_slug(difficulty)}")
@@ -525,20 +530,56 @@ def _normalize_quiz_blueprint(doc: dict, notes: set[str]) -> dict:
         ]
         notes.add("module quiz required_category_coverage -> category_requirements")
     if quiz.get("objective_targets") and not quiz.get("question_blueprint"):
-        quiz["question_blueprint"] = [
-            {"objective_codes": [str(code)], "count": int(count)}
-            for code, count in quiz["objective_targets"].items()
-        ]
+        quiz["question_blueprint"] = []
+        for code, count in quiz["objective_targets"].items():
+            selector = {"count": int(count)}
+            if re.fullmatch(r"\d+\.\d+", str(code)):
+                selector["objective_codes"] = [str(code)]
+            elif str(code).casefold() in {"cross_objective", "integrated"}:
+                selector["objective_codes"] = []
+                selector["tags_any"] = ["multi_objective"]
+            else:
+                selector["objective_codes"] = []
+                selector["tags_any"] = [str(code)]
+            quiz["question_blueprint"].append(selector)
         notes.add("module quiz objective_targets -> question_blueprint")
     if quiz.get("category_minimums") and not quiz.get("category_requirements"):
-        quiz["category_requirements"] = [
-            {
-                "category": str(row.get("category") or ""),
-                "minimum": int(row.get("minimum") or 0),
-                "question_ids": [str(value) for value in row.get("pool") or []],
+        category_minimums = quiz["category_minimums"]
+        if isinstance(category_minimums, dict):
+            tag_aliases = {
+                "scenario_application_or_reasoning": [
+                    "question_style:scenario-application",
+                    "question_style:troubleshooting-reasoning",
+                ],
+                "job_critical": ["importance:job_critical"],
+                "multi_select": ["question_type:multi"],
             }
-            for row in quiz["category_minimums"]
-        ]
+            quiz["category_requirements"] = [
+                {
+                    "category": str(category),
+                    "minimum": int(minimum),
+                    "tags_any": tag_aliases.get(
+                        str(category),
+                        [str(category), f"category:{_slug(str(category))}"],
+                    ),
+                }
+                for category, minimum in category_minimums.items()
+            ]
+        elif isinstance(category_minimums, list):
+            quiz["category_requirements"] = [
+                {
+                    "category": str(row.get("category") or ""),
+                    "minimum": int(row.get("minimum") or 0),
+                    "question_ids": [str(value) for value in row.get("pool") or []],
+                }
+                for row in category_minimums
+            ]
+        else:
+            raise IntakeError(
+                "module quiz category_minimums must be a mapping or list",
+                file="module_quiz_blueprint.yaml",
+                field="category_minimums",
+            )
         notes.add("module quiz category_minimums -> category_requirements")
     if quiz.get("exclusions") and not quiz.get("exclude_question_ids"):
         quiz["exclude_question_ids"] = [str(value) for value in quiz["exclusions"]]
@@ -683,8 +724,12 @@ def _service_desk_stage_map(stages, notes: set[str]) -> dict[str, list]:
                 file="service_desk.yaml",
                 field="stages",
             )
-        name = str(row.get("stage") or "").strip()
+        name = str(row.get("stage") or row.get("name") or "").strip()
         expectations = row.get("expectations")
+        if expectations in (None, "", []):
+            expectations = row.get("expected")
+            if expectations not in (None, "", []):
+                notes.add("Service Desk name/expected stage fields -> stage/expectations")
         if expectations in (None, "", []):
             expectations = row.get("required_actions")
             if expectations not in (None, "", []):
@@ -772,7 +817,12 @@ def _normalize_inline_service_desk(
             field="stages",
         )
     codes = [str(value) for value in doc.get("objectives") or []]
-    for code in codes:
+    reinforcement_codes = [
+        str(value)
+        for value in doc.get("reinforces") or doc.get("reinforcement_objectives") or []
+        if re.fullmatch(r"\d+\.\d+", str(value).strip())
+    ]
+    for code in [*codes, *reinforcement_codes]:
         if code not in valid_objectives:
             raise IntakeError(
                 f"objective {code!r} is not defined for this certification version",
@@ -807,10 +857,11 @@ def _normalize_inline_service_desk(
         for step in stage_map.get(stage) or []
     )
     correct_failure_behavior = str(doc.get("correct_failure_behavior") or "").strip()
-    correct_outcomes = [
-        str(value)
-        for value in doc.get("correct_outcomes") or doc.get("acceptable_outcomes") or []
-    ]
+    raw_outcomes = doc.get("correct_outcomes") or doc.get("acceptable_outcomes") or []
+    if not raw_outcomes and str(doc.get("intended_outcome") or "").strip():
+        raw_outcomes = [doc["intended_outcome"]]
+        notes.add("Service Desk intended_outcome -> correct_outcomes")
+    correct_outcomes = [str(value) for value in raw_outcomes]
     if doc.get("acceptable_outcomes") and not doc.get("correct_outcomes"):
         notes.add("acceptable_outcomes -> correct_outcomes")
     if not correct_failure_behavior and not correct_outcomes:
@@ -829,6 +880,15 @@ def _normalize_inline_service_desk(
     requester = ticket["requester"]
     requester_doc = requester if isinstance(requester, dict) else {}
     requester_name = str(requester_doc.get("name") or requester)
+    authored_hints = doc.get("hints") or []
+    if not isinstance(authored_hints, list) or len(authored_hints) < 3 or any(
+        not str(text).strip() for text in authored_hints
+    ):
+        raise IntakeError(
+            "inline Service Desk requires at least 3 non-empty authored progressive hints",
+            file="service_desk.yaml",
+            field="hints",
+        )
     hints = [
         {
             "id": f"hint-{index:02d}",
@@ -836,7 +896,7 @@ def _normalize_inline_service_desk(
             "pointPenalty": 0 if index == 1 else 5,
             "text": str(text),
         }
-        for index, text in enumerate(doc.get("hints") or [], 1)
+        for index, text in enumerate(authored_hints, 1)
     ]
     device_doc = deepcopy(doc.get("device") or {})
     definition = {
@@ -1497,6 +1557,24 @@ class CurriculumIntakeProcessor:
             notes.add(f"{quick_source} Quick Check row {index} -> lesson assessment metadata")
         if workbook:
             workbook.close()
+        content_status_path = root / "CONTENT_STATUS.md"
+        if content_status_path.is_file():
+            content_status = content_status_path.read_text(encoding="utf-8")
+            claimed = re.search(
+                r"Quick Checks:\s*(\d+)\s+total references",
+                content_status,
+                flags=re.IGNORECASE,
+            )
+            if claimed and int(claimed.group(1)) > 0 and not quick_rows:
+                add(
+                    "BLOCKING_METADATA",
+                    (
+                        f"CONTENT_STATUS.md claims {claimed.group(1)} Quick Check references, "
+                        "but no authored Quick Check mapping is present"
+                    ),
+                    file="CONTENT_STATUS.md",
+                    field="quick_checks",
+                )
         summary["quick_checks"] = {"count": len(quick_rows), "rows": quick_rows}
 
         # Resources use the canonical loader shape already; inspect all links.
@@ -1660,7 +1738,9 @@ class CurriculumIntakeProcessor:
                     add("BLOCKING_METADATA", f"Service Desk scenario {stable_key!r} is not registered", file="service_desk.yaml", field="scenario_key")
                 for code in [str(value) for value in service_doc.get("objectives") or []] + [
                     str(value)
-                    for value in service_doc.get("reinforces") or []
+                    for value in service_doc.get("reinforces")
+                    or service_doc.get("reinforcement_objectives")
+                    or []
                     if re.fullmatch(r"\d+\.\d+", str(value).strip())
                 ]:
                     if valid_objectives and code not in valid_objectives:
@@ -1671,7 +1751,12 @@ class CurriculumIntakeProcessor:
             "present": bool(service_doc),
             "scenario_key": stable_key if service_doc else None,
             "objectives": [str(value) for value in service_doc.get("objectives") or []],
-            "reinforces": [str(value) for value in service_doc.get("reinforces") or []],
+            "reinforces": [
+                str(value)
+                for value in service_doc.get("reinforces")
+                or service_doc.get("reinforcement_objectives")
+                or []
+            ],
             "rubric_dimensions": service_stage_names,
         }
 
@@ -2206,6 +2291,9 @@ class CurriculumIntakeProcessor:
         rows = deepcopy(doc.get("prompts") or [])
         package_rubric_version = doc.get("rubric_version")
         for row in rows:
+            if not row.get("prompt") and str(row.get("title") or "").strip():
+                row["prompt"] = row["title"]
+                notes.add(f"Explain {row.get('prompt_key') or row.get('id')}: title -> prompt")
             if not row.get("prompt_key") and row.get("id"):
                 row["prompt_key"] = (
                     f"interview.{_slug(module_key.removeprefix('module.')).replace('-', '.')}."
@@ -2262,16 +2350,12 @@ class CurriculumIntakeProcessor:
                     "title": doc["title"],
                     "description": doc.get("purpose"),
                     "estimated_minutes": doc.get("estimated_minutes"),
-                    "environment_requirements": {"environment": doc.get("environment")},
-                    "success_criteria": exercise,
-                    "required_evidence": {
-                        "student_tasks": [
-                            task
-                            for value in exercise.values()
-                            if isinstance(value, dict)
-                            for task in value.get("student_tasks") or []
-                        ]
+                    "environment_requirements": {
+                        "environment": doc.get("environment"),
+                        "vm_required": bool(doc.get("vm_required", False)),
                     },
+                    "success_criteria": exercise,
+                    "required_evidence": {"items": deepcopy(doc.get("evidence") or [])},
                     "source_name": doc.get("provenance"),
                 }
             ]
