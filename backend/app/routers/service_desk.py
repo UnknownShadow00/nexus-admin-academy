@@ -49,7 +49,7 @@ from app.services.service_desk_progression import (
     require_scenario_unlocked,
     scenario_access,
 )
-from app.services.service_desk_workspace_view import process_progress
+from app.services.service_desk_workspace_view import build_debrief, process_progress
 from app.services.v2_progress_service import reconcile_v2_service_desk_attempt
 from app.services.xp_service import award_xp
 
@@ -175,10 +175,12 @@ def _student_scenario_definition(definition: dict, experience_mode: str) -> dict
     return {key: value for key, value in definition.items() if key in allowed}
 
 
-def _grade_dict(grade: ServiceDeskAttemptGrade | None) -> dict | None:
+def _grade_dict(
+    grade: ServiceDeskAttemptGrade | None, debrief: dict | None = None
+) -> dict | None:
     if not grade:
         return None
-    return {
+    payload = {
         "id": grade.id,
         "attempt_id": grade.attempt_id,
         "scenario_version_id": grade.scenario_version_id,
@@ -194,12 +196,53 @@ def _grade_dict(grade: ServiceDeskAttemptGrade | None) -> dict | None:
         "mentor_feedback_by": grade.mentor_feedback_by,
         "mentor_feedback_at": grade.mentor_feedback_at,
     }
+    if debrief is not None:
+        payload["debrief"] = debrief
+    return payload
+
+
+def _debrief_for_attempt(
+    db: Session,
+    scenario: ServiceDeskScenario,
+    version: ServiceDeskScenarioVersion,
+    attempt: ServiceDeskAttempt,
+    grade: ServiceDeskAttemptGrade | None,
+) -> dict | None:
+    """Post-completion only: the authored path + ordering narrative live here."""
+    if grade is None or attempt.status == "in_progress":
+        return None
+    events = (
+        db.query(ServiceDeskAttemptEvent)
+        .filter_by(attempt_id=attempt.id)
+        .order_by(ServiceDeskAttemptEvent.sequence_number)
+        .all()
+    )
+    assignment = (
+        db.query(ServiceDeskAssignment)
+        .filter_by(student_id=attempt.student_id, scenario_id=scenario.id)
+        .first()
+    )
+    attempts_remaining = (
+        max(0, assignment.maximum_attempts - attempt.attempt_number)
+        if assignment and assignment.maximum_attempts is not None
+        else None
+    )
+    definition_json = version.definition_json or {}
+    return build_debrief(
+        definition_json,
+        events,
+        grade,
+        stable_key=scenario.stable_key,
+        objective_def=objective_definition(scenario.stable_key, definition_json),
+        attempts_remaining=attempts_remaining,
+    )
 
 
 def _attempt_dict(
     attempt: ServiceDeskAttempt,
     grade: ServiceDeskAttemptGrade | None = None,
     workspace_view: dict | None = None,
+    debrief: dict | None = None,
 ) -> dict:
     result = {
         "id": attempt.id,
@@ -218,7 +261,7 @@ def _attempt_dict(
         "passed": attempt.passed,
         "created_at": attempt.created_at,
         "updated_at": attempt.updated_at,
-        "grade": _grade_dict(grade),
+        "grade": _grade_dict(grade, debrief),
     }
     if workspace_view is not None:
         result["workspace_view"] = workspace_view
@@ -585,11 +628,15 @@ def get_attempt(
     attempt = _owned_attempt(db, attempt_id, current_student)
     version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
     scenario = db.get(ServiceDeskScenario, version.scenario_id) if version else None
+    grade = db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt.id).first()
     return jsonable_encoder(
         _attempt_dict(
             attempt,
-            db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt.id).first(),
+            grade,
             _workspace_view(db, scenario, version, attempt)
+            if scenario and version
+            else None,
+            _debrief_for_attempt(db, scenario, version, attempt, grade)
             if scenario and version
             else None,
         )
@@ -1064,11 +1111,22 @@ def complete_attempt(
     db: Session = Depends(get_db),
 ):
     attempt = _writable_attempt(db, attempt_id, current_student)
+    _version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
+    _scenario = db.get(ServiceDeskScenario, _version.scenario_id) if _version else None
+
+    def _graded(grade_row: ServiceDeskAttemptGrade, code: int) -> JSONResponse:
+        debrief = (
+            _debrief_for_attempt(db, _scenario, _version, attempt, grade_row)
+            if _scenario and _version
+            else None
+        )
+        return _json_response(_grade_dict(grade_row, debrief), code)
+
     existing = (
         db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt.id).first()
     )
     if attempt.status != "in_progress" and existing:
-        return _json_response(_grade_dict(existing), 200)
+        return _graded(existing, 200)
     if attempt.status != "in_progress":
         raise HTTPException(409, "Attempt is no longer in progress")
     try:
@@ -1126,10 +1184,10 @@ def complete_attempt(
             db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt.id).first()
         )
         if existing:
-            return _json_response(_grade_dict(existing), 200)
+            return _graded(existing, 200)
         raise
     db.refresh(grade)
-    return _json_response(_grade_dict(grade), 201)
+    return _graded(grade, 201)
 
 
 @router.get("/attempts")

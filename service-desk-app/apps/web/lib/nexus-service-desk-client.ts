@@ -126,9 +126,33 @@ export interface NexusAttemptCompletionInput {
   idempotency_key: string;
 }
 
+export interface NexusDebriefCategory {
+  key: string;
+  label: string;
+  points: number;
+  max: number;
+  status: 'full' | 'partial' | 'missed' | 'not_applicable';
+  explanation: string;
+}
+
+export interface NexusDebrief {
+  result: {
+    passed: boolean;
+    score: number;
+    attempts_remaining: number | null;
+    outcome: 'resolved' | 'escalated' | 'needs_another_try';
+  };
+  categories: readonly NexusDebriefCategory[];
+  student_note: string;
+  note_dimensions: { cause: boolean; action: boolean; verification: boolean };
+  stronger_path: readonly string[];
+  escalation_feedback: { appropriate: boolean; text: string };
+}
+
 export interface NexusGrade {
   attempt_id: string | number;
   critical_failure: boolean;
+  debrief?: NexusDebrief | null;
   feedback_summary: string;
   id: string | number;
   overall_score: number;

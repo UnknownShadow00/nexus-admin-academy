@@ -414,6 +414,51 @@ def test_ordinary_scenario_escalation_does_not_resolve(db):
     assert body["details"].get("escalation_attempted") is True
 
 
+def test_debrief_is_absent_in_progress_and_present_after_completion(db):
+    student = make_student(db, username="esc-debrief")
+    assignment = setup_assignment(
+        db, student, stable_key="inc2506", priority="high", process_profile=True
+    )
+    client = _client()
+    attempt_id = start(client, student, assignment).json()["id"]
+    _investigate_and_diagnose(client, student, attempt_id, "INC2506", "NX-2506")
+
+    mid = client.get(
+        f"/api/service-desk/attempts/{attempt_id}", headers=auth_headers(student)
+    )
+    assert mid.status_code == 200
+    # No grade, no debrief, and nothing resembling the authored path yet.
+    assert mid.json()["grade"] is None
+    assert "stronger_path" not in mid.text
+
+    assert (
+        _internal_note(client, student, attempt_id, "INC2506", "NX-2506").status_code
+        == 201
+    )
+    assert (
+        _escalate(
+            client,
+            student,
+            attempt_id,
+            "INC2506",
+            "policy-authorization",
+            "Identity & Access",
+        ).status_code
+        == 201
+    )
+    grade = _complete(client, student, attempt_id)
+    assert grade.status_code == 201, grade.text
+    debrief = grade.json()["debrief"]
+    assert debrief["result"]["outcome"] == "escalated"
+    assert debrief["result"]["passed"] is True
+    verification = next(
+        c for c in debrief["categories"] if c["key"] == "verification"
+    )
+    assert verification["status"] == "not_applicable"
+    assert debrief["stronger_path"]
+    assert debrief["escalation_feedback"]["appropriate"] is True
+
+
 def test_ordinary_scenario_grading_unchanged(db):
     student = make_student(db, username="ordinary-unchanged")
     assignment = setup_assignment(

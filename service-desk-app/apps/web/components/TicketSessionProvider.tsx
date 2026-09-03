@@ -1536,7 +1536,13 @@ export function TicketSessionProvider({
         const completedGrades: Record<string, NexusGrade> = {};
         for (const assignment of assignments) {
           const recentAttempt = assignment.most_recent_attempt;
-          if (!recentAttempt || recentAttempt.status !== 'completed') {
+          // A finished attempt is completed OR failed; both carry an
+          // authoritative grade + debrief and must survive a reload.
+          if (
+            !recentAttempt ||
+            (recentAttempt.status !== 'completed' &&
+              recentAttempt.status !== 'failed')
+          ) {
             continue;
           }
           const completedAttempt = await getAttempt(recentAttempt.id);

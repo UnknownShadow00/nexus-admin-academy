@@ -17,6 +17,7 @@ import { ResolutionNotePanel } from './ResolutionNotePanel';
 import type { ToolSelectionHandler } from './SuggestedTools';
 import { TicketActionBar } from './TicketActionBar';
 import { TicketContextBar } from './TicketContextBar';
+import { TicketDebrief } from './TicketDebrief';
 import { TicketIssueDetails } from './TicketIssueDetails';
 import { useSessionHydrated, useTicketSession } from './TicketSessionProvider';
 import { WorkspaceToolLauncher } from './WorkspaceToolLauncher';
@@ -30,6 +31,7 @@ type PhonePane = 'case' | 'tool' | 'rail';
 export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   const {
     assignmentByTicket,
+    authoritativeGradeByTicket,
     getTicket,
     recordHintReveal,
     submitResolutionNote,
@@ -158,6 +160,16 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   }
 
   const experienceMode = assignment?.experience_mode ?? 'guided';
+  const authoritativeGrade = authoritativeGradeByTicket[ticketId];
+
+  if (authoritativeGrade) {
+    return (
+      <div className="mx-auto w-full max-w-[1540px] space-y-4 sm:space-y-5">
+        <TicketContextBar assignment={assignment} ticket={ticket} />
+        <TicketDebrief grade={authoritativeGrade} ticket={ticket} />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-[1540px] space-y-4 sm:space-y-5">

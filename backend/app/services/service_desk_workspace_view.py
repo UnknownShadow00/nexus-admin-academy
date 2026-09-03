@@ -6,6 +6,7 @@ from typing import Any
 
 from app.services.service_desk_escalation import escalation_profile
 from app.services.service_desk_objectives import (
+    PROCESS_WEIGHTS,
     ScenarioObjectiveDefinition,
     _matching_positions,
     evaluate_objectives,
@@ -119,4 +120,269 @@ def process_progress(
         "documentation_target": _documentation_target(objective_def),
         "resolve_blockers": blockers,
         "escalation": escalation,
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Post-completion debrief.  This is the ONLY place the full authored path and
+# the ordering narrative are allowed to appear - never while in_progress.
+# --------------------------------------------------------------------------- #
+
+DEBRIEF_CATEGORY_ORDER = (
+    "investigation",
+    "diagnosis",
+    "remediation",
+    "verification",
+    "documentation",
+)
+
+_NOTE_CAUSE_HINTS = (
+    "because",
+    "caused by",
+    "root cause",
+    "due to",
+    "the cause",
+    "reason was",
+)
+_NOTE_ACTION_HINTS = (
+    "cleared",
+    "reset",
+    "renewed",
+    "reinstalled",
+    "escalated",
+    "applied",
+    "replaced",
+    "configured",
+    "restarted",
+    "removed",
+    "updated",
+    "handed off",
+    "raised with",
+)
+_NOTE_VERIFY_HINTS = (
+    "verified",
+    "confirmed",
+    "re-tested",
+    "retested",
+    "tested again",
+    "user confirmed",
+    "working now",
+    "signed in",
+)
+
+
+def _note_dimensions(text: str) -> dict[str, bool]:
+    lowered = (text or "").lower()
+    return {
+        "cause": any(hint in lowered for hint in _NOTE_CAUSE_HINTS),
+        "action": any(hint in lowered for hint in _NOTE_ACTION_HINTS),
+        "verification": any(hint in lowered for hint in _NOTE_VERIFY_HINTS),
+    }
+
+
+def _last_student_note(events: list[Any]) -> str:
+    note = ""
+    for event in events:
+        if (
+            event.event_type
+            in ("ticket.add_note", "remote_desktop.add_internal_note")
+            and event.trusted is True
+            and event.success is True
+        ):
+            payload = event.payload_json or {}
+            note = payload.get("body") or payload.get("text") or note
+    return note
+
+
+def _first_repair_position(
+    events: list[Any], objective_def: ScenarioObjectiveDefinition | None
+) -> int | None:
+    if not objective_def or not objective_def.is_process_profile:
+        return None
+    remediation = next(
+        (c for c in objective_def.categories if c.name == "remediation"), None
+    )
+    if remediation is None:
+        return None
+    positions = [
+        position
+        for objective in remediation.objectives
+        for position in _matching_positions(events, objective)
+    ]
+    return min(positions, default=None)
+
+
+def _category_explanation(
+    name: str,
+    met: bool,
+    events: list[Any],
+    objective_def: ScenarioObjectiveDefinition,
+    first_repair: int | None,
+) -> str:
+    category = next((c for c in objective_def.categories if c.name == name), None)
+    if category is None:
+        return ""
+    if met:
+        return {
+            "investigation": "You gathered evidence before changing anything.",
+            "diagnosis": "You identified the cause from your evidence.",
+            "remediation": "You applied the correct repair.",
+            "verification": "You re-checked the original symptom after the repair.",
+            "documentation": "You recorded a closure note.",
+        }.get(name, "Completed.")
+    # Not met: distinguish "never done" from "done in the wrong order".
+    has_any = any(
+        _matching_positions(events, objective) for objective in category.objectives
+    )
+    if (
+        has_any
+        and name in ("investigation", "diagnosis")
+        and first_repair is not None
+    ):
+        return (
+            "Your evidence for this step was recorded after you changed "
+            "something, so it could not count as pre-change work."
+        )
+    if has_any and name == "verification":
+        return (
+            "Your verification happened before the final repair, so it did "
+            "not confirm the fix."
+        )
+    return {
+        "investigation": "No pre-change investigation evidence was recorded.",
+        "diagnosis": "The cause was never isolated from evidence.",
+        "remediation": "The correct repair was not applied.",
+        "verification": "The original symptom was never re-checked after the repair.",
+        "documentation": "No closure note was recorded.",
+    }.get(name, "Not completed.")
+
+
+def _stronger_path(
+    objective_def: ScenarioObjectiveDefinition | None, profile: Any
+) -> list[str]:
+    if not objective_def or not objective_def.is_process_profile:
+        return []
+    labels: dict[str, str] = {}
+    for category in objective_def.categories:
+        if category.objectives:
+            labels[category.name] = evidence_objective_label(
+                category.objectives[0].id
+            )
+    if profile is not None and profile.expected:
+        steps = [
+            labels.get("investigation", "Reproduce and scope the reported problem"),
+            labels.get("diagnosis", "Identify the cause from your evidence"),
+        ]
+        if profile.required_containment:
+            steps.append("Perform the permitted containment step")
+        steps.append(f"Escalate to {profile.route} with your findings")
+        steps.append(labels.get("documentation", "Write the hand-off note"))
+        return steps
+    return [
+        labels[name]
+        for name in DEBRIEF_CATEGORY_ORDER
+        if name in labels
+    ]
+
+
+def _escalation_feedback(profile: Any, escalated: bool, passed: bool) -> dict[str, Any]:
+    if profile is not None and profile.expected:
+        return {
+            "appropriate": True,
+            "text": profile.rationale
+            or f"Yes - this ticket needed to go to {profile.route}.",
+        }
+    return {
+        "appropriate": False,
+        "text": "No - this was within your access and authority to resolve.",
+    }
+
+
+def build_debrief(
+    definition_json: dict[str, Any],
+    events: list[Any],
+    grade: Any,
+    *,
+    stable_key: str,
+    objective_def: ScenarioObjectiveDefinition | None,
+    attempts_remaining: int | None,
+) -> dict[str, Any]:
+    """Post-completion only.  Reveals the authored path and ordering narrative."""
+    details = grade.details_json or {}
+    checks = details.get("objective_checks", {})
+    profile = escalation_profile(stable_key)
+    escalated = bool(details.get("escalated"))
+    passed = bool(grade.passed)
+    first_repair = _first_repair_position(events, objective_def)
+
+    outcome = (
+        "escalated"
+        if escalated and passed
+        else "resolved"
+        if passed
+        else "needs_another_try"
+    )
+
+    categories: list[dict[str, Any]] = []
+    if objective_def and objective_def.is_process_profile:
+        for name in DEBRIEF_CATEGORY_ORDER:
+            weight = PROCESS_WEIGHTS[name]
+            met = bool(checks.get(name, False))
+            label = name.replace("_", " ").title()
+            status = "full" if met else "missed"
+            points = weight if met else 0
+            explanation = _category_explanation(
+                name, met, events, objective_def, first_repair
+            )
+
+            if profile is not None and profile.expected:
+                if name == "remediation":
+                    label = "Escalation / hand-off"
+                    correct = bool(details.get("escalation_correct"))
+                    status = "full" if correct else "missed"
+                    points = weight if correct else 0
+                    explanation = (
+                        profile.rationale
+                        if correct
+                        else (
+                            profile.no_escalation_rationale
+                            or "This ticket needed to be handed to "
+                            f"{profile.route}."
+                        )
+                    )
+                elif name == "verification" and not details.get(
+                    "verification_applicable"
+                ):
+                    status = "not_applicable"
+                    points = 0
+                    weight = 0
+                    explanation = (
+                        "This outcome is an escalation, so there was no repair "
+                        "for you to verify."
+                    )
+
+            categories.append(
+                {
+                    "key": name,
+                    "label": label,
+                    "points": points,
+                    "max": weight,
+                    "status": status,
+                    "explanation": explanation,
+                }
+            )
+
+    note_text = _last_student_note(events)
+    return {
+        "result": {
+            "passed": passed,
+            "score": grade.overall_score,
+            "attempts_remaining": attempts_remaining,
+            "outcome": outcome,
+        },
+        "categories": categories,
+        "student_note": note_text,
+        "note_dimensions": _note_dimensions(note_text),
+        "stronger_path": _stronger_path(objective_def, profile),
+        "escalation_feedback": _escalation_feedback(profile, escalated, passed),
     }

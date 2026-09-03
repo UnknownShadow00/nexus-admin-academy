@@ -5,7 +5,7 @@ from app.services.service_desk_objectives import (
     PROCESS_CATALOG_VERSION,
     SCENARIO_OBJECTIVES,
 )
-from app.services.service_desk_workspace_view import process_progress
+from app.services.service_desk_workspace_view import build_debrief, process_progress
 
 
 def _event(event_type, payload, *, trusted=True, success=True):
@@ -106,3 +106,93 @@ def test_pre_attempt_assignment_view_has_minimal_rail_contract():
     assert assignment_view["stages"][0]["status"] == "current"
     assert assignment_view["documentation_target"] == "remote_desktop"
     assert assignment_view["escalation"] is None
+
+
+def _grade(details, *, passed, score):
+    return SimpleNamespace(details_json=details, passed=passed, overall_score=score)
+
+
+def test_debrief_reveals_stronger_path_only_after_completion():
+    # In-progress view never carries the ordered path...
+    definition = SCENARIO_OBJECTIVES["inc2401"]
+    live = process_progress(
+        {"objective_catalog_version": PROCESS_CATALOG_VERSION},
+        [],
+        objective_def=definition,
+        stable_key="inc2401",
+        attempt=SimpleNamespace(status="in_progress"),
+    )
+    assert "stronger_path" not in json.dumps(live)
+
+    # ...but the post-completion debrief does.
+    debrief = build_debrief(
+        {"objective_catalog_version": PROCESS_CATALOG_VERSION},
+        [],
+        _grade(
+            {"objective_checks": {"investigation": True}, "escalated": False},
+            passed=False,
+            score=20,
+        ),
+        stable_key="inc2401",
+        objective_def=definition,
+        attempts_remaining=1,
+    )
+    assert debrief["stronger_path"]
+    assert debrief["result"]["outcome"] == "needs_another_try"
+    investigation = next(
+        c for c in debrief["categories"] if c["key"] == "investigation"
+    )
+    assert investigation["status"] == "full"
+
+
+def test_debrief_marks_escalation_verification_not_applicable():
+    definition = SCENARIO_OBJECTIVES["inc2506"]
+    debrief = build_debrief(
+        {"objective_catalog_version": PROCESS_CATALOG_VERSION},
+        [],
+        _grade(
+            {
+                "objective_checks": {
+                    "investigation": True,
+                    "diagnosis": True,
+                    "documentation": True,
+                },
+                "escalated": True,
+                "escalation_correct": True,
+                "verification_applicable": False,
+                "escalation_expected": True,
+            },
+            passed=True,
+            score=100,
+        ),
+        stable_key="inc2506",
+        objective_def=definition,
+        attempts_remaining=2,
+    )
+    verification = next(
+        c for c in debrief["categories"] if c["key"] == "verification"
+    )
+    assert verification["status"] == "not_applicable"
+    assert verification["points"] == 0
+    escalation_slot = next(
+        c for c in debrief["categories"] if c["key"] == "remediation"
+    )
+    assert escalation_slot["status"] == "full"
+    assert debrief["result"]["outcome"] == "escalated"
+    assert debrief["escalation_feedback"]["appropriate"] is True
+    assert "Escalate to Identity & Access with your findings" in debrief[
+        "stronger_path"
+    ]
+
+
+def test_debrief_escalation_feedback_for_ordinary_scenario():
+    definition = SCENARIO_OBJECTIVES["inc2507"]
+    debrief = build_debrief(
+        {"objective_catalog_version": PROCESS_CATALOG_VERSION},
+        [],
+        _grade({"objective_checks": {}}, passed=False, score=0),
+        stable_key="inc2507",
+        objective_def=definition,
+        attempts_remaining=None,
+    )
+    assert debrief["escalation_feedback"]["appropriate"] is False
