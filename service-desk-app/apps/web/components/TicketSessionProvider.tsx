@@ -100,6 +100,7 @@ import {
   type NexusGrade,
   type NexusServiceDeskProgression,
   type NexusAttemptCompletionInput,
+  type NexusWorkspaceView,
 } from '../lib/nexus-service-desk-client';
 import {
   outboxStatus,
@@ -120,8 +121,10 @@ interface TicketSessionContextValue {
   escalateTicket: (ticketId: string) => void;
   getTicket: (ticketId: string) => Ticket | undefined;
   recordHintReveal: (ticketId: string, step: number) => void;
+  submitResolutionNote: (ticketId: string, body: string) => void;
   assignmentByTicket: Readonly<Record<string, NexusAssignment>>;
   authoritativeGradeByTicket: Readonly<Record<string, NexusGrade>>;
+  workspaceViewByTicket: Readonly<Record<string, NexusWorkspaceView>>;
   progression: NexusServiceDeskProgression | null;
   tickets: readonly Ticket[];
   unassignTicket: (ticketId: string) => void;
@@ -634,6 +637,23 @@ export function normalizeTicketKey(value: string): string {
   const foundationalId = foundationalIds[value.toLowerCase()];
   if (foundationalId) return foundationalId;
   return value.toUpperCase();
+}
+
+export function resolutionNoteAction(
+  ticketId: string,
+  body: string,
+  documentationTarget: NexusWorkspaceView['documentation_target'],
+  assetTag?: string,
+): SimulationAction | null {
+  if (documentationTarget === 'remote_desktop') {
+    return assetTag
+      ? {
+          type: 'remote_desktop.add_internal_note',
+          payload: { assetTag, ticketId, text: body },
+        }
+      : null;
+  }
+  return { type: 'ticket.add_note', payload: { ticketId, body } };
 }
 
 function isDirectorySimulationAction(
@@ -1256,6 +1276,9 @@ export function TicketSessionProvider({
   const [runtimeAssignments, setRuntimeAssignments] = useState<
     Readonly<Record<string, NexusAssignment>>
   >({});
+  const [workspaceViewByTicket, setWorkspaceViewByTicket] = useState<
+    Readonly<Record<string, NexusWorkspaceView>>
+  >({});
   const [serviceDeskProgression, setServiceDeskProgression] =
     useState<NexusServiceDeskProgression | null>(null);
   const storageKey =
@@ -1391,6 +1414,20 @@ export function TicketSessionProvider({
             ]),
           ),
         );
+        setWorkspaceViewByTicket(
+          Object.fromEntries(
+            assignments.flatMap((assignment) =>
+              assignment.workspace_view
+                ? [
+                    [
+                      normalizeTicketKey(assignment.scenario.stable_key),
+                      assignment.workspace_view,
+                    ],
+                  ]
+                : [],
+            ),
+          ),
+        );
         setServiceDeskProgression(progression);
         nexusTicketMappingsRef.current = mappings;
         nexusSnapshotTargetRef.current = null;
@@ -1433,6 +1470,15 @@ export function TicketSessionProvider({
           }
 
           const currentState = nexusAttempt?.current_state;
+          if (nexusAttempt?.workspace_view) {
+            const ticketId = normalizeTicketKey(
+              assignment.scenario.stable_key,
+            );
+            setWorkspaceViewByTicket((current) => ({
+              ...current,
+              [ticketId]: nexusAttempt.workspace_view!,
+            }));
+          }
           if (
             nexusAttempt &&
             (!newestNexusAttempt ||
@@ -1499,6 +1545,13 @@ export function TicketSessionProvider({
               normalizeTicketKey(assignment.scenario.stable_key)
             ] = completedAttempt.grade;
           }
+          if (completedAttempt?.workspace_view) {
+            setWorkspaceViewByTicket((current) => ({
+              ...current,
+              [normalizeTicketKey(assignment.scenario.stable_key)]:
+                completedAttempt.workspace_view!,
+            }));
+          }
         }
         if (Object.keys(completedGrades).length > 0) {
           setAuthoritativeGradeByTicket((current) => ({
@@ -1527,6 +1580,7 @@ export function TicketSessionProvider({
         nexusSnapshotTargetRef.current = null;
         setRuntimeTickets(TICKET_FIXTURES);
         setRuntimeAssignments({});
+        setWorkspaceViewByTicket({});
         setServiceDeskProgression(null);
       }
 
@@ -1605,6 +1659,13 @@ export function TicketSessionProvider({
                 });
         if (!accepted)
           throw new Error('Nexus did not confirm the saved action.');
+        const refreshedAttempt = await getAttempt(attemptId);
+        if (refreshedAttempt?.workspace_view) {
+          setWorkspaceViewByTicket((current) => ({
+            ...current,
+            [item.ticketId]: refreshedAttempt.workspace_view!,
+          }));
+        }
         if (item.completion) {
           const grade = await completeAttempt(attemptId, item.completion);
           if (!grade) {
@@ -2016,6 +2077,7 @@ export function TicketSessionProvider({
     () => ({
       assignmentByTicket: runtimeAssignments,
       authoritativeGradeByTicket,
+      workspaceViewByTicket,
       addNote: (ticketId, body) => {
         dispatchAction({
           type: 'ticket.add_note',
@@ -2053,6 +2115,19 @@ export function TicketSessionProvider({
           payload: { ticketId, step },
         });
       },
+      submitResolutionNote: (ticketId, body) => {
+        const documentationTarget =
+          workspaceViewByTicket[ticketId]?.documentation_target ?? 'ticket';
+        const assetTag = tickets.find((ticket) => ticket.id === ticketId)?.device
+          .assetTag;
+        const action = resolutionNoteAction(
+          ticketId,
+          body,
+          documentationTarget,
+          assetTag,
+        );
+        if (action) dispatchAction(action);
+      },
       progression: serviceDeskProgression,
       tickets,
       unassignTicket: (ticketId) => {
@@ -2068,6 +2143,7 @@ export function TicketSessionProvider({
       runtimeAssignments,
       serviceDeskProgression,
       tickets,
+      workspaceViewByTicket,
     ],
   );
 

@@ -5,56 +5,22 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CompletionSummary,
-  ProgressiveHints,
   ticketFromSearch,
 } from './RemoteDesktopTool';
 import type { RemoteDesktopWorkstationRecord } from './TicketSessionProvider';
-import { progressiveHints } from '../lib/remote-desktop-learning';
 
-describe('Remote Desktop assessment hints', () => {
+describe('Remote Desktop workspace integration', () => {
   it('does not silently default to another ticket when context is missing', () => {
     expect(ticketFromSearch('')).toBeNull();
     expect(ticketFromSearch('?ticket=INC2405')).toBe('INC2405');
     expect(ticketFromSearch('?ticket=UNKNOWN')).toBeNull();
   });
-  it('does not render Guided hint text after an Assessment refresh or resume', () => {
-    const scenario = REMOTE_DESKTOP_SCENARIOS[0]!;
-    const guidedHint = scenario.studentHints[0]!;
-    const guidedMarkup = renderToStaticMarkup(
-      <ProgressiveHints
-        canReveal={false}
-        completed={false}
-        hints={progressiveHints(scenario, 1, 'guided', false)}
-        learningMode="guided"
-        onReveal={() => {}}
-      />,
-    );
-    const assessmentMarkup = renderToStaticMarkup(
-      <ProgressiveHints
-        canReveal={false}
-        completed
-        // Simulates the persisted Guided reveal count being present after both
-        // a browser refresh and a resumed Assessment attempt.
-        hints={progressiveHints(scenario, 3, 'assessment', true)}
-        learningMode="assessment"
-        onReveal={() => {}}
-      />,
-    );
-
-    expect(guidedMarkup).toContain(guidedHint);
-    expect(assessmentMarkup).not.toContain(guidedHint);
-    expect(assessmentMarkup).not.toContain(scenario.studentHints[1]!);
-    expect(assessmentMarkup).not.toContain(scenario.studentHints[2]!);
-  });
-
   it('renders the final score only from the authoritative server grade', () => {
     const scenario = REMOTE_DESKTOP_SCENARIOS.find(
       (candidate) => candidate.ticketId === 'INC2405',
     )!;
     const markup = renderToStaticMarkup(
       <CompletionSummary
-        hintTexts={[]}
-        hintsUsed={0}
         progress={{
           diagnosisEvidence: [],
           fixEvidence: [],

@@ -30,6 +30,30 @@ export interface NexusAssignment {
     title: string;
   };
   scenario_id: string | number;
+  workspace_view?: NexusWorkspaceView | null;
+}
+
+export type NexusWorkflowStageKey =
+  | 'understand'
+  | 'investigate'
+  | 'diagnose'
+  | 'fix'
+  | 'verify'
+  | 'document';
+
+export interface NexusWorkflowStage {
+  key: NexusWorkflowStageKey;
+  mode?: 'fix' | 'escalate' | 'either';
+  needs_more_evidence?: boolean;
+  status: 'complete' | 'current' | 'not_started';
+}
+
+export interface NexusWorkspaceView {
+  documentation_target: 'ticket' | 'remote_desktop';
+  escalation: { available: boolean; route: string } | null;
+  evidence: readonly { id: string; label: string }[];
+  resolve_blockers: readonly string[];
+  stages: readonly NexusWorkflowStage[];
 }
 
 export interface NexusServiceDeskProgression {
@@ -79,6 +103,7 @@ export interface NexusAttempt {
   state_version: number;
   status: string;
   updated_at: string;
+  workspace_view?: NexusWorkspaceView;
 }
 
 export interface NexusAttemptEventInput {
@@ -143,7 +168,27 @@ function isAttempt(value: unknown): value is NexusAttempt {
     typeof value.started_at === 'string' &&
     typeof value.state_version === 'number' &&
     typeof value.status === 'string' &&
-    typeof value.updated_at === 'string'
+    typeof value.updated_at === 'string' &&
+    (value.workspace_view === undefined || isWorkspaceView(value.workspace_view))
+  );
+}
+
+function isWorkspaceView(value: unknown): value is NexusWorkspaceView {
+  if (!isRecord(value) || !Array.isArray(value.stages)) return false;
+  return (
+    (value.documentation_target === 'ticket' ||
+      value.documentation_target === 'remote_desktop') &&
+    (value.escalation === null || isRecord(value.escalation)) &&
+    Array.isArray(value.evidence) &&
+    Array.isArray(value.resolve_blockers) &&
+    value.stages.every(
+      (stage) =>
+        isRecord(stage) &&
+        typeof stage.key === 'string' &&
+        (stage.status === 'complete' ||
+          stage.status === 'current' ||
+          stage.status === 'not_started'),
+    )
   );
 }
 
@@ -196,7 +241,10 @@ function isAssignment(value: unknown): value is NexusAssignment {
     typeof value.required_this_week === 'boolean' &&
     typeof value.scenario.stable_key === 'string' &&
     typeof value.scenario.title === 'string' &&
-    isId(value.scenario_id)
+    isId(value.scenario_id) &&
+    (value.workspace_view === undefined ||
+      value.workspace_view === null ||
+      isWorkspaceView(value.workspace_view))
   );
 }
 

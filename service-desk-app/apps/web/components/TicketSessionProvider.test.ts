@@ -5,8 +5,35 @@ import { describe, expect, it } from 'vitest';
 import {
   getNexusActionSyncDetails,
   normalizeTicketKey,
+  resolutionNoteAction,
   ticketsForAssignments,
 } from './TicketSessionProvider';
+
+describe('resolution note routing', () => {
+  it('routes each server documentation target to its graded event', () => {
+    expect(
+      resolutionNoteAction('INC2511', 'A sufficiently detailed note.', 'ticket'),
+    ).toEqual({
+      type: 'ticket.add_note',
+      payload: { ticketId: 'INC2511', body: 'A sufficiently detailed note.' },
+    });
+    expect(
+      resolutionNoteAction(
+        'INC2401',
+        'A sufficiently detailed note.',
+        'remote_desktop',
+        'NX-4831',
+      ),
+    ).toEqual({
+      type: 'remote_desktop.add_internal_note',
+      payload: {
+        assetTag: 'NX-4831',
+        ticketId: 'INC2401',
+        text: 'A sufficiently detailed note.',
+      },
+    });
+  });
+});
 
 describe('Nexus evidence attribution', () => {
   const attempt = createAttempt({ id: 'attempt-1' });

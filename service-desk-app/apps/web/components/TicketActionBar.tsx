@@ -3,13 +3,11 @@
 import type { Ticket } from '@service-desk/shared';
 
 import { AssignmentControls } from './AssignmentControls';
-import { HintDialog } from './HintDialog';
 import { StatusMenu } from './StatusMenu';
 import { useTicketSession } from './TicketSessionProvider';
 
 export function TicketActionBar({ ticket }: { ticket: Ticket }) {
-  const { assignTicket, changeStatus, recordHintReveal, unassignTicket } =
-    useTicketSession();
+  const { assignTicket, changeStatus, unassignTicket } = useTicketSession();
 
   return (
     <section
@@ -25,13 +23,6 @@ export function TicketActionBar({ ticket }: { ticket: Ticket }) {
         onChange={(status) => changeStatus(ticket.id, status)}
         status={ticket.status}
       />
-      <div className="sm:ml-auto">
-        <HintDialog
-          hints={ticket.hints}
-          onReveal={(step) => recordHintReveal(ticket.id, step)}
-          revealedCount={ticket.hintsRevealedCount}
-        />
-      </div>
     </section>
   );
 }

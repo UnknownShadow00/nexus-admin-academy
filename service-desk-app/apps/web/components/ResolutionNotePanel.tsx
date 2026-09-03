@@ -3,25 +3,30 @@
 import type { TicketNote } from '@service-desk/shared';
 import { Button, Card, CardHeader, Textarea } from '@service-desk/ui';
 import { IconNote, IconPlus } from '@tabler/icons-react';
-import { useState, type FormEvent } from 'react';
+import React, { useState, type FormEvent } from 'react';
 
 import { formatActivityTimestamp } from './ticket-labels';
 
-interface NotesSectionProps {
-  notes: readonly TicketNote[];
-  onAddNote: (body: string) => void;
-}
+const NOTE_PROMPTS =
+  'What did the requester report? What did you check? What did you find? Likely cause? Action taken? How did you verify?';
 
-export function NotesSection({ notes, onAddNote }: NotesSectionProps) {
+export function ResolutionNotePanel({
+  experienceMode,
+  notes,
+  onSubmit,
+}: {
+  experienceMode: 'guided' | 'practice' | 'assessment';
+  notes: readonly TicketNote[];
+  onSubmit: (body: string) => void;
+}) {
   const [body, setBody] = useState('');
+  const showPrompts = experienceMode !== 'assessment';
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!body.trim()) {
-      return;
-    }
-
-    onAddNote(body);
+    const note = body.trim();
+    if (note.length < 20) return;
+    onSubmit(note);
     setBody('');
   }
 
@@ -32,12 +37,12 @@ export function NotesSection({ notes, onAddNote }: NotesSectionProps) {
         title={
           <span className="flex items-center gap-2">
             <IconNote aria-hidden="true" className="h-5 w-5 text-sky-400" />
-            Internal notes
+            Resolution notes
           </span>
         }
       />
       <div className="p-4 sm:p-5">
-        {notes.length > 0 ? (
+        {notes.length ? (
           <ul className="mb-5 space-y-3">
             {[...notes].reverse().map((note) => (
               <li
@@ -64,20 +69,26 @@ export function NotesSection({ notes, onAddNote }: NotesSectionProps) {
         <form onSubmit={handleSubmit}>
           <label
             className="text-xs font-extrabold uppercase tracking-wide text-zinc-500"
-            htmlFor="internal-note"
+            htmlFor="resolution-note"
           >
             Add a note
           </label>
           <Textarea
+            aria-describedby={showPrompts ? 'resolution-note-prompts' : undefined}
             className="mt-2"
-            id="internal-note"
+            id="resolution-note"
             onChange={(event) => setBody(event.target.value)}
-            placeholder="Record what you checked or what should happen next…"
+            placeholder={showPrompts ? NOTE_PROMPTS : 'Write an internal note…'}
             value={body}
           />
+          {showPrompts ? (
+            <p className="mt-2 text-xs leading-5 text-zinc-400" id="resolution-note-prompts">
+              {NOTE_PROMPTS}
+            </p>
+          ) : null}
           <Button
             className="mt-3 w-full sm:w-auto"
-            disabled={!body.trim()}
+            disabled={body.trim().length < 20}
             type="submit"
             variant="soft"
           >

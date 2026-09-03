@@ -44,6 +44,7 @@ from app.services.service_desk_progression import (
     require_scenario_unlocked,
     scenario_access,
 )
+from app.services.service_desk_workspace_view import process_progress
 from app.services.v2_progress_service import reconcile_v2_service_desk_attempt
 from app.services.xp_service import award_xp
 
@@ -182,9 +183,11 @@ def _grade_dict(grade: ServiceDeskAttemptGrade | None) -> dict | None:
 
 
 def _attempt_dict(
-    attempt: ServiceDeskAttempt, grade: ServiceDeskAttemptGrade | None = None
+    attempt: ServiceDeskAttempt,
+    grade: ServiceDeskAttemptGrade | None = None,
+    workspace_view: dict | None = None,
 ) -> dict:
-    return {
+    result = {
         "id": attempt.id,
         "student_id": attempt.student_id,
         "scenario_version_id": attempt.scenario_version_id,
@@ -203,6 +206,33 @@ def _attempt_dict(
         "updated_at": attempt.updated_at,
         "grade": _grade_dict(grade),
     }
+    if workspace_view is not None:
+        result["workspace_view"] = workspace_view
+    return result
+
+
+def _workspace_view(
+    db: Session,
+    scenario: ServiceDeskScenario,
+    version: ServiceDeskScenarioVersion,
+    attempt: ServiceDeskAttempt | None,
+) -> dict:
+    events = (
+        db.query(ServiceDeskAttemptEvent)
+        .filter_by(attempt_id=attempt.id)
+        .order_by(ServiceDeskAttemptEvent.sequence_number)
+        .all()
+        if attempt
+        else []
+    )
+    definition_json = version.definition_json or {}
+    return process_progress(
+        definition_json,
+        events,
+        objective_def=objective_definition(scenario.stable_key, definition_json),
+        stable_key=scenario.stable_key,
+        attempt=attempt,
+    )
 
 
 def _owned_attempt(
@@ -363,6 +393,11 @@ def list_assignments(
                     "experience_mode": latest_attempt.experience_mode,
                 }
                 if latest_attempt
+                else None,
+                "workspace_view": _workspace_view(
+                    db, scenario, version, latest_attempt
+                )
+                if version
                 else None,
             }
         )
@@ -534,10 +569,15 @@ def get_attempt(
     db: Session = Depends(get_db),
 ):
     attempt = _owned_attempt(db, attempt_id, current_student)
+    version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
+    scenario = db.get(ServiceDeskScenario, version.scenario_id) if version else None
     return jsonable_encoder(
         _attempt_dict(
             attempt,
             db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt.id).first(),
+            _workspace_view(db, scenario, version, attempt)
+            if scenario and version
+            else None,
         )
     )
 

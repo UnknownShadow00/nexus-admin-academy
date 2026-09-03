@@ -172,8 +172,30 @@ SCENARIO_OBJECTIVES: dict[str, ScenarioObjectiveDefinition] = {
         ),
     ),
     "inc2402": _process(
-        ProcessCategory("investigation", (_terminal("NX-7714", "ipconfig"),)),
-        ProcessCategory("diagnosis", (_terminal("NX-7714", "ping 10.20.0.10"),)),
+        ProcessCategory(
+            "investigation",
+            (
+                _objective(
+                    "ip-configuration-checked",
+                    EvidenceRule(
+                        "remote_desktop.run_terminal_command",
+                        {"assetTag": "NX-7714", "command": "ipconfig"},
+                    ),
+                ),
+            ),
+        ),
+        ProcessCategory(
+            "diagnosis",
+            (
+                _objective(
+                    "internet-reachable-by-ip",
+                    EvidenceRule(
+                        "remote_desktop.run_terminal_command",
+                        {"assetTag": "NX-7714", "command": "ping 10.20.0.10"},
+                    ),
+                ),
+            ),
+        ),
         ProcessCategory(
             "remediation",
             (
@@ -686,6 +708,36 @@ SCENARIO_OBJECTIVES.update(
         )
     }
 )
+
+
+# Student-facing descriptions of evidence the trusted ledger has already
+# established. This catalog is deliberately separate from rule payloads: the
+# workspace may name achieved evidence, but must never expose an unmet rule or
+# its implementation details before completion.
+EVIDENCE_OBJECTIVE_LABELS: dict[str, str] = {
+    "profile-evidence-reviewed": "Profile evidence reviewed",
+    "sign-in-loop-reproduced": "Sign-in loop reproduced",
+    "profile-storage-cleared": "Profile storage cleared",
+    "finance-portal-restored": "Finance portal access restored",
+    "terminal-evidence": "Terminal evidence collected",
+    "ip-configuration-checked": "IP configuration checked",
+    "internet-reachable-by-ip": "Internet reachable by IP",
+    "managed-profile-refreshed": "Managed network profile refreshed",
+    "lease-renewed": "Network lease renewed",
+    "scanner-stable": "Scanner connection confirmed stable",
+    "closure-note": "Resolution documented",
+    "scope-or-evidence-established": "Issue scope and evidence established",
+    "root-cause-isolated": "Root cause isolated",
+    "safe-remediation-applied": "Safe remediation applied",
+    "original-symptom-verified": "Original symptom verified",
+}
+
+
+def evidence_objective_label(identifier: str) -> str:
+    """Return authored student-facing copy with a safe generic fallback."""
+    return EVIDENCE_OBJECTIVE_LABELS.get(
+        identifier, identifier.replace("-", " ").replace("_", " ").title()
+    )
 
 
 def _account_process(

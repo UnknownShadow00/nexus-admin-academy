@@ -27,6 +27,13 @@ const attempt = {
   state_version: 1,
   status: 'in_progress',
   updated_at: '2026-08-13T00:00:00Z',
+  workspace_view: {
+    documentation_target: 'remote_desktop',
+    escalation: null,
+    evidence: [{ id: 'checked-ip', label: 'IP configuration checked' }],
+    resolve_blockers: ['verify_first'],
+    stages: [{ key: 'investigate', status: 'current' }],
+  },
 };
 
 const grade = {
@@ -123,6 +130,10 @@ describe('Nexus service desk client', () => {
     });
     await expect(getAttempt(101)).resolves.toMatchObject({
       id: 101,
+      workspace_view: {
+        documentation_target: 'remote_desktop',
+        evidence: [{ label: 'IP configuration checked' }],
+      },
     });
     await expect(
       recordAttemptEvent(101, {

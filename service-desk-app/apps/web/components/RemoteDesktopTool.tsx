@@ -34,9 +34,7 @@ import {
 import type { NexusGrade } from '../lib/nexus-service-desk-client';
 import {
   canInspectScenarioRequirements,
-  hasAnotherHint,
   mentorScenarioRequirements,
-  progressiveHints,
   scenarioActionLabel,
   studentFeedbackMessage,
 } from '../lib/remote-desktop-learning';
@@ -103,14 +101,9 @@ export function RemoteDesktopTool() {
     ticketId ? tickets.assignmentByTicket[ticketId]?.experience_mode : undefined;
   const learningMode =
     assignedExperienceMode ?? workstation?.learningMode ?? 'guided';
-  const hintsRevealed =
-    learningMode === 'assessment' ? 0 : (ticket?.hintsRevealedCount ?? 0);
   const canReviewScenario = canInspectScenarioRequirements(identity);
   const scenarioComplete =
     scenario ? workstation?.completedScenarioIds.includes(scenario.id) ?? false : false;
-  const revealedHints = scenario ? progressiveHints(
-    scenario, hintsRevealed, learningMode, scenarioComplete,
-  ) : [];
   const workflowProgress = scenario ? workstation?.scenarioProgress[scenario.id] : undefined;
 
   useEffect(() => replaceLocation(ticketId, computer), [computer, ticketId]);
@@ -151,14 +144,6 @@ export function RemoteDesktopTool() {
       return;
     if (scenarioComplete && !event.success) return;
     setToast(event);
-  };
-  const revealNextHint = () => {
-    if (
-      !ticket || !scenario ||
-      !hasAnotherHint(scenario, hintsRevealed, learningMode, scenarioComplete)
-    )
-      return;
-    tickets.recordHintReveal(ticket.id, hintsRevealed + 1);
   };
 
   if (!scenario) return <section className="mx-auto max-w-2xl rounded-md border border-zinc-800 bg-zinc-900 p-8 text-center" role="status"><IconDeviceDesktop className="mx-auto h-10 w-10 text-zinc-500" aria-hidden="true" /><h1 className="mt-4 text-xl font-bold text-zinc-100">Choose a ticket</h1><p className="mt-2 text-sm text-zinc-400">Open Remote Desktop from a ticket so the correct customer and computer follow you.</p><a className="sd-button sd-button--default sd-focus-ring mt-5 inline-flex px-4 py-2" href="/">Back to ticket queue</a></section>;
@@ -333,48 +318,8 @@ export function RemoteDesktopTool() {
               </div>
             </section>
 
-            <ProgressiveHints
-              canReveal={hasAnotherHint(
-                scenario,
-                hintsRevealed,
-                learningMode,
-                scenarioComplete,
-              )}
-              completed={scenarioComplete}
-              hints={revealedHints}
-              learningMode={learningMode}
-              onReveal={revealNextHint}
-            />
-
-            {scenario.workflow && workstation && !scenarioComplete ? (
-              <WorkflowClosure
-                learningMode={learningMode}
-                onClose={() =>
-                  ticket &&
-                  workflowProgress?.internalNote &&
-                  tickets.closeTicket(ticket.id, {
-                    resolutionNote: workflowProgress.internalNote,
-                    verifiedResolved: true,
-                  })
-                }
-                onSaveNote={(text) =>
-                  report(
-                    remote.addInternalNote(
-                      workstation.assetTag,
-                      scenario.ticketId,
-                      text,
-                    ),
-                  )
-                }
-                progress={workflowProgress}
-                scenario={scenario}
-              />
-            ) : null}
-
             {workstation?.completedScenarioIds.includes(scenario.id) ? (
               <CompletionSummary
-                hintsUsed={hintsRevealed}
-                hintTexts={revealedHints}
                 onClose={
                   scenario.workflow
                     ? undefined
@@ -463,186 +408,13 @@ function Feedback({
   );
 }
 
-export function ProgressiveHints({
-  canReveal,
-  hints,
-  learningMode,
-  onReveal,
-}: {
-  canReveal: boolean;
-  completed?: boolean;
-  hints: readonly string[];
-  learningMode: 'guided' | 'practice' | 'assessment';
-  onReveal: () => void;
-}) {
-  const hasHints = hints.length > 0;
-  return (
-    <section className="rounded-sm bg-sky-500/[0.07] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-sky-300">
-            {learningMode === 'guided'
-              ? 'Guided support'
-              : learningMode === 'practice'
-                ? 'Practice hints'
-                : 'Assessment mode'}
-          </p>
-          <p className="mt-1 text-sm leading-5 text-sky-100/80">
-            {learningMode === 'guided'
-              ? 'The first hint appears proactively; reveal more as you work.'
-              : learningMode === 'practice'
-                ? 'Hints are available on request.'
-                : 'Hints are not shown during an assessment attempt.'}
-          </p>
-        </div>
-      </div>
-      {hasHints ? (
-        <ol className="mt-3 space-y-2 text-sm leading-5 text-sky-50">
-          {hints.map((hint, index) => (
-            <li className="flex gap-2" key={hint}>
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-400/20 text-xs font-bold text-sky-200">
-                {index + 1}
-              </span>
-              <span>{hint}</span>
-            </li>
-          ))}
-        </ol>
-      ) : null}
-      {canReveal ? (
-        <button
-          className="mt-3 text-sm font-semibold text-sky-200 underline decoration-sky-400/60 underline-offset-4 hover:text-white"
-          onClick={onReveal}
-          type="button"
-        >
-          Reveal another hint
-        </button>
-      ) : hasHints && learningMode !== 'assessment' ? (
-        <p className="mt-3 text-xs text-sky-100/65">
-          No more hints are available.
-        </p>
-      ) : null}
-    </section>
-  );
-}
-
-function WorkflowClosure({
-  learningMode,
-  onClose,
-  onSaveNote,
-  progress,
-  scenario,
-}: {
-  learningMode: 'guided' | 'practice' | 'assessment';
-  onClose: () => void;
-  onSaveNote: (text: string) => void;
-  progress: RemoteDesktopScenarioProgress | undefined;
-  scenario: (typeof REMOTE_DESKTOP_SCENARIOS)[number];
-}) {
-  const [note, setNote] = useState(progress?.internalNote ?? '');
-  const minimumLength = scenario.workflow?.note.minimumLength ?? 20;
-  const readyToClose = Boolean(
-    progress?.phases.diagnosed &&
-      progress.phases.fixed &&
-      progress.phases.verified &&
-      progress.phases.noted,
-  );
-
-  useEffect(() => {
-    setNote(progress?.internalNote ?? '');
-  }, [progress?.internalNote]);
-
-  const phases = [
-    ['Diagnosis evidence', progress?.phases.diagnosed],
-    ['Correct fix', progress?.phases.fixed],
-    ['Post-fix verification', progress?.phases.verified],
-    ['Internal note', progress?.phases.noted],
-  ] as const;
-
-  return (
-    <section className="rounded-sm border border-sky-400/30 bg-sky-500/[0.07] p-4">
-      <p className="font-display text-lg font-bold text-sky-100">
-        {learningMode === 'assessment'
-          ? 'Assessment closure'
-          : 'Resolution workflow'}
-      </p>
-      {learningMode === 'assessment' ? (
-        <p className="mt-2 text-sm leading-5 text-sky-100/75">
-          Document your work and close the ticket when you believe the original
-          symptom is resolved.
-        </p>
-      ) : (
-        <ul className="mt-3 grid gap-2 text-sm text-sky-50 sm:grid-cols-2">
-          {phases.map(([label, complete]) => (
-            <li className="flex items-center gap-2" key={label}>
-              <span
-                aria-hidden="true"
-                className={`flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${complete ? 'bg-emerald-400/20 text-emerald-200' : 'bg-zinc-700 text-zinc-300'}`}
-              >
-                {complete ? '✓' : '•'}
-              </span>
-              {label}
-            </li>
-          ))}
-        </ul>
-      )}
-      <form
-        className="mt-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSaveNote(note);
-        }}
-      >
-        <label className="block text-sm font-semibold text-sky-100">
-          Student-authored internal note
-          <textarea
-            aria-describedby="internal-note-help"
-            className="mt-2 min-h-24 w-full rounded-sm border border-zinc-700 bg-zinc-950 p-3 text-sm font-normal text-zinc-100"
-            maxLength={1000}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="Describe the evidence, root cause, fix, and verification in your own words."
-            value={note}
-          />
-        </label>
-        <p className="mt-1 text-xs text-sky-100/70" id="internal-note-help">
-          Minimum {minimumLength} characters. Document the diagnosis, repair,
-          and verification in your own words; the note is never autofilled.
-        </p>
-        <Button
-          className="mt-3"
-          disabled={note.trim().length < minimumLength}
-          type="submit"
-          variant="light"
-        >
-          Save internal note
-        </Button>
-      </form>
-      <div className="mt-4 border-t border-sky-300/20 pt-4">
-        <Button disabled={!readyToClose} onClick={onClose} variant="soft">
-          Close ticket
-        </Button>
-        {!readyToClose ? (
-          <p className="mt-2 text-xs leading-5 text-sky-100/70">
-            {learningMode === 'assessment'
-              ? 'Continue investigating, remediate safely, verify the original symptom, and save your note.'
-              : 'Close stays blocked until diagnosis, fix, verification, and a saved internal note are complete.'}
-          </p>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
 export function CompletionSummary({
-  hintTexts,
-  hintsUsed,
   onClose,
   progress,
   scenario,
   serverGrade,
   workstation,
 }: {
-  hintTexts: readonly string[];
-  hintsUsed: number;
   onClose?: () => void;
   progress: RemoteDesktopScenarioProgress | undefined;
   scenario: (typeof REMOTE_DESKTOP_SCENARIOS)[number];
@@ -706,12 +478,6 @@ export function CompletionSummary({
                 .map((step) => scenarioActionLabel(scenario, step))
                 .join(', ')
             : 'None.'}
-        </p>
-        <p className="mt-3 font-semibold text-emerald-100">
-          Hints used: {hintsUsed}
-        </p>
-        <p className="mt-1 text-emerald-50/85">
-          {hintTexts.length ? hintTexts.join(' · ') : 'None.'}
         </p>
         {serverGrade ? (
           <>
@@ -878,7 +644,6 @@ function RemoteSurface({
   workstation: RemoteDesktopWorkstationRecord;
 }) {
   const [showDomain, setShowDomain] = useState(false);
-  const [showHint, setShowHint] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const status = workstation.connectionState;
@@ -920,13 +685,11 @@ function RemoteSurface({
         <LoginGate
           domainOpen={showDomain}
           error={workstation.lastError}
-          hintOpen={showHint}
           onCancel={() => {
             onEvent(remote.cancelConnection(workstation.assetTag));
             onBack();
           }}
           onDomain={() => setShowDomain((open) => !open)}
-          onHint={() => setShowHint((open) => !open)}
           onRetry={() =>
             onEvent(remote.beginLogin(workstation.assetTag, scenario.ticketId))
           }
@@ -984,10 +747,8 @@ function ConnectingScreen({
 function LoginGate({
   domainOpen,
   error,
-  hintOpen,
   onCancel,
   onDomain,
-  onHint,
   onRetry,
   onSubmit,
   password,
@@ -998,10 +759,8 @@ function LoginGate({
 }: {
   domainOpen: boolean;
   error: string | null;
-  hintOpen: boolean;
   onCancel: () => void;
   onDomain: () => void;
-  onHint: () => void;
   onRetry: () => void;
   onSubmit: () => void;
   password: string;
@@ -1024,20 +783,6 @@ function LoginGate({
           <p className="mt-1 text-xs text-sky-100/65">
             Enter your simulated admin credentials for the remote computer
           </p>
-          <button
-            className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-sky-200 hover:text-white"
-            onClick={onHint}
-            type="button"
-          >
-            <IconKey aria-hidden="true" className="h-3.5 w-3.5" />
-            {hintOpen ? 'Hide hint' : 'Hint'}
-          </button>
-          {hintOpen ? (
-            <p className="mt-2 rounded border border-sky-300/20 bg-sky-950/30 p-2 text-xs text-sky-100">
-              Any non-empty simulated administrator credentials are accepted for
-              the affected machine.
-            </p>
-          ) : null}
           {error ? (
             <div
               className="mt-3 rounded border border-amber-300/40 bg-amber-200/10 p-2 text-xs text-amber-100"

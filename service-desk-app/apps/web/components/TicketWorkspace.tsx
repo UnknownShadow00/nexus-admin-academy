@@ -8,16 +8,19 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { ActiveToolPane } from './ActiveToolPane';
 import { ActivityTimeline } from './ActivityTimeline';
-import { NotesSection } from './NotesSection';
+import { EvidencePanel } from './EvidencePanel';
+import { HintPanel } from './HintPanel';
 import { OutcomeBar } from './OutcomeBar';
 import { RelatedDevicePanel } from './RelatedDevicePanel';
 import { RequesterCard } from './RequesterCard';
+import { ResolutionNotePanel } from './ResolutionNotePanel';
 import type { ToolSelectionHandler } from './SuggestedTools';
 import { TicketActionBar } from './TicketActionBar';
 import { TicketContextBar } from './TicketContextBar';
 import { TicketIssueDetails } from './TicketIssueDetails';
 import { useSessionHydrated, useTicketSession } from './TicketSessionProvider';
 import { WorkspaceToolLauncher } from './WorkspaceToolLauncher';
+import { WorkflowRail } from './WorkflowRail';
 
 const ORIENTATION_KEY = 'sd:first-guided-orientation-seen';
 const TOOL_HINT_KEYS = ['article', 'category', 'computer', 'contact'] as const;
@@ -25,10 +28,17 @@ const TOOL_HINT_KEYS = ['article', 'category', 'computer', 'contact'] as const;
 type PhonePane = 'case' | 'tool' | 'rail';
 
 export function TicketWorkspace({ ticketId }: { ticketId: string }) {
-  const { addNote, assignmentByTicket, getTicket } = useTicketSession();
+  const {
+    assignmentByTicket,
+    getTicket,
+    recordHintReveal,
+    submitResolutionNote,
+    workspaceViewByTicket,
+  } = useTicketSession();
   const isHydrated = useSessionHydrated();
   const ticket = getTicket(ticketId);
   const assignment = assignmentByTicket[ticketId];
+  const workspaceView = workspaceViewByTicket[ticketId];
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -153,19 +163,12 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
     <div className="mx-auto w-full max-w-[1540px] space-y-4 sm:space-y-5">
       <TicketContextBar assignment={assignment} ticket={ticket} />
 
-      {/* GROUP 2 owns the authoritative WorkflowRail implementation. */}
-      <section
-        aria-label="Workflow rail placeholder"
-        className="rounded-md border border-dashed border-zinc-700 bg-zinc-950/60 px-4 py-3"
-        data-group-2-slot="workflow-rail"
-      >
-        <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
-          Workflow progress
-        </p>
-        <p className="mt-1 text-xs text-zinc-400">
-          Authoritative workflow stages will appear in this pinned rail.
-        </p>
-      </section>
+      {workspaceView ? (
+        <WorkflowRail
+          experienceMode={experienceMode}
+          stages={workspaceView.stages}
+        />
+      ) : null}
 
       <Tabs
         onValueChange={(value) => setPhonePane(value as PhonePane)}
@@ -226,11 +229,20 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
                 toolSlugs={ticket.suggestedTools}
               />
               <TicketActionBar ticket={ticket} />
-              <NotesSection
+              {workspaceView ? (
+                <EvidencePanel workspaceView={workspaceView} />
+              ) : null}
+              <ResolutionNotePanel
+                experienceMode={experienceMode}
                 notes={ticket.notes}
-                onAddNote={(body) => addNote(ticket.id, body)}
+                onSubmit={(body) => submitResolutionNote(ticket.id, body)}
               />
-              {/* GROUP 2 replaces the retained NotesSection/HintDialog surfaces here. */}
+              <HintPanel
+                experienceMode={experienceMode}
+                hints={ticket.hints}
+                onReveal={(step) => recordHintReveal(ticket.id, step)}
+                revealedCount={ticket.hintsRevealedCount}
+              />
             </aside>
           </TabsContent>
         </div>
