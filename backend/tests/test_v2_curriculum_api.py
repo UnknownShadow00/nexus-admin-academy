@@ -83,6 +83,12 @@ def test_quick_check_uses_bank_supports_short_answer_and_records_attempt(db, mon
     result = next(row for row in response.json()["data"]["results"] if row["question_id"] == short["id"])
     assert result["is_correct"] is True
     assert db.query(V2AssessmentAttempt).filter_by(student_id=student.id).count() == 1
+    reloaded = client.get(
+        f"/api/v2/curriculum/modules/{module_key}/assessments/{key}",
+        headers=auth_headers(student),
+    ).json()["data"]
+    assert reloaded["result"]["attempt_id"] == assessment["attempt"]["id"]
+    assert reloaded["result"]["score"] == response.json()["data"]["score"]
 
 
 def test_explain_submission_is_committed_before_pending_grade(db, monkeypatch):
@@ -100,6 +106,14 @@ def test_explain_submission_is_committed_before_pending_grade(db, monkeypatch):
     assert submission.submitted_answer == job.submitted_answer
     status = client.get(f"/api/v2/curriculum/modules/{MODULE}/explain/{prompt}", headers=auth_headers(student)).json()["data"]
     assert status["submissions"][0]["message"] == "Your response was saved and is waiting to be graded."
+    duplicate = client.post(
+        f"/api/v2/curriculum/modules/{MODULE}/explain/{prompt}/submit",
+        json={"answer": "This accidental duplicate must not be stored."},
+        headers=auth_headers(student),
+    )
+    assert duplicate.status_code == 200
+    assert "already saved" in duplicate.json()["data"]["message"]
+    assert db.query(V2ExplainSubmission).filter_by(student_id=student.id).count() == 1
 
 
 def test_service_desk_launch_creates_only_a_validated_existing_system_assignment(db, monkeypatch):
@@ -110,8 +124,10 @@ def test_service_desk_launch_creates_only_a_validated_existing_system_assignment
     )
     assert response.status_code == 200
     assert response.json()["data"]["launch_url"].startswith("/service-desk/tickets/")
+    assert response.json()["data"]["launch_url"].endswith(f"?returnTo=/learning-v2/modules/{MODULE}")
+    assert response.json()["data"]["experience_mode"] == "guided"
     assignment = db.query(ServiceDeskAssignment).filter_by(student_id=student.id).one()
-    assert assignment.mode in {"learning", "simulation"}
+    assert assignment.mode == "learning"
     assert assignment.assigned_by.startswith("v2_curriculum:")
 
 

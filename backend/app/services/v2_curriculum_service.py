@@ -132,6 +132,7 @@ def _resource_view(
         "duration": resource.duration,
         "url": _safe_url(resource.url),
         "required": bool(link.is_required),
+        "status": "completed" if tracked and tracked.completed else "in_progress" if tracked and tracked.opened_at else "not_started",
         "opened_at": tracked.opened_at.isoformat() if tracked and tracked.opened_at else None,
         "completed": bool(tracked and tracked.completed),
         "completed_at": tracked.completed_at.isoformat() if tracked and tracked.completed_at else None,
@@ -192,16 +193,32 @@ def _lesson_view(db: Session, student_id: int, lesson: LessonV2Meta, assessments
 def _assessment_view(db: Session, student_id: int, assessment: ModuleAssessment) -> dict:
     engine_ref = (assessment.config or {}).get("engine_service_desk_ref")
     scenario = db.get(ServiceDeskScenario, assessment.service_desk_scenario_id) if assessment.service_desk_scenario_id else None
+    available = bool(
+        assessment.quiz_id or assessment.lab_template_id or assessment.service_desk_scenario_id
+        or assessment.assessment_role == V2_ACTIVITY_EXPLAIN
+    )
+    unavailable = None
+    if not available:
+        activity_name = {
+            V2_ACTIVITY_MODULE_QUIZ: "Module Quiz",
+            V2_ACTIVITY_PRACTICAL: "Practical",
+            V2_ACTIVITY_SERVICE_DESK: "Service Desk ticket",
+        }.get(assessment.assessment_role, assessment.title)
+        unavailable = {
+            "status": "not_available",
+            "reason": "This activity has not been prepared for students yet.",
+            "required_action": "Choose another available activity in this module.",
+            "blocker_route": None,
+            "activity_name": activity_name,
+        }
     return {
         "key": assessment.assessment_key,
         "role": assessment.assessment_role,
         "title": assessment.title,
         "question_count": assessment.displayed_count,
         "pass_percent": assessment.pass_percent,
-        "available": bool(
-            assessment.quiz_id or assessment.lab_template_id or assessment.service_desk_scenario_id
-            or assessment.assessment_role == V2_ACTIVITY_EXPLAIN
-        ),
+        "available": available,
+        "unavailable": unavailable,
         "quiz_id": assessment.quiz_id,
         "lab_id": assessment.lab_template_id,
         "service_desk": ({
@@ -266,9 +283,17 @@ def entry_view(db: Session, student_id: int) -> dict:
         if not {"quick_check", "module_quiz", "practical", "explain"}.issubset(roles):
             continue
         view = module_view(db, student_id, module.module_key)
+        explain_feedback = next(({
+            "title": prompt["prompt"],
+            "status": prompt["progress"]["status"],
+            "message": prompt["progress"]["detail"].get("message"),
+            "route": f"/learning-v2/modules/{module.module_key}/explain/{prompt['key']}",
+        } for prompt in reversed(view["explain_prompts"])
+            if prompt["progress"]["status"] != "not_started"), None)
         items.append({
             "certification": view["certification"], "module": view["module"],
             "progress": view["progress"], "continue": view["continue"],
+            "explain_feedback": explain_feedback,
         })
     current = next((item for item in items if not item["progress"]["module_complete"]), None)
     return {"modules": items, "current": current or (items[-1] if items else None)}
@@ -295,13 +320,29 @@ def resolve_continue(view: dict) -> dict:
     module_key = view["module"]["key"]
     for lesson in view["lessons"]:
         base = f"/learning-v2/modules/{module_key}/lessons/{lesson['key']}"
-        if any(r["required"] and not r["completed"] for r in lesson["resources"]):
-            return {"kind": "resource", "label": "Continue learning", "title": lesson["title"], "route": base}
+        required_resource = next(
+            (resource for resource in lesson["resources"] if resource["required"] and not resource["completed"]),
+            None,
+        )
+        if required_resource:
+            return {
+                "kind": "resource", "label": "Continue learning", "title": required_resource["title"],
+                "route": base, "status": required_resource["status"],
+                "estimated_minutes": lesson["estimated_minutes"],
+            }
         if lesson["progress"]["status"] not in DONE:
-            return {"kind": "lesson", "label": "Continue learning", "title": lesson["title"], "route": base}
+            return {
+                "kind": "lesson", "label": "Continue learning", "title": lesson["title"],
+                "route": base, "status": lesson["progress"]["status"],
+                "estimated_minutes": lesson["estimated_minutes"],
+            }
         qc = lesson.get("quick_check")
         if qc and qc["progress"]["status"] not in DONE:
-            return {"kind": "quick_check", "label": "Continue with Quick Check", "title": qc["title"], "route": f"/learning-v2/modules/{module_key}/assessments/{qc['key']}"}
+            return {
+                "kind": "quick_check", "label": "Continue with Quick Check", "title": qc["title"],
+                "route": f"/learning-v2/modules/{module_key}/assessments/{qc['key']}",
+                "status": qc["progress"]["status"], "estimated_minutes": None,
+            }
     for role, label in ((V2_ACTIVITY_MODULE_QUIZ, "Take the Module Quiz"), (V2_ACTIVITY_PRACTICAL, "Start the practical"), (V2_ACTIVITY_SERVICE_DESK, "Troubleshoot a ticket")):
         item = next((a for a in view["assessments"] if a["role"] == role), None)
         if item and item["progress"]["status"] not in DONE:
@@ -312,11 +353,23 @@ def resolve_continue(view: dict) -> dict:
                 if role == V2_ACTIVITY_PRACTICAL
                 else f"/learning-v2/modules/{module_key}/assessments/{item['key']}"
             )
-            return {"kind": role, "label": label, "title": item["title"], "route": route, "available": item["available"]}
+            return {
+                "kind": role, "label": label, "title": item["title"], "route": route,
+                "available": item["available"], "status": item["progress"]["status"],
+                "estimated_minutes": None,
+            }
     for prompt in view["explain_prompts"]:
         if prompt["progress"]["status"] not in DONE:
-            return {"kind": "explain", "label": "Explain what you know", "title": "Explain", "route": f"/learning-v2/modules/{module_key}/explain/{prompt['key']}"}
-    return {"kind": "complete", "label": "Review module", "title": "Module complete", "route": f"/learning-v2/modules/{module_key}"}
+            return {
+                "kind": "explain", "label": "Explain what you know", "title": "Explain",
+                "route": f"/learning-v2/modules/{module_key}/explain/{prompt['key']}",
+                "status": prompt["progress"]["status"], "estimated_minutes": None,
+            }
+    return {
+        "kind": "complete", "label": "Review module", "title": "Module complete",
+        "route": f"/learning-v2/modules/{module_key}", "status": "completed",
+        "estimated_minutes": None,
+    }
 
 
 def _student_visible_knowledge_assessment(
@@ -450,7 +503,7 @@ def _public_snapshot(snapshot: dict) -> dict:
 
 
 def _attempt_payload(attempt: V2AssessmentAttempt, assessment: ModuleAssessment) -> dict:
-    return {
+    payload = {
         "module_key": attempt.module_key,
         "assessment": {"key": assessment.assessment_key, "role": assessment.assessment_role, "title": assessment.title, "pass_percent": assessment.pass_percent, "question_count": len(attempt.questions)},
         "attempt": {
@@ -463,6 +516,9 @@ def _attempt_payload(attempt: V2AssessmentAttempt, assessment: ModuleAssessment)
         "questions": [_public_snapshot(row.question_snapshot) for row in attempt.questions],
         "attempts": [],
     }
+    if attempt.status not in {V2_STATUS_IN_PROGRESS}:
+        payload["result"] = _attempt_result(attempt, assessment)
+    return payload
 
 
 def assessment_questions(
@@ -483,6 +539,15 @@ def assessment_questions(
         if explicit_start and active.status == V2_STATUS_NEEDS_REVIEW:
             raise V2ProgressError("This attempt is still waiting for grading.")
         return _attempt_payload(active, assessment)
+
+    latest = db.query(V2AssessmentAttempt).filter_by(
+        student_id=student_id, assessment_id=assessment.id,
+    ).order_by(V2AssessmentAttempt.attempt_number.desc()).first()
+    latest_result = (
+        _attempt_result(latest, assessment)
+        if latest is not None and not explicit_start
+        else None
+    )
 
     attempt_number = (
         db.query(func.max(V2AssessmentAttempt.attempt_number))
@@ -513,9 +578,15 @@ def assessment_questions(
             student_id=student_id, assessment_id=assessment.id,
             attempt_number=attempt_number,
         ).one()
-        return _attempt_payload(active, assessment)
+        payload = _attempt_payload(active, assessment)
+        if latest_result is not None:
+            payload["result"] = latest_result
+        return payload
     db.refresh(attempt)
-    return _attempt_payload(attempt, assessment)
+    payload = _attempt_payload(attempt, assessment)
+    if latest_result is not None:
+        payload["result"] = latest_result
+    return payload
 
 
 def _balanced_question_take(rows: list[tuple], limit: int) -> list[tuple]:
@@ -718,8 +789,18 @@ def launch_service_desk(db: Session, student_id: int, module_key: str, assessmen
         .order_by(ServiceDeskScenarioVersion.version_number.desc())
         .first()
     )
-    curriculum = (published.definition_json or {}).get("curriculum", {}) if published else {}
-    assignment_mode = "learning" if curriculum.get("mode") == "learning" else "simulation"
+    guided_completed = False
+    if published:
+        guided_completed = db.query(V2ModuleActivity).filter_by(
+            student_id=student_id,
+            activity_type=V2_ACTIVITY_SERVICE_DESK,
+            ref_key=assessment_key,
+            status=V2_STATUS_PASSED,
+        ).first() is not None
+    # A curriculum launch is the student's guided introduction until that
+    # scenario has been completed once. Later launches retain the existing
+    # assessment path and its server-authoritative grading.
+    assignment_mode = "simulation" if guided_completed else "learning"
     assignment = db.query(ServiceDeskAssignment).filter_by(
         student_id=student_id, scenario_id=scenario.id, mode=assignment_mode
     ).one_or_none()
@@ -752,7 +833,15 @@ def launch_service_desk(db: Session, student_id: int, module_key: str, assessmen
             status=V2_STATUS_IN_PROGRESS, detail={"scenario_id": scenario.id},
             commit=True,
         )
-    return {"launch_url": f"/service-desk/tickets/{scenario.stable_key.upper()}", "scenario_title": scenario.title}
+    return {
+        "launch_url": (
+            f"/service-desk/tickets/{scenario.stable_key.upper()}"
+            f"?returnTo=/learning-v2/modules/{module_key}"
+        ),
+        "scenario_title": scenario.title,
+        "mode": assignment_mode,
+        "experience_mode": "assessment" if assignment_mode == "simulation" else "guided",
+    }
 
 
 def explain_view(db: Session, student_id: int, module_key: str, prompt_key: str) -> dict:
@@ -786,6 +875,23 @@ def submit_explain(db: Session, student_id: int, module_key: str, prompt_key: st
     prompt = db.query(InterviewPrompt).filter_by(prompt_key=prompt_key, certification_module_id=module.id, active=True).one_or_none()
     if prompt is None:
         raise V2ProgressError("This Explain prompt is not available.")
+    latest = db.query(V2ExplainSubmission).filter_by(
+        student_id=student_id, prompt_id=prompt.id,
+    ).order_by(V2ExplainSubmission.attempt_number.desc()).first()
+    if latest:
+        job = db.query(PendingGrade).filter_by(
+            source_type=SOURCE_INTERVIEW,
+            submission_ref=f"v2-explain:{latest.id}",
+        ).one_or_none()
+        if job and job.status not in {GRADE_JOB_GRADED}:
+            return {
+                "submission_id": latest.id,
+                "attempt_number": latest.attempt_number,
+                "state": "mentor_review" if job.status == GRADE_JOB_NEEDS_REVIEW else "pending",
+                "message": "Your response was already saved and is still waiting for grading. You do not need to submit it again.",
+                "score": None,
+                "passed": None,
+            }
     attempt_number = (db.query(func.max(V2ExplainSubmission.attempt_number)).filter_by(student_id=student_id, prompt_id=prompt.id).scalar() or 0) + 1
     submission = V2ExplainSubmission(student_id=student_id, prompt_id=prompt.id, submitted_answer=answer.strip(), attempt_number=attempt_number)
     db.add(submission)
