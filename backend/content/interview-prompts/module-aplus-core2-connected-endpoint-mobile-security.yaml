@@ -1,0 +1,94 @@
+prompts:
+- prompt_key: explain.aplus.m14.wpa2_wpa3
+  title: Explain WPA2 vs WPA3 to a help-desk teammate
+  module_key: module.aplus.core2.connected_endpoint_mobile_security
+  objectives:
+  - '2.3'
+  expected_concepts:
+  - wireless encryption/authentication
+  - WPA3 preferred when supported
+  - WPA2-AES common fallback
+  - avoid WEP/TKIP downgrade
+  minimum_concepts: 3
+  rubric:
+    approved_text: Must identify WPA3 as preferred modern security, WPA2-AES as common
+      compatible security, and reject obsolete downgrade as normal troubleshooting.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: '1.0'
+  prompt: Explain WPA2 vs WPA3 to a help-desk teammate
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.connected_endpoint_mobile_security
+  domain: '2.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.m14.hidden_ssid
+  title: Why is a hidden SSID not strong security?
+  module_key: module.aplus.core2.connected_endpoint_mobile_security
+  objectives:
+  - '2.10'
+  expected_concepts:
+  - SSID can still be discovered
+  - does not provide encryption
+  - does not replace authentication
+  - use WPA2/WPA3 and strong admin security
+  minimum_concepts: 3
+  rubric:
+    approved_text: Explains obscurity vs real authentication/encryption and names
+      stronger SOHO controls.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: '1.0'
+  prompt: Why is a hidden SSID not strong security?
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.connected_endpoint_mobile_security
+  domain: '2.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.m14.safe_browser
+  title: Explain a safe browser download/extension decision
+  module_key: module.aplus.core2.connected_endpoint_mobile_security
+  objectives:
+  - '2.11'
+  expected_concepts:
+  - trusted source
+  - patching
+  - extension permissions
+  - certificate/download integrity
+  - avoid unsolicited popups
+  minimum_concepts: 3
+  rubric:
+    approved_text: Must describe source validation and at least two additional browser-security
+      checks.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: '1.0'
+  prompt: Explain a safe browser download/extension decision
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.connected_endpoint_mobile_security
+  domain: '2.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.m14.managed_mobile_wifi
+  title: Explain how to troubleshoot managed mobile Wi-Fi without weakening security
+  module_key: module.aplus.core2.connected_endpoint_mobile_security
+  objectives:
+  - '2.3'
+  - '2.8'
+  - '3.3'
+  expected_concepts:
+  - scope and known-good comparison
+  - managed profile/certificate
+  - MDM compliance
+  - no encryption downgrade/profile bypass
+  - approved re-push/re-enrollment
+  - verify original task
+  minimum_concepts: 4
+  rubric:
+    approved_text: Walks through evidence, managed remediation, preserved security
+      posture, and verification.
+    minimum_concepts: 4
+    must_include: []
+  rubric_version: '1.0'
+  prompt: Explain how to troubleshoot managed mobile Wi-Fi without weakening security
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.connected_endpoint_mobile_security
+  domain: '2.0'
+  importance: working_knowledge

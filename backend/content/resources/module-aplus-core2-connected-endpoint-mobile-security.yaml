@@ -1,0 +1,171 @@
+resources:
+- resource_key: resource.aplus.m14.wireless_encryption
+  title: Wireless Encryption – CompTIA A+ 220-1202 – 2.3
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/wireless-encryption-220-1202/
+  provider: Professor Messer
+  duration: '6:19'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.wireless_auth
+    module_key: module.aplus.core2.connected_endpoint_mobile_security
+    required: true
+    order: 1
+- resource_key: resource.aplus.m14.soho_security
+  title: Securing a SOHO Network – CompTIA A+ 220-1202 – 2.10
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/securing-a-soho-network-220-1202/
+  provider: Professor Messer
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.soho_security
+    module_key: module.aplus.core2.connected_endpoint_mobile_security
+    required: true
+    order: 1
+- resource_key: resource.aplus.m14.browser_security
+  title: Browser Security – CompTIA A+ 220-1202 – 2.11
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/browser-security-220-1202/
+  provider: Professor Messer
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.browser_security
+    module_key: module.aplus.core2.connected_endpoint_mobile_security
+    required: true
+    order: 1
+- resource_key: resource.aplus.m14.mobile_device_security
+  title: Mobile Device Security – CompTIA A+ 220-1202 – 2.8
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/mobile-device-security-220-1202/
+  provider: Professor Messer
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.mobile_hardening
+    module_key: module.aplus.core2.connected_endpoint_mobile_security
+    required: true
+    order: 1
+- resource_key: resource.aplus.m14.troubleshooting_mobile
+  title: Troubleshooting Mobile Devices – CompTIA A+ 220-1202 – 3.2
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/troubleshooting-mobile-devices-220-1202/
+  provider: Professor Messer
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.mobile_app_troubleshooting
+    module_key: module.aplus.core2.connected_endpoint_mobile_security
+    required: true
+    order: 1
+- resource_key: resource.aplus.m14.troubleshooting_mobile_security
+  title: Troubleshooting Mobile Device Security – CompTIA A+ 220-1202 – 3.3
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/troubleshooting-mobile-device-security-220-1202/
+  provider: Professor Messer
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.mobile_security_troubleshooting
+    module_key: module.aplus.core2.connected_endpoint_mobile_security
+    required: true
+    order: 1
+- resource_key: resource.aplus.m14.android_work_profile
+  title: What is a work profile?
+  resource_type: documentation
+  url: https://support.google.com/work/android/answer/6191949?hl=en
+  provider: Google Android Enterprise Help
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Google Support
+  source_url: https://support.google.com/work/android/
+  permission_status: unknown
+  license_note: Official vendor documentation; linked, not reproduced.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.connected_endpoint_workflow
+    module_key: module.aplus.core2.connected_endpoint_mobile_security
+    required: true
+    order: 1
+- resource_key: resource.aplus.m14.authentication_methods
+  title: Authentication Methods – CompTIA A+ 220-1202 – 2.3
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/authentication-methods-220-1202/
+  provider: Professor Messer
+  duration: '7:58'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.wireless_auth
+    module_key: module.aplus.core2.connected_endpoint_mobile_security
+    required: false
+    order: 2
+- resource_key: resource.aplus.m14.android_profile_features
+  title: Work profile features
+  resource_type: documentation
+  url: https://support.google.com/work/android/answer/9563584?hl=en
+  provider: Google Android Enterprise Help
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Google Support
+  source_url: https://support.google.com/work/android/
+  permission_status: unknown
+  license_note: Official vendor documentation; linked, not reproduced.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.mobile_hardening
+    module_key: module.aplus.core2.connected_endpoint_mobile_security
+    required: false
+    order: 2
+- resource_key: resource.aplus.m14.android_security_bulletins
+  title: Android Security Bulletins
+  resource_type: documentation
+  url: https://source.android.com/docs/security/bulletin
+  provider: Android Open Source Project
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Android Security
+  source_url: https://source.android.com/docs/security
+  permission_status: unknown
+  license_note: Official platform security documentation; linked, not reproduced.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.mobile_security_troubleshooting
+    module_key: module.aplus.core2.connected_endpoint_mobile_security
+    required: false
+    order: 2

@@ -39,6 +39,24 @@ const modules = [
     lessons: 6,
     resources: [6, 3],
   },
+  {
+    key: "module.aplus.core2.identity_endpoint_hardening",
+    title: "Identity, Windows Endpoint & Workstation Hardening",
+    lessons: 6,
+    resources: [6, 4],
+  },
+  {
+    key: "module.aplus.core2.connected_endpoint_mobile_security",
+    title: "Connected Endpoint, Mobile & Browser Security",
+    lessons: 7,
+    resources: [7, 3],
+  },
+  {
+    key: "module.aplus.core2.threat_malware_response",
+    title: "Threat Recognition, Malware Response & PC Security Troubleshooting",
+    lessons: 6,
+    resources: [6, 3],
+  },
 ];
 
 async function apiData(page, path, options) {
@@ -58,7 +76,7 @@ async function navigate(page, path) {
   }, path);
 }
 
-test("reviewed Modules 7-12 render and resolve every authored V2 activity", async ({ page }) => {
+test("reviewed Modules 7-15 render and resolve every authored V2 activity", async ({ page }) => {
   test.setTimeout(90000);
   await page.goto("/login?next=/learning-v2");
   await page.getByLabel("Username").fill(process.env.NEXUS_E2E_STUDENT_USERNAME);
@@ -160,7 +178,7 @@ test("reviewed Modules 7-12 render and resolve every authored V2 activity", asyn
   }
 });
 
-test("mentor selector includes Modules 7-12 and student auth cannot read it", async ({ page }) => {
+test("mentor selector includes Modules 7-15 and student auth cannot read it", async ({ page }) => {
   const apiUrl = process.env.NEXUS_E2E_API_URL;
   const studentLogin = await page.request.post(`${apiUrl}/auth/login`, {
     data: {
@@ -186,7 +204,7 @@ test("mentor selector includes Modules 7-12 and student auth cannot read it", as
   }
 });
 
-test("Modules 11 and 12 reveal all three progressive Service Desk hints", async ({ page }) => {
+test("Modules 11-15 reveal all three progressive Service Desk hints", async ({ page }) => {
   test.setTimeout(90000);
   await page.goto("/login?next=/learning-v2");
   await page.getByLabel("Username").fill(process.env.NEXUS_E2E_STUDENT_USERNAME);
@@ -194,7 +212,7 @@ test("Modules 11 and 12 reveal all three progressive Service Desk hints", async 
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page.getByRole("heading", { name: "CompTIA A+" })).toBeVisible();
 
-  for (const expected of modules.slice(-2)) {
+  for (const expected of modules.slice(-5)) {
     const moduleResponse = await apiData(page, `/api/v2/curriculum/modules/${expected.key}`);
     const assessment = moduleResponse.body.data.assessments.find(
       (item) => item.role === "service_desk",

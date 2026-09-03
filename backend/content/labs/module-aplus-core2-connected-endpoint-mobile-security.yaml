@@ -1,0 +1,56 @@
+labs:
+- title: Connected Endpoint Security & Troubleshooting Lab
+  description: Inspect a staged router, browser, and managed-mobile evidence set and
+    make secure troubleshooting decisions.
+  estimated_minutes: null
+  environment_requirements:
+    environment: null
+    vm_required: false
+  success_criteria:
+    practical_key: practical.aplus.m14.connected_endpoint_security
+    module_key: module.aplus.core2.connected_endpoint_mobile_security
+    vm_required: false
+    tasks:
+    - Review a SOHO/router configuration and identify four meaningful hardening changes
+      plus one weak obscurity-only setting.
+    - Review a browser certificate/download/extension scenario and decide what is
+      trusted, what requires investigation, and what must be blocked.
+    - 'Compare a managed phone with a known-good profile: OS version, app state, Wi-Fi
+      security, certificate/profile, compliance, storage, and backup.'
+    - Troubleshoot one ordinary app failure and one security-significant mobile symptom
+      without factory resetting by default.
+    - Document what you changed, what you escalated, and how you verified the original
+      task and security posture.
+    evidence:
+    - Router hardening worksheet
+    - Browser trust decision record
+    - Mobile comparison table
+    - Troubleshooting steps/results
+    - Final technician note
+    expected_outcomes:
+    - Student separates configuration, application, network, and security evidence.
+    - Student avoids insecure downgrades and management-profile bypass.
+    - Student uses destructive reset/wipe only when justified and authorized.
+    grading:
+      evidence_collection: 25
+      security_judgment: 30
+      troubleshooting_sequence: 25
+      verification: 10
+      documentation: 10
+    hints:
+    - Start by deciding whether each symptom affects one app, one device, one network,
+      or many users.
+    - Compare the failing mobile profile/certificate/security state with a known-good
+      managed device before resetting anything.
+    - If the only way a proposed 'fix' works is by removing management or weakening
+      encryption/certificate validation, it is not the right fix.
+  required_evidence:
+    items:
+    - Router hardening worksheet
+    - Browser trust decision record
+    - Mobile comparison table
+    - Troubleshooting steps/results
+    - Final technician note
+  source_name: null
+  lab_type: guided
+  is_published: true

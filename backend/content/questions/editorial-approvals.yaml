@@ -79,3 +79,25 @@ approvals:
   editorial_status: validated
   reviewed_at: '2026-08-31'
   review_note: External approved package 3205bca048c76c780e47fe48c7203ad5c9d46fa5f3b18f03092baabe9585ac22
+- filename: module-aplus-core2-identity-endpoint-hardening.csv
+  quiz_title: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+  sha256: 594089cedfb7af011f769f42b60e4e772a1173b82c7cad319bd66398228da40f
+  reviewed_question_count: 36
+  editorial_status: validated
+  reviewed_at: '2026-09-03'
+  review_note: External approved package a6b4648d6f4cf8ba3bfb78e8ade9212a92566fc170c85623f7b1bd4f4d6d71f2
+- filename: module-aplus-core2-connected-endpoint-mobile-security.csv
+  quiz_title: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+  sha256: b0c8a179bdeacc8be3c10188db12e2f1a6ba59b27e83b8621cda5e0f8a586093
+  reviewed_question_count: 38
+  editorial_status: validated
+  reviewed_at: '2026-09-03'
+  review_note: External approved package 584796dc025d04249dd0b21c055414867b7f813fbcd2490905322bb731029c0d
+- filename: module-aplus-core2-threat-malware-response.csv
+  quiz_title: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+    Troubleshooting
+  sha256: e765e3397bf7aefb735068181b7ad9501a70e84f48a8cd66f3f3a8383457008a
+  reviewed_question_count: 36
+  editorial_status: validated
+  reviewed_at: '2026-09-03'
+  review_note: External approved package c29667b031365cf30245ac1bf9bbc27cf6eec20f11527e0f2d7e62747583a980

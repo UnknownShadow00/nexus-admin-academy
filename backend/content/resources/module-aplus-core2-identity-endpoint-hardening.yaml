@@ -1,0 +1,158 @@
+resources:
+- resource_key: resource.aplus.m13.logical_security
+  title: Logical Security – CompTIA A+ 220-1202 – 2.1
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/logical-security-220-1202/
+  provider: Professor Messer
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.identity_controls
+    module_key: module.aplus.core2.identity_endpoint_hardening
+    required: true
+    order: 1
+- resource_key: resource.aplus.m13.defender_antivirus
+  title: Defender Antivirus – CompTIA A+ 220-1202 – 2.2
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/defender-antivirus-220-1202/
+  provider: Professor Messer
+  duration: '5:01'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.windows_defender_firewall
+    module_key: module.aplus.core2.identity_endpoint_hardening
+    required: true
+    order: 1
+- resource_key: resource.aplus.m13.active_directory
+  title: Active Directory – CompTIA A+ 220-1202 – 2.2
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/active-directory-220-1202/
+  provider: Professor Messer
+  duration: '27:40'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.permissions_ad
+    module_key: module.aplus.core2.identity_endpoint_hardening
+    required: true
+    order: 1
+- resource_key: resource.aplus.m13.bitlocker_overview
+  title: BitLocker overview
+  resource_type: documentation
+  url: https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/
+  provider: Microsoft Learn
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Microsoft Learn
+  source_url: https://learn.microsoft.com/
+  permission_status: unknown
+  license_note: Official vendor documentation; linked, not reproduced.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.encryption
+    module_key: module.aplus.core2.identity_endpoint_hardening
+    required: true
+    order: 1
+- resource_key: resource.aplus.m13.security_best_practices
+  title: Security Best Practices – CompTIA A+ 220-1202 – 2.7
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/security-best-practices-220-1202/
+  provider: Professor Messer
+  duration: '15:15'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.workstation_hardening
+    module_key: module.aplus.core2.identity_endpoint_hardening
+    required: true
+    order: 1
+- resource_key: resource.aplus.m13.authentication_access
+  title: Authentication and Access – CompTIA A+ 220-1202 – 2.1
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/authentication-and-access-220-1202/
+  provider: Professor Messer
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.secure_support_decisions
+    module_key: module.aplus.core2.identity_endpoint_hardening
+    required: true
+    order: 1
+- resource_key: resource.aplus.m13.windows_security_app
+  title: Windows Security app overview
+  resource_type: documentation
+  url: https://support.microsoft.com/en-US/Windows/Security/Windows-Security/windows-security-app-overview
+  provider: Microsoft Support
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Microsoft Support
+  source_url: https://support.microsoft.com/
+  permission_status: unknown
+  license_note: Official vendor documentation; linked, not reproduced.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.windows_defender_firewall
+    module_key: module.aplus.core2.identity_endpoint_hardening
+    required: false
+    order: 2
+- resource_key: resource.aplus.m13.windows_security_settings
+  title: Windows Security Settings – CompTIA A+ 220-1202 – 2.2
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/windows-security-settings-220-1202/
+  provider: Professor Messer
+  duration: '13:44'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.permissions_ad
+    module_key: module.aplus.core2.identity_endpoint_hardening
+    required: false
+    order: 2
+  - lesson_key: lesson.aplus.security.encryption
+    module_key: module.aplus.core2.identity_endpoint_hardening
+    required: false
+    order: 2
+- resource_key: resource.aplus.m13.physical_access_security
+  title: Physical Access Security – CompTIA A+ 220-1202 – 2.1
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/physical-access-security-220-1202/
+  provider: Professor Messer
+  duration: null
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer A+ V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Externally hosted free training; link only.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.security.identity_controls
+    module_key: module.aplus.core2.identity_endpoint_hardening
+    required: false
+    order: 2

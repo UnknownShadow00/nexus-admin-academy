@@ -1,0 +1,254 @@
+{
+  "approved_destination": "/opt/apps/IT TRAINING PROJECT CODE/projects/nexus-admin-academy/references/curriculum-approved/comptia_aplus/comptia_aplus_220-1202/module.aplus.core2.connected_endpoint_mobile_security/584796dc025d04249dd0b21c055414867b7f813fbcd2490905322bb731029c0d",
+  "certification": "comptia_aplus",
+  "classification": "NEW",
+  "created": 1305,
+  "domain": "2.0",
+  "explain_count": 4,
+  "lesson_count": 7,
+  "loader_importer_results": {
+    "first": {
+      "by_entity": {
+        "certification": {
+          "created": 1,
+          "unchanged": 1,
+          "updated": 0
+        },
+        "certification_domain": {
+          "created": 9,
+          "unchanged": 9,
+          "updated": 0
+        },
+        "certification_module": {
+          "created": 15,
+          "unchanged": 15,
+          "updated": 0
+        },
+        "certification_objective": {
+          "created": 64,
+          "unchanged": 64,
+          "updated": 0
+        },
+        "certification_version": {
+          "created": 2,
+          "unchanged": 2,
+          "updated": 0
+        },
+        "interview_prompt": {
+          "created": 50,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "interview_prompt_objective": {
+          "created": 66,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lab_template": {
+          "created": 14,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson": {
+          "created": 81,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson_objective": {
+          "created": 114,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson_relationship": {
+          "created": 8,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "module_assessment": {
+          "created": 136,
+          "unchanged": 18,
+          "updated": 118
+        },
+        "question": {
+          "created": 464,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "question_bank_editorial_approval": {
+          "created": 0,
+          "unchanged": 0,
+          "updated": 13
+        },
+        "resource": {
+          "created": 121,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "resource_link": {
+          "created": 142,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "service_desk_scenario": {
+          "created": 9,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "service_desk_scenario_version": {
+          "created": 9,
+          "unchanged": 0,
+          "updated": 0
+        }
+      },
+      "created": 1305,
+      "references": {
+        "content_engine_assessments": 110,
+        "content_engine_resolved": 108,
+        "content_engine_unresolved": [
+          "assess.aplus.core1.networking_fundamentals.module_quiz",
+          "assess.aplus.core1.networking_fundamentals.quick_check"
+        ],
+        "service_desk_assessments": 11,
+        "service_desk_resolved": 11
+      },
+      "unchanged": 109,
+      "updated": 131
+    },
+    "references": {
+      "content_engine_assessments": 110,
+      "content_engine_resolved": 108,
+      "content_engine_unresolved": [
+        "assess.aplus.core1.networking_fundamentals.module_quiz",
+        "assess.aplus.core1.networking_fundamentals.quick_check"
+      ],
+      "package_content_engine_unresolved": [],
+      "package_service_desk_unresolved": [],
+      "service_desk_assessments": 11,
+      "service_desk_resolved": 11
+    },
+    "second": {
+      "by_entity": {
+        "certification": {
+          "created": 0,
+          "unchanged": 2,
+          "updated": 0
+        },
+        "certification_domain": {
+          "created": 0,
+          "unchanged": 18,
+          "updated": 0
+        },
+        "certification_module": {
+          "created": 0,
+          "unchanged": 30,
+          "updated": 0
+        },
+        "certification_objective": {
+          "created": 0,
+          "unchanged": 128,
+          "updated": 0
+        },
+        "certification_version": {
+          "created": 0,
+          "unchanged": 4,
+          "updated": 0
+        },
+        "interview_prompt": {
+          "created": 0,
+          "unchanged": 50,
+          "updated": 0
+        },
+        "lab_template": {
+          "created": 0,
+          "unchanged": 14,
+          "updated": 0
+        },
+        "lesson": {
+          "created": 0,
+          "unchanged": 81,
+          "updated": 0
+        },
+        "module_assessment": {
+          "created": 0,
+          "unchanged": 272,
+          "updated": 0
+        },
+        "question": {
+          "created": 0,
+          "unchanged": 464,
+          "updated": 0
+        },
+        "question_bank_editorial_approval": {
+          "created": 0,
+          "unchanged": 13,
+          "updated": 0
+        },
+        "resource": {
+          "created": 0,
+          "unchanged": 121,
+          "updated": 0
+        },
+        "resource_link": {
+          "created": 0,
+          "unchanged": 142,
+          "updated": 0
+        },
+        "service_desk_scenario": {
+          "created": 0,
+          "unchanged": 9,
+          "updated": 0
+        },
+        "service_desk_scenario_version": {
+          "created": 0,
+          "unchanged": 9,
+          "updated": 0
+        }
+      },
+      "created": 0,
+      "references": {
+        "content_engine_assessments": 110,
+        "content_engine_resolved": 108,
+        "content_engine_unresolved": [
+          "assess.aplus.core1.networking_fundamentals.module_quiz",
+          "assess.aplus.core1.networking_fundamentals.quick_check"
+        ],
+        "service_desk_assessments": 11,
+        "service_desk_resolved": 11
+      },
+      "unchanged": 1357,
+      "updated": 0
+    }
+  },
+  "module_key": "module.aplus.core2.connected_endpoint_mobile_security",
+  "module_title": "Connected Endpoint, Mobile & Browser Security",
+  "objective_codes": [
+    "2.10",
+    "2.11",
+    "2.3",
+    "2.8",
+    "3.2",
+    "3.3"
+  ],
+  "original_filename": "Nexus_APlus_Module_14_Final_v2.zip",
+  "package_hash": "584796dc025d04249dd0b21c055414867b7f813fbcd2490905322bb731029c0d",
+  "practical_present": true,
+  "question_count": 38,
+  "resource_count": 10,
+  "runtime_destinations": [
+    "certifications/comptia_aplus.yaml",
+    "curriculum/comptia_aplus/comptia_aplus_220-1202/module-aplus-core2-connected-endpoint-mobile-security",
+    "questions/module-aplus-core2-connected-endpoint-mobile-security.csv",
+    "questions/editorial-approvals.yaml",
+    "resources/module-aplus-core2-connected-endpoint-mobile-security.yaml",
+    "interview-prompts/module-aplus-core2-connected-endpoint-mobile-security.yaml",
+    "labs/module-aplus-core2-connected-endpoint-mobile-security.yaml",
+    "service-desk-scenarios/module-aplus-core2-connected-endpoint-mobile-security.yaml"
+  ],
+  "service_desk_present": true,
+  "timestamp": "2026-09-03T03:39:15.964435+00:00",
+  "tool_version": "nexus-curriculum-intake/1",
+  "unchanged": 109,
+  "updated": 131,
+  "validation_result": "VALID",
+  "version": "comptia_aplus_220-1202"
+}

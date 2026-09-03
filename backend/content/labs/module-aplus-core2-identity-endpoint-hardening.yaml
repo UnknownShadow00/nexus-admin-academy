@@ -1,0 +1,56 @@
+labs:
+- title: Windows Endpoint Hardening Audit & Support Decision
+  description: Inspect a staged Windows security evidence set, identify policy drift,
+    and recommend the narrowest safe remediation.
+  estimated_minutes: null
+  environment_requirements:
+    environment: null
+    vm_required: false
+  success_criteria:
+    practical_key: practical.aplus.m13.endpoint_hardening_audit
+    module_key: module.aplus.core2.identity_endpoint_hardening
+    vm_required: false
+    tasks:
+    - Review account type, group membership, UAC state, Defender status, firewall
+      profile/rules, encryption state, idle lock, default-account status, and unnecessary
+      service/AutoRun evidence.
+    - Classify each finding as expected, weak configuration, needs approval, or security
+      incident.
+    - Choose the minimum authorized corrective action for at least four findings.
+    - Capture evidence that supports each decision; do not disable Defender/firewall
+      or grant permanent administrator rights.
+    - Verify the revised baseline against the supplied policy checklist and write
+      a concise technician note.
+    evidence:
+    - Completed audit checklist
+    - Before/after or supplied evidence references
+    - Remediation/hand-off decisions
+    - Verification results
+    - Technician note
+    expected_outcomes:
+    - Student distinguishes configuration drift from intentional policy.
+    - Student preserves least privilege and encryption recovery safety.
+    - Student uses scoped remediation or escalation instead of bypassing controls.
+    grading:
+      configuration_evidence: 25
+      security_reasoning: 30
+      safe_remediation: 25
+      verification: 10
+      documentation: 10
+    hints:
+    - 'Start with the controls that create the largest risk if they are weak: privilege,
+      endpoint protection, firewall, and encryption.'
+    - Compare each setting to the supplied policy baseline rather than assuming every
+      unusual value is wrong.
+    - If a change requires authority you do not have, the correct practical outcome
+      is a documented handoff—not an unauthorized fix.
+  required_evidence:
+    items:
+    - Completed audit checklist
+    - Before/after or supplied evidence references
+    - Remediation/hand-off decisions
+    - Verification results
+    - Technician note
+  source_name: null
+  lab_type: guided
+  is_published: true

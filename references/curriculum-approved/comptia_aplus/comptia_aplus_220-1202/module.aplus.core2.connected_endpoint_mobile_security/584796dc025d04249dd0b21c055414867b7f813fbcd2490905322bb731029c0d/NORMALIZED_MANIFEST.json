@@ -1,0 +1,77 @@
+{
+  "certification_key": "comptia_aplus",
+  "domain_key": "2.0",
+  "explain_count": 4,
+  "lesson_count": 7,
+  "lessons": [
+    "lesson.aplus.security.browser_security",
+    "lesson.aplus.security.connected_endpoint_workflow",
+    "lesson.aplus.security.mobile_app_troubleshooting",
+    "lesson.aplus.security.mobile_hardening",
+    "lesson.aplus.security.mobile_security_troubleshooting",
+    "lesson.aplus.security.soho_security",
+    "lesson.aplus.security.wireless_auth"
+  ],
+  "manifest_version": 1,
+  "module_key": "module.aplus.core2.connected_endpoint_mobile_security",
+  "module_title": "Connected Endpoint, Mobile & Browser Security",
+  "objectives": [
+    "2.10",
+    "2.11",
+    "2.3",
+    "2.8",
+    "3.2",
+    "3.3"
+  ],
+  "original_filename": "Nexus_APlus_Module_14_Final_v2.zip",
+  "practical_present": true,
+  "provenance": {
+    "module_key": "module.aplus.core2.connected_endpoint_mobile_security",
+    "principles": [
+      "Reuse strong Nexus concepts first.",
+      "Do not restore archived optional banks wholesale.",
+      "Third-party questions are rewritten concept adaptations.",
+      "Vendor docs remain external links."
+    ],
+    "sources": [
+      {
+        "permission_status": "reference",
+        "source": "CompTIA A+ 220-1202 V15 objectives",
+        "use": "Authoritative scope"
+      },
+      {
+        "permission_status": "permitted",
+        "source": "Professor Messer A+ V15",
+        "use": "Required learning spine"
+      },
+      {
+        "permission_status": "reference",
+        "source": "Google Android Enterprise / AOSP",
+        "use": "Managed mobile/work-profile/security reference"
+      },
+      {
+        "permission_status": "owned",
+        "source": "Existing Nexus mobile/network concepts",
+        "use": "Selected adapted assessment concepts"
+      },
+      {
+        "permission_status": "permitted",
+        "source": "ExamCompass 220-1202 V15",
+        "use": "Permitted question-pattern guidance; rewritten"
+      },
+      {
+        "permission_status": "permitted",
+        "source": "Crucial Exams 220-1202 V15",
+        "use": "Permitted question-pattern/PBQ guidance; rewritten"
+      }
+    ]
+  },
+  "question_count": 38,
+  "resource_count": 10,
+  "service_desk_keys": [
+    "sd.aplus.security.mobile_secure_wifi_profile"
+  ],
+  "service_desk_present": true,
+  "source_package_hash": "584796dc025d04249dd0b21c055414867b7f813fbcd2490905322bb731029c0d",
+  "version_key": "comptia_aplus_220-1202"
+}

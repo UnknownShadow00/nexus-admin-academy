@@ -2114,3 +2114,493 @@ versions:
       title: Explain
       pass_percent: 70
       display_order: 10
+  - module_key: module.aplus.core2.identity_endpoint_hardening
+    title: Identity, Windows Endpoint & Workstation Hardening
+    skill_promise: null
+    certification_domain_key: '2.0'
+    importance_hint: working_knowledge
+    display_order: 6
+    assessments:
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.qc.identity-controls
+      assessment_role: quick_check
+      title: Quick Check — Identity, Access & Security Controls
+      lesson_key: lesson.aplus.security.identity_controls
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M13Q001
+        - M13Q002
+        - M13Q003
+        - M13Q004
+      display_order: 1
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.qc.windows-defender-firewall
+      assessment_role: quick_check
+      title: Quick Check — Windows Defender, Firewall, Accounts & UAC
+      lesson_key: lesson.aplus.security.windows_defender_firewall
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M13Q005
+        - M13Q006
+        - M13Q007
+        - M13Q008
+      display_order: 2
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.qc.permissions-ad
+      assessment_role: quick_check
+      title: Quick Check — Permissions, Groups & Active Directory Security
+      lesson_key: lesson.aplus.security.permissions_ad
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M13Q009
+        - M13Q010
+        - M13Q011
+        - M13Q012
+      display_order: 3
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.qc.encryption
+      assessment_role: quick_check
+      title: 'Quick Check — Protecting Data at Rest: BitLocker, BitLocker To Go &
+        EFS'
+      lesson_key: lesson.aplus.security.encryption
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M13Q013
+        - M13Q014
+        - M13Q015
+        - M13Q016
+      display_order: 4
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.qc.workstation-hardening
+      assessment_role: quick_check
+      title: Quick Check — Workstation Hardening & Account Hygiene
+      lesson_key: lesson.aplus.security.workstation_hardening
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M13Q017
+        - M13Q018
+        - M13Q019
+        - M13Q020
+      display_order: 5
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.qc.secure-support-decisions
+      assessment_role: quick_check
+      title: 'Quick Check — Secure Support Decisions: Elevate, Allow, Deny or Escalate'
+      lesson_key: lesson.aplus.security.secure_support_decisions
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M13Q021
+        - M13Q022
+        - M13Q023
+        - M13Q024
+      display_order: 6
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.module_quiz
+      assessment_role: module_quiz
+      title: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - count: 3
+          objective_codes:
+          - '2.1'
+        - count: 5
+          objective_codes:
+          - '2.2'
+        - count: 3
+          objective_codes:
+          - '2.7'
+        - count: 1
+          objective_codes: []
+          tags_any:
+          - multi_objective
+        category_requirements:
+        - category: scenario_application_or_reasoning
+          minimum: 5
+          tags_any:
+          - question_style:scenario-application
+          - question_style:troubleshooting-reasoning
+        - category: job_critical
+          minimum: 7
+          tags_any:
+          - importance:job_critical
+        - category: multi_select
+          minimum: 1
+          tags_any:
+          - question_type:multi
+        exclude_question_ids:
+        - M13Q035
+        - M13Q036
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 5
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 7
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.practical
+      assessment_role: practical
+      title: Windows Endpoint Hardening Audit & Support Decision
+      lab_ref: Windows Endpoint Hardening Audit & Support Decision
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.service_desk
+      assessment_role: service_desk
+      title: Service Desk — sd.aplus.security.approved_app_standard_user
+      service_desk_ref: sd.aplus.security.approved_app_standard_user
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 10
+  - module_key: module.aplus.core2.connected_endpoint_mobile_security
+    title: Connected Endpoint, Mobile & Browser Security
+    skill_promise: null
+    certification_domain_key: '2.0'
+    importance_hint: working_knowledge
+    display_order: 7
+    assessments:
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.wireless-auth
+      assessment_role: quick_check
+      title: Quick Check — Wireless Encryption & Enterprise Authentication
+      lesson_key: lesson.aplus.security.wireless_auth
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q001
+        - M14Q002
+        - M14Q003
+        - M14Q004
+      display_order: 1
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.soho-security
+      assessment_role: quick_check
+      title: Quick Check — Securing SOHO Routers & Small Networks
+      lesson_key: lesson.aplus.security.soho_security
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q005
+        - M14Q006
+        - M14Q007
+        - M14Q008
+      display_order: 2
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.browser-security
+      assessment_role: quick_check
+      title: Quick Check — Browser Security, Certificates, Downloads & Extensions
+      lesson_key: lesson.aplus.security.browser_security
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q009
+        - M14Q010
+        - M14Q011
+        - M14Q012
+      display_order: 3
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.mobile-hardening
+      assessment_role: quick_check
+      title: Quick Check — Managed Mobile Device Security & BYOD Boundaries
+      lesson_key: lesson.aplus.security.mobile_hardening
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q013
+        - M14Q014
+        - M14Q015
+        - M14Q016
+      display_order: 4
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.mobile-app-troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — Mobile OS & Application Troubleshooting
+      lesson_key: lesson.aplus.security.mobile_app_troubleshooting
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q017
+        - M14Q018
+        - M14Q019
+        - M14Q020
+      display_order: 5
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.mobile-security-troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — Mobile Security Troubleshooting & Compromise Indicators
+      lesson_key: lesson.aplus.security.mobile_security_troubleshooting
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q021
+        - M14Q022
+        - M14Q023
+        - M14Q024
+      display_order: 6
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.connected-endpoint-workflow
+      assessment_role: quick_check
+      title: Quick Check — Secure Connected-Endpoint Workflow
+      lesson_key: lesson.aplus.security.connected_endpoint_workflow
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q025
+        - M14Q026
+        - M14Q027
+        - M14Q028
+      display_order: 7
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.module_quiz
+      assessment_role: module_quiz
+      title: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - count: 2
+          objective_codes:
+          - '2.3'
+        - count: 2
+          objective_codes:
+          - '2.8'
+        - count: 1
+          objective_codes:
+          - '2.10'
+        - count: 1
+          objective_codes:
+          - '2.11'
+        - count: 2
+          objective_codes:
+          - '3.2'
+        - count: 2
+          objective_codes:
+          - '3.3'
+        - count: 2
+          objective_codes: []
+          tags_any:
+          - multi_objective
+        category_requirements:
+        - category: scenario_application_or_reasoning
+          minimum: 6
+          tags_any:
+          - question_style:scenario-application
+          - question_style:troubleshooting-reasoning
+        - category: job_critical
+          minimum: 8
+          tags_any:
+          - importance:job_critical
+        - category: multi_select
+          minimum: 1
+          tags_any:
+          - question_type:multi
+        exclude_question_ids:
+        - M14Q037
+        - M14Q038
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 6
+          multi_select_minimum: 1
+          max_same_narrow_category: 2
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 8
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.practical
+      assessment_role: practical
+      title: Connected Endpoint Security & Troubleshooting Lab
+      lab_ref: Connected Endpoint Security & Troubleshooting Lab
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.service_desk
+      assessment_role: service_desk
+      title: Service Desk — sd.aplus.security.mobile_secure_wifi_profile
+      service_desk_ref: sd.aplus.security.mobile_secure_wifi_profile
+      pass_percent: 70
+      display_order: 10
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 11
+  - module_key: module.aplus.core2.threat_malware_response
+    title: Threat Recognition, Malware Response & PC Security Troubleshooting
+    skill_promise: null
+    certification_domain_key: '2.0'
+    importance_hint: working_knowledge
+    display_order: 8
+    assessments:
+    - assessment_key: assess.aplus-core2-threat-malware-response.qc.malware-families-tools
+      assessment_role: quick_check
+      title: Quick Check — Malware Families & Defensive Tools
+      lesson_key: lesson.aplus.security.malware_families_tools
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M15Q001
+        - M15Q002
+        - M15Q003
+        - M15Q004
+      display_order: 1
+    - assessment_key: assess.aplus-core2-threat-malware-response.qc.social-engineering
+      assessment_role: quick_check
+      title: Quick Check — Social Engineering, Phishing & Business Email Compromise
+      lesson_key: lesson.aplus.security.social_engineering
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M15Q005
+        - M15Q006
+        - M15Q007
+        - M15Q008
+      display_order: 2
+    - assessment_key: assess.aplus-core2-threat-malware-response.qc.threats-vulnerabilities
+      assessment_role: quick_check
+      title: Quick Check — Technical Threats, Vulnerabilities & Unsafe Endpoint States
+      lesson_key: lesson.aplus.security.threats_vulnerabilities
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M15Q009
+        - M15Q010
+        - M15Q011
+        - M15Q012
+      display_order: 3
+    - assessment_key: assess.aplus-core2-threat-malware-response.qc.malware-removal
+      assessment_role: quick_check
+      title: Quick Check — Malware Removal, Quarantine & Reimage Decisions
+      lesson_key: lesson.aplus.security.malware_removal
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M15Q013
+        - M15Q014
+        - M15Q015
+        - M15Q016
+      display_order: 4
+    - assessment_key: assess.aplus-core2-threat-malware-response.qc.pc-security-troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — PC Security Symptoms & Evidence-First Troubleshooting
+      lesson_key: lesson.aplus.security.pc_security_troubleshooting
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M15Q017
+        - M15Q018
+        - M15Q019
+        - M15Q020
+      display_order: 5
+    - assessment_key: assess.aplus-core2-threat-malware-response.qc.incident-triage
+      assessment_role: quick_check
+      title: 'Quick Check — Incident Triage: Contain, Remediate, Escalate & Document'
+      lesson_key: lesson.aplus.security.incident_triage
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M15Q021
+        - M15Q022
+        - M15Q023
+        - M15Q024
+      display_order: 6
+    - assessment_key: assess.aplus-core2-threat-malware-response.module_quiz
+      assessment_role: module_quiz
+      title: Module 15 Quiz — Threat Recognition, Malware Response & PC Security Troubleshooting
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - count: 3
+          objective_codes:
+          - '2.4'
+        - count: 4
+          objective_codes:
+          - '2.5'
+        - count: 2
+          objective_codes:
+          - '2.6'
+        - count: 2
+          objective_codes:
+          - '3.4'
+        - count: 1
+          objective_codes: []
+          tags_any:
+          - multi_objective
+        category_requirements:
+        - category: scenario_application_or_reasoning
+          minimum: 6
+          tags_any:
+          - question_style:scenario-application
+          - question_style:troubleshooting-reasoning
+        - category: job_critical
+          minimum: 8
+          tags_any:
+          - importance:job_critical
+        - category: multi_select
+          minimum: 1
+          tags_any:
+          - question_type:multi
+        exclude_question_ids:
+        - M15Q035
+        - M15Q036
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 6
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 7
+    - assessment_key: assess.aplus-core2-threat-malware-response.practical
+      assessment_role: practical
+      title: Security Incident Evidence & Response Lab
+      lab_ref: Security Incident Evidence & Response Lab
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus-core2-threat-malware-response.service_desk
+      assessment_role: service_desk
+      title: Service Desk — sd.aplus.security.suspicious_attachment_endpoint
+      service_desk_ref: sd.aplus.security.suspicious_attachment_endpoint
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core2-threat-malware-response.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 10
