@@ -11,7 +11,7 @@ import { BackToNexusLink } from './BackToNexusLink';
 import { LeaderboardModal } from './LeaderboardModal';
 import { PastTicketsModal } from './PastTicketsModal';
 import { ProfileMenuTrigger } from './ProfileMenuTrigger';
-import { useAttemptScore, useSyncStatus } from './TicketSessionProvider';
+import { useSyncStatus } from './TicketSessionProvider';
 import { ToolsPanel } from './ToolsPanel';
 import { useNexusReturnTarget } from './useNexusReturnTarget';
 
@@ -20,7 +20,6 @@ interface HeaderProps {
 }
 
 export function Header({ currentPath }: HeaderProps) {
-  const { pointsTotal } = useAttemptScore();
   const syncStatus = useSyncStatus();
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [pastTicketsOpen, setPastTicketsOpen] = useState(false);
@@ -87,19 +86,6 @@ export function Header({ currentPath }: HeaderProps) {
                 {syncStatus === 'problem' ? 'Sync problem — retrying' : 'Saving…'}
               </span>
             ) : null}
-            <div
-              aria-label="Account usage"
-              className="hidden items-center gap-3 border-l border-zinc-700/50 pl-3 md:flex"
-            >
-              <div className="text-center leading-none">
-                <span className="block text-base font-bold tabular-nums text-zinc-100">
-                  {pointsTotal}
-                </span>
-                <span className="mt-1 block text-[9px] font-bold uppercase tracking-wide text-zinc-500">
-                  Points
-                </span>
-              </div>
-            </div>
             <ProfileMenuTrigger
               onPastTicketsOpen={() => setPastTicketsOpen(true)}
             />

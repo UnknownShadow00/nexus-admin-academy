@@ -18,9 +18,9 @@ const OUTCOME_COPY: Record<
   NexusDebrief['result']['outcome'],
   { title: string; tone: string }
 > = {
-  resolved: { title: 'Resolved', tone: 'text-emerald-300' },
-  escalated: { title: 'Escalated', tone: 'text-sky-300' },
-  needs_another_try: { title: 'Needs another try', tone: 'text-amber-300' },
+  resolved: { title: 'Resolved', tone: 'text-success' },
+  escalated: { title: 'Escalated', tone: 'text-accent' },
+  needs_another_try: { title: 'Needs another try', tone: 'text-warning' },
 };
 
 const STATUS_ICON = {
@@ -52,11 +52,11 @@ export function TicketDebrief({
       <section className="mx-auto max-w-3xl space-y-4">
         <Card>
           <div className="p-5">
-            <h1 className="text-lg font-bold text-zinc-100">
+            <h1 className="text-lg font-bold text-text">
               {ticket.id} · {grade.passed ? 'Passed' : 'Not passed'}
             </h1>
-            <p className="mt-1 text-sm text-zinc-400">{grade.feedback_summary}</p>
-            <p className="mt-2 text-sm text-zinc-300">
+            <p className="mt-1 text-sm text-text-muted">{grade.feedback_summary}</p>
+            <p className="mt-2 text-sm text-text">
               Score: {grade.overall_score}
             </p>
           </div>
@@ -72,30 +72,30 @@ export function TicketDebrief({
     <section aria-label="Ticket debrief" className="mx-auto max-w-3xl space-y-4">
       <Card>
         <div className="p-5">
-          <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+          <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
             {ticket.id} · debrief
           </p>
           <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <h1 className={`text-2xl font-bold ${outcome.tone}`}>
               {outcome.title}
             </h1>
-            <span className="text-sm text-zinc-300">
+            <span className="text-sm text-text">
               Process score {result.score}
             </span>
             {result.attempts_remaining !== null ? (
-              <span className="text-sm text-zinc-400">
+              <span className="text-sm text-text-muted">
                 {result.attempts_remaining} attempt
                 {result.attempts_remaining === 1 ? '' : 's'} remaining
               </span>
             ) : null}
           </div>
-          <p className="mt-2 text-sm text-zinc-300">{grade.feedback_summary}</p>
+          <p className="mt-2 text-sm text-text">{grade.feedback_summary}</p>
         </div>
       </Card>
 
       <Card>
         <CardHeader meta="What counted" title="Process" />
-        <ul className="divide-y divide-zinc-800">
+        <ul className="divide-y divide-border">
           {debrief.categories.map((category) => {
             const Icon = STATUS_ICON[category.status];
             return (
@@ -104,25 +104,25 @@ export function TicketDebrief({
                   aria-hidden="true"
                   className={`mt-0.5 h-5 w-5 shrink-0 ${
                     category.status === 'full'
-                      ? 'text-emerald-400'
+                      ? 'text-success'
                       : category.status === 'missed'
-                        ? 'text-amber-400'
-                        : 'text-zinc-500'
+                        ? 'text-warning'
+                        : 'text-text-muted'
                   }`}
                 />
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="text-sm font-bold text-zinc-100">
+                    <span className="text-sm font-bold text-text">
                       {category.label}
                     </span>
-                    <span className="text-xs text-zinc-400">
+                    <span className="text-xs text-text-muted">
                       {STATUS_LABEL[category.status]}
                       {category.status === 'not_applicable'
                         ? ''
                         : ` · ${category.points}/${category.max}`}
                     </span>
                   </div>
-                  <p className="mt-1 text-sm text-zinc-400">
+                  <p className="mt-1 text-sm text-text-muted">
                     {category.explanation}
                   </p>
                 </div>
@@ -135,10 +135,10 @@ export function TicketDebrief({
       <Card>
         <CardHeader meta="Your words" title="Your documentation" />
         <div className="p-4">
-          <p className="whitespace-pre-wrap rounded-sm border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-200">
+          <p className="whitespace-pre-wrap rounded-sm border border-border bg-surface p-3 text-sm text-text">
             {debrief.student_note || 'No closure note was recorded.'}
           </p>
-          <ul className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-400">
+          <ul className="mt-3 flex flex-wrap gap-3 text-xs text-text-muted">
             {(
               [
                 ['cause', 'States the cause'],
@@ -150,19 +150,19 @@ export function TicketDebrief({
                 {debrief.note_dimensions[key] ? (
                   <IconCircleCheck
                     aria-hidden="true"
-                    className="h-4 w-4 text-emerald-400"
+                    className="h-4 w-4 text-success"
                   />
                 ) : (
                   <IconCircleDashed
                     aria-hidden="true"
-                    className="h-4 w-4 text-zinc-600"
+                    className="h-4 w-4 text-text-muted"
                   />
                 )}
                 {label}
               </li>
             ))}
           </ul>
-          <p className="mt-2 text-xs text-zinc-500">
+          <p className="mt-2 text-xs text-text-muted">
             These notes-quality hints are advisory and do not change your score.
           </p>
         </div>
@@ -171,7 +171,7 @@ export function TicketDebrief({
       {debrief.stronger_path.length ? (
         <Card>
           <CardHeader meta="For next time" title="A stronger troubleshooting path" />
-          <ol className="list-decimal space-y-1 p-4 pl-8 text-sm text-zinc-300">
+          <ol className="list-decimal space-y-1 p-4 pl-8 text-sm text-text">
             {debrief.stronger_path.map((step, index) => (
               <li key={`${index}-${step}`}>{step}</li>
             ))}
@@ -181,11 +181,11 @@ export function TicketDebrief({
 
       <Card>
         <CardHeader meta="Judgement" title="Would escalation have been right?" />
-        <div className="p-4 text-sm text-zinc-300">
-          <p className="font-bold text-zinc-100">
+        <div className="p-4 text-sm text-text">
+          <p className="font-bold text-text">
             {debrief.escalation_feedback.appropriate ? 'Yes' : 'No'}
           </p>
-          <p className="mt-1 text-zinc-400">{debrief.escalation_feedback.text}</p>
+          <p className="mt-1 text-text-muted">{debrief.escalation_feedback.text}</p>
         </div>
       </Card>
 

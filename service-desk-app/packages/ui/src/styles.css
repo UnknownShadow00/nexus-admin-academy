@@ -1,3 +1,44 @@
+@layer base {
+  /*
+   * Semantic theme tokens. Dark is the default (bare :root); light overrides
+   * the same names under [data-theme='light']. Every colour has a value in
+   * BOTH themes here - never define one only inside a theme block. Values are
+   * WCAG AA for body and UI text on their own surface.
+   */
+  :root,
+  [data-theme='dark'] {
+    --sd-surface: #09090b;
+    --sd-surface-raised: #18181b;
+    --sd-surface-muted: #27272a;
+    --sd-text: #f4f4f5;
+    --sd-text-muted: #a1a1aa;
+    --sd-border: #3f3f46;
+    --sd-accent: #38bdf8;
+    --sd-accent-contrast: #09090b;
+    --sd-success: #34d399;
+    --sd-warning: #fbbf24;
+    --sd-danger: #f87171;
+    --sd-pending: #a1a1aa;
+    --sd-focus: #38bdf8;
+  }
+
+  [data-theme='light'] {
+    --sd-surface: #ffffff;
+    --sd-surface-raised: #f4f4f5;
+    --sd-surface-muted: #e4e4e7;
+    --sd-text: #18181b;
+    --sd-text-muted: #52525b;
+    --sd-border: #d4d4d8;
+    --sd-accent: #0369a1;
+    --sd-accent-contrast: #ffffff;
+    --sd-success: #047857;
+    --sd-warning: #b45309;
+    --sd-danger: #dc2626;
+    --sd-pending: #52525b;
+    --sd-focus: #0369a1;
+  }
+}
+
 @layer components {
   [data-theme='light'] .sd-card,
   [data-theme='light'] .sd-modal-card,

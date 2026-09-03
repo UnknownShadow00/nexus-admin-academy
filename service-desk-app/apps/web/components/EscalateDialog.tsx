@@ -62,21 +62,21 @@ export function EscalateDialog({
       }
     >
       {route ? (
-        <p className="rounded-sm border border-zinc-700 bg-zinc-800/60 p-3 text-sm text-zinc-200">
+        <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text">
           This will be routed to:{' '}
-          <span className="font-bold text-zinc-50">{route}</span>
+          <span className="font-bold text-text">{route}</span>
         </p>
       ) : (
-        <p className="rounded-sm border border-zinc-700 bg-zinc-800/60 p-3 text-sm text-zinc-400">
+        <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
           A destination team has not been configured for this ticket.
         </p>
       )}
 
       {!ready ? (
-        <div className="mt-4 flex gap-2 rounded-sm border border-amber-400/40 bg-amber-400/10 p-3 text-sm text-amber-100">
+        <div className="mt-4 flex gap-2 rounded-sm border border-warning/40 bg-warning/10 p-3 text-sm text-text">
           <IconInfoCircle
             aria-hidden="true"
-            className="h-5 w-5 shrink-0 text-amber-300"
+            className="h-5 w-5 shrink-0 text-warning"
           />
           <p>
             Finish investigating and diagnosing the problem before you escalate,
@@ -85,10 +85,10 @@ export function EscalateDialog({
         </div>
       ) : null}
 
-      <label className="mt-4 block text-sm font-bold text-zinc-100">
+      <label className="mt-4 block text-sm font-bold text-text">
         Reason for escalation
         <select
-          className="sd-focus-ring mt-2 w-full rounded-sm border border-zinc-700 bg-zinc-950 p-2 text-sm text-zinc-100"
+          className="sd-focus-ring mt-2 w-full rounded-sm border border-border bg-surface p-2 text-sm text-text"
           onChange={(event) =>
             setReason(event.target.value as EscalationReason | '')
           }
@@ -103,16 +103,16 @@ export function EscalateDialog({
         </select>
       </label>
       {reason ? (
-        <p className="mt-1 text-xs text-zinc-400">
+        <p className="mt-1 text-xs text-text-muted">
           {ESCALATION_REASON_DESCRIPTIONS[reason]}
         </p>
       ) : null}
 
-      <label className="mt-4 block text-sm font-bold text-zinc-100">
+      <label className="mt-4 block text-sm font-bold text-text">
         Context for the receiving team{' '}
-        <span className="font-normal text-zinc-400">(optional)</span>
+        <span className="font-normal text-text-muted">(optional)</span>
         <textarea
-          className="sd-focus-ring mt-2 min-h-20 w-full rounded-sm border border-zinc-700 bg-zinc-950 p-2 text-sm font-normal text-zinc-100"
+          className="sd-focus-ring mt-2 min-h-20 w-full rounded-sm border border-border bg-surface p-2 text-sm font-normal text-text"
           maxLength={1000}
           onChange={(event) => setContext(event.target.value)}
           placeholder="What you found and why this needs another team."
