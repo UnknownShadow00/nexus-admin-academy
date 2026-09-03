@@ -66,6 +66,33 @@ def test_untrusted_and_failed_events_do_not_appear_as_evidence():
     assert view["stages"][1]["needs_more_evidence"] is True
 
 
+def test_escalation_scenarios_expose_route_but_not_a_verdict():
+    definition = SCENARIO_OBJECTIVES["inc2506"]
+    view = process_progress(
+        {"objective_catalog_version": PROCESS_CATALOG_VERSION},
+        [],
+        objective_def=definition,
+        stable_key="inc2506",
+        attempt=SimpleNamespace(status="in_progress"),
+    )
+    assert view["escalation"] == {"available": True, "route": "Identity & Access"}
+    # The workflow rail must not pre-announce that escalation is the answer.
+    fix_stage = next(stage for stage in view["stages"] if stage["key"] == "fix")
+    assert fix_stage["mode"] == "fix"
+
+
+def test_non_escalation_scenarios_have_no_escalation_block():
+    definition = SCENARIO_OBJECTIVES["inc2401"]
+    view = process_progress(
+        {"objective_catalog_version": PROCESS_CATALOG_VERSION},
+        [],
+        objective_def=definition,
+        stable_key="inc2401",
+        attempt=SimpleNamespace(status="in_progress"),
+    )
+    assert view["escalation"] is None
+
+
 def test_pre_attempt_assignment_view_has_minimal_rail_contract():
     definition = SCENARIO_OBJECTIVES["inc2401"]
     assignment_view = process_progress(

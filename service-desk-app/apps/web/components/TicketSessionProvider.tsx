@@ -118,7 +118,10 @@ interface TicketSessionContextValue {
     ticketId: string,
     options: { resolutionNote: string; verifiedResolved: boolean },
   ) => ActionEvent;
-  escalateTicket: (ticketId: string) => void;
+  escalateTicket: (
+    ticketId: string,
+    details: { reason: string; routeTeam: string; context?: string },
+  ) => void;
   getTicket: (ticketId: string) => Ticket | undefined;
   recordHintReveal: (ticketId: string, step: number) => void;
   submitResolutionNote: (ticketId: string, body: string) => void;
@@ -2102,10 +2105,15 @@ export function TicketSessionProvider({
           payload: { ticketId, ...options },
         });
       },
-      escalateTicket: (ticketId) => {
+      escalateTicket: (ticketId, details) => {
         dispatchAction({
           type: 'ticket.escalate',
-          payload: { ticketId },
+          payload: {
+            ticketId,
+            reason: details.reason,
+            routeTeam: details.routeTeam,
+            ...(details.context ? { context: details.context } : {}),
+          },
         });
       },
       getTicket: (ticketId) => tickets.find((ticket) => ticket.id === ticketId),

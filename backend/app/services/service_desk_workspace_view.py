@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services.service_desk_escalation import escalation_profile
 from app.services.service_desk_objectives import (
     ScenarioObjectiveDefinition,
     _matching_positions,
@@ -75,6 +76,9 @@ def process_progress(
             "needs_more_evidence": not complete,
         }
         if stage_key == "fix":
+            # Deliberately neutral before the outcome is chosen: the student may
+            # see that escalation is *available* (below) but is never told it is
+            # the correct answer. The debrief reveals appropriateness.
             stage["mode"] = "fix"
         stages.append(stage)
 
@@ -102,10 +106,17 @@ def process_progress(
     if not objective_checks.get("documentation", False):
         blockers.append("add_note")
 
+    profile = escalation_profile(stable_key)
+    escalation = (
+        {"available": True, "route": profile.route}
+        if profile is not None and profile.expected
+        else None
+    )
+
     return {
         "stages": stages,
         "evidence": evidence,
         "documentation_target": _documentation_target(objective_def),
         "resolve_blockers": blockers,
-        "escalation": None,
+        "escalation": escalation,
     }

@@ -82,7 +82,14 @@ export interface AddTicketNoteAction {
 
 export interface EscalateTicketAction {
   type: 'ticket.escalate';
-  payload: TicketActionPayload;
+  payload: TicketActionPayload & {
+    /** Fixed taxonomy value; the server re-validates it. */
+    reason?: string;
+    /** Destination team; the server re-validates it against the scenario. */
+    routeTeam?: string;
+    /** Optional free-text note for the receiving team; audit only, not graded. */
+    context?: string;
+  };
 }
 
 export interface RevealTicketHintAction {

@@ -26,8 +26,13 @@ from app.schemas.service_desk import (
     ServiceDeskHintCreate,
     ServiceDeskSnapshotCreate,
 )
+from app.services.service_desk_escalation import (
+    ESCALATION_REASONS,
+    escalation_profile,
+)
 from app.services.service_desk_objectives import (
     DERIVED_REMOTE_STEP_SOURCES,
+    evaluate_objectives,
     objective_definition,
     payload_matches,
 )
@@ -85,6 +90,15 @@ def _validate_event_shape(event_type: str, tool: str, payload: dict) -> None:
     if event_type == "ticket.close":
         # Close fields are UI metadata only.  They are allowed for compatibility
         # but cannot control verification in compute_grade().
+        return
+    if event_type == "ticket.escalate":
+        if payload.get("reason") not in ESCALATION_REASONS:
+            raise HTTPException(422, "Unknown escalation reason")
+        route_team = payload.get("routeTeam")
+        if not isinstance(route_team, str) or not route_team.strip():
+            raise HTTPException(422, "Escalation requires a destination team")
+        if not isinstance(payload.get("ticketId"), str):
+            raise HTTPException(422, "Escalation requires ticketId")
         return
     if event_type == "ticket.add_note" and (
         not isinstance(payload.get("body"), str) or len(payload["body"].strip()) < 20
@@ -771,6 +785,27 @@ def _action_allowed(
     definition = objective_definition(key, definition_json) if version else None
     if definition is None:
         return False
+
+    if event_type == "ticket.escalate":
+        # Escalation is trusted only for a scenario whose server-owned profile
+        # expects it, only for the declared destination and an accepted reason,
+        # and only after investigation and diagnosis are established on the
+        # trusted ledger.  Otherwise it is still recorded, but untrusted, so it
+        # can never satisfy grading.
+        profile = escalation_profile(key)
+        if profile is None or not profile.expected:
+            return False
+        if payload.get("reason") not in profile.accepted_reasons:
+            return False
+        if payload.get("routeTeam") != profile.route:
+            return False
+        if not definition.is_process_profile:
+            return False
+        _, prerequisite_checks = evaluate_objectives(key, events, definition_json)
+        return prerequisite_checks.get("investigation", False) and (
+            prerequisite_checks.get("diagnosis", False)
+        )
+
     rules = definition.authorized_rules
     source_for_derived_step = next(
         (
@@ -961,6 +996,17 @@ def request_action(
             rule.event_type == body.event_type for rule in definition.authorized_rules
         )
     )
+    escalation_expected = bool(
+        body.event_type == "ticket.escalate"
+        and (_profile := escalation_profile(key))
+        and _profile.expected
+    )
+    if escalation_expected and not trusted:
+        raise HTTPException(
+            409,
+            "Escalation is not available yet - complete your investigation and "
+            "diagnosis first.",
+        )
     if (
         objective_action or protected_identity_action or protected_device_action
     ) and not trusted:

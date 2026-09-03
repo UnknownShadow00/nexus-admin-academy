@@ -7,6 +7,13 @@ export {
   TicketCategory,
 } from './enums';
 export {
+  ESCALATION_REASONS,
+  ESCALATION_REASON_DESCRIPTIONS,
+  ESCALATION_REASON_LABELS,
+  isEscalationReason,
+  type EscalationReason,
+} from './escalation';
+export {
   INITIAL_PC_SHELF_ASSET_TAGS,
   PC_SHELF_FIXTURES,
   getPcShelfFixture,

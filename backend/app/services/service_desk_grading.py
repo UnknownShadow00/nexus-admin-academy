@@ -13,6 +13,7 @@ from app.models.service_desk import (
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
 )
+from app.services.service_desk_escalation import escalation_profile
 from app.services.service_desk_objectives import (
     PROCESS_WEIGHTS,
     evaluate_objectives,
@@ -63,7 +64,15 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     )
 
     close_events = [event for event in events if event.event_type == "ticket.close"]
-    if not close_events:
+    escalate_events = [
+        event
+        for event in events
+        if event.event_type == "ticket.escalate"
+        and event.trusted is True
+        and event.success is True
+    ]
+    # A trusted escalation terminates the attempt exactly like a close does.
+    if not close_events and not escalate_events:
         raise AttemptNotClosedError("Attempt has not been closed yet")
     # ticket.close is only a request to grade.  Its success flag and payload
     # are browser assertions and are never resolution evidence.
@@ -74,6 +83,89 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     objective_definition_for_version = objective_definition(
         scenario.stable_key, definition
     )
+
+    # First-class escalation grading.  Only scenarios with an
+    # ``EscalationProfile.expected`` profile enter this branch; every ordinary
+    # scenario's grading below is untouched.
+    profile = escalation_profile(scenario.stable_key)
+    escalation_details: dict[str, Any] = {}
+    escalation_process_points: int | None = None
+    critical_failure = False
+    _any_trusted_escalate = bool(escalate_events)
+    if profile is not None and profile.expected:
+        escalate_event = escalate_events[-1] if escalate_events else None
+        escalate_payload = (escalate_event.payload_json or {}) if escalate_event else {}
+        reason_ok = escalate_payload.get("reason") in profile.accepted_reasons
+        route_ok = escalate_payload.get("routeTeam") == profile.route
+
+        def _trusted_match(rule: Any) -> bool:
+            return any(
+                event.trusted is True
+                and event.success is True
+                and event.event_type == rule.event_type
+                and payload_matches(event.payload_json or {}, rule.payload)
+                for event in events
+            )
+
+        prohibited_hit = any(_trusted_match(rule) for rule in profile.prohibited)
+        containment_met = all(
+            _trusted_match(rule) for rule in profile.required_containment
+        )
+        escalation_valid = _any_trusted_escalate and reason_ok and route_ok
+        escalation_correct = (
+            escalation_valid and containment_met and not prohibited_hit
+        )
+
+        resolved = escalation_correct
+        critical_failure = prohibited_hit
+
+        # Normalize process credit across the categories that actually apply to
+        # this escalation outcome.  Verification is N/A unless the profile
+        # requires verifiable containment; it is never shown as earned work.
+        earned = 0
+        applicable_total = 0
+        for category in ("investigation", "diagnosis", "documentation"):
+            applicable_total += PROCESS_WEIGHTS[category]
+            if objective_checks.get(category, False):
+                earned += PROCESS_WEIGHTS[category]
+        # The remediation weight becomes the "escalation/remediation" slot and
+        # is awarded for a correct hand-off.
+        applicable_total += PROCESS_WEIGHTS["remediation"]
+        if escalation_correct:
+            earned += PROCESS_WEIGHTS["remediation"]
+        if profile.verification_applicable:
+            applicable_total += PROCESS_WEIGHTS["verification"]
+            if containment_met:
+                earned += PROCESS_WEIGHTS["verification"]
+        escalation_process_points = (
+            _js_round(earned * 100 / applicable_total) if applicable_total else 0
+        )
+
+        escalation_details = {
+            "escalated": _any_trusted_escalate,
+            "escalation_expected": True,
+            "escalation_route": escalate_payload.get("routeTeam"),
+            "escalation_reason": escalate_payload.get("reason"),
+            "escalation_valid": escalation_valid,
+            "escalation_correct": escalation_correct,
+            "containment_required": profile.verification_applicable,
+            "containment_met": (
+                containment_met if profile.verification_applicable else None
+            ),
+            "prohibited_hit": prohibited_hit,
+            "verification_applicable": profile.verification_applicable,
+        }
+    elif profile is None and any(
+        event.event_type == "ticket.escalate" for event in events
+    ):
+        # Ordinary scenario: ``ticket.escalate`` is never trusted here, so
+        # grading is byte-identical to not escalating.  Record only that the
+        # student tried it, for advisory feedback - the score path is untouched.
+        escalation_details = {
+            "escalated": False,
+            "escalation_expected": False,
+            "escalation_attempted": True,
+        }
     hints_used = sum(event.event_type == "hint_requested" for event in events)
     # Learning Mode is for practicing without penalty: hint use and an
     # unresolved close still get recorded and shown to the student, but do
@@ -81,7 +173,9 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     is_learning_mode = attempt.mode == "learning"
 
     process_points = (
-        sum(
+        escalation_process_points
+        if escalation_process_points is not None
+        else sum(
             weight
             for category, weight in PROCESS_WEIGHTS.items()
             if objective_checks.get(category, False)
@@ -140,7 +234,46 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
         _js_round((points_awarded / points_possible) * 100) if points_possible else 0
     )
 
-    if is_learning_mode:
+    if critical_failure:
+        feedback_summary = (
+            "You applied a change that was not yours to make. This ticket "
+            "required escalation to the responsible team."
+        )
+    elif profile is not None and profile.expected:
+        if resolved:
+            route = escalation_details.get("escalation_route") or profile.route
+            feedback_summary = f"You correctly escalated this to {route}."
+            if penalty_points > 0:
+                feedback_summary += (
+                    f" The final score includes {penalty_points} hint or "
+                    "closure penalty points."
+                )
+        elif escalation_details.get("escalated") and profile.verification_applicable:
+            feedback_summary = (
+                "You escalated this, but the required containment step was not "
+                "completed first."
+            )
+        elif escalation_details.get("escalated"):
+            feedback_summary = (
+                "Escalation is the right call here, but the destination team or "
+                "reason did not match what this ticket needs."
+            )
+        else:
+            feedback_summary = (
+                f"This ticket needed to be escalated to {profile.route}. "
+                "Closing it yourself is outside a help-desk technician's "
+                "authority."
+            )
+    elif (
+        profile is None
+        and escalation_details.get("escalation_attempted")
+        and not resolved
+    ):
+        feedback_summary = (
+            "This ticket was within your authority - it did not need "
+            "escalation. Review what a full fix looks like."
+        )
+    elif is_learning_mode:
         feedback_summary = (
             "Learning Mode: hints and retries do not affect your score. "
             + (
@@ -160,7 +293,7 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
 
     return {
         "technical_complete": resolved,
-        "critical_failure": False,
+        "critical_failure": critical_failure,
         "overall_score": overall_score,
         "passed": resolved,
         "feedback_summary": feedback_summary,
@@ -180,6 +313,7 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
             "was_closed": was_closed,
             "objective_checks": objective_checks,
             "is_learning_mode": is_learning_mode,
+            **escalation_details,
         },
         "rubric_version": RUBRIC_VERSION,
     }

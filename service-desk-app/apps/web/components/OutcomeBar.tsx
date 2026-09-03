@@ -8,7 +8,9 @@ import { useAttemptScore, useTicketSession } from './TicketSessionProvider';
 
 export function OutcomeBar({ ticket }: { ticket: Ticket }) {
   const { previewCloseGrade } = useAttemptScore();
-  const { closeTicket, escalateTicket } = useTicketSession();
+  const { closeTicket, escalateTicket, workspaceViewByTicket } =
+    useTicketSession();
+  const workspaceView = workspaceViewByTicket[ticket.id] ?? null;
 
   return (
     <section
@@ -38,10 +40,15 @@ export function OutcomeBar({ ticket }: { ticket: Ticket }) {
         <div className="flex flex-col gap-1">
           <EscalateDialog
             escalated={ticket.escalated}
-            onConfirm={() => escalateTicket(ticket.id)}
+            onConfirm={(details) => escalateTicket(ticket.id, details)}
+            workspaceView={workspaceView}
           />
           <span className="text-center text-[11px] text-zinc-500">
-            {ticket.escalated ? 'Already recorded' : 'Available'}
+            {ticket.escalated
+              ? 'Already recorded'
+              : workspaceView?.escalation
+                ? `Routes to ${workspaceView.escalation.route}`
+                : 'Available'}
           </span>
         </div>
       </div>
