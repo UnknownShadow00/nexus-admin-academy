@@ -38,7 +38,6 @@ import {
   mentorScenarioRequirements,
   progressiveHints,
   scenarioActionLabel,
-  shouldProactivelyRevealHint,
   studentFeedbackMessage,
 } from '../lib/remote-desktop-learning';
 import { WORKSTATION_APP_REGISTRY } from './workstation/app-registry';
@@ -54,16 +53,20 @@ const TICKET_TOOL_LABELS: Record<string, string> = {
   'server-room': 'Server Room',
 };
 
-function initialTicketFromUrl() {
-  if (typeof window === 'undefined') return 'INC2406';
-  const value = new URLSearchParams(window.location.search).get('ticket');
-  return value && getRemoteDesktopScenarioByTicket(value) ? value : 'INC2406';
+export function ticketFromSearch(search: string): string | null {
+  const value = new URLSearchParams(search).get('ticket');
+  return value && getRemoteDesktopScenarioByTicket(value) ? value : null;
 }
 
-function replaceLocation(ticketId: string, assetTag: string | null) {
+function initialTicketFromUrl(): string | null {
+  return typeof window === 'undefined' ? null : ticketFromSearch(window.location.search);
+}
+
+function replaceLocation(ticketId: string | null, assetTag: string | null) {
   if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
-  url.searchParams.set('ticket', ticketId);
+  if (ticketId) url.searchParams.set('ticket', ticketId);
+  else url.searchParams.delete('ticket');
   if (assetTag) url.searchParams.set('computer', assetTag);
   else url.searchParams.delete('computer');
   window.history.replaceState(null, '', url);
@@ -92,27 +95,23 @@ export function RemoteDesktopTool() {
     ticketId === 'INC2402' ? 'Managed Device Console' : 'Remote Desktop';
   const [ticketOpen, setTicketOpen] = useState(true);
   const [toast, setToast] = useState<ActionEvent | null>(null);
-  const scenario =
-    getRemoteDesktopScenarioByTicket(ticketId) ?? REMOTE_DESKTOP_SCENARIOS[0]!;
-  const ticket = tickets.getTicket(scenario.ticketId);
+  const scenario = ticketId ? getRemoteDesktopScenarioByTicket(ticketId) : null;
+  const ticket = scenario ? tickets.getTicket(scenario.ticketId) : undefined;
   const workstation =
     remote.workstations.find((item) => item.assetTag === computer) ?? null;
   const assignedExperienceMode =
-    tickets.assignmentByTicket[ticketId]?.experience_mode;
+    ticketId ? tickets.assignmentByTicket[ticketId]?.experience_mode : undefined;
   const learningMode =
     assignedExperienceMode ?? workstation?.learningMode ?? 'guided';
   const hintsRevealed =
     learningMode === 'assessment' ? 0 : (ticket?.hintsRevealedCount ?? 0);
   const canReviewScenario = canInspectScenarioRequirements(identity);
   const scenarioComplete =
-    workstation?.completedScenarioIds.includes(scenario.id) ?? false;
-  const revealedHints = progressiveHints(
-    scenario,
-    hintsRevealed,
-    learningMode,
-    scenarioComplete,
-  );
-  const workflowProgress = workstation?.scenarioProgress[scenario.id];
+    scenario ? workstation?.completedScenarioIds.includes(scenario.id) ?? false : false;
+  const revealedHints = scenario ? progressiveHints(
+    scenario, hintsRevealed, learningMode, scenarioComplete,
+  ) : [];
+  const workflowProgress = scenario ? workstation?.scenarioProgress[scenario.id] : undefined;
 
   useEffect(() => replaceLocation(ticketId, computer), [computer, ticketId]);
   useEffect(() => {
@@ -122,7 +121,7 @@ export function RemoteDesktopTool() {
       setTicketId(
         nextTicketId && getRemoteDesktopScenarioByTicket(nextTicketId)
           ? nextTicketId
-          : 'INC2406',
+          : null,
       );
       setComputer(params.get('computer'));
     };
@@ -131,32 +130,12 @@ export function RemoteDesktopTool() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
   useEffect(() => {
-    if (!workstation || workstation.connectionState !== 'connecting') return;
+    if (!scenario || !workstation || workstation.connectionState !== 'connecting') return;
     const timer = window.setTimeout(() => {
       setToast(remote.beginLogin(workstation.assetTag, scenario.ticketId));
     }, 650);
     return () => window.clearTimeout(timer);
-  }, [remote, scenario.ticketId, workstation]);
-  useEffect(() => {
-    if (
-      ticket &&
-      shouldProactivelyRevealHint(
-        scenario,
-        hintsRevealed,
-        learningMode,
-        scenarioComplete,
-      )
-    ) {
-      tickets.recordHintReveal(ticket.id, 1);
-    }
-  }, [
-    hintsRevealed,
-    learningMode,
-    scenario,
-    scenarioComplete,
-    ticket,
-    tickets,
-  ]);
+  }, [remote, scenario, workstation]);
 
   const selectScenario = (nextTicketId: string) => {
     setComputer(null);
@@ -171,24 +150,18 @@ export function RemoteDesktopTool() {
     )
       return;
     if (scenarioComplete && !event.success) return;
-    if (
-      !event.success &&
-      learningMode === 'guided' &&
-      ticket &&
-      hasAnotherHint(scenario, hintsRevealed, learningMode, scenarioComplete)
-    ) {
-      tickets.recordHintReveal(ticket.id, hintsRevealed + 1);
-    }
     setToast(event);
   };
   const revealNextHint = () => {
     if (
-      !ticket ||
+      !ticket || !scenario ||
       !hasAnotherHint(scenario, hintsRevealed, learningMode, scenarioComplete)
     )
       return;
     tickets.recordHintReveal(ticket.id, hintsRevealed + 1);
   };
+
+  if (!scenario) return <section className="mx-auto max-w-2xl rounded-md border border-zinc-800 bg-zinc-900 p-8 text-center" role="status"><IconDeviceDesktop className="mx-auto h-10 w-10 text-zinc-500" aria-hidden="true" /><h1 className="mt-4 text-xl font-bold text-zinc-100">Choose a ticket</h1><p className="mt-2 text-sm text-zinc-400">Open Remote Desktop from a ticket so the correct customer and computer follow you.</p><a className="sd-button sd-button--default sd-focus-ring mt-5 inline-flex px-4 py-2" href="/">Back to ticket queue</a></section>;
 
   return (
     <section
@@ -701,7 +674,7 @@ export function CompletionSummary({
           ? serverGrade.passed
             ? 'Server assessment complete'
             : 'Server assessment incomplete'
-          : 'Awaiting authoritative server grade'}
+          : 'Grade is being confirmed'}
       </p>
       <div className="mt-4 space-y-3 text-sm leading-6 text-emerald-50/90">
         <p>
@@ -753,8 +726,8 @@ export function CompletionSummary({
           </>
         ) : (
           <p className="mt-3 text-emerald-50/85">
-            Your work is saved locally. Final pass/fail and score will appear
-            only after the server confirms this attempt.
+            Your ticket work is saved. The final pass/fail and score are still
+            processing and will appear after the server confirms this attempt.
           </p>
         )}
       </div>

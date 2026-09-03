@@ -40,7 +40,7 @@ function suggestedToolHref(
   ticketId: string,
 ) {
   if (tool.slug === 'documentation') {
-    return `${tool.path}?category=${DOCUMENTATION_CATEGORY_BY_TICKET_CATEGORY[ticketCategory]}`;
+    return `${tool.path}?category=${DOCUMENTATION_CATEGORY_BY_TICKET_CATEGORY[ticketCategory]}&ticket=${ticketId}`;
   }
 
   if (tool.slug === 'company-chat' && CHAT_CONTACT_BY_TICKET_ID[ticketId]) {
@@ -51,7 +51,7 @@ function suggestedToolHref(
     return `${tool.path}?ticket=${ticketId}`;
   }
 
-  return tool.path;
+  return `${tool.path}?ticket=${ticketId}`;
 }
 
 export function SuggestedTools({

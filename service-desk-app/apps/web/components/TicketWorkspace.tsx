@@ -12,11 +12,21 @@ import { TicketActionBar } from './TicketActionBar';
 import { TicketDetailHeader } from './TicketDetailHeader';
 import { TicketIssueDetails } from './TicketIssueDetails';
 import { useSessionHydrated, useTicketSession } from './TicketSessionProvider';
+import { ticketWorkflowState } from './ticket-workflow';
+import { useEffect, useState } from 'react';
+
+const ORIENTATION_KEY = 'sd:first-guided-orientation-seen';
 
 export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   const { addNote, assignmentByTicket, getTicket } = useTicketSession();
   const isHydrated = useSessionHydrated();
   const ticket = getTicket(ticketId);
+  const assignment = assignmentByTicket[ticketId];
+  const [orientationSeen, setOrientationSeen] = useState<boolean | null>(null);
+  useEffect(() => {
+    try { setOrientationSeen(localStorage.getItem(ORIENTATION_KEY) === '1'); }
+    catch { setOrientationSeen(false); }
+  }, []);
 
   if (!isHydrated) {
     return (
@@ -45,6 +55,12 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
     );
   }
 
+  if (assignment?.experience_mode === 'guided' && orientationSeen === false) {
+    return <section className="mx-auto max-w-2xl rounded-md border border-sky-400/30 bg-zinc-900 p-6 sm:p-8" aria-labelledby="first-ticket-title"><p className="text-xs font-extrabold uppercase tracking-wide text-sky-400">Your first guided ticket</p><h1 className="mt-2 text-2xl font-bold text-zinc-100" id="first-ticket-title">Before you open the ticket</h1><ul className="mt-5 space-y-3 text-sm leading-relaxed text-zinc-300"><li>• This is a practice ticket from a user.</li><li>• Investigate before changing anything.</li><li>• Evidence gathered after a fix may not count as investigation.</li><li>• You cannot damage a real computer here.</li><li>• Escalating can be the correct professional decision.</li></ul><button className="sd-button sd-button--primary sd-focus-ring mt-6 inline-flex min-h-10 items-center justify-center px-4 py-2 font-bold" onClick={() => { try { localStorage.setItem(ORIENTATION_KEY, '1'); } catch { /* Browser storage is optional; keep the current session usable. */ } setOrientationSeen(true); }} type="button">Open ticket</button><p className="mt-3 text-xs text-zinc-500">This orientation is saved in this browser.</p></section>;
+  }
+
+  const workflow = ticketWorkflowState(ticket);
+
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4 sm:space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -64,7 +80,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
       </div>
 
       <TicketDetailHeader
-        assignment={assignmentByTicket[ticket.id]}
+        assignment={assignment}
         ticket={ticket}
       />
       <section
@@ -74,23 +90,12 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
         <p className="text-[11px] font-extrabold uppercase tracking-wide text-zinc-500">
           Work the case
         </p>
-        <ol className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs font-semibold text-zinc-400">
-          {[
-            'Read',
-            'Investigate',
-            'Diagnose',
-            'Fix',
-            'Verify',
-            'Document',
-            'Close',
-          ].map((step, index) => (
-            <li className="flex items-center gap-2" key={step}>
-              {index > 0 ? (
-                <span aria-hidden="true" className="text-zinc-700">
-                  →
-                </span>
-              ) : null}
-              <span>{step}</span>
+        <ol className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {workflow.map((step) => (
+            <li className={`rounded-sm border p-3 ${step.current ? 'border-sky-400 bg-sky-400/10' : step.complete ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-900/50'}`} key={step.key} aria-current={step.current ? 'step' : undefined}>
+              <div className="flex items-center gap-2 text-xs font-bold text-zinc-200">
+              <span aria-hidden="true">{step.complete ? '✓' : step.current ? '→' : '○'}</span><span>{step.label}</span></div>
+              {assignment?.experience_mode === 'guided' ? <p className="mt-1 text-[11px] leading-relaxed text-zinc-400">{step.help}</p> : null}
             </li>
           ))}
         </ol>

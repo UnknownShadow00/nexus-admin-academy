@@ -1,9 +1,6 @@
 'use client';
 
-import {
-  initialHintRevealCount,
-  nextHintRevealCount,
-} from '@service-desk/shared';
+import { nextHintRevealCount } from '@service-desk/shared';
 import { Button, Modal } from '@service-desk/ui';
 import {
   IconBulb,
@@ -24,12 +21,7 @@ export function HintDialog({
   revealedCount: persistedRevealedCount = 0,
 }: HintDialogProps) {
   const [open, setOpen] = useState(false);
-  const [started, setStarted] = useState(persistedRevealedCount > 0);
-  const [revealedCount, setRevealedCount] = useState(() =>
-    persistedRevealedCount > 0
-      ? persistedRevealedCount
-      : initialHintRevealCount(hints.length),
-  );
+  const [revealedCount, setRevealedCount] = useState(persistedRevealedCount);
 
   // The persisted count only becomes accurate after TicketSessionProvider's
   // post-hydration localStorage restore, which lands a render or two after
@@ -39,19 +31,8 @@ export function HintDialog({
     if (persistedRevealedCount > revealedCount) {
       setRevealedCount(persistedRevealedCount);
     }
-    if (persistedRevealedCount > 0) {
-      setStarted(true);
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [persistedRevealedCount]);
-
-  function handleOpenChange(nextOpen: boolean) {
-    setOpen(nextOpen);
-    if (nextOpen && !started && revealedCount > 0) {
-      setStarted(true);
-      onReveal(1);
-    }
-  }
 
   function revealNext() {
     const nextCount = nextHintRevealCount(revealedCount, hints.length);
@@ -65,13 +46,12 @@ export function HintDialog({
     <Modal
       closeLabel="Hide hints"
       description="Reveal one guided step at a time."
-      onOpenChange={handleOpenChange}
+      onOpenChange={setOpen}
       open={open}
       title="How to resolve this"
       trigger={
         <Button className="w-full sm:w-auto" variant="ghost">
-          <IconHelpCircle aria-hidden="true" className="h-5 w-5" />I don&apos;t
-          know how to fix this
+          <IconHelpCircle aria-hidden="true" className="h-5 w-5" />Stuck? View hints
         </Button>
       }
     >
@@ -80,6 +60,7 @@ export function HintDialog({
           <IconBulb aria-hidden="true" className="h-5 w-5 text-sky-400" />
           <p className="text-sm font-bold text-zinc-100">Guided steps</p>
         </div>
+        {revealedCount === 0 ? <p className="mt-4 text-sm text-zinc-300">Hints are only used when you choose to reveal one.</p> : null}
         <ol className="mt-4 space-y-3">
           {hints.slice(0, revealedCount).map((hint, index) => (
             <li className="flex gap-3 text-sm text-zinc-300" key={hint}>
@@ -94,7 +75,7 @@ export function HintDialog({
           <Button onClick={() => setOpen(false)}>Hide hints</Button>
           {revealedCount < hints.length ? (
             <Button onClick={revealNext} variant="ghost">
-              Reveal next step ({revealedCount}/{hints.length})
+              {revealedCount === 0 ? 'Reveal the next hint' : `Reveal another hint (${revealedCount}/${hints.length})`}
               <IconChevronRight aria-hidden="true" className="h-4 w-4" />
             </Button>
           ) : (

@@ -8,6 +8,7 @@ import {
   IconLock,
 } from '@tabler/icons-react';
 import { useState } from 'react';
+import type { ActionEvent } from '@service-desk/simulation-engine';
 
 interface GradePreview {
   penaltyPoints: number;
@@ -20,10 +21,14 @@ interface ResolveDialogProps {
   onConfirm: (options: {
     resolutionNote: string;
     verifiedResolved: boolean;
-  }) => void;
+  }) => ActionEvent;
   readyGrade: GradePreview | null;
   status: TicketStatus;
   unresolvedGrade: GradePreview | null;
+}
+
+export function closeRejectionMessage(event: ActionEvent): string {
+  return event.rejectReason || 'This ticket is not ready to close. Review the required steps and try again.';
 }
 
 export function ResolveDialog({
@@ -37,6 +42,7 @@ export function ResolveDialog({
   const [reviewing, setReviewing] = useState(false);
   const [resolutionNote, setResolutionNote] = useState(initialResolutionNote);
   const [verifiedResolved, setVerifiedResolved] = useState(false);
+  const [rejection, setRejection] = useState('');
   const effectiveVerified =
     verifiedResolved || status === TicketStatus.Resolved;
   const review = getCloseReview(status, effectiveVerified);
@@ -47,6 +53,7 @@ export function ResolveDialog({
     setReviewing(false);
     setResolutionNote(initialResolutionNote);
     setVerifiedResolved(false);
+    setRejection('');
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -172,12 +179,15 @@ export function ResolveDialog({
             <Button onClick={() => setReviewing(false)}>Back</Button>
             <Button
               onClick={() => {
-                onConfirm({
+                const event = onConfirm({
                   resolutionNote,
                   verifiedResolved: effectiveVerified,
                 });
-                setOpen(false);
-                reset();
+                if (!event.success) {
+                  setRejection(closeRejectionMessage(event));
+                  return;
+                }
+                setOpen(false); reset();
               }}
               variant={
                 review.kind === 'unresolved-warning' ? 'default' : 'primary'
@@ -188,6 +198,7 @@ export function ResolveDialog({
                 : 'Resolve ticket'}
             </Button>
           </div>
+          {rejection ? <p className="mt-3 rounded-sm border border-amber-400/40 bg-amber-400/10 p-3 text-sm font-semibold text-amber-200" role="alert">{rejection}</p> : null}
         </>
       )}
     </Modal>

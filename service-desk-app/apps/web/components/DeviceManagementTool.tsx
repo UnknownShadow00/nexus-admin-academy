@@ -64,9 +64,13 @@ function actionMessage(event: ActionEvent) {
 export function DeviceManagementTool() {
   const searchParams = useSearchParams();
   const requestedTicket = searchParams.get('ticket')?.toUpperCase() ?? '';
-  const ticketId = ENDPOINT_SCENARIOS[requestedTicket]
-    ? requestedTicket
-    : 'INC3001';
+  if (!ENDPOINT_SCENARIOS[requestedTicket]) {
+    return <div className="mx-auto max-w-xl rounded-md border border-zinc-800 bg-zinc-900 p-8 text-center" role="status"><IconDeviceLaptop className="mx-auto h-10 w-10 text-zinc-500" aria-hidden="true" /><h1 className="mt-4 text-xl font-bold text-zinc-100">Choose a ticket</h1><p className="mt-2 text-sm text-zinc-400">Open Device Management from a supported ticket so the correct device follows you.</p><Link className="sd-back-button sd-focus-ring mt-5 inline-flex px-4 py-2 text-sky-400" href="/">Back to ticket queue</Link></div>;
+  }
+  return <TicketDeviceManagementTool ticketId={requestedTicket} />;
+}
+
+function TicketDeviceManagementTool({ ticketId }: { ticketId: string }) {
   const scenario = ENDPOINT_SCENARIOS[ticketId]!;
   const {
     inspectRecord,

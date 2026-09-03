@@ -116,7 +116,7 @@ interface TicketSessionContextValue {
   closeTicket: (
     ticketId: string,
     options: { resolutionNote: string; verifiedResolved: boolean },
-  ) => void;
+  ) => ActionEvent;
   escalateTicket: (ticketId: string) => void;
   getTicket: (ticketId: string) => Ticket | undefined;
   recordHintReveal: (ticketId: string, step: number) => void;
@@ -2035,7 +2035,7 @@ export function TicketSessionProvider({
         });
       },
       closeTicket: (ticketId, options) => {
-        dispatchAction({
+        return dispatchAction({
           type: 'ticket.close',
           payload: { ticketId, ...options },
         });

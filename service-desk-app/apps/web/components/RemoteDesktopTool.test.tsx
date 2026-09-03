@@ -6,11 +6,17 @@ import { describe, expect, it } from 'vitest';
 import {
   CompletionSummary,
   ProgressiveHints,
+  ticketFromSearch,
 } from './RemoteDesktopTool';
 import type { RemoteDesktopWorkstationRecord } from './TicketSessionProvider';
 import { progressiveHints } from '../lib/remote-desktop-learning';
 
 describe('Remote Desktop assessment hints', () => {
+  it('does not silently default to another ticket when context is missing', () => {
+    expect(ticketFromSearch('')).toBeNull();
+    expect(ticketFromSearch('?ticket=INC2405')).toBe('INC2405');
+    expect(ticketFromSearch('?ticket=UNKNOWN')).toBeNull();
+  });
   it('does not render Guided hint text after an Assessment refresh or resume', () => {
     const scenario = REMOTE_DESKTOP_SCENARIOS[0]!;
     const guidedHint = scenario.studentHints[0]!;

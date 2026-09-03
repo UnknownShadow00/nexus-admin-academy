@@ -27,9 +27,9 @@ describe('remote desktop learning presentation', () => {
     expect(hasAnotherHint(VPN_SCENARIO, 3)).toBe(false);
   });
 
-  it('surfaces the first Guided hint proactively and keeps progressive reveal available', () => {
+  it('offers Guided hints without spending one automatically', () => {
     expect(shouldProactivelyRevealHint(VPN_SCENARIO, 0, 'guided', false)).toBe(
-      true,
+      false,
     );
     expect(shouldProactivelyRevealHint(VPN_SCENARIO, 1, 'guided', false)).toBe(
       false,
