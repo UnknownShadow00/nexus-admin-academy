@@ -11,6 +11,6 @@ export default function V2ServiceDeskRedirect() {
       .then((res) => { window.location.assign(res.data.launch_url); })
       .catch((err) => setError(err?.userMessage || "The troubleshooting ticket could not be opened."));
   }, [assessmentKey, moduleKey]);
-  if (error) return <V2Error title="Ticket unavailable" message={error} />;
+  if (error) return <V2Error title="Ticket unavailable" message={error} moduleRoute={`/learning-v2/modules/${moduleKey}`} />;
   return <V2Loading text="Opening Service Desk..." />;
 }

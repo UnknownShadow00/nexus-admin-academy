@@ -15,6 +15,7 @@ describe("V2ExplainPage", () => {
     await userEvent.type(textarea, "DHCP gives a workstation its network settings and I would verify the lease.");
     await userEvent.click(screen.getByRole("button", { name: "Submit response" }));
     expect(await screen.findByRole("heading", { name: "Waiting for grading" })).toBeVisible();
-    expect(screen.getByText("Your response was saved and is waiting to be graded.")).toBeVisible();
+    expect(screen.getByText(/Your response was saved. Grading is still in progress/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Submit response" })).not.toBeInTheDocument();
   });
 });

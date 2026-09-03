@@ -5,14 +5,16 @@ import V2Breadcrumbs from "../../components/v2/V2Breadcrumbs";
 import { V2Error, V2Loading } from "../../components/v2/V2PageState";
 import V2ResourceCard from "../../components/v2/V2ResourceCard";
 import V2Status from "../../components/v2/V2Status";
+import V2LockedActivity from "../../components/v2/V2LockedActivity";
 import { getV2Module } from "../../services/api";
 
 function AssessmentCard({ item, moduleKey, Icon, action, route }) {
+  if (!item.available || !route) return <V2LockedActivity activity={item} moduleRoute={`/learning-v2/modules/${moduleKey}`} />;
   return <div className="panel flex min-h-40 flex-col">
     <div className="flex items-start justify-between gap-3"><span className="rounded-xl bg-blue-50 p-2.5 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"><Icon size={21} aria-hidden="true" /></span><V2Status status={item.progress.status} /></div>
     <h3 className="mt-4 font-bold text-slate-950 dark:text-white">{item.title}</h3>
     {item.question_count ? <p className="mt-1 text-sm text-slate-500">{item.question_count} questions · {item.pass_percent}% to pass</p> : null}
-    {item.available && route ? <Link className="mt-auto pt-4 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to={route(item, moduleKey)}>{action} →</Link> : <p className="mt-auto pt-4 text-sm text-slate-500">Unavailable in this development environment</p>}
+    <Link className="mt-auto pt-4 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to={route(item, moduleKey)}>{action} →</Link>
   </div>;
 }
 

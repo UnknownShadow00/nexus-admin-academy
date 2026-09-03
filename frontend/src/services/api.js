@@ -79,13 +79,23 @@ function isRetriableError(error) {
   return RETRYABLE_STATUS_CODES.has(error.response.status);
 }
 
-function getErrorMessage(error) {
+export function getErrorMessage(error) {
   const detail = error?.response?.data?.detail;
   if (error?.response) {
-    return error.response.data?.error
+    const serverMessage = error.response.data?.error
       || error.response.data?.message
-      || (typeof detail === "string" ? detail : detail?.error || detail?.message)
-      || "Request failed";
+      || (typeof detail === "string" ? detail : detail?.error || detail?.message);
+    if (serverMessage && !/request failed|traceback|development environment|internal server/i.test(serverMessage)) {
+      return serverMessage;
+    }
+    return ({
+      400: "We couldn't use that information. Check it and try again.",
+      401: "Your session ended. Sign in again, then retry this step.",
+      403: "You do not have access to this activity yet. Return to your module to see what to complete first.",
+      404: "This activity could not be found. Return to your module and choose an available activity.",
+      409: "This activity changed while you were working. Reload it before trying again.",
+      422: "Some information is missing or incomplete. Review your work and try again.",
+    })[error.response.status] || "Something went wrong on our side. Try again. If it keeps happening, ask your mentor for help.";
   }
   if (error?.code === "ECONNABORTED") {
     return "The server is taking too long to respond. If the backend is waking up, wait a few seconds and try again.";
@@ -93,7 +103,7 @@ function getErrorMessage(error) {
   if (error?.request) {
     return "Unable to reach the server. If this is the first request, the backend may still be waking up.";
   }
-  return "Unexpected request error";
+  return "Something unexpected happened. Your work may still be here. Try again.";
 }
 
 async function delay(ms) {

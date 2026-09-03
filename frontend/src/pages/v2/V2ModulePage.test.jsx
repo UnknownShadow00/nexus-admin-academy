@@ -37,4 +37,10 @@ describe("V2ModulePage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Network unavailable");
     await waitFor(() => expect(screen.getByRole("button", { name: "Try again" })).toBeVisible());
   });
+  it("explains why an unavailable activity is locked and what to do next", async () => {
+    api.getV2Module.mockResolvedValueOnce({ data: { ...data, assessments: [{ key: "practical", role: "practical", title: "Hands-on practical", available: false, unavailable: { reason: "This activity has not been prepared for students yet.", required_action: "Choose another available activity in this module." }, progress: { status: "not_started" } }] } });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
+    expect(await screen.findByLabelText("Hands-on practical unavailable")).toHaveTextContent("This activity has not been prepared for students yet.");
+    expect(screen.getByLabelText("Hands-on practical unavailable")).toHaveTextContent("Choose another available activity");
+  });
 });
