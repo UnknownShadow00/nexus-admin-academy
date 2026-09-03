@@ -43,6 +43,24 @@ and push to main (see `docs/DEPLOYMENT.md`).
   now runs automatically in CI; frontend lint/typecheck is the remaining gap).
 - [ ] Complete a keyboard, screen-reader, and automated accessibility pass.
 
+## V2 Service Desk workspace redesign
+
+Done on `feature/v2-service-desk-redesign` (not merged, not deployed, no
+migration): unified student ticket workspace with embedded tools; authoritative
+`workspace_view` driving the workflow rail, confirmed-evidence panel, one note
+surface and one hint surface (no answer-key leakage before completion);
+first-class escalation grading with normalized process scoring; post-completion
+ticket debrief; semantic light/dark token system, system typography, and a
+four-intent button hierarchy. See `service-desk-app/docs/WORKSPACE.md` and
+`docs/PROGRESSION_CONTRACT.md` §E2.
+
+Deferred realism follow-ups (full list in `service-desk-app/docs/WORKSPACE.md`
+§9): `inc2501`-`inc2510` button-driven scenario rebuild; generalized
+note-quality grading; deeper `inc2508` containment / session-revocation
+fidelity; Directory <-> workstation state coupling; the remaining component and
+admin theme-token conversion; scenario noise / wrong-requester assumptions;
+richer escalation scenarios.
+
 ## Deferred product work
 
 - Weekly mentor digest and stalled-student reporting.
