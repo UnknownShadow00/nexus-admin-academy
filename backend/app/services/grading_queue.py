@@ -21,6 +21,7 @@ AI availability never affects whether the student's submission succeeded.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import uuid
 
 from sqlalchemy.orm import Session
 
@@ -203,7 +204,8 @@ def submit_for_grading(
 # --------------------------------------------------------------------------- #
 
 def claim_due_jobs(
-    db: Session, *, limit: int = 20, now: datetime | None = None
+    db: Session, *, limit: int = 20, now: datetime | None = None,
+    lease_seconds: int = 600,
 ) -> list[PendingGrade]:
     """Move up to ``limit`` due jobs to 'processing' and return them.
 
@@ -214,7 +216,16 @@ def claim_due_jobs(
     rows = (
         db.query(PendingGrade)
         .filter(
-            PendingGrade.status.in_(GRADE_JOB_CLAIMABLE),
+            (
+                PendingGrade.status.in_(GRADE_JOB_CLAIMABLE)
+                | (
+                    (PendingGrade.status == GRADE_JOB_PROCESSING)
+                    & (
+                        PendingGrade.claimed_at.is_(None)
+                        | (PendingGrade.claimed_at <= ts - timedelta(seconds=lease_seconds))
+                    )
+                )
+            ),
             (PendingGrade.next_retry_at.is_(None)) | (PendingGrade.next_retry_at <= ts),
         )
         .order_by(PendingGrade.next_retry_at.is_(None).desc(), PendingGrade.next_retry_at.asc())
@@ -223,6 +234,8 @@ def claim_due_jobs(
     )
     for row in rows:
         row.status = GRADE_JOB_PROCESSING
+        row.claimed_at = ts
+        row.claim_token = str(uuid.uuid4())
     db.commit()
     return rows
 
@@ -245,6 +258,7 @@ def process_pending_grade(
     cfg: GradingConfig | None = None,
     now: datetime | None = None,
     commit: bool = True,
+    expected_claim_token: str | None = None,
 ) -> AIGrade | None:
     """One AI grading attempt for one job. Appends an ai_grades row, transitions
     the job, and never raises on provider failure."""
@@ -264,6 +278,11 @@ def process_pending_grade(
         deterministic_findings=job.deterministic_result_json,
     )
     result = provider.grade(request)
+
+    if expected_claim_token is not None:
+        db.refresh(job)
+        if job.status != GRADE_JOB_PROCESSING or job.claim_token != expected_claim_token:
+            return None
 
     attempt_number = len(job.ai_grades) + 1
     ai_row = AIGrade(
@@ -329,6 +348,8 @@ def process_pending_grade(
 
     db.flush()
     resolve_pending(db, job)
+    job.claimed_at = None
+    job.claim_token = None
     if commit:
         db.commit()
     return ai_row
@@ -345,7 +366,11 @@ def run_pending_batch(
     jobs = claim_due_jobs(db, limit=limit, now=now)
     counts: dict[str, int] = {"claimed": len(jobs)}
     for job in jobs:
-        process_pending_grade(db, job, provider=provider, cfg=cfg, now=now)
+        token = job.claim_token
+        process_pending_grade(
+            db, job, provider=provider, cfg=cfg, now=now,
+            expected_claim_token=token,
+        )
         counts[job.status] = counts.get(job.status, 0) + 1
     return counts
 
@@ -381,6 +406,9 @@ def resolve_pending(db: Session, job: PendingGrade, *, commit: bool = False) -> 
             job.resolved_score = job.deterministic_result_json.get("score")
             job.resolved_passed = job.deterministic_result_json.get("passed")
     db.flush()
+    from app.services.v2_grading_reconciliation import reconcile_resolved_grade
+
+    reconcile_resolved_grade(db, job)
     if commit:
         db.commit()
     return job

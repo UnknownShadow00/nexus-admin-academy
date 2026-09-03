@@ -96,7 +96,6 @@ def test_entry_and_continue_are_generic_across_modules(db):
     entry = entry_view(db, student.id)
     keys = [row["module"]["key"] for row in entry["modules"]]
     assert keys == [
-        "module.aplus.core1.ip_configuration",
         "module.aplus.core1.hardware_support",
         "module.aplus.core1.mobile_device_support",
         "module.aplus.core1.network_services_troubleshooting",
@@ -105,13 +104,14 @@ def test_entry_and_continue_are_generic_across_modules(db):
         "module.aplus.core1.virtualization_cloud_foundations",
         "module.aplus.core2.windows_support_tools",
         "module.aplus.core2.windows_troubleshooting",
-        "module.aplus.core2.service_desk_workflow",
         "module.aplus.core2.windows_admin_cli_networking",
         "module.aplus.core2.cross_platform_app_cloud_support",
         "module.aplus.core2.identity_endpoint_hardening",
         "module.aplus.core2.connected_endpoint_mobile_security",
         "module.aplus.core2.threat_malware_response",
     ]
+    assert "module.aplus.core1.ip_configuration" not in keys
+    assert "module.aplus.core2.service_desk_workflow" not in keys
     assert entry["current"]["module"]["key"] == keys[0]
     for key in keys:
         view = module_view(db, student.id, key)
@@ -139,7 +139,7 @@ def test_entry_and_continue_are_generic_across_modules(db):
 
     advanced = entry_view(db, student.id)
     assert advanced["modules"][0]["progress"]["module_complete"] is True
-    assert advanced["current"]["module"]["key"] == "module.aplus.core1.hardware_support"
+    assert advanced["current"]["module"]["key"] == keys[1]
 
 
 def test_objective_coverage_after_batch_is_transparent(db):

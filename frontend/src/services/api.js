@@ -198,8 +198,10 @@ export const recordV2Resource = (moduleKey, resourceKey, payload, requestOptions
   request(() => api.post(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/resources/${encodeURIComponent(resourceKey)}/activity`, payload), requestOptions);
 export const getV2Assessment = (moduleKey, assessmentKey, requestOptions) =>
   request(() => api.get(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/assessments/${encodeURIComponent(assessmentKey)}`), requestOptions);
-export const submitV2Assessment = (moduleKey, assessmentKey, answers, requestOptions) =>
-  request(() => api.post(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/assessments/${encodeURIComponent(assessmentKey)}/submit`, { answers }), requestOptions);
+export const startV2AssessmentAttempt = (moduleKey, assessmentKey, requestOptions) =>
+  request(() => api.post(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/assessments/${encodeURIComponent(assessmentKey)}/attempts`), requestOptions);
+export const submitV2Assessment = (moduleKey, assessmentKey, attemptId, answers, requestOptions) =>
+  request(() => api.post(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/assessments/${encodeURIComponent(assessmentKey)}/submit`, { attempt_id: attemptId, answers }), requestOptions);
 export const getV2Explain = (moduleKey, promptKey, requestOptions) =>
   request(() => api.get(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/explain/${encodeURIComponent(promptKey)}`), requestOptions);
 export const submitV2Explain = (moduleKey, promptKey, answer, requestOptions) =>

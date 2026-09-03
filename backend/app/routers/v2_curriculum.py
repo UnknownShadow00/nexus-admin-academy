@@ -47,6 +47,7 @@ class ResourceActivityRequest(BaseModel):
 
 
 class AssessmentSubmitRequest(BaseModel):
+    attempt_id: int = Field(..., gt=0)
     answers: dict[str, str | list[str]] = Field(default_factory=dict)
 
 
@@ -168,7 +169,21 @@ def post_assessment(
         for key, value in body.answers.items()
     }
     try:
-        return ok(submit_assessment(db, student.id, module_key, assessment_key, normalized))
+        return ok(submit_assessment(db, student.id, module_key, assessment_key, body.attempt_id, normalized))
+    except V2ProgressError as exc:
+        _not_found(exc)
+
+
+@router.post("/modules/{module_key}/assessments/{assessment_key}/attempts")
+def start_assessment_attempt(
+    module_key: str,
+    assessment_key: str,
+    _: None = Depends(require_v2_enabled),
+    db: Session = Depends(get_db),
+    student: Student = Depends(get_current_student),
+):
+    try:
+        return ok(assessment_questions(db, student.id, module_key, assessment_key, explicit_start=True))
     except V2ProgressError as exc:
         _not_found(exc)
 

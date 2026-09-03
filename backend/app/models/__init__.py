@@ -50,7 +50,12 @@ from app.models.grading import (
     MentorGradeOverride,
     PendingGrade,
 )
-from app.models.v2_progress import V2ExplainSubmission, V2ModuleActivity
+from app.models.v2_progress import (
+    V2AssessmentAttempt,
+    V2AssessmentAttemptQuestion,
+    V2ExplainSubmission,
+    V2ModuleActivity,
+)
 from app.models.service_desk import (
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
@@ -132,6 +137,8 @@ __all__ = [
     "MentorGradeOverride",
     "V2ModuleActivity",
     "V2ExplainSubmission",
+    "V2AssessmentAttempt",
+    "V2AssessmentAttemptQuestion",
     "ServiceDeskScenario",
     "ServiceDeskScenarioVersion",
     "ServiceDeskAttempt",

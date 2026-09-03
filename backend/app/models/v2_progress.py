@@ -32,10 +32,13 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    event,
     func,
+    inspect,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import relationship
 
 from app.database import Base
 
@@ -140,3 +143,89 @@ class V2ExplainSubmission(Base):
     submitted_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class V2AssessmentAttempt(Base):
+    """Durable server-owned V2 knowledge-check attempt.
+
+    The selected questions live in ordered child rows and are never selected
+    again after this row is created. ``V2ModuleActivity`` remains only the
+    monotonic best-completion roll-up.
+    """
+
+    __tablename__ = "v2_assessment_attempts"
+    __table_args__ = (
+        UniqueConstraint(
+            "student_id", "assessment_id", "attempt_number",
+            name="uq_v2_assessment_attempt_number",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    student_id: Mapped[int] = mapped_column(
+        ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    assessment_id: Mapped[int] = mapped_column(
+        ForeignKey("module_assessments.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    module_key: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    assessment_key: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
+    attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(24), nullable=False, default=V2_STATUS_IN_PROGRESS,
+        server_default=V2_STATUS_IN_PROGRESS, index=True,
+    )
+    grading_state: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="unsubmitted", server_default="unsubmitted"
+    )
+    score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    passed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    started_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    submitted_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    questions = relationship(
+        "V2AssessmentAttemptQuestion", back_populates="attempt",
+        cascade="all, delete-orphan", order_by="V2AssessmentAttemptQuestion.position",
+    )
+
+
+class V2AssessmentAttemptQuestion(Base):
+    """Ordered question selection and result for one durable V2 attempt."""
+
+    __tablename__ = "v2_assessment_attempt_questions"
+    __table_args__ = (
+        UniqueConstraint("attempt_id", "position", name="uq_v2_attempt_question_position"),
+        UniqueConstraint("attempt_id", "question_id", name="uq_v2_attempt_question_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    attempt_id: Mapped[int] = mapped_column(
+        ForeignKey("v2_assessment_attempts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    question_id: Mapped[int] = mapped_column(
+        ForeignKey("questions.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    question_snapshot: Mapped[dict] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"), nullable=False
+    )
+    submitted_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    grading_status: Mapped[str] = mapped_column(
+        String(24), nullable=False, default="unsubmitted", server_default="unsubmitted"
+    )
+    score: Mapped[float | None] = mapped_column(nullable=True)
+    passed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    pending_grade_id: Mapped[int | None] = mapped_column(
+        ForeignKey("pending_grades.id", ondelete="SET NULL"), nullable=True, unique=True, index=True
+    )
+    attempt = relationship("V2AssessmentAttempt", back_populates="questions")
+
+
+@event.listens_for(V2AssessmentAttemptQuestion, "before_update")
+def _prevent_attempt_selection_update(_, __, target) -> None:
+    """The server-selected question set becomes immutable once persisted."""
+    state = inspect(target)
+    protected = ("attempt_id", "question_id", "position", "question_snapshot")
+    if any(state.attrs[name].history.has_changes() for name in protected):
+        raise ValueError("V2 assessment question selection is immutable.")

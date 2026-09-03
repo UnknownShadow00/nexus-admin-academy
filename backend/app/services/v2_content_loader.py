@@ -54,7 +54,7 @@ from app.models.certification import (
     normalize_importance,
 )
 from app.models.lab import LabTemplate
-from app.models.quiz import EDITORIAL_STATUS_VALIDATED, Question, Quiz
+from app.models.quiz import EDITORIAL_STATUS_VALIDATED, QUIZ_STATUS_PUBLISHED, Question, Quiz
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.services.service_desk_scenario_validation import (
     validate_runtime_definition,
@@ -910,7 +910,11 @@ def _apply_question_bank_editorial_approvals(
             quiz.editorial_status == EDITORIAL_STATUS_VALIDATED
             and quiz.answer_keys_validated
             and quiz.explanations_complete
+            and quiz.status == QUIZ_STATUS_PUBLISHED
         )
+        # The exact immutable bank bytes have a human approval manifest entry;
+        # that approval is the V2 publication decision for this bank.
+        quiz.status = QUIZ_STATUS_PUBLISHED
         quiz.editorial_status = EDITORIAL_STATUS_VALIDATED
         quiz.answer_keys_validated = True
         quiz.explanations_complete = True

@@ -482,8 +482,9 @@ def test_progress_and_mentor_report(loaded):
     loaded.commit()
 
     prog = module_progress(loaded, student.id, MODULE_KEY)
-    assert prog["lessons"] == {"total": 5, "completed": 5, "items": prog["lessons"]["items"]}
-    assert prog["resources"]["completed"] == 1
+    # The IP lesson package remains draft and therefore is not student-visible.
+    assert prog["lessons"] == {"total": 0, "completed": 0, "items": []}
+    assert prog["resources"]["completed"] == 0
     assert prog["module_quiz"]["activity"]["score"] == 58
     assert prog["module_complete"] is False  # quiz not passed
 
@@ -650,16 +651,15 @@ def test_student_progress_routes(loaded):
             "status": "completed",
         },
     )
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["data"]["status"] == "completed"
+    assert resp.status_code == 404, resp.text
 
     got = client.get(
         f"/api/v2/progress/module/{MODULE_KEY}", headers=auth_headers(student)
     )
     assert got.status_code == 200
-    assert got.json()["data"]["lessons"]["completed"] == 1
+    assert got.json()["data"]["lessons"] == {"total": 0, "completed": 0, "items": []}
 
-    # Bad activity type is a 422, not a 500.
+    # No generic student mutation surface remains, regardless of payload.
     bad = client.post(
         "/api/v2/progress/activity",
         headers=auth_headers(student),
@@ -669,7 +669,7 @@ def test_student_progress_routes(loaded):
             "ref_key": "x",
         },
     )
-    assert bad.status_code == 422
+    assert bad.status_code == 404
 
 
 def test_admin_mentor_route(loaded, monkeypatch):
@@ -692,7 +692,7 @@ def test_admin_mentor_route(loaded, monkeypatch):
     assert resp.status_code == 200, resp.text
     data = resp.json()["data"]
     assert data["module_key"] == MODULE_KEY
-    assert data["completion"]["lessons_completed"] == 1
+    assert data["completion"]["lessons_completed"] == 0
 
     missing = client.get(
         f"/api/admin/v2/mentor/module/module.does.not.exist/student/{student.id}"

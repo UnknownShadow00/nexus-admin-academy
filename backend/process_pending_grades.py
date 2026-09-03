@@ -6,11 +6,12 @@ every 2 minutes):
 
     */2 * * * *  cd /opt/.../backend && ./.venv/bin/python process_pending_grades.py --limit 25
 
-It is safe to run concurrently with the API and with itself: due jobs are
-claimed via a status transition before processing, ai_grades rows are
-append-only, and Phase 1C awards no XP / completes no activity, so a double
-run cannot double-count anything. When AI grading is disabled or unreachable,
-jobs simply stay pending / route to mentor review — nothing is lost.
+It is safe to run concurrently with the API and with itself: due jobs receive
+a ten-minute lease and unique claim token before processing. Stale processing
+jobs are reclaimed after a crash/restart, and a late worker whose token has
+been superseded discards its provider response. AI grade rows remain
+append-only and unique per job/attempt number. When AI grading is disabled or
+unreachable, work routes to mentor review — the student submission is retained.
 """
 
 import argparse

@@ -25,7 +25,8 @@ from app.models.service_desk import ServiceDeskAttempt, ServiceDeskAttemptGrade
 from app.models.student import Student
 from app.models.v2_progress import (
     V2_ACTIVITY_EXPLAIN, V2_ACTIVITY_MODULE_QUIZ, V2_ACTIVITY_QUICK_CHECK,
-    V2ExplainSubmission, V2ModuleActivity,
+    V2AssessmentAttempt, V2AssessmentAttemptQuestion, V2ExplainSubmission,
+    V2ModuleActivity,
 )
 from app.services.grading_queue import grading_history, mentor_queue
 from app.services.v2_curriculum_service import module_view
@@ -69,7 +70,9 @@ def _correct_answers(question: Question) -> list[str]:
     return answers
 
 
-def _assessment_misses(db: Session, activities: list[V2ModuleActivity], version_id: int):
+def _assessment_misses(
+    db: Session, student_id: int, activities: list[V2ModuleActivity], version_id: int,
+):
     """A miss is one incorrect result in one Nexus assessment attempt."""
     misses: dict[int, dict] = {}
     assessment_by_key = {
@@ -112,6 +115,29 @@ def _assessment_misses(db: Session, activities: list[V2ModuleActivity], version_
                 })
                 row["times_missed"] += 1
                 row["student_answer"] = result.get("student_answer")
+
+    # Durable V2 attempt rows are the authoritative history. The JSON loop
+    # above remains read-only compatibility for pre-migration development data.
+    attempt_results = (
+        db.query(V2AssessmentAttemptQuestion, V2AssessmentAttempt)
+        .join(V2AssessmentAttempt, V2AssessmentAttempt.id == V2AssessmentAttemptQuestion.attempt_id)
+        .filter(
+            V2AssessmentAttempt.student_id == student_id,
+            V2AssessmentAttempt.assessment_key.in_(list(assessment_by_key) or [""]),
+            V2AssessmentAttemptQuestion.passed.is_(False),
+        )
+        .all()
+    )
+    for result, attempt in attempt_results:
+        assessment = assessment_by_key.get(attempt.assessment_key)
+        row = misses.setdefault(result.question_id, {
+            "question_id": result.question_id, "times_missed": 0,
+            "student_answer": None, "assessment_key": attempt.assessment_key,
+            "assessment_title": assessment.title if assessment else None,
+            "assessment_role": assessment.assessment_role if assessment else None,
+        })
+        row["times_missed"] += 1
+        row["student_answer"] = result.submitted_answer
 
     if not misses:
         return [], [], []
@@ -317,7 +343,9 @@ def module_report(db: Session, student_id: int, module_key: str) -> dict:
     student_view = module_view(db, student_id, module_key)
     progress = student_view["progress"]
     activities = db.query(V2ModuleActivity).filter_by(student_id=student_id, module_key=module_key).all()
-    missed, weak_objectives, weak_topics = _assessment_misses(db, activities, module.certification_version_id)
+    missed, weak_objectives, weak_topics = _assessment_misses(
+        db, student_id, activities, module.certification_version_id,
+    )
     external = _external_practice(db, student_id, module.id)
     explain = _explain_responses(db, student_id, module.id)
     explain_activity = [{

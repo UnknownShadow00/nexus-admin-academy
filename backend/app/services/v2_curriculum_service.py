@@ -26,9 +26,8 @@ from app.models.certification import (
     question_objective_codes,
 )
 from app.models.grading import GRADE_JOB_GRADED, GRADE_JOB_NEEDS_REVIEW, PendingGrade
-from app.models.lab import LabRun
-from app.models.quiz import Question
-from app.models.service_desk import ServiceDeskAssignment, ServiceDeskAttempt, ServiceDeskScenario, ServiceDeskScenarioVersion
+from app.models.quiz import Question, Quiz
+from app.models.service_desk import ServiceDeskAssignment, ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.v2_progress import (
     V2_ACTIVITY_EXPLAIN,
     V2_ACTIVITY_LESSON,
@@ -43,10 +42,13 @@ from app.models.v2_progress import (
     V2_STATUS_NEEDS_REVIEW,
     V2_STATUS_PASSED,
     V2ExplainSubmission,
+    V2AssessmentAttempt,
+    V2AssessmentAttemptQuestion,
     V2ModuleActivity,
 )
 from app.services.deterministic_grader import grade_short_answer
-from app.services.grading_queue import SOURCE_INTERVIEW, submit_for_grading
+from app.services.grading_queue import SOURCE_INTERVIEW, SOURCE_SHORT_ANSWER, submit_for_grading
+from app.services.quiz_visibility import student_visible_quiz_filters
 from app.services.v2_assessment_selector import ConstraintSelectionError, select_constrained
 from app.services.v2_progress_service import V2ProgressError, module_progress, record_activity
 
@@ -88,7 +90,7 @@ def _module(db: Session, module_key: str) -> CertificationModule:
 def _lessons(db: Session, module_id: int) -> list[LessonV2Meta]:
     return db.query(LessonV2Meta).filter(
         LessonV2Meta.certification_module_id == module_id,
-        LessonV2Meta.status.in_(("draft", "ready", "published")),
+        LessonV2Meta.status.in_(("ready", "published")),
     ).order_by(LessonV2Meta.content_path, LessonV2Meta.id).all()
 
 
@@ -140,43 +142,6 @@ def _assessments(db: Session, module_id: int) -> list[ModuleAssessment]:
     return db.query(ModuleAssessment).filter_by(
         certification_module_id=module_id, active=True
     ).order_by(ModuleAssessment.display_order, ModuleAssessment.id).all()
-
-
-def sync_engine_progress(db: Session, student_id: int, module: CertificationModule) -> None:
-    """Reflect authoritative resource/lab/Service Desk evidence into V2 roll-up."""
-    assessments = _assessments(db, module.id)
-    for assessment in assessments:
-        if assessment.assessment_role == V2_ACTIVITY_PRACTICAL and assessment.lab_template_id:
-            run = db.query(LabRun).filter_by(
-                student_id=student_id, lab_template_id=assessment.lab_template_id
-            ).order_by(LabRun.created_at.desc(), LabRun.id.desc()).first()
-            if run:
-                status = V2_STATUS_COMPLETED if run.status == "submitted" else V2_STATUS_IN_PROGRESS
-                record_activity(
-                    db, student_id=student_id, module_key=module.module_key,
-                    activity_type=V2_ACTIVITY_PRACTICAL, ref_key=assessment.assessment_key,
-                    status=status, score=run.final_score,
-                    passed=(run.status == "submitted"), detail={"lab_run_id": run.id},
-                )
-        if assessment.assessment_role == V2_ACTIVITY_SERVICE_DESK and assessment.service_desk_scenario_id:
-            attempt = db.query(ServiceDeskAttempt).join(
-                ServiceDeskScenarioVersion,
-                ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
-            ).filter(
-                ServiceDeskAttempt.student_id == student_id,
-                ServiceDeskScenarioVersion.scenario_id == assessment.service_desk_scenario_id,
-            ).order_by(ServiceDeskAttempt.started_at.desc(), ServiceDeskAttempt.id.desc()).first()
-            if attempt:
-                status = V2_STATUS_PASSED if attempt.passed else (
-                    V2_STATUS_FAILED if attempt.status == "failed" else V2_STATUS_IN_PROGRESS
-                )
-                record_activity(
-                    db, student_id=student_id, module_key=module.module_key,
-                    activity_type=V2_ACTIVITY_SERVICE_DESK, ref_key=assessment.assessment_key,
-                    status=status, score=attempt.score, passed=attempt.passed,
-                    detail={"attempt_id": attempt.id},
-                )
-    db.flush()
 
 
 def _certification_view(db: Session, module: CertificationModule) -> dict:
@@ -250,7 +215,6 @@ def _assessment_view(db: Session, student_id: int, assessment: ModuleAssessment)
 
 def module_view(db: Session, student_id: int, module_key: str) -> dict:
     module = _module(db, module_key)
-    sync_engine_progress(db, student_id, module)
     assessments = _assessments(db, module.id)
     lessons = [_lesson_view(db, student_id, row, assessments) for row in _lessons(db, module.id)]
     prompt_rows = db.query(InterviewPrompt).filter_by(
@@ -355,16 +319,38 @@ def resolve_continue(view: dict) -> dict:
     return {"kind": "complete", "label": "Review module", "title": "Module complete", "route": f"/learning-v2/modules/{module_key}"}
 
 
-def assessment_questions(db: Session, student_id: int, module_key: str, assessment_key: str) -> dict:
+def _student_visible_knowledge_assessment(
+    db: Session, module_key: str, assessment_key: str,
+) -> tuple[CertificationModule, ModuleAssessment]:
     module = _module(db, module_key)
-    assessment = db.query(ModuleAssessment).filter_by(
-        certification_module_id=module.id, assessment_key=assessment_key, active=True
-    ).one_or_none()
+    assessment = (
+        db.query(ModuleAssessment)
+        .join(Quiz, Quiz.id == ModuleAssessment.quiz_id)
+        .filter(
+            ModuleAssessment.certification_module_id == module.id,
+            ModuleAssessment.assessment_key == assessment_key,
+            ModuleAssessment.active.is_(True),
+            *student_visible_quiz_filters(),
+        )
+        .one_or_none()
+    )
     if assessment is None or assessment.assessment_role not in {V2_ACTIVITY_QUICK_CHECK, V2_ACTIVITY_MODULE_QUIZ} or not assessment.quiz_id:
         raise V2ProgressError("This knowledge check is not available.")
+    return module, assessment
+
+
+def _select_assessment_questions(
+    db: Session, module_key: str, assessment_key: str
+) -> tuple[CertificationModule, ModuleAssessment, list[tuple[Question, QuestionV2Meta]]]:
+    module, assessment = _student_visible_knowledge_assessment(
+        db, module_key, assessment_key,
+    )
     rows = db.query(Question, QuestionV2Meta).join(
         QuestionV2Meta, QuestionV2Meta.question_id == Question.id
-    ).filter(Question.quiz_id == assessment.quiz_id).order_by(Question.id).all()
+    ).filter(
+        Question.quiz_id == assessment.quiz_id,
+        Question.flagged_for_review.is_(False),
+    ).order_by(Question.id).all()
     config = assessment.config or {}
     objective_codes = set(config.get("objective_codes") or [])
     if objective_codes:
@@ -435,23 +421,101 @@ def assessment_questions(db: Session, student_id: int, module_key: str, assessme
             if len(selected) >= limit:
                 break
         selected.extend(_balanced_question_take([pair for pair in rows if pair not in selected], limit - len(selected)))
-    questions = []
-    for question, meta in selected:
-        kind = meta.question_type or ("multi" if question.is_multi_select else "single")
-        questions.append({
+    return module, assessment, selected
+
+
+def _question_snapshot(question: Question, meta: QuestionV2Meta) -> dict:
+    kind = meta.question_type or ("multi" if question.is_multi_select else "single")
+    return {
             "id": question.id,
             "type": kind,
             "question_text": question.question_text,
             "is_multi_select": kind == "multi",
             "options": [{"key": letter, "text": getattr(question, f"option_{letter.lower()}")} for letter in "ABCDEFGH" if getattr(question, f"option_{letter.lower()}")],
-        })
-    act = _activity(db, student_id, assessment.assessment_role, assessment.assessment_key)
+            "correct_answers": question.all_correct_answers,
+            "acceptable_answers": list(meta.acceptable_answers or []),
+            "answer_match_mode": meta.answer_match_mode,
+            "rubric_version": meta.rubric_version,
+            "expected_concepts": list(meta.expected_concepts or []),
+            "rubric": dict(meta.rubric or {}),
+            "explanation": question.explanation or "",
+        }
+
+
+def _public_snapshot(snapshot: dict) -> dict:
     return {
-        "module_key": module_key,
-        "assessment": {"key": assessment.assessment_key, "role": assessment.assessment_role, "title": assessment.title, "pass_percent": assessment.pass_percent, "question_count": len(questions)},
-        "questions": questions,
-        "attempts": (_activity_view(act)["detail"].get("attempts") or []),
+        key: snapshot[key]
+        for key in ("id", "type", "question_text", "is_multi_select", "options")
     }
+
+
+def _attempt_payload(attempt: V2AssessmentAttempt, assessment: ModuleAssessment) -> dict:
+    return {
+        "module_key": attempt.module_key,
+        "assessment": {"key": assessment.assessment_key, "role": assessment.assessment_role, "title": assessment.title, "pass_percent": assessment.pass_percent, "question_count": len(attempt.questions)},
+        "attempt": {
+            "id": attempt.id,
+            "attempt_number": attempt.attempt_number,
+            "status": attempt.status,
+            "grading_state": attempt.grading_state,
+            "started_at": attempt.started_at.isoformat() if attempt.started_at else None,
+        },
+        "questions": [_public_snapshot(row.question_snapshot) for row in attempt.questions],
+        "attempts": [],
+    }
+
+
+def assessment_questions(
+    db: Session,
+    student_id: int,
+    module_key: str,
+    assessment_key: str,
+    *,
+    explicit_start: bool = False,
+) -> dict:
+    module, assessment, selected = _select_assessment_questions(db, module_key, assessment_key)
+    active = db.query(V2AssessmentAttempt).filter(
+        V2AssessmentAttempt.student_id == student_id,
+        V2AssessmentAttempt.assessment_id == assessment.id,
+        V2AssessmentAttempt.status.in_((V2_STATUS_IN_PROGRESS, V2_STATUS_NEEDS_REVIEW)),
+    ).order_by(V2AssessmentAttempt.attempt_number.desc()).first()
+    if active is not None:
+        if explicit_start and active.status == V2_STATUS_NEEDS_REVIEW:
+            raise V2ProgressError("This attempt is still waiting for grading.")
+        return _attempt_payload(active, assessment)
+
+    attempt_number = (
+        db.query(func.max(V2AssessmentAttempt.attempt_number))
+        .filter_by(student_id=student_id, assessment_id=assessment.id)
+        .scalar() or 0
+    ) + 1
+    attempt = V2AssessmentAttempt(
+        student_id=student_id,
+        assessment_id=assessment.id,
+        module_key=module.module_key,
+        assessment_key=assessment.assessment_key,
+        attempt_number=attempt_number,
+    )
+    attempt.questions = [
+        V2AssessmentAttemptQuestion(
+            question_id=question.id,
+            position=position,
+            question_snapshot=_question_snapshot(question, meta),
+        )
+        for position, (question, meta) in enumerate(selected)
+    ]
+    db.add(attempt)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        active = db.query(V2AssessmentAttempt).filter_by(
+            student_id=student_id, assessment_id=assessment.id,
+            attempt_number=attempt_number,
+        ).one()
+        return _attempt_payload(active, assessment)
+    db.refresh(attempt)
+    return _attempt_payload(attempt, assessment)
 
 
 def _balanced_question_take(rows: list[tuple], limit: int) -> list[tuple]:
@@ -473,48 +537,129 @@ def _balanced_question_take(rows: list[tuple], limit: int) -> list[tuple]:
     return selected
 
 
-def submit_assessment(db: Session, student_id: int, module_key: str, assessment_key: str, answers: dict[str, str]) -> dict:
-    payload = assessment_questions(db, student_id, module_key, assessment_key)
-    question_ids = [q["id"] for q in payload["questions"]]
-    rows = {q.id: q for q in db.query(Question).filter(Question.id.in_(question_ids)).all()}
-    meta = {m.question_id: m for m in db.query(QuestionV2Meta).filter(QuestionV2Meta.question_id.in_(question_ids)).all()}
+def _attempt_result(attempt: V2AssessmentAttempt, assessment: ModuleAssessment) -> dict:
     results = []
-    earned = 0.0
-    for public in payload["questions"]:
-        question = rows[public["id"]]
-        answer = str(answers.get(str(question.id), "")).strip()
-        kind = public["type"]
+    for row in attempt.questions:
+        snapshot = row.question_snapshot
+        results.append({
+            "question_id": row.question_id,
+            "question_text": snapshot["question_text"],
+            "student_answer": row.submitted_answer or "",
+            "is_correct": row.passed,
+            "correct_answer": snapshot["correct_answers"] if snapshot["type"] != "short_answer" else None,
+            "explanation": snapshot.get("explanation", ""),
+            "grading_status": row.grading_status,
+        })
+    return {
+        "attempt_id": attempt.id,
+        "attempt_number": attempt.attempt_number,
+        "score": attempt.score,
+        "total": len(results),
+        "passed": attempt.passed,
+        "pass_percent": assessment.pass_percent,
+        "grading_state": attempt.grading_state,
+        "results": results,
+    }
+
+
+def finalize_assessment_attempt(db: Session, attempt: V2AssessmentAttempt, *, commit: bool = False) -> bool:
+    """Finalize an attempt once every response has a resolved score."""
+    for row in attempt.questions:
+        if row.pending_grade_id:
+            job = db.get(PendingGrade, row.pending_grade_id)
+            if not job or job.resolved_passed is None or job.resolved_score is None:
+                return False
+            row.score = float(job.resolved_score)
+            row.passed = job.resolved_passed is True
+            row.grading_status = "graded"
+        if row.score is None:
+            return False
+    earned = sum(float(row.score or 0) for row in attempt.questions)
+    attempt.score = round(100 * earned / len(attempt.questions)) if attempt.questions else 0
+    assessment = db.get(ModuleAssessment, attempt.assessment_id)
+    attempt.passed = attempt.score >= assessment.pass_percent
+    attempt.status = V2_STATUS_PASSED if attempt.passed else V2_STATUS_FAILED
+    attempt.grading_state = "graded"
+    record_activity(
+        db, student_id=attempt.student_id, module_key=attempt.module_key,
+        activity_type=assessment.assessment_role, ref_key=attempt.assessment_key,
+        status=attempt.status, score=attempt.score, passed=attempt.passed,
+        detail={"latest_attempt_id": attempt.id},
+    )
+    db.flush()
+    if commit:
+        db.commit()
+    return True
+
+
+def submit_assessment(db: Session, student_id: int, module_key: str, assessment_key: str, attempt_id: int, answers: dict[str, str]) -> dict:
+    attempt = db.query(V2AssessmentAttempt).filter_by(
+        id=attempt_id, student_id=student_id,
+        module_key=module_key, assessment_key=assessment_key,
+    ).with_for_update().one_or_none()
+    if attempt is None:
+        raise V2ProgressError("This assessment attempt is not available.")
+    assessment = db.get(ModuleAssessment, attempt.assessment_id)
+    if assessment is None:
+        raise V2ProgressError("This assessment attempt is not available.")
+    if attempt.status != V2_STATUS_IN_PROGRESS:
+        return _attempt_result(attempt, assessment)
+
+    pending_rows = []
+    for row in attempt.questions:
+        snapshot = row.question_snapshot
+        answer = str(answers.get(str(row.question_id), "")).strip()
+        kind = snapshot["type"]
+        row.submitted_answer = answer
         if kind == "short_answer":
-            det = grade_short_answer(answer, meta[question.id].acceptable_answers, match_mode=meta[question.id].answer_match_mode, rubric_version=meta[question.id].rubric_version)
-            correct = det["passed"] is True
-            credit = det["score"] if det["status"] == "graded" else 0.0
-            correct_answer = None
+            det = grade_short_answer(
+                answer, snapshot["acceptable_answers"],
+                match_mode=snapshot["answer_match_mode"],
+                rubric_version=snapshot["rubric_version"],
+            )
+            if det["status"] == "graded":
+                row.score = float(det["score"])
+                row.passed = det["passed"] is True
+                row.grading_status = "graded"
+            else:
+                row.grading_status = "needs_review"
+                pending_rows.append(row)
         else:
             submitted = sorted(x.strip().upper() for x in answer.split(",") if x.strip())
-            expected = sorted(question.all_correct_answers)
+            expected = sorted(snapshot["correct_answers"])
             correct = bool(submitted) and submitted == expected
-            credit = 1.0 if correct else 0.0
-            correct_answer = expected
-        earned += credit
-        results.append({
-            "question_id": question.id, "question_text": question.question_text,
-            "student_answer": answer, "is_correct": correct,
-            "correct_answer": correct_answer, "explanation": question.explanation or "",
-        })
-    total = len(results)
-    score = round(100 * earned / total) if total else 0
-    passed = score >= payload["assessment"]["pass_percent"]
-    now = datetime.now(timezone.utc).isoformat()
-    previous = payload["attempts"]
-    attempt = {"attempt_number": len(previous) + 1, "score": score, "passed": passed, "submitted_at": now, "results": results}
-    activity_type = payload["assessment"]["role"]
-    record_activity(
-        db, student_id=student_id, module_key=module_key, activity_type=activity_type,
-        ref_key=assessment_key, status=V2_STATUS_PASSED if passed else V2_STATUS_FAILED,
-        score=score, passed=passed, detail={"attempts": [*previous, attempt]},
-        merge_detail=False, commit=True,
-    )
-    return {"score": score, "total": total, "passed": passed, "pass_percent": payload["assessment"]["pass_percent"], "results": results, "attempt_number": attempt["attempt_number"]}
+            row.score = 1.0 if correct else 0.0
+            row.passed = correct
+            row.grading_status = "graded"
+    attempt.submitted_at = datetime.now(timezone.utc)
+    attempt.grading_state = "pending" if pending_rows else "grading"
+    attempt.status = V2_STATUS_NEEDS_REVIEW if pending_rows else V2_STATUS_IN_PROGRESS
+    db.commit()  # Student answers survive a grading-provider failure.
+
+    for row in pending_rows:
+        snapshot = row.question_snapshot
+        outcome = submit_for_grading(
+            db, student_id=student_id, source_type=SOURCE_SHORT_ANSWER,
+            submission_ref=f"v2-assessment-response:{row.id}",
+            source_key=assessment.assessment_key,
+            submitted_answer=row.submitted_answer or "", question_type=SOURCE_SHORT_ANSWER,
+            question_text=snapshot["question_text"], acceptable_answers=snapshot["acceptable_answers"],
+            expected_concepts=snapshot["expected_concepts"], rubric=snapshot["rubric"],
+            rubric_version=snapshot["rubric_version"], match_mode=snapshot["answer_match_mode"],
+            pass_threshold=1.0, commit=False,
+        )
+        row.pending_grade_id = outcome["pending_grade_id"]
+    if pending_rows:
+        record_activity(
+            db, student_id=student_id, module_key=module_key,
+            activity_type=assessment.assessment_role, ref_key=assessment_key,
+            status=V2_STATUS_NEEDS_REVIEW, passed=None,
+            detail={"latest_attempt_id": attempt.id},
+        )
+    else:
+        finalize_assessment_attempt(db, attempt)
+    db.commit()
+    return _attempt_result(attempt, assessment)
 
 
 def resource_activity(db: Session, student_id: int, module_key: str, resource_key: str, *, opened=False, completed=False) -> dict:

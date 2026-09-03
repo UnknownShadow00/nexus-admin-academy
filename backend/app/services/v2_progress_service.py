@@ -109,7 +109,22 @@ def record_activity(
     else:
         # module_key is stable for a ref, but tolerate a corrected value.
         row.module_key = module_key or row.module_key
-        if status is not None:
+        already_passed = row.passed is True and row.status in _DONE_STATUSES
+        incoming_regresses = already_passed and (
+            passed is False or (status is not None and status not in _DONE_STATUSES)
+        )
+        if incoming_regresses:
+            prior_detail = dict(row.detail or {})
+            prior_detail["latest_result"] = {
+                "status": status,
+                "score": score,
+                "passed": passed,
+            }
+            row.detail = prior_detail
+            status = None
+            score = None
+            passed = None
+        elif status is not None:
             row.status = status
 
     if score is not None:
@@ -154,7 +169,10 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
 
     lesson_metas = (
         db.query(LessonV2Meta)
-        .filter(LessonV2Meta.certification_module_id == module.id)
+        .filter(
+            LessonV2Meta.certification_module_id == module.id,
+            LessonV2Meta.status.in_(("ready", "published")),
+        )
         .order_by(LessonV2Meta.id)
         .all()
     )
@@ -328,3 +346,41 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
             and explain_done == len(prompt_keys)
         ),
     }
+
+
+def reconcile_v2_service_desk_attempt(
+    db: Session, *, student_id: int, scenario_id: int, attempt_id: int,
+    score: int, passed: bool,
+) -> V2ModuleActivity | None:
+    """Write back only an exact server-created V2 assignment relationship."""
+    from app.models.service_desk import ServiceDeskAssignment
+
+    assignment = db.query(ServiceDeskAssignment).filter(
+        ServiceDeskAssignment.student_id == student_id,
+        ServiceDeskAssignment.scenario_id == scenario_id,
+        ServiceDeskAssignment.assigned_by.like("v2_curriculum:%"),
+    ).one_or_none()
+    if assignment is None:
+        return None
+    parts = assignment.assigned_by.split(":", 2)
+    if len(parts) != 3:
+        return None
+    module_key, assessment_key = parts[1], parts[2]
+    module = db.query(CertificationModule).filter_by(module_key=module_key, active=True).one_or_none()
+    if module is None:
+        return None
+    assessment = db.query(ModuleAssessment).filter_by(
+        certification_module_id=module.id,
+        assessment_key=assessment_key,
+        assessment_role=V2_ACTIVITY_SERVICE_DESK,
+        service_desk_scenario_id=scenario_id,
+        active=True,
+    ).one_or_none()
+    if assessment is None:
+        return None
+    return record_activity(
+        db, student_id=student_id, module_key=module_key,
+        activity_type=V2_ACTIVITY_SERVICE_DESK, ref_key=assessment_key,
+        status=V2_STATUS_PASSED if passed else "failed", score=score,
+        passed=passed, detail={"attempt_id": attempt_id},
+    )

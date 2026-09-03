@@ -102,6 +102,8 @@ class PendingGrade(Base):
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     max_retries: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
     last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    claim_token: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     next_retry_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
@@ -135,6 +137,9 @@ class AIGrade(Base):
     """One AI grading attempt. APPEND-ONLY (see listeners below)."""
 
     __tablename__ = "ai_grades"
+    __table_args__ = (
+        UniqueConstraint("pending_grade_id", "attempt_number", name="uq_ai_grade_attempt"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     pending_grade_id: Mapped[int] = mapped_column(

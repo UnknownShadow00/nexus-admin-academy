@@ -44,6 +44,7 @@ from app.services.service_desk_progression import (
     require_scenario_unlocked,
     scenario_access,
 )
+from app.services.v2_progress_service import reconcile_v2_service_desk_attempt
 from app.services.xp_service import award_xp
 
 router = APIRouter(prefix="/api/service-desk", tags=["service-desk"])
@@ -1025,6 +1026,12 @@ def complete_attempt(
     attempt.completed_at = datetime.now(timezone.utc)
     attempt.score = computed["overall_score"]
     attempt.passed = computed["passed"]
+    if scenario_id is not None:
+        reconcile_v2_service_desk_attempt(
+            db, student_id=attempt.student_id, scenario_id=scenario_id,
+            attempt_id=attempt.id, score=computed["overall_score"],
+            passed=computed["passed"],
+        )
     try:
         db.commit()
     except IntegrityError:

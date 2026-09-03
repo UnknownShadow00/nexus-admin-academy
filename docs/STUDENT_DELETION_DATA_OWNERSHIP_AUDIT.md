@@ -76,3 +76,12 @@ preserved and they are not selected for deletion.
 
 No other model or migration table has a direct `student_id`/`user_id` ownership
 column or an indirect foreign-key path from a student-owned row at `0047`.
+
+### Revision 0068 addendum
+
+Runtime stabilization adds `v2_assessment_attempts`, its indirect
+`v2_assessment_attempt_questions` children, `v2_explain_submissions`, and
+`v2_module_activity` to the explicit student-deletion ownership map. Attempt
+question children are removed before their attempt root, including when a
+legacy SQLite connection has foreign-key enforcement disabled. Shared module,
+assessment, quiz, and question records remain untouched.
