@@ -101,6 +101,7 @@ describe('workstation UI contracts', () => {
     const markup = renderToStaticMarkup(
       <SuggestedTools
         experienceMode="assessment"
+        onSelectTool={vi.fn()}
         ticketCategory={TicketCategory.Access}
         ticketId="INC2511"
         toolSlugs={['directory', 'company-chat']}

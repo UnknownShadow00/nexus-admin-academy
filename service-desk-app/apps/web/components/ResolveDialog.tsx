@@ -28,7 +28,10 @@ interface ResolveDialogProps {
 }
 
 export function closeRejectionMessage(event: ActionEvent): string {
-  return event.rejectReason || 'This ticket is not ready to close. Review the required steps and try again.';
+  return (
+    event.rejectReason ||
+    'This ticket is not ready to close. Review the required steps and try again.'
+  );
 }
 
 export function ResolveDialog({
@@ -76,7 +79,7 @@ export function ResolveDialog({
       trigger={
         <Button variant="primary">
           <IconCircleCheck aria-hidden="true" className="h-4 w-4" />
-          Resolve / close
+          Resolve
         </Button>
       }
     >
@@ -187,7 +190,8 @@ export function ResolveDialog({
                   setRejection(closeRejectionMessage(event));
                   return;
                 }
-                setOpen(false); reset();
+                setOpen(false);
+                reset();
               }}
               variant={
                 review.kind === 'unresolved-warning' ? 'default' : 'primary'
@@ -198,7 +202,14 @@ export function ResolveDialog({
                 : 'Resolve ticket'}
             </Button>
           </div>
-          {rejection ? <p className="mt-3 rounded-sm border border-amber-400/40 bg-amber-400/10 p-3 text-sm font-semibold text-amber-200" role="alert">{rejection}</p> : null}
+          {rejection ? (
+            <p
+              className="mt-3 rounded-sm border border-amber-400/40 bg-amber-400/10 p-3 text-sm font-semibold text-amber-200"
+              role="alert"
+            >
+              {rejection}
+            </p>
+          ) : null}
         </>
       )}
     </Modal>

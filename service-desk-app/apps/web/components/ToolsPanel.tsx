@@ -7,7 +7,7 @@ import {
 } from '@service-desk/shared';
 import { IconChevronRight, IconTool } from '@tabler/icons-react';
 import { Modal, Button } from '@service-desk/ui';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
 import { TOOL_ICONS } from './tool-icons';
@@ -25,6 +25,21 @@ interface ToolsPanelProps {
 export function ToolsPanel({ activePath }: ToolsPanelProps) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeToolSlug = searchParams.get('tool');
+
+  function setActiveTool(slug: string) {
+    const ticketMatch = activePath.match(/^\/tickets\/(INC\d+)$/i);
+    if (!ticketMatch) {
+      router.push(`/tools/${slug}`);
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tool', slug);
+    params.set('ticket', ticketMatch[1]!.toUpperCase());
+    router.push(`${activePath}?${params.toString()}`);
+  }
 
   return (
     <Modal
@@ -55,7 +70,8 @@ export function ToolsPanel({ activePath }: ToolsPanelProps) {
             <div className="mt-2 grid gap-1 sm:grid-cols-2">
               {getToolsByCategory(category).map((tool) => {
                 const ToolIcon = TOOL_ICONS[tool.slug];
-                const active = activePath === tool.path;
+                const active =
+                  activeToolSlug === tool.slug || activePath === tool.path;
 
                 return (
                   <button
@@ -64,7 +80,7 @@ export function ToolsPanel({ activePath }: ToolsPanelProps) {
                     key={tool.path}
                     onClick={() => {
                       setOpen(false);
-                      router.push(tool.path);
+                      setActiveTool(tool.slug);
                     }}
                     type="button"
                   >

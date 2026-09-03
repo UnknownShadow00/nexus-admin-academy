@@ -3,22 +3,13 @@
 import type { Ticket } from '@service-desk/shared';
 
 import { AssignmentControls } from './AssignmentControls';
-import { EscalateDialog } from './EscalateDialog';
 import { HintDialog } from './HintDialog';
-import { ResolveDialog } from './ResolveDialog';
 import { StatusMenu } from './StatusMenu';
-import { useAttemptScore, useTicketSession } from './TicketSessionProvider';
+import { useTicketSession } from './TicketSessionProvider';
 
 export function TicketActionBar({ ticket }: { ticket: Ticket }) {
-  const { previewCloseGrade } = useAttemptScore();
-  const {
-    assignTicket,
-    changeStatus,
-    closeTicket,
-    escalateTicket,
-    recordHintReveal,
-    unassignTicket,
-  } = useTicketSession();
+  const { assignTicket, changeStatus, recordHintReveal, unassignTicket } =
+    useTicketSession();
 
   return (
     <section
@@ -33,18 +24,6 @@ export function TicketActionBar({ ticket }: { ticket: Ticket }) {
       <StatusMenu
         onChange={(status) => changeStatus(ticket.id, status)}
         status={ticket.status}
-      />
-      <div className="hidden h-6 w-px bg-zinc-700/50 sm:block" />
-      <EscalateDialog
-        escalated={ticket.escalated}
-        onConfirm={() => escalateTicket(ticket.id)}
-      />
-      <ResolveDialog
-        initialResolutionNote={ticket.notes.at(-1)?.body ?? ''}
-        readyGrade={previewCloseGrade(ticket.id, true)}
-        onConfirm={(options) => closeTicket(ticket.id, options)}
-        status={ticket.status}
-        unresolvedGrade={previewCloseGrade(ticket.id, false)}
       />
       <div className="sm:ml-auto">
         <HintDialog
