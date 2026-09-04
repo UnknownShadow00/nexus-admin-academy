@@ -212,6 +212,90 @@ def test_inc2506_correct_escalation_passes_with_normalized_full_score(db):
     assert details["process_points"] == 100
 
 
+def test_inc2506_correct_escalation_without_documentation_fails(db):
+    """Fix 3: a correct hand-off still needs a closure note to pass."""
+    student = make_student(db, username="esc-2506-nodoc")
+    assignment = setup_assignment(
+        db, student, stable_key="inc2506", priority="high", process_profile=True
+    )
+    client = _client()
+    attempt_id = start(client, student, assignment).json()["id"]
+    _investigate_and_diagnose(client, student, attempt_id, "INC2506", "NX-2506")
+    assert (
+        _escalate(
+            client,
+            student,
+            attempt_id,
+            "INC2506",
+            "policy-authorization",
+            "Identity & Access",
+        ).status_code
+        == 201
+    )
+    body = _complete(client, student, attempt_id).json()
+    assert body["passed"] is False
+    details = body["details"]
+    assert details["escalation_correct"] is True
+    assert details["documentation_complete"] is False
+    assert "closure" in body["feedback_summary"].lower()
+
+    # Same work plus the note now passes (fresh attempt).
+    student2 = make_student(db, username="esc-2506-withdoc")
+    assignment2 = setup_assignment(
+        db, student2, stable_key="inc2506", priority="high", process_profile=True
+    )
+    attempt2 = start(client, student2, assignment2).json()["id"]
+    _investigate_and_diagnose(client, student2, attempt2, "INC2506", "NX-2506")
+    assert (
+        _internal_note(client, student2, attempt2, "INC2506", "NX-2506").status_code
+        == 201
+    )
+    assert (
+        _escalate(
+            client,
+            student2,
+            attempt2,
+            "INC2506",
+            "policy-authorization",
+            "Identity & Access",
+        ).status_code
+        == 201
+    )
+    body2 = _complete(client, student2, attempt2).json()
+    assert body2["passed"] is True
+    assert body2["details"]["documentation_complete"] is True
+
+
+def test_inc2508_contain_and_escalate_without_documentation_fails(db):
+    """Fix 3: containment + correct route is still not a pass without a note."""
+    student = make_student(db, username="esc-2508-nodoc")
+    assignment = setup_assignment(
+        db, student, stable_key="inc2508", priority="high", process_profile=True
+    )
+    client = _client()
+    attempt_id = start(client, student, assignment).json()["id"]
+    _investigate_and_diagnose(client, student, attempt_id, "INC2508", "NX-2508")
+    assert (
+        _step(
+            client, student, attempt_id, "INC2508", "NX-2508",
+            "scenario.apply-safe-remediation",
+        ).status_code
+        == 201
+    )
+    assert (
+        _escalate(
+            client, student, attempt_id, "INC2508",
+            "security-incident", "Information Security",
+        ).status_code
+        == 201
+    )
+    body = _complete(client, student, attempt_id).json()
+    assert body["passed"] is False
+    assert body["details"]["escalation_correct"] is True
+    assert body["details"]["containment_met"] is True
+    assert body["details"]["documentation_complete"] is False
+
+
 def test_inc2506_self_service_remediation_is_a_critical_failure(db):
     student = make_student(db, username="esc-2506-selfserve")
     assignment = setup_assignment(

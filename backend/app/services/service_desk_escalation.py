@@ -33,6 +33,20 @@ ESCALATION_REASONS: frozenset[str] = frozenset(
     }
 )
 
+# Fixed destination teams the simulator recognises.  This is a plain list of
+# real teams, not routing infrastructure.  The workspace never pre-selects one;
+# ``compute_grade`` decides whether the student's choice was correct.  Mirrored
+# by ``packages/shared/src/escalation.ts`` (``ESCALATION_ROUTES``).
+ESCALATION_ROUTES: tuple[str, ...] = (
+    "Identity & Access",
+    "Information Security",
+    "Network Support",
+    "Endpoint Support",
+    "Hardware / Field Services",
+    "Application Support",
+    "Other / Mentor Review",
+)
+
 
 @dataclass(frozen=True)
 class EscalationProfile:

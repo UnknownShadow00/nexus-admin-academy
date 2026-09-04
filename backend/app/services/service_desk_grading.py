@@ -115,8 +115,14 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
         escalation_correct = (
             escalation_valid and containment_met and not prohibited_hit
         )
+        # Investigate -> Diagnose -> Fix/Escalate -> Verify -> Document. A
+        # correctly routed hand-off is still not a passing ticket until the
+        # closure/hand-off note is on the trusted ledger, exactly like an
+        # ordinary resolved ticket. ``escalation_correct`` stays true so the
+        # debrief can say "right call, documentation still required".
+        documentation_complete = bool(objective_checks.get("documentation", False))
 
-        resolved = escalation_correct
+        resolved = escalation_correct and documentation_complete
         critical_failure = prohibited_hit
 
         # Normalize process credit across the categories that actually apply to
@@ -148,6 +154,7 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
             "escalation_reason": escalate_payload.get("reason"),
             "escalation_valid": escalation_valid,
             "escalation_correct": escalation_correct,
+            "documentation_complete": documentation_complete,
             "containment_required": profile.verification_applicable,
             "containment_met": (
                 containment_met if profile.verification_applicable else None
@@ -248,6 +255,14 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
                     f" The final score includes {penalty_points} hint or "
                     "closure penalty points."
                 )
+        elif escalation_details.get("escalation_correct") and not escalation_details.get(
+            "documentation_complete"
+        ):
+            feedback_summary = (
+                "You made the right call and routed this correctly, but the "
+                "ticket cannot pass until you record a closure/hand-off note "
+                "documenting what you found and where it went."
+            )
         elif escalation_details.get("escalated") and profile.verification_applicable:
             feedback_summary = (
                 "You escalated this, but the required containment step was not "

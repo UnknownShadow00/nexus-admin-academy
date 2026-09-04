@@ -77,9 +77,14 @@ def process_progress(
             "needs_more_evidence": not complete,
         }
         if stage_key == "fix":
-            # Deliberately neutral before the outcome is chosen: the student may
-            # see that escalation is *available* (below) but is never told it is
-            # the correct answer. The debrief reveals appropriateness.
+            # MUST stay the literal string "fix" for every scenario, including
+            # escalation scenarios. The student workspace must NEVER receive an
+            # "expected escalation outcome" signal before completion. Do NOT wire
+            # this to escalation_profile / profile.expected - doing so leaks the
+            # answer. The post-completion debrief (build_debrief) is the only
+            # place escalation appropriateness may be revealed. The frontend no
+            # longer consumes this value (see WorkflowRail.tsx); it is retained
+            # only so the stage shape is stable.
             stage["mode"] = "fix"
         stages.append(stage)
 
@@ -97,29 +102,19 @@ def process_progress(
                         }
                     )
 
-    blockers = []
-    if not objective_checks.get("diagnosis", False):
-        blockers.append("need_diagnosis_evidence")
-    if not objective_checks.get("remediation", False):
-        blockers.append("complete_fix")
-    if not objective_checks.get("verification", False):
-        blockers.append("verify_first")
-    if not objective_checks.get("documentation", False):
-        blockers.append("add_note")
-
-    profile = escalation_profile(stable_key)
-    escalation = (
-        {"available": True, "route": profile.route}
-        if profile is not None and profile.expected
-        else None
-    )
-
     return {
         "stages": stages,
         "evidence": evidence,
         "documentation_target": _documentation_target(objective_def),
-        "resolve_blockers": blockers,
-        "escalation": escalation,
+        # Escalation is a professional option on EVERY ticket. This in-progress
+        # contract deliberately carries no route, no rationale, and no
+        # "expected" flag: exposing any of those before the student decides
+        # would teach the answer. The presence of the block is identical for
+        # ordinary and escalation scenarios. The server still grades whether
+        # escalation was appropriate and correctly routed - see
+        # service_desk_grading.compute_grade and
+        # service_desk._action_allowed's ``ticket.escalate`` branch.
+        "escalation": {"available": True},
     }
 
 
@@ -285,6 +280,15 @@ def _stronger_path(
     ]
 
 
+def _limited_category_explanation(met: bool) -> str:
+    """Generic, leak-free coaching for the failed-with-retries debrief tier."""
+    return (
+        "This part of your process met the bar."
+        if met
+        else "This is one of the areas to strengthen before your next attempt."
+    )
+
+
 def _escalation_feedback(profile: Any, escalated: bool, passed: bool) -> dict[str, Any]:
     if profile is not None and profile.expected:
         return {
@@ -307,12 +311,30 @@ def build_debrief(
     objective_def: ScenarioObjectiveDefinition | None,
     attempts_remaining: int | None,
 ) -> dict[str, Any]:
-    """Post-completion only.  Reveals the authored path and ordering narrative."""
+    """Post-completion debrief.
+
+    Coaching is tiered so a failed attempt with retries left cannot be turned
+    into a transcription exercise:
+
+    * ``full``    - passed, or failed with no graded attempt left.  The authored
+                    ordered path, the correct escalation route, and the full
+                    per-category narrative are all revealed.
+    * ``limited`` - failed with at least one attempt remaining.  The student
+                    sees the score, which broad process areas were weak, and
+                    feedback on their own note - but never the ordered path, the
+                    exact missing evidence/fix, or the correct escalation
+                    destination.
+    """
     details = grade.details_json or {}
     checks = details.get("objective_checks", {})
     profile = escalation_profile(stable_key)
     escalated = bool(details.get("escalated"))
     passed = bool(grade.passed)
+    limited = (
+        not passed
+        and attempts_remaining is not None
+        and attempts_remaining > 0
+    )
     first_repair = _first_repair_position(events, objective_def)
 
     outcome = (
@@ -331,11 +353,15 @@ def build_debrief(
             label = name.replace("_", " ").title()
             status = "full" if met else "missed"
             points = weight if met else 0
-            explanation = _category_explanation(
-                name, met, events, objective_def, first_repair
+            explanation = (
+                _limited_category_explanation(met)
+                if limited
+                else _category_explanation(
+                    name, met, events, objective_def, first_repair
+                )
             )
 
-            if profile is not None and profile.expected:
+            if not limited and profile is not None and profile.expected:
                 if name == "remediation":
                     label = "Escalation / hand-off"
                     correct = bool(details.get("escalation_correct"))
@@ -374,6 +400,7 @@ def build_debrief(
 
     note_text = _last_student_note(events)
     return {
+        "coaching_tier": "limited" if limited else "full",
         "result": {
             "passed": passed,
             "score": grade.overall_score,
@@ -383,6 +410,12 @@ def build_debrief(
         "categories": categories,
         "student_note": note_text,
         "note_dimensions": _note_dimensions(note_text),
-        "stronger_path": _stronger_path(objective_def, profile),
-        "escalation_feedback": _escalation_feedback(profile, escalated, passed),
+        # The ordered path and the correct escalation destination are withheld
+        # while the student still has a graded attempt to copy them into.
+        "stronger_path": [] if limited else _stronger_path(objective_def, profile),
+        # Whether escalation was the right call - and, by implication, the
+        # correct team - is only revealed once there is no graded attempt left.
+        "escalation_feedback": (
+            None if limited else _escalation_feedback(profile, escalated, passed)
+        ),
     }

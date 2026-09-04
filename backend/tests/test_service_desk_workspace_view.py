@@ -46,7 +46,10 @@ def test_partial_in_progress_view_exposes_only_met_evidence():
     assert view["stages"][2]["status"] == "current"
     assert view["stages"][3]["mode"] == "fix"
     assert view["documentation_target"] == "remote_desktop"
-    assert view["escalation"] is None
+    # Escalation is offered on every ticket, route-free, with no verdict.
+    assert view["escalation"] == {"available": True}
+    assert "route" not in view["escalation"]
+    assert "resolve_blockers" not in view
 
 
 def test_untrusted_and_failed_events_do_not_appear_as_evidence():
@@ -66,7 +69,7 @@ def test_untrusted_and_failed_events_do_not_appear_as_evidence():
     assert view["stages"][1]["needs_more_evidence"] is True
 
 
-def test_escalation_scenarios_expose_route_but_not_a_verdict():
+def test_escalation_scenario_pre_decision_view_leaks_no_route_or_verdict():
     definition = SCENARIO_OBJECTIVES["inc2506"]
     view = process_progress(
         {"objective_catalog_version": PROCESS_CATALOG_VERSION},
@@ -75,22 +78,29 @@ def test_escalation_scenarios_expose_route_but_not_a_verdict():
         stable_key="inc2506",
         attempt=SimpleNamespace(status="in_progress"),
     )
-    assert view["escalation"] == {"available": True, "route": "Identity & Access"}
+    assert view["escalation"] == {"available": True}
+    serialized = json.dumps(view)
+    for leak in ("Identity & Access", "expected", "route", "rationale"):
+        assert leak not in serialized
     # The workflow rail must not pre-announce that escalation is the answer.
     fix_stage = next(stage for stage in view["stages"] if stage["key"] == "fix")
     assert fix_stage["mode"] == "fix"
 
 
-def test_non_escalation_scenarios_have_no_escalation_block():
-    definition = SCENARIO_OBJECTIVES["inc2401"]
-    view = process_progress(
-        {"objective_catalog_version": PROCESS_CATALOG_VERSION},
-        [],
-        objective_def=definition,
-        stable_key="inc2401",
-        attempt=SimpleNamespace(status="in_progress"),
-    )
-    assert view["escalation"] is None
+def test_ordinary_and_escalation_scenarios_have_identical_escalation_affordance():
+    """Fix 2: the pre-decision shape must not reveal which tickets escalate."""
+    shapes = set()
+    for key in ("inc2401", "inc2506", "inc2508"):
+        view = process_progress(
+            {"objective_catalog_version": PROCESS_CATALOG_VERSION},
+            [],
+            objective_def=SCENARIO_OBJECTIVES[key],
+            stable_key=key,
+            attempt=SimpleNamespace(status="in_progress"),
+        )
+        assert view["escalation"] == {"available": True}
+        shapes.add(json.dumps(view["escalation"], sort_keys=True))
+    assert len(shapes) == 1
 
 
 def test_pre_attempt_assignment_view_has_minimal_rail_contract():
@@ -105,15 +115,15 @@ def test_pre_attempt_assignment_view_has_minimal_rail_contract():
     assert len(assignment_view["stages"]) == 6
     assert assignment_view["stages"][0]["status"] == "current"
     assert assignment_view["documentation_target"] == "remote_desktop"
-    assert assignment_view["escalation"] is None
+    assert assignment_view["escalation"] == {"available": True}
+    assert "resolve_blockers" not in assignment_view
 
 
 def _grade(details, *, passed, score):
     return SimpleNamespace(details_json=details, passed=passed, overall_score=score)
 
 
-def test_debrief_reveals_stronger_path_only_after_completion():
-    # In-progress view never carries the ordered path...
+def test_in_progress_view_never_carries_the_ordered_path():
     definition = SCENARIO_OBJECTIVES["inc2401"]
     live = process_progress(
         {"objective_catalog_version": PROCESS_CATALOG_VERSION},
@@ -124,25 +134,50 @@ def test_debrief_reveals_stronger_path_only_after_completion():
     )
     assert "stronger_path" not in json.dumps(live)
 
-    # ...but the post-completion debrief does.
-    debrief = build_debrief(
+
+def _failed_debrief(stable_key, *, attempts_remaining, checks=None):
+    definition = SCENARIO_OBJECTIVES[stable_key]
+    return build_debrief(
         {"objective_catalog_version": PROCESS_CATALOG_VERSION},
         [],
         _grade(
-            {"objective_checks": {"investigation": True}, "escalated": False},
+            {
+                "objective_checks": checks or {"investigation": True},
+                "escalated": False,
+            },
             passed=False,
             score=20,
         ),
-        stable_key="inc2401",
+        stable_key=stable_key,
         objective_def=definition,
-        attempts_remaining=1,
+        attempts_remaining=attempts_remaining,
     )
-    assert debrief["stronger_path"]
+
+
+def test_failed_debrief_with_retries_is_limited_and_leak_free():
+    """Fix 4: a graded retry must not become a transcription exercise."""
+    debrief = _failed_debrief("inc2506", attempts_remaining=2)
+    assert debrief["coaching_tier"] == "limited"
+    assert debrief["stronger_path"] == []
+    assert debrief["escalation_feedback"] is None
     assert debrief["result"]["outcome"] == "needs_another_try"
+    serialized = json.dumps(debrief)
+    for leak in ("Identity & Access", "Escalate to", "add_internal_note"):
+        assert leak not in serialized
+    # Broad category status is still allowed - it is "which areas were weak".
     investigation = next(
         c for c in debrief["categories"] if c["key"] == "investigation"
     )
     assert investigation["status"] == "full"
+
+
+def test_failed_debrief_on_final_attempt_reveals_full_coaching():
+    for remaining in (0, None):
+        debrief = _failed_debrief("inc2401", attempts_remaining=remaining)
+        assert debrief["coaching_tier"] == "full"
+        assert debrief["stronger_path"]
+        assert debrief["escalation_feedback"] is not None
+        assert debrief["result"]["outcome"] == "needs_another_try"
 
 
 def test_debrief_marks_escalation_verification_not_applicable():
