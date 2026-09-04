@@ -13,6 +13,7 @@ import LoginPage from "./pages/LoginPage";
 import StudentHome from "./pages/StudentHome";
 import { authLogout, globalSearch } from "./services/api";
 import { V2_CURRICULUM_ENABLED } from "./config/features";
+import { useV2Access } from "./hooks/useV2Access";
 
 const LessonPage = lazy(() => import("./pages/LessonPage"));
 const CapstonePage = lazy(() => import("./pages/CapstonePage"));
@@ -65,7 +66,6 @@ export function buildStudentNavItems(v2Enabled) { return [
     { to: "/commands", label: "Command Reference" },
   ] },
 ]; }
-const studentNavItems = buildStudentNavItems(V2_CURRICULUM_ENABLED);
 
 const adminNavItems = [
   { to: "/admin", label: "Dashboard" },
@@ -241,13 +241,19 @@ export default function App() {
   const showSearch = authenticated && !isAdminRoute && !isAdminLoginRoute;
   const hasSearchResults = searchResults.lessons?.length || searchResults.commands?.length;
 
+  // Student V2 navigation follows the student's own pilot enrolment, which
+  // only the backend knows. The build flag says V2 exists; it cannot say who
+  // is in the pilot. Routes stay compiled either way — the server refuses a
+  // typed V2 URL from a student who is not enrolled.
+  const { studentEnabled: v2StudentEnabled } = useV2Access(authenticated && !isAdminRoute);
+
   const navItems = useMemo(() => {
     if (isAdminRoute) {
       if (!adminAuthenticated) return [];
       return adminNavItems;
     }
-    return studentNavItems;
-  }, [adminAuthenticated, isAdminRoute]);
+    return buildStudentNavItems(v2StudentEnabled);
+  }, [adminAuthenticated, isAdminRoute, v2StudentEnabled]);
 
   useEffect(() => {
     setMobileOpen(false);

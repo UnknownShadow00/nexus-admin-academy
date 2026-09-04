@@ -7,7 +7,7 @@ import PageHeader from "../components/ui/PageHeader";
 import { getCurrentStudent } from "../hooks/useAuth";
 import { checkInStudent, getLabs, getServiceDeskProgressSummary, getStudentStats, getTrainingDashboard } from "../services/api";
 import { getV2Learning } from "../services/api";
-import { V2_CURRICULUM_ENABLED } from "../config/features";
+import { useV2Access } from "../hooks/useV2Access";
 import V2Status from "../components/v2/V2Status";
 import { iconSizes, scoreBand } from "../utils/theme";
 
@@ -49,6 +49,8 @@ export default function StudentHome() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
+  // Today only fetches and shows V2 work for students actually in the pilot.
+  const { studentEnabled: v2Enabled, loading: v2AccessLoading } = useV2Access(Boolean(studentId));
 
   useEffect(() => {
     if (!studentId) {
@@ -56,6 +58,10 @@ export default function StudentHome() {
       setLoading(false);
       return;
     }
+    // Hold the first read until pilot access is known, so Today is composed
+    // once rather than rendering without a pilot student's course and then
+    // rearranging under them.
+    if (v2AccessLoading) return;
     const run = async () => {
       setLoading(true);
       setLoadError("");
@@ -66,7 +72,7 @@ export default function StudentHome() {
         const [res, trainingRes, v2Res] = await Promise.all([
           getStudentStats(studentId, { suppressToast: true }),
           getTrainingDashboard({ suppressToast: true }),
-          V2_CURRICULUM_ENABLED ? getV2Learning({ suppressToast: true }) : Promise.resolve(null),
+          v2Enabled ? getV2Learning({ suppressToast: true }) : Promise.resolve(null),
         ]);
         setStats(res?.data || null);
         setTraining(trainingRes?.data || null);
@@ -81,7 +87,9 @@ export default function StudentHome() {
       }
     };
     run();
-  }, [retryKey, studentId]);
+    // Wait for the access answer before the first read, so a pilot student
+    // does not briefly render Today without their course.
+  }, [retryKey, studentId, v2Enabled, v2AccessLoading]);
 
   useEffect(() => {
     if (!studentId) return;
@@ -182,7 +190,7 @@ export default function StudentHome() {
         </section>
       ) : null}
 
-      {V2_CURRICULUM_ENABLED ? <section className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><h2 className="font-semibold">Extra practice</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">The legacy Learning Path and labs are optional during the V2 transition.</p><Link className="mt-2 inline-flex text-sm font-semibold text-blue-600 dark:text-blue-400" to="/learning-path">Open legacy Learning Path →</Link></section> : null}
+      {v2Enabled ? <section className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><h2 className="font-semibold">Extra practice</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">The legacy Learning Path and labs are optional during the V2 transition.</p><Link className="mt-2 inline-flex text-sm font-semibold text-blue-600 dark:text-blue-400" to="/learning-path">Open legacy Learning Path →</Link></section> : null}
 
       {hasFollowUpWidgets ? (
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

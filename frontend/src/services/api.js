@@ -196,6 +196,8 @@ export const getQuizReview = (quizId, studentId = currentStudentId(), requestOpt
 export const submitQuiz = (quizId, payload, requestOptions) =>
   request(() => api.post(`/api/quizzes/${quizId}/submit`, payload), requestOptions);
 
+export const getV2Access = (requestOptions) =>
+  request(() => api.get("/api/v2/curriculum/access"), requestOptions);
 export const getV2Learning = (requestOptions) =>
   request(() => api.get("/api/v2/curriculum"), requestOptions);
 export const getV2Module = (moduleKey, requestOptions) =>
