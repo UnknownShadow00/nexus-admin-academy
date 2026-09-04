@@ -52,7 +52,7 @@ from app.services.quiz_progression import (
     required_quizzes_for_week,
     triggered_remediation_ids,
 )
-from app.services.quiz_visibility import student_visible_quiz_filters
+from app.services.quiz_visibility import v1_student_visible_quiz_filters
 from app.services.squad_service import get_weekly_domain_leads
 from app.services.xp_calculator import level_from_xp
 from app.utils.responses import ok
@@ -781,7 +781,7 @@ def get_week_plan(
         db.query(Quiz)
         .filter(
             Quiz.week_number == current_week,
-            *student_visible_quiz_filters(),
+            *v1_student_visible_quiz_filters(),
         )
         .order_by(Quiz.id)
         .all()

@@ -54,6 +54,11 @@ from app.services.v2_progress_service import V2ProgressError, module_progress, r
 
 DONE = {V2_STATUS_COMPLETED, V2_STATUS_PASSED}
 
+#: A module reaches the student entry page only with the complete Nexus
+#: learning formula. Content still missing one of these is invisible, which is
+#: also what lets the foundation load tell "being authored" from "broken".
+STUDENT_MODULE_ROLES = frozenset({"quick_check", "module_quiz", "practical", "explain"})
+
 
 def _safe_url(value: str | None) -> str | None:
     if not value:
@@ -317,7 +322,7 @@ def entry_view(db: Session, student_id: int) -> dict:
         # keeps old foundation fixtures/drafts out of the student entry page
         # without hardcoding a module key or lesson count.
         roles = {row.assessment_role for row in _assessments(db, module.id)}
-        if not {"quick_check", "module_quiz", "practical", "explain"}.issubset(roles):
+        if not STUDENT_MODULE_ROLES.issubset(roles):
             continue
         view = module_view(db, student_id, module.module_key)
         explain_feedback = next(({

@@ -29,6 +29,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from urllib.parse import urlsplit
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -521,6 +522,18 @@ def load_resources(db: Session, path: str, *, summary: LoadSummary | None = None
     return summary
 
 
+def valid_external_url(value) -> bool:
+    """Would a student actually be able to open this resource?
+
+    Mirrors the presentation layer's ``_safe_url``: only absolute http(s)
+    URLs with a host survive, and anything else is rendered as no link at all.
+    """
+    if not value:
+        return False
+    parsed = urlsplit(str(value).strip())
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
 def _sync_resource_links(db, resource, links, rel, key, summary) -> None:
     desired: set[tuple] = set()
     for order_default, link in enumerate(links, start=1):
@@ -559,6 +572,15 @@ def _sync_resource_links(db, resource, links, rel, key, summary) -> None:
             "is_required": bool(link.get("required", False)),
             "display_order": int(link.get("order", order_default)),
         }
+        if link_fields["is_required"] and not valid_external_url(resource.url):
+            # A required resource the student cannot open is a permanent
+            # progression deadlock: Continue points at it, completing it needs
+            # the link, and the link does not exist. Refuse the load instead.
+            raise ContentValidationError(
+                f"{rel}: resource '{key}': a required resource needs a valid "
+                f"http(s) url, got {resource.url!r}. An unopenable required "
+                "resource permanently blocks progression."
+            )
         if existing is None:
             db.add(
                 LearningResourceLink(
@@ -810,7 +832,11 @@ def load_service_desk_scenarios(
 
 
 def load_question_banks(
-    db: Session, questions_dir: str | None = None, *, summary: LoadSummary | None = None
+    db: Session,
+    questions_dir: str | None = None,
+    *,
+    summary: LoadSummary | None = None,
+    commit: bool = True,
 ) -> LoadSummary:
     """Import every question-bank spreadsheet under ``content/questions/``.
 
@@ -821,9 +847,10 @@ def load_question_banks(
     hard-coded in Python: a maintainer edits the spreadsheet and re-runs the
     loader.
 
-    NOTE: ``question_importer.confirm_import`` owns its own transaction and
-    commits on success, so imported questions are persisted regardless of this
-    function's caller. A row whose content and V2 metadata are unchanged since
+    ``commit=False`` hands transaction control to the caller so a whole V2
+    content load can be one logical transaction; the default keeps the
+    standalone behaviour, where each spreadsheet is committed as it imports.
+    A row whose content and V2 metadata are unchanged since
     the last run is reported as ``unchanged`` (a true no-op — no write, no
     provenance re-stamp); a changed row is ``updated``; a new row is
     ``created``. Rows on an already-published quiz are skipped, never
@@ -856,7 +883,8 @@ def load_question_banks(
         except ImportFileError as exc:
             raise ContentValidationError(f"{name}: {exc}") from exc
         result = confirm_import(
-            db, rows, duplicate_policy="update_draft", source_filename=name
+            db, rows, duplicate_policy="update_draft", source_filename=name,
+            commit=commit,
         )
         for _ in range(result["created"]):
             summary.record("question", "created")
@@ -956,7 +984,9 @@ def load_content(
     if os.path.isdir(curriculum_dir):
         load_lessons(db, curriculum_dir, summary=summary)
 
-    load_question_banks(db, questions_dir, summary=summary)
+    # The caller's commit flag decides the transaction boundary: inside an
+    # atomic load this must not commit on its own.
+    load_question_banks(db, questions_dir, summary=summary, commit=commit)
 
     if os.path.isdir(labs_dir):
         for name in sorted(os.listdir(labs_dir)):

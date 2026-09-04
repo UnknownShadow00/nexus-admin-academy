@@ -302,10 +302,18 @@ def confirm_import(
     *,
     duplicate_policy: str,
     source_filename: str,
+    commit: bool = True,
 ) -> dict:
     """Re-validates every row from scratch (never trusts client-echoed
     validation state) and writes everything in one transaction. Any
-    unexpected error rolls the whole import back."""
+    unexpected error rolls the whole import back.
+
+    Pass ``commit=False`` to enlist in a caller's transaction instead of
+    owning one — the V2 content load needs every step to land or none of
+    them, and an importer that commits mid-way would leave the database
+    half-loaded if a later step failed. The caller then owns both the commit
+    and the rollback.
+    """
     if duplicate_policy not in {"skip", "update_draft"}:
         raise ValueError("duplicate_policy must be 'skip' or 'update_draft'")
 
@@ -414,9 +422,13 @@ def confirm_import(
             quiz.answer_keys_validated = False
             quiz.explanations_complete = False
 
-        db.commit()
+        if commit:
+            db.commit()
+        else:
+            db.flush()
     except Exception:
-        db.rollback()
+        if commit:
+            db.rollback()
         raise
 
     return {

@@ -13,7 +13,7 @@ from app.services.auth_service import ensure_student_access, ensure_student_owne
 from app.services.fsrs_service import create_cards_for_wrong_answers
 from app.services.mastery_service import record_quiz_mastery
 from app.services.quiz_progression import assigned_remediation_ids, triggered_remediation_ids
-from app.services.quiz_visibility import student_visible_quiz_filters
+from app.services.quiz_visibility import v1_student_visible_quiz_filters
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
 
@@ -53,7 +53,7 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
     scoped_student_id = student_id or current_student.id
     ensure_student_access(current_student, scoped_student_id)
     remediation_ids = assigned_remediation_ids(db, scoped_student_id) | triggered_remediation_ids(db, scoped_student_id)
-    query = db.query(Quiz).options(selectinload(Quiz.questions)).filter(*student_visible_quiz_filters())
+    query = db.query(Quiz).options(selectinload(Quiz.questions)).filter(*v1_student_visible_quiz_filters())
     if week_number is not None:
         query = query.filter(Quiz.week_number == week_number)
     quizzes = query.order_by(Quiz.created_at.desc()).all()
@@ -118,7 +118,7 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
         .options(selectinload(Quiz.questions))
         .filter(
             Quiz.id == quiz_id,
-            *student_visible_quiz_filters(),
+            *v1_student_visible_quiz_filters(),
         )
         .first()
     )
@@ -191,7 +191,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
         .options(selectinload(Quiz.questions))
         .filter(
             Quiz.id == quiz_id,
-            *student_visible_quiz_filters(),
+            *v1_student_visible_quiz_filters(),
         )
         .first()
     )
@@ -326,7 +326,7 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
     quiz = (
         db.query(Quiz)
         .options(selectinload(Quiz.questions))
-        .filter(Quiz.id == quiz_id, *student_visible_quiz_filters())
+        .filter(Quiz.id == quiz_id, *v1_student_visible_quiz_filters())
         .first()
     )
     if not quiz:
