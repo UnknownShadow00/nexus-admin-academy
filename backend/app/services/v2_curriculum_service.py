@@ -177,12 +177,8 @@ def _lesson_view(db: Session, student_id: int, lesson: LessonV2Meta, assessments
         "objectives": [{"code": row.objective_code, "text": row.objective_text} for row in objective_rows],
         "resources": resource_views,
         "progress": _activity_view(_activity(db, student_id, V2_ACTIVITY_LESSON, lesson.lesson_key)),
-        "quick_check": ({
-            "key": quick_check.assessment_key,
-            "title": quick_check.title,
+        "quick_check": (_assessment_view(db, student_id, quick_check) | {
             "question_count": quick_check.displayed_count,
-            "pass_percent": quick_check.pass_percent,
-            "progress": _activity_view(_activity(db, student_id, V2_ACTIVITY_QUICK_CHECK, quick_check.assessment_key)),
         } if quick_check else None),
     }
     if include_content:
@@ -190,23 +186,64 @@ def _lesson_view(db: Session, student_id: int, lesson: LessonV2Meta, assessments
     return result
 
 
+KNOWLEDGE_ROLES = {V2_ACTIVITY_QUICK_CHECK, V2_ACTIVITY_MODULE_QUIZ}
+
+
+def quiz_is_student_visible(db: Session, quiz_id: int | None) -> bool:
+    """Would a student actually be allowed to open this quiz?
+
+    Delegates to the one authoritative visibility contract in
+    ``quiz_visibility`` — draft, inactive, editorially unvalidated, and
+    answer-key-unvalidated quizzes are all invisible. Availability and
+    openability must never be decided by two different rules.
+    """
+    if not quiz_id:
+        return False
+    return db.query(Quiz.id).filter(
+        Quiz.id == quiz_id, *student_visible_quiz_filters()
+    ).first() is not None
+
+
+def assessment_is_available(db: Session, assessment: ModuleAssessment) -> bool:
+    """Whether a student can actually open this assessment right now.
+
+    A knowledge check needs a quiz that passes the student visibility
+    contract, not merely a ``quiz_id`` that exists. Reporting availability
+    from the presence of the foreign key alone produced an "available but
+    unopenable" dead end: the module card said Continue, and opening it was
+    then refused by the visibility filter.
+    """
+    if assessment.assessment_role in KNOWLEDGE_ROLES:
+        return quiz_is_student_visible(db, assessment.quiz_id)
+    if assessment.assessment_role == V2_ACTIVITY_EXPLAIN:
+        return True
+    return bool(
+        assessment.quiz_id or assessment.lab_template_id or assessment.service_desk_scenario_id
+    )
+
+
 def _assessment_view(db: Session, student_id: int, assessment: ModuleAssessment) -> dict:
     engine_ref = (assessment.config or {}).get("engine_service_desk_ref")
     scenario = db.get(ServiceDeskScenario, assessment.service_desk_scenario_id) if assessment.service_desk_scenario_id else None
-    available = bool(
-        assessment.quiz_id or assessment.lab_template_id or assessment.service_desk_scenario_id
-        or assessment.assessment_role == V2_ACTIVITY_EXPLAIN
-    )
+    available = assessment_is_available(db, assessment)
     unavailable = None
     if not available:
         activity_name = {
+            V2_ACTIVITY_QUICK_CHECK: "Quick Check",
             V2_ACTIVITY_MODULE_QUIZ: "Module Quiz",
             V2_ACTIVITY_PRACTICAL: "Practical",
             V2_ACTIVITY_SERVICE_DESK: "Service Desk ticket",
         }.get(assessment.assessment_role, assessment.title)
+        # Deliberately generic. A student must never be told *why* a bank is
+        # blocked — "editorial approval missing" is mentor-facing detail.
+        reason = (
+            "This knowledge check is not available yet."
+            if assessment.assessment_role in KNOWLEDGE_ROLES
+            else "This activity has not been prepared for students yet."
+        )
         unavailable = {
             "status": "not_available",
-            "reason": "This activity has not been prepared for students yet.",
+            "reason": reason,
             "required_action": "Choose another available activity in this module.",
             "blocker_route": None,
             "activity_name": activity_name,
@@ -317,7 +354,23 @@ def lesson_view(db: Session, student_id: int, module_key: str, lesson_key: str) 
 
 
 def resolve_continue(view: dict) -> dict:
+    """Pick the single next thing the student can actually do.
+
+    Availability is enforced here, not just displayed: an assessment whose
+    quiz is not student-visible (draft, inactive, editorially unvalidated,
+    answer key unvalidated) is skipped rather than pointed at. Routing a
+    student into an activity the server will then refuse to open is a dead
+    end, so a blocked activity is remembered and reported only if nothing
+    else in the module is actionable.
+    """
     module_key = view["module"]["key"]
+    blocked: dict | None = None
+
+    def _remember_blocked(item: dict) -> None:
+        nonlocal blocked
+        if blocked is None:
+            blocked = item
+
     for lesson in view["lessons"]:
         base = f"/learning-v2/modules/{module_key}/lessons/{lesson['key']}"
         required_resource = next(
@@ -338,14 +391,21 @@ def resolve_continue(view: dict) -> dict:
             }
         qc = lesson.get("quick_check")
         if qc and qc["progress"]["status"] not in DONE:
-            return {
-                "kind": "quick_check", "label": "Continue with Quick Check", "title": qc["title"],
-                "route": f"/learning-v2/modules/{module_key}/assessments/{qc['key']}",
-                "status": qc["progress"]["status"], "estimated_minutes": None,
-            }
+            if qc.get("available", True):
+                return {
+                    "kind": "quick_check", "label": "Continue with Quick Check", "title": qc["title"],
+                    "route": f"/learning-v2/modules/{module_key}/assessments/{qc['key']}",
+                    "available": True,
+                    "status": qc["progress"]["status"], "estimated_minutes": None,
+                }
+            _remember_blocked(qc)
+
     for role, label in ((V2_ACTIVITY_MODULE_QUIZ, "Take the Module Quiz"), (V2_ACTIVITY_PRACTICAL, "Start the practical"), (V2_ACTIVITY_SERVICE_DESK, "Troubleshoot a ticket")):
         item = next((a for a in view["assessments"] if a["role"] == role), None)
         if item and item["progress"]["status"] not in DONE:
+            if not item.get("available", False):
+                _remember_blocked(item)
+                continue
             route = (
                 f"/learning-v2/modules/{module_key}/service-desk/{item['key']}"
                 if role == V2_ACTIVITY_SERVICE_DESK
@@ -355,7 +415,7 @@ def resolve_continue(view: dict) -> dict:
             )
             return {
                 "kind": role, "label": label, "title": item["title"], "route": route,
-                "available": item["available"], "status": item["progress"]["status"],
+                "available": True, "status": item["progress"]["status"],
                 "estimated_minutes": None,
             }
     for prompt in view["explain_prompts"]:
@@ -365,6 +425,18 @@ def resolve_continue(view: dict) -> dict:
                 "route": f"/learning-v2/modules/{module_key}/explain/{prompt['key']}",
                 "status": prompt["progress"]["status"], "estimated_minutes": None,
             }
+    if blocked is not None:
+        # Everything left in this module is waiting on content review. Point
+        # the student back at the module rather than at an activity that
+        # would be refused, and reuse the same safe, non-diagnostic wording.
+        return {
+            "kind": "blocked", "label": "Nothing to do here yet",
+            "title": blocked["title"],
+            "route": f"/learning-v2/modules/{module_key}",
+            "available": False,
+            "unavailable": blocked.get("unavailable"),
+            "status": blocked["progress"]["status"], "estimated_minutes": None,
+        }
     return {
         "kind": "complete", "label": "Review module", "title": "Module complete",
         "route": f"/learning-v2/modules/{module_key}", "status": "completed",

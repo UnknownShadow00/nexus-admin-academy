@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import auth_headers, make_client, make_student
+from conftest import auth_headers, enroll_v2, make_client, make_student
 
 from app.models.certification import (
     CertificationModule,
@@ -636,10 +636,11 @@ def test_adding_and_updating_a_question_via_csv(loaded, tmp_path):
 # Router surface
 # --------------------------------------------------------------------------- #
 
-def test_student_progress_routes(loaded):
+def test_student_progress_routes(loaded, monkeypatch):
     from app.routers.v2_progress import router as progress_router
 
     student = make_student(loaded, username="ip_router_student")
+    enroll_v2(monkeypatch, student)
     client = make_client(progress_router)
     resp = client.post(
         "/api/v2/progress/activity",

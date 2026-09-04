@@ -1,6 +1,6 @@
 """Phase 2B student presentation API and progression contract."""
 
-from conftest import auth_headers, make_client, make_student
+from conftest import auth_headers, enroll_v2, make_client, make_student
 
 from app.models.certification import QuestionV2Meta
 from app.models.grading import PendingGrade
@@ -16,9 +16,9 @@ LESSON = "lesson.aplus.network.ports_protocols"
 
 
 def _ready(db, monkeypatch):
-    monkeypatch.setenv("V2_CURRICULUM_ENABLED", "true")
     load_module(db, commit=True)
     student = make_student(db, username="v2_api_student")
+    enroll_v2(monkeypatch, student)
     return student, make_client(router)
 
 

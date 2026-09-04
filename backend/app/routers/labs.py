@@ -14,13 +14,14 @@ from app.models.evidence import EvidenceArtifact
 from app.models.lab import LabRun, LabTemplate
 from app.models.certification import ModuleAssessment, CertificationModule
 from app.models.student import Student
+from app.models.v2_progress import V2ModuleActivity
 from app.models.vm_assignment import VmAssignment
 from app.schemas.lab import LabSubmitRequest, LabVerifyRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import get_current_student
 from app.services.progression_service import require_week_reached
 from app.services.v2_progress_service import record_activity
-from app.routers.v2_curriculum import v2_curriculum_enabled
+from app.services.v2_access import V2_UNAVAILABLE_DETAIL, student_has_v2_access
 from app.utils.responses import ok
 
 logger = logging.getLogger(__name__)
@@ -213,11 +214,45 @@ def _get_lab_run(db: Session, lab_id: int, student_id: int) -> LabRun | None:
     )
 
 
-def _v2_lab_assessment(db: Session, lab_id: int, module_key: str | None, assessment_key: str | None):
+def _v2_run_context(db: Session, student: Student, run: LabRun):
+    """Was this lab run actually launched from a V2 practical by this student?
+
+    ``start_lab`` records the launch as a V2 practical activity carrying the
+    ``lab_run_id``. That record is the validated V2 launch context for
+    follow-up calls (``/verify``, ``/evidence``) that carry no query
+    parameters of their own — it cannot be forged from the request, and it
+    ties the bypass to a launch this same student really made.
+    """
+    if not student_has_v2_access(student):
+        return None
+    rows = db.query(V2ModuleActivity).filter(
+        V2ModuleActivity.student_id == student.id,
+        V2ModuleActivity.activity_type == "practical",
+    ).all()
+    return next(
+        (row for row in rows if (row.detail or {}).get("lab_run_id") == run.id),
+        None,
+    )
+
+
+def _v2_lab_assessment(
+    db: Session,
+    lab_id: int,
+    module_key: str | None,
+    assessment_key: str | None,
+    student: Student | None = None,
+):
+    """Resolve and validate a V2 practical launch context.
+
+    Returning a context is what lets the caller bypass the legacy week gate,
+    so this is a real authorization boundary: the master switch must be on,
+    the caller must be enrolled in the V2 pilot, and the named assessment must
+    actually be an active ``practical`` bound to this exact lab template.
+    """
     if not module_key and not assessment_key:
         return None
-    if not v2_curriculum_enabled():
-        raise HTTPException(status_code=404, detail="This learning experience is not available.")
+    if not student_has_v2_access(student):
+        raise HTTPException(status_code=404, detail=V2_UNAVAILABLE_DETAIL)
     if not module_key or not assessment_key:
         raise HTTPException(status_code=422, detail="The V2 lab context is incomplete.")
     row = db.query(ModuleAssessment, CertificationModule).join(
@@ -431,7 +466,7 @@ def start_lab(
     v2_assessment_key: str | None = None,
 ):
     lab = _get_published_lab(db, lab_id)
-    v2_context = _v2_lab_assessment(db, lab_id, v2_module_key, v2_assessment_key)
+    v2_context = _v2_lab_assessment(db, lab_id, v2_module_key, v2_assessment_key, current_student)
     if v2_context is None:
         require_week_reached(db, current_student, lab.week_number)
     run = _get_lab_run(db, lab_id, current_student.id)
@@ -541,6 +576,8 @@ def verify_evidence_workbench(
     payload: LabVerifyRequest,
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
+    v2_module_key: str | None = None,
+    v2_assessment_key: str | None = None,
 ):
     """Check an evidence-case plan without exposing its answer key.
 
@@ -549,7 +586,8 @@ def verify_evidence_workbench(
     after-state evidence so an incorrect action cannot appear successful.
     """
     lab = _get_published_lab(db, lab_id)
-    require_week_reached(db, current_student, lab.week_number)
+    if _v2_lab_assessment(db, lab_id, v2_module_key, v2_assessment_key, current_student) is None:
+        require_week_reached(db, current_student, lab.week_number)
     criteria = lab.success_criteria or {}
     workbench_key, workbench = _configured_workbench(criteria)
     questions = criteria.get("questions", [])
@@ -604,7 +642,7 @@ def submit_lab(
     v2_assessment_key: str | None = None,
 ):
     lab = _get_published_lab(db, lab_id)
-    v2_context = _v2_lab_assessment(db, lab_id, v2_module_key, v2_assessment_key)
+    v2_context = _v2_lab_assessment(db, lab_id, v2_module_key, v2_assessment_key, current_student)
     if v2_context is None:
         require_week_reached(db, current_student, lab.week_number)
     is_structured_lab = (lab.lab_type or "").startswith("structured_")
@@ -736,7 +774,8 @@ async def upload_lab_evidence(
     if run.student_id != current_student.id:
         raise HTTPException(status_code=403, detail="Not allowed to upload evidence for this lab run")
     lab = _get_published_lab(db, run.lab_template_id)
-    require_week_reached(db, current_student, lab.week_number)
+    if _v2_run_context(db, current_student, run) is None:
+        require_week_reached(db, current_student, lab.week_number)
 
     ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else ""
     if ext not in ALLOWED_EVIDENCE_EXTENSIONS:

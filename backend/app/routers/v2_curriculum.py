@@ -1,8 +1,6 @@
-"""Feature-flagged student API for the Nexus V2 curriculum presentation."""
+"""Pilot-gated student API for the Nexus V2 curriculum presentation."""
 
 from __future__ import annotations
-
-import os
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -11,6 +9,12 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.student import Student
 from app.services.auth_service import get_current_student
+from app.services.v2_access import (
+    require_v2_enabled,
+    require_v2_student_access,
+    v2_access_state,
+    v2_master_enabled,
+)
 from app.services.v2_curriculum_service import (
     assessment_questions,
     entry_view,
@@ -27,14 +31,11 @@ from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/v2/curriculum", tags=["v2-curriculum"])
 
+# Backwards-compatible alias. ``labs.py`` and older tests import this name;
+# the policy itself now lives in ``app.services.v2_access``.
+v2_curriculum_enabled = v2_master_enabled
 
-def v2_curriculum_enabled() -> bool:
-    return os.getenv("V2_CURRICULUM_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
-
-
-def require_v2_enabled() -> None:
-    if not v2_curriculum_enabled():
-        raise HTTPException(status_code=404, detail="This learning experience is not available.")
+__all__ = ["router", "require_v2_enabled", "v2_curriculum_enabled"]
 
 
 def _not_found(exc: V2ProgressError):
@@ -55,11 +56,21 @@ class ExplainSubmitRequest(BaseModel):
     answer: str = Field(..., min_length=1, max_length=10000)
 
 
+@router.get("/access")
+def get_access(student: Student = Depends(get_current_student)):
+    """Answer whether *this* student may use V2.
+
+    Deliberately not behind the V2 gate: the frontend needs a truthful answer
+    while V2 is off or the caller is not enrolled. The response describes only
+    the caller — never the allowlist, its size, or another student.
+    """
+    return ok(v2_access_state(student))
+
+
 @router.get("")
 def get_entry(
-    _: None = Depends(require_v2_enabled),
     db: Session = Depends(get_db),
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(require_v2_student_access),
 ):
     return ok(entry_view(db, student.id))
 
@@ -67,9 +78,8 @@ def get_entry(
 @router.get("/modules/{module_key}")
 def get_module(
     module_key: str,
-    _: None = Depends(require_v2_enabled),
     db: Session = Depends(get_db),
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(require_v2_student_access),
 ):
     try:
         return ok(module_view(db, student.id, module_key))
@@ -81,9 +91,8 @@ def get_module(
 def get_lesson(
     module_key: str,
     lesson_key: str,
-    _: None = Depends(require_v2_enabled),
     db: Session = Depends(get_db),
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(require_v2_student_access),
 ):
     try:
         return ok(lesson_view(db, student.id, module_key, lesson_key))
@@ -95,9 +104,8 @@ def get_lesson(
 def complete_lesson(
     module_key: str,
     lesson_key: str,
-    _: None = Depends(require_v2_enabled),
     db: Session = Depends(get_db),
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(require_v2_student_access),
 ):
     try:
         lesson_view(db, student.id, module_key, lesson_key)
@@ -115,9 +123,8 @@ def post_resource_activity(
     module_key: str,
     resource_key: str,
     body: ResourceActivityRequest,
-    _: None = Depends(require_v2_enabled),
     db: Session = Depends(get_db),
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(require_v2_student_access),
 ):
     if not body.opened and not body.completed:
         raise HTTPException(status_code=422, detail="Choose an activity to record.")
@@ -131,9 +138,8 @@ def post_resource_activity(
 def post_service_desk_launch(
     module_key: str,
     assessment_key: str,
-    _: None = Depends(require_v2_enabled),
     db: Session = Depends(get_db),
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(require_v2_student_access),
 ):
     try:
         return ok(launch_service_desk(db, student.id, module_key, assessment_key))
@@ -145,9 +151,8 @@ def post_service_desk_launch(
 def get_assessment(
     module_key: str,
     assessment_key: str,
-    _: None = Depends(require_v2_enabled),
     db: Session = Depends(get_db),
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(require_v2_student_access),
 ):
     try:
         return ok(assessment_questions(db, student.id, module_key, assessment_key))
@@ -160,9 +165,8 @@ def post_assessment(
     module_key: str,
     assessment_key: str,
     body: AssessmentSubmitRequest,
-    _: None = Depends(require_v2_enabled),
     db: Session = Depends(get_db),
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(require_v2_student_access),
 ):
     normalized = {
         key: ",".join(value) if isinstance(value, list) else value
@@ -178,9 +182,8 @@ def post_assessment(
 def start_assessment_attempt(
     module_key: str,
     assessment_key: str,
-    _: None = Depends(require_v2_enabled),
     db: Session = Depends(get_db),
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(require_v2_student_access),
 ):
     try:
         return ok(assessment_questions(db, student.id, module_key, assessment_key, explicit_start=True))
@@ -192,9 +195,8 @@ def start_assessment_attempt(
 def get_explain(
     module_key: str,
     prompt_key: str,
-    _: None = Depends(require_v2_enabled),
     db: Session = Depends(get_db),
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(require_v2_student_access),
 ):
     try:
         return ok(explain_view(db, student.id, module_key, prompt_key))
@@ -207,9 +209,8 @@ def post_explain(
     module_key: str,
     prompt_key: str,
     body: ExplainSubmitRequest,
-    _: None = Depends(require_v2_enabled),
     db: Session = Depends(get_db),
-    student: Student = Depends(get_current_student),
+    student: Student = Depends(require_v2_student_access),
 ):
     try:
         return ok(submit_explain(db, student.id, module_key, prompt_key, body.answer))

@@ -30,16 +30,16 @@ from app.services.grading_schema import AIGradeResponse, GRADING_SCHEMA_VERSION
 from app.services.v2_content_loader import load_module
 from app.services.v2_curriculum_service import module_view, resource_activity
 from app.services.v2_progress_service import record_activity
-from conftest import auth_headers, make_client, make_student
+from conftest import auth_headers, enroll_v2, make_client, make_student
 
 
 MODULE = "module.aplus.core1.network_services_troubleshooting"
 
 
 def _ready(db, monkeypatch):
-    monkeypatch.setenv("V2_CURRICULUM_ENABLED", "true")
     load_module(db, commit=True)
     student = make_student(db, username="runtime_student")
+    enroll_v2(monkeypatch, student)
     return student, make_client(curriculum_router, progress_router)
 
 
@@ -454,6 +454,9 @@ def test_v2_service_desk_assignment_bypasses_legacy_ladder_only_for_exact_case(d
 def test_student_ownership_and_privileged_endpoint_matrix(db, monkeypatch):
     student_a, _ = _ready(db, monkeypatch)
     student_b = make_student(db, username="runtime_student_b")
+    # Both are enrolled: this proves per-student ownership inside the pilot,
+    # not that a non-enrolled student is turned away (covered separately).
+    enroll_v2(monkeypatch, student_a, student_b)
     client = make_client(
         curriculum_router, progress_router, grading_router,
         admin_grading_router, admin_v2_router, admin_curriculum_router,

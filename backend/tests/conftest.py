@@ -91,3 +91,15 @@ def auth_headers(student):
         "is_mentor": student.is_mentor,
     })
     return {"Authorization": f"Bearer {token}"}
+
+
+def enroll_v2(monkeypatch, *students, master=True):
+    """Turn on V2 and enrol these students in the pilot allowlist.
+
+    V2 access fails closed: the master switch alone enrols nobody, so any
+    test exercising a V2 student surface has to name its students here.
+    """
+    monkeypatch.setenv("V2_CURRICULUM_ENABLED", "true" if master else "false")
+    monkeypatch.setenv(
+        "V2_PILOT_STUDENT_IDS", ",".join(str(student.id) for student in students)
+    )
