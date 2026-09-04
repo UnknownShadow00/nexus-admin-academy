@@ -70,10 +70,13 @@ definition that `compute_grade` uses. It is surfaced on:
     { "id": "ip-configuration-checked", "label": "IP configuration checked" }
   ],
   "documentation_target": "ticket" | "remote_desktop",
-  "resolve_blockers": ["need_diagnosis_evidence", "verify_first"],
-  "escalation": { "available": true, "route": "Identity & Access" } | null
+  "escalation": { "available": true }
 }
 ```
+
+`escalation` is **identical for every scenario** and carries no route. There is
+no `resolve_blockers` field: it had no consumer and could emit `complete_fix`
+on a ticket whose correct outcome was *not* to self-fix.
 
 ### Leak safety (do not regress)
 
@@ -83,10 +86,15 @@ While the attempt is **in progress**:
   established - id + authored label. An **unmet** objective produces **no
   entry**: not its id, not its label, not a placeholder, not the rule.
 - Per-stage progress is a coarse `needs_more_evidence` boolean only.
-- `resolve_blockers` are reason codes, never an ordered solution.
-- `stages[fix].mode` stays `"fix"`. The student can see escalation is
-  *available* and where it routes (`escalation`), but the rail never announces
-  that escalation is the correct answer.
+- `escalation` is `{ "available": true }` for **every** ticket. It never
+  carries the destination team, an `expected` flag, or a rationale, so its
+  presence cannot tell the student that this is an escalation ticket. The
+  student chooses the reason **and** the destination; the server decides
+  whether that was right (`compute_grade`).
+- `stages[fix].mode` stays the literal `"fix"` for every scenario. **Never**
+  wire it to `escalation_profile` / `profile.expected` - that leaks the answer.
+  The frontend no longer reads it at all (the dead `mode === "escalate"` branch
+  in `WorkflowRail` is gone); it exists only to keep the stage shape stable.
 - There is **no** `stronger_path` and **no** ordering narrative.
 
 The authored path, the ordering explanations, and the escalation verdict live
@@ -99,7 +107,11 @@ Frontend tests: `WorkflowRail.test.tsx`, `WorkspacePanels.test.tsx`.
 
 ## 3. One notes surface, one hint surface, one escalation dialog
 
-- **`ResolutionNotePanel`** is the only student note input in the workspace. On
+- **`ResolutionNotePanel`** is the only editable note input anywhere in the
+  student flow. `ResolveDialog` renders a **read-only** `DocumentationSummary`
+  of the latest note ("Documentation recorded" / "Documentation required") and
+  closes with that exact note, so Resolve can never create a second, ungraded
+  note store. On
   submit the provider's `submitResolutionNote()` dispatches the event named by
   `workspace_view.documentation_target` (`ticket.add_note` or
   `remote_desktop.add_internal_note`). Guided/Practice shows structured prompts
@@ -108,12 +120,20 @@ Frontend tests: `WorkflowRail.test.tsx`, `WorkspacePanels.test.tsx`.
 - **`HintPanel`** is the only hint surface. Collapsed until an explicit click,
   reveals one authored hint at a time, disabled in Assessment. `RemoteDesktopTool`
   lost its own hint affordance.
-- **`EscalateDialog`** offers the fixed reason taxonomy (mirrored from the
-  backend in `packages/shared/src/escalation.ts`), an audit-only free-text
-  context box, and the visible destination team from
-  `workspace_view.escalation.route`. It gates the confirm button on the
-  authoritative `investigate` + `diagnose` stages being complete, and never
-  tells the student escalation is the right call before they choose.
+- **`EscalateDialog`** is available on **every** ticket. It offers the fixed
+  reason taxonomy **and** a fixed destination-team list, both mirrored from the
+  backend in `packages/shared/src/escalation.ts`
+  (`ESCALATION_REASONS` / `ESCALATION_ROUTES`), plus an audit-only free-text
+  context box. The student picks both; nothing is pre-selected and no team is
+  announced. Both selectors use explicit `label htmlFor` + `id` association. It
+  gates the confirm button on the authoritative `investigate` + `diagnose`
+  stages being complete, and never tells the student escalation is the right
+  call before they choose.
+- **`ResolveDialog`** shows **no points or pass preview**. The browser cannot
+  predict every server branch (escalation profiles, prohibited actions), so a
+  predicted score could contradict the authoritative grade. It says only that
+  Nexus will check investigation, diagnosis, action, verification, and
+  documentation after submission.
 
 ---
 
@@ -122,6 +142,9 @@ Frontend tests: `WorkflowRail.test.tsx`, `WorkspacePanels.test.tsx`.
 `backend/app/services/service_desk_escalation.py` owns the model:
 
 - **`ESCALATION_REASONS`** - a fixed 7-value taxonomy.
+- **`ESCALATION_ROUTES`** - the fixed list of destination teams the student may
+  choose from. A plain list of real teams, not routing infrastructure. Mirrored
+  in `packages/shared/src/escalation.ts`.
 - **`EscalationProfile`** per scenario, keyed by `stable_key`: `expected`,
   `route`, `accepted_reasons`, `required_containment` (trusted events that must
   also succeed), `prohibited` (any success => `critical_failure`), and the
@@ -140,8 +163,14 @@ Flow:
 3. A trusted `ticket.escalate` terminates the attempt like `ticket.close`.
 4. `compute_grade` escalation branch:
    - `prohibited` hit  -> `critical_failure`, cannot pass.
-   - `resolved` = correct route + accepted reason + all `required_containment`
-     met + no prohibited hit.
+   - `escalation_correct` = correct route + accepted reason + all
+     `required_containment` met + no prohibited hit.
+   - `resolved` = `escalation_correct` **and** `documentation_complete`. A
+     correctly routed hand-off is still not a pass until the closure note is on
+     the trusted ledger - Investigate -> Diagnose -> Fix/Escalate -> Verify ->
+     **Document** applies to escalations too. When only documentation is
+     missing, `escalation_correct` stays `true` and the feedback says the
+     closure note is still required.
    - **Process score is normalized across the categories that apply**:
      investigation, diagnosis, documentation, and the remediation weight
      repurposed as the escalation slot. Verification is included **only** when
@@ -170,6 +199,7 @@ Returned inside the grade payload on `GET /attempts/{id}` and `POST /complete`
 
 ```jsonc
 {
+  "coaching_tier": "full" | "limited",
   "result": { "passed": true, "score": 100, "attempts_remaining": 1,
               "outcome": "resolved" | "escalated" | "needs_another_try" },
   "categories": [
@@ -184,6 +214,24 @@ Returned inside the grade payload on `GET /attempts/{id}` and `POST /complete`
 }
 ```
 
+### Coaching tiers (do not regress)
+
+`build_debrief` tiers what it reveals so a graded retry cannot become a
+transcription exercise:
+
+| Situation | `coaching_tier` | Reveals |
+| --- | --- | --- |
+| Passed | `full` | Everything below. |
+| Failed, **attempts remaining** | `limited` | Score, broad per-category status, the student's own note feedback, generic process coaching. `stronger_path` is `[]` and `escalation_feedback` is `null`. Category explanations are generic - never the missing evidence, the exact fix, or the correct team. |
+| Failed, **no attempts left** (`attempts_remaining` 0 or `null`) | `full` | The authored path, the correct route, and the full narrative. There is no further graded attempt to copy them into. |
+
+`TicketDebrief` renders `Start attempt N` (label derived from the server's
+`most_recent_attempt.attempt_number`) whenever the attempt failed and the
+server still has an attempt left; `TicketSessionProvider.startNextAttempt()`
+calls the existing `POST /assignments/{id}/attempts` and clears only that
+ticket's attempt-scoped client state. The server owns attempt numbering and the
+ceiling - a refusal (403) leaves the debrief on screen with an explanation.
+
 - Category `explanation` re-narrates the ordering signal already computed by
   `evaluate_objectives` ("evidence recorded after a change cannot count as
   pre-change work"). No new grading.
@@ -191,8 +239,9 @@ Returned inside the grade payload on `GET /attempts/{id}` and `POST /complete`
   **advisory display only** and never feeds the score.
 - `stronger_path` is the authored category order; escalation scenarios render it
   as investigate -> diagnose -> [contain] -> escalate to `<route>` -> document.
+  Empty in the `limited` tier.
 - `escalation_feedback` answers "would escalation have been appropriate here?"
-  for **every** completed ticket.
+  for every completed ticket in the `full` tier, and is `null` in `limited`.
 
 `TicketWorkspace` shows `TicketDebrief` whenever an authoritative grade exists
 for the ticket; the provider restores that grade on reload for **failed**
@@ -239,18 +288,30 @@ these:
    rebuilt plus one new trusted event type.
 4. **Directory <-> workstation state coupling.** Directory changes are currently
    invisible to Terminal/RemoteDesktop simulation state.
-5. **Remaining admin + component theme conversion.** The token foundation,
-   primitives, typography, buttons, the gamification demotion, and the
-   sprint-authored components are converted. `apps/web/app/admin/**`,
-   `RemoteDesktopTool` and the other nine tool bodies, and the queue/dashboard
-   chrome still use raw `zinc-*` utilities.
+5. **Remaining admin theme conversion + a user-facing theme switch.** The core
+   student path is now fully tokenized: primitives (`Card`, `Modal`, `Input`,
+   `Select`, `Textarea`, `Tabs`, `Badge`, `PanelFrame`, `Tooltip`,
+   `IconButton`), the queue and dashboard chrome, the ticket workspace, the
+   embedded tool bodies, notes, hints, Resolve, Escalate and the debrief.
+   Guarded by `apps/web/components/light-mode-coverage.test.tsx`.
+   Still outstanding: `apps/web/app/admin/**`, and — importantly —
+   `apps/web/app/layout.tsx` still hardcodes `data-theme="dark"`, so there is
+   **no way for a student to select light mode yet**. The palette is correct
+   wherever `data-theme="light"` is set; the switch itself is a separate change.
+   The simulated Windows desktop inside `RemoteDesktopTool` / `workstation`
+   intentionally keeps its own light Windows palette in both themes.
 6. **Scenario noise / wrong-requester assumptions.** Scenarios currently present
    a clean, correct problem statement; realistic tickets include red herrings
    and mistaken requester self-diagnosis.
 7. **Richer escalation scenarios.** Only `inc2506` and `inc2508` have escalation
    profiles. Change-approval, hardware-replacement, and other-team-owns-system
    outcomes have taxonomy values but no scenario yet.
-8. **Client-side escalation grade preview.** `previewCloseGrade` in
-   `packages/simulation-engine` stays close-only; the escalation dialog gates on
-   authoritative `workspace_view` state and the server remains the sole grading
-   authority.
+8. **Client-side escalation grade preview.** Resolved by removing the preview
+   rather than mirroring the server: `ResolveDialog` no longer renders any
+   points/pass prediction, so the browser can no longer contradict
+   `compute_grade`. `previewCloseGrade` remains in the provider for the
+   attempt-score read model only. Do **not** reintroduce a numeric preview.
+9. **Real session/account containment for `inc2508`.** Confirmed deferred in the
+   corrective sprint: the generic `scenario.apply-safe-remediation` containment
+   event remains temporarily accepted. Real credential/session revocation
+   belongs to the scenario-realism sprint (see item 3).
