@@ -28,6 +28,18 @@ describe('WorkflowRail', () => {
     );
   });
 
+  it('never hints that escalation is the expected outcome', () => {
+    const markup = renderToStaticMarkup(
+      <WorkflowRail experienceMode="guided" stages={stages} />,
+    );
+    // The dead `mode === 'escalate'` branch is gone: the Fix stage always shows
+    // the same neutral copy, so the rail cannot pre-announce the answer.
+    expect(markup).toContain(
+      'Make a safe change, or send the ticket to the right team.',
+    );
+    expect(markup).not.toContain('not yours to fix directly');
+  });
+
   it('strips explanations in assessment mode', () => {
     const markup = renderToStaticMarkup(
       <WorkflowRail experienceMode="assessment" stages={stages} />,

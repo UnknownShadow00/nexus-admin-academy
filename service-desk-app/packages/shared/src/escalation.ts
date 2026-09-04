@@ -49,3 +49,29 @@ export function isEscalationReason(value: unknown): value is EscalationReason {
     (ESCALATION_REASONS as readonly string[]).includes(value)
   );
 }
+
+/**
+ * Fixed destination teams a student may route a ticket to. This is a plain
+ * list of real teams the simulator recognises - not routing infrastructure.
+ * The server decides whether the chosen destination was correct; the workspace
+ * never pre-selects or highlights one. Mirrored by the backend canonical set in
+ * `backend/app/services/service_desk_escalation.py` (`ESCALATION_ROUTES`).
+ */
+export const ESCALATION_ROUTES = [
+  'Identity & Access',
+  'Information Security',
+  'Network Support',
+  'Endpoint Support',
+  'Hardware / Field Services',
+  'Application Support',
+  'Other / Mentor Review',
+] as const;
+
+export type EscalationRoute = (typeof ESCALATION_ROUTES)[number];
+
+export function isEscalationRoute(value: unknown): value is EscalationRoute {
+  return (
+    typeof value === 'string' &&
+    (ESCALATION_ROUTES as readonly string[]).includes(value)
+  );
+}

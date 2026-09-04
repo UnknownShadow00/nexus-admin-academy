@@ -65,7 +65,7 @@ export function WorkflowRail({
   return (
     <section
       aria-labelledby="workflow-rail-title"
-      className="sticky top-0 z-20 rounded-md border border-zinc-800 bg-zinc-950/95 px-3 py-3 shadow-lg backdrop-blur sm:px-4"
+      className="sticky top-0 z-20 rounded-md border border-border bg-surface/95 px-3 py-3 shadow-lg backdrop-blur sm:px-4"
       data-group-2-slot="workflow-rail"
     >
       <h2 className="sr-only" id="workflow-rail-title">
@@ -78,19 +78,18 @@ export function WorkflowRail({
       <ol className="grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
         {stages.map((stage) => {
           const copy = WORKFLOW_COPY[stage.key];
-          const help =
-            stage.key === 'fix' && stage.mode === 'escalate'
-              ? 'This ticket is likely not yours to fix directly — decide where it should go.'
-              : copy.help;
+          // No per-stage escalation hint: the workspace must never signal that
+          // escalation is the expected outcome before the student decides.
+          const help = copy.help;
           return (
             <li
               aria-current={stage.status === 'current' ? 'step' : undefined}
               className={`rounded-sm border p-2.5 ${
                 stage.status === 'current'
-                  ? 'border-sky-400/60 bg-sky-400/10 text-sky-100'
+                  ? 'border-accent/60 bg-accent/10 text-text'
                   : stage.status === 'complete'
-                    ? 'border-emerald-400/30 bg-emerald-400/5 text-emerald-100'
-                    : 'border-zinc-800 bg-zinc-900 text-zinc-400'
+                    ? 'border-success/40 bg-success/10 text-text'
+                    : 'border-border bg-surface-raised text-text-muted'
               }`}
               key={stage.key}
             >
@@ -104,7 +103,7 @@ export function WorkflowRail({
                 </div>
               </div>
               {experienceMode !== 'assessment' ? (
-                <p className="mt-2 text-xs leading-5 text-zinc-400">{help}</p>
+                <p className="mt-2 text-xs leading-5 text-text-muted">{help}</p>
               ) : null}
             </li>
           );

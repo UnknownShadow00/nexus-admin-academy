@@ -29,9 +29,8 @@ const attempt = {
   updated_at: '2026-08-13T00:00:00Z',
   workspace_view: {
     documentation_target: 'remote_desktop',
-    escalation: null,
+    escalation: { available: true },
     evidence: [{ id: 'checked-ip', label: 'IP configuration checked' }],
-    resolve_blockers: ['verify_first'],
     stages: [{ key: 'investigate', status: 'current' }],
   },
 };

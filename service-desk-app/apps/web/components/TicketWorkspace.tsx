@@ -34,6 +34,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
     authoritativeGradeByTicket,
     getTicket,
     recordHintReveal,
+    startNextAttempt,
     submitResolutionNote,
     workspaceViewByTicket,
   } = useTicketSession();
@@ -91,7 +92,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
     return (
       <div
         aria-label="Loading ticket"
-        className="mx-auto h-64 max-w-7xl animate-pulse rounded-sm bg-zinc-900"
+        className="mx-auto h-64 max-w-7xl animate-pulse rounded-sm bg-surface-raised"
       />
     );
   }
@@ -99,13 +100,13 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   if (!ticket) {
     return (
       <div className="mx-auto max-w-xl py-16 text-center">
-        <h1 className="text-xl font-bold text-zinc-100">Case unavailable</h1>
-        <p className="mt-2 text-sm text-zinc-400">
+        <h1 className="text-xl font-bold text-text">Case unavailable</h1>
+        <p className="mt-2 text-sm text-text-muted">
           This case is not assigned or unlocked for your current training.
           Return to the queue to continue an available case.
         </p>
         <Link
-          className="sd-button sd-button--default sd-focus-ring mt-5 inline-flex min-h-10 items-center justify-center rounded-sm border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-extrabold uppercase text-zinc-200 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+          className="sd-button sd-button--default sd-focus-ring mt-5 inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-surface-raised px-4 py-2 text-sm font-extrabold uppercase text-text hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           href="/"
         >
           Back to queue
@@ -118,18 +119,18 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
     return (
       <section
         aria-labelledby="first-ticket-title"
-        className="mx-auto max-w-2xl rounded-md border border-sky-400/30 bg-zinc-900 p-6 sm:p-8"
+        className="mx-auto max-w-2xl rounded-md border border-accent/30 bg-surface-raised p-6 sm:p-8"
       >
-        <p className="text-xs font-extrabold uppercase tracking-wide text-sky-400">
+        <p className="text-xs font-extrabold uppercase tracking-wide text-accent">
           Your first guided ticket
         </p>
         <h1
-          className="mt-2 text-2xl font-bold text-zinc-100"
+          className="mt-2 text-2xl font-bold text-text"
           id="first-ticket-title"
         >
           Before you open the ticket
         </h1>
-        <ul className="mt-5 space-y-3 text-sm leading-relaxed text-zinc-300">
+        <ul className="mt-5 space-y-3 text-sm leading-relaxed text-text">
           <li>• This is a practice ticket from a user.</li>
           <li>• Investigate before changing anything.</li>
           <li>
@@ -152,7 +153,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
         >
           Open ticket
         </button>
-        <p className="mt-3 text-xs text-zinc-500">
+        <p className="mt-3 text-xs text-text-muted">
           This orientation is saved in this browser.
         </p>
       </section>
@@ -166,7 +167,12 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
     return (
       <div className="mx-auto w-full max-w-[1540px] space-y-4 sm:space-y-5">
         <TicketContextBar assignment={assignment} ticket={ticket} />
-        <TicketDebrief grade={authoritativeGrade} ticket={ticket} />
+        <TicketDebrief
+          assignment={assignment}
+          grade={authoritativeGrade}
+          onRetry={startNextAttempt}
+          ticket={ticket}
+        />
       </div>
     );
   }

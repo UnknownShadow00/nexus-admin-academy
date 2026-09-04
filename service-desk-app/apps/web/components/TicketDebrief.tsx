@@ -1,17 +1,23 @@
 'use client';
 
 import type { Ticket } from '@service-desk/shared';
-import { Card, CardHeader } from '@service-desk/ui';
+import { Button, Card, CardHeader } from '@service-desk/ui';
 import {
   IconArrowLeft,
   IconCircleCheck,
   IconCircleDashed,
   IconCircleX,
   IconMinus,
+  IconRefresh,
 } from '@tabler/icons-react';
 import Link from 'next/link';
+import React, { useState } from 'react';
 
-import type { NexusDebrief, NexusGrade } from '../lib/nexus-service-desk-client';
+import type {
+  NexusAssignment,
+  NexusDebrief,
+  NexusGrade,
+} from '../lib/nexus-service-desk-client';
 import { useNexusReturnTarget } from './useNexusReturnTarget';
 
 const OUTCOME_COPY: Record<
@@ -37,15 +43,90 @@ const STATUS_LABEL = {
   not_applicable: 'Not applicable',
 } as const;
 
+/**
+ * A failed attempt may be retried while the server still has an attempt left.
+ * `attempts_remaining === null` means the assignment has no ceiling.
+ */
+export function canRetryAttempt(
+  grade: NexusGrade,
+  debrief: NexusDebrief | null | undefined,
+): boolean {
+  if (grade.passed) return false;
+  const remaining = debrief?.result.attempts_remaining;
+  if (remaining === undefined) return false;
+  return remaining === null || remaining > 0;
+}
+
 export function TicketDebrief({
+  assignment,
   grade,
+  onRetry,
   ticket,
 }: {
+  assignment?: NexusAssignment;
   grade: NexusGrade;
+  onRetry?: (ticketId: string) => Promise<boolean>;
   ticket: Ticket;
 }) {
   const returnTarget = useNexusReturnTarget();
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState('');
   const debrief = grade.debrief;
+
+  const showRetry = Boolean(onRetry) && canRetryAttempt(grade, debrief);
+  // Server-sourced, never invented client-side: the label simply names the
+  // attempt the server will create next.
+  const nextAttemptNumber = assignment?.most_recent_attempt?.attempt_number;
+  const retryLabel =
+    typeof nextAttemptNumber === 'number'
+      ? `Start attempt ${String(nextAttemptNumber + 1)}`
+      : 'Try again';
+
+  const backLink = (
+    <Link
+      className={`sd-button ${
+        showRetry ? 'sd-button--default' : 'sd-button--primary'
+      } sd-focus-ring inline-flex min-h-10 items-center gap-2 px-4 py-2 font-bold`}
+      href={returnTarget?.href ?? '/'}
+    >
+      <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
+      {returnTarget ? returnTarget.label : 'Back to queue'}
+    </Link>
+  );
+
+  const retryControls = showRetry ? (
+    <>
+      <Button
+        disabled={retrying}
+        onClick={() => {
+          if (!onRetry) return;
+          setRetryError('');
+          setRetrying(true);
+          void onRetry(ticket.id)
+            .then((ok) => {
+              if (!ok) {
+                setRetryError(
+                  'Nexus could not start another attempt for this ticket. Return to the queue and try again shortly.',
+                );
+              }
+            })
+            .catch(() => {
+              setRetryError(
+                'Nexus could not start another attempt for this ticket. Return to the queue and try again shortly.',
+              );
+            })
+            .finally(() => setRetrying(false));
+        }}
+        variant="primary"
+      >
+        <IconRefresh aria-hidden="true" className="h-4 w-4" />
+        {retrying ? 'Starting…' : retryLabel}
+      </Button>
+      {backLink}
+    </>
+  ) : (
+    backLink
+  );
 
   if (!debrief) {
     return (
@@ -61,12 +142,14 @@ export function TicketDebrief({
             </p>
           </div>
         </Card>
+        <div className="flex flex-wrap gap-3">{retryControls}</div>
       </section>
     );
   }
 
   const { result } = debrief;
   const outcome = OUTCOME_COPY[result.outcome];
+  const limited = debrief.coaching_tier === 'limited';
 
   return (
     <section aria-label="Ticket debrief" className="mx-auto max-w-3xl space-y-4">
@@ -94,7 +177,10 @@ export function TicketDebrief({
       </Card>
 
       <Card>
-        <CardHeader meta="What counted" title="Process" />
+        <CardHeader
+          meta={limited ? 'Where to focus' : 'What counted'}
+          title="Process"
+        />
         <ul className="divide-y divide-border">
           {debrief.categories.map((category) => {
             const Icon = STATUS_ICON[category.status];
@@ -168,36 +254,53 @@ export function TicketDebrief({
         </div>
       </Card>
 
+      {limited ? (
+        <Card>
+          <CardHeader meta="Coaching" title="Work it out on your next attempt" />
+          <p className="p-4 text-sm text-text-muted">
+            You still have a graded attempt left, so the worked solution stays
+            hidden. Use the areas above to decide what evidence to gather, what
+            action the ticket really needs, and what to document. The full
+            walkthrough is released once you pass or use your last attempt.
+          </p>
+        </Card>
+      ) : null}
+
       {debrief.stronger_path.length ? (
         <Card>
           <CardHeader meta="For next time" title="A stronger troubleshooting path" />
           <ol className="list-decimal space-y-1 p-4 pl-8 text-sm text-text">
             {debrief.stronger_path.map((step, index) => (
-              <li key={`${index}-${step}`}>{step}</li>
+              <li key={`${String(index)}-${step}`}>{step}</li>
             ))}
           </ol>
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader meta="Judgement" title="Would escalation have been right?" />
-        <div className="p-4 text-sm text-text">
-          <p className="font-bold text-text">
-            {debrief.escalation_feedback.appropriate ? 'Yes' : 'No'}
-          </p>
-          <p className="mt-1 text-text-muted">{debrief.escalation_feedback.text}</p>
-        </div>
-      </Card>
+      {debrief.escalation_feedback ? (
+        <Card>
+          <CardHeader meta="Judgement" title="Would escalation have been right?" />
+          <div className="p-4 text-sm text-text">
+            <p className="font-bold text-text">
+              {debrief.escalation_feedback.appropriate ? 'Yes' : 'No'}
+            </p>
+            <p className="mt-1 text-text-muted">
+              {debrief.escalation_feedback.text}
+            </p>
+          </div>
+        </Card>
+      ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        <Link
-          className="sd-button sd-button--primary sd-focus-ring inline-flex min-h-10 items-center gap-2 px-4 py-2 font-bold"
-          href={returnTarget?.href ?? '/'}
+      {retryError ? (
+        <p
+          className="rounded-sm border border-warning/40 bg-warning/10 p-3 text-sm font-semibold text-text"
+          role="alert"
         >
-          <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
-          {returnTarget ? returnTarget.label : 'Back to queue'}
-        </Link>
-      </div>
+          {retryError}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap gap-3">{retryControls}</div>
     </section>
   );
 }

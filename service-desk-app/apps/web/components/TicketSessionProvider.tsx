@@ -12,6 +12,7 @@ import {
   PcShelfDeviceState,
   REMOTE_DESKTOP_WORKSTATION_FIXTURES,
   getRemoteDesktopScenarioByAsset,
+  getRemoteDesktopScenarioByTicket,
   getRemoteDesktopTerminalFixture,
   SERVER_ROOM_NODE_FIXTURES,
   type RemoteDesktopNetworkStatus,
@@ -124,6 +125,12 @@ interface TicketSessionContextValue {
   ) => void;
   getTicket: (ticketId: string) => Ticket | undefined;
   recordHintReveal: (ticketId: string, step: number) => void;
+  /**
+   * Begin the next server-owned attempt for a ticket after a failed one.
+   * Resolves false when the server refuses (for example the maximum-attempts
+   * ceiling has been reached) so the caller can keep the debrief on screen.
+   */
+  startNextAttempt: (ticketId: string) => Promise<boolean>;
   submitResolutionNote: (ticketId: string, body: string) => void;
   assignmentByTicket: Readonly<Record<string, NexusAssignment>>;
   authoritativeGradeByTicket: Readonly<Record<string, NexusGrade>>;
@@ -2082,6 +2089,90 @@ export function TicketSessionProvider({
     [actorId, attempt, runtimeTickets],
   );
 
+  /**
+   * Fix 1 (P0): start the next legitimate attempt after a failed one.
+   *
+   * The SERVER owns attempt numbering and the maximum-attempts ceiling - this
+   * only calls the existing `POST /assignments/{id}/attempts` endpoint
+   * (`service_desk.start_attempt`) and then clears the *attempt-scoped* client
+   * state for this one ticket, so attempt N+1 opens clean. Assignment,
+   * progression and cross-ticket world state are deliberately untouched, and
+   * the previous attempt keeps its grade on the server as history.
+   */
+  const startNextAttempt = useCallback(
+    async (ticketId: string): Promise<boolean> => {
+      const assignment = runtimeAssignments[ticketId];
+      if (!NEXUS_INTEGRATION_ENABLED || !assignment) {
+        return false;
+      }
+
+      // A 403 at the attempt ceiling (or any other refusal) surfaces as null.
+      const started = await startOrResumeAttempt(assignment.id);
+      if (!started) {
+        return false;
+      }
+      const refreshed = await getAttempt(started.id);
+
+      nexusTicketMappingsRef.current = {
+        ...nexusTicketMappingsRef.current,
+        [ticketId]: { assignmentId: assignment.id, attemptId: started.id },
+      };
+      nexusSnapshotTargetRef.current = {
+        assignmentId: assignment.id,
+        attemptId: started.id,
+      };
+
+      setAuthoritativeGradeByTicket((current) => {
+        const next = { ...current };
+        delete next[ticketId];
+        return next;
+      });
+      setWorkspaceViewByTicket((current) => {
+        const next = { ...current };
+        if (refreshed?.workspace_view) {
+          next[ticketId] = refreshed.workspace_view;
+        } else {
+          delete next[ticketId];
+        }
+        return next;
+      });
+
+      const previous = attemptRef.current;
+      const ticketOverlays = { ...previous.ticketOverlays };
+      delete ticketOverlays[ticketId];
+      const grades = { ...previous.grades };
+      delete grades[ticketId];
+      // The converted scenarios record repair / verification / note progress on
+      // the remote-desktop overlay. Clear only THIS ticket's scenario progress
+      // so attempt 2 cannot inherit attempt 1's "already fixed" state. Shared
+      // world state (directory, chat, assets, shipping) is left alone.
+      let remoteDesktopOverlays = previous.remoteDesktopOverlays;
+      const scenario = getRemoteDesktopScenarioByTicket(ticketId);
+      const overlay = scenario
+        ? remoteDesktopOverlays[scenario.assetTag]
+        : undefined;
+      if (scenario && overlay) {
+        const scenarioProgress = { ...overlay.scenarioProgress };
+        delete scenarioProgress[scenario.id];
+        remoteDesktopOverlays = {
+          ...remoteDesktopOverlays,
+          [scenario.assetTag]: { ...overlay, scenarioProgress },
+        };
+      }
+
+      const nextAttempt = {
+        ...previous,
+        grades,
+        remoteDesktopOverlays,
+        ticketOverlays,
+      };
+      attemptRef.current = nextAttempt;
+      setAttempt(nextAttempt);
+      return true;
+    },
+    [runtimeAssignments],
+  );
+
   const ticketSessionValue = useMemo<TicketSessionContextValue>(
     () => ({
       assignmentByTicket: runtimeAssignments,
@@ -2129,6 +2220,7 @@ export function TicketSessionProvider({
           payload: { ticketId, step },
         });
       },
+      startNextAttempt,
       submitResolutionNote: (ticketId, body) => {
         const documentationTarget =
           workspaceViewByTicket[ticketId]?.documentation_target ?? 'ticket';
@@ -2156,6 +2248,7 @@ export function TicketSessionProvider({
       dispatchAction,
       runtimeAssignments,
       serviceDeskProgression,
+      startNextAttempt,
       tickets,
       workspaceViewByTicket,
     ],
@@ -2669,7 +2762,7 @@ export function TicketSessionProvider({
   if (identityError) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-sm text-zinc-300"
+        className="flex min-h-screen items-center justify-center bg-surface px-4 text-sm text-text"
         role="alert"
       >
         Unable to load your service desk session.
@@ -2680,7 +2773,7 @@ export function TicketSessionProvider({
   if (!identity || !hydrated) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-sm text-zinc-400"
+        className="flex min-h-screen items-center justify-center bg-surface px-4 text-sm text-text-muted"
         role="status"
       >
         Loading service desk…

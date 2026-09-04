@@ -10,8 +10,11 @@ export {
   ESCALATION_REASONS,
   ESCALATION_REASON_DESCRIPTIONS,
   ESCALATION_REASON_LABELS,
+  ESCALATION_ROUTES,
   isEscalationReason,
+  isEscalationRoute,
   type EscalationReason,
+  type EscalationRoute,
 } from './escalation';
 export {
   INITIAL_PC_SHELF_ASSET_TAGS,

@@ -43,16 +43,20 @@ export type NexusWorkflowStageKey =
 
 export interface NexusWorkflowStage {
   key: NexusWorkflowStageKey;
-  mode?: 'fix' | 'escalate' | 'either';
+  // Always the literal 'fix'. The server never sends an "escalate" outcome
+  // signal before completion (see service_desk_workspace_view.process_progress);
+  // retained only so the stage shape is stable.
+  mode?: 'fix';
   needs_more_evidence?: boolean;
   status: 'complete' | 'current' | 'not_started';
 }
 
 export interface NexusWorkspaceView {
   documentation_target: 'ticket' | 'remote_desktop';
-  escalation: { available: boolean; route: string } | null;
+  // Route-free and identical for every ticket: escalation is a professional
+  // option everywhere and the server decides whether it was appropriate.
+  escalation: { available: boolean } | null;
   evidence: readonly { id: string; label: string }[];
-  resolve_blockers: readonly string[];
   stages: readonly NexusWorkflowStage[];
 }
 
@@ -136,6 +140,9 @@ export interface NexusDebriefCategory {
 }
 
 export interface NexusDebrief {
+  // 'limited' when the attempt failed with a graded attempt still remaining:
+  // no ordered path, no correct escalation route, no verdict.
+  coaching_tier: 'full' | 'limited';
   result: {
     passed: boolean;
     score: number;
@@ -146,7 +153,7 @@ export interface NexusDebrief {
   student_note: string;
   note_dimensions: { cause: boolean; action: boolean; verification: boolean };
   stronger_path: readonly string[];
-  escalation_feedback: { appropriate: boolean; text: string };
+  escalation_feedback: { appropriate: boolean; text: string } | null;
 }
 
 export interface NexusGrade {
@@ -204,7 +211,6 @@ function isWorkspaceView(value: unknown): value is NexusWorkspaceView {
       value.documentation_target === 'remote_desktop') &&
     (value.escalation === null || isRecord(value.escalation)) &&
     Array.isArray(value.evidence) &&
-    Array.isArray(value.resolve_blockers) &&
     value.stages.every(
       (stage) =>
         isRecord(stage) &&

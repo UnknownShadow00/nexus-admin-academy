@@ -11,7 +11,6 @@ const workspaceView: NexusWorkspaceView = {
   documentation_target: 'remote_desktop',
   escalation: null,
   evidence: [{ id: 'ip-checked', label: 'IP configuration checked' }],
-  resolve_blockers: ['verify_first'],
   stages: [
     { key: 'understand', status: 'complete' },
     { key: 'investigate', needs_more_evidence: true, status: 'current' },

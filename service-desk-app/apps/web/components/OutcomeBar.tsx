@@ -4,10 +4,9 @@ import type { Ticket } from '@service-desk/shared';
 
 import { EscalateDialog } from './EscalateDialog';
 import { ResolveDialog } from './ResolveDialog';
-import { useAttemptScore, useTicketSession } from './TicketSessionProvider';
+import { useTicketSession } from './TicketSessionProvider';
 
 export function OutcomeBar({ ticket }: { ticket: Ticket }) {
-  const { previewCloseGrade } = useAttemptScore();
   const { closeTicket, escalateTicket, workspaceViewByTicket } =
     useTicketSession();
   const workspaceView = workspaceViewByTicket[ticket.id] ?? null;
@@ -15,11 +14,11 @@ export function OutcomeBar({ ticket }: { ticket: Ticket }) {
   return (
     <section
       aria-label="Ticket outcome"
-      className="flex flex-col gap-3 rounded-md border border-zinc-800 bg-zinc-900 p-4 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-3 rounded-md border border-border bg-surface p-4 sm:flex-row sm:items-center sm:justify-between"
     >
       <div>
-        <h2 className="text-sm font-bold text-zinc-100">Choose an outcome</h2>
-        <p className="mt-1 text-xs text-zinc-400">
+        <h2 className="text-sm font-bold text-text">Choose an outcome</h2>
+        <p className="mt-1 text-xs text-text-muted">
           Resolve after verifying the result, or escalate when specialist review
           is needed.
         </p>
@@ -27,13 +26,11 @@ export function OutcomeBar({ ticket }: { ticket: Ticket }) {
       <div className="grid gap-2 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <ResolveDialog
-            initialResolutionNote={ticket.notes.at(-1)?.body ?? ''}
+            documentationNote={ticket.notes.at(-1)?.body ?? ''}
             onConfirm={(options) => closeTicket(ticket.id, options)}
-            readyGrade={previewCloseGrade(ticket.id, true)}
             status={ticket.status}
-            unresolvedGrade={previewCloseGrade(ticket.id, false)}
           />
-          <span className="text-center text-[11px] text-zinc-500">
+          <span className="text-center text-[11px] text-text-muted">
             Eligibility reviewed before submission
           </span>
         </div>
@@ -43,12 +40,8 @@ export function OutcomeBar({ ticket }: { ticket: Ticket }) {
             onConfirm={(details) => escalateTicket(ticket.id, details)}
             workspaceView={workspaceView}
           />
-          <span className="text-center text-[11px] text-zinc-500">
-            {ticket.escalated
-              ? 'Already recorded'
-              : workspaceView?.escalation
-                ? `Routes to ${workspaceView.escalation.route}`
-                : 'Available'}
+          <span className="text-center text-[11px] text-text-muted">
+            {ticket.escalated ? 'Already recorded' : 'Available on every ticket'}
           </span>
         </div>
       </div>

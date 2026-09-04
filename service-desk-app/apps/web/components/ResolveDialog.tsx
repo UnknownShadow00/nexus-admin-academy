@@ -1,30 +1,32 @@
 'use client';
 
-import { getCloseReview, TicketStatus } from '@service-desk/shared';
-import { Button, Modal, Textarea } from '@service-desk/ui';
+import {
+  getCloseReview,
+  TicketStatus,
+  type CloseReview,
+} from '@service-desk/shared';
+import { Button, Modal } from '@service-desk/ui';
 import {
   IconAlertTriangle,
   IconCircleCheck,
   IconLock,
+  IconNote,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import type { ActionEvent } from '@service-desk/simulation-engine';
 
-interface GradePreview {
-  penaltyPoints: number;
-  pointsAwarded: number;
-  pointsPossible: number;
-}
-
 interface ResolveDialogProps {
-  initialResolutionNote?: string;
+  /**
+   * The latest note from the ONE editable documentation surface
+   * (ResolutionNotePanel). Resolve never edits or re-submits it: this dialog is
+   * a read-only summary, so a second, ungraded note store cannot exist.
+   */
+  documentationNote: string;
   onConfirm: (options: {
     resolutionNote: string;
     verifiedResolved: boolean;
   }) => ActionEvent;
-  readyGrade: GradePreview | null;
   status: TicketStatus;
-  unresolvedGrade: GradePreview | null;
 }
 
 export function closeRejectionMessage(event: ActionEvent): string {
@@ -34,40 +36,113 @@ export function closeRejectionMessage(event: ActionEvent): string {
   );
 }
 
+/**
+ * Read-only view of the ONE editable documentation surface. Resolve never
+ * offers a second textarea, so it cannot create an ungraded duplicate note.
+ * Rendered separately from the modal shell so it can be asserted without a DOM.
+ */
+export function DocumentationSummary({ note }: { note: string }) {
+  const trimmed = note.trim();
+  const hasDocumentation = trimmed.length > 0;
+  return (
+    <div
+      className={`flex gap-3 rounded-sm border p-3 ${
+        hasDocumentation
+          ? 'border-border bg-surface-muted'
+          : 'border-warning/40 bg-warning/10'
+      }`}
+    >
+      <IconNote
+        aria-hidden="true"
+        className={`mt-0.5 h-5 w-5 shrink-0 ${
+          hasDocumentation ? 'text-success' : 'text-warning'
+        }`}
+      />
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-text">
+          {hasDocumentation ? 'Documentation recorded' : 'Documentation required'}
+        </p>
+        {hasDocumentation ? (
+          <p className="mt-1 whitespace-pre-wrap text-sm text-text-muted">
+            {trimmed}
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-text-muted">
+            Add your internal resolution note in the workspace
+            Resolution&nbsp;notes panel before closing. Notes written there are
+            the ones Nexus grades.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Outcome notice for the review step.
+ *
+ * Deliberately carries NO points or pass preview: the browser cannot predict
+ * every server outcome (escalation profiles, prohibited actions), so a
+ * predicted score could contradict the authoritative grade.
+ */
+export function CloseReviewNotice({ review }: { review: CloseReview }) {
+  const unresolved = review.kind === 'unresolved-warning';
+  return (
+    <div
+      className={`flex gap-3 rounded-sm border p-4 ${
+        unresolved
+          ? 'border-warning/40 bg-warning/10'
+          : 'border-success/40 bg-success/10'
+      }`}
+      role="alert"
+    >
+      {unresolved ? (
+        <IconAlertTriangle
+          aria-hidden="true"
+          className="h-5 w-5 shrink-0 text-warning"
+        />
+      ) : (
+        <IconLock aria-hidden="true" className="h-5 w-5 shrink-0 text-success" />
+      )}
+      <div>
+        <p className="text-sm font-bold text-text">
+          {unresolved ? 'Unresolved close warning' : 'Ready to resolve'}
+        </p>
+        <p className="mt-1 text-sm leading-relaxed text-text-muted">
+          {review.message}
+        </p>
+        <p className="mt-2 text-xs font-semibold text-text-muted">
+          Nexus will check your investigation, diagnosis, action, verification,
+          and documentation after you submit.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function ResolveDialog({
-  initialResolutionNote = '',
+  documentationNote,
   onConfirm,
-  readyGrade,
   status,
-  unresolvedGrade,
 }: ResolveDialogProps) {
   const [open, setOpen] = useState(false);
   const [reviewing, setReviewing] = useState(false);
-  const [resolutionNote, setResolutionNote] = useState(initialResolutionNote);
   const [verifiedResolved, setVerifiedResolved] = useState(false);
   const [rejection, setRejection] = useState('');
+  const note = documentationNote.trim();
   const effectiveVerified =
     verifiedResolved || status === TicketStatus.Resolved;
   const review = getCloseReview(status, effectiveVerified);
-  const grade =
-    review.kind === 'unresolved-warning' ? unresolvedGrade : readyGrade;
 
   function reset() {
     setReviewing(false);
-    setResolutionNote(initialResolutionNote);
     setVerifiedResolved(false);
     setRejection('');
   }
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
-    if (nextOpen) {
-      setResolutionNote(initialResolutionNote);
-      setVerifiedResolved(false);
-      setReviewing(false);
-    } else {
-      reset();
-    }
+    reset();
   }
 
   return (
@@ -85,31 +160,19 @@ export function ResolveDialog({
     >
       {!reviewing ? (
         <>
-          <label
-            className="text-xs font-extrabold uppercase tracking-wide text-zinc-500"
-            htmlFor="resolution-note"
-          >
-            Resolution note
-          </label>
-          <Textarea
-            className="mt-2"
-            id="resolution-note"
-            onChange={(event) => setResolutionNote(event.target.value)}
-            placeholder="Summarize the outcome or remaining risk…"
-            value={resolutionNote}
-          />
-          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-sm border border-zinc-800 bg-zinc-950 p-3">
+          <DocumentationSummary note={note} />
+          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-sm border border-border bg-surface-muted p-3">
             <input
               checked={verifiedResolved}
-              className="mt-0.5 h-4 w-4 accent-sky-500"
+              className="mt-0.5 h-4 w-4 accent-accent"
               onChange={(event) => setVerifiedResolved(event.target.checked)}
               type="checkbox"
             />
             <span>
-              <span className="block text-sm font-semibold text-zinc-200">
+              <span className="block text-sm font-semibold text-text">
                 I verified the requester has a working outcome
               </span>
-              <span className="mt-1 block text-xs leading-relaxed text-zinc-500">
+              <span className="mt-1 block text-xs leading-relaxed text-text-muted">
                 Leave this unchecked to review the unresolved-close warning
                 path.
               </span>
@@ -124,57 +187,14 @@ export function ResolveDialog({
         </>
       ) : (
         <>
-          <div
-            className={`flex gap-3 rounded-sm border p-4 ${
-              review.kind === 'unresolved-warning'
-                ? 'border-amber-400/30 bg-amber-400/10'
-                : 'border-emerald-500/30 bg-emerald-500/10'
-            }`}
-            role="alert"
-          >
-            {review.kind === 'unresolved-warning' ? (
-              <IconAlertTriangle
-                aria-hidden="true"
-                className="h-5 w-5 shrink-0 text-amber-400"
-              />
-            ) : (
-              <IconLock
-                aria-hidden="true"
-                className="h-5 w-5 shrink-0 text-emerald-400"
-              />
-            )}
-            <div>
-              <p className="text-sm font-bold text-zinc-100">
-                {review.kind === 'unresolved-warning'
-                  ? 'Unresolved close warning'
-                  : 'Ready to resolve'}
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-300">
-                {review.message}
-              </p>
-              {grade ? (
-                <p className="mt-2 text-xs font-semibold text-zinc-400">
-                  {review.kind === 'unresolved-warning'
-                    ? `Closing now deducts ${grade.penaltyPoints} points and awards ${grade.pointsAwarded} of ${grade.pointsPossible} available points.`
-                    : grade.penaltyPoints > 0
-                      ? `A verified resolution awards ${grade.pointsAwarded} of ${grade.pointsPossible} points after ${grade.penaltyPoints} points in hint deductions.`
-                      : `A verified resolution awards the full ${grade.pointsAwarded} points.`}
-                </p>
-              ) : (
-                <p className="mt-2 text-xs text-zinc-500">
-                  This ticket already has a recorded outcome, so no new score
-                  will be added.
-                </p>
-              )}
-            </div>
-          </div>
-          {resolutionNote.trim() ? (
-            <div className="mt-4 rounded-sm border border-zinc-800 bg-zinc-950 p-3">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+          <CloseReviewNotice review={review} />
+          {note ? (
+            <div className="mt-4 rounded-sm border border-border bg-surface-muted p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-text-muted">
                 Final note
               </p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-300">
-                {resolutionNote.trim()}
+              <p className="mt-1 whitespace-pre-wrap text-sm text-text">
+                {note}
               </p>
             </div>
           ) : null}
@@ -183,7 +203,7 @@ export function ResolveDialog({
             <Button
               onClick={() => {
                 const event = onConfirm({
-                  resolutionNote,
+                  resolutionNote: note,
                   verifiedResolved: effectiveVerified,
                 });
                 if (!event.success) {
@@ -204,7 +224,7 @@ export function ResolveDialog({
           </div>
           {rejection ? (
             <p
-              className="mt-3 rounded-sm border border-amber-400/40 bg-amber-400/10 p-3 text-sm font-semibold text-amber-200"
+              className="mt-3 rounded-sm border border-warning/40 bg-warning/10 p-3 text-sm font-semibold text-text"
               role="alert"
             >
               {rejection}
