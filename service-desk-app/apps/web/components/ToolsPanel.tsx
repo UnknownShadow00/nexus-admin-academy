@@ -61,10 +61,10 @@ export function ToolsPanel({ activePath }: ToolsPanelProps) {
         </Button>
       }
     >
-      <nav aria-label="Available tools" className="divide-y divide-zinc-800">
+      <nav aria-label="Available tools" className="divide-y divide-border">
         {TOOL_CATEGORIES.map((category) => (
           <section className="py-4 first:pt-0 last:pb-0" key={category}>
-            <h2 className="font-label text-xs font-extrabold uppercase tracking-widest text-sky-400">
+            <h2 className="font-label text-xs font-extrabold uppercase tracking-widest text-accent">
               {CATEGORY_LABELS[category]}
             </h2>
             <div className="mt-2 grid gap-1 sm:grid-cols-2">
@@ -76,7 +76,7 @@ export function ToolsPanel({ activePath }: ToolsPanelProps) {
                 return (
                   <button
                     aria-current={active ? 'page' : undefined}
-                    className="sd-focus-ring group flex min-w-0 items-center gap-3 rounded-md px-3 py-3 text-left transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 aria-[current=page]:bg-sky-400/10"
+                    className="sd-focus-ring group flex min-w-0 items-center gap-3 rounded-md px-3 py-3 text-left transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus aria-[current=page]:bg-accent/10"
                     key={tool.path}
                     onClick={() => {
                       setOpen(false);
@@ -84,20 +84,20 @@ export function ToolsPanel({ activePath }: ToolsPanelProps) {
                     }}
                     type="button"
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-zinc-700 bg-zinc-950 text-sky-400">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-accent">
                       <ToolIcon aria-hidden="true" className="h-5 w-5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-bold text-zinc-100">
+                      <span className="block text-sm font-bold text-text">
                         {tool.menuLabel}
                       </span>
-                      <span className="mt-0.5 block text-xs leading-snug text-zinc-400">
+                      <span className="mt-0.5 block text-xs leading-snug text-text-muted">
                         {tool.description}
                       </span>
                     </span>
                     <IconChevronRight
                       aria-hidden="true"
-                      className="h-4 w-4 shrink-0 text-zinc-600 transition-colors group-hover:text-sky-400"
+                      className="h-4 w-4 shrink-0 text-text-muted transition-colors group-hover:text-accent"
                     />
                   </button>
                 );

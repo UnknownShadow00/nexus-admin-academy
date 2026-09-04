@@ -15,7 +15,7 @@ export function ApplicationShell({
 
   return (
     <TicketSessionProvider>
-      <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-hidden bg-zinc-950 text-zinc-100">
+      <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-hidden bg-surface text-text">
         <Header currentPath={currentPath} />
         <MainContainer>{children}</MainContainer>
         <Footer />

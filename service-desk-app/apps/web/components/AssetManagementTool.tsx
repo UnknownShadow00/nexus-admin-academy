@@ -101,10 +101,10 @@ export function AssetManagementTool() {
       className="mx-auto w-full max-w-7xl p-0"
       variant="assets"
     >
-      <header className="border-b border-zinc-700 px-4 py-4 sm:px-5">
+      <header className="border-b border-border px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Link
-            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 self-start rounded-sm px-2 text-sm font-extrabold uppercase text-sky-400 hover:bg-zinc-800 hover:text-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 self-start rounded-sm px-2 text-sm font-extrabold uppercase text-accent hover:bg-surface-muted hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             href="/"
           >
             <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
@@ -113,22 +113,22 @@ export function AssetManagementTool() {
           <Badge variant="sky">{assets.length} inventory records</Badge>
         </div>
         <div className="mt-4 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-sky-400/30 bg-sky-400/10 text-sky-400">
+          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 text-accent">
             <IconPackage aria-hidden="true" className="h-6 w-6" />
           </span>
           <div>
-            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-sky-400">
+            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-accent">
               Equipment lifecycle
             </p>
             <h1
-              className="font-display text-2xl font-bold text-zinc-100"
+              className="font-display text-2xl font-bold text-text"
               id="asset-management-title"
             >
               Asset Management
             </h1>
           </div>
         </div>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400">
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-text-muted">
           Review ownership, assignment, lifecycle status, and shelf computers
           against the live Directory identity roster.
         </p>
@@ -138,8 +138,8 @@ export function AssetManagementTool() {
         <div
           className={`mx-4 mt-4 rounded-sm border px-4 py-3 text-sm ${
             lastEvent.success
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-              : 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+              ? 'border-success/30 bg-success/10 text-success'
+              : 'border-warning/30 bg-warning/10 text-warning'
           }`}
           role={lastEvent.success ? 'status' : 'alert'}
         >
@@ -150,11 +150,11 @@ export function AssetManagementTool() {
         </div>
       ) : null}
 
-      <div className="sd-assets-toolbar border-b border-zinc-800 p-4 sm:p-5">
+      <div className="sd-assets-toolbar border-b border-border p-4 sm:p-5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div
             aria-label="Asset view"
-            className="flex rounded-sm border border-zinc-700 bg-zinc-950 p-1"
+            className="flex rounded-sm border border-border bg-surface p-1"
             role="group"
           >
             {(['users', 'assets'] as const).map((option) => (
@@ -189,7 +189,7 @@ export function AssetManagementTool() {
             </Button>
             {syncMessage ? (
               <span
-                className="self-center text-xs text-emerald-400"
+                className="self-center text-xs text-success"
                 role="status"
               >
                 {syncMessage}
@@ -204,7 +204,7 @@ export function AssetManagementTool() {
             </span>
             <IconSearch
               aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
             />
             <Input
               className="pl-9"
@@ -235,7 +235,7 @@ export function AssetManagementTool() {
 
       <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(22rem,1.1fr)_minmax(20rem,0.9fr)]">
         <section aria-label="Asset inventory list">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
             {isHydrated
               ? `${filteredAssets.length} of ${assets.length}`
               : 'Restoring asset state…'}
@@ -248,7 +248,7 @@ export function AssetManagementTool() {
             selectedAssetTag={selectedAssetTag}
             view={view}
           />
-          <p className="mt-2 text-right font-mono text-xs text-zinc-500">
+          <p className="mt-2 text-right font-mono text-xs text-text-muted">
             {filteredAssets.length} of {assets.length}
           </p>
         </section>
@@ -260,15 +260,15 @@ export function AssetManagementTool() {
             onAction={setLastEvent}
           />
         ) : (
-          <section className="flex min-h-72 flex-col items-center justify-center rounded-md border border-dashed border-zinc-700 bg-zinc-950/40 p-8 text-center">
+          <section className="flex min-h-72 flex-col items-center justify-center rounded-md border border-dashed border-border bg-surface/40 p-8 text-center">
             <IconPackage
               aria-hidden="true"
-              className="h-10 w-10 text-zinc-600"
+              className="h-10 w-10 text-text-muted"
             />
-            <h2 className="mt-4 text-base font-bold text-zinc-100">
+            <h2 className="mt-4 text-base font-bold text-text">
               Select an asset
             </h2>
-            <p className="mt-2 max-w-sm text-sm text-zinc-400">
+            <p className="mt-2 max-w-sm text-sm text-text-muted">
               Open a row to review ownership, location, serial number, and
               available inventory actions.
             </p>

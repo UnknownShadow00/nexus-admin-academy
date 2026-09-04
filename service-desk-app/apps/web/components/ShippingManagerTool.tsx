@@ -186,10 +186,10 @@ export function ShippingManagerTool() {
       className="mx-auto w-full max-w-4xl p-0"
       variant="contained"
     >
-      <header className="border-b border-zinc-700 px-4 py-4 sm:px-6">
+      <header className="border-b border-border px-4 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Link
-            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 self-start rounded-sm px-2 text-sm font-extrabold uppercase text-sky-400 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 self-start rounded-sm px-2 text-sm font-extrabold uppercase text-accent hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             href="/"
           >
             <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
@@ -207,7 +207,7 @@ export function ShippingManagerTool() {
               </Button>
             }
           >
-            <p className="text-sm leading-relaxed text-zinc-300">
+            <p className="text-sm leading-relaxed text-text">
               Choose a directory recipient, build the package, and select a
               service level. A selected computer is consumed from PC Shelf when
               you ship it. Cancelling the shipment returns that PC to the shelf.
@@ -215,15 +215,15 @@ export function ShippingManagerTool() {
           </Modal>
         </div>
         <div className="mt-4 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-sky-400/30 bg-sky-400/10 text-sky-400">
+          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 text-accent">
             <IconPackageExport aria-hidden="true" className="h-6 w-6" />
           </span>
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-widest text-sky-400">
+            <p className="text-xs font-extrabold uppercase tracking-widest text-accent">
               Equipment dispatch
             </p>
             <h1
-              className="font-display text-2xl font-bold text-zinc-100"
+              className="font-display text-2xl font-bold text-text"
               id="shipping-manager-title"
             >
               Shipping Manager
@@ -235,13 +235,13 @@ export function ShippingManagerTool() {
       <div className="p-4 sm:p-6">
         {successEvent ? (
           <Card className="flex min-h-72 flex-col items-center justify-center p-6 text-center">
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-success/15 text-success">
               <IconCircleCheck aria-hidden="true" className="h-9 w-9" />
             </span>
-            <h2 className="mt-4 text-2xl font-bold text-zinc-100">
+            <h2 className="mt-4 text-2xl font-bold text-text">
               Replacement shipped
             </h2>
-            <p className="mt-2 max-w-lg text-sm text-zinc-400">
+            <p className="mt-2 max-w-lg text-sm text-text-muted">
               The shipment was recorded instantly and any selected computer was
               removed from PC Shelf.
             </p>
@@ -284,7 +284,7 @@ export function ShippingManagerTool() {
                   ))}
                 </datalist>
                 {selectedRecipient ? (
-                  <p className="mt-1 text-xs text-sky-300">
+                  <p className="mt-1 text-xs text-accent">
                     {selectedRecipient.jobTitle} ·{' '}
                     {selectedRecipient.department}
                   </p>
@@ -335,7 +335,7 @@ export function ShippingManagerTool() {
               </Field>
 
               <div>
-                <p className="text-xs font-extrabold uppercase text-zinc-400">
+                <p className="text-xs font-extrabold uppercase text-text-muted">
                   Equipment to ship
                 </p>
                 <div className="mt-2 grid gap-2">
@@ -343,13 +343,13 @@ export function ShippingManagerTool() {
                     const quantity = quantities[name] ?? 0;
                     return (
                       <div
-                        className="flex flex-col gap-3 rounded-sm border border-zinc-800 p-3 sm:flex-row sm:items-center sm:justify-between"
+                        className="flex flex-col gap-3 rounded-sm border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
                         key={name}
                       >
-                        <label className="flex items-center gap-3 text-sm font-semibold text-zinc-200">
+                        <label className="flex items-center gap-3 text-sm font-semibold text-text">
                           <input
                             checked={quantity > 0}
-                            className="h-4 w-4 accent-sky-500"
+                            className="h-4 w-4 accent-accent"
                             onChange={(event) =>
                               updateEquipment(
                                 name,
@@ -369,7 +369,7 @@ export function ShippingManagerTool() {
                           >
                             −
                           </Button>
-                          <span className="w-8 text-center font-mono text-sm text-zinc-200">
+                          <span className="w-8 text-center font-mono text-sm text-text">
                             {quantity}
                           </span>
                           <Button
@@ -403,7 +403,7 @@ export function ShippingManagerTool() {
                     ))}
                   </Select>
                   {computers.length === 0 ? (
-                    <p className="mt-2 text-xs text-amber-300">
+                    <p className="mt-2 text-xs text-warning">
                       No provisioned computers are currently present on PC
                       Shelf.
                     </p>
@@ -418,38 +418,38 @@ export function ShippingManagerTool() {
                   <label
                     className={`flex cursor-pointer items-center gap-3 rounded-sm border p-3 text-sm ${
                       speed === option.id
-                        ? 'border-sky-400 bg-sky-400/10 text-sky-200'
-                        : 'border-zinc-800 text-zinc-300'
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-border text-text'
                     }`}
                     key={option.id}
                   >
                     <input
                       checked={speed === option.id}
-                      className="accent-sky-500"
+                      className="accent-accent"
                       name="shipping-speed"
                       onChange={() => setSpeed(option.id)}
                       type="radio"
                     />
                     <span>
                       <span className="block font-bold">{option.label}</span>
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-text-muted">
                         {option.detail}
                       </span>
                     </span>
                   </label>
                 ))}
               </div>
-              <label className="flex items-start gap-3 rounded-sm border border-zinc-800 p-3 text-sm text-zinc-300">
+              <label className="flex items-start gap-3 rounded-sm border border-border p-3 text-sm text-text">
                 <input
                   checked={includeReturnLabel}
-                  className="mt-0.5 h-4 w-4 accent-sky-500"
+                  className="mt-0.5 h-4 w-4 accent-accent"
                   onChange={(event) =>
                     setIncludeReturnLabel(event.target.checked)
                   }
                   type="checkbox"
                 />
                 <span>
-                  <span className="block font-bold text-zinc-200">
+                  <span className="block font-bold text-text">
                     Include return label
                   </span>
                   Add a prepaid label for the replaced or damaged device.
@@ -459,7 +459,7 @@ export function ShippingManagerTool() {
 
             {validationMessage ? (
               <p
-                className="rounded-sm border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200"
+                className="rounded-sm border border-danger/40 bg-danger/10 px-4 py-3 text-sm font-semibold text-danger"
                 role="alert"
               >
                 {validationMessage}
@@ -472,25 +472,25 @@ export function ShippingManagerTool() {
           </form>
         )}
 
-        <section className="mt-8 border-t border-zinc-800 pt-6">
+        <section className="mt-8 border-t border-border pt-6">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-widest text-sky-400">
+              <p className="text-xs font-extrabold uppercase tracking-widest text-accent">
                 Shipment status
               </p>
-              <h2 className="mt-1 text-lg font-bold text-zinc-100">
+              <h2 className="mt-1 text-lg font-bold text-text">
                 Recent shipments
               </h2>
             </div>
             <Badge variant="sky">{shipments.length}</Badge>
           </div>
           {statusEvent && !statusEvent.success ? (
-            <p className="mt-3 text-sm text-red-300" role="alert">
+            <p className="mt-3 text-sm text-danger" role="alert">
               {statusEvent.rejectReason}
             </p>
           ) : null}
           {shipments.length === 0 ? (
-            <p className="mt-4 text-sm text-zinc-500">
+            <p className="mt-4 text-sm text-text-muted">
               No shipments have been created in this attempt.
             </p>
           ) : (
@@ -500,7 +500,7 @@ export function ShippingManagerTool() {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <p className="font-bold text-zinc-100">
+                        <p className="font-bold text-text">
                           {shipment.address.recipientName}
                         </p>
                         <Badge
@@ -513,12 +513,12 @@ export function ShippingManagerTool() {
                           {shipment.status}
                         </Badge>
                       </div>
-                      <p className="mt-1 text-sm text-zinc-400">
+                      <p className="mt-1 text-sm text-text-muted">
                         {shipment.equipment
                           .map((item) => `${item.quantity}× ${item.name}`)
                           .join(', ')}
                       </p>
-                      <p className="mt-1 font-mono text-xs text-zinc-500">
+                      <p className="mt-1 font-mono text-xs text-text-muted">
                         {shipment.computerAssetTag ?? 'No computer'} ·{' '}
                         {shipment.speed}
                       </p>
@@ -556,11 +556,11 @@ function FormSection({
 }) {
   return (
     <Card className="p-5">
-      <div className="mb-4 flex items-center gap-3 border-b border-zinc-800 pb-3">
-        <span className="font-mono text-xs font-bold text-sky-400">
+      <div className="mb-4 flex items-center gap-3 border-b border-border pb-3">
+        <span className="font-mono text-xs font-bold text-accent">
           {number}
         </span>
-        <h2 className="text-base font-extrabold uppercase text-zinc-100">
+        <h2 className="text-base font-extrabold uppercase text-text">
           {title}
         </h2>
       </div>
@@ -579,8 +579,8 @@ function Field({
   required?: boolean;
 }) {
   return (
-    <label className="text-xs font-extrabold uppercase text-zinc-400">
-      {label} {required ? <span className="text-red-400">*</span> : null}
+    <label className="text-xs font-extrabold uppercase text-text-muted">
+      {label} {required ? <span className="text-danger">*</span> : null}
       <div className="mt-2 normal-case">{children}</div>
     </label>
   );

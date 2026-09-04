@@ -20,7 +20,7 @@ describe('Modal', () => {
 
     expect(screen.getByRole('dialog')).toHaveClass(
       'sd-modal-card',
-      'bg-zinc-900',
+      'bg-surface-raised',
     );
     expect(screen.getByText('Confirm action')).toBeVisible();
     expect(screen.getByText('Modal body')).toBeVisible();

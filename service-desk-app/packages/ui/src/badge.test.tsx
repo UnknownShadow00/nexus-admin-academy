@@ -7,10 +7,10 @@ import { Badge, type BadgeVariant, PriorityBadge } from './badge';
 
 describe('Badge', () => {
   it.each([
-    ['default', 'text-zinc-300'],
-    ['sky', 'text-sky-300'],
-    ['amber', 'text-amber-300'],
-    ['success', 'text-emerald-400'],
+    ['default', 'text-text'],
+    ['sky', 'text-accent'],
+    ['amber', 'text-warning'],
+    ['success', 'text-success'],
   ] satisfies Array<[BadgeVariant, string]>)(
     'applies the %s visual variant',
     (variant, colorClass) => {
@@ -23,10 +23,10 @@ describe('Badge', () => {
 
 describe('PriorityBadge', () => {
   it.each([
-    [Priority.Critical, 'text-red-500'],
-    [Priority.High, 'text-red-400'],
-    [Priority.Medium, 'text-orange-400'],
-    [Priority.Low, 'text-amber-500'],
+    [Priority.Critical, 'text-danger'],
+    [Priority.High, 'text-danger/85'],
+    [Priority.Medium, 'text-warning'],
+    [Priority.Low, 'text-warning/85'],
   ])('applies the %s priority color', (priority, colorClass) => {
     render(<PriorityBadge priority={priority} />);
 

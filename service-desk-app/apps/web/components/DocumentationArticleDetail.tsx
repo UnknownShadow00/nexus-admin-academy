@@ -10,15 +10,15 @@ export function DocumentationArticleDetail({
   return (
     <article aria-labelledby="documentation-article-title">
       <Card>
-        <header className="border-b border-zinc-800 px-5 py-5 sm:px-7 sm:py-6">
+        <header className="border-b border-border px-5 py-5 sm:px-7 sm:py-6">
           <div className="flex items-start gap-4">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-sky-400/30 bg-sky-400/10 text-sky-400">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 text-accent">
               <IconFileText aria-hidden="true" className="h-5 w-5" />
             </span>
             <div className="min-w-0">
               <Badge variant="sky">{article.category}</Badge>
               <h2
-                className="mt-3 font-display text-2xl font-bold leading-tight text-zinc-100"
+                className="mt-3 font-display text-2xl font-bold leading-tight text-text"
                 id="documentation-article-title"
               >
                 {article.title}
@@ -26,12 +26,12 @@ export function DocumentationArticleDetail({
             </div>
           </div>
         </header>
-        <div className="space-y-4 px-5 py-6 text-sm leading-7 text-zinc-300 sm:px-7">
+        <div className="space-y-4 px-5 py-6 text-sm leading-7 text-text sm:px-7">
           {article.body.map((paragraph) => (
             <p key={paragraph}>{paragraph}</p>
           ))}
         </div>
-        <footer className="border-t border-zinc-800 px-5 py-4 text-xs text-zinc-500 sm:px-7">
+        <footer className="border-t border-border px-5 py-4 text-xs text-text-muted sm:px-7">
           Practice reference · Verify current tool state before applying a
           change.
         </footer>

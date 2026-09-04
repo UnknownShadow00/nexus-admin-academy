@@ -65,7 +65,7 @@ export function DeviceManagementTool() {
   const searchParams = useSearchParams();
   const requestedTicket = searchParams.get('ticket')?.toUpperCase() ?? '';
   if (!ENDPOINT_SCENARIOS[requestedTicket]) {
-    return <div className="mx-auto max-w-xl rounded-md border border-zinc-800 bg-zinc-900 p-8 text-center" role="status"><IconDeviceLaptop className="mx-auto h-10 w-10 text-zinc-500" aria-hidden="true" /><h1 className="mt-4 text-xl font-bold text-zinc-100">Choose a ticket</h1><p className="mt-2 text-sm text-zinc-400">Open Device Management from a supported ticket so the correct device follows you.</p><Link className="sd-back-button sd-focus-ring mt-5 inline-flex px-4 py-2 text-sky-400" href="/">Back to ticket queue</Link></div>;
+    return <div className="mx-auto max-w-xl rounded-md border border-border bg-surface-raised p-8 text-center" role="status"><IconDeviceLaptop className="mx-auto h-10 w-10 text-text-muted" aria-hidden="true" /><h1 className="mt-4 text-xl font-bold text-text">Choose a ticket</h1><p className="mt-2 text-sm text-text-muted">Open Device Management from a supported ticket so the correct device follows you.</p><Link className="sd-back-button sd-focus-ring mt-5 inline-flex px-4 py-2 text-accent" href="/">Back to ticket queue</Link></div>;
   }
   return <TicketDeviceManagementTool ticketId={requestedTicket} />;
 }
@@ -123,31 +123,31 @@ function TicketDeviceManagementTool({ ticketId }: { ticketId: string }) {
       className="mx-auto w-full max-w-5xl p-0"
       variant="ad"
     >
-      <header className="border-b border-zinc-800 px-4 py-4 sm:px-5">
+      <header className="border-b border-border px-4 py-4 sm:px-5">
         <Link
-          className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 rounded-sm px-2 text-sm font-extrabold uppercase text-sky-400 hover:bg-zinc-900 hover:text-sky-300"
+          className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 rounded-sm px-2 text-sm font-extrabold uppercase text-accent hover:bg-surface-raised hover:text-accent"
           href={`/tickets/${ticketId}`}
         >
           <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
           Back to {ticketId}
         </Link>
         <div className="mt-4 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-sky-400/30 bg-sky-400/10 text-sky-400">
+          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 text-accent">
             <IconDeviceLaptop aria-hidden="true" className="h-6 w-6" />
           </span>
           <div>
-            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-sky-400">
+            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-accent">
               Managed endpoint evidence
             </p>
             <h1
-              className="font-display text-2xl font-bold text-zinc-100"
+              className="font-display text-2xl font-bold text-text"
               id="device-management-title"
             >
               Device Management
             </h1>
           </div>
         </div>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400">
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-text-muted">
           This focused training surface supports the two endpoint cases only.
           Identity and authorization checks still happen through Company Chat.
         </p>
@@ -155,7 +155,7 @@ function TicketDeviceManagementTool({ ticketId }: { ticketId: string }) {
 
       {lastEvent ? (
         <div
-          className={`mx-4 mt-4 rounded-sm border px-4 py-3 text-sm ${lastEvent.success ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-amber-400/30 bg-amber-400/10 text-amber-300'}`}
+          className={`mx-4 mt-4 rounded-sm border px-4 py-3 text-sm ${lastEvent.success ? 'border-success/30 bg-success/10 text-success' : 'border-warning/30 bg-warning/10 text-warning'}`}
           role={lastEvent.success ? 'status' : 'alert'}
         >
           {actionMessage(lastEvent)}
@@ -166,10 +166,10 @@ function TicketDeviceManagementTool({ ticketId }: { ticketId: string }) {
         <Card>
           <CardHeader meta={ticketId} title="Find the device record" />
           <div className="grid gap-3 p-4 sm:grid-cols-[1fr_auto]">
-            <label className="text-sm font-bold text-zinc-200">
+            <label className="text-sm font-bold text-text">
               Hostname or asset tag from the ticket
               <input
-                className="sd-focus-ring mt-2 min-h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 py-2 font-normal text-zinc-100"
+                className="sd-focus-ring mt-2 min-h-10 w-full rounded-sm border border-border bg-surface px-3 py-2 font-normal text-text"
                 onChange={(event) => setDeviceQuery(event.target.value)}
                 placeholder="Search managed devices"
                 value={deviceQuery}
@@ -177,28 +177,28 @@ function TicketDeviceManagementTool({ ticketId }: { ticketId: string }) {
             </label>
             <Button onClick={inspect} variant="soft">Inspect device record</Button>
           </div>
-          {recordInspected ? <dl className="grid gap-3 border-t border-zinc-800 p-4 text-sm sm:grid-cols-3">
+          {recordInspected ? <dl className="grid gap-3 border-t border-border p-4 text-sm sm:grid-cols-3">
             <div>
-              <dt className="text-xs font-bold uppercase text-zinc-500">
+              <dt className="text-xs font-bold uppercase text-text-muted">
                 Asset tag
               </dt>
-              <dd className="mt-1 text-zinc-100">{scenario.assetTag}</dd>
+              <dd className="mt-1 text-text">{scenario.assetTag}</dd>
             </div>
             <div>
-              <dt className="text-xs font-bold uppercase text-zinc-500">
+              <dt className="text-xs font-bold uppercase text-text-muted">
                 Platform
               </dt>
-              <dd className="mt-1 text-zinc-100">Windows 11 Enterprise</dd>
+              <dd className="mt-1 text-text">Windows 11 Enterprise</dd>
             </div>
             <div>
-              <dt className="text-xs font-bold uppercase text-zinc-500">
+              <dt className="text-xs font-bold uppercase text-text-muted">
                 Management
               </dt>
               <dd className="mt-1">
                 <Badge variant="sky">Intune managed</Badge>
               </dd>
             </div>
-          </dl> : <p className="border-t border-zinc-800 p-4 text-sm text-zinc-500">The record remains hidden until the ticket identifier is investigated.</p>}
+          </dl> : <p className="border-t border-border p-4 text-sm text-text-muted">The record remains hidden until the ticket identifier is investigated.</p>}
         </Card>
 
         <Card>
@@ -209,20 +209,20 @@ function TicketDeviceManagementTool({ ticketId }: { ticketId: string }) {
           <div className="grid gap-3 p-4">
             {recordInspected ? <>
             <Link
-              className="sd-button sd-button--light sd-focus-ring inline-flex min-h-10 items-center justify-center rounded-sm border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-extrabold uppercase text-zinc-900"
+              className="sd-button sd-button--light sd-focus-ring inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-surface-raised px-4 py-2 text-sm font-extrabold uppercase text-text"
               href={`/tools/company-chat?contact=${ticketId === 'INC3001' ? 'directory-user-morgan-ellis' : 'directory-user-hr-adebayo-coker'}&ticket=${ticketId}`}
             >
               Investigate requester / authorization in Company Chat
             </Link>
-            <label className="text-sm font-bold text-zinc-200">
+            <label className="text-sm font-bold text-text">
               Evidence-based diagnosis
-              <select className="sd-focus-ring mt-2 min-h-10 w-full rounded-sm border border-zinc-700 bg-zinc-950 px-3 py-2 font-normal text-zinc-100" value={selectedDiagnosis} onChange={(event) => setSelectedDiagnosis(event.target.value)}>
+              <select className="sd-focus-ring mt-2 min-h-10 w-full rounded-sm border border-border bg-surface px-3 py-2 font-normal text-text" value={selectedDiagnosis} onChange={(event) => setSelectedDiagnosis(event.target.value)}>
                 <option value="">Choose from the evidence…</option>
                 {scenario.diagnoses.map((diagnosis) => <option key={diagnosis.value} value={diagnosis.value}>{diagnosis.label}</option>)}
               </select>
             </label>
             <Button disabled={!selectedDiagnosis} onClick={diagnose} variant="soft">Record selected diagnosis</Button>
-            </> : <p className="text-sm text-zinc-500">Inspect the correct managed-device record to reveal investigation tools.</p>}
+            </> : <p className="text-sm text-text-muted">Inspect the correct managed-device record to reveal investigation tools.</p>}
             {selectedDiagnosis ? <Button onClick={remediate} variant="soft">{scenario.remediationLabel}</Button> : null}
             {remediationPerformed ?
             <Button
@@ -240,7 +240,7 @@ function TicketDeviceManagementTool({ ticketId }: { ticketId: string }) {
               Verify resulting device state
             </Button> : null}
           </div>
-          <p className="px-4 pb-4 text-xs leading-relaxed text-zinc-500">
+          <p className="px-4 pb-4 text-xs leading-relaxed text-text-muted">
             The Nexus API enforces this order. A recovery key or destructive
             reassignment attempted before investigation, identity/authorization
             verification, and diagnosis is rejected by server-authoritative

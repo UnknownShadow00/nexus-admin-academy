@@ -53,7 +53,7 @@ export function renderTool(slug: string): ReactNode | null {
 export function ToolLoadingState({ label }: { label: string }) {
   return (
     <div
-      className="mx-auto min-h-72 w-full max-w-5xl animate-pulse rounded-md border border-zinc-800 bg-zinc-900"
+      className="mx-auto min-h-72 w-full max-w-5xl animate-pulse rounded-md border border-border bg-surface-raised"
       role="status"
     >
       <span className="sr-only">Loading {label}…</span>

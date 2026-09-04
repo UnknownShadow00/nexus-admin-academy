@@ -27,7 +27,7 @@ export function HintPanel({
     return (
       <Card>
         <CardHeader title="Hints" />
-        <p className="p-4 text-sm text-zinc-400 sm:p-5">
+        <p className="p-4 text-sm text-text-muted sm:p-5">
           Hints are not available during an assessment.
         </p>
       </Card>
@@ -45,7 +45,7 @@ export function HintPanel({
       <CardHeader
         title={
           <span className="flex items-center gap-2">
-            <IconBulb aria-hidden="true" className="h-5 w-5 text-sky-400" />
+            <IconBulb aria-hidden="true" className="h-5 w-5 text-accent" />
             Hints
           </span>
         }
@@ -60,8 +60,8 @@ export function HintPanel({
             {revealedCount ? (
               <ol className="space-y-3">
                 {hints.slice(0, revealedCount).map((hint, index) => (
-                  <li className="flex gap-3 text-sm text-zinc-300" key={`${index}-${hint}`}>
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm border border-sky-400/30 bg-sky-400/10 font-mono text-xs font-bold text-sky-400">
+                  <li className="flex gap-3 text-sm text-text" key={`${index}-${hint}`}>
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 font-mono text-xs font-bold text-accent">
                       {index + 1}
                     </span>
                     <span>{hint}</span>
@@ -69,11 +69,11 @@ export function HintPanel({
                 ))}
               </ol>
             ) : (
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-text-muted">
                 Hints are only used when you choose to reveal one.
               </p>
             )}
-            <div className="mt-4 border-t border-zinc-800 pt-4">
+            <div className="mt-4 border-t border-border pt-4">
               {revealedCount < hints.length ? (
                 <Button onClick={revealNext} variant="ghost">
                   {revealedCount === 0
@@ -82,11 +82,11 @@ export function HintPanel({
                   <IconChevronRight aria-hidden="true" className="h-4 w-4" />
                 </Button>
               ) : (
-                <p className="text-xs font-semibold text-emerald-400">
+                <p className="text-xs font-semibold text-success">
                   All {hints.length} hints revealed
                 </p>
               )}
-              <p className="mt-2 text-xs text-zinc-500">
+              <p className="mt-2 text-xs text-text-muted">
                 {revealedCount} of {hints.length} revealed.{' '}
                 {revealedCount < hints.length
                   ? 'Another hint is available.'

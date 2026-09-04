@@ -28,7 +28,8 @@
   }
 
   ::selection {
-    @apply bg-sky-400/30 text-zinc-100;
+    background-color: color-mix(in srgb, var(--sd-accent) 30%, transparent);
+    color: var(--sd-text);
   }
 }
 

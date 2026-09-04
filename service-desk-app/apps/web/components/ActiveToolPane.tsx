@@ -28,14 +28,14 @@ export function ActiveToolPane({
   if (!activeToolSlug) {
     return (
       <section
-        className="rounded-md border border-dashed border-zinc-700 bg-zinc-900/50 p-8 text-center"
+        className="rounded-md border border-dashed border-border bg-surface-raised/50 p-8 text-center"
         role="status"
       >
         <IconToolsOff
           aria-hidden="true"
-          className="mx-auto h-8 w-8 text-zinc-500"
+          className="mx-auto h-8 w-8 text-text-muted"
         />
-        <p className="mt-3 text-sm text-zinc-300">
+        <p className="mt-3 text-sm text-text">
           Open a tool from the right to start working. Your ticket stays here.
         </p>
       </section>
@@ -46,11 +46,11 @@ export function ActiveToolPane({
   if (!tool) {
     return (
       <section
-        className="rounded-md border border-zinc-800 bg-zinc-900 p-8 text-center"
+        className="rounded-md border border-border bg-surface-raised p-8 text-center"
         role="status"
       >
-        <h2 className="text-lg font-bold text-zinc-100">Tool unavailable</h2>
-        <p className="mt-2 text-sm text-zinc-400">
+        <h2 className="text-lg font-bold text-text">Tool unavailable</h2>
+        <p className="mt-2 text-sm text-text-muted">
           Choose another tool from the workspace launcher.
         </p>
       </section>
@@ -60,17 +60,17 @@ export function ActiveToolPane({
   if (!toolContextMatchesTicket(searchParams, activeTicketId)) {
     return (
       <section
-        className="rounded-md border border-zinc-800 bg-zinc-900 p-8 text-center"
+        className="rounded-md border border-border bg-surface-raised p-8 text-center"
         role="status"
       >
         <IconToolsOff
           aria-hidden="true"
-          className="mx-auto h-8 w-8 text-zinc-500"
+          className="mx-auto h-8 w-8 text-text-muted"
         />
-        <h2 className="mt-3 text-lg font-bold text-zinc-100">
+        <h2 className="mt-3 text-lg font-bold text-text">
           {tool.displayName} is not part of this ticket
         </h2>
-        <p className="mt-2 text-sm text-zinc-400">
+        <p className="mt-2 text-sm text-text-muted">
           Open it again from this ticket so the correct case context is used.
         </p>
       </section>

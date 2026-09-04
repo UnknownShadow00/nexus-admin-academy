@@ -43,7 +43,7 @@ export function MapNetworkDriveDialog({
     <div
       aria-labelledby="map-drive-title"
       aria-modal="true"
-      className="absolute inset-0 z-20 flex items-center justify-center bg-zinc-950/35 p-3"
+      className="absolute inset-0 z-20 flex items-center justify-center bg-surface/35 p-3"
       role="dialog"
     >
       <form
@@ -78,7 +78,7 @@ export function MapNetworkDriveDialog({
           </button>
         </header>
         <div className="space-y-4 p-5">
-          <p className="text-sm text-zinc-600">
+          <p className="text-sm text-text-muted">
             Choose a drive letter and enter the approved UNC folder path.
           </p>
           <label className="block text-sm font-semibold">
@@ -106,7 +106,7 @@ export function MapNetworkDriveDialog({
               value={uncPath}
             />
           </label>
-          <p className="text-xs text-zinc-500" id="unc-help">
+          <p className="text-xs text-text-muted" id="unc-help">
             UNC paths begin with two backslashes and include a server and share.
           </p>
           <label className="flex items-center gap-2 text-sm">

@@ -7,7 +7,7 @@ describe('Card', () => {
   it('renders card content with surface classes', () => {
     render(<Card>Card body</Card>);
 
-    expect(screen.getByText('Card body')).toHaveClass('sd-card', 'bg-zinc-900');
+    expect(screen.getByText('Card body')).toHaveClass('sd-card', 'bg-surface-raised');
   });
 });
 

@@ -55,7 +55,7 @@ export function PastTicketsModal({
       title="Past Tickets"
     >
       {!isHydrated ? (
-        <p className="py-8 text-center text-sm text-zinc-400">
+        <p className="py-8 text-center text-sm text-text-muted">
           Loading your saved ticket history…
         </p>
       ) : (
@@ -65,7 +65,7 @@ export function PastTicketsModal({
               <span className="sr-only">Search past tickets</span>
               <IconSearch
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-zinc-500"
+                className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-text-muted"
               />
               <Input
                 className="pl-9"
@@ -109,39 +109,39 @@ export function PastTicketsModal({
             <div className="py-12 text-center">
               <IconHistory
                 aria-hidden="true"
-                className="mx-auto h-9 w-9 text-zinc-600"
+                className="mx-auto h-9 w-9 text-text-muted"
               />
-              <p className="mt-3 font-semibold text-zinc-200">
+              <p className="mt-3 font-semibold text-text">
                 No past tickets yet
               </p>
-              <p className="mt-1 text-sm text-zinc-500">
+              <p className="mt-1 text-sm text-text-muted">
                 Closed and resolved ticket grades will appear here.
               </p>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="py-10 text-center text-sm text-zinc-500">
+            <div className="py-10 text-center text-sm text-text-muted">
               No past tickets match these filters.
             </div>
           ) : (
             <ul className="mt-4 space-y-3">
               {filtered.map((ticket) => (
                 <li
-                  className="rounded-md border border-zinc-800 bg-zinc-950/70 p-4"
+                  className="rounded-md border border-border bg-surface/70 p-4"
                   key={ticket.id}
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-sky-400">
+                        <span className="font-mono text-xs font-bold text-accent">
                           {ticket.id}
                         </span>
                         <Badge>{ticket.category}</Badge>
                         <PriorityBadge pill priority={ticket.priority} />
                       </div>
-                      <h3 className="mt-2 font-semibold text-zinc-100">
+                      <h3 className="mt-2 font-semibold text-text">
                         {ticket.title}
                       </h3>
-                      <p className="mt-2 text-xs text-zinc-500">
+                      <p className="mt-2 text-xs text-text-muted">
                         Closed {formatClosedDate(ticket.closedAt)}
                       </p>
                     </div>
@@ -149,7 +149,7 @@ export function PastTicketsModal({
                       <Badge variant={ticket.resolved ? 'success' : 'amber'}>
                         {ticket.resolved ? 'Resolved' : 'Not resolved'}
                       </Badge>
-                      <p className="mt-2 font-display text-sm font-bold tabular-nums text-zinc-100">
+                      <p className="mt-2 font-display text-sm font-bold tabular-nums text-text">
                         {ticket.pointsAwarded} / {ticket.pointsPossible} pts
                       </p>
                     </div>

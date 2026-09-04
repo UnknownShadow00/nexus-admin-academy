@@ -99,10 +99,10 @@ export function PcShelfTool() {
       className="mx-auto w-full max-w-6xl p-0"
       variant="contained"
     >
-      <header className="border-b border-zinc-700 px-4 py-4 sm:px-5">
+      <header className="border-b border-border px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Link
-            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 self-start rounded-sm px-2 text-sm font-extrabold uppercase text-sky-400 hover:bg-zinc-800 hover:text-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 self-start rounded-sm px-2 text-sm font-extrabold uppercase text-accent hover:bg-surface-muted hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             href="/"
           >
             <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
@@ -126,7 +126,7 @@ export function PcShelfTool() {
             }
           >
             <label
-              className="text-xs font-extrabold uppercase text-zinc-400"
+              className="text-xs font-extrabold uppercase text-text-muted"
               htmlFor="pc-shelf-add-computer"
             >
               Available computer
@@ -164,22 +164,22 @@ export function PcShelfTool() {
           </Modal>
         </div>
         <div className="mt-4 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-sky-400/30 bg-sky-400/10 text-sky-400">
+          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 text-accent">
             <IconDevicesPc aria-hidden="true" className="h-6 w-6" />
           </span>
           <div>
-            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-sky-400">
+            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-accent">
               Provisioned inventory
             </p>
             <h1
-              className="font-display text-2xl font-bold text-zinc-100"
+              className="font-display text-2xl font-bold text-text"
               id="pc-shelf-title"
             >
               PC Shelf
             </h1>
           </div>
         </div>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400">
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-text-muted">
           Track provisioned computers, network registration, hardware, and
           employee assignment for this simulation attempt.
         </p>
@@ -189,8 +189,8 @@ export function PcShelfTool() {
         <div
           className={`mx-4 mt-4 rounded-sm border px-4 py-3 text-sm ${
             lastEvent.success
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-              : 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+              ? 'border-success/30 bg-success/10 text-success'
+              : 'border-warning/30 bg-warning/10 text-warning'
           }`}
           role={lastEvent.success ? 'status' : 'alert'}
         >
@@ -209,7 +209,7 @@ export function PcShelfTool() {
           >
             {Array.from({ length: 4 }, (_, index) => (
               <div
-                className="h-44 rounded-md bg-zinc-800"
+                className="h-44 rounded-md bg-surface-muted"
                 key={`pc-shelf-skeleton-${index}`}
               />
             ))}
@@ -218,12 +218,12 @@ export function PcShelfTool() {
           <Card className="flex min-h-72 flex-col items-center justify-center border-dashed p-8 text-center">
             <IconDeviceDesktopPlus
               aria-hidden="true"
-              className="h-12 w-12 text-zinc-600"
+              className="h-12 w-12 text-text-muted"
             />
-            <h2 className="mt-4 text-lg font-bold text-zinc-100">
+            <h2 className="mt-4 text-lg font-bold text-text">
               Set up a PC to add it to the shelf.
             </h2>
-            <p className="mt-2 max-w-lg text-sm leading-relaxed text-zinc-400">
+            <p className="mt-2 max-w-lg text-sm leading-relaxed text-text-muted">
               Built computers wait here until you ship one out from the Ship
               Manager.
             </p>
@@ -240,7 +240,7 @@ export function PcShelfTool() {
         ) : (
           <>
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                 {computers.length} computers on this attempt
               </p>
               <Badge variant="sky">Refresh-safe shelf</Badge>
@@ -320,9 +320,9 @@ function PcShelfComputerCard({
           <ShelfField label="Deployment" value={computer.deploymentMethod} />
         </div>
 
-        <div className="mt-4 grid gap-3 border-t border-zinc-800 pt-4 sm:grid-cols-2">
+        <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
           <label>
-            <span className="text-xs font-extrabold uppercase text-zinc-500">
+            <span className="text-xs font-extrabold uppercase text-text-muted">
               Network status
             </span>
             <Select
@@ -345,7 +345,7 @@ function PcShelfComputerCard({
             </Select>
           </label>
           <label>
-            <span className="text-xs font-extrabold uppercase text-zinc-500">
+            <span className="text-xs font-extrabold uppercase text-text-muted">
               Device state
             </span>
             <Select
@@ -376,14 +376,14 @@ function PcShelfComputerCard({
           </label>
         </div>
 
-        <div className="mt-4 border-t border-zinc-800 pt-4">
-          <p className="text-xs font-extrabold uppercase text-zinc-500">
+        <div className="mt-4 border-t border-border pt-4">
+          <p className="text-xs font-extrabold uppercase text-text-muted">
             Assigned employee
           </p>
           {owner ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Link
-                className="sd-focus-ring rounded-sm text-sm font-bold text-sky-400 hover:text-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                className="sd-focus-ring rounded-sm text-sm font-bold text-accent hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 href={`/tools/directory?user=${owner.id}`}
               >
                 {owner.fullName}
@@ -451,7 +451,7 @@ function PcShelfComputerCard({
           )}
         </div>
 
-        <div className="mt-4 flex justify-end border-t border-zinc-800 pt-4">
+        <div className="mt-4 flex justify-end border-t border-border pt-4">
           <AssetActionDialog
             confirmLabel="Remove computer"
             description={`Remove ${computer.assetTag} from this attempt’s PC Shelf. It can be added again from the fixed catalog.`}
@@ -483,8 +483,8 @@ function ShelfField({
 }) {
   return (
     <div>
-      <p className="text-xs font-extrabold uppercase text-zinc-500">{label}</p>
-      <p className={`mt-1 text-zinc-200 ${mono ? 'font-mono' : ''}`}>{value}</p>
+      <p className="text-xs font-extrabold uppercase text-text-muted">{label}</p>
+      <p className={`mt-1 text-text ${mono ? 'font-mono' : ''}`}>{value}</p>
     </div>
   );
 }

@@ -15,7 +15,7 @@ export function BackToNexusLink({
   return (
     <a
       aria-label={label}
-      className="sd-focus-ring inline-flex min-h-9 shrink-0 items-center rounded-sm border border-sky-400/30 bg-sky-400/10 px-2 text-xs font-bold text-sky-200 hover:bg-sky-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 sm:px-3 sm:text-sm"
+      className="sd-focus-ring inline-flex min-h-9 shrink-0 items-center rounded-sm border border-accent/30 bg-accent/10 px-2 text-xs font-bold text-accent hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus sm:px-3 sm:text-sm"
       href={href}
     >
       <span aria-hidden="true">←</span>

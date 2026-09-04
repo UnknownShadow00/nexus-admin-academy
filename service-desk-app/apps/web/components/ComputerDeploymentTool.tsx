@@ -63,7 +63,7 @@ export function ComputerDeploymentTool() {
       <DeploymentFrame aboutOpen={aboutOpen} onAboutOpenChange={setAboutOpen}>
         <div className="p-4 sm:p-6">
           <Link
-            className="sd-focus-ring flex items-center justify-between gap-4 rounded-sm border border-sky-400/30 bg-sky-400/10 px-4 py-4 text-sm font-extrabold uppercase text-sky-300 hover:bg-sky-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+            className="sd-focus-ring flex items-center justify-between gap-4 rounded-sm border border-accent/30 bg-accent/10 px-4 py-4 text-sm font-extrabold uppercase text-accent hover:bg-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             href="/tools/documentation"
           >
             <span>
@@ -116,12 +116,12 @@ export function ComputerDeploymentTool() {
   return (
     <DeploymentFrame aboutOpen={aboutOpen} onAboutOpenChange={setAboutOpen}>
       <div className="p-4 sm:p-6">
-        <div className="flex flex-col gap-3 border-b border-zinc-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-widest text-sky-400">
+            <p className="text-xs font-extrabold uppercase tracking-widest text-accent">
               Server Imaging · Step {run.currentStepIndex + 1} of 11
             </p>
-            <h2 className="mt-1 text-xl font-bold text-zinc-100">
+            <h2 className="mt-1 text-xl font-bold text-text">
               {run.steps[run.currentStepIndex]?.title}
             </h2>
           </div>
@@ -130,9 +130,9 @@ export function ComputerDeploymentTool() {
           </Badge>
         </div>
 
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-800">
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-muted">
           <div
-            className="h-full rounded-full bg-sky-500 transition-all"
+            className="h-full rounded-full bg-accent transition-all"
             style={{ width: `${((run.currentStepIndex + 1) / 11) * 100}%` }}
           />
         </div>
@@ -141,7 +141,7 @@ export function ComputerDeploymentTool() {
           <RejectedAction event={lastEvent} />
         ) : null}
         {hintsEnabled && !run.completedAt ? (
-          <div className="mt-4 rounded-sm border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
+          <div className="mt-4 rounded-sm border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
             <span className="font-extrabold uppercase">Hint:</span>{' '}
             {STEP_HINTS[run.currentStepIndex] ??
               'Review the imaging SOP before continuing.'}
@@ -172,10 +172,10 @@ function DeploymentFrame({
       className="mx-auto w-full max-w-6xl p-0"
       variant="contained"
     >
-      <header className="border-b border-zinc-700 px-4 py-4 sm:px-6">
+      <header className="border-b border-border px-4 py-4 sm:px-6">
         <div className="flex items-center justify-between gap-3">
           <Link
-            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 rounded-sm px-2 text-sm font-extrabold uppercase text-sky-400 hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 rounded-sm px-2 text-sm font-extrabold uppercase text-accent hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             href="/"
           >
             <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
@@ -193,7 +193,7 @@ function DeploymentFrame({
               </Button>
             }
           >
-            <p className="text-sm leading-relaxed text-zinc-300">
+            <p className="text-sm leading-relaxed text-text">
               Computer Deployment records every accepted and rejected action in
               the current attempt. A completed image creates a real PC Shelf
               device that can be shipped in the next tool.
@@ -201,15 +201,15 @@ function DeploymentFrame({
           </Modal>
         </div>
         <div className="mt-4 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-sky-400/30 bg-sky-400/10 text-sky-400">
+          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 text-accent">
             <IconBolt aria-hidden="true" className="h-6 w-6" />
           </span>
           <div>
-            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-sky-400">
+            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-accent">
               Endpoint staging
             </p>
             <h1
-              className="font-display text-2xl font-bold uppercase text-zinc-100"
+              className="font-display text-2xl font-bold uppercase text-text"
               id="computer-deployment-title"
             >
               Computer Deployment
@@ -235,9 +235,9 @@ function MethodCard({
 }) {
   return (
     <Card className="flex min-h-64 flex-col p-5">
-      <span className="text-sky-400">{icon}</span>
-      <h2 className="mt-4 text-lg font-bold text-zinc-100">{title}</h2>
-      <p className="mt-2 flex-1 text-sm font-semibold uppercase leading-relaxed text-zinc-400">
+      <span className="text-accent">{icon}</span>
+      <h2 className="mt-4 text-lg font-bold text-text">{title}</h2>
+      <p className="mt-2 flex-1 text-sm font-semibold uppercase leading-relaxed text-text-muted">
         {copy}
       </p>
       <div className="mt-5">{children}</div>
@@ -253,20 +253,20 @@ function HintsToggle({
   onChange: (enabled: boolean) => void;
 }) {
   return (
-    <div className="mt-5 flex flex-col gap-3 rounded-sm border border-zinc-800 bg-zinc-950/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mt-5 flex flex-col gap-3 rounded-sm border border-border bg-surface/40 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p className="text-xs font-extrabold uppercase tracking-widest text-zinc-200">
+        <p className="text-xs font-extrabold uppercase tracking-widest text-text">
           Hints
         </p>
-        <p className="mt-1 text-sm text-zinc-400">
+        <p className="mt-1 text-sm text-text-muted">
           We recommend disabling hints and using the SOP for the best learning
           experience.
         </p>
       </div>
-      <label className="inline-flex items-center gap-2 text-sm font-bold text-zinc-200">
+      <label className="inline-flex items-center gap-2 text-sm font-bold text-text">
         <input
           checked={enabled}
-          className="h-4 w-4 accent-sky-500"
+          className="h-4 w-4 accent-accent"
           onChange={(event) => onChange(event.target.checked)}
           type="checkbox"
         />
@@ -279,7 +279,7 @@ function HintsToggle({
 function RejectedAction({ event }: { event: ActionEvent }) {
   return (
     <div
-      className="mt-4 rounded-sm border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+      className="mt-4 rounded-sm border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger"
       role="alert"
     >
       <span className="font-extrabold uppercase">Action rejected.</span>{' '}
@@ -330,7 +330,7 @@ function DeviceTypeStep({
   const [deviceType, setDeviceType] = useState('Desktop');
   return (
     <Card className="mt-5 p-5">
-      <label className="text-xs font-extrabold uppercase text-zinc-400">
+      <label className="text-xs font-extrabold uppercase text-text-muted">
         Deployment profile
         <Select
           className="mt-2"
@@ -366,7 +366,7 @@ function CableStep({
   return (
     <Card className="mt-5 p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-bold text-zinc-100">Rear I/O panel</h3>
+        <h3 className="font-bold text-text">Rear I/O panel</h3>
         <Badge variant={run.connectedCables.length === 5 ? 'success' : 'amber'}>
           {run.connectedCables.length}/5
         </Badge>
@@ -376,10 +376,10 @@ function CableStep({
           const connected = run.connectedCables.includes(cable);
           return (
             <div
-              className="grid gap-2 rounded-sm border border-zinc-800 p-3 sm:grid-cols-[1fr_1.2fr_auto] sm:items-center"
+              className="grid gap-2 rounded-sm border border-border p-3 sm:grid-cols-[1fr_1.2fr_auto] sm:items-center"
               key={cable}
             >
-              <span className="font-mono text-sm font-bold text-zinc-200">
+              <span className="font-mono text-sm font-bold text-text">
                 {cable}
               </span>
               <Select
@@ -459,21 +459,21 @@ function PostStep({
 
   const promptVisible = elapsed >= 900 && elapsed <= 4400;
   return (
-    <Card className="mt-5 overflow-hidden border-zinc-700 bg-black p-0">
-      <div className="min-h-64 p-6 font-mono text-sm text-emerald-300">
+    <Card className="mt-5 overflow-hidden border-border bg-black p-0">
+      <div className="min-h-64 p-6 font-mono text-sm text-success">
         <p>NEXUS UEFI WORKSTATION FIRMWARE</p>
-        <p className="mt-4 text-zinc-500">Initializing hardware…</p>
+        <p className="mt-4 text-text-muted">Initializing hardware…</p>
         <p className="mt-2">Memory check: OK</p>
         <p>Network adapter: detected</p>
         {promptVisible ? (
-          <p className="mt-8 animate-pulse text-amber-300">
+          <p className="mt-8 animate-pulse text-warning">
             Press F12 for the Boot Option Menu
           </p>
         ) : elapsed > 4400 ? (
-          <p className="mt-8 text-zinc-500">Booting internal drive…</p>
+          <p className="mt-8 text-text-muted">Booting internal drive…</p>
         ) : null}
       </div>
-      <div className="flex justify-end border-t border-zinc-800 p-4">
+      <div className="flex justify-end border-t border-border p-4">
         <Button onClick={press} variant="primary">
           <IconKey aria-hidden="true" className="h-4 w-4" />
           Press F12
@@ -493,7 +493,7 @@ function BootSourceStep({
   const { selectBootSource } = useComputerDeploymentSession();
   return (
     <Card className="mt-5 p-5">
-      <p className="font-mono text-xs font-bold uppercase text-emerald-300">
+      <p className="font-mono text-xs font-bold uppercase text-success">
         Boot Option Menu
       </p>
       <div className="mt-4 grid gap-2">
@@ -539,7 +539,7 @@ function ShareAuthenticationStep({
           onEvent(actionEvent);
         }}
       >
-        <label className="text-xs font-extrabold uppercase text-zinc-400">
+        <label className="text-xs font-extrabold uppercase text-text-muted">
           Deployment share password
           <Input
             autoFocus
@@ -550,7 +550,7 @@ function ShareAuthenticationStep({
           />
         </label>
         {error ? (
-          <p className="mt-3 text-sm font-semibold text-red-300" role="alert">
+          <p className="mt-3 text-sm font-semibold text-danger" role="alert">
             Action rejected. {error}
           </p>
         ) : null}
@@ -587,7 +587,7 @@ function HostnameStep({
           onEvent(actionEvent);
         }}
       >
-        <label className="text-xs font-extrabold uppercase text-zinc-400">
+        <label className="text-xs font-extrabold uppercase text-text-muted">
           Computer name
           <Input
             autoFocus
@@ -598,11 +598,11 @@ function HostnameStep({
             value={hostname}
           />
         </label>
-        <p className="mt-2 text-xs text-zinc-400">
+        <p className="mt-2 text-xs text-text-muted">
           Use the corporate naming convention, e.g. SD1042, SD1108, SD1205
         </p>
         {error ? (
-          <p className="mt-3 text-sm font-semibold text-red-300" role="alert">
+          <p className="mt-3 text-sm font-semibold text-danger" role="alert">
             Action rejected. {error}
           </p>
         ) : null}
@@ -624,17 +624,17 @@ function TaskSequenceStep({
   const { runTaskSequence } = useComputerDeploymentSession();
   return (
     <Card className="mt-5 p-6">
-      <div className="flex items-center gap-3 text-sky-300">
+      <div className="flex items-center gap-3 text-accent">
         <IconServer aria-hidden="true" className="h-7 w-7 animate-pulse" />
         <div>
-          <p className="font-bold text-zinc-100">Running: Task Sequence</p>
+          <p className="font-bold text-text">Running: Task Sequence</p>
           <p className="text-sm">
             Running action: Contacting distribution point
           </p>
         </div>
       </div>
-      <div className="mt-5 h-2 overflow-hidden rounded-full bg-zinc-800">
-        <div className="h-full w-2/3 animate-pulse rounded-full bg-sky-500" />
+      <div className="mt-5 h-2 overflow-hidden rounded-full bg-surface-muted">
+        <div className="h-full w-2/3 animate-pulse rounded-full bg-accent" />
       </div>
       <Button
         className="mt-5"
@@ -657,11 +657,11 @@ function RebootStep({
   const { reboot } = useComputerDeploymentSession();
   return (
     <Card className="mt-5 flex min-h-64 flex-col items-center justify-center p-6 text-center">
-      <IconPower aria-hidden="true" className="h-12 w-12 text-sky-400" />
-      <h3 className="mt-4 text-lg font-bold text-zinc-100">
+      <IconPower aria-hidden="true" className="h-12 w-12 text-accent" />
+      <h3 className="mt-4 text-lg font-bold text-text">
         Ready to boot the deployed OS
       </h3>
-      <p className="mt-2 text-sm text-zinc-400">
+      <p className="mt-2 text-sm text-text-muted">
         The task sequence has staged Windows and its domain configuration.
       </p>
       <Button
@@ -691,9 +691,9 @@ function DomainLoginStep({
       <div className="text-center">
         <IconDeviceDesktop
           aria-hidden="true"
-          className="mx-auto h-10 w-10 text-sky-400"
+          className="mx-auto h-10 w-10 text-accent"
         />
-        <h3 className="mt-3 text-lg font-bold text-zinc-100">Domain login</h3>
+        <h3 className="mt-3 text-lg font-bold text-text">Domain login</h3>
       </div>
       <form
         className="mt-5 grid gap-4"
@@ -733,28 +733,28 @@ function DeploymentSuccess({ run }: { run: DeploymentRun }) {
   const { startDeployment } = useComputerDeploymentSession();
   return (
     <Card className="mt-5 flex min-h-80 flex-col items-center justify-center p-6 text-center">
-      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
+      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-success/15 text-success">
         <IconCircleCheck aria-hidden="true" className="h-9 w-9" />
       </span>
-      <h2 className="mt-4 text-2xl font-bold text-zinc-100">
+      <h2 className="mt-4 text-2xl font-bold text-text">
         Deployment Successful
       </h2>
-      <p className="mt-2 font-mono text-sm text-zinc-300">
+      <p className="mt-2 font-mono text-sm text-text">
         {run.hostname} · Server Imaging · Desktop
       </p>
-      <p className="mt-2 max-w-lg text-sm text-zinc-400">
+      <p className="mt-2 max-w-lg text-sm text-text-muted">
         The provisioned computer is on the PC Shelf and ready for assignment or
         shipping.
       </p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Link
-          className="sd-button sd-focus-ring inline-flex min-h-10 items-center justify-center rounded-sm border border-sky-500 bg-sky-600 px-4 py-2 text-sm font-extrabold uppercase text-white hover:bg-sky-500"
+          className="sd-button sd-focus-ring inline-flex min-h-10 items-center justify-center rounded-sm border border-accent bg-accent px-4 py-2 text-sm font-extrabold uppercase text-white hover:bg-accent"
           href={`/tools/shipping-manager?computer=${run.hostname ?? ''}`}
         >
           Ship it from Ship Manager
         </Link>
         <Link
-          className="sd-button sd-focus-ring inline-flex min-h-10 items-center justify-center rounded-sm border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-extrabold uppercase text-zinc-200 hover:bg-zinc-800"
+          className="sd-button sd-focus-ring inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-surface-raised px-4 py-2 text-sm font-extrabold uppercase text-text hover:bg-surface-muted"
           href="/tools/pc-shelf"
         >
           Go to PC Shelf
@@ -775,7 +775,7 @@ function Field({
   label: string;
 }) {
   return (
-    <label className="text-xs font-extrabold uppercase text-zinc-400">
+    <label className="text-xs font-extrabold uppercase text-text-muted">
       {label}
       <div className="mt-2">{children}</div>
     </label>

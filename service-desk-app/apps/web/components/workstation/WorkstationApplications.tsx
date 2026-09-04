@@ -50,7 +50,7 @@ function ScenarioAction({
   const recorded = performed.has(stepId);
   return (
     <button
-      className="rounded-sm bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-700 disabled:bg-zinc-300"
+      className="rounded-sm bg-accent px-3 py-2 text-xs font-bold text-white hover:bg-sky-700 disabled:bg-zinc-300"
       disabled={(recorded && !repeatable) || scenarioComplete}
       onClick={() => runStep(stepId)}
       type="button"
@@ -220,7 +220,7 @@ export function WorkstationApplicationContent({
             {action('system.view-network', 'View network diagnostics')}
             {scenario.id === 'service-failure' ? (
               <button
-                className="rounded-sm bg-sky-600 px-3 py-2 text-xs font-bold text-white hover:bg-sky-700"
+                className="rounded-sm bg-accent px-3 py-2 text-xs font-bold text-white hover:bg-sky-700"
                 onClick={() => runStep('printer.test-page')}
                 type="button"
               >
@@ -235,7 +235,7 @@ export function WorkstationApplicationContent({
               <h4 className="font-semibold text-zinc-900">
                 Case investigation workspace
               </h4>
-              <p className="mt-1 text-sm text-zinc-600">
+              <p className="mt-1 text-sm text-text-muted">
                 Record the evidence you establish, then apply the specific safe
                 remediation and retest the original request.
               </p>
@@ -287,7 +287,7 @@ export function WorkstationApplicationContent({
       return (
         <div className="p-5">
           <h3 className="text-lg font-bold">Recycle Bin</h3>
-          <p className="mt-2 text-sm text-zinc-600">
+          <p className="mt-2 text-sm text-text-muted">
             No repair files are staged here.
           </p>
           <div className="mt-4">
@@ -335,7 +335,7 @@ function VpnClientWindow({
           <h3 className="text-lg font-bold">
             {profile?.name ?? 'VPN profiles'}
           </h3>
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 text-sm text-text-muted">
             Gateway: {profile?.serverAddress ?? 'No profile configured'}
           </p>
         </div>
@@ -358,7 +358,7 @@ function VpnClientWindow({
             <p className="text-sm font-semibold text-zinc-900">
               {profile?.name ?? 'Company network'}
             </p>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-text-muted">
               {profile
                 ? `${profile.tunnelType.toUpperCase()} · ${profile.authenticationMethod} · device ${workstation.workstation.machine.compliance}`
                 : 'Add an approved VPN profile before connecting.'}
@@ -394,13 +394,13 @@ function VpnClientWindow({
       {profile ? (
         <dl className="mt-4 grid gap-3 rounded border border-zinc-200 p-4 text-xs sm:grid-cols-2">
           <div>
-            <dt className="font-semibold text-zinc-500">DNS policy</dt>
+            <dt className="font-semibold text-text-muted">DNS policy</dt>
             <dd className="mt-1 font-mono text-zinc-800">
               {profile.dnsServers.join(', ')}
             </dd>
           </div>
           <div>
-            <dt className="font-semibold text-zinc-500">Private routes</dt>
+            <dt className="font-semibold text-text-muted">Private routes</dt>
             <dd className="mt-1 font-mono text-zinc-800">
               {profile.routes
                 .map((route) => `${route.destination}/${route.prefixLength}`)
@@ -412,14 +412,14 @@ function VpnClientWindow({
 
       <section aria-labelledby="vpn-log-title" className="mt-5">
         <h4
-          className="text-xs font-bold uppercase tracking-wider text-zinc-500"
+          className="text-xs font-bold uppercase tracking-wider text-text-muted"
           id="vpn-log-title"
         >
           Connection log
         </h4>
         <div
           aria-live="polite"
-          className="mt-2 max-h-40 overflow-y-auto rounded bg-zinc-950 p-3 font-mono text-[11px] leading-5 text-emerald-200"
+          className="mt-2 max-h-40 overflow-y-auto rounded bg-surface p-3 font-mono text-[11px] leading-5 text-success"
         >
           {workstation.vpnLog.length ? (
             workstation.vpnLog.map((entry, index) => (
@@ -429,7 +429,7 @@ function VpnClientWindow({
               </p>
             ))
           ) : (
-            <p className="text-zinc-500">No connection attempts recorded.</p>
+            <p className="text-text-muted">No connection attempts recorded.</p>
           )}
         </div>
       </section>
@@ -488,7 +488,7 @@ function SettingsWindow({
         {tabs.map((item) => (
           <button
             aria-current={tab === item.id ? 'page' : undefined}
-            className={`whitespace-nowrap rounded px-3 py-2 text-left text-sm font-semibold ${tab === item.id ? 'bg-sky-100 text-sky-900' : 'text-zinc-600 hover:bg-zinc-200'}`}
+            className={`whitespace-nowrap rounded px-3 py-2 text-left text-sm font-semibold ${tab === item.id ? 'bg-sky-100 text-sky-900' : 'text-text-muted hover:bg-zinc-200'}`}
             key={item.id}
             onClick={() => setTab(item.id)}
             type="button"
@@ -503,7 +503,7 @@ function SettingsWindow({
             <h3 className="text-lg font-bold" id="settings-network-title">
               Network
             </h3>
-            <p className="mt-1 text-sm text-zinc-600">
+            <p className="mt-1 text-sm text-text-muted">
               Ethernet adapter · {workstation.networkStatus}
             </p>
             {canRepairNetwork ? (
@@ -525,7 +525,7 @@ function SettingsWindow({
                 updateDns(primaryDns, secondaryDns);
               }}
             >
-              <label className="block text-sm font-semibold text-zinc-700">
+              <label className="block text-sm font-semibold text-text-muted">
                 Primary DNS server
                 <Input
                   className="mt-1 bg-white text-zinc-900"
@@ -533,7 +533,7 @@ function SettingsWindow({
                   value={primaryDns}
                 />
               </label>
-              <label className="block text-sm font-semibold text-zinc-700">
+              <label className="block text-sm font-semibold text-text-muted">
                 Secondary DNS server
                 <Input
                   className="mt-1 bg-white text-zinc-900"
@@ -551,7 +551,7 @@ function SettingsWindow({
             <h3 className="text-lg font-bold" id="settings-storage-title">
               Storage
             </h3>
-            <p className="mt-1 text-sm text-zinc-600">
+            <p className="mt-1 text-sm text-text-muted">
               The same disk figures shown in File Explorer.
             </p>
             <div className="mt-4 space-y-3">
@@ -567,13 +567,13 @@ function SettingsWindow({
                       <span className="font-semibold">
                         {drive.label} ({drive.letter})
                       </span>
-                      <span className="text-zinc-500">
+                      <span className="text-text-muted">
                         {drive.freeGb} GB free of {drive.totalGb} GB
                       </span>
                     </div>
                     <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-200">
                       <span
-                        className="block h-full bg-sky-600"
+                        className="block h-full bg-accent"
                         style={{ width: `${usedPercent}%` }}
                       />
                     </div>
@@ -643,13 +643,13 @@ function ServicesWindow({
   return (
     <div className="p-5">
       <h3 className="text-lg font-bold">Services</h3>
-      <p className="mt-1 text-sm text-zinc-600">
+      <p className="mt-1 text-sm text-text-muted">
         Local services on {workstation.hostname}. Terminal commands read this
         same state.
       </p>
       <div className="mt-4 overflow-x-auto rounded border border-zinc-200">
         <table className="w-full min-w-[28rem] text-left text-sm">
-          <thead className="bg-zinc-100 text-xs uppercase text-zinc-500">
+          <thead className="bg-zinc-100 text-xs uppercase text-text-muted">
             <tr>
               <th className="px-3 py-2">Service</th>
               <th className="px-3 py-2">Status</th>
@@ -693,7 +693,7 @@ function ServicesWindow({
         </table>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className="mr-auto text-sm font-semibold text-zinc-700">
+        <span className="mr-auto text-sm font-semibold text-text-muted">
           {selectedService || 'Select a service'}
         </span>
         {status === 'stopped' ? (
@@ -755,7 +755,7 @@ function UpdateControls({
             Windows Update
           </h3>
           <p className="mt-1 text-sm font-semibold text-zinc-800">{title}</p>
-          <p className="mt-1 max-w-md text-sm text-zinc-600">{description}</p>
+          <p className="mt-1 max-w-md text-sm text-text-muted">{description}</p>
         </div>
         <Badge
           variant={
@@ -834,18 +834,18 @@ function BrowserWindow({
 
   return (
     <div className="p-5">
-      <div className="rounded border bg-zinc-50 p-2 font-mono text-xs text-zinc-600">
+      <div className="rounded border bg-zinc-50 p-2 font-mono text-xs text-text-muted">
         nexus.internal/documentation/{scenario.ticketId}
       </div>
       <h3 className="mt-4 text-lg font-bold">Ticket documentation</h3>
-      <p className="mt-1 text-sm text-zinc-600">
+      <p className="mt-1 text-sm text-text-muted">
         Curated internal articles for the active ticket. General web navigation
         is disabled.
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {articles.map((article) => (
           <Link
-            className="rounded border border-zinc-200 p-3 hover:border-sky-400 hover:bg-sky-50"
+            className="rounded border border-zinc-200 p-3 hover:border-accent hover:bg-sky-50"
             href={`/tools/documentation?article=${article.id}`}
             key={article.id}
             target="_blank"
@@ -916,10 +916,10 @@ function ChatMailWindow({
         <h3 className="text-lg font-bold">Ticket mail</h3>
         <article className="mt-4 rounded border border-zinc-200 p-4 text-sm">
           <p className="font-semibold">To: {ticket?.requester.email}</p>
-          <p className="mt-1 text-zinc-500">
+          <p className="mt-1 text-text-muted">
             Subject: {scenario.ticketId} support update
           </p>
-          <p className="mt-4 leading-6 text-zinc-700">
+          <p className="mt-4 leading-6 text-text-muted">
             {ticket?.description.issue}
           </p>
         </article>
@@ -953,7 +953,7 @@ function ChatMailWindow({
       <h3 className="text-lg font-bold">Company Chat</h3>
       {contact ? (
         <>
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 text-sm text-text-muted">
             Ticket-linked conversation with {contact.fullName}. Messages are
             stored in the real Company Chat thread.
           </p>
@@ -964,7 +964,7 @@ function ChatMailWindow({
                   className={
                     entry.fromStudent
                       ? 'text-right text-sky-800'
-                      : 'text-zinc-700'
+                      : 'text-text-muted'
                   }
                   key={entry.id}
                 >
@@ -974,7 +974,7 @@ function ChatMailWindow({
                 </p>
               ))
             ) : (
-              <p className="text-zinc-500">No messages yet for this attempt.</p>
+              <p className="text-text-muted">No messages yet for this attempt.</p>
             )}
           </div>
           <form
@@ -1069,7 +1069,7 @@ function FileExplorerWindow({
       <div className="flex items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-2 py-2">
         <button
           aria-label="Go back"
-          className="rounded p-1.5 text-zinc-600 hover:bg-zinc-200 disabled:text-zinc-300"
+          className="rounded p-1.5 text-text-muted hover:bg-zinc-200 disabled:text-text"
           disabled={workstation.explorerCurrentPath === 'This PC'}
           onClick={() =>
             navigate(parentExplorerPath(workstation.explorerCurrentPath))
@@ -1079,7 +1079,7 @@ function FileExplorerWindow({
           <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
         </button>
         <button
-          className="inline-flex items-center gap-1 rounded px-2 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-200"
+          className="inline-flex items-center gap-1 rounded px-2 py-1.5 text-xs font-semibold text-text-muted hover:bg-zinc-200"
           onClick={() => setMapDialogFor(null)}
           type="button"
         >
@@ -1088,13 +1088,13 @@ function FileExplorerWindow({
         </button>
         <div
           aria-label="Current File Explorer location"
-          className="min-w-0 flex-1 truncate border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-700"
+          className="min-w-0 flex-1 truncate border border-zinc-300 bg-white px-3 py-1.5 text-xs text-text-muted"
         >
           {workstation.explorerCurrentPath}
         </div>
         <button
           aria-label="Refresh File Explorer"
-          className="inline-flex items-center gap-1 rounded px-2 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-200"
+          className="inline-flex items-center gap-1 rounded px-2 py-1.5 text-xs font-semibold text-text-muted hover:bg-zinc-200"
           onClick={refresh}
           type="button"
         >
@@ -1109,7 +1109,7 @@ function FileExplorerWindow({
           className="hidden w-44 shrink-0 overflow-y-auto border-r border-zinc-200 bg-zinc-50 p-2 sm:block"
         >
           <button
-            className={`flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs font-semibold ${workstation.explorerCurrentPath === 'This PC' ? 'bg-sky-100 text-sky-900' : 'text-zinc-700 hover:bg-zinc-200'}`}
+            className={`flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs font-semibold ${workstation.explorerCurrentPath === 'This PC' ? 'bg-sky-100 text-sky-900' : 'text-text-muted hover:bg-zinc-200'}`}
             onClick={() => navigate('This PC')}
             type="button"
           >
@@ -1119,12 +1119,12 @@ function FileExplorerWindow({
             />
             This PC
           </button>
-          <p className="px-2 pb-1 pt-4 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+          <p className="px-2 pb-1 pt-4 text-[10px] font-bold uppercase tracking-wider text-text-muted">
             Drives
           </p>
           {workstation.drives.map((drive) => (
             <button
-              className={`flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs ${currentDrive?.letter === drive.letter ? 'bg-sky-100 text-sky-900' : 'text-zinc-700 hover:bg-zinc-200'}`}
+              className={`flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs ${currentDrive?.letter === drive.letter ? 'bg-sky-100 text-sky-900' : 'text-text-muted hover:bg-zinc-200'}`}
               key={drive.letter}
               onClick={() => navigate(drive.rootPath)}
               type="button"
@@ -1168,7 +1168,7 @@ function FileExplorerWindow({
                   return (
                     <button
                       aria-label={`Open ${drive.label} (${drive.letter})`}
-                      className="rounded border border-zinc-200 p-3 text-left hover:border-sky-400 hover:bg-sky-50"
+                      className="rounded border border-zinc-200 p-3 text-left hover:border-accent hover:bg-sky-50"
                       key={drive.letter}
                       onClick={() => navigate(drive.rootPath)}
                       type="button"
@@ -1177,7 +1177,7 @@ function FileExplorerWindow({
                         {drive.kind === 'local' ? (
                           <IconDatabase
                             aria-hidden="true"
-                            className="h-8 w-8 shrink-0 text-zinc-500"
+                            className="h-8 w-8 shrink-0 text-text-muted"
                           />
                         ) : (
                           <IconNetwork
@@ -1190,17 +1190,17 @@ function FileExplorerWindow({
                             {drive.label} ({drive.letter})
                           </p>
                           <p
-                            className={`mt-0.5 text-xs ${status === 'connected' ? 'text-zinc-500' : status === 'permission-error' ? 'font-semibold text-red-700' : 'font-semibold text-amber-700'}`}
+                            className={`mt-0.5 text-xs ${status === 'connected' ? 'text-text-muted' : status === 'permission-error' ? 'font-semibold text-red-700' : 'font-semibold text-amber-700'}`}
                           >
                             {driveStatusLabel(status)}
                           </p>
                           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200">
                             <span
-                              className="block h-full bg-sky-600"
+                              className="block h-full bg-accent"
                               style={{ width: `${usedPercent}%` }}
                             />
                           </div>
-                          <p className="mt-1 text-[11px] text-zinc-500">
+                          <p className="mt-1 text-[11px] text-text-muted">
                             {drive.freeGb} GB free of {drive.totalGb} GB
                           </p>
                         </div>
@@ -1221,7 +1221,7 @@ function FileExplorerWindow({
                     {currentDrive?.label ?? 'Folder'}
                   </h3>
                   {currentDrive ? (
-                    <p className="mt-0.5 text-xs text-zinc-500">
+                    <p className="mt-0.5 text-xs text-text-muted">
                       {currentDrive.freeGb} GB free of {currentDrive.totalGb} GB
                     </p>
                   ) : null}
@@ -1245,13 +1245,13 @@ function FileExplorerWindow({
                       <span className="flex min-w-0 items-center gap-2">
                         <IconFolder
                           aria-hidden="true"
-                          className="h-5 w-5 shrink-0 text-amber-500"
+                          className="h-5 w-5 shrink-0 text-warning"
                         />
                         <span className="truncate font-medium">
                           {entry.name}
                         </span>
                       </span>
-                      <span className="text-zinc-400">{entry.modifiedAt}</span>
+                      <span className="text-text-muted">{entry.modifiedAt}</span>
                     </button>
                   ) : (
                     <div
@@ -1266,12 +1266,12 @@ function FileExplorerWindow({
                         />
                         <span className="truncate">{entry.name}</span>
                       </span>
-                      <span className="text-zinc-400">{entry.size}</span>
+                      <span className="text-text-muted">{entry.size}</span>
                     </div>
                   ),
                 )}
                 {entries.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-zinc-500">
+                  <p className="py-8 text-center text-sm text-text-muted">
                     This folder is empty.
                   </p>
                 ) : null}
@@ -1306,7 +1306,7 @@ function ExplorerErrorState({
   const permissionError = error.kind === 'permission-error';
   return (
     <div
-      className={`mx-auto mt-5 max-w-md rounded border p-5 ${permissionError ? 'border-red-300 bg-red-50 text-red-950' : 'border-amber-300 bg-amber-50 text-amber-950'}`}
+      className={`mx-auto mt-5 max-w-md rounded border p-5 ${permissionError ? 'border-danger bg-red-50 text-red-950' : 'border-warning bg-amber-50 text-amber-950'}`}
       role="alert"
     >
       <IconAlertTriangle
@@ -1371,13 +1371,13 @@ function TerminalWindow({
     .slice(-WORKSTATION_COMMAND_RECALL_LIMIT);
 
   return (
-    <div className="flex h-full min-h-[20rem] flex-col bg-[#0d1510] font-mono text-sm text-emerald-100">
+    <div className="flex h-full min-h-[20rem] flex-col bg-[#0d1510] font-mono text-sm text-success">
       <div
         aria-live="polite"
         className="min-h-0 flex-1 overflow-y-auto p-4 leading-6"
         ref={scrollbackRef}
       >
-        <p className="mb-3 text-emerald-300">
+        <p className="mb-3 text-success">
           Nexus Terminal — simulated command environment
         </p>
         {visibleHistory.map((entry, index) => (
@@ -1385,7 +1385,7 @@ function TerminalWindow({
             className="mb-3 whitespace-pre-wrap break-words"
             key={`${entry.timestamp}-${index}`}
           >
-            <p className="text-emerald-400">
+            <p className="text-success">
               {hostname}&gt; {entry.command}
             </p>
             {entry.output.map((line, lineIndex) => (
@@ -1395,7 +1395,7 @@ function TerminalWindow({
         ))}
       </div>
       <form
-        className="flex items-center border-t border-emerald-900 bg-[#101c14] px-4 py-3 text-emerald-300"
+        className="flex items-center border-t border-emerald-900 bg-[#101c14] px-4 py-3 text-success"
         onSubmit={(event) => {
           event.preventDefault();
           submit();
@@ -1407,7 +1407,7 @@ function TerminalWindow({
         <span aria-hidden="true">{hostname}&gt;&nbsp;</span>
         <input
           autoComplete="off"
-          className="min-w-0 flex-1 bg-transparent text-emerald-100 outline-none placeholder:text-emerald-700"
+          className="min-w-0 flex-1 bg-transparent text-success outline-none placeholder:text-emerald-700"
           id="terminal-command"
           maxLength={WORKSTATION_TERMINAL_COMMAND_MAX_LENGTH}
           onChange={(event) => {

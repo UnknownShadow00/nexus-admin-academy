@@ -31,12 +31,12 @@ export function DirectoryActionDialog({
       title={title}
       trigger={trigger}
     >
-      <div className="flex gap-3 rounded-sm border border-amber-400/30 bg-amber-400/10 p-3">
+      <div className="flex gap-3 rounded-sm border border-warning/30 bg-warning/10 p-3">
         <IconAlertTriangle
           aria-hidden="true"
-          className="h-5 w-5 shrink-0 text-amber-400"
+          className="h-5 w-5 shrink-0 text-warning"
         />
-        <p className="text-sm leading-relaxed text-zinc-300">{description}</p>
+        <p className="text-sm leading-relaxed text-text">{description}</p>
       </div>
       <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button onClick={() => setOpen(false)}>Cancel</Button>

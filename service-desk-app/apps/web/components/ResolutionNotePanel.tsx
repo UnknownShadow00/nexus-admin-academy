@@ -36,7 +36,7 @@ export function ResolutionNotePanel({
         meta={`${notes.length} private`}
         title={
           <span className="flex items-center gap-2">
-            <IconNote aria-hidden="true" className="h-5 w-5 text-sky-400" />
+            <IconNote aria-hidden="true" className="h-5 w-5 text-accent" />
             Resolution notes
           </span>
         }
@@ -46,14 +46,14 @@ export function ResolutionNotePanel({
           <ul className="mb-5 space-y-3">
             {[...notes].reverse().map((note) => (
               <li
-                className="rounded-sm border border-zinc-800 bg-zinc-950 p-3"
+                className="rounded-sm border border-border bg-surface p-3"
                 key={note.id}
               >
-                <p className="whitespace-pre-wrap text-sm text-zinc-300">
+                <p className="whitespace-pre-wrap text-sm text-text">
                   {note.body}
                 </p>
                 <time
-                  className="mt-2 block text-[11px] text-zinc-500"
+                  className="mt-2 block text-[11px] text-text-muted"
                   dateTime={note.createdAt}
                 >
                   Added {formatActivityTimestamp(note.createdAt)}
@@ -62,13 +62,13 @@ export function ResolutionNotePanel({
             ))}
           </ul>
         ) : (
-          <p className="mb-4 text-sm text-zinc-500">
+          <p className="mb-4 text-sm text-text-muted">
             No internal notes yet. Notes stay within this practice session.
           </p>
         )}
         <form onSubmit={handleSubmit}>
           <label
-            className="text-xs font-extrabold uppercase tracking-wide text-zinc-500"
+            className="text-xs font-extrabold uppercase tracking-wide text-text-muted"
             htmlFor="resolution-note"
           >
             Add a note
@@ -82,7 +82,7 @@ export function ResolutionNotePanel({
             value={body}
           />
           {showPrompts ? (
-            <p className="mt-2 text-xs leading-5 text-zinc-400" id="resolution-note-prompts">
+            <p className="mt-2 text-xs leading-5 text-text-muted" id="resolution-note-prompts">
               {NOTE_PROMPTS}
             </p>
           ) : null}

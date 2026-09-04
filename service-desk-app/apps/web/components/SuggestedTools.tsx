@@ -86,20 +86,20 @@ export function SuggestedTools({
         meta={experienceMode === 'guided' ? 'Ticket context' : 'Standard suite'}
         title={
           <span className="flex items-center gap-2">
-            <IconTool aria-hidden="true" className="h-5 w-5 text-sky-400" />
+            <IconTool aria-hidden="true" className="h-5 w-5 text-accent" />
             {experienceMode === 'guided'
               ? 'Recommended places to start'
               : 'Available technician tools'}
           </span>
         }
       />
-      <nav aria-label="Suggested tools" className="divide-y divide-zinc-800">
+      <nav aria-label="Suggested tools" className="divide-y divide-border">
         {tools.map((tool) => {
           const ToolIcon = TOOL_ICONS[tool.slug];
 
           return (
             <button
-              className="sd-focus-ring group flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400"
+              className="sd-focus-ring group flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
               key={tool.slug}
               onClick={() =>
                 onSelectTool(
@@ -115,14 +115,14 @@ export function SuggestedTools({
             >
               <ToolIcon
                 aria-hidden="true"
-                className="h-4 w-4 shrink-0 text-sky-400"
+                className="h-4 w-4 shrink-0 text-accent"
               />
-              <span className="min-w-0 flex-1 text-sm font-semibold text-zinc-200">
+              <span className="min-w-0 flex-1 text-sm font-semibold text-text">
                 {tool.menuLabel}
               </span>
               <IconChevronRight
                 aria-hidden="true"
-                className="h-4 w-4 shrink-0 text-zinc-600 group-hover:text-sky-400"
+                className="h-4 w-4 shrink-0 text-text-muted group-hover:text-accent"
               />
             </button>
           );

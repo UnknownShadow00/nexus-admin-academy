@@ -28,7 +28,7 @@ export function RelatedDevicePanel({ device }: { device: RequesterDevice }) {
       <CardHeader
         title={
           <span className="flex items-center gap-2">
-            <DeviceIcon aria-hidden="true" className="h-5 w-5 text-sky-400" />
+            <DeviceIcon aria-hidden="true" className="h-5 w-5 text-accent" />
             Related device
           </span>
         }
@@ -36,10 +36,10 @@ export function RelatedDevicePanel({ device }: { device: RequesterDevice }) {
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="font-mono text-sm font-semibold text-zinc-100">
+            <p className="font-mono text-sm font-semibold text-text">
               {device.assetTag}
             </p>
-            <p className="mt-1 truncate text-sm text-zinc-300">
+            <p className="mt-1 truncate text-sm text-text">
               {device.deviceName}
             </p>
           </div>
@@ -47,19 +47,19 @@ export function RelatedDevicePanel({ device }: { device: RequesterDevice }) {
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
           <div>
-            <dt className="font-bold uppercase tracking-wide text-zinc-500">
+            <dt className="font-bold uppercase tracking-wide text-text-muted">
               Type
             </dt>
-            <dd className="mt-1 capitalize text-zinc-300">{device.kind}</dd>
+            <dd className="mt-1 capitalize text-text">{device.kind}</dd>
           </div>
           <div>
-            <dt className="font-bold uppercase tracking-wide text-zinc-500">
+            <dt className="font-bold uppercase tracking-wide text-text-muted">
               Platform
             </dt>
-            <dd className="mt-1 text-zinc-300">{device.operatingSystem}</dd>
+            <dd className="mt-1 text-text">{device.operatingSystem}</dd>
           </div>
         </dl>
-        <p className="mt-4 border-t border-zinc-800 pt-3 text-xs leading-relaxed text-zinc-500">
+        <p className="mt-4 border-t border-border pt-3 text-xs leading-relaxed text-text-muted">
           Local fixture record only; Directory and Asset Management remain
           placeholder workspaces.
         </p>

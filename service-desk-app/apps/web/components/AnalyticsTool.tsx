@@ -42,14 +42,14 @@ interface StatCardProps {
 function StatCard({ icon, label, value }: StatCardProps) {
   return (
     <Card className="flex items-center gap-3 p-4">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-sky-400/30 bg-sky-400/10 text-sky-400">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-accent/30 bg-accent/10 text-accent">
         {icon}
       </span>
       <span>
-        <span className="block font-display text-xl font-bold tabular-nums text-zinc-100">
+        <span className="block font-display text-xl font-bold tabular-nums text-text">
           {value}
         </span>
-        <span className="block text-xs font-bold uppercase tracking-wide text-zinc-500">
+        <span className="block text-xs font-bold uppercase tracking-wide text-text-muted">
           {label}
         </span>
       </span>
@@ -76,21 +76,21 @@ function Breakdown({ items, title, total }: BreakdownProps) {
         {items.map((item) => (
           <div key={item.key}>
             <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
-              <span className="font-semibold text-zinc-200">{item.label}</span>
-              <span className="tabular-nums text-zinc-400">
+              <span className="font-semibold text-text">{item.label}</span>
+              <span className="tabular-nums text-text-muted">
                 {item.count} · {item.percentage.toFixed(1)}%
               </span>
             </div>
             <div
               aria-label={`${item.label}: ${item.percentage.toFixed(1)} percent`}
-              className="h-2 overflow-hidden rounded-full bg-zinc-800"
+              className="h-2 overflow-hidden rounded-full bg-surface-muted"
               role="progressbar"
               aria-valuemax={100}
               aria-valuemin={0}
               aria-valuenow={item.percentage}
             >
               <div
-                className="h-full rounded-full bg-sky-400"
+                className="h-full rounded-full bg-accent"
                 style={{ width: `${item.percentage}%` }}
               />
             </div>
@@ -106,7 +106,7 @@ export function AnalyticsTool() {
 
   if (!analytics.isHydrated) {
     return (
-      <Card className="mx-auto max-w-6xl p-8 text-center text-sm text-zinc-400">
+      <Card className="mx-auto max-w-6xl p-8 text-center text-sm text-text-muted">
         Loading your saved analytics…
       </Card>
     );
@@ -133,21 +133,21 @@ export function AnalyticsTool() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 md:space-y-6">
-      <header className="border-b border-zinc-800 pb-4">
-        <p className="font-label text-xs font-extrabold uppercase tracking-widest text-sky-400">
+      <header className="border-b border-border pb-4">
+        <p className="font-label text-xs font-extrabold uppercase tracking-widest text-accent">
           Personal performance
         </p>
-        <h1 className="mt-1 font-display text-2xl font-bold text-zinc-100 sm:text-3xl">
+        <h1 className="mt-1 font-display text-2xl font-bold text-text sm:text-3xl">
           Analytics
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-zinc-400">
+        <p className="mt-2 max-w-2xl text-sm text-text-muted">
           Track your support performance and identify training opportunities.
           Every metric reflects this browser&apos;s current simulation attempt.
         </p>
       </header>
 
       {analytics.ticketsAttempted === 0 ? (
-        <Card className="border-sky-400/20 bg-sky-400/5 p-4 text-sm text-sky-200">
+        <Card className="border-accent/20 bg-accent/5 p-4 text-sm text-accent">
           Complete a ticket to populate score, accuracy, category, priority, and
           timing analytics. Recorded tool actions will appear immediately.
         </Card>
@@ -192,17 +192,17 @@ export function AnalyticsTool() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <Badge variant="amber">{currentTier}</Badge>
-              <p className="mt-2 text-sm text-zinc-400">
+              <p className="mt-2 text-sm text-text-muted">
                 {analytics.pointsTotal.toLocaleString()} total points
               </p>
             </div>
-            <span className="text-xs font-semibold uppercase text-zinc-500">
+            <span className="text-xs font-semibold uppercase text-text-muted">
               {tierProgress.toFixed(0)}% through current tier
             </span>
           </div>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-zinc-800">
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-muted">
             <div
-              className="h-full rounded-full bg-amber-400"
+              className="h-full rounded-full bg-warning"
               style={{ width: `${tierProgress}%` }}
             />
           </div>
@@ -214,10 +214,10 @@ export function AnalyticsTool() {
                 <li
                   className={`rounded-sm border px-2 py-2 text-center ${
                     isCurrent
-                      ? 'border-amber-400 bg-amber-400/10 text-amber-300'
+                      ? 'border-warning bg-warning/10 text-warning'
                       : isReached
-                        ? 'border-sky-400/30 bg-sky-400/5 text-sky-300'
-                        : 'border-zinc-800 bg-zinc-950 text-zinc-500'
+                        ? 'border-accent/30 bg-accent/5 text-accent'
+                        : 'border-border bg-surface text-text-muted'
                   }`}
                   key={tier.name}
                 >
@@ -256,27 +256,27 @@ export function AnalyticsTool() {
         <Card>
           <CardHeader title="Hint Usage" />
           <div className="grid grid-cols-2 gap-3 p-4">
-            <div className="rounded-md border border-zinc-800 bg-zinc-950 p-4">
+            <div className="rounded-md border border-border bg-surface p-4">
               <IconBulb
                 aria-hidden="true"
-                className="mb-3 h-5 w-5 text-amber-400"
+                className="mb-3 h-5 w-5 text-warning"
               />
-              <p className="font-display text-2xl font-bold tabular-nums text-zinc-100">
+              <p className="font-display text-2xl font-bold tabular-nums text-text">
                 {analytics.hintsUsed}
               </p>
-              <p className="mt-1 text-xs font-bold uppercase text-zinc-500">
+              <p className="mt-1 text-xs font-bold uppercase text-text-muted">
                 Hints revealed
               </p>
             </div>
-            <div className="rounded-md border border-zinc-800 bg-zinc-950 p-4">
+            <div className="rounded-md border border-border bg-surface p-4">
               <IconTarget
                 aria-hidden="true"
-                className="mb-3 h-5 w-5 text-red-400"
+                className="mb-3 h-5 w-5 text-danger"
               />
-              <p className="font-display text-2xl font-bold tabular-nums text-zinc-100">
+              <p className="font-display text-2xl font-bold tabular-nums text-text">
                 {analytics.hintPenaltyPoints}
               </p>
-              <p className="mt-1 text-xs font-bold uppercase text-zinc-500">
+              <p className="mt-1 text-xs font-bold uppercase text-text-muted">
                 Hint points lost
               </p>
             </div>
@@ -289,33 +289,33 @@ export function AnalyticsTool() {
             meta={`${analytics.timeSpentTicketCount} timed tickets`}
           />
           <div className="grid grid-cols-2 gap-3 p-4">
-            <div className="rounded-md border border-zinc-800 bg-zinc-950 p-4">
+            <div className="rounded-md border border-border bg-surface p-4">
               <IconClock
                 aria-hidden="true"
-                className="mb-3 h-5 w-5 text-sky-400"
+                className="mb-3 h-5 w-5 text-accent"
               />
-              <p className="font-display text-2xl font-bold tabular-nums text-zinc-100">
+              <p className="font-display text-2xl font-bold tabular-nums text-text">
                 {formatDuration(analytics.timeSpentTotalMs)}
               </p>
-              <p className="mt-1 text-xs font-bold uppercase text-zinc-500">
+              <p className="mt-1 text-xs font-bold uppercase text-text-muted">
                 Total recorded
               </p>
             </div>
-            <div className="rounded-md border border-zinc-800 bg-zinc-950 p-4">
+            <div className="rounded-md border border-border bg-surface p-4">
               <IconClock
                 aria-hidden="true"
-                className="mb-3 h-5 w-5 text-emerald-400"
+                className="mb-3 h-5 w-5 text-success"
               />
-              <p className="font-display text-2xl font-bold tabular-nums text-zinc-100">
+              <p className="font-display text-2xl font-bold tabular-nums text-text">
                 {formatDuration(analytics.timeSpentAverageMs)}
               </p>
-              <p className="mt-1 text-xs font-bold uppercase text-zinc-500">
+              <p className="mt-1 text-xs font-bold uppercase text-text-muted">
                 Average per ticket
               </p>
             </div>
           </div>
           {analytics.timeSpentTicketCount === 0 ? (
-            <p className="border-t border-zinc-800 px-4 py-3 text-xs text-zinc-500">
+            <p className="border-t border-border px-4 py-3 text-xs text-text-muted">
               Timing starts with the first recorded ticket action. Tickets with
               no event timestamps are omitted from the average.
             </p>

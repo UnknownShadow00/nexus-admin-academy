@@ -14,7 +14,7 @@ export function TicketIssueDetails({
           <span className="flex items-center gap-2">
             <IconFileDescription
               aria-hidden="true"
-              className="h-5 w-5 text-sky-400"
+              className="h-5 w-5 text-accent"
             />
             Issue details
           </span>
@@ -22,25 +22,25 @@ export function TicketIssueDetails({
       />
       <div className="space-y-5 p-4 text-sm leading-relaxed sm:p-5">
         <section>
-          <h2 className="text-xs font-extrabold uppercase tracking-wide text-zinc-500">
+          <h2 className="text-xs font-extrabold uppercase tracking-wide text-text-muted">
             Reported by
           </h2>
-          <p className="mt-1 text-zinc-300">{description.reportedByLine}</p>
+          <p className="mt-1 text-text">{description.reportedByLine}</p>
         </section>
         <section>
-          <h2 className="text-xs font-extrabold uppercase tracking-wide text-zinc-500">
+          <h2 className="text-xs font-extrabold uppercase tracking-wide text-text-muted">
             Issue description
           </h2>
-          <p className="mt-1 text-zinc-300">{description.issue}</p>
+          <p className="mt-1 text-text">{description.issue}</p>
         </section>
         <section>
-          <h2 className="text-xs font-extrabold uppercase tracking-wide text-zinc-500">
+          <h2 className="text-xs font-extrabold uppercase tracking-wide text-text-muted">
             Troubleshooting already tried
           </h2>
-          <ul className="mt-2 space-y-2 text-zinc-300">
+          <ul className="mt-2 space-y-2 text-text">
             {description.troubleshooting.map((step) => (
               <li className="flex gap-2" key={step}>
-                <span aria-hidden="true" className="text-sky-400">
+                <span aria-hidden="true" className="text-accent">
                   —
                 </span>
                 <span>{step}</span>
@@ -48,11 +48,11 @@ export function TicketIssueDetails({
             ))}
           </ul>
         </section>
-        <section className="rounded-sm border border-amber-400/20 bg-amber-400/5 p-3">
-          <h2 className="text-xs font-extrabold uppercase tracking-wide text-amber-300">
+        <section className="rounded-sm border border-warning/20 bg-warning/5 p-3">
+          <h2 className="text-xs font-extrabold uppercase tracking-wide text-warning">
             Business impact
           </h2>
-          <p className="mt-1 text-zinc-300">{description.businessImpact}</p>
+          <p className="mt-1 text-text">{description.businessImpact}</p>
         </section>
       </div>
     </Card>

@@ -10,7 +10,7 @@ describe('Textarea', () => {
     expect(screen.getByRole('textbox', { name: 'Internal note' })).toHaveClass(
       'sd-textarea',
       'sd-focus-ring',
-      'bg-zinc-950',
+      'bg-surface',
     );
   });
 });
