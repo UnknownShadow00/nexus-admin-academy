@@ -283,13 +283,28 @@ function ticketRejectReason(
           action.payload.ticketId,
         );
         if (!scenario?.workflow) return null;
-        if (!action.payload.verifiedResolved) {
-          return 'Phase-based tickets must be closed as verified resolved.';
-        }
         const progress =
           attempt.remoteDesktopOverlays[scenario.assetTag]?.scenarioProgress[
             scenario.id
           ];
+        // An escalated ticket is a terminal hand-off, not an abandoned repair:
+        // the receiving team owns the fix, so the local repair and verification
+        // phases cannot apply and requiring them would force the technician to
+        // perform the very change they correctly refused to make. Documentation
+        // is still required. Whether escalating was the RIGHT call is decided by
+        // the server (service_desk_grading.compute_grade), never here.
+        if (overlay.escalated) {
+          if (!progress?.phases.noted || !progress.internalNote) {
+            return 'Add your internal hand-off note before closing this escalated ticket.';
+          }
+          if (action.payload.resolutionNote.trim() !== progress.internalNote) {
+            return 'Close the ticket with the internal note written during this attempt.';
+          }
+          return null;
+        }
+        if (!action.payload.verifiedResolved) {
+          return 'Phase-based tickets must be closed as verified resolved.';
+        }
         if (!progress?.phases.fixed) {
           return 'Complete the repair and leave the computer in the corrected state before closing this ticket.';
         }
