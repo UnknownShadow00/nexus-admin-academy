@@ -50,11 +50,33 @@ service_desk_container_ok() {
     esac
 }
 
+service_desk_contract_ok() {
+    local backend_base="${1:-http://127.0.0.1:8000}"
+    local service_desk_base="${2:-http://127.0.0.1:13000}"
+    local backend_payload service_desk_payload
+    backend_payload="$(curl --fail --silent --show-error \
+        "$backend_base/api/service-desk/contract")" \
+        || { printf 'backend contract endpoint unavailable'; return 1; }
+    service_desk_payload="$(curl --fail --silent --show-error \
+        "$service_desk_base/service-desk/api/health")" \
+        || { printf 'Service Desk contract endpoint unavailable'; return 1; }
+    "${CONTRACT_GATE_PYTHON:-python3}" "$REPO_ROOT/scripts/service_desk_contract_gate.py" \
+        --backend-json "$backend_payload" --service-desk-json "$service_desk_payload"
+}
+
 # Allow `PREDEPLOY_CHECK_SOURCED=1 source predeploy_check.sh` in tests to load
 # the helpers above without executing the gate.
 if [ "${PREDEPLOY_CHECK_SOURCED:-0}" = "1" ]; then
     return 0 2>/dev/null || exit 0
 fi
+
+REQUIRE_LIVE_CONTRACT="${NEXUS_REQUIRE_LIVE_CONTRACT:-0}"
+for argument in "$@"; do
+    case "$argument" in
+        --require-live-contract) REQUIRE_LIVE_CONTRACT=1 ;;
+        *) printf 'Unknown argument: %s\n' "$argument" >&2; exit 2 ;;
+    esac
+done
 
 cd "$REPO_ROOT"
 info "branch $(git branch --show-current) at $(git rev-parse --short=12 HEAD)"
@@ -138,6 +160,11 @@ for command in python3 gzip tar docker curl; do
 done
 if [ -x "$BACKEND_PYTHON" ]; then pass "backend virtual environment is available"; else fail "backend virtual environment is missing"; fi
 if [ -x "$REPO_ROOT/scripts/backup_sqlite.sh" ]; then pass "SQLite backup script is executable"; else fail "SQLite backup script is not executable"; fi
+if CONTRACT_SOURCE_STATUS="$(python3 "$REPO_ROOT/scripts/service_desk_contract_gate.py" --candidate-root "$REPO_ROOT")"; then
+    pass "$CONTRACT_SOURCE_STATUS"
+else
+    fail "$CONTRACT_SOURCE_STATUS"
+fi
 
 if [ -x "$BACKEND_PYTHON" ]; then
     # Use the venv interpreter as a module from backend/. Unlike the generated
@@ -221,6 +248,15 @@ else
 fi
 if curl --fail --silent --show-error http://127.0.0.1:8000/health >/dev/null; then pass "backend health endpoint responds"; else fail "backend health endpoint failed"; fi
 if curl --fail --silent --show-error http://127.0.0.1:13000/service-desk/api/health >/dev/null; then pass "Service Desk health endpoint responds"; else fail "Service Desk health endpoint failed"; fi
+if CONTRACT_STATUS="$(service_desk_contract_ok \
+    "${NEXUS_BACKEND_URL:-http://127.0.0.1:8000}" \
+    "${NEXUS_SERVICE_DESK_URL:-http://127.0.0.1:13000}")"; then
+    pass "CURRENT-LIVE $CONTRACT_STATUS"
+elif [ "$REQUIRE_LIVE_CONTRACT" = "1" ]; then
+    fail "CANDIDATE/POST-DEPLOY contract check: $CONTRACT_STATUS"
+else
+    warn "CURRENT-LIVE contract incompatibility (informational before coordinated replacement): $CONTRACT_STATUS"
+fi
 
 if [ "$FAILED" -ne 0 ]; then
     printf 'PREDEPLOY CHECK FAILED\n' >&2

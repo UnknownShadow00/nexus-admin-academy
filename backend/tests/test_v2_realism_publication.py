@@ -56,6 +56,29 @@ def test_fresh_v2_load_publishes_all_ten_current_realistic_versions(db):
         ]
 
 
+def test_converted_catalog_is_practice_and_only_inc2503_is_a_v2_module_assessment(db):
+    """Do not manufacture required module bindings for the optional practice catalog."""
+    seed_v2_foundation.run(db)
+    converted = {f"inc25{number:02d}" for number in range(1, 11)}
+    bound = {
+        scenario.stable_key
+        for assessment, scenario in (
+            db.query(ModuleAssessment, ServiceDeskScenario)
+            .join(
+                ServiceDeskScenario,
+                ServiceDeskScenario.id == ModuleAssessment.service_desk_scenario_id,
+            )
+            .filter(
+                ModuleAssessment.assessment_role == "service_desk",
+                ModuleAssessment.active.is_(True),
+                ServiceDeskScenario.stable_key.in_(converted),
+            )
+            .all()
+        )
+    }
+    assert bound == {"inc2503"}
+
+
 def test_reload_disables_obsolete_published_version_and_is_idempotent(db):
     seed_v2_foundation.run(db)
     scenario, current = _current_version(db, "INC2501")

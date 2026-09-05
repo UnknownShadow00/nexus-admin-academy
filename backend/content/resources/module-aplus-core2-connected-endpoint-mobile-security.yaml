@@ -102,14 +102,14 @@ resources:
     required: true
     order: 1
 - resource_key: resource.aplus.m14.android_work_profile
-  title: What is a work profile?
+  title: Work Profile and its features
   resource_type: documentation
-  url: https://support.google.com/work/android/answer/6191949?hl=en
+  url: https://support.google.com/work/android/answer/9563584?hl=en
   provider: Google Android Enterprise Help
   duration: null
   certification_version: comptia_aplus_220-1202
   source_name: Google Support
-  source_url: https://support.google.com/work/android/
+  source_url: https://support.google.com/work/android/answer/9563584?hl=en
   permission_status: unknown
   license_note: Official vendor documentation; linked, not reproduced.
   active: true

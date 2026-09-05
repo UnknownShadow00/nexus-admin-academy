@@ -54,11 +54,11 @@ resources:
     title: "Professor Messer — IPv4 and IPv6 (220-1201)"
     resource_type: video
     provider: "Professor Messer"
-    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/ipv4-and-ipv6-220-1201/"
     duration: "10m"
     certification_version: comptia_aplus_220-1201
     source_name: "Professor Messer CompTIA A+ 220-1201 training course"
-    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/ipv4-and-ipv6-220-1201/"
     permission_status: permitted
     license_note: "Free training video; linked with attribution, not rehosted."
     active: true
@@ -90,11 +90,11 @@ resources:
     title: "Professor Messer — Dynamic Host Configuration Protocol (DHCP) (220-1201)"
     resource_type: video
     provider: "Professor Messer"
-    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/dhcp-220-1201/"
     duration: "9m"
     certification_version: comptia_aplus_220-1201
     source_name: "Professor Messer CompTIA A+ 220-1201 training course"
-    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/dhcp-220-1201/"
     permission_status: permitted
     license_note: "Free training video; linked with attribution, not rehosted."
     active: true
@@ -107,11 +107,11 @@ resources:
     title: "Professor Messer — APIPA and Link-Local Addresses (220-1201)"
     resource_type: video
     provider: "Professor Messer"
-    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/assigning-ip-addresses-220-1201/"
     duration: "6m"
     certification_version: comptia_aplus_220-1201
     source_name: "Professor Messer CompTIA A+ 220-1201 training course"
-    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/assigning-ip-addresses-220-1201/"
     permission_status: permitted
     license_note: "Free training video; linked with attribution, not rehosted."
     active: true
@@ -121,14 +121,14 @@ resources:
         order: 2
 
   - resource_key: res.aplus.ipcfg.messer.soho_config
-    title: "Professor Messer — Configuring a SOHO Network (220-1201)"
+    title: "Professor Messer — Assigning IP Addresses and Default Gateways (220-1201)"
     resource_type: video
     provider: "Professor Messer"
-    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/assigning-ip-addresses-220-1201/"
     duration: "8m"
     certification_version: comptia_aplus_220-1201
     source_name: "Professor Messer CompTIA A+ 220-1201 training course"
-    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/assigning-ip-addresses-220-1201/"
     permission_status: permitted
     license_note: "Free training video; linked with attribution, not rehosted."
     active: true
@@ -141,11 +141,11 @@ resources:
     title: "Professor Messer — Domain Name System (DNS) (220-1201)"
     resource_type: video
     provider: "Professor Messer"
-    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/dns-configuration-220-1201/"
     duration: "9m"
     certification_version: comptia_aplus_220-1201
     source_name: "Professor Messer CompTIA A+ 220-1201 training course"
-    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/dns-configuration-220-1201/"
     permission_status: permitted
     license_note: "Free training video; linked with attribution, not rehosted."
     active: true
@@ -158,11 +158,11 @@ resources:
     title: "Professor Messer — Network Troubleshooting (220-1201)"
     resource_type: video
     provider: "Professor Messer"
-    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/troubleshooting-networks-220-1201/"
     duration: "10m"
     certification_version: comptia_aplus_220-1201
     source_name: "Professor Messer CompTIA A+ 220-1201 training course"
-    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/troubleshooting-networks-220-1201/"
     permission_status: permitted
     license_note: "Free training video; linked with attribution, not rehosted."
     active: true
@@ -230,31 +230,71 @@ resources:
 
   # ---- Phase 3A: A+ Batch 1 -------------------------------------------- #
   - resource_key: res.aplus.hardware.messer.motherboards
-    title: "Professor Messer — Motherboards and CPUs (220-1201)"
+    title: "Professor Messer — Motherboard Form Factors (220-1201)"
     resource_type: video
     provider: "Professor Messer"
-    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
-    duration: "25m"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/motherboard-form-factors-220-1201/"
+    duration: "6m"
     certification_version: comptia_aplus_220-1201
     source_name: "Professor Messer CompTIA A+ 220-1201 free course"
-    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/motherboard-form-factors-220-1201/"
     permission_status: permitted
     license_note: "Free training videos; linked with attribution, not rehosted. Reuses legacy Nexus Hardware anchors."
     links:
       - { lesson_key: lesson.aplus.core1.hardware_support.platform, required: true, order: 1 }
-      - { lesson_key: lesson.aplus.core1.hardware_support.cpu_cooling, required: true, order: 1 }
-      - { lesson_key: lesson.aplus.core1.hardware_support.expansion_cards, required: true, order: 1 }
       - { module_key: module.aplus.core1.hardware_support, required: false, order: 1 }
+
+  - resource_key: res.aplus.hardware.messer.cpu_features
+    title: "Professor Messer — CPU Features (220-1201)"
+    resource_type: video
+    provider: "Professor Messer"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/cpu-features-220-1201/"
+    duration: "5m"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Professor Messer CompTIA A+ 220-1201 free course"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/cpu-features-220-1201/"
+    permission_status: permitted
+    license_note: "Free training video; linked with attribution, not rehosted."
+    links:
+      - { lesson_key: lesson.aplus.core1.hardware_support.cpu_cooling, required: true, order: 1 }
+
+  - resource_key: res.aplus.hardware.messer.cooling
+    title: "Professor Messer — Cooling (220-1201)"
+    resource_type: video
+    provider: "Professor Messer"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/cooling-220-1201/"
+    duration: "7m"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Professor Messer CompTIA A+ 220-1201 free course"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/cooling-220-1201/"
+    permission_status: permitted
+    license_note: "Free training video; linked with attribution, not rehosted."
+    links:
+      - { lesson_key: lesson.aplus.core1.hardware_support.cpu_cooling, required: true, order: 2 }
+
+  - resource_key: res.aplus.hardware.messer.expansion_cards
+    title: "Professor Messer — Expansion Cards (220-1201)"
+    resource_type: video
+    provider: "Professor Messer"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/expansion-cards-220-1201/"
+    duration: "6m"
+    certification_version: comptia_aplus_220-1201
+    source_name: "Professor Messer CompTIA A+ 220-1201 free course"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/expansion-cards-220-1201/"
+    permission_status: permitted
+    license_note: "Free training video; linked with attribution, not rehosted."
+    links:
+      - { lesson_key: lesson.aplus.core1.hardware_support.expansion_cards, required: true, order: 1 }
 
   - resource_key: res.aplus.hardware.messer.power
     title: "Professor Messer — Computer Power (220-1201)"
     resource_type: video
     provider: "Professor Messer"
-    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/computer-power-220-1201/"
     duration: "16m"
     certification_version: comptia_aplus_220-1201
     source_name: "Professor Messer CompTIA A+ 220-1201 free course"
-    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/"
+    source_url: "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/computer-power-220-1201/"
     permission_status: permitted
     license_note: "Free training video; linked with attribution, not rehosted. Reuses the legacy Computer Power anchor."
     links:

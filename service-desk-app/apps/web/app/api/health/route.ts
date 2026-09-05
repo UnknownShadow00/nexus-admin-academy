@@ -21,11 +21,14 @@ export async function GET() {
   return Response.json(
     {
       status: compatible === false ? 'contract_mismatch' : 'ok',
+      contract_version: EXPECTED_NEXUS_SERVICE_DESK_CONTRACT,
       timestamp: new Date().toISOString(),
       contract: {
         expected: EXPECTED_NEXUS_SERVICE_DESK_CONTRACT,
         actual:
-          typeof actual === 'object' && actual !== null && 'contract_version' in actual
+          typeof actual === 'object' &&
+          actual !== null &&
+          'contract_version' in actual
             ? actual.contract_version
             : null,
         compatible,

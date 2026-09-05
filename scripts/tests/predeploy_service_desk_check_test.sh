@@ -25,6 +25,9 @@ set +e   # the sourced script enabled `set -e`; tests check exit codes by hand
 type service_desk_container_ok >/dev/null 2>&1 \
     && ok "service_desk_container_ok is defined after sourcing" \
     || { bad "service_desk_container_ok not defined"; printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"; exit 1; }
+type service_desk_contract_ok >/dev/null 2>&1 \
+    && ok "service_desk_contract_ok is defined after sourcing" \
+    || { bad "service_desk_contract_ok not defined"; printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"; exit 1; }
 
 WORK="$(mktemp -d)"; BIN="$WORK/bin"; mkdir -p "$BIN"
 trap 'rm -rf "$WORK"' EXIT
@@ -48,6 +51,22 @@ EOF
 }
 make_docker
 
+cat > "$BIN/curl" <<'EOF'
+#!/usr/bin/env bash
+url="${!#}"
+case "$url" in
+  *backend*)
+    [ "${FAKE_BACKEND_HTTP:-200}" = 200 ] || exit 22
+    printf '%s' "${FAKE_BACKEND_BODY:-}"
+    ;;
+  *service-desk*)
+    [ "${FAKE_SD_HTTP:-200}" = 200 ] || exit 22
+    printf '%s' "${FAKE_SD_BODY:-}"
+    ;;
+esac
+EOF
+chmod +x "$BIN/curl"
+
 run() { FAKE_STATE="$1" FAKE_HEALTH="$2" service_desk_container_ok nexus-service-desk; }
 
 out="$(run running healthy)";        rc=$?
@@ -67,6 +86,25 @@ out="$(run exited none)";            rc=$?
 
 out="$(run absent none)";            rc=$?
 [ $rc -ne 0 ] && [[ "$out" == *absent* ]] && ok "missing container -> fail ($out)" || bad "absent should fail: rc=$rc out='$out'"
+
+contract_run() {
+  FAKE_BACKEND_HTTP="${1:-200}" FAKE_BACKEND_BODY="${2:-}" \
+  FAKE_SD_HTTP="${3:-200}" FAKE_SD_BODY="${4:-}" \
+    service_desk_contract_ok http://candidate-backend http://candidate-service-desk
+}
+
+out="$(contract_run 200 '{"contract_version":"2.0"}' 200 '{"status":"ok","contract_version":"2.0"}')"; rc=$?
+[ $rc -eq 0 ] && [[ "$out" == *2.0* ]] && ok "backend 2.0 + Service Desk 2.0 -> pass" || bad "compatible contract: rc=$rc out='$out'"
+out="$(contract_run 404 '' 200 '{"status":"ok","contract_version":"2.0"}')"; rc=$?
+[ $rc -ne 0 ] && ok "missing backend endpoint -> fail" || bad "missing backend endpoint passed"
+out="$(contract_run 200 '{"contract_version":"2.0"}' 200 '{"status":"ok"}')"; rc=$?
+[ $rc -ne 0 ] && ok "missing Service Desk contract -> fail" || bad "missing SD contract passed"
+out="$(contract_run 200 '{"contract_version":"2.0"}' 200 '{"status":"ok","contract_version":"1.7"}')"; rc=$?
+[ $rc -ne 0 ] && ok "backend 2.0 + Service Desk 1.x -> fail" || bad "contract mismatch passed"
+out="$(contract_run 200 'not-json' 200 '{"status":"ok","contract_version":"2.0"}')"; rc=$?
+[ $rc -ne 0 ] && ok "malformed JSON -> fail" || bad "malformed JSON passed"
+out="$(contract_run 200 '{"contract_version":"2.0"}' 200 '{"status":"ok","contract_version":"1.0"}')"; rc=$?
+[ $rc -ne 0 ] && ok "HTTP 200 but incompatible contract -> fail" || bad "incompatible HTTP 200 passed"
 
 # The gate must no longer depend on a host Next.js build artifact.
 grep -q 'BUILD_ID' "$PREDEPLOY" \

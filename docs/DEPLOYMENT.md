@@ -364,6 +364,12 @@ unset -f read_nexus_env_value
 
 curl --fail http://127.0.0.1:13000/service-desk/api/health
 docker inspect nexus-service-desk --format '{{.State.Health.Status}}'
+
+# Required after the candidate backend and Service Desk have both been replaced.
+# This fails closed on missing/malformed metadata or a semantic version mismatch.
+NEXUS_BACKEND_URL=http://127.0.0.1:8000 \
+NEXUS_SERVICE_DESK_URL=http://127.0.0.1:13000 \
+./scripts/predeploy_check.sh --require-live-contract
 docker cp frontend/nginx.host.conf nexus-frontend:/etc/nginx/conf.d/default.conf
 docker exec nexus-frontend nginx -t
 docker exec nexus-frontend nginx -s reload

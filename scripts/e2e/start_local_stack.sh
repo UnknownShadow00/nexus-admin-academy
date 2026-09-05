@@ -73,10 +73,53 @@ export SEED_PASSWORD_EMRAN="$(rand)"
 export SEED_PASSWORD_WALO="$(rand)"
 export SEED_PASSWORD_HUDAYFA="$(rand)"
 
-echo "== Seeding throwaway database at $DATABASE_URL =="
-bash "$REPO_ROOT/scripts/e2e/seed_fresh_db.sh"
+if [[ -n "${E2E_SOURCE_DB:-}" ]]; then
+    SOURCE_DB="$(realpath "$E2E_SOURCE_DB")"
+    DEST_DB="$(realpath -m "$SCRATCH_DIR/e2e.db")"
+    PRODUCTION_DB="$(realpath "$BACKEND_DIR/nexus.db")"
+    [[ -f "$SOURCE_DB" ]] || { echo "E2E_SOURCE_DB does not exist: $SOURCE_DB" >&2; exit 1; }
+    [[ "$SOURCE_DB" != "$PRODUCTION_DB" ]] || { echo "Refusing production DB as E2E_SOURCE_DB" >&2; exit 1; }
+    [[ "$DEST_DB" != "$PRODUCTION_DB" && "$DEST_DB" != "$SOURCE_DB" ]] \
+        || { echo "Refusing ambiguous E2E destination: $DEST_DB" >&2; exit 1; }
+    echo "== DB mutation safety check: copy-backed browser stack =="
+    echo "source: $SOURCE_DB"
+    echo "source inode/size: $(stat -c '%i/%s' "$SOURCE_DB")"
+    echo "destination: $DEST_DB"
+    echo "production: $PRODUCTION_DB"
+    echo "decision: SAFE — source is a disposable copy and destination is isolated"
+    "$BACKEND_DIR/.venv/bin/python" - "$SOURCE_DB" "$DEST_DB" <<'PY'
+import sqlite3
+import sys
+
+source_path, destination_path = sys.argv[1:]
+source = sqlite3.connect(f"file:{source_path}?mode=ro", uri=True)
+destination = sqlite3.connect(destination_path)
+source.backup(destination)
+destination.close()
+source.close()
+PY
+    echo "== Migrating isolated copy-derived destination to candidate head =="
+    (
+        cd "$BACKEND_DIR"
+        ./.venv/bin/python -m alembic upgrade head
+    )
+else
+    echo "== Seeding throwaway database at $DATABASE_URL =="
+    bash "$REPO_ROOT/scripts/e2e/seed_fresh_db.sh"
+fi
 
 echo "== Loading V2 foundation into throwaway database =="
+echo "DB mutation target: $(realpath "$SCRATCH_DIR/e2e.db")"
+TARGET_REVISION="$("$BACKEND_DIR/.venv/bin/python" - "$SCRATCH_DIR/e2e.db" <<'PY'
+import sqlite3
+import sys
+
+database = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True)
+print(database.execute("select version_num from alembic_version").fetchone()[0])
+database.close()
+PY
+)"
+echo "target inode/size/revision: $(stat -c '%i/%s' "$SCRATCH_DIR/e2e.db")/$TARGET_REVISION"
 (
     cd "$BACKEND_DIR"
     ./.venv/bin/python seed_v2_foundation.py
@@ -355,6 +398,7 @@ STACK_ENV="$SCRATCH_DIR/stack.env"
 {
     echo "NEXUS_E2E_BASE_URL=http://$FRONTEND_HOST:$FRONTEND_PORT"
     echo "NEXUS_E2E_API_URL=$API_BASE"
+    echo "NEXUS_E2E_SERVICE_DESK_URL=http://$BACKEND_HOST:$SERVICE_DESK_PORT"
     echo "NEXUS_E2E_ADMIN_USERNAME=$ADMIN_USERNAME_GEN"
     echo "NEXUS_E2E_ADMIN_PASSWORD=$ADMIN_PASSWORD_GEN"
     echo "NEXUS_E2E_STUDENT_USERNAME=$STUDENT_USERNAME_GEN"
@@ -373,6 +417,8 @@ STACK_ENV="$SCRATCH_DIR/stack.env"
     echo "NEXUS_E2E_FRESH_B_PASSWORD=$FRESH_B_PASSWORD_GEN"
     echo "NEXUS_E2E_QUALIFIED_USERNAME=$QUALIFIED_USERNAME_GEN"
     echo "NEXUS_E2E_QUALIFIED_PASSWORD=$QUALIFIED_PASSWORD_GEN"
+    echo "NEXUS_E2E_NONPILOT_USERNAME=$QUALIFIED_USERNAME_GEN"
+    echo "NEXUS_E2E_NONPILOT_PASSWORD=$QUALIFIED_PASSWORD_GEN"
     echo "NEXUS_E2E_ENDPOINT_USERNAME=$ENDPOINT_USERNAME_GEN"
     echo "NEXUS_E2E_ENDPOINT_PASSWORD=$ENDPOINT_PASSWORD_GEN"
 } > "$STACK_ENV"

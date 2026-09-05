@@ -471,6 +471,47 @@ def check_service_desk_contract(report: Report) -> None:
     )
 
 
+def check_service_desk_runtime_contract(
+    report: Report,
+    backend_url: str | None,
+    service_desk_url: str | None,
+    *,
+    required: bool = False,
+) -> None:
+    """Require endpoint-level compatibility for an isolated/post-deploy candidate."""
+    section = "Service Desk"
+    if not backend_url and not service_desk_url:
+        report.add(
+            section,
+            "runtime contract compatibility",
+            FAIL if required else SKIP,
+            "pass both --backend-url and --service-desk-url to probe candidate artifacts",
+        )
+        return
+    if not backend_url or not service_desk_url:
+        report.add(
+            section,
+            "runtime contract compatibility",
+            FAIL,
+            "both --backend-url and --service-desk-url are required",
+        )
+        return
+    import importlib.util
+
+    path = os.path.join(os.path.dirname(BACKEND_DIR), "scripts", "service_desk_contract_gate.py")
+    spec = importlib.util.spec_from_file_location("v2_contract_gate", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    result = module.evaluate_urls(backend_url, service_desk_url)
+    report.add(
+        section,
+        "runtime contract compatibility",
+        PASS if result.ok else FAIL,
+        result.detail,
+    )
+
+
 def check_grading_worker_artifacts(
     report: Report, checks=None, *, require_installed: bool = False
 ) -> None:
@@ -639,23 +680,21 @@ def _probe(url: str, timeout: float) -> tuple[str, str]:
     import urllib.error
     import urllib.request
 
-    class _NoRedirect(urllib.request.HTTPRedirectHandler):
-        def redirect_request(self, *_args, **_kwargs):
-            return None
-
-    opener = urllib.request.build_opener(_NoRedirect)
+    opener = urllib.request.build_opener()
     for method in ("HEAD", "GET"):
         request = urllib.request.Request(
             url, method=method, headers={"User-Agent": "nexus-v2-preflight/1.0"}
         )
         try:
             with opener.open(request, timeout=timeout) as response:
-                return PASS, f"reachable ({response.status} via {method})"
+                final = response.geturl()
+                redirected = f"; final {final}" if final != url else ""
+                return PASS, f"reachable ({response.status} via {method}{redirected})"
         except urllib.error.HTTPError as exc:
-            if exc.code in {301, 302, 303, 307, 308}:
-                return WARN, f"redirect ({exc.code})"
-            if exc.code in {403, 405, 501} and method == "HEAD":
+            if method == "HEAD" and exc.code in {403, 404, 405, 501}:
                 continue  # host refuses HEAD; retry with GET
+            if exc.code in {404, 410}:
+                return FAIL, f"confirmed dead (HTTP {exc.code} via {method})"
             return WARN, f"unavailable (HTTP {exc.code})"
         except TimeoutError:
             return WARN, "timeout"
@@ -930,6 +969,8 @@ def main() -> int:
         help="probe required external resource URLs (network)",
     )
     parser.add_argument("--link-timeout", type=float, default=10.0)
+    parser.add_argument("--backend-url", help="isolated/post-deploy backend base URL")
+    parser.add_argument("--service-desk-url", help="isolated/post-deploy Service Desk base URL")
     parser.add_argument(
         "--baseline", metavar="PATH", help="write a V1 visibility baseline and exit"
     )
@@ -961,6 +1002,12 @@ def main() -> int:
         check_editorial(report, db)
         check_service_desk(report, db)
         check_service_desk_contract(report)
+        check_service_desk_runtime_contract(
+            report,
+            args.backend_url,
+            args.service_desk_url,
+            required=args.production_candidate,
+        )
         check_grading_worker_artifacts(
             report, require_installed=args.production_candidate
         )

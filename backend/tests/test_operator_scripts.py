@@ -15,6 +15,7 @@ import textwrap
 from types import SimpleNamespace
 
 import pytest
+import urllib.error
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
 
@@ -491,6 +492,40 @@ def test_preflight_service_desk_contract_guard_passes_and_fails_closed(monkeypat
     preflight.check_service_desk_contract(mismatch)
     assert mismatch.checks[-1]["status"] == preflight.FAIL
     assert mismatch.checks[-1]["detail"] == "version mismatch"
+
+
+def test_dead_required_link_is_a_failure(monkeypatch):
+    class DeadOpener:
+        def open(self, request, timeout):
+            raise urllib.error.HTTPError(request.full_url, 404, "missing", {}, None)
+
+    monkeypatch.setattr("urllib.request.build_opener", lambda *_: DeadOpener())
+    status, detail = preflight._probe("https://example.invalid/dead", 0.1)
+    assert status == preflight.FAIL
+    assert "HTTP 404" in detail
+
+
+def test_required_link_follows_redirect_and_records_final_destination(monkeypatch):
+    class Response:
+        status = 200
+
+        def geturl(self):
+            return "https://example.invalid/current"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    class RedirectingOpener:
+        def open(self, request, timeout):
+            return Response()
+
+    monkeypatch.setattr("urllib.request.build_opener", lambda *_: RedirectingOpener())
+    status, detail = preflight._probe("https://example.invalid/old", 0.1)
+    assert status == preflight.PASS
+    assert "final https://example.invalid/current" in detail
 
 
 def test_preflight_surfaces_grading_worker_operational_warning():
