@@ -7,14 +7,14 @@ module: module.aplus.core1.ip_configuration
 importance: job_critical
 learning_relationship: new
 objectives:
-  - "2.5"
-  - "5.7"
+  - "2.4"
+  - "5.5"
 builds_on:
   - lesson.aplus.core1.ip_configuration.ipv4_basics
   - lesson.aplus.core1.ip_configuration.default_gateway
 estimated_minutes: 13
-status: draft
-source_name: "CompTIA A+ Certification Exam Objectives (Core 1, 220-1201), objectives 2.5 and 5.7"
+status: published
+source_name: "CompTIA A+ Certification Exam Objectives (Core 1, 220-1201), objectives 2.4 and 5.5"
 source_url: "https://www.comptia.org/certifications/a"
 ---
 
@@ -35,10 +35,11 @@ MX, TXT) and how DNS servers talk to each other are Network+ depth.
 
 ## 2. Why does an IT worker care?
 
-DNS failures produce a signature symptom: **"I can ping `8.8.8.8` but not
-`google.com`,"** or "some sites work, one doesn't." The network is up, the
-gateway is fine — names just aren't resolving. Knowing that lets you skip the
-cable and the router and go straight to the DNS setting or the DNS server.
+DNS failures produce a signature symptom: a **known reachable IP address
+works, but its host name does not resolve**. That proves IP connectivity to
+the tested destination while narrowing the failure to name resolution. A
+single site failing can have many other causes, so compare IP and name results
+before concluding that DNS is broken.
 
 ## 3. Watch / read
 
@@ -56,8 +57,9 @@ cable and the router and go straight to the DNS setting or the DNS server.
 - On a company network the DNS server is usually an **internal server** so that
   internal names (`fileserver01`, `intranet.company.com`) resolve. A PC stuck
   on a random public DNS often can't find internal resources.
-- Classic DNS symptom: **`ping 8.8.8.8` works, `ping google.com` fails** ("could
-  not find host"). Network = fine. DNS = broken.
+- Classic DNS symptom: a known reachable IP works, but a corresponding host
+  name returns "could not find host." IP connectivity exists; DNS resolution
+  is the next thing to test.
 - Tools: `nslookup <name>` asks DNS directly and shows which server answered.
   `ipconfig /flushdns` clears the local cache when a name resolves to a stale
   (old) address.
@@ -90,11 +92,11 @@ Read `nslookup` output for two things: **which server answered** ("Server:" /
 
 ## 7. Interview / example question
 
-**"How would you troubleshoot a computer that can reach IP addresses but not
+**"How would you troubleshoot a computer that can reach a known service by IP address but not
 host names?"**
 
-Model answer outline: that points at DNS, not connectivity. I confirm with
-`ping 8.8.8.8` (works) versus `ping <name>` (fails). Then `ipconfig /all` to
+Model answer outline: that points at DNS rather than the tested IP path. I
+confirm with a known reachable IP (works) versus its name (fails). Then `ipconfig /all` to
 see the configured DNS server — is it the right one for this network? I try
 `nslookup <name>` to see if the server responds. Fixes range from switching the
 adapter back to automatic DNS and `ipconfig /renew` / `/flushdns`, to
@@ -103,5 +105,5 @@ the resource opens.
 
 ## 8. Quick Check
 
-Quick Check questions for this lesson are tagged to objectives `2.5` and `5.7`
+Quick Check questions for this lesson are tagged to objectives `2.4` and `5.5`
 in the module question bank.

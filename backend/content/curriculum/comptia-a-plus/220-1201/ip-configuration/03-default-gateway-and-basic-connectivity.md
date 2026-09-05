@@ -7,13 +7,13 @@ module: module.aplus.core1.ip_configuration
 importance: job_critical
 learning_relationship: new
 objectives:
-  - "2.5"
-  - "5.7"
+  - "2.6"
+  - "5.5"
 builds_on:
   - lesson.aplus.core1.ip_configuration.ipv4_basics
 estimated_minutes: 13
-status: draft
-source_name: "CompTIA A+ Certification Exam Objectives (Core 1, 220-1201), objectives 2.5 and 5.7"
+status: published
+source_name: "CompTIA A+ Certification Exam Objectives (Core 1, 220-1201), objectives 2.6 and 5.5"
 source_url: "https://www.comptia.org/certifications/a"
 ---
 
@@ -56,15 +56,13 @@ straight at the gateway instead of blaming DNS or the application.
 - The default gateway is the **way out** of the local network. No gateway (or a
   wrong one) = no access to anything remote.
 - The gateway address must be **on the same subnet** as the PC.
-- Quick test order with `ping`:
-  1. `ping 127.0.0.1` – the PC's own TCP/IP stack ("loopback"). Fails only if
-     TCP/IP itself is broken.
-  2. `ping <your own IP>` – confirms the adapter is configured.
-  3. `ping <default gateway>` – can you reach the router? If this fails, the
+- Quick test order with `ping` after checking `ipconfig /all`:
+  1. `ping 127.0.0.1` – checks whether the local TCP/IP stack responds.
+  2. `ping <default gateway>` – can you reach the router? If this fails, the
      problem is local: cable, switch, wrong subnet, or the router.
-  4. `ping 8.8.8.8` (a known internet IP) – can you get *out*? If gateway ping
-     works but this fails, look upstream of the router.
-  5. `ping <a name>` e.g. `ping google.com` – if IPs work but names don't, it's
+  3. `ping <a known reachable remote IP>` – can you get *out*? If the gateway
+     responds but several known remote IPs do not, investigate upstream.
+  4. `ping <a name>` – if a known IP works but names do not, investigate
      **DNS** (next lesson), not connectivity.
 - A ping that "times out" isn't always a real outage — some devices and
   firewalls are set to ignore ping. Use it as one clue, not proof.
@@ -83,7 +81,7 @@ and `8.8.8.8` successfully, and the user is back online.
 
 ```
 C:\> ping 192.168.1.1        # the default gateway
-C:\> ping 8.8.8.8            # a known internet IP (skips DNS)
+C:\> ping <known remote IP>  # use a target approved for your network
 C:\> ping -n 4 10.0.0.5      # send 4 pings (Windows default is already 4)
 ```
 
@@ -103,5 +101,5 @@ internet doesn't, the issue is past the router and I escalate.
 
 ## 8. Quick Check
 
-Quick Check questions for this lesson are tagged to objectives `2.5` and `5.7`
+Quick Check questions for this lesson are tagged to objectives `2.6` and `5.5`
 in the module question bank.

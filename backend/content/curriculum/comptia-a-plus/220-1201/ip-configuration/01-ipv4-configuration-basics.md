@@ -7,10 +7,10 @@ module: module.aplus.core1.ip_configuration
 importance: job_critical
 learning_relationship: new
 objectives:
-  - "2.5"
+  - "2.6"
 estimated_minutes: 14
-status: draft
-source_name: "CompTIA A+ Certification Exam Objectives (Core 1, 220-1201), objective 2.5"
+status: published
+source_name: "CompTIA A+ Certification Exam Objectives (Core 1, 220-1201), objective 2.6"
 source_url: "https://www.comptia.org/certifications/a"
 ---
 
@@ -56,7 +56,8 @@ These support the lesson; they do not replace it.
 - An IPv4 address is `x.x.x.x`, each part `0`–`255`.
 - The four values that matter on a client: **IP address, subnet mask, default
   gateway, DNS server**.
-- **Static** configuration = a human typed the values in and they never change.
+- **Static** configuration = a human entered the values and they do not change
+  automatically.
   **Dynamic** configuration = the computer was given the values automatically
   by DHCP (next lesson). Most workstations are dynamic.
 - `255.255.255.0` is by far the most common home/small-office subnet mask. With
@@ -115,5 +116,5 @@ start.
 
 ## 8. Quick Check
 
-Quick Check questions for this lesson are tagged to objective `2.5` in the
+Quick Check questions for this lesson are tagged to objective `2.6` in the
 module question bank.

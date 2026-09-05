@@ -7,16 +7,15 @@ module: module.aplus.core1.ip_configuration
 importance: job_critical
 learning_relationship: new
 objectives:
-  - "5.7"
-  - "5.1"
+  - "5.5"
 builds_on:
   - lesson.aplus.core1.ip_configuration.ipv4_basics
   - lesson.aplus.core1.ip_configuration.dhcp_and_apipa
   - lesson.aplus.core1.ip_configuration.default_gateway
   - lesson.aplus.core1.ip_configuration.dns_basics
 estimated_minutes: 16
-status: draft
-source_name: "CompTIA A+ Certification Exam Objectives (Core 1, 220-1201), objectives 5.7 and 5.1"
+status: published
+source_name: "CompTIA A+ Certification Exam Objectives (Core 1, 220-1201), objective 5.5"
 source_url: "https://www.comptia.org/certifications/a"
 ---
 
@@ -27,9 +26,9 @@ state and test each layer in order. For A+ connectivity work the core four
 are **`ipconfig`**, **`ping`**, **`nslookup`**, and the address-renewal pair
 **`ipconfig /release` and `ipconfig /renew`**.
 
-This lesson also puts them inside CompTIA's **six-step troubleshooting
-methodology** (objective 5.1), because running commands without a method just
-produces noise.
+This lesson applies those commands to the network symptoms in objective 5.5.
+Running commands in a deliberate order turns each result into evidence for the
+next decision.
 
 ## 2. Why does an IT worker care?
 
@@ -65,14 +64,15 @@ Sensible order for a "can't connect" ticket:
 
 1. `ipconfig /all` – is there a real address, correct mask, a gateway, and a
    sensible DNS server? `169.254.x.x` = DHCP failed; blank = link down.
-2. `ping 127.0.0.1` then `ping <own IP>` – is TCP/IP and the adapter OK?
+2. `ping 127.0.0.1` – does the local TCP/IP stack respond?
 3. `ping <default gateway>` – can you reach the router? (local vs. upstream)
-4. `ping 8.8.8.8` – can you reach the internet by IP? (skips DNS)
+4. `ping <a known reachable remote IP>` – can you reach beyond the gateway
+   without relying on DNS?
 5. `ping <a name>` / `nslookup <a name>` – does name resolution work?
-6. Fix the lowest layer that failed, then **re-run the same commands to
+6. Fix the first meaningful failure, then **re-run the same commands to
    verify**, and document what you changed.
 
-The six-step methodology (5.1), applied here:
+Use a simple evidence loop while troubleshooting:
 
 1. **Identify the problem** – ask what changed, reproduce it, read `ipconfig`.
 2. **Establish a theory** – e.g. "APIPA address → DHCP not reachable."
@@ -111,7 +111,7 @@ C:\> ipconfig /renew
 C:\> ipconfig /flushdns
 C:\> ping 127.0.0.1
 C:\> ping 192.168.1.1
-C:\> ping 8.8.8.8
+C:\> ping <known remote IP>
 C:\> ping mail.company.com
 C:\> nslookup mail.company.com
 ```
@@ -134,5 +134,5 @@ working end to end, and write up what changed.
 
 ## 8. Quick Check
 
-Quick Check questions for this lesson are tagged to objectives `5.7` and `5.1`
+Quick Check questions for this lesson are tagged to objective `5.5`
 in the module question bank.

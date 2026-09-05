@@ -201,7 +201,23 @@ versions:
       pass_percent: 60
       config:
         objective_codes:
-        - '2.5'
+        - '2.6'
+        tags_any:
+        - ipv4
+        - subnet-mask
+        - static-vs-dynamic
+        - private-addressing
+        - ipv6
+        - healthy-config
+        question_blueprint:
+        - objective_codes:
+          - '2.6'
+          count: 4
+        category_requirements:
+        - category: applied_ipv4
+          minimum: 1
+          tags_any:
+          - scenario
       display_order: 1
     - assessment_key: assess.aplus.ipcfg.qc.dhcp_apipa
       assessment_role: quick_check
@@ -212,8 +228,28 @@ versions:
       pass_percent: 60
       config:
         objective_codes:
-        - '2.5'
-        - '5.7'
+        - '2.4'
+        - '2.6'
+        - '5.5'
+        tags_any:
+        - dhcp
+        - apipa
+        question_blueprint:
+        - objective_codes: []
+          count: 5
+        category_requirements:
+        - category: dhcp
+          minimum: 2
+          tags_any:
+          - dhcp
+        - category: apipa
+          minimum: 2
+          tags_any:
+          - apipa
+        - category: troubleshooting
+          minimum: 2
+          tags_any:
+          - troubleshooting
       display_order: 2
     - assessment_key: assess.aplus.ipcfg.qc.gateway
       assessment_role: quick_check
@@ -224,8 +260,18 @@ versions:
       pass_percent: 60
       config:
         objective_codes:
-        - '2.5'
-        - '5.7'
+        - '2.6'
+        - '5.5'
+        tags_any:
+        - gateway
+        question_blueprint:
+        - objective_codes: []
+          count: 4
+        category_requirements:
+        - category: applied_gateway
+          minimum: 2
+          tags_any:
+          - scenario
       display_order: 3
     - assessment_key: assess.aplus.ipcfg.qc.dns
       assessment_role: quick_check
@@ -236,8 +282,19 @@ versions:
       pass_percent: 60
       config:
         objective_codes:
-        - '2.5'
-        - '5.7'
+        - '2.4'
+        - '5.5'
+        tags_any:
+        - dns
+        - nslookup
+        question_blueprint:
+        - objective_codes: []
+          count: 4
+        category_requirements:
+        - category: applied_dns
+          minimum: 2
+          tags_any:
+          - scenario
       display_order: 4
     - assessment_key: assess.aplus.ipcfg.qc.win_cmds
       assessment_role: quick_check
@@ -248,8 +305,24 @@ versions:
       pass_percent: 60
       config:
         objective_codes:
-        - '5.7'
-        - '5.1'
+        - '5.5'
+        tags_any:
+        - commands
+        - ping
+        - nslookup
+        question_blueprint:
+        - objective_codes:
+          - '5.5'
+          count: 5
+        category_requirements:
+        - category: command_recall
+          minimum: 2
+          tags_any:
+          - short-answer
+        - category: troubleshooting_use
+          minimum: 2
+          tags_any:
+          - troubleshooting
       display_order: 5
     - assessment_key: assess.aplus.ipcfg.module_quiz
       assessment_role: module_quiz
@@ -257,6 +330,54 @@ versions:
       quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
       displayed_count: 12
       pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '2.4'
+          count: 3
+        - objective_codes:
+          - '2.6'
+          count: 4
+        - objective_codes:
+          - '5.5'
+          count: 5
+        category_requirements:
+        - category: ip_addressing
+          minimum: 2
+          tags_any:
+          - ipv4
+          - subnet-mask
+          - static-vs-dynamic
+          - private-addressing
+          - ipv6
+          - healthy-config
+        - category: dhcp_apipa
+          minimum: 2
+          tags_any:
+          - dhcp
+          - apipa
+        - category: gateway
+          minimum: 2
+          tags_any:
+          - gateway
+        - category: dns
+          minimum: 2
+          tags_any:
+          - dns
+          - nslookup
+        - category: commands
+          minimum: 2
+          tags_any:
+          - commands
+          - short-answer
+        - category: troubleshooting
+          minimum: 4
+          tags_any:
+          - scenario
+          - troubleshooting
+        selection_requirements:
+          multi_select_minimum: 1
+          answer_position_guardrail: No single-choice correct position >40%.
       display_order: 6
     - assessment_key: assess.aplus.ipcfg.practical
       assessment_role: practical

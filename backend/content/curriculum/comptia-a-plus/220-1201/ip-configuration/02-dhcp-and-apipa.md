@@ -7,13 +7,14 @@ module: module.aplus.core1.ip_configuration
 importance: job_critical
 learning_relationship: new
 objectives:
-  - "2.5"
-  - "5.7"
+  - "2.4"
+  - "2.6"
+  - "5.5"
 builds_on:
   - lesson.aplus.core1.ip_configuration.ipv4_basics
 estimated_minutes: 14
-status: draft
-source_name: "CompTIA A+ Certification Exam Objectives (Core 1, 220-1201), objectives 2.5 and 5.7"
+status: published
+source_name: "CompTIA A+ Certification Exam Objectives (Core 1, 220-1201), objectives 2.4, 2.6, and 5.5"
 source_url: "https://www.comptia.org/certifications/a"
 ---
 
@@ -23,14 +24,15 @@ source_url: "https://www.comptia.org/certifications/a"
 settings automatically. When a PC joins the network, it broadcasts a request;
 a DHCP server (usually the router in a small office, or a Windows server in a
 company) replies with an **IP address, subnet mask, default gateway, and DNS
-server**, "leased" for a set time.
+server**, leased for a set time.
 
 **APIPA** (Automatic Private IP Addressing) is Windows' fallback. If a PC is
 set to get its address automatically but **gets no answer from any DHCP
-server**, Windows assigns itself an address in the range **`169.254.0.1` to
-`169.254.255.254`** with mask `255.255.0.0`. An APIPA address lets two machines
-on the same switch talk to each other, but it has **no default gateway and no
-DNS**, so there is no internet and usually no company resources.
+server**, Windows selects a link-local address from **`169.254.0.0/16`** with
+mask `255.255.0.0` (the first and last /24 blocks are reserved). APIPA itself
+does not supply a default gateway or DNS server. Two link-local hosts on the
+same local segment may communicate, but the client normally cannot reach the
+internet or routed company resources.
 
 **Seeing `169.254.x.x` almost always means: "I asked for an address and nobody
 answered."**
@@ -55,12 +57,14 @@ DHCP server itself — not the browser, not DNS, not the user's account.
   for a limited **lease** time, then renews.
 - The client-side switch is "Obtain an IP address automatically" (dynamic). If
   that is off and someone typed a bad static address, DHCP can't help.
-- **APIPA range = `169.254.x.x`, mask `255.255.0.0`, no gateway, no DNS.**
-- `169.254.x.x` = the PC never got a DHCP reply. Common causes: unplugged or
-  bad cable, Wi-Fi not connected, dead switch port, DHCP server down or out of
-  addresses, or a NIC/driver problem.
-- An **all-zero address (`0.0.0.0`)** or a blank adapter usually means the link
-  is down (no cable / adapter disabled) rather than DHCP failing.
+- **APIPA = `169.254.x.x`, mask `255.255.0.0`; it supplies no gateway or DNS.**
+- `169.254.x.x` on a DHCP-enabled adapter = the PC never got a DHCP reply.
+  Common causes include a bad or intermittent link, a switch/VLAN path that
+  cannot reach DHCP, or a DHCP service with no available lease.
+- **Media disconnected** or an absent adapter points directly to the physical
+  link or adapter state. An all-zero address by itself can also appear while a
+  client is still waiting for configuration, so do not treat it as proof of a
+  cable fault.
 - First moves for an APIPA address: confirm the physical/Wi-Fi link, then try
   `ipconfig /release` followed by `ipconfig /renew`. If a renew still gives
   `169.254`, the problem is upstream (switch port or DHCP server).
@@ -111,5 +115,5 @@ verify the PC gets a real address and can reach a resource.
 
 ## 8. Quick Check
 
-Quick Check questions for this lesson are tagged to objectives `2.5` and `5.7`
+Quick Check questions for this lesson are tagged to objectives `2.4`, `2.6`, and `5.5`
 in the module question bank.

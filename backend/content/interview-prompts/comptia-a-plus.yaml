@@ -181,7 +181,8 @@ prompts:
     module: module.aplus.core1.ip_configuration
     domain: "2.0"
     objectives:
-      - "2.5"
+      - "2.4"
+      - "2.6"
     importance: job_critical
     prompt: >
       In plain language, what does DHCP do for a computer on a network, and
@@ -211,8 +212,8 @@ prompts:
     module: module.aplus.core1.ip_configuration
     domain: "2.0"
     objectives:
-      - "2.5"
-      - "5.7"
+      - "2.6"
+      - "5.5"
     importance: job_critical
     prompt: >
       A Windows PC shows an IP address of 169.254.14.203. What does that tell
@@ -243,8 +244,8 @@ prompts:
     module: module.aplus.core1.ip_configuration
     domain: "2.0"
     objectives:
-      - "5.7"
-      - "5.1"
+      - "2.4"
+      - "5.5"
     importance: job_critical
     prompt: >
       A user can reach websites by IP address but not by name (for example,
