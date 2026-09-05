@@ -259,3 +259,4 @@ export {
   type WorkstationWindowBounds,
   type WorkstationWindowState,
 } from './workstation-state';
+export { REALISM_FIXTURES, realismFixture, realismNoteComplete, readStatePath, mergeFixtureState, runRealismCommand, type RealismFixture } from './service-desk-realism';

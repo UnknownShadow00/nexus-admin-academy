@@ -3,7 +3,11 @@ import type {
   WorkstationService,
   WorkstationState,
 } from '@service-desk/shared';
-import { WORKSTATION_TERMINAL_COMMAND_MAX_LENGTH } from '@service-desk/shared';
+import {
+  WORKSTATION_TERMINAL_COMMAND_MAX_LENGTH,
+  realismFixture,
+  runRealismCommand,
+} from '@service-desk/shared';
 
 export interface WorkstationCommandResult {
   state: WorkstationState;
@@ -311,6 +315,8 @@ export function executeWorkstationCommand(
       false,
     );
   }
+  const fault = realismFixture(state.machine.assetTag);
+  if (fault) return runRealismCommand(state, fault, command);
   const tokens = parsed.tokens;
   const executable = tokens[0]!.toLowerCase();
   const args = tokens.slice(1);

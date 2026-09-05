@@ -179,8 +179,7 @@ def _last_student_note(events: list[Any]) -> str:
     note = ""
     for event in events:
         if (
-            event.event_type
-            in ("ticket.add_note", "remote_desktop.add_internal_note")
+            event.event_type in ("ticket.add_note", "remote_desktop.add_internal_note")
             and event.trusted is True
             and event.success is True
         ):
@@ -229,11 +228,7 @@ def _category_explanation(
     has_any = any(
         _matching_positions(events, objective) for objective in category.objectives
     )
-    if (
-        has_any
-        and name in ("investigation", "diagnosis")
-        and first_repair is not None
-    ):
+    if has_any and name in ("investigation", "diagnosis") and first_repair is not None:
         return (
             "Your evidence for this step was recorded after you changed "
             "something, so it could not count as pre-change work."
@@ -260,9 +255,7 @@ def _stronger_path(
     labels: dict[str, str] = {}
     for category in objective_def.categories:
         if category.objectives:
-            labels[category.name] = evidence_objective_label(
-                category.objectives[0].id
-            )
+            labels[category.name] = evidence_objective_label(category.objectives[0].id)
     if profile is not None and profile.expected:
         steps = [
             labels.get("investigation", "Reproduce and scope the reported problem"),
@@ -273,11 +266,7 @@ def _stronger_path(
         steps.append(f"Escalate to {profile.route} with your findings")
         steps.append(labels.get("documentation", "Write the hand-off note"))
         return steps
-    return [
-        labels[name]
-        for name in DEBRIEF_CATEGORY_ORDER
-        if name in labels
-    ]
+    return [labels[name] for name in DEBRIEF_CATEGORY_ORDER if name in labels]
 
 
 def _limited_category_explanation(met: bool) -> str:
@@ -330,11 +319,7 @@ def build_debrief(
     profile = escalation_profile(stable_key)
     escalated = bool(details.get("escalated"))
     passed = bool(grade.passed)
-    limited = (
-        not passed
-        and attempts_remaining is not None
-        and attempts_remaining > 0
-    )
+    limited = not passed and attempts_remaining is not None and attempts_remaining > 0
     first_repair = _first_repair_position(events, objective_def)
 
     outcome = (
@@ -372,8 +357,7 @@ def build_debrief(
                         if correct
                         else (
                             profile.no_escalation_rationale
-                            or "This ticket needed to be handed to "
-                            f"{profile.route}."
+                            or f"This ticket needed to be handed to {profile.route}."
                         )
                     )
                 elif name == "verification" and not details.get(
@@ -412,10 +396,27 @@ def build_debrief(
         "note_dimensions": _note_dimensions(note_text),
         # The ordered path and the correct escalation destination are withheld
         # while the student still has a graded attempt to copy them into.
-        "stronger_path": [] if limited else _stronger_path(objective_def, profile),
+        "stronger_path": []
+        if limited
+        else (
+            list(definition_json["simulation_fixture"]["completion"].values())
+            if definition_json.get("objective_catalog_version") == "realism-v1"
+            else _stronger_path(objective_def, profile)
+        ),
         # Whether escalation was the right call - and, by implication, the
         # correct team - is only revealed once there is no graded attempt left.
         "escalation_feedback": (
-            None if limited else _escalation_feedback(profile, escalated, passed)
+            None
+            if limited
+            else (
+                {
+                    "appropriate": stable_key == "inc2509",
+                    "text": definition_json["simulation_fixture"]["completion"][
+                        "whyItWorked"
+                    ],
+                }
+                if definition_json.get("objective_catalog_version") == "realism-v1"
+                else _escalation_feedback(profile, escalated, passed)
+            )
         ),
     }

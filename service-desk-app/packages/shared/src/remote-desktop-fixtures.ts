@@ -1,5 +1,6 @@
 import { DIRECTORY_USER_FIXTURES } from './directory-fixtures';
 import { AssetStatus } from './enums';
+import { REALISM_FIXTURES } from './service-desk-realism';
 
 export const REMOTE_DESKTOP_POWER_STATES = [
   'online',
@@ -502,6 +503,7 @@ export const REMOTE_DESKTOP_WORKSTATION_FIXTURES: readonly RemoteDesktopWorkstat
       drives: workstationDrives(assetTag, employeeName),
       services: [
         { name: 'Workstation', state: 'running' as const },
+        ...(assetTag === 'NX-2504' ? [{ name: 'Print Spooler', state: 'running' as const }] : []),
         { name: 'Windows Event Log', state: 'running' as const },
         { name: 'Network Adapter Service', state: 'running' as const },
       ],
@@ -1206,24 +1208,46 @@ function convertedScenario(
   };
 }
 
+function realisticScenario(ticketId: string): RemoteDesktopScenarioFixture {
+  const fixture = REALISM_FIXTURES[ticketId]!;
+  const objectives = (category: string) =>
+    (fixture.categories[category] ?? []).map((id) => ({ id, anyOf: [id] }));
+  return {
+    id: fixture.id,
+    ticketId,
+    assetTag: fixture.assetTag,
+    title: fixture.title,
+    summary: fixture.issue,
+    studentHints: fixture.hints,
+    actionLabels: {},
+    documentationArticleIds: ['sop-change-record'],
+    requiredSteps: [],
+    optionalSteps: [],
+    incorrectSteps: [],
+    workflow: {
+      investigate: objectives('investigation'),
+      diagnose: objectives('diagnosis'),
+      fix: objectives('remediation'),
+      verify: objectives('verification'),
+      note: { minimumLength: 20 },
+      close: { explicit: true },
+      scoring: {
+        investigation: 15,
+        diagnosis: 25,
+        remediation: 30,
+        verification: 20,
+        documentation: 10,
+      },
+      finalState: {},
+    },
+    completion: fixture.completion,
+    explanation: fixture.completion.rootCause,
+  };
+}
+
 const CONVERTED_REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[] =
   [
-    convertedScenario({
-      id: 'temporary-windows-profile',
-      ticketId: 'INC2501',
-      assetTag: 'NX-2501',
-      title: 'Temporary Windows profile hides user files',
-      summary:
-        'The sign-in created a temporary profile; user data must be protected before profile repair.',
-      rootCause:
-        'Windows loaded a temporary profile instead of the user’s normal profile.',
-      remedy:
-        'Protected the user data, repaired the profile mapping, and confirmed the normal profile loaded.',
-      investigation: 'Inspected the sign-in profile and protected user data',
-      diagnosis: 'Isolated a temporary profile rather than deleted files',
-      remediation: 'Repaired the temporary profile mapping safely',
-      verification: 'Confirmed the normal desktop and Documents returned',
-    }),
+    realisticScenario('INC2501'),
     convertedScenario({
       id: 'excel-add-in-isolation',
       ticketId: 'INC2502',
@@ -1257,39 +1281,8 @@ const CONVERTED_REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[
       verification:
         'Confirmed the original order system loads at the moved desk',
     }),
-    convertedScenario({
-      id: 'printer-dhcp-port',
-      ticketId: 'INC2504',
-      assetTag: 'NX-2504',
-      title: 'Local print port still uses an old DHCP address',
-      summary:
-        'The printer is healthy for peers, while the affected workstation retains an obsolete print port.',
-      rootCause:
-        'The workstation’s printer port still targeted the printer’s old DHCP address.',
-      remedy:
-        'Updated the local print port to the approved current address and printed a test page.',
-      investigation: 'Confirmed printing works from a nearby workstation',
-      diagnosis:
-        'Compared the local print port with the current printer address',
-      remediation: 'Updated the obsolete local print port',
-      verification: 'Printed the original test document successfully',
-    }),
-    convertedScenario({
-      id: 'department-share-least-privilege',
-      ticketId: 'INC2505',
-      assetTag: 'NX-2505',
-      title: 'New hire lacks approved department-share group',
-      summary:
-        'Use peer comparison and approved least-privilege membership before changing access.',
-      rootCause:
-        'The new employee was missing the approved Marketing share group.',
-      remedy: 'Added only the approved department group and confirmed access.',
-      investigation:
-        'Confirmed the requested share and compared an authorized peer',
-      diagnosis: 'Identified the missing approved group membership',
-      remediation: 'Applied the least-privilege department group change',
-      verification: 'Opened the original Marketing share successfully',
-    }),
+    realisticScenario('INC2504'),
+    realisticScenario('INC2505'),
     convertedScenario({
       id: 'restricted-folder-escalation',
       ticketId: 'INC2506',
@@ -1342,23 +1335,7 @@ const CONVERTED_REMOTE_DESKTOP_SCENARIOS: readonly RemoteDesktopScenarioFixture[
       verification:
         'Confirmed sessions were revoked and the employee received safe follow-up',
     }),
-    convertedScenario({
-      id: 'recurring-disk-growth',
-      ticketId: 'INC2509',
-      assetTag: 'NX-2509',
-      title: 'Recurring disk exhaustion caused by runaway logs',
-      summary:
-        'Deleting temporary files is not a durable repair when application logs keep growing.',
-      rootCause: 'A runaway application log was consuming the system drive.',
-      remedy:
-        'Corrected the log retention/configuration issue and verified stable free space.',
-      investigation:
-        'Compared disk use over time and identified the growing path',
-      diagnosis: 'Isolated the runaway application log',
-      remediation: 'Corrected log retention at the source',
-      verification:
-        'Confirmed free space remained available after the scheduled interval',
-    }),
+    realisticScenario('INC2509'),
     convertedScenario({
       id: 'domain-trust-repair',
       ticketId: 'INC2510',

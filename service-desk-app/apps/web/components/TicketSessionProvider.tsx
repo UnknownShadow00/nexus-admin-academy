@@ -1144,9 +1144,39 @@ function projectRemoteDesktopWorkstations(
 ): RemoteDesktopWorkstationRecord[] {
   return REMOTE_DESKTOP_WORKSTATION_FIXTURES.map((fixture) => {
     const overlay = attempt.remoteDesktopOverlays[fixture.assetTag];
+    const machine =
+      overlay?.workstation ?? createWorkstationState(fixture.assetTag);
+    const storage = machine.storage;
 
     return {
       ...fixture,
+      drives: machine.realism
+        ? fixture.drives
+            .filter((drive) => drive.kind === 'local')
+            .map((drive) => ({
+              ...drive,
+              ...(storage
+                ? {
+                    totalGb: storage.capacityBytes / 1024 ** 3,
+                    freeGb: storage.freeBytes / 1024 ** 3,
+                  }
+                : {}),
+              entries: Object.values(machine.filesystem.nodes)
+                .filter(
+                  (node) => node.kind === 'file' || node.kind === 'folder',
+                )
+                .map((node) => ({
+                  kind: node.kind as 'file' | 'folder',
+                  name: node.name,
+                  path: node.path,
+                  modifiedAt: node.modifiedAt ?? '',
+                  size:
+                    node.sizeBytes === null
+                      ? undefined
+                      : `${node.sizeBytes} bytes`,
+                })),
+            }))
+        : fixture.drives,
       workstation:
         overlay?.workstation ?? createWorkstationState(fixture.assetTag),
       completedScenarioIds: overlay?.completedScenarioIds ?? [],

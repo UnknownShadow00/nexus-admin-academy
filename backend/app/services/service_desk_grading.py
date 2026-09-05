@@ -112,9 +112,7 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
             _trusted_match(rule) for rule in profile.required_containment
         )
         escalation_valid = _any_trusted_escalate and reason_ok and route_ok
-        escalation_correct = (
-            escalation_valid and containment_met and not prohibited_hit
-        )
+        escalation_correct = escalation_valid and containment_met and not prohibited_hit
         # Investigate -> Diagnose -> Fix/Escalate -> Verify -> Document. A
         # correctly routed hand-off is still not a passing ticket until the
         # closure/hand-off note is on the trusted ledger, exactly like an
@@ -173,6 +171,24 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
             "escalation_expected": False,
             "escalation_attempted": True,
         }
+    if definition.get("objective_catalog_version") == "realism-v1":
+        from app.services.service_desk_realism import replay
+
+        simulated = replay(definition["simulation_fixture"], events)
+        critical_failure = simulated["realism"]["harmful"]
+        resolved = resolved and not critical_failure
+        if critical_failure:
+            objective_checks["remediation"] = False
+        if scenario.stable_key == "inc2509":
+            handed_off = bool(escalate_events)
+            resolved = resolved and handed_off
+            escalation_details = {
+                "escalated": handed_off,
+                "escalation_expected": True,
+                "escalation_correct": handed_off,
+                "verification_applicable": True,
+                "documentation_complete": objective_checks.get("documentation", False),
+            }
     hints_used = sum(event.event_type == "hint_requested" for event in events)
     # Learning Mode is for practicing without penalty: hint use and an
     # unresolved close still get recorded and shown to the student, but do
@@ -246,6 +262,8 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
             "You applied a change that was not yours to make. This ticket "
             "required escalation to the responsible team."
         )
+        if definition.get("objective_catalog_version") == "realism-v1":
+            feedback_summary = "Access was expanded beyond the recorded approval. A technically successful access test does not satisfy least privilege."
     elif profile is not None and profile.expected:
         if resolved:
             route = escalation_details.get("escalation_route") or profile.route
@@ -255,9 +273,9 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
                     f" The final score includes {penalty_points} hint or "
                     "closure penalty points."
                 )
-        elif escalation_details.get("escalation_correct") and not escalation_details.get(
-            "documentation_complete"
-        ):
+        elif escalation_details.get(
+            "escalation_correct"
+        ) and not escalation_details.get("documentation_complete"):
             feedback_summary = (
                 "You made the right call and routed this correctly, but the "
                 "ticket cannot pass until you record a closure/hand-off note "

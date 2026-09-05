@@ -120,9 +120,13 @@ def _validate_event_shape(event_type: str, tool: str, payload: dict) -> None:
         payload.get("assetTag"), str
     ):
         raise HTTPException(422, "Remote Desktop events require assetTag")
-    if event_type.startswith("device.") and not isinstance(payload.get("deviceId"), str):
+    if event_type.startswith("device.") and not isinstance(
+        payload.get("deviceId"), str
+    ):
         raise HTTPException(422, "Device events require deviceId")
-    if event_type.startswith("device.") and not isinstance(payload.get("ticketId"), str):
+    if event_type.startswith("device.") and not isinstance(
+        payload.get("ticketId"), str
+    ):
         raise HTTPException(422, "Device events require ticketId")
 
 
@@ -451,9 +455,7 @@ def list_assignments(
                 }
                 if latest_attempt
                 else None,
-                "workspace_view": _workspace_view(
-                    db, scenario, version, latest_attempt
-                )
+                "workspace_view": _workspace_view(db, scenario, version, latest_attempt)
                 if version
                 else None,
             }
@@ -805,6 +807,7 @@ def _action_allowed(
     events = (
         db.query(ServiceDeskAttemptEvent)
         .filter_by(attempt_id=attempt.id, trusted=True)
+        .order_by(ServiceDeskAttemptEvent.sequence_number)
         .all()
     )
     # The attempt itself is created only from this student's assignment, so it
@@ -832,6 +835,40 @@ def _action_allowed(
     definition = objective_definition(key, definition_json) if version else None
     if definition is None:
         return False
+
+    if definition_json.get("objective_catalog_version") == "realism-v1":
+        from app.services.service_desk_realism import transition
+
+        if event_type == "remote_desktop.add_internal_note":
+            fixture = definition_json["simulation_fixture"]
+            note = payload.get("text", "")
+            return (
+                payload.get("assetTag") == fixture["assetTag"]
+                and payload.get("ticketId") == ticket_id
+                and isinstance(note, str)
+                and 20 <= len(note) <= 1000
+                and all(
+                    any(fact in note.lower() for fact in alternatives)
+                    for alternatives in fixture["noteFacts"]
+                )
+            )
+        if event_type == "ticket.escalate" and key == "inc2509":
+            ready, _ = evaluate_objectives(key, events, definition_json)
+            return (
+                ready
+                and payload.get("ticketId") == ticket_id
+                and payload.get("routeTeam") == "Application Support"
+                and payload.get("reason")
+                in {"change-approval-required", "other-team-owns-system"}
+            )
+        result = transition(
+            definition_json["simulation_fixture"],
+            sorted(events, key=lambda event: event.sequence_number),
+            event_type,
+            payload,
+        )
+        if result is not None:
+            return result["success"]
 
     if event_type == "ticket.escalate":
         # Escalation is trusted only for a scenario whose server-owned profile
@@ -864,10 +901,13 @@ def _action_allowed(
         ),
         None,
     )
-    action_matches = any(
-        rule.event_type == event_type and payload_matches(payload, rule.payload)
-        for rule in rules
-    ) or source_for_derived_step is not None
+    action_matches = (
+        any(
+            rule.event_type == event_type and payload_matches(payload, rule.payload)
+            for rule in rules
+        )
+        or source_for_derived_step is not None
+    )
     if not action_matches:
         return False
 
@@ -1010,12 +1050,40 @@ def request_action(
     if attempt.status != "in_progress":
         raise HTTPException(409, "Attempt is no longer in progress")
     _validate_event_shape(body.event_type, body.tool, body.payload)
+    # Never retain browser assertions about state-derived evidence.
+    body.payload.pop("realismEvidence", None)
     trusted = _action_allowed(db, attempt, body.event_type, body.payload)
     # Non-objective UI actions remain auditable/resumable, but cannot be
     # promoted to grading evidence. Objective-shaped actions require the
     # transition graph above; an objective before assignment is rejected.
     key = _scenario_key(db, attempt)
     version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
+    realism_definition = version.definition_json or {} if version else {}
+    if realism_definition.get("objective_catalog_version") == "realism-v1":
+        from app.services.service_desk_realism import transition
+
+        ledger = (
+            db.query(ServiceDeskAttemptEvent)
+            .filter_by(attempt_id=attempt.id)
+            .order_by(ServiceDeskAttemptEvent.sequence_number)
+            .all()
+        )
+        result = transition(
+            realism_definition["simulation_fixture"],
+            ledger,
+            body.event_type,
+            body.payload,
+        )
+        protected = body.event_type in {
+            "remote_desktop.run_terminal_command",
+            "remote_desktop.perform_scenario_step",
+        }
+        if protected and (result is None or not result["success"] or not trusted):
+            raise HTTPException(
+                409, "Action or target unavailable in this workstation state"
+            )
+        if result and trusted and result["evidence"]:
+            body.payload["realismEvidence"] = result["evidence"]
     definition = (
         objective_definition(key, version.definition_json or {}) if version else None
     )
@@ -1037,8 +1105,7 @@ def request_action(
     # cannot turn a wrong ticket/device target into an accepted audit event.
     protected_device_action = (
         definition
-        and body.event_type
-        in {"device.reveal_recovery_key", "device.reassign_device"}
+        and body.event_type in {"device.reveal_recovery_key", "device.reassign_device"}
         and any(
             rule.event_type == body.event_type for rule in definition.authorized_rules
         )
@@ -1172,8 +1239,11 @@ def complete_attempt(
     attempt.passed = computed["passed"]
     if scenario_id is not None:
         reconcile_v2_service_desk_attempt(
-            db, student_id=attempt.student_id, scenario_id=scenario_id,
-            attempt_id=attempt.id, score=computed["overall_score"],
+            db,
+            student_id=attempt.student_id,
+            scenario_id=scenario_id,
+            attempt_id=attempt.id,
+            score=computed["overall_score"],
             passed=computed["passed"],
         )
     try:

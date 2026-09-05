@@ -1196,6 +1196,14 @@ SERVICE_DESK_TICKET_CONTENT_PATCHES = {
 
 def _current_service_desk_ticket_fixture(ticket):
     ticket = deepcopy(ticket)
+    from app.services.service_desk_realism import fixture_catalog
+    realistic = fixture_catalog().get(ticket["id"])
+    if realistic:
+        ticket["title"] = realistic["title"]
+        ticket["description"]["issue"] = realistic["issue"]
+        ticket["description"]["troubleshooting"] = []
+        ticket["hints"] = realistic["hints"]
+        return ticket
     patch = SERVICE_DESK_TICKET_CONTENT_PATCHES.get(ticket["id"])
     if not patch:
         return ticket
@@ -1246,6 +1254,10 @@ def seed_service_desk_scenarios(db):
         scenarios[stable_key] = scenario
 
         definition = {**ticket, "objective_catalog_version": PROCESS_CATALOG_VERSION}
+        from app.services.service_desk_realism import fixture_catalog
+        realistic = fixture_catalog().get(ticket["id"])
+        if realistic:
+            definition.update(objective_catalog_version="realism-v1", simulation_fixture=realistic)
         definition_hash = hashlib.sha256(
             json.dumps(definition, sort_keys=True).encode("utf-8")
         ).hexdigest()

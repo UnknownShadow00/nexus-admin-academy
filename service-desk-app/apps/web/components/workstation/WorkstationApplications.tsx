@@ -138,6 +138,8 @@ export function WorkstationApplicationContent({
       );
     case 'settings':
       return (
+        <>
+        {workstation.assetTag === 'NX-2504' ? <PrinterProperties run={runTerminalCommand} history={workstation.terminalHistory} /> : null}
         <SettingsWindow
           canRepairNetwork={Boolean(
             scenario.actionLabels['settings.repair-network'],
@@ -162,6 +164,7 @@ export function WorkstationApplicationContent({
           }
           workstation={workstation}
         />
+        </>
       );
     case 'services':
       return (
@@ -1058,7 +1061,9 @@ function FileExplorerWindow({
         .toUpperCase()
         .startsWith(drive.letter.toUpperCase()),
   );
-  const entries =
+  const entries = workstation.workstation.realism ? Object.values(workstation.workstation.filesystem.nodes)
+    .filter((node) => parentExplorerPath(node.path) === workstation.explorerCurrentPath && node.path !== workstation.explorerCurrentPath)
+    .map((node) => ({ kind: node.kind === 'file' ? 'file' : 'folder', path: node.path, name: node.name, modifiedAt: node.modifiedAt ?? '', size: `${node.sizeBytes ?? 0} bytes` })) :
     currentDrive?.entries.filter(
       (entry) =>
         parentExplorerPath(entry.path) === workstation.explorerCurrentPath,
@@ -1122,6 +1127,9 @@ function FileExplorerWindow({
           <p className="px-2 pb-1 pt-4 text-[10px] font-bold uppercase tracking-wider text-text-muted">
             Drives
           </p>
+          {Object.values(workstation.workstation.filesystem.nodes).filter((node) => node.kind === 'share').map((node) => (
+            <button className="w-full truncate px-2 py-2 text-left text-xs" key={node.id} onClick={() => navigate(node.path)} type="button">{node.name}</button>
+          ))}
           {workstation.drives.map((drive) => (
             <button
               className={`flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs ${currentDrive?.letter === drive.letter ? 'bg-sky-100 text-sky-900' : 'text-text-muted hover:bg-zinc-200'}`}
@@ -1325,6 +1333,68 @@ function ExplorerErrorState({
         Open Map Network Drive
       </button>
     </div>
+  );
+}
+
+function PrinterProperties({
+  run,
+  history,
+}: {
+  run: (command: string) => void;
+  history: RemoteDesktopWorkstationRecord['terminalHistory'];
+}) {
+  const [address, setAddress] = useState('');
+  const output = [...history]
+    .reverse()
+    .find((entry) =>
+      /^(Get-PrinterPort|Get-Asset|Set-PrinterPort|Print-TestPage)/.test(
+        entry.command,
+      ),
+    )?.output;
+  return (
+    <section
+      className="border-b border-border p-5"
+      aria-label="Printer properties"
+    >
+      <h3 className="text-lg font-bold">ENG-COPIER connection</h3>
+      <div className="my-3 flex flex-wrap gap-2">
+        <Button onClick={() => run('Get-PrinterPort -Name ENG-COPIER')}>
+          Read port
+        </Button>
+        <Button onClick={() => run('Get-Asset -Name ENG-COPIER')}>
+          Query printer asset
+        </Button>
+        <Button onClick={() => run('Print-TestPage -Name ENG-COPIER')}>
+          Print test page
+        </Button>
+      </div>
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          run(
+            `Set-PrinterPort -Name ENG-COPIER -PrinterHostAddress ${address.trim()}`,
+          );
+        }}
+      >
+        <label className="text-sm">
+          Port target
+          <input
+            className="ml-2 rounded border border-border p-2"
+            value={address}
+            onChange={(event) => setAddress(event.target.value)}
+            maxLength={15}
+            placeholder="IPv4 address"
+          />
+        </label>
+        <Button type="submit">Save port</Button>
+      </form>
+      {output ? (
+        <output className="mt-3 block whitespace-pre-wrap font-mono text-sm">
+          {output.join('\n')}
+        </output>
+      ) : null}
+    </section>
   );
 }
 

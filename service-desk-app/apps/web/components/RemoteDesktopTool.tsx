@@ -8,6 +8,7 @@ import {
   REMOTE_DESKTOP_APP_IDS,
   REMOTE_DESKTOP_SCENARIOS,
   getRemoteDesktopScenarioByTicket,
+  realismFixture,
   type RemoteDesktopAppId,
 } from '@service-desk/shared';
 import { Button, Input } from '@service-desk/ui';
@@ -445,6 +446,21 @@ export function CompletionSummary({
   const missedOptional = scenario.optionalSteps.filter(
     (step) => !performed.has(step),
   );
+  if (
+    realismFixture(scenario.assetTag) &&
+    serverGrade?.debrief?.coaching_tier !== 'full'
+  ) {
+    return (
+      <section
+        role="status"
+        className="rounded border border-border p-4 text-sm"
+      >
+        {serverGrade
+          ? 'Review the assessment feedback in the ticket workspace before your next attempt.'
+          : 'Your assessment is being confirmed. Return to the ticket workspace for feedback.'}
+      </section>
+    );
+  }
   return (
     <section className="rounded-sm border border-success/35 bg-success/[0.08] p-4">
       <IconCheck aria-hidden="true" className="h-7 w-7 text-success" />

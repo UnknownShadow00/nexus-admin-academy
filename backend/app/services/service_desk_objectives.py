@@ -883,7 +883,11 @@ def _device_process(
                     *(
                         EvidenceRule(
                             "chat.verify_identity",
-                            {"ticketId": ticket_id, "contactId": requester_contact_id, "method": method},
+                            {
+                                "ticketId": ticket_id,
+                                "contactId": requester_contact_id,
+                                "method": method,
+                            },
                         )
                         for method in identity_methods
                     ),
@@ -906,7 +910,9 @@ def _device_process(
                 ),
             ),
         ),
-        ProcessCategory("remediation", (_objective("safe-device-action", remediation),)),
+        ProcessCategory(
+            "remediation", (_objective("safe-device-action", remediation),)
+        ),
         ProcessCategory(
             "verification",
             (
@@ -928,7 +934,10 @@ def _device_process(
             (
                 _objective(
                     "requester-confirmed-original-symptom",
-                    EvidenceRule("chat.request_resolution_confirmation", {"ticketId": ticket_id, "contactId": requester_contact_id}),
+                    EvidenceRule(
+                        "chat.request_resolution_confirmation",
+                        {"ticketId": ticket_id, "contactId": requester_contact_id},
+                    ),
                 ),
                 _objective(
                     "meaningful-resolution-note",
@@ -1222,6 +1231,55 @@ def objective_definition(
     stable_key: str, definition_json: dict[str, Any]
 ) -> ScenarioObjectiveDefinition | None:
     key = stable_key.lower()
+    if definition_json.get("objective_catalog_version") == "realism-v1":
+        fixture = definition_json.get("simulation_fixture", {})
+        categories = fixture.get("categories", {})
+        if not categories:
+            return None
+        return _process(
+            *(
+                ProcessCategory(
+                    name,
+                    tuple(
+                        _objective(
+                            identifier,
+                            *(
+                                EvidenceRule(
+                                    event_type,
+                                    {
+                                        "assetTag": fixture["assetTag"],
+                                        "realismEvidence": identifier,
+                                    },
+                                )
+                                for event_type in (
+                                    "remote_desktop.run_terminal_command",
+                                    "remote_desktop.explorer_navigate",
+                                    "remote_desktop.open_app",
+                                )
+                            ),
+                        )
+                        for identifier in identifiers
+                    ),
+                )
+                if name != "documentation"
+                else ProcessCategory(
+                    name,
+                    (
+                        _objective(
+                            "closure-note",
+                            EvidenceRule(
+                                "remote_desktop.add_internal_note",
+                                {
+                                    "assetTag": fixture["assetTag"],
+                                    "ticketId": definition_json["id"],
+                                },
+                            ),
+                        ),
+                    ),
+                )
+                for name, identifiers in categories.items()
+            )
+        )
     if definition_json.get("objective_catalog_version") == PROCESS_CATALOG_VERSION:
         return SCENARIO_OBJECTIVES.get(key)
     return LEGACY_SCENARIO_OBJECTIVES.get(key) or definition_objectives(definition_json)
@@ -1344,4 +1402,26 @@ def evaluate_objectives(
         and checks.get("verification", False)
         and checks.get("documentation", False)
     )
+    if (definition_json or {}).get("objective_catalog_version") == "realism-v1":
+        from app.services.service_desk_realism import replay, read_path
+
+        state = replay(definition_json["simulation_fixture"], events)
+        checks["verification"] = checks["verification"] and all(
+            read_path(state, path) == expected
+            for path, expected in definition_json["simulation_fixture"][
+                "finalConditions"
+            ].items()
+        )
+        checks["professional_outcome"] = not state["realism"]["harmful"]
+        checks["technical_complete"] = all(
+            checks.get(name, False)
+            for name in (
+                "investigation",
+                "diagnosis",
+                "remediation",
+                "verification",
+                "documentation",
+                "professional_outcome",
+            )
+        )
     return checks["technical_complete"], checks
