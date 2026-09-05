@@ -28,6 +28,9 @@ type service_desk_container_ok >/dev/null 2>&1 \
 type service_desk_contract_ok >/dev/null 2>&1 \
     && ok "service_desk_contract_ok is defined after sourcing" \
     || { bad "service_desk_contract_ok not defined"; printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"; exit 1; }
+type backend_health_ok >/dev/null 2>&1 \
+    && ok "backend_health_ok is defined after sourcing" \
+    || { bad "backend_health_ok not defined"; printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"; exit 1; }
 
 WORK="$(mktemp -d)"; BIN="$WORK/bin"; mkdir -p "$BIN"
 trap 'rm -rf "$WORK"' EXIT
@@ -54,18 +57,60 @@ make_docker
 cat > "$BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 url="${!#}"
+[ -n "${FAKE_CURL_LOG:-}" ] && printf '%s\n' "$url" >> "$FAKE_CURL_LOG"
 case "$url" in
-  *backend*)
+  */api/service-desk/contract)
     [ "${FAKE_BACKEND_HTTP:-200}" = 200 ] || exit 22
     printf '%s' "${FAKE_BACKEND_BODY:-}"
     ;;
-  *service-desk*)
+  */service-desk/api/health)
     [ "${FAKE_SD_HTTP:-200}" = 200 ] || exit 22
     printf '%s' "${FAKE_SD_BODY:-}"
+    ;;
+  */health)
+    [ "${FAKE_BACKEND_HTTP:-200}" = 200 ] || exit 22
+    printf '%s' "${FAKE_BACKEND_HEALTH_BODY:-ok}"
     ;;
 esac
 EOF
 chmod +x "$BIN/curl"
+
+[[ "$BACKEND_BASE_URL" == "http://127.0.0.1:8000" ]] \
+    && ok "default Backend URL remains the development loopback address" \
+    || bad "unexpected default Backend URL: $BACKEND_BASE_URL"
+
+configured="$(NEXUS_BACKEND_URL='http://172.17.0.1:8000/' PREDEPLOY_CHECK_SOURCED=1 \
+    bash -c 'source "$1"; printf "%s" "$BACKEND_BASE_URL"' _ "$PREDEPLOY")"
+[[ "$configured" == "http://172.17.0.1:8000" ]] \
+    && ok "configured bridge Backend URL is selected and trailing slash normalized" \
+    || bad "configured Backend URL was not normalized: '$configured'"
+
+CURL_LOG="$WORK/curl.log"
+: > "$CURL_LOG"
+out="$(FAKE_CURL_LOG="$CURL_LOG" BACKEND_BASE_URL='http://172.17.0.1:8000' backend_health_ok)"; rc=$?
+[ $rc -eq 0 ] && grep -qx 'http://172.17.0.1:8000/health' "$CURL_LOG" \
+    && ok "health probe uses the configured bridge Backend URL" \
+    || bad "configured health probe failed: rc=$rc out='$out' calls='$(tr '\n' ' ' < "$CURL_LOG")'"
+
+: > "$CURL_LOG"
+out="$(FAKE_CURL_LOG="$CURL_LOG" BACKEND_BASE_URL='http://172.17.0.1:8000/' \
+    FAKE_BACKEND_BODY='{"contract_version":"2.0"}' \
+    FAKE_SD_BODY='{"status":"ok","contract_version":"2.0"}' \
+    service_desk_contract_ok '' 'http://candidate-service-desk')"; rc=$?
+[ $rc -eq 0 ] \
+    && grep -qx 'http://172.17.0.1:8000/api/service-desk/contract' "$CURL_LOG" \
+    && ! grep -q '127.0.0.1:8000' "$CURL_LOG" \
+    && ok "contract probe uses the same configured Backend URL without loopback fallback" \
+    || bad "configured contract probe failed: rc=$rc out='$out' calls='$(tr '\n' ' ' < "$CURL_LOG")'"
+
+: > "$CURL_LOG"
+out="$(FAKE_CURL_LOG="$CURL_LOG" BACKEND_BASE_URL='http://wrong-backend:9999' \
+    FAKE_BACKEND_HTTP=503 backend_health_ok)"; rc=$?
+[ $rc -ne 0 ] \
+    && grep -qx 'http://wrong-backend:9999/health' "$CURL_LOG" \
+    && ! grep -q '127.0.0.1:8000' "$CURL_LOG" \
+    && ok "wrong configured Backend URL fails without hidden loopback fallback" \
+    || bad "wrong configured Backend URL did not fail closed: rc=$rc calls='$(tr '\n' ' ' < "$CURL_LOG")'"
 
 run() { FAKE_STATE="$1" FAKE_HEALTH="$2" service_desk_container_ok nexus-service-desk; }
 
@@ -113,6 +158,10 @@ grep -q 'BUILD_ID' "$PREDEPLOY" \
 grep -q 'service_desk_container_ok nexus-service-desk' "$PREDEPLOY" \
     && ok "the gate calls service_desk_container_ok for the real container" \
     || bad "the gate does not call service_desk_container_ok"
+backend_default_count="$(grep -o 'http://127\.0\.0\.1:8000' "$PREDEPLOY" | wc -l)"
+[ "$backend_default_count" -eq 1 ] \
+    && ok "the Backend loopback default is declared exactly once" \
+    || bad "found $backend_default_count duplicated Backend loopback defaults"
 
 printf '\n\033[1m%d passed, %d failed\033[0m\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

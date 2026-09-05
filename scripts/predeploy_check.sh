@@ -6,6 +6,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_ROOT="$REPO_ROOT/backend"
 BACKEND_PYTHON="$BACKEND_ROOT/.venv/bin/python"
 ENV_FILE="${NEXUS_ENV_FILE:-$BACKEND_ROOT/.env}"
+BACKEND_BASE_URL="${NEXUS_BACKEND_URL:-http://127.0.0.1:8000}"
+BACKEND_BASE_URL="${BACKEND_BASE_URL%/}"
 FAILED=0
 
 pass() { printf 'PASS: %s\n' "$1"; }
@@ -51,9 +53,11 @@ service_desk_container_ok() {
 }
 
 service_desk_contract_ok() {
-    local backend_base="${1:-http://127.0.0.1:8000}"
+    local backend_base="${1:-$BACKEND_BASE_URL}"
     local service_desk_base="${2:-http://127.0.0.1:13000}"
     local backend_payload service_desk_payload
+    backend_base="${backend_base%/}"
+    service_desk_base="${service_desk_base%/}"
     backend_payload="$(curl --fail --silent --show-error \
         "$backend_base/api/service-desk/contract")" \
         || { printf 'backend contract endpoint unavailable'; return 1; }
@@ -62,6 +66,12 @@ service_desk_contract_ok() {
         || { printf 'Service Desk contract endpoint unavailable'; return 1; }
     "${CONTRACT_GATE_PYTHON:-python3}" "$REPO_ROOT/scripts/service_desk_contract_gate.py" \
         --backend-json "$backend_payload" --service-desk-json "$service_desk_payload"
+}
+
+backend_health_ok() {
+    local backend_base="${1:-$BACKEND_BASE_URL}"
+    backend_base="${backend_base%/}"
+    curl --fail --silent --show-error "$backend_base/health"
 }
 
 # Allow `PREDEPLOY_CHECK_SOURCED=1 source predeploy_check.sh` in tests to load
@@ -246,10 +256,10 @@ if docker inspect nexus-service-desk >/dev/null 2>&1; then
 else
     fail "Service Desk container is missing"
 fi
-if curl --fail --silent --show-error http://127.0.0.1:8000/health >/dev/null; then pass "backend health endpoint responds"; else fail "backend health endpoint failed"; fi
+if backend_health_ok "$BACKEND_BASE_URL" >/dev/null; then pass "backend health endpoint responds"; else fail "backend health endpoint failed"; fi
 if curl --fail --silent --show-error http://127.0.0.1:13000/service-desk/api/health >/dev/null; then pass "Service Desk health endpoint responds"; else fail "Service Desk health endpoint failed"; fi
 if CONTRACT_STATUS="$(service_desk_contract_ok \
-    "${NEXUS_BACKEND_URL:-http://127.0.0.1:8000}" \
+    "$BACKEND_BASE_URL" \
     "${NEXUS_SERVICE_DESK_URL:-http://127.0.0.1:13000}")"; then
     pass "CURRENT-LIVE $CONTRACT_STATUS"
 elif [ "$REQUIRE_LIVE_CONTRACT" = "1" ]; then
