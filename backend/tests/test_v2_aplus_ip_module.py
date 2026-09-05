@@ -12,10 +12,13 @@ table or existing student is touched.
 
 from __future__ import annotations
 
+import hashlib
+import random
 import shutil
 from pathlib import Path
 
 import pytest
+import yaml
 
 from conftest import auth_headers, enroll_v2, make_client, make_student
 
@@ -28,9 +31,15 @@ from app.models.certification import (
     LessonV2Meta,
     ModuleAssessment,
     QuestionV2Meta,
+    question_objective_codes,
 )
 from app.models.lab import LabTemplate
-from app.models.quiz import Question, Quiz
+from app.models.quiz import (
+    EDITORIAL_STATUS_VALIDATED,
+    QUIZ_STATUS_PUBLISHED,
+    Question,
+    Quiz,
+)
 from app.models.student import Student
 from app.models.training import TrainingWeek
 from app.models.v2_progress import V2ModuleActivity
@@ -43,8 +52,10 @@ from app.services.v2_content_loader import (
     load_module,
     load_question_banks,
 )
+from app.services.v2_assessment_selector import select_constrained
 from app.services.v2_mentor_service import module_report
 from app.services.v2_progress_service import module_progress, record_activity
+from app.services.v2_curriculum_service import module_view, resource_activity
 
 MODULE_KEY = "module.aplus.core1.ip_configuration"
 VERSION_KEY = "comptia_aplus_220-1201"
@@ -57,9 +68,10 @@ LESSON_KEYS = [
     "lesson.aplus.core1.ip_configuration.dns_basics",
     "lesson.aplus.core1.ip_configuration.windows_commands",
 ]
-# Objectives this module intentionally maps to. All exist in
-# content/objectives/comptia-a-plus-220-1201.yaml.
-MODULE_OBJECTIVES = {"2.5", "5.7", "5.1"}
+# Exact Core 1 objectives represented by this module. Objective 2.5 is network
+# hardware, 5.1 is hardware troubleshooting, and 5.7 is only a legacy alias;
+# none belongs in this IP-configuration bank.
+MODULE_OBJECTIVES = {"2.4", "2.6", "5.5"}
 
 
 @pytest.fixture()
@@ -172,7 +184,7 @@ def test_question_sync_detects_real_changes(db, tmp_path):
 
     # Edit one explanation -> exactly one 'updated', still 40 rows.
     edited = [dict(r) for r in rows]
-    target_text = "What does DNS do?"
+    target_text = "What does DNS provide to a client?"
     hit = next(r for r in edited if r["question_text"] == target_text)
     hit["explanation"] = "DNS maps names to IP addresses; edited for the change-detection test."
     r3 = confirm_import(db, edited, duplicate_policy="update_draft", source_filename="x.csv")
@@ -182,13 +194,14 @@ def test_question_sync_detects_real_changes(db, tmp_path):
     # Edit only the objective metadata of one row -> 'updated' via the V2-meta
     # path. Build on the previous edit so only this one row is newly different.
     edited2 = [dict(r) for r in edited]
-    hit2 = next(r for r in edited2 if r["question_text"] == "What is the role of the default gateway?")
-    assert hit2["objective_code"] == "2.5"
-    hit2["objective_code"] = "5.7"
+    gateway_stem = "What is the role of a workstation's default gateway?"
+    hit2 = next(r for r in edited2 if r["question_text"] == gateway_stem)
+    assert hit2["objective_code"] == "2.6"
+    hit2["objective_code"] = "5.5"
     r4 = confirm_import(db, edited2, duplicate_policy="update_draft", source_filename="x.csv")
     assert r4["updated"] == 1 and r4["unchanged"] == 39 and r4["created"] == 0
-    changed = db.query(Question).filter(Question.question_text == "What is the role of the default gateway?").one()
-    assert changed.v2_meta.objective_code == "5.7"
+    changed = db.query(Question).filter(Question.question_text == gateway_stem).one()
+    assert changed.v2_meta.objective_code == "5.5"
 
     # Add a brand-new row -> exactly one 'created', the rest unchanged.
     plus = [dict(r) for r in edited2]
@@ -201,7 +214,7 @@ def test_question_sync_detects_real_changes(db, tmp_path):
         correct_answers="B", explanation="ipconfig /renew requests a new lease.",
         difficulty="1", tags="dhcp", source="Nexus curriculum team", published="false",
         certification="comptia_aplus", certification_version=VERSION_KEY, domain="2.0",
-        module=MODULE_KEY, objective_code="5.7", importance="job_critical",
+        module=MODULE_KEY, objective_code="5.5", importance="job_critical",
         source_name="Nexus curriculum team", permission_status="owned",
     )
     plus.append(new)
@@ -301,9 +314,9 @@ def test_objective_coverage_includes_completed_core1_catalog(loaded):
     covered = {c["objective_code"] for c in cov["covered"]}
     # This module's three objectives are covered...
     assert MODULE_OBJECTIVES <= covered
-    # Module 10 closes the remaining Core 1 lesson coverage.
-    assert {c["objective_code"] for c in cov["uncovered"]} == set()
-    assert cov["coverage_percent"] == 100
+    # Module 10 closes the official Core 1 lesson coverage. The deliberately
+    # retained 5.7 compatibility alias is not an official 220-1201 objective.
+    assert {c["objective_code"] for c in cov["uncovered"]} == {"5.7"}
 
 
 # --------------------------------------------------------------------------- #
@@ -333,10 +346,96 @@ def test_question_bank_breakdown(loaded):
         assert m.objective_code in MODULE_OBJECTIVES
         assert m.importance in {"job_critical", "working_knowledge", "awareness"}
         assert m.permission_status == "owned"
-    # The quiz is a draft, invisible to students until a mentor validates it.
-    assert quiz.status == "draft"
-    assert quiz.answer_keys_validated is False
+    # Exact reviewed bytes are promoted only through the approval manifest.
+    assert quiz.status == QUIZ_STATUS_PUBLISHED
+    assert quiz.editorial_status == EDITORIAL_STATUS_VALIDATED
+    assert quiz.answer_keys_validated is True
+    assert quiz.explanations_complete is True
     assert quiz.show_in_practice_library is False
+
+
+def test_question_bank_approval_is_hash_bound_to_reviewed_bytes():
+    bank = Path(DEFAULT_QUESTIONS_DIR, "aplus-ip-configuration.csv")
+    approvals = yaml.safe_load(
+        Path(DEFAULT_QUESTIONS_DIR, "editorial-approvals.yaml").read_text(encoding="utf-8")
+    )["approvals"]
+    approval = next(row for row in approvals if row["filename"] == bank.name)
+
+    assert approval["quiz_title"] == QUIZ_TITLE
+    assert approval["editorial_status"] == "validated"
+    assert approval["reviewed_question_count"] == 40
+    assert hashlib.sha256(bank.read_bytes()).hexdigest() == approval["sha256"]
+
+
+def test_bank_uses_official_objectives_and_balanced_answer_positions(loaded):
+    quiz_id = _quiz_id(loaded)
+    rows = loaded.query(Question, QuestionV2Meta).join(
+        QuestionV2Meta, QuestionV2Meta.question_id == Question.id
+    ).filter(Question.quiz_id == quiz_id).all()
+    codes = {code for _, meta in rows for code in question_objective_codes(meta)}
+    assert codes == MODULE_OBJECTIVES
+
+    positions: dict[str, int] = {}
+    singles = [question for question, meta in rows if meta.question_type == "single"]
+    for question in singles:
+        positions[question.correct_answer] = positions.get(question.correct_answer, 0) + 1
+    assert set(positions) == {"A", "B", "C", "D"}
+    assert max(positions.values()) / len(singles) <= 0.40
+
+
+def _eligible_candidates(loaded, assessment):
+    config = assessment.config or {}
+    objectives = set(config.get("objective_codes") or [])
+    tags_any = set(config.get("tags_any") or [])
+    pairs = loaded.query(Question, QuestionV2Meta).join(
+        QuestionV2Meta, QuestionV2Meta.question_id == Question.id
+    ).filter(
+        Question.quiz_id == assessment.quiz_id,
+        Question.flagged_for_review.is_(False),
+    ).all()
+    candidates = []
+    for question, meta in pairs:
+        if meta.question_type == "free_response":
+            continue
+        codes = question_objective_codes(meta)
+        if objectives and not objectives.intersection(codes):
+            continue
+        if tags_any and not tags_any.intersection(question.tags or []):
+            continue
+        candidates.append({
+            "id": str(question.id),
+            "objective_codes": codes,
+            "tags": list(question.tags or []),
+            "question_type": meta.question_type,
+        })
+    return candidates
+
+
+def test_every_ipcfg_blueprint_is_satisfiable_and_varies(loaded):
+    module = _module(loaded)
+    assessments = loaded.query(ModuleAssessment).filter(
+        ModuleAssessment.certification_module_id == module.id,
+        ModuleAssessment.assessment_role.in_(("quick_check", "module_quiz")),
+    ).all()
+    assert len(assessments) == 6
+
+    for assessment in assessments:
+        config = assessment.config or {}
+        candidates = _eligible_candidates(loaded, assessment)
+        assert len(candidates) > assessment.displayed_count
+        selections = []
+        for seed in range(30):
+            selected = select_constrained(
+                candidates,
+                config["question_blueprint"],
+                config["category_requirements"],
+                selection_requirements=config.get("selection_requirements"),
+                rng=random.Random(seed),
+            )
+            assert len(selected) == assessment.displayed_count
+            assert len({row["id"] for row in selected}) == assessment.displayed_count
+            selections.append(frozenset(row["id"] for row in selected))
+        assert len(set(selections)) > 1
 
 
 def test_module_quiz_and_quick_checks_wired(loaded):
@@ -359,6 +458,63 @@ def test_module_quiz_and_quick_checks_wired(loaded):
         assert qc.quiz_id == quiz_id
         assert qc.lesson_v2_meta_id is not None
         assert 3 <= qc.displayed_count <= 5
+
+
+def test_approved_quick_checks_module_quiz_and_continue_are_open(loaded, monkeypatch):
+    from app.routers.v2_curriculum import router as curriculum_router
+
+    student = make_student(loaded, username="ipcfg_visibility")
+    enroll_v2(monkeypatch, student)
+    client = make_client(curriculum_router)
+
+    view = module_view(loaded, student.id, MODULE_KEY)
+    assert len(view["lessons"]) == 5
+    assert all(lesson["quick_check"]["available"] for lesson in view["lessons"])
+    module_quiz = next(
+        row for row in view["assessments"] if row["role"] == "module_quiz"
+    )
+    assert module_quiz["available"] is True
+    assert view["continue"]["kind"] in {"resource", "lesson"}
+
+    for lesson in view["lessons"]:
+        for resource in lesson["resources"]:
+            if resource["required"]:
+                resource_activity(
+                    loaded,
+                    student.id,
+                    MODULE_KEY,
+                    resource["key"],
+                    opened=True,
+                    completed=True,
+                )
+        record_activity(
+            loaded,
+            student_id=student.id,
+            module_key=MODULE_KEY,
+            activity_type="lesson",
+            ref_key=lesson["key"],
+            status="completed",
+            commit=True,
+        )
+        record_activity(
+            loaded,
+            student_id=student.id,
+            module_key=MODULE_KEY,
+            activity_type="quick_check",
+            ref_key=lesson["quick_check"]["key"],
+            status="passed",
+            passed=True,
+            commit=True,
+        )
+
+    ready = module_view(loaded, student.id, MODULE_KEY)["continue"]
+    assert ready["kind"] == "module_quiz"
+    assert ready["available"] is True
+    assert ready["route"].endswith("/assessments/assess.aplus.ipcfg.module_quiz")
+
+    opened = client.get(ready["route"].replace("/learning-v2", "/api/v2/curriculum"), headers=auth_headers(student))
+    assert opened.status_code == 200, opened.text
+    assert len(opened.json()["data"]["questions"]) == 12
 
 
 def test_practical_and_service_desk_mapping(loaded):
@@ -408,7 +564,7 @@ def test_free_response_pending_path(loaded):
         .filter(Question.question_text.like("%169.254.x.x address%"))
         .one()
     )
-    assert meta.rubric_version == "ipcfg-2026-08-a"
+    assert meta.rubric_version == "ipcfg-2026-09-a"
     # A vague answer the deterministic grader must NOT confidently pass/fail.
     vague = grade_free_response(
         "I think the network is broken and I would reboot the computer.",
@@ -460,7 +616,7 @@ def test_progress_and_mentor_report(loaded):
         qid
         for (qid,) in loaded.query(Question.id)
         .join(QuestionV2Meta, QuestionV2Meta.question_id == Question.id)
-        .filter(QuestionV2Meta.objective_code == "5.7")
+        .filter(QuestionV2Meta.objective_code == "5.5")
         .limit(2)
     ]
     record_activity(
@@ -482,16 +638,16 @@ def test_progress_and_mentor_report(loaded):
     loaded.commit()
 
     prog = module_progress(loaded, student.id, MODULE_KEY)
-    # The IP lesson package remains draft and therefore is not student-visible.
-    assert prog["lessons"] == {"total": 0, "completed": 0, "items": []}
-    assert prog["resources"]["completed"] == 0
+    assert prog["lessons"]["total"] == 5
+    assert prog["lessons"]["completed"] == 5
+    assert prog["resources"]["completed"] == 1
     assert prog["module_quiz"]["activity"]["score"] == 58
     assert prog["module_complete"] is False  # quiz not passed
 
     report = module_report(loaded, student.id, MODULE_KEY)
     assert report["module_quiz"]["passed"] is False
     assert {m["question_id"] for m in report["missed_questions"]} == set(q_ids)
-    assert report["weak_objectives"][0]["objective_code"] == "5.7"
+    assert report["weak_objectives"][0]["objective_code"] == "5.5"
     assert report["weak_objectives"][0]["missed_count"] == 2
     assert report["weak_objectives"][0]["objective_text"]
     assert any(e["status"] == "needs_review" for e in report["explain_state"])
@@ -580,18 +736,17 @@ def test_editing_resource_yaml_updates_resource(loaded, tmp_path):
 
 
 def test_adding_and_updating_a_question_via_csv(loaded, tmp_path):
-    quiz_id = loaded.query(Quiz).filter(Quiz.title == QUIZ_TITLE).one().id
-    before = loaded.query(Question).filter(Question.quiz_id == quiz_id).count()
+    draft_title = "IP Configuration Maintenance Draft Bank"
 
     header = Path(DEFAULT_QUESTIONS_DIR, "aplus-ip-configuration.csv").read_text(
         encoding="utf-8"
     ).splitlines()[0]
     new_row = (
-        f'{QUIZ_TITLE},single,"A brand-new maintenance question: which command '
+        f'{draft_title},single,"A brand-new maintenance question: which command '
         f'renews a DHCP lease?",ipconfig /release,ipconfig /renew,ping,nslookup,'
         f',,,,B,"ipconfig /renew requests a fresh lease.",1,"dhcp,maintenance",'
         f'Nexus curriculum team,false,comptia_aplus,{VERSION_KEY},2.0,{MODULE_KEY},'
-        f'5.7,job_critical,Nexus curriculum team,,owned,,,,,,,'
+        f'5.5,job_critical,Nexus curriculum team,,owned,,,,,,,'
     )
     qdir = tmp_path / "questions"
     qdir.mkdir()
@@ -599,8 +754,8 @@ def test_adding_and_updating_a_question_via_csv(loaded, tmp_path):
 
     load_question_banks(loaded, str(qdir))
     loaded.commit()
-    after = loaded.query(Question).filter(Question.quiz_id == quiz_id).count()
-    assert after == before + 1
+    quiz_id = loaded.query(Quiz).filter(Quiz.title == draft_title).one().id
+    assert loaded.query(Question).filter(Question.quiz_id == quiz_id).count() == 1
     added = (
         loaded.query(Question)
         .filter(Question.question_text.like("A brand-new maintenance question%"))
@@ -629,7 +784,7 @@ def test_adding_and_updating_a_question_via_csv(loaded, tmp_path):
     loaded.refresh(added)
     assert added.explanation.startswith("Use ipconfig /renew")
     assert changed.by_entity["question"]["updated"] == 1
-    assert loaded.query(Question).filter(Question.quiz_id == quiz_id).count() == after
+    assert loaded.query(Question).filter(Question.quiz_id == quiz_id).count() == 1
 
 
 # --------------------------------------------------------------------------- #
@@ -658,7 +813,8 @@ def test_student_progress_routes(loaded, monkeypatch):
         f"/api/v2/progress/module/{MODULE_KEY}", headers=auth_headers(student)
     )
     assert got.status_code == 200
-    assert got.json()["data"]["lessons"] == {"total": 0, "completed": 0, "items": []}
+    assert got.json()["data"]["lessons"]["total"] == 5
+    assert got.json()["data"]["lessons"]["completed"] == 0
 
     # No generic student mutation surface remains, regardless of payload.
     bad = client.post(
@@ -693,7 +849,7 @@ def test_admin_mentor_route(loaded, monkeypatch):
     assert resp.status_code == 200, resp.text
     data = resp.json()["data"]
     assert data["module_key"] == MODULE_KEY
-    assert data["completion"]["lessons_completed"] == 0
+    assert data["completion"]["lessons_completed"] == 1
 
     missing = client.get(
         f"/api/admin/v2/mentor/module/module.does.not.exist/student/{student.id}"

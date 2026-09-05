@@ -1,4 +1,11 @@
 approvals:
+- filename: aplus-ip-configuration.csv
+  quiz_title: A+ IP Configuration & Basic Connectivity — Module Bank
+  sha256: b3a0d587782b95ba4bf1d9a2c462a0182ae33f63ba2a55371215f5c1d6f26e25
+  reviewed_question_count: 40
+  editorial_status: validated
+  reviewed_at: '2026-09-05'
+  review_note: Full manual question-by-question editorial and answer-key review against repository 220-1201 objectives 2.4, 2.6, and 5.5
 - filename: aplus-hardware-support.csv
   quiz_title: A+ PC Components, Power & Safe Upgrades — Module Bank
   sha256: 226daa2d9fec1fd1b1ca8f502eb947c0b5baed52550549d007680ec41f62520a
