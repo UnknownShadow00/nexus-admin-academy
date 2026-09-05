@@ -20,6 +20,8 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { CompanyChatContactList } from './CompanyChatContactList';
 import { CompanyChatThread } from './CompanyChatThread';
+import { AuthoredRequesterChat } from './AuthoredRequesterChat';
+import { REALISM_FIXTURES } from '@service-desk/shared';
 import {
   useCompanyChatSession,
   useDirectorySession,
@@ -121,6 +123,10 @@ export function CompanyChatTool() {
             description:
               'Directory contacts will appear here when the practice roster is available.',
           };
+
+  const ticketId = searchParams.get('ticket') ?? '';
+  if (REALISM_FIXTURES[ticketId]?.questions)
+    return <AuthoredRequesterChat ticketId={ticketId} />;
 
   return (
     <PanelFrame

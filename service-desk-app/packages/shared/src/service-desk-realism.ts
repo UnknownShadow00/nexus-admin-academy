@@ -1,4 +1,5 @@
 import catalog from './service-desk-realism-v1.json';
+import catalogV2 from './service-desk-realism-v2.json';
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 export interface RealismCommand {
@@ -7,6 +8,7 @@ export interface RealismCommand {
   when: Record<string, unknown>;
   set: Record<string, unknown>;
   effect: string;
+  advanceMinutes?: number;
 }
 export interface RealismFixture {
   assetTag: string;
@@ -20,9 +22,22 @@ export interface RealismFixture {
   categories: Record<string, string[]>;
   commands: Record<string, RealismCommand[]>;
   completion: { rootCause: string; whatFixed: string; whyItWorked: string };
+  questions?: { id: string; label: string; command: string }[];
+  escalation?: {
+    route: string;
+    reasons: string[];
+    verificationApplicable: boolean;
+  };
+  scheduled?: {
+    afterMinutes: number;
+    when: Record<string, unknown>;
+    set: Record<string, unknown>;
+  }[];
 }
-export const REALISM_FIXTURES: Readonly<Record<string, RealismFixture>> =
-  catalog;
+export const REALISM_FIXTURES: Readonly<Record<string, RealismFixture>> = {
+  ...catalog,
+  ...catalogV2,
+};
 export function realismFixture(assetTag: string) {
   return Object.values(REALISM_FIXTURES).find(
     (entry) => entry.assetTag === assetTag,
@@ -110,6 +125,25 @@ export function runRealismCommand<T extends object>(
     return { state: next, output: rule.output, success: false };
   for (const [path, value] of Object.entries(rule.set))
     writeStatePath(next, path, value);
+  if (rule.advanceMinutes === 15) {
+    const elapsed = Math.min(
+      240,
+      Number(readStatePath(next, 'clock/elapsedMinutes')) + 15,
+    );
+    writeStatePath(next, 'clock/elapsedMinutes', elapsed);
+    writeStatePath(next, 'clock/observationMinutes', 15);
+    for (const scheduled of fixture.scheduled ?? []) {
+      if (
+        elapsed >= scheduled.afterMinutes &&
+        Object.entries(scheduled.when).every(
+          ([path, value]) =>
+            JSON.stringify(readStatePath(next, path)) === JSON.stringify(value),
+        )
+      )
+        for (const [path, value] of Object.entries(scheduled.set))
+          writeStatePath(next, path, value);
+    }
+  }
   const usageNodes = readStatePath(next, 'storage/usageNodeIds');
   if (Array.isArray(usageNodes)) {
     const used = usageNodes.reduce<number>(

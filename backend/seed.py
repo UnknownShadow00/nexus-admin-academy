@@ -1257,7 +1257,13 @@ def seed_service_desk_scenarios(db):
         from app.services.service_desk_realism import fixture_catalog
         realistic = fixture_catalog().get(ticket["id"])
         if realistic:
-            definition.update(objective_catalog_version="realism-v1", simulation_fixture=realistic)
+            definition.update(
+                objective_catalog_version=(
+                    "realism-v1" if ticket["id"] in {"INC2501", "INC2504", "INC2505", "INC2509"}
+                    else "realism-v2"
+                ),
+                simulation_fixture=realistic,
+            )
         definition_hash = hashlib.sha256(
             json.dumps(definition, sort_keys=True).encode("utf-8")
         ).hexdigest()

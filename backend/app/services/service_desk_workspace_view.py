@@ -317,6 +317,11 @@ def build_debrief(
     details = grade.details_json or {}
     checks = details.get("objective_checks", {})
     profile = escalation_profile(stable_key)
+    realism_handoff = (
+        definition_json.get("simulation_fixture", {}).get("escalation")
+        if definition_json.get("objective_catalog_version") == "realism-v2"
+        else None
+    )
     escalated = bool(details.get("escalated"))
     passed = bool(grade.passed)
     limited = not passed and attempts_remaining is not None and attempts_remaining > 0
@@ -346,7 +351,17 @@ def build_debrief(
                 )
             )
 
-            if not limited and profile is not None and profile.expected:
+            if not limited and realism_handoff:
+                if name == "remediation":
+                    label = "Escalation / hand-off"
+                    correct = bool(details.get("escalation_correct"))
+                    status = "full" if correct else "missed"
+                    points = weight if correct else 0
+                    explanation = definition_json["simulation_fixture"]["completion"]["whyItWorked"]
+                elif name == "verification" and not realism_handoff["verificationApplicable"]:
+                    status, points, weight = "not_applicable", 0, 0
+                    explanation = "The receiving team owns restoration; no local verification was claimed."
+            elif not limited and profile is not None and profile.expected:
                 if name == "remediation":
                     label = "Escalation / hand-off"
                     correct = bool(details.get("escalation_correct"))
@@ -400,7 +415,7 @@ def build_debrief(
         if limited
         else (
             list(definition_json["simulation_fixture"]["completion"].values())
-            if definition_json.get("objective_catalog_version") == "realism-v1"
+            if definition_json.get("objective_catalog_version") in {"realism-v1", "realism-v2"}
             else _stronger_path(objective_def, profile)
         ),
         # Whether escalation was the right call - and, by implication, the
@@ -410,12 +425,12 @@ def build_debrief(
             if limited
             else (
                 {
-                    "appropriate": stable_key == "inc2509",
+                    "appropriate": stable_key == "inc2509" or bool(definition_json["simulation_fixture"].get("escalation")),
                     "text": definition_json["simulation_fixture"]["completion"][
                         "whyItWorked"
                     ],
                 }
-                if definition_json.get("objective_catalog_version") == "realism-v1"
+                if definition_json.get("objective_catalog_version") in {"realism-v1", "realism-v2"}
                 else _escalation_feedback(profile, escalated, passed)
             )
         ),

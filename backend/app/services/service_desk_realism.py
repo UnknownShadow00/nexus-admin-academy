@@ -16,7 +16,10 @@ CATALOG_PATH = Path(__file__).resolve().parents[1] / "data/service-desk-realism-
 
 
 def fixture_catalog():
-    return json.loads(CATALOG_PATH.read_text())
+    return {
+        **json.loads(CATALOG_PATH.read_text()),
+        **json.loads(CATALOG_PATH.with_name("service-desk-realism-v2.json").read_text()),
+    }
 
 
 def read_path(state, path):
@@ -60,6 +63,17 @@ def run_command(state, fixture, command):
     changed_before = state["realism"]["changed"]
     for path, value in rule["set"].items():
         write_path(state, path, value)
+    if rule.get("advanceMinutes") == 15:
+        clock = state["clock"]
+        clock["elapsedMinutes"] = min(240, clock["elapsedMinutes"] + 15)
+        clock["observationMinutes"] = 15
+        for scheduled in fixture.get("scheduled", []):
+            if clock["elapsedMinutes"] >= scheduled["afterMinutes"] and all(
+                read_path(state, path) == value
+                for path, value in scheduled["when"].items()
+            ):
+                for path, value in scheduled["set"].items():
+                    write_path(state, path, value)
     storage = state.get("storage", {})
     if "usageNodeIds" in storage:
         used = storage["fixedUsedBytes"] + sum(

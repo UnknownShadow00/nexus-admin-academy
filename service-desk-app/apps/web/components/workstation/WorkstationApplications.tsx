@@ -139,31 +139,48 @@ export function WorkstationApplicationContent({
     case 'settings':
       return (
         <>
-        {workstation.assetTag === 'NX-2504' ? <PrinterProperties run={runTerminalCommand} history={workstation.terminalHistory} /> : null}
-        <SettingsWindow
-          canRepairNetwork={Boolean(
-            scenario.actionLabels['settings.repair-network'],
-          )}
-          clearProfileStorage={() => runStep('settings.clear-profile-storage')}
-          completeUpdate={() =>
-            onEvent(remote.completeUpdateInstall(workstation.assetTag))
-          }
-          installUpdate={() =>
-            onEvent(remote.installUpdate(workstation.assetTag))
-          }
-          restartAfterUpdate={() =>
-            onEvent(remote.restartAfterUpdate(workstation.assetTag))
-          }
-          repairNetwork={() => runStep('settings.repair-network')}
-          networkRepaired={performed.has('settings.repair-network')}
-          scenarioComplete={scenarioComplete}
-          updateDns={(primaryDns, secondaryDns) =>
-            onEvent(
-              remote.updateDns(workstation.assetTag, primaryDns, secondaryDns),
-            )
-          }
-          workstation={workstation}
-        />
+          {workstation.assetTag === 'NX-2504' ? (
+            <PrinterProperties
+              run={runTerminalCommand}
+              history={workstation.terminalHistory}
+            />
+          ) : null}
+          {workstation.assetTag === 'NX-2502' ? (
+            <OfficeTestWindow
+              run={runTerminalCommand}
+              history={workstation.terminalHistory}
+            />
+          ) : null}
+          <SettingsWindow
+            canRepairNetwork={Boolean(
+              scenario.actionLabels['settings.repair-network'],
+            )}
+            clearProfileStorage={() =>
+              runStep('settings.clear-profile-storage')
+            }
+            completeUpdate={() =>
+              onEvent(remote.completeUpdateInstall(workstation.assetTag))
+            }
+            installUpdate={() =>
+              onEvent(remote.installUpdate(workstation.assetTag))
+            }
+            restartAfterUpdate={() =>
+              onEvent(remote.restartAfterUpdate(workstation.assetTag))
+            }
+            repairNetwork={() => runStep('settings.repair-network')}
+            networkRepaired={performed.has('settings.repair-network')}
+            scenarioComplete={scenarioComplete}
+            updateDns={(primaryDns, secondaryDns) =>
+              onEvent(
+                remote.updateDns(
+                  workstation.assetTag,
+                  primaryDns,
+                  secondaryDns,
+                ),
+              )
+            }
+            workstation={workstation}
+          />
         </>
       );
     case 'services':
@@ -977,7 +994,9 @@ function ChatMailWindow({
                 </p>
               ))
             ) : (
-              <p className="text-text-muted">No messages yet for this attempt.</p>
+              <p className="text-text-muted">
+                No messages yet for this attempt.
+              </p>
             )}
           </div>
           <form
@@ -1061,13 +1080,24 @@ function FileExplorerWindow({
         .toUpperCase()
         .startsWith(drive.letter.toUpperCase()),
   );
-  const entries = workstation.workstation.realism ? Object.values(workstation.workstation.filesystem.nodes)
-    .filter((node) => parentExplorerPath(node.path) === workstation.explorerCurrentPath && node.path !== workstation.explorerCurrentPath)
-    .map((node) => ({ kind: node.kind === 'file' ? 'file' : 'folder', path: node.path, name: node.name, modifiedAt: node.modifiedAt ?? '', size: `${node.sizeBytes ?? 0} bytes` })) :
-    currentDrive?.entries.filter(
-      (entry) =>
-        parentExplorerPath(entry.path) === workstation.explorerCurrentPath,
-    ) ?? [];
+  const entries = workstation.workstation.realism
+    ? Object.values(workstation.workstation.filesystem.nodes)
+        .filter(
+          (node) =>
+            parentExplorerPath(node.path) === workstation.explorerCurrentPath &&
+            node.path !== workstation.explorerCurrentPath,
+        )
+        .map((node) => ({
+          kind: node.kind === 'file' ? 'file' : 'folder',
+          path: node.path,
+          name: node.name,
+          modifiedAt: node.modifiedAt ?? '',
+          size: `${node.sizeBytes ?? 0} bytes`,
+        }))
+    : (currentDrive?.entries.filter(
+        (entry) =>
+          parentExplorerPath(entry.path) === workstation.explorerCurrentPath,
+      ) ?? []);
 
   return (
     <div className="relative flex h-full min-h-[22rem] flex-col bg-white text-zinc-900">
@@ -1127,9 +1157,18 @@ function FileExplorerWindow({
           <p className="px-2 pb-1 pt-4 text-[10px] font-bold uppercase tracking-wider text-text-muted">
             Drives
           </p>
-          {Object.values(workstation.workstation.filesystem.nodes).filter((node) => node.kind === 'share').map((node) => (
-            <button className="w-full truncate px-2 py-2 text-left text-xs" key={node.id} onClick={() => navigate(node.path)} type="button">{node.name}</button>
-          ))}
+          {Object.values(workstation.workstation.filesystem.nodes)
+            .filter((node) => node.kind === 'share')
+            .map((node) => (
+              <button
+                className="w-full truncate px-2 py-2 text-left text-xs"
+                key={node.id}
+                onClick={() => navigate(node.path)}
+                type="button"
+              >
+                {node.name}
+              </button>
+            ))}
           {workstation.drives.map((drive) => (
             <button
               className={`flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs ${currentDrive?.letter === drive.letter ? 'bg-sky-100 text-sky-900' : 'text-text-muted hover:bg-zinc-200'}`}
@@ -1259,7 +1298,9 @@ function FileExplorerWindow({
                           {entry.name}
                         </span>
                       </span>
-                      <span className="text-text-muted">{entry.modifiedAt}</span>
+                      <span className="text-text-muted">
+                        {entry.modifiedAt}
+                      </span>
                     </button>
                   ) : (
                     <div
@@ -1333,6 +1374,60 @@ function ExplorerErrorState({
         Open Map Network Drive
       </button>
     </div>
+  );
+}
+
+function OfficeTestWindow({
+  run,
+  history,
+}: {
+  run: (command: string) => void;
+  history: RemoteDesktopWorkstationRecord['terminalHistory'];
+}) {
+  const [addin, setAddin] = useState('ReportLink');
+  const output = [...history]
+    .reverse()
+    .find((entry) => entry.command.startsWith('excel '))?.output;
+  return (
+    <section
+      aria-label="Excel support session"
+      className="space-y-3 border-b border-border p-5"
+    >
+      <h3 className="text-lg font-bold">Excel — user-session tests</h3>
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => run('excel open Monthly.xlsx')}>
+          Open Monthly.xlsx
+        </Button>
+        <Button onClick={() => run('excel new')}>New blank workbook</Button>
+        <Button onClick={() => run('excel /safe Monthly.xlsx')}>
+          Open Monthly.xlsx in Safe Mode
+        </Button>
+        <Button onClick={() => run('excel save Monthly.xlsx')}>
+          Save Monthly.xlsx
+        </Button>
+        <Button onClick={() => run('excel addins')}>Inspect add-ins</Button>
+        <Button onClick={() => run('excel repair')}>Repair application</Button>
+      </div>
+      <label>
+        Add-in{' '}
+        <select
+          value={addin}
+          onChange={(event) => setAddin(event.target.value)}
+        >
+          <option>ReportLink</option>
+          <option>PDF-Export</option>
+        </select>
+      </label>
+      <Button onClick={() => run(`excel disable ${addin}`)}>
+        Disable selected add-in
+      </Button>
+      <Button onClick={() => run(`excel enable ${addin}`)}>
+        Enable selected add-in
+      </Button>
+      <output className="block whitespace-pre-wrap font-mono">
+        {output?.join('\n')}
+      </output>
+    </section>
   );
 }
 

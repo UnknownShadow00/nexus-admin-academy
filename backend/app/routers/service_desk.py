@@ -836,9 +836,19 @@ def _action_allowed(
     if definition is None:
         return False
 
-    if definition_json.get("objective_catalog_version") == "realism-v1":
+    if definition_json.get("objective_catalog_version") in {"realism-v1", "realism-v2"}:
         from app.services.service_desk_realism import transition
 
+        fixture = definition_json["simulation_fixture"]
+        if event_type == "ticket.escalate" and definition_json.get("objective_catalog_version") == "realism-v2":
+            route = fixture.get("escalation")
+            ready, _ = evaluate_objectives(key, events, definition_json)
+            return bool(
+                route and ready
+                and payload.get("ticketId") == ticket_id
+                and payload.get("routeTeam") == route["route"]
+                and payload.get("reason") in route["reasons"]
+            )
         if event_type == "remote_desktop.add_internal_note":
             fixture = definition_json["simulation_fixture"]
             note = payload.get("text", "")
@@ -1059,7 +1069,7 @@ def request_action(
     key = _scenario_key(db, attempt)
     version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
     realism_definition = version.definition_json or {} if version else {}
-    if realism_definition.get("objective_catalog_version") == "realism-v1":
+    if realism_definition.get("objective_catalog_version") in {"realism-v1", "realism-v2"}:
         from app.services.service_desk_realism import transition
 
         ledger = (

@@ -88,6 +88,8 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     # ``EscalationProfile.expected`` profile enter this branch; every ordinary
     # scenario's grading below is untouched.
     profile = escalation_profile(scenario.stable_key)
+    if definition.get("objective_catalog_version") == "realism-v2":
+        profile = None  # Historical converted profiles must not grade new versions.
     escalation_details: dict[str, Any] = {}
     escalation_process_points: int | None = None
     critical_failure = False
@@ -171,7 +173,7 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
             "escalation_expected": False,
             "escalation_attempted": True,
         }
-    if definition.get("objective_catalog_version") == "realism-v1":
+    if definition.get("objective_catalog_version") in {"realism-v1", "realism-v2"}:
         from app.services.service_desk_realism import replay
 
         simulated = replay(definition["simulation_fixture"], events)
@@ -179,6 +181,27 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
         resolved = resolved and not critical_failure
         if critical_failure:
             objective_checks["remediation"] = False
+        route = definition["simulation_fixture"].get("escalation")
+        if route:
+            handed_off = bool(escalate_events)
+            resolved = resolved and handed_off
+            objective_checks["remediation"] = handed_off and not critical_failure
+            applicable = {
+                key: weight for key, weight in PROCESS_WEIGHTS.items()
+                if key != "verification" or route["verificationApplicable"]
+            }
+            escalation_process_points = _js_round(
+                sum(weight for key, weight in applicable.items() if objective_checks.get(key, False))
+                * 100 / sum(applicable.values())
+            )
+            escalation_details = {
+                "escalated": handed_off,
+                "escalation_expected": True,
+                "escalation_correct": handed_off and not critical_failure,
+                "verification_applicable": route["verificationApplicable"],
+                "containment_met": objective_checks.get("verification") if route["verificationApplicable"] else None,
+                "documentation_complete": objective_checks.get("documentation", False),
+            }
         if scenario.stable_key == "inc2509":
             handed_off = bool(escalate_events)
             resolved = resolved and handed_off
@@ -262,8 +285,10 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
             "You applied a change that was not yours to make. This ticket "
             "required escalation to the responsible team."
         )
-        if definition.get("objective_catalog_version") == "realism-v1":
+        if definition.get("objective_catalog_version") in {"realism-v1", "realism-v2"}:
             feedback_summary = "Access was expanded beyond the recorded approval. A technically successful access test does not satisfy least privilege."
+        if definition.get("objective_catalog_version") == "realism-v2":
+            feedback_summary = "The attempt includes an unsafe action or an uncontained exposure. Technical success alone does not satisfy the professional outcome."
     elif profile is not None and profile.expected:
         if resolved:
             route = escalation_details.get("escalation_route") or profile.route

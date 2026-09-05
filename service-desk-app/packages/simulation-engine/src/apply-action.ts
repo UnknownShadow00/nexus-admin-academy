@@ -294,8 +294,10 @@ function ticketRejectReason(
           realismFixture(scenario.assetTag) &&
           (!progress?.phases.investigated ||
             !progress.phases.diagnosed ||
-            !progress.phases.fixed ||
-            !progress.phases.verified)
+            (!progress.phases.fixed && !overlay.escalated) ||
+            (!progress.phases.verified &&
+              realismFixture(scenario.assetTag)?.escalation
+                ?.verificationApplicable !== false))
         )
           return 'The evidence, action and post-change checks are not complete for this attempt.';
         if (scenario.ticketId === 'INC2509' && !overlay.escalated)
@@ -1674,10 +1676,14 @@ function recordRemoteDesktopWorkflowProgress(
         diagnosisEvidence,
       ),
       fixed:
+        realismFixture(action.payload.assetTag)?.escalation
+          ?.verificationApplicable !== false &&
         !after.workstation.realism?.harmful &&
         objectivesSatisfied(scenario.workflow.fix, fixEvidence) &&
         workflowFinalStateSatisfied(scenario, after),
       verified:
+        realismFixture(action.payload.assetTag)?.escalation
+          ?.verificationApplicable !== false &&
         (!after.workstation.realism ||
           Object.entries(
             realismFixture(action.payload.assetTag)!.finalConditions,
@@ -1971,7 +1977,12 @@ function remoteDesktopRejectReason(
         : `Complete “${expected ?? 'the remaining required step'}” before attempting another repair.`;
     }
     case 'remote_desktop.run_terminal_command':
-      if (overlay.connectionState !== 'connected') {
+      if (
+        overlay.connectionState !== 'connected' &&
+        !realismFixture(action.payload.assetTag)?.questions?.some(
+          (question) => question.command === action.payload.command,
+        )
+      ) {
         return 'Connect to the simulated computer before running Terminal commands.';
       }
       if (overlay.workstation.realism) {

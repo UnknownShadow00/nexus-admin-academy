@@ -1,0 +1,1563 @@
+{
+  "INC2502": {
+    "assetTag": "NX-2502",
+    "id": "excel-add-in-isolation",
+    "title": "Excel closes when I work on the monthly report",
+    "issue": "The monthly report makes Excel disappear when I open it. I tried twice this morning. Is my workbook ruined? Finance needs the updated figures before lunch.",
+    "hints": [
+      "Compare the same file under different startup conditions before changing the installation.",
+      "Try a blank workbook and Excel Safe Mode, then inspect individual add-ins.",
+      "Change one add-in at a time and reproduce the failure by restoring it; finish by opening and saving the original file normally."
+    ],
+    "noteFacts": [
+      [
+        "monthly.xlsx"
+      ],
+      [
+        "reportlink"
+      ],
+      [
+        "disabled"
+      ],
+      [
+        "normal"
+      ],
+      [
+        "saved"
+      ]
+    ],
+    "finalConditions": {
+      "office/reportAddin": false,
+      "office/pdfAddin": true,
+      "office/saved": true
+    },
+    "initial": {
+      "office": {
+        "reportAddin": true,
+        "pdfAddin": true,
+        "lastOpen": "none",
+        "saved": false,
+        "isolated": false
+      },
+      "realism": {
+        "observed": {},
+        "changed": false,
+        "repaired": false,
+        "harmful": false,
+        "lastEvidence": null
+      },
+      "filesystem": {
+        "nodes": {}
+      }
+    },
+    "categories": {
+      "investigation": [
+        "workbook-crash",
+        "blank",
+        "safe-mode",
+        "addins"
+      ],
+      "diagnosis": [
+        "reproduced"
+      ],
+      "remediation": [
+        "targeted-change"
+      ],
+      "verification": [
+        "normal-save"
+      ],
+      "documentation": []
+    },
+    "commands": {
+      "Ask-Requester onset": [
+        {
+          "output": [
+            "It started this morning. There was an update yesterday, but I don't know what it installed."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "excel open Monthly.xlsx": [
+        {
+          "output": [
+            "Excel stopped responding and closed."
+          ],
+          "evidence": "reproduced",
+          "when": {
+            "office/reportAddin": true,
+            "office/isolated": true
+          },
+          "set": {
+            "office/lastOpen": "crash"
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Excel stopped responding and closed."
+          ],
+          "evidence": "workbook-crash",
+          "when": {
+            "office/reportAddin": true
+          },
+          "set": {
+            "office/lastOpen": "crash"
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Monthly.xlsx opened in normal mode."
+          ],
+          "when": {
+            "office/reportAddin": false
+          },
+          "set": {
+            "office/lastOpen": "normal"
+          },
+          "effect": "observe"
+        }
+      ],
+      "excel new": [
+        {
+          "output": [
+            "Blank workbook opened."
+          ],
+          "evidence": "blank",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "excel /safe Monthly.xlsx": [
+        {
+          "output": [
+            "Monthly.xlsx opened in Safe Mode. Extensions were not loaded."
+          ],
+          "evidence": "safe-mode",
+          "when": {},
+          "set": {
+            "office/lastOpen": "safe"
+          },
+          "effect": "observe"
+        }
+      ],
+      "excel addins": [
+        {
+          "output": [
+            "ReportLink: {office/reportAddin}; PDF Export: {office/pdfAddin}"
+          ],
+          "evidence": "addins",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "excel disable ReportLink": [
+        {
+          "output": [
+            "ReportLink disabled for this user."
+          ],
+          "evidence": "targeted-change",
+          "when": {
+            "realism/observed/reproduced": true,
+            "office/pdfAddin": true
+          },
+          "set": {
+            "office/reportAddin": false
+          },
+          "effect": "repair"
+        },
+        {
+          "output": [
+            "ReportLink disabled for this user."
+          ],
+          "when": {
+            "realism/observed/workbook-crash": true,
+            "realism/observed/blank": true,
+            "realism/observed/safe-mode": true,
+            "realism/observed/addins": true
+          },
+          "set": {
+            "office/reportAddin": false,
+            "office/isolated": true
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "ReportLink disabled."
+          ],
+          "when": {},
+          "set": {
+            "office/reportAddin": false
+          },
+          "effect": "repair"
+        }
+      ],
+      "excel enable ReportLink": [
+        {
+          "output": [
+            "ReportLink enabled."
+          ],
+          "when": {},
+          "set": {
+            "office/reportAddin": true,
+            "office/saved": false
+          },
+          "effect": "observe"
+        }
+      ],
+      "excel disable PDF-Export": [
+        {
+          "output": [
+            "PDF Export disabled."
+          ],
+          "when": {},
+          "set": {
+            "office/pdfAddin": false
+          },
+          "effect": "ineffective"
+        }
+      ],
+      "excel enable PDF-Export": [
+        {
+          "output": [
+            "PDF Export enabled."
+          ],
+          "when": {},
+          "set": {
+            "office/pdfAddin": true
+          },
+          "effect": "observe"
+        }
+      ],
+      "excel disable all": [
+        {
+          "output": [
+            "Both extensions disabled. User workflows using these extensions are unavailable."
+          ],
+          "when": {},
+          "set": {
+            "office/pdfAddin": false,
+            "office/reportAddin": false
+          },
+          "effect": "ineffective"
+        }
+      ],
+      "excel repair": [
+        {
+          "output": [
+            "Application repair completed. User extension settings retained."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "ineffective"
+        }
+      ],
+      "excel save Monthly.xlsx": [
+        {
+          "output": [
+            "Monthly.xlsx saved successfully in normal mode."
+          ],
+          "evidence": "normal-save",
+          "when": {
+            "office/lastOpen": "normal",
+            "office/reportAddin": false,
+            "office/pdfAddin": true,
+            "realism/repaired": true
+          },
+          "set": {
+            "office/saved": true
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "No normal-mode copy of Monthly.xlsx is ready to save."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "help": [
+        {
+          "output": [
+            "Assigned workstation support command syntax (these are tools, not required steps):",
+            "Ask-Requester onset",
+            "excel open Monthly.xlsx",
+            "excel new",
+            "excel /safe Monthly.xlsx",
+            "excel addins",
+            "excel disable ReportLink",
+            "excel enable ReportLink",
+            "excel disable PDF-Export",
+            "excel enable PDF-Export",
+            "excel disable all",
+            "excel repair",
+            "excel save Monthly.xlsx"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ]
+    },
+    "completion": {
+      "rootCause": "ReportLink conflicts with Monthly.xlsx; the file itself opens without that extension.",
+      "whatFixed": "Isolated ReportLink through disable/re-enable reproduction, disabled only that extension and saved the original file in normal mode.",
+      "whyItWorked": "Safe Mode is an isolation test, not a permanent fix. Disabling every extension hides which component caused the crash."
+    },
+    "questions": [
+      {
+        "id": "onset",
+        "label": "When did this start, and what changed?",
+        "command": "Ask-Requester onset"
+      }
+    ]
+  },
+  "INC2503": {
+    "assetTag": "NX-2503",
+    "id": "office-move-network",
+    "title": "Nothing at my new desk will connect",
+    "issue": "Since moving desks I cannot open the order system or our shared files. The cable is plugged in and I see lights. Everything worked at my old desk.",
+    "hints": [
+      "Separate the workstation, cable and desk connection with controlled comparisons.",
+      "Record addressing and link state, then exchange one component at a time with the nearby working desk.",
+      "Test both directions: this computer on the working jack, and the working computer on this jack. Keep managed-switch changes within the owning team's authority."
+    ],
+    "noteFacts": [
+      [
+        "b-17"
+      ],
+      [
+        "b-18"
+      ],
+      [
+        "nx-2503"
+      ],
+      [
+        "nx-2503-peer"
+      ],
+      [
+        "network support"
+      ]
+    ],
+    "finalConditions": {},
+    "initial": {
+      "portTest": {
+        "device": "NX-2503",
+        "port": "B-17",
+        "cable": "original"
+      },
+      "network": {
+        "linkState": "connected"
+      },
+      "realism": {
+        "observed": {},
+        "changed": false,
+        "repaired": false,
+        "harmful": false,
+        "lastEvidence": null
+      },
+      "filesystem": {
+        "nodes": {}
+      }
+    },
+    "categories": {
+      "investigation": [
+        "address",
+        "cable",
+        "peer"
+      ],
+      "diagnosis": [
+        "device-good-port",
+        "peer-bad-port"
+      ],
+      "remediation": [],
+      "verification": [],
+      "documentation": []
+    },
+    "commands": {
+      "Ask-Requester move": [
+        {
+          "output": [
+            "Facilities moved me here this morning. Nobody has tried another computer at this desk yet."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "ipconfig": [
+        {
+          "output": [
+            "Link UP. DHCP 169.254.22.18 /16; gateway absent."
+          ],
+          "evidence": "address",
+          "when": {
+            "portTest/port": "B-17"
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Link UP. DHCP 10.26.19.53 /24; gateway 10.26.19.1."
+          ],
+          "when": {
+            "portTest/port": "B-18"
+          },
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Test-Cable -Replacement approved": [
+        {
+          "output": [
+            "Replacement patch cable connected. Link UP; no DHCP offer at B-17."
+          ],
+          "evidence": "cable",
+          "when": {},
+          "set": {
+            "portTest/cable": "replacement"
+          },
+          "effect": "observe"
+        }
+      ],
+      "Test-Desk -Device NX-2503-peer -Port B-18": [
+        {
+          "output": [
+            "Peer at B-18: 10.26.19.54 /24; order system reachable."
+          ],
+          "evidence": "peer",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Test-Desk -Device NX-2503 -Port B-18": [
+        {
+          "output": [
+            "NX-2503 at B-18: 10.26.19.53 /24; order system reachable."
+          ],
+          "evidence": "device-good-port",
+          "when": {
+            "realism/observed/address": true,
+            "realism/observed/cable": true,
+            "realism/observed/peer": true
+          },
+          "set": {
+            "portTest/device": "NX-2503",
+            "portTest/port": "B-18"
+          },
+          "effect": "observe"
+        }
+      ],
+      "Test-Desk -Device NX-2503-peer -Port B-17": [
+        {
+          "output": [
+            "NX-2503-peer at B-17: link UP, DHCP timeout; order system unavailable."
+          ],
+          "evidence": "peer-bad-port",
+          "when": {
+            "realism/observed/device-good-port": true
+          },
+          "set": {
+            "portTest/device": "NX-2503-peer",
+            "portTest/port": "B-17"
+          },
+          "effect": "observe"
+        }
+      ],
+      "Set-SwitchPort B-17 -Vlan 19": [
+        {
+          "output": [
+            "Change request attempted without network administration authorization; switch rejected the write. Policy violation recorded."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "harmful"
+        }
+      ],
+      "Get-SupportPolicy network": [
+        {
+          "output": [
+            "Tier 1 may compare approved cables and desks; managed network changes require the owning team. Include jack labels and both cross-tests."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "help": [
+        {
+          "output": [
+            "Assigned workstation support command syntax (these are tools, not required steps):",
+            "Ask-Requester move",
+            "ipconfig",
+            "Test-Cable -Replacement approved",
+            "Test-Desk -Device NX-2503-peer -Port B-18",
+            "Test-Desk -Device NX-2503 -Port B-18",
+            "Test-Desk -Device NX-2503-peer -Port B-17",
+            "Set-SwitchPort B-17 -Vlan 19",
+            "Get-SupportPolicy network"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ]
+    },
+    "completion": {
+      "rootCause": "Both devices fail at B-17 and work at B-18. Evidence isolates a port-side provisioning fault, not a workstation or patch cable fault.",
+      "whatFixed": "Preserved the comparison results and escalated to Network Support using other-team-owns-system.",
+      "whyItWorked": "Tier 1 can isolate the physical path but cannot change managed switch/VLAN provisioning. Restored connectivity remains the receiving team's work."
+    },
+    "escalation": {
+      "route": "Network Support",
+      "reasons": [
+        "other-team-owns-system"
+      ],
+      "verificationApplicable": false
+    },
+    "questions": [
+      {
+        "id": "move",
+        "label": "What changed, and has another computer been tried here?",
+        "command": "Ask-Requester move"
+      }
+    ]
+  },
+  "INC2506": {
+    "assetTag": "NX-2506",
+    "id": "restricted-folder-escalation",
+    "title": "I need the salary spreadsheet for a meeting",
+    "issue": "I cannot open the salary folder. An executive is waiting for these numbers and a colleague can see them. Could you give me the same access quickly?",
+    "hints": [
+      "Establish who is requesting access, what data is involved, and what authorization the request carries.",
+      "Compare the resource ownership and access policy with the approval records; ask the requester for their approval reference.",
+      "Urgency and a colleague's access are not authorization. Document the approval search and preserve the access boundary while handing off."
+    ],
+    "noteFacts": [
+      [
+        "salary"
+      ],
+      [
+        "approval"
+      ],
+      [
+        "absent",
+        "none",
+        "no valid"
+      ],
+      [
+        "no access",
+        "no grant",
+        "unchanged"
+      ],
+      [
+        "identity & access"
+      ]
+    ],
+    "finalConditions": {
+      "access/granted": false
+    },
+    "initial": {
+      "access": {
+        "user": "casey.lane",
+        "resource": "\\\\HR-FS\\Salary",
+        "groups": [
+          "Domain Users"
+        ],
+        "owner": "HR Compensation",
+        "classification": "Restricted salary data",
+        "approval": "No matching approval record",
+        "granted": false
+      },
+      "realism": {
+        "observed": {},
+        "changed": false,
+        "repaired": false,
+        "harmful": false,
+        "lastEvidence": null
+      },
+      "filesystem": {
+        "nodes": {}
+      },
+      "machine": {
+        "signedInUser": "NEXUS\\casey.lane",
+        "profileState": "normal"
+      }
+    },
+    "categories": {
+      "investigation": [
+        "identity",
+        "resource",
+        "groups",
+        "requester-approval"
+      ],
+      "diagnosis": [
+        "approval-record",
+        "access-policy"
+      ],
+      "remediation": [],
+      "verification": [],
+      "documentation": []
+    },
+    "commands": {
+      "Ask-Requester approval": [
+        {
+          "output": [
+            "I don't have a reference. My colleague said it would be fine. Please, the executive is waiting."
+          ],
+          "evidence": "requester-approval",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-DirectoryUser casey.lane": [
+        {
+          "output": [
+            "Casey Lane; employee E2506; Finance analyst; identity matches assigned requester."
+          ],
+          "evidence": "identity",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-Resource \\\\HR-FS\\Salary": [
+        {
+          "output": [
+            "\\\\HR-FS\\Salary exists and is reachable. Access denied. Classification: {access/classification}; owner: {access/owner}."
+          ],
+          "evidence": "resource",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-UserGroups casey.lane": [
+        {
+          "output": [
+            "Groups: {access/groups}. Authorized compensation analyst peer: HR-Salary-Readers."
+          ],
+          "evidence": "groups",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-Approval -User casey.lane -Resource Salary": [
+        {
+          "output": [
+            "Search current approvals, including delegated approvals: {access/approval}."
+          ],
+          "evidence": "approval-record",
+          "when": {
+            "realism/observed/resource": true,
+            "realism/observed/requester-approval": true
+          },
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-SupportPolicy salary": [
+        {
+          "output": [
+            "Restricted Salary access requires recorded HR Compensation owner approval before Identity & Access changes membership. Requester urgency is not approval."
+          ],
+          "evidence": "access-policy",
+          "when": {
+            "realism/observed/approval-record": true
+          },
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Add-GroupMember HR-Salary-Readers casey.lane": [
+        {
+          "output": [
+            "Membership changed. Salary share now opens. No approval was attached; restricted information was exposed."
+          ],
+          "when": {},
+          "set": {
+            "access/groups": [
+              "Domain Users",
+              "HR-Salary-Readers"
+            ],
+            "access/granted": true
+          },
+          "effect": "harmful"
+        }
+      ],
+      "help": [
+        {
+          "output": [
+            "Assigned workstation support command syntax (these are tools, not required steps):",
+            "Ask-Requester approval",
+            "Get-DirectoryUser casey.lane",
+            "Get-Resource \\\\HR-FS\\Salary",
+            "Get-UserGroups casey.lane",
+            "Get-Approval -User casey.lane -Resource Salary",
+            "Get-SupportPolicy salary",
+            "Add-GroupMember HR-Salary-Readers casey.lane"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ]
+    },
+    "completion": {
+      "rootCause": "The Salary resource is restricted and Casey has no valid data-owner approval.",
+      "whatFixed": "Left access unchanged and handed the authorization request to Identity & Access for HR data-owner review.",
+      "whyItWorked": "Technical ability to edit a group is not authority to disclose salary data; urgency does not override approval policy."
+    },
+    "escalation": {
+      "route": "Identity & Access",
+      "reasons": [
+        "policy-authorization",
+        "permissions-access"
+      ],
+      "verificationApplicable": false
+    },
+    "questions": [
+      {
+        "id": "approval",
+        "label": "Who approved this, and what is the approval reference?",
+        "command": "Ask-Requester approval"
+      }
+    ]
+  },
+  "INC2507": {
+    "assetTag": "NX-2507",
+    "id": "recurring-lockout-stale-mapping",
+    "title": "My account keeps locking me out",
+    "issue": "Support got me back in yesterday, but it happened again after I started work today. I am sure I am typing the new password. I cannot keep stopping to call.",
+    "hints": [
+      "Compare when lockouts occur with devices and background connections; an unlock is only a temporary test.",
+      "Inspect the lockout source, saved credentials and drive mappings, including tasks and other devices as alternatives.",
+      "Match the repeating source and target, remove only the stale credential, then observe beyond the recorded retry interval."
+    ],
+    "noteFacts": [
+      [
+        "nx-2507"
+      ],
+      [
+        "files.nexus.local"
+      ],
+      [
+        "removed"
+      ],
+      [
+        "15"
+      ],
+      [
+        "no recurrence",
+        "unlocked"
+      ]
+    ],
+    "finalConditions": {
+      "account/locked": false,
+      "account/observedStable": true,
+      "credentials/files.nexus.local/stale": false
+    },
+    "initial": {
+      "account": {
+        "user": "avery.monroe",
+        "locked": true,
+        "passwordVersion": 2,
+        "target": "files.nexus.local",
+        "source": "NX-2507",
+        "observedStable": false
+      },
+      "clock": {
+        "elapsedMinutes": 0,
+        "observationMinutes": 0
+      },
+      "realism": {
+        "observed": {},
+        "changed": false,
+        "repaired": false,
+        "harmful": false,
+        "lastEvidence": null
+      },
+      "filesystem": {
+        "nodes": {}
+      },
+      "credentials": {
+        "files.nexus.local": {
+          "target": "files.nexus.local",
+          "username": "avery.monroe",
+          "type": "domain-password",
+          "persistence": "local-machine",
+          "createdAt": "2026-07-27T09:00:00Z",
+          "stale": true,
+          "id": "credential-files"
+        }
+      },
+      "mappedDrives": {
+        "P:": {
+          "letter": "P:",
+          "uncPath": "\\\\files.nexus.local\\Projects",
+          "reconnectAtSignIn": true,
+          "credentialTarget": "files.nexus.local",
+          "status": "network-path-error",
+          "id": "drive-p",
+          "label": "Projects",
+          "lastError": null
+        }
+      },
+      "machine": {
+        "signedInUser": "NEXUS\\avery.monroe",
+        "profileState": "normal"
+      }
+    },
+    "categories": {
+      "investigation": [
+        "lock-status",
+        "lock-source",
+        "credentials",
+        "mappings"
+      ],
+      "diagnosis": [
+        "source-correlated"
+      ],
+      "remediation": [
+        "credential-removed"
+      ],
+      "verification": [
+        "no-recurrence"
+      ],
+      "documentation": []
+    },
+    "commands": {
+      "Ask-Requester timing": [
+        {
+          "output": [
+            "Usually about fifteen minutes after an unlock. I only use this workstation; my phone uses an authenticator, not a saved work password."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-Account avery.monroe": [
+        {
+          "output": [
+            "avery.monroe locked: {account/locked}; password version: {account/passwordVersion}."
+          ],
+          "evidence": "lock-status",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-LockoutEvents avery.monroe": [
+        {
+          "output": [
+            "09:00, 09:15, 09:30 failed logon; source NX-2507; target files.nexus.local; no external source events."
+          ],
+          "evidence": "lock-source",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "cmdkey /list": [
+        {
+          "output": [
+            "Target: files.nexus.local; user avery.monroe; stored credential present: {credentials/files.nexus.local/stale}; last updated before password rotation."
+          ],
+          "evidence": "credentials",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "net use": [
+        {
+          "output": [
+            "P: \\\\files.nexus.local\\Projects; reconnect every 15 minutes using saved credentials."
+          ],
+          "evidence": "mappings",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-ScheduledTasks": [
+        {
+          "output": [
+            "No tasks running as avery.monroe. No alternate credential-bearing tasks."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Test-CredentialSource files.nexus.local": [
+        {
+          "output": [
+            "P: reconnect uses the saved entry from before password rotation; failures match the lockout source and interval."
+          ],
+          "evidence": "source-correlated",
+          "when": {
+            "realism/observed/lock-source": true,
+            "realism/observed/credentials": true,
+            "realism/observed/mappings": true
+          },
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Unlock-Account avery.monroe": [
+        {
+          "output": [
+            "Account unlocked."
+          ],
+          "when": {},
+          "set": {
+            "account/locked": false,
+            "account/observedStable": false,
+            "clock/observationMinutes": 0
+          },
+          "effect": "ineffective"
+        }
+      ],
+      "Reset-Password avery.monroe": [
+        {
+          "output": [
+            "Password changed; account unlocked. Existing saved credentials were not updated."
+          ],
+          "when": {},
+          "set": {
+            "account/passwordVersion": 3,
+            "account/locked": false,
+            "account/observedStable": false,
+            "clock/observationMinutes": 0
+          },
+          "effect": "ineffective"
+        }
+      ],
+      "cmdkey /delete:files.nexus.local": [
+        {
+          "output": [
+            "Saved credential removed. Next connection will request current credentials."
+          ],
+          "evidence": "credential-removed",
+          "when": {},
+          "set": {
+            "account/observedStable": false,
+            "clock/observationMinutes": 0,
+            "credentials/files.nexus.local/stale": false
+          },
+          "effect": "repair"
+        }
+      ],
+      "Advance-Time 15": [
+        {
+          "output": [
+            "Advanced 15 simulated minutes. Elapsed: {clock/elapsedMinutes}; account locked: {account/locked}."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe",
+          "advanceMinutes": 15
+        }
+      ],
+      "Test-Account avery.monroe": [
+        {
+          "output": [
+            "Fresh access succeeds; no recurrence during the observed 15-minute interval."
+          ],
+          "evidence": "no-recurrence",
+          "when": {
+            "account/locked": false,
+            "clock/observationMinutes": 15,
+            "realism/repaired": true,
+            "credentials/files.nexus.local/stale": false
+          },
+          "set": {
+            "account/observedStable": true
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Account locked: {account/locked}; recurrence observation is not complete."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "help": [
+        {
+          "output": [
+            "Assigned workstation support command syntax (these are tools, not required steps):",
+            "Ask-Requester timing",
+            "Get-Account avery.monroe",
+            "Get-LockoutEvents avery.monroe",
+            "cmdkey /list",
+            "net use",
+            "Get-ScheduledTasks",
+            "Test-CredentialSource files.nexus.local",
+            "Unlock-Account avery.monroe",
+            "Reset-Password avery.monroe",
+            "cmdkey /delete:files.nexus.local",
+            "Advance-Time 15",
+            "Test-Account avery.monroe"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ]
+    },
+    "completion": {
+      "rootCause": "A saved files.nexus.local credential on NX-2507 feeds a mapped drive an obsolete password every 15 minutes.",
+      "whatFixed": "Removed the stale credential, unlocked the account and observed a complete 15-minute interval without recurrence.",
+      "whyItWorked": "Unlocking or resetting a password alone leaves the stored credential and scheduled retries intact."
+    },
+    "scheduled": [
+      {
+        "afterMinutes": 15,
+        "when": {
+          "credentials/files.nexus.local/stale": true
+        },
+        "set": {
+          "account/locked": true,
+          "account/observedStable": false
+        }
+      }
+    ],
+    "questions": [
+      {
+        "id": "timing",
+        "label": "When does it recur, and what devices do you use?",
+        "command": "Ask-Requester timing"
+      }
+    ]
+  },
+  "INC2508": {
+    "assetTag": "NX-2508",
+    "id": "phishing-credential-containment",
+    "title": "I may have used a fake sign-in page",
+    "issue": "I followed an email about a shared document and signed in. The page went blank. Now I am worried the message was not genuine. Can you check?",
+    "hints": [
+      "Establish what was submitted and take prompt containment steps if credentials were exposed.",
+      "Ask about the password and MFA interaction; inspect account sessions and sign-ins without delaying containment.",
+      "A changed password alone may leave sessions active. Verify session invalidation and preserve the timeline for the security handoff."
+    ],
+    "noteFacts": [
+      [
+        "password"
+      ],
+      [
+        "mfa"
+      ],
+      [
+        "10:05"
+      ],
+      [
+        "reset",
+        "changed"
+      ],
+      [
+        "revoked"
+      ],
+      [
+        "information security"
+      ]
+    ],
+    "finalConditions": {
+      "security/credentialsChanged": true,
+      "security/sessionsActive": false,
+      "security/controlled": true
+    },
+    "initial": {
+      "security": {
+        "user": "riley.brown",
+        "credentialsChanged": false,
+        "sessionsActive": true,
+        "suspiciousSignIn": true,
+        "mailboxRule": false,
+        "controlled": false
+      },
+      "clock": {
+        "elapsedMinutes": 0,
+        "observationMinutes": 0
+      },
+      "realism": {
+        "observed": {},
+        "changed": false,
+        "repaired": false,
+        "harmful": false,
+        "lastEvidence": null
+      },
+      "filesystem": {
+        "nodes": {}
+      },
+      "machine": {
+        "signedInUser": "NEXUS\\riley.brown",
+        "profileState": "normal"
+      }
+    },
+    "categories": {
+      "investigation": [
+        "exposure"
+      ],
+      "diagnosis": [
+        "confirmed-exposure"
+      ],
+      "remediation": [
+        "credentials-secured",
+        "sessions-revoked"
+      ],
+      "verification": [
+        "containment-checked"
+      ],
+      "documentation": []
+    },
+    "commands": {
+      "Ask-Requester exposure": [
+        {
+          "output": [
+            "At 10:05 I entered my work email and password, then approved the MFA prompt. The page went blank."
+          ],
+          "evidence": "exposure",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-ExposureReport riley.brown": [
+        {
+          "output": [
+            "Requester confirmed password submission and MFA approval at 10:05. Credential exposure meets the immediate containment policy."
+          ],
+          "evidence": "confirmed-exposure",
+          "when": {
+            "realism/observed/exposure": true
+          },
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-SignInActivity riley.brown": [
+        {
+          "output": [
+            "10:06 unfamiliar browser/address, MFA claim present; current active session. Suspicious sign-in: {security/suspiciousSignIn}."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-Sessions riley.brown": [
+        {
+          "output": [
+            "Pre-response sessions active: {security/sessionsActive}."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Reset-Password riley.brown": [
+        {
+          "output": [
+            "Credentials changed. Existing sessions have not been revoked."
+          ],
+          "evidence": "credentials-secured",
+          "when": {},
+          "set": {
+            "security/credentialsChanged": true
+          },
+          "effect": "repair"
+        }
+      ],
+      "Revoke-Sessions riley.brown": [
+        {
+          "output": [
+            "All pre-response sessions and refresh tokens invalidated."
+          ],
+          "evidence": "sessions-revoked",
+          "when": {},
+          "set": {
+            "security/sessionsActive": false
+          },
+          "effect": "repair"
+        }
+      ],
+      "Test-Containment riley.brown": [
+        {
+          "output": [
+            "Credentials changed; old session/token rejected; requester fresh sign-in uses new credentials. Containment verified, incident remains open."
+          ],
+          "evidence": "containment-checked",
+          "when": {
+            "security/credentialsChanged": true,
+            "security/sessionsActive": false,
+            "realism/repaired": true
+          },
+          "set": {
+            "security/controlled": true
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Containment incomplete. Credentials changed: {security/credentialsChanged}; old sessions active: {security/sessionsActive}."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-MailboxRules riley.brown": [
+        {
+          "output": [
+            "Unrecognized forwarding rule present: {security/mailboxRule}."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Advance-Time 15": [
+        {
+          "output": [
+            "Advanced 15 simulated minutes. Elapsed: {clock/elapsedMinutes}; mailbox rule present: {security/mailboxRule}."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe",
+          "advanceMinutes": 15
+        }
+      ],
+      "help": [
+        {
+          "output": [
+            "Assigned workstation support command syntax (these are tools, not required steps):",
+            "Ask-Requester exposure",
+            "Get-ExposureReport riley.brown",
+            "Get-SignInActivity riley.brown",
+            "Get-Sessions riley.brown",
+            "Reset-Password riley.brown",
+            "Revoke-Sessions riley.brown",
+            "Test-Containment riley.brown",
+            "Get-MailboxRules riley.brown",
+            "Advance-Time 15"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ]
+    },
+    "completion": {
+      "rootCause": "The requester entered a password and approved MFA at 10:05; an unfamiliar sign-in and active session followed.",
+      "whatFixed": "Promptly secured credentials, revoked sessions, verified containment and handed the incident to Information Security.",
+      "whyItWorked": "Credential reset does not invalidate every existing token. Help desk containment limits ongoing access; security still owns investigation and recovery."
+    },
+    "escalation": {
+      "route": "Information Security",
+      "reasons": [
+        "security-incident"
+      ],
+      "verificationApplicable": true
+    },
+    "scheduled": [
+      {
+        "afterMinutes": 30,
+        "when": {
+          "security/sessionsActive": true
+        },
+        "set": {
+          "security/mailboxRule": true,
+          "realism/harmful": true
+        }
+      }
+    ],
+    "questions": [
+      {
+        "id": "exposure",
+        "label": "What exactly did you enter, when, and did you approve MFA?",
+        "command": "Ask-Requester exposure"
+      }
+    ]
+  },
+  "INC2510": {
+    "assetTag": "NX-2510",
+    "id": "domain-trust-repair",
+    "title": "Windows will not let me sign in on this laptop",
+    "issue": "My laptop came back after a restore and Windows will not sign me in. I think my password might have expired. I need the files on it for a site visit.",
+    "hints": [
+      "Separate a user-account problem from a problem with this restored device.",
+      "Compare sign-in on another workstation and inspect account, DNS and secure-channel status from the local support session.",
+      "If the user works elsewhere and connectivity is healthy, use the computer-channel evidence and the approved endpoint procedure; do not unjoin the device."
+    ],
+    "noteFacts": [
+      [
+        "sam.ortiz"
+      ],
+      [
+        "nx-2510"
+      ],
+      [
+        "secure channel",
+        "secure-channel"
+      ],
+      [
+        "ep-2510"
+      ],
+      [
+        "sign-in"
+      ]
+    ],
+    "finalConditions": {
+      "machine/domainJoinState": "joined",
+      "trust/domainSignIn": true
+    },
+    "initial": {
+      "machine": {
+        "signedInUser": "NX-2510\\support",
+        "profileState": "normal",
+        "domainJoinState": "trust-broken"
+      },
+      "trust": {
+        "user": "sam.ortiz",
+        "accountLocked": false,
+        "passwordVersion": 1,
+        "networkHealthy": true,
+        "dnsHealthy": true,
+        "approval": "EP-2510 secure-channel repair only",
+        "domainSignIn": false
+      },
+      "realism": {
+        "observed": {},
+        "changed": false,
+        "repaired": false,
+        "harmful": false,
+        "lastEvidence": null
+      },
+      "filesystem": {
+        "nodes": {}
+      }
+    },
+    "categories": {
+      "investigation": [
+        "user-elsewhere",
+        "account",
+        "network",
+        "dns",
+        "local-signin"
+      ],
+      "diagnosis": [
+        "secure-channel",
+        "repair-policy"
+      ],
+      "remediation": [
+        "channel-repaired"
+      ],
+      "verification": [
+        "domain-signin"
+      ],
+      "documentation": []
+    },
+    "commands": {
+      "Ask-Requester elsewhere": [
+        {
+          "output": [
+            "Yes. I just signed in successfully on the loaner with my usual work account."
+          ],
+          "evidence": "user-elsewhere",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-DirectoryUser sam.ortiz": [
+        {
+          "output": [
+            "Account enabled, not expired; locked: {trust/accountLocked}."
+          ],
+          "evidence": "account",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "ipconfig": [
+        {
+          "output": [
+            "Ethernet UP; 10.26.19.61/24; gateway 10.26.19.1; DNS 10.26.19.10."
+          ],
+          "evidence": "network",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "nslookup nexus.local": [
+        {
+          "output": [
+            "nexus.local resolves to domain controller 10.26.19.10; LDAP/Kerberos reachable."
+          ],
+          "evidence": "dns",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "whoami": [
+        {
+          "output": [
+            "NX-2510\\support; local support sign-in succeeded."
+          ],
+          "evidence": "local-signin",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "nltest /sc_verify:nexus.local": [
+        {
+          "output": [
+            "Secure channel failed: STATUS_TRUSTED_RELATIONSHIP_FAILURE."
+          ],
+          "evidence": "secure-channel",
+          "when": {
+            "machine/domainJoinState": "trust-broken"
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Secure channel verified."
+          ],
+          "when": {
+            "machine/domainJoinState": "joined"
+          },
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-RepairAuthorization NX-2510": [
+        {
+          "output": [
+            "EP-2510: endpoint owner pre-approved secure-channel reset for this asset with a scoped support credential; no domain removal or rejoin authorized."
+          ],
+          "evidence": "repair-policy",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Reset-Password sam.ortiz": [
+        {
+          "output": [
+            "User password changed. Computer account untouched."
+          ],
+          "when": {},
+          "set": {
+            "trust/passwordVersion": 2
+          },
+          "effect": "ineffective"
+        }
+      ],
+      "Repair-SecureChannel NX-2510 -Authorization EP-2510": [
+        {
+          "output": [
+            "Secure channel repaired using scoped endpoint authorization."
+          ],
+          "evidence": "channel-repaired",
+          "when": {
+            "realism/observed/secure-channel": true,
+            "realism/observed/repair-policy": true
+          },
+          "set": {
+            "machine/domainJoinState": "joined"
+          },
+          "effect": "repair"
+        }
+      ],
+      "Test-DomainSignIn sam.ortiz -Computer NX-2510": [
+        {
+          "output": [
+            "sam.ortiz domain sign-in succeeded on NX-2510; original profile loaded."
+          ],
+          "evidence": "domain-signin",
+          "when": {
+            "machine/domainJoinState": "joined",
+            "realism/repaired": true
+          },
+          "set": {
+            "trust/domainSignIn": true
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Domain sign-in failed: computer secure-channel validation failed."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Remove-Computer NX-2510": [
+        {
+          "output": [
+            "Domain removal is outside EP-2510 scope."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "rejected"
+        }
+      ],
+      "help": [
+        {
+          "output": [
+            "Assigned workstation support command syntax (these are tools, not required steps):",
+            "Ask-Requester elsewhere",
+            "Get-DirectoryUser sam.ortiz",
+            "ipconfig",
+            "nslookup nexus.local",
+            "whoami",
+            "nltest /sc_verify:nexus.local",
+            "Get-RepairAuthorization NX-2510",
+            "Reset-Password sam.ortiz",
+            "Repair-SecureChannel NX-2510 -Authorization EP-2510",
+            "Test-DomainSignIn sam.ortiz -Computer NX-2510",
+            "Remove-Computer NX-2510"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ]
+    },
+    "completion": {
+      "rootCause": "Restoring NX-2510 reverted its machine secret. The user's identity is valid, but the computer secure channel is broken.",
+      "whatFixed": "Used the pre-approved EP-2510 scoped secure-channel repair, then verified Sam's domain sign-in on the original laptop.",
+      "whyItWorked": "A user password reset cannot repair a mismatched computer-account secret. Domain removal/rejoin would exceed this limited authorization."
+    },
+    "questions": [
+      {
+        "id": "elsewhere",
+        "label": "Can you sign in on another company workstation?",
+        "command": "Ask-Requester elsewhere"
+      }
+    ]
+  }
+}

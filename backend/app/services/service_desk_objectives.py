@@ -1231,7 +1231,7 @@ def objective_definition(
     stable_key: str, definition_json: dict[str, Any]
 ) -> ScenarioObjectiveDefinition | None:
     key = stable_key.lower()
-    if definition_json.get("objective_catalog_version") == "realism-v1":
+    if definition_json.get("objective_catalog_version") in {"realism-v1", "realism-v2"}:
         fixture = definition_json.get("simulation_fixture", {})
         categories = fixture.get("categories", {})
         if not categories:
@@ -1402,10 +1402,12 @@ def evaluate_objectives(
         and checks.get("verification", False)
         and checks.get("documentation", False)
     )
-    if (definition_json or {}).get("objective_catalog_version") == "realism-v1":
+    if (definition_json or {}).get("objective_catalog_version") in {"realism-v1", "realism-v2"}:
         from app.services.service_desk_realism import replay, read_path
 
         state = replay(definition_json["simulation_fixture"], events)
+        fixture = definition_json["simulation_fixture"]
+        handoff_only = fixture.get("escalation", {}).get("verificationApplicable") is False
         checks["verification"] = checks["verification"] and all(
             read_path(state, path) == expected
             for path, expected in definition_json["simulation_fixture"][
@@ -1413,6 +1415,15 @@ def evaluate_objectives(
             ].items()
         )
         checks["professional_outcome"] = not state["realism"]["harmful"]
+        if handoff_only:
+            # No simulated repair or verification is fabricated for a handoff.
+            checks["verification"] = False
+            checks["remediation"] = False
+            checks["technical_complete"] = all(
+                checks.get(name, False)
+                for name in ("investigation", "diagnosis", "documentation", "professional_outcome")
+            ) and all(read_path(state, path) == value for path, value in fixture["finalConditions"].items())
+            return checks["technical_complete"], checks
         checks["technical_complete"] = all(
             checks.get(name, False)
             for name in (
