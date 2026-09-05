@@ -212,12 +212,11 @@ The current Resolve dialog has zero editable textboxes and shows the saved note
 read-only. It has no client-side score/pass prediction. The browser tests use
 roles, labels and dialog names rather than CSS token assertions.
 
-Current theme behavior was inspected without applying the preserved theme
-stash. `layout.tsx` still renders `data-theme="dark"`; its first-paint script
-honors an explicit saved `light` choice but otherwise falls back to dark. The
-semantic light palette coverage remains tested, while OS-preference/default
-selection remains the already-documented deferred theme issue. No theme code
-changed in this cleanup.
+At realism integration cleanup, theme behavior was inspected without applying
+the preserved theme stash: explicit saved choices worked but OS fallback was
+still deferred. The later pilot-readiness integration manually adopted only
+that small current-compatible fallback: explicit choice, then OS preference,
+then dark if preference detection is unavailable.
 
 ### Final cleanup verification
 

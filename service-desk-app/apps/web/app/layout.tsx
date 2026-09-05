@@ -9,19 +9,29 @@ export const metadata: Metadata = {
 };
 
 const themeScript = `
-  try {
-    const savedTheme = localStorage.getItem('theme');
-    document.documentElement.dataset.theme = savedTheme === 'light' ? 'light' : 'dark';
-  } catch (_) {
-    document.documentElement.dataset.theme = 'dark';
-  }
+  (function () {
+    var root = document.documentElement;
+    var savedTheme = null;
+    try { savedTheme = localStorage.getItem('theme'); } catch (_) {}
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      root.dataset.theme = savedTheme;
+      return;
+    }
+    try {
+      root.dataset.theme = window.matchMedia('(prefers-color-scheme: light)').matches
+        ? 'light'
+        : 'dark';
+    } catch (_) {
+      root.dataset.theme = 'dark';
+    }
+  })();
 `;
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
   return (
-    <html data-theme="dark" lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

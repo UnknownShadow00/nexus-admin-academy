@@ -293,16 +293,15 @@ these:
    rebuilt plus one new trusted event type.
 4. **Directory <-> workstation state coupling.** Directory changes are currently
    invisible to Terminal/RemoteDesktop simulation state.
-5. **Remaining admin theme conversion + a user-facing theme switch.** The core
+5. **Remaining admin theme conversion + account-level theme persistence.** The core
    student path is now fully tokenized: primitives (`Card`, `Modal`, `Input`,
    `Select`, `Textarea`, `Tabs`, `Badge`, `PanelFrame`, `Tooltip`,
    `IconButton`), the queue and dashboard chrome, the ticket workspace, the
    embedded tool bodies, notes, hints, Resolve, Escalate and the debrief.
    Guarded by `apps/web/components/light-mode-coverage.test.tsx`.
-   Still outstanding: `apps/web/app/admin/**`, and — importantly —
-   `apps/web/app/layout.tsx` still hardcodes `data-theme="dark"`, so there is
-   **no way for a student to select light mode yet**. The palette is correct
-   wherever `data-theme="light"` is set; the switch itself is a separate change.
+   Still outstanding: `apps/web/app/admin/**` and account-level persistence.
+   The Service Desk first paint now honors an explicit browser-saved choice,
+   otherwise the OS preference, with dark as the detection fallback.
    The simulated Windows desktop inside `RemoteDesktopTool` / `workstation`
    intentionally keeps its own light Windows palette in both themes.
 6. **Scenario noise / wrong-requester assumptions.** Scenarios currently present
