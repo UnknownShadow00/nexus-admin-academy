@@ -10,6 +10,7 @@ FAILED=0
 
 pass() { printf 'PASS: %s\n' "$1"; }
 fail() { printf 'FAIL: %s\n' "$1" >&2; FAILED=1; }
+warn() { printf 'WARN: %s\n' "$1" >&2; }
 info() { printf 'INFO: %s\n' "$1"; }
 read_env_value() {
     python3 - "$ENV_FILE" "$1" <<'PY'
@@ -177,7 +178,18 @@ if [ -x "$BACKEND_PYTHON" ]; then
 fi
 
 AVAILABLE_KB="$(df -Pk "$REPO_ROOT" | awk 'NR==2 {print $4}')"
-if [ "$AVAILABLE_KB" -ge 2097152 ]; then pass "at least 2 GiB of disk space is available"; else fail "less than 2 GiB of disk space is available"; fi
+AVAILABLE_GIB="$(awk -v kb="$AVAILABLE_KB" 'BEGIN {printf "%.1f", kb/1048576}')"
+if [ "$AVAILABLE_KB" -lt 2097152 ]; then
+    fail "only ${AVAILABLE_GIB} GiB is available; a deploy needs at least 2 GiB"
+elif [ "$AVAILABLE_KB" -lt 4194304 ]; then
+    pass "${AVAILABLE_GIB} GiB is above the 2 GiB hard minimum"
+    warn "2–4 GiB is low headroom; free space before rebuilding images. Never prune Docker automatically."
+elif [ "$AVAILABLE_KB" -lt 8388608 ]; then
+    pass "${AVAILABLE_GIB} GiB is acceptable (at least 4 GiB)"
+    info "8 GiB or more is recommended for a rebuild or cutover"
+else
+    pass "${AVAILABLE_GIB} GiB is recommended rebuild/cutover headroom"
+fi
 
 if [ -f "$REPO_ROOT/frontend/dist/index.html" ]; then pass "frontend production build exists"; else fail "frontend production build is missing"; fi
 if SD_CONTAINER_STATUS="$(service_desk_container_ok nexus-service-desk)"; then
