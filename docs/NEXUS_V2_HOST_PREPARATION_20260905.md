@@ -219,3 +219,34 @@ staging exposure, V2 master flag, pilot count, schema, pending jobs, attempts,
 and backup age as OK/UP. The remaining non-green rows are Backend wildcard
 exposure (WARN), grading timer not installed (SKIP), and 0068-only lease and
 activity fields absent at the intentionally retained 0064 schema (SKIP).
+
+## Privileged correction attempt — 2026-09-05 23:03 UTC
+
+The authorized PATH/bridge-bind correction was re-opened with a full before-
+state capture. Database inode, size, mtime, SHA-256, revision, health, counts,
+V2-off state, service PID/start time, drop-ins, sockets, backup integrity,
+container routing, staging state, and disk all matched the evidence above.
+
+Privileged execution was not available: `sudo -n true` returned exit 1, the
+unit and `/etc/systemd/system` are not writable by `nexus`, and systemd reload
+requires interactive authentication. No drop-in was written and no service was
+reloaded or restarted. Docker-based privilege escalation was deliberately not
+used.
+
+Current state therefore remains:
+
+```text
+PID=3034210; started=Wed 2026-09-02 06:32:04 UTC
+PATH=/opt/apps/IT                 # malformed/truncated live assignment
+ExecStart=... uvicorn app.main:app --host 0.0.0.0 --port 8000
+socket=0.0.0.0:8000
+production SHA-256=d2ac53c3beee0b474d7216d49c0fc4d7f6f854e3d79040296f829e55b2e5e881
+revision=0064_v2_ai_grading_infrastructure; students=7; V2=off
+```
+
+The standard predeploy check still passes with the expected informational
+current-live contract warning. Pilot status remains green except for the
+wildcard Backend warning, expected absent timer, and expected 0068-only field
+SKIPs. Resume only in a session where the authorized operator has established
+interactive sudo, then apply the documented dedicated drop-in and complete the
+single controlled restart/smoke sequence.
