@@ -208,3 +208,14 @@ functional health are ready. Full host readiness is **not green** because the
 privileged PATH/Backend-bind changes were not possible in this session and the
 grading timer cannot safely run against schema 0064. Production remains
 unchanged at schema 0064 with V2 off.
+
+Final standard predeploy result: **PASS**. It reported candidate semantic
+contract 2.0, 0064 as a valid ancestor of the single 0068 head, 8.8 GiB disk
+headroom, valid nginx/JWT/container/health checks, and the expected
+informational warning that the current-live Backend contract endpoint is 404.
+
+Final pilot status reports disk, database, Backend, frontend, Service Desk,
+staging exposure, V2 master flag, pilot count, schema, pending jobs, attempts,
+and backup age as OK/UP. The remaining non-green rows are Backend wildcard
+exposure (WARN), grading timer not installed (SKIP), and 0068-only lease and
+activity fields absent at the intentionally retained 0064 schema (SKIP).
