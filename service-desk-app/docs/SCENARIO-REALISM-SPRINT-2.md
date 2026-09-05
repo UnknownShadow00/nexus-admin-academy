@@ -54,14 +54,14 @@ keyword-based positive confirmation is involved in these grades.
 
 ## Decision tables — author/reference material, not pre-completion coaching
 
-| Ticket | Opening hypotheses | Supporting / rejecting observations | Decisive evidence and professional outcome |
-| --- | --- | --- | --- |
-| INC2502 | Corrupt workbook; damaged Office; profile/startup settings; extension conflict | Original workbook crashes; blank workbook opens; same original works in Safe Mode. Repair retains user extensions. Disabling PDF Export leaves the crash. | Disable ReportLink, open original, re-enable ReportLink and reproduce the crash. Disable only ReportLink after isolation, then open/save original normally. A blank test or blanket extension disable is insufficient. |
-| INC2503 | NIC/configuration; cable; DHCP; wall connection; managed port/VLAN | Link is up but addressing is APIPA; replacement cable does not help; nearby device has normal addressing on B-18. | NX-2503 works on B-18 AND NX-2503-peer fails on B-17. This proves port-side scope, not exact switch configuration. Network Support owns the next change. Escalate `other-team-owns-system`; do not claim restored service. |
-| INC2506 | Wrong path/unavailable share; missing membership; authorized request awaiting implementation; unapproved restricted access | Salary share exists/reachable but denies access. Identity/groups and HR Compensation ownership establish scope; requester offers urgency, not an approval reference. | Current approval lookup returns none and restricted-data policy requires recorded authorization. Leave access unchanged; Identity & Access obtains owner approval. Executive pressure is not an authorization source. |
-| INC2507 | Stale drive credential; scheduled task; old mobile credential; malicious attempts | Events repeat every 15 minutes from NX-2507 to files.nexus.local; cmdkey entry predates rotation; P: reconnect uses that target. Task query and authored device context eliminate alternatives. | Correlate source/target/timing, invalidate the saved credential, unlock and observe a full interval. No lockout and a fresh successful access check demonstrate control of recurrence. |
-| INC2508 | Suspicious email with no exposure; password-only exposure; MFA/session compromise | Requester confirms password AND MFA at 10:05; sign-in activity shows an unfamiliar session; session inspection is independently available. | Confirm exposure, immediately change credentials and revoke sessions. Old session/token rejection and fresh controlled sign-in verify containment, not complete incident remediation. Information Security owns the handoff. |
-| INC2510 | Wrong/expired/locked password; DNS/network outage; local profile problem; computer trust mismatch | User works on loaner, account healthy, local support login works, addressing/DNS healthy; secure-channel test fails. | Machine `domainJoinState` is trust-broken. Read scoped authorization EP-2510, repair only this secure channel, then test original user's domain sign-in on NX-2510. User password reset cannot repair the machine secret. |
+| Ticket  | Opening hypotheses                                                                                                         | Supporting / rejecting observations                                                                                                                                                             | Decisive evidence and professional outcome                                                                                                                                                                                   |
+| ------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| INC2502 | Corrupt workbook; damaged Office; profile/startup settings; extension conflict                                             | Original workbook crashes; blank workbook opens; same original works in Safe Mode. Repair retains user extensions. Disabling PDF Export leaves the crash.                                       | Disable ReportLink, open original, re-enable ReportLink and reproduce the crash. Disable only ReportLink after isolation, then open/save original normally. A blank test or blanket extension disable is insufficient.       |
+| INC2503 | NIC/configuration; cable; DHCP; wall connection; managed port/VLAN                                                         | Link is up but addressing is APIPA; replacement cable does not help; nearby device has normal addressing on B-18.                                                                               | NX-2503 works on B-18 AND NX-2503-peer fails on B-17. This proves port-side scope, not exact switch configuration. Network Support owns the next change. Escalate `other-team-owns-system`; do not claim restored service.   |
+| INC2506 | Wrong path/unavailable share; missing membership; authorized request awaiting implementation; unapproved restricted access | Salary share exists/reachable but denies access. Identity/groups and HR Compensation ownership establish scope; requester offers urgency, not an approval reference.                            | Current approval lookup returns none and restricted-data policy requires recorded authorization. Leave access unchanged; Identity & Access obtains owner approval. Executive pressure is not an authorization source.        |
+| INC2507 | Stale drive credential; scheduled task; old mobile credential; malicious attempts                                          | Events repeat every 15 minutes from NX-2507 to files.nexus.local; cmdkey entry predates rotation; P: reconnect uses that target. Task query and authored device context eliminate alternatives. | Correlate source/target/timing, invalidate the saved credential, unlock and observe a full interval. No lockout and a fresh successful access check demonstrate control of recurrence.                                       |
+| INC2508 | Suspicious email with no exposure; password-only exposure; MFA/session compromise                                          | Requester confirms password AND MFA at 10:05; sign-in activity shows an unfamiliar session; session inspection is independently available.                                                      | Confirm exposure, immediately change credentials and revoke sessions. Old session/token rejection and fresh controlled sign-in verify containment, not complete incident remediation. Information Security owns the handoff. |
+| INC2510 | Wrong/expired/locked password; DNS/network outage; local profile problem; computer trust mismatch                          | User works on loaner, account healthy, local support login works, addressing/DNS healthy; secure-channel test fails.                                                                            | Machine `domainJoinState` is trust-broken. Read scoped authorization EP-2510, repair only this secure channel, then test original user's domain sign-in on NX-2510. User password reset cannot repair the machine secret.    |
 
 ## Wrong-action semantics
 
@@ -151,7 +151,7 @@ secure-channel credentials, restore behavior and sign-in mechanics, but is
 not blocked on one. The other cases do not justify VMs at this stage. No VM
 was provisioned or enabled.
 
-## Verification record — 2026-09-05
+## Verification record — Sprint 2 implementation before integration cleanup
 
 - Full backend run: **1,013 passed**, 9 dependency/deprecation warnings,
   482.60 seconds. This run was collected before the final ten additional
@@ -183,3 +183,60 @@ was provisioned or enabled.
   `pip 26.1.2`, `PYSEC-2026-3721`, fixed in 26.2; tooling remediation is separate.
 - No deploy, production DB write/migration, V2 enablement, production student
   change, service restart, VM provisioning or merge occurred.
+
+## Integration cleanup — 2026-09-05
+
+The seven previously failing browser tests were classified before their tests
+were changed:
+
+| Test                           | Previous expectation                                                        | Current behavior and cause                                                                     | Classification / cleanup                                                                                         |
+| ------------------------------ | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| INC2511 account locked         | Button named `Resolve / close`                                              | Unified OutcomeBar names the action `Resolve`; the dialog remains `Resolve or close ticket`    | Obsolete accessible-name selector; use the current button role/name                                              |
+| INC2512 password expired       | Same                                                                        | Same                                                                                           | Obsolete accessible-name selector; use the current button role/name                                              |
+| INC2513 MFA factor unavailable | Same                                                                        | Same                                                                                           | Obsolete accessible-name selector; use the current button role/name                                              |
+| INC2406 VPN/shared drive       | Focused window has `border-sky-300`, then desktop-owned note/close controls | Focus token is `border-accent`; documentation and Resolve live in the unified ticket workspace | Obsolete style selector plus obsolete UI contract; assert visible/interactable window and current workspace flow |
+| INC2405 Facilities mapping     | Desktop-owned note textarea and `Close ticket`                              | One editable `ResolutionNotePanel`; Resolve reads it without a textarea                        | Obsolete UI contract; exercise the one-note workspace flow                                                       |
+| INC2407 DNS                    | Same                                                                        | Same                                                                                           | Obsolete UI contract; exercise the one-note workspace flow                                                       |
+| INC2408 Print Spooler          | Same                                                                        | Same                                                                                           | Obsolete UI contract; exercise the one-note workspace flow                                                       |
+
+Running those corrected flows exposed one genuine integration regression hidden
+behind the stale selectors: when no backend workspace view was present, local
+fixture mode defaulted every note to `ticket.add_note`. Remote workflows grade
+`remote_desktop.add_internal_note`, so Resolve correctly rejected the visible
+note. `documentationTargetForTicket` now uses the server target whenever one is
+present and otherwise derives remote-desktop scope from the current immutable
+scenario workflow. Account tickets continue to use ticket notes. Unit and
+browser coverage lock this boundary.
+
+The current Resolve dialog has zero editable textboxes and shows the saved note
+read-only. It has no client-side score/pass prediction. The browser tests use
+roles, labels and dialog names rather than CSS token assertions.
+
+Current theme behavior was inspected without applying the preserved theme
+stash. `layout.tsx` still renders `data-theme="dark"`; its first-paint script
+honors an explicit saved `light` choice but otherwise falls back to dark. The
+semantic light palette coverage remains tested, while OS-preference/default
+selection remains the already-documented deferred theme issue. No theme code
+changed in this cleanup.
+
+### Final cleanup verification
+
+- The seven corrected legacy flows pass: **7 passed, 0 failed**.
+- The complete local browser suite passes: **23 passed, 0 failed**, including
+  the current default-dark and saved-light theme contract. The dedicated
+  ten-scenario/requester-isolation browser suite passes: **11 passed, 0
+  failed**. A single Connect timeout occurred only while that suite was run
+  concurrently with a Next build; its clean serial rerun passed all 11 and is
+  classified as environmental, not an unexplained product failure.
+- The compact backend catalogue smoke starts each of INC2501–INC2510, confirms
+  all five retired `scenario.*` actions are rejected, executes its trusted
+  scenario trace, and reaches the intended close or escalation outcome.
+- Final focused Service Desk, grading, attempts, escalation, retry, workspace
+  and V1 progression suites: **238 passed**. Full backend: **1,033 passed**
+  with nine existing dependency/deprecation warnings.
+- Shared **37**, simulation-engine **266**, web **152**, and UI **36**:
+  **491 passed**. Lint, typecheck, package builds, Ruff, compileall, formatting
+  and diff checks passed.
+- Browser checks use the local fixture environment. Authenticated browser E2E
+  was unavailable because no disposable authenticated credentials were
+  configured; no live or production system was contacted.

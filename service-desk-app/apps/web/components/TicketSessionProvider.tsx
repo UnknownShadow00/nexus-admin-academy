@@ -666,6 +666,16 @@ export function resolutionNoteAction(
   return { type: 'ticket.add_note', payload: { ticketId, body } };
 }
 
+export function documentationTargetForTicket(
+  ticketId: string,
+  serverTarget?: NexusWorkspaceView['documentation_target'],
+): NexusWorkspaceView['documentation_target'] {
+  if (serverTarget) return serverTarget;
+  return getRemoteDesktopScenarioByTicket(ticketId)?.workflow
+    ? 'remote_desktop'
+    : 'ticket';
+}
+
 function isDirectorySimulationAction(
   action: SimulationAction,
 ): action is DirectorySimulationAction {
@@ -1511,9 +1521,7 @@ export function TicketSessionProvider({
 
           const currentState = nexusAttempt?.current_state;
           if (nexusAttempt?.workspace_view) {
-            const ticketId = normalizeTicketKey(
-              assignment.scenario.stable_key,
-            );
+            const ticketId = normalizeTicketKey(assignment.scenario.stable_key);
             setWorkspaceViewByTicket((current) => ({
               ...current,
               [ticketId]: nexusAttempt.workspace_view!,
@@ -2252,10 +2260,12 @@ export function TicketSessionProvider({
       },
       startNextAttempt,
       submitResolutionNote: (ticketId, body) => {
-        const documentationTarget =
-          workspaceViewByTicket[ticketId]?.documentation_target ?? 'ticket';
-        const assetTag = tickets.find((ticket) => ticket.id === ticketId)?.device
-          .assetTag;
+        const documentationTarget = documentationTargetForTicket(
+          ticketId,
+          workspaceViewByTicket[ticketId]?.documentation_target,
+        );
+        const assetTag = tickets.find((ticket) => ticket.id === ticketId)
+          ?.device.assetTag;
         const action = resolutionNoteAction(
           ticketId,
           body,

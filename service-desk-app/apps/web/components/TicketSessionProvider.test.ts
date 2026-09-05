@@ -1,8 +1,13 @@
 import { createAttempt } from '@service-desk/simulation-engine';
-import { AssetStatus, TicketStatus, TICKET_FIXTURES } from '@service-desk/shared';
+import {
+  AssetStatus,
+  TicketStatus,
+  TICKET_FIXTURES,
+} from '@service-desk/shared';
 import { describe, expect, it } from 'vitest';
 
 import {
+  documentationTargetForTicket,
   getNexusActionSyncDetails,
   normalizeTicketKey,
   resolutionNoteAction,
@@ -10,9 +15,19 @@ import {
 } from './TicketSessionProvider';
 
 describe('resolution note routing', () => {
+  it('uses the scenario workflow only when no server target is available', () => {
+    expect(documentationTargetForTicket('INC2406')).toBe('remote_desktop');
+    expect(documentationTargetForTicket('INC2511')).toBe('ticket');
+    expect(documentationTargetForTicket('INC2406', 'ticket')).toBe('ticket');
+  });
+
   it('routes each server documentation target to its graded event', () => {
     expect(
-      resolutionNoteAction('INC2511', 'A sufficiently detailed note.', 'ticket'),
+      resolutionNoteAction(
+        'INC2511',
+        'A sufficiently detailed note.',
+        'ticket',
+      ),
     ).toEqual({
       type: 'ticket.add_note',
       payload: { ticketId: 'INC2511', body: 'A sufficiently detailed note.' },

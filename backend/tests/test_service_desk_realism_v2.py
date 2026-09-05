@@ -23,6 +23,10 @@ TRACES = json.loads(
         ROOT / "service-desk-app/packages/shared/src/realism-v2-traces.test.json"
     ).read_text()
 )
+TRACES_V1 = json.loads(
+    (ROOT / "service-desk-app/packages/shared/src/realism-traces.test.json").read_text()
+)
+ALL_TRACES = {**TRACES_V1, **TRACES}
 
 
 def add_note(client, student, attempt, ticket):
@@ -49,6 +53,92 @@ def complete(client, student, attempt):
     )
     assert result.status_code == 201, result.text
     return result.json()
+
+
+@pytest.mark.parametrize("ticket", sorted(ALL_TRACES))
+def test_all_ten_current_scenarios_reject_the_wizard_and_reach_terminal_outcome(
+    db, ticket
+):
+    """Compact current-catalog integration check across both realism versions."""
+    client, student, attempt, version = setup(db, ticket)
+    fixture = FIXTURES[ticket]
+
+    for step in (
+        "inspect-symptom",
+        "collect-evidence",
+        "isolate-root-cause",
+        "apply-safe-remediation",
+        "verify-original-symptom",
+    ):
+        response = action(
+            client,
+            student,
+            attempt,
+            ticket,
+            event_type="remote_desktop.perform_scenario_step",
+            payload={
+                "ticketId": ticket,
+                "assetTag": fixture["assetTag"],
+                "stepId": f"scenario.{step}",
+            },
+            suffix=f"smoke-{step}",
+        )
+        assert response.status_code == 409
+
+    trace = ALL_TRACES[ticket]
+    walk(client, student, attempt, ticket, trace["commands"])
+    response = action(
+        client,
+        student,
+        attempt,
+        ticket,
+        event_type="remote_desktop.add_internal_note",
+        payload={
+            "ticketId": ticket,
+            "assetTag": fixture["assetTag"],
+            "text": trace["note"],
+        },
+        suffix="smoke-note",
+    )
+    assert response.status_code in {200, 201}, response.text
+
+    route = fixture.get("escalation")
+    if route:
+        response = action(
+            client,
+            student,
+            attempt,
+            ticket,
+            event_type="ticket.escalate",
+            payload={
+                "ticketId": ticket,
+                "routeTeam": route["route"],
+                "reason": route["reasons"][0],
+            },
+            suffix="smoke-escalate",
+        )
+        assert response.status_code in {200, 201}, response.text
+    elif ticket == "INC2509":
+        response = action(
+            client,
+            student,
+            attempt,
+            ticket,
+            event_type="ticket.escalate",
+            payload={
+                "ticketId": ticket,
+                "routeTeam": "Application Support",
+                "reason": "change-approval-required",
+            },
+            suffix="smoke-escalate",
+        )
+        assert response.status_code in {200, 201}, response.text
+    else:
+        close(client, student, attempt)
+
+    grade = complete(client, student, attempt)
+    assert grade["passed"] is True, (ticket, grade)
+    assert version.definition_json["simulation_fixture"]["commands"]
 
 
 @pytest.mark.parametrize("ticket", TRACES)
