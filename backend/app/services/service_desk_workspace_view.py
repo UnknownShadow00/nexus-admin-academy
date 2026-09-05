@@ -299,6 +299,7 @@ def build_debrief(
     stable_key: str,
     objective_def: ScenarioObjectiveDefinition | None,
     attempts_remaining: int | None,
+    retries_available: bool | None = None,
 ) -> dict[str, Any]:
     """Post-completion debrief.
 
@@ -324,7 +325,11 @@ def build_debrief(
     )
     escalated = bool(details.get("escalated"))
     passed = bool(grade.passed)
-    limited = not passed and attempts_remaining is not None and attempts_remaining > 0
+    limited = not passed and (
+        retries_available
+        if retries_available is not None
+        else attempts_remaining is not None and attempts_remaining > 0
+    )
     first_repair = _first_repair_position(events, objective_def)
 
     outcome = (

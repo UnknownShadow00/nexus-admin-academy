@@ -45,7 +45,12 @@ export default function LabPage() {
   useEffect(() => {
     let cancelled = false;
 
-    getLab(labId, { suppressToast: true })
+    getLab(
+      labId,
+      isV2Practical ? v2ModuleKey : null,
+      isV2Practical ? v2AssessmentKey : null,
+      { suppressToast: true },
+    )
       .then((res) => {
         if (cancelled) return;
         setLab(res.data);
@@ -62,7 +67,7 @@ export default function LabPage() {
     return () => {
       cancelled = true;
     };
-  }, [labId]);
+  }, [isV2Practical, labId, v2AssessmentKey, v2ModuleKey]);
 
   useEffect(() => {
     if (!lab) return;

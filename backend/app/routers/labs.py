@@ -214,6 +214,18 @@ def _get_lab_run(db: Session, lab_id: int, student_id: int) -> LabRun | None:
     )
 
 
+def _v2_run_activity(db: Session, student: Student, run: LabRun):
+    """Return trusted V2 provenance for a run, independent of current access."""
+    rows = db.query(V2ModuleActivity).filter(
+        V2ModuleActivity.student_id == student.id,
+        V2ModuleActivity.activity_type == "practical",
+    ).all()
+    return next(
+        (row for row in rows if (row.detail or {}).get("lab_run_id") == run.id),
+        None,
+    )
+
+
 def _v2_run_context(db: Session, student: Student, run: LabRun):
     """Was this lab run actually launched from a V2 practical by this student?
 
@@ -223,16 +235,30 @@ def _v2_run_context(db: Session, student: Student, run: LabRun):
     parameters of their own — it cannot be forged from the request, and it
     ties the bypass to a launch this same student really made.
     """
-    if not student_has_v2_access(student):
+    activity = _v2_run_activity(db, student, run)
+    if activity is None:
         return None
-    rows = db.query(V2ModuleActivity).filter(
-        V2ModuleActivity.student_id == student.id,
-        V2ModuleActivity.activity_type == "practical",
-    ).all()
-    return next(
-        (row for row in rows if (row.detail or {}).get("lab_run_id") == run.id),
-        None,
-    )
+    if not student_has_v2_access(student):
+        raise HTTPException(status_code=404, detail=V2_UNAVAILABLE_DETAIL)
+    module = db.query(CertificationModule).filter_by(
+        module_key=activity.module_key, active=True
+    ).one_or_none()
+    assessment = db.query(ModuleAssessment).filter_by(
+        certification_module_id=module.id if module else None,
+        assessment_key=activity.ref_key,
+        assessment_role="practical",
+        lab_template_id=run.lab_template_id,
+        active=True,
+    ).one_or_none()
+    if module is None or assessment is None:
+        raise HTTPException(status_code=404, detail=V2_UNAVAILABLE_DETAIL)
+    return activity
+
+
+def _authorize_existing_run(db: Session, student: Student, run: LabRun, lab: LabTemplate):
+    """Authorize a trusted V2 run or apply the ordinary legacy week gate."""
+    if _v2_run_context(db, student, run) is None:
+        require_week_reached(db, student, lab.week_number)
 
 
 def _v2_lab_assessment(
@@ -259,6 +285,7 @@ def _v2_lab_assessment(
         CertificationModule, CertificationModule.id == ModuleAssessment.certification_module_id
     ).filter(
         CertificationModule.module_key == module_key,
+        CertificationModule.active.is_(True),
         ModuleAssessment.assessment_key == assessment_key,
         ModuleAssessment.assessment_role == "practical",
         ModuleAssessment.lab_template_id == lab_id,
@@ -267,6 +294,36 @@ def _v2_lab_assessment(
     if row is None:
         raise HTTPException(status_code=404, detail="This practical is not available.")
     return row
+
+
+def _lab_is_v2_bound(db: Session, lab_id: int) -> bool:
+    return db.query(ModuleAssessment.id).join(
+        CertificationModule,
+        CertificationModule.id == ModuleAssessment.certification_module_id,
+    ).filter(
+        ModuleAssessment.lab_template_id == lab_id,
+        ModuleAssessment.assessment_role == "practical",
+        ModuleAssessment.active.is_(True),
+        CertificationModule.active.is_(True),
+    ).first() is not None
+
+
+def _lab_access_context(
+    db: Session,
+    lab_id: int,
+    module_key: str | None,
+    assessment_key: str | None,
+    student: Student,
+):
+    context = _v2_lab_assessment(
+        db, lab_id, module_key, assessment_key, student
+    )
+    if context is None and _lab_is_v2_bound(db, lab_id):
+        # V2 practicals are never legacy week-zero labs. Requiring the exact
+        # module/assessment relationship closes direct URL and stale-client
+        # bypasses while leaving genuinely legacy labs unchanged.
+        raise HTTPException(status_code=404, detail=V2_UNAVAILABLE_DETAIL)
+    return context
 
 
 def _safe_provisioning_error(exc: Exception) -> str:
@@ -413,6 +470,12 @@ def get_labs(
     query = db.query(LabTemplate).filter(LabTemplate.is_published.is_(True))
     if week_number is not None:
         query = query.filter(LabTemplate.week_number == week_number)
+    v2_lab_ids = db.query(ModuleAssessment.lab_template_id).filter(
+        ModuleAssessment.assessment_role == "practical",
+        ModuleAssessment.active.is_(True),
+        ModuleAssessment.lab_template_id.is_not(None),
+    )
+    query = query.filter(LabTemplate.id.not_in(v2_lab_ids))
     labs = query.order_by(LabTemplate.week_number.asc(), LabTemplate.created_at.desc()).all()
 
     lab_ids = [lab.id for lab in labs]
@@ -436,8 +499,13 @@ def get_lab(
     lab_id: int,
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
+    v2_module_key: str | None = None,
+    v2_assessment_key: str | None = None,
 ):
     lab = _get_published_lab(db, lab_id)
+    _lab_access_context(
+        db, lab_id, v2_module_key, v2_assessment_key, current_student
+    )
     run = _get_lab_run(db, lab_id, current_student.id)
     data = _serialize_lab(lab, run)
     if run:
@@ -466,7 +534,9 @@ def start_lab(
     v2_assessment_key: str | None = None,
 ):
     lab = _get_published_lab(db, lab_id)
-    v2_context = _v2_lab_assessment(db, lab_id, v2_module_key, v2_assessment_key, current_student)
+    v2_context = _lab_access_context(
+        db, lab_id, v2_module_key, v2_assessment_key, current_student
+    )
     if v2_context is None:
         require_week_reached(db, current_student, lab.week_number)
     run = _get_lab_run(db, lab_id, current_student.id)
@@ -516,10 +586,11 @@ def get_vm_status(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
-    _get_published_lab(db, lab_id)
+    lab = _get_published_lab(db, lab_id)
     run = _get_lab_run(db, lab_id, current_student.id)
     if not run:
         raise HTTPException(status_code=404, detail="Lab run not found")
+    _authorize_existing_run(db, current_student, run, lab)
     assignment = _assignment_for_run(db, run.id)
     if not assignment:
         raise HTTPException(status_code=404, detail="Lab environment not found")
@@ -539,10 +610,11 @@ def create_vm_access(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
-    _get_published_lab(db, lab_id)
+    lab = _get_published_lab(db, lab_id)
     run = _get_lab_run(db, lab_id, current_student.id)
     if not run:
         raise HTTPException(status_code=404, detail="Lab run not found")
+    _authorize_existing_run(db, current_student, run, lab)
     assignment = _assignment_for_run(db, run.id)
     expires_at = _as_utc(assignment.expires_at) if assignment else None
     if not assignment or assignment.status != "running" or not assignment.guac_conn_id:
@@ -586,7 +658,9 @@ def verify_evidence_workbench(
     after-state evidence so an incorrect action cannot appear successful.
     """
     lab = _get_published_lab(db, lab_id)
-    if _v2_lab_assessment(db, lab_id, v2_module_key, v2_assessment_key, current_student) is None:
+    if _lab_access_context(
+        db, lab_id, v2_module_key, v2_assessment_key, current_student
+    ) is None:
         require_week_reached(db, current_student, lab.week_number)
     criteria = lab.success_criteria or {}
     workbench_key, workbench = _configured_workbench(criteria)
@@ -642,7 +716,9 @@ def submit_lab(
     v2_assessment_key: str | None = None,
 ):
     lab = _get_published_lab(db, lab_id)
-    v2_context = _v2_lab_assessment(db, lab_id, v2_module_key, v2_assessment_key, current_student)
+    v2_context = _lab_access_context(
+        db, lab_id, v2_module_key, v2_assessment_key, current_student
+    )
     if v2_context is None:
         require_week_reached(db, current_student, lab.week_number)
     is_structured_lab = (lab.lab_type or "").startswith("structured_")

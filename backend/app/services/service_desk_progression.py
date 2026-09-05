@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.service_desk import (
     ServiceDeskAssignment,
     ServiceDeskAttempt,
+    ServiceDeskAttemptEvent,
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
 )
@@ -18,6 +19,103 @@ from app.services.progression_service import derive_current_week, week_has_been_
 # assigned_by value for assignment rows lazily backfilled by
 # ensure_assigned_scenarios (see that function's docstring).
 CURRICULUM_SYNC_ASSIGNED_BY = "curriculum-sync"
+V2_CURRICULUM_MAXIMUM_ATTEMPTS = 3
+
+
+def _legacy_attempt_only():
+    """Exclude attempts carrying the trusted V2 curriculum provenance marker."""
+    marked = (
+        ServiceDeskAttemptEvent.__table__.select()
+        .with_only_columns(ServiceDeskAttemptEvent.attempt_id)
+        .where(
+            ServiceDeskAttemptEvent.event_type == "v2.curriculum_launch",
+            ServiceDeskAttemptEvent.trusted.is_(True),
+        )
+    )
+    return ~ServiceDeskAttempt.id.in_(marked)
+
+
+def assignment_mode_for_experience(experience_mode: str) -> str:
+    """Map the three student experiences to their owning assignment row."""
+    return "learning" if experience_mode == "guided" else "simulation"
+
+
+def experience_modes_for_assignment(mode: str) -> tuple[str, ...]:
+    """Return every attempt experience governed by an assignment mode."""
+    return ("guided",) if mode == "learning" else ("assessment", "practice")
+
+
+def attempt_v2_context(
+    db: Session, attempt: ServiceDeskAttempt
+) -> tuple[str, str] | None:
+    marker = db.query(ServiceDeskAttemptEvent).filter_by(
+        attempt_id=attempt.id,
+        event_type="v2.curriculum_launch",
+        trusted=True,
+    ).one_or_none()
+    payload = marker.payload_json or {} if marker else {}
+    module_key = payload.get("module_key")
+    assessment_key = payload.get("assessment_key")
+    if isinstance(module_key, str) and isinstance(assessment_key, str):
+        return module_key, assessment_key
+    return None
+
+
+def assignment_attempts(
+    db: Session,
+    *,
+    student_id: int,
+    scenario_id: int,
+    assignment_mode: str,
+    v2_context: tuple[str, str] | None,
+) -> list[ServiceDeskAttempt]:
+    """Return attempts charged to one legacy or exact V2 retry budget."""
+    rows = db.query(ServiceDeskAttempt).join(
+        ServiceDeskScenarioVersion,
+        ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+    ).filter(
+        ServiceDeskAttempt.student_id == student_id,
+        ServiceDeskScenarioVersion.scenario_id == scenario_id,
+        ServiceDeskAttempt.experience_mode.in_(
+            experience_modes_for_assignment(assignment_mode)
+        ),
+    ).all()
+    return [row for row in rows if attempt_v2_context(db, row) == v2_context]
+
+
+def assignment_attempts_used(
+    db: Session,
+    *,
+    student_id: int,
+    scenario_id: int,
+    assignment_mode: str,
+    v2_context: tuple[str, str] | None,
+) -> int:
+    rows = assignment_attempts(
+        db,
+        student_id=student_id,
+        scenario_id=scenario_id,
+        assignment_mode=assignment_mode,
+        v2_context=v2_context,
+    )
+    # A V2 mentor grant releases only its exact failed attempt from this
+    # context's budget. It must not mutate a reused legacy assignment ceiling.
+    if v2_context is not None:
+        return sum(row.admin_reset_at is None for row in rows)
+    return len(rows)
+
+
+def assignment_attempt_limit(
+    assignment: ServiceDeskAssignment | None,
+    v2_context: tuple[str, str] | None,
+) -> int | None:
+    if assignment is None:
+        return None
+    if v2_context is not None and not (
+        assignment.assigned_by or ""
+    ).startswith("v2_curriculum:"):
+        return V2_CURRICULUM_MAXIMUM_ATTEMPTS
+    return assignment.maximum_attempts
 
 
 @dataclass(frozen=True)
@@ -151,6 +249,7 @@ def _passed_scenario_keys(db: Session, student_id: int) -> set[str]:
                 ServiceDeskAttempt.student_id == student_id,
                 ServiceDeskAttempt.passed.is_(True),
                 ServiceDeskAttempt.experience_mode == "assessment",
+                _legacy_attempt_only(),
             )
             .distinct()
             .all()
@@ -169,6 +268,7 @@ def _guided_scenario_keys(db: Session, student_id: int) -> set[str]:
                 ServiceDeskAttempt.student_id == student_id,
                 ServiceDeskAttempt.passed.is_(True),
                 ServiceDeskAttempt.experience_mode == "guided",
+                _legacy_attempt_only(),
             )
             .distinct()
             .all()
@@ -221,6 +321,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         .filter(
             ServiceDeskAttempt.student_id == student.id,
             ServiceDeskAttempt.status == "in_progress",
+            _legacy_attempt_only(),
         )
         .distinct()
         .all()

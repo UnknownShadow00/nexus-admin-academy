@@ -2,7 +2,7 @@
 
 Flow (see docs/NEXUS_V2_PHASE_1C_IMPLEMENTATION_NOTE.md):
 
-    caller persists the student submission + commits   (caller's job)
+    caller stages the student submission in its transaction
       -> submit_for_grading():
            deterministic grader runs first
            confident result            -> finished, no job row
@@ -120,9 +120,10 @@ def submit_for_grading(
 ) -> dict:
     """Run deterministic grading; enqueue an AI job only if it is ambiguous.
 
-    The caller MUST already have persisted (and committed) the student's own
-    submission row before calling this. This function only ever adds/reads
-    grading rows, so an AI outage here cannot roll back student work.
+    The caller must flush the student's submission before calling this so its
+    stable reference exists. Callers that pass ``commit=False`` must commit the
+    submission, grading decision/job, and progress update together. No grading
+    provider is contacted by this function.
     """
     ts = _now(now)
     det = run_deterministic(
@@ -429,6 +430,8 @@ def apply_mentor_override(
     referenced via supersedes_id. The student's submission is never touched."""
     if not (reason or "").strip():
         raise ValueError("A mentor override requires a reason.")
+    if override_score is None or override_passed is None:
+        raise ValueError("A mentor override requires both score and pass result.")
     prior = job.overrides[-1] if job.overrides else None
     override = MentorGradeOverride(
         pending_grade_id=job.id,

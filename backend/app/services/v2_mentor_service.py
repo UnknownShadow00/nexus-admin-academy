@@ -21,7 +21,12 @@ from app.models.certification import (
 from app.models.grading import PendingGrade
 from app.models.lab import LabRun
 from app.models.quiz import Question
-from app.models.service_desk import ServiceDeskAttempt, ServiceDeskAttemptGrade
+from app.models.service_desk import (
+    ServiceDeskAssignment,
+    ServiceDeskAttempt,
+    ServiceDeskAttemptGrade,
+    ServiceDeskScenarioVersion,
+)
 from app.models.student import Student
 from app.models.v2_progress import (
     V2_ACTIVITY_EXPLAIN, V2_ACTIVITY_MODULE_QUIZ, V2_ACTIVITY_QUICK_CHECK,
@@ -29,6 +34,12 @@ from app.models.v2_progress import (
     V2ModuleActivity,
 )
 from app.services.grading_queue import grading_history, mentor_queue
+from app.services.service_desk_progression import (
+    assignment_attempts_used,
+    assignment_attempt_limit,
+    assignment_mode_for_experience,
+    attempt_v2_context,
+)
 from app.services.v2_curriculum_service import module_view
 from app.services.v2_progress_service import V2ProgressError
 
@@ -363,6 +374,130 @@ def module_report(db: Session, student_id: int, module_key: str) -> dict:
         "resource_key": resource["key"], "resource": resource["title"],
         "lesson": lesson["title"], "completed": resource["completed"],
     } for lesson in student_view["lessons"] for resource in lesson["resources"] if resource["required"]]
+    blockers: list[dict] = []
+    pending_assessment = (
+        db.query(V2AssessmentAttemptQuestion, PendingGrade, V2AssessmentAttempt)
+        .join(PendingGrade, PendingGrade.id == V2AssessmentAttemptQuestion.pending_grade_id)
+        .join(V2AssessmentAttempt, V2AssessmentAttempt.id == V2AssessmentAttemptQuestion.attempt_id)
+        .filter(
+            V2AssessmentAttempt.student_id == student_id,
+            V2AssessmentAttempt.module_key == module_key,
+            V2AssessmentAttempt.status == "needs_review",
+            PendingGrade.status != "graded",
+        )
+        .order_by(PendingGrade.id)
+        .first()
+    )
+    if pending_assessment:
+        _, assessment_job, assessment_attempt = pending_assessment
+        waiting_for_mentor = assessment_job.status in {"needs_review", "failed_terminal"}
+        blockers.append({
+            "code": (
+                "assessment_mentor_review"
+                if waiting_for_mentor
+                else "assessment_grading_pending"
+            ),
+            "label": (
+                f"{assessment_attempt.assessment_key} awaiting mentor review"
+                if waiting_for_mentor
+                else f"{assessment_attempt.assessment_key} grading is pending"
+            ),
+            "recovery_url": f"/admin/v2-grading/{assessment_job.id}",
+        })
+    pending_explain = next(
+        (
+            row
+            for row in explain
+            if row["pending_grade_id"] is not None and row["status"] != "graded"
+        ),
+        None,
+    )
+    if pending_explain:
+        waiting_for_mentor = pending_explain["status"] == "needs_review"
+        blockers.append({
+            "code": "explain_mentor_review" if waiting_for_mentor else "explain_grading_pending",
+            "label": (
+                "Explain awaiting mentor review"
+                if waiting_for_mentor
+                else "Explain grading is pending"
+            ),
+            "recovery_url": f"/admin/v2-grading/{pending_explain['pending_grade_id']}",
+        })
+    if current.get("kind") == "blocked":
+        blockers.append({
+            "code": "activity_unavailable",
+            "label": f"{current.get('title', 'Required activity')} is unavailable",
+            "recovery_url": current.get("blocker_route"),
+        })
+    if quiz_activity.get("status") == "failed":
+        blockers.append({
+            "code": "module_quiz_retry_available",
+            "label": "Module Quiz failed; retry available",
+            "recovery_url": None,
+        })
+    for quick_check in progress["quick_checks"]["items"]:
+        quick_activity = quick_check.get("activity") or {}
+        if quick_activity.get("status") == "failed":
+            blockers.append({
+                "code": "quick_check_retry_available",
+                "label": f"{quick_check['title']} failed; retry available",
+                "recovery_url": None,
+            })
+            break
+    if practical and practical.get("status") == "failed":
+        blockers.append({
+            "code": "practical_failed",
+            "label": "Practical attempt failed; mentor review needed",
+            "recovery_url": practical.get("review_url"),
+        })
+    service_attempt = (
+        db.get(ServiceDeskAttempt, service_desk.get("attempt_id"))
+        if service_desk and service_desk.get("attempt_id")
+        else None
+    )
+    if service_desk and service_desk.get("status") == "failed" and service_attempt:
+        version_row = db.get(
+            ServiceDeskScenarioVersion, service_attempt.scenario_version_id
+        )
+        assignment_mode = assignment_mode_for_experience(
+            service_attempt.experience_mode
+        )
+        assignment = db.query(ServiceDeskAssignment).filter_by(
+            student_id=student_id,
+            scenario_id=version_row.scenario_id if version_row else None,
+            mode=assignment_mode,
+        ).one_or_none()
+        attempts_used = 0
+        if assignment and version_row:
+            attempts_used = assignment_attempts_used(
+                db,
+                student_id=student_id,
+                scenario_id=version_row.scenario_id,
+                assignment_mode=assignment_mode,
+                v2_context=attempt_v2_context(db, service_attempt),
+            )
+        exhausted = bool(
+            assignment
+            and (limit := assignment_attempt_limit(
+                assignment, attempt_v2_context(db, service_attempt)
+            )) is not None
+            and attempts_used >= limit
+        )
+        blockers.append({
+            "code": "service_desk_attempts_exhausted" if exhausted else "service_desk_retry_available",
+            "label": (
+                "Service Desk attempts exhausted"
+                if exhausted
+                else "Service Desk attempt failed; retry available"
+            ),
+            "recovery_url": service_desk.get("review_url"),
+        })
+    if not blockers and not progress["module_complete"]:
+        blockers.append({
+            "code": "next_activity",
+            "label": f"Next required activity: {current.get('title', 'Continue module')}",
+            "recovery_url": None,
+        })
     return {
         "student_id": student_id, "student_name": student.name,
         "certification": {"name": certification.name, "version": version.label},
@@ -394,6 +529,7 @@ def module_report(db: Session, student_id: int, module_key: str) -> dict:
         "practical": practical, "service_desk": service_desk, "external_practice": external,
         "student_notes": [r for r in external if r["student_note"] or r["confusing_topic"] or r["question_for_mentor"]],
         "current_position": current,
+        "blockers": blockers,
     }
 
 
@@ -458,6 +594,7 @@ def cohort_progress(db: Session, module_key: str = DEFAULT_MODULE_KEY) -> dict:
             "student_id": r["student_id"], "student_name": r["student_name"], "certification": r["certification"],
             "module_key": r["module_key"], "module_title": r["module_title"], "completion": r["completion"],
             "module_quiz": r["module_quiz"], "practical": r["practical"], "service_desk": r["service_desk"],
+            "blockers": r["blockers"],
             "explain_status": r["explain_status"], "weak_topics": r["weak_topics"], "current_position": r["current_position"],
         } for r in reports],
         "needs_review": mentor_queue(db, limit=50), "weak_areas": weak_areas,

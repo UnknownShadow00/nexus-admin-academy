@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.certification import CertificationModule, ModuleAssessment
 from app.models.service_desk import (
     ServiceDeskAssignment,
     ServiceDeskAttempt,
@@ -19,6 +20,7 @@ from app.models.service_desk import (
     ServiceDeskScenarioVersion,
 )
 from app.models.student import Student
+from app.models.v2_progress import V2ModuleActivity
 from app.schemas.service_desk import (
     ServiceDeskActionCreate,
     ServiceDeskCompleteCreate,
@@ -29,6 +31,10 @@ from app.schemas.service_desk import (
 from app.services.service_desk_escalation import (
     ESCALATION_REASONS,
     escalation_profile,
+)
+from app.services.service_desk_contract import (
+    SERVICE_DESK_CONTRACT_VERSION,
+    require_service_desk_contract,
 )
 from app.services.service_desk_objectives import (
     DERIVED_REMOTE_STEP_SOURCES,
@@ -43,6 +49,9 @@ from app.services.auth_service import (
 )
 from app.services.service_desk_grading import AttemptNotClosedError, compute_grade
 from app.services.service_desk_progression import (
+    assignment_attempts_used,
+    assignment_attempt_limit,
+    assignment_mode_for_experience,
     build_service_desk_progression,
     difficulty_presentation,
     ensure_assigned_scenarios,
@@ -51,11 +60,18 @@ from app.services.service_desk_progression import (
 )
 from app.services.service_desk_workspace_view import build_debrief, process_progress
 from app.services.v2_progress_service import reconcile_v2_service_desk_attempt
+from app.services.v2_access import V2_UNAVAILABLE_DETAIL, student_has_v2_access
 from app.services.xp_service import award_xp
 
 router = APIRouter(prefix="/api/service-desk", tags=["service-desk"])
 
 MAX_RESUME_SNAPSHOT_BYTES = 512 * 1024
+
+
+@router.get("/contract")
+def service_desk_contract():
+    """Semantic API/workspace contract consumed by the separate web app."""
+    return {"contract_version": SERVICE_DESK_CONTRACT_VERSION}
 
 # The API records simulation actions, not arbitrary browser facts.  Keep this
 # intentionally narrow enough to reject invented namespaces while allowing the
@@ -221,14 +237,29 @@ def _debrief_for_attempt(
         .order_by(ServiceDeskAttemptEvent.sequence_number)
         .all()
     )
+    assignment_mode = assignment_mode_for_experience(attempt.experience_mode)
     assignment = (
         db.query(ServiceDeskAssignment)
-        .filter_by(student_id=attempt.student_id, scenario_id=scenario.id)
+        .filter_by(
+            student_id=attempt.student_id,
+            scenario_id=scenario.id,
+            mode=assignment_mode,
+        )
         .first()
     )
+    attempts_used = assignment_attempts_used(
+        db,
+        student_id=attempt.student_id,
+        scenario_id=scenario.id,
+        assignment_mode=assignment_mode,
+        v2_context=_attempt_v2_context(db, attempt),
+    )
+    attempt_limit = assignment_attempt_limit(
+        assignment, _attempt_v2_context(db, attempt)
+    )
     attempts_remaining = (
-        max(0, assignment.maximum_attempts - attempt.attempt_number)
-        if assignment and assignment.maximum_attempts is not None
+        max(0, attempt_limit - attempts_used)
+        if attempt_limit is not None
         else None
     )
     definition_json = version.definition_json or {}
@@ -239,6 +270,13 @@ def _debrief_for_attempt(
         stable_key=scenario.stable_key,
         objective_def=objective_definition(scenario.stable_key, definition_json),
         attempts_remaining=attempts_remaining,
+        retries_available=bool(
+            assignment
+            and (
+                attempt_limit is None
+                or attempts_used < attempt_limit
+            )
+        ),
     )
 
 
@@ -305,7 +343,75 @@ def _owned_attempt(
     if not attempt:
         raise HTTPException(404, "Attempt not found")
     ensure_student_access(student, attempt.student_id)
+    if _attempt_v2_context(db, attempt) and not student_has_v2_access(student):
+        raise HTTPException(404, V2_UNAVAILABLE_DETAIL)
     return attempt
+
+
+def _assignment_is_v2_curriculum(
+    assignment: ServiceDeskAssignment | None,
+) -> bool:
+    """Whether an assignment exists only because a gated V2 launch created it."""
+    return bool(
+        assignment
+        and (assignment.assigned_by or "").startswith("v2_curriculum:")
+    )
+
+
+def _attempt_v2_context(
+    db: Session, attempt: ServiceDeskAttempt
+) -> tuple[str, str] | None:
+    marker = db.query(ServiceDeskAttemptEvent).filter_by(
+        attempt_id=attempt.id,
+        event_type="v2.curriculum_launch",
+        trusted=True,
+    ).one_or_none()
+    payload = marker.payload_json or {} if marker else {}
+    module_key = payload.get("module_key")
+    assessment_key = payload.get("assessment_key")
+    if isinstance(module_key, str) and isinstance(assessment_key, str):
+        return module_key, assessment_key
+    return None
+
+
+def _v2_launch_context(
+    db: Session,
+    student: Student,
+    assignment: ServiceDeskAssignment,
+    module_key: str | None,
+    assessment_key: str | None,
+) -> tuple[str, str] | None:
+    if _assignment_is_v2_curriculum(assignment) and not (
+        module_key and assessment_key
+    ):
+        parts = assignment.assigned_by.split(":", 2)
+        if len(parts) == 3:
+            module_key, assessment_key = parts[1], parts[2]
+    if not module_key and not assessment_key:
+        return None
+    if not module_key or not assessment_key or not student_has_v2_access(student):
+        raise HTTPException(404, V2_UNAVAILABLE_DETAIL)
+    module = db.query(CertificationModule).filter_by(
+        module_key=module_key, active=True
+    ).one_or_none()
+    assessment = db.query(ModuleAssessment).filter_by(
+        certification_module_id=module.id if module else None,
+        assessment_key=assessment_key,
+        assessment_role="service_desk",
+        service_desk_scenario_id=assignment.scenario_id,
+        active=True,
+    ).one_or_none()
+    activity = db.query(V2ModuleActivity).filter_by(
+        student_id=student.id,
+        module_key=module_key,
+        activity_type="service_desk",
+        ref_key=assessment_key,
+    ).one_or_none()
+    if assessment is None or activity is None or (
+        activity.detail or {}
+    ).get("scenario_id") != assignment.scenario_id:
+        raise HTTPException(404, V2_UNAVAILABLE_DETAIL)
+    return module_key, assessment_key
 
 
 def _writable_attempt(
@@ -320,7 +426,44 @@ def _writable_attempt(
 def list_assignments(
     current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
+    v2_module_key: str | None = None,
+    v2_assessment_key: str | None = None,
 ):
+    requested_v2_scenario_id = None
+    requested_v2_context = None
+    requested_v2_completed = False
+    if v2_module_key or v2_assessment_key:
+        if (
+            not v2_module_key
+            or not v2_assessment_key
+            or not student_has_v2_access(current_student)
+        ):
+            raise HTTPException(404, V2_UNAVAILABLE_DETAIL)
+        module = db.query(CertificationModule).filter_by(
+            module_key=v2_module_key, active=True
+        ).one_or_none()
+        assessment = db.query(ModuleAssessment).filter_by(
+            certification_module_id=module.id if module else None,
+            assessment_key=v2_assessment_key,
+            assessment_role="service_desk",
+            active=True,
+        ).one_or_none()
+        activity = db.query(V2ModuleActivity).filter_by(
+            student_id=current_student.id,
+            module_key=v2_module_key,
+            activity_type="service_desk",
+            ref_key=v2_assessment_key,
+        ).one_or_none()
+        if (
+            assessment is None
+            or activity is None
+            or (activity.detail or {}).get("scenario_id")
+            != assessment.service_desk_scenario_id
+        ):
+            raise HTTPException(404, V2_UNAVAILABLE_DETAIL)
+        requested_v2_scenario_id = assessment.service_desk_scenario_id
+        requested_v2_context = (v2_module_key, v2_assessment_key)
+        requested_v2_completed = activity.status == "passed"
     progression = build_service_desk_progression(db, current_student)
     ensure_assigned_scenarios(db, current_student, progression)
     rows = (
@@ -338,9 +481,43 @@ def list_assignments(
     )
     result = []
     for assignment, scenario in rows:
+        if _assignment_is_v2_curriculum(
+            assignment
+        ) and not student_has_v2_access(current_student):
+            continue
         access = scenario_access(progression, scenario.stable_key)
+        if assignment.scenario_id == requested_v2_scenario_id:
+            # Legacy guided history for the same stable scenario is not V2
+            # module credit. Keep the curriculum launch on learning/guided
+            # until this exact V2 activity passes.
+            access = {
+                **access,
+                "guided_completed": requested_v2_completed,
+                "experience_mode": (
+                    "assessment" if requested_v2_completed else "guided"
+                ),
+            }
         if assignment.mode == "learning":
             access = {**access, "experience_mode": "guided"}
+        if _assignment_is_v2_curriculum(assignment) and requested_v2_context is None:
+            parts = assignment.assigned_by.split(":", 2)
+            if len(parts) == 3:
+                owned_activity = db.query(V2ModuleActivity).filter_by(
+                    student_id=current_student.id,
+                    module_key=parts[1],
+                    activity_type="service_desk",
+                    ref_key=parts[2],
+                ).one_or_none()
+                v2_completed = bool(
+                    owned_activity and owned_activity.status == "passed"
+                )
+                access = {
+                    **access,
+                    "guided_completed": v2_completed,
+                    "experience_mode": (
+                        "assessment" if v2_completed else "guided"
+                    ),
+                }
         if not access["unlocked"]:
             continue
         version = (
@@ -353,8 +530,15 @@ def list_assignments(
             .first()
         )
         latest_attempt = None
+        desired_context = None
+        if _assignment_is_v2_curriculum(assignment):
+            parts = assignment.assigned_by.split(":", 2)
+            if len(parts) == 3:
+                desired_context = (parts[1], parts[2])
+        elif assignment.scenario_id == requested_v2_scenario_id:
+            desired_context = requested_v2_context
         if version:
-            latest_attempt = (
+            candidates = (
                 db.query(ServiceDeskAttempt)
                 .join(
                     ServiceDeskScenarioVersion,
@@ -368,10 +552,18 @@ def list_assignments(
                     ServiceDeskAttempt.experience_mode == access["experience_mode"],
                 )
                 .order_by(ServiceDeskAttempt.started_at.desc())
-                .first()
+                .all()
+            )
+            latest_attempt = next(
+                (
+                    attempt
+                    for attempt in candidates
+                    if _attempt_v2_context(db, attempt) == desired_context
+                ),
+                None,
             )
             if latest_attempt is None:
-                latest_attempt = (
+                candidates = (
                     db.query(ServiceDeskAttempt)
                     .join(
                         ServiceDeskScenarioVersion,
@@ -387,10 +579,22 @@ def list_assignments(
                         ServiceDeskAttempt.started_at.desc(),
                         ServiceDeskAttempt.id.desc(),
                     )
-                    .first()
+                    .all()
                 )
+                latest_attempt = next(
+                    (
+                        attempt
+                        for attempt in candidates
+                        if _attempt_v2_context(db, attempt) == desired_context
+                    ),
+                    None,
+                )
+            # Once an assessment-mode case is passed, progression moves it to
+            # practice mode. Keep exposing the completed attempt (within the
+            # same legacy/V2 context) so the student and mentor do not lose the
+            # durable result merely because the next launch mode changed.
             if latest_attempt is None:
-                latest_attempt = (
+                candidates = (
                     db.query(ServiceDeskAttempt)
                     .join(
                         ServiceDeskScenarioVersion,
@@ -406,7 +610,15 @@ def list_assignments(
                         ServiceDeskAttempt.started_at.desc(),
                         ServiceDeskAttempt.id.desc(),
                     )
-                    .first()
+                    .all()
+                )
+                latest_attempt = next(
+                    (
+                        attempt
+                        for attempt in candidates
+                        if _attempt_v2_context(db, attempt) == desired_context
+                    ),
+                    None,
                 )
         published_definition = version.definition_json or {} if version else {}
         published_description = published_definition.get("description")
@@ -423,7 +635,9 @@ def list_assignments(
                 "mode": assignment.mode,
                 "is_required": assignment.is_required,
                 "due_at": assignment.due_at,
-                "maximum_attempts": assignment.maximum_attempts,
+                "maximum_attempts": assignment_attempt_limit(
+                    assignment, desired_context
+                ),
                 "assigned_by": assignment.assigned_by,
                 "assigned_at": assignment.assigned_at,
                 **access,
@@ -550,6 +764,9 @@ def start_attempt(
     assignment_id: int,
     current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
+    _: None = Depends(require_service_desk_contract),
+    v2_module_key: str | None = None,
+    v2_assessment_key: str | None = None,
 ):
     assignment = (
         db.query(ServiceDeskAssignment)
@@ -558,6 +775,13 @@ def start_attempt(
     )
     if not assignment or assignment.student_id != current_student.id:
         raise HTTPException(404, "Assignment not found")
+    v2_context = _v2_launch_context(
+        db,
+        current_student,
+        assignment,
+        v2_module_key,
+        v2_assessment_key,
+    )
     scenario = db.get(ServiceDeskScenario, assignment.scenario_id)
     if not scenario or scenario.status != "active":
         raise HTTPException(404, "Assignment not found")
@@ -567,7 +791,7 @@ def start_attempt(
     experience_mode = (
         "guided" if assignment.mode == "learning" else access["experience_mode"]
     )
-    existing = (
+    candidates = (
         db.query(ServiceDeskAttempt)
         .join(
             ServiceDeskScenarioVersion,
@@ -580,7 +804,19 @@ def start_attempt(
             ServiceDeskAttempt.experience_mode == experience_mode,
         )
         .order_by(ServiceDeskAttempt.started_at.desc())
-        .first()
+        .all()
+    )
+    existing = next(
+        (
+            row
+            for row in candidates
+            if (
+                _attempt_v2_context(db, row) == v2_context
+                if v2_context
+                else _attempt_v2_context(db, row) is None
+            )
+        ),
+        None,
     )
     if existing:
         return _json_response(_attempt_dict(existing), 200)
@@ -595,15 +831,24 @@ def start_attempt(
     )
     if not version:
         raise HTTPException(409, "This assignment has no published scenario version")
-    count = (
-        db.query(ServiceDeskAttempt)
-        .filter_by(student_id=current_student.id, scenario_version_id=version.id)
-        .count()
+    count = assignment_attempts_used(
+        db,
+        student_id=current_student.id,
+        scenario_id=assignment.scenario_id,
+        assignment_mode=assignment.mode,
+        v2_context=v2_context,
     )
-    if assignment.maximum_attempts is not None and count >= assignment.maximum_attempts:
+    attempt_limit = assignment_attempt_limit(assignment, v2_context)
+    if attempt_limit is not None and count >= attempt_limit:
         raise HTTPException(
             403, "Maximum attempts for this assignment have been reached"
         )
+    next_attempt_number = (
+        db.query(func.max(ServiceDeskAttempt.attempt_number))
+        .filter_by(student_id=current_student.id, scenario_version_id=version.id)
+        .scalar()
+        or 0
+    ) + 1
     attempt = ServiceDeskAttempt(
         student_id=current_student.id,
         scenario_version_id=version.id,
@@ -613,9 +858,26 @@ def start_attempt(
         current_state={},
         current_state_hash=_hash_state({}),
         state_version=0,
-        attempt_number=count + 1,
+        attempt_number=next_attempt_number,
     )
     db.add(attempt)
+    db.flush()
+    if v2_context:
+        db.add(ServiceDeskAttemptEvent(
+            attempt_id=attempt.id,
+            sequence_number=1,
+            idempotency_key=f"v2-curriculum-launch:{attempt.id}",
+            event_type="v2.curriculum_launch",
+            tool="system",
+            payload_json={
+                "module_key": v2_context[0],
+                "assessment_key": v2_context[1],
+            },
+            previous_state_hash=attempt.current_state_hash,
+            resulting_state_hash=attempt.current_state_hash,
+            success=True,
+            trusted=True,
+        ))
     db.commit()
     db.refresh(attempt)
     return _json_response(_attempt_dict(attempt), 201)
@@ -733,6 +995,7 @@ def record_event(
     body: ServiceDeskEventCreate,
     current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
+    _: None = Depends(require_service_desk_contract),
 ):
     attempt = _writable_attempt(db, attempt_id, current_student)
     if attempt.status != "in_progress":
@@ -757,6 +1020,7 @@ def persist_snapshot(
     body: ServiceDeskSnapshotCreate,
     current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
+    _: None = Depends(require_service_desk_contract),
 ):
     """Persist browser resume state without submitting a grading action.
 
@@ -1051,6 +1315,7 @@ def request_action(
     body: ServiceDeskActionCreate,
     current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
+    _: None = Depends(require_service_desk_contract),
 ):
     """Validate and record a server-authorized simulation transition.
 
@@ -1161,6 +1426,7 @@ def record_hint(
     body: ServiceDeskHintCreate,
     current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
+    _: None = Depends(require_service_desk_contract),
 ):
     attempt = _writable_attempt(db, attempt_id, current_student)
     if attempt.status != "in_progress":
@@ -1186,6 +1452,7 @@ def complete_attempt(
     body: ServiceDeskCompleteCreate,
     current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
+    _: None = Depends(require_service_desk_contract),
 ):
     attempt = _writable_attempt(db, attempt_id, current_student)
     _version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
@@ -1289,6 +1556,7 @@ def list_attempts(
         .order_by(ServiceDeskAttempt.started_at.desc(), ServiceDeskAttempt.id.desc())
         .all()
     )
+    can_view_v2 = student_has_v2_access(current_student)
     return jsonable_encoder(
         [
             {
@@ -1303,5 +1571,6 @@ def list_attempts(
                 "completed_at": a.completed_at,
             }
             for a, s in rows
+            if can_view_v2 or _attempt_v2_context(db, a) is None
         ]
     )

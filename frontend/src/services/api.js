@@ -236,7 +236,10 @@ export const submitMentorGrade = (pendingGradeId, payload, requestOptions) =>
   request(() => adminApi.post(`/api/admin/grading/${pendingGradeId}/override`, payload), requestOptions);
 export const getLabs = (weekNumber, requestOptions) =>
   request(() => api.get("/api/labs", { params: { week_number: weekNumber } }), requestOptions);
-export const getLab = (labId, requestOptions) => request(() => api.get(`/api/labs/${labId}`), requestOptions);
+export const getLab = (labId, moduleKey, assessmentKey, requestOptions) =>
+  request(() => api.get(`/api/labs/${labId}`, {
+    params: moduleKey && assessmentKey ? { v2_module_key: moduleKey, v2_assessment_key: assessmentKey } : {},
+  }), requestOptions);
 export const startLab = (labId, requestOptions) => request(() => api.post(`/api/labs/${labId}/start`), requestOptions);
 export const getLabVmStatus = (labId, requestOptions) =>
   request(() => api.get(`/api/labs/${labId}/vm-status`), requestOptions);
@@ -424,6 +427,8 @@ export const submitServiceDeskMentorFeedback = (attemptId, feedback, requestOpti
     () => adminApi.post(`/api/admin/service-desk/attempts/${attemptId}/feedback`, { mentor_feedback: feedback }),
     requestOptions
   );
+export const grantServiceDeskRetry = (attemptId, requestOptions) =>
+  request(() => adminApi.post(`/api/admin/service-desk/attempts/${attemptId}/grant-retry`), requestOptions);
 export const verifySubmission = (id, comment, requestOptions) =>
   request(
     () => adminApi.put(`/api/admin/submissions/${id}/verify-proof`, null, { params: comment ? { comment } : {} }),

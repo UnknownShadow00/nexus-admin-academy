@@ -27,7 +27,11 @@ from app.models.certification import (
 )
 from app.models.grading import GRADE_JOB_GRADED, GRADE_JOB_NEEDS_REVIEW, PendingGrade
 from app.models.quiz import Question, Quiz
-from app.models.service_desk import ServiceDeskAssignment, ServiceDeskScenario, ServiceDeskScenarioVersion
+from app.models.service_desk import (
+    ServiceDeskAssignment,
+    ServiceDeskScenario,
+    ServiceDeskScenarioVersion,
+)
 from app.models.v2_progress import (
     V2_ACTIVITY_EXPLAIN,
     V2_ACTIVITY_LESSON,
@@ -46,9 +50,18 @@ from app.models.v2_progress import (
     V2AssessmentAttemptQuestion,
     V2ModuleActivity,
 )
-from app.services.deterministic_grader import grade_short_answer
-from app.services.grading_queue import SOURCE_INTERVIEW, SOURCE_SHORT_ANSWER, submit_for_grading
+from app.services.grading_queue import (
+    SOURCE_FREE_RESPONSE,
+    SOURCE_INTERVIEW,
+    SOURCE_SHORT_ANSWER,
+    submit_for_grading,
+)
 from app.services.quiz_visibility import student_visible_quiz_filters
+from app.services.service_desk_progression import (
+    V2_CURRICULUM_MAXIMUM_ATTEMPTS,
+    assignment_attempt_limit,
+    assignment_attempts_used,
+)
 from app.services.v2_assessment_selector import ConstraintSelectionError, select_constrained
 from app.services.v2_progress_service import V2ProgressError, module_progress, record_activity
 
@@ -209,7 +222,9 @@ def quiz_is_student_visible(db: Session, quiz_id: int | None) -> bool:
     ).first() is not None
 
 
-def assessment_is_available(db: Session, assessment: ModuleAssessment) -> bool:
+def assessment_is_available(
+    db: Session, assessment: ModuleAssessment, student_id: int | None = None
+) -> bool:
     """Whether a student can actually open this assessment right now.
 
     A knowledge check needs a quiz that passes the student visibility
@@ -223,7 +238,9 @@ def assessment_is_available(db: Session, assessment: ModuleAssessment) -> bool:
     if assessment.assessment_role == V2_ACTIVITY_EXPLAIN:
         return True
     if assessment.assessment_role == V2_ACTIVITY_SERVICE_DESK:
-        return service_desk_scenario_is_playable(db, assessment)
+        return service_desk_scenario_is_playable(
+            db, assessment
+        ) and service_desk_has_attempt_capacity(db, assessment, student_id)
     if assessment.assessment_role == V2_ACTIVITY_PRACTICAL:
         from app.models.lab import LabTemplate
 
@@ -256,10 +273,45 @@ def service_desk_scenario_is_playable(db: Session, assessment: ModuleAssessment)
     ).first() is not None
 
 
+def service_desk_has_attempt_capacity(
+    db: Session, assessment: ModuleAssessment, student_id: int | None
+) -> bool:
+    if student_id is None:
+        return True
+    scenario_id = assessment.service_desk_scenario_id
+    if not scenario_id:
+        return True
+    passed = db.query(V2ModuleActivity.id).filter_by(
+        student_id=student_id,
+        activity_type=V2_ACTIVITY_SERVICE_DESK,
+        ref_key=assessment.assessment_key,
+        status=V2_STATUS_PASSED,
+    ).first() is not None
+    mode = "simulation" if passed else "learning"
+    assignment = db.query(ServiceDeskAssignment).filter_by(
+        student_id=student_id, scenario_id=scenario_id, mode=mode
+    ).one_or_none()
+    if assignment is None:
+        return True
+    module = db.get(CertificationModule, assessment.certification_module_id)
+    context = (module.module_key, assessment.assessment_key) if module else None
+    attempt_limit = assignment_attempt_limit(assignment, context)
+    if attempt_limit is None:
+        return True
+    attempts = assignment_attempts_used(
+        db,
+        student_id=student_id,
+        scenario_id=scenario_id,
+        assignment_mode=mode,
+        v2_context=context,
+    )
+    return attempts < attempt_limit
+
+
 def _assessment_view(db: Session, student_id: int, assessment: ModuleAssessment) -> dict:
     engine_ref = (assessment.config or {}).get("engine_service_desk_ref")
     scenario = db.get(ServiceDeskScenario, assessment.service_desk_scenario_id) if assessment.service_desk_scenario_id else None
-    available = assessment_is_available(db, assessment)
+    available = assessment_is_available(db, assessment, student_id)
     unavailable = None
     if not available:
         activity_name = {
@@ -790,18 +842,31 @@ def submit_assessment(db: Session, student_id: int, module_key: str, assessment_
         answer = str(answers.get(str(row.question_id), "")).strip()
         kind = snapshot["type"]
         row.submitted_answer = answer
-        if kind == "short_answer":
-            det = grade_short_answer(
-                answer, snapshot["acceptable_answers"],
-                match_mode=snapshot["answer_match_mode"],
-                rubric_version=snapshot["rubric_version"],
+        if kind in {"short_answer", "free_response"}:
+            source_type = (
+                SOURCE_SHORT_ANSWER if kind == "short_answer" else SOURCE_FREE_RESPONSE
             )
-            if det["status"] == "graded":
-                row.score = float(det["score"])
-                row.passed = det["passed"] is True
+            outcome = submit_for_grading(
+                db, student_id=student_id, source_type=source_type,
+                submission_ref=f"v2-assessment-response:{row.id}",
+                source_key=assessment.assessment_key,
+                submitted_answer=answer, question_type=source_type,
+                question_text=snapshot["question_text"],
+                acceptable_answers=snapshot.get("acceptable_answers") or [],
+                expected_concepts=snapshot.get("expected_concepts") or [],
+                rubric=snapshot.get("rubric") or {},
+                rubric_version=snapshot.get("rubric_version"),
+                match_mode=snapshot.get("answer_match_mode") or "normalized",
+                pass_threshold=1.0 if kind == "short_answer" else 0.7,
+                commit=False,
+            )
+            if outcome["outcome"] == "graded":
+                row.score = float(outcome["score"] or 0)
+                row.passed = outcome["passed"] is True
                 row.grading_status = "graded"
             else:
                 row.grading_status = "needs_review"
+                row.pending_grade_id = outcome["pending_grade_id"]
                 pending_rows.append(row)
         else:
             submitted = sorted(x.strip().upper() for x in answer.split(",") if x.strip())
@@ -813,21 +878,6 @@ def submit_assessment(db: Session, student_id: int, module_key: str, assessment_
     attempt.submitted_at = datetime.now(timezone.utc)
     attempt.grading_state = "pending" if pending_rows else "grading"
     attempt.status = V2_STATUS_NEEDS_REVIEW if pending_rows else V2_STATUS_IN_PROGRESS
-    db.commit()  # Student answers survive a grading-provider failure.
-
-    for row in pending_rows:
-        snapshot = row.question_snapshot
-        outcome = submit_for_grading(
-            db, student_id=student_id, source_type=SOURCE_SHORT_ANSWER,
-            submission_ref=f"v2-assessment-response:{row.id}",
-            source_key=assessment.assessment_key,
-            submitted_answer=row.submitted_answer or "", question_type=SOURCE_SHORT_ANSWER,
-            question_text=snapshot["question_text"], acceptable_answers=snapshot["acceptable_answers"],
-            expected_concepts=snapshot["expected_concepts"], rubric=snapshot["rubric"],
-            rubric_version=snapshot["rubric_version"], match_mode=snapshot["answer_match_mode"],
-            pass_threshold=1.0, commit=False,
-        )
-        row.pending_grade_id = outcome["pending_grade_id"]
     if pending_rows:
         record_activity(
             db, student_id=student_id, module_key=module_key,
@@ -915,15 +965,28 @@ def launch_service_desk(db: Session, student_id: int, module_key: str, assessmen
     if assignment is None:
         assignment = ServiceDeskAssignment(
             student_id=student_id, scenario_id=scenario.id, mode=assignment_mode,
-            is_required=True, maximum_attempts=3,
+            is_required=True, maximum_attempts=V2_CURRICULUM_MAXIMUM_ATTEMPTS,
             assigned_by=f"v2_curriculum:{module_key}:{assessment_key}",
         )
         db.add(assignment)
-    record_activity(
-        db, student_id=student_id, module_key=module_key,
-        activity_type=V2_ACTIVITY_SERVICE_DESK, ref_key=assessment_key,
-        status=V2_STATUS_IN_PROGRESS, detail={"scenario_id": scenario.id},
-    )
+    else:
+        # A V1/admin assignment can already own the unique scenario+mode row.
+        # Reuse it without changing its provenance or retry policy, so V2
+        # enrollment and revocation cannot silently alter the V1 experience.
+        if (assignment.assigned_by or "").startswith("v2_curriculum:"):
+            assignment.is_required = True
+    db.flush()
+    if not service_desk_has_attempt_capacity(db, assessment, student_id):
+        raise V2ProgressError(
+            "The retry limit for this troubleshooting activity has been reached. "
+            "Ask your mentor to review the attempt."
+        )
+    if not guided_completed:
+        record_activity(
+            db, student_id=student_id, module_key=module_key,
+            activity_type=V2_ACTIVITY_SERVICE_DESK, ref_key=assessment_key,
+            status=V2_STATUS_IN_PROGRESS, detail={"scenario_id": scenario.id},
+        )
     try:
         db.commit()
     except IntegrityError:
@@ -935,16 +998,18 @@ def launch_service_desk(db: Session, student_id: int, module_key: str, assessmen
         ).one_or_none()
         if assignment is None:
             raise
-        record_activity(
-            db, student_id=student_id, module_key=module_key,
-            activity_type=V2_ACTIVITY_SERVICE_DESK, ref_key=assessment_key,
-            status=V2_STATUS_IN_PROGRESS, detail={"scenario_id": scenario.id},
-            commit=True,
-        )
+        if not guided_completed:
+            record_activity(
+                db, student_id=student_id, module_key=module_key,
+                activity_type=V2_ACTIVITY_SERVICE_DESK, ref_key=assessment_key,
+                status=V2_STATUS_IN_PROGRESS, detail={"scenario_id": scenario.id},
+                commit=True,
+            )
     return {
         "launch_url": (
             f"/service-desk/tickets/{scenario.stable_key.upper()}"
             f"?returnTo=/learning-v2/modules/{module_key}"
+            f"&v2ModuleKey={module_key}&v2AssessmentKey={assessment_key}"
         ),
         "scenario_title": scenario.title,
         "mode": assignment_mode,
@@ -1003,8 +1068,10 @@ def submit_explain(db: Session, student_id: int, module_key: str, prompt_key: st
     attempt_number = (db.query(func.max(V2ExplainSubmission.attempt_number)).filter_by(student_id=student_id, prompt_id=prompt.id).scalar() or 0) + 1
     submission = V2ExplainSubmission(student_id=student_id, prompt_id=prompt.id, submitted_answer=answer.strip(), attempt_number=attempt_number)
     db.add(submission)
-    db.commit()  # Required: original answer survives any grading failure.
-    db.refresh(submission)
+    # Flush assigns the immutable submission reference while keeping the
+    # submission, grading decision/job, and progress update in one database
+    # transaction.  There is no provider call on this request path.
+    db.flush()
     outcome = submit_for_grading(
         db, student_id=student_id, source_type=SOURCE_INTERVIEW,
         submission_ref=f"v2-explain:{submission.id}", source_key=prompt.prompt_key,
@@ -1014,7 +1081,7 @@ def submit_explain(db: Session, student_id: int, module_key: str, prompt_key: st
         # Explain prose is only a deterministic pass when every configured
         # concept is found. Partial concept matches are ambiguous wording, not
         # a confident failure, and therefore belong in mentor review.
-        partial_credit=False, pass_threshold=0.7, commit=True,
+        partial_credit=False, pass_threshold=0.7, commit=False,
     )
     if outcome["outcome"] == "graded":
         score = round(float(outcome["score"] or 0) * 100)

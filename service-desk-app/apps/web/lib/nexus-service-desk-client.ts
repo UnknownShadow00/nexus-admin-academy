@@ -1,3 +1,9 @@
+import {
+  EXPECTED_NEXUS_SERVICE_DESK_CONTRACT,
+  NEXUS_SERVICE_DESK_CONTRACT_HEADER,
+  contractIsCompatible,
+} from './service-desk-contract';
+
 export interface NexusAssignmentAttemptSummary {
   attempt_number: number;
   experience_mode: 'guided' | 'practice' | 'assessment';
@@ -306,13 +312,27 @@ async function request(
   init: RequestInit,
 ): Promise<unknown | null> {
   try {
+    const contract = await fetch('/api/service-desk/contract', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
+    const contractBody: unknown = contract.ok ? await contract.json() : null;
+    if (!contract.ok || !contractIsCompatible(contractBody)) {
+      console.error(
+        `Nexus Service Desk contract mismatch; expected ${EXPECTED_NEXUS_SERVICE_DESK_CONTRACT}.`,
+      );
+      return null;
+    }
+    const headers = new Headers(init.headers);
+    headers.set(
+      NEXUS_SERVICE_DESK_CONTRACT_HEADER,
+      EXPECTED_NEXUS_SERVICE_DESK_CONTRACT,
+    );
+    headers.set('content-type', 'application/json');
     const response = await fetch(path, {
       ...init,
       credentials: 'same-origin',
-      headers: {
-        'content-type': 'application/json',
-        ...init.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -333,7 +353,8 @@ async function request(
 }
 
 export async function listAssignments(): Promise<readonly NexusAssignment[]> {
-  const result = await request('/api/service-desk/assignments', {
+  const query = v2LaunchContextQuery();
+  const result = await request(`/api/service-desk/assignments${query}`, {
     method: 'GET',
   });
 
@@ -351,12 +372,27 @@ export async function getServiceDeskProgression(): Promise<NexusServiceDeskProgr
 export async function startOrResumeAttempt(
   assignmentId: string | number,
 ): Promise<NexusAttempt | null> {
+  const suffix = v2LaunchContextQuery();
   const result = await request(
-    `/api/service-desk/assignments/${encodeURIComponent(assignmentId)}/attempts`,
+    `/api/service-desk/assignments/${encodeURIComponent(assignmentId)}/attempts${suffix}`,
     { method: 'POST' },
   );
 
   return isAttempt(result) ? result : null;
+}
+
+function v2LaunchContextQuery(): string {
+  const query = new URLSearchParams();
+  if (typeof window !== 'undefined') {
+    const launch = new URLSearchParams(window.location.search);
+    const moduleKey = launch.get('v2ModuleKey');
+    const assessmentKey = launch.get('v2AssessmentKey');
+    if (moduleKey && assessmentKey) {
+      query.set('v2_module_key', moduleKey);
+      query.set('v2_assessment_key', assessmentKey);
+    }
+  }
+  return query.size ? `?${query.toString()}` : '';
 }
 
 export async function getAttempt(

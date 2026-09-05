@@ -33,6 +33,8 @@ from app.models.v2_progress import (
     V2_STATUS_VALUES,
     V2ModuleActivity,
 )
+from app.models.student import Student
+from app.services.v2_access import student_has_v2_access
 
 _DONE_STATUSES = {V2_STATUS_COMPLETED, V2_STATUS_PASSED}
 
@@ -352,35 +354,86 @@ def reconcile_v2_service_desk_attempt(
     db: Session, *, student_id: int, scenario_id: int, attempt_id: int,
     score: int, passed: bool,
 ) -> V2ModuleActivity | None:
-    """Write back only an exact server-created V2 assignment relationship."""
-    from app.models.service_desk import ServiceDeskAssignment
+    """Reconcile only a relationship created by the gated V2 launch route.
 
-    assignment = db.query(ServiceDeskAssignment).filter(
-        ServiceDeskAssignment.student_id == student_id,
-        ServiceDeskAssignment.scenario_id == scenario_id,
-        ServiceDeskAssignment.assigned_by.like("v2_curriculum:%"),
-    ).one_or_none()
-    if assignment is None:
-        return None
-    parts = assignment.assigned_by.split(":", 2)
-    if len(parts) != 3:
-        return None
-    module_key, assessment_key = parts[1], parts[2]
-    module = db.query(CertificationModule).filter_by(module_key=module_key, active=True).one_or_none()
-    if module is None:
-        return None
-    assessment = db.query(ModuleAssessment).filter_by(
-        certification_module_id=module.id,
-        assessment_key=assessment_key,
-        assessment_role=V2_ACTIVITY_SERVICE_DESK,
-        service_desk_scenario_id=scenario_id,
-        active=True,
-    ).one_or_none()
-    if assessment is None:
-        return None
-    return record_activity(
-        db, student_id=student_id, module_key=module_key,
-        activity_type=V2_ACTIVITY_SERVICE_DESK, ref_key=assessment_key,
-        status=V2_STATUS_PASSED if passed else "failed", score=score,
-        passed=passed, detail={"attempt_id": attempt_id},
+    Assignments may predate V2 (the legacy seed creates simulation rows), and
+    the same scenario can have learning and simulation assignments. The V2
+    activity is therefore the authoritative curriculum relationship.
+    """
+    from app.models.service_desk import (
+        ServiceDeskAttempt,
+        ServiceDeskAttemptEvent,
+        ServiceDeskScenarioVersion,
     )
+
+    student = db.get(Student, student_id)
+    if not student_has_v2_access(student):
+        return None
+
+    attempt = (
+        db.query(ServiceDeskAttempt)
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
+        )
+        .filter(
+            ServiceDeskAttempt.id == attempt_id,
+            ServiceDeskAttempt.student_id == student_id,
+            ServiceDeskScenarioVersion.scenario_id == scenario_id,
+        )
+        .one_or_none()
+    )
+    if attempt is None:
+        return None
+
+    activities = db.query(V2ModuleActivity).filter_by(
+        student_id=student_id, activity_type=V2_ACTIVITY_SERVICE_DESK
+    ).all()
+    marker = db.query(ServiceDeskAttemptEvent).filter_by(
+        attempt_id=attempt_id,
+        event_type="v2.curriculum_launch",
+        trusted=True,
+    ).one_or_none()
+    context = marker.payload_json or {} if marker else {}
+    if not context:
+        return None
+    for activity in activities:
+        if (
+            activity.module_key != context.get("module_key")
+            or activity.ref_key != context.get("assessment_key")
+        ):
+            continue
+        if (activity.detail or {}).get("scenario_id") != scenario_id:
+            continue
+        module = db.query(CertificationModule).filter_by(
+            module_key=activity.module_key, active=True
+        ).one_or_none()
+        if module is None:
+            continue
+        assessment = db.query(ModuleAssessment).filter_by(
+            certification_module_id=module.id,
+            assessment_key=activity.ref_key,
+            assessment_role=V2_ACTIVITY_SERVICE_DESK,
+            service_desk_scenario_id=scenario_id,
+            active=True,
+        ).one_or_none()
+        if assessment is None:
+            continue
+        # The required curriculum case is the guided/learning experience.
+        # Practice and assessment attempts are optional reinforcement after
+        # that requirement has already passed; they cannot earn the initial
+        # module credit even when launched with trusted V2 context.
+        if activity.status != V2_STATUS_PASSED and attempt.experience_mode != "guided":
+            return None
+        # Once the required guided case has passed, later assessment/practice
+        # launches are optional reinforcement and cannot regress module credit.
+        if activity.status == V2_STATUS_PASSED and not passed:
+            return activity
+        return record_activity(
+            db, student_id=student_id, module_key=activity.module_key,
+            activity_type=V2_ACTIVITY_SERVICE_DESK, ref_key=activity.ref_key,
+            status=V2_STATUS_PASSED if passed else "failed", score=score,
+            passed=passed,
+            detail={"attempt_id": attempt_id, "scenario_id": scenario_id},
+        )
+    return None

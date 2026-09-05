@@ -43,6 +43,8 @@ import {
   applyAction,
   derivedRemoteDesktopWorkflowAction,
   createAttempt,
+  createInitialPcShelfOverlays,
+  createInitialServerRoomOverlays,
   createWorkstationState,
   deriveAnalyticsSummary,
   derivePastTickets,
@@ -103,6 +105,10 @@ import {
   type NexusAttemptCompletionInput,
   type NexusWorkspaceView,
 } from '../lib/nexus-service-desk-client';
+import {
+  EXPECTED_NEXUS_SERVICE_DESK_CONTRACT,
+  NEXUS_SERVICE_DESK_CONTRACT_HEADER,
+} from '../lib/service-desk-contract';
 import {
   outboxStatus,
   readNexusOutbox,
@@ -828,6 +834,99 @@ export function getNexusActionSyncDetails(
   };
 }
 
+function eventBelongsToTicket(
+  event: ActionEvent,
+  ticketId: string,
+): boolean {
+  if (normalizeTicketKey(String(event.payload.ticketId ?? '')) === ticketId) {
+    return true;
+  }
+  const directoryTicket = DIRECTORY_TICKET_BY_USER_ID[
+    String(event.payload.directoryUserId ?? '')
+  ];
+  const assetTicket = ASSET_TICKET_BY_TAG[String(event.payload.assetTag ?? '')];
+  const shippingTicket = SHIPPING_TICKET_BY_RECIPIENT[
+    String(event.payload.recipientDirectoryUserId ?? '')
+  ];
+  const remoteTicket = getRemoteDesktopScenarioByAsset(
+    String(event.payload.assetTag ?? ''),
+  )?.ticketId;
+  return [directoryTicket, assetTicket, shippingTicket, remoteTicket].some(
+    (candidate) => normalizeTicketKey(candidate ?? '') === ticketId,
+  );
+}
+
+/** Restore every simulator surface touched by one ticket to its fixture state. */
+export function resetTicketStateForRetry(
+  attempt: Attempt,
+  rawTicketId: string,
+): Attempt {
+  const ticketId = normalizeTicketKey(rawTicketId);
+  const touched = (events: readonly ActionEvent[]) =>
+    events.some((event) => eventBelongsToTicket(event, ticketId));
+  const withoutTouched = <T extends { events: readonly ActionEvent[] }>(
+    rows: Readonly<Record<string, T>>,
+  ): Record<string, T> =>
+    Object.fromEntries(
+      Object.entries(rows).filter(([, row]) => !touched(row.events)),
+    );
+
+  const ticketOverlays = { ...attempt.ticketOverlays };
+  delete ticketOverlays[ticketId];
+  const grades = { ...attempt.grades };
+  delete grades[ticketId];
+
+  const pristinePcShelf = createInitialPcShelfOverlays();
+  const pcShelfOverlays = { ...attempt.pcShelfOverlays };
+  for (const [key, row] of Object.entries(pcShelfOverlays)) {
+    if (touched(row.events)) {
+      const pristine = pristinePcShelf[key];
+      if (pristine) pcShelfOverlays[key] = pristine;
+      else delete pcShelfOverlays[key];
+    }
+  }
+  const pristineServerRoom = createInitialServerRoomOverlays();
+  const serverRoomOverlays = { ...attempt.serverRoomOverlays };
+  for (const [key, row] of Object.entries(serverRoomOverlays)) {
+    if (touched(row.events)) {
+      const pristine = pristineServerRoom[key];
+      if (pristine) serverRoomOverlays[key] = pristine;
+      else delete serverRoomOverlays[key];
+    }
+  }
+
+  const remoteDesktopOverlays = { ...attempt.remoteDesktopOverlays };
+  const scenario = getRemoteDesktopScenarioByTicket(ticketId);
+  if (scenario) delete remoteDesktopOverlays[scenario.assetTag];
+  for (const [key, row] of Object.entries(remoteDesktopOverlays)) {
+    if (touched(row.events)) delete remoteDesktopOverlays[key];
+  }
+
+  const deploymentRuns = withoutTouched(attempt.deploymentRuns);
+  const shipments = withoutTouched(attempt.shipments);
+  return {
+    ...attempt,
+    ticketOverlays,
+    grades,
+    directoryOverlays: withoutTouched(attempt.directoryOverlays),
+    chatThreads: withoutTouched(attempt.chatThreads),
+    assetOverlays: withoutTouched(attempt.assetOverlays),
+    pcShelfOverlays,
+    deploymentRuns,
+    activeDeploymentRunId:
+      attempt.activeDeploymentRunId && deploymentRuns[attempt.activeDeploymentRunId]
+        ? attempt.activeDeploymentRunId
+        : null,
+    shipments,
+    lastShippingAddress:
+      Object.keys(shipments).length === Object.keys(attempt.shipments).length
+        ? attempt.lastShippingAddress
+        : null,
+    serverRoomOverlays,
+    remoteDesktopOverlays,
+  };
+}
+
 function getUnattributedNexusActionWarningKey(
   action: SimulationAction,
 ): string | null {
@@ -844,6 +943,29 @@ function getUnattributedNexusActionWarningKey(
   }
 
   return null;
+}
+
+export function selectAssignmentsByTicket(
+  assignments: readonly NexusAssignment[],
+): readonly NexusAssignment[] {
+  const selected = new Map<string, NexusAssignment>();
+  for (const assignment of assignments) {
+    const ticket = normalizeTicketKey(assignment.scenario.stable_key);
+    const current = selected.get(ticket);
+    const desiredMode = assignment.guided_completed ? 'simulation' : 'learning';
+    const isDesired = assignment.mode === desiredMode;
+    const currentIsDesired = current?.mode === desiredMode;
+    if (
+      !current ||
+      (isDesired && !currentIsDesired) ||
+      (isDesired === currentIsDesired &&
+        assignment.most_recent_attempt?.status === 'in_progress' &&
+        current.most_recent_attempt?.status !== 'in_progress')
+    ) {
+      selected.set(ticket, assignment);
+    }
+  }
+  return [...selected.values()];
 }
 
 function mapAssignmentsByTicket(
@@ -870,7 +992,11 @@ function syncNexusProgress(event: NexusProgressEvent) {
   void fetch('/api/service-desk/progress', {
     body: JSON.stringify(event),
     credentials: 'same-origin',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      [NEXUS_SERVICE_DESK_CONTRACT_HEADER]:
+        EXPECTED_NEXUS_SERVICE_DESK_CONTRACT,
+    },
     keepalive: true,
     method: 'POST',
   })
@@ -1454,11 +1580,12 @@ export function TicketSessionProvider({
           return;
         }
 
-        const mappings = mapAssignmentsByTicket(assignments);
-        setRuntimeTickets(ticketsForAssignments(assignments));
+        const selectedAssignments = selectAssignmentsByTicket(assignments);
+        const mappings = mapAssignmentsByTicket(selectedAssignments);
+        setRuntimeTickets(ticketsForAssignments(selectedAssignments));
         setRuntimeAssignments(
           Object.fromEntries(
-            assignments.map((assignment) => [
+            selectedAssignments.map((assignment) => [
               normalizeTicketKey(assignment.scenario.stable_key),
               assignment,
             ]),
@@ -1466,7 +1593,7 @@ export function TicketSessionProvider({
         );
         setWorkspaceViewByTicket(
           Object.fromEntries(
-            assignments.flatMap((assignment) =>
+            selectedAssignments.flatMap((assignment) =>
               assignment.workspace_view
                 ? [
                     [
@@ -1508,7 +1635,7 @@ export function TicketSessionProvider({
           );
         };
 
-        for (const assignment of assignments) {
+        for (const assignment of selectedAssignments) {
           const recentAttempt = assignment.most_recent_attempt;
           if (!recentAttempt || recentAttempt.status !== 'in_progress') {
             continue;
@@ -1579,7 +1706,7 @@ export function TicketSessionProvider({
         }
 
         const completedGrades: Record<string, NexusGrade> = {};
-        for (const assignment of assignments) {
+        for (const assignment of selectedAssignments) {
           const recentAttempt = assignment.most_recent_attempt;
           // A finished attempt is completed OR failed; both carry an
           // authoritative grade + debrief and must survive a reload.
@@ -2175,35 +2302,10 @@ export function TicketSessionProvider({
         return next;
       });
 
-      const previous = attemptRef.current;
-      const ticketOverlays = { ...previous.ticketOverlays };
-      delete ticketOverlays[ticketId];
-      const grades = { ...previous.grades };
-      delete grades[ticketId];
-      // The converted scenarios record repair / verification / note progress on
-      // the remote-desktop overlay. Clear only THIS ticket's scenario progress
-      // so attempt 2 cannot inherit attempt 1's "already fixed" state. Shared
-      // world state (directory, chat, assets, shipping) is left alone.
-      let remoteDesktopOverlays = previous.remoteDesktopOverlays;
-      const scenario = getRemoteDesktopScenarioByTicket(ticketId);
-      const overlay = scenario
-        ? remoteDesktopOverlays[scenario.assetTag]
-        : undefined;
-      if (scenario && overlay) {
-        const scenarioProgress = { ...overlay.scenarioProgress };
-        delete scenarioProgress[scenario.id];
-        remoteDesktopOverlays = {
-          ...remoteDesktopOverlays,
-          [scenario.assetTag]: { ...overlay, scenarioProgress },
-        };
-      }
-
-      const nextAttempt = {
-        ...previous,
-        grades,
-        remoteDesktopOverlays,
-        ticketOverlays,
-      };
+      const nextAttempt = resetTicketStateForRetry(
+        attemptRef.current,
+        ticketId,
+      );
       attemptRef.current = nextAttempt;
       setAttempt(nextAttempt);
       return true;

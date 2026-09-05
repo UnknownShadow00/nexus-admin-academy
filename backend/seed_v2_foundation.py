@@ -62,11 +62,41 @@ def validate_loaded_content(db, summary: dict) -> list[str]:
     every future authoring step un-loadable.
     """
     from app.models.certification import CertificationModule, LessonV2Meta, ModuleAssessment
+    from app.models.service_desk import ServiceDeskScenarioVersion
 
     problems: list[str] = []
     references = summary.get("references") or {}
     if not references.get("content_engine_assessments"):
         problems.append("no content-backed module assessments were loaded")
+
+    if "service_desk_assessments" in references:
+        service_desk_rows = db.query(ModuleAssessment).filter_by(
+            assessment_role="service_desk", active=True
+        ).all()
+        unresolved_service_desk = sorted(
+            row.assessment_key
+            for row in service_desk_rows
+            if row.service_desk_scenario_id is None
+        )
+        unpublished_service_desk = sorted(
+            row.assessment_key
+            for row in service_desk_rows
+            if row.service_desk_scenario_id is not None
+            and db.query(ServiceDeskScenarioVersion.id).filter_by(
+                scenario_id=row.service_desk_scenario_id,
+                status="published",
+            ).first() is None
+        )
+        if unresolved_service_desk:
+            problems.append(
+                "Service Desk assessments have unresolved scenarios: "
+                + ", ".join(unresolved_service_desk)
+            )
+        if unpublished_service_desk:
+            problems.append(
+                "Service Desk assessments have no published scenario version: "
+                + ", ".join(unpublished_service_desk)
+            )
 
     for module in db.query(CertificationModule).filter_by(active=True).all():
         assessments = db.query(ModuleAssessment).filter_by(
@@ -96,6 +126,16 @@ def validate_loaded_content(db, summary: dict) -> list[str]:
 def run(db, *, dry_run: bool = False) -> dict:
     """Load, validate, then commit exactly once (or roll back)."""
     try:
+        # V2 uses the ten evidence-based INC25xx fixtures plus the existing
+        # INC2403 Windows-triage case. Publish their current immutable versions
+        # inside the same transaction as the module bindings so a fresh V2
+        # load cannot depend on an undocumented preceding seed.py run.
+        from app.services.service_desk_realism import fixture_catalog
+        from seed import seed_service_desk_scenarios
+
+        seed_service_desk_scenarios(
+            db, ticket_ids=set(fixture_catalog()) | {"INC2403"}
+        )
         summary = load_module(db, commit=False)
         examcompass = backfill_examcompass_permission(db, commit=False)
 

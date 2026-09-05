@@ -23,6 +23,7 @@ from app.services.auth_service import (
     decode_token,
     get_current_student,
 )
+from app.services.service_desk_contract import require_service_desk_contract
 
 router = APIRouter(prefix="/api/service-desk", tags=["service-desk-bridge"])
 
@@ -82,6 +83,7 @@ def record_service_desk_progress(
     body: ServiceDeskProgressEvent,
     current_student: Student = Depends(get_current_student),
     db: Session = Depends(get_db),
+    _: None = Depends(require_service_desk_contract),
 ) -> Response:
     """Compatibility no-op for pre-authoritative simulator clients.
 

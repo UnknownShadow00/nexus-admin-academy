@@ -1219,7 +1219,7 @@ def _current_service_desk_ticket_fixture(ticket):
     return ticket
 
 
-def seed_service_desk_scenarios(db):
+def seed_service_desk_scenarios(db, *, ticket_ids: set[str] | None = None):
     """Seed current Service Desk definitions as immutable published versions.
 
     Existing published versions are never edited.  When the curated content or
@@ -1229,6 +1229,8 @@ def seed_service_desk_scenarios(db):
     scenarios = {}
     for raw_ticket in SERVICE_DESK_TICKET_FIXTURES:
         ticket = _current_service_desk_ticket_fixture(raw_ticket)
+        if ticket_ids is not None and ticket["id"] not in ticket_ids:
+            continue
         stable_key = ticket.get("stableKey", ticket["id"].lower())
         scenario = db.query(ServiceDeskScenario).filter_by(stable_key=stable_key).first()
         if scenario is None:
@@ -1245,6 +1247,10 @@ def seed_service_desk_scenarios(db):
             db.add(scenario)
             db.flush()
         else:
+            # Curated source scenarios are authoritative. A prior operational
+            # disable must not survive a successful foundation reload while a
+            # current valid version is published and assigned by curriculum.
+            scenario.status = "active"
             scenario.title = ticket["title"]
             scenario.description = f'{ticket["description"]["issue"]} {ticket["description"]["businessImpact"]}'
             scenario.category = ticket["category"]
@@ -1271,22 +1277,36 @@ def seed_service_desk_scenarios(db):
             scenario_id=scenario.id, definition_hash=definition_hash
         ).first()
         if version is None:
-            next_version = (db.query(ServiceDeskScenarioVersion.version_number)
-                            .filter_by(scenario_id=scenario.id)
-                            .order_by(ServiceDeskScenarioVersion.version_number.desc())
-                            .first())
-            db.add(
-                ServiceDeskScenarioVersion(
-                    scenario_id=scenario.id,
-                    version_number=(next_version[0] if next_version else 0) + 1,
-                    definition_json=definition,
-                    definition_hash=definition_hash,
-                    validation_status="valid",
-                    status="published",
-                    published_at=datetime.now(timezone.utc),
-                    published_by="seed",
-                )
+            next_version = (
+                db.query(ServiceDeskScenarioVersion.version_number)
+                .filter_by(scenario_id=scenario.id)
+                .order_by(ServiceDeskScenarioVersion.version_number.desc())
+                .first()
             )
+            version = ServiceDeskScenarioVersion(
+                scenario_id=scenario.id,
+                version_number=(next_version[0] if next_version else 0) + 1,
+                definition_json=definition,
+                definition_hash=definition_hash,
+                validation_status="valid",
+                status="published",
+                published_at=datetime.now(timezone.utc),
+                published_by="seed",
+            )
+            db.add(version)
+            db.flush()
+        # Exactly one definition is current. Historical attempts retain their
+        # pinned version row, but new assignments can never resolve to a stale
+        # converted/wizard definition merely because it is also published.
+        db.query(ServiceDeskScenarioVersion).filter(
+            ServiceDeskScenarioVersion.scenario_id == scenario.id,
+            ServiceDeskScenarioVersion.id != version.id,
+            ServiceDeskScenarioVersion.status == "published",
+        ).update({"status": "disabled"}, synchronize_session=False)
+        version.status = "published"
+        version.validation_status = "valid"
+        version.published_at = version.published_at or datetime.now(timezone.utc)
+        version.published_by = version.published_by or "seed"
     db.flush()
     return scenarios
 
