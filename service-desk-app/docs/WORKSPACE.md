@@ -268,6 +268,11 @@ surface is **not finished** - see the deferred backlog below.
 
 ## 9. Deferred realism backlog
 
+Update: [the first realism sprint](SCENARIO-REALISM.md) replaces the normal
+INC2501, INC2504, INC2505 and INC2509 wizard path with fault-bearing fixtures
+and trusted state-derived operations. The catalog preserves historical grading;
+the remaining six conversions and further simulation mechanics are listed there.
+
 Intentionally **not** in this sprint. Do not silently expand scope to cover
 these:
 

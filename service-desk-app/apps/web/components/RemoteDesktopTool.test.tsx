@@ -10,6 +10,13 @@ import {
 import type { RemoteDesktopWorkstationRecord } from './TicketSessionProvider';
 
 describe('Remote Desktop workspace integration', () => {
+  it.each(['INC2501', 'INC2504', 'INC2505', 'INC2509'])('withholds %s optimistic completion answers until a full server debrief', (ticketId) => {
+    const scenario = REMOTE_DESKTOP_SCENARIOS.find((candidate) => candidate.ticketId === ticketId)!;
+    const markup = renderToStaticMarkup(<CompletionSummary scenario={scenario} progress={undefined} serverGrade={undefined} workstation={{ scenarioSteps: {} } as RemoteDesktopWorkstationRecord} />);
+    expect(markup).not.toContain(scenario.completion.rootCause);
+    expect(markup).not.toContain(scenario.completion.whatFixed);
+    expect(markup).toContain('being confirmed');
+  });
   it('does not silently default to another ticket when context is missing', () => {
     expect(ticketFromSearch('')).toBeNull();
     expect(ticketFromSearch('?ticket=INC2405')).toBe('INC2405');
