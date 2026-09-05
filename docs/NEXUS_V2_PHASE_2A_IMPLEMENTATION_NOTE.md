@@ -10,6 +10,14 @@ Module: `module.aplus.core1.ip_configuration` —
 Everything here is development/testing only. Production remains at schema
 `0064` with empty V2 tables. No seed, no deploy, no student migration.
 
+> **Editorial resolution (2026-09-05):** The original objective mapping and
+> draft-bank status recorded below are historical. The completed manual review
+> corrected the module to official 220-1201 objectives 2.4, 2.6, and 5.5,
+> repaired all 40 question rows, published the five reviewed lessons, added
+> randomized lesson/topic blueprints, and approved the exact bank bytes through
+> the hash-bound manifest. See `docs/APLUS_IP_CONFIGURATION_EDITORIAL_REVIEW.md`
+> for the current question-by-question record and coverage distribution.
+
 ---
 
 ## 1. What Phase 2A added
