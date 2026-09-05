@@ -90,7 +90,10 @@ def auth_headers(student):
         "email": student.email or "",
         "is_mentor": student.is_mentor,
     })
-    return {"Authorization": f"Bearer {token}"}
+    return {
+        "Authorization": f"Bearer {token}",
+        "X-Nexus-Service-Desk-Contract": "2.0",
+    }
 
 
 def enroll_v2(monkeypatch, *students, master=True):

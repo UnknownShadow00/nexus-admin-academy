@@ -102,7 +102,14 @@ async function completeWeekZero(page) {
 // does not, since it is not executed by the page's own JS engine. Any direct
 // POST made via page.request in this spec must set it explicitly.
 function withOrigin(extra) {
-  return { ...extra, headers: { ...extra?.headers, origin: baseUrl } };
+  return {
+    ...extra,
+    headers: {
+      ...extra?.headers,
+      origin: baseUrl,
+      "X-Nexus-Service-Desk-Contract": "2.0",
+    },
+  };
 }
 
 async function getMyAssignment(page, stableKey) {

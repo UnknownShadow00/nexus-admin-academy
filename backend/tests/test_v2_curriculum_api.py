@@ -35,7 +35,7 @@ def test_entry_and_module_are_composed_from_loaded_data(db, monkeypatch):
     entry = client.get("/api/v2/curriculum", headers=auth_headers(student))
     assert entry.status_code == 200
     current = entry.json()["data"]["current"]
-    assert current["module"]["key"] == "module.aplus.core1.hardware_support"
+    assert current["module"]["key"] == "module.aplus.core1.ip_configuration"
     assert MODULE in {item["module"]["key"] for item in entry.json()["data"]["modules"]}
     module = client.get(f"/api/v2/curriculum/modules/{MODULE}", headers=auth_headers(student)).json()["data"]
     assert module["lessons"][0]["title"]
@@ -124,7 +124,10 @@ def test_service_desk_launch_creates_only_a_validated_existing_system_assignment
     )
     assert response.status_code == 200
     assert response.json()["data"]["launch_url"].startswith("/service-desk/tickets/")
-    assert response.json()["data"]["launch_url"].endswith(f"?returnTo=/learning-v2/modules/{MODULE}")
+    launch_url = response.json()["data"]["launch_url"]
+    assert f"returnTo=/learning-v2/modules/{MODULE}" in launch_url
+    assert f"v2ModuleKey={MODULE}" in launch_url
+    assert "v2AssessmentKey=" in launch_url
     assert response.json()["data"]["experience_mode"] == "guided"
     assignment = db.query(ServiceDeskAssignment).filter_by(student_id=student.id).one()
     assert assignment.mode == "learning"

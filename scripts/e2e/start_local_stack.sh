@@ -76,6 +76,40 @@ export SEED_PASSWORD_HUDAYFA="$(rand)"
 echo "== Seeding throwaway database at $DATABASE_URL =="
 bash "$REPO_ROOT/scripts/e2e/seed_fresh_db.sh"
 
+echo "== Loading V2 foundation into throwaway database =="
+(
+    cd "$BACKEND_DIR"
+    ./.venv/bin/python seed_v2_foundation.py
+)
+
+# The backend reads the pilot allowlist at request time, but its process must
+# receive a usable initial configuration. Create the primary disposable V2
+# learner before startup and enroll only that generated account.
+PILOT_STUDENT_ID="$(cd "$BACKEND_DIR" && ./.venv/bin/python - "$STUDENT_USERNAME_GEN" "$STUDENT_PASSWORD_GEN" <<'PY'
+import sys
+from app.database import SessionLocal
+from app.models.student import Student
+from app.services.auth_service import hash_password
+
+username, password = sys.argv[1:]
+db = SessionLocal()
+student = Student(
+    name="Browser Training Student",
+    email=f"{username}@example.invalid",
+    username=username,
+    password_hash=hash_password(password),
+    total_xp=0,
+)
+db.add(student)
+db.commit()
+db.refresh(student)
+print(student.id)
+db.close()
+PY
+)"
+export V2_CURRICULUM_ENABLED=true
+export V2_PILOT_STUDENT_IDS="$PILOT_STUDENT_ID"
+
 if [[ -x "$BACKEND_DIR/.venv/bin/uvicorn" ]]; then
     UVICORN="$BACKEND_DIR/.venv/bin/uvicorn"
 else
@@ -131,7 +165,8 @@ fi
     cd "$FRONTEND_DIR"
     E2E_API_PROXY_URL="http://$BACKEND_HOST:$BACKEND_PORT" \
     E2E_SERVICE_DESK_URL="http://$BACKEND_HOST:$SERVICE_DESK_PORT" \
-    VITE_API_URL="http://$BACKEND_HOST:$BACKEND_PORT" setsid npm run dev -- \
+    VITE_API_URL="http://$BACKEND_HOST:$BACKEND_PORT" \
+    VITE_V2_CURRICULUM_ENABLED=true setsid npm run dev -- \
         --port "$FRONTEND_PORT" --host "$FRONTEND_HOST" \
         > "$SCRATCH_DIR/vite.log" 2>&1 < /dev/null &
     echo $! > "$SCRATCH_DIR/frontend.pid"
@@ -165,7 +200,6 @@ create_student() {
         > /dev/null
 }
 
-create_student "$STUDENT_USERNAME_GEN" "$STUDENT_PASSWORD_GEN" "Browser Training Student"
 create_student "$QUALIFIED_USERNAME_GEN" "$QUALIFIED_PASSWORD_GEN" "Qualified Browser Student"
 create_student "$STUDENT_C_USERNAME_GEN" "$STUDENT_C_PASSWORD_GEN" "Browser Training Student C"
 create_student "$STUDENT_D_USERNAME_GEN" "$STUDENT_D_PASSWORD_GEN" "Browser Training Student D"

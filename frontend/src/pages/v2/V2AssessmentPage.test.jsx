@@ -20,6 +20,20 @@ describe("V2AssessmentPage", () => {
     expect(api.submitV2Assessment).toHaveBeenCalledWith("module.dynamic", "qc.dynamic", 99, { 42: "ipconfig" }, { suppressToast: true });
   });
 
+  it("renders free-response assessment questions as writable text", async () => {
+    const base = (await api.getV2Assessment()).data;
+    api.getV2Assessment.mockResolvedValue({ data: {
+      ...base,
+      questions: [{ id: 44, type: "free_response", question_text: "Explain the DHCP failure.", options: [] }],
+    } });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/assessments/qc.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/assessments/:assessmentKey" element={<V2AssessmentPage />} /></Routes></MemoryRouter>);
+
+    const answer = await screen.findByLabelText("Your answer");
+    expect(answer.tagName).toBe("TEXTAREA");
+    await userEvent.type(answer, "APIPA indicates that DHCP did not answer; renew and verify the lease.");
+    expect(answer).toHaveValue("APIPA indicates that DHCP did not answer; renew and verify the lease.");
+  });
+
   it("scopes drafts by authenticated student, assessment, and server attempt", async () => {
     localStorage.setItem("v2_assessment_7_qc.dynamic_98", JSON.stringify({ 42: "stale" }));
     localStorage.setItem("v2_assessment_8_qc.dynamic_99", JSON.stringify({ 42: "other student" }));

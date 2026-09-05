@@ -6,11 +6,13 @@ classifier. Shell formatting is not worth pinning.
 """
 
 import importlib.util
+import io
 import json
 import os
 import subprocess
 import sys
 import textwrap
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -166,6 +168,14 @@ def test_warnings_alone_still_pass():
     assert "V2 PILOT PREFLIGHT PASSED" in report.render()
 
 
+def test_production_candidate_requires_v1_visibility_baseline(db):
+    report = preflight.Report()
+    preflight.check_v1_safety(report, db, None, require_baseline=True)
+    assert report.failed is True
+    assert report.checks[-1]["status"] == preflight.FAIL
+    assert "--compare-baseline" in report.checks[-1]["detail"]
+
+
 def test_report_counts_every_status():
     report = preflight.Report()
     for status in (
@@ -246,6 +256,53 @@ def test_systemd_analyze_diagnostics_are_not_hidden(monkeypatch):
     assert "warning" in checks.rows[-1]["detail"]
 
 
+def test_live_worker_unit_and_last_success_are_verified(monkeypatch):
+    expected = worker.parse_unit(
+        os.path.join(worker.SYSTEMD_DIR, worker.SERVICE_UNIT)
+    )
+    with open(
+        os.path.join(worker.SYSTEMD_DIR, worker.SERVICE_UNIT), encoding="utf-8"
+    ) as handle:
+        unit_text = handle.read()
+    monkeypatch.setattr(worker.shutil, "which", lambda name: f"/usr/bin/{name}")
+
+    def fake_run(command, **kwargs):
+        if command[1] == "cat":
+            return subprocess.CompletedProcess(command, 0, unit_text, "")
+        assert command[1] == "show"
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            "Result=success\nExecMainStatus=0\nExecMainStartTimestamp=Sat 2026-09-05 10:00:00 UTC\n",
+            "",
+        )
+
+    monkeypatch.setattr(worker.subprocess, "run", fake_run)
+    checks = worker.Checks()
+    worker._check_installed_worker(checks, expected)
+    assert [row["status"] for row in checks.rows] == [worker.PASS, worker.PASS]
+
+
+def test_stale_or_never_run_live_worker_warns(monkeypatch):
+    expected = worker.parse_unit(
+        os.path.join(worker.SYSTEMD_DIR, worker.SERVICE_UNIT)
+    )
+    stale = "[Service]\nUser=nexus\nExecStart=/bin/false\n"
+    monkeypatch.setattr(worker.shutil, "which", lambda name: f"/usr/bin/{name}")
+
+    def fake_run(command, **kwargs):
+        if command[1] == "cat":
+            return subprocess.CompletedProcess(command, 0, stale, "")
+        return subprocess.CompletedProcess(
+            command, 0, "Result=success\nExecMainStatus=0\nExecMainStartTimestamp=\n", ""
+        )
+
+    monkeypatch.setattr(worker.subprocess, "run", fake_run)
+    checks = worker.Checks()
+    worker._check_installed_worker(checks, expected)
+    assert [row["status"] for row in checks.rows] == [worker.WARN, worker.WARN]
+
+
 def test_pilot_status_is_read_only_and_counts_unique_valid_students(tmp_path):
     env_file = tmp_path / "pilot.env"
     env_file.write_text(
@@ -271,6 +328,42 @@ def test_pilot_status_is_read_only_and_counts_unique_valid_students(tmp_path):
     rows = {row["name"]: row for row in payload["rows"]}
     assert rows["database"]["status"] == "SKIP"
     assert rows["pilot students enrolled"]["detail"] == "2"
+
+
+def test_pilot_status_warns_for_backend_staging_and_service_desk_wildcards(tmp_path):
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_ss = fake_bin / "ss"
+    fake_ss.write_text(
+        "#!/bin/sh\n"
+        "printf '%s\\n' "
+        "'LISTEN 0 128 0.0.0.0:8000' "
+        "'LISTEN 0 128 [::]:18000' "
+        "'LISTEN 0 128 *:3000'\n",
+        encoding="utf-8",
+    )
+    fake_ss.chmod(0o755)
+    missing_db = tmp_path / "missing.db"
+    result = subprocess.run(
+        [os.path.join(SCRIPTS, "pilot_status.sh"), "--db", str(missing_db), "--json"],
+        env={
+            **os.environ,
+            "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            "NEXUS_ENV_FILE": str(tmp_path / "missing.env"),
+            "NEXUS_BACKEND_URL": "http://127.0.0.1:1",
+            "NEXUS_FRONTEND_URL": "http://127.0.0.1:1",
+            "NEXUS_SERVICE_DESK_URL": "http://127.0.0.1:1",
+        },
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    )
+    rows = {row["name"]: row for row in json.loads(result.stdout)["rows"]}
+    assert rows["backend network exposure"]["status"] == "WARN"
+    assert rows["staging/bypass exposure"]["status"] == "WARN"
+    assert "18000" in rows["staging/bypass exposure"]["detail"]
+    assert "3000" in rows["staging/bypass exposure"]["detail"]
 
 
 def test_cutover_snapshot_defaults_to_a_non_retained_dry_run(tmp_path):
@@ -337,3 +430,84 @@ def test_preflight_reports_all_ten_current_scenarios_as_evidence_based(db):
     realism = next(row for row in report.checks if row["name"] == "scenario realism")
     assert realism["status"] == preflight.PASS
     assert "10/10" in realism["detail"]
+
+
+def test_preflight_fails_when_an_obsolete_scenario_version_is_also_published(db):
+    from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
+    from seed import seed_service_desk_scenarios
+
+    seed_service_desk_scenarios(db)
+    scenario = db.query(ServiceDeskScenario).filter_by(stable_key="inc2501").one()
+    current = db.query(ServiceDeskScenarioVersion).filter_by(
+        scenario_id=scenario.id, status="published"
+    ).one()
+    db.add(ServiceDeskScenarioVersion(
+        scenario_id=scenario.id,
+        version_number=current.version_number + 1,
+        definition_json={"slug": "inc2501", "simulation_fixture": "retired-wizard"},
+        definition_hash="f" * 64,
+        validation_status="valid",
+        status="published",
+    ))
+    db.commit()
+    report = preflight.Report()
+
+    preflight.check_service_desk(report, db)
+
+    check = next(
+        row for row in report.checks
+        if row["name"] == "curriculum scenarios resolve only to the current realistic version"
+    )
+    assert check["status"] == preflight.FAIL
+    assert "INC2501" in check["detail"]
+
+
+def test_preflight_fails_when_a_required_realistic_scenario_is_disabled(db):
+    from app.models.service_desk import ServiceDeskScenario
+    from seed import seed_service_desk_scenarios
+
+    seed_service_desk_scenarios(db)
+    scenario = db.query(ServiceDeskScenario).filter_by(stable_key="inc2501").one()
+    scenario.status = "disabled"
+    db.commit()
+    report = preflight.Report()
+
+    preflight.check_service_desk(report, db)
+
+    realism = next(row for row in report.checks if row["name"] == "scenario realism")
+    assert realism["status"] == preflight.FAIL
+    assert "INC2501" in realism["detail"]
+
+
+def test_preflight_service_desk_contract_guard_passes_and_fails_closed(monkeypatch):
+    report = preflight.Report()
+    preflight.check_service_desk_contract(report)
+    assert report.checks[-1]["status"] == preflight.PASS
+
+    monkeypatch.setattr("builtins.open", lambda *args, **kwargs: io.StringIO(
+        "export const EXPECTED_NEXUS_SERVICE_DESK_CONTRACT = '1.0' as const;"
+    ))
+    mismatch = preflight.Report()
+    preflight.check_service_desk_contract(mismatch)
+    assert mismatch.checks[-1]["status"] == preflight.FAIL
+    assert mismatch.checks[-1]["detail"] == "version mismatch"
+
+
+def test_preflight_surfaces_grading_worker_operational_warning():
+    report = preflight.Report()
+    checks = SimpleNamespace(rows=[{
+        "name": "installed timer is enabled",
+        "status": worker.WARN,
+        "detail": "not installed",
+    }])
+
+    preflight.check_grading_worker_artifacts(report, checks=checks)
+
+    assert report.checks[-1]["status"] == preflight.WARN
+    assert "installed timer is enabled" in report.checks[-1]["detail"]
+
+    candidate = preflight.Report()
+    preflight.check_grading_worker_artifacts(
+        candidate, checks=checks, require_installed=True
+    )
+    assert candidate.checks[-1]["status"] == preflight.FAIL

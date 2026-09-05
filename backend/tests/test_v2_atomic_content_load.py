@@ -21,7 +21,7 @@ from app.models.certification import (
 )
 from app.models.lab import LabTemplate
 from app.models.quiz import Question, Quiz
-from app.models.service_desk import ServiceDeskScenario
+from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.services import v2_content_loader
 from app.services.v2_content_loader import ContentValidationError, load_module
 
@@ -136,6 +136,26 @@ def test_validation_tolerates_a_module_still_being_authored(db):
     })
     assert problems == []
     db.rollback()
+
+
+def test_validation_rejects_an_unpublished_required_service_desk_scenario(db):
+    summary = seed_v2_foundation.run(db)
+    assessment = db.query(ModuleAssessment).filter_by(
+        assessment_key="assess.aplus.ipcfg.service_desk"
+    ).one()
+    db.query(ServiceDeskScenarioVersion).filter_by(
+        scenario_id=assessment.service_desk_scenario_id,
+        status="published",
+    ).update({"status": "disabled"})
+    db.flush()
+
+    problems = seed_v2_foundation.validate_loaded_content(db, summary)
+
+    assert any(
+        "assess.aplus.ipcfg.service_desk" in problem
+        and "no published scenario version" in problem
+        for problem in problems
+    )
 
 
 # --------------------------------------------------------------------------- #

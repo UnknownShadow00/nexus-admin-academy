@@ -132,6 +132,26 @@ probe "backend health" "$BACKEND_URL/health"
 probe "frontend" "$FRONTEND_URL/"
 probe "service desk health" "$SERVICE_DESK_URL/service-desk/api/health"
 
+# Deployment expectation: only nginx is public. These are diagnostics only;
+# the status command never changes a listener or firewall rule.
+if command -v ss >/dev/null 2>&1; then
+    LISTENERS="$(ss -ltnH 2>/dev/null || true)"
+    if printf '%s\n' "$LISTENERS" | awk '$4 ~ /^(0\.0\.0\.0|\*|\[::\]|::):8000$/ {found=1} END {exit !found}'; then
+        row "backend network exposure" "WARN" "port 8000 is wildcard-bound; production should use nginx only"
+    else
+        row "backend network exposure" "OK" "not listening on 0.0.0.0:8000"
+    fi
+    EXPOSED_STAGING="$(printf '%s\n' "$LISTENERS" | awk '$4 ~ /^(0\.0\.0\.0|\*|\[::\]|::):(3000|13000|18000|18080|18081)$/ {print $4}' | paste -sd, -)"
+    if [ -n "$EXPOSED_STAGING" ]; then
+        row "staging/bypass exposure" "WARN" "$EXPOSED_STAGING externally bound; production should expose nginx only"
+    else
+        row "staging/bypass exposure" "OK" "no known staging or Service Desk bypass port externally bound"
+    fi
+else
+    row "backend network exposure" "SKIP" "ss unavailable"
+    row "staging/bypass exposure" "SKIP" "ss unavailable"
+fi
+
 if ! command -v docker >/dev/null 2>&1; then
     row "Docker" "SKIP" "docker unavailable"
 elif ! docker info >/dev/null 2>&1; then

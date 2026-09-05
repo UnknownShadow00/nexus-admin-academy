@@ -9,18 +9,25 @@ from app.models.certification import (
     CertificationObjective,
     InterviewPrompt,
     LearningResource,
+    ModuleAssessment,
     QuestionObjective,
     StudentResourceActivity,
 )
 from app.models.grading import PendingGrade
 from app.models.service_desk import (
+    ServiceDeskAssignment,
     ServiceDeskAttempt,
     ServiceDeskAttemptGrade,
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
 )
 from app.models.training import TrainingWeek
-from app.models.v2_progress import V2ExplainSubmission, V2ModuleActivity
+from app.models.v2_progress import (
+    V2AssessmentAttempt,
+    V2AssessmentAttemptQuestion,
+    V2ExplainSubmission,
+    V2ModuleActivity,
+)
 from app.routers.admin_v2_mentor import router
 from app.services.grading_queue import apply_mentor_override, submit_for_grading
 from app.services.v2_content_loader import load_module
@@ -71,8 +78,8 @@ def _miss(question, answer="A"):
 def test_report_counts_repeated_misses_and_keeps_objectives_isolated(db):
     _loaded(db)
     student = make_student(db, "mentor_detail")
-    dns = _question(db, "What does DNS do?")
-    apipa = _question(db, "user's PC has the address 169.254")
+    dns = _question(db, "What does DNS provide to a client?")
+    apipa = _question(db, "Which statement accurately describes the configuration APIPA supplies?")
     _quiz_attempt(
         db,
         student.id,
@@ -98,7 +105,7 @@ def test_report_counts_repeated_misses_and_keeps_objectives_isolated(db):
 def test_multi_objective_miss_counts_question_once_and_each_objective(db):
     _loaded(db)
     student = make_student(db, "mentor_multi_objective")
-    question = _question(db, "What does DNS do?")
+    question = _question(db, "What does DNS provide to a client?")
     meta = question.v2_meta
     second = db.query(CertificationObjective).filter_by(
         certification_version_id=meta.certification_version_id,
@@ -133,8 +140,8 @@ def test_cohort_aggregation_is_student_based_deterministic_and_external_scores_d
     one = make_student(db, "cohort_one")
     two = make_student(db, "cohort_two")
     three = make_student(db, "cohort_three")
-    dns = _question(db, "What does DNS do?")
-    apipa = _question(db, "user's PC has the address 169.254")
+    dns = _question(db, "What does DNS provide to a client?")
+    apipa = _question(db, "Which statement accurately describes the configuration APIPA supplies?")
     _quiz_attempt(db, one.id, [{"attempt_number": 1, "results": [_miss(dns), _miss(apipa)]}])
     _quiz_attempt(db, two.id, [{"attempt_number": 1, "results": [_miss(apipa)]}, {"attempt_number": 2, "results": [_miss(apipa)]}])
 
@@ -209,6 +216,57 @@ def test_deterministically_graded_explain_submission_is_still_visible(db):
     assert report["explain_responses"][0]["resolved"]["grade_source"] == "deterministic"
 
 
+def test_pending_assessment_and_failed_quiz_have_actionable_blockers(db):
+    _loaded(db)
+    student = make_student(db, "assessment_blocker")
+    assessment = db.query(ModuleAssessment).filter_by(
+        assessment_key="assess.aplus.ipcfg.module_quiz"
+    ).one()
+    question = _question(db, "What does DNS provide to a client?")
+    attempt = V2AssessmentAttempt(
+        student_id=student.id,
+        assessment_id=assessment.id,
+        module_key=MODULE_KEY,
+        assessment_key=assessment.assessment_key,
+        attempt_number=1,
+        status="needs_review",
+        grading_state="pending",
+    )
+    db.add(attempt)
+    db.flush()
+    job = PendingGrade(
+        student_id=student.id,
+        source_type="module_assessment_free_response",
+        source_key=assessment.assessment_key,
+        submission_ref="v2-assessment-response:mentor-test",
+        submitted_answer="Needs review",
+        status="needs_review",
+        max_retries=5,
+        resolved_score=0.8,
+        resolved_passed=True,
+        resolved_grade_source="ai",
+    )
+    db.add(job)
+    db.flush()
+    db.add(V2AssessmentAttemptQuestion(
+        attempt_id=attempt.id,
+        question_id=question.id,
+        position=0,
+        question_snapshot={"question_text": question.question_text},
+        submitted_answer="Needs review",
+        grading_status="needs_review",
+        pending_grade_id=job.id,
+    ))
+    _quiz_attempt(db, student.id, [{"attempt_number": 1, "results": []}])
+
+    report = module_report(db, student.id, MODULE_KEY)
+    blockers = {row["code"]: row for row in report["blockers"]}
+    assert blockers["assessment_mentor_review"]["recovery_url"].endswith(str(job.id))
+    assert blockers["module_quiz_retry_available"]["label"] == (
+        "Module Quiz failed; retry available"
+    )
+
+
 def test_focus_and_mentor_routes_are_flagged_and_admin_only(db, monkeypatch):
     _loaded(db)
     student = make_student(db, "route_student")
@@ -257,6 +315,13 @@ def test_service_desk_authoritative_breakdown_is_composed(db):
     )
     db.add(version)
     db.flush()
+    db.add(ServiceDeskAssignment(
+        student_id=student.id,
+        scenario_id=scenario.id,
+        mode="simulation",
+        maximum_attempts=1,
+        assigned_by="v2-curriculum:assess.aplus.ipcfg.service_desk",
+    ))
     attempt = ServiceDeskAttempt(
         student_id=student.id, scenario_version_id=version.id, mode="simulation",
         experience_mode="assessment", status="failed", current_state={},
@@ -283,3 +348,5 @@ def test_service_desk_authoritative_breakdown_is_composed(db):
     assert breakdown["investigation"]["met"] is True
     assert breakdown["verification"]["met"] is False
     assert report["service_desk"]["review_url"].endswith(str(attempt.id))
+    assert report["blockers"][0]["code"] == "service_desk_attempts_exhausted"
+    assert report["blockers"][0]["label"] == "Service Desk attempts exhausted"

@@ -1,4 +1,4 @@
-import { createAttempt } from '@service-desk/simulation-engine';
+import { applyAction, createAttempt } from '@service-desk/simulation-engine';
 import {
   AssetStatus,
   TicketStatus,
@@ -11,8 +11,35 @@ import {
   getNexusActionSyncDetails,
   normalizeTicketKey,
   resolutionNoteAction,
+  resetTicketStateForRetry,
+  selectAssignmentsByTicket,
   ticketsForAssignments,
 } from './TicketSessionProvider';
+import type { NexusAssignment } from '../lib/nexus-service-desk-client';
+
+function assignmentForMode(
+  id: number,
+  mode: 'learning' | 'simulation',
+  guidedCompleted: boolean,
+): NexusAssignment {
+  return {
+    id,
+    is_required: true,
+    latest_published_version: {
+      definition_json: structuredClone(TICKET_FIXTURES[0]),
+      id: 10,
+      version_number: 2,
+    },
+    mode,
+    experience_mode: mode === 'learning' ? 'guided' : 'assessment',
+    guided_completed: guidedCompleted,
+    most_recent_attempt: null,
+    maximum_attempts: 3,
+    required_this_week: true,
+    scenario: { stable_key: TICKET_FIXTURES[0].id, title: TICKET_FIXTURES[0].title },
+    scenario_id: 1,
+  };
+}
 
 describe('resolution note routing', () => {
   it('uses the scenario workflow only when no server target is available', () => {
@@ -340,5 +367,55 @@ describe('Nexus evidence attribution', () => {
     ]);
 
     expect(tickets.map((ticket) => ticket.id)).toEqual(['INC2405']);
+  });
+});
+
+describe('assignment mode selection', () => {
+  it('selects guided learning before completion regardless of row order', () => {
+    const learning = assignmentForMode(2, 'learning', false);
+    const simulation = assignmentForMode(1, 'simulation', false);
+
+    expect(selectAssignmentsByTicket([learning, simulation])).toEqual([learning]);
+    expect(selectAssignmentsByTicket([simulation, learning])).toEqual([learning]);
+  });
+
+  it('selects assessment/practice after guided completion regardless of row order', () => {
+    const learning = assignmentForMode(2, 'learning', true);
+    const simulation = assignmentForMode(1, 'simulation', true);
+
+    expect(selectAssignmentsByTicket([learning, simulation])).toEqual([simulation]);
+    expect(selectAssignmentsByTicket([simulation, learning])).toEqual([simulation]);
+  });
+});
+
+describe('retry state isolation', () => {
+  it('clears ticket-owned directory and device state without clobbering another ticket', () => {
+    let attempt = createAttempt({ id: 'retry-state' });
+    attempt = applyAction(attempt, 'student', {
+      type: 'directory.inspect_account',
+      payload: { directoryUserId: 'directory-user-taylor-morgan' },
+    }).attempt;
+    attempt = applyAction(attempt, 'student', {
+      type: 'directory.inspect_account',
+      payload: { directoryUserId: 'directory-user-jordan-lee' },
+    }).attempt;
+    attempt = applyAction(attempt, 'student', {
+      type: 'device.inspect_record',
+      payload: { ticketId: 'INC3001', deviceId: 'device-nex-lt-2214' },
+    }).attempt;
+
+    const directoryReset = resetTicketStateForRetry(attempt, 'INC2511');
+    expect(
+      directoryReset.directoryOverlays['directory-user-taylor-morgan'],
+    ).toBeUndefined();
+    expect(
+      directoryReset.directoryOverlays['directory-user-jordan-lee'],
+    ).toBeDefined();
+
+    const deviceReset = resetTicketStateForRetry(directoryReset, 'INC3001');
+    expect(deviceReset.ticketOverlays.INC3001).toBeUndefined();
+    expect(
+      deviceReset.directoryOverlays['directory-user-jordan-lee'],
+    ).toBeDefined();
   });
 });

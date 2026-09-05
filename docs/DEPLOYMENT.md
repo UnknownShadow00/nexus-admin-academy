@@ -846,3 +846,15 @@ The Service Desk resolves its first-paint theme in this order: an explicit
 color-scheme preference, otherwise dark when browser preference detection is
 unavailable. This remains browser-local; no account-level theme setting or
 second Service Desk preference was added.
+# Network exposure expectation
+
+Production browser traffic should enter through nginx only. The backend on
+port 8000, Service Desk application port, and any staging frontend ports must
+remain loopback/container-network only unless an operator has explicitly
+documented another requirement. `scripts/pilot_status.sh` reports externally
+bound known ports as warnings; it never changes firewall or listener state.
+
+For the final production-copy/cutover check, run V2 preflight with
+`--production-candidate`. In that mode an uninstalled, disabled, inactive, or
+otherwise unverifiable grading timer is a failure instead of a development-host
+warning.

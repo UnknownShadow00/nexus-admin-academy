@@ -96,6 +96,7 @@ def test_entry_and_continue_are_generic_across_modules(db):
     entry = entry_view(db, student.id)
     keys = [row["module"]["key"] for row in entry["modules"]]
     assert keys == [
+        "module.aplus.core1.ip_configuration",
         "module.aplus.core1.hardware_support",
         "module.aplus.core1.mobile_device_support",
         "module.aplus.core1.network_services_troubleshooting",
@@ -110,7 +111,6 @@ def test_entry_and_continue_are_generic_across_modules(db):
         "module.aplus.core2.connected_endpoint_mobile_security",
         "module.aplus.core2.threat_malware_response",
     ]
-    assert "module.aplus.core1.ip_configuration" not in keys
     assert "module.aplus.core2.service_desk_workflow" not in keys
     assert entry["current"]["module"]["key"] == keys[0]
     for key in keys:
@@ -149,7 +149,7 @@ def test_objective_coverage_after_batch_is_transparent(db):
     assert {row["objective_code"] for row in core1["covered"]} == {
         "1.1", "1.2", "1.3", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6",
         "2.7", "2.8", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7",
-        "3.8", "4.1", "4.2", "5.1", "5.2", "5.3", "5.4", "5.5", "5.6", "5.7",
+        "3.8", "4.1", "4.2", "5.1", "5.2", "5.3", "5.4", "5.5", "5.6",
     }
     assert {row["objective_code"] for row in core2["covered"]} == {
         "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8",
@@ -157,7 +157,7 @@ def test_objective_coverage_after_batch_is_transparent(db):
         "2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7", "2.8",
         "2.10", "2.11", "3.2", "3.3", "3.4",
     }
-    assert {row["objective_code"] for row in core1["uncovered"]} == set()
+    assert {row["objective_code"] for row in core1["uncovered"]} == {"5.7"}
     assert {row["objective_code"] for row in core2["uncovered"]} == {
         "2.9", "4.3", "4.4", "4.5", "4.6", "4.8", "4.9", "4.10",
     }

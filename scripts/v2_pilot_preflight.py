@@ -394,26 +394,40 @@ def check_service_desk(report: Report, db) -> None:
         )
 
     expected_realism = {f"inc25{number:02d}" for number in range(1, 11)}
+    from app.services.service_desk_realism import fixture_catalog
+
+    current_fixtures = fixture_catalog()
     evidence_based: set[str] = set()
+    obsolete: list[str] = []
     for stable_key in sorted(expected_realism):
         scenario = (
             db.query(ServiceDeskScenario)
             .filter(func.lower(ServiceDeskScenario.stable_key) == stable_key)
             .one_or_none()
         )
-        version = (
+        published_versions = (
             db.query(ServiceDeskScenarioVersion)
             .filter_by(scenario_id=scenario.id, status="published")
             .order_by(ServiceDeskScenarioVersion.version_number.desc())
-            .first()
+            .all()
             if scenario
-            else None
+            else []
         )
+        version = published_versions[0] if published_versions else None
         definition = version.definition_json if version else {}
-        if definition.get("simulation_fixture") and str(
-            definition.get("objective_catalog_version", "")
-        ).startswith("realism-v"):
+        expected_fixture = current_fixtures.get(stable_key.upper())
+        if (
+            scenario is not None
+            and scenario.status == "active"
+            and len(published_versions) == 1
+            and definition.get("simulation_fixture") == expected_fixture
+            and str(
+                definition.get("objective_catalog_version", "")
+            ).startswith("realism-v")
+        ):
             evidence_based.add(stable_key)
+        elif version:
+            obsolete.append(stable_key.upper())
     missing = sorted(key.upper() for key in expected_realism - evidence_based)
     report.add(
         section,
@@ -424,6 +438,74 @@ def check_service_desk(report: Report, db) -> None:
             if len(evidence_based) == 10
             else f"{len(evidence_based)}/10 evidence-based; missing: {', '.join(missing)}"
         ),
+    )
+    report.add(
+        section,
+        "curriculum scenarios resolve only to the current realistic version",
+        PASS if not obsolete else FAIL,
+        "all current" if not obsolete else ", ".join(sorted(obsolete)),
+    )
+
+
+def check_service_desk_contract(report: Report) -> None:
+    """Compare the semantic contract declared by both deployable artifacts."""
+    from app.services.service_desk_contract import SERVICE_DESK_CONTRACT_VERSION
+
+    section = "Service Desk"
+    source = os.path.join(
+        os.path.dirname(BACKEND_DIR),
+        "service-desk-app", "apps", "web", "lib", "service-desk-contract.ts",
+    )
+    try:
+        with open(source, encoding="utf-8") as handle:
+            text = handle.read()
+    except OSError as exc:
+        report.add(section, "backend/web contract compatibility", FAIL, str(exc))
+        return
+    expected = f"EXPECTED_NEXUS_SERVICE_DESK_CONTRACT = '{SERVICE_DESK_CONTRACT_VERSION}'"
+    report.add(
+        section,
+        "backend/web contract compatibility",
+        PASS if expected in text else FAIL,
+        SERVICE_DESK_CONTRACT_VERSION if expected in text else "version mismatch",
+    )
+
+
+def check_grading_worker_artifacts(
+    report: Report, checks=None, *, require_installed: bool = False
+) -> None:
+    """Surface worker readiness in the main gate without installing anything."""
+    import importlib.util
+
+    path = os.path.join(os.path.dirname(BACKEND_DIR), "scripts", "check_grading_worker_install.py")
+    spec = importlib.util.spec_from_file_location("v2_worker_preflight", path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    checks = checks or module.run_checks()
+    failures = [row["name"] for row in checks.rows if row["status"] == module.FAIL]
+    warnings = [row["name"] for row in checks.rows if row["status"] == module.WARN]
+    skipped = [row["name"] for row in checks.rows if row["status"] == module.SKIP]
+    unresolved = warnings + skipped
+    status = (
+        FAIL
+        if failures or (require_installed and unresolved)
+        else WARN
+        if unresolved
+        else PASS
+    )
+    detail = (
+        ", ".join(failures)
+        if failures
+        else "operator action: " + ", ".join(unresolved)
+        if unresolved
+        else "validated"
+    )
+    report.add(
+        "Grading worker",
+        "worker deployment readiness",
+        status,
+        detail,
     )
 
 
@@ -751,7 +833,13 @@ def v1_baseline(db) -> dict:
     }
 
 
-def check_v1_safety(report: Report, db, baseline_path: str | None) -> None:
+def check_v1_safety(
+    report: Report,
+    db,
+    baseline_path: str | None,
+    *,
+    require_baseline: bool = False,
+) -> None:
     section = "V1 safety"
     current = v1_baseline(db)
     report.add(
@@ -762,7 +850,12 @@ def check_v1_safety(report: Report, db, baseline_path: str | None) -> None:
     )
     if not baseline_path:
         report.add(
-            section, "baseline comparison", SKIP, "pass --compare-baseline to compare"
+            section,
+            "baseline comparison",
+            FAIL if require_baseline else SKIP,
+            "production candidates require --compare-baseline"
+            if require_baseline
+            else "pass --compare-baseline to compare",
         )
         return
     try:
@@ -845,6 +938,11 @@ def main() -> int:
         metavar="PATH",
         help="compare V1 visibility against a baseline file",
     )
+    parser.add_argument(
+        "--production-candidate",
+        action="store_true",
+        help="fail when live grading-worker installation cannot be proven ready",
+    )
     args = parser.parse_args()
 
     db, url = build_session(args.database_url)
@@ -862,13 +960,22 @@ def main() -> int:
         check_assessments(report, db, curriculum["visible_modules"])
         check_editorial(report, db)
         check_service_desk(report, db)
+        check_service_desk_contract(report)
+        check_grading_worker_artifacts(
+            report, require_installed=args.production_candidate
+        )
         check_practicals(report, db)
         check_resources(
             report, db, check_links=args.check_links, timeout=args.link_timeout
         )
         check_stable_keys(report, db)
         check_orphans(report, db)
-        check_v1_safety(report, db, args.compare_baseline)
+        check_v1_safety(
+            report,
+            db,
+            args.compare_baseline,
+            require_baseline=args.production_candidate,
+        )
     finally:
         # Never leave a transaction open against a production database.
         db.rollback()

@@ -37,7 +37,7 @@ from app.services.v2_curriculum_service import (
 )
 from app.services.v2_mentor_service import cohort_progress
 from app.routers.service_desk import list_assignments
-from conftest import make_student
+from conftest import enroll_v2, make_student
 
 
 MODULES = {
@@ -78,7 +78,9 @@ def _rows(db, module_key):
 
 
 @pytest.mark.parametrize("module_key", MODULES)
-def test_modules11_12_load_all_reviewed_relationships_and_hints(db, module_key):
+def test_modules11_12_load_all_reviewed_relationships_and_hints(
+    db, monkeypatch, module_key
+):
     load_module(db, commit=True)
     expected = MODULES[module_key]
     module, lessons, assessments, quiz_assessment, questions = _rows(db, module_key)
@@ -114,12 +116,18 @@ def test_modules11_12_load_all_reviewed_relationships_and_hints(db, module_key):
     assert all(hint["text"].strip() for hint in hints)
 
     student = make_student(db, username=f"{expected['prefix'].lower()}_service_desk")
+    enroll_v2(monkeypatch, student)
     launch_service_desk(db, student.id, module_key, service_desk.assessment_key)
     assignment = db.query(ServiceDeskAssignment).filter_by(
         student_id=student.id,
         scenario_id=scenario.id,
     ).one()
     assert assignment.mode == "learning"
+    assignment.maximum_attempts = 4
+    db.commit()
+    launch_service_desk(db, student.id, module_key, service_desk.assessment_key)
+    db.refresh(assignment)
+    assert assignment.maximum_attempts == 4
     listed = next(
         row
         for row in list_assignments(current_student=student, db=db)

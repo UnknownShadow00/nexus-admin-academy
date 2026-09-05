@@ -9,6 +9,7 @@ is correct.
 import json
 
 from app.routers import service_desk
+from app.routers import admin_service_desk
 from conftest import auth_headers, make_student
 from test_service_desk_attempts import (
     close,
@@ -153,6 +154,35 @@ def test_single_attempt_assignment_offers_no_retry_and_full_coaching(db):
     assert debrief["stronger_path"]
     assert debrief["escalation_feedback"] is not None
     assert start(client, student, assignment).status_code == 403
+
+
+def test_mentor_can_grant_one_retry_without_deleting_failed_history(db, monkeypatch):
+    student = make_student(db, username="retry-mentor-recovery")
+    assignment = setup_assignment(
+        db, student, stable_key="inc2506", priority="high",
+        process_profile=True, maximum_attempts=1,
+    )
+    client = _client()
+    attempt_id = start(client, student, assignment).json()["id"]
+    _fail_attempt(client, student, attempt_id)
+    assert start(client, student, assignment).status_code == 403
+
+    monkeypatch.setenv("ADMIN_API_KEY", "mentor-retry-key")
+    admin = make_client(admin_service_desk.router)
+    granted = admin.post(
+        f"/api/admin/service-desk/attempts/{attempt_id}/grant-retry",
+        headers={"X-Admin-Key": "mentor-retry-key"},
+    )
+    assert granted.status_code == 200
+    assert granted.json()["attempts_remaining"] == 1
+    repeated = admin.post(
+        f"/api/admin/service-desk/attempts/{attempt_id}/grant-retry",
+        headers={"X-Admin-Key": "mentor-retry-key"},
+    )
+    assert repeated.status_code == 200
+    assert repeated.json()["maximum_attempts"] == granted.json()["maximum_attempts"]
+    assert repeated.json()["attempts_remaining"] == 1
+    assert start(client, student, assignment).status_code == 201
 
 
 # --------------------------------------------------------------------------- #

@@ -9,14 +9,21 @@ from fastapi import HTTPException
 
 from app.models.certification import CertificationModule, LessonV2Meta, ModuleAssessment, QuestionV2Meta
 from app.models.grading import GRADE_JOB_PROCESSING, PendingGrade
-from app.models.lab import LabTemplate
+from app.models.lab import LabRun, LabTemplate
 from app.models.quiz import Question, Quiz
-from app.models.service_desk import ServiceDeskAssignment, ServiceDeskScenario, ServiceDeskScenarioVersion
+from app.models.service_desk import (
+    ServiceDeskAssignment,
+    ServiceDeskAttempt,
+    ServiceDeskScenario,
+    ServiceDeskScenarioVersion,
+)
 from app.models.v2_progress import (
     V2AssessmentAttempt,
     V2AssessmentAttemptQuestion,
     V2ModuleActivity,
+    V2ExplainSubmission,
 )
+from app.models.vm_assignment import VmAssignment
 from app.routers.v2_curriculum import router as curriculum_router
 from app.routers.v2_progress import router as progress_router
 from app.routers.labs import router as labs_router
@@ -29,8 +36,14 @@ from app.services.grading_provider import OUTCOME_OK, ProviderResult
 from app.services.grading_queue import apply_mentor_override, claim_due_jobs, process_pending_grade
 from app.services.grading_schema import AIGradeResponse, GRADING_SCHEMA_VERSION
 from app.services.v2_content_loader import load_module
-from app.services.v2_curriculum_service import module_view, resource_activity
-from app.services.v2_progress_service import record_activity
+from app.services.v2_curriculum_service import (
+    module_view,
+    resource_activity,
+    submit_assessment,
+    submit_explain,
+)
+from app.services.v2_progress_service import reconcile_v2_service_desk_attempt, record_activity
+from app.services.service_desk_progression import build_service_desk_progression
 from conftest import auth_headers, enroll_v2, make_client, make_student
 
 
@@ -214,6 +227,78 @@ def test_ambiguous_short_answer_becomes_pending_not_zero(db, monkeypatch):
     assert attempt.score is not None
 
 
+def test_assessment_submission_and_pending_job_roll_back_together(db, monkeypatch):
+    student, client = _ready(db, monkeypatch)
+    module_key = "module.aplus.core1.hardware_support"
+    assessment_key = "assess.aplus.hardware.qc.platform"
+    url = f"/api/v2/curriculum/modules/{module_key}/assessments/{assessment_key}"
+    started = client.get(url, headers=auth_headers(student)).json()["data"]
+    short = next(q for q in started["questions"] if q["type"] == "short_answer")
+
+    def interrupted(*_args, **_kwargs):
+        raise RuntimeError("injected interruption before atomic commit")
+
+    monkeypatch.setattr("app.services.v2_curriculum_service.record_activity", interrupted)
+    with pytest.raises(RuntimeError, match="injected interruption"):
+        submit_assessment(
+            db, student.id, module_key, assessment_key,
+            started["attempt"]["id"],
+            {str(short["id"]): "A plausible but ambiguous alternate explanation."},
+        )
+    db.rollback()
+
+    attempt = db.get(V2AssessmentAttempt, started["attempt"]["id"])
+    assert attempt.status == "in_progress"
+    assert attempt.submitted_at is None
+    assert db.query(PendingGrade).count() == 0
+    assert all(row.submitted_answer is None for row in attempt.questions)
+
+
+def test_explain_submission_and_pending_job_roll_back_together(db, monkeypatch):
+    student, _ = _ready(db, monkeypatch)
+    prompt_key = module_view(db, student.id, MODULE)["explain_prompts"][0]["key"]
+
+    def interrupted(*_args, **_kwargs):
+        raise RuntimeError("injected interruption before atomic commit")
+
+    monkeypatch.setattr("app.services.v2_curriculum_service.record_activity", interrupted)
+    with pytest.raises(RuntimeError, match="injected interruption"):
+        submit_explain(
+            db, student.id, MODULE, prompt_key,
+            "A plausible response that intentionally requires mentor judgment.",
+        )
+    db.rollback()
+
+    assert db.query(V2ExplainSubmission).filter_by(student_id=student.id).count() == 0
+    assert db.query(PendingGrade).filter_by(student_id=student.id).count() == 0
+
+
+def test_mentor_override_cannot_resolve_without_score_and_pass_result(db, monkeypatch):
+    student, _ = _ready(db, monkeypatch)
+    prompt_key = module_view(db, student.id, MODULE)["explain_prompts"][0]["key"]
+    submitted = submit_explain(
+        db, student.id, MODULE, prompt_key,
+        "A plausible response that intentionally requires mentor judgment.",
+    )
+    job = db.query(PendingGrade).filter_by(
+        submission_ref=f"v2-explain:{submitted['submission_id']}"
+    ).one()
+    monkeypatch.setenv("ADMIN_API_KEY", "complete-override-key")
+    admin = make_client(admin_grading_router)
+
+    response = admin.post(
+        f"/api/admin/grading/{job.id}/override",
+        headers={"X-Admin-Key": "complete-override-key"},
+        json={"reason": "Incomplete mentor decision"},
+    )
+
+    assert response.status_code == 422
+    db.refresh(job)
+    assert job.status != "graded"
+    assert job.resolved_passed is None
+    assert job.overrides == []
+
+
 def test_explain_mentor_resolution_reconciles_progress(db, monkeypatch):
     student, client = _ready(db, monkeypatch)
     prompt_key = _complete_module_except_first_explain(db, student)
@@ -392,7 +477,7 @@ def test_v2_practical_bypasses_week_gate_only_with_valid_relationship(db, monkey
     monkeypatch.setattr("app.routers.labs.require_week_reached", blocked_legacy_gate)
     client = make_client(labs_router)
     legacy = client.post(f"/api/labs/{assessment.lab_template_id}/start", headers=auth_headers(student))
-    assert legacy.status_code == 403
+    assert legacy.status_code == 404
     valid = client.post(
         f"/api/labs/{assessment.lab_template_id}/start",
         params={"v2_module_key": MODULE, "v2_assessment_key": assessment.assessment_key},
@@ -405,6 +490,190 @@ def test_v2_practical_bypasses_week_gate_only_with_valid_relationship(db, monkey
         headers=auth_headers(student),
     )
     assert invalid.status_code == 404
+
+
+def test_v2_practical_is_absent_from_legacy_list_and_revocation_is_immediate(db, monkeypatch):
+    student, _ = _ready(db, monkeypatch)
+    module = db.query(CertificationModule).filter_by(module_key=MODULE).one()
+    assessment = db.query(ModuleAssessment).filter_by(
+        certification_module_id=module.id, assessment_role="practical"
+    ).one()
+    client = make_client(labs_router)
+    headers = auth_headers(student)
+
+    listed = client.get("/api/labs", headers=headers)
+    assert assessment.lab_template_id not in {row["id"] for row in listed.json()["data"]}
+    params = {"v2_module_key": MODULE, "v2_assessment_key": assessment.assessment_key}
+    assert client.get(
+        f"/api/labs/{assessment.lab_template_id}", params=params, headers=headers
+    ).status_code == 200
+
+    monkeypatch.setenv("V2_PILOT_STUDENT_IDS", "")
+    assert client.post(
+        f"/api/labs/{assessment.lab_template_id}/start", params=params, headers=headers
+    ).status_code == 404
+
+
+def test_revoked_v2_practical_run_cannot_use_vm_or_upload_evidence(db, monkeypatch):
+    student, _ = _ready(db, monkeypatch)
+    module = db.query(CertificationModule).filter_by(module_key=MODULE).one()
+    assessment = db.query(ModuleAssessment).filter_by(
+        certification_module_id=module.id, assessment_role="practical"
+    ).one()
+    client = make_client(labs_router)
+    headers = auth_headers(student)
+    params = {"v2_module_key": MODULE, "v2_assessment_key": assessment.assessment_key}
+    started = client.post(
+        f"/api/labs/{assessment.lab_template_id}/start", params=params, headers=headers
+    )
+    assert started.status_code in {200, 202}
+    run = db.get(LabRun, started.json()["data"]["run_id"])
+    db.add(VmAssignment(
+        student_id=student.id, lab_run_id=run.id, vmid=99991,
+        status="running", guac_conn_id="revoked-v2",
+    ))
+    db.commit()
+
+    monkeypatch.setenv("V2_PILOT_STUDENT_IDS", "")
+    assert client.get(
+        f"/api/labs/{assessment.lab_template_id}/vm-status", headers=headers
+    ).status_code == 404
+    assert client.post(
+        f"/api/labs/{assessment.lab_template_id}/vm-access", headers=headers
+    ).status_code == 404
+    assert client.post(
+        f"/api/labs/{run.id}/evidence",
+        files={"file": ("proof.png", b"image", "image/png")},
+        headers=headers,
+    ).status_code == 404
+
+
+def test_inactive_module_cannot_be_forged_as_v2_practical_context(db, monkeypatch):
+    student, _ = _ready(db, monkeypatch)
+    module = db.query(CertificationModule).filter_by(module_key=MODULE).one()
+    assessment = db.query(ModuleAssessment).filter_by(
+        certification_module_id=module.id, assessment_role="practical"
+    ).one()
+    module.active = False
+    db.commit()
+    response = make_client(labs_router).post(
+        f"/api/labs/{assessment.lab_template_id}/start",
+        params={"v2_module_key": MODULE, "v2_assessment_key": assessment.assessment_key},
+        headers=auth_headers(student),
+    )
+    assert response.status_code == 404
+
+
+def test_service_desk_reconciliation_uses_exact_v2_activity_with_both_modes(db, monkeypatch):
+    student, curriculum_client = _ready(db, monkeypatch)
+    module_key = "module.aplus.core1.ip_configuration"
+    assessment_key = "assess.aplus.ipcfg.service_desk"
+    scenario = ServiceDeskScenario(
+        stable_key="inc2503", title="Desk network after move", category="network",
+        difficulty=1, status="active",
+    )
+    db.add(scenario)
+    db.flush()
+    version = ServiceDeskScenarioVersion(
+        scenario_id=scenario.id, version_number=1, definition_json={},
+        definition_hash="b" * 64, validation_status="valid", status="published",
+        published_by="test",
+    )
+    db.add(version)
+    db.flush()
+    learning_assignment = ServiceDeskAssignment(
+        student_id=student.id, scenario_id=scenario.id, mode="learning",
+        is_required=False, maximum_attempts=1, assigned_by="admin",
+    )
+    simulation_assignment = ServiceDeskAssignment(
+        student_id=student.id, scenario_id=scenario.id, mode="simulation",
+        is_required=False, maximum_attempts=3, assigned_by="seed",
+    )
+    db.add_all([learning_assignment, simulation_assignment])
+    db.flush()
+    db.add(ServiceDeskAttempt(
+        student_id=student.id,
+        scenario_version_id=version.id,
+        mode="learning",
+        experience_mode="guided",
+        status="completed",
+        current_state={},
+        current_state_hash="legacy-guided".ljust(64, "0"),
+        state_version=1,
+        attempt_number=1,
+        score=100,
+        passed=True,
+    ))
+    db.commit()
+    launched = curriculum_client.post(
+        f"/api/v2/curriculum/modules/{module_key}/service-desk/{assessment_key}/launch",
+        headers=auth_headers(student),
+    )
+    assert launched.status_code == 200
+    service_client = make_client(service_desk_router)
+    listed = service_client.get(
+        "/api/service-desk/assignments",
+        params={"v2_module_key": module_key, "v2_assessment_key": assessment_key},
+        headers=auth_headers(student),
+    )
+    target_rows = [row for row in listed.json() if row["scenario_id"] == scenario.id]
+    assert {row["mode"] for row in target_rows} == {"learning", "simulation"}
+    assert all(row["guided_completed"] is False for row in target_rows)
+    optional_started = service_client.post(
+        f"/api/service-desk/assignments/{simulation_assignment.id}/attempts",
+        params={
+            "v2_module_key": module_key,
+            "v2_assessment_key": assessment_key,
+        },
+        headers=auth_headers(student),
+    )
+    assert optional_started.status_code == 201
+    assert reconcile_v2_service_desk_attempt(
+        db, student_id=student.id, scenario_id=scenario.id,
+        attempt_id=optional_started.json()["id"], score=100, passed=True,
+    ) is None
+    optional_attempt = db.get(ServiceDeskAttempt, optional_started.json()["id"])
+    optional_attempt.status = "completed"
+    optional_attempt.passed = True
+    db.commit()
+    assert scenario.stable_key not in build_service_desk_progression(
+        db, student
+    )["passed_keys"]
+    started = service_client.post(
+        f"/api/service-desk/assignments/{learning_assignment.id}/attempts",
+        params={
+            "v2_module_key": module_key,
+            "v2_assessment_key": assessment_key,
+        },
+        headers=auth_headers(student),
+    )
+    assert started.status_code == 201
+    attempt_id = started.json()["id"]
+    reconciled = reconcile_v2_service_desk_attempt(
+        db, student_id=student.id, scenario_id=scenario.id,
+        attempt_id=attempt_id, score=82, passed=True,
+    )
+    db.commit()
+    assert reconciled is not None
+    assert reconciled.ref_key == assessment_key
+    assert reconciled.status == "passed"
+
+    # Re-entering for the assessment/practice assignment is optional after
+    # the required guided case passes and cannot revoke module credit.
+    relaunched = curriculum_client.post(
+        f"/api/v2/curriculum/modules/{module_key}/service-desk/{assessment_key}/launch",
+        headers=auth_headers(student),
+    )
+    assert relaunched.status_code == 200
+    assert relaunched.json()["data"]["experience_mode"] == "assessment"
+    db.refresh(reconciled)
+    assert reconciled.status == "passed"
+    still_passed = reconcile_v2_service_desk_attempt(
+        db, student_id=student.id, scenario_id=scenario.id,
+        attempt_id=attempt_id, score=20, passed=False,
+    )
+    assert still_passed is not None
+    assert still_passed.status == "passed"
 
 
 def test_v2_service_desk_assignment_bypasses_legacy_ladder_only_for_exact_case(db, monkeypatch):
@@ -435,6 +704,13 @@ def test_v2_service_desk_assignment_bypasses_legacy_ladder_only_for_exact_case(d
         headers=auth_headers(student),
     )
     assert started.status_code == 201
+    marked_attempt = db.get(ServiceDeskAttempt, started.json()["id"])
+    marked_attempt.status = "completed"
+    marked_attempt.passed = True
+    db.commit()
+    assert scenario.stable_key not in build_service_desk_progression(
+        db, student
+    )["guided_completed_keys"]
 
     other = make_student(db, username="legacy_only_student")
     assert service_client.get(
@@ -453,6 +729,105 @@ def test_v2_service_desk_assignment_bypasses_legacy_ladder_only_for_exact_case(d
         headers=auth_headers(other),
     )
     assert blocked.status_code == 403
+
+
+def test_revoked_student_cannot_continue_v2_service_desk_attempt(db, monkeypatch):
+    student, curriculum_client = _ready(db, monkeypatch)
+    module_key = "module.aplus.core1.ip_configuration"
+    assessment_key = "assess.aplus.ipcfg.service_desk"
+    scenario = ServiceDeskScenario(
+        stable_key="inc2503", title="Desk network after move", category="network",
+        difficulty=1, status="active",
+    )
+    db.add(scenario)
+    db.flush()
+    db.add(ServiceDeskScenarioVersion(
+        scenario_id=scenario.id, version_number=1, definition_json={},
+        definition_hash="c" * 64, validation_status="valid", status="published",
+        published_by="test",
+    ))
+    db.commit()
+    legacy_assignment = ServiceDeskAssignment(
+        student_id=student.id, scenario_id=scenario.id, mode="learning",
+        is_required=False, maximum_attempts=None, assigned_by="admin",
+    )
+    db.add(legacy_assignment)
+    db.commit()
+    service_client = make_client(service_desk_router)
+    legacy_attempt = service_client.post(
+        f"/api/service-desk/assignments/{legacy_assignment.id}/attempts",
+        headers=auth_headers(student),
+    )
+    assert legacy_attempt.status_code == 201
+    assert curriculum_client.post(
+        f"/api/v2/curriculum/modules/{module_key}/service-desk/{assessment_key}/launch",
+        headers=auth_headers(student),
+    ).status_code == 200
+    assignment = db.query(ServiceDeskAssignment).filter_by(
+        student_id=student.id, scenario_id=scenario.id, mode="learning"
+    ).one()
+    listed_for_v2 = service_client.get(
+        "/api/service-desk/assignments",
+        params={
+            "v2_module_key": module_key,
+            "v2_assessment_key": assessment_key,
+        },
+        headers=auth_headers(student),
+    )
+    assert listed_for_v2.status_code == 200
+    v2_row = next(row for row in listed_for_v2.json() if row["id"] == assignment.id)
+    assert v2_row["most_recent_attempt"] is None
+    started = service_client.post(
+        f"/api/service-desk/assignments/{assignment.id}/attempts",
+        params={
+            "v2_module_key": module_key,
+            "v2_assessment_key": assessment_key,
+        },
+        headers=auth_headers(student),
+    )
+    assert started.status_code == 201
+
+    monkeypatch.setenv("V2_PILOT_STUDENT_IDS", "")
+    listed = service_client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    )
+    assert listed.status_code == 200
+    assert {row["id"] for row in listed.json()} == {legacy_assignment.id}
+    assert service_client.get(
+        f"/api/service-desk/attempts/{legacy_attempt.json()['id']}",
+        headers=auth_headers(student),
+    ).status_code == 200
+    assert service_client.get(
+        f"/api/service-desk/attempts/{started.json()['id']}",
+        headers=auth_headers(student),
+    ).status_code == 404
+    attempt_rows = service_client.get(
+        "/api/service-desk/attempts", headers=auth_headers(student)
+    ).json()
+    assert {row["id"] for row in attempt_rows} == {legacy_attempt.json()["id"]}
+    assert service_client.post(
+        f"/api/service-desk/attempts/{started.json()['id']}/hints",
+        headers=auth_headers(student),
+        json={"idempotency_key": "revoked", "tool": "ticket", "payload": {}},
+    ).status_code == 404
+
+    activity = db.query(V2ModuleActivity).filter_by(
+        student_id=student.id,
+        module_key=module_key,
+        activity_type="service_desk",
+        ref_key=assessment_key,
+    ).one()
+    before = (activity.status, activity.score, activity.passed)
+    assert reconcile_v2_service_desk_attempt(
+        db,
+        student_id=student.id,
+        scenario_id=scenario.id,
+        attempt_id=legacy_attempt.json()["id"],
+        score=100,
+        passed=True,
+    ) is None
+    db.refresh(activity)
+    assert (activity.status, activity.score, activity.passed) == before
 
 
 def test_student_ownership_and_privileged_endpoint_matrix(db, monkeypatch):

@@ -94,6 +94,16 @@ def parse_unit(path: str) -> configparser.ConfigParser:
     return parser
 
 
+def parse_unit_text(value: str) -> configparser.ConfigParser:
+    """Parse `systemctl cat` output without writing a temporary file."""
+    parser = configparser.ConfigParser(
+        strict=False, allow_no_value=True, interpolation=None
+    )
+    parser.optionxform = str
+    parser.read_string(value)
+    return parser
+
+
 def parse_interval_seconds(value: str) -> float | None:
     """Parse a systemd time span such as ``2min`` or ``1h 30s`` into seconds."""
     if not value:
@@ -162,6 +172,8 @@ def run_checks() -> Checks:
         _check_timer(checks, timer)
     if service is not None:
         _compare_with_backend_unit(checks, service)
+        _check_installed_worker(checks, service)
+    _check_installed_timer(checks)
     return checks
 
 
@@ -385,6 +397,119 @@ def _compare_with_backend_unit(
         checks.add("matches the live backend unit", WARN, "; ".join(mismatches))
     else:
         checks.add("matches the live backend unit", PASS, ", ".join(sorted(live)))
+
+
+def _check_installed_timer(checks: Checks) -> None:
+    """Report live installation state without enabling or starting anything."""
+    if shutil.which("systemctl") is None:
+        checks.add("grading timer is installed and enabled", SKIP, "systemctl unavailable")
+        checks.add("grading timer is active", SKIP, "systemctl unavailable")
+        return
+    probes = (
+        ("grading timer is installed and enabled", "is-enabled"),
+        ("grading timer is active", "is-active"),
+    )
+    for label, command in probes:
+        try:
+            result = subprocess.run(
+                ["systemctl", command, TIMER_UNIT],
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            checks.add(label, WARN, str(exc))
+            continue
+        detail = (result.stdout or result.stderr or "not installed").strip()
+        checks.add(label, PASS if result.returncode == 0 else WARN, detail)
+
+
+def _check_installed_worker(
+    checks: Checks, expected: configparser.ConfigParser
+) -> None:
+    """Compare the live oneshot unit and prove it has run successfully once."""
+    if shutil.which("systemctl") is None:
+        checks.add("installed worker unit matches candidate", SKIP, "systemctl unavailable")
+        checks.add("grading worker last run succeeded", SKIP, "systemctl unavailable")
+        return
+    try:
+        cat_result = subprocess.run(
+            ["systemctl", "cat", SERVICE_UNIT],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        checks.add("installed worker unit matches candidate", WARN, str(exc))
+        checks.add("grading worker last run succeeded", WARN, "unit could not be inspected")
+        return
+    if cat_result.returncode != 0:
+        checks.add("installed worker unit matches candidate", WARN, "unit not installed")
+        checks.add("grading worker last run succeeded", WARN, "unit not installed")
+        return
+    try:
+        installed = parse_unit_text(cat_result.stdout)
+    except (configparser.Error, ValueError) as exc:
+        checks.add("installed worker unit matches candidate", WARN, f"could not parse: {exc}")
+        checks.add("grading worker last run succeeded", WARN, "unit could not be inspected")
+        return
+
+    compared = (
+        "User",
+        "Group",
+        "WorkingDirectory",
+        "EnvironmentFile",
+        "ExecStart",
+        "ReadWritePaths",
+    )
+    mismatches = []
+    for key in compared:
+        wanted = decode_systemd_escapes(expected.get("Service", key, fallback="")).strip()
+        actual = decode_systemd_escapes(installed.get("Service", key, fallback="")).strip()
+        if wanted != actual:
+            mismatches.append(key)
+    checks.add(
+        "installed worker unit matches candidate",
+        PASS if not mismatches else WARN,
+        "required execution contract matches"
+        if not mismatches
+        else "mismatched keys: " + ", ".join(mismatches),
+    )
+
+    try:
+        show_result = subprocess.run(
+            [
+                "systemctl",
+                "show",
+                SERVICE_UNIT,
+                "--property=Result,ExecMainStatus,ExecMainStartTimestamp",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        checks.add("grading worker last run succeeded", WARN, str(exc))
+        return
+    properties = dict(
+        line.split("=", 1)
+        for line in show_result.stdout.splitlines()
+        if "=" in line
+    )
+    ran = bool(properties.get("ExecMainStartTimestamp", "").strip())
+    succeeded = (
+        show_result.returncode == 0
+        and ran
+        and properties.get("Result") == "success"
+        and properties.get("ExecMainStatus") == "0"
+    )
+    checks.add(
+        "grading worker last run succeeded",
+        PASS if succeeded else WARN,
+        "result=success, exit=0"
+        if succeeded
+        else "no successful installed worker execution is recorded",
+    )
 
 
 def _whoami() -> str:

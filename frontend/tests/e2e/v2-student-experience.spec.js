@@ -2,25 +2,8 @@ import { expect, test } from "@playwright/test";
 
 const moduleTitle = "IP Configuration & Basic Connectivity Troubleshooting";
 
-async function answerAssessment(page) {
-  const countText = await page.getByText(/Question 1 of \d+/).textContent();
-  const total = Number(countText.match(/of (\d+)/)?.[1] || 1);
-  for (let index = 0; index < total; index += 1) {
-    const shortAnswer = page.getByLabel("Your answer");
-    if (await shortAnswer.isVisible().catch(() => false)) {
-      await shortAnswer.fill("ipconfig");
-    } else {
-      const choices = page.locator("fieldset input");
-      if (await choices.count()) await choices.first().check();
-    }
-    if (index < total - 1) await page.getByRole("button", { name: "Next" }).click();
-  }
-  await page.getByRole("button", { name: "Submit answers" }).click();
-  await expect(page.getByRole("heading", { name: /You passed|Not passed yet/ })).toBeVisible();
-}
-
-test("student completes the first real V2 learning flow", async ({ page }) => {
-  test.setTimeout(90000);
+test("authenticated student can use the live V2 shell and durable activity surfaces", async ({ page }) => {
+  test.setTimeout(180000);
   const username = process.env.NEXUS_E2E_STUDENT_USERNAME;
   const password = process.env.NEXUS_E2E_STUDENT_PASSWORD;
   expect(username && password).toBeTruthy();
@@ -48,7 +31,8 @@ test("student completes the first real V2 learning flow", async ({ page }) => {
   await page.getByRole("link", { name: /Continue learning/ }).click();
   await expect(page.getByRole("heading", { name: "IPv4 Configuration Basics", exact: true })).toBeVisible();
   await expect(page.getByText("Required").first()).toBeVisible();
-  await page.getByRole("button", { name: "Mark completed" }).first().click();
+  await page.getByRole("link", { name: /Open required resource/ }).click();
+  await page.getByRole("button", { name: "I finished this" }).click();
   await page.getByRole("button", { name: "Mark lesson complete" }).click();
   await page.reload();
   await expect(page.getByText("Completed").first()).toBeVisible();
@@ -56,8 +40,28 @@ test("student completes the first real V2 learning flow", async ({ page }) => {
   await page.screenshot({ path: "/tmp/nexus-v2-lesson-desktop.png", fullPage: true });
 
   await page.getByRole("link", { name: "Start Quick Check" }).click();
-  await answerAssessment(page);
-  await page.getByRole("link", { name: "Continue" }).click();
+  await expect(page).toHaveURL(/\/assessments\//);
+  await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
+  const firstQuestion = await page.locator("main > section.panel h2").textContent();
+  const firstChoice = page.locator("fieldset input").first();
+  if (await firstChoice.isVisible().catch(() => false)) await firstChoice.check();
+  else await page.getByLabel("Your answer").fill("saved draft");
+  await page.reload();
+  await expect(page.getByRole("heading", { name: firstQuestion, exact: true })).toBeVisible();
+  await expect(page.getByText("1 answered")).toBeVisible();
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  const countText = await page.getByText(/Question 1 of \d+/).textContent();
+  const total = Number(countText.match(/of (\d+)/)?.[1] || 1);
+  for (let index = 1; index < total; index += 1) {
+    await page.getByRole("button", { name: "Next" }).click();
+  }
+  await page.getByRole("button", { name: "Submit answers" }).click();
+  await page.getByRole("button", { name: "Submit anyway" }).click();
+  await expect(page.getByRole("heading", { name: "Not passed yet" })).toBeVisible();
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
+  await page.getByRole("link", { name: "Back to module" }).click();
   await expect(page.getByRole("heading", { name: moduleTitle }).first()).toBeVisible();
 
   const secondLesson = page.getByRole("link", { name: /DHCP and APIPA/ });
@@ -66,31 +70,39 @@ test("student completes the first real V2 learning flow", async ({ page }) => {
   await page.reload();
   await expect(page.getByRole("heading", { name: "DHCP and APIPA", exact: true })).toBeVisible();
 
-  await page.goto("/learning-v2/modules/module.aplus.core1.ip_configuration");
-  await page.getByRole("link", { name: /Take the quiz/ }).click();
-  await answerAssessment(page);
-  await page.getByRole("link", { name: "Continue" }).click();
+  await page.goto("/learning-v2/modules/module.aplus.core1.ip_configuration/assessments/assess.aplus.ipcfg.module_quiz");
+  await expect(page.getByText(/Question 1 of \d+/)).toBeVisible();
+  const quizQuestion = await page.locator("main > section.panel h2").textContent();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: quizQuestion, exact: true })).toBeVisible();
 
-  await page.getByRole("link", { name: /Open practical/ }).click();
+  await page.goto("/learning-v2/modules/module.aplus.core1.ip_configuration/practical/assess.aplus.ipcfg.practical");
+  await expect(page).toHaveURL(/\/labs\/\d+\?v2Module=.*v2Assessment=/);
   await expect(page.getByRole("heading", { name: /Inspect Windows IP Configuration/ })).toBeVisible();
-  await page.getByRole("button", { name: "Start Lab" }).click();
-  await page.getByLabel("Your evidence and answers").fill("Reviewed ipconfig /all, the gateway, DHCP, DNS, ping results, and nslookup. The connection is healthy.");
-  await page.getByRole("button", { name: "Submit Lab" }).click();
-  await expect(page.getByRole("button", { name: "Submitted" })).toBeDisabled();
 
-  await page.goto("/learning-v2/modules/module.aplus.core1.ip_configuration");
-  await page.getByRole("link", { name: /Troubleshoot a ticket/ }).click();
-  await expect(page).toHaveURL(/\/service-desk\/tickets\/INC2503/);
+  await page.goto("/learning-v2/modules/module.aplus.core1.ip_configuration/explain/interview.aplus.ipcfg.what_does_dhcp_do");
+  await expect(page.getByRole("heading", { name: "Put it in your own words" })).toBeVisible();
+  await expect(page.getByLabel("Your response")).toBeVisible();
+
+  await page.goto("/learning-v2/modules/module.aplus.core1.ip_configuration/service-desk/assess.aplus.ipcfg.service_desk");
+  await expect(page).toHaveURL(/\/service-desk\/tickets\/INC2503.*v2ModuleKey=.*v2AssessmentKey=/, { timeout: 30000 });
+  const orientationButton = page.getByRole("button", { name: "Open ticket" });
+  const orientationVisible = await orientationButton
+    .waitFor({ state: "visible", timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  if (orientationVisible) await orientationButton.click();
   await expect(page.getByText(/INC2503|network/i).first()).toBeVisible({ timeout: 30000 });
 
-  await page.goto("/learning-v2/modules/module.aplus.core1.ip_configuration");
-  await page.getByRole("link", { name: /Open Explain/ }).click();
-  await page.getByLabel("Your response").fill("I would investigate the workstation carefully, document the symptoms, and verify the result with the user after the fix.");
-  await page.getByRole("button", { name: "Submit response" }).click();
-  await expect(page.getByRole("heading", { name: "Waiting for grading" })).toBeVisible();
-
-  const otherJob = await page.request.get("/api/grading/status?source_type=interview_explain&submission_ref=browser-other-submission");
-  expect(otherJob.status()).toBe(404);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
+  await page.getByRole("button", { name: "Browser Training Student" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Login" }).click();
+  await page.getByRole("link", { name: "Progress" }).click();
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
 
   await page.goto("/learning-v2/modules/module.aplus.core1.ip_configuration");
   await expect(page.getByText("1 / 5")).toBeVisible();

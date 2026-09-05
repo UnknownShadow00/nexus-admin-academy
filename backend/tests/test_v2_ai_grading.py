@@ -482,8 +482,13 @@ def test_second_override_chains_and_keeps_prior(db):
     out = _enqueue_free_response(db, stu, answer="A fallback address appeared once the address service stopped answering here.")
     job = db.get(PendingGrade, out["pending_grade_id"])
     process_pending_grade(db, job, provider=FakeProvider(_ok_result()), cfg=TEST_CFG, now=NOW)
-    o1 = apply_mentor_override(db, job, reason="first pass", override_score=0.7)
-    o2 = apply_mentor_override(db, job, reason="corrected after re-read", override_score=0.95)
+    o1 = apply_mentor_override(
+        db, job, reason="first pass", override_score=0.7, override_passed=True
+    )
+    o2 = apply_mentor_override(
+        db, job, reason="corrected after re-read", override_score=0.95,
+        override_passed=True,
+    )
     db.refresh(job)
 
     assert db.get(MentorGradeOverride, o1.id) is not None
@@ -531,7 +536,9 @@ def test_resolved_precedence_mentor_over_ai_over_deterministic(db):
     db.refresh(job)
     assert job.resolved_grade_source == "ai" and job.resolved_score == 0.6
 
-    apply_mentor_override(db, job, reason="bumped", override_score=0.88)
+    apply_mentor_override(
+        db, job, reason="bumped", override_score=0.88, override_passed=True
+    )
     db.refresh(job)
     assert job.resolved_grade_source == "mentor" and job.resolved_score == 0.88
 
