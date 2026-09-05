@@ -1,7 +1,21 @@
 import { expect, test } from '@playwright/test';
 import traces from '../../packages/shared/src/realism-traces.test.json';
+import tracesV2 from '../../packages/shared/src/realism-v2-traces.test.json';
 
-for (const [ticket, trace] of Object.entries(traces)) {
+test('authored requester question produces a scoped reply and survives refresh', async ({ page }) => {
+  await page.goto('/tools/company-chat?ticket=INC2508');
+  await expect(page.getByText('At 10:05 I entered', { exact: false })).toHaveCount(0);
+  await page.getByRole('button', { name: 'What exactly did you enter, when, and did you approve MFA?' }).click();
+  await expect(page.getByText('At 10:05 I entered', { exact: false })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('At 10:05 I entered', { exact: false })).toBeVisible();
+  await page.goto('/tools/company-chat?ticket=INC2506');
+  await expect(page.getByText('At 10:05 I entered', { exact: false })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Who approved this, and what is the approval reference?' }).click();
+  await expect(page.getByText("I don't have a reference.", { exact: false })).toBeVisible();
+});
+
+for (const [ticket, trace] of Object.entries({ ...traces, ...tracesV2 })) {
   test(`${ticket}: real tools replace wizard and survive refresh`, async ({
     page,
   }) => {

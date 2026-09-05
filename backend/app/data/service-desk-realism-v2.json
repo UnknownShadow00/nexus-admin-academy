@@ -276,6 +276,19 @@
         },
         {
           "output": [
+            "Monthly.xlsx saved successfully in normal mode."
+          ],
+          "when": {
+            "office/lastOpen": "normal",
+            "office/reportAddin": false
+          },
+          "set": {
+            "office/saved": true
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
             "No normal-mode copy of Monthly.xlsx is ready to save."
           ],
           "when": {},

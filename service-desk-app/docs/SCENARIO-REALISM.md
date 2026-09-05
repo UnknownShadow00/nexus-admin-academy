@@ -1,5 +1,9 @@
 # Service Desk realism foundation — first four tickets
 
+This document records Sprint 1. [Sprint 2](SCENARIO-REALISM-SPRINT-2.md)
+replaces the remaining six converted workflows and extends this foundation;
+its status and backlog supersede the historical deferrals below.
+
 ## Architecture and authority
 
 The `realism-v1` catalog replaces the generic converted process for INC2501,

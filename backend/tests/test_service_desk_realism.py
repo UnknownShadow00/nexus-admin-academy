@@ -37,7 +37,7 @@ def setup(db, ticket):
         definition_json={
             "id": ticket,
             "priority": "high",
-            "objective_catalog_version": "realism-v1",
+            "objective_catalog_version": "realism-v1" if ticket in TRACES else "realism-v2",
             "simulation_fixture": FIXTURES[ticket],
         },
     )
@@ -106,7 +106,7 @@ def note(client, student, attempt, ticket):
 
 
 def test_packaged_fixture_is_identical_to_shared_source():
-    assert FIXTURES == json.loads(
+    assert {key: FIXTURES[key] for key in TRACES} == json.loads(
         (
             ROOT / "service-desk-app/packages/shared/src/service-desk-realism-v1.json"
         ).read_text()

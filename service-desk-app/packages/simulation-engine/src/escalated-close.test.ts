@@ -4,26 +4,32 @@ import type { SimulationAction } from './actions';
 import { applyAction } from './apply-action';
 import { createAttempt } from './attempt';
 import type { Attempt } from './types';
+import traces from '../../shared/src/realism-v2-traces.test.json';
 
 const ACTOR = 'escalation-student';
 const TICKET = 'INC2506';
 const ASSET = 'NX-2506';
 // A realistic hand-off note: it states what was confirmed, that no access
 // change was applied, and where the request went.
-const NOTE =
-  'Confirmed the salary folder is restricted and that no approval exists for this requester. I did not apply any access change; the request was escalated to Identity & Access with the evidence, and I confirmed the requester was told who now owns it.';
+const NOTE = traces.INC2506.note;
 
 function act(attempt: Attempt, action: SimulationAction) {
   return applyAction(attempt, ACTOR, action);
 }
 
 function run(attempt: Attempt, actions: readonly SimulationAction[]) {
-  return actions.reduce((current, action) => act(current, action).attempt, attempt);
+  return actions.reduce(
+    (current, action) => act(current, action).attempt,
+    attempt,
+  );
 }
 
 function connected(): Attempt {
   return run(
-    createAttempt({ id: 'attempt-2506', startedAt: '2026-09-04T09:00:00.000Z' }),
+    createAttempt({
+      id: 'attempt-2506',
+      startedAt: '2026-09-04T09:00:00.000Z',
+    }),
     [
       { type: 'ticket.assign', payload: { ticketId: TICKET } },
       {
@@ -43,6 +49,12 @@ function connected(): Attempt {
           passwordEntered: true,
         },
       },
+      ...traces.INC2506.commands.map(
+        (command): SimulationAction => ({
+          type: 'remote_desktop.run_terminal_command',
+          payload: { assetTag: ASSET, command },
+        }),
+      ),
     ],
   );
 }

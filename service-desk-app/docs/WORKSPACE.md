@@ -286,7 +286,7 @@ these:
    substance. Cause/action/verification grading across all scenarios is
    deferred - the debrief's `note_dimensions` ship as advisory display only, no
    scoring, to avoid brittle cross-scenario regex.
-3. **Deeper `inc2508` containment fidelity.** Containment is modelled with the
+3. **Historical backlog, superseded by [Realism Sprint 2](SCENARIO-REALISM-SPRINT-2.md).** All ten current converted cases now use replayed state, and INC2508 has credential and session containment. The following records the pre-realism limitation: containment was modelled with the
    converted scenario's only available step because the fixture has no directory
    user and no Directory tool. Real containment (credential reset +
    session/token revocation + a real Directory surface) needs the fixture
