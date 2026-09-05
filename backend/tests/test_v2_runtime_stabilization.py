@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 from app.models.certification import CertificationModule, LessonV2Meta, ModuleAssessment, QuestionV2Meta
 from app.models.grading import GRADE_JOB_PROCESSING, PendingGrade
+from app.models.lab import LabTemplate
 from app.models.quiz import Question, Quiz
 from app.models.service_desk import ServiceDeskAssignment, ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.v2_progress import (
@@ -382,6 +383,9 @@ def test_v2_practical_bypasses_week_gate_only_with_valid_relationship(db, monkey
     assessment = db.query(ModuleAssessment).filter_by(
         certification_module_id=module.id, assessment_role="practical"
     ).one()
+    lab = db.get(LabTemplate, assessment.lab_template_id)
+    lab.week_number = 24
+    db.commit()
     def blocked_legacy_gate(*_args, **_kwargs):
         raise HTTPException(status_code=403, detail="legacy week gate")
 

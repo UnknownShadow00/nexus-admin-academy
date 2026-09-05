@@ -222,9 +222,38 @@ def assessment_is_available(db: Session, assessment: ModuleAssessment) -> bool:
         return quiz_is_student_visible(db, assessment.quiz_id)
     if assessment.assessment_role == V2_ACTIVITY_EXPLAIN:
         return True
+    if assessment.assessment_role == V2_ACTIVITY_SERVICE_DESK:
+        return service_desk_scenario_is_playable(db, assessment)
+    if assessment.assessment_role == V2_ACTIVITY_PRACTICAL:
+        from app.models.lab import LabTemplate
+
+        if not assessment.lab_template_id:
+            return False
+        return db.query(LabTemplate.id).filter(
+            LabTemplate.id == assessment.lab_template_id,
+            LabTemplate.is_published.is_(True),
+        ).first() is not None
     return bool(
         assessment.quiz_id or assessment.lab_template_id or assessment.service_desk_scenario_id
     )
+
+
+def service_desk_scenario_is_playable(db: Session, assessment: ModuleAssessment) -> bool:
+    """Return whether the assessment resolves to an active published scenario."""
+    scenario = (
+        db.get(ServiceDeskScenario, assessment.service_desk_scenario_id)
+        if assessment.service_desk_scenario_id else None
+    )
+    if scenario is None:
+        stable_key = (assessment.config or {}).get("engine_service_desk_ref")
+        scenario = db.query(ServiceDeskScenario).filter_by(
+            stable_key=stable_key, status="active"
+        ).one_or_none() if stable_key else None
+    if scenario is None or scenario.status != "active":
+        return False
+    return db.query(ServiceDeskScenarioVersion.id).filter_by(
+        scenario_id=scenario.id, status="published"
+    ).first() is not None
 
 
 def _assessment_view(db: Session, student_id: int, assessment: ModuleAssessment) -> dict:
@@ -244,6 +273,8 @@ def _assessment_view(db: Session, student_id: int, assessment: ModuleAssessment)
         reason = (
             "This knowledge check is not available yet."
             if assessment.assessment_role in KNOWLEDGE_ROLES
+            else "This ticket is not available yet."
+            if assessment.assessment_role == V2_ACTIVITY_SERVICE_DESK
             else "This activity has not been prepared for students yet."
         )
         unavailable = {

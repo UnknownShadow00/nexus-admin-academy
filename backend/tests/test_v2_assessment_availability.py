@@ -236,3 +236,48 @@ def test_quick_check_cards_carry_the_availability_contract(db, monkeypatch):
         assert card["unavailable"] is None
         assert card["question_count"]
         assert card["role"] == "quick_check"
+
+
+def test_service_desk_requires_a_published_scenario_version(db, monkeypatch):
+    from app.models.service_desk import ServiceDeskScenarioVersion
+    from app.services.v2_curriculum_service import service_desk_scenario_is_playable
+
+    student, _ = _ready(db, monkeypatch)
+    tickets = db.query(ModuleAssessment).filter_by(assessment_role="service_desk").all()
+    ticket = next(row for row in tickets if service_desk_scenario_is_playable(db, row))
+    module = db.get(CertificationModule, ticket.certification_module_id)
+    assert assessment_is_available(db, ticket) is True
+
+    db.query(ServiceDeskScenarioVersion).filter_by(
+        scenario_id=ticket.service_desk_scenario_id
+    ).update({"status": "draft"})
+    db.commit()
+
+    assert service_desk_scenario_is_playable(db, ticket) is False
+    assert assessment_is_available(db, ticket) is False
+    card = next(
+        item for item in module_view(db, student.id, module.module_key)["assessments"]
+        if item["key"] == ticket.assessment_key
+    )
+    assert card["available"] is False
+    assert card["unavailable"]["reason"] == "This ticket is not available yet."
+
+
+def test_practical_requires_a_published_lab(db, monkeypatch):
+    from app.models.lab import LabTemplate
+
+    student, _ = _ready(db, monkeypatch)
+    module = db.query(CertificationModule).filter_by(module_key=MODULE).one()
+    practical = db.query(ModuleAssessment).filter_by(
+        certification_module_id=module.id, assessment_role="practical"
+    ).one()
+    lab = db.get(LabTemplate, practical.lab_template_id)
+    lab.is_published = False
+    db.commit()
+
+    assert assessment_is_available(db, practical) is False
+    card = _assessment_card(module_view(db, student.id, MODULE), practical.assessment_key)
+    assert card["available"] is False
+    assert card["unavailable"]["reason"] == (
+        "This activity has not been prepared for students yet."
+    )
