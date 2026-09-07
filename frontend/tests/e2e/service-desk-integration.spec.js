@@ -223,7 +223,7 @@ async function resolveFoundationalAccountCase(page, scenario) {
   await openTicketRail(page);
   await page.getByRole("button", { name: /^Directory\b/ }).first().click();
   await page.getByPlaceholder("Search name, username, or department").fill(scenario.requester);
-  await page.getByRole("button", { name: new RegExp(scenario.requester) }).click();
+  await page.getByRole("button", { name: new RegExp(`^${scenario.requester}`) }).click();
 
   await expect(page.getByText("Account status has not been reviewed yet.")).toBeVisible();
   await page.getByRole("button", { name: "Review account state" }).click();
@@ -234,7 +234,7 @@ async function resolveFoundationalAccountCase(page, scenario) {
   await page.getByRole("button", { name: "Run approved identity check" }).click();
   await page.goto("/service-desk/tools/directory");
   await page.getByPlaceholder("Search name, username, or department").fill(scenario.requester);
-  await page.getByRole("button", { name: new RegExp(scenario.requester) }).click();
+  await page.getByRole("button", { name: new RegExp(`^${scenario.requester}`) }).click();
   await page.getByRole("button", { name: "Record verified chat evidence" }).click();
   if (scenario.testPrimaryAuth) {
     await page.getByRole("button", { name: "Test primary password sign-in" }).click();
@@ -274,7 +274,8 @@ async function resolveFoundationalAccountCase(page, scenario) {
   await openTicketRail(page);
   await page.getByLabel("Add a note").fill(scenario.note);
   await page.getByRole("button", { name: "Add internal note" }).click();
-  await expect(page.getByText(scenario.note, { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Add a note")).toHaveValue("");
+  await expect(page.getByText(scenario.note, { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "Resolve", exact: true }).click();
   await page.getByLabel("I verified the requester has a working outcome").check();
   await page.getByRole("button", { name: "Continue to review" }).click();

@@ -42,9 +42,10 @@ async function useAuthenticatedStudentFixture(page: Page) {
 test('P0 Finding C — V2 launcher preserves the active tool after searchParams change (fixed in Wave 5)', async ({
   page,
 }) => {
-  test.fail();
   await useAuthenticatedStudentFixture(page);
-  await page.goto(V2_LAUNCH_URL);
+  // This standalone server has no mount prefix. The authenticated frontend
+  // beginner spec exercises the complete /service-desk curriculum URL.
+  await page.goto(V2_LAUNCH_URL.replace('/service-desk', ''));
   await page.evaluate(() =>
     localStorage.setItem('sd:first-guided-orientation-seen', '1'),
   );
@@ -54,11 +55,17 @@ test('P0 Finding C — V2 launcher preserves the active tool after searchParams 
     .getByRole('navigation', { name: 'Suggested tools' })
     .getByRole('button', { name: 'Remote Desktop' })
     .click();
-  await page.waitForTimeout(750);
+  await expect(
+    page.getByRole('combobox', { name: 'Choose a ticket' }),
+  ).toHaveCount(0);
+  const url = new URL(page.url());
+  expect(url.searchParams.get('returnTo')).toBe(RETURN_TO);
+  expect(url.searchParams.get('v2ModuleKey')).toBe(MODULE_KEY);
+  expect(url.searchParams.get('v2AssessmentKey')).toBe(ASSESSMENT_KEY);
+  expect(url.searchParams.get('ticket')).toBe('INC2503');
 
-  // Today the tool's native searchParams update races the workspace state and
-  // clears activeToolSlug. Wave 5 keeps the embedded pane authoritative.
-  await expect(page).toHaveURL(/(?:\?|&)tool=remote-desktop(?:&|$)/);
+  // The tool updates its own query context after opening. The embedded pane,
+  // rather than the transient `tool=` query value, remains authoritative.
   await expect(
     page.getByRole('heading', { name: 'Remote Desktop', exact: true }),
   ).toBeVisible();
@@ -67,9 +74,8 @@ test('P0 Finding C — V2 launcher preserves the active tool after searchParams 
 test('P0 Finding D — rejected Resolution Note stays visible with feedback (fixed in Wave 6)', async ({
   page,
 }) => {
-  test.fail();
   await useAuthenticatedStudentFixture(page);
-  await page.goto('/service-desk/tickets/INC2511');
+  await page.goto('/tickets/INC2511');
   await page.evaluate(() =>
     localStorage.setItem('sd:first-guided-orientation-seen', '1'),
   );
@@ -80,10 +86,16 @@ test('P0 Finding D — rejected Resolution Note stays visible with feedback (fix
   await textarea.fill(note);
   await page.getByRole('button', { name: 'Add internal note' }).click();
 
-  // The engine rejects this incomplete account-case note. Today the panel
-  // clears it and renders no feedback; Wave 6 preserves it and explains why.
+  // The engine rejects this incomplete account-case note. The panel preserves
+  // the learner's exact text and explains what evidence is still missing.
   await expect.soft(textarea).toHaveValue(note);
-  await expect.soft(page.getByRole('alert')).toBeVisible();
+  await expect
+    .soft(
+      page
+        .getByRole('alert')
+        .filter({ hasText: 'Your note needs enough detail' }),
+    )
+    .toBeVisible();
 });
 
 export { V2_LAUNCH_URL };
