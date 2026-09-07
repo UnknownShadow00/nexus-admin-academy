@@ -135,7 +135,7 @@ async function clickAndWaitForTrustedAction(page, buttonName) {
 async function openTicketRail(page) {
   const note = page.getByLabel("Add a note");
   if ((page.viewportSize()?.width || 1280) < 640) {
-    await page.getByRole("tab", { name: "Rail" }).click();
+    await page.getByRole("tab", { name: "Notes", exact: true }).click();
   }
   await expect(note).toBeVisible();
 }
@@ -218,10 +218,9 @@ async function resolveFoundationalAccountCase(page, scenario) {
   await expect(ticketHeading.or(openTicket)).toBeVisible();
   if (await openTicket.isVisible()) await openTicket.click();
   await expect(ticketHeading).toBeVisible();
-  await expect(page.getByText("Read").first()).toBeVisible();
-  await expect(page.getByText("Investigate").first()).toBeVisible();
-  await openTicketRail(page);
-  await page.getByRole("button", { name: /^Directory\b/ }).first().click();
+  await expect(page.getByRole("region", { name: "Ticket workflow", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "All tools", exact: true }).click();
+  await page.getByRole("navigation", { name: "Workspace tools" }).getByRole("button", { name: "Directory", exact: true }).click();
   await page.getByPlaceholder("Search name, username, or department").fill(scenario.requester);
   await page.getByRole("button", { name: new RegExp(`^${scenario.requester}`) }).click();
 
@@ -1121,7 +1120,8 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
       await expect(page.getByText(ticketId).first()).toBeVisible();
       await expect(page.getByRole("heading", { name: title })).toBeVisible();
       await expect(page.getByRole("region", { name: "Ticket actions" })).toBeVisible();
-      await expect(page.getByRole("navigation", { name: "Workspace tools" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "All tools", exact: true })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Workspace tools" })).toBeHidden();
     }
 
     await page.setViewportSize({ width: 375, height: 812 });

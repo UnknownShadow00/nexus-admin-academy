@@ -429,6 +429,10 @@ jobs:
         # this spec needs into $GITHUB_ENV above.
         run: npx playwright test tests/e2e/service-desk-integration.spec.js --reporter=list
 
+      - name: Persistent P1 workspace interactions (before completing beginner assignment)
+        working-directory: frontend
+        run: npx playwright test tests/e2e/p1-service-desk-workspace.spec.js --workers=1 --reporter=list
+
       - name: Authenticated P0 beginner integrity path
         working-directory: frontend
         run: npx playwright test tests/e2e/p0-service-desk-beginner.spec.js --reporter=list

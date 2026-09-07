@@ -2322,3 +2322,15 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: .github/workflows/ci.yml, backend/tests/test_v2_mentor_intelligence.py, frontend/tests/e2e/service-desk-integration.spec.js, frontend/tests/e2e/p0-service-desk-beginner.spec.js, service-desk-app/tests/e2e/p0-v2-tool-launcher.spec.ts, tasks/p0-service-desk-handoff.md, tasks/loop-log.md
 - Result: PASS — consolidated backend 391 passed; explicit P0 CI gate 41 passed; Service Desk packages 514 passed; standalone browser 27 passed; integrated browser 14 passed; authenticated beginner browser 1 passed; frontend 53 passed; builds, lint, typecheck, Ruff, compileall, YAML, formatting, and whitespace checks passed.
 - Next: P0 requires no follow-up; defer the visual hierarchy, contextual tool rail, evidence labels, stage-specific coaching, Tutorial/Guided pedagogy, mentor replay, and richer post-ticket teaching to P1.
+
+## 2026-09-07T22:12:41Z Task Completed
+- Task: Package the preceding P1 Service Desk architecture review as a Markdown file at the user's request.
+- Files changed: tasks/p1-service-desk-target-architecture.md, tasks/loop-log.md
+- Result: PASS — saved the architecture recommendations, ticket progression, worked debriefs, implementation waves, acceptance gates, and evidence limitations; documentation only, no code or production changes and no commit.
+- Next: Review the Markdown document; implementation requires a separate request.
+
+## 2026-09-07T22:37:37Z Task Completed
+- Task: Implement and verify Service Desk P1 Wave 1: persistent ticket shell, compact tool discovery, integrated navigation/context, and responsive Work/Evidence/Notes layout.
+- Files changed: Service Desk workspace/header/stage/tool/context components and unit tests; frontend P0/P1/integrated browser specs; .github/workflows/ci.yml; tasks/p1-service-desk-wave1-handoff.md; tasks/p1-wave1-screenshots/; tasks/loop-log.md.
+- Result: PASS — backend integrity gate 41; Service Desk shared 37, simulation 268, web 176, UI 36; frontend 53; standalone browser 27, integrated browser 14, P1 workspace browser 2, authenticated beginner browser 1. Builds, lint, typechecks, YAML and whitespace checks passed. P0 grading preserved; no production operations. Dependency audits retain documented npm/pip advisories outside this wave.
+- Next: Review saved desktop/mobile screenshots before Wave 2; authored evidence labels, stage-specific goals, and post-debrief evidence meaning remain deferred. Track existing dependency advisories separately.

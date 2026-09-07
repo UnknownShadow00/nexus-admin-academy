@@ -50,7 +50,7 @@ test('P0 authenticated beginner: curriculum launcher, trusted work, note rejecti
   }
   await page.getByLabel('Terminal command').fill(trace.commands[0]);
   await page.getByLabel('Terminal command').press('Enter');
-  await expect(page.getByText("What you've proven", { exact: true })).toBeVisible();
+  await expect(page.getByText('Confirmed by your actions', { exact: true })).toBeVisible();
   await expect(page.locator('[aria-label="Ticket workspace rail"]')).toContainText('Spooler');
   await page.getByRole('button', { name: 'Back to ticket INC2504', exact: true }).click();
   assertContext();
