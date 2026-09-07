@@ -179,6 +179,27 @@ jobs:
           print("curriculum validation counts confirmed: 11 stages, 35 modules, 320/320 activities, 137/137 videos mapped")
           PY
 
+      - name: V2 Service Desk integrity gate (P0)
+        working-directory: backend
+        # No student-available V2 Service Desk assessment may resolve to a
+        # note-only scenario (process_weights null / empty grading categories),
+        # and every one that stays active must be browser-operable. The strict
+        # content load fails loudly if a fresh checkout regresses either.
+        env:
+          DATABASE_URL: sqlite:////tmp/sd-p0-ci-gate.db
+        run: |
+          rm -f /tmp/sd-p0-ci-gate.db
+          python scripts/generate_service_desk_v2_inventory.py \
+            --output /tmp/sd-p0-inventory.md --json-output /tmp/sd-p0-inventory.json
+          python -m pytest -q \
+            tests/test_service_desk_v2_inventory.py \
+            tests/test_service_desk_p0_integrity.py \
+            tests/test_v2_service_desk_grading_gate.py \
+            tests/test_v2_service_desk_onboarding.py \
+            tests/test_v2_service_desk_curriculum_mapping.py \
+            tests/test_v2_service_desk_antigaming.py \
+            tests/test_v2_realism_publication.py
+
       - name: Run CLI validate and sanity
         working-directory: frontend
         run: |
@@ -407,6 +428,10 @@ jobs:
         # frontend/vite.config.js) and exported the NEXUS_E2E_* credentials
         # this spec needs into $GITHUB_ENV above.
         run: npx playwright test tests/e2e/service-desk-integration.spec.js --reporter=list
+
+      - name: Authenticated P0 beginner integrity path
+        working-directory: frontend
+        run: npx playwright test tests/e2e/p0-service-desk-beginner.spec.js --reporter=list
 
       - name: Stop isolated local stack
         if: always()

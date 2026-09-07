@@ -304,17 +304,18 @@ def test_no_legacy_progression_interaction(db):
 
 
 def test_service_desk_authoritative_breakdown_is_composed(db):
-    _loaded(db)
+    # Mentor breakdowns use an active, supported curriculum binding.
+    import seed_v2_foundation
+
+    seed_v2_foundation.run(db)
     student = make_student(db, "service_detail")
-    scenario = ServiceDeskScenario(stable_key="phase2c", title="IP issue", category="network", difficulty=1, status="active")
-    db.add(scenario)
-    db.flush()
-    version = ServiceDeskScenarioVersion(
-        scenario_id=scenario.id, version_number=1, definition_json={},
-        definition_hash="a" * 64, validation_status="valid", status="draft",
+    scenario = db.query(ServiceDeskScenario).filter_by(stable_key="inc2503").one()
+    version = (
+        db.query(ServiceDeskScenarioVersion)
+        .filter_by(scenario_id=scenario.id, status="published")
+        .order_by(ServiceDeskScenarioVersion.version_number.desc())
+        .first()
     )
-    db.add(version)
-    db.flush()
     db.add(ServiceDeskAssignment(
         student_id=student.id,
         scenario_id=scenario.id,
