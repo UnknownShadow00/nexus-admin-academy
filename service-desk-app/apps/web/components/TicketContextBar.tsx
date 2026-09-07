@@ -31,9 +31,11 @@ export function attemptsRemaining(
 export function TicketContextBar({
   assignment,
   ticket,
+  completed = false,
 }: {
   assignment?: NexusAssignment;
   ticket: Ticket;
+  completed?: boolean;
 }) {
   const returnTarget = useNexusReturnTarget();
   const remaining = assignment
@@ -85,7 +87,7 @@ export function TicketContextBar({
               {experienceModeLabel(assignment.experience_mode)}
             </Badge>
           ) : null}
-          {remaining !== null ? (
+          {!completed && remaining !== null ? (
             <span className="ml-auto text-xs font-semibold text-text-muted">
               Attempts remaining: {remaining}
             </span>

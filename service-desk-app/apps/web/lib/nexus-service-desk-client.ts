@@ -172,6 +172,7 @@ export interface NexusGrade {
   passed: boolean;
   rubric_version: string;
   scenario_version_id: string | number;
+  learner_outcome?: 'pass' | 'escalated_successfully' | 'needs_another_attempt' | 'awaiting_review';
   technical_complete: boolean;
 }
 

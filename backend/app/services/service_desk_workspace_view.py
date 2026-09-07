@@ -269,12 +269,18 @@ def _stronger_path(
     return [labels[name] for name in DEBRIEF_CATEGORY_ORDER if name in labels]
 
 
-def _limited_category_explanation(met: bool) -> str:
+def _limited_category_explanation(name: str, met: bool) -> str:
     """Generic, leak-free coaching for the failed-with-retries debrief tier."""
     return (
         "This part of your process met the bar."
         if met
-        else "This is one of the areas to strengthen before your next attempt."
+        else {
+            "investigation": "Your pre-change investigation did not gather enough evidence.",
+            "diagnosis": "Your evidence did not establish the cause before the change.",
+            "remediation": "The required corrective action or professional hand-off was not completed.",
+            "verification": "You did not prove the final state after your action.",
+            "documentation": "The ticket note did not capture enough of what you found and did.",
+        }[name]
     )
 
 
@@ -349,7 +355,7 @@ def build_debrief(
             status = "full" if met else "missed"
             points = weight if met else 0
             explanation = (
-                _limited_category_explanation(met)
+                _limited_category_explanation(name, met)
                 if limited
                 else _category_explanation(
                     name, met, events, objective_def, first_repair

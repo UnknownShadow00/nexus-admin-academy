@@ -57,7 +57,7 @@ const SURFACES: Array<[string, React.ReactElement]> = [
     <ResolutionNotePanel
       experienceMode="guided"
       notes={[]}
-      onSubmit={() => {}}
+      onSubmit={() => ({ success: true })}
     />,
   ],
   ['resolve documentation', <DocumentationSummary note="A closure note." />],

@@ -1,12 +1,14 @@
 'use client';
 
 import type { Ticket } from '@service-desk/shared';
+import React from 'react';
 
 import { AssignmentControls } from './AssignmentControls';
 import { StatusMenu } from './StatusMenu';
-import { useTicketSession } from './TicketSessionProvider';
+import { useSessionIdentity, useTicketSession } from './TicketSessionProvider';
 
 export function TicketActionBar({ ticket }: { ticket: Ticket }) {
+  const identity = useSessionIdentity();
   const { assignTicket, changeStatus, unassignTicket } = useTicketSession();
 
   return (
@@ -19,10 +21,16 @@ export function TicketActionBar({ ticket }: { ticket: Ticket }) {
         onAssign={() => assignTicket(ticket.id)}
         onUnassign={() => unassignTicket(ticket.id)}
       />
-      <StatusMenu
-        onChange={(status) => changeStatus(ticket.id, status)}
-        status={ticket.status}
-      />
+      {identity.isAdmin || identity.isMentor ? (
+        <StatusMenu
+          onChange={(status) => changeStatus(ticket.id, status)}
+          status={ticket.status}
+        />
+      ) : (
+        <span className="text-sm text-text-muted">
+          Operational status: {ticket.status}
+        </span>
+      )}
     </section>
   );
 }

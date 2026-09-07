@@ -213,6 +213,7 @@ def _grade_dict(
         "critical_failure": grade.critical_failure,
         "overall_score": grade.overall_score,
         "passed": grade.passed,
+        "learner_outcome": (grade.details_json or {}).get("learner_outcome") or ("pass" if grade.passed else "needs_another_attempt"),
         "feedback_summary": grade.feedback_summary,
         "details": grade.details_json,
         "calculated_at": grade.calculated_at,
@@ -222,6 +223,13 @@ def _grade_dict(
     }
     if debrief is not None:
         payload["debrief"] = debrief
+        if debrief.get("coaching_tier") == "limited":
+            payload["feedback_summary"] = (
+                "Learning Mode: hints and retries do not affect your score. "
+                if grade.feedback_summary.startswith("Learning Mode:") else ""
+            ) + "Review the process areas below before your next attempt."
+            if any(c["key"] == "documentation" and c["status"] == "missed" for c in debrief.get("categories", [])):
+                payload["feedback_summary"] += " Your closure note needs enough detail about what you found and did."
     return payload
 
 

@@ -17,17 +17,35 @@ export function ResolutionNotePanel({
 }: {
   experienceMode: 'guided' | 'practice' | 'assessment';
   notes: readonly TicketNote[];
-  onSubmit: (body: string) => void;
+  onSubmit: (
+    body: string,
+  ) => { success: boolean } | Promise<{ success: boolean }>;
 }) {
   const [body, setBody] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const showPrompts = experienceMode !== 'assessment';
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const note = body.trim();
     if (note.length < 20) return;
-    onSubmit(note);
-    setBody('');
+    setSubmitting(true);
+    setError('');
+    try {
+      const result = await onSubmit(body);
+      if (result.success) setBody('');
+      else
+        setError(
+          'Your note needs enough detail to identify what you tested and what happened.',
+        );
+    } catch {
+      setError(
+        'Your note could not be saved. Your text is still here; please try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -74,21 +92,32 @@ export function ResolutionNotePanel({
             Add a note
           </label>
           <Textarea
-            aria-describedby={showPrompts ? 'resolution-note-prompts' : undefined}
+            aria-describedby={
+              showPrompts ? 'resolution-note-prompts' : undefined
+            }
             className="mt-2"
+            disabled={submitting}
             id="resolution-note"
             onChange={(event) => setBody(event.target.value)}
             placeholder={showPrompts ? NOTE_PROMPTS : 'Write an internal note…'}
             value={body}
           />
           {showPrompts ? (
-            <p className="mt-2 text-xs leading-5 text-text-muted" id="resolution-note-prompts">
+            <p
+              className="mt-2 text-xs leading-5 text-text-muted"
+              id="resolution-note-prompts"
+            >
               {NOTE_PROMPTS}
+            </p>
+          ) : null}
+          {error ? (
+            <p className="mt-2 text-sm text-warning" role="alert">
+              {error}
             </p>
           ) : null}
           <Button
             className="mt-3 w-full sm:w-auto"
-            disabled={body.trim().length < 20}
+            disabled={submitting || body.trim().length < 20}
             type="submit"
             variant="soft"
           >

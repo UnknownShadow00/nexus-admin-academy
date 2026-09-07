@@ -2298,3 +2298,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: service-desk-app/apps/web/components/ActiveToolPane.tsx, IntegratedToolContext.tsx, RemoteDesktopTool.tsx, DirectoryTool.tsx, AssetManagementTool.tsx, CompanyChatTool.tsx, DocumentationTool.tsx, tool-registry.tsx, TicketWorkspace.tsx (launcher/context hunks), tasks/loop-log.md
 - Result: PASS — authenticated mounted curriculum URL opened Remote Desktop through the launcher, one asset/no ticket selector, evidence and return context preserved; Service Desk web tests and typecheck passed, lint passed. Standalone browser validation follows after the isolated integrated server stops.
 - Next: Commit learner outcome and note semantics; finish standalone browser/build checks.
+
+## 2026-09-07T21:32:52.082794+00:00 Task Completed
+- Task: Clarify server-owned learner outcomes, preserve rejected notes, prevent post-hoc investigation from earning V2 competency, and make retry coaching leak-safe.
+- Files changed: backend/app/routers/service_desk.py, backend/app/services/service_desk_grading.py, backend/app/services/service_desk_workspace_view.py, backend/tests/test_service_desk_p0_integrity.py, backend/tests/test_service_desk_workspace_view.py, backend/tests/test_v2_service_desk_antigaming.py, Service Desk note/outcome/status components and focused tests, TicketSessionProvider.tsx, TicketWorkspace.tsx, nexus-service-desk-client.ts, tasks/loop-log.md
+- Result: PASS — web 173 tests; 6-assessment anti-gaming matrix with 54 variants and 6 positive controls passed; grading/API rerun 109 passed, escalation/workspace 25 passed. Authenticated beginner completed repair, received server PASS and V2 activity credit, returned to its module. No legacy grading weights or note-only fallback changed.
+- Next: Commit student-copy cleanup and CI/browser gates; finish consolidated validation and clean-tree report.

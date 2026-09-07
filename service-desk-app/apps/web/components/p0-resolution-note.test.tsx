@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ResolutionNotePanel } from './ResolutionNotePanel';
 
-const NOTE = 'Restarted computer and issue resolved.';
+const NOTE = '  Restarted computer and issue resolved.\n  ';
 
 let container: HTMLDivElement;
 let root: Root;
@@ -26,7 +26,11 @@ afterEach(async () => {
   container.remove();
 });
 
-async function submitRejectedNote(onSubmit: (body: string) => void) {
+async function submitRejectedNote(
+  onSubmit: (
+    body: string,
+  ) => { success: boolean } | Promise<{ success: boolean }>,
+) {
   await act(async () => {
     root.render(
       <ResolutionNotePanel
@@ -57,24 +61,28 @@ async function submitRejectedNote(onSubmit: (body: string) => void) {
 }
 
 describe('P0 Finding D — rejected Resolution Note feedback', () => {
-  it("records today's silent-disappearance baseline", async () => {
-    const onSubmit = vi.fn();
+  it('preserves exact rejected text and shows safe feedback', async () => {
+    const onSubmit = vi.fn(() => ({ success: false }));
     const textarea = await submitRejectedNote(onSubmit);
-
     expect(onSubmit).toHaveBeenCalledWith(NOTE);
+    expect(textarea.value).toBe(NOTE);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      'what you tested',
+    );
+  });
+
+  it('clears the editor only after success', async () => {
+    const textarea = await submitRejectedNote(() => ({ success: true }));
     expect(textarea.value).toBe('');
     expect(container.querySelector('[role="alert"]')).toBeNull();
   });
-
-  it.fails(
-    'preserves the note and renders feedback when submission is rejected (fixed in Wave 6)',
-    async () => {
-      const textarea = await submitRejectedNote(() => {
-        // The parent/engine rejects the note; the panel has no result channel.
-      });
-
-      expect(textarea.value).toBe(NOTE);
-      expect(container.querySelector('[role="alert"]')).not.toBeNull();
-    },
-  );
+  it('preserves the note if asynchronous persistence fails', async () => {
+    const textarea = await submitRejectedNote(async () => {
+      throw new Error('network');
+    });
+    expect(textarea.value).toBe(NOTE);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      'could not be saved',
+    );
+  });
 });

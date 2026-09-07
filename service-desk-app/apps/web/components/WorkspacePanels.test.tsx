@@ -59,7 +59,7 @@ describe('workspace panels', () => {
       <ResolutionNotePanel
         experienceMode="assessment"
         notes={[]}
-        onSubmit={() => {}}
+        onSubmit={() => ({ success: true })}
       />,
     );
     expect(noteMarkup).toContain('placeholder="Write an internal note…"');

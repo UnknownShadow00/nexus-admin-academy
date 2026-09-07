@@ -41,7 +41,7 @@ describe('one editable documentation surface', () => {
       <ResolutionNotePanel
         experienceMode="guided"
         notes={[]}
-        onSubmit={() => {}}
+        onSubmit={() => ({ success: true })}
       />,
     );
     const resolve = renderToStaticMarkup(

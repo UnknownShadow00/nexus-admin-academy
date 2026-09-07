@@ -32,6 +32,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   const {
     assignmentByTicket,
     authoritativeGradeByTicket,
+    awaitingGradeByTicket,
     getTicket,
     recordHintReveal,
     startNextAttempt,
@@ -170,7 +171,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   if (authoritativeGrade) {
     return (
       <div className="mx-auto w-full max-w-[1540px] space-y-4 sm:space-y-5">
-        <TicketContextBar assignment={assignment} ticket={ticket} />
+        <TicketContextBar assignment={assignment} completed ticket={ticket} />
         <TicketDebrief
           assignment={assignment}
           grade={authoritativeGrade}
@@ -185,6 +186,11 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
     <div className="mx-auto w-full max-w-[1540px] space-y-4 sm:space-y-5">
       <TicketContextBar assignment={assignment} ticket={ticket} />
 
+      {awaitingGradeByTicket[ticketId] ? (
+        <p className="rounded-md border border-accent p-4 text-lg font-bold" role="status">
+          Assessment result: AWAITING REVIEW — module credit pending.
+        </p>
+      ) : null}
       {workspaceView ? (
         <WorkflowRail
           experienceMode={experienceMode}

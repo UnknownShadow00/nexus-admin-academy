@@ -137,7 +137,8 @@ interface TicketSessionContextValue {
    * ceiling has been reached) so the caller can keep the debrief on screen.
    */
   startNextAttempt: (ticketId: string) => Promise<boolean>;
-  submitResolutionNote: (ticketId: string, body: string) => void;
+  submitResolutionNote: (ticketId: string, body: string) => Promise<{ success: boolean }>;
+  awaitingGradeByTicket: Readonly<Record<string, boolean>>;
   assignmentByTicket: Readonly<Record<string, NexusAssignment>>;
   authoritativeGradeByTicket: Readonly<Record<string, NexusGrade>>;
   workspaceViewByTicket: Readonly<Record<string, NexusWorkspaceView>>;
@@ -2361,7 +2362,7 @@ export function TicketSessionProvider({
         });
       },
       startNextAttempt,
-      submitResolutionNote: (ticketId, body) => {
+      submitResolutionNote: async (ticketId, body) => {
         const documentationTarget = documentationTargetForTicket(
           ticketId,
           workspaceViewByTicket[ticketId]?.documentation_target,
@@ -2374,8 +2375,20 @@ export function TicketSessionProvider({
           documentationTarget,
           assetTag,
         );
-        if (action) dispatchAction(action);
+        if (!action) return { success: false };
+        const event = dispatchAction(action);
+        if (!event.success || !NEXUS_INTEGRATION_ENABLED) return event;
+        await flushNexusOutbox();
+        if (!nexusTicketMappingsRef.current[ticketId] || nexusOutboxRef.current.items.some((item) => item.event.idempotency_key === event.id)) {
+          throw new Error('Nexus has not confirmed this note.');
+        }
+        return { success: true };
       },
+      awaitingGradeByTicket: Object.fromEntries(
+        Object.keys(attempt.grades).map((ticketId) => [ticketId,
+          NEXUS_INTEGRATION_ENABLED && !authoritativeGradeByTicket[ticketId],
+        ]),
+      ),
       progression: serviceDeskProgression,
       tickets,
       unassignTicket: (ticketId) => {
@@ -2387,6 +2400,8 @@ export function TicketSessionProvider({
     }),
     [
       authoritativeGradeByTicket,
+      attempt.grades,
+      flushNexusOutbox,
       dispatchAction,
       runtimeAssignments,
       serviceDeskProgression,

@@ -231,3 +231,13 @@ def test_debrief_escalation_feedback_for_ordinary_scenario():
         attempts_remaining=None,
     )
     assert debrief["escalation_feedback"]["appropriate"] is False
+
+
+def test_limited_feedback_is_category_specific_without_a_solution():
+    debrief = _failed_debrief("inc2506", attempts_remaining=2)
+    explanations = {c["key"]: c["explanation"] for c in debrief["categories"]}
+    assert "cause" in explanations["diagnosis"]
+    assert "corrective action" in explanations["remediation"]
+    assert "final state" in explanations["verification"]
+    assert "ticket note" in explanations["documentation"]
+    assert len(set(explanations.values())) == 5

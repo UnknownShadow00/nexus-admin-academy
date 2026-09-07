@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { canRetryAttempt } from './TicketDebrief';
+import { canRetryAttempt, learnerOutcomeCopy } from './TicketDebrief';
 import type {
   NexusDebrief,
   NexusGrade,
@@ -65,4 +65,35 @@ describe('retry eligibility after a graded attempt', () => {
   it('does not guess when the server sent no debrief', () => {
     expect(canRetryAttempt(grade(false, null), null)).toBe(false);
   });
+});
+
+describe('server learner outcome wording', () => {
+  it.each([
+    ['pass', true, 'Assessment result: PASS — module credit earned.'],
+    [
+      'escalated_successfully',
+      true,
+      'Assessment result: ESCALATED SUCCESSFULLY — module credit earned.',
+    ],
+    [
+      'needs_another_attempt',
+      false,
+      'Assessment result: NEEDS ANOTHER ATTEMPT — no module credit earned.',
+    ],
+    [
+      'awaiting_review',
+      false,
+      'Assessment result: AWAITING REVIEW — module credit pending.',
+    ],
+  ] as const)(
+    'renders %s without consulting operational status',
+    (outcome, passed, expected) => {
+      expect(
+        learnerOutcomeCopy({
+          ...grade(passed, null),
+          learner_outcome: outcome,
+        }),
+      ).toBe(expected);
+    },
+  );
 });

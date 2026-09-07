@@ -212,6 +212,19 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
                 "verification_applicable": True,
                 "documentation_complete": objective_checks.get("documentation", False),
             }
+    # Legacy process-v3 permits partial process credit after a technical fix.
+    # Curriculum competency additionally requires evidence-led investigation
+    # and diagnosis, in the order evaluated from the trusted ledger.
+    v2_competency = any(
+        event.event_type == "v2.curriculum_launch" and event.trusted is True
+        for event in events
+    )
+    if v2_competency:
+        resolved = resolved and all(
+            objective_checks.get(category, False)
+            for category in ("investigation", "diagnosis")
+        )
+
     hints_used = sum(event.event_type == "hint_requested" for event in events)
     # Learning Mode is for practicing without penalty: hint use and an
     # unresolved close still get recorded and shown to the student, but do
@@ -331,6 +344,8 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
             "This ticket was within your authority - it did not need "
             "escalation. Review what a full fix looks like."
         )
+    elif resolved and escalation_details.get("escalation_expected"):
+        feedback_summary = "You completed the required professional hand-off. The receiving team owns restoration."
     elif is_learning_mode:
         feedback_summary = (
             "Learning Mode: hints and retries do not affect your score. "
@@ -349,13 +364,26 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     else:
         feedback_summary = "Your ticket could not be verified yet. Review the required troubleshooting steps and try again."
 
+    # A single, unambiguous learner-facing outcome, distinct from the ticket's
+    # operational status. "awaiting_review" is layered on by the caller when a
+    # mentor/AI grade is still pending; grading alone only ever produces a
+    # decisive pass / escalation / retry result.
+    if not resolved:
+        learner_outcome = "needs_another_attempt"
+    elif escalation_details.get("escalation_expected"):
+        learner_outcome = "escalated_successfully"
+    else:
+        learner_outcome = "pass"
+
     return {
         "technical_complete": resolved,
         "critical_failure": critical_failure,
         "overall_score": overall_score,
         "passed": resolved,
+        "learner_outcome": learner_outcome,
         "feedback_summary": feedback_summary,
         "details": {
+            "learner_outcome": learner_outcome,
             "points_possible": points_possible,
             "points_awarded": points_awarded,
             "process_points": process_points,

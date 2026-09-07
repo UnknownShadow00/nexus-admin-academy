@@ -138,7 +138,6 @@ def test_p0_finding_b_every_v2_service_desk_assessment_is_browser_operable(db):
     )
 
 
-@pytest.mark.xfail(strict=True, reason="P0 Finding E — fixed in Wave 6")
 def test_p0_finding_e_resolved_ticket_exposes_failed_learner_outcome(db):
     seed_v2_foundation.run(db)
     assessment, _, version = _published_assessment(
