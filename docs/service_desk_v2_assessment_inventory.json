@@ -1,0 +1,164 @@
+{
+  "feature_flag": {
+    "enabled": false,
+    "name": "V2_CURRICULUM_ENABLED"
+  },
+  "rows": [
+    {
+      "assessment_key": "assess.aplus-core1-hardware-fault-isolation.service_desk",
+      "asset_tag": "SERVICE_DESK.APLUS.HARDWARE.RENDER_SHUTDOWN",
+      "browser_operable": false,
+      "catalog_version": "none",
+      "grading_categories": [],
+      "module": "module.aplus.core1.hardware_fault_isolation",
+      "process_profile": false,
+      "scenario_stable_key": "service_desk.aplus.hardware.render_shutdown",
+      "student_visible": false,
+      "ticket_id": "SERVICE_DESK.APLUS.HARDWARE.RENDER_SHUTDOWN"
+    },
+    {
+      "assessment_key": "assess.aplus.ipcfg.service_desk",
+      "asset_tag": "NX-2503",
+      "browser_operable": true,
+      "catalog_version": "realism-v2",
+      "grading_categories": [
+        "investigation",
+        "diagnosis",
+        "remediation",
+        "verification",
+        "documentation"
+      ],
+      "module": "module.aplus.core1.ip_configuration",
+      "process_profile": true,
+      "scenario_stable_key": "inc2503",
+      "student_visible": false,
+      "ticket_id": "INC2503"
+    },
+    {
+      "assessment_key": "assess.aplus-core1-mobile-device-support.service_desk",
+      "asset_tag": "SERVICE_DESK.APLUS.MOBILE.INTERMITTENT_CHARGE_MAIL_SYNC",
+      "browser_operable": false,
+      "catalog_version": "none",
+      "grading_categories": [],
+      "module": "module.aplus.core1.mobile_device_support",
+      "process_profile": false,
+      "scenario_stable_key": "service_desk.aplus.mobile.intermittent_charge_mail_sync",
+      "student_visible": false,
+      "ticket_id": "SERVICE_DESK.APLUS.MOBILE.INTERMITTENT_CHARGE_MAIL_SYNC"
+    },
+    {
+      "assessment_key": "assess.aplus-core1-network-services-troubleshooting.service_desk",
+      "asset_tag": "SERVICE_DESK.APLUS.NETWORK.LOADING_DOCK_WIFI",
+      "browser_operable": false,
+      "catalog_version": "none",
+      "grading_categories": [],
+      "module": "module.aplus.core1.network_services_troubleshooting",
+      "process_profile": false,
+      "scenario_stable_key": "service_desk.aplus.network.loading_dock_wifi",
+      "student_visible": false,
+      "ticket_id": "SERVICE_DESK.APLUS.NETWORK.LOADING_DOCK_WIFI"
+    },
+    {
+      "assessment_key": "assess.aplus-core1-printers-mfds.service_desk",
+      "asset_tag": "SERVICE_DESK.APLUS.PRINTERS.HR_QUEUE",
+      "browser_operable": false,
+      "catalog_version": "none",
+      "grading_categories": [],
+      "module": "module.aplus.core1.printers_mfds",
+      "process_profile": false,
+      "scenario_stable_key": "service_desk.aplus.printers.hr_queue",
+      "student_visible": false,
+      "ticket_id": "SERVICE_DESK.APLUS.PRINTERS.HR_QUEUE"
+    },
+    {
+      "assessment_key": "assess.aplus-core2-connected-endpoint-mobile-security.service_desk",
+      "asset_tag": "SD.APLUS.SECURITY.MOBILE_SECURE_WIFI_PROFILE",
+      "browser_operable": false,
+      "catalog_version": "none",
+      "grading_categories": [],
+      "module": "module.aplus.core2.connected_endpoint_mobile_security",
+      "process_profile": false,
+      "scenario_stable_key": "sd.aplus.security.mobile_secure_wifi_profile",
+      "student_visible": false,
+      "ticket_id": "SD.APLUS.SECURITY.MOBILE_SECURE_WIFI_PROFILE"
+    },
+    {
+      "assessment_key": "assess.aplus-core2-cross-platform-app-cloud-support.service_desk",
+      "asset_tag": "SD.APLUS.CROSS_PLATFORM.UNLICENSED_SUITE_MAC",
+      "browser_operable": false,
+      "catalog_version": "none",
+      "grading_categories": [],
+      "module": "module.aplus.core2.cross_platform_app_cloud_support",
+      "process_profile": false,
+      "scenario_stable_key": "sd.aplus.cross_platform.unlicensed_suite_mac",
+      "student_visible": false,
+      "ticket_id": "SD.APLUS.CROSS_PLATFORM.UNLICENSED_SUITE_MAC"
+    },
+    {
+      "assessment_key": "assess.aplus-core2-identity-endpoint-hardening.service_desk",
+      "asset_tag": "SD.APLUS.SECURITY.APPROVED_APP_STANDARD_USER",
+      "browser_operable": false,
+      "catalog_version": "none",
+      "grading_categories": [],
+      "module": "module.aplus.core2.identity_endpoint_hardening",
+      "process_profile": false,
+      "scenario_stable_key": "sd.aplus.security.approved_app_standard_user",
+      "student_visible": false,
+      "ticket_id": "SD.APLUS.SECURITY.APPROVED_APP_STANDARD_USER"
+    },
+    {
+      "assessment_key": "assess.aplus-core2-service-desk-workflow.service_desk",
+      "asset_tag": "CURRICULUM-APLUS-CORE2-SERVICE-DESK-WORKFLOW-SERVICE-DESK-01",
+      "browser_operable": false,
+      "catalog_version": "none",
+      "grading_categories": [],
+      "module": "module.aplus.core2.service_desk_workflow",
+      "process_profile": false,
+      "scenario_stable_key": "curriculum-aplus-core2-service-desk-workflow-service-desk-01",
+      "student_visible": false,
+      "ticket_id": "CURRICULUM-APLUS-CORE2-SERVICE-DESK-WORKFLOW-SERVICE-DESK-01"
+    },
+    {
+      "assessment_key": "assess.aplus-core2-threat-malware-response.service_desk",
+      "asset_tag": "SD.APLUS.SECURITY.SUSPICIOUS_ATTACHMENT_ENDPOINT",
+      "browser_operable": false,
+      "catalog_version": "none",
+      "grading_categories": [],
+      "module": "module.aplus.core2.threat_malware_response",
+      "process_profile": false,
+      "scenario_stable_key": "sd.aplus.security.suspicious_attachment_endpoint",
+      "student_visible": false,
+      "ticket_id": "SD.APLUS.SECURITY.SUSPICIOUS_ATTACHMENT_ENDPOINT"
+    },
+    {
+      "assessment_key": "assess.aplus-core2-windows-admin-cli-networking.service_desk",
+      "asset_tag": "SD.APLUS.WINDOWS_ADMIN.PROJECT_SHARE_AFTER_VPN",
+      "browser_operable": false,
+      "catalog_version": "none",
+      "grading_categories": [],
+      "module": "module.aplus.core2.windows_admin_cli_networking",
+      "process_profile": false,
+      "scenario_stable_key": "sd.aplus.windows_admin.project_share_after_vpn",
+      "student_visible": false,
+      "ticket_id": "SD.APLUS.WINDOWS_ADMIN.PROJECT_SHARE_AFTER_VPN"
+    },
+    {
+      "assessment_key": "assess.aplus.wintriage.service_desk",
+      "asset_tag": "NX-3560",
+      "browser_operable": true,
+      "catalog_version": "process-v3",
+      "grading_categories": [
+        "investigation",
+        "diagnosis",
+        "remediation",
+        "verification",
+        "documentation"
+      ],
+      "module": "module.aplus.core2.windows_troubleshooting",
+      "process_profile": true,
+      "scenario_stable_key": "inc2403",
+      "student_visible": false,
+      "ticket_id": "INC2403"
+    }
+  ]
+}
