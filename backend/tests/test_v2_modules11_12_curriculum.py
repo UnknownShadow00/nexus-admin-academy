@@ -28,6 +28,7 @@ from app.models.service_desk import (
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
 )
+from app.models.v2_progress import V2_ACTIVITY_SERVICE_DESK, V2_STATUS_PASSED
 from app.services.v2_assessment_selector import select_constrained
 from app.services.v2_content_loader import load_module
 from app.services.v2_curriculum_service import (
@@ -39,7 +40,7 @@ from app.services.v2_curriculum_service import (
     service_desk_scenario_is_playable,
 )
 from app.services.v2_mentor_service import cohort_progress
-from app.services.v2_progress_service import V2ProgressError
+from app.services.v2_progress_service import V2ProgressError, record_activity
 from conftest import enroll_v2, make_student
 
 
@@ -133,6 +134,22 @@ def test_modules11_12_load_all_reviewed_relationships_and_hints(
     enroll_v2(monkeypatch, student)
     if expected["service_desk_available"]:
         assert service_desk_scenario_is_playable(db, service_desk) is True
+        assert assessment_is_available(db, service_desk, student.id) is False
+        first = db.query(ModuleAssessment).filter_by(
+            assessment_key="assess.aplus-core1-printers-mfds.service_desk"
+        ).one()
+        first_module = db.get(CertificationModule, first.certification_module_id)
+        record_activity(
+            db,
+            student_id=student.id,
+            module_key=first_module.module_key,
+            activity_type=V2_ACTIVITY_SERVICE_DESK,
+            ref_key=first.assessment_key,
+            status=V2_STATUS_PASSED,
+            score=100,
+            passed=True,
+            commit=True,
+        )
         assert assessment_is_available(db, service_desk, student.id) is True
         launch = launch_service_desk(
             db, student.id, module_key, service_desk.assessment_key
@@ -286,7 +303,7 @@ def test_modules10_12_sequence_mentor_visibility_and_resource_mastery_separation
         available = {row["module_key"] for row in cohort["available_modules"]}
         assert set(MODULES) <= available
         assert cohort["students"][0]["practical"]["status"] is None
-        assert cohort["students"][0]["service_desk"]["status"] is None
+        assert cohort["students"][0]["service_desk"] is None
         assert cohort["students"][0]["explain_status"] == "not_started"
 
     module_key = module11

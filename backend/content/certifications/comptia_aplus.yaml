@@ -1189,6 +1189,9 @@ versions:
       title: Service Desk — service_desk.aplus.printers.hr_queue
       service_desk_ref: inc2504
       pass_percent: 70
+      config:
+        onboarding_order: 1
+        guidance_level: tutorial
       display_order: 8
     - assessment_key: assess.aplus-core1-printers-mfds.explain
       assessment_role: explain
@@ -1847,6 +1850,9 @@ versions:
       title: Service Desk — curriculum-aplus-core2-service-desk-workflow-service-desk-01
       service_desk_ref: inc2506
       pass_percent: 70
+      config:
+        onboarding_order: 3
+        guidance_level: guided_escalation
       display_order: 9
     - assessment_key: assess.aplus-core2-service-desk-workflow.explain
       assessment_role: explain
@@ -2040,6 +2046,9 @@ versions:
       title: Service Desk — sd.aplus.windows_admin.project_share_after_vpn
       service_desk_ref: inc2505
       pass_percent: 70
+      config:
+        onboarding_order: 2
+        guidance_level: guided
       display_order: 9
     - assessment_key: assess.aplus-core2-windows-admin-cli-networking.explain
       assessment_role: explain

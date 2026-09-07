@@ -51,10 +51,37 @@ MODULE = "module.aplus.core1.network_services_troubleshooting"
 
 
 def _ready(db, monkeypatch):
+    # Seed the INC25xx / INC2403 realism scenarios before load_module, exactly
+    # like seed_v2_foundation.run, so the Wave 3 service_desk_ref bindings
+    # (inc2504/2505/2506/2508) resolve and reconcile back to active and the
+    # grading-profile gate sees real definitions.
+    from app.services.service_desk_realism import fixture_catalog
+    from seed import seed_service_desk_scenarios
+
+    seed_service_desk_scenarios(db, ticket_ids=set(fixture_catalog()) | {"INC2403"})
     load_module(db, commit=True)
     student = make_student(db, username="runtime_student")
     enroll_v2(monkeypatch, student)
     return student, make_client(curriculum_router, progress_router)
+
+
+def _seeded_inc2503(db):
+    """The real seeded inc2503 scenario + its published version.
+
+    Post-P0 the grading-profile gate rejects a hand-rolled stub with an empty
+    ``definition_json``; these tests exercise assignment/reconciliation flows,
+    not scenario authoring, so they reuse the seeded realism scenario.
+    """
+    scenario = (
+        db.query(ServiceDeskScenario).filter_by(stable_key="inc2503").one()
+    )
+    version = (
+        db.query(ServiceDeskScenarioVersion)
+        .filter_by(scenario_id=scenario.id, status="published")
+        .order_by(ServiceDeskScenarioVersion.version_number.desc())
+        .first()
+    )
+    return scenario, version
 
 
 def _quiz_key(db):
@@ -568,19 +595,7 @@ def test_service_desk_reconciliation_uses_exact_v2_activity_with_both_modes(db, 
     student, curriculum_client = _ready(db, monkeypatch)
     module_key = "module.aplus.core1.ip_configuration"
     assessment_key = "assess.aplus.ipcfg.service_desk"
-    scenario = ServiceDeskScenario(
-        stable_key="inc2503", title="Desk network after move", category="network",
-        difficulty=1, status="active",
-    )
-    db.add(scenario)
-    db.flush()
-    version = ServiceDeskScenarioVersion(
-        scenario_id=scenario.id, version_number=1, definition_json={},
-        definition_hash="b" * 64, validation_status="valid", status="published",
-        published_by="test",
-    )
-    db.add(version)
-    db.flush()
+    scenario, version = _seeded_inc2503(db)
     learning_assignment = ServiceDeskAssignment(
         student_id=student.id, scenario_id=scenario.id, mode="learning",
         is_required=False, maximum_attempts=1, assigned_by="admin",
@@ -680,18 +695,7 @@ def test_v2_service_desk_assignment_bypasses_legacy_ladder_only_for_exact_case(d
     student, curriculum_client = _ready(db, monkeypatch)
     module_key = "module.aplus.core1.ip_configuration"
     assessment_key = "assess.aplus.ipcfg.service_desk"
-    scenario = ServiceDeskScenario(
-        stable_key="inc2503", title="Desk network after move", category="network",
-        difficulty=1, status="active",
-    )
-    db.add(scenario)
-    db.flush()
-    db.add(ServiceDeskScenarioVersion(
-        scenario_id=scenario.id, version_number=1, definition_json={},
-        definition_hash="a" * 64, validation_status="valid", status="published",
-        published_by="test",
-    ))
-    db.commit()
+    scenario, _ = _seeded_inc2503(db)
     launched = curriculum_client.post(
         f"/api/v2/curriculum/modules/{module_key}/service-desk/{assessment_key}/launch",
         headers=auth_headers(student),
@@ -735,18 +739,7 @@ def test_revoked_student_cannot_continue_v2_service_desk_attempt(db, monkeypatch
     student, curriculum_client = _ready(db, monkeypatch)
     module_key = "module.aplus.core1.ip_configuration"
     assessment_key = "assess.aplus.ipcfg.service_desk"
-    scenario = ServiceDeskScenario(
-        stable_key="inc2503", title="Desk network after move", category="network",
-        difficulty=1, status="active",
-    )
-    db.add(scenario)
-    db.flush()
-    db.add(ServiceDeskScenarioVersion(
-        scenario_id=scenario.id, version_number=1, definition_json={},
-        definition_hash="c" * 64, validation_status="valid", status="published",
-        published_by="test",
-    ))
-    db.commit()
+    scenario, _ = _seeded_inc2503(db)
     legacy_assignment = ServiceDeskAssignment(
         student_id=student.id, scenario_id=scenario.id, mode="learning",
         is_required=False, maximum_attempts=None, assigned_by="admin",

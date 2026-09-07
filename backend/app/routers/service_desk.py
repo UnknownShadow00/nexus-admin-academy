@@ -63,6 +63,7 @@ from app.services.service_desk_progression import (
 )
 from app.services.service_desk_workspace_view import build_debrief, process_progress
 from app.services.v2_progress_service import reconcile_v2_service_desk_attempt
+from app.services.v2_service_desk_onboarding import service_desk_onboarding_blocker
 from app.services.v2_access import V2_UNAVAILABLE_DETAIL, student_has_v2_access
 from app.services.xp_service import award_xp
 
@@ -436,6 +437,7 @@ def _v2_launch_context(
     if (
         assessment is None
         or not supported_profile
+        or service_desk_onboarding_blocker(db, student.id, assessment) is not None
         or activity is None
         or (
         activity.detail or {}

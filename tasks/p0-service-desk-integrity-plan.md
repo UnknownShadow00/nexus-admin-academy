@@ -151,3 +151,12 @@ non-V2 use but must not yield V2 competency credit.
   confirm the URL in output. `NEXUS_ALLOW_PROD_MIGRATION` stays unset.
 - Never `>/dev/null` a command that can mutate unscoped state.
 - `backend/nexus.db` IS production — read-only inspection only.
+
+## Narrowed onboarding decision (2026-09-07)
+
+INC2504 → INC2505 → INC2506 are ordered among themselves and carry
+`guidance_level` / `onboarding_order` metadata. Other supported assessments
+remain accessible independently. Support Tickets remain non-blocking extra
+practice. A dedicated onboarding track and any cross-module completion gate
+are deferred: they require a coordinated module_progress/cohort_progress
+redesign and are outside this sprint.

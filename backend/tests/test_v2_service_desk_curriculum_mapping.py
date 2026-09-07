@@ -7,6 +7,7 @@ import pytest
 import seed_v2_foundation
 from app.models.certification import CertificationModule, ModuleAssessment
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
+from app.models.v2_progress import V2_ACTIVITY_SERVICE_DESK, V2_STATUS_PASSED
 from app.services.service_desk_objectives import objective_definition
 from app.services.service_desk_scenario_validation import (
     scenario_has_supported_grading_profile,
@@ -17,6 +18,8 @@ from app.services.v2_curriculum_service import (
     launch_service_desk,
     service_desk_scenario_is_playable,
 )
+from app.services.v2_progress_service import record_activity
+from app.services.v2_service_desk_onboarding import SERVICE_DESK_ONBOARDING
 from conftest import enroll_v2, make_student
 
 
@@ -98,6 +101,30 @@ def _assessment(db, module_key: str, assessment_key: str) -> ModuleAssessment:
     ).one()
 
 
+def _pass_orientation_prerequisites(db, student_id: int, assessment_key: str) -> None:
+    target_index = (
+        SERVICE_DESK_ONBOARDING.index(assessment_key)
+        if assessment_key in SERVICE_DESK_ONBOARDING
+        else len(SERVICE_DESK_ONBOARDING)
+    )
+    for prerequisite_key in SERVICE_DESK_ONBOARDING[:target_index]:
+        prerequisite = db.query(ModuleAssessment).filter_by(
+            assessment_key=prerequisite_key
+        ).one()
+        module = db.get(CertificationModule, prerequisite.certification_module_id)
+        record_activity(
+            db,
+            student_id=student_id,
+            module_key=module.module_key,
+            activity_type=V2_ACTIVITY_SERVICE_DESK,
+            ref_key=prerequisite_key,
+            status=V2_STATUS_PASSED,
+            score=100,
+            passed=True,
+            commit=True,
+        )
+
+
 @pytest.mark.parametrize(
     ("module_key", "assessment_key", "stable_key"),
     [
@@ -137,6 +164,9 @@ def test_available_service_desk_mapping_has_published_supported_scenario(
 
     student = make_student(loaded_mapping, username=f"mapping-{stable_key}")
     enroll_v2(monkeypatch, student)
+    _pass_orientation_prerequisites(
+        loaded_mapping, student.id, assessment_key
+    )
     launch = launch_service_desk(
         loaded_mapping, student.id, module_key, assessment_key
     )

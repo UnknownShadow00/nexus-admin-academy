@@ -181,9 +181,15 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
     lesson_keys = [m.lesson_key for m in lesson_metas]
     lesson_meta_ids = [m.id for m in lesson_metas]
 
+    # Only active assessments are requirements. A Service Desk assessment that
+    # was deactivated for lacking a supported grading profile (P0 integrity
+    # sprint) must not leave its module permanently incompletable.
     assessments = (
         db.query(ModuleAssessment)
-        .filter(ModuleAssessment.certification_module_id == module.id)
+        .filter(
+            ModuleAssessment.certification_module_id == module.id,
+            ModuleAssessment.active.is_(True),
+        )
         .order_by(ModuleAssessment.display_order, ModuleAssessment.id)
         .all()
     )

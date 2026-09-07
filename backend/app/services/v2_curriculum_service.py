@@ -67,6 +67,10 @@ from app.services.service_desk_scenario_validation import (
 )
 from app.services.v2_assessment_selector import ConstraintSelectionError, select_constrained
 from app.services.v2_progress_service import V2ProgressError, module_progress, record_activity
+from app.services.v2_service_desk_onboarding import (
+    SERVICE_DESK_PREVIOUS_ORIENTATION_REQUIRED,
+    service_desk_onboarding_blocker,
+)
 
 DONE = {V2_STATUS_COMPLETED, V2_STATUS_PASSED}
 
@@ -241,9 +245,11 @@ def assessment_is_available(
     if assessment.assessment_role == V2_ACTIVITY_EXPLAIN:
         return True
     if assessment.assessment_role == V2_ACTIVITY_SERVICE_DESK:
-        return service_desk_scenario_is_playable(
-            db, assessment
-        ) and service_desk_has_attempt_capacity(db, assessment, student_id)
+        return (
+            service_desk_scenario_is_playable(db, assessment)
+            and service_desk_has_attempt_capacity(db, assessment, student_id)
+            and service_desk_onboarding_blocker(db, student_id, assessment) is None
+        )
     if assessment.assessment_role == V2_ACTIVITY_PRACTICAL:
         from app.models.lab import LabTemplate
 
@@ -324,7 +330,8 @@ def service_desk_has_attempt_capacity(
 
 
 def _assessment_view(db: Session, student_id: int, assessment: ModuleAssessment) -> dict:
-    engine_ref = (assessment.config or {}).get("engine_service_desk_ref")
+    config = assessment.config or {}
+    engine_ref = config.get("engine_service_desk_ref")
     scenario = db.get(ServiceDeskScenario, assessment.service_desk_scenario_id) if assessment.service_desk_scenario_id else None
     available = assessment_is_available(db, assessment, student_id)
     unavailable = None
@@ -344,13 +351,34 @@ def _assessment_view(db: Session, student_id: int, assessment: ModuleAssessment)
             if assessment.assessment_role == V2_ACTIVITY_SERVICE_DESK
             else "This activity has not been prepared for students yet."
         )
-        unavailable = {
-            "status": "not_available",
-            "reason": reason,
-            "required_action": "Choose another available activity in this module.",
-            "blocker_route": None,
-            "activity_name": activity_name,
-        }
+        onboarding_blocker = (
+            service_desk_onboarding_blocker(db, student_id, assessment)
+            if assessment.assessment_role == V2_ACTIVITY_SERVICE_DESK
+            and service_desk_scenario_is_playable(db, assessment)
+            and service_desk_has_attempt_capacity(db, assessment, student_id)
+            else None
+        )
+        if onboarding_blocker:
+            unavailable = {
+                "status": "service_desk_orientation_required",
+                "reason": "Complete Service Desk orientation first.",
+                "required_action": (
+                    "Complete the previous orientation ticket first."
+                    if onboarding_blocker
+                    == SERVICE_DESK_PREVIOUS_ORIENTATION_REQUIRED
+                    else "Complete Service Desk orientation first."
+                ),
+                "blocker_route": None,
+                "activity_name": activity_name,
+            }
+        else:
+            unavailable = {
+                "status": "not_available",
+                "reason": reason,
+                "required_action": "Choose another available activity in this module.",
+                "blocker_route": None,
+                "activity_name": activity_name,
+            }
     return {
         "key": assessment.assessment_key,
         "role": assessment.assessment_role,
@@ -365,6 +393,8 @@ def _assessment_view(db: Session, student_id: int, assessment: ModuleAssessment)
             "stable_key": scenario.stable_key if scenario else engine_ref,
             "title": scenario.title if scenario else assessment.title,
             "launch_url": f"/service-desk/tickets/{(scenario.stable_key if scenario else engine_ref).upper()}" if (scenario or engine_ref) else None,
+            "guidance_level": config.get("guidance_level"),
+            "onboarding_order": config.get("onboarding_order"),
         } if assessment.assessment_role == V2_ACTIVITY_SERVICE_DESK else None),
         "progress": _activity_view(_activity(db, student_id, assessment.assessment_role, assessment.assessment_key)),
     }
@@ -949,6 +979,8 @@ def launch_service_desk(db: Session, student_id: int, module_key: str, assessmen
     if assessment is None:
         raise V2ProgressError("This troubleshooting activity is not available.")
     if not service_desk_scenario_is_playable(db, assessment):
+        raise V2ProgressError("This troubleshooting activity is not available.")
+    if service_desk_onboarding_blocker(db, student_id, assessment) is not None:
         raise V2ProgressError("This troubleshooting activity is not available.")
     scenario = db.get(ServiceDeskScenario, assessment.service_desk_scenario_id) if assessment.service_desk_scenario_id else None
     if scenario is None:

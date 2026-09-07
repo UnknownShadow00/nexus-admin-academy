@@ -121,8 +121,11 @@ def test_explain_submission_is_committed_before_pending_grade(db, monkeypatch):
 def test_service_desk_launch_creates_only_a_validated_existing_system_assignment(db, monkeypatch):
     student, client = _ready(db, monkeypatch)
     seed_v2_foundation.run(db)
-    module_key = "module.aplus.core1.ip_configuration"
-    assessment_key = "assess.aplus.ipcfg.service_desk"
+    # Release the fixture session's read transaction before TestClient's
+    # request session uses the shared in-memory SQLite connection.
+    db.commit()
+    module_key = "module.aplus.core1.printers_mfds"
+    assessment_key = "assess.aplus-core1-printers-mfds.service_desk"
     response = client.post(
         f"/api/v2/curriculum/modules/{module_key}/service-desk/{assessment_key}/launch",
         headers=auth_headers(student),
@@ -175,8 +178,7 @@ def test_continue_walks_every_required_stage_and_optional_resources_do_not_block
 
     for role, expected_next, status in (
         ("module_quiz", "practical", "passed"),
-        ("practical", "service_desk", "completed"),
-        ("service_desk", "explain", "passed"),
+        ("practical", "explain", "completed"),
     ):
         assessment = next(row for row in view["assessments"] if row["role"] == role)
         record_activity(

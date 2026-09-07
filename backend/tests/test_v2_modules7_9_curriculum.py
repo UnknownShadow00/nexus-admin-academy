@@ -242,8 +242,7 @@ def test_new_modules_are_mentor_visible_and_opening_resources_is_not_mastery(db)
     assert set(MODULES) <= available
     assert cohort["students"][0]["practical"] is not None
     assert cohort["students"][0]["practical"]["status"] is None
-    assert cohort["students"][0]["service_desk"] is not None
-    assert cohort["students"][0]["service_desk"]["status"] is None
+    assert cohort["students"][0]["service_desk"] is None
     assert cohort["students"][0]["explain_status"] == "not_started"
 
     before = module_view(db, student.id, module_key)["progress"]

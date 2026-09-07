@@ -11,6 +11,8 @@ from app.models.quiz import Question
 from app.models.service_desk import ServiceDeskAssignment
 from app.routers import admin_grading, labs, service_desk, v2_curriculum, v2_progress
 from app.services.service_desk_realism import fixture_catalog
+from app.services.v2_progress_service import record_activity
+from app.services.v2_service_desk_onboarding import SERVICE_DESK_ONBOARDING
 from conftest import auth_headers, enroll_v2, make_client, make_student
 from test_service_desk_attempts import close
 from test_service_desk_realism import action, walk
@@ -145,6 +147,24 @@ def test_authenticated_full_module_rehearsal(db, monkeypatch):
     ).status_code == 200
 
     ticket = next(row for row in assessments if row.assessment_role == "service_desk")
+    for orientation_key in SERVICE_DESK_ONBOARDING:
+        orientation = db.query(ModuleAssessment).filter_by(
+            assessment_key=orientation_key
+        ).one()
+        orientation_module = db.get(
+            CertificationModule, orientation.certification_module_id
+        )
+        record_activity(
+            db,
+            student_id=student.id,
+            module_key=orientation_module.module_key,
+            activity_type="service_desk",
+            ref_key=orientation_key,
+            status="passed",
+            score=100,
+            passed=True,
+            commit=True,
+        )
     launch = client.post(
         f"/api/v2/curriculum/modules/{MODULE}/service-desk/{ticket.assessment_key}/launch",
         headers=headers,

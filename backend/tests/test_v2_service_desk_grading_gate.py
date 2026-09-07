@@ -116,7 +116,7 @@ def test_note_only_assessments_are_deactivated_and_unavailable(db):
         assert assessment_is_available(db, assessment, student.id) is False
 
 
-def test_supported_assessments_remain_active_and_available(db):
+def test_supported_assessments_remain_active_and_follow_orientation_availability(db):
     seed_v2_foundation.run(db)
     student = make_student(db, username="wave2-supported")
     assessments = {
@@ -127,11 +127,19 @@ def test_supported_assessments_remain_active_and_available(db):
     }
 
     assert set(assessments) == SUPPORTED_ASSESSMENT_KEYS
-    for assessment in assessments.values():
+    # Fresh student: the two later orientation steps wait on the tutorial;
+    # every other supported ticket is reachable immediately.
+    orientation_locked = {
+        "assess.aplus-core2-windows-admin-cli-networking.service_desk",
+        "assess.aplus-core2-service-desk-workflow.service_desk",
+    }
+    for key, assessment in assessments.items():
         assert assessment.active is True
         assert "auto_deactivated_reason" not in (assessment.config or {})
         assert service_desk_scenario_is_playable(db, assessment) is True
-        assert assessment_is_available(db, assessment, student.id) is True
+        assert assessment_is_available(db, assessment, student.id) is (
+            key not in orientation_locked
+        )
 
 
 def test_strict_loader_names_every_unsupported_active_assessment(db):
