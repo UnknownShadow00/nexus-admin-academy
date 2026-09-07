@@ -9,6 +9,7 @@ from pathlib import Path
 
 import yaml
 
+import seed_v2_foundation
 from app.models.certification import (
     CertificationModule,
     CertificationObjective,
@@ -23,16 +24,15 @@ from app.models.certification import (
 from app.models.quiz import Question, Quiz
 from app.models.service_desk import ServiceDeskScenario
 from app.services.v2_assessment_selector import select_constrained
-from app.services.v2_content_loader import load_module
 
 
 MODULE_KEY = "module.aplus.core2.service_desk_workflow"
 QUIZ_TITLE = "Module 5 Quiz — Service Desk Workflow"
-SCENARIO_KEY = "curriculum-aplus-core2-service-desk-workflow-service-desk-01"
+SCENARIO_KEY = "inc2506"
 
 
 def _loaded_module(db):
-    load_module(db, commit=True)
+    seed_v2_foundation.run(db)
     return db.query(CertificationModule).filter_by(module_key=MODULE_KEY).one()
 
 

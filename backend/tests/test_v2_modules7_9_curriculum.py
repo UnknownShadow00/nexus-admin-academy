@@ -7,6 +7,7 @@ from collections import Counter
 
 from sqlalchemy import or_
 
+import seed_v2_foundation
 from app.models.certification import (
     CertificationModule,
     CertificationDomain,
@@ -23,6 +24,7 @@ from app.models.certification import (
 )
 from app.models.quiz import Question, Quiz
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
+from app.services.service_desk_objectives import objective_definition
 from app.services.v2_assessment_selector import select_constrained
 from app.services.v2_content_loader import load_module
 from app.services.v2_curriculum_service import entry_view, module_view, resource_activity
@@ -39,6 +41,7 @@ MODULES = {
         "questions": {"single": 32, "multi": 4, "short_answer": 2, "free_response": 2},
         "resources": (12, 8, 4),
         "scenario": "service_desk.aplus.network.loading_dock_wifi",
+        "service_desk_available": False,
     },
     "module.aplus.core1.hardware_fault_isolation": {
         "order": 7,
@@ -48,6 +51,7 @@ MODULES = {
         "questions": {"single": 29, "multi": 3, "short_answer": 2, "free_response": 2},
         "resources": (15, 12, 3),
         "scenario": "service_desk.aplus.hardware.render_shutdown",
+        "service_desk_available": False,
     },
     "module.aplus.core1.printers_mfds": {
         "order": 8,
@@ -56,7 +60,8 @@ MODULES = {
         "lessons": 5,
         "questions": {"single": 24, "multi": 3, "short_answer": 2, "free_response": 1},
         "resources": (12, 6, 9),
-        "scenario": "service_desk.aplus.printers.hr_queue",
+        "scenario": "inc2504",
+        "service_desk_available": True,
     },
 }
 
@@ -77,7 +82,7 @@ def _module_rows(db, module_key):
 
 
 def test_modules7_9_load_with_reviewed_relationships_and_assessments(db):
-    load_module(db, commit=True)
+    seed_v2_foundation.run(db)
     for module_key, expected in MODULES.items():
         module, lessons, assessments, quiz_assessment, questions = _module_rows(db, module_key)
         assert module.display_order == expected["order"]
@@ -146,9 +151,9 @@ def test_modules7_9_quiz_constraints_hold_across_randomized_selections(db):
 
 
 def test_modules7_9_resources_practicals_service_desk_and_explain_resolve(db):
-    load_module(db, commit=True)
+    seed_v2_foundation.run(db)
     for module_key, expected in MODULES.items():
-        module, lessons, _, _, _ = _module_rows(db, module_key)
+        module, lessons, assessments, _, _ = _module_rows(db, module_key)
         lesson_ids = [lesson.id for lesson in lessons]
         links = db.query(LearningResourceLink).filter(
             or_(
@@ -173,10 +178,31 @@ def test_modules7_9_resources_practicals_service_desk_and_explain_resolve(db):
         version = db.query(ServiceDeskScenarioVersion).filter_by(
             scenario_id=scenario.id, status="published"
         ).one()
-        assert set(version.definition_json["rubric_dimensions"]) == {
-            "Investigation", "Diagnosis", "Remediation", "Verification", "Documentation"
-        }
-        assert version.definition_json["successful_professional_outcomes"]
+        service_desk = next(
+            row for row in assessments if row.assessment_role == "service_desk"
+        )
+        assert service_desk.active is expected["service_desk_available"]
+        if expected["service_desk_available"]:
+            objective = objective_definition(
+                scenario.stable_key, version.definition_json
+            )
+            assert objective is not None
+            assert {category.name for category in objective.categories} == {
+                "investigation",
+                "diagnosis",
+                "remediation",
+                "verification",
+                "documentation",
+            }
+        else:
+            assert set(version.definition_json["rubric_dimensions"]) == {
+                "Investigation",
+                "Diagnosis",
+                "Remediation",
+                "Verification",
+                "Documentation",
+            }
+            assert version.definition_json["successful_professional_outcomes"]
 
         prompts = db.query(InterviewPrompt).filter_by(certification_module_id=module.id).all()
         assert len(prompts) == 4

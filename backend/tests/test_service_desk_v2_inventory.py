@@ -19,13 +19,9 @@ EXPECTED_BASELINE = {
     "assess.aplus-core1-hardware-fault-isolation.service_desk",
     "assess.aplus-core1-mobile-device-support.service_desk",
     "assess.aplus-core1-network-services-troubleshooting.service_desk",
-    "assess.aplus-core1-printers-mfds.service_desk",
     "assess.aplus-core2-connected-endpoint-mobile-security.service_desk",
     "assess.aplus-core2-cross-platform-app-cloud-support.service_desk",
     "assess.aplus-core2-identity-endpoint-hardening.service_desk",
-    "assess.aplus-core2-service-desk-workflow.service_desk",
-    "assess.aplus-core2-threat-malware-response.service_desk",
-    "assess.aplus-core2-windows-admin-cli-networking.service_desk",
 }
 
 

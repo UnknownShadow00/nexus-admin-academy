@@ -67,18 +67,24 @@
       "ticket_id": "SERVICE_DESK.APLUS.NETWORK.LOADING_DOCK_WIFI"
     },
     {
-      "active": false,
+      "active": true,
       "assessment_key": "assess.aplus-core1-printers-mfds.service_desk",
-      "asset_tag": "SERVICE_DESK.APLUS.PRINTERS.HR_QUEUE",
-      "auto_deactivated": true,
-      "browser_operable": false,
-      "catalog_version": "none",
-      "grading_categories": [],
+      "asset_tag": "NX-2504",
+      "auto_deactivated": false,
+      "browser_operable": true,
+      "catalog_version": "realism-v1",
+      "grading_categories": [
+        "investigation",
+        "diagnosis",
+        "remediation",
+        "verification",
+        "documentation"
+      ],
       "module": "module.aplus.core1.printers_mfds",
-      "process_profile": false,
-      "scenario_stable_key": "service_desk.aplus.printers.hr_queue",
+      "process_profile": true,
+      "scenario_stable_key": "inc2504",
       "student_visible": false,
-      "ticket_id": "SERVICE_DESK.APLUS.PRINTERS.HR_QUEUE"
+      "ticket_id": "INC2504"
     },
     {
       "active": false,
@@ -123,46 +129,64 @@
       "ticket_id": "SD.APLUS.SECURITY.APPROVED_APP_STANDARD_USER"
     },
     {
-      "active": false,
+      "active": true,
       "assessment_key": "assess.aplus-core2-service-desk-workflow.service_desk",
-      "asset_tag": "CURRICULUM-APLUS-CORE2-SERVICE-DESK-WORKFLOW-SERVICE-DESK-01",
-      "auto_deactivated": true,
-      "browser_operable": false,
-      "catalog_version": "none",
-      "grading_categories": [],
+      "asset_tag": "NX-2506",
+      "auto_deactivated": false,
+      "browser_operable": true,
+      "catalog_version": "realism-v2",
+      "grading_categories": [
+        "investigation",
+        "diagnosis",
+        "remediation",
+        "verification",
+        "documentation"
+      ],
       "module": "module.aplus.core2.service_desk_workflow",
-      "process_profile": false,
-      "scenario_stable_key": "curriculum-aplus-core2-service-desk-workflow-service-desk-01",
+      "process_profile": true,
+      "scenario_stable_key": "inc2506",
       "student_visible": false,
-      "ticket_id": "CURRICULUM-APLUS-CORE2-SERVICE-DESK-WORKFLOW-SERVICE-DESK-01"
+      "ticket_id": "INC2506"
     },
     {
-      "active": false,
+      "active": true,
       "assessment_key": "assess.aplus-core2-threat-malware-response.service_desk",
-      "asset_tag": "SD.APLUS.SECURITY.SUSPICIOUS_ATTACHMENT_ENDPOINT",
-      "auto_deactivated": true,
-      "browser_operable": false,
-      "catalog_version": "none",
-      "grading_categories": [],
+      "asset_tag": "NX-2508",
+      "auto_deactivated": false,
+      "browser_operable": true,
+      "catalog_version": "realism-v2",
+      "grading_categories": [
+        "investigation",
+        "diagnosis",
+        "remediation",
+        "verification",
+        "documentation"
+      ],
       "module": "module.aplus.core2.threat_malware_response",
-      "process_profile": false,
-      "scenario_stable_key": "sd.aplus.security.suspicious_attachment_endpoint",
+      "process_profile": true,
+      "scenario_stable_key": "inc2508",
       "student_visible": false,
-      "ticket_id": "SD.APLUS.SECURITY.SUSPICIOUS_ATTACHMENT_ENDPOINT"
+      "ticket_id": "INC2508"
     },
     {
-      "active": false,
+      "active": true,
       "assessment_key": "assess.aplus-core2-windows-admin-cli-networking.service_desk",
-      "asset_tag": "SD.APLUS.WINDOWS_ADMIN.PROJECT_SHARE_AFTER_VPN",
-      "auto_deactivated": true,
-      "browser_operable": false,
-      "catalog_version": "none",
-      "grading_categories": [],
+      "asset_tag": "NX-2505",
+      "auto_deactivated": false,
+      "browser_operable": true,
+      "catalog_version": "realism-v1",
+      "grading_categories": [
+        "investigation",
+        "diagnosis",
+        "remediation",
+        "verification",
+        "documentation"
+      ],
       "module": "module.aplus.core2.windows_admin_cli_networking",
-      "process_profile": false,
-      "scenario_stable_key": "sd.aplus.windows_admin.project_share_after_vpn",
+      "process_profile": true,
+      "scenario_stable_key": "inc2505",
       "student_visible": false,
-      "ticket_id": "SD.APLUS.WINDOWS_ADMIN.PROJECT_SHARE_AFTER_VPN"
+      "ticket_id": "INC2505"
     },
     {
       "active": true,

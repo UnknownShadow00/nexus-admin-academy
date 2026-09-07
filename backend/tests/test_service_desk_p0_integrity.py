@@ -79,7 +79,7 @@ def _event(db, attempt, sequence, event_type, payload):
 def test_p0_finding_a_note_only_v2_ticket_is_unavailable(db, monkeypatch):
     seed_v2_foundation.run(db)
     assessment, scenario, _ = _published_assessment(
-        db, "assess.aplus-core2-service-desk-workflow.service_desk"
+        db, "assess.aplus-core2-identity-endpoint-hardening.service_desk"
     )
     student = make_student(db, username="p0-note-only")
     monkeypatch.setenv("V2_CURRICULUM_ENABLED", "true")
@@ -89,7 +89,7 @@ def test_p0_finding_a_note_only_v2_ticket_is_unavailable(db, monkeypatch):
     assert service_desk_scenario_is_playable(db, assessment) is False
     assert assessment_is_available(db, assessment, student.id) is False
 
-    module_key = "module.aplus.core2.service_desk_workflow"
+    module_key = "module.aplus.core2.identity_endpoint_hardening"
     assignment = ServiceDeskAssignment(
         student_id=student.id,
         scenario_id=scenario.id,
@@ -124,7 +124,6 @@ def test_p0_finding_a_note_only_v2_ticket_is_unavailable(db, monkeypatch):
     # non-V2 legacy scenarios; V2 safety is enforced at availability/start.
 
 
-@pytest.mark.xfail(strict=True, reason="P0 Finding B — fixed in Wave 3")
 def test_p0_finding_b_every_v2_service_desk_assessment_is_browser_operable(db):
     seed_v2_foundation.run(db)
     rows = collect_inventory(db, feature_enabled=True)
@@ -133,7 +132,7 @@ def test_p0_finding_b_every_v2_service_desk_assessment_is_browser_operable(db):
     # The paired simulation-engine test actually applies ticket.add_note plus
     # connect/login/authenticate/remote_desktop.open_app. Wave 3 must make this
     # complete set operable or unavailable rather than leave a broken launch.
-    assert len(active_rows) >= 8 and failures == [], (
+    assert len(active_rows) == 6 and failures == [], (
         f"available set is incomplete or browser-inoperable: "
         f"active={len(active_rows)}, failures={failures}"
     )

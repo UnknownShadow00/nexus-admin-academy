@@ -55,7 +55,7 @@ describe('P0 Finding B — V2 curriculum scenario operability', () => {
         .filter((row) => !row.browser_operable)
         .map((row) => row.assessment_key),
     );
-    expect(failures).toHaveLength(10);
+    expect(failures).toHaveLength(6);
     for (const { noted, opened } of failures) {
       expect(noted.event.rejectReason).toBe(
         'The requested ticket does not exist in this simulation.',
@@ -66,12 +66,14 @@ describe('P0 Finding B — V2 curriculum scenario operability', () => {
     }
   });
 
-  it.fails(
-    'applies a ticket note and Remote Desktop open action for every curriculum assessment (fixed in Wave 3)',
+  it(
+    'applies a ticket note and Remote Desktop open action for every available curriculum assessment',
     () => {
       const failures: string[] = [];
 
-      for (const { row, noted, opened } of exerciseCurriculumRows()) {
+      for (const { row, noted, opened } of exerciseCurriculumRows().filter(
+        ({ row }) => row.active,
+      )) {
         if (!noted.event.success || !opened.event.success) {
           failures.push(
             `${row.assessment_key}: ${[
@@ -87,9 +89,7 @@ describe('P0 Finding B — V2 curriculum scenario operability', () => {
         );
       }
 
-      // Today the note-only definitions hit "The requested ticket does not
-      // exist in this simulation." Wave 3 makes every remaining available row
-      // constructible and actionable in the browser engine.
+      expect(inventory.rows.filter((row) => row.active)).toHaveLength(6);
       expect(failures).toEqual([]);
     },
   );

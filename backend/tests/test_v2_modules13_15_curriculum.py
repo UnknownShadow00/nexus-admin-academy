@@ -7,6 +7,7 @@ from collections import Counter
 import pytest
 from sqlalchemy import or_
 
+import seed_v2_foundation
 from app.models.certification import (
     CertificationModule,
     CertificationObjective,
@@ -39,6 +40,7 @@ MODULES = {
         "resource_links": 10,
         "required": 6,
         "service_desk": "sd.aplus.security.approved_app_standard_user",
+        "service_desk_available": False,
     },
     "module.aplus.core2.connected_endpoint_mobile_security": {
         "prefix": "M14Q",
@@ -49,6 +51,7 @@ MODULES = {
         "resource_links": 10,
         "required": 7,
         "service_desk": "sd.aplus.security.mobile_secure_wifi_profile",
+        "service_desk_available": False,
     },
     "module.aplus.core2.threat_malware_response": {
         "prefix": "M15Q",
@@ -58,7 +61,8 @@ MODULES = {
         "resources": 9,
         "resource_links": 9,
         "required": 6,
-        "service_desk": "sd.aplus.security.suspicious_attachment_endpoint",
+        "service_desk": "inc2508",
+        "service_desk_available": True,
     },
 }
 
@@ -123,7 +127,7 @@ def test_modules13_15_load_authored_content_and_explicit_quick_checks(db, module
 
 @pytest.mark.parametrize("module_key", MODULES)
 def test_modules13_15_resources_service_desk_and_explain_resolve(db, module_key):
-    load_module(db, commit=True)
+    seed_v2_foundation.run(db)
     expected = MODULES[module_key]
     module, lessons, assessments, _ = _rows(db, module_key)
     lesson_ids = [lesson.id for lesson in lessons]
@@ -142,6 +146,7 @@ def test_modules13_15_resources_service_desk_and_explain_resolve(db, module_key)
     assert all(resource.title and resource.provider and resource.url for resource in resources)
 
     service_desk = next(row for row in assessments if row.assessment_role == "service_desk")
+    assert service_desk.active is expected["service_desk_available"]
     scenario = db.get(ServiceDeskScenario, service_desk.service_desk_scenario_id)
     assert scenario.stable_key == expected["service_desk"]
     version = (
@@ -150,9 +155,13 @@ def test_modules13_15_resources_service_desk_and_explain_resolve(db, module_key)
         .one()
     )
     hints = version.definition_json["hints"]
-    assert [hint["order"] for hint in hints] == [1, 2, 3]
-    assert [hint["id"] for hint in hints] == ["hint-01", "hint-02", "hint-03"]
-    assert all(hint["text"].strip() for hint in hints)
+    if expected["service_desk_available"]:
+        assert len(hints) == 3
+        assert all(isinstance(hint, str) and hint.strip() for hint in hints)
+    else:
+        assert [hint["order"] for hint in hints] == [1, 2, 3]
+        assert [hint["id"] for hint in hints] == ["hint-01", "hint-02", "hint-03"]
+        assert all(hint["text"].strip() for hint in hints)
 
     prompts = db.query(InterviewPrompt).filter_by(certification_module_id=module.id).all()
     assert len(prompts) == 4

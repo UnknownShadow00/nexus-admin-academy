@@ -39,16 +39,16 @@ NOTE_ONLY_ASSESSMENT_KEYS = {
     "assess.aplus-core1-hardware-fault-isolation.service_desk",
     "assess.aplus-core1-mobile-device-support.service_desk",
     "assess.aplus-core1-network-services-troubleshooting.service_desk",
-    "assess.aplus-core1-printers-mfds.service_desk",
     "assess.aplus-core2-connected-endpoint-mobile-security.service_desk",
     "assess.aplus-core2-cross-platform-app-cloud-support.service_desk",
     "assess.aplus-core2-identity-endpoint-hardening.service_desk",
-    "assess.aplus-core2-service-desk-workflow.service_desk",
-    "assess.aplus-core2-threat-malware-response.service_desk",
-    "assess.aplus-core2-windows-admin-cli-networking.service_desk",
 }
 SUPPORTED_ASSESSMENT_KEYS = {
     "assess.aplus.ipcfg.service_desk",
+    "assess.aplus-core1-printers-mfds.service_desk",
+    "assess.aplus-core2-service-desk-workflow.service_desk",
+    "assess.aplus-core2-threat-malware-response.service_desk",
+    "assess.aplus-core2-windows-admin-cli-networking.service_desk",
     "assess.aplus.wintriage.service_desk",
 }
 
@@ -155,7 +155,7 @@ def test_reconciliation_reactivates_only_gate_owned_rows(db):
         assessment_key="assess.aplus.ipcfg.service_desk"
     ).one()
     gate_owned = db.query(ModuleAssessment).filter_by(
-        assessment_key="assess.aplus-core1-printers-mfds.service_desk"
+        assessment_key="assess.aplus-core1-hardware-fault-isolation.service_desk"
     ).one()
     gate_owned.service_desk_scenario_id = supported.service_desk_scenario_id
     gate_owned.config = {
