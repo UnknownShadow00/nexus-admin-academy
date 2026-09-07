@@ -130,6 +130,7 @@ interface TicketSessionContextValue {
     details: { reason: string; routeTeam: string; context?: string },
   ) => void;
   getTicket: (ticketId: string) => Ticket | undefined;
+  getAttemptIdentity: (ticketId: string) => Readonly<NexusTicketMapping> | undefined;
   recordHintReveal: (ticketId: string, step: number) => void;
   /**
    * Begin the next server-owned attempt for a ticket after a failed one.
@@ -1842,6 +1843,11 @@ export function TicketSessionProvider({
         if (!accepted)
           throw new Error('Nexus did not confirm the saved action.');
         const refreshedAttempt = await getAttempt(attemptId);
+        // Mirror only the server-issued identity; tools never create attempts.
+        nexusTicketMappingsRef.current[item.ticketId] = {
+          assignmentId: item.assignmentId,
+          attemptId,
+        };
         if (refreshedAttempt?.workspace_view) {
           setWorkspaceViewByTicket((current) => ({
             ...current,
@@ -2317,6 +2323,7 @@ export function TicketSessionProvider({
   const ticketSessionValue = useMemo<TicketSessionContextValue>(
     () => ({
       assignmentByTicket: runtimeAssignments,
+      getAttemptIdentity: (ticketId) => nexusTicketMappingsRef.current[ticketId],
       authoritativeGradeByTicket,
       workspaceViewByTicket,
       addNote: (ticketId, body) => {

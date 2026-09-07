@@ -3,64 +3,17 @@
 import {
   TOOL_CATALOG,
   TOOL_CATEGORIES,
-  getToolsByCategory,
-  type ToolCategory,
+  getToolBySlug,
   type ToolSlug,
   type TicketCategory,
   type SuggestedToolSlug,
 } from '@service-desk/shared';
-import { Card, CardHeader } from '@service-desk/ui';
-import { IconChevronRight, IconTool } from '@tabler/icons-react';
-import React from 'react';
-
-import { SuggestedTools, type ToolSelectionHandler } from './SuggestedTools';
+import React, { useId, useRef, useState } from 'react';
+import {
+  suggestedToolSearchParams,
+  type ToolSelectionHandler,
+} from './SuggestedTools';
 import { TOOL_ICONS } from './tool-icons';
-
-const CATEGORY_LABELS: Record<ToolCategory, string> = {
-  infrastructure: 'Infrastructure',
-  knowledge: 'Knowledge',
-  management: 'Management',
-};
-
-const UNCATEGORIZED_TOOLS = TOOL_CATALOG.filter(
-  (tool) => !('category' in tool),
-);
-
-function ToolButton({
-  active,
-  onSelectTool,
-  slug,
-}: {
-  active: boolean;
-  onSelectTool: ToolSelectionHandler;
-  slug: ToolSlug;
-}) {
-  const tool = TOOL_CATALOG.find((candidate) => candidate.slug === slug)!;
-  const ToolIcon = TOOL_ICONS[tool.slug];
-
-  return (
-    <button
-      aria-pressed={active}
-      className="sd-focus-ring group flex min-w-0 items-center gap-3 rounded-sm px-3 py-3 text-left transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus aria-pressed:bg-accent/10"
-      onClick={() => onSelectTool(tool.slug)}
-      type="button"
-    >
-      <ToolIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-accent" />
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-bold text-text">
-          {tool.menuLabel}
-        </span>
-        <span className="mt-0.5 block text-xs leading-snug text-text-muted">
-          {tool.description}
-        </span>
-      </span>
-      <IconChevronRight
-        aria-hidden="true"
-        className="h-4 w-4 shrink-0 text-text-muted group-hover:text-accent"
-      />
-    </button>
-  );
-}
 
 export function WorkspaceToolLauncher({
   activeToolSlug,
@@ -77,68 +30,97 @@ export function WorkspaceToolLauncher({
   ticketId: string;
   toolSlugs: readonly SuggestedToolSlug[];
 }) {
+  const [open, setOpen] = useState(false);
+  const [recent, setRecent] = useState<ToolSlug[]>([]);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const catalogId = useId();
+  const visible = [
+    ...new Set([
+      ...(activeToolSlug && getToolBySlug(activeToolSlug)
+        ? [activeToolSlug as ToolSlug]
+        : []),
+      ...recent,
+      ...(experienceMode === 'guided' ? toolSlugs : []),
+    ]),
+  ].slice(0, 4);
+  const select = (slug: ToolSlug) => {
+    setRecent((previous) =>
+      [slug, ...previous.filter((item) => item !== slug)].slice(0, 4),
+    );
+    setOpen(false);
+    onSelectTool(
+      slug,
+      suggestedToolSearchParams(slug, ticketCategory, ticketId),
+    );
+    trigger.current?.focus();
+  };
+  const toolButton = (slug: ToolSlug) => {
+    const tool = getToolBySlug(slug)!;
+    const Icon = TOOL_ICONS[slug];
+    return (
+      <button
+        aria-pressed={activeToolSlug === slug}
+        className="sd-focus-ring flex min-h-11 min-w-0 items-center gap-2 rounded-sm px-3 py-2 text-left text-sm font-semibold text-text hover:bg-surface-muted aria-pressed:bg-surface-muted aria-pressed:underline"
+        key={slug}
+        onClick={() => select(slug)}
+        type="button"
+      >
+        <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-text-muted" />
+        {tool.menuLabel}
+      </button>
+    );
+  };
   return (
-    <div className="space-y-4">
-      {experienceMode === 'guided' ? (
-        <SuggestedTools
-          experienceMode={experienceMode}
-          onSelectTool={onSelectTool}
-          ticketCategory={ticketCategory}
-          ticketId={ticketId}
-          toolSlugs={toolSlugs}
-        />
-      ) : null}
-
-      <Card>
-        <CardHeader
-          meta="Full catalog"
-          title={
-            <span className="flex items-center gap-2">
-              <IconTool aria-hidden="true" className="h-5 w-5 text-accent" />
-              {experienceMode === 'guided' ? 'All tools' : 'Technician tools'}
-            </span>
-          }
-        />
+    <section
+      aria-label="Tool switcher"
+      className="min-w-0 border-b border-border pb-3"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && open) {
+          event.preventDefault();
+          setOpen(false);
+          trigger.current?.focus();
+        }
+      }}
+    >
+      <div className="flex flex-wrap items-center gap-1">
         <nav
-          aria-label="Workspace tools"
-          className="divide-y divide-border p-1"
+          aria-label={
+            experienceMode === 'guided' ? 'Suggested tools' : 'Recent tools'
+          }
+          className="flex min-w-0 flex-wrap gap-1"
         >
-          {TOOL_CATEGORIES.map((category) => (
-            <section className="py-3" key={category}>
-              <h3 className="px-3 text-xs font-extrabold uppercase tracking-wide text-text-muted">
-                {CATEGORY_LABELS[category]}
-              </h3>
-              <div className="mt-1 grid gap-1">
-                {getToolsByCategory(category).map((tool) => (
-                  <ToolButton
-                    active={activeToolSlug === tool.slug}
-                    key={tool.slug}
-                    onSelectTool={onSelectTool}
-                    slug={tool.slug}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
-          {UNCATEGORIZED_TOOLS.length ? (
-            <section className="py-3">
-              <h3 className="px-3 text-xs font-extrabold uppercase tracking-wide text-text-muted">
-                Communication
-              </h3>
-              <div className="mt-1 grid gap-1">
-                {UNCATEGORIZED_TOOLS.map((tool) => (
-                  <ToolButton
-                    active={activeToolSlug === tool.slug}
-                    key={tool.slug}
-                    onSelectTool={onSelectTool}
-                    slug={tool.slug}
-                  />
-                ))}
-              </div>
-            </section>
-          ) : null}
+          {visible.map(toolButton)}
         </nav>
-      </Card>
-    </div>
+        <button
+          aria-controls={catalogId}
+          aria-expanded={open}
+          className="sd-focus-ring min-h-11 rounded-sm border border-border px-3 py-2 text-sm font-semibold text-text hover:bg-surface-muted"
+          onClick={() => setOpen((value) => !value)}
+          ref={trigger}
+          type="button"
+        >
+          All tools
+        </button>
+      </div>
+      <nav
+        aria-label="Workspace tools"
+        className={`${open ? 'grid' : 'hidden'} mt-3 gap-3 rounded-sm bg-surface-raised p-3 sm:grid-cols-2`}
+        hidden={!open}
+        id={catalogId}
+      >
+        {[...TOOL_CATEGORIES, 'communication'].map((category) => (
+          <section key={category}>
+            <h3 className="mb-1 px-3 text-xs font-semibold capitalize text-text-muted">
+              {category}
+            </h3>
+            {TOOL_CATALOG.filter(
+              (tool) =>
+                ('category' in tool ? tool.category : 'communication') ===
+                category,
+            ).map((tool) => toolButton(tool.slug))}
+          </section>
+        ))}
+      </nav>
+    </section>
   );
 }

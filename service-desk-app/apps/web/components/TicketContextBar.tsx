@@ -1,8 +1,8 @@
 'use client';
 
 import type { Ticket } from '@service-desk/shared';
-import { Badge, Card, PriorityBadge } from '@service-desk/ui';
-import { IconArrowLeft, IconClockHour4 } from '@tabler/icons-react';
+import { PriorityBadge } from '@service-desk/ui';
+import { IconArrowLeft } from '@tabler/icons-react';
 import Link from 'next/link';
 
 import type { NexusAssignment } from '../lib/nexus-service-desk-client';
@@ -46,12 +46,12 @@ export function TicketContextBar({
     : null;
 
   return (
-    <Card>
-      <div className="p-4 sm:p-5">
+    <header className="min-w-0 border-b border-border pb-4">
+      <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           {returnTarget ? (
             <a
-              className="sd-focus-ring inline-flex min-h-10 items-center gap-2 rounded-sm border border-accent/30 bg-accent/10 px-3 text-sm font-bold text-accent hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+              className="sd-focus-ring inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-semibold text-text-muted hover:text-text"
               href={returnTarget.href}
             >
               <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
@@ -66,26 +66,18 @@ export function TicketContextBar({
               Back to queue
             </Link>
           )}
-          {returnTarget ? (
-            <Link
-              className="sd-focus-ring inline-flex min-h-10 items-center rounded-sm px-2 text-sm font-semibold text-text-muted hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-              href="/"
-            >
-              Back to queue
-            </Link>
-          ) : null}
         </div>
 
-        <div className="mt-4 flex min-w-0 flex-wrap items-center gap-2">
-          <span className="font-mono text-sm font-semibold text-accent">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="font-mono text-sm font-semibold text-text-muted">
             {ticket.id}
           </span>
           <PriorityBadge pill priority={ticket.priority} />
           <TicketStatusBadge status={ticket.status} />
           {assignment ? (
-            <Badge variant="sky">
+            <span className="text-xs text-text-muted">
               {experienceModeLabel(assignment.experience_mode)}
-            </Badge>
+            </span>
           ) : null}
           {!completed && remaining !== null ? (
             <span className="ml-auto text-xs font-semibold text-text-muted">
@@ -93,30 +85,30 @@ export function TicketContextBar({
             </span>
           ) : null}
         </div>
-        <h1 className="mt-3 max-w-4xl font-display text-xl font-bold leading-snug text-text sm:text-2xl">
+        <h1 className="mt-2 max-w-4xl break-words font-display text-lg font-bold leading-snug text-text sm:text-xl">
           {ticket.title}
         </h1>
-        <div className="mt-3 flex items-center gap-2 text-xs text-text-muted">
-          <IconClockHour4 aria-hidden="true" className="h-4 w-4 text-accent" />
-          <span>{ticket.sla.target}</span>
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-text-muted">
+          <span>{ticket.requester.name}</span>
+          <span className="font-mono">{ticket.device.assetTag}</span>
         </div>
         {assignment?.experience_mode === 'guided' ? (
-          <p className="mt-3 max-w-3xl text-sm text-accent">
+          <p className="mt-2 hidden max-w-3xl text-xs text-text-muted sm:block">
             Guided practice. This case may return later as an independent
             assessment.
           </p>
         ) : assignment?.experience_mode === 'practice' ? (
-          <p className="mt-3 max-w-3xl text-sm text-text-muted">
+          <p className="mt-2 max-w-3xl text-xs text-text-muted">
             Independent replay. Practice does not replace required assessment
             mastery or award XP.
           </p>
         ) : assignment?.guided_completed ? (
-          <p className="mt-3 max-w-3xl text-sm text-accent">
+          <p className="mt-2 max-w-3xl text-xs text-text-muted">
             You practiced this case earlier. Complete it independently to
             demonstrate mastery.
           </p>
         ) : null}
       </div>
-    </Card>
+    </header>
   );
 }

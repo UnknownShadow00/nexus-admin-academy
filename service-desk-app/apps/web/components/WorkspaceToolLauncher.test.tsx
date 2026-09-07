@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkspaceToolLauncher } from './WorkspaceToolLauncher';
 
 describe('WorkspaceToolLauncher', () => {
-  it('puts guided suggestions before the full ten-tool catalog', () => {
+  it('puts compact guided suggestions before the collapsed complete catalog', () => {
     const markup = renderToStaticMarkup(
       <WorkspaceToolLauncher
         activeToolSlug={null}
@@ -18,15 +18,17 @@ describe('WorkspaceToolLauncher', () => {
       />,
     );
 
-    expect(markup.indexOf('Recommended places to start')).toBeLessThan(
+    expect(markup.indexOf('Suggested tools')).toBeLessThan(
       markup.indexOf('All tools'),
     );
     for (const tool of TOOL_CATALOG) {
       expect(markup).toContain(tool.menuLabel);
     }
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain('hidden=""');
   });
 
-  it('shows only the full catalog in assessment mode', () => {
+  it('exposes recent tools without recommendations in assessment mode', () => {
     const markup = renderToStaticMarkup(
       <WorkspaceToolLauncher
         activeToolSlug="directory"
@@ -38,7 +40,9 @@ describe('WorkspaceToolLauncher', () => {
       />,
     );
 
-    expect(markup).toContain('Technician tools');
+    expect(markup).toContain('Recent tools');
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).not.toContain('Suggested tools');
     expect(markup).not.toContain('Recommended places to start');
   });
 });

@@ -3,7 +3,10 @@
 import type { ActionEvent } from '@service-desk/simulation-engine';
 import { Badge, Button, Card, CardHeader, PanelFrame } from '@service-desk/ui';
 import { IconArrowLeft, IconDeviceLaptop } from '@tabler/icons-react';
-import Link from 'next/link';
+import {
+  IntegratedToolLink as Link,
+  useIntegratedTool,
+} from './IntegratedToolContext';
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
@@ -24,7 +27,10 @@ const ENDPOINT_SCENARIOS: Readonly<Record<string, EndpointScenario>> = {
     deviceId: 'device-nex-lt-2214',
     deviceName: 'NEX-LT-2214',
     diagnoses: [
-      { label: 'Firmware update triggered expected BitLocker recovery', value: 'firmware-update-triggered-recovery' },
+      {
+        label: 'Firmware update triggered expected BitLocker recovery',
+        value: 'firmware-update-triggered-recovery',
+      },
       { label: 'Windows sign-in password expired', value: 'password-expired' },
       { label: 'Device is no longer managed', value: 'management-lost' },
     ],
@@ -36,9 +42,19 @@ const ENDPOINT_SCENARIOS: Readonly<Record<string, EndpointScenario>> = {
     deviceId: 'device-nex-lt-3390',
     deviceName: 'NEX-LT-3390',
     diagnoses: [
-      { label: 'Authorized offboarding; access revoked; data reset required before reassignment', value: 'offboarding-authorized-access-revoked-data-reset-required' },
-      { label: 'Routine repair for the currently assigned employee', value: 'routine-repair' },
-      { label: 'Device can be handed to the new hire without reset', value: 'immediate-handoff' },
+      {
+        label:
+          'Authorized offboarding; access revoked; data reset required before reassignment',
+        value: 'offboarding-authorized-access-revoked-data-reset-required',
+      },
+      {
+        label: 'Routine repair for the currently assigned employee',
+        value: 'routine-repair',
+      },
+      {
+        label: 'Device can be handed to the new hire without reset',
+        value: 'immediate-handoff',
+      },
     ],
     remediationLabel: 'Apply authorized lifecycle action',
     verificationCheck: 'ready-for-new-assignee',
@@ -63,14 +79,44 @@ function actionMessage(event: ActionEvent) {
 
 export function DeviceManagementTool() {
   const searchParams = useSearchParams();
-  const requestedTicket = searchParams.get('ticket')?.toUpperCase() ?? '';
+  const integrated = useIntegratedTool();
+  const requestedTicket =
+    integrated?.ticket.id ?? searchParams.get('ticket')?.toUpperCase() ?? '';
   if (!ENDPOINT_SCENARIOS[requestedTicket]) {
-    return <div className="mx-auto max-w-xl rounded-md border border-border bg-surface-raised p-8 text-center" role="status"><IconDeviceLaptop className="mx-auto h-10 w-10 text-text-muted" aria-hidden="true" /><h1 className="mt-4 text-xl font-bold text-text">Choose a ticket</h1><p className="mt-2 text-sm text-text-muted">Open Device Management from a supported ticket so the correct device follows you.</p><Link className="sd-back-button sd-focus-ring mt-5 inline-flex px-4 py-2 text-accent" href="/">Back to ticket queue</Link></div>;
+    return (
+      <div
+        className="mx-auto max-w-xl rounded-md border border-border bg-surface-raised p-8 text-center"
+        role="status"
+      >
+        <IconDeviceLaptop
+          className="mx-auto h-10 w-10 text-text-muted"
+          aria-hidden="true"
+        />
+        <h1 className="mt-4 text-xl font-bold text-text">
+          {integrated
+            ? 'Device Management unavailable for this case'
+            : 'Choose a ticket'}
+        </h1>
+        <p className="mt-2 text-sm text-text-muted">
+          Open Device Management from a supported ticket so the correct device
+          follows you.
+        </p>
+        {!integrated ? (
+          <Link
+            className="sd-back-button sd-focus-ring mt-5 inline-flex px-4 py-2 text-accent"
+            href="/"
+          >
+            Back to ticket queue
+          </Link>
+        ) : null}
+      </div>
+    );
   }
   return <TicketDeviceManagementTool ticketId={requestedTicket} />;
 }
 
 function TicketDeviceManagementTool({ ticketId }: { ticketId: string }) {
+  const integrated = useIntegratedTool();
   const scenario = ENDPOINT_SCENARIOS[ticketId]!;
   const {
     inspectRecord,
@@ -103,7 +149,11 @@ function TicketDeviceManagementTool({ ticketId }: { ticketId: string }) {
 
   function diagnose() {
     if (!selectedDiagnosis) return;
-    const event = recordDiagnosis(ticketId, resolvedDeviceId(), selectedDiagnosis);
+    const event = recordDiagnosis(
+      ticketId,
+      resolvedDeviceId(),
+      selectedDiagnosis,
+    );
     setLastEvent(event);
     if (!event.success) setRemediationPerformed(false);
   }
@@ -124,13 +174,15 @@ function TicketDeviceManagementTool({ ticketId }: { ticketId: string }) {
       variant="ad"
     >
       <header className="border-b border-border px-4 py-4 sm:px-5">
-        <Link
-          className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 rounded-sm px-2 text-sm font-extrabold uppercase text-accent hover:bg-surface-raised hover:text-accent"
-          href={`/tickets/${ticketId}`}
-        >
-          <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
-          Back to {ticketId}
-        </Link>
+        {!integrated ? (
+          <Link
+            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 rounded-sm px-2 text-sm font-extrabold uppercase text-accent hover:bg-surface-raised hover:text-accent"
+            href={`/tickets/${ticketId}`}
+          >
+            <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
+            Back to {ticketId}
+          </Link>
+        ) : null}
         <div className="mt-4 flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 text-accent">
             <IconDeviceLaptop aria-hidden="true" className="h-6 w-6" />
@@ -175,30 +227,39 @@ function TicketDeviceManagementTool({ ticketId }: { ticketId: string }) {
                 value={deviceQuery}
               />
             </label>
-            <Button onClick={inspect} variant="soft">Inspect device record</Button>
+            <Button onClick={inspect} variant="soft">
+              Inspect device record
+            </Button>
           </div>
-          {recordInspected ? <dl className="grid gap-3 border-t border-border p-4 text-sm sm:grid-cols-3">
-            <div>
-              <dt className="text-xs font-bold uppercase text-text-muted">
-                Asset tag
-              </dt>
-              <dd className="mt-1 text-text">{scenario.assetTag}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-bold uppercase text-text-muted">
-                Platform
-              </dt>
-              <dd className="mt-1 text-text">Windows 11 Enterprise</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-bold uppercase text-text-muted">
-                Management
-              </dt>
-              <dd className="mt-1">
-                <Badge variant="sky">Intune managed</Badge>
-              </dd>
-            </div>
-          </dl> : <p className="border-t border-border p-4 text-sm text-text-muted">The record remains hidden until the ticket identifier is investigated.</p>}
+          {recordInspected ? (
+            <dl className="grid gap-3 border-t border-border p-4 text-sm sm:grid-cols-3">
+              <div>
+                <dt className="text-xs font-bold uppercase text-text-muted">
+                  Asset tag
+                </dt>
+                <dd className="mt-1 text-text">{scenario.assetTag}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-bold uppercase text-text-muted">
+                  Platform
+                </dt>
+                <dd className="mt-1 text-text">Windows 11 Enterprise</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-bold uppercase text-text-muted">
+                  Management
+                </dt>
+                <dd className="mt-1">
+                  <Badge variant="sky">Intune managed</Badge>
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="border-t border-border p-4 text-sm text-text-muted">
+              The record remains hidden until the ticket identifier is
+              investigated.
+            </p>
+          )}
         </Card>
 
         <Card>
@@ -207,38 +268,66 @@ function TicketDeviceManagementTool({ ticketId }: { ticketId: string }) {
             title="Investigate and respond"
           />
           <div className="grid gap-3 p-4">
-            {recordInspected ? <>
-            <Link
-              className="sd-button sd-button--light sd-focus-ring inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-surface-raised px-4 py-2 text-sm font-extrabold uppercase text-text"
-              href={`/tools/company-chat?contact=${ticketId === 'INC3001' ? 'directory-user-morgan-ellis' : 'directory-user-hr-adebayo-coker'}&ticket=${ticketId}`}
-            >
-              Investigate requester / authorization in Company Chat
-            </Link>
-            <label className="text-sm font-bold text-text">
-              Evidence-based diagnosis
-              <select className="sd-focus-ring mt-2 min-h-10 w-full rounded-sm border border-border bg-surface px-3 py-2 font-normal text-text" value={selectedDiagnosis} onChange={(event) => setSelectedDiagnosis(event.target.value)}>
-                <option value="">Choose from the evidence…</option>
-                {scenario.diagnoses.map((diagnosis) => <option key={diagnosis.value} value={diagnosis.value}>{diagnosis.label}</option>)}
-              </select>
-            </label>
-            <Button disabled={!selectedDiagnosis} onClick={diagnose} variant="soft">Record selected diagnosis</Button>
-            </> : <p className="text-sm text-text-muted">Inspect the correct managed-device record to reveal investigation tools.</p>}
-            {selectedDiagnosis ? <Button onClick={remediate} variant="soft">{scenario.remediationLabel}</Button> : null}
-            {remediationPerformed ?
-            <Button
-              onClick={() =>
-                setLastEvent(
-                  verifyAccess(
-                    ticketId,
-                    resolvedDeviceId(),
-                    scenario.verificationCheck,
-                  ),
-                )
-              }
-              variant="soft"
-            >
-              Verify resulting device state
-            </Button> : null}
+            {recordInspected ? (
+              <>
+                <Link
+                  className="sd-button sd-button--light sd-focus-ring inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-surface-raised px-4 py-2 text-sm font-extrabold uppercase text-text"
+                  href={`/tools/company-chat?contact=${ticketId === 'INC3001' ? 'directory-user-morgan-ellis' : 'directory-user-hr-adebayo-coker'}&ticket=${ticketId}`}
+                >
+                  Investigate requester / authorization in Company Chat
+                </Link>
+                <label className="text-sm font-bold text-text">
+                  Evidence-based diagnosis
+                  <select
+                    className="sd-focus-ring mt-2 min-h-10 w-full rounded-sm border border-border bg-surface px-3 py-2 font-normal text-text"
+                    value={selectedDiagnosis}
+                    onChange={(event) =>
+                      setSelectedDiagnosis(event.target.value)
+                    }
+                  >
+                    <option value="">Choose from the evidence…</option>
+                    {scenario.diagnoses.map((diagnosis) => (
+                      <option key={diagnosis.value} value={diagnosis.value}>
+                        {diagnosis.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Button
+                  disabled={!selectedDiagnosis}
+                  onClick={diagnose}
+                  variant="soft"
+                >
+                  Record selected diagnosis
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-text-muted">
+                Inspect the correct managed-device record to reveal
+                investigation tools.
+              </p>
+            )}
+            {selectedDiagnosis ? (
+              <Button onClick={remediate} variant="soft">
+                {scenario.remediationLabel}
+              </Button>
+            ) : null}
+            {remediationPerformed ? (
+              <Button
+                onClick={() =>
+                  setLastEvent(
+                    verifyAccess(
+                      ticketId,
+                      resolvedDeviceId(),
+                      scenario.verificationCheck,
+                    ),
+                  )
+                }
+                variant="soft"
+              >
+                Verify resulting device state
+              </Button>
+            ) : null}
           </div>
           <p className="px-4 pb-4 text-xs leading-relaxed text-text-muted">
             The Nexus API enforces this order. A recovery key or destructive

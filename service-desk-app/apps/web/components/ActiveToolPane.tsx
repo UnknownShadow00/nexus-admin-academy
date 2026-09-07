@@ -7,6 +7,8 @@ import { useSearchParams } from 'next/navigation';
 import { IntegratedToolContext } from './IntegratedToolContext';
 import { useTicketSession } from './TicketSessionProvider';
 import { renderTool } from './tool-registry';
+import { useNexusReturnTarget } from './useNexusReturnTarget';
+import type { ToolSelectionHandler } from './SuggestedTools';
 
 export function toolContextMatchesTicket(
   searchParams: Pick<URLSearchParams, 'get'>,
@@ -22,13 +24,17 @@ export function ActiveToolPane({
   activeTicketId,
   activeToolSlug,
   onBack,
+  onSelectTool,
 }: {
   activeTicketId: string;
   activeToolSlug: string | null;
   onBack?: () => void;
+  onSelectTool?: ToolSelectionHandler;
 }) {
   const searchParams = useSearchParams();
-  const { getTicket, assignmentByTicket } = useTicketSession();
+  const returnTarget = useNexusReturnTarget();
+  const { getTicket, getAttemptIdentity, assignmentByTicket } =
+    useTicketSession();
   const ticket = getTicket(activeTicketId);
 
   if (!activeToolSlug) {
@@ -42,7 +48,7 @@ export function ActiveToolPane({
           className="mx-auto h-8 w-8 text-text-muted"
         />
         <p className="mt-3 text-sm text-text">
-          Open a tool from the right to start working. Your ticket stays here.
+          Choose a tool above to start working. Your ticket stays here.
         </p>
       </section>
     );
@@ -90,18 +96,19 @@ export function ActiveToolPane({
     <IntegratedToolContext.Provider
       value={{
         ticket,
+        ticketId: ticket.id,
+        assignmentId: assignmentByTicket[activeTicketId]?.id,
+        attemptId: getAttemptIdentity(activeTicketId)?.attemptId,
+        experienceMode: assignmentByTicket[activeTicketId]?.experience_mode,
         attemptNumber,
-        returnDestination: searchParams.get('returnTo'),
+        returnDestination: returnTarget?.href ?? null,
         onBack,
+        onSelectTool,
       }}
     >
       <div className="min-w-0">
-        <p className="mb-2 text-sm text-text-muted">
-          {ticket.id} · {ticket.requester.name} · {ticket.device.assetTag}
-          {attemptNumber ? ` · Attempt ${attemptNumber}` : ''}
-        </p>
         <button
-          className="sd-button sd-button--default mb-3"
+          className="sd-focus-ring mb-3 min-h-11 rounded-sm px-2 text-sm font-semibold text-text-muted hover:text-text"
           onClick={onBack}
           type="button"
         >

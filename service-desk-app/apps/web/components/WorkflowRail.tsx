@@ -10,7 +10,7 @@ import type {
   NexusWorkflowStageKey,
 } from '../lib/nexus-service-desk-client';
 
-const WORKFLOW_COPY: Readonly<
+export const WORKFLOW_COPY: Readonly<
   Record<NexusWorkflowStageKey, { label: string; help: string }>
 > = {
   understand: {
@@ -56,7 +56,6 @@ function StageIcon({ status }: Pick<NexusWorkflowStage, 'status'>) {
 }
 
 export function WorkflowRail({
-  experienceMode,
   stages,
 }: {
   experienceMode: 'guided' | 'practice' | 'assessment';
@@ -65,7 +64,7 @@ export function WorkflowRail({
   return (
     <section
       aria-labelledby="workflow-rail-title"
-      className="sticky top-0 z-20 rounded-md border border-border bg-surface/95 px-3 py-3 shadow-lg backdrop-blur sm:px-4"
+      className="min-w-0 border-b border-border pb-3"
       data-group-2-slot="workflow-rail"
     >
       <h2 className="sr-only" id="workflow-rail-title">
@@ -75,21 +74,20 @@ export function WorkflowRail({
         A checked circle means Completed, a dotted circle means Current step,
         and an empty circle means Not started.
       </p>
-      <ol className="grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
+      <ol className="hidden flex-wrap gap-x-5 gap-y-2 sm:flex">
         {stages.map((stage) => {
           const copy = WORKFLOW_COPY[stage.key];
           // No per-stage escalation hint: the workspace must never signal that
           // escalation is the expected outcome before the student decides.
-          const help = copy.help;
           return (
             <li
               aria-current={stage.status === 'current' ? 'step' : undefined}
-              className={`rounded-sm border p-2.5 ${
+              className={`py-1 ${
                 stage.status === 'current'
-                  ? 'border-accent/60 bg-accent/10 text-text'
+                  ? 'font-semibold text-text'
                   : stage.status === 'complete'
-                    ? 'border-success/40 bg-success/10 text-text'
-                    : 'border-border bg-surface-raised text-text-muted'
+                    ? 'text-text'
+                    : 'text-text-muted'
               }`}
               key={stage.key}
             >
@@ -97,18 +95,45 @@ export function WorkflowRail({
                 <StageIcon status={stage.status} />
                 <div>
                   <p className="text-sm font-bold">{copy.label}</p>
-                  <p className="text-xs font-semibold">
-                    {STATUS_COPY[stage.status]}
-                  </p>
+                  <p className="sr-only">{STATUS_COPY[stage.status]}</p>
                 </div>
               </div>
-              {experienceMode !== 'assessment' ? (
-                <p className="mt-2 text-xs leading-5 text-text-muted">{help}</p>
-              ) : null}
             </li>
           );
         })}
       </ol>
+      <p className="text-sm text-text sm:hidden">
+        Current stage:{' '}
+        {
+          WORKFLOW_COPY[
+            stages.find((stage) => stage.status === 'current')?.key ??
+              'document'
+          ].label
+        }
+      </p>
+    </section>
+  );
+}
+
+export function CurrentStage({
+  stages,
+  experienceMode,
+}: {
+  stages: readonly NexusWorkflowStage[];
+  experienceMode: 'guided' | 'practice' | 'assessment';
+}) {
+  const current = stages.find((stage) => stage.status === 'current');
+  if (!current) return null;
+  return (
+    <section aria-label="Current stage" className="border-b border-border pb-3">
+      <h2 className="text-sm font-semibold text-text">
+        Current stage: {WORKFLOW_COPY[current.key].label}
+      </h2>
+      {experienceMode !== 'assessment' ? (
+        <p className="mt-1 text-sm text-text-muted">
+          {WORKFLOW_COPY[current.key].help}
+        </p>
+      ) : null}
     </section>
   );
 }

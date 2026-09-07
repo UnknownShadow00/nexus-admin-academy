@@ -23,7 +23,7 @@ export function EvidencePanel({
               aria-hidden="true"
               className="h-5 w-5 text-accent"
             />
-            What you&apos;ve proven
+            Confirmed by your actions
           </span>
         }
       />
@@ -35,10 +35,7 @@ export function EvidencePanel({
         {workspaceView.evidence.length ? (
           <ul className="mt-4 space-y-2">
             {workspaceView.evidence.map((item) => (
-              <li
-                className="flex items-start gap-2 rounded-sm border border-success/20 bg-success/5 p-2.5"
-                key={item.id}
-              >
+              <li className="flex items-start gap-2 py-2" key={item.id}>
                 <IconCheck
                   aria-hidden="true"
                   className="mt-0.5 h-4 w-4 shrink-0 text-success"

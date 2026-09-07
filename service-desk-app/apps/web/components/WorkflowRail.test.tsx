@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { WorkflowRail } from './WorkflowRail';
+import { CurrentStage, WorkflowRail } from './WorkflowRail';
 import type { NexusWorkflowStage } from '../lib/nexus-service-desk-client';
 
 const stages: NexusWorkflowStage[] = [
@@ -23,14 +23,17 @@ describe('WorkflowRail', () => {
     expect(markup.match(/Completed/g)).toHaveLength(3);
     expect(markup).toContain('aria-current="step"');
     expect(markup).toContain('Fix / Escalate');
-    expect(markup).toContain(
+    expect(markup).not.toContain(
       'Read what the user reports and what work is affected.',
     );
   });
 
   it('never hints that escalation is the expected outcome', () => {
     const markup = renderToStaticMarkup(
-      <WorkflowRail experienceMode="guided" stages={stages} />,
+      <CurrentStage
+        experienceMode="guided"
+        stages={[{ key: 'fix', status: 'current' }]}
+      />,
     );
     // The dead `mode === 'escalate'` branch is gone: the Fix stage always shows
     // the same neutral copy, so the rail cannot pre-announce the answer.
@@ -48,5 +51,18 @@ describe('WorkflowRail', () => {
     expect(markup).not.toContain(
       'Read what the user reports and what work is affected.',
     );
+  });
+
+  it('shows only the current generic explanation and no assessment coaching', () => {
+    const guided = renderToStaticMarkup(
+      <CurrentStage experienceMode="guided" stages={stages} />,
+    );
+    expect(guided).toContain('Decide what is causing');
+    expect(guided).not.toContain('Read what the user');
+    const assessment = renderToStaticMarkup(
+      <CurrentStage experienceMode="assessment" stages={stages} />,
+    );
+    expect(assessment).toContain('Diagnose');
+    expect(assessment).not.toContain('Decide what is causing');
   });
 });

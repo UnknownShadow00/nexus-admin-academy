@@ -20,7 +20,6 @@ import {
   Select,
 } from '@service-desk/ui';
 import {
-  IconArrowLeft,
   IconBox,
   IconCircleCheck,
   IconHelpCircle,
@@ -28,7 +27,7 @@ import {
   IconRefresh,
   IconTrash,
 } from '@tabler/icons-react';
-import Link from 'next/link';
+import { ToolBackLink } from './IntegratedToolContext';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import { useShippingManagerSession } from './TicketSessionProvider';
@@ -188,13 +187,7 @@ export function ShippingManagerTool() {
     >
       <header className="border-b border-border px-4 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link
-            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 self-start rounded-sm px-2 text-sm font-extrabold uppercase text-accent hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-            href="/"
-          >
-            <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
-            Dashboard
-          </Link>
+          <ToolBackLink />
           <Modal
             description="Shipments are instant simulation records; no carrier or payment service is contacted."
             onOpenChange={setLearnOpen}

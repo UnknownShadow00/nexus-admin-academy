@@ -58,7 +58,9 @@ export function ticketFromSearch(search: string): string | null {
 }
 
 function initialTicketFromUrl(): string | null {
-  return typeof window === 'undefined' ? null : ticketFromSearch(window.location.search);
+  return typeof window === 'undefined'
+    ? null
+    : ticketFromSearch(window.location.search);
 }
 
 function replaceLocation(ticketId: string | null, assetTag: string | null) {
@@ -79,16 +81,24 @@ function pushLocation(ticketId: string, assetTag: string) {
   window.history.pushState(null, '', url);
 }
 
-export function RemoteDesktopTool({ activeTicketId }: { activeTicketId?: string } = {}) {
+export function RemoteDesktopTool({
+  activeTicketId,
+}: { activeTicketId?: string } = {}) {
   const remote = useRemoteDesktopSession();
   const tickets = useTicketSession();
   const identity = useSessionIdentity();
-  const [ticketId, setTicketId] = useState(() => activeTicketId ?? initialTicketFromUrl());
+  const [ticketId, setTicketId] = useState(
+    () => activeTicketId ?? initialTicketFromUrl(),
+  );
   const [computer, setComputer] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
-    const requested = new URLSearchParams(window.location.search).get('computer');
-    return activeTicketId && requested !== getRemoteDesktopScenarioByTicket(activeTicketId)?.assetTag
-      ? null : requested;
+    const requested = new URLSearchParams(window.location.search).get(
+      'computer',
+    );
+    return activeTicketId &&
+      requested !== getRemoteDesktopScenarioByTicket(activeTicketId)?.assetTag
+      ? null
+      : requested;
   });
   const [query, setQuery] = useState('');
   const consoleLabel =
@@ -99,14 +109,18 @@ export function RemoteDesktopTool({ activeTicketId }: { activeTicketId?: string 
   const ticket = scenario ? tickets.getTicket(scenario.ticketId) : undefined;
   const workstation =
     remote.workstations.find((item) => item.assetTag === computer) ?? null;
-  const assignedExperienceMode =
-    ticketId ? tickets.assignmentByTicket[ticketId]?.experience_mode : undefined;
+  const assignedExperienceMode = ticketId
+    ? tickets.assignmentByTicket[ticketId]?.experience_mode
+    : undefined;
   const learningMode =
     assignedExperienceMode ?? workstation?.learningMode ?? 'guided';
   const canReviewScenario = canInspectScenarioRequirements(identity);
-  const scenarioComplete =
-    scenario ? workstation?.completedScenarioIds.includes(scenario.id) ?? false : false;
-  const workflowProgress = scenario ? workstation?.scenarioProgress[scenario.id] : undefined;
+  const scenarioComplete = scenario
+    ? (workstation?.completedScenarioIds.includes(scenario.id) ?? false)
+    : false;
+  const workflowProgress = scenario
+    ? workstation?.scenarioProgress[scenario.id]
+    : undefined;
 
   useEffect(() => replaceLocation(ticketId, computer), [computer, ticketId]);
   useEffect(() => {
@@ -119,14 +133,25 @@ export function RemoteDesktopTool({ activeTicketId }: { activeTicketId?: string 
           : null,
       );
       const requestedComputer = params.get('computer');
-      setComputer(activeTicketId && requestedComputer !== getRemoteDesktopScenarioByTicket(activeTicketId)?.assetTag ? null : requestedComputer);
+      setComputer(
+        activeTicketId &&
+          requestedComputer !==
+            getRemoteDesktopScenarioByTicket(activeTicketId)?.assetTag
+          ? null
+          : requestedComputer,
+      );
     };
 
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, [activeTicketId]);
   useEffect(() => {
-    if (!scenario || !workstation || workstation.connectionState !== 'connecting') return;
+    if (
+      !scenario ||
+      !workstation ||
+      workstation.connectionState !== 'connecting'
+    )
+      return;
     const timer = window.setTimeout(() => {
       setToast(remote.beginLogin(workstation.assetTag, scenario.ticketId));
     }, 650);
@@ -149,7 +174,29 @@ export function RemoteDesktopTool({ activeTicketId }: { activeTicketId?: string 
     setToast(event);
   };
 
-  if (!scenario) return <section className="mx-auto max-w-2xl rounded-md border border-border bg-surface-raised p-8 text-center" role="status"><IconDeviceDesktop className="mx-auto h-10 w-10 text-text-muted" aria-hidden="true" /><h1 className="mt-4 text-xl font-bold text-text">Choose a ticket</h1><p className="mt-2 text-sm text-text-muted">Open Remote Desktop from a ticket so the correct customer and computer follow you.</p><a className="sd-button sd-button--default sd-focus-ring mt-5 inline-flex px-4 py-2" href="/">Back to ticket queue</a></section>;
+  if (!scenario)
+    return (
+      <section
+        className="mx-auto max-w-2xl rounded-md border border-border bg-surface-raised p-8 text-center"
+        role="status"
+      >
+        <IconDeviceDesktop
+          className="mx-auto h-10 w-10 text-text-muted"
+          aria-hidden="true"
+        />
+        <h1 className="mt-4 text-xl font-bold text-text">Choose a ticket</h1>
+        <p className="mt-2 text-sm text-text-muted">
+          Open Remote Desktop from a ticket so the correct customer and computer
+          follow you.
+        </p>
+        <a
+          className="sd-button sd-button--default sd-focus-ring mt-5 inline-flex px-4 py-2"
+          href="/"
+        >
+          Back to ticket queue
+        </a>
+      </section>
+    );
 
   return (
     <section
@@ -158,17 +205,19 @@ export function RemoteDesktopTool({ activeTicketId }: { activeTicketId?: string 
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
         <div>
-          <p className="font-label text-xs font-extrabold uppercase tracking-[0.16em] text-accent">
-            Support simulation
-          </p>
-          <h1
+          {!activeTicketId ? (
+            <p className="font-label text-xs font-extrabold uppercase tracking-[0.16em] text-accent">
+              Support simulation
+            </p>
+          ) : null}
+          <h2
             id="remote-desktop-title"
             className="font-display text-2xl font-bold text-text"
           >
             {consoleLabel}
-          </h1>
+          </h2>
         </div>
-        {assignedExperienceMode ? (
+        {activeTicketId ? null : assignedExperienceMode ? (
           <span className="rounded-full border border-border bg-surface/70 px-3 py-1.5 text-xs font-semibold text-accent">
             {assignedExperienceMode[0]?.toUpperCase()}
             {assignedExperienceMode.slice(1)} attempt
@@ -207,144 +256,158 @@ export function RemoteDesktopTool({ activeTicketId }: { activeTicketId?: string 
         />
       ) : null}
 
-      <div className="grid min-w-0 gap-3 xl:min-h-[calc(100dvh-12rem)] xl:grid-cols-[minmax(17rem,0.72fr)_minmax(0,1.65fr)] xl:items-stretch">
-        <aside
-          className={`min-w-0 overflow-hidden border border-sky-900/30 bg-surface shadow-sm ${ticketOpen ? '' : 'max-xl:hidden'}`}
-        >
-          <button
-            aria-expanded={ticketOpen}
-            className="flex w-full items-center justify-between border-b border-sky-900/30 bg-surface-raised px-4 py-3 text-left xl:pointer-events-none"
-            onClick={() => setTicketOpen((open) => !open)}
-            type="button"
+      <div
+        className={
+          activeTicketId
+            ? 'min-w-0'
+            : 'grid min-w-0 gap-3 xl:min-h-[calc(100dvh-12rem)] xl:grid-cols-[minmax(17rem,0.72fr)_minmax(0,1.65fr)] xl:items-stretch'
+        }
+      >
+        {!activeTicketId ? (
+          <aside
+            className={`min-w-0 overflow-hidden border border-sky-900/30 bg-surface shadow-sm ${ticketOpen ? '' : 'max-xl:hidden'}`}
           >
-            <span className="font-label text-xs font-extrabold uppercase tracking-[0.14em] text-accent">
-              Ticket workspace
-            </span>
-            <IconChevronDown
-              aria-hidden="true"
-              className={`h-4 w-4 text-text-muted transition-transform ${ticketOpen ? '' : '-rotate-90'}`}
-            />
-          </button>
-          <div className="space-y-5 p-5 text-text">
-            {!activeTicketId ? <label className="block">
-              <span className="sr-only">Choose a ticket</span>
-              <select
-                aria-label="Choose a ticket"
-                className="w-full rounded-sm border border-border/80 bg-surface-raised px-3 py-2.5 text-sm font-medium text-text"
-                onChange={(event) => selectScenario(event.target.value)}
-                value={scenario.ticketId}
-              >
-                {REMOTE_DESKTOP_SCENARIOS.map((item) => (
-                  <option key={item.id} value={item.ticketId}>
-                    {tickets.getTicket(item.ticketId)?.title ?? item.title}
-                  </option>
-                ))}
-              </select>
-            </label> : null}
-
-            <section>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">
-                {ticket?.priority ?? 'High'} priority
-              </p>
-              <h2 className="mt-2 text-xl font-bold leading-snug text-text">
-                {ticket?.title ?? 'Support request'}
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-text">
-                <span className="font-semibold text-text">Requester:</span>{' '}
-                {ticket?.requester.name ?? 'Employee'} ·{' '}
-                {ticket?.requester.department ?? 'Support'}
-              </p>
-            </section>
-
-            <section className="space-y-3 border-y border-border/80 py-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
-                  Issue
-                </p>
-                <p className="mt-1.5 text-sm leading-6 text-text">
-                  {ticket?.description.issue ??
-                    'Review the reported issue on the affected device.'}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
-                  Business impact
-                </p>
-                <p className="mt-1.5 text-sm leading-6 text-text">
-                  {ticket?.description.businessImpact ??
-                    'The requester needs service restored.'}
-                </p>
-              </div>
-              <div className="rounded-sm bg-surface-raised/70 px-3 py-2.5 text-sm text-text">
-                <span className="font-semibold text-text">
-                  Affected device:
-                </span>{' '}
-                <span className="font-mono text-accent">
-                  {ticket?.device.deviceName ?? scenario.assetTag}
-                </span>
-              </div>
-            </section>
-
-            <section>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
-                Already tried
-              </p>
-              <ul className="mt-2 space-y-2 text-sm leading-6 text-text">
-                {(ticket?.description.troubleshooting ?? []).map((entry) => (
-                  <li className="flex gap-2" key={entry}>
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
-                    {entry}
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <section>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
-                Available tools
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {learningMode === 'assessment' ? (
-                  <span className="text-sm text-text-muted">
-                    Choose workstation applications from the ticket evidence.
-                  </span>
-                ) : (
-                  (ticket?.suggestedTools ?? ['remote-desktop']).map((tool) => (
-                    <span
-                      className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent"
-                      key={tool}
-                    >
-                      {TICKET_TOOL_LABELS[tool] ?? tool}
-                    </span>
-                  ))
-                )}
-              </div>
-            </section>
-
-            {workstation?.completedScenarioIds.includes(scenario.id) ? (
-              <CompletionSummary
-                onClose={
-                  scenario.workflow
-                    ? undefined
-                    : () =>
-                        ticket &&
-                        tickets.closeTicket(ticket.id, {
-                          resolutionNote: '',
-                          verifiedResolved: true,
-                        })
-                }
-                progress={workflowProgress}
-                scenario={scenario}
-                serverGrade={tickets.authoritativeGradeByTicket[scenario.ticketId]}
-                workstation={workstation}
+            <button
+              aria-expanded={ticketOpen}
+              className="flex w-full items-center justify-between border-b border-sky-900/30 bg-surface-raised px-4 py-3 text-left xl:pointer-events-none"
+              onClick={() => setTicketOpen((open) => !open)}
+              type="button"
+            >
+              <span className="font-label text-xs font-extrabold uppercase tracking-[0.14em] text-accent">
+                Ticket workspace
+              </span>
+              <IconChevronDown
+                aria-hidden="true"
+                className={`h-4 w-4 text-text-muted transition-transform ${ticketOpen ? '' : '-rotate-90'}`}
               />
-            ) : null}
+            </button>
+            <div className="space-y-5 p-5 text-text">
+              {!activeTicketId ? (
+                <label className="block">
+                  <span className="sr-only">Choose a ticket</span>
+                  <select
+                    aria-label="Choose a ticket"
+                    className="w-full rounded-sm border border-border/80 bg-surface-raised px-3 py-2.5 text-sm font-medium text-text"
+                    onChange={(event) => selectScenario(event.target.value)}
+                    value={scenario.ticketId}
+                  >
+                    {REMOTE_DESKTOP_SCENARIOS.map((item) => (
+                      <option key={item.id} value={item.ticketId}>
+                        {tickets.getTicket(item.ticketId)?.title ?? item.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
 
-            {canReviewScenario ? (
-              <MentorScenarioReview scenario={scenario} />
-            ) : null}
-          </div>
-        </aside>
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">
+                  {ticket?.priority ?? 'High'} priority
+                </p>
+                <h2 className="mt-2 text-xl font-bold leading-snug text-text">
+                  {ticket?.title ?? 'Support request'}
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-text">
+                  <span className="font-semibold text-text">Requester:</span>{' '}
+                  {ticket?.requester.name ?? 'Employee'} ·{' '}
+                  {ticket?.requester.department ?? 'Support'}
+                </p>
+              </section>
+
+              <section className="space-y-3 border-y border-border/80 py-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                    Issue
+                  </p>
+                  <p className="mt-1.5 text-sm leading-6 text-text">
+                    {ticket?.description.issue ??
+                      'Review the reported issue on the affected device.'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                    Business impact
+                  </p>
+                  <p className="mt-1.5 text-sm leading-6 text-text">
+                    {ticket?.description.businessImpact ??
+                      'The requester needs service restored.'}
+                  </p>
+                </div>
+                <div className="rounded-sm bg-surface-raised/70 px-3 py-2.5 text-sm text-text">
+                  <span className="font-semibold text-text">
+                    Affected device:
+                  </span>{' '}
+                  <span className="font-mono text-accent">
+                    {ticket?.device.deviceName ?? scenario.assetTag}
+                  </span>
+                </div>
+              </section>
+
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                  Already tried
+                </p>
+                <ul className="mt-2 space-y-2 text-sm leading-6 text-text">
+                  {(ticket?.description.troubleshooting ?? []).map((entry) => (
+                    <li className="flex gap-2" key={entry}>
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                      {entry}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                  Available tools
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {learningMode === 'assessment' ? (
+                    <span className="text-sm text-text-muted">
+                      Choose workstation applications from the ticket evidence.
+                    </span>
+                  ) : (
+                    (ticket?.suggestedTools ?? ['remote-desktop']).map(
+                      (tool) => (
+                        <span
+                          className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent"
+                          key={tool}
+                        >
+                          {TICKET_TOOL_LABELS[tool] ?? tool}
+                        </span>
+                      ),
+                    )
+                  )}
+                </div>
+              </section>
+
+              {workstation?.completedScenarioIds.includes(scenario.id) ? (
+                <CompletionSummary
+                  onClose={
+                    scenario.workflow
+                      ? undefined
+                      : () =>
+                          ticket &&
+                          tickets.closeTicket(ticket.id, {
+                            resolutionNote: '',
+                            verifiedResolved: true,
+                          })
+                  }
+                  progress={workflowProgress}
+                  scenario={scenario}
+                  serverGrade={
+                    tickets.authoritativeGradeByTicket[scenario.ticketId]
+                  }
+                  workstation={workstation}
+                />
+              ) : null}
+
+              {canReviewScenario ? (
+                <MentorScenarioReview scenario={scenario} />
+              ) : null}
+            </div>
+          </aside>
+        ) : null}
 
         {/*
           Everything from here down is the SIMULATED WINDOWS DESKTOP - a
@@ -353,7 +416,14 @@ export function RemoteDesktopTool({ activeTicketId }: { activeTicketId?: string 
           would. Do not convert these raw utilities to `--sd-*` tokens; the
           console chrome around it is already tokenized.
         */}
-        <main className="flex min-w-0 min-h-[calc(100dvh-12rem)] bg-zinc-100 shadow-[0_18px_50px_rgba(0,0,0,.22)] xl:min-h-0">
+        <main
+          data-testid="remote-session-surface"
+          className={
+            activeTicketId
+              ? 'flex h-[32rem] min-h-0 min-w-0 bg-zinc-100 sm:h-[38rem]'
+              : 'flex min-w-0 min-h-[calc(100dvh-12rem)] bg-zinc-100 shadow-[0_18px_50px_rgba(0,0,0,.22)] xl:min-h-0'
+          }
+        >
           {workstation ? (
             <RemoteSurface
               onBack={() => setComputer(null)}
@@ -373,7 +443,13 @@ export function RemoteDesktopTool({ activeTicketId }: { activeTicketId?: string 
               onQueryChange={setQuery}
               query={query}
               scenario={scenario}
-              workstations={activeTicketId ? remote.workstations.filter((item) => item.assetTag === scenario.assetTag) : remote.workstations}
+              workstations={
+                activeTicketId
+                  ? remote.workstations.filter(
+                      (item) => item.assetTag === scenario.assetTag,
+                    )
+                  : remote.workstations
+              }
             />
           )}
         </main>
@@ -494,9 +570,7 @@ export function CompletionSummary({
             <li key={step}>• {scenarioActionLabel(scenario, step)}</li>
           ))}
         </ul>
-        <p className="mt-3 font-semibold text-success">
-          Missed useful actions
-        </p>
+        <p className="mt-3 font-semibold text-success">Missed useful actions</p>
         <p className="mt-1 text-emerald-50/85">
           {missedOptional.length
             ? missedOptional
@@ -924,7 +998,7 @@ function SimulatedDesktop({
   return (
     <div className="relative flex min-h-0 flex-1 overflow-hidden bg-[radial-gradient(circle_at_76%_16%,rgba(91,234,208,.54),transparent_25%),radial-gradient(circle_at_18%_80%,rgba(44,146,197,.38),transparent_32%),linear-gradient(135deg,#0a3854,#096761_51%,#103d68)] pb-11 text-white">
       <div className="absolute inset-0 opacity-[0.14] [background-image:linear-gradient(rgba(255,255,255,.16)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.16)_1px,transparent_1px)] [background-size:44px_44px]" />
-      <div className="relative z-10 grid w-24 gap-3 p-3 sm:w-28 sm:gap-4 sm:p-4">
+      <div className="relative z-10 grid min-h-0 w-24 gap-3 overflow-y-auto p-3 sm:w-28 sm:gap-4 sm:p-4">
         {REMOTE_DESKTOP_APP_IDS.map((appId) => (
           <DesktopIcon
             appId={appId}

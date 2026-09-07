@@ -25,6 +25,7 @@ export function Header({ currentPath }: HeaderProps) {
   const [pastTicketsOpen, setPastTicketsOpen] = useState(false);
   const router = useRouter();
   const onToolPage = currentPath.startsWith('/tools/');
+  const onTicketPage = currentPath.startsWith('/tickets/');
   const nexusReturnTarget = useNexusReturnTarget();
 
   return (
@@ -50,7 +51,12 @@ export function Header({ currentPath }: HeaderProps) {
                 </span>
               </span>
             </Link>
-            <BackToNexusLink href={nexusReturnTarget?.href} label={nexusReturnTarget?.label} />
+            {!onTicketPage ? (
+              <BackToNexusLink
+                href={nexusReturnTarget?.href}
+                label={nexusReturnTarget?.label}
+              />
+            ) : null}
             {onToolPage ? (
               <Button
                 className="hidden px-2 text-xs xl:inline-flex"
@@ -63,19 +69,21 @@ export function Header({ currentPath }: HeaderProps) {
             ) : null}
           </div>
 
-          <div className="col-span-2 row-start-2 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:col-span-1 lg:col-start-2 lg:row-start-1">
-            <div className="flex min-w-max items-center">
-              <ToolsPanel activePath={currentPath} />
-              <span
-                aria-hidden="true"
-                className="mx-1.5 h-5 w-px bg-surface-muted/50 sm:mx-2.5"
-              />
-              <NavCluster
-                activePath={currentPath}
-                onLeaderboardOpen={() => setLeaderboardOpen(true)}
-              />
+          {!onTicketPage ? (
+            <div className="col-span-2 row-start-2 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:col-span-1 lg:col-start-2 lg:row-start-1">
+              <div className="flex min-w-max items-center">
+                <ToolsPanel activePath={currentPath} />
+                <span
+                  aria-hidden="true"
+                  className="mx-1.5 h-5 w-px bg-surface-muted/50 sm:mx-2.5"
+                />
+                <NavCluster
+                  activePath={currentPath}
+                  onLeaderboardOpen={() => setLeaderboardOpen(true)}
+                />
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <div className="col-start-2 row-start-1 flex min-w-0 items-center justify-self-end gap-2 sm:gap-3 lg:col-start-3">
             {syncStatus !== 'saved' ? (
@@ -83,7 +91,9 @@ export function Header({ currentPath }: HeaderProps) {
                 className={`hidden rounded-sm px-2 py-1 text-[10px] font-bold uppercase sm:inline ${syncStatus === 'problem' ? 'bg-warning/15 text-warning' : 'bg-accent/10 text-accent'}`}
                 role="status"
               >
-                {syncStatus === 'problem' ? 'Sync problem — retrying' : 'Saving…'}
+                {syncStatus === 'problem'
+                  ? 'Sync problem — retrying'
+                  : 'Saving…'}
               </span>
             ) : null}
             <ProfileMenuTrigger

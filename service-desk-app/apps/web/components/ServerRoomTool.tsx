@@ -20,14 +20,16 @@ import {
 } from '@service-desk/ui';
 import {
   IconActivity,
-  IconArrowLeft,
   IconFileText,
   IconNetwork,
   IconRefresh,
   IconServer,
   IconWorld,
 } from '@tabler/icons-react';
-import Link from 'next/link';
+import {
+  ToolBackLink,
+  IntegratedToolLink as Link,
+} from './IntegratedToolContext';
 import { useMemo, useState } from 'react';
 
 import { AssetActionDialog } from './AssetActionDialog';
@@ -93,13 +95,7 @@ export function ServerRoomTool() {
     >
       <header className="border-b border-border px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link
-            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 self-start rounded-sm px-2 text-sm font-extrabold uppercase text-accent hover:bg-surface-muted hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-            href="/"
-          >
-            <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
-            Dashboard
-          </Link>
+          <ToolBackLink />
           <Badge variant={onlineCount === nodes.length ? 'success' : 'amber'}>
             {onlineCount}/{nodes.length} nodes up
           </Badge>

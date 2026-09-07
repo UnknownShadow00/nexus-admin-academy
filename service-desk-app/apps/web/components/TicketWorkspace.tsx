@@ -4,7 +4,7 @@ import { getToolBySlug, type ToolSlug } from '@service-desk/shared';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@service-desk/ui';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ActiveToolPane } from './ActiveToolPane';
 import { ActivityTimeline } from './ActivityTimeline';
@@ -21,12 +21,18 @@ import { TicketDebrief } from './TicketDebrief';
 import { TicketIssueDetails } from './TicketIssueDetails';
 import { useSessionHydrated, useTicketSession } from './TicketSessionProvider';
 import { WorkspaceToolLauncher } from './WorkspaceToolLauncher';
-import { WorkflowRail } from './WorkflowRail';
+import { CurrentStage, WorkflowRail } from './WorkflowRail';
 
 const ORIENTATION_KEY = 'sd:first-guided-orientation-seen';
-const TOOL_HINT_KEYS = ['article', 'category', 'computer', 'contact'] as const;
+const TOOL_HINT_KEYS = [
+  'article',
+  'category',
+  'computer',
+  'contact',
+  'user',
+] as const;
 
-type PhonePane = 'case' | 'tool' | 'rail';
+type PhonePane = 'work' | 'evidence' | 'notes';
 
 export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   const {
@@ -48,7 +54,8 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   const searchParams = useSearchParams();
   const requestedToolSlug = searchParams.get('tool');
   const [activeToolSlug, setActiveToolSlug] = useState<string | null>(null);
-  const [phonePane, setPhonePane] = useState<PhonePane>('case');
+  const [phonePane, setPhonePane] = useState<PhonePane>('work');
+  const workHeading = useRef<HTMLHeadingElement>(null);
   const [orientationSeen, setOrientationSeen] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -67,7 +74,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
     // promote a valid slug; never reset to null from this effect.
     if (requestedToolSlug && getToolBySlug(requestedToolSlug)) {
       setActiveToolSlug(requestedToolSlug);
-      setPhonePane('tool');
+      setPhonePane('work');
 
       if (!searchParams.get('ticket')) {
         const params = new URLSearchParams(searchParams.toString());
@@ -84,10 +91,16 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
       for (const key of TOOL_HINT_KEYS) params.delete(key);
       params.set('tool', slug);
       params.set('ticket', ticketId);
-      queryHints?.forEach((value, key) => params.set(key, value));
+      queryHints?.forEach((value, key) => {
+        if (
+          TOOL_HINT_KEYS.includes(key as (typeof TOOL_HINT_KEYS)[number]) ||
+          key === 'user'
+        )
+          params.set(key, value);
+      });
 
       setActiveToolSlug(slug);
-      setPhonePane('tool');
+      setPhonePane('work');
       router.push(`${pathname}?${params.toString()}`, { scroll: false });
     },
     [pathname, router, searchParams, ticketId],
@@ -183,11 +196,16 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1540px] space-y-4 sm:space-y-5">
+    <div
+      className="mx-auto w-full min-w-0 max-w-[1540px] space-y-4"
+      data-testid="ticket-workspace"
+    >
       <TicketContextBar assignment={assignment} ticket={ticket} />
-
       {awaitingGradeByTicket[ticketId] ? (
-        <p className="rounded-md border border-accent p-4 text-lg font-bold" role="status">
+        <p
+          className="rounded-md border border-border p-4 text-lg font-bold"
+          role="status"
+        >
           Assessment result: AWAITING REVIEW — module credit pending.
         </p>
       ) : null}
@@ -197,7 +215,6 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
           stages={workspaceView.stages}
         />
       ) : null}
-
       <Tabs
         onValueChange={(value) => setPhonePane(value as PhonePane)}
         value={phonePane}
@@ -206,56 +223,22 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
           aria-label="Ticket workspace panes"
           className="grid grid-cols-3 sm:hidden"
         >
-          <TabsTrigger value="case">Case</TabsTrigger>
-          <TabsTrigger value="tool">Tool</TabsTrigger>
-          <TabsTrigger value="rail">Rail</TabsTrigger>
+          <TabsTrigger value="work">Work</TabsTrigger>
+          <TabsTrigger value="evidence">
+            Evidence ({workspaceView?.evidence.length ?? 0})
+          </TabsTrigger>
+          <TabsTrigger value="notes">Notes</TabsTrigger>
         </TabsList>
-
-        <div className="min-w-0 gap-4 lg:grid lg:grid-cols-[minmax(0,1.65fr)_minmax(18rem,0.85fr)]">
-          <div className="min-w-0 space-y-4">
-            <TabsContent
-              className="m-0 data-[state=inactive]:hidden sm:!block sm:py-0"
-              forceMount
-              value="case"
-            >
-              <div className="space-y-4">
-                <TicketIssueDetails description={ticket.description} />
-                <div className="grid gap-4 md:grid-cols-2">
-                  <RequesterCard requester={ticket.requester} />
-                  <RelatedDevicePanel device={ticket.device} />
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent
-              className="m-0 data-[state=inactive]:hidden sm:!block sm:py-0"
-              forceMount
-              value="tool"
-            >
-              <ActiveToolPane
-                activeTicketId={ticket.id}
-                activeToolSlug={activeToolSlug}
-                onBack={() => {
-                  const params = new URLSearchParams(searchParams.toString());
-                  params.delete('tool');
-                  for (const key of TOOL_HINT_KEYS) params.delete(key);
-                  setActiveToolSlug(null);
-                  setPhonePane('case');
-                  router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-                }}
-              />
-            </TabsContent>
-          </div>
-
+        <div className="grid min-w-0 gap-4 sm:block lg:grid lg:gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
           <TabsContent
-            className="m-0 min-w-0 data-[state=inactive]:hidden sm:mt-4 sm:!block sm:py-0 lg:mt-0"
+            className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
             forceMount
-            value="rail"
+            value="work"
           >
-            <aside
-              aria-label="Ticket workspace rail"
-              className="min-w-0 space-y-4"
-            >
+            <div className="min-w-0 space-y-4">
+              <h2 className="sr-only" ref={workHeading} tabIndex={-1}>
+                Ticket work area
+              </h2>
               <WorkspaceToolLauncher
                 activeToolSlug={activeToolSlug}
                 experienceMode={experienceMode}
@@ -264,28 +247,100 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
                 ticketId={ticket.id}
                 toolSlugs={ticket.suggestedTools}
               />
+              <details className="rounded-sm bg-surface-raised px-3 py-2">
+                <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text">
+                  Reported issue
+                </summary>
+                <TicketIssueDetails description={ticket.description} />
+              </details>
+              <ActiveToolPane
+                activeTicketId={ticket.id}
+                activeToolSlug={activeToolSlug}
+                onSelectTool={setActiveTool}
+                onBack={() => {
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.delete('tool');
+                  for (const key of TOOL_HINT_KEYS) params.delete(key);
+                  setActiveToolSlug(null);
+                  setPhonePane('work');
+                  router.replace(`${pathname}?${params.toString()}`, {
+                    scroll: false,
+                  });
+                  workHeading.current?.focus();
+                }}
+              />
               <TicketActionBar ticket={ticket} />
+            </div>
+          </TabsContent>
+          <aside
+            aria-label="Ticket workspace rail"
+            className="contents min-w-0 sm:block sm:space-y-4 sm:mt-4 lg:mt-0"
+          >
+            <div className="hidden sm:block">
+              {workspaceView ? (
+                <CurrentStage
+                  experienceMode={experienceMode}
+                  stages={workspaceView.stages}
+                />
+              ) : null}
+            </div>
+            {experienceMode !== 'assessment' ? (
+              <details className="order-first rounded-sm bg-surface-raised px-3 py-1 sm:order-none">
+                <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text">
+                  Hints
+                </summary>
+                <HintPanel
+                  experienceMode={experienceMode}
+                  hints={ticket.hints}
+                  onReveal={(step) => recordHintReveal(ticket.id, step)}
+                  revealedCount={ticket.hintsRevealedCount}
+                />
+              </details>
+            ) : null}
+            <TabsContent
+              className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
+              forceMount
+              value="evidence"
+            >
               {workspaceView ? (
                 <EvidencePanel workspaceView={workspaceView} />
-              ) : null}
+              ) : (
+                <p className="text-sm text-text-muted">
+                  No evidence confirmed yet.
+                </p>
+              )}
+            </TabsContent>
+            <TabsContent
+              className="m-0 min-w-0 data-[state=inactive]:hidden sm:!block sm:py-0"
+              forceMount
+              value="notes"
+            >
               <ResolutionNotePanel
                 experienceMode={experienceMode}
                 notes={ticket.notes}
                 onSubmit={(body) => submitResolutionNote(ticket.id, body)}
               />
-              <HintPanel
-                experienceMode={experienceMode}
-                hints={ticket.hints}
-                onReveal={(step) => recordHintReveal(ticket.id, step)}
-                revealedCount={ticket.hintsRevealedCount}
-              />
-            </aside>
-          </TabsContent>
+            </TabsContent>
+          </aside>
         </div>
       </Tabs>
-
       <OutcomeBar ticket={ticket} />
-      <ActivityTimeline events={ticket.activity} />
+      <details className="border-t border-border pt-2">
+        <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text-muted">
+          Case and device details
+        </summary>
+        <div className="grid gap-4 md:grid-cols-2">
+          <RequesterCard requester={ticket.requester} />
+          <RelatedDevicePanel device={ticket.device} />
+        </div>
+        <p className="mt-3 text-xs text-text-muted">{ticket.sla.target}</p>
+      </details>
+      <details className="border-t border-border pt-2">
+        <summary className="sd-focus-ring min-h-11 cursor-pointer py-3 text-sm font-semibold text-text-muted">
+          Activity timeline ({ticket.activity.length})
+        </summary>
+        <ActivityTimeline events={ticket.activity} />
+      </details>
     </div>
   );
 }

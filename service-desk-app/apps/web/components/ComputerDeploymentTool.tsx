@@ -23,7 +23,6 @@ import {
   Select,
 } from '@service-desk/ui';
 import {
-  IconArrowLeft,
   IconBolt,
   IconBook2,
   IconCircleCheck,
@@ -35,7 +34,10 @@ import {
   IconPower,
   IconServer,
 } from '@tabler/icons-react';
-import Link from 'next/link';
+import {
+  ToolBackLink,
+  IntegratedToolLink as Link,
+} from './IntegratedToolContext';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useComputerDeploymentSession } from './TicketSessionProvider';
@@ -174,13 +176,7 @@ function DeploymentFrame({
     >
       <header className="border-b border-border px-4 py-4 sm:px-6">
         <div className="flex items-center justify-between gap-3">
-          <Link
-            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 rounded-sm px-2 text-sm font-extrabold uppercase text-accent hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-            href="/"
-          >
-            <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
-            Dashboard
-          </Link>
+          <ToolBackLink />
           <Modal
             description="Practice the workstation imaging sequence from hardware setup through domain verification."
             onOpenChange={onAboutOpenChange}
