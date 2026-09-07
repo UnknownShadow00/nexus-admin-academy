@@ -2304,3 +2304,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/service_desk.py, backend/app/services/service_desk_grading.py, backend/app/services/service_desk_workspace_view.py, backend/tests/test_service_desk_p0_integrity.py, backend/tests/test_service_desk_workspace_view.py, backend/tests/test_v2_service_desk_antigaming.py, Service Desk note/outcome/status components and focused tests, TicketSessionProvider.tsx, TicketWorkspace.tsx, nexus-service-desk-client.ts, tasks/loop-log.md
 - Result: PASS — web 173 tests; 6-assessment anti-gaming matrix with 54 variants and 6 positive controls passed; grading/API rerun 109 passed, escalation/workspace 25 passed. Authenticated beginner completed repair, received server PASS and V2 activity credit, returned to its module. No legacy grading weights or note-only fallback changed.
 - Next: Commit student-copy cleanup and CI/browser gates; finish consolidated validation and clean-tree report.
+
+## 2026-09-07T21:33:07.684259+00:00 Task Completed
+- Task: Remove student-facing fixture/developer instructions while preserving working tools and operator diagnostics.
+- Files changed: service-desk-app/apps/web/components/RelatedDevicePanel.tsx, service-desk-app/apps/web/components/ResolveDialog.tsx, service-desk-app/apps/web/components/PcShelfTool.tsx, tasks/loop-log.md
+- Result: PASS — retained Claude's two cleanup edits, removed another fixture-only shelf description; web suite 173 passed and the authenticated beginner path exercised the revised close dialog.
+- Next: Finish CI gates, browser regressions, and final verification record.

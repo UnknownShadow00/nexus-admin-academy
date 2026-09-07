@@ -109,7 +109,7 @@ export function PcShelfTool() {
             Dashboard
           </Link>
           <Modal
-            description="Choose a known fixture-backed computer to place on this attempt’s shelf."
+            description="Choose an available computer to place on your shelf."
             onOpenChange={setAddOpen}
             open={addOpen}
             title="Add computer"

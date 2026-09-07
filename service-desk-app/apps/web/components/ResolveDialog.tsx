@@ -173,8 +173,8 @@ export function ResolveDialog({
                 I verified the requester has a working outcome
               </span>
               <span className="mt-1 block text-xs leading-relaxed text-text-muted">
-                Leave this unchecked to review the unresolved-close warning
-                path.
+                Only check this once you have confirmed with the requester that
+                the issue is actually fixed.
               </span>
             </span>
           </label>

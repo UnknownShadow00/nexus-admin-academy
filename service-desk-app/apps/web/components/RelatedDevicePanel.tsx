@@ -59,10 +59,6 @@ export function RelatedDevicePanel({ device }: { device: RequesterDevice }) {
             <dd className="mt-1 text-text">{device.operatingSystem}</dd>
           </div>
         </dl>
-        <p className="mt-4 border-t border-border pt-3 text-xs leading-relaxed text-text-muted">
-          Local fixture record only; Directory and Asset Management remain
-          placeholder workspaces.
-        </p>
       </div>
     </Card>
   );
