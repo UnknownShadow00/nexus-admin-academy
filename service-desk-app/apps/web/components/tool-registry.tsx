@@ -11,7 +11,7 @@ import { RemoteDesktopTool } from './RemoteDesktopTool';
 import { ServerRoomTool } from './ServerRoomTool';
 import { ShippingManagerTool } from './ShippingManagerTool';
 
-export function renderTool(slug: string): ReactNode | null {
+export function renderTool(slug: string, activeTicketId?: string): ReactNode | null {
   switch (slug) {
     case 'directory':
       return <DirectoryTool />;
@@ -40,7 +40,7 @@ export function renderTool(slug: string): ReactNode | null {
     case 'server-room':
       return <ServerRoomTool />;
     case 'remote-desktop':
-      return <RemoteDesktopTool />;
+      return <RemoteDesktopTool activeTicketId={activeTicketId} />;
     case 'computer-deployment':
       return <ComputerDeploymentTool />;
     case 'shipping-manager':

@@ -59,17 +59,21 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
   }, []);
 
   useEffect(() => {
-    const nextTool =
-      requestedToolSlug && getToolBySlug(requestedToolSlug)
-        ? requestedToolSlug
-        : null;
-    setActiveToolSlug(nextTool);
-    if (nextTool) setPhonePane('tool');
+    // The embedded workspace is authoritative for which tool is open. A
+    // `tool=` in the URL (deep link, reload, or the V2 curriculum launch URL)
+    // seeds it, but a later searchParams change made by the tool itself — a
+    // hint param, a ticket param — must NOT clear the active tool. Only ever
+    // promote a valid slug; never reset to null from this effect.
+    if (requestedToolSlug && getToolBySlug(requestedToolSlug)) {
+      setActiveToolSlug(requestedToolSlug);
+      setPhonePane('tool');
 
-    if (nextTool && !searchParams.get('ticket')) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set('ticket', ticketId);
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      if (!searchParams.get('ticket')) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('ticket', ticketId);
+        params.set('tool', requestedToolSlug);
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      }
     }
   }, [pathname, requestedToolSlug, router, searchParams, ticketId]);
 
@@ -225,6 +229,14 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
               <ActiveToolPane
                 activeTicketId={ticket.id}
                 activeToolSlug={activeToolSlug}
+                onBack={() => {
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.delete('tool');
+                  for (const key of TOOL_HINT_KEYS) params.delete(key);
+                  setActiveToolSlug(null);
+                  setPhonePane('case');
+                  router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+                }}
               />
             </TabsContent>
           </div>

@@ -4,12 +4,11 @@ import { AssetStatus } from '@service-desk/shared';
 import type { ActionEvent } from '@service-desk/simulation-engine';
 import { Badge, Button, Input, PanelFrame, Select } from '@service-desk/ui';
 import {
-  IconArrowLeft,
   IconPackage,
   IconRefresh,
   IconSearch,
 } from '@tabler/icons-react';
-import Link from 'next/link';
+import { ToolBackLink, useIntegratedTool } from './IntegratedToolContext';
 import { useEffect, useMemo, useState } from 'react';
 
 import { AssetDetail } from './AssetDetail';
@@ -38,10 +37,11 @@ function eventMessage(event: ActionEvent) {
 }
 
 export function AssetManagementTool() {
+  const integrated = useIntegratedTool();
   const { assets, directoryUsers, isHydrated } = useAssetManagementSession();
   const [lastEvent, setLastEvent] = useState<ActionEvent | null>(null);
   const [query, setQuery] = useState('');
-  const [selectedAssetTag, setSelectedAssetTag] = useState<string | null>(null);
+  const [selectedAssetTag, setSelectedAssetTag] = useState<string | null>(integrated?.ticket.device.assetTag ?? null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [syncMessage, setSyncMessage] = useState('');
   const [view, setView] = useState<AssetView>('users');
@@ -103,13 +103,7 @@ export function AssetManagementTool() {
     >
       <header className="border-b border-border px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link
-            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 self-start rounded-sm px-2 text-sm font-extrabold uppercase text-accent hover:bg-surface-muted hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-            href="/"
-          >
-            <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
-            Dashboard
-          </Link>
+          <ToolBackLink />
           <Badge variant="sky">{assets.length} inventory records</Badge>
         </div>
         <div className="mt-4 flex items-center gap-3">

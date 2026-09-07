@@ -4,6 +4,8 @@ import { getToolBySlug } from '@service-desk/shared';
 import { IconToolsOff } from '@tabler/icons-react';
 import { useSearchParams } from 'next/navigation';
 
+import { IntegratedToolContext } from './IntegratedToolContext';
+import { useTicketSession } from './TicketSessionProvider';
 import { renderTool } from './tool-registry';
 
 export function toolContextMatchesTicket(
@@ -19,11 +21,15 @@ export function toolContextMatchesTicket(
 export function ActiveToolPane({
   activeTicketId,
   activeToolSlug,
+  onBack,
 }: {
   activeTicketId: string;
   activeToolSlug: string | null;
+  onBack?: () => void;
 }) {
   const searchParams = useSearchParams();
+  const { getTicket, assignmentByTicket } = useTicketSession();
+  const ticket = getTicket(activeTicketId);
 
   if (!activeToolSlug) {
     return (
@@ -77,5 +83,32 @@ export function ActiveToolPane({
     );
   }
 
-  return <div className="min-w-0">{renderTool(activeToolSlug)}</div>;
+  if (!ticket) return null;
+  const attemptNumber =
+    assignmentByTicket[activeTicketId]?.most_recent_attempt?.attempt_number;
+  return (
+    <IntegratedToolContext.Provider
+      value={{
+        ticket,
+        attemptNumber,
+        returnDestination: searchParams.get('returnTo'),
+        onBack,
+      }}
+    >
+      <div className="min-w-0">
+        <p className="mb-2 text-sm text-text-muted">
+          {ticket.id} · {ticket.requester.name} · {ticket.device.assetTag}
+          {attemptNumber ? ` · Attempt ${attemptNumber}` : ''}
+        </p>
+        <button
+          className="sd-button sd-button--default mb-3"
+          onClick={onBack}
+          type="button"
+        >
+          Back to ticket {activeTicketId}
+        </button>
+        {renderTool(activeToolSlug, activeTicketId)}
+      </div>
+    </IntegratedToolContext.Provider>
+  );
 }

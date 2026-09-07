@@ -2292,3 +2292,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/services/v2_service_desk_onboarding.py, backend/app/services/v2_curriculum_service.py, backend/app/services/v2_progress_service.py, backend/app/routers/service_desk.py (onboarding hooks), backend/content/certifications/comptia_aplus.yaml, associated V2 curriculum/onboarding/publication/runtime tests, tasks/p0-service-desk-integrity-plan.md, tasks/loop-log.md
 - Result: PASS — requested focused suite 54 passed; curriculum/API and grading regression rerun 109 passed; orientation only orders INC2504 → INC2505 → INC2506, with no new cross-module completion gate.
 - Next: Finish workspace and outcome commits, CI gate, and final browser/build validation.
+
+## 2026-09-07T21:30:42.507890+00:00 Task Completed
+- Task: Preserve the V2 ticket launcher and scope integrated tools to the active ticket, requester, asset and return destination; keep standalone tool routes.
+- Files changed: service-desk-app/apps/web/components/ActiveToolPane.tsx, IntegratedToolContext.tsx, RemoteDesktopTool.tsx, DirectoryTool.tsx, AssetManagementTool.tsx, CompanyChatTool.tsx, DocumentationTool.tsx, tool-registry.tsx, TicketWorkspace.tsx (launcher/context hunks), tasks/loop-log.md
+- Result: PASS — authenticated mounted curriculum URL opened Remote Desktop through the launcher, one asset/no ticket selector, evidence and return context preserved; Service Desk web tests and typecheck passed, lint passed. Standalone browser validation follows after the isolated integrated server stops.
+- Next: Commit learner outcome and note semantics; finish standalone browser/build checks.

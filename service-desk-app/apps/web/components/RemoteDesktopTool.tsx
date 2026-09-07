@@ -79,16 +79,17 @@ function pushLocation(ticketId: string, assetTag: string) {
   window.history.pushState(null, '', url);
 }
 
-export function RemoteDesktopTool() {
+export function RemoteDesktopTool({ activeTicketId }: { activeTicketId?: string } = {}) {
   const remote = useRemoteDesktopSession();
   const tickets = useTicketSession();
   const identity = useSessionIdentity();
-  const [ticketId, setTicketId] = useState(initialTicketFromUrl);
-  const [computer, setComputer] = useState<string | null>(() =>
-    typeof window === 'undefined'
-      ? null
-      : new URLSearchParams(window.location.search).get('computer'),
-  );
+  const [ticketId, setTicketId] = useState(() => activeTicketId ?? initialTicketFromUrl());
+  const [computer, setComputer] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const requested = new URLSearchParams(window.location.search).get('computer');
+    return activeTicketId && requested !== getRemoteDesktopScenarioByTicket(activeTicketId)?.assetTag
+      ? null : requested;
+  });
   const [query, setQuery] = useState('');
   const consoleLabel =
     ticketId === 'INC2402' ? 'Managed Device Console' : 'Remote Desktop';
@@ -111,18 +112,19 @@ export function RemoteDesktopTool() {
   useEffect(() => {
     const onPopState = () => {
       const params = new URLSearchParams(window.location.search);
-      const nextTicketId = params.get('ticket');
+      const nextTicketId = activeTicketId ?? params.get('ticket');
       setTicketId(
         nextTicketId && getRemoteDesktopScenarioByTicket(nextTicketId)
           ? nextTicketId
           : null,
       );
-      setComputer(params.get('computer'));
+      const requestedComputer = params.get('computer');
+      setComputer(activeTicketId && requestedComputer !== getRemoteDesktopScenarioByTicket(activeTicketId)?.assetTag ? null : requestedComputer);
     };
 
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, []);
+  }, [activeTicketId]);
   useEffect(() => {
     if (!scenario || !workstation || workstation.connectionState !== 'connecting') return;
     const timer = window.setTimeout(() => {
@@ -224,7 +226,7 @@ export function RemoteDesktopTool() {
             />
           </button>
           <div className="space-y-5 p-5 text-text">
-            <label className="block">
+            {!activeTicketId ? <label className="block">
               <span className="sr-only">Choose a ticket</span>
               <select
                 aria-label="Choose a ticket"
@@ -238,7 +240,7 @@ export function RemoteDesktopTool() {
                   </option>
                 ))}
               </select>
-            </label>
+            </label> : null}
 
             <section>
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">
@@ -371,7 +373,7 @@ export function RemoteDesktopTool() {
               onQueryChange={setQuery}
               query={query}
               scenario={scenario}
-              workstations={remote.workstations}
+              workstations={activeTicketId ? remote.workstations.filter((item) => item.assetTag === scenario.assetTag) : remote.workstations}
             />
           )}
         </main>
