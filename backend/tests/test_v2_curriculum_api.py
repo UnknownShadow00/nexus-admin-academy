@@ -2,6 +2,8 @@
 
 from conftest import auth_headers, enroll_v2, make_client, make_student
 
+import seed_v2_foundation
+
 from app.models.certification import QuestionV2Meta
 from app.models.grading import PendingGrade
 from app.models.v2_progress import V2AssessmentAttempt, V2ExplainSubmission
@@ -118,15 +120,18 @@ def test_explain_submission_is_committed_before_pending_grade(db, monkeypatch):
 
 def test_service_desk_launch_creates_only_a_validated_existing_system_assignment(db, monkeypatch):
     student, client = _ready(db, monkeypatch)
+    seed_v2_foundation.run(db)
+    module_key = "module.aplus.core1.ip_configuration"
+    assessment_key = "assess.aplus.ipcfg.service_desk"
     response = client.post(
-        f"/api/v2/curriculum/modules/{MODULE}/service-desk/assess.aplus-core1-network-services-troubleshooting.service_desk/launch",
+        f"/api/v2/curriculum/modules/{module_key}/service-desk/{assessment_key}/launch",
         headers=auth_headers(student),
     )
     assert response.status_code == 200
     assert response.json()["data"]["launch_url"].startswith("/service-desk/tickets/")
     launch_url = response.json()["data"]["launch_url"]
-    assert f"returnTo=/learning-v2/modules/{MODULE}" in launch_url
-    assert f"v2ModuleKey={MODULE}" in launch_url
+    assert f"returnTo=/learning-v2/modules/{module_key}" in launch_url
+    assert f"v2ModuleKey={module_key}" in launch_url
     assert "v2AssessmentKey=" in launch_url
     assert response.json()["data"]["experience_mode"] == "guided"
     assignment = db.query(ServiceDeskAssignment).filter_by(student_id=student.id).one()

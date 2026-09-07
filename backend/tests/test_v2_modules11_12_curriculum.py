@@ -23,20 +23,21 @@ from app.models.certification import (
 )
 from app.models.quiz import Question, Quiz
 from app.models.service_desk import (
-    ServiceDeskAssignment,
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
 )
 from app.services.v2_assessment_selector import select_constrained
 from app.services.v2_content_loader import load_module
 from app.services.v2_curriculum_service import (
+    assessment_is_available,
     entry_view,
     launch_service_desk,
     module_view,
     resource_activity,
+    service_desk_scenario_is_playable,
 )
 from app.services.v2_mentor_service import cohort_progress
-from app.routers.service_desk import list_assignments
+from app.services.v2_progress_service import V2ProgressError
 from conftest import enroll_v2, make_student
 
 
@@ -103,6 +104,8 @@ def test_modules11_12_load_all_reviewed_relationships_and_hints(
     assert next(row for row in assessments if row.assessment_role == "practical").lab_template_id
 
     service_desk = next(row for row in assessments if row.assessment_role == "service_desk")
+    assert service_desk.active is False
+    assert service_desk.config["auto_deactivated_reason"] == "no_grading_profile"
     scenario = db.get(ServiceDeskScenario, service_desk.service_desk_scenario_id)
     assert scenario.stable_key == expected["service_desk"]
     version = (
@@ -117,24 +120,10 @@ def test_modules11_12_load_all_reviewed_relationships_and_hints(
 
     student = make_student(db, username=f"{expected['prefix'].lower()}_service_desk")
     enroll_v2(monkeypatch, student)
-    launch_service_desk(db, student.id, module_key, service_desk.assessment_key)
-    assignment = db.query(ServiceDeskAssignment).filter_by(
-        student_id=student.id,
-        scenario_id=scenario.id,
-    ).one()
-    assert assignment.mode == "learning"
-    assignment.maximum_attempts = 4
-    db.commit()
-    launch_service_desk(db, student.id, module_key, service_desk.assessment_key)
-    db.refresh(assignment)
-    assert assignment.maximum_attempts == 4
-    listed = next(
-        row
-        for row in list_assignments(current_student=student, db=db)
-        if row["scenario"]["stable_key"] == expected["service_desk"]
-    )
-    assert listed["experience_mode"] == "guided"
-    assert len(listed["latest_published_version"]["definition_json"]["hints"]) == 3
+    assert service_desk_scenario_is_playable(db, service_desk) is False
+    assert assessment_is_available(db, service_desk, student.id) is False
+    with pytest.raises(V2ProgressError, match="not available"):
+        launch_service_desk(db, student.id, module_key, service_desk.assessment_key)
 
 
 @pytest.mark.parametrize("module_key", MODULES)

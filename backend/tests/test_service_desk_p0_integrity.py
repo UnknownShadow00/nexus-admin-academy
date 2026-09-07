@@ -3,16 +3,24 @@
 from __future__ import annotations
 
 import pytest
+from fastapi import HTTPException
 
 import seed_v2_foundation
 from app.models.certification import ModuleAssessment
 from app.models.service_desk import (
     ServiceDeskAttempt,
     ServiceDeskAttemptEvent,
+    ServiceDeskAssignment,
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
 )
+from app.models.v2_progress import V2ModuleActivity
+from app.routers.service_desk import start_attempt
 from app.services.service_desk_grading import compute_grade
+from app.services.v2_curriculum_service import (
+    assessment_is_available,
+    service_desk_scenario_is_playable,
+)
 from conftest import make_student
 from scripts.generate_service_desk_v2_inventory import (
     browser_operability_failures,
@@ -68,46 +76,67 @@ def _event(db, attempt, sequence, event_type, payload):
     )
 
 
-@pytest.mark.xfail(strict=True, reason="P0 Finding A — fixed in Wave 2")
-def test_p0_finding_a_note_only_v2_ticket_must_not_award_100(db):
+def test_p0_finding_a_note_only_v2_ticket_is_unavailable(db, monkeypatch):
     seed_v2_foundation.run(db)
-    _, _, version = _published_assessment(
+    assessment, scenario, _ = _published_assessment(
         db, "assess.aplus-core2-service-desk-workflow.service_desk"
     )
     student = make_student(db, username="p0-note-only")
-    attempt = _attempt(db, student, version)
-    ticket_id = version.definition_json["id"]
-    _event(
-        db,
-        attempt,
-        1,
-        "ticket.add_note",
-        {"ticketId": ticket_id, "body": "Restarted computer and issue resolved."},
+    monkeypatch.setenv("V2_CURRICULUM_ENABLED", "true")
+    monkeypatch.setenv("V2_PILOT_STUDENT_IDS", str(student.id))
+
+    assert assessment.active is False
+    assert service_desk_scenario_is_playable(db, assessment) is False
+    assert assessment_is_available(db, assessment, student.id) is False
+
+    module_key = "module.aplus.core2.service_desk_workflow"
+    assignment = ServiceDeskAssignment(
+        student_id=student.id,
+        scenario_id=scenario.id,
+        mode="learning",
+        is_required=True,
+        maximum_attempts=3,
+        assigned_by=f"v2_curriculum:{module_key}:{assessment.assessment_key}",
     )
-    _event(db, attempt, 2, "ticket.close", {"ticketId": ticket_id})
+    db.add(assignment)
+    db.add(
+        V2ModuleActivity(
+            student_id=student.id,
+            module_key=module_key,
+            activity_type="service_desk",
+            ref_key=assessment.assessment_key,
+            detail={"scenario_id": scenario.id},
+        )
+    )
     db.commit()
 
-    grade = compute_grade(db, attempt)
-    broken_signature = (
-        grade["passed"],
-        grade["overall_score"],
-        grade["details"]["process_weights"],
-    )
-    # Today this is exactly (True, 100, None). Wave 2 makes the V2 assessment
-    # invalid/unavailable, so this note-only path must stop awarding credit.
-    assert broken_signature != (True, 100, None)
+    with pytest.raises(HTTPException) as exc_info:
+        start_attempt(
+            assignment.id,
+            current_student=student,
+            db=db,
+            _=None,
+            v2_module_key=module_key,
+            v2_assessment_key=assessment.assessment_key,
+        )
+    assert exc_info.value.status_code == 404
+    # The raw compute_grade fallback deliberately remains unchanged for
+    # non-V2 legacy scenarios; V2 safety is enforced at availability/start.
 
 
 @pytest.mark.xfail(strict=True, reason="P0 Finding B — fixed in Wave 3")
 def test_p0_finding_b_every_v2_service_desk_assessment_is_browser_operable(db):
     seed_v2_foundation.run(db)
-    failures = browser_operability_failures(
-        collect_inventory(db, feature_enabled=True)
-    )
+    rows = collect_inventory(db, feature_enabled=True)
+    active_rows = [row for row in rows if row.active]
+    failures = browser_operability_failures(active_rows)
     # The paired simulation-engine test actually applies ticket.add_note plus
     # connect/login/authenticate/remote_desktop.open_app. Wave 3 must make this
     # complete set operable or unavailable rather than leave a broken launch.
-    assert failures == [], f"browser-inoperable V2 assessments: {failures}"
+    assert len(active_rows) >= 8 and failures == [], (
+        f"available set is incomplete or browser-inoperable: "
+        f"active={len(active_rows)}, failures={failures}"
+    )
 
 
 @pytest.mark.xfail(strict=True, reason="P0 Finding E — fixed in Wave 6")

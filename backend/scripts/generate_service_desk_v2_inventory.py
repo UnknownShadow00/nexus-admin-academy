@@ -47,6 +47,10 @@ from app.models.service_desk import (  # noqa: E402
     ServiceDeskScenarioVersion,
 )
 from app.services.service_desk_objectives import objective_definition  # noqa: E402
+from app.services.v2_content_loader import (  # noqa: E402
+    AUTO_DEACTIVATED_REASON_KEY,
+    NO_GRADING_PROFILE_REASON,
+)
 from app.services.v2_access import v2_master_enabled  # noqa: E402
 
 DEFAULT_MARKDOWN_OUTPUT = REPO_ROOT / "docs/service_desk_v2_assessment_inventory.md"
@@ -62,6 +66,8 @@ class InventoryRow:
     process_profile: bool
     grading_categories: tuple[str, ...]
     browser_operable: bool
+    active: bool
+    auto_deactivated: bool
     student_visible: bool
     ticket_id: str
     asset_tag: str
@@ -151,6 +157,11 @@ def collect_inventory(db, *, feature_enabled: bool | None = None) -> list[Invent
                 process_profile=bool(objective and objective.is_process_profile),
                 grading_categories=categories,
                 browser_operable=browser_operable,
+                active=bool(assessment.active),
+                auto_deactivated=(
+                    (assessment.config or {}).get(AUTO_DEACTIVATED_REASON_KEY)
+                    == NO_GRADING_PROFILE_REASON
+                ),
                 student_visible=student_visible,
                 ticket_id=ticket_id,
                 asset_tag=asset_tag,
@@ -160,16 +171,18 @@ def collect_inventory(db, *, feature_enabled: bool | None = None) -> list[Invent
 
 
 def wave2_invariant_failures(rows: list[InventoryRow]) -> list[str]:
-    """Rows that would be unsafe to expose when the V2 feature flag is enabled."""
+    """Active rows that are unsafe to expose when the V2 flag is enabled."""
     return sorted(
         row.assessment_key
         for row in rows
-        if not row.process_profile or not row.grading_categories
+        if row.active and (not row.process_profile or not row.grading_categories)
     )
 
 
 def browser_operability_failures(rows: list[InventoryRow]) -> list[str]:
-    return sorted(row.assessment_key for row in rows if not row.browser_operable)
+    return sorted(
+        row.assessment_key for row in rows if row.active and not row.browser_operable
+    )
 
 
 def note_only_assessments(rows: list[InventoryRow]) -> list[str]:
@@ -195,16 +208,24 @@ def render_markdown(rows: list[InventoryRow], *, feature_enabled: bool) -> str:
         "",
         f"V2 feature flag: **{flag_state}** (`V2_CURRICULUM_ENABLED`). Student-visible includes this flag plus active assessment/module/scenario, an active certification version (the model's publication gate), and a published scenario version.",
         "",
-        "| module | assessment key | scenario stable_key | catalog version | process profile? | grading categories | browser-operable | student-visible |",
-        "|---|---|---|---|---|---|---|---|",
+        "| module | assessment key | scenario stable_key | catalog version | process profile? | grading categories | browser-operable | active | auto-deactivated | student-visible |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for row in rows:
         categories = ", ".join(row.grading_categories)
-        visible = "yes (V2 flag on)" if row.student_visible else f"no (V2 flag {flag_state})"
+        visible = (
+            "yes (V2 flag on)"
+            if row.student_visible
+            else "no (assessment inactive)"
+            if not row.active
+            else f"no (V2 flag {flag_state})"
+        )
         lines.append(
             f"| {row.module} | {row.assessment_key} | {row.scenario_stable_key} | "
             f"{row.catalog_version} | {'yes' if row.process_profile else 'no'} | "
-            f"{categories} | {'yes' if row.browser_operable else 'no'} | {visible} |"
+            f"{categories} | {'yes' if row.browser_operable else 'no'} | "
+            f"{'yes' if row.active else 'no'} | "
+            f"{'yes' if row.auto_deactivated else 'no'} | {visible} |"
         )
     invariant_failures = wave2_invariant_failures(rows)
     lines.extend(
@@ -217,13 +238,13 @@ def render_markdown(rows: list[InventoryRow], *, feature_enabled: bool) -> str:
             f"- process-v3: {counts['process-v3']}",
             f"- realism-v1: {counts['realism-v1']}",
             f"- realism-v2: {counts['realism-v2']}",
-            f"- Browser-operability failures: {len(browser_operability_failures(rows))}",
+            f"- Active browser-operability failures: {len(browser_operability_failures(rows))}",
             "",
             "## Wave-2 invariant failures",
             "",
-            "These assessments would violate `no V2 student-available Service Desk assessment may have process_weights null or empty grading categories` if V2 were enabled:",
+            "Active assessments that violate `no V2 student-available Service Desk assessment may have process_weights null or empty grading categories`:",
             "",
-            *[f"- `{key}`" for key in invariant_failures],
+            *([f"- `{key}`" for key in invariant_failures] or ["- None"]),
             "",
         ]
     )

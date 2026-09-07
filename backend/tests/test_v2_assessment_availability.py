@@ -13,6 +13,8 @@ into an activity the server would refuse.
 import pytest
 from conftest import auth_headers, enroll_v2, make_client, make_student
 
+import seed_v2_foundation
+
 from app.models.certification import CertificationModule, InterviewPrompt, ModuleAssessment
 from app.models.quiz import (
     EDITORIAL_STATUS_UNREVIEWED,
@@ -242,7 +244,9 @@ def test_service_desk_requires_a_published_scenario_version(db, monkeypatch):
     from app.models.service_desk import ServiceDeskScenarioVersion
     from app.services.v2_curriculum_service import service_desk_scenario_is_playable
 
-    student, _ = _ready(db, monkeypatch)
+    seed_v2_foundation.run(db)
+    student = make_student(db, username="availability-service-desk")
+    enroll_v2(monkeypatch, student)
     tickets = db.query(ModuleAssessment).filter_by(assessment_role="service_desk").all()
     ticket = next(row for row in tickets if service_desk_scenario_is_playable(db, row))
     module = db.get(CertificationModule, ticket.certification_module_id)

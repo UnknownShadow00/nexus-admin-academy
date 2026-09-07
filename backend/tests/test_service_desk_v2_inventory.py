@@ -60,7 +60,7 @@ def test_inventory_generator_is_scratch_only_and_committed_outputs_match(tmp_pat
     ).read_text(encoding="utf-8")
 
 
-def test_inventory_covers_every_service_desk_row_and_records_wave2_baseline(db):
+def test_inventory_covers_every_service_desk_row_and_enforces_wave2_gate(db):
     seed_v2_foundation.run(db)
     rows = collect_inventory(db, feature_enabled=False)
     assessment_count = db.query(ModuleAssessment).filter_by(
@@ -69,4 +69,7 @@ def test_inventory_covers_every_service_desk_row_and_records_wave2_baseline(db):
 
     assert len(rows) == assessment_count == 12
     assert set(note_only_assessments(rows)) == EXPECTED_BASELINE
-    assert set(wave2_invariant_failures(rows)) == EXPECTED_BASELINE
+    assert wave2_invariant_failures([row for row in rows if row.active]) == []
+    assert {
+        row.assessment_key for row in rows if row.auto_deactivated
+    } == EXPECTED_BASELINE

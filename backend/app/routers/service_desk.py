@@ -42,6 +42,9 @@ from app.services.service_desk_objectives import (
     objective_definition,
     payload_matches,
 )
+from app.services.service_desk_scenario_validation import (
+    scenario_has_supported_grading_profile,
+)
 from app.services.auth_service import (
     ensure_student_access,
     ensure_student_ownership,
@@ -407,9 +410,37 @@ def _v2_launch_context(
         activity_type="service_desk",
         ref_key=assessment_key,
     ).one_or_none()
-    if assessment is None or activity is None or (
+    scenario = (
+        db.get(ServiceDeskScenario, assessment.service_desk_scenario_id)
+        if assessment is not None
+        else None
+    )
+    version = (
+        db.query(ServiceDeskScenarioVersion)
+        .filter_by(scenario_id=scenario.id, status="published")
+        .order_by(
+            ServiceDeskScenarioVersion.version_number.desc(),
+            ServiceDeskScenarioVersion.id.desc(),
+        )
+        .first()
+        if scenario is not None
+        else None
+    )
+    supported_profile = bool(
+        scenario
+        and version
+        and scenario_has_supported_grading_profile(
+            scenario.stable_key, version.definition_json or {}
+        )
+    )
+    if (
+        assessment is None
+        or not supported_profile
+        or activity is None
+        or (
         activity.detail or {}
-    ).get("scenario_id") != assignment.scenario_id:
+        ).get("scenario_id") != assignment.scenario_id
+    ):
         raise HTTPException(404, V2_UNAVAILABLE_DETAIL)
     return module_key, assessment_key
 

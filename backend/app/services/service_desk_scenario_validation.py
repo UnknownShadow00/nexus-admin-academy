@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services.service_desk_objectives import objective_definition
+
 
 _PRIORITIES = {"low", "medium", "high", "critical"}
 _DIFFICULTIES = {"easy", "medium", "hard"}
@@ -23,6 +25,36 @@ _SUPPORTED_ACTION_TYPES = {
     "remote_desktop.run_terminal_command", "remote_desktop.settings_update_dns",
     "remote_desktop.vpn_complete_connection",
 }
+
+SUPPORTED_GRADING_PROFILE_VERSIONS = frozenset(
+    {"process-v3", "realism-v1", "realism-v2"}
+)
+
+
+def scenario_has_supported_grading_profile(
+    stable_key: str, definition_json: dict
+) -> bool:
+    """Return whether a scenario has a resolved process/realism rubric.
+
+    V2 Service Desk assessments must resolve to category-based grading. A
+    generic objective such as ``ticket.add_note`` remains valid for legacy
+    non-V2 scenarios, but it is not a supported V2 grading profile.
+    """
+    if not isinstance(definition_json, dict):
+        return False
+    resolved = objective_definition(stable_key, definition_json)
+    if resolved is None:
+        return False
+    categories = {
+        category.name.strip()
+        for category in resolved.categories
+        if isinstance(category.name, str) and category.name.strip()
+    }
+    return bool(resolved.is_process_profile) or bool(
+        definition_json.get("objective_catalog_version")
+        in SUPPORTED_GRADING_PROFILE_VERSIONS
+        and categories
+    )
 
 
 def _text(value: Any, path: str, errors: list[str]) -> None:

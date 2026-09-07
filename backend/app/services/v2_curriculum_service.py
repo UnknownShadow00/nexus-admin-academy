@@ -62,6 +62,9 @@ from app.services.service_desk_progression import (
     assignment_attempt_limit,
     assignment_attempts_used,
 )
+from app.services.service_desk_scenario_validation import (
+    scenario_has_supported_grading_profile,
+)
 from app.services.v2_assessment_selector import ConstraintSelectionError, select_constrained
 from app.services.v2_progress_service import V2ProgressError, module_progress, record_activity
 
@@ -256,7 +259,7 @@ def assessment_is_available(
 
 
 def service_desk_scenario_is_playable(db: Session, assessment: ModuleAssessment) -> bool:
-    """Return whether the assessment resolves to an active published scenario."""
+    """Return whether an active published scenario has a V2-safe rubric."""
     scenario = (
         db.get(ServiceDeskScenario, assessment.service_desk_scenario_id)
         if assessment.service_desk_scenario_id else None
@@ -268,9 +271,21 @@ def service_desk_scenario_is_playable(db: Session, assessment: ModuleAssessment)
         ).one_or_none() if stable_key else None
     if scenario is None or scenario.status != "active":
         return False
-    return db.query(ServiceDeskScenarioVersion.id).filter_by(
-        scenario_id=scenario.id, status="published"
-    ).first() is not None
+    version = (
+        db.query(ServiceDeskScenarioVersion)
+        .filter_by(scenario_id=scenario.id, status="published")
+        .order_by(
+            ServiceDeskScenarioVersion.version_number.desc(),
+            ServiceDeskScenarioVersion.id.desc(),
+        )
+        .first()
+    )
+    return bool(
+        version
+        and scenario_has_supported_grading_profile(
+            scenario.stable_key, version.definition_json or {}
+        )
+    )
 
 
 def service_desk_has_attempt_capacity(
@@ -932,6 +947,8 @@ def launch_service_desk(db: Session, student_id: int, module_key: str, assessmen
         assessment_role=V2_ACTIVITY_SERVICE_DESK, active=True,
     ).one_or_none()
     if assessment is None:
+        raise V2ProgressError("This troubleshooting activity is not available.")
+    if not service_desk_scenario_is_playable(db, assessment):
         raise V2ProgressError("This troubleshooting activity is not available.")
     scenario = db.get(ServiceDeskScenario, assessment.service_desk_scenario_id) if assessment.service_desk_scenario_id else None
     if scenario is None:

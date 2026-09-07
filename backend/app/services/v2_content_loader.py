@@ -58,6 +58,7 @@ from app.models.lab import LabTemplate
 from app.models.quiz import EDITORIAL_STATUS_VALIDATED, QUIZ_STATUS_PUBLISHED, Question, Quiz
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.services.service_desk_scenario_validation import (
+    scenario_has_supported_grading_profile,
     validate_runtime_definition,
     validate_scenario_definition,
 )
@@ -75,6 +76,8 @@ DEFAULT_LABS_DIR = os.path.join(DEFAULT_CONTENT_DIR, "labs")
 DEFAULT_SERVICE_DESK_SCENARIOS_DIR = os.path.join(
     DEFAULT_CONTENT_DIR, "service-desk-scenarios"
 )
+AUTO_DEACTIVATED_REASON_KEY = "auto_deactivated_reason"
+NO_GRADING_PROFILE_REASON = "no_grading_profile"
 
 
 class ContentValidationError(ValueError):
@@ -274,7 +277,25 @@ def _sync_module_assessments(db, module, assessments: list, summary) -> None:
         lab_id = _resolve_lab(db, item.get("lab_ref"))
         scenario_id = _resolve_scenario(db, item.get("service_desk_ref"))
         lesson_meta_id = _resolve_lesson_meta(db, item.get("lesson_key"))
+        row = (
+            db.query(ModuleAssessment)
+            .filter(ModuleAssessment.assessment_key == key)
+            .one_or_none()
+        )
+        authored_active = bool(item.get("active", True))
         config = dict(item.get("config") or {})
+        # This key is loader-owned. Preserve it only while the author still
+        # declares the assessment active; an explicit inactive value always
+        # wins and must never become eligible for automatic reactivation.
+        config.pop(AUTO_DEACTIVATED_REASON_KEY, None)
+        gate_owned = (
+            authored_active
+            and row is not None
+            and (row.config or {}).get(AUTO_DEACTIVATED_REASON_KEY)
+            == NO_GRADING_PROFILE_REASON
+        )
+        if gate_owned:
+            config[AUTO_DEACTIVATED_REASON_KEY] = NO_GRADING_PROFILE_REASON
         # Preserve stable engine references as data so presentation clients can
         # offer a useful launch target even when a separately-seeded engine row
         # has not been loaded into this development database yet.
@@ -297,13 +318,8 @@ def _sync_module_assessments(db, module, assessments: list, summary) -> None:
             "pass_percent": int(item.get("pass_percent", 70)),
             "config": config,
             "display_order": int(item.get("display_order", order_default)),
-            "active": bool(item.get("active", True)),
+            "active": authored_active and not gate_owned,
         }
-        row = (
-            db.query(ModuleAssessment)
-            .filter(ModuleAssessment.assessment_key == key)
-            .one_or_none()
-        )
         if row is None:
             db.add(ModuleAssessment(assessment_key=key, **fields))
             summary.record("module_assessment", "created")
@@ -333,6 +349,95 @@ def _resolve_scenario(db, ref):
         return None
     row = db.query(ServiceDeskScenario).filter(ServiceDeskScenario.stable_key == str(ref)).first()
     return row.id if row else None
+
+
+def _published_service_desk_scenario_for_assessment(
+    db: Session, assessment: ModuleAssessment
+) -> tuple[ServiceDeskScenario | None, ServiceDeskScenarioVersion | None]:
+    scenario = (
+        db.get(ServiceDeskScenario, assessment.service_desk_scenario_id)
+        if assessment.service_desk_scenario_id
+        else None
+    )
+    if scenario is None:
+        stable_key = (assessment.config or {}).get("engine_service_desk_ref")
+        scenario = (
+            db.query(ServiceDeskScenario).filter_by(stable_key=stable_key).one_or_none()
+            if stable_key
+            else None
+        )
+    version = (
+        db.query(ServiceDeskScenarioVersion)
+        .filter_by(scenario_id=scenario.id, status="published")
+        .order_by(
+            ServiceDeskScenarioVersion.version_number.desc(),
+            ServiceDeskScenarioVersion.id.desc(),
+        )
+        .first()
+        if scenario is not None
+        else None
+    )
+    return scenario, version
+
+
+def reconcile_service_desk_grading_profiles(
+    db: Session,
+    *,
+    summary: LoadSummary,
+    strict: bool = False,
+) -> list[str]:
+    """Deactivate V2 Service Desk rows without category-based grading.
+
+    The config marker records ownership so a later supported scenario rebind
+    can reactivate only rows this rule previously disabled. Author-inactive
+    rows are left untouched and unmarked.
+    """
+    offending: list[str] = []
+    rows = (
+        db.query(ModuleAssessment)
+        .filter_by(assessment_role="service_desk")
+        .order_by(ModuleAssessment.assessment_key)
+        .all()
+    )
+    for row in rows:
+        config = dict(row.config or {})
+        gate_owned = (
+            config.get(AUTO_DEACTIVATED_REASON_KEY) == NO_GRADING_PROFILE_REASON
+        )
+        scenario, version = _published_service_desk_scenario_for_assessment(db, row)
+        supported = bool(
+            scenario
+            and version
+            and scenario_has_supported_grading_profile(
+                scenario.stable_key, version.definition_json or {}
+            )
+        )
+        if not supported:
+            if row.active or gate_owned:
+                offending.append(row.assessment_key)
+            if strict or not row.active:
+                continue
+            row.active = False
+            config[AUTO_DEACTIVATED_REASON_KEY] = NO_GRADING_PROFILE_REASON
+            row.config = config
+            summary.record(
+                "module_assessment_deactivated_no_grading_profile", "updated"
+            )
+        elif gate_owned:
+            row.active = True
+            config.pop(AUTO_DEACTIVATED_REASON_KEY, None)
+            row.config = config
+            summary.record(
+                "module_assessment_reactivated_supported_grading_profile", "updated"
+            )
+
+    if strict and offending:
+        raise ContentValidationError(
+            "V2 Service Desk assessments lack a supported grading profile: "
+            + ", ".join(offending)
+        )
+    db.flush()
+    return offending
 
 
 def _resolve_lesson_meta(db, lesson_key):
@@ -1027,6 +1132,7 @@ def load_module(
     labs_dir: str | None = None,
     service_desk_scenarios_dir: str | None = None,
     commit: bool = False,
+    strict: bool = False,
 ) -> dict:
     """One-call, idempotent load of the whole V2 curriculum from ``content/``.
 
@@ -1059,6 +1165,7 @@ def load_module(
         summary=summary,
     )
     load_all(db, cert_dir=cert_dir, objectives_dir=objectives_dir, summary=summary)
+    reconcile_service_desk_grading_profiles(db, summary=summary, strict=strict)
 
     # Report reference resolution so one call can prove the wiring converged.
     # quick_check / module_quiz / practical refs come from content this loader

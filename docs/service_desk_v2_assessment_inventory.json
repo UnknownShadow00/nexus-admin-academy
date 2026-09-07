@@ -5,8 +5,10 @@
   },
   "rows": [
     {
+      "active": false,
       "assessment_key": "assess.aplus-core1-hardware-fault-isolation.service_desk",
       "asset_tag": "SERVICE_DESK.APLUS.HARDWARE.RENDER_SHUTDOWN",
+      "auto_deactivated": true,
       "browser_operable": false,
       "catalog_version": "none",
       "grading_categories": [],
@@ -17,8 +19,10 @@
       "ticket_id": "SERVICE_DESK.APLUS.HARDWARE.RENDER_SHUTDOWN"
     },
     {
+      "active": true,
       "assessment_key": "assess.aplus.ipcfg.service_desk",
       "asset_tag": "NX-2503",
+      "auto_deactivated": false,
       "browser_operable": true,
       "catalog_version": "realism-v2",
       "grading_categories": [
@@ -35,8 +39,10 @@
       "ticket_id": "INC2503"
     },
     {
+      "active": false,
       "assessment_key": "assess.aplus-core1-mobile-device-support.service_desk",
       "asset_tag": "SERVICE_DESK.APLUS.MOBILE.INTERMITTENT_CHARGE_MAIL_SYNC",
+      "auto_deactivated": true,
       "browser_operable": false,
       "catalog_version": "none",
       "grading_categories": [],
@@ -47,8 +53,10 @@
       "ticket_id": "SERVICE_DESK.APLUS.MOBILE.INTERMITTENT_CHARGE_MAIL_SYNC"
     },
     {
+      "active": false,
       "assessment_key": "assess.aplus-core1-network-services-troubleshooting.service_desk",
       "asset_tag": "SERVICE_DESK.APLUS.NETWORK.LOADING_DOCK_WIFI",
+      "auto_deactivated": true,
       "browser_operable": false,
       "catalog_version": "none",
       "grading_categories": [],
@@ -59,8 +67,10 @@
       "ticket_id": "SERVICE_DESK.APLUS.NETWORK.LOADING_DOCK_WIFI"
     },
     {
+      "active": false,
       "assessment_key": "assess.aplus-core1-printers-mfds.service_desk",
       "asset_tag": "SERVICE_DESK.APLUS.PRINTERS.HR_QUEUE",
+      "auto_deactivated": true,
       "browser_operable": false,
       "catalog_version": "none",
       "grading_categories": [],
@@ -71,8 +81,10 @@
       "ticket_id": "SERVICE_DESK.APLUS.PRINTERS.HR_QUEUE"
     },
     {
+      "active": false,
       "assessment_key": "assess.aplus-core2-connected-endpoint-mobile-security.service_desk",
       "asset_tag": "SD.APLUS.SECURITY.MOBILE_SECURE_WIFI_PROFILE",
+      "auto_deactivated": true,
       "browser_operable": false,
       "catalog_version": "none",
       "grading_categories": [],
@@ -83,8 +95,10 @@
       "ticket_id": "SD.APLUS.SECURITY.MOBILE_SECURE_WIFI_PROFILE"
     },
     {
+      "active": false,
       "assessment_key": "assess.aplus-core2-cross-platform-app-cloud-support.service_desk",
       "asset_tag": "SD.APLUS.CROSS_PLATFORM.UNLICENSED_SUITE_MAC",
+      "auto_deactivated": true,
       "browser_operable": false,
       "catalog_version": "none",
       "grading_categories": [],
@@ -95,8 +109,10 @@
       "ticket_id": "SD.APLUS.CROSS_PLATFORM.UNLICENSED_SUITE_MAC"
     },
     {
+      "active": false,
       "assessment_key": "assess.aplus-core2-identity-endpoint-hardening.service_desk",
       "asset_tag": "SD.APLUS.SECURITY.APPROVED_APP_STANDARD_USER",
+      "auto_deactivated": true,
       "browser_operable": false,
       "catalog_version": "none",
       "grading_categories": [],
@@ -107,8 +123,10 @@
       "ticket_id": "SD.APLUS.SECURITY.APPROVED_APP_STANDARD_USER"
     },
     {
+      "active": false,
       "assessment_key": "assess.aplus-core2-service-desk-workflow.service_desk",
       "asset_tag": "CURRICULUM-APLUS-CORE2-SERVICE-DESK-WORKFLOW-SERVICE-DESK-01",
+      "auto_deactivated": true,
       "browser_operable": false,
       "catalog_version": "none",
       "grading_categories": [],
@@ -119,8 +137,10 @@
       "ticket_id": "CURRICULUM-APLUS-CORE2-SERVICE-DESK-WORKFLOW-SERVICE-DESK-01"
     },
     {
+      "active": false,
       "assessment_key": "assess.aplus-core2-threat-malware-response.service_desk",
       "asset_tag": "SD.APLUS.SECURITY.SUSPICIOUS_ATTACHMENT_ENDPOINT",
+      "auto_deactivated": true,
       "browser_operable": false,
       "catalog_version": "none",
       "grading_categories": [],
@@ -131,8 +151,10 @@
       "ticket_id": "SD.APLUS.SECURITY.SUSPICIOUS_ATTACHMENT_ENDPOINT"
     },
     {
+      "active": false,
       "assessment_key": "assess.aplus-core2-windows-admin-cli-networking.service_desk",
       "asset_tag": "SD.APLUS.WINDOWS_ADMIN.PROJECT_SHARE_AFTER_VPN",
+      "auto_deactivated": true,
       "browser_operable": false,
       "catalog_version": "none",
       "grading_categories": [],
@@ -143,8 +165,10 @@
       "ticket_id": "SD.APLUS.WINDOWS_ADMIN.PROJECT_SHARE_AFTER_VPN"
     },
     {
+      "active": true,
       "assessment_key": "assess.aplus.wintriage.service_desk",
       "asset_tag": "NX-3560",
+      "auto_deactivated": false,
       "browser_operable": true,
       "catalog_version": "process-v3",
       "grading_categories": [
