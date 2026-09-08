@@ -1,0 +1,59 @@
+
+ RUN  v3.2.7 /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/apps/web
+
+ ❯ lib/nexus-return.test.ts (10 tests | 2 failed) 7ms
+   ✓ isSafeNexusReturnPath > accepts allowlisted Nexus training routes 1ms
+   ✓ isSafeNexusReturnPath > rejects absolute and protocol-relative URLs 0ms
+   ✓ isSafeNexusReturnPath > rejects javascript: and other unsafe schemes 0ms
+   ✓ isSafeNexusReturnPath > rejects paths outside the training allowlist 0ms
+   ✓ isSafeNexusReturnPath > rejects empty, null, and undefined values 0ms
+   ✓ nexusReturnLabel > builds a week-specific label for week routes 0ms
+   ✓ nexusReturnLabel > falls back to a generic label for the training root 0ms
+   ✓ nexusReturnLabel > uses beginner wording for a V2 module 0ms
+   × Core Wave 2 module origins > accepts a canonical Core module but rejects traversal 4ms
+     → expected false to be true // Object.is equality
+   × Core Wave 2 module origins > names the originating Core module 1ms
+     → expected 'Back to Training' to be 'Back to Support Workflow Essentials' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  lib/nexus-return.test.ts > Core Wave 2 module origins > accepts a canonical Core module but rejects traversal
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ lib/nexus-return.test.ts:56:88
+     54| describe('Core Wave 2 module origins', () => {
+     55|   it('accepts a canonical Core module but rejects traversal', () => {
+     56|     expect(isSafeNexusReturnPath('/training/module/module.endpoint.sup…
+       |                                                                                        ^
+     57|     expect(isSafeNexusReturnPath('/training/module/../../admin')).toBe…
+     58|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  lib/nexus-return.test.ts > Core Wave 2 module origins > names the originating Core module
+AssertionError: expected 'Back to Training' to be 'Back to Support Workflow Essentials' // Object.is equality
+
+Expected: "Back to Support Workflow Essentials"
+Received: "Back to Training"
+
+ ❯ lib/nexus-return.test.ts:60:114
+     58|   });
+     59|   it('names the originating Core module', () => {
+     60|     expect(nexusReturnLabel('/training/module/module.endpoint.support_…
+       |                                                                                                                  ^
+     61|   });
+     62| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 8 passed (10)
+   Start at  01:09:18
+   Duration  249ms (transform 26ms, setup 0ms, collect 26ms, tests 7ms, environment 0ms, prepare 39ms)

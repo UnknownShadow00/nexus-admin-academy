@@ -1,0 +1,12 @@
+
+> nexus-admin-academy-frontend@1.0.0 test
+> vitest run
+
+
+ RUN  v4.1.11 /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/frontend
+
+
+ Test Files  20 passed (20)
+      Tests  64 passed (64)
+   Start at  01:08:20
+   Duration  23.25s (transform 2.10s, setup 4.10s, import 13.54s, tests 11.25s, environment 32.29s)

@@ -1,0 +1,165 @@
+FFFFFFF.F                                                                [100%]
+=================================== FAILURES ===================================
+_____________ test_orientation_teaches_every_assessed_ticket_field _____________
+
+    def test_orientation_teaches_every_assessed_ticket_field():
+        for concept in ('requester', 'device', 'symptom', 'impact', 'category', 'escalation', 'progress notes', 'internal'):
+>           assert concept in ORIENTATION_SUMMARY.lower(), f'Untaught before required quiz: {concept}'
+E           AssertionError: Untaught before required quiz: requester
+E           assert 'requester' in 'week 0 is a quick setup so you know how nexus works.\n\ncomplete these 2 things:\n\n1. read this short introduction a...tes and extra practice never block your progress.\n\nthat’s it. complete the two required items below to begin week 1.'
+E            +  where 'week 0 is a quick setup so you know how nexus works.\n\ncomplete these 2 things:\n\n1. read this short introduction a...tes and extra practice never block your progress.\n\nthat’s it. complete the two required items below to begin week 1.' = <built-in method lower of str object at 0x1eb5f210>()
+E            +    where <built-in method lower of str object at 0x1eb5f210> = 'Week 0 is a quick setup so you know how Nexus works.\n\nComplete these 2 things:\n\n1. Read this short introduction a...tes and extra practice never block your progress.\n\nThat’s it. Complete the two required items below to begin Week 1.'.lower
+
+backend/tests/test_core_wave2_beginner.py:17: AssertionError
+____________________ test_foundational_lessons_are_required ____________________
+
+db = <sqlalchemy.orm.session.Session object at 0x78b28fe31210>
+
+    def test_foundational_lessons_are_required(db):
+        seed_beginner(db)
+        for lesson in db.query(Lesson).all():
+            activity = db.query(TrainingWeekActivity).filter_by(activity_type='lesson',content_ref=str(lesson.id)).one()
+>           assert activity.is_required, lesson.title
+E           AssertionError: Anatomy of a Good Ticket
+E           assert False
+E            +  where False = <app.models.training.TrainingWeekActivity object at 0x78b28f646390>.is_required
+
+backend/tests/test_core_wave2_beginner.py:24: AssertionError
+________ test_direct_required_assessment_cannot_bypass_teaching[get-42] ________
+
+db = <sqlalchemy.orm.session.Session object at 0x78b28fe53710>, quiz_id = 42
+method = 'get'
+
+    @pytest.mark.parametrize('quiz_id', [42, 1])
+    @pytest.mark.parametrize('method', ['get', 'post'])
+    def test_direct_required_assessment_cannot_bypass_teaching(db, quiz_id, method):
+        seed_beginner(db)
+        student = make_student(db)
+        client = make_client(quizzes.router)
+        path=f'/api/quizzes/{quiz_id}'
+        if method == 'post':
+            response=client.post(path+'/submit',headers=auth_headers(student),json={'student_id':student.id,'answers':{'1':'A'}})
+        else:
+            response=client.get(path,headers=auth_headers(student))
+>       assert response.status_code == 403, response.text
+E       AssertionError: {"success":true,"data":{"id":42,"title":"Ticketing Systems Quiz","week_number":0,"domain_id":"1102-4.0","lesson_id":null,"question_count":4,"source_urls":["https://www.examcompass.com/comptia-a-plus-220-1202-certification-exam-ticketing-systems-quiz"],"questions":[{"id":1,"question_text":"When creating a new help desk ticket in a ticketing system, which basic information is typically required during the initial data collection phase? (Select 3 answers)","option_a":"User information","option_b":"Expected resolution date","option_c":"Device information","option_d":"Escalation levels required","option_e":"Problem description","option_f":"","option_g":"","option_h":"","is_multi_select":true},{"id":2,"question_text":"A technician is logging a new support ticket. Which item is primarily used to ensure that future reporting can track the frequency of specific, recurring problems?","option_a":"Issue description","option_b":"Category","option_c":"Severity level of the issue","option_d":"Escalation level","option_e":"","option_f":"","option_g":"","option_h":"","is_multi_select":false},{"id":3,"question_text":"A support ticket regarding a system memory failure has been moved from Level 1 to a Level 2 hardware specialist. This action is documented using which specific ticketing system field?","option_a":"Issue description","option_b":"Ticket status","option_c":"Resolution summary","option_d":"Escalation level","option_e":"","option_f":"","option_g":"","option_h":"","is_multi_select":false},{"id":4,"question_text":"A desktop technician is updating a support ticket with the steps performed to troubleshoot a network printer. Which field should contain a factual, concise summary of these steps?","option_a":"Issue description","option_b":"Progress notes","option_c":"Resolution summary","option_d":"Escalation level","option_e":"","option_f":"","option_g":"","option_h":"","is_multi_select":false}],"attempts":[],"quiz_purpose":"required","is_required":true,"show_in_weekly_checklist":true}}
+E       assert 200 == 403
+E        +  where 200 = <Response [200 OK]>.status_code
+
+backend/tests/test_core_wave2_beginner.py:38: AssertionError
+________ test_direct_required_assessment_cannot_bypass_teaching[get-1] _________
+
+db = <sqlalchemy.orm.session.Session object at 0x78b28f7dbbd0>, quiz_id = 1
+method = 'get'
+
+    @pytest.mark.parametrize('quiz_id', [42, 1])
+    @pytest.mark.parametrize('method', ['get', 'post'])
+    def test_direct_required_assessment_cannot_bypass_teaching(db, quiz_id, method):
+        seed_beginner(db)
+        student = make_student(db)
+        client = make_client(quizzes.router)
+        path=f'/api/quizzes/{quiz_id}'
+        if method == 'post':
+            response=client.post(path+'/submit',headers=auth_headers(student),json={'student_id':student.id,'answers':{'1':'A'}})
+        else:
+            response=client.get(path,headers=auth_headers(student))
+>       assert response.status_code == 403, response.text
+E       AssertionError: {"success":true,"data":{"id":1,"title":"Ticket Writing Fundamentals","week_number":1,"domain_id":"1.0","lesson_id":null,"question_count":8,"source_urls":[],"questions":[{"id":28,"question_text":"An internal note reads: 'PC was broken, fixed it.' What is the FIRST thing missing?","option_a":"The technician who closed it","option_b":"The reported symptom","option_c":"The final ticket category","option_d":"The user's satisfaction rating","option_e":"","option_f":"","option_g":"","option_h":"","is_multi_select":false},{"id":29,"question_text":"Which sentence belongs in a USER-FACING resolution?","option_a":"Your profile was repaired and your files open normally.","option_b":"The ProfileImagePath value and .bak SID key were corrected.","option_c":"The user loaded a temporary profile after Event ID 1511.","option_d":"Tier 2 should review the User Profile Service event logs.","option_e":"","option_f":"","option_g":"","option_h":"","is_multi_select":false},{"id":30,"question_text":"The next technician should be able to continue a ticket without doing what?","option_a":"Reviewing the documented evidence","option_b":"Repeating the same questions","option_c":"Confirming the affected asset","option_d":"Checking the ticket history","option_e":"","option_f":"","option_g":"","option_h":"","is_multi_select":false},{"id":31,"question_text":"Which items belong in INTERNAL notes? (select all that apply)","option_a":"Exact command output proving the fix","option_b":"Event ID and source","option_c":"A friendly closing greeting","option_d":"What was ruled out and how","option_e":"","option_f":"","option_g":"","option_h":"","is_multi_select":true},{"id":32,"question_text":"A note says 'ran some commands, seems fine now.' Which grading anchor does this fail hardest?","option_a":"communication","option_b":"verification","option_c":"investigation","option_d":"root_cause","option_e":"","option_f":"","option_g":"","option_h":"","is_multi_select":false},{"id":33,"question_text":"Why do MSPs care intensely about ticket notes?","option_a":"They support billing and auditability","option_b":"They replace endpoint monitoring alerts","option_c":"They publish technical details to customers","option_d":"They satisfy a Windows licensing requirement","option_e":"","option_f":"","option_g":"","option_h":"","is_multi_select":false},{"id":34,"question_text":"A single remote user says that every website on one company laptop stopped loading five minutes ago. Other staff in the same office can browse normally. Before changing the laptop, which question best confirms the scope?","option_a":"Can nearby staff browse normally?","option_b":"What IP configuration does the laptop use?","option_c":"Can you restart the laptop?","option_d":"Can you reproduce it in another browser?","option_e":"","option_f":"","option_g":"","option_h":"","is_multi_select":false},{"id":35,"question_text":"Why should a ticket avoid saying that a user 'obviously deleted' a file?","option_a":"It is unproven and unprofessional","option_b":"It makes the ticket difficult to close","option_c":"It prevents the file from being restored","option_d":"It means the user cannot be contacted","option_e":"","option_f":"","option_g":"","option_h":"","is_multi_select":false}],"attempts":[],"quiz_purpose":"practice","is_required":true,"show_in_weekly_checklist":false}}
+E       assert 200 == 403
+E        +  where 200 = <Response [200 OK]>.status_code
+
+backend/tests/test_core_wave2_beginner.py:38: AssertionError
+_______ test_direct_required_assessment_cannot_bypass_teaching[post-42] ________
+
+db = <sqlalchemy.orm.session.Session object at 0x78b28f65cc50>, quiz_id = 42
+method = 'post'
+
+    @pytest.mark.parametrize('quiz_id', [42, 1])
+    @pytest.mark.parametrize('method', ['get', 'post'])
+    def test_direct_required_assessment_cannot_bypass_teaching(db, quiz_id, method):
+        seed_beginner(db)
+        student = make_student(db)
+        client = make_client(quizzes.router)
+        path=f'/api/quizzes/{quiz_id}'
+        if method == 'post':
+            response=client.post(path+'/submit',headers=auth_headers(student),json={'student_id':student.id,'answers':{'1':'A'}})
+        else:
+            response=client.get(path,headers=auth_headers(student))
+>       assert response.status_code == 403, response.text
+E       AssertionError: {"success":true,"data":{"correct_count":0,"question_count":4,"percentage":0.0,"passed":false,"passing_percentage":70,"attempt_id":1,"submitted_at":"2026-09-08T01:00:10","score_basis":"saved_results","score":0,"total":4,"xp_awarded":0,"is_first_attempt":true,"avg_seconds_per_question":null,"is_speed_flagged":false,"results":[{"question_id":1,"passing_percentage":70,"question_number":1,"question_text":"When creating a new help desk ticket in a ticketing system, which basic information is typically required during the initial data collection phase? (Select 3 answers)","student_answer":"A","correct_answer":"A","correct_answers":["A","C","E"],"is_multi_select":true,"is_correct":false,"explanation":"Initial intake needs the affected user, device, and a clear problem description; escalation level is decided after triage.","options":{"A":"User information","B":"Expected resolution date","C":"Device information","D":"Escalation levels required","E":"Problem description","F":"","G":"","H":""}},{"question_id":2,"passing_percentage":70,"question_number":2,"question_text":"A technician is logging a new support ticket. Which item is primarily used to ensure that future reporting can track the frequency of specific, recurring problems?","student_answer":null,"correct_answer":"B","correct_answers":["B"],"is_multi_select":false,"is_correct":false,"explanation":"A consistent category makes recurring issue frequency measurable in reports.","options":{"A":"Issue description","B":"Category","C":"Severity level of the issue","D":"Escalation level","E":"","F":"","G":"","H":""}},{"question_id":3,"passing_percentage":70,"question_number":3,"question_text":"A support ticket regarding a system memory failure has been moved from Level 1 to a Level 2 hardware specialist. This action is documented using which specific ticketing system field?","student_answer":null,"correct_answer":"D","correct_answers":["D"],"is_multi_select":false,"is_correct":false,"explanation":"The escalation-level field records movement from first-line support to a specialist tier.","options":{"A":"Issue description","B":"Ticket status","C":"Resolution summary","D":"Escalation level","E":"","F":"","G":"","H":""}},{"question_id":4,"passing_percentage":70,"question_number":4,"question_text":"A desktop technician is updating a support ticket with the steps performed to troubleshoot a network printer. Which field should contain a factual, concise summary of these steps?","student_answer":null,"correct_answer":"B","correct_answers":["B"],"is_multi_select":false,"is_correct":false,"explanation":"Progress notes are the factual running record of troubleshooting actions; the resolution summary documents the final outcome.","options":{"A":"Issue description","B":"Progress notes","C":"Resolution summary","D":"Escalation level","E":"","F":"","G":"","H":""}}],"message":"Attempt recorded. Review the explanations below, then retake when you're ready."}}
+E       assert 200 == 403
+E        +  where 200 = <Response [200 OK]>.status_code
+
+backend/tests/test_core_wave2_beginner.py:38: AssertionError
+________ test_direct_required_assessment_cannot_bypass_teaching[post-1] ________
+
+db = <sqlalchemy.orm.session.Session object at 0x78b28f65cf50>, quiz_id = 1
+method = 'post'
+
+    @pytest.mark.parametrize('quiz_id', [42, 1])
+    @pytest.mark.parametrize('method', ['get', 'post'])
+    def test_direct_required_assessment_cannot_bypass_teaching(db, quiz_id, method):
+        seed_beginner(db)
+        student = make_student(db)
+        client = make_client(quizzes.router)
+        path=f'/api/quizzes/{quiz_id}'
+        if method == 'post':
+            response=client.post(path+'/submit',headers=auth_headers(student),json={'student_id':student.id,'answers':{'1':'A'}})
+        else:
+            response=client.get(path,headers=auth_headers(student))
+>       assert response.status_code == 403, response.text
+E       AssertionError: {"success":true,"data":{"correct_count":0,"question_count":8,"percentage":0.0,"passed":false,"passing_percentage":70,"attempt_id":1,"submitted_at":"2026-09-08T01:00:11","score_basis":"saved_results","score":0,"total":8,"xp_awarded":0,"is_first_attempt":true,"avg_seconds_per_question":null,"is_speed_flagged":false,"results":[{"question_id":28,"passing_percentage":70,"question_number":1,"question_text":"An internal note reads: 'PC was broken, fixed it.' What is the FIRST thing missing?","student_answer":"A","correct_answer":"B","correct_answers":["B"],"is_multi_select":false,"is_correct":false,"explanation":"A note must let another technician continue the work. Record the reported symptom before the investigation and resolution details.","options":{"A":"The technician who closed it","B":"The reported symptom","C":"The final ticket category","D":"The user's satisfaction rating","E":"","F":"","G":"","H":""}},{"question_id":29,"passing_percentage":70,"question_number":2,"question_text":"Which sentence belongs in a USER-FACING resolution?","student_answer":null,"correct_answer":"A","correct_answers":["A"],"is_multi_select":false,"is_correct":false,"explanation":"A user-facing resolution explains the outcome in plain language. Registry details, event IDs, and escalation instructions belong in internal notes.","options":{"A":"Your profile was repaired and your files open normally.","B":"The ProfileImagePath value and .bak SID key were corrected.","C":"The user loaded a temporary profile after Event ID 1511.","D":"Tier 2 should review the User Profile Service event logs.","E":"","F":"","G":"","H":""}},{"question_id":30,"passing_percentage":70,"question_number":3,"question_text":"The next technician should be able to continue a ticket without doing what?","student_answer":null,"correct_answer":"B","correct_answers":["B"],"is_multi_select":false,"is_correct":false,"explanation":"A complete handoff records the reported symptom, evidence, and work already performed so the user is not asked for the same information again.","options":{"A":"Reviewing the documented evidence","B":"Repeating the same questions","C":"Confirming the affected asset","D":"Checking the ticket history","E":"","F":"","G":"","H":""}},{"question_id":31,"passing_percentage":70,"question_number":4,"question_text":"Which items belong in INTERNAL notes? (select all that apply)","student_answer":null,"correct_answer":"A","correct_answers":["A","B","D"],"is_multi_select":true,"is_correct":false,"explanation":"Evidence, IDs, and eliminations are for technicians; greetings are user-facing.","options":{"A":"Exact command output proving the fix","B":"Event ID and source","C":"A friendly closing greeting","D":"What was ruled out and how","E":"","F":"","G":"","H":""}},{"question_id":32,"passing_percentage":70,"question_number":5,"question_text":"A note says 'ran some commands, seems fine now.' Which grading anchor does this fail hardest?","student_answer":null,"correct_answer":"B","correct_answers":["B"],"is_multi_select":false,"is_correct":false,"explanation":"'Seems fine' claims success without proof; verification requires showing the problem is demonstrably gone.","options":{"A":"communication","B":"verification","C":"investigation","D":"root_cause","E":"","F":"","G":"","H":""}},{"question_id":33,"passing_percentage":70,"question_number":6,"question_text":"Why do MSPs care intensely about ticket notes?","student_answer":null,"correct_answer":"A","correct_answers":["A"],"is_multi_select":false,"is_correct":false,"explanation":"MSPs use complete notes as evidence of work performed and as an audit trail for handoffs, billing, and disputes.","options":{"A":"They support billing and auditability","B":"They replace endpoint monitoring alerts","C":"They publish technical details to customers","D":"They satisfy a Windows licensing requirement","E":"","F":"","G":"","H":""}},{"question_id":34,"passing_percentage":70,"question_number":7,"question_text":"A single remote user says that every website on one company laptop stopped loading five minutes ago. Other staff in the same office can browse normally. Before changing the laptop, which question best confirms the scope?","student_answer":null,"correct_answer":"D","correct_answers":["D"],"is_multi_select":false,"is_correct":false,"explanation":"The report already limits the issue to one laptop, so testing another browser is the fastest safe way to distinguish a browser-specific problem from a device or network-path problem. Asking whether nearby staff are affected repeats information the scenario already gives; a restart or IP address is premature.","options":{"A":"Can nearby staff browse normally?","B":"What IP configuration does the laptop use?","C":"Can you restart the laptop?","D":"Can you reproduce it in another browser?","E":"","F":"","G":"","H":""}},{"question_id":35,"passing_percentage":70,"question_number":8,"question_text":"Why should a ticket avoid saying that a user 'obviously deleted' a file?","student_answer":null,"correct_answer":"A","correct_answers":["A"],"is_multi_select":false,"is_correct":false,"explanation":"Tickets are business records. State observable evidence and avoid assigning blame unless the facts support it.","options":{"A":"It is unproven and unprofessional","B":"It makes the ticket difficult to close","C":"It prevents the file from being restored","D":"It means the user cannot be contacted","E":"","F":"","G":"","H":""}}],"message":"Attempt recorded. Review the explanations below, then retake when you're ready."}}
+E       assert 200 == 403
+E        +  where 200 = <Response [200 OK]>.status_code
+
+backend/tests/test_core_wave2_beginner.py:38: AssertionError
+_____________ test_next_action_and_lock_identify_missing_teaching ______________
+
+db = <sqlalchemy.orm.session.Session object at 0x78b28e4f9750>
+
+    def test_next_action_and_lock_identify_missing_teaching(db):
+        seed_beginner(db)
+        student=make_student(db)
+        overview=build_training_overview(db,student)
+        quiz=next(a for a in overview['current_module_activities'] if a['activity_type']=='quiz')
+>       assert quiz['status']=='locked'
+E       AssertionError: assert 'not_started' == 'locked'
+E
+E         - locked
+E         + not_started
+
+backend/tests/test_core_wave2_beginner.py:49: AssertionError
+__________________ test_locked_module_has_structured_recovery __________________
+
+db = <sqlalchemy.orm.session.Session object at 0x78b28e505dd0>
+
+    def test_locked_module_has_structured_recovery(db):
+        seed_beginner(db)
+        student=make_student(db)
+        response=make_client(training.router).get('/api/training/modules/module.endpoint.support_workflow',headers=auth_headers(student))
+        assert response.status_code==403
+>       assert response.json()['code']=='PREREQUISITE_NOT_MET'
+               ^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'code'
+
+backend/tests/test_core_wave2_beginner.py:69: KeyError
+=============================== warnings summary ===============================
+backend/.venv/lib/python3.11/site-packages/fastapi/testclient.py:1
+  /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/backend/.venv/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+backend/.venv/lib/python3.11/site-packages/passlib/utils/__init__.py:854
+  /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/backend/.venv/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_core_wave2_beginner.py::test_orientation_teaches_every_assessed_ticket_field
+FAILED backend/tests/test_core_wave2_beginner.py::test_foundational_lessons_are_required
+FAILED backend/tests/test_core_wave2_beginner.py::test_direct_required_assessment_cannot_bypass_teaching[get-42]
+FAILED backend/tests/test_core_wave2_beginner.py::test_direct_required_assessment_cannot_bypass_teaching[get-1]
+FAILED backend/tests/test_core_wave2_beginner.py::test_direct_required_assessment_cannot_bypass_teaching[post-42]
+FAILED backend/tests/test_core_wave2_beginner.py::test_direct_required_assessment_cannot_bypass_teaching[post-1]
+FAILED backend/tests/test_core_wave2_beginner.py::test_next_action_and_lock_identify_missing_teaching
+FAILED backend/tests/test_core_wave2_beginner.py::test_locked_module_has_structured_recovery
+8 failed, 1 passed, 2 warnings in 2.04s

@@ -1,0 +1,219 @@
+
+> nexus-admin-academy-frontend@1.0.0 test
+> vitest run --run src/pages/CoreWave2.test.jsx
+
+
+ RUN  v4.1.11 /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/frontend
+
+ ❯ src/pages/CoreWave2.test.jsx (3 tests | 3 failed) 1072ms
+   × preserves explicit named module origin after reopening a URL 64ms
+   × Today names the activity, purpose, time and following step 3ms
+   × a lesson network failure is not a prerequisite lock 1004ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/CoreWave2.test.jsx > preserves explicit named module origin after reopening a URL
+TestingLibraryElementError: Unable to find an accessible element with the role "link" and name "Back to Nexus Orientation"
+
+Here are the accessible roles:
+
+  link:
+
+  Name "Back to Quizzes":
+  [36m<a[39m
+    [33mclass[39m=[32m"inline-flex items-center gap-1 text-sm font-semibold text-blue-600"[39m
+    [33mdata-discover[39m=[32m"true"[39m
+    [33mhref[39m=[32m"/quizzes"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<a[39m
+      [33mclass[39m=[32m"inline-flex items-center gap-1 text-sm font-semibold text-blue-600"[39m
+      [33mdata-discover[39m=[32m"true"[39m
+      [33mhref[39m=[32m"/quizzes"[39m
+    [36m>[39m
+      [36m<svg[39m
+        [33maria-hidden[39m=[32m"true"[39m
+        [33mclass[39m=[32m"lucide lucide-chevron-left"[39m
+        [33mfill[39m=[32m"none"[39m
+        [33mheight[39m=[32m"16"[39m
+        [33mstroke[39m=[32m"currentColor"[39m
+        [33mstroke-linecap[39m=[32m"round"[39m
+        [33mstroke-linejoin[39m=[32m"round"[39m
+        [33mstroke-width[39m=[32m"2"[39m
+        [33mviewBox[39m=[32m"0 0 24 24"[39m
+        [33mwidth[39m=[32m"16"[39m
+        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+      [36m>[39m
+        [36m<path[39m
+          [33md[39m=[32m"m15 18-6-6 6-6"[39m
+        [36m/>[39m
+      [36m</svg>[39m
+      [0mBack to Quizzes[0m
+    [36m</a>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/pages/CoreWave2.test.jsx:12:17
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/pages/CoreWave2.test.jsx > Today names the activity, purpose, time and following step
+AssertionError: expected { label: 'Continue Training', …(3) } to match object { title: 'Welcome to Nexus', …(3) }
+(3 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "after": "Ticketing Systems Quiz",
+-   "estimatedMinutes": 8,
+-   "title": "Welcome to Nexus",
+-   "why": "Learn ticket fields",
++   "title": "Continue where you left off",
+  }
+
+ ❯ src/pages/CoreWave2.test.jsx:16:18
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/pages/CoreWave2.test.jsx > a lesson network failure is not a prerequisite lock
+TestingLibraryElementError: Unable to find role="heading" and name "Unable to load lesson"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<main[39m
+      [33mclass[39m=[32m"mx-auto max-w-3xl p-6"[39m
+    [36m>[39m
+      [36m<a[39m
+        [33mclass[39m=[32m"mb-4 inline-flex items-center gap-1 text-blue-600"[39m
+        [33mdata-discover[39m=[32m"true"[39m
+        [33mhref[39m=[32m"/learning-path"[39m
+      [36m>[39m
+        [36m<svg[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"lucide lucide-chevron-left"[39m
+          [33mfill[39m=[32m"none"[39m
+          [33mheight[39m=[32m"16"[39m
+          [33mstroke[39m=[32m"currentColor"[39m
+          [33mstroke-linecap[39m=[32m"round"[39m
+          [33mstroke-linejoin[39m=[32m"round"[39m
+          [33mstroke-width[39m=[32m"2"[39m
+          [33mviewBox[39m=[32m"0 0 24 24"[39m
+          [33mwidth[39m=[32m"16"[39m
+          [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+        [36m>[39m
+          [36m<path[39m
+            [33md[39m=[32m"m15 18-6-6 6-6"[39m
+          [36m/>[39m
+        [36m</svg>[39m
+        [0mLearning Path[0m
+      [36m</a>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"panel"[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-bold"[39m
+        [36m>[39m
+          [0mLesson locked[0m
+        [36m</h1>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2 text-slate-700 dark:text-slate-300"[39m
+        [36m>[39m
+          [0mThis lesson could not be loaded.[0m
+        [36m</p>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"btn-primary mt-4"[39m
+          [33mdata-discover[39m=[32m"true"[39m
+          [33mhref[39m=[32m"/learning-path"[39m
+        [36m>[39m
+          [0mComplete remaining work[0m
+        [36m</a>[39m
+      [36m</div>[39m
+    [36m</main>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<main[39m
+      [33mclass[39m=[32m"mx-auto max-w-3xl p-6"[39m
+    [36m>[39m
+      [36m<a[39m
+        [33mclass[39m=[32m"mb-4 inline-flex items-center gap-1 text-blue-600"[39m
+        [33mdata-discover[39m=[32m"true"[39m
+        [33mhref[39m=[32m"/learning-path"[39m
+      [36m>[39m
+        [36m<svg[39m
+          [33maria-hidden[39m=[32m"true"[39m
+          [33mclass[39m=[32m"lucide lucide-chevron-left"[39m
+          [33mfill[39m=[32m"none"[39m
+          [33mheight[39m=[32m"16"[39m
+          [33mstroke[39m=[32m"currentColor"[39m
+          [33mstroke-linecap[39m=[32m"round"[39m
+          [33mstroke-linejoin[39m=[32m"round"[39m
+          [33mstroke-width[39m=[32m"2"[39m
+          [33mviewBox[39m=[32m"0 0 24 24"[39m
+          [33mwidth[39m=[32m"16"[39m
+          [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+        [36m>[39m
+          [36m<path[39m
+            [33md[39m=[32m"m15 18-6-6 6-6"[39m
+          [36m/>[39m
+        [36m</svg>[39m
+        [0mLearning Path[0m
+      [36m</a>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"panel"[39m
+        [33mrole[39m=[32m"alert"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"text-xl font-bold"[39m
+        [36m>[39m
+          [0mLesson locked[0m
+        [36m</h1>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2 text-slate-700 dark:text-slate-300"[39m
+        [36m>[39m
+          [0mThis lesson could not be loaded.[0m
+        [36m</p>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"btn-primary mt-4"[39m
+          [33mdata-discover[39m=[32m"true"[39m
+          [33mhref[39m=[32m"/learning-path"[39m
+        [36m>[39m
+          [0mComplete remaining work[0m
+        [36m</a>[39m
+      [36m</div>[39m
+    [36m</main>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/CoreWave2.test.jsx:21:23
+     19|   getLesson.mockRejectedValue(new Error('offline'));
+     20|   render(<MemoryRouter><LessonPage/></MemoryRouter>);
+     21|   expect(await screen.findByRole('heading',{name:'Unable to load lesso…
+       |                       ^
+     22|   expect(screen.queryByText('Lesson locked')).not.toBeInTheDocument();
+     23| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed (3)
+   Start at  01:00:40
+   Duration  1.91s (transform 126ms, setup 54ms, import 347ms, tests 1.07s, environment 365ms)

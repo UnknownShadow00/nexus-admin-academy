@@ -1,0 +1,119 @@
+
+Running 3 tests using 1 worker
+
+(node:2363023) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/core-wave2-beginner.spec.js:10:1 › fresh Today exposes My Course with V2 OFF (6.3s)
+(node:2363380) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 tests/e2e/core-wave2-beginner.spec.js:15:1 › Progress remains active on its canonical route (5.8s)
+(node:2363710) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  3 tests/e2e/core-wave2-beginner.spec.js:20:1 › direct first quiz has missing-lesson recovery (5.8s)
+
+
+  1) tests/e2e/core-wave2-beginner.spec.js:10:1 › fresh Today exposes My Course with V2 OFF ────────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('link', { name: 'My Course', exact: true }).first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByRole('link', { name: 'My Course', exact: true }).first()
+
+
+      10 | test('fresh Today exposes My Course with V2 OFF',async({page})=>{
+      11 |   await login(page);
+    > 12 |   await expect(page.getByRole('link',{name:'My Course',exact:true}).first()).toBeVisible();
+         |                                                                              ^
+      13 |   await expect(page.getByText(/After this:/)).toBeVisible();
+      14 | });
+      15 | test('Progress remains active on its canonical route',async({page})=>{
+        at /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/frontend/tests/e2e/core-wave2-beginner.spec.js:12:78
+
+    Error Context: test-results/core-wave2-beginner-fresh--6830d-poses-My-Course-with-V2-OFF/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/core-wave2-beginner-fresh--6830d-poses-My-Course-with-V2-OFF/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/core-wave2-beginner-fresh--6830d-poses-My-Course-with-V2-OFF/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) tests/e2e/core-wave2-beginner.spec.js:15:1 › Progress remains active on its canonical route ───
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  getByRole('link', { name: 'Progress', exact: true }).first()
+    Expected: "page"
+    Received: ""
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" with timeout 5000ms
+      - waiting for getByRole('link', { name: 'Progress', exact: true }).first()
+        14 × locator resolved to <a href="/progress" data-discover="true" class="rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100">Progress</a>
+           - unexpected value "null"
+
+
+      16 |   await login(page);
+      17 |   await page.goto('/progress');
+    > 18 |   await expect(page.getByRole('link',{name:'Progress',exact:true}).first()).toHaveAttribute('aria-current','page');
+         |                                                                             ^
+      19 | });
+      20 | test('direct first quiz has missing-lesson recovery',async({page})=>{
+      21 |   await login(page);
+        at /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/frontend/tests/e2e/core-wave2-beginner.spec.js:18:77
+
+    Error Context: test-results/core-wave2-beginner-Progre-19126-tive-on-its-canonical-route/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/core-wave2-beginner-Progre-19126-tive-on-its-canonical-route/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/core-wave2-beginner-Progre-19126-tive-on-its-canonical-route/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) tests/e2e/core-wave2-beginner.spec.js:20:1 › direct first quiz has missing-lesson recovery ────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('heading', { name: 'Quiz locked' })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByRole('heading', { name: 'Quiz locked' })
+
+
+      21 |   await login(page);
+      22 |   await page.goto('/quizzes/42');
+    > 23 |   await expect(page.getByRole('heading',{name:'Quiz locked'})).toBeVisible();
+         |                                                                ^
+      24 |   await expect(page.getByRole('link',{name:/Go to.*Welcome to Nexus/})).toBeVisible();
+      25 | });
+      26 |
+        at /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/frontend/tests/e2e/core-wave2-beginner.spec.js:23:64
+
+    Error Context: test-results/core-wave2-beginner-direct-ab21b-has-missing-lesson-recovery/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/core-wave2-beginner-direct-ab21b-has-missing-lesson-recovery/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/core-wave2-beginner-direct-ab21b-has-missing-lesson-recovery/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3 failed
+    tests/e2e/core-wave2-beginner.spec.js:10:1 › fresh Today exposes My Course with V2 OFF ─────────
+    tests/e2e/core-wave2-beginner.spec.js:15:1 › Progress remains active on its canonical route ────
+    tests/e2e/core-wave2-beginner.spec.js:20:1 › direct first quiz has missing-lesson recovery ─────

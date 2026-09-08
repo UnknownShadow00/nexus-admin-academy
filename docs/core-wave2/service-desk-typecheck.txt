@@ -1,0 +1,116 @@
+
+> service-desk-app@0.1.0 typecheck /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app
+> turbo run typecheck
+
+• turbo 2.10.7
+
+   • Packages in scope: @service-desk/api, @service-desk/shared, @service-desk/simulation-engine, @service-desk/ui, @service-desk/web
+   • Running typecheck in 5 packages
+   • Remote caching disabled, using shared worktree cache
+
+@service-desk/api:build: cache hit, replaying logs 7fc1c262c96061ab
+@service-desk/shared:build: cache hit, replaying logs d7db243e9aa3def5
+@service-desk/api:build:
+@service-desk/api:build: > @service-desk/api@0.1.0 build /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/apps/api
+@service-desk/api:build: > tsc -p tsconfig.build.json
+@service-desk/api:build:
+@service-desk/shared:build:
+@service-desk/shared:build: > @service-desk/shared@0.1.0 build /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/packages/shared
+@service-desk/shared:build: > tsc -p tsconfig.build.json
+@service-desk/shared:build:
+@service-desk/shared:typecheck: cache hit, replaying logs b8a49d6114629f0b
+@service-desk/shared:typecheck:
+@service-desk/shared:typecheck: > @service-desk/shared@0.1.0 typecheck /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/packages/shared
+@service-desk/shared:typecheck: > tsc --noEmit
+@service-desk/shared:typecheck:
+@service-desk/simulation-engine:build: cache hit, replaying logs 95a8ba70802b302e
+@service-desk/simulation-engine:build:
+@service-desk/simulation-engine:build: > @service-desk/simulation-engine@0.1.0 build /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/packages/simulation-engine
+@service-desk/simulation-engine:build: > tsc -p tsconfig.build.json
+@service-desk/simulation-engine:build:
+@service-desk/simulation-engine:typecheck: cache hit, replaying logs 7735d07144fc6f0d
+@service-desk/simulation-engine:typecheck:
+@service-desk/simulation-engine:typecheck: > @service-desk/simulation-engine@0.1.0 typecheck /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/packages/simulation-engine
+@service-desk/simulation-engine:typecheck: > tsc --noEmit
+@service-desk/simulation-engine:typecheck:
+@service-desk/api:typecheck: cache hit, replaying logs 035854394dc0f802
+@service-desk/api:typecheck:
+@service-desk/api:typecheck: > @service-desk/api@0.1.0 typecheck /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/apps/api
+@service-desk/api:typecheck: > tsc --noEmit
+@service-desk/ui:build: cache hit, replaying logs 0ed7bf9176716aba
+@service-desk/api:typecheck:
+@service-desk/ui:build:
+@service-desk/ui:build: > @service-desk/ui@0.1.0 build /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/packages/ui
+@service-desk/ui:build: > tsc -p tsconfig.build.json
+@service-desk/ui:build:
+@service-desk/ui:typecheck: cache hit, replaying logs 505c11c61f3168ae
+@service-desk/ui:typecheck:
+@service-desk/ui:typecheck: > @service-desk/ui@0.1.0 typecheck /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/packages/ui
+@service-desk/ui:typecheck: > tsc --noEmit
+@service-desk/ui:typecheck:
+@service-desk/web:build: cache hit, replaying logs cf4d8d8c8178ec9d
+@service-desk/web:build:
+@service-desk/web:build: > @service-desk/web@0.1.0 build /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/apps/web
+@service-desk/web:build: > next build
+@service-desk/web:build:
+@service-desk/web:build:    ▲ Next.js 15.5.22
+@service-desk/web:build:
+@service-desk/web:build:    Creating an optimized production build ...
+@service-desk/web:build:  ✓ Compiled successfully in 2.3s
+@service-desk/web:build:    Linting and checking validity of types ...
+@service-desk/web:build:
+@service-desk/web:build:  ⚠ The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/app/api-reference/config/eslint#migrating-existing-config
+@service-desk/web:build:    Collecting page data ...
+@service-desk/web:build:    Generating static pages (0/44) ...
+@service-desk/web:build:    Generating static pages (11/44)
+@service-desk/web:build:    Generating static pages (22/44)
+@service-desk/web:build:    Generating static pages (33/44)
+@service-desk/web:build:  ✓ Generating static pages (44/44)
+@service-desk/web:build:    Finalizing page optimization ...
+@service-desk/web:build:    Collecting build traces ...
+@service-desk/web:build:
+@service-desk/web:build: Route (app)                                                  Size  First Load JS
+@service-desk/web:build: ┌ ○ /                                                      5.2 kB         228 kB
+@service-desk/web:build: ├ ○ /_not-found                                             993 B         103 kB
+@service-desk/web:build: ├ ○ /achievements                                         2.17 kB         221 kB
+@service-desk/web:build: ├ ○ /admin                                                4.91 kB         215 kB
+@service-desk/web:build: ├ ƒ /admin/scenarios/[scenarioId]                           131 B         185 kB
+@service-desk/web:build: ├ ƒ /admin/scenarios/[scenarioId]/preview                 4.45 kB         211 kB
+@service-desk/web:build: ├ ○ /admin/scenarios/new                                    131 B         185 kB
+@service-desk/web:build: ├ ○ /admin/test-students                                  1.85 kB         212 kB
+@service-desk/web:build: ├ ƒ /admin/test-students/[slotId]                         4.29 kB         215 kB
+@service-desk/web:build: ├ ƒ /admin/test-students/[slotId]/scenarios/[scenarioId]  5.16 kB         215 kB
+@service-desk/web:build: ├ ○ /analytics                                            3.09 kB         222 kB
+@service-desk/web:build: ├ ƒ /api/health                                             127 B         102 kB
+@service-desk/web:build: ├ ƒ /api/session                                            127 B         102 kB
+@service-desk/web:build: ├ ○ /design-system                                        1.85 kB         131 kB
+@service-desk/web:build: ├ ○ /icon.svg                                                 0 B            0 B
+@service-desk/web:build: ├ ● /tickets/[ticketId]                                   13.9 kB         284 kB
+@service-desk/web:build: ├   ├ /tickets/INC2401
+@service-desk/web:build: ├   ├ /tickets/INC2402
+@service-desk/web:build: ├   ├ /tickets/INC2403
+@service-desk/web:build: ├   └ [+18 more paths]
+@service-desk/web:build: └ ● /tools/[slug]                                           221 B         270 kB
+@service-desk/web:build:     ├ /tools/directory
+@service-desk/web:build:     ├ /tools/server-room
+@service-desk/web:build:     ├ /tools/remote-desktop
+@service-desk/web:build:     └ [+7 more paths]
+@service-desk/web:build: + First Load JS shared by all                              102 kB
+@service-desk/web:build:   ├ chunks/506-4f8ca4a7c5c409cf.js                        45.9 kB
+@service-desk/web:build:   ├ chunks/f7654ffa-7e82812649a231e9.js                   54.2 kB
+@service-desk/web:build:   └ other shared chunks (total)                           1.93 kB
+@service-desk/web:build:
+@service-desk/web:build:
+@service-desk/web:build: ○  (Static)   prerendered as static content
+@service-desk/web:build: ●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+@service-desk/web:build: ƒ  (Dynamic)  server-rendered on demand
+@service-desk/web:build:
+@service-desk/web:typecheck: cache hit, replaying logs 25f05fcb108c3767
+@service-desk/web:typecheck:
+@service-desk/web:typecheck: > @service-desk/web@0.1.0 typecheck /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/apps/web
+@service-desk/web:typecheck: > tsc --noEmit
+@service-desk/web:typecheck:
+
+ Tasks:    10 successful, 10 total
+Cached:    10 cached, 10 total
+  Time:    101ms >>> FULL TURBO
