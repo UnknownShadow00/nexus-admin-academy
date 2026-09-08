@@ -21,6 +21,7 @@ from app.models.service_desk import ServiceDeskAttempt, ServiceDeskScenario, Ser
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.mastery_service import list_student_mastery
+from app.services.quiz_scores import attempt_summary
 from app.services.progression_service import get_promotion_status
 from app.services.quiz_visibility import (
     student_visible_quiz_filters,
@@ -314,17 +315,24 @@ class _TrainingContext:
 
     def _quiz_progress(self, quiz: Quiz) -> dict:
         attempts = self.attempts.get(quiz.id, [])
-        total = len(quiz.questions) or int(quiz.question_count or 0)
-        best = max((max(int(row.score or 0), int(row.best_score or 0)) for row in attempts), default=0)
-        percent = round(best / total * 100) if total else 0
-        latest = attempts[0] if attempts else None
+        summary = attempt_summary(attempts)
+        best = summary["best_attempt"]
+        latest = summary["latest_attempt"]
         return {
+            **summary,
             "attempted": bool(attempts),
-            "passed": bool(total and best * 100 >= total * 70),
-            "score": best if attempts else None,
-            "total": total,
-            "score_percent": percent if attempts else None,
-            "completed_at": latest.completed_at if latest else None,
+            "passed": summary["earned_pass"],
+            "score": best["correct_count"] if best else None,
+            "total": best["question_count"] if best else len(quiz.questions),
+            "score_percent": best["percentage"] if best else None,
+            "completed_at": next(
+                (
+                    row.completed_at
+                    for row in attempts
+                    if latest and row.id == latest["attempt_id"]
+                ),
+                None,
+            ),
         }
 
     def resolve(self, activity: TrainingWeekActivity) -> _ResolvedContent | None:
@@ -633,25 +641,38 @@ def _serialize_activity(context: _TrainingContext, activity: TrainingWeekActivit
         "id": activity.id,
         "stable_id": activity.stable_id,
         "activity_type": activity.activity_type,
-        "activity_label": ACTIVITY_LABELS.get(activity.activity_type, activity.activity_type.replace("_", " ").title()),
-        "learning_role": learning_role_for(activity.activity_type, activity.metadata_json),
+        "activity_label": ACTIVITY_LABELS.get(
+            activity.activity_type, activity.activity_type.replace("_", " ").title()
+        ),
+        "learning_role": learning_role_for(
+            activity.activity_type, activity.metadata_json
+        ),
         "content_ref": activity.content_ref,
         "display_order": activity.display_order,
         "is_required": activity.is_required,
         "requirement_label": "Required" if activity.is_required else "Optional",
-        "estimated_minutes": activity.estimated_minutes or (content.estimated_minutes if content else None),
+        "estimated_minutes": activity.estimated_minutes
+        or (content.estimated_minutes if content else None),
         "title": content.title if content else "Content unavailable",
-        "description": content.description if content else "This activity reference needs administrator attention.",
+        "description": content.description
+        if content
+        else "This activity reference needs administrator attention.",
         "destination_route": content.destination_route if content else None,
         "external_url": content.external_url if content else None,
         "job_relevance": content.job_relevance if content else None,
         "linked_quiz": content.linked_quiz if content else None,
         "complete": bool(progress.get("complete")),
-        "status": "complete" if progress.get("complete") else ("in_progress" if progress.get("in_progress") else "not_started"),
+        "status": "complete"
+        if progress.get("complete")
+        else ("in_progress" if progress.get("in_progress") else "not_started"),
         "completed_at": progress.get("completed_at"),
         "score": progress.get("score"),
         "total": progress.get("total"),
         "score_percent": progress.get("score_percent"),
+        "latest_attempt": progress.get("latest_attempt"),
+        "best_attempt": progress.get("best_attempt"),
+        "earned_pass": progress.get("earned_pass"),
+        "legacy_passing_credit": progress.get("legacy_passing_credit"),
         "prerequisite_activity_id": activity.prerequisite_activity_id,
         "prerequisite_mode": activity.prerequisite_mode,
         "trackable": activity.activity_type not in UNTRACKED_ACTIVITY_TYPES,
@@ -1055,19 +1076,11 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
             if activity.activity_type == "quiz":
                 attempts = quiz_attempts[content_ref]
                 attempted = bool(attempts)
-                best = max(
-                    (max(int(attempt.score or 0), int(attempt.best_score or 0)) for attempt, _ in attempts),
-                    default=0,
+                passed = any(
+                    attempt_summary([attempt], total)["earned_pass"]
+                    for attempt, total in attempts
                 )
-                total = max((total for _, total in attempts), default=0)
-                complete = bool(
-                    attempted
-                    and (
-                        bool(total and best * 100 >= total * 70)
-                        if activity.is_required
-                        else True
-                    )
-                )
+                complete = attempted and (passed if activity.is_required else True)
                 return complete, attempted and not complete
             if activity.activity_type == "lesson":
                 return content_ref in lesson_ids, False
@@ -1201,7 +1214,13 @@ def build_training_progress(db: Session, student: Student) -> dict:
     video_metric = _metric(states, {"video"})
     quiz_metric = _metric(states, {"quiz"})
     practice_metric = _metric([item for item in required if item["activity_type"] in PRACTICE_ACTIVITY_TYPES], PRACTICE_ACTIVITY_TYPES)
-    quiz_scores = [item["score_percent"] for item in states if item["activity_type"] == "quiz" and item.get("score_percent") is not None]
+    quiz_scores = list(
+        {
+            item["content_ref"]: item["score_percent"]
+            for item in states
+            if item["activity_type"] == "quiz" and item.get("score_percent") is not None
+        }.values()
+    )
     overview = build_training_overview(db, student)
     promotion = get_promotion_status(student.id, db)
     accessible_capstones = [item for item in states if item["activity_type"] == "capstone" and not item["permission_locked"]]
@@ -1209,20 +1228,33 @@ def build_training_progress(db: Session, student: Student) -> dict:
         "current_week": overview["current_week"],
         "current_stage": overview["current_stage"],
         "current_module": overview["current_module"],
-        "weeks_completed": sum(1 for _, state, _ in week_states if state["is_complete"]),
+        "weeks_completed": sum(
+            1 for _, state, _ in week_states if state["is_complete"]
+        ),
         "total_weeks": len(week_states),
-        "modules_completed": sum(1 for _, state, _ in week_states if state["is_complete"]),
+        "modules_completed": sum(
+            1 for _, state, _ in week_states if state["is_complete"]
+        ),
         "total_modules": len(week_states),
         "weekly_roadmap": overview["weeks"],
         "overall_training": {
             "completed": required_complete,
             "total": len(required),
-            "percent": round(required_complete / len(required) * 100) if required else 100,
+            "percent": round(required_complete / len(required) * 100)
+            if required
+            else 100,
         },
-        "videos": {"completed": video_metric["completed"], "watched": video_metric["completed"], "total": video_metric["total"], "percent": video_metric["percent"]},
+        "videos": {
+            "completed": video_metric["completed"],
+            "watched": video_metric["completed"],
+            "total": video_metric["total"],
+            "percent": video_metric["percent"],
+        },
         "quizzes": {
             **quiz_metric,
-            "average_score_percent": round(sum(quiz_scores) / len(quiz_scores)) if quiz_scores else 0,
+            "average_score_percent": round(sum(quiz_scores) / len(quiz_scores))
+            if quiz_scores
+            else 0,
             "best_score_percent": max(quiz_scores) if quiz_scores else 0,
         },
         "practice": practice_metric,
@@ -1231,10 +1263,27 @@ def build_training_progress(db: Session, student: Student) -> dict:
         "service_desk": _metric(states, {"service_desk_scenario"}),
         "capstones": _metric(states, {"capstone"}),
         "rank_progress": promotion,
-        "skills": list_student_mastery(db, student.id),
+        "skills": list_student_mastery(
+            db, student.id
+        ),  # deprecated diagnostic, not competency
+        "required_quizzes": _metric(required, {"quiz"}),
+        "assessments": [
+            {
+                "quiz_id": int(item["content_ref"]),
+                "title": item["title"],
+                "latest_attempt": item["latest_attempt"],
+                "best_attempt": item["best_attempt"],
+                "earned_pass": item["earned_pass"],
+                "legacy_passing_credit": item["legacy_passing_credit"],
+            }
+            for item in states
+            if item["activity_type"] == "quiz"
+        ],
         "capstone_readiness": {
             "available": len(accessible_capstones),
-            "total": len([item for item in states if item["activity_type"] == "capstone"]),
+            "total": len(
+                [item for item in states if item["activity_type"] == "capstone"]
+            ),
         },
     }
 

@@ -271,7 +271,7 @@ export default function StudentHome() {
         </div>
         {recent.length ? recent.map((item, index) => {
           const Icon = item.type === "service_desk" ? Ticket : BookOpen;
-          const scorePct = item.score != null ? item.score : null;
+          const scorePct = item.type === "quiz" ? item.percentage : item.score;
           return (
             <div key={`${item.type}-${index}`} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
               <div className="flex min-w-0 items-start gap-3">
@@ -280,11 +280,12 @@ export default function StudentHome() {
                 </span>
                 <div className="min-w-0">
                   <p className="truncate font-medium text-slate-900 dark:text-slate-100">{item.title || "Activity"}</p>
+                  {item.type === "quiz" ? <p className="text-sm">Attempt #{item.attempt_id} · {item.correct_count}/{item.question_count} · {item.passed == null ? "Pass state unavailable" : item.passed ? "Passed" : "Not passed"} {item.score_basis === "current_bank_legacy_estimate" ? " · Historical total estimated " : " "}<Link className="text-blue-600" to={item.review_route}>Review this attempt</Link></p> : null}
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.timestamp ? new Date(item.timestamp).toLocaleString() : "Recent update"}</p>
                 </div>
               </div>
-              {item.score != null ? (
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${scoreBand.classes[scoreBand(scorePct)]}`}>Score {item.score}%</span>
+              {scorePct != null ? (
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${scoreBand.classes[scoreBand(scorePct)]}`}>Score {scorePct}%</span>
               ) : item.xp != null ? (
                 <div className="shrink-0"><XPBadge amount={item.xp} /></div>
               ) : null}

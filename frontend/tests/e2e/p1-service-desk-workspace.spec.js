@@ -154,6 +154,7 @@ test("P1 desktop curriculum shell retains note, evidence and return context acro
     .click();
   await expect(page.getByLabel("Add a note")).toHaveValue(draft);
   await capture(page, "desktop-evidence-notes");
+  await expect.poll(() => new URL(page.url()).searchParams.get("tool")).toBeNull();
   const url = new URL(page.url());
   expect(url.searchParams.get("ticket")).toBe("INC2504");
   expect(url.searchParams.get("tool")).toBeNull();

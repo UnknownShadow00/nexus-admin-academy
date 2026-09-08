@@ -29,14 +29,14 @@ function QuizCard({ quiz }) {
         <StatusBadge status={quiz.status || "not_started"} />
       </div>
       <p className="text-sm text-slate-600 dark:text-slate-300">Week {quiz.week_number}{" · "}{quiz.question_count} questions</p>
-      {quiz.status === "completed" ? (
+      {quiz.latest_attempt ? (
         <p className="mt-2 text-sm text-green-700 dark:text-green-300">
-          Best: {quiz.best_score || 0}/{quiz.question_count} ({Math.round(((quiz.best_score || 0) / Math.max(quiz.question_count || 1, 1)) * 100)}%)
+          Best result: {quiz.best_attempt ? `${quiz.best_attempt.correct_count}/${quiz.best_attempt.question_count} (${quiz.best_attempt.percentage}%)` : "No scored attempts"}
         </p>
       ) : <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Not started</p>}
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-        {quiz.status === "completed" ? <Link className="btn-secondary flex-1 text-center" to={`/quizzes/${quiz.id}/review`}>Review</Link> : null}
-        <Link className="btn-primary flex-1 text-center" to={`/quizzes/${quiz.id}`}>{quiz.status === "completed" ? "Retake" : "Take Quiz"}</Link>
+        {quiz.latest_attempt ? <Link className="btn-secondary flex-1 text-center" to={`/quizzes/${quiz.id}/review`}>Review</Link> : null}
+        <Link className="btn-primary flex-1 text-center" to={`/quizzes/${quiz.id}`}>{quiz.latest_attempt ? "Retake" : "Take Quiz"}</Link>
       </div>
     </article>
   );

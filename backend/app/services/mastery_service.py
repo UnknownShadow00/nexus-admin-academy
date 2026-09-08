@@ -1,3 +1,9 @@
+"""Legacy internal diagnostic only; never a competency or readiness measure.
+
+Historical aggregates are retained for compatibility. Learner/mentor UI uses
+completion evidence and explicit quiz attempts instead of this weighted value.
+"""
+
 from sqlalchemy.orm import Session
 
 from app.models.mastery import StudentDomainMastery
@@ -56,6 +62,7 @@ def list_student_mastery(db: Session, student_id: int) -> list[dict]:
                 "domain_id": row.domain_id,
                 "domain_name": DOMAIN_LABELS.get(row.domain_id, row.domain_id),
                 "mastery_percent": round(float(row.mastery_percent or 0), 1),
+                "metric_kind": "legacy_internal_non_competency",
                 "quiz_attempts": row.quiz_attempts,
                 "ticket_attempts": row.ticket_attempts,
             }

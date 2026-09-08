@@ -1,6 +1,7 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
+import { AttemptResult } from "../components/AssessmentEvidence";
 import BackLink from "../components/BackLink";
 import { getCurrentStudent } from "../hooks/useAuth";
 import Spinner from "../components/Spinner";
@@ -61,17 +62,22 @@ function OptionRow({ letter, text, correctAnswers, studentAnswers }) {
 export default function QuizReviewPage() {
   const { quizId } = useParams();
   const location = useLocation();
+  const attemptId = new URLSearchParams(location.search).get("attempt_id");
   const studentId = getCurrentStudent()?.id;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getQuizReview(quizId, studentId)
-      .then((res) => setData(res.data))
-      .catch(() => setError("No attempt found. Take the quiz first."))
-      .finally(() => setLoading(false));
-  }, [quizId, studentId]);
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    getQuizReview(quizId, studentId, undefined, attemptId)
+      .then((res) => { if (!cancelled) setData(res.data); })
+      .catch(() => { if (!cancelled) setError("No attempt found. Take the quiz first."); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [quizId, studentId, attemptId]);
 
   if (loading) {
     return (
@@ -91,7 +97,7 @@ export default function QuizReviewPage() {
   }
 
   const { title, score, total, xp_awarded: xpAwarded, results, questions } = data;
-  const pct = Math.round((score / total) * 100);
+  const pct = data.percentage;
   const byId = {};
   (results || []).forEach((row) => {
     byId[row.question_id] = row;
@@ -107,7 +113,7 @@ export default function QuizReviewPage() {
           {score}
           <span className="text-4xl text-blue-300">/{total}</span>
         </p>
-        <p className="mt-2 text-2xl font-semibold">{pct}%</p>
+        <p className="mt-2 text-2xl font-semibold">{pct == null ? "Percentage unavailable" : `${pct}%`}</p>
         {xpAwarded > 0 ? <p className="mt-2 text-blue-100">+{xpAwarded} XP earned</p> : null}
       </div>
 
@@ -117,15 +123,24 @@ export default function QuizReviewPage() {
           <p className="text-xs text-slate-500">Correct</p>
         </div>
         <div className="rounded-lg border p-4 text-center dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-2xl font-bold text-red-500">{total - score}</p>
+          <p className="text-2xl font-bold text-red-500">{pct == null ? "Unavailable" : total - score}</p>
           <p className="text-xs text-slate-500">Wrong</p>
         </div>
         <div className="rounded-lg border p-4 text-center dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-2xl font-bold text-blue-600">{pct}%</p>
+          <p className="text-2xl font-bold text-blue-600">{pct == null ? "Percentage unavailable" : `${pct}%`}</p>
           <p className="text-xs text-slate-500">Score</p>
         </div>
       </div>
 
+      <section className="panel space-y-2">
+        <p>{data.review_selection === "latest" ? "Latest attempt" : "Historical attempt"}: #{data.attempt_id} · {data.passed == null ? "Pass state unavailable" : data.passed ? "Passed" : "Not passed"}</p>
+        <p>{data.submitted_at ? new Date(data.submitted_at).toLocaleString() : "Submission time unavailable"} · Passing score: {data.passing_percentage}%</p>
+        <p>Best result: <AttemptResult attempt={data.best_attempt} /></p>
+        <p>{data.earned_pass ? "Passing requirement earned" : "Passing requirement not yet earned"}</p>
+        {data.legacy_passing_credit ? <p>Prior passing credit retained; the original passing attempt is unavailable.</p> : null}
+        {data.score_basis === "current_bank_legacy_estimate" ? <p>Historical question total is estimated from the current quiz. Original answer review is unavailable.</p> : null}
+        <nav aria-label="Attempt history" className="flex flex-wrap gap-3">{(data.attempts || []).map((attempt, index) => <Link key={attempt.attempt_id} className="text-blue-600" aria-current={attempt.attempt_id === data.attempt_id ? "page" : undefined} to={`?attempt_id=${attempt.attempt_id}`} state={location.state}>Attempt {index+1}: {attempt.percentage == null ? "Unknown percentage" : `${attempt.percentage}%`} · {attempt.passed == null ? "Pass state unavailable" : attempt.passed ? "Passed" : "Not passed"}</Link>)}</nav>
+      </section>
       <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Answer Review</h2>
       {(questions || []).map((question, index) => {
         const row = byId[question.id];

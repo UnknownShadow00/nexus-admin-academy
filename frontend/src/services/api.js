@@ -191,8 +191,8 @@ export const getQuizzes = (weekNumber, studentId = currentStudentId(), requestOp
   request(() => api.get("/api/quizzes", { params: { week_number: weekNumber, student_id: studentId } }), requestOptions);
 export const getQuiz = (quizId, studentId = currentStudentId(), requestOptions) =>
   request(() => api.get(`/api/quizzes/${quizId}`, { params: { student_id: studentId } }), requestOptions);
-export const getQuizReview = (quizId, studentId = currentStudentId(), requestOptions) =>
-  request(() => api.get(`/api/quizzes/${quizId}/review/${studentId}`), requestOptions);
+export const getQuizReview = (quizId, studentId = currentStudentId(), requestOptions, attemptId) =>
+  request(() => api.get(`/api/quizzes/${quizId}/review/${studentId}`, { params: { attempt_id: attemptId } }), requestOptions);
 export const submitQuiz = (quizId, payload, requestOptions) =>
   request(() => api.post(`/api/quizzes/${quizId}/submit`, payload), requestOptions);
 

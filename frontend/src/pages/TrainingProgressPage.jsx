@@ -1,3 +1,4 @@
+import AssessmentEvidence from "../components/AssessmentEvidence";
 import { Award, CheckCircle2, FlaskConical, PlayCircle, Target, Ticket, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -46,13 +47,15 @@ export default function TrainingProgressPage() {
           <p className="mt-2 text-sm text-slate-300">{data.overall_training.completed} of {data.overall_training.total} required activities complete</p>
           {current ? <p className="mt-3 text-sm text-white">Current module: {current.title}</p> : null}
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Metric label="Videos Watched" metric={data.videos} Icon={PlayCircle} /><Metric label="Quizzes Completed" metric={data.quizzes} Icon={Trophy} note={`Average quiz score: ${data.quizzes.average_score_percent ?? 0}% · Best quiz score: ${data.quizzes.best_score_percent ?? 0}%`} /><Metric label="Required Practice" metric={data.practice} Icon={FlaskConical} /><Metric label="Guided Labs" metric={data.guided_labs} Icon={CheckCircle2} /><Metric label="Tickets" metric={data.service_desk} Icon={Ticket} /><Metric label="Modules Completed" metric={{ completed: data.modules_completed, total: data.total_modules, percent: data.total_modules ? Math.round(data.modules_completed / data.total_modules * 100) : 0 }} Icon={Target} /></div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Metric label="Videos Watched" metric={data.videos} Icon={PlayCircle} /><Metric label="Required quizzes passed" metric={data.required_quizzes || data.quizzes} Icon={Trophy} note={data.assessments?.some(row => row.best_attempt) ? `Average of best quiz results: ${data.quizzes.average_score_percent ?? 0}% · Highest quiz result: ${data.quizzes.best_score_percent ?? 0}%` : "No scored attempts"} /><Metric label="Required Practice" metric={data.practice} Icon={FlaskConical} /><Metric label="Guided Labs" metric={data.guided_labs} Icon={CheckCircle2} /><Metric label="Tickets" metric={data.service_desk} Icon={Ticket} /><Metric label="Modules Completed" metric={{ completed: data.modules_completed, total: data.total_modules, percent: data.total_modules ? Math.round(data.modules_completed / data.total_modules * 100) : 0 }} Icon={Target} /></div>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="panel"><div className="flex items-center gap-2"><Award className="text-violet-600" /><h3 className="text-lg font-bold">Rank Progress</h3></div><p className="mt-3 text-sm text-slate-600 dark:text-slate-300">Current role: <strong>{data.rank_progress?.current_role?.name || data.rank_progress?.current_role || "Trainee"}</strong></p><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{data.rank_progress?.next_role ? `Next role: ${data.rank_progress.next_role.name || data.rank_progress.next_role}` : "Highest configured role reached"}</p></div>
           <div className="panel"><h3 className="text-lg font-bold">Capstone Readiness</h3><p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{data.capstone_readiness?.available ? "You can access the capstones appropriate for your current role." : "Keep completing module requirements and role gates to unlock capstones."}</p><p className="mt-2 text-sm font-semibold text-blue-600 dark:text-blue-400">{data.capstone_readiness?.available || 0} of {data.capstone_readiness?.total || 0} available</p></div>
         </div>
         <p className="text-sm"><Link className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to="/learning-path">View full learning path →</Link></p>
       </section>
+
+      <AssessmentEvidence assessments={data.assessments} />
 
       {serviceDeskSummary ? (
         <section className="space-y-4">

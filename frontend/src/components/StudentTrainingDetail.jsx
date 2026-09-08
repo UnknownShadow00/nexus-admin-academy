@@ -1,3 +1,4 @@
+import AssessmentEvidence from "./AssessmentEvidence";
 import { useEffect, useState } from "react";
 import { getStudentTrainingProgress } from "../services/api";
 
@@ -73,37 +74,9 @@ export default function StudentTrainingDetail({
         </ul>
       </section>
 
-      <section>
-        <h3 className="font-semibold text-slate-900 dark:text-slate-100">Skills Mastery</h3>
-        {(cachedProgress.skills || []).length ? (
-          <ul className="mt-2 space-y-2">
-            {cachedProgress.skills.map((skill) => (
-              <li key={skill.domain_id} className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium">{skill.domain_id} · {skill.domain_name}</span>
-                  <span>{skill.mastery_percent}%</span>
-                </div>
-                <div
-                  className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"
-                  role="progressbar"
-                  aria-label={`${skill.domain_name} mastery`}
-                  aria-valuemin="0"
-                  aria-valuemax="100"
-                  aria-valuenow={skill.mastery_percent}
-                >
-                  <div
-                    className="h-full rounded-full bg-violet-600"
-                    style={{ width: `${skill.mastery_percent}%` }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            No mastery scores have been recorded yet.
-          </p>
-        )}
+      <section className="space-y-3">
+        <h3 className="font-semibold">Required quizzes passed: {cachedProgress.required_quizzes?.completed ?? 0} / {cachedProgress.required_quizzes?.total ?? 0}</h3>
+        <AssessmentEvidence reviewable={false} assessments={cachedProgress.assessments} />
       </section>
     </div>
   );

@@ -10,7 +10,9 @@ from app.models.quiz import (
     QuizAttempt,
 )
 
-QUIZ_PASS_PERCENT = 70
+from app.services.quiz_scores import PASSING_PERCENTAGE, attempt_summary
+
+QUIZ_PASS_PERCENT = PASSING_PERCENTAGE
 
 
 def required_quizzes_for_week(db: Session, week: int) -> list[Quiz]:
@@ -42,9 +44,12 @@ def best_quiz_score(db: Session, student_id: int, quiz_id: int) -> int:
 
 def is_quiz_passed(db: Session, student_id: int, quiz: Quiz) -> bool:
     total = len(quiz.questions) if quiz.questions else int(quiz.question_count or 0)
-    if total <= 0:
-        return False
-    return best_quiz_score(db, student_id, quiz.id) * 100 >= total * QUIZ_PASS_PERCENT
+    rows = (
+        db.query(QuizAttempt)
+        .filter(QuizAttempt.student_id == student_id, QuizAttempt.quiz_id == quiz.id)
+        .all()
+    )
+    return attempt_summary(rows, total)["earned_pass"]
 
 
 def assigned_remediation_ids(db: Session, student_id: int) -> set[int]:

@@ -1,4 +1,4 @@
-﻿import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { createStudent, deleteStudent, getStudentsOverview, updateStudent } from "../services/api";
 import StudentTrainingDetail from "../components/StudentTrainingDetail";
 import toast from "react-hot-toast";
@@ -142,8 +142,8 @@ export default function AdminStudentsPage() {
               <th className="px-2 py-2">Notes</th>
               <th className="px-2 py-2">Mentor</th>
               <th className="px-2 py-2">XP</th>
-              <th className="px-2 py-2">Quiz</th>
-              <th className="px-2 py-2">Avg Quiz</th>
+              <th className="px-2 py-2">Required quizzes passed</th>
+              <th className="px-2 py-2" title="Mean percentage across required quiz attempts. Older attempts may use estimated question totals.">Average attempt (%)</th>
               <th className="px-2 py-2">Tickets</th>
               <th className="px-2 py-2">Avg Ticket</th>
               <th className="px-2 py-2">Actions</th>
@@ -194,7 +194,7 @@ export default function AdminStudentsPage() {
                   </td>
                   <td className="px-2 py-2">{r.xp}</td>
                   <td className="px-2 py-2">{r.quiz_done}/{r.quiz_total}</td>
-                  <td className="px-2 py-2">{r.avg_quiz}</td>
+                  <td className="px-2 py-2">{r.average_attempt_percentage == null ? "No scored attempts" : `${r.average_attempt_percentage}%`}</td>
                   <td className="px-2 py-2">{r.ticket_done}/{r.ticket_total}</td>
                   <td className="px-2 py-2">{r.avg_ticket}</td>
                   <td className="px-2 py-2">

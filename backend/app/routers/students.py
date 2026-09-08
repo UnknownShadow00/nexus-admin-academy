@@ -36,6 +36,7 @@ from app.services.auth_service import (
     get_current_student,
 )
 from app.services.mastery_service import list_student_mastery
+from app.services.quiz_scores import attempt_score, average_attempt_percentage
 from app.services.methodology_enforcer import can_access_tickets
 from app.services.onboarding_service import get_orientation_state
 from app.services.progression_service import (
@@ -308,15 +309,7 @@ def get_student_stats(
     week_completion = round((week_done / week_total) * 100, 1) if week_total else 0
 
     quiz_activity = (
-        db.query(
-            QuizAttempt.completed_at.label("timestamp"),
-            Quiz.title.label("title"),
-            QuizAttempt.score.label("score"),
-            QuizAttempt.xp_awarded.label("xp"),
-        )
-        .join(Quiz, Quiz.id == QuizAttempt.quiz_id)
-        .filter(QuizAttempt.student_id == student_id)
-        .all()
+        db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).all()
     )
     service_desk_activity = (
         db.query(
@@ -343,10 +336,13 @@ def get_student_stats(
     recent_activity = [
         {
             "type": "quiz",
-            "title": row.title,
-            "score": row.score,
-            "xp": row.xp,
-            "timestamp": row.timestamp,
+            **attempt_score(row),
+            "title": row.quiz.title,
+            "quiz_id": row.quiz_id,
+            "score": row.score,  # compatibility: raw correct count
+            "xp": row.xp_awarded,
+            "timestamp": row.completed_at,
+            "review_route": f"/quizzes/{row.quiz_id}/review?attempt_id={row.id}",
         }
         for row in quiz_activity
     ] + [
@@ -359,7 +355,10 @@ def get_student_stats(
         }
         for row in service_desk_activity
     ]
-    recent_activity.sort(key=lambda x: x["timestamp"] or datetime.min, reverse=True)
+    recent_activity.sort(
+        key=lambda x: (x["timestamp"] or datetime.min, x.get("attempt_id", 0)),
+        reverse=True,
+    )
     recent_activity = recent_activity[:5]
 
     weak_rows = []
@@ -393,7 +392,11 @@ def get_student_stats(
         "level_name": level_name,
         "quizzes_completed": int(quiz_stats.completed or 0),
         "total_quizzes": int(total_quizzes),
-        "avg_quiz_score": round(float(quiz_stats.avg_score or 0), 1),
+        "avg_quiz_score": round(
+            float(quiz_stats.avg_score or 0), 1
+        ),  # deprecated raw count
+        "average_attempt_percentage": average_attempt_percentage(quiz_activity),
+        "avg_quiz_score_units": "legacy_raw_correct_count",
         "service_desk_completed": len(service_desk_mastery_scores),
         "total_service_desk": int(total_service_desk),
         "avg_service_desk_score": round(

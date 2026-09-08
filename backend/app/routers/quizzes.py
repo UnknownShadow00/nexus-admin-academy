@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
@@ -9,10 +9,18 @@ from app.models.quiz import QUIZ_PURPOSE_REMEDIATION, Quiz, QuizAttempt
 from app.models.student import Student
 from app.schemas.quiz import QuizSubmitRequest
 from app.services.activity_service import log_activity, mark_student_active
-from app.services.auth_service import ensure_student_access, ensure_student_ownership, get_current_student
+from app.services.auth_service import (
+    ensure_student_access,
+    ensure_student_ownership,
+    get_current_student,
+)
 from app.services.fsrs_service import create_cards_for_wrong_answers
 from app.services.mastery_service import record_quiz_mastery
-from app.services.quiz_progression import assigned_remediation_ids, triggered_remediation_ids
+from app.services.quiz_scores import PASSING_PERCENTAGE, attempt_score, attempt_summary
+from app.services.quiz_progression import (
+    assigned_remediation_ids,
+    triggered_remediation_ids,
+)
 from app.services.quiz_visibility import v1_student_visible_quiz_filters
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
@@ -42,31 +50,50 @@ def _grade_answer(question, raw_answer) -> tuple[object, bool]:
 def _avg_seconds_per_question(time_per_question: dict | None) -> float | None:
     if not time_per_question:
         return None
-    values = [value for value in time_per_question.values() if isinstance(value, (int, float))]
+    values = [
+        value for value in time_per_question.values() if isinstance(value, (int, float))
+    ]
     if not values:
         return None
     return sum(values) / len(values)
 
 
 @router.get("")
-def get_quizzes(week_number: int | None = None, student_id: int | None = None, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def get_quizzes(
+    week_number: int | None = None,
+    student_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     scoped_student_id = student_id or current_student.id
     ensure_student_access(current_student, scoped_student_id)
-    remediation_ids = assigned_remediation_ids(db, scoped_student_id) | triggered_remediation_ids(db, scoped_student_id)
-    query = db.query(Quiz).options(selectinload(Quiz.questions)).filter(*v1_student_visible_quiz_filters())
+    remediation_ids = assigned_remediation_ids(
+        db, scoped_student_id
+    ) | triggered_remediation_ids(db, scoped_student_id)
+    query = (
+        db.query(Quiz)
+        .options(selectinload(Quiz.questions))
+        .filter(*v1_student_visible_quiz_filters())
+    )
     if week_number is not None:
         query = query.filter(Quiz.week_number == week_number)
     quizzes = query.order_by(Quiz.created_at.desc()).all()
     quizzes = [
-        quiz for quiz in quizzes
+        quiz
+        for quiz in quizzes
         if quiz.quiz_purpose != QUIZ_PURPOSE_REMEDIATION or quiz.id in remediation_ids
     ]
 
     attempts_by_quiz = {}
     attempt_counts_by_quiz = {}
     if scoped_student_id is not None:
-        attempts = db.query(QuizAttempt).filter(QuizAttempt.student_id == scoped_student_id).all()
-        attempts_by_quiz = {attempt.quiz_id: attempt for attempt in attempts}
+        attempts = (
+            db.query(QuizAttempt)
+            .filter(QuizAttempt.student_id == scoped_student_id)
+            .all()
+        )
+        for attempt in attempts:
+            attempts_by_quiz.setdefault(attempt.quiz_id, []).append(attempt)
         attempt_counts = (
             db.query(QuizAttempt.quiz_id, func.count(QuizAttempt.id))
             .filter(QuizAttempt.student_id == scoped_student_id)
@@ -77,8 +104,14 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
 
     data = []
     for quiz in quizzes:
-        attempt = attempts_by_quiz.get(quiz.id)
-        attempt_count = attempt_counts_by_quiz.get(quiz.id, 0) if scoped_student_id else 0
+        rows = attempts_by_quiz.get(quiz.id, [])
+        summary = attempt_summary(rows)
+        attempt = (
+            max(rows, key=lambda row: (row.completed_at, row.id)) if rows else None
+        )
+        attempt_count = (
+            attempt_counts_by_quiz.get(quiz.id, 0) if scoped_student_id else 0
+        )
         data.append(
             {
                 "id": quiz.id,
@@ -86,9 +119,16 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
                 "week_number": quiz.week_number,
                 "domain_id": quiz.domain_id,
                 "lesson_id": quiz.lesson_id,
-                "question_count": quiz.question_count or len(quiz.questions),
-                "video_count": len(quiz.source_urls or ([quiz.source_url] if quiz.source_url else [])),
-                "status": "completed" if attempt else "not_started",
+                "question_count": len(quiz.questions),
+                "video_count": len(
+                    quiz.source_urls or ([quiz.source_url] if quiz.source_url else [])
+                ),
+                "status": "completed"
+                if summary["earned_pass"]
+                else "attempted"
+                if attempt
+                else "not_started",
+                **summary,
                 "best_score": attempt.best_score if attempt else None,
                 "first_attempt_xp": attempt.first_attempt_xp if attempt else None,
                 "attempt_count": attempt_count,
@@ -110,7 +150,12 @@ def get_quizzes(week_number: int | None = None, student_id: int | None = None, d
 
 
 @router.get("/{quiz_id}")
-def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def get_quiz_details(
+    quiz_id: int,
+    student_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     scoped_student_id = student_id or current_student.id
     ensure_student_access(current_student, scoped_student_id)
     quiz = (
@@ -129,18 +174,24 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
     if scoped_student_id:
         rows = (
             db.query(QuizAttempt)
-            .filter(QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == scoped_student_id)
-            .order_by(QuizAttempt.completed_at.asc())
+            .filter(
+                QuizAttempt.quiz_id == quiz_id,
+                QuizAttempt.student_id == scoped_student_id,
+            )
+            .order_by(QuizAttempt.completed_at.asc(), QuizAttempt.id.asc())
             .all()
         )
         attempts = [
             {
                 "attempt_number": i + 1,
+                **attempt_score(row),
                 "score": row.score,
-                "total": quiz.question_count or len(quiz.questions),
+                "total": attempt_score(row)["question_count"],
                 "xp_awarded": row.xp_awarded or 0,
                 "is_first_attempt": i == 0,
-                "created_at": row.completed_at.isoformat() if row.completed_at else None,
+                "created_at": row.completed_at.isoformat()
+                if row.completed_at
+                else None,
             }
             for i, row in enumerate(rows)
         ]
@@ -152,8 +203,9 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
             "week_number": quiz.week_number,
             "domain_id": quiz.domain_id,
             "lesson_id": quiz.lesson_id,
-            "question_count": quiz.question_count or len(quiz.questions),
-            "source_urls": quiz.source_urls or ([quiz.source_url] if quiz.source_url else []),
+            "question_count": len(quiz.questions),
+            "source_urls": quiz.source_urls
+            or ([quiz.source_url] if quiz.source_url else []),
             "questions": [
                 {
                     "id": question.id,
@@ -179,7 +231,12 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
 
 
 @router.post("/{quiz_id}/submit")
-def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def submit_quiz(
+    quiz_id: int,
+    payload: QuizSubmitRequest,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     student_id = payload.student_id
     ensure_student_ownership(current_student, student_id)
     answers = payload.answers
@@ -224,6 +281,7 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
         results.append(
             {
                 "question_id": question.id,
+                "passing_percentage": PASSING_PERCENTAGE,
                 "question_number": i,
                 "question_text": question.question_text,
                 "student_answer": student_answer,
@@ -246,7 +304,9 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
         )
 
     score = correct_count
-    passed = bool(total_questions and score * 100 >= total_questions * 70)
+    passed = bool(
+        total_questions and score * 100 >= total_questions * PASSING_PERCENTAGE
+    )
     # TB-06: every attempt is a new row (migration c2d3e4f5a6b7 dropped uq_student_quiz).
     prior_attempts = (
         db.query(QuizAttempt)
@@ -286,18 +346,27 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     # speed-flags evaluate every attempt individually).
     if quiz.is_required and quiz.show_in_weekly_checklist:
         record_quiz_mastery(db, student_id, quiz.domain_id, max(prior_best, score))
-    log_activity(db, student_id, "quiz_passed", quiz.title, f"Score {score}/{total_questions}")
+    log_activity(
+        db,
+        student_id,
+        "quiz_passed" if passed else "quiz_failed",
+        quiz.title,
+        f"Attempt #{attempt.id}: {score}/{total_questions} ({attempt_score(attempt)['percentage']}%)",
+    )
     create_cards_for_wrong_answers(db, student.id, wrong_answers)
     db.commit()
 
     return ok(
         {
+            **attempt_score(attempt),
             "score": score,
             "total": total_questions,
             "xp_awarded": xp_awarded,
             "is_first_attempt": is_first_attempt,
             "passed": passed,
-            "avg_seconds_per_question": round(avg_seconds, 1) if avg_seconds is not None else None,
+            "avg_seconds_per_question": round(avg_seconds, 1)
+            if avg_seconds is not None
+            else None,
             "is_speed_flagged": avg_seconds is not None and avg_seconds < 8,
             "results": results,
             "message": (
@@ -312,17 +381,15 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
 
 
 @router.get("/{quiz_id}/review/{student_id}")
-def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
-    """Returns the student's last attempt results for review."""
+def get_quiz_review(
+    quiz_id: int,
+    student_id: int,
+    attempt_id: int | None = None,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    """Latest by submission time/id by default; explicit history remains scoped."""
     ensure_student_access(current_student, student_id)
-    attempt = (
-        db.query(QuizAttempt)
-        .filter(QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == student_id)
-        .first()
-    )
-    if not attempt:
-        raise HTTPException(status_code=404, detail="No attempt found for this quiz")
-
     quiz = (
         db.query(Quiz)
         .options(selectinload(Quiz.questions))
@@ -331,100 +398,58 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
     )
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
-
+    rows = (
+        db.query(QuizAttempt)
+        .filter(QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == student_id)
+        .order_by(QuizAttempt.completed_at.asc(), QuizAttempt.id.asc())
+        .all()
+    )
+    attempt = (
+        next((row for row in rows if row.id == attempt_id), None)
+        if attempt_id is not None
+        else (rows[-1] if rows else None)
+    )
+    if not attempt:
+        raise HTTPException(status_code=404, detail="No attempt found for this quiz")
+    summary = attempt_summary(rows)
+    score = attempt_score(attempt)
     avg_seconds = _avg_seconds_per_question(attempt.time_per_question)
-
-    if attempt.results:
-        return ok(
-            {
-                "quiz_id": quiz_id,
-                "title": quiz.title,
-                "score": attempt.score,
-                "total": len(quiz.questions),
-                "xp_awarded": attempt.xp_awarded,
-                "is_first_attempt": (attempt.first_attempt_xp or 0) > 0,
-                "avg_seconds_per_question": round(avg_seconds, 1) if avg_seconds is not None else None,
-                "is_speed_flagged": avg_seconds is not None and avg_seconds < 8,
-                "results": attempt.results,
-                "questions": [
-                    {
-                        "id": q.id,
-                        "question_text": q.question_text,
-                        "option_a": q.option_a,
-                        "option_b": q.option_b,
-                        "option_c": q.option_c,
-                        "option_d": q.option_d,
-                        "option_e": q.option_e or "",
-                        "option_f": q.option_f or "",
-                        "option_g": q.option_g or "",
-                        "option_h": q.option_h or "",
-                        "correct_answer": q.correct_answer,
-                        "correct_answers": q.all_correct_answers,
-                        "explanation": q.explanation or "",
-                    }
-                    for q in sorted(quiz.questions, key=lambda x: x.id)
-                ],
-            }
-        )
-
-    stored_answers = attempt.answers or {}
-    questions = sorted(quiz.questions, key=lambda q: q.id)
-    results = []
-    for i, question in enumerate(questions, start=1):
-        raw_answer = stored_answers.get(str(question.id)) or stored_answers.get(str(i))
-        student_answer, is_correct = _grade_answer(question, raw_answer)
-        results.append(
-            {
-                "question_id": question.id,
-                "question_number": i,
-                "question_text": question.question_text,
-                "student_answer": student_answer,
-                "correct_answer": question.correct_answer,
-                "correct_answers": question.all_correct_answers,
-                "is_multi_select": question.is_multi_select,
-                "is_correct": is_correct,
-                "explanation": question.explanation or "",
-                "options": {
-                    "A": question.option_a,
-                    "B": question.option_b,
-                    "C": question.option_c,
-                    "D": question.option_d,
-                    "E": question.option_e or "",
-                    "F": question.option_f or "",
-                    "G": question.option_g or "",
-                    "H": question.option_h or "",
-                },
-            }
-        )
-
+    # Never regrade old answers against a changed bank. Missing snapshots are
+    # explicitly disclosed, with only the recorded aggregate available.
+    results = attempt.results or []
+    questions = [
+        {
+            "id": row["question_id"],
+            "question_text": row.get("question_text", ""),
+            "correct_answer": row.get("correct_answer"),
+            "correct_answers": row.get("correct_answers")
+            or ([row["correct_answer"]] if row.get("correct_answer") else []),
+            "explanation": row.get("explanation", ""),
+            **{
+                f"option_{key.lower()}": value
+                for key, value in row.get("options", {}).items()
+            },
+        }
+        for row in results
+    ]
     return ok(
         {
+            **summary,
+            **score,
             "quiz_id": quiz_id,
             "title": quiz.title,
-            "score": attempt.score,
-            "total": len(questions),
+            "attempt_number": rows.index(attempt) + 1,
+            "review_selection": "latest" if attempt.id == rows[-1].id else "historical",
+            "score": score["correct_count"],
+            "total": score["question_count"],
             "xp_awarded": attempt.xp_awarded,
-            "is_first_attempt": False,
-            "avg_seconds_per_question": round(avg_seconds, 1) if avg_seconds is not None else None,
+            "is_first_attempt": attempt.id == rows[0].id,
+            "avg_seconds_per_question": round(avg_seconds, 1)
+            if avg_seconds is not None
+            else None,
             "is_speed_flagged": avg_seconds is not None and avg_seconds < 8,
             "results": results,
-            "questions": [
-                {
-                    "id": q.id,
-                    "question_text": q.question_text,
-                    "option_a": q.option_a,
-                    "option_b": q.option_b,
-                    "option_c": q.option_c,
-                    "option_d": q.option_d,
-                    "option_e": q.option_e or "",
-                    "option_f": q.option_f or "",
-                    "option_g": q.option_g or "",
-                    "option_h": q.option_h or "",
-                    "correct_answer": q.correct_answer,
-                    "correct_answers": q.all_correct_answers,
-                    "explanation": q.explanation or "",
-                }
-                for q in questions
-            ],
+            "questions": questions,
+            "review_available": bool(results),
         }
     )

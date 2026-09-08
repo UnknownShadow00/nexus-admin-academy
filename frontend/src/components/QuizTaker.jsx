@@ -56,11 +56,14 @@ export default function QuizTaker({ quizId, studentId }) {
   const [timings, setTimings] = useState({});
   const questionStartRef = useRef(Date.now());
 
+  const loadSequence = useRef(0);
   const loadQuiz = () => {
+    const sequence = ++loadSequence.current;
     setLoading(true);
     setLoadError("");
     getQuiz(quizId, studentId, { suppressToast: true })
       .then((res) => {
+        if (sequence !== loadSequence.current) return;
         const q = res.data;
         setQuiz(q);
         const sq = shuffle(q.questions || []).map(buildShuffledQuestion);
@@ -78,17 +81,19 @@ export default function QuizTaker({ quizId, studentId }) {
         questionStartRef.current = Date.now();
       })
       .catch((err) => {
+        if (sequence !== loadSequence.current) return;
         const message = err?.userMessage || "Unable to load quiz";
         setLoadError(message);
         toast.error(message);
       })
       .finally(() => {
-        setLoading(false);
+        if (sequence === loadSequence.current) setLoading(false);
       });
   };
 
   useEffect(() => {
     loadQuiz();
+    return () => { loadSequence.current += 1; };
     // loadQuiz intentionally restarts only when the quiz or student changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizId, studentId]);

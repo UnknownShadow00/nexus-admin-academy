@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from statistics import mean
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,6 +16,7 @@ from app.models.xp_ledger import XPLedger
 from app.services.activity_service import get_recent_activity
 from app.services.onboarding_service import get_orientation_state
 from app.services.quiz_progression import is_quiz_passed
+from app.services.quiz_scores import average_attempt_percentage
 from app.services.service_desk_progression import PACK_BY_SCENARIO
 from app.services.admin_auth import verify_admin
 from app.services.auth_service import hash_password, normalize_username
@@ -77,10 +78,18 @@ def student_overview(db: Session = Depends(get_db)):
                 "xp": student.total_xp,
                 "quiz_done": completed_required,
                 "quiz_total": total_quizzes,
-                "avg_quiz": round(mean([q.score for q in quiz_attempts]), 2) if quiz_attempts else 0,
+                "average_attempt_percentage": average_attempt_percentage(quiz_attempts),
+                "avg_quiz_units": "legacy_raw_correct_count",
+                "avg_quiz": round(mean([q.score for q in quiz_attempts]), 2)
+                if quiz_attempts
+                else 0,
                 "ticket_done": len(ticket_subs),
                 "ticket_total": total_tickets,
-                "avg_ticket": round(mean([t.ai_score for t in ticket_subs if t.ai_score is not None]), 2) if ticket_subs else 0,
+                "avg_ticket": round(
+                    mean([t.ai_score for t in ticket_subs if t.ai_score is not None]), 2
+                )
+                if ticket_subs
+                else 0,
             }
         )
     return ok(data, total=len(data), page=1, per_page=len(data) or 1)

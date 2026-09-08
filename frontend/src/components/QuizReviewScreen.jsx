@@ -24,12 +24,14 @@ export default function QuizReviewScreen({ quiz, result, onRetake }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"><h2 className="mb-2 text-lg font-semibold text-blue-200">{quiz.title}</h2><div className={`mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold ${result.passed ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-900"}`}>{result.passed ? "Passed" : "Not passed"}</div><p className="text-7xl font-bold">{result.score}<span className="text-4xl text-blue-300">/{result.total}</span></p><p className="mt-2 text-2xl font-semibold">{Math.round((result.score / result.total) * 100)}%</p>{result.xp_awarded > 0 && <p className="mt-2 text-blue-100">+{result.xp_awarded} XP earned!</p>}{result.message && <p className="mx-auto mt-3 max-w-xl text-sm text-blue-50">{result.message}</p>}</div>
+      <div className="rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"><h2 className="mb-2 text-lg font-semibold text-blue-200">{quiz.title}</h2><div className={`mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold ${result.passed ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-900"}`}>{result.passed ? "Passed" : "Not passed"}</div><p className="text-7xl font-bold">{result.score}<span className="text-4xl text-blue-300">/{result.total}</span></p><p className="mt-2 text-2xl font-semibold">{result.percentage}%</p>{result.xp_awarded > 0 && <p className="mt-2 text-blue-100">+{result.xp_awarded} XP earned!</p>}{result.message && <p className="mx-auto mt-3 max-w-xl text-sm text-blue-50">{result.message}</p>}</div>
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"><p className="text-2xl font-bold text-green-600">{result.score}</p><p className="text-xs text-slate-500">Correct</p></div>
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"><p className="text-2xl font-bold text-red-500">{result.total - result.score}</p><p className="text-xs text-slate-500">Wrong</p></div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"><p className="text-2xl font-bold text-blue-600">{Math.round((result.score / result.total) * 100)}%</p><p className="text-xs text-slate-500">Score</p></div>
+        <div className="rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"><p className="text-2xl font-bold text-blue-600">{result.percentage}%</p><p className="text-xs text-slate-500">Score</p></div>
       </div>
+      <p className="text-sm">Attempt #{result.attempt_id} · {result.submitted_at ? new Date(result.submitted_at).toLocaleString() : ""} · Passing score: {result.passing_percentage ?? 70}%</p>
+      <Link className="text-blue-600" to={`/quizzes/${quiz.id}/review?attempt_id=${result.attempt_id}`}>Saved review of this attempt</Link>
       <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Answer Review</h3>
       {(quiz.questions || []).map((question, index) => {
         const review = byId[question.id];

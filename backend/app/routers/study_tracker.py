@@ -1,3 +1,4 @@
+from app.services.quiz_scores import attempt_score
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -160,25 +161,31 @@ def get_study_tracker(student_id: int, db: Session = Depends(get_db), current_st
     attempts = (
         db.query(QuizAttempt, Quiz)
         .join(Quiz, Quiz.id == QuizAttempt.quiz_id)
-        .filter(QuizAttempt.student_id == student_id, Quiz.status == QUIZ_STATUS_PUBLISHED)
+        .filter(
+            QuizAttempt.student_id == student_id, Quiz.status == QUIZ_STATUS_PUBLISHED
+        )
+        .order_by(QuizAttempt.completed_at.asc(), QuizAttempt.id.asc())
         .all()
     )
     scores_by_title = {}
     scores_by_title_key = {}
     scores_by_quiz_id = {}
     for attempt, quiz in attempts:
-        qcount = quiz.question_count or len(quiz.questions) or 10
-        pct = round((attempt.best_score / qcount) * 100) if attempt.best_score is not None else None
-        existing = scores_by_title.get(quiz.title, {})
-        if pct is not None and pct > (existing.get("pct") or -1):
+        summary = attempt_score(attempt)
+        qcount = summary["question_count"]
+        pct = summary["percentage"]
+        existing = scores_by_quiz_id.get(str(quiz.id), {})
+        if pct is not None and pct >= existing.get("pct", -1):
             entry = {
-                "score": attempt.best_score,
+                **summary,
+                "score": summary["correct_count"],
                 "total": qcount,
                 "pct": pct,
                 "quiz_id": attempt.quiz_id,
             }
-            scores_by_title[quiz.title] = entry
-            scores_by_title_key[_title_key(quiz.title)] = entry
+            if pct >= scores_by_title.get(quiz.title, {}).get("pct", -1):
+                scores_by_title[quiz.title] = entry
+                scores_by_title_key[_title_key(quiz.title)] = entry
             scores_by_quiz_id[str(quiz.id)] = entry
 
     curriculum_rows = (
