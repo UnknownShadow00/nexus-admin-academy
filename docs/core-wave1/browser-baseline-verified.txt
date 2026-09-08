@@ -1,0 +1,79 @@
+
+Running 2 tests using 1 worker
+
+(node:2313011) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/wave1-before.spec.js:14:1 › baseline Today must report 4/4 as 100% (6.3s)
+(node:2313453) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 tests/e2e/wave1-before.spec.js:20:1 › baseline saved review must select the latest passing attempt (6.1s)
+
+
+  1) tests/e2e/wave1-before.spec.js:14:1 › baseline Today must report 4/4 as 100% ──────────────────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('Score 100%', { exact: true })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByText('Score 100%', { exact: true })
+
+
+      16 |  await expect(page.getByText('Score 4%',{exact:true})).toBeVisible();
+      17 |  await page.screenshot({path:'/tmp/core-wave1-before-verified/today-4-percent.png',fullPage:true});
+    > 18 |  await expect(page.getByText('Score 100%',{exact:true})).toBeVisible();
+         |                                                          ^
+      19 | });
+      20 | test('baseline saved review must select the latest passing attempt',async({page})=>{
+      21 |  await login(page); await submit(page,2,false); await submit(page,2,true);
+        at /tmp/core-wave1-baseline/frontend/tests/e2e/wave1-before.spec.js:18:58
+
+    Error Context: test-results/wave1-before-baseline-Today-must-report-4-4-as-100-/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/wave1-before-baseline-Today-must-report-4-4-as-100-/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/wave1-before-baseline-Today-must-report-4-4-as-100-/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) tests/e2e/wave1-before.spec.js:20:1 › baseline saved review must select the latest passing attempt
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('100%', { exact: true }).first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByText('100%', { exact: true }).first()
+
+
+      23 |  await expect(page.getByText('0%',{exact:true}).first()).toBeVisible();
+      24 |  await page.screenshot({path:'/tmp/core-wave1-before-verified/review-earlier-failure.png',fullPage:true});
+    > 25 |  await expect(page.getByText('100%',{exact:true}).first()).toBeVisible();
+         |                                                            ^
+      26 | });
+      27 |
+        at /tmp/core-wave1-baseline/frontend/tests/e2e/wave1-before.spec.js:25:60
+
+    Error Context: test-results/wave1-before-baseline-save-e8446--the-latest-passing-attempt/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/wave1-before-baseline-save-e8446--the-latest-passing-attempt/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/wave1-before-baseline-save-e8446--the-latest-passing-attempt/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    tests/e2e/wave1-before.spec.js:14:1 › baseline Today must report 4/4 as 100% ───────────────────
+    tests/e2e/wave1-before.spec.js:20:1 › baseline saved review must select the latest passing attempt

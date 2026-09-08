@@ -1,0 +1,1390 @@
+
+> nexus-admin-academy-frontend@1.0.0 test
+> vitest run src/components/AssessmentTruth.test.jsx
+
+
+ RUN  v4.1.11 /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/frontend
+
+ ❯ src/components/AssessmentTruth.test.jsx (5 tests | 5 failed) 53ms
+     × does not present the legacy mastery number as competency 16ms
+     × identifies an immediate 4/4 attempt 11ms
+     × identifies an immediate 3/4 attempt 7ms
+     × identifies an immediate 0/4 attempt 9ms
+     × identifies an immediate 3/6 attempt 9ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/AssessmentTruth.test.jsx > Assessment evidence > does not present the legacy mastery number as competency
+Error: expect(element).not.toBeInTheDocument()
+
+expected document not to contain element, found <h3
+  class="font-semibold text-slate-900 dark:text-slate-100"
+>
+  Skills Mastery
+</h3> instead
+ ❯ src/components/AssessmentTruth.test.jsx:9:54
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/components/AssessmentTruth.test.jsx > Assessment evidence > identifies an immediate 4/4 attempt
+TestingLibraryElementError: Unable to find an element with the text: /Attempt #7/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"grid gap-5 lg:grid-cols-2"[39m
+    [36m>[39m
+      [36m<section>[39m
+        [36m<h3[39m
+          [33mclass[39m=[32m"font-semibold text-slate-900 dark:text-slate-100"[39m
+        [36m>[39m
+          [0mWeekly Roadmap[0m
+        [36m</h3>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"mt-2 space-y-2"[39m
+        [36m/>[39m
+      [36m</section>[39m
+      [36m<section>[39m
+        [36m<h3[39m
+          [33mclass[39m=[32m"font-semibold text-slate-900 dark:text-slate-100"[39m
+        [36m>[39m
+          [0mSkills Mastery[0m
+        [36m</h3>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"mt-2 space-y-2"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"rounded-lg border border-slate-200 p-3 dark:border-slate-700"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center justify-between gap-3 text-sm"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-medium"[39m
+              [36m>[39m
+                [0m1.0[0m
+                [0m · [0m
+                [0mHardware[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0m13.3[0m
+                [0m%[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"Hardware mastery"[39m
+              [33maria-valuemax[39m=[32m"100"[39m
+              [33maria-valuemin[39m=[32m"0"[39m
+              [33maria-valuenow[39m=[32m"13.3"[39m
+              [33mclass[39m=[32m"mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"[39m
+              [33mrole[39m=[32m"progressbar"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"h-full rounded-full bg-violet-600"[39m
+                [33mstyle[39m=[32m"width: 13.3%;"[39m
+              [36m/>[39m
+            [36m</div>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"mb-2 text-lg font-semibold text-blue-200"[39m
+        [36m>[39m
+          [0mQuiz[0m
+        [36m</h2>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold bg-green-100 text-green-800"[39m
+        [36m>[39m
+          [0mPassed[0m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"text-7xl font-bold"[39m
+        [36m>[39m
+          [0m4[0m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-4xl text-blue-300"[39m
+          [36m>[39m
+            [0m/[0m
+            [0m4[0m
+          [36m</span>[39m
+        [36m</p>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2 text-2xl font-semibold"[39m
+        [36m>[39m
+          [0m100[0m
+          [0m%[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"grid grid-cols-3 gap-3"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-green-600"[39m
+          [36m>[39m
+            [0m4[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mCorrect[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-red-500"[39m
+          [36m>[39m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mWrong[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-blue-600"[39m
+          [36m>[39m
+            [0m100[0m
+            [0m%[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mScore[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"text-lg font-bold text-slate-900 dark:text-slate-100"[39m
+      [36m>[39m
+        [0mAnswer Review[0m
+      [36m</h3>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-3"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"btn-secondary flex-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mTry Again[0m
+        [36m</button>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"btn-primary flex-1 text-center"[39m
+          [33mdata-discover[39m=[32m"true"[39m
+          [33mhref[39m=[32m"/"[39m
+        [36m>[39m
+          [0mContinue Learning[0m
+        [36m</a>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/AssessmentTruth.test.jsx:16:19
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/components/AssessmentTruth.test.jsx > Assessment evidence > identifies an immediate 3/4 attempt
+TestingLibraryElementError: Unable to find an element with the text: /Attempt #7/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"grid gap-5 lg:grid-cols-2"[39m
+    [36m>[39m
+      [36m<section>[39m
+        [36m<h3[39m
+          [33mclass[39m=[32m"font-semibold text-slate-900 dark:text-slate-100"[39m
+        [36m>[39m
+          [0mWeekly Roadmap[0m
+        [36m</h3>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"mt-2 space-y-2"[39m
+        [36m/>[39m
+      [36m</section>[39m
+      [36m<section>[39m
+        [36m<h3[39m
+          [33mclass[39m=[32m"font-semibold text-slate-900 dark:text-slate-100"[39m
+        [36m>[39m
+          [0mSkills Mastery[0m
+        [36m</h3>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"mt-2 space-y-2"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"rounded-lg border border-slate-200 p-3 dark:border-slate-700"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center justify-between gap-3 text-sm"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-medium"[39m
+              [36m>[39m
+                [0m1.0[0m
+                [0m · [0m
+                [0mHardware[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0m13.3[0m
+                [0m%[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"Hardware mastery"[39m
+              [33maria-valuemax[39m=[32m"100"[39m
+              [33maria-valuemin[39m=[32m"0"[39m
+              [33maria-valuenow[39m=[32m"13.3"[39m
+              [33mclass[39m=[32m"mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"[39m
+              [33mrole[39m=[32m"progressbar"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"h-full rounded-full bg-violet-600"[39m
+                [33mstyle[39m=[32m"width: 13.3%;"[39m
+              [36m/>[39m
+            [36m</div>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"mb-2 text-lg font-semibold text-blue-200"[39m
+        [36m>[39m
+          [0mQuiz[0m
+        [36m</h2>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold bg-green-100 text-green-800"[39m
+        [36m>[39m
+          [0mPassed[0m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"text-7xl font-bold"[39m
+        [36m>[39m
+          [0m4[0m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-4xl text-blue-300"[39m
+          [36m>[39m
+            [0m/[0m
+            [0m4[0m
+          [36m</span>[39m
+        [36m</p>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2 text-2xl font-semibold"[39m
+        [36m>[39m
+          [0m100[0m
+          [0m%[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"grid grid-cols-3 gap-3"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-green-600"[39m
+          [36m>[39m
+            [0m4[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mCorrect[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-red-500"[39m
+          [36m>[39m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mWrong[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-blue-600"[39m
+          [36m>[39m
+            [0m100[0m
+            [0m%[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mScore[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"text-lg font-bold text-slate-900 dark:text-slate-100"[39m
+      [36m>[39m
+        [0mAnswer Review[0m
+      [36m</h3>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-3"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"btn-secondary flex-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mTry Again[0m
+        [36m</button>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"btn-primary flex-1 text-center"[39m
+          [33mdata-discover[39m=[32m"true"[39m
+          [33mhref[39m=[32m"/"[39m
+        [36m>[39m
+          [0mContinue Learning[0m
+        [36m</a>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"mb-2 text-lg font-semibold text-blue-200"[39m
+        [36m>[39m
+          [0mQuiz[0m
+        [36m</h2>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold bg-green-100 text-green-800"[39m
+        [36m>[39m
+          [0mPassed[0m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"text-7xl font-bold"[39m
+        [36m>[39m
+          [0m3[0m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-4xl text-blue-300"[39m
+          [36m>[39m
+            [0m/[0m
+            [0m4[0m
+          [36m</span>[39m
+        [36m</p>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2 text-2xl font-semibold"[39m
+        [36m>[39m
+          [0m75[0m
+          [0m%[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"grid grid-cols-3 gap-3"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-green-600"[39m
+          [36m>[39m
+            [0m3[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mCorrect[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-red-500"[39m
+          [36m>[39m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mWrong[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-blue-600"[39m
+          [36m>[39m
+            [0m75[0m
+            [0m%[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mScore[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"text-lg font-bold text-slate-900 dark:text-slate-100"[39m
+      [36m>[39m
+        [0mAnswer Review[0m
+      [36m</h3>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-3"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"btn-secondary flex-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mTry Again[0m
+        [36m</button>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"btn-primary flex-1 text-center"[39m
+          [33mdata-discover[39m=[32m"true"[39m
+          [33mhref[39m=[32m"/"[39m
+        [36m>[39m
+          [0mContinue Learning[0m
+        [36m</a>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/AssessmentTruth.test.jsx:16:19
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/components/AssessmentTruth.test.jsx > Assessment evidence > identifies an immediate 0/4 attempt
+TestingLibraryElementError: Unable to find an element with the text: /Attempt #7/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"grid gap-5 lg:grid-cols-2"[39m
+    [36m>[39m
+      [36m<section>[39m
+        [36m<h3[39m
+          [33mclass[39m=[32m"font-semibold text-slate-900 dark:text-slate-100"[39m
+        [36m>[39m
+          [0mWeekly Roadmap[0m
+        [36m</h3>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"mt-2 space-y-2"[39m
+        [36m/>[39m
+      [36m</section>[39m
+      [36m<section>[39m
+        [36m<h3[39m
+          [33mclass[39m=[32m"font-semibold text-slate-900 dark:text-slate-100"[39m
+        [36m>[39m
+          [0mSkills Mastery[0m
+        [36m</h3>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"mt-2 space-y-2"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"rounded-lg border border-slate-200 p-3 dark:border-slate-700"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center justify-between gap-3 text-sm"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-medium"[39m
+              [36m>[39m
+                [0m1.0[0m
+                [0m · [0m
+                [0mHardware[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0m13.3[0m
+                [0m%[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"Hardware mastery"[39m
+              [33maria-valuemax[39m=[32m"100"[39m
+              [33maria-valuemin[39m=[32m"0"[39m
+              [33maria-valuenow[39m=[32m"13.3"[39m
+              [33mclass[39m=[32m"mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"[39m
+              [33mrole[39m=[32m"progressbar"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"h-full rounded-full bg-violet-600"[39m
+                [33mstyle[39m=[32m"width: 13.3%;"[39m
+              [36m/>[39m
+            [36m</div>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"mb-2 text-lg font-semibold text-blue-200"[39m
+        [36m>[39m
+          [0mQuiz[0m
+        [36m</h2>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold bg-green-100 text-green-800"[39m
+        [36m>[39m
+          [0mPassed[0m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"text-7xl font-bold"[39m
+        [36m>[39m
+          [0m4[0m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-4xl text-blue-300"[39m
+          [36m>[39m
+            [0m/[0m
+            [0m4[0m
+          [36m</span>[39m
+        [36m</p>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2 text-2xl font-semibold"[39m
+        [36m>[39m
+          [0m100[0m
+          [0m%[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"grid grid-cols-3 gap-3"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-green-600"[39m
+          [36m>[39m
+            [0m4[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mCorrect[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-red-500"[39m
+          [36m>[39m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mWrong[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-blue-600"[39m
+          [36m>[39m
+            [0m100[0m
+            [0m%[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mScore[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"text-lg font-bold text-slate-900 dark:text-slate-100"[39m
+      [36m>[39m
+        [0mAnswer Review[0m
+      [36m</h3>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-3"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"btn-secondary flex-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mTry Again[0m
+        [36m</button>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"btn-primary flex-1 text-center"[39m
+          [33mdata-discover[39m=[32m"true"[39m
+          [33mhref[39m=[32m"/"[39m
+        [36m>[39m
+          [0mContinue Learning[0m
+        [36m</a>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"mb-2 text-lg font-semibold text-blue-200"[39m
+        [36m>[39m
+          [0mQuiz[0m
+        [36m</h2>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold bg-green-100 text-green-800"[39m
+        [36m>[39m
+          [0mPassed[0m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"text-7xl font-bold"[39m
+        [36m>[39m
+          [0m3[0m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-4xl text-blue-300"[39m
+          [36m>[39m
+            [0m/[0m
+            [0m4[0m
+          [36m</span>[39m
+        [36m</p>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2 text-2xl font-semibold"[39m
+        [36m>[39m
+          [0m75[0m
+          [0m%[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"grid grid-cols-3 gap-3"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-green-600"[39m
+          [36m>[39m
+            [0m3[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mCorrect[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-red-500"[39m
+          [36m>[39m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mWrong[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-blue-600"[39m
+          [36m>[39m
+            [0m75[0m
+            [0m%[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mScore[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"text-lg font-bold text-slate-900 dark:text-slate-100"[39m
+      [36m>[39m
+        [0mAnswer Review[0m
+      [36m</h3>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-3"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"btn-secondary flex-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mTry Again[0m
+        [36m</button>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"btn-primary flex-1 text-center"[39m
+          [33mdata-discover[39m=[32m"true"[39m
+          [33mhref[39m=[32m"/"[39m
+        [36m>[39m
+          [0mContinue Learning[0m
+        [36m</a>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"mb-2 text-lg font-semibold text-blue-200"[39m
+        [36m>[39m
+          [0mQuiz[0m
+        [36m</h2>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold bg-amber-100 text-amber-900"[39m
+        [36m>[39m
+          [0mNot passed[0m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"text-7xl font-bold"[39m
+        [36m>[39m
+          [0m0[0m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-4xl text-blue-300"[39m
+          [36m>[39m
+            [0m/[0m
+            [0m4[0m
+          [36m</span>[39m
+        [36m</p>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2 text-2xl font-semibold"[39m
+        [36m>[39m
+          [0m0[0m
+          [0m%[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"grid grid-cols-3 gap-3"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-green-600"[39m
+          [36m>[39m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mCorrect[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-red-500"[39m
+          [36m>[39m
+            [0m4[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mWrong[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-blue-600"[39m
+          [36m>[39m
+            [0m0[0m
+            [0m%[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mScore[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"text-lg font-bold text-slate-900 dark:text-slate-100"[39m
+      [36m>[39m
+        [0mAnswer Review[0m
+      [36m</h3>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-3"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"btn-secondary flex-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mTry Again[0m
+        [36m</button>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"btn-primary flex-1 text-center"[39m
+          [33mdata-discover[39m=[32m"true"[39m
+          [33mhref[39m=[32m"/"[39m
+        [36m>[39m
+          [0mContinue Learning[0m
+        [36m</a>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/AssessmentTruth.test.jsx:16:19
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/components/AssessmentTruth.test.jsx > Assessment evidence > identifies an immediate 3/6 attempt
+TestingLibraryElementError: Unable to find an element with the text: /Attempt #7/. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"grid gap-5 lg:grid-cols-2"[39m
+    [36m>[39m
+      [36m<section>[39m
+        [36m<h3[39m
+          [33mclass[39m=[32m"font-semibold text-slate-900 dark:text-slate-100"[39m
+        [36m>[39m
+          [0mWeekly Roadmap[0m
+        [36m</h3>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"mt-2 space-y-2"[39m
+        [36m/>[39m
+      [36m</section>[39m
+      [36m<section>[39m
+        [36m<h3[39m
+          [33mclass[39m=[32m"font-semibold text-slate-900 dark:text-slate-100"[39m
+        [36m>[39m
+          [0mSkills Mastery[0m
+        [36m</h3>[39m
+        [36m<ul[39m
+          [33mclass[39m=[32m"mt-2 space-y-2"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"rounded-lg border border-slate-200 p-3 dark:border-slate-700"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center justify-between gap-3 text-sm"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-medium"[39m
+              [36m>[39m
+                [0m1.0[0m
+                [0m · [0m
+                [0mHardware[0m
+              [36m</span>[39m
+              [36m<span>[39m
+                [0m13.3[0m
+                [0m%[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"Hardware mastery"[39m
+              [33maria-valuemax[39m=[32m"100"[39m
+              [33maria-valuemin[39m=[32m"0"[39m
+              [33maria-valuenow[39m=[32m"13.3"[39m
+              [33mclass[39m=[32m"mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"[39m
+              [33mrole[39m=[32m"progressbar"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"h-full rounded-full bg-violet-600"[39m
+                [33mstyle[39m=[32m"width: 13.3%;"[39m
+              [36m/>[39m
+            [36m</div>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</section>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"mb-2 text-lg font-semibold text-blue-200"[39m
+        [36m>[39m
+          [0mQuiz[0m
+        [36m</h2>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold bg-green-100 text-green-800"[39m
+        [36m>[39m
+          [0mPassed[0m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"text-7xl font-bold"[39m
+        [36m>[39m
+          [0m4[0m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-4xl text-blue-300"[39m
+          [36m>[39m
+            [0m/[0m
+            [0m4[0m
+          [36m</span>[39m
+        [36m</p>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2 text-2xl font-semibold"[39m
+        [36m>[39m
+          [0m100[0m
+          [0m%[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"grid grid-cols-3 gap-3"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-green-600"[39m
+          [36m>[39m
+            [0m4[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mCorrect[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-red-500"[39m
+          [36m>[39m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mWrong[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-blue-600"[39m
+          [36m>[39m
+            [0m100[0m
+            [0m%[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mScore[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"text-lg font-bold text-slate-900 dark:text-slate-100"[39m
+      [36m>[39m
+        [0mAnswer Review[0m
+      [36m</h3>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-3"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"btn-secondary flex-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mTry Again[0m
+        [36m</button>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"btn-primary flex-1 text-center"[39m
+          [33mdata-discover[39m=[32m"true"[39m
+          [33mhref[39m=[32m"/"[39m
+        [36m>[39m
+          [0mContinue Learning[0m
+        [36m</a>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"mb-2 text-lg font-semibold text-blue-200"[39m
+        [36m>[39m
+          [0mQuiz[0m
+        [36m</h2>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold bg-green-100 text-green-800"[39m
+        [36m>[39m
+          [0mPassed[0m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"text-7xl font-bold"[39m
+        [36m>[39m
+          [0m3[0m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-4xl text-blue-300"[39m
+          [36m>[39m
+            [0m/[0m
+            [0m4[0m
+          [36m</span>[39m
+        [36m</p>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2 text-2xl font-semibold"[39m
+        [36m>[39m
+          [0m75[0m
+          [0m%[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"grid grid-cols-3 gap-3"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-green-600"[39m
+          [36m>[39m
+            [0m3[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mCorrect[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-red-500"[39m
+          [36m>[39m
+            [0m1[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mWrong[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-blue-600"[39m
+          [36m>[39m
+            [0m75[0m
+            [0m%[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mScore[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"text-lg font-bold text-slate-900 dark:text-slate-100"[39m
+      [36m>[39m
+        [0mAnswer Review[0m
+      [36m</h3>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-3"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"btn-secondary flex-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mTry Again[0m
+        [36m</button>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"btn-primary flex-1 text-center"[39m
+          [33mdata-discover[39m=[32m"true"[39m
+          [33mhref[39m=[32m"/"[39m
+        [36m>[39m
+          [0mContinue Learning[0m
+        [36m</a>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"mb-2 text-lg font-semibold text-blue-200"[39m
+        [36m>[39m
+          [0mQuiz[0m
+        [36m</h2>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold bg-amber-100 text-amber-900"[39m
+        [36m>[39m
+          [0mNot passed[0m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"text-7xl font-bold"[39m
+        [36m>[39m
+          [0m0[0m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-4xl text-blue-300"[39m
+          [36m>[39m
+            [0m/[0m
+            [0m4[0m
+          [36m</span>[39m
+        [36m</p>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2 text-2xl font-semibold"[39m
+        [36m>[39m
+          [0m0[0m
+          [0m%[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"grid grid-cols-3 gap-3"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-green-600"[39m
+          [36m>[39m
+            [0m0[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mCorrect[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-red-500"[39m
+          [36m>[39m
+            [0m4[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mWrong[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-blue-600"[39m
+          [36m>[39m
+            [0m0[0m
+            [0m%[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mScore[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"text-lg font-bold text-slate-900 dark:text-slate-100"[39m
+      [36m>[39m
+        [0mAnswer Review[0m
+      [36m</h3>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-3"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"btn-secondary flex-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mTry Again[0m
+        [36m</button>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"btn-primary flex-1 text-center"[39m
+          [33mdata-discover[39m=[32m"true"[39m
+          [33mhref[39m=[32m"/"[39m
+        [36m>[39m
+          [0mContinue Learning[0m
+        [36m</a>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"space-y-4"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"[39m
+      [36m>[39m
+        [36m<h2[39m
+          [33mclass[39m=[32m"mb-2 text-lg font-semibold text-blue-200"[39m
+        [36m>[39m
+          [0mQuiz[0m
+        [36m</h2>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold bg-amber-100 text-amber-900"[39m
+        [36m>[39m
+          [0mNot passed[0m
+        [36m</div>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"text-7xl font-bold"[39m
+        [36m>[39m
+          [0m3[0m
+          [36m<span[39m
+            [33mclass[39m=[32m"text-4xl text-blue-300"[39m
+          [36m>[39m
+            [0m/[0m
+            [0m6[0m
+          [36m</span>[39m
+        [36m</p>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"mt-2 text-2xl font-semibold"[39m
+        [36m>[39m
+          [0m50[0m
+          [0m%[0m
+        [36m</p>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"grid grid-cols-3 gap-3"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-green-600"[39m
+          [36m>[39m
+            [0m3[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mCorrect[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-red-500"[39m
+          [36m>[39m
+            [0m3[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mWrong[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-2xl font-bold text-blue-600"[39m
+          [36m>[39m
+            [0m50[0m
+            [0m%[0m
+          [36m</p>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"text-xs text-slate-500"[39m
+          [36m>[39m
+            [0mScore[0m
+          [36m</p>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<h3[39m
+        [33mclass[39m=[32m"text-lg font-bold text-slate-900 dark:text-slate-100"[39m
+      [36m>[39m
+        [0mAnswer Review[0m
+      [36m</h3>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"flex gap-3"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33mclass[39m=[32m"btn-secondary flex-1"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mTry Again[0m
+        [36m</button>[39m
+        [36m<a[39m
+          [33mclass[39m=[32m"btn-primary flex-1 text-center"[39m
+          [33mdata-discover[39m=[32m"true"[39m
+          [33mhref[39m=[32m"/"[39m
+        [36m>[39m
+          [0mContinue Learning[0m
+        [36m</a>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../../nexus-admin-academy/frontend/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/components/AssessmentTruth.test.jsx:16:19
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed (5)
+   Start at  00:28:03
+   Duration  1.09s (transform 108ms, setup 83ms, import 276ms, tests 53ms, environment 580ms)

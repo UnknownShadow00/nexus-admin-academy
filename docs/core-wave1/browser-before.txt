@@ -1,0 +1,80 @@
+
+Running 2 tests using 1 worker
+
+(node:2276210) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/e2e/core-wave1-truth.spec.js:22:1 › Today reports 4/4 as 100 percent (6.4s)
+(node:2276566) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 tests/e2e/core-wave1-truth.spec.js:31:1 › failure then pass reopens the latest attempt (6.6s)
+
+
+  1) tests/e2e/core-wave1-truth.spec.js:22:1 › Today reports 4/4 as 100 percent ────────────────────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText(/Score 100%/).first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByText(/Score 100%/).first()
+
+
+      27 |   await page.goto('/');
+      28 |   await shot(page,'today-after-pass');
+    > 29 |   await expect(page.getByText(/Score 100%/).first()).toBeVisible();
+         |                                                      ^
+      30 | });
+      31 | test('failure then pass reopens the latest attempt', async ({page}) => {
+      32 |   await login(page);
+        at /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/frontend/tests/e2e/core-wave1-truth.spec.js:29:54
+
+    Error Context: test-results/core-wave1-truth-Today-reports-4-4-as-100-percent/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/core-wave1-truth-Today-reports-4-4-as-100-percent/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/core-wave1-truth-Today-reports-4-4-as-100-percent/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) tests/e2e/core-wave1-truth.spec.js:31:1 › failure then pass reopens the latest attempt ────────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('100%', { exact: true }).first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByText('100%', { exact: true }).first()
+
+
+      37 |   await page.goto('/quizzes/2/review');
+      38 |   await shot(page,'saved-review');
+    > 39 |   await expect(page.getByText('100%',{exact:true}).first()).toBeVisible();
+         |                                                             ^
+      40 |   await expect(page.getByText(/Latest attempt/)).toBeVisible();
+      41 | });
+      42 |
+        at /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/frontend/tests/e2e/core-wave1-truth.spec.js:39:61
+
+    Error Context: test-results/core-wave1-truth-failure-t-6ce4b--reopens-the-latest-attempt/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/core-wave1-truth-failure-t-6ce4b--reopens-the-latest-attempt/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/core-wave1-truth-failure-t-6ce4b--reopens-the-latest-attempt/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2 failed
+    tests/e2e/core-wave1-truth.spec.js:22:1 › Today reports 4/4 as 100 percent ─────────────────────
+    tests/e2e/core-wave1-truth.spec.js:31:1 › failure then pass reopens the latest attempt ─────────

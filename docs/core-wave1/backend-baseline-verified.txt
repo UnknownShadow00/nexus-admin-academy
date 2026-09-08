@@ -1,0 +1,464 @@
+FFFFFFFFFFFFFFF                                                          [100%]
+=================================== FAILURES ===================================
+___________________ test_attempt_and_today_contract[4-4-100] ___________________
+
+db = <sqlalchemy.orm.session.Session object at 0x736250c09c90>, count = 4
+total = 4, percentage = 100
+
+    @pytest.mark.parametrize(
+        "count,total,percentage",
+        [(4, 4, 100), (3, 4, 75), (0, 4, 0), (2, 2, 100), (3, 6, 50)],
+    )
+    def test_attempt_and_today_contract(db, count, total, percentage):
+        student = make_student(db)
+        quiz = seed(db, total)
+        result = submit(student, quiz, count)
+        activity = client.get(
+            f"/api/students/{student.id}/stats", headers=auth_headers(student)
+        ).json()["recent_activity"][0]
+>       assert activity.get("percentage") == percentage, activity
+E       AssertionError: {'type': 'quiz', 'title': 'Truth quiz 4', 'score': 4, 'xp': 100, ...}
+E       assert None == 100
+E        +  where None = <built-in method get of dict object at 0x73624feaf780>('percentage')
+E        +    where <built-in method get of dict object at 0x73624feaf780> = {'type': 'quiz', 'title': 'Truth quiz 4', 'score': 4, 'xp': 100, ...}.get
+
+activity   = {'type': 'quiz', 'title': 'Truth quiz 4', 'score': 4, 'xp': 100, ...}
+count      = 4
+db         = <sqlalchemy.orm.session.Session object at 0x736250c09c90>
+percentage = 100
+quiz       = <app.models.quiz.Quiz object at 0x736250914650>
+result     = {'score': 4, 'total': 4, 'xp_awarded': 100, 'is_first_attempt': True, ...}
+student    = <app.models.student.Student object at 0x73625105c8d0>
+total      = 4
+
+tests/test_core_wave1_truth.py:72: AssertionError
+___________________ test_attempt_and_today_contract[3-4-75] ____________________
+
+db = <sqlalchemy.orm.session.Session object at 0x736250bdbb90>, count = 3
+total = 4, percentage = 75
+
+    @pytest.mark.parametrize(
+        "count,total,percentage",
+        [(4, 4, 100), (3, 4, 75), (0, 4, 0), (2, 2, 100), (3, 6, 50)],
+    )
+    def test_attempt_and_today_contract(db, count, total, percentage):
+        student = make_student(db)
+        quiz = seed(db, total)
+        result = submit(student, quiz, count)
+        activity = client.get(
+            f"/api/students/{student.id}/stats", headers=auth_headers(student)
+        ).json()["recent_activity"][0]
+>       assert activity.get("percentage") == percentage, activity
+E       AssertionError: {'type': 'quiz', 'title': 'Truth quiz 4', 'score': 3, 'xp': 75, ...}
+E       assert None == 75
+E        +  where None = <built-in method get of dict object at 0x73624f5de500>('percentage')
+E        +    where <built-in method get of dict object at 0x73624f5de500> = {'type': 'quiz', 'title': 'Truth quiz 4', 'score': 3, 'xp': 75, ...}.get
+
+activity   = {'type': 'quiz', 'title': 'Truth quiz 4', 'score': 3, 'xp': 75, ...}
+count      = 3
+db         = <sqlalchemy.orm.session.Session object at 0x736250bdbb90>
+percentage = 75
+quiz       = <app.models.quiz.Quiz object at 0x73624f55bfd0>
+result     = {'score': 3, 'total': 4, 'xp_awarded': 75, 'is_first_attempt': True, ...}
+student    = <app.models.student.Student object at 0x73624feafad0>
+total      = 4
+
+tests/test_core_wave1_truth.py:72: AssertionError
+____________________ test_attempt_and_today_contract[0-4-0] ____________________
+
+db = <sqlalchemy.orm.session.Session object at 0x73624f543050>, count = 0
+total = 4, percentage = 0
+
+    @pytest.mark.parametrize(
+        "count,total,percentage",
+        [(4, 4, 100), (3, 4, 75), (0, 4, 0), (2, 2, 100), (3, 6, 50)],
+    )
+    def test_attempt_and_today_contract(db, count, total, percentage):
+        student = make_student(db)
+        quiz = seed(db, total)
+        result = submit(student, quiz, count)
+        activity = client.get(
+            f"/api/students/{student.id}/stats", headers=auth_headers(student)
+        ).json()["recent_activity"][0]
+>       assert activity.get("percentage") == percentage, activity
+E       AssertionError: {'type': 'quiz', 'title': 'Truth quiz 4', 'score': 0, 'xp': 0, ...}
+E       assert None == 0
+E        +  where None = <built-in method get of dict object at 0x73624f437d00>('percentage')
+E        +    where <built-in method get of dict object at 0x73624f437d00> = {'type': 'quiz', 'title': 'Truth quiz 4', 'score': 0, 'xp': 0, ...}.get
+
+activity   = {'type': 'quiz', 'title': 'Truth quiz 4', 'score': 0, 'xp': 0, ...}
+count      = 0
+db         = <sqlalchemy.orm.session.Session object at 0x73624f543050>
+percentage = 0
+quiz       = <app.models.quiz.Quiz object at 0x736250ad4190>
+result     = {'score': 0, 'total': 4, 'xp_awarded': 0, 'is_first_attempt': True, ...}
+student    = <app.models.student.Student object at 0x7362507d72d0>
+total      = 4
+
+tests/test_core_wave1_truth.py:72: AssertionError
+___________________ test_attempt_and_today_contract[2-2-100] ___________________
+
+db = <sqlalchemy.orm.session.Session object at 0x73624fe7ad10>, count = 2
+total = 2, percentage = 100
+
+    @pytest.mark.parametrize(
+        "count,total,percentage",
+        [(4, 4, 100), (3, 4, 75), (0, 4, 0), (2, 2, 100), (3, 6, 50)],
+    )
+    def test_attempt_and_today_contract(db, count, total, percentage):
+        student = make_student(db)
+        quiz = seed(db, total)
+        result = submit(student, quiz, count)
+        activity = client.get(
+            f"/api/students/{student.id}/stats", headers=auth_headers(student)
+        ).json()["recent_activity"][0]
+>       assert activity.get("percentage") == percentage, activity
+E       AssertionError: {'type': 'quiz', 'title': 'Truth quiz 2', 'score': 2, 'xp': 100, ...}
+E       assert None == 100
+E        +  where None = <built-in method get of dict object at 0x73624fe9c300>('percentage')
+E        +    where <built-in method get of dict object at 0x73624fe9c300> = {'type': 'quiz', 'title': 'Truth quiz 2', 'score': 2, 'xp': 100, ...}.get
+
+activity   = {'type': 'quiz', 'title': 'Truth quiz 2', 'score': 2, 'xp': 100, ...}
+count      = 2
+db         = <sqlalchemy.orm.session.Session object at 0x73624fe7ad10>
+percentage = 100
+quiz       = <app.models.quiz.Quiz object at 0x736250d94d10>
+result     = {'score': 2, 'total': 2, 'xp_awarded': 100, 'is_first_attempt': True, ...}
+student    = <app.models.student.Student object at 0x73624f541e90>
+total      = 2
+
+tests/test_core_wave1_truth.py:72: AssertionError
+___________________ test_attempt_and_today_contract[3-6-50] ____________________
+
+db = <sqlalchemy.orm.session.Session object at 0x736250ba1810>, count = 3
+total = 6, percentage = 50
+
+    @pytest.mark.parametrize(
+        "count,total,percentage",
+        [(4, 4, 100), (3, 4, 75), (0, 4, 0), (2, 2, 100), (3, 6, 50)],
+    )
+    def test_attempt_and_today_contract(db, count, total, percentage):
+        student = make_student(db)
+        quiz = seed(db, total)
+        result = submit(student, quiz, count)
+        activity = client.get(
+            f"/api/students/{student.id}/stats", headers=auth_headers(student)
+        ).json()["recent_activity"][0]
+>       assert activity.get("percentage") == percentage, activity
+E       AssertionError: {'type': 'quiz', 'title': 'Truth quiz 6', 'score': 3, 'xp': 50, ...}
+E       assert None == 50
+E        +  where None = <built-in method get of dict object at 0x73624f5e89c0>('percentage')
+E        +    where <built-in method get of dict object at 0x73624f5e89c0> = {'type': 'quiz', 'title': 'Truth quiz 6', 'score': 3, 'xp': 50, ...}.get
+
+activity   = {'type': 'quiz', 'title': 'Truth quiz 6', 'score': 3, 'xp': 50, ...}
+count      = 3
+db         = <sqlalchemy.orm.session.Session object at 0x736250ba1810>
+percentage = 50
+quiz       = <app.models.quiz.Quiz object at 0x736250ad6cd0>
+result     = {'score': 3, 'total': 6, 'xp_awarded': 50, 'is_first_attempt': True, ...}
+student    = <app.models.student.Student object at 0x73624fee2f10>
+total      = 6
+
+tests/test_core_wave1_truth.py:72: AssertionError
+_______________________ test_failed_event_is_not_passed ________________________
+
+db = <sqlalchemy.orm.session.Session object at 0x736250bb3050>
+
+    def test_failed_event_is_not_passed(db):
+        student = make_student(db)
+        submit(student, seed(db), 0)
+>       assert [r.activity_type for r in db.query(SquadActivity).all()] == ["quiz_failed"]
+E       AssertionError: assert ['quiz_passed'] == ['quiz_failed']
+E
+E         At index 0 diff: 'quiz_passed' != 'quiz_failed'
+E         Use -v to get more diff
+
+db         = <sqlalchemy.orm.session.Session object at 0x736250bb3050>
+student    = <app.models.student.Student object at 0x736250c0be10>
+
+tests/test_core_wave1_truth.py:89: AssertionError
+__________________ test_latest_review_and_historical_identity __________________
+
+db = <sqlalchemy.orm.session.Session object at 0x736250bb3210>
+
+    def test_latest_review_and_historical_identity(db):
+        student = make_student(db)
+        quiz = seed(db)
+        submit(student, quiz, 0)
+        submit(student, quiz, 4)
+        rows = db.query(QuizAttempt).order_by(QuizAttempt.id).all()
+        url = f"/api/quizzes/{quiz.id}/review/{student.id}"
+        latest = client.get(url, headers=auth_headers(student)).json()["data"]
+>       assert latest["score"] == 4, latest
+E       AssertionError: {'quiz_id': 1, 'title': 'Truth quiz 4', 'score': 0, 'total': 4, ...}
+E       assert 0 == 4
+
+db         = <sqlalchemy.orm.session.Session object at 0x736250bb3210>
+latest     = {'quiz_id': 1, 'title': 'Truth quiz 4', 'score': 0, 'total': 4, ...}
+quiz       = <app.models.quiz.Quiz object at 0x73624f5dedd0>
+rows       = [<app.models.quiz.QuizAttempt object at 0x73624f435e50>, <app.models.quiz.QuizAttempt object at 0x73624f40b410>]
+student    = <app.models.student.Student object at 0x7362515bad90>
+url        = '/api/quizzes/1/review/1'
+
+tests/test_core_wave1_truth.py:100: AssertionError
+____________________ test_mixed_sizes_no_competency_number _____________________
+
+db = <sqlalchemy.orm.session.Session object at 0x73624f413710>
+
+    def test_mixed_sizes_no_competency_number(db):
+        student = make_student(db)
+        submit(student, seed(db, 2), 2)
+        submit(student, seed(db, 6), 6)
+        diagnostics = list_student_mastery(db, student.id)
+>       assert all(
+            row.get("metric_kind") == "legacy_internal_non_competency"
+            for row in diagnostics
+        ), diagnostics
+E       AssertionError: [{'domain_id': '1.0', 'domain_name': 'Hardware', 'mastery_percent': 13.3, 'quiz_attempts': 2, ...}]
+E       assert False
+E        +  where False = all(<generator object test_mixed_sizes_no_competency_number.<locals>.<genexpr> at 0x73625079c3c0>)
+
+db         = <sqlalchemy.orm.session.Session object at 0x73624f413710>
+diagnostics = [{'domain_id': '1.0', 'domain_name': 'Hardware', 'mastery_percent': 13.3, 'quiz_attempts': 2, ...}]
+student    = <app.models.student.Student object at 0x7362507ed310>
+
+tests/test_core_wave1_truth.py:114: AssertionError
+__________________ test_admin_average_has_explicit_percentage __________________
+
+db = <sqlalchemy.orm.session.Session object at 0x73624fedc910>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x736251946790>
+
+    def test_admin_average_has_explicit_percentage(db, monkeypatch):
+        monkeypatch.setenv("ADMIN_API_KEY", "disposable-test-key")
+        student = make_student(db)
+        submit(student, seed(db, 2), 2)
+        submit(student, seed(db, 6), 6)
+        row = client.get(
+            "/api/admin/students/overview", headers={"X-Admin-Key": "disposable-test-key"}
+        ).json()["data"][0]
+>       assert row.get("average_attempt_percentage") == 100, row
+E       AssertionError: {'rank': 1, 'student_id': 1, 'name': 'Test Student', 'email': 'student1@test.local', ...}
+E       assert None == 100
+E        +  where None = <built-in method get of dict object at 0x73624f455780>('average_attempt_percentage')
+E        +    where <built-in method get of dict object at 0x73624f455780> = {'rank': 1, 'student_id': 1, 'name': 'Test Student', 'email': 'student1@test.local', ...}.get
+
+db         = <sqlalchemy.orm.session.Session object at 0x73624fedc910>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x736251946790>
+row        = {'rank': 1, 'student_id': 1, 'name': 'Test Student', 'email': 'student1@test.local', ...}
+student    = <app.models.student.Student object at 0x736251947690>
+
+tests/test_core_wave1_truth.py:128: AssertionError
+__________ test_pass_then_fail_and_changed_bank_preserves_earned_pass __________
+
+db = <sqlalchemy.orm.session.Session object at 0x736251947fd0>
+
+    def test_pass_then_fail_and_changed_bank_preserves_earned_pass(db):
+        student = make_student(db)
+        quiz = seed(db)
+        submit(student, quiz, 4)
+        submit(student, quiz, 0)
+        for i in range(5):
+            db.add(
+                Question(
+                    quiz_id=quiz.id,
+                    question_text=f"New {i}",
+                    option_a="Correct",
+                    option_b="Wrong",
+                    correct_answer="A",
+                )
+            )
+        db.commit()
+        db.expire_all()
+>       assert is_quiz_passed(db, student.id, quiz)
+E       assert False
+E        +  where False = is_quiz_passed(<sqlalchemy.orm.session.Session object at 0x736251947fd0>, 1, <app.models.quiz.Quiz object at 0x73624f5627d0>)
+E        +    where 1 = <app.models.student.Student object at 0x73624f40b590>.id
+
+db         = <sqlalchemy.orm.session.Session object at 0x736251947fd0>
+i          = 4
+quiz       = <app.models.quiz.Quiz object at 0x73624f5627d0>
+student    = <app.models.student.Student object at 0x73624f40b590>
+
+tests/test_core_wave1_truth.py:148: AssertionError
+________________ test_no_attempts_and_foreign_attempt_selection ________________
+
+db = <sqlalchemy.orm.session.Session object at 0x73624fedc910>
+
+    def test_no_attempts_and_foreign_attempt_selection(db):
+        student = make_student(db)
+        other = make_student(db, "other")
+        quiz = seed(db)
+        url = f"/api/quizzes/{quiz.id}/review/{student.id}"
+        assert client.get(url, headers=auth_headers(student)).status_code == 404
+        submit(other, quiz, 4)
+        foreign_id = db.query(QuizAttempt).one().id
+        submit(student, quiz, 0)
+>       assert (
+            client.get(
+                url, params={"attempt_id": foreign_id}, headers=auth_headers(student)
+            ).status_code
+            == 404
+        )
+E       AssertionError: assert 200 == 404
+E        +  where 200 = <Response [200 OK]>.status_code
+E        +    where <Response [200 OK]> = get('/api/quizzes/1/review/1', params={'attempt_id': 1}, headers={'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZSI6IlRlc3QgU3R1ZGVudCIsImVtYWlsIjo...I6ZmFsc2UsImV4cCI6MTc4ODkxNDI0MX0.Dm5J4Vx0xQQR03U-Htv6cmFUgzbZv3nwZu8oUV_996k', 'X-Nexus-Service-Desk-Contract': '2.0'})
+E        +      where get = <starlette.testclient.TestClient object at 0x736250ba0410>.get
+E        +      and   {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZSI6IlRlc3QgU3R1ZGVudCIsImVtYWlsIjo...I6ZmFsc2UsImV4cCI6MTc4ODkxNDI0MX0.Dm5J4Vx0xQQR03U-Htv6cmFUgzbZv3nwZu8oUV_996k', 'X-Nexus-Service-Desk-Contract': '2.0'} = auth_headers(<app.models.student.Student object at 0x73624f44efd0>)
+
+db         = <sqlalchemy.orm.session.Session object at 0x73624fedc910>
+foreign_id = 1
+other      = <app.models.student.Student object at 0x73624f5dc110>
+quiz       = <app.models.quiz.Quiz object at 0x73624feafad0>
+student    = <app.models.student.Student object at 0x73624f44efd0>
+url        = '/api/quizzes/1/review/1'
+
+tests/test_core_wave1_truth.py:167: AssertionError
+_________________ test_equal_timestamp_latest_tie_breaks_by_id _________________
+
+db = <sqlalchemy.orm.session.Session object at 0x73624f41f210>
+
+    def test_equal_timestamp_latest_tie_breaks_by_id(db):
+        from datetime import datetime
+
+        student = make_student(db)
+        quiz = seed(db)
+        submit(student, quiz, 4)
+        submit(student, quiz, 0)
+        db.query(QuizAttempt).update({"completed_at": datetime(2026, 9, 8)})
+        db.commit()
+        data = client.get(
+            f"/api/quizzes/{quiz.id}/review/{student.id}", headers=auth_headers(student)
+        ).json()["data"]
+>       assert data["score"] == 0
+E       assert 4 == 0
+
+data       = {'quiz_id': 1, 'title': 'Truth quiz 4', 'score': 4, 'total': 4, ...}
+datetime   = <class 'datetime.datetime'>
+db         = <sqlalchemy.orm.session.Session object at 0x73624f41f210>
+quiz       = <app.models.quiz.Quiz object at 0x736251956c90>
+student    = <app.models.student.Student object at 0x73624f453250>
+
+tests/test_core_wave1_truth.py:187: AssertionError
+_________ test_legacy_row_without_snapshot_is_labeled_and_not_regraded _________
+
+db = <sqlalchemy.orm.session.Session object at 0x73624f4882d0>
+
+    def test_legacy_row_without_snapshot_is_labeled_and_not_regraded(db):
+        student = make_student(db)
+        quiz = seed(db)
+        db.add(
+            QuizAttempt(
+                student_id=student.id,
+                quiz_id=quiz.id,
+                answers={},
+                results=None,
+                score=3,
+                best_score=3,
+                xp_awarded=0,
+            )
+        )
+        db.commit()
+        data = client.get(
+            f"/api/quizzes/{quiz.id}/review/{student.id}", headers=auth_headers(student)
+        ).json()["data"]
+>       assert data["percentage"] == 75
+               ^^^^^^^^^^^^^^^^^^
+E       KeyError: 'percentage'
+
+data       = {'quiz_id': 1, 'title': 'Truth quiz 4', 'score': 3, 'total': 4, ...}
+db         = <sqlalchemy.orm.session.Session object at 0x73624f4882d0>
+quiz       = <app.models.quiz.Quiz object at 0x73624f5ea050>
+student    = <app.models.student.Student object at 0x73624fee0d50>
+
+tests/test_core_wave1_truth.py:210: KeyError
+________________ test_saved_questions_survive_bank_replacement _________________
+
+db = <sqlalchemy.orm.session.Session object at 0x73624f561b10>
+
+    def test_saved_questions_survive_bank_replacement(db):
+        student = make_student(db)
+        quiz = seed(db)
+        result = submit(student, quiz, 3)
+        old_ids = [question.id for question in quiz.questions]
+        for question in quiz.questions:
+            question.question_text = "Edited bank text"
+            question.correct_answer = "B"
+        db.commit()
+        data = client.get(
+            f"/api/quizzes/{quiz.id}/review/{student.id}", headers=auth_headers(student)
+        ).json()["data"]
+>       assert data["percentage"] == 75
+               ^^^^^^^^^^^^^^^^^^
+E       KeyError: 'percentage'
+
+data       = {'quiz_id': 1, 'title': 'Truth quiz 4', 'score': 3, 'total': 4, ...}
+db         = <sqlalchemy.orm.session.Session object at 0x73624f561b10>
+old_ids    = [1, 2, 3, 4]
+question   = <app.models.quiz.Question object at 0x73624f4d85d0>
+quiz       = <app.models.quiz.Quiz object at 0x73624f5e8690>
+result     = {'score': 3, 'total': 4, 'xp_awarded': 75, 'is_first_attempt': True, ...}
+student    = <app.models.student.Student object at 0x73624f49bdd0>
+
+tests/test_core_wave1_truth.py:228: KeyError
+____________ test_progress_and_admin_share_latest_and_best_attempts ____________
+
+db = <sqlalchemy.orm.session.Session object at 0x73624f51f550>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73624f437810>
+
+    def test_progress_and_admin_share_latest_and_best_attempts(db, monkeypatch):
+        from app.services.training_service import build_training_progress
+        from test_training_service import add_week, add_activity
+
+        monkeypatch.setenv("ADMIN_API_KEY", "disposable-test-key")
+        student = make_student(db)
+        quiz = seed(db)
+        week = add_week(db, 0)
+        add_activity(db, week, "truth-required", "quiz", quiz.id, 1)
+        db.commit()
+        passed = submit(student, quiz, 3)
+        failed = submit(student, quiz, 0)
+        progress = build_training_progress(db, student)
+>       row = progress["assessments"][0]
+              ^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'assessments'
+
+add_activity = <function add_activity at 0x73624e97cf40>
+add_week   = <function add_week at 0x73624e97cd60>
+build_training_progress = <function build_training_progress at 0x736250fda7a0>
+db         = <sqlalchemy.orm.session.Session object at 0x73624f51f550>
+failed     = {'score': 0, 'total': 4, 'xp_awarded': 0, 'is_first_attempt': False, ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73624f437810>
+passed     = {'score': 3, 'total': 4, 'xp_awarded': 75, 'is_first_attempt': True, ...}
+progress   = {'current_week': {'id': 1, 'week_number': 0, 'display_order': 0, 'title': 'Week 0', ...}, 'current_stage': {'stable_id...derstand the training workflow, evidence expectations, and first support checkpoint.', ...}, 'weeks_completed': 1, ...}
+quiz       = <app.models.quiz.Quiz object at 0x73624e85ecd0>
+student    = <app.models.student.Student object at 0x73624f541610>
+week       = <app.models.training.TrainingWeek object at 0x73624e85fc10>
+
+tests/test_core_wave1_truth.py:247: KeyError
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/fastapi/testclient.py:1
+  /tmp/core-wave1-baseline/backend/.venv/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+.venv/lib/python3.11/site-packages/passlib/utils/__init__.py:854
+  /tmp/core-wave1-baseline/backend/.venv/lib/python3.11/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_core_wave1_truth.py::test_attempt_and_today_contract[4-4-100]
+FAILED tests/test_core_wave1_truth.py::test_attempt_and_today_contract[3-4-75]
+FAILED tests/test_core_wave1_truth.py::test_attempt_and_today_contract[0-4-0]
+FAILED tests/test_core_wave1_truth.py::test_attempt_and_today_contract[2-2-100]
+FAILED tests/test_core_wave1_truth.py::test_attempt_and_today_contract[3-6-50]
+FAILED tests/test_core_wave1_truth.py::test_failed_event_is_not_passed - Asse...
+FAILED tests/test_core_wave1_truth.py::test_latest_review_and_historical_identity
+FAILED tests/test_core_wave1_truth.py::test_mixed_sizes_no_competency_number
+FAILED tests/test_core_wave1_truth.py::test_admin_average_has_explicit_percentage
+FAILED tests/test_core_wave1_truth.py::test_pass_then_fail_and_changed_bank_preserves_earned_pass
+FAILED tests/test_core_wave1_truth.py::test_no_attempts_and_foreign_attempt_selection
+FAILED tests/test_core_wave1_truth.py::test_equal_timestamp_latest_tie_breaks_by_id
+FAILED tests/test_core_wave1_truth.py::test_legacy_row_without_snapshot_is_labeled_and_not_regraded
+FAILED tests/test_core_wave1_truth.py::test_saved_questions_survive_bank_replacement
+FAILED tests/test_core_wave1_truth.py::test_progress_and_admin_share_latest_and_best_attempts
+15 failed, 2 warnings in 4.17s

@@ -1,0 +1,9 @@
+
+Running 2 tests using 1 worker
+
+(node:2316093) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 frontend/tests/e2e/p1-service-desk-workspace.spec.js:68:1 › P1 desktop curriculum shell retains note, evidence and return context across tools (4.7s)
+  ✓  2 frontend/tests/e2e/p1-service-desk-workspace.spec.js:172:1 › P1 mobile Work Evidence Notes retain drafts and fit 390px (3.5s)
+
+  2 passed (8.7s)

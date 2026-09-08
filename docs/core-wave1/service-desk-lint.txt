@@ -1,0 +1,39 @@
+
+> service-desk-app@0.1.0 lint /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app
+> turbo run lint
+
+• turbo 2.10.7
+
+   • Packages in scope: @service-desk/api, @service-desk/shared, @service-desk/simulation-engine, @service-desk/ui, @service-desk/web
+   • Running lint in 5 packages
+   • Remote caching disabled, using shared worktree cache
+
+@service-desk/api:lint: cache miss, executing fdf0b332f8561965
+@service-desk/shared:lint: cache miss, executing a836edf7a7688115
+@service-desk/shared:lint:
+@service-desk/shared:lint: > @service-desk/shared@0.1.0 lint /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/packages/shared
+@service-desk/shared:lint: > eslint . --max-warnings=0
+@service-desk/shared:lint:
+@service-desk/api:lint:
+@service-desk/api:lint: > @service-desk/api@0.1.0 lint /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/apps/api
+@service-desk/api:lint: > eslint . --max-warnings=0
+@service-desk/api:lint:
+@service-desk/ui:lint: cache miss, executing 7fbc7e23f104eb29
+@service-desk/simulation-engine:lint: cache miss, executing e5645c20a7a0f64a
+@service-desk/ui:lint:
+@service-desk/ui:lint: > @service-desk/ui@0.1.0 lint /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/packages/ui
+@service-desk/ui:lint: > eslint . --max-warnings=0
+@service-desk/ui:lint:
+@service-desk/simulation-engine:lint:
+@service-desk/simulation-engine:lint: > @service-desk/simulation-engine@0.1.0 lint /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/packages/simulation-engine
+@service-desk/simulation-engine:lint: > eslint . --max-warnings=0
+@service-desk/simulation-engine:lint:
+@service-desk/web:lint: cache miss, executing 1ef5fcab33d1339c
+@service-desk/web:lint:
+@service-desk/web:lint: > @service-desk/web@0.1.0 lint /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/service-desk-app/apps/web
+@service-desk/web:lint: > eslint . --max-warnings=0
+@service-desk/web:lint:
+
+ Tasks:    5 successful, 5 total
+Cached:    0 cached, 5 total
+  Time:    11.422s

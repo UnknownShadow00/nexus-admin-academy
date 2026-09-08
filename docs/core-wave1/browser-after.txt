@@ -1,0 +1,11 @@
+
+Running 4 tests using 1 worker
+
+(node:2337633) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/e2e/core-wave1-truth.spec.js:58:1 › fresh failure → Today → pass → Progress → latest and historical review (5.0s)
+  ✓  2 tests/e2e/core-wave1-truth.spec.js:108:1 › 75 percent and a later failure preserve the best passing result (3.1s)
+  ✓  3 tests/e2e/core-wave1-truth.spec.js:138:1 › mixed sizes retain explicit denominators and percentages (2.0s)
+  ✓  4 tests/e2e/core-wave1-truth.spec.js:152:1 › admin learner summary has truthful units and evidence (856ms)
+
+  4 passed (11.4s)

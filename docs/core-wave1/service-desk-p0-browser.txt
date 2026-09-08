@@ -1,0 +1,8 @@
+
+Running 1 test using 1 worker
+
+(node:2316925) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 frontend/tests/e2e/p0-service-desk-beginner.spec.js:11:1 › P0 authenticated beginner: curriculum launcher, trusted work, note rejection and V2 credit (5.5s)
+
+  1 passed (5.9s)

@@ -1,0 +1,37 @@
+
+> nexus-admin-academy-frontend@1.0.0 test
+> vitest run src/components/QuizTaker.truth.test.jsx
+
+
+ RUN  v4.1.11 /opt/apps/IT TRAINING PROJECT CODE/projects/nexus-core-wave1/frontend
+
+ ❯ src/components/QuizTaker.truth.test.jsx (1 test | 1 failed) 25ms
+   × ignores a stale load that would reshuffle an active quiz 24ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/QuizTaker.truth.test.jsx > ignores a stale load that would reshuffle an active quiz
+Error: expect(element).not.toBeInTheDocument()
+
+expected document not to contain element, found <p
+  class="mb-4 font-semibold text-slate-900 dark:text-slate-100"
+>
+  1
+  .
+  Stale quiz
+</p> instead
+ ❯ src/components/QuizTaker.truth.test.jsx:17:48
+     15|   expect(screen.getByText(/Current quiz/)).toBeInTheDocument();
+     16|   await act(async () => pending[0](response('Stale quiz')));
+     17|   expect(screen.queryByText(/Stale quiz/)).not.toBeInTheDocument();
+       |                                                ^
+     18|   expect(screen.getByText(/Current quiz/)).toBeInTheDocument();
+     19| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  00:32:12
+   Duration  667ms (transform 60ms, setup 58ms, import 149ms, tests 25ms, environment 362ms)
