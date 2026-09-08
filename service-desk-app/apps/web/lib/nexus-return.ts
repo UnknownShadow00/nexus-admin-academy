@@ -3,7 +3,8 @@ const STORAGE_KEY = 'sd:nexusReturnTo';
 // Only same-origin Nexus training routes are ever accepted as a return
 // destination. Reject anything that could be turned into an open redirect
 // (absolute URLs, protocol-relative paths, javascript: links, etc.).
-const SAFE_RETURN_PATTERN = /^(?:\/training(?:\/week\/[1-9][0-9]*)?|\/learning-v2\/modules\/[a-z0-9][a-z0-9._-]*)$/i;
+const SAFE_RETURN_PATTERN =
+  /^(?:\/training(?:\/week\/[1-9][0-9]*|\/module\/[a-z0-9][a-z0-9._-]*)?|\/learning-v2\/modules\/[a-z0-9][a-z0-9._-]*)$/i;
 
 export function isSafeNexusReturnPath(
   value: string | null | undefined,
@@ -14,7 +15,9 @@ export function isSafeNexusReturnPath(
   return SAFE_RETURN_PATTERN.test(value);
 }
 
-export function nexusReturnLabel(path: string): string {
+export function nexusReturnLabel(path: string, title?: string | null): string {
+  if (title?.trim()) return `Back to ${title.trim().slice(0, 160)}`;
+  if (path.startsWith('/training/module/')) return 'Back to your module';
   if (path.startsWith('/learning-v2/modules/')) return 'Back to your module';
   const match = path.match(/^\/training\/week\/(\d+)$/);
   return match ? `Back to Week ${match[1]}` : 'Back to Training';
@@ -30,12 +33,25 @@ export function readStoredNexusReturn(): string | null {
   }
 }
 
-export function storeNexusReturn(path: string): void {
+export function storeNexusReturn(path: string, title?: string | null): void {
   if (typeof window === 'undefined') return;
   try {
     window.sessionStorage.setItem(STORAGE_KEY, path);
+    window.sessionStorage.setItem(
+      `${STORAGE_KEY}:title`,
+      title?.trim().slice(0, 160) || '',
+    );
   } catch {
     // Ignore storage failures (private browsing, quota) — the link just
     // falls back to the generic Nexus destination.
+  }
+}
+
+export function readStoredNexusReturnTitle(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.sessionStorage.getItem(`${STORAGE_KEY}:title`);
+  } catch {
+    return null;
   }
 }

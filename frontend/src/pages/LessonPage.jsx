@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 
+import ActivityAccessError from "../components/ActivityAccessError";
 import BackLink from "../components/BackLink";
 import OrientationPracticePanel from "../components/OrientationPracticePanel";
 import TicketNoteExercise from "../components/TicketNoteExercise";
@@ -117,18 +118,13 @@ export default function LessonPage() {
       .then((response) => { if (!cancelled) setLesson(response.data); })
       .catch((requestError) => {
         if (!cancelled) {
-          const locked = requestError?.response?.status === 403;
-          setError({
-            message: locked ? requestError?.userMessage || "Complete the current module's required work first." : "This lesson could not be loaded.",
-            nextRoute: requestError?.response?.data?.data?.next_action_route || "/learning-path",
-            requiredModuleTitle: requestError?.response?.data?.data?.required_module_title,
-          });
+          setError(requestError);
         }
       });
     return () => { cancelled = true; };
   }, [lessonId]);
 
-  if (error) return <main className="mx-auto max-w-3xl p-6"><BackLink className="mb-4 inline-flex items-center gap-1 text-blue-600" fallbackLabel="Learning Path" fallbackTo="/learning-path" /><div className="panel" role="alert"><h1 className="text-xl font-bold">{error.requiredModuleTitle ? `${error.requiredModuleTitle} locked` : "Lesson locked"}</h1><p className="mt-2 text-slate-700 dark:text-slate-300">{error.message}</p><Link className="btn-primary mt-4" to={error.nextRoute}>Complete remaining work</Link></div></main>;
+  if (error) return <main className="mx-auto max-w-3xl p-6"><BackLink fallbackLabel="My Course" fallbackTo="/learning-path" /><ActivityAccessError error={error} kind="Lesson" onRetry={() => window.location.reload()} /></main>;
   if (!lesson) return <main className="mx-auto max-w-4xl p-6"><div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
 
   async function markComplete() {
@@ -148,9 +144,9 @@ export default function LessonPage() {
     : null;
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-4 pb-20 sm:p-6">
-      <BackLink fallbackLabel="Learning Path" fallbackTo="/learning-path" />
+      <BackLink fallbackLabel="My Course" fallbackTo="/learning-path" />
       <header className="panel">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">{lesson.is_orientation ? "Welcome to Nexus" : lesson.module_code}</p>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">{lesson.is_orientation ? "Welcome to Nexus" : "A+ Foundations"}</p>
         <h1 className="mt-2 text-3xl font-bold">{lesson.is_orientation ? "Welcome to Nexus" : lesson.title}</h1>
         {lesson.summary ? lesson.is_orientation ? (
           <ReactMarkdown
@@ -191,6 +187,7 @@ export default function LessonPage() {
         </button>
       </section> : null}
       {lesson.is_orientation ? <OrientationPracticePanel completing={completing} onMarkComplete={markComplete} refreshKey={orientationRefresh} /> : null}
+      {lesson.is_complete ? <BackLink className="btn-primary inline-flex" fallbackLabel="Continue in My Course" fallbackTo="/learning-path" /> : null}
       <LessonNotes lessonId={lesson.id} orientation={lesson.is_orientation} />
     </main>
   );

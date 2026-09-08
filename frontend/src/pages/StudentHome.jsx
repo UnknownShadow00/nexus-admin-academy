@@ -1,6 +1,7 @@
 import { ArrowRight, BookOpen, Brain, CheckCircle2, Circle, Clock3, FlaskConical, Flame, MessageSquare, Ticket, Trophy, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { withActivityOrigin } from "../utils/activityOrigin";
 import FlashcardReviewPanel from "../components/FlashcardReviewPanel";
 import { XPBadge } from "../components/ui/Badge";
 import PageHeader from "../components/ui/PageHeader";
@@ -31,12 +32,18 @@ export function buildContinueTarget(v2Learning, training) {
     return { activityType, certification: v2.certification.name, detail: v2.module.title, estimatedMinutes: next.estimated_minutes, label, status, title: next.title, to: next.route, v2: true };
   }
   const module = training?.current_module;
-  const stage = training?.current_stage;
   const next = training?.next_activity;
-  if (!module) return { label: "Open Learning Path", to: "/learning-path", title: "Learning Path", detail: "Open your learning path." };
+  if (!module) return { label: "My Course", to: "/learning-path", title: "My Course", detail: "Open your learning path." };
   if (training.training_complete) return { label: "Review Training", to: "/learning-path", title: "Training Complete", detail: "Review completed modules or revisit course content." };
-  const fresh = module.stable_id === "module.orientation.nexus" && module.required_complete === 0;
-  return { label: fresh ? "Start Training" : "Continue Training", to: next?.destination_route || module.route, title: fresh ? "Begin Your IT Training" : "Continue where you left off", detail: `${stage?.title || "Learning Path"} — ${module.title}` };
+  const activities = training.current_module_activities || [];
+  const nextIndex = activities.findIndex((item) => item.id === next?.id);
+  const following = activities.slice(nextIndex + 1).find((item) => item.is_required && !item.complete);
+  return { label: next?.activity_type === "lesson" ? "Continue lesson" : "Continue activity",
+    to: withActivityOrigin(next?.destination_route || module.route, module.route, module.title),
+    title: next?.title || module.title, detail: `A+ Foundations · ${module.title}`,
+    why: module.stable_id === "module.orientation.nexus" ? "Learn what information a technician records so you can understand your first support case." : module.purpose || (next?.description || "").split(/[.!?]\s/)[0], estimatedMinutes: next?.estimated_minutes,
+    after: following?.title || "Return to My Course for your next module" };
+
 }
 
 export default function StudentHome() {
@@ -137,8 +144,8 @@ export default function StudentHome() {
   const requiredActivities = moduleActivities.filter((item) => item.is_required);
   const optionalActivities = moduleActivities.filter((item) => !item.is_required);
   const statChips = [
-    { label: "Total XP", value: stats.total_xp || 0, to: "/skills", Icon: Zap },
-    { label: "Day Streak", value: stats.streak || 0, to: "/skills", Icon: Flame },
+    { label: "Total XP", value: stats.total_xp || 0, to: "/progress", Icon: Zap },
+    { label: "Day Streak", value: stats.streak || 0, to: "/progress", Icon: Flame },
     { label: "Quizzes Done", value: stats.quizzes_completed || 0, to: "/quizzes", Icon: Trophy },
     { label: "Tickets Passed", value: stats.service_desk_completed || 0, to: "/service-desk", Icon: Ticket },
   ];
@@ -152,20 +159,14 @@ export default function StudentHome() {
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <PageHeader title="Today" subtitle={`${stats.name || "Student"}, here is the one thing to do next.`} />
 
+      <Link className="inline-flex font-semibold text-blue-600 dark:text-blue-400" to={v2Enabled ? "/learning-v2" : "/learning-path"}>My Course</Link>
       <section className="rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-700 p-5 text-white shadow-lg sm:p-7">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">Your next step</p>
         <h2 className="mt-2 text-2xl font-bold sm:text-3xl">{continueTarget.title}</h2>
         <p className="mt-2 text-blue-100">{continueTarget.certification ? `${continueTarget.certification} · ` : ""}{continueTarget.detail}</p>
-        {continueTarget.v2 ? <div className="mt-4 flex flex-wrap items-center gap-3"><span className="rounded-full bg-white/15 px-3 py-1 text-sm font-semibold">{continueTarget.activityType}</span><V2Status status={continueTarget.status} />{continueTarget.estimatedMinutes ? <span className="inline-flex items-center gap-1 text-sm text-blue-100"><Clock3 size={14} aria-hidden="true" />About {continueTarget.estimatedMinutes} min</span> : null}</div> : training?.next_activity ? (
-          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-white/20 bg-blue-950/20 p-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-wide text-blue-200">Next up</p>
-              <p className="mt-1 truncate font-semibold text-white">{training.next_activity.activity_label} — {training.next_activity.title}</p>
-              {training.next_activity.estimated_minutes ? <p className="mt-1 inline-flex items-center gap-1 text-xs text-blue-100"><Clock3 size={13} />About {training.next_activity.estimated_minutes} min</p> : null}
-            </div>
-            <ArrowRight className="hidden shrink-0 text-blue-200 sm:block" size={20} aria-hidden="true" />
-          </div>
-        ) : null}
+        {continueTarget.why ? <p className="mt-2 text-blue-100">{continueTarget.why}</p> : null}
+        {continueTarget.after ? <p className="mt-3 text-sm text-blue-100">After this: {continueTarget.after}.</p> : null}
+        {continueTarget.v2 ? <div className="mt-4 flex flex-wrap items-center gap-3"><span className="rounded-full bg-white/15 px-3 py-1 text-sm font-semibold">{continueTarget.activityType}</span><V2Status status={continueTarget.status} />{continueTarget.estimatedMinutes ? <span className="inline-flex items-center gap-1 text-sm text-blue-100"><Clock3 size={14} aria-hidden="true" />About {continueTarget.estimatedMinutes} min</span> : null}</div> : continueTarget.estimatedMinutes ? <p className="mt-3 inline-flex items-center gap-1 text-sm text-blue-100"><Clock3 size={14} />About {continueTarget.estimatedMinutes} min</p> : null}
         {v2Learning?.current ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{v2Learning.current.progress.lessons.completed} of {v2Learning.current.progress.lessons.total} lessons complete</span><strong>{v2Learning.current.progress.module_complete ? "Complete" : "In progress"}</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${v2Learning.current.progress.lessons.total ? Math.round(v2Learning.current.progress.lessons.completed / v2Learning.current.progress.lessons.total * 100) : 0}%` }} /></div></div> : training?.current_module ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{training.current_module.required_complete} of {training.current_module.required_total} required activities complete</span><strong>{training.current_module.completion_percent}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${training.current_module.completion_percent}%` }} /></div></div> : null}
         <Link className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 font-bold text-blue-700 hover:bg-blue-50" to={continueTarget.to}>{continueTarget.label}</Link>
       </section>
@@ -190,7 +191,7 @@ export default function StudentHome() {
         </section>
       ) : null}
 
-      {v2Enabled ? <section className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><h2 className="font-semibold">Extra practice</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">The legacy Learning Path and labs are optional during the V2 transition.</p><Link className="mt-2 inline-flex text-sm font-semibold text-blue-600 dark:text-blue-400" to="/learning-path">Open legacy Learning Path →</Link></section> : null}
+      {v2Enabled ? <section className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><h2 className="font-semibold">Extra practice</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Additional course content and labs are available for optional practice.</p><Link className="mt-2 inline-flex text-sm font-semibold text-blue-600 dark:text-blue-400" to="/learning-path">Open Course Outline →</Link></section> : null}
 
       {hasFollowUpWidgets ? (
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -267,7 +268,7 @@ export default function StudentHome() {
       <section className="panel space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Recent Activity</h2>
-          <Link className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" to="/skills">View skills</Link>
+          <Link className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" to="/progress">View progress</Link>
         </div>
         {recent.length ? recent.map((item, index) => {
           const Icon = item.type === "service_desk" ? Ticket : BookOpen;

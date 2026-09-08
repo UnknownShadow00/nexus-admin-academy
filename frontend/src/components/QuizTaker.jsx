@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { getQuiz, submitQuiz } from "../services/api";
 import QuizReviewScreen from "./QuizReviewScreen";
+import ActivityAccessError from "./ActivityAccessError";
 import Spinner from "./Spinner";
 
 const progressKey = (id) => `quiz_progress_${id}`;
@@ -83,7 +84,7 @@ export default function QuizTaker({ quizId, studentId }) {
       .catch((err) => {
         if (sequence !== loadSequence.current) return;
         const message = err?.userMessage || "Unable to load quiz";
-        setLoadError(message);
+        setLoadError(err);
         toast.error(message);
       })
       .finally(() => {
@@ -188,9 +189,10 @@ export default function QuizTaker({ quizId, studentId }) {
       else toast(message);
       setResult(res.data);
       localStorage.removeItem(progressKey(quizId));
-    } catch {
+    } catch (err) {
       toast.dismiss(toastId);
-      toast.error("Submit failed - try again");
+      if (err?.response?.data?.code === "PREREQUISITE_NOT_MET") setLoadError(err);
+      toast.error(err?.userMessage || "Submit failed - try again");
     } finally {
       setSubmitting(false);
     }
@@ -202,14 +204,7 @@ export default function QuizTaker({ quizId, studentId }) {
         <Spinner text="Loading..." />
       </div>
     );
-  if (!quiz) {
-    return (
-      <div className="panel">
-        <p role="alert" className="text-sm text-slate-600 dark:text-slate-300">{loadError || "Quiz is unavailable right now."}</p>
-        <button type="button" className="btn-primary mt-4" onClick={loadQuiz}>Try again</button>
-      </div>
-    );
-  }
+  if (loadError || !quiz) return <ActivityAccessError error={loadError} kind="Quiz" onRetry={loadQuiz} />;
   if (result) return <QuizReviewScreen quiz={quiz} result={result} onRetake={() => { setResult(null); setAnswers({}); setTimings({}); setCurrentIndex(0); questionStartRef.current = Date.now(); }} />;
 
   const shuffledQ = shuffledQuestions[currentIndex];

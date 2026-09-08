@@ -2,6 +2,7 @@ import { CheckCircle2, Circle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { withActivityOrigin } from "../utils/activityOrigin";
 import { getOrientationProgress, getWeekPlan } from "../services/api";
 
 function Step({ complete, children }) {
@@ -85,9 +86,9 @@ export default function OrientationPracticePanel({ completing, onMarkComplete, r
         </Step>
         <Step complete={steps.quiz}>
           <span className="font-semibold">Take Ticketing Systems Quiz</span>
-          <Link className="ml-7 shrink-0 font-semibold text-blue-700 underline dark:text-blue-300 sm:ml-auto" to={progress.quiz_route}>
+          {steps.lesson_completion || steps.quiz ? <Link className="ml-7 shrink-0 font-semibold text-blue-700 underline dark:text-blue-300 sm:ml-auto" to={withActivityOrigin(progress.quiz_route, "/training/module/module.orientation.nexus", "Nexus Orientation")}>
             {steps.quiz ? "Review quiz" : "Take quiz"}
-          </Link>
+          </Link> : <span className="text-sm">Complete the lesson above to unlock this quiz.</span>}
         </Step>
       </ol>
 

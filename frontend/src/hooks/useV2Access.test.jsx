@@ -13,7 +13,7 @@ describe('per-student V2 pilot visibility', () => {
     getV2Access.mockReset();
   });
 
-  it('hides My Course from a student who is not in the pilot', async () => {
+  it('routes My Course to V1 for a student outside the pilot', async () => {
     getV2Access.mockResolvedValue({
       data: { master_enabled: true, student_enabled: false, mode: 'not_enrolled' },
     });
@@ -21,8 +21,8 @@ describe('per-student V2 pilot visibility', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.studentEnabled).toBe(false);
-    const labels = buildStudentNavItems(result.current.studentEnabled).map((item) => item.label);
-    expect(labels).not.toContain('My Course');
+    const items = buildStudentNavItems(result.current.studentEnabled).flatMap((item) => item.children || [item]);
+    expect(items.find((item) => item.label === 'My Course').to).toBe('/learning-path');
   });
 
   it('shows My Course to an enrolled pilot student', async () => {
@@ -33,8 +33,7 @@ describe('per-student V2 pilot visibility', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.studentEnabled).toBe(true);
-    expect(buildStudentNavItems(result.current.studentEnabled).map((item) => item.label))
-      .toContain('My Course');
+    expect(buildStudentNavItems(result.current.studentEnabled).flatMap((item) => item.children || [item]).find((item) => item.label === 'My Course').to).toBe('/learning-v2');
   });
 
   it('fails closed when the access check errors', async () => {

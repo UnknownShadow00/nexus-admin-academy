@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 
 import { AttemptResult } from "../components/AssessmentEvidence";
+import { activityOrigin, withActivityOrigin } from "../utils/activityOrigin";
 import BackLink from "../components/BackLink";
 import { getCurrentStudent } from "../hooks/useAuth";
 import Spinner from "../components/Spinner";
@@ -62,6 +63,7 @@ function OptionRow({ letter, text, correctAnswers, studentAnswers }) {
 export default function QuizReviewPage() {
   const { quizId } = useParams();
   const location = useLocation();
+  const origin = activityOrigin(location);
   const attemptId = new URLSearchParams(location.search).get("attempt_id");
   const studentId = getCurrentStudent()?.id;
   const [data, setData] = useState(null);
@@ -139,7 +141,7 @@ export default function QuizReviewPage() {
         <p>{data.earned_pass ? "Passing requirement earned" : "Passing requirement not yet earned"}</p>
         {data.legacy_passing_credit ? <p>Prior passing credit retained; the original passing attempt is unavailable.</p> : null}
         {data.score_basis === "current_bank_legacy_estimate" ? <p>Historical question total is estimated from the current quiz. Original answer review is unavailable.</p> : null}
-        <nav aria-label="Attempt history" className="flex flex-wrap gap-3">{(data.attempts || []).map((attempt, index) => <Link key={attempt.attempt_id} className="text-blue-600" aria-current={attempt.attempt_id === data.attempt_id ? "page" : undefined} to={`?attempt_id=${attempt.attempt_id}`} state={location.state}>Attempt {index+1}: {attempt.percentage == null ? "Unknown percentage" : `${attempt.percentage}%`} · {attempt.passed == null ? "Pass state unavailable" : attempt.passed ? "Passed" : "Not passed"}</Link>)}</nav>
+        <nav aria-label="Attempt history" className="flex flex-wrap gap-3">{(data.attempts || []).map((attempt, index) => <Link key={attempt.attempt_id} className="text-blue-600" aria-current={attempt.attempt_id === data.attempt_id ? "page" : undefined} to={withActivityOrigin(`/quizzes/${quizId}/review?attempt_id=${attempt.attempt_id}`, origin?.route, origin?.label)} state={location.state}>Attempt {index+1}: {attempt.percentage == null ? "Unknown percentage" : `${attempt.percentage}%`} · {attempt.passed == null ? "Pass state unavailable" : attempt.passed ? "Passed" : "Not passed"}</Link>)}</nav>
       </section>
       <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Answer Review</h2>
       {(questions || []).map((question, index) => {
@@ -184,7 +186,7 @@ export default function QuizReviewPage() {
       })}
 
       <div className="flex gap-3">
-        <Link to={`/quizzes/${quizId}`} state={location.state} className="btn-primary flex-1 text-center">
+        <Link to={withActivityOrigin(`/quizzes/${quizId}`, origin?.route, origin?.label)} state={location.state} className="btn-primary flex-1 text-center">
           Retake Quiz
         </Link>
         <BackLink className="btn-secondary flex-1 justify-center text-center" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />

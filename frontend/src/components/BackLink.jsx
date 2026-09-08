@@ -1,15 +1,16 @@
 import { ChevronLeft } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-
-function labelForReturnTo(returnTo, returnToLabel) {
-  if (returnToLabel) return returnToLabel;
-  const match = returnTo?.match(/\/training\/week\/(\d+)\/?$/);
-  return match ? `Back to Week ${match[1]}` : "Back to training";
-}
-
-export default function BackLink({ className = "inline-flex items-center gap-1 text-sm font-semibold text-blue-600", fallbackLabel, fallbackTo }) {
-  const { state } = useLocation();
-  const returnTo = typeof state?.returnTo === "string" ? state.returnTo : null;
-
-  return <Link className={className} to={returnTo || fallbackTo}><ChevronLeft size={16} />{returnTo ? labelForReturnTo(returnTo, state?.returnToLabel) : fallbackLabel}</Link>;
+import { activityOrigin } from "../utils/activityOrigin";
+export default function BackLink({
+  className = "inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline",
+  fallbackLabel,
+  fallbackTo,
+}) {
+  const origin = activityOrigin(useLocation());
+  return (
+    <Link className={className} to={origin?.route || fallbackTo}>
+      <ChevronLeft size={16} />
+      {origin ? `Back to ${origin.label}` : fallbackLabel}
+    </Link>
+  );
 }

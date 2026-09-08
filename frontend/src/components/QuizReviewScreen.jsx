@@ -1,5 +1,7 @@
 import { CheckCircle2, XCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+
+import { activityOrigin, withActivityOrigin } from "../utils/activityOrigin";
 
 const ALL_OPTS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
@@ -17,6 +19,7 @@ function OptionRow({ letter, text, correctAnswers, studentAnswer }) {
 }
 
 export default function QuizReviewScreen({ quiz, result, onRetake }) {
+  const origin = activityOrigin(useLocation());
   const byId = {};
   (result.results || []).forEach((r) => {
     byId[r.question_id] = r;
@@ -31,7 +34,7 @@ export default function QuizReviewScreen({ quiz, result, onRetake }) {
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"><p className="text-2xl font-bold text-blue-600">{result.percentage}%</p><p className="text-xs text-slate-500">Score</p></div>
       </div>
       <p className="text-sm">Attempt #{result.attempt_id} · {result.submitted_at ? new Date(result.submitted_at).toLocaleString() : ""} · Passing score: {result.passing_percentage ?? 70}%</p>
-      <Link className="text-blue-600" to={`/quizzes/${quiz.id}/review?attempt_id=${result.attempt_id}`}>Saved review of this attempt</Link>
+      <Link className="text-blue-600" to={withActivityOrigin(`/quizzes/${quiz.id}/review?attempt_id=${result.attempt_id}`, origin?.route, origin?.label)}>Saved review of this attempt</Link>
       <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Answer Review</h3>
       {(quiz.questions || []).map((question, index) => {
         const review = byId[question.id];
@@ -68,7 +71,7 @@ export default function QuizReviewScreen({ quiz, result, onRetake }) {
       })}
       <div className="flex gap-3">
         <button type="button" className="btn-secondary flex-1" onClick={onRetake}>Try Again</button>
-        <Link to="/" className="btn-primary flex-1 text-center">Continue Learning</Link>
+        <Link to={origin?.route || "/"} className="btn-primary flex-1 text-center">{origin ? `Back to ${origin.label}` : "Continue Learning"}</Link>
       </div>
     </div>
   );

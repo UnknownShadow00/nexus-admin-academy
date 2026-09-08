@@ -7,13 +7,19 @@ describe('isSafeNexusReturnPath', () => {
     expect(isSafeNexusReturnPath('/training/week/1')).toBe(true);
     expect(isSafeNexusReturnPath('/training/week/24')).toBe(true);
     expect(isSafeNexusReturnPath('/training')).toBe(true);
-    expect(isSafeNexusReturnPath('/learning-v2/modules/module.aplus.core1.networking')).toBe(true);
+    expect(
+      isSafeNexusReturnPath(
+        '/learning-v2/modules/module.aplus.core1.networking',
+      ),
+    ).toBe(true);
   });
 
   it('rejects absolute and protocol-relative URLs', () => {
     expect(isSafeNexusReturnPath('https://evil.example.com')).toBe(false);
     expect(isSafeNexusReturnPath('//evil.example.com')).toBe(false);
-    expect(isSafeNexusReturnPath('http://evil.example.com/training/week/1')).toBe(false);
+    expect(
+      isSafeNexusReturnPath('http://evil.example.com/training/week/1'),
+    ).toBe(false);
   });
 
   it('rejects javascript: and other unsafe schemes', () => {
@@ -26,7 +32,9 @@ describe('isSafeNexusReturnPath', () => {
     expect(isSafeNexusReturnPath('/training/week/1/../../admin')).toBe(false);
     expect(isSafeNexusReturnPath('/training/week/abc')).toBe(false);
     expect(isSafeNexusReturnPath('/training/week/0')).toBe(false);
-    expect(isSafeNexusReturnPath('/learning-v2/modules/../../admin')).toBe(false);
+    expect(isSafeNexusReturnPath('/learning-v2/modules/../../admin')).toBe(
+      false,
+    );
   });
 
   it('rejects empty, null, and undefined values', () => {
@@ -47,6 +55,27 @@ describe('nexusReturnLabel', () => {
   });
 
   it('uses beginner wording for a V2 module', () => {
-    expect(nexusReturnLabel('/learning-v2/modules/module.aplus.core1.networking')).toBe('Back to your module');
+    expect(
+      nexusReturnLabel('/learning-v2/modules/module.aplus.core1.networking'),
+    ).toBe('Back to your module');
+  });
+});
+
+describe('Core Wave 2 module origins', () => {
+  it('accepts a canonical Core module but rejects traversal', () => {
+    expect(
+      isSafeNexusReturnPath(
+        '/training/module/module.endpoint.support_workflow',
+      ),
+    ).toBe(true);
+    expect(isSafeNexusReturnPath('/training/module/../../admin')).toBe(false);
+  });
+  it('names the originating Core module', () => {
+    expect(
+      nexusReturnLabel(
+        '/training/module/module.endpoint.support_workflow',
+        'Support Workflow Essentials',
+      ),
+    ).toBe('Back to Support Workflow Essentials');
   });
 });

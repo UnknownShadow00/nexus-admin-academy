@@ -58,9 +58,8 @@ export function buildStudentNavItems(v2Enabled) { return [
   { to: "/", label: "Today" },
   { to: "/service-desk", label: "Service Desk", external: true },
   { to: "/progress", label: "Progress" },
-  ...(v2Enabled ? [{ to: "/learning-v2", label: "My Course" }] : []),
-  { label: "Extra Practice", children: [
-    { to: "/learning-path", label: "Legacy Learning Path" },
+  { label: "More", children: [
+    { to: v2Enabled ? "/learning-v2" : "/learning-path", label: "My Course" },
     { to: "/labs", label: "Labs" },
     { to: "/cli-labs", label: "CLI Labs" },
     { to: "/commands", label: "Command Reference" },
@@ -417,8 +416,8 @@ export default function App() {
         <Route path="/training/week/:weekId" element={<RequireAuth><TrainingWeekPage /></RequireAuth>} />
         <Route path="/training/module/:moduleId" element={<RequireAuth><TrainingWeekPage /></RequireAuth>} />
         <Route path="/training/content" element={<RequireAuth><StudyTrackerPage /></RequireAuth>} />
-        <Route path="/skills" element={<RequireAuth><TrainingProgressPage /></RequireAuth>} />
-        <Route path="/progress" element={<Navigate to="/skills" replace />} />
+        <Route path="/skills" element={<Navigate to="/progress" replace />} />
+        <Route path="/progress" element={<RequireAuth><TrainingProgressPage /></RequireAuth>} />
         <Route path="/quizzes" element={<RequireAuth><QuizzesPage /></RequireAuth>} />
         <Route path="/study-tracker" element={<Navigate to="/training/content" replace />} />
         <Route path="/quizzes/:quizId" element={<RequireAuth><QuizPage /></RequireAuth>} />

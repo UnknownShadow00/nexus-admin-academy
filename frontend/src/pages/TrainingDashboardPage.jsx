@@ -1,6 +1,7 @@
 import { ArrowRight, Check, ChevronRight, Clock, Lock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { withActivityOrigin } from "../utils/activityOrigin";
 import TrainingSubnav from "../components/TrainingSubnav";
 import { getTrainingDashboard } from "../services/api";
 
@@ -27,12 +28,12 @@ function ModuleCard({ currentModuleId, module }) {
         <StatusBadge status={module.status} />
       </div>
       <p className="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{module.purpose}</p>
-      <div className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400"><span>{module.required_complete} of {module.required_total} required</span>{module.required_estimated_minutes ? <span className="inline-flex items-center gap-1"><Clock size={13} />About {Math.ceil(module.required_estimated_minutes / 60)} hr</span> : null}</div>
+      <div className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400"><span>{module.required_complete} of {module.required_total} required</span>{module.required_estimated_minutes ? <span className="inline-flex items-center gap-1"><Clock size={13} />About {module.required_estimated_minutes} min</span> : null}</div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full rounded-full bg-blue-600" style={{ width: `${module.completion_percent}%` }} /></div>
       {module.lock_reason ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{module.lock_reason}</p> : null}
     </div>
   );
-  return module.locked ? <div>{card}</div> : <Link to={module.route} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{card}</Link>;
+  return module.locked ? <div>{card}{module.recovery_route ? <Link className="btn-secondary mt-2" to={module.recovery_route}>Go to {module.missing_prerequisite}</Link> : null}</div> : <Link to={module.route} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">{card}</Link>;
 }
 
 export default function TrainingDashboardPage() {
@@ -54,13 +55,13 @@ export default function TrainingDashboardPage() {
   const module = data.current_module;
   const next = data.current_activity;
   const actionRoute = next?.destination_route || module?.route || "/training/content";
-  const actionLabel = data.training_complete ? "Review Learning Path" : module?.required_complete ? "Continue Module" : "Start Module";
+  const actionLabel = data.training_complete ? "Review My Course" : module?.required_complete ? "Continue Module" : "Start Module";
   const currentIndex = allModules.findIndex((item) => item.stable_id === module?.stable_id);
   const upNext = currentIndex >= 0 ? allModules[currentIndex + 1] : null;
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6">
-      <div><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Learning Path</h1><p className="mt-1 text-slate-600 dark:text-slate-300">Your stages, modules, and next activity—without the calendar clutter.</p></div>
+      <div><h1 className="text-3xl font-bold text-slate-950 dark:text-white">My Course</h1><p className="mt-1 text-slate-600 dark:text-slate-300">A+ Foundations · Your course outline and next activity.</p></div>
       <TrainingSubnav />
       {module ? (
         <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-700 p-5 text-white shadow-lg sm:p-7">
@@ -71,7 +72,7 @@ export default function TrainingDashboardPage() {
           <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">{module.purpose}</p>
           <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0 flex-1"><div className="mb-2 flex justify-between text-sm"><span>{module.required_complete} of {module.required_total} required activities complete</span><strong>{module.completion_percent}%</strong></div><div className="h-3 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white transition-all" style={{ width: `${module.completion_percent}%` }} /></div>{next ? <p className="mt-3 truncate text-sm text-blue-100">Current activity: {next.activity_label} — {next.title}</p> : null}</div>
-            <Link to={actionRoute} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-blue-700 shadow hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">{actionLabel}<ArrowRight size={18} /></Link>
+            <Link to={withActivityOrigin(actionRoute, module.route, module.title)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-blue-700 shadow hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">{actionLabel}<ArrowRight size={18} /></Link>
           </div>
         </section>
       ) : <section className="panel"><h2 className="text-xl font-semibold">No active training modules</h2><p className="mt-2 text-slate-600 dark:text-slate-300">Ask an administrator to check the curriculum structure.</p></section>}
