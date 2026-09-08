@@ -300,12 +300,12 @@ def test_completely_fresh_seed_contains_orientation_and_is_idempotent(tmp_path):
 
 
 def test_orientation_summary_is_short_and_beginner_friendly():
-    assert "Complete these 2 things" in ORIENTATION_SUMMARY
-    assert "Week 1 unlocks automatically" in ORIENTATION_SUMMARY
+    assert "No previous IT support knowledge" in ORIENTATION_SUMMARY
+    assert "unlocks Support Workflow Essentials" in ORIENTATION_SUMMARY
     assert "Service Desk" in ORIENTATION_SUMMARY
-    for internal_term in ("remediation", "evidence", "AI grading", "promotion gate", "mentor review"):
+    for internal_term in ("remediation", "AI grading", "promotion gate", "mentor review"):
         assert internal_term.lower() not in ORIENTATION_SUMMARY.lower()
-    assert len(ORIENTATION_SUMMARY.split()) < 120
+    assert len(ORIENTATION_SUMMARY.split()) < 600
 
 
 def test_seed_updates_existing_orientation_in_place_without_replacing_history(db):
@@ -337,7 +337,7 @@ def test_seed_updates_existing_orientation_in_place_without_replacing_history(db
     assert updated.id == original_id
     assert updated.summary == ORIENTATION_SUMMARY
     assert updated.lesson_order == 1
-    assert updated.estimated_minutes == 3
+    assert updated.estimated_minutes == 8
     assert updated.required_notes_template is None
     assert updated.status == "published"
 
@@ -438,6 +438,19 @@ def test_fresh_seed_matches_upgraded_historical_seed_for_phase_4b2(tmp_path):
 
     assert len(fresh_identity) == 320
     assert len(historical_identity) == 320
+    # Wave 2 deliberately changes only these two requirement flags. Historical
+    # migration 0058 stays immutable; the reviewed seed reconciliation restores
+    # parity in this disposable database without deleting any activity history.
+    assert fresh_identity - historical_identity == {
+        (1, "lesson", "Anatomy of a Good Ticket", 1),
+        (1, "lesson", "Meet the Command Line", 1),
+    }
+    assert historical_identity - fresh_identity == {
+        (1, "lesson", "Anatomy of a Good Ticket", 0),
+        (1, "lesson", "Meet the Command Line", 0),
+    }
+    _run([python, "-c", "from app.database import SessionLocal; from app.services.training_curriculum_seed import reconcile_optional_lesson_requirements; db=SessionLocal(); reconcile_optional_lesson_requirements(db); db.close()"], historical_url)
+    historical_identity = _active_curriculum_identity(historical_db)
     assert fresh_identity == historical_identity, (
         "fresh install and upgraded-historical install diverged in active curriculum identity"
     )

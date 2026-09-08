@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models.quiz import QUIZ_PURPOSE_REMEDIATION, Quiz, QuizAttempt
 from app.models.student import Student
 from app.schemas.quiz import QuizSubmitRequest
+from app.services.assessment_access import require_quiz_access
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import (
     ensure_student_access,
@@ -170,6 +171,8 @@ def get_quiz_details(
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
+    require_quiz_access(db, db.get(Student, scoped_student_id), quiz)
+
     attempts = []
     if scoped_student_id:
         rows = (
@@ -259,6 +262,7 @@ def submit_quiz(
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
+    require_quiz_access(db, student, quiz)
     mark_student_active(db, student_id)
 
     questions = sorted(quiz.questions, key=lambda q: q.id)

@@ -6,6 +6,7 @@ from app.models.student import Student
 from app.models.curriculum_video import CurriculumVideo
 from app.models.training import TrainingWeekActivity
 from app.models.video_watch import VideoWatch
+from app.services.assessment_access import prerequisite_error
 from app.services.auth_service import get_current_student
 from app.services.training_service import (
     build_training_module,
@@ -45,7 +46,7 @@ def get_training_week(
     if week is None:
         raise HTTPException(status_code=404, detail="Training week not found")
     if week["locked"] and not current_student.is_mentor:
-        raise HTTPException(status_code=403, detail=week["lock_reason"] or "Training week is locked")
+        raise prerequisite_error(week["title"], week.get("missing_prerequisite") or "the current module", week.get("recovery_route") or "/learning-path")
     return ok(week)
 
 
@@ -59,7 +60,7 @@ def get_training_module(
     if module is None:
         raise HTTPException(status_code=404, detail="Training module not found")
     if module["locked"] and not current_student.is_mentor:
-        raise HTTPException(status_code=403, detail=module["lock_reason"] or "Training module is locked")
+        raise prerequisite_error(module["title"], module.get("missing_prerequisite") or "the current module", module.get("recovery_route") or "/learning-path")
     return ok(module)
 
 

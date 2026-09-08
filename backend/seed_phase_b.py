@@ -362,6 +362,7 @@ MODULES_B += [
                 "lesson_order": 1,
                 "estimated_minutes": 90,
                 "summary": (
+                    "NETWORK BASICS FIRST: an IP address identifies a device on a network. A subnet groups nearby addresses; a default gateway carries traffic to other networks. DHCP automatically supplies an address, subnet mask, gateway and DNS settings. DNS translates names into IP addresses. A 169.254.x.x self-assigned address (APIPA) often means no DHCP lease was obtained; check the context before concluding why. A ping tests reachability, not every application.\n\n"
                     "One tree resolves 90% of 'no internet' tickets. Run it in order, capture output at "
                     "each node:\n"
                     "1. ipconfig /all — WHAT AM I?\n"
@@ -399,6 +400,7 @@ MODULES_B += [
                 "lesson_order": 2,
                 "estimated_minutes": 60,
                 "summary": (
+                    "PRINTER BASICS: a queue holds jobs waiting to print; a driver translates an application document into a format the printer understands. A network printer has an IP address. DHCP can change that address; the configured printer port must point to the current address. A VLAN is a separate logical network. Shared printer and policy deployment details below are a preview; ask your administrator before changing them.\n\n"
                     "A network print job crosses four hops; failures live at exactly one:\n"
                     "1. APP → LOCAL QUEUE: wrong printer selected (the eternal 'printing but nothing "
                     "comes out' when jobs pile into 'Microsoft Print to PDF'), or spooler stuck (Week 3 "
@@ -1214,7 +1216,7 @@ TICKETS_B.append({
 def seed_phase_b(db) -> dict:
     """Idempotent Phase B seed — same conventions as seed_phase_a()."""
     from app.models.learning import Lesson, Module
-    from app.models.quiz import QUIZ_STATUS_PUBLISHED, Question, Quiz
+    from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz
     from app.models.ticket import Ticket
     from app.services.seed_question_sync import sync_seed_questions
 

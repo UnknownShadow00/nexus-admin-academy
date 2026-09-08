@@ -650,7 +650,7 @@ def _serialize_activity(context: _TrainingContext, activity: TrainingWeekActivit
         "content_ref": activity.content_ref,
         "display_order": activity.display_order,
         "is_required": activity.is_required,
-        "requirement_label": "Required" if activity.is_required else "Optional",
+        "requirement_label": "Required" if activity.is_required else "Optional practice",
         "estimated_minutes": activity.estimated_minutes
         or (content.estimated_minutes if content else None),
         "title": content.title if content else "Content unavailable",
@@ -761,6 +761,8 @@ def _serialize_module(state: dict, activities: list[dict] | None = None) -> dict
         "locked": state["locked"],
         "lock_reason": state["lock_reason"],
         "lock_requirements": state["lock_requirements"],
+        "recovery_route": state.get("recovery_route"),
+        "missing_prerequisite": state.get("missing_prerequisite"),
     }
     if activities is not None:
         result["activities"] = activities
@@ -801,13 +803,24 @@ def _build_stage_path(week_states: list[tuple]) -> list[dict]:
 
 def _build_state(db: Session, student: Student):
     weeks = _active_weeks(db)
-    activities = [activity for week in weeks for activity in sorted(week.activities, key=lambda item: (item.display_order, item.id))]
+    activities = [
+        activity
+        for week in weeks
+        for activity in sorted(
+            week.activities, key=lambda item: (item.display_order, item.id)
+        )
+    ]
     context = _TrainingContext(db, student, activities)
-    activity_states = {activity.id: _serialize_activity(context, activity) for activity in activities}
+    activity_states = {
+        activity.id: _serialize_activity(context, activity) for activity in activities
+    }
 
     for activity in activities:
         state = activity_states[activity.id]
         prerequisite = activity_states.get(activity.prerequisite_activity_id)
+        state["recovery_route"] = (
+            prerequisite["destination_route"] if prerequisite else None
+        )
         if prerequisite and not prerequisite["complete"]:
             state["prerequisite_met"] = False
             state["prerequisite_title"] = prerequisite["title"]
@@ -816,17 +829,57 @@ def _build_state(db: Session, student: Student):
                 state["destination_route"] = None
         else:
             state["prerequisite_met"] = True
-            state["prerequisite_title"] = prerequisite["title"] if prerequisite else None
+            state["prerequisite_title"] = (
+                prerequisite["title"] if prerequisite else None
+            )
 
     for week in weeks:
-        week_items = [activity_states[item.id] for item in sorted(week.activities, key=lambda item: (item.display_order, item.id))]
+        week_items = [
+            activity_states[item.id]
+            for item in sorted(
+                week.activities, key=lambda item: (item.display_order, item.id)
+            )
+        ]
         for item in week_items:
+            # Required checks must follow the required teaching in this module.
+            # Completion is monotonic: an earned passing result remains reviewable.
+            if (
+                item["activity_type"] == "quiz"
+                and item["is_required"]
+                and not item["complete"]
+            ):
+                missing = next(
+                    (
+                        candidate
+                        for candidate in week_items
+                        if candidate["is_required"]
+                        and candidate["activity_type"] in {"lesson", "video"}
+                        and candidate["display_order"] < item["display_order"]
+                        and not candidate["complete"]
+                    ),
+                    None,
+                )
+                if missing:
+                    item.update(
+                        status="locked",
+                        destination_route=None,
+                        prerequisite_met=False,
+                        prerequisite_title=missing["title"],
+                        recovery_route=missing.get("recovery_route")
+                        or missing["destination_route"],
+                        prerequisite_mode="hard",
+                    )
             if item["activity_type"] == "review":
                 prior_required = [
-                    candidate for candidate in week_items
-                    if candidate["is_required"] and candidate["display_order"] < item["display_order"] and candidate["activity_type"] != "review"
+                    candidate
+                    for candidate in week_items
+                    if candidate["is_required"]
+                    and candidate["display_order"] < item["display_order"]
+                    and candidate["activity_type"] != "review"
                 ]
-                item["complete"] = all(candidate["complete"] for candidate in prior_required)
+                item["complete"] = all(
+                    candidate["complete"] for candidate in prior_required
+                )
                 item["status"] = "complete" if item["complete"] else "not_started"
 
     week_states = []
@@ -834,12 +887,23 @@ def _build_state(db: Session, student: Student):
     prior_title = None
     prior_missing_required: list[str] = []
     for week in weeks:
-        items = [activity_states[item.id] for item in sorted(week.activities, key=lambda item: (item.display_order, item.id))]
-        locked = bool(not student.is_mentor and week.requires_previous_week and not prior_required_complete)
+        items = [
+            activity_states[item.id]
+            for item in sorted(
+                week.activities, key=lambda item: (item.display_order, item.id)
+            )
+        ]
+        locked = bool(
+            not student.is_mentor
+            and week.requires_previous_week
+            and not prior_required_complete
+        )
         reason = None
         if locked and prior_title:
             remaining = len(prior_missing_required)
-            first_missing = prior_missing_required[0] if prior_missing_required else None
+            first_missing = (
+                prior_missing_required[0] if prior_missing_required else None
+            )
             if first_missing and remaining > 1:
                 reason = (
                     f"Complete {prior_title}: {first_missing} and "
@@ -856,7 +920,29 @@ def _build_state(db: Session, student: Student):
             lock_reason=reason,
             lock_requirements=prior_missing_required if locked else [],
         )
+        recovery = next(
+            (
+                item
+                for _, prior, prior_items in week_states
+                if not prior["locked"]
+                for item in prior_items
+                if item["is_required"]
+                and not item["complete"]
+                and item["status"] != "locked"
+            ),
+            None,
+        )
+        state["recovery_route"] = (
+            recovery["destination_route"] if locked and recovery else None
+        )
+        state["missing_prerequisite"] = (
+            recovery["title"] if locked and recovery else None
+        )
         week_states.append((week, state, items))
+        if locked and recovery:
+            state["lock_reason"] = (
+                f"Complete {recovery['title']} and the remaining required work in your current module."
+            )
         prior_required_complete = prior_required_complete and state["is_complete"]
         mapped_module = module_for_week(week.week_number)
         prior_title = mapped_module.title if mapped_module else week.title

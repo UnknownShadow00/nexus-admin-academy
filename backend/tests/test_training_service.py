@@ -462,7 +462,7 @@ def test_video_quiz_lab_ticket_and_networking_completion_are_server_derived(db, 
     db.commit()
 
     initial = build_training_week(db, student, 1)
-    assert [item["status"] for item in initial["activities"]] == ["not_started"] * 6
+    assert [item["status"] for item in initial["activities"]] == ["not_started", "locked", "not_started", "not_started", "not_started", "not_started"]
     assert initial["activities"][0]["linked_quiz"]["id"] == quiz.id
     assert initial["activities"][0]["linked_quiz"]["action"] == "take"
 

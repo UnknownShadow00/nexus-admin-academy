@@ -220,25 +220,32 @@ PROMOTION_GATES = [
 ]
 
 ORIENTATION_TITLE = "Welcome to Nexus: Your First Week"
-ORIENTATION_SUMMARY = """Week 0 is a quick setup so you know how Nexus works.
+ORIENTATION_SUMMARY = """Welcome to Nexus. No previous IT support knowledge is needed.
 
-Complete these 2 things:
+Start here: read this short lesson, try the example below, then mark the lesson complete. Next, answer four questions about the ticket fields taught here. Passing that check unlocks Support Workflow Essentials in A+ Foundations.
 
-1. Read this short introduction and mark it complete.
-2. Take the Ticketing Systems Quiz.
+## How Nexus works
+Lessons teach, quizzes check understanding, and labs and Service Desk provide practice. Today shows your next step; My Course shows the full outline. Required activities count toward completing and unlocking modules. Optional practice is useful extra work you may skip. A completed lesson means you marked it read; a passed quiz means you met its passing score.
 
-When both are finished, Week 1 unlocks automatically.
+## What is a support ticket?
+A ticket is a shared record of a request for help, the investigation, and the outcome. It lets another technician continue without asking the user the same questions again.
 
-During the course you’ll use:
+At intake, record the **requester** (user information and how to contact them), **device information** (which computer or printer), and **symptom** (the problem description: what the person observes). You do not need a promised resolution date or escalation level before collecting these facts.
 
-- Lessons to learn
-- Quizzes to check your understanding
-- Labs to practice
-- Service Desk to solve realistic IT support tickets
+**Impact** describes who or what work is affected: one person unable to print differs from the whole office unable to work. Ask about scope before making changes.
 
-Optional notes and extra practice never block your progress.
+A **category**, such as Printing or Accounts, groups similar issues. Consistent categories let reports count recurring problems. The problem description records this particular incident; severity describes its seriousness.
 
-That’s it. Complete the two required items below to begin Week 1."""
+**Internal progress notes** are the factual running record for technicians: what you checked, found, changed, and verified. A user-facing update explains progress in plain language without technical jargon. A resolution summary records the final outcome, rather than every investigation step.
+
+**Escalation** means handing the case to someone with the necessary expertise or authority. Level 1 is first-line support; Level 2 is a specialist team. The escalation-level field records that handoff. You do not need to diagnose a hardware fault to identify which field records its transfer.
+
+## Try an example before the check
+Sam says: “My office printer stopped printing this morning.” Requester: Sam. Device: office printer. Symptom: nothing prints. Ask whether others are affected to establish impact. Category: Printing. An internal progress note could say: “Confirmed the selected printer with Sam; checked its display; recorded the paper warning.” If specialist help is needed, record the escalation level and pass along the evidence.
+
+Practice: which field groups recurring printing problems? **Category.** Where do the checks you performed go? **Progress notes.** These examples teach ticket documentation; the check does not ask you to repair a printer.
+
+Mark this lesson complete, then take the Ticketing Systems Quiz. Afterward, return to Nexus Orientation or continue to Support Workflow Essentials. Notes remain optional."""
 
 
 MODULE_0 = {
@@ -255,7 +262,7 @@ MODULE_0 = {
             "summary": ORIENTATION_SUMMARY,
             "outcomes": [],
             "lesson_order": 1,
-            "estimated_minutes": 3,
+            "estimated_minutes": 8,
             "required_notes_template": None,
         },
     ],

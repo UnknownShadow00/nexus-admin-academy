@@ -66,6 +66,7 @@ MODULES = [
                 "lesson_order": 2,
                 "estimated_minutes": 90,
                 "summary": (
+                    "A command line (CLI) is a text interface: type a command at the prompt, press Enter, then read the output. A prompt is the place where the device waits for your next command. This course uses a simulator, so follow its guided instructions and experiment there. A show command displays information without changing settings.\n\n"
                     "GUI status icons summarize; command output proves. Technicians trust command output "
                     "because it is exact, timestamped, copyable into a ticket, and identical over remote "
                     "sessions where GUIs are slow or unavailable.\n\n"
