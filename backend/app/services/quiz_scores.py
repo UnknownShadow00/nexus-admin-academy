@@ -7,9 +7,36 @@ No quiz-bank edit or reporting read rewrites an attempt.
 
 from typing import TypedDict
 
+from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.orm import Query, Session
+
 from app.models.quiz import QuizAttempt
 
 PASSING_PERCENTAGE = 70
+
+
+def supports_attempt_state(db: Session) -> bool:
+    """Return whether this database has the additive Wave 4 attempt columns.
+
+    Historical migration rehearsals intentionally run current service code against
+    older schemas. Those schemas contain only submitted legacy attempts, so the
+    status predicate is unnecessary and must not reference a column not yet added.
+    """
+    cache_key = "quiz_attempt_state_supported"
+    if cache_key in db.info:
+        return bool(db.info[cache_key])
+    supported = any(
+        column["name"] == "status"
+        for column in sa_inspect(db.get_bind()).get_columns("quiz_attempts")
+    )
+    db.info[cache_key] = supported
+    return supported
+
+
+def filter_submitted_attempts(query: Query, db: Session) -> Query:
+    if not supports_attempt_state(db):
+        return query
+    return query.filter(QuizAttempt.status == "submitted")
 
 
 class AttemptScore(TypedDict):
@@ -51,8 +78,10 @@ def attempt_score(
         "passed": correct * 100 >= total * passing_percentage if valid else None,
         "passing_percentage": passing_percentage,
         "attempt_id": attempt.id,
-        "submitted_at": attempt.completed_at.isoformat()
-        if attempt.completed_at
+        "submitted_at": (
+            attempt.__dict__.get("submitted_at") or attempt.completed_at
+        ).isoformat()
+        if (attempt.__dict__.get("submitted_at") or attempt.completed_at)
         else None,
         "score_basis": basis,
     }
@@ -61,6 +90,11 @@ def attempt_score(
 def attempt_summary(
     attempts: list[QuizAttempt], fallback_total: int | None = None
 ) -> dict:
+    attempts = [
+        row
+        for row in attempts
+        if row.__dict__.get("status", "submitted") == "submitted"
+    ]
     scores = [attempt_score(row, fallback_total) for row in attempts]
     scores.sort(key=lambda row: (row["submitted_at"] or "", row["attempt_id"]))
     known = [row for row in scores if row["percentage"] is not None]

@@ -6,6 +6,7 @@ from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.progression import PromotionGate, Role
 from app.models.quiz import Quiz, QuizAttempt
+from app.services.quiz_scores import filter_submitted_attempts
 from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
 from app.services.curriculum_structure import module_for_week
@@ -90,10 +91,14 @@ def derive_current_week(student_id: int, db: Session) -> int:
     from app.models.lesson_progress import StudentLessonProgress
 
     for week in range(max(MODULE_WEEKS.values()) + 1):
-        codes = [code for code, mapped_week in MODULE_WEEKS.items() if mapped_week == week]
+        codes = [
+            code for code, mapped_week in MODULE_WEEKS.items() if mapped_week == week
+        ]
         lesson_ids = set()
         if codes:
-            module_ids = {row.id for row in db.query(Module.id).filter(Module.code.in_(codes))}
+            module_ids = {
+                row.id for row in db.query(Module.id).filter(Module.code.in_(codes))
+            }
             if module_ids:
                 lesson_ids = {
                     row.id
@@ -176,30 +181,50 @@ def require_week_reached(db: Session, student, required_week: int) -> dict:
 
     from app.models.lesson_progress import StudentLessonProgress
 
-    codes = [code for code, mapped_week in MODULE_WEEKS.items() if mapped_week == current_week]
-    week_lesson_ids = {
-        row.id
-        for row in db.query(Lesson.id)
-        .join(Module, Module.id == Lesson.module_id)
-        .filter(Module.code.in_(codes), Lesson.status == "published")
-    } if codes else set()
-    completed_lesson_ids = {
-        row.lesson_id
-        for row in db.query(StudentLessonProgress.lesson_id).filter(
-            StudentLessonProgress.student_id == student.id,
-            StudentLessonProgress.lesson_id.in_(week_lesson_ids),
-            StudentLessonProgress.completed_at.isnot(None),
-        )
-    } if week_lesson_ids else set()
+    codes = [
+        code
+        for code, mapped_week in MODULE_WEEKS.items()
+        if mapped_week == current_week
+    ]
+    week_lesson_ids = (
+        {
+            row.id
+            for row in db.query(Lesson.id)
+            .join(Module, Module.id == Lesson.module_id)
+            .filter(Module.code.in_(codes), Lesson.status == "published")
+        }
+        if codes
+        else set()
+    )
+    completed_lesson_ids = (
+        {
+            row.lesson_id
+            for row in db.query(StudentLessonProgress.lesson_id).filter(
+                StudentLessonProgress.student_id == student.id,
+                StudentLessonProgress.lesson_id.in_(week_lesson_ids),
+                StudentLessonProgress.completed_at.isnot(None),
+            )
+        }
+        if week_lesson_ids
+        else set()
+    )
     lesson_incomplete = bool(week_lesson_ids - completed_lesson_ids)
     incomplete_quiz = next(
-        (quiz for quiz in required_quizzes_for_week(db, current_week) if not is_quiz_passed(db, student.id, quiz)),
+        (
+            quiz
+            for quiz in required_quizzes_for_week(db, current_week)
+            if not is_quiz_passed(db, student.id, quiz)
+        ),
         None,
     )
     current_module = module_for_week(current_week)
     required_module = module_for_week(required_week)
-    current_label = current_module.title if current_module else "the current training section"
-    required_label = required_module.title if required_module else "the requested training section"
+    current_label = (
+        current_module.title if current_module else "the current training section"
+    )
+    required_label = (
+        required_module.title if required_module else "the requested training section"
+    )
     if lesson_incomplete and incomplete_quiz is not None:
         error = f"Complete the required lesson and quiz in {current_label} first."
         next_action_route = "/training"
@@ -225,10 +250,18 @@ def require_week_reached(db: Session, student, required_week: int) -> dict:
             "data": {
                 "required_week": required_week,
                 "current_week": current_week,
-                "required_module_id": required_module.stable_id if required_module else None,
-                "required_module_title": required_module.title if required_module else None,
-                "current_module_id": current_module.stable_id if current_module else None,
-                "current_module_title": current_module.title if current_module else None,
+                "required_module_id": required_module.stable_id
+                if required_module
+                else None,
+                "required_module_title": required_module.title
+                if required_module
+                else None,
+                "current_module_id": current_module.stable_id
+                if current_module
+                else None,
+                "current_module_title": current_module.title
+                if current_module
+                else None,
                 "next_action_route": next_action_route,
             },
         },
@@ -247,19 +280,26 @@ def check_module_unlock(student_id: int, module_id: int, db: Session) -> dict:
         current_week = derive_current_week(student_id, db)
         if not week_has_been_reached(db, current_week, mapped_week):
             current_module = module_for_week(current_week)
-            current_label = current_module.title if current_module else "your current module"
+            current_label = (
+                current_module.title if current_module else "your current module"
+            )
             requirements_missing.append(
                 f"Complete {current_label}'s required work first."
             )
 
     if module.prerequisite_module_id:
-        prereq_mastery = get_module_mastery(student_id, module.prerequisite_module_id, db)
+        prereq_mastery = get_module_mastery(
+            student_id, module.prerequisite_module_id, db
+        )
         if prereq_mastery < (module.unlock_threshold or 70):
             requirements_missing.append(
                 f"Need {module.unlock_threshold}% mastery in prerequisite (current: {prereq_mastery}%)"
             )
 
-    return {"unlocked": len(requirements_missing) == 0, "requirements_missing": requirements_missing}
+    return {
+        "unlocked": len(requirements_missing) == 0,
+        "requirements_missing": requirements_missing,
+    }
 
 
 def get_module_mastery(student_id: int, module_id: int, db: Session) -> float:
@@ -269,13 +309,15 @@ def get_module_mastery(student_id: int, module_id: int, db: Session) -> float:
 
     total_score = 0.0
     for lesson in lessons:
-        quiz_avg = (
+        quiz_query = (
             db.query(func.coalesce(func.avg(QuizAttempt.score), 0))
             .join(Quiz, QuizAttempt.quiz_id == Quiz.id)
-            .filter(QuizAttempt.student_id == student_id, Quiz.lesson_id == lesson.id)
-            .scalar()
-            or 0
+            .filter(
+                QuizAttempt.student_id == student_id,
+                Quiz.lesson_id == lesson.id,
+            )
         )
+        quiz_avg = filter_submitted_attempts(quiz_query, db).scalar() or 0
 
         lab_avg = (
             db.query(func.coalesce(func.avg(LabRun.final_score), 0))
@@ -291,8 +333,12 @@ def get_module_mastery(student_id: int, module_id: int, db: Session) -> float:
     return round((total_score / len(lessons)) * 10, 1)
 
 
-def check_promotion_eligibility(student_id: int, target_role_id: int, db: Session) -> dict:
-    gates = db.query(PromotionGate).filter(PromotionGate.role_id == target_role_id).all()
+def check_promotion_eligibility(
+    student_id: int, target_role_id: int, db: Session
+) -> dict:
+    gates = (
+        db.query(PromotionGate).filter(PromotionGate.role_id == target_role_id).all()
+    )
     requirements_met = []
     requirements_missing = []
 
@@ -353,9 +399,15 @@ def get_promotion_status(student_id: int, db: Session) -> dict:
 
     next_role = None
     if current_role:
-        next_role = db.query(Role).filter(Role.rank_order == current_role.rank_order + 1).first()
+        next_role = (
+            db.query(Role)
+            .filter(Role.rank_order == current_role.rank_order + 1)
+            .first()
+        )
 
-    eligibility = check_promotion_eligibility(student_id, next_role.id, db) if next_role else None
+    eligibility = (
+        check_promotion_eligibility(student_id, next_role.id, db) if next_role else None
+    )
     return {
         "current_role": _role_dict(current_role),
         "next_role": _role_dict(next_role),
@@ -378,8 +430,14 @@ def _check_required_quiz(student_id: int, config: dict, db: Session) -> dict:
     from app.services.quiz_progression import is_quiz_passed, required_quizzes_for_week
 
     week = int((config or {}).get("week", -1))
-    gate_quizzes = [quiz for quiz in required_quizzes_for_week(db, week) if quiz.quiz_purpose == "gate"]
-    passed = bool(gate_quizzes) and all(is_quiz_passed(db, student_id, quiz) for quiz in gate_quizzes)
+    gate_quizzes = [
+        quiz
+        for quiz in required_quizzes_for_week(db, week)
+        if quiz.quiz_purpose == "gate"
+    ]
+    passed = bool(gate_quizzes) and all(
+        is_quiz_passed(db, student_id, quiz) for quiz in gate_quizzes
+    )
     module = module_for_week(week)
     module_label = module.title if module else "the required training module"
     return {
@@ -388,7 +446,9 @@ def _check_required_quiz(student_id: int, config: dict, db: Session) -> dict:
         "progress": {
             "week": week,
             "required": len(gate_quizzes),
-            "passed": sum(is_quiz_passed(db, student_id, quiz) for quiz in gate_quizzes),
+            "passed": sum(
+                is_quiz_passed(db, student_id, quiz) for quiz in gate_quizzes
+            ),
         },
         "met": passed,
     }
@@ -404,13 +464,21 @@ def _check_required_lab_pass(student_id: int, config: dict, db: Session) -> dict
     lab_id = cfg.get("lab_id")
     min_score_pct = int(cfg.get("min_score_pct", 100))
     description = "Pass the required final assessment"
-    lab = db.query(LabTemplate).filter(LabTemplate.id == lab_id).first() if lab_id else None
+    lab = (
+        db.query(LabTemplate).filter(LabTemplate.id == lab_id).first()
+        if lab_id
+        else None
+    )
     if lab is not None:
         description = f"Pass {lab.title} (≥ {min_score_pct}%)"
 
     runs = (
         db.query(LabRun)
-        .filter(LabRun.lab_template_id == lab_id, LabRun.student_id == student_id, LabRun.status == "submitted")
+        .filter(
+            LabRun.lab_template_id == lab_id,
+            LabRun.student_id == student_id,
+            LabRun.status == "submitted",
+        )
         .all()
     )
     best_score = 0
@@ -427,7 +495,11 @@ def _check_required_lab_pass(student_id: int, config: dict, db: Session) -> dict
     return {
         "type": "required_lab_pass",
         "description": description,
-        "progress": {"lab_id": lab_id, "best_score": best_score, "required_score": min_score_pct},
+        "progress": {
+            "lab_id": lab_id,
+            "best_score": best_score,
+            "required_score": min_score_pct,
+        },
         "met": met,
     }
 
@@ -515,7 +587,10 @@ def _check_mastery_requirement(student_id: int, config: dict, db: Session) -> di
             .first()
         )
         current = float(row.mastery_percent) if row else 0.0
-        progress[str(domain)] = {"current": round(current, 1), "required": int(required)}
+        progress[str(domain)] = {
+            "current": round(current, 1),
+            "required": int(required),
+        }
         if current < int(required):
             met = False
     return {
@@ -526,10 +601,11 @@ def _check_mastery_requirement(student_id: int, config: dict, db: Session) -> di
     }
 
 
-# --------------------------------------------------------------------------- 
+# ---------------------------------------------------------------------------
 # TB-02 gate evaluators (Gate 1 / Gate 2). Same contract as the evaluators
 # above: return {"type", "description", "progress", "met"}.
 # ---------------------------------------------------------------------------
+
 
 def _check_practical_checkpoint(student_id: int, config: dict, db: Session) -> dict:
     """A designated ticket completed within hint/score limits.
@@ -569,14 +645,18 @@ def _check_practical_checkpoint(student_id: int, config: dict, db: Session) -> d
 
     met = bool(
         best
-        and (best.final_score if best.final_score is not None else best.ai_score) is not None
-        and (best.final_score if best.final_score is not None else best.ai_score) >= min_score
+        and (best.final_score if best.final_score is not None else best.ai_score)
+        is not None
+        and (best.final_score if best.final_score is not None else best.ai_score)
+        >= min_score
         and (getattr(best, "hints_used", 0) or 0) <= max_hints
     )
     achieved_score = None
     achieved_hints = None
     if best is not None:
-        achieved_score = best.final_score if best.final_score is not None else best.ai_score
+        achieved_score = (
+            best.final_score if best.final_score is not None else best.ai_score
+        )
         achieved_hints = getattr(best, "hints_used", 0) or 0
     return {
         "type": "practical_checkpoint",
@@ -617,7 +697,10 @@ def _check_lessons_requirement(student_id: int, config: dict, db: Session) -> di
     optional_ids = {
         int(row.content_ref)
         for row in db.query(TrainingWeekActivity.content_ref)
-        .filter(TrainingWeekActivity.activity_type == "lesson", TrainingWeekActivity.is_required.is_(False))
+        .filter(
+            TrainingWeekActivity.activity_type == "lesson",
+            TrainingWeekActivity.is_required.is_(False),
+        )
         .all()
         if row.content_ref and row.content_ref.isdigit()
     }
@@ -625,7 +708,10 @@ def _check_lessons_requirement(student_id: int, config: dict, db: Session) -> di
     done_ids = {
         row.lesson_id
         for row in db.query(StudentLessonProgress.lesson_id)
-        .filter(StudentLessonProgress.student_id == student_id, StudentLessonProgress.completed_at.isnot(None))
+        .filter(
+            StudentLessonProgress.student_id == student_id,
+            StudentLessonProgress.completed_at.isnot(None),
+        )
         .all()
     }
     missing = sorted(required_ids - done_ids)
@@ -647,12 +733,9 @@ def _check_cli_labs_requirement(student_id: int, config: dict, db: Session) -> d
 
     cfg = config or {}
     required = int(cfg.get("min_completed", 0))
-    query = (
-        db.query(func.count(func.distinct(CliLabAttempt.lab_id)))
-        .filter(
-            CliLabAttempt.student_id == student_id,
-            CliLabAttempt.completed_at.isnot(None),
-        )
+    query = db.query(func.count(func.distinct(CliLabAttempt.lab_id))).filter(
+        CliLabAttempt.student_id == student_id,
+        CliLabAttempt.completed_at.isnot(None),
     )
     if cfg.get("pack_prefix"):
         query = query.join(CliLab, CliLabAttempt.lab_id == CliLab.id).filter(

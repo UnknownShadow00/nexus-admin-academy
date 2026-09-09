@@ -36,7 +36,11 @@ from app.services.auth_service import (
     get_current_student,
 )
 from app.services.mastery_service import list_student_mastery
-from app.services.quiz_scores import attempt_score, average_attempt_percentage
+from app.services.quiz_scores import (
+    attempt_score,
+    average_attempt_percentage,
+    filter_submitted_attempts,
+)
 from app.services.methodology_enforcer import can_access_tickets
 from app.services.onboarding_service import get_orientation_state
 from app.services.progression_service import (
@@ -180,9 +184,8 @@ def get_student_dashboard(
         .all()
     )
 
-    quiz_attempts = (
-        db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).all()
-    )
+    attempt_query = db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id)
+    quiz_attempts = filter_submitted_attempts(attempt_query, db).all()
     service_desk_completed = (
         db.query(func.count(func.distinct(ServiceDeskScenarioVersion.scenario_id)))
         .join(
@@ -308,9 +311,8 @@ def get_student_stats(
     week_done = week_completed_q
     week_completion = round((week_done / week_total) * 100, 1) if week_total else 0
 
-    quiz_activity = (
-        db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id).all()
-    )
+    activity_query = db.query(QuizAttempt).filter(QuizAttempt.student_id == student_id)
+    quiz_activity = filter_submitted_attempts(activity_query, db).all()
     service_desk_activity = (
         db.query(
             ServiceDeskAttempt.completed_at.label("timestamp"),
@@ -374,13 +376,12 @@ def get_student_stats(
     )
     percentile = round(((student.total_xp - avg_xp) / avg_xp) * 100, 1) if avg_xp else 0
 
-    cohort_quiz_avg = (
+    cohort_query = (
         db.query(func.coalesce(func.avg(QuizAttempt.score), 0))
         .join(Student, Student.id == QuizAttempt.student_id)
         .filter(Student.id != student_id)
-        .scalar()
-        or 0
     )
+    cohort_quiz_avg = filter_submitted_attempts(cohort_query, db).scalar() or 0
 
     cert = _build_cert_readiness(student_id, db)
 
@@ -603,14 +604,16 @@ def get_learning_path(
                 .scalar()
                 or 0
             )
-            completed_quiz = (
+            completed_quiz_query = (
                 db.query(func.count(QuizAttempt.id))
                 .join(Quiz, QuizAttempt.quiz_id == Quiz.id)
                 .filter(
-                    QuizAttempt.student_id == student_id, Quiz.lesson_id == lesson.id
+                    QuizAttempt.student_id == student_id,
+                    Quiz.lesson_id == lesson.id,
                 )
-                .scalar()
-                or 0
+            )
+            completed_quiz = (
+                filter_submitted_attempts(completed_quiz_query, db).scalar() or 0
             )
             completed_ticket = (
                 db.query(func.count(TicketSubmission.id))

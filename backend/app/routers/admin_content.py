@@ -12,7 +12,13 @@ from app.models.ai_usage_log import AIUsageLog
 from app.models.capstone import CapstoneRun, CapstoneTemplate
 from app.models.command_reference import CommandReference
 from app.models.evidence import EvidenceArtifact
-from app.models.incident import Incident, IncidentParticipant, IncidentTicket, RCASubmission, RootCause
+from app.models.incident import (
+    Incident,
+    IncidentParticipant,
+    IncidentTicket,
+    RCASubmission,
+    RootCause,
+)
 from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.progression import MethodologyFramework, PromotionGate, Role
@@ -20,6 +26,7 @@ from app.models.quiz import Quiz, QuizAttempt
 from app.models.resource import Resource
 from app.models.student import Student
 from app.models.ticket import Ticket
+from app.services.quiz_scores import filter_submitted_attempts
 from app.models.vm_assignment import VmAssignment
 from app.schemas.resource import ResourceCreateRequest
 from app.schemas.admin_content import (
@@ -40,10 +47,15 @@ from app.schemas.admin_content import (
 )
 from app.services.admin_auth import verify_admin
 from app.services.ai_service import ai_health_test
-from app.services.a_plus_access import get_a_plus_unlock_threshold, set_a_plus_unlock_threshold
+from app.services.a_plus_access import (
+    get_a_plus_unlock_threshold,
+    set_a_plus_unlock_threshold,
+)
 from app.utils.responses import ok
 
-router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(verify_admin)])
+router = APIRouter(
+    prefix="/api/admin", tags=["admin"], dependencies=[Depends(verify_admin)]
+)
 logger = logging.getLogger(__name__)
 
 
@@ -65,7 +77,6 @@ def update_a_plus_unlock_setting(
     return ok({"a_plus_unlock_threshold_pct": threshold})
 
 
-
 @router.post("/resources")
 def create_resource(payload: ResourceCreateRequest, db: Session = Depends(get_db)):
     resource = Resource(
@@ -80,6 +91,7 @@ def create_resource(payload: ResourceCreateRequest, db: Session = Depends(get_db
     db.refresh(resource)
     return ok({"resource_id": resource.id})
 
+
 @router.delete("/resources/{resource_id}")
 def delete_resource(resource_id: int, db: Session = Depends(get_db)):
     resource = db.query(Resource).filter(Resource.id == resource_id).first()
@@ -88,6 +100,7 @@ def delete_resource(resource_id: int, db: Session = Depends(get_db)):
     db.delete(resource)
     db.commit()
     return ok({"deleted": True})
+
 
 @router.get("/ai-test")
 async def ai_test(db: Session = Depends(get_db)):
@@ -100,14 +113,25 @@ async def ai_test(db: Session = Depends(get_db)):
         logger.exception("ai_test_failed")
         return {"success": False, "error": str(exc)}
 
+
 @router.get("/ai-usage")
 def get_ai_usage_stats(db: Session = Depends(get_db)):
     now = datetime.now(timezone.utc)
     daily_cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0)
     monthly_cutoff = now - timedelta(days=30)
 
-    daily = db.query(func.coalesce(func.sum(AIUsageLog.cost_estimate), 0)).filter(AIUsageLog.created_at > daily_cutoff).scalar() or 0
-    monthly = db.query(func.coalesce(func.sum(AIUsageLog.cost_estimate), 0)).filter(AIUsageLog.created_at > monthly_cutoff).scalar() or 0
+    daily = (
+        db.query(func.coalesce(func.sum(AIUsageLog.cost_estimate), 0))
+        .filter(AIUsageLog.created_at > daily_cutoff)
+        .scalar()
+        or 0
+    )
+    monthly = (
+        db.query(func.coalesce(func.sum(AIUsageLog.cost_estimate), 0))
+        .filter(AIUsageLog.created_at > monthly_cutoff)
+        .scalar()
+        or 0
+    )
     total = db.query(func.coalesce(func.sum(AIUsageLog.cost_estimate), 0)).scalar() or 0
 
     breakdown_rows = (
@@ -116,7 +140,9 @@ def get_ai_usage_stats(db: Session = Depends(get_db)):
             func.count(AIUsageLog.id).label("call_count"),
             func.coalesce(func.sum(AIUsageLog.total_tokens), 0).label("total_tokens"),
             func.coalesce(func.sum(AIUsageLog.cost_estimate), 0).label("total_cost"),
-            func.coalesce(func.avg(AIUsageLog.cost_estimate), 0).label("avg_cost_per_call"),
+            func.coalesce(func.avg(AIUsageLog.cost_estimate), 0).label(
+                "avg_cost_per_call"
+            ),
         )
         .group_by(AIUsageLog.feature)
         .order_by(func.sum(AIUsageLog.cost_estimate).desc())
@@ -155,9 +181,14 @@ def get_ai_usage_stats(db: Session = Depends(get_db)):
         }
     )
 
+
 @router.get("/modules")
 def list_modules(db: Session = Depends(get_db)):
-    rows = db.query(Module).order_by(Module.module_order.asc().nullslast(), Module.id.asc()).all()
+    rows = (
+        db.query(Module)
+        .order_by(Module.module_order.asc().nullslast(), Module.id.asc())
+        .all()
+    )
     return ok(
         [
             {
@@ -177,6 +208,7 @@ def list_modules(db: Session = Depends(get_db)):
         ]
     )
 
+
 @router.post("/modules")
 def create_module(payload: ModuleCreate, db: Session = Depends(get_db)):
     row = Module(**payload.model_dump())
@@ -184,6 +216,7 @@ def create_module(payload: ModuleCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(row)
     return ok({"module_id": row.id})
+
 
 @router.put("/modules/{module_id}")
 def update_module(module_id: int, payload: ModuleUpdate, db: Session = Depends(get_db)):
@@ -194,6 +227,7 @@ def update_module(module_id: int, payload: ModuleUpdate, db: Session = Depends(g
         setattr(row, field, value)
     db.commit()
     return ok({"module_id": row.id})
+
 
 @router.get("/lessons")
 def list_lessons(module_id: int | None = None, db: Session = Depends(get_db)):
@@ -219,6 +253,7 @@ def list_lessons(module_id: int | None = None, db: Session = Depends(get_db)):
         ]
     )
 
+
 @router.post("/lessons")
 def create_lesson(payload: LessonCreate, db: Session = Depends(get_db)):
     row = Lesson(**payload.model_dump())
@@ -226,6 +261,7 @@ def create_lesson(payload: LessonCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(row)
     return ok({"lesson_id": row.id})
+
 
 @router.put("/lessons/{lesson_id}")
 def update_lesson(lesson_id: int, payload: LessonUpdate, db: Session = Depends(get_db)):
@@ -238,8 +274,11 @@ def update_lesson(lesson_id: int, payload: LessonUpdate, db: Session = Depends(g
     db.commit()
     return ok({"lesson_id": row.id})
 
+
 @router.put("/tickets/{ticket_id}/answer-key")
-def update_ticket_answer_key(ticket_id: int, payload: TicketAnswerKeyUpdate, db: Session = Depends(get_db)):
+def update_ticket_answer_key(
+    ticket_id: int, payload: TicketAnswerKeyUpdate, db: Session = Depends(get_db)
+):
     row = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -248,6 +287,7 @@ def update_ticket_answer_key(ticket_id: int, payload: TicketAnswerKeyUpdate, db:
         setattr(row, field, value)
     db.commit()
     return ok({"ticket_id": row.id})
+
 
 @router.get("/evidence")
 def list_evidence(status: str | None = None, db: Session = Depends(get_db)):
@@ -271,8 +311,11 @@ def list_evidence(status: str | None = None, db: Session = Depends(get_db)):
         ]
     )
 
+
 @router.put("/evidence/{artifact_id}")
-def review_evidence(artifact_id: int, payload: EvidenceReview, db: Session = Depends(get_db)):
+def review_evidence(
+    artifact_id: int, payload: EvidenceReview, db: Session = Depends(get_db)
+):
     row = db.query(EvidenceArtifact).filter(EvidenceArtifact.id == artifact_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Artifact not found")
@@ -285,6 +328,7 @@ def review_evidence(artifact_id: int, payload: EvidenceReview, db: Session = Dep
     row.validated_by = updates.get("validated_by")
     db.commit()
     return ok({"artifact_id": row.id})
+
 
 @router.get("/methodology/frameworks")
 def list_methodology_frameworks(db: Session = Depends(get_db)):
@@ -302,10 +346,22 @@ def list_methodology_frameworks(db: Session = Depends(get_db)):
         ]
     )
 
+
 @router.get("/roles")
 def list_roles(db: Session = Depends(get_db)):
     rows = db.query(Role).order_by(Role.rank_order.asc()).all()
-    return ok([{"id": r.id, "name": r.name, "rank_order": r.rank_order, "description": r.description} for r in rows])
+    return ok(
+        [
+            {
+                "id": r.id,
+                "name": r.name,
+                "rank_order": r.rank_order,
+                "description": r.description,
+            }
+            for r in rows
+        ]
+    )
+
 
 @router.get("/promotion-gates")
 def list_promotion_gates(role_id: int | None = None, db: Session = Depends(get_db)):
@@ -326,6 +382,7 @@ def list_promotion_gates(role_id: int | None = None, db: Session = Depends(get_d
             for row in rows
         ]
     )
+
 
 @router.get("/labs/templates")
 def list_lab_templates(lesson_id: int | None = None, db: Session = Depends(get_db)):
@@ -358,6 +415,7 @@ def list_lab_templates(lesson_id: int | None = None, db: Session = Depends(get_d
         ]
     )
 
+
 @router.post("/labs/templates")
 def create_lab_template(payload: LabTemplateCreate, db: Session = Depends(get_db)):
     row = LabTemplate(**payload.model_dump())
@@ -366,8 +424,11 @@ def create_lab_template(payload: LabTemplateCreate, db: Session = Depends(get_db
     db.refresh(row)
     return ok({"lab_template_id": row.id})
 
+
 @router.put("/labs/templates/{template_id}")
-def update_lab_template(template_id: int, payload: LabTemplateUpdate, db: Session = Depends(get_db)):
+def update_lab_template(
+    template_id: int, payload: LabTemplateUpdate, db: Session = Depends(get_db)
+):
     row = db.query(LabTemplate).filter(LabTemplate.id == template_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Lab template not found")
@@ -378,6 +439,7 @@ def update_lab_template(template_id: int, payload: LabTemplateUpdate, db: Sessio
     db.commit()
     return ok({"lab_template_id": row.id})
 
+
 @router.delete("/labs/templates/{template_id}")
 def delete_lab_template(template_id: int, db: Session = Depends(get_db)):
     row = db.query(LabTemplate).filter(LabTemplate.id == template_id).first()
@@ -387,6 +449,7 @@ def delete_lab_template(template_id: int, db: Session = Depends(get_db)):
     db.delete(row)
     db.commit()
     return ok({"deleted": True})
+
 
 @router.get("/incidents")
 def list_incidents(db: Session = Depends(get_db)):
@@ -406,6 +469,7 @@ def list_incidents(db: Session = Depends(get_db)):
             for r in rows
         ]
     )
+
 
 @router.post("/incidents")
 def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)):
@@ -432,8 +496,11 @@ def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)):
     db.refresh(row)
     return ok({"incident_id": row.id})
 
+
 @router.post("/incidents/{incident_id}/tickets")
-def link_incident_ticket(incident_id: int, payload: IncidentTicketCreate, db: Session = Depends(get_db)):
+def link_incident_ticket(
+    incident_id: int, payload: IncidentTicketCreate, db: Session = Depends(get_db)
+):
     row = IncidentTicket(
         incident_id=incident_id,
         ticket_id=payload.ticket_id,
@@ -444,6 +511,7 @@ def link_incident_ticket(incident_id: int, payload: IncidentTicketCreate, db: Se
     db.commit()
     db.refresh(row)
     return ok({"incident_ticket_id": row.id})
+
 
 @router.get("/capstones/templates")
 def list_capstone_templates(db: Session = Depends(get_db)):
@@ -466,16 +534,22 @@ def list_capstone_templates(db: Session = Depends(get_db)):
         ]
     )
 
+
 @router.post("/capstones/templates")
-def create_capstone_template(payload: CapstoneTemplateCreate, db: Session = Depends(get_db)):
+def create_capstone_template(
+    payload: CapstoneTemplateCreate, db: Session = Depends(get_db)
+):
     row = CapstoneTemplate(**payload.model_dump())
     db.add(row)
     db.commit()
     db.refresh(row)
     return ok({"capstone_template_id": row.id})
 
+
 @router.put("/capstones/templates/{template_id}")
-def update_capstone_template(template_id: int, payload: CapstoneTemplateUpdate, db: Session = Depends(get_db)):
+def update_capstone_template(
+    template_id: int, payload: CapstoneTemplateUpdate, db: Session = Depends(get_db)
+):
     row = db.query(CapstoneTemplate).filter(CapstoneTemplate.id == template_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Capstone template not found")
@@ -493,6 +567,7 @@ def update_capstone_template(template_id: int, payload: CapstoneTemplateUpdate, 
         }
     )
 
+
 @router.delete("/capstones/templates/{template_id}")
 def delete_capstone_template(template_id: int, db: Session = Depends(get_db)):
     row = db.query(CapstoneTemplate).filter(CapstoneTemplate.id == template_id).first()
@@ -503,6 +578,7 @@ def delete_capstone_template(template_id: int, db: Session = Depends(get_db)):
     db.commit()
     return ok({"deleted": True})
 
+
 @router.get("/ops/summary")
 def operations_summary(db: Session = Depends(get_db)):
     return ok(
@@ -510,12 +586,17 @@ def operations_summary(db: Session = Depends(get_db)):
             "lab_templates": db.query(func.count(LabTemplate.id)).scalar() or 0,
             "lab_runs": db.query(func.count(LabRun.id)).scalar() or 0,
             "incidents": db.query(func.count(Incident.id)).scalar() or 0,
-            "incident_participants": db.query(func.count(IncidentParticipant.id)).scalar() or 0,
+            "incident_participants": db.query(
+                func.count(IncidentParticipant.id)
+            ).scalar()
+            or 0,
             "rca_submissions": db.query(func.count(RCASubmission.id)).scalar() or 0,
-            "capstone_templates": db.query(func.count(CapstoneTemplate.id)).scalar() or 0,
+            "capstone_templates": db.query(func.count(CapstoneTemplate.id)).scalar()
+            or 0,
             "capstone_runs": db.query(func.count(CapstoneRun.id)).scalar() or 0,
         }
     )
+
 
 @router.get("/commands")
 def list_commands(db: Session = Depends(get_db)):
@@ -535,6 +616,7 @@ def list_commands(db: Session = Depends(get_db)):
         ]
     )
 
+
 @router.post("/commands")
 def create_command(payload: CommandCreate, db: Session = Depends(get_db)):
     row = CommandReference(**payload.model_dump())
@@ -543,8 +625,11 @@ def create_command(payload: CommandCreate, db: Session = Depends(get_db)):
     db.refresh(row)
     return ok({"command_id": row.id})
 
+
 @router.put("/commands/{command_id}")
-def update_command(command_id: int, payload: CommandUpdate, db: Session = Depends(get_db)):
+def update_command(
+    command_id: int, payload: CommandUpdate, db: Session = Depends(get_db)
+):
     row = db.query(CommandReference).filter(CommandReference.id == command_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Command not found")
@@ -552,6 +637,7 @@ def update_command(command_id: int, payload: CommandUpdate, db: Session = Depend
         setattr(row, field, value)
     db.commit()
     return ok({"command_id": row.id})
+
 
 @router.delete("/commands/{command_id}")
 def delete_command(command_id: int, db: Session = Depends(get_db)):
@@ -565,7 +651,10 @@ def delete_command(command_id: int, db: Session = Depends(get_db)):
 
 @router.get("/quiz-attempts/flagged")
 def get_flagged_attempts(db: Session = Depends(get_db)):
-    attempts = db.query(QuizAttempt).filter(QuizAttempt.time_per_question.isnot(None)).all()
+    attempt_query = db.query(QuizAttempt).filter(
+        QuizAttempt.time_per_question.isnot(None)
+    )
+    attempts = filter_submitted_attempts(attempt_query, db).all()
     result = []
     for attempt in attempts:
         tpq = attempt.time_per_question or {}
@@ -583,12 +672,16 @@ def get_flagged_attempts(db: Session = Depends(get_db)):
             {
                 "attempt_id": attempt.id,
                 "student_id": attempt.student_id,
-                "student_name": getattr(student, "full_name", None) or student.name if student else "Unknown",
+                "student_name": getattr(student, "full_name", None) or student.name
+                if student
+                else "Unknown",
                 "quiz_id": attempt.quiz_id,
                 "quiz_title": quiz.title if quiz else "Unknown",
                 "score": attempt.score,
                 "avg_seconds_per_question": round(avg, 1),
-                "completed_at": attempt.completed_at.isoformat() if attempt.completed_at else None,
+                "completed_at": attempt.completed_at.isoformat()
+                if attempt.completed_at
+                else None,
             }
         )
     result.sort(key=lambda x: x["avg_seconds_per_question"])
@@ -613,19 +706,29 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
             try:
                 guacamole_service.delete_user(assignment.guac_username)
             except Exception as exc:
-                logger.warning("Cleanup: failed to delete temporary Guacamole user for assignment %s: %s", assignment.id, exc)
+                logger.warning(
+                    "Cleanup: failed to delete temporary Guacamole user for assignment %s: %s",
+                    assignment.id,
+                    exc,
+                )
 
         if assignment.guac_conn_id:
             try:
                 guacamole_service.delete_connection(assignment.guac_conn_id)
             except Exception as exc:
-                logger.warning("Cleanup: failed to delete connection %s: %s", assignment.guac_conn_id, exc)
+                logger.warning(
+                    "Cleanup: failed to delete connection %s: %s",
+                    assignment.guac_conn_id,
+                    exc,
+                )
 
         if assignment.vmid is not None:
             try:
                 proxmox_service.destroy_vm(assignment.vmid)
             except Exception as exc:
-                logger.warning("Cleanup: failed to destroy VM %s: %s", assignment.vmid, exc)
+                logger.warning(
+                    "Cleanup: failed to destroy VM %s: %s", assignment.vmid, exc
+                )
                 assignment.status = "failed"
                 errors.append({"vmid": assignment.vmid, "error": "VM cleanup failed"})
                 continue
@@ -642,40 +745,61 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
 @router.get("/vms/assignments")
 def get_vm_assignments(limit: int = 100, db: Session = Depends(get_db)):
     limit = min(max(limit, 1), 200)
-    rows = db.query(VmAssignment).order_by(VmAssignment.created_at.desc(), VmAssignment.id.desc()).limit(limit).all()
-    lab_runs = {
-        row.id: row
-        for row in db.query(LabRun).filter(LabRun.id.in_([item.lab_run_id for item in rows])).all()
-    } if rows else {}
+    rows = (
+        db.query(VmAssignment)
+        .order_by(VmAssignment.created_at.desc(), VmAssignment.id.desc())
+        .limit(limit)
+        .all()
+    )
+    lab_runs = (
+        {
+            row.id: row
+            for row in db.query(LabRun)
+            .filter(LabRun.id.in_([item.lab_run_id for item in rows]))
+            .all()
+        }
+        if rows
+        else {}
+    )
     student_ids = {item.student_id for item in rows}
-    students = {
-        row.id: row
-        for row in db.query(Student).filter(Student.id.in_(student_ids)).all()
-    } if student_ids else {}
+    students = (
+        {
+            row.id: row
+            for row in db.query(Student).filter(Student.id.in_(student_ids)).all()
+        }
+        if student_ids
+        else {}
+    )
     lab_ids = {run.lab_template_id for run in lab_runs.values()}
-    labs = {
-        row.id: row
-        for row in db.query(LabTemplate).filter(LabTemplate.id.in_(lab_ids)).all()
-    } if lab_ids else {}
+    labs = (
+        {
+            row.id: row
+            for row in db.query(LabTemplate).filter(LabTemplate.id.in_(lab_ids)).all()
+        }
+        if lab_ids
+        else {}
+    )
 
     data = []
     for assignment in rows:
         run = lab_runs.get(assignment.lab_run_id)
         lab = labs.get(run.lab_template_id) if run else None
         student = students.get(assignment.student_id)
-        data.append({
-            "id": assignment.id,
-            "student_id": assignment.student_id,
-            "student_name": student.name if student else "Unknown student",
-            "lab_run_id": assignment.lab_run_id,
-            "lab_title": lab.title if lab else "Unknown lab",
-            "vmid": assignment.vmid,
-            "status": assignment.status,
-            "ip_address": assignment.ip_address,
-            "provisioning_error": assignment.provisioning_error,
-            "started_at": assignment.started_at,
-            "expires_at": assignment.expires_at,
-            "created_at": assignment.created_at,
-            "destroyed_at": assignment.destroyed_at,
-        })
+        data.append(
+            {
+                "id": assignment.id,
+                "student_id": assignment.student_id,
+                "student_name": student.name if student else "Unknown student",
+                "lab_run_id": assignment.lab_run_id,
+                "lab_title": lab.title if lab else "Unknown lab",
+                "vmid": assignment.vmid,
+                "status": assignment.status,
+                "ip_address": assignment.ip_address,
+                "provisioning_error": assignment.provisioning_error,
+                "started_at": assignment.started_at,
+                "expires_at": assignment.expires_at,
+                "created_at": assignment.created_at,
+                "destroyed_at": assignment.destroyed_at,
+            }
+        )
     return ok(data, total=len(data), page=1, per_page=limit)

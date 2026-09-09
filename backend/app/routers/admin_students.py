@@ -16,7 +16,10 @@ from app.models.xp_ledger import XPLedger
 from app.services.activity_service import get_recent_activity
 from app.services.onboarding_service import get_orientation_state
 from app.services.quiz_progression import is_quiz_passed
-from app.services.quiz_scores import average_attempt_percentage
+from app.services.quiz_scores import (
+    average_attempt_percentage,
+    filter_submitted_attempts,
+)
 from app.services.service_desk_progression import PACK_BY_SCENARIO
 from app.services.admin_auth import verify_admin
 from app.services.auth_service import hash_password, normalize_username
@@ -24,7 +27,9 @@ from app.services.student_deletion import delete_student_owned_data
 from app.services.training_service import build_cohort_summary, build_training_progress
 from app.utils.responses import ok
 
-router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(verify_admin)])
+router = APIRouter(
+    prefix="/api/admin", tags=["admin"], dependencies=[Depends(verify_admin)]
+)
 logger = logging.getLogger(__name__)
 
 
@@ -46,26 +51,45 @@ class StudentUpdateRequest(BaseModel):
 
 @router.get("/students/overview")
 def student_overview(db: Session = Depends(get_db)):
-    students = db.query(Student).order_by(Student.total_xp.desc(), Student.id.asc()).all()
-    required_quizzes = db.query(Quiz).filter(
-        Quiz.status == QUIZ_STATUS_PUBLISHED,
-        Quiz.is_active.is_(True),
-        Quiz.is_required.is_(True),
-        Quiz.show_in_weekly_checklist.is_(True),
-        Quiz.answer_keys_validated.is_(True),
-    ).all()
+    students = (
+        db.query(Student).order_by(Student.total_xp.desc(), Student.id.asc()).all()
+    )
+    required_quizzes = (
+        db.query(Quiz)
+        .filter(
+            Quiz.status == QUIZ_STATUS_PUBLISHED,
+            Quiz.is_active.is_(True),
+            Quiz.is_required.is_(True),
+            Quiz.show_in_weekly_checklist.is_(True),
+            Quiz.answer_keys_validated.is_(True),
+        )
+        .all()
+    )
     total_quizzes = len(required_quizzes)
     total_tickets = db.query(Ticket).count()
 
     data = []
     for rank, student in enumerate(students, start=1):
         required_ids = {quiz.id for quiz in required_quizzes}
-        quiz_attempts = db.query(QuizAttempt).filter(
-            QuizAttempt.student_id == student.id,
-            QuizAttempt.quiz_id.in_(required_ids),
-        ).all() if required_ids else []
-        completed_required = sum(is_quiz_passed(db, student.id, quiz) for quiz in required_quizzes)
-        ticket_subs = db.query(TicketSubmission).filter(TicketSubmission.student_id == student.id, TicketSubmission.ai_score.isnot(None)).all()
+        if required_ids:
+            attempt_query = db.query(QuizAttempt).filter(
+                QuizAttempt.student_id == student.id,
+                QuizAttempt.quiz_id.in_(required_ids),
+            )
+            quiz_attempts = filter_submitted_attempts(attempt_query, db).all()
+        else:
+            quiz_attempts = []
+        completed_required = sum(
+            is_quiz_passed(db, student.id, quiz) for quiz in required_quizzes
+        )
+        ticket_subs = (
+            db.query(TicketSubmission)
+            .filter(
+                TicketSubmission.student_id == student.id,
+                TicketSubmission.ai_score.isnot(None),
+            )
+            .all()
+        )
         data.append(
             {
                 "rank": rank,
@@ -115,10 +139,20 @@ def student_activity(student_id: int, db: Session = Depends(get_db)):
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    entries = db.query(XPLedger).filter(XPLedger.student_id == student_id).order_by(XPLedger.created_at.desc()).limit(50).all()
+    entries = (
+        db.query(XPLedger)
+        .filter(XPLedger.student_id == student_id)
+        .order_by(XPLedger.created_at.desc())
+        .limit(50)
+        .all()
+    )
     return ok(
         {
-            "student": {"id": student.id, "name": student.name, "total_xp": student.total_xp},
+            "student": {
+                "id": student.id,
+                "name": student.name,
+                "total_xp": student.total_xp,
+            },
             "onboarding": get_orientation_state(db, student),
             "activity": [
                 {
@@ -139,14 +173,20 @@ def student_activity(student_id: int, db: Session = Depends(get_db)):
 def create_student(payload: StudentCreateRequest, db: Session = Depends(get_db)):
     existing = db.query(Student).filter(Student.email == payload.email).first()
     if existing:
-        raise HTTPException(status_code=400, detail="A student with this email already exists")
+        raise HTTPException(
+            status_code=400, detail="A student with this email already exists"
+        )
 
     username = payload.username.strip()
     existing_username = (
-        db.query(Student).filter(func.lower(Student.username) == normalize_username(username)).first()
+        db.query(Student)
+        .filter(func.lower(Student.username) == normalize_username(username))
+        .first()
     )
     if existing_username:
-        raise HTTPException(status_code=400, detail="A student with this username already exists")
+        raise HTTPException(
+            status_code=400, detail="A student with this username already exists"
+        )
 
     student = Student(
         name=payload.name,
@@ -158,7 +198,11 @@ def create_student(payload: StudentCreateRequest, db: Session = Depends(get_db))
     db.add(student)
     db.flush()
 
-    from app.models.progression import MethodologyFramework, Role, StudentMethodologyProgress
+    from app.models.progression import (
+        MethodologyFramework,
+        Role,
+        StudentMethodologyProgress,
+    )
 
     first_role = db.query(Role).filter(Role.rank_order == 1).first()
     if first_role:
@@ -179,31 +223,41 @@ def create_student(payload: StudentCreateRequest, db: Session = Depends(get_db))
     # accounts. Student-facing availability is still filtered by the
     # server-authoritative pack progression; these rows are assignment
     # inventory, not an unlock shortcut.
-    managed_scenarios = db.query(ServiceDeskScenario).filter(
-        ServiceDeskScenario.status == "active",
-        ServiceDeskScenario.stable_key.in_(set(PACK_BY_SCENARIO)),
-    ).all()
+    managed_scenarios = (
+        db.query(ServiceDeskScenario)
+        .filter(
+            ServiceDeskScenario.status == "active",
+            ServiceDeskScenario.stable_key.in_(set(PACK_BY_SCENARIO)),
+        )
+        .all()
+    )
     for scenario in managed_scenarios:
-        db.add(ServiceDeskAssignment(
-            student_id=student.id,
-            scenario_id=scenario.id,
-            mode="simulation",
-            is_required=False,
-            assigned_by="student-create",
-        ))
+        db.add(
+            ServiceDeskAssignment(
+                student_id=student.id,
+                scenario_id=scenario.id,
+                mode="simulation",
+                is_required=False,
+                assigned_by="student-create",
+            )
+        )
 
     try:
         db.commit()
     except IntegrityError as exc:
         db.rollback()
         logger.warning("student_create_integrity_conflict")
-        raise HTTPException(status_code=409, detail="Student account could not be created") from exc
+        raise HTTPException(
+            status_code=409, detail="Student account could not be created"
+        ) from exc
     db.refresh(student)
     return ok({"student_id": student.id, "name": student.name, "email": student.email})
 
 
 @router.put("/students/{student_id}")
-def update_student(student_id: int, payload: StudentUpdateRequest, db: Session = Depends(get_db)):
+def update_student(
+    student_id: int, payload: StudentUpdateRequest, db: Session = Depends(get_db)
+):
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -238,7 +292,9 @@ def delete_student(student_id: int, db: Session = Depends(get_db)):
     except IntegrityError as exc:
         db.rollback()
         logger.warning("student_delete_integrity_conflict student_id=%s", student_id)
-        raise HTTPException(status_code=409, detail="Student account has protected records") from exc
+        raise HTTPException(
+            status_code=409, detail="Student account has protected records"
+        ) from exc
     except Exception:
         db.rollback()
         logger.exception("student_delete_failed student_id=%s", student_id)
@@ -256,7 +312,9 @@ def admin_squad_activity(limit: int = 30, db: Session = Depends(get_db)):
             {
                 "id": row.id,
                 "student_id": row.student_id,
-                "student_name": student.name if student else f"Student {row.student_id}",
+                "student_name": student.name
+                if student
+                else f"Student {row.student_id}",
                 "activity_type": row.activity_type,
                 "title": row.title,
                 "detail": row.detail,

@@ -10,7 +10,11 @@ from app.models.quiz import (
     QuizAttempt,
 )
 
-from app.services.quiz_scores import PASSING_PERCENTAGE, attempt_summary
+from app.services.quiz_scores import (
+    PASSING_PERCENTAGE,
+    attempt_summary,
+    filter_submitted_attempts,
+)
 
 QUIZ_PASS_PERCENT = PASSING_PERCENTAGE
 
@@ -34,21 +38,20 @@ def required_quizzes_for_week(db: Session, week: int) -> list[Quiz]:
 
 
 def best_quiz_score(db: Session, student_id: int, quiz_id: int) -> int:
-    return int(
-        db.query(func.coalesce(func.max(QuizAttempt.score), 0))
-        .filter(QuizAttempt.student_id == student_id, QuizAttempt.quiz_id == quiz_id)
-        .scalar()
-        or 0
+    query = db.query(func.coalesce(func.max(QuizAttempt.score), 0)).filter(
+        QuizAttempt.student_id == student_id,
+        QuizAttempt.quiz_id == quiz_id,
     )
+    return int(filter_submitted_attempts(query, db).scalar() or 0)
 
 
 def is_quiz_passed(db: Session, student_id: int, quiz: Quiz) -> bool:
     total = len(quiz.questions) if quiz.questions else int(quiz.question_count or 0)
-    rows = (
-        db.query(QuizAttempt)
-        .filter(QuizAttempt.student_id == student_id, QuizAttempt.quiz_id == quiz.id)
-        .all()
+    query = db.query(QuizAttempt).filter(
+        QuizAttempt.student_id == student_id,
+        QuizAttempt.quiz_id == quiz.id,
     )
+    rows = filter_submitted_attempts(query, db).all()
     return attempt_summary(rows, total)["earned_pass"]
 
 
@@ -66,9 +69,11 @@ def triggered_remediation_ids(db: Session, student_id: int) -> set[int]:
     """Trigger week-scoped remediation after a failed required quiz attempt."""
     failed_weeks = set()
     for quiz in db.query(Quiz).filter(Quiz.is_required.is_(True)).all():
-        attempts = db.query(QuizAttempt.id).filter(
-            QuizAttempt.student_id == student_id, QuizAttempt.quiz_id == quiz.id
-        ).first()
+        query = db.query(QuizAttempt.id).filter(
+            QuizAttempt.student_id == student_id,
+            QuizAttempt.quiz_id == quiz.id,
+        )
+        attempts = filter_submitted_attempts(query, db).first()
         if attempts and not is_quiz_passed(db, student_id, quiz):
             failed_weeks.add(quiz.week_number)
     if not failed_weeks:

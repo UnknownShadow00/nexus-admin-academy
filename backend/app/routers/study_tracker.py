@@ -1,4 +1,4 @@
-from app.services.quiz_scores import attempt_score
+from app.services.quiz_scores import attempt_score, filter_submitted_attempts
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -11,13 +11,18 @@ from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.admin_auth import allow_admin_or_student, verify_admin
 from app.services.a_plus_access import get_a_plus_progress
-from app.services.auth_service import ensure_student_access, ensure_student_ownership, get_current_student
+from app.services.auth_service import (
+    ensure_student_access,
+    ensure_student_ownership,
+    get_current_student,
+)
 from app.services.quiz_visibility import student_visible_quiz_filters
 from app.utils.responses import ok
 
 
 def _title_key(t: str) -> str:
     import re
+
     return re.sub(r"[^a-z0-9]", "", t.lower())
 
 
@@ -45,7 +50,9 @@ def _get_student_or_admin(auth_check: bool = Depends(allow_admin_or_student)):
 
 
 @router.get("/curriculum")
-def get_curriculum(db: Session = Depends(get_db), _: bool = Depends(_get_student_or_admin)):
+def get_curriculum(
+    db: Session = Depends(get_db), _: bool = Depends(_get_student_or_admin)
+):
     """Return all curriculum videos grouped by section."""
     videos = (
         db.query(CurriculumVideo)
@@ -57,7 +64,10 @@ def get_curriculum(db: Session = Depends(get_db), _: bool = Depends(_get_student
     mapped_rows = (
         db.query(TrainingWeekActivity)
         .join(TrainingWeek, TrainingWeek.id == TrainingWeekActivity.training_week_id)
-        .filter(TrainingWeek.is_active.is_(True), TrainingWeekActivity.activity_type == "video")
+        .filter(
+            TrainingWeek.is_active.is_(True),
+            TrainingWeekActivity.activity_type == "video",
+        )
         .all()
     )
     mapping_by_video_id = {
@@ -70,17 +80,27 @@ def get_curriculum(db: Session = Depends(get_db), _: bool = Depends(_get_student
         for metadata in mapping_by_video_id.values()
         if str(metadata.get("quiz_id", "")).isdigit()
     }
-    quizzes = {
-        row.id: row
-        for row in db.query(Quiz).filter(Quiz.id.in_(mapped_quiz_ids), *student_visible_quiz_filters()).all()
-    } if mapped_quiz_ids else {}
+    quizzes = (
+        {
+            row.id: row
+            for row in db.query(Quiz)
+            .filter(Quiz.id.in_(mapped_quiz_ids), *student_visible_quiz_filters())
+            .all()
+        }
+        if mapped_quiz_ids
+        else {}
+    )
 
     sections = {}
     for video in videos:
         if video.section not in sections:
             sections[video.section] = {"section": video.section, "videos": []}
         mapping = mapping_by_video_id.get(video.id, {})
-        quiz_id = int(mapping["quiz_id"]) if str(mapping.get("quiz_id", "")).isdigit() else None
+        quiz_id = (
+            int(mapping["quiz_id"])
+            if str(mapping.get("quiz_id", "")).isdigit()
+            else None
+        )
         quiz = quizzes.get(quiz_id)
         sections[video.section]["videos"].append(
             {
@@ -103,7 +123,9 @@ def get_curriculum(db: Session = Depends(get_db), _: bool = Depends(_get_student
 
 
 @router.get("/curriculum/link-status")
-def get_curriculum_link_status(db: Session = Depends(get_db), _: bool = Depends(verify_admin)):
+def get_curriculum_link_status(
+    db: Session = Depends(get_db), _: bool = Depends(verify_admin)
+):
     videos = (
         db.query(CurriculumVideo)
         .filter(CurriculumVideo.active.is_(True))
@@ -114,7 +136,10 @@ def get_curriculum_link_status(db: Session = Depends(get_db), _: bool = Depends(
     activity_rows = (
         db.query(TrainingWeekActivity)
         .join(TrainingWeek, TrainingWeek.id == TrainingWeekActivity.training_week_id)
-        .filter(TrainingWeek.is_active.is_(True), TrainingWeekActivity.activity_type == "video")
+        .filter(
+            TrainingWeek.is_active.is_(True),
+            TrainingWeekActivity.activity_type == "video",
+        )
         .all()
     )
     mapping_by_video_id = {
@@ -127,15 +152,28 @@ def get_curriculum_link_status(db: Session = Depends(get_db), _: bool = Depends(
         for metadata in mapping_by_video_id.values()
         if str(metadata.get("quiz_id", "")).isdigit()
     }
-    approved_quiz_ids = {
-        row.id for row in db.query(Quiz.id).filter(Quiz.id.in_(quiz_ids), *student_visible_quiz_filters()).all()
-    } if quiz_ids else set()
+    approved_quiz_ids = (
+        {
+            row.id
+            for row in db.query(Quiz.id)
+            .filter(Quiz.id.in_(quiz_ids), *student_visible_quiz_filters())
+            .all()
+        }
+        if quiz_ids
+        else set()
+    )
 
     data = []
     for video in videos:
         mapping = mapping_by_video_id.get(video.id, {})
-        mapped_quiz_id = int(mapping["quiz_id"]) if str(mapping.get("quiz_id", "")).isdigit() else None
-        matched_quiz_id = mapped_quiz_id if mapped_quiz_id in approved_quiz_ids else None
+        mapped_quiz_id = (
+            int(mapping["quiz_id"])
+            if str(mapping.get("quiz_id", "")).isdigit()
+            else None
+        )
+        matched_quiz_id = (
+            mapped_quiz_id if mapped_quiz_id in approved_quiz_ids else None
+        )
         data.append(
             {
                 "id": video.id,
@@ -152,18 +190,26 @@ def get_curriculum_link_status(db: Session = Depends(get_db), _: bool = Depends(
 
 
 @router.get("/{student_id}")
-def get_study_tracker(student_id: int, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def get_study_tracker(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     """Return watched video keys and best quiz scores for this student."""
     ensure_student_access(current_student, student_id)
     watches = db.query(VideoWatch).filter(VideoWatch.student_id == student_id).all()
     watched = {watch.video_key: watch.watched_at.isoformat() for watch in watches}
 
-    attempts = (
+    attempt_query = (
         db.query(QuizAttempt, Quiz)
         .join(Quiz, Quiz.id == QuizAttempt.quiz_id)
         .filter(
-            QuizAttempt.student_id == student_id, Quiz.status == QUIZ_STATUS_PUBLISHED
+            QuizAttempt.student_id == student_id,
+            Quiz.status == QUIZ_STATUS_PUBLISHED,
         )
+    )
+    attempts = (
+        filter_submitted_attempts(attempt_query, db)
         .order_by(QuizAttempt.completed_at.asc(), QuizAttempt.id.asc())
         .all()
     )
@@ -198,13 +244,22 @@ def get_study_tracker(student_id: int, db: Session = Depends(get_db), current_st
         .all()
     )
     curriculum_titles = [row.quiz_title for row in curriculum_rows]
-    merged_scores = _merge_scores_with_curriculum_titles(scores_by_title, scores_by_title_key, curriculum_titles)
+    merged_scores = _merge_scores_with_curriculum_titles(
+        scores_by_title, scores_by_title_key, curriculum_titles
+    )
 
-    return ok({"watched": watched, "scores": merged_scores, "quiz_scores": scores_by_quiz_id})
+    return ok(
+        {"watched": watched, "scores": merged_scores, "quiz_scores": scores_by_quiz_id}
+    )
 
 
 @router.post("/{student_id}/watch/{video_key:path}")
-def mark_watched(student_id: int, video_key: str, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def mark_watched(
+    student_id: int,
+    video_key: str,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     ensure_student_ownership(current_student, student_id)
     exists = (
         db.query(VideoWatch)
@@ -218,7 +273,12 @@ def mark_watched(student_id: int, video_key: str, db: Session = Depends(get_db),
 
 
 @router.delete("/{student_id}/watch/{video_key:path}")
-def unmark_watched(student_id: int, video_key: str, db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
+def unmark_watched(
+    student_id: int,
+    video_key: str,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
     ensure_student_ownership(current_student, student_id)
     db.query(VideoWatch).filter(
         VideoWatch.student_id == student_id,
@@ -237,7 +297,12 @@ class VideoUpdate(BaseModel):
 
 
 @router.patch("/curriculum/{video_id}")
-def update_curriculum_video(video_id: int, body: VideoUpdate, db: Session = Depends(get_db), _: bool = Depends(verify_admin)):
+def update_curriculum_video(
+    video_id: int,
+    body: VideoUpdate,
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin),
+):
     """Admin: edit a video's title, URL, or linked quiz."""
     video = db.query(CurriculumVideo).filter(CurriculumVideo.id == video_id).first()
     if not video:

@@ -70,7 +70,9 @@ class QuizUpdateRequest(BaseModel):
             return value
         normalized = value.strip().lower()
         if normalized not in QUIZ_PURPOSES:
-            raise ValueError(f"Quiz purpose must be one of: {', '.join(sorted(QUIZ_PURPOSES))}")
+            raise ValueError(
+                f"Quiz purpose must be one of: {', '.join(sorted(QUIZ_PURPOSES))}"
+            )
         return normalized
 
     @field_validator("editorial_status")
@@ -80,7 +82,9 @@ class QuizUpdateRequest(BaseModel):
             return value
         normalized = value.strip().lower()
         if normalized not in EDITORIAL_STATUSES:
-            raise ValueError(f"Editorial status must be one of: {', '.join(sorted(EDITORIAL_STATUSES))}")
+            raise ValueError(
+                f"Editorial status must be one of: {', '.join(sorted(EDITORIAL_STATUSES))}"
+            )
         return normalized
 
     @field_validator("source_type")
@@ -90,7 +94,9 @@ class QuizUpdateRequest(BaseModel):
             return value
         normalized = value.strip().lower()
         if normalized not in SOURCE_TYPES:
-            raise ValueError(f"Source type must be one of: {', '.join(sorted(SOURCE_TYPES))}")
+            raise ValueError(
+                f"Source type must be one of: {', '.join(sorted(SOURCE_TYPES))}"
+            )
         return normalized
 
     @model_validator(mode="after")
@@ -107,16 +113,48 @@ class QuizSubmitRequest(BaseModel):
 
     @field_validator("answers")
     @classmethod
-    def answers_must_be_valid_option_letters(cls, value: dict[str, str]) -> dict[str, str]:
+    def answers_must_be_valid_option_letters(
+        cls, value: dict[str, str]
+    ) -> dict[str, str]:
         valid = {"A", "B", "C", "D", "E", "F", "G", "H"}
         normalized: dict[str, str] = {}
         for key, answer in value.items():
             # Allow multi-select like "A,C" or "a, c" — normalize to uppercase.
             letters = [letter.strip().upper() for letter in str(answer).split(",")]
             if not all(letter in valid for letter in letters if letter):
-                raise ValueError("Quiz answers must use option letters A through H only")
+                raise ValueError(
+                    "Quiz answers must use option letters A through H only"
+                )
             normalized[key] = ",".join(letter for letter in letters if letter)
         return normalized
+
+
+class QuizAttemptStartRequest(BaseModel):
+    student_id: int = Field(ge=1)
+
+
+class QuizAttemptSaveRequest(QuizAttemptStartRequest):
+    answers: dict[str, str] = Field(default_factory=dict)
+    current_position: int = Field(default=0, ge=0)
+    revision: int = Field(default=0, ge=0)
+
+    @field_validator("answers")
+    @classmethod
+    def answers_must_be_valid(cls, value: dict[str, str]) -> dict[str, str]:
+        return QuizSubmitRequest.answers_must_be_valid_option_letters(value)
+
+
+class PracticeAnswerRequest(QuizAttemptStartRequest):
+    question_id: int = Field(ge=1)
+    answer: str = ""
+
+    @field_validator("answer")
+    @classmethod
+    def answer_must_be_valid(cls, value: str) -> str:
+        normalized = QuizSubmitRequest.answers_must_be_valid_option_letters(
+            {"answer": value}
+        )
+        return normalized["answer"]
 
 
 class BulkTicketGenerateRequest(BaseModel):

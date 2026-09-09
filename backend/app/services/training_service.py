@@ -17,11 +17,15 @@ from app.models.progression import Role, StudentRole
 from app.models.quiz import Question, Quiz, QuizAttempt
 from app.models.student import Student
 from app.models.ticket import Ticket, TicketSubmission
-from app.models.service_desk import ServiceDeskAttempt, ServiceDeskScenario, ServiceDeskScenarioVersion
+from app.models.service_desk import (
+    ServiceDeskAttempt,
+    ServiceDeskScenario,
+    ServiceDeskScenarioVersion,
+)
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.mastery_service import list_student_mastery
-from app.services.quiz_scores import attempt_summary
+from app.services.quiz_scores import attempt_summary, filter_submitted_attempts
 from app.services.progression_service import get_promotion_status
 from app.services.quiz_visibility import (
     student_visible_quiz_filters,
@@ -32,7 +36,12 @@ from app.services.service_desk_progression import (
     ensure_assigned_scenarios,
     scenario_access,
 )
-from app.services.training_quiz_mapping import CONFIDENCE_BY_BASIS, EXACT, TOPIC_GROUP, WEEK_FALLBACK
+from app.services.training_quiz_mapping import (
+    CONFIDENCE_BY_BASIS,
+    EXACT,
+    TOPIC_GROUP,
+    WEEK_FALLBACK,
+)
 from app.services.curriculum_structure import (
     LEARNING_ROLES,
     MODULES,
@@ -90,7 +99,11 @@ def _service_desk_ticket_key(stable_key: str) -> str:
 
 def _module_route_for_week(week_number: int) -> str:
     module = module_for_week(week_number)
-    return f"/training/module/{module.stable_id}" if module else f"/training/week/{week_number}"
+    return (
+        f"/training/module/{module.stable_id}"
+        if module
+        else f"/training/week/{week_number}"
+    )
 
 
 def _duration_minutes(value: str | None) -> int | None:
@@ -144,29 +157,47 @@ class _TrainingContext:
             refs[activity.activity_type].add(activity.content_ref)
 
         def integer_refs(activity_type):
-            return {value for ref in refs[activity_type] if (value := _int_ref(ref)) is not None}
+            return {
+                value
+                for ref in refs[activity_type]
+                if (value := _int_ref(ref)) is not None
+            }
 
         mapped_quiz_ids = {
             quiz_id
             for activity in activities
             if activity.activity_type == "video"
-            and (quiz_id := _int_ref((activity.metadata_json or {}).get("quiz_id"))) is not None
+            and (quiz_id := _int_ref((activity.metadata_json or {}).get("quiz_id")))
+            is not None
         }
 
-        self.videos = {
-            row.id: row
-            for row in db.query(CurriculumVideo)
-            .filter(CurriculumVideo.id.in_(integer_refs("video")), CurriculumVideo.active.is_(True))
-            .all()
-        } if refs["video"] else {}
+        self.videos = (
+            {
+                row.id: row
+                for row in db.query(CurriculumVideo)
+                .filter(
+                    CurriculumVideo.id.in_(integer_refs("video")),
+                    CurriculumVideo.active.is_(True),
+                )
+                .all()
+            }
+            if refs["video"]
+            else {}
+        )
         requested_quiz_ids = integer_refs("quiz") | mapped_quiz_ids
-        self.quizzes = {
-            row.id: row
-            for row in db.query(Quiz)
-            .options(selectinload(Quiz.questions))
-            .filter(Quiz.id.in_(requested_quiz_ids), *student_visible_quiz_filters())
-            .all()
-        } if requested_quiz_ids else {}
+        self.quizzes = (
+            {
+                row.id: row
+                for row in db.query(Quiz)
+                .options(selectinload(Quiz.questions))
+                .filter(
+                    Quiz.id.in_(requested_quiz_ids), *student_visible_quiz_filters()
+                )
+                .all()
+            }
+            if requested_quiz_ids
+            else {}
+        )
         visible_quizzes = (
             db.query(Quiz)
             .options(selectinload(Quiz.questions))
@@ -174,38 +205,87 @@ class _TrainingContext:
             .all()
         )
         self.visible_quizzes_by_title = {row.title: row for row in visible_quizzes}
-        self.lessons = {
-            row.id: row for row in db.query(Lesson).filter(Lesson.id.in_(integer_refs("lesson"))).all()
-        } if refs["lesson"] else {}
-        self.labs = {
-            row.id: row
-            for row in db.query(LabTemplate)
-            .filter(LabTemplate.id.in_(integer_refs("guided_lab")), LabTemplate.is_published.is_(True))
-            .all()
-        } if refs["guided_lab"] else {}
+        self.lessons = (
+            {
+                row.id: row
+                for row in db.query(Lesson)
+                .filter(Lesson.id.in_(integer_refs("lesson")))
+                .all()
+            }
+            if refs["lesson"]
+            else {}
+        )
+        self.labs = (
+            {
+                row.id: row
+                for row in db.query(LabTemplate)
+                .filter(
+                    LabTemplate.id.in_(integer_refs("guided_lab")),
+                    LabTemplate.is_published.is_(True),
+                )
+                .all()
+            }
+            if refs["guided_lab"]
+            else {}
+        )
         # Compatibility read only: migration 0043 removes all live references.
         # This preserves a coherent read of a pre-migration historical week
         # without ever seeding or creating new Support Ticket requirements.
-        self.tickets = {
-            row.id: row for row in db.query(Ticket).filter(Ticket.id.in_(integer_refs("support_ticket"))).all()
-        } if refs["support_ticket"] else {}
-        self.cli_labs = {
-            row.id: row for row in db.query(CliLab).filter(CliLab.id.in_(refs["networking_lab"])).all()
-        } if refs["networking_lab"] else {}
-        self.commands = {
-            row.id: row
-            for row in db.query(CommandReference).filter(CommandReference.id.in_(integer_refs("command_exercise"))).all()
-        } if refs["command_exercise"] else {}
-        self.capstones = {
-            row.id: row
-            for row in db.query(CapstoneTemplate)
-            .filter(CapstoneTemplate.id.in_(integer_refs("capstone")), CapstoneTemplate.is_published.is_(True))
-            .all()
-        } if refs["capstone"] else {}
-        self.service_desk_scenarios = {
-            row.stable_key: row
-            for row in db.query(ServiceDeskScenario).filter(ServiceDeskScenario.stable_key.in_(refs["service_desk_scenario"])).all()
-        } if refs["service_desk_scenario"] else {}
+        self.tickets = (
+            {
+                row.id: row
+                for row in db.query(Ticket)
+                .filter(Ticket.id.in_(integer_refs("support_ticket")))
+                .all()
+            }
+            if refs["support_ticket"]
+            else {}
+        )
+        self.cli_labs = (
+            {
+                row.id: row
+                for row in db.query(CliLab)
+                .filter(CliLab.id.in_(refs["networking_lab"]))
+                .all()
+            }
+            if refs["networking_lab"]
+            else {}
+        )
+        self.commands = (
+            {
+                row.id: row
+                for row in db.query(CommandReference)
+                .filter(CommandReference.id.in_(integer_refs("command_exercise")))
+                .all()
+            }
+            if refs["command_exercise"]
+            else {}
+        )
+        self.capstones = (
+            {
+                row.id: row
+                for row in db.query(CapstoneTemplate)
+                .filter(
+                    CapstoneTemplate.id.in_(integer_refs("capstone")),
+                    CapstoneTemplate.is_published.is_(True),
+                )
+                .all()
+            }
+            if refs["capstone"]
+            else {}
+        )
+        self.service_desk_scenarios = (
+            {
+                row.stable_key: row
+                for row in db.query(ServiceDeskScenario)
+                .filter(
+                    ServiceDeskScenario.stable_key.in_(refs["service_desk_scenario"])
+                )
+                .all()
+            }
+            if refs["service_desk_scenario"]
+            else {}
+        )
         # Single authoritative availability answer, shared with Service Desk's
         # own endpoints (see scenario_access) -- never re-derived from
         # curriculum metadata alone. ensure_assigned_scenarios heals the one
@@ -219,12 +299,31 @@ class _TrainingContext:
         if self.service_desk_progression:
             ensure_assigned_scenarios(db, student, self.service_desk_progression)
         service_version_ids = [
-            row.id for row in db.query(ServiceDeskScenarioVersion.id)
-            .join(ServiceDeskScenario, ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id)
-            .filter(ServiceDeskScenario.stable_key.in_(set(self.service_desk_scenarios)), ServiceDeskScenarioVersion.status == "published")
+            row.id
+            for row in db.query(ServiceDeskScenarioVersion.id)
+            .join(
+                ServiceDeskScenario,
+                ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id,
+            )
+            .filter(
+                ServiceDeskScenario.stable_key.in_(set(self.service_desk_scenarios)),
+                ServiceDeskScenarioVersion.status == "published",
+            )
             .all()
         ]
-        service_attempts = db.query(ServiceDeskAttempt).filter(ServiceDeskAttempt.student_id == student.id, ServiceDeskAttempt.scenario_version_id.in_(service_version_ids), ServiceDeskAttempt.passed.is_(True), ServiceDeskAttempt.experience_mode == "assessment").order_by(ServiceDeskAttempt.completed_at.desc()).all() if service_version_ids else []
+        service_attempts = (
+            db.query(ServiceDeskAttempt)
+            .filter(
+                ServiceDeskAttempt.student_id == student.id,
+                ServiceDeskAttempt.scenario_version_id.in_(service_version_ids),
+                ServiceDeskAttempt.passed.is_(True),
+                ServiceDeskAttempt.experience_mode == "assessment",
+            )
+            .order_by(ServiceDeskAttempt.completed_at.desc())
+            .all()
+            if service_version_ids
+            else []
+        )
         self.service_desk_completed_attempts = _latest_by(
             service_attempts, lambda row: row.scenario_version_id
         )
@@ -249,60 +348,113 @@ class _TrainingContext:
         )
 
         video_keys = [row.video_key for row in self.videos.values()]
-        self.watches = {
-            row.video_key: row
-            for row in db.query(VideoWatch)
-            .filter(VideoWatch.student_id == student.id, VideoWatch.video_key.in_(video_keys))
-            .all()
-        } if video_keys else {}
-        quiz_ids = set(self.quizzes) | {quiz.id for quiz in self.visible_quizzes_by_title.values()}
-        attempts = (
-            db.query(QuizAttempt)
-            .filter(QuizAttempt.student_id == student.id, QuizAttempt.quiz_id.in_(quiz_ids))
-            .order_by(QuizAttempt.completed_at.desc(), QuizAttempt.id.desc())
-            .all()
-        ) if quiz_ids else []
+        self.watches = (
+            {
+                row.video_key: row
+                for row in db.query(VideoWatch)
+                .filter(
+                    VideoWatch.student_id == student.id,
+                    VideoWatch.video_key.in_(video_keys),
+                )
+                .all()
+            }
+            if video_keys
+            else {}
+        )
+        quiz_ids = set(self.quizzes) | {
+            quiz.id for quiz in self.visible_quizzes_by_title.values()
+        }
+        if quiz_ids:
+            attempt_query = db.query(QuizAttempt).filter(
+                QuizAttempt.student_id == student.id,
+                QuizAttempt.quiz_id.in_(quiz_ids),
+            )
+            attempts = (
+                filter_submitted_attempts(attempt_query, db)
+                .order_by(QuizAttempt.completed_at.desc(), QuizAttempt.id.desc())
+                .all()
+            )
+        else:
+            attempts = []
         self.attempts: dict[int, list[QuizAttempt]] = defaultdict(list)
         for attempt in attempts:
             self.attempts[attempt.quiz_id].append(attempt)
-        self.lesson_progress = {
-            row.lesson_id: row
-            for row in db.query(StudentLessonProgress)
-            .filter(
-                StudentLessonProgress.student_id == student.id,
-                StudentLessonProgress.lesson_id.in_(set(self.lessons)),
-                StudentLessonProgress.completed_at.isnot(None),
-            )
-            .all()
-        } if self.lessons else {}
+        self.lesson_progress = (
+            {
+                row.lesson_id: row
+                for row in db.query(StudentLessonProgress)
+                .filter(
+                    StudentLessonProgress.student_id == student.id,
+                    StudentLessonProgress.lesson_id.in_(set(self.lessons)),
+                    StudentLessonProgress.completed_at.isnot(None),
+                )
+                .all()
+            }
+            if self.lessons
+            else {}
+        )
         lab_runs = (
-            db.query(LabRun)
-            .filter(LabRun.student_id == student.id, LabRun.lab_template_id.in_(set(self.labs)))
-            .order_by(LabRun.created_at.desc(), LabRun.id.desc())
-            .all()
-        ) if self.labs else []
+            (
+                db.query(LabRun)
+                .filter(
+                    LabRun.student_id == student.id,
+                    LabRun.lab_template_id.in_(set(self.labs)),
+                )
+                .order_by(LabRun.created_at.desc(), LabRun.id.desc())
+                .all()
+            )
+            if self.labs
+            else []
+        )
         self.lab_runs = _latest_by(lab_runs, lambda row: row.lab_template_id)
         ticket_submissions = (
-            db.query(TicketSubmission)
-            .filter(TicketSubmission.student_id == student.id, TicketSubmission.ticket_id.in_(set(self.tickets)))
-            .order_by(TicketSubmission.submitted_at.desc(), TicketSubmission.id.desc())
-            .all()
-        ) if self.tickets else []
-        self.ticket_submissions = _latest_by(ticket_submissions, lambda row: row.ticket_id)
+            (
+                db.query(TicketSubmission)
+                .filter(
+                    TicketSubmission.student_id == student.id,
+                    TicketSubmission.ticket_id.in_(set(self.tickets)),
+                )
+                .order_by(
+                    TicketSubmission.submitted_at.desc(), TicketSubmission.id.desc()
+                )
+                .all()
+            )
+            if self.tickets
+            else []
+        )
+        self.ticket_submissions = _latest_by(
+            ticket_submissions, lambda row: row.ticket_id
+        )
         cli_attempts = (
-            db.query(CliLabAttempt)
-            .filter(CliLabAttempt.student_id == student.id, CliLabAttempt.lab_id.in_(set(self.cli_labs)))
-            .order_by(CliLabAttempt.completed_at.desc(), CliLabAttempt.id.desc())
-            .all()
-        ) if self.cli_labs else []
+            (
+                db.query(CliLabAttempt)
+                .filter(
+                    CliLabAttempt.student_id == student.id,
+                    CliLabAttempt.lab_id.in_(set(self.cli_labs)),
+                )
+                .order_by(CliLabAttempt.completed_at.desc(), CliLabAttempt.id.desc())
+                .all()
+            )
+            if self.cli_labs
+            else []
+        )
         self.cli_attempts = _latest_by(cli_attempts, lambda row: row.lab_id)
         capstone_runs = (
-            db.query(CapstoneRun)
-            .filter(CapstoneRun.student_id == student.id, CapstoneRun.capstone_template_id.in_(set(self.capstones)))
-            .order_by(CapstoneRun.created_at.desc(), CapstoneRun.id.desc())
-            .all()
-        ) if self.capstones else []
-        self.capstone_runs = _latest_by(capstone_runs, lambda row: row.capstone_template_id)
+            (
+                db.query(CapstoneRun)
+                .filter(
+                    CapstoneRun.student_id == student.id,
+                    CapstoneRun.capstone_template_id.in_(set(self.capstones)),
+                )
+                .order_by(CapstoneRun.created_at.desc(), CapstoneRun.id.desc())
+                .all()
+            )
+            if self.capstones
+            else []
+        )
+        self.capstone_runs = _latest_by(
+            capstone_runs, lambda row: row.capstone_template_id
+        )
         self.student_rank = int(
             db.query(func.coalesce(func.max(Role.rank_order), 1))
             .select_from(StudentRole)
@@ -358,7 +510,9 @@ class _TrainingContext:
                     "id": quiz.id,
                     "title": quiz.title,
                     "route": f"/quizzes/{quiz.id}",
-                    "review_route": f"/quizzes/{quiz.id}/review" if progress["attempted"] else None,
+                    "review_route": f"/quizzes/{quiz.id}/review"
+                    if progress["attempted"]
+                    else None,
                     "action": "review" if progress["attempted"] else "take",
                     "score": progress["score"],
                     "total": progress["total"],
@@ -383,8 +537,12 @@ class _TrainingContext:
             quiz_progress = self._quiz_progress(quiz)
             return _ResolvedContent(
                 title=quiz.title,
-                description="Required assessment" if activity.is_required else "Optional knowledge check",
-                destination_route=f"/quizzes/{quiz.id}/review" if quiz_progress["attempted"] else f"/quizzes/{quiz.id}",
+                description="Assessment · counts toward module completion"
+                if activity.is_required
+                else "Practice Check · learn from mistakes, no module credit",
+                destination_route=f"/quizzes/{quiz.id}/review"
+                if quiz_progress["attempted"]
+                else f"/quizzes/{quiz.id}",
                 estimated_minutes=activity.estimated_minutes,
             )
         if activity.activity_type == "lesson":
@@ -452,7 +610,9 @@ class _TrainingContext:
             return _ResolvedContent(
                 title=scenario.title,
                 description=scenario.description,
-                destination_route=None if permission_locked else f"/service-desk/tickets/{ticket_key}?returnTo={return_to}",
+                destination_route=None
+                if permission_locked
+                else f"/service-desk/tickets/{ticket_key}?returnTo={return_to}",
                 estimated_minutes=activity.estimated_minutes,
                 permission_locked=permission_locked,
                 permission_reason=permission_reason,
@@ -462,14 +622,23 @@ class _TrainingContext:
             if not capstone:
                 return None
             role = self.roles.get(capstone.role_level)
-            permission_locked = bool(role and role.rank_order > self.student_rank and not self.student.is_mentor)
+            permission_locked = bool(
+                role
+                and role.rank_order > self.student_rank
+                and not self.student.is_mentor
+            )
             return _ResolvedContent(
                 title=capstone.title,
                 description=capstone.description,
-                destination_route=None if permission_locked else f"/capstones/{capstone.id}",
-                estimated_minutes=(capstone.estimated_hours or 0) * 60 or activity.estimated_minutes,
+                destination_route=None
+                if permission_locked
+                else f"/capstones/{capstone.id}",
+                estimated_minutes=(capstone.estimated_hours or 0) * 60
+                or activity.estimated_minutes,
                 permission_locked=permission_locked,
-                permission_reason=f"Requires {role.name}" if permission_locked and role else None,
+                permission_reason=f"Requires {role.name}"
+                if permission_locked and role
+                else None,
             )
         if activity.activity_type == "command_exercise":
             command = self.commands.get(ref)
@@ -491,7 +660,9 @@ class _TrainingContext:
         if activity.activity_type == "review":
             return _ResolvedContent(
                 title=(activity.metadata_json or {}).get("title", "Module Review"),
-                description=(activity.metadata_json or {}).get("description", "Review this module's required work."),
+                description=(activity.metadata_json or {}).get(
+                    "description", "Review this module's required work."
+                ),
                 destination_route=_module_route_for_week(week_number),
                 estimated_minutes=activity.estimated_minutes,
             )
@@ -502,17 +673,33 @@ class _TrainingContext:
         if activity.activity_type == "video":
             video = self.videos.get(ref)
             watch = self.watches.get(video.video_key) if video else None
-            return {"complete": watch is not None, "in_progress": False, "completed_at": watch.watched_at if watch else None}
+            return {
+                "complete": watch is not None,
+                "in_progress": False,
+                "completed_at": watch.watched_at if watch else None,
+            }
         if activity.activity_type == "quiz":
             quiz = self.quizzes.get(ref)
             if not quiz:
                 return {"complete": False, "in_progress": False, "completed_at": None}
             quiz_progress = self._quiz_progress(quiz)
-            complete = quiz_progress["passed"] if activity.is_required else quiz_progress["attempted"]
-            return {"complete": complete, "in_progress": quiz_progress["attempted"] and not complete, **quiz_progress}
+            complete = (
+                quiz_progress["passed"]
+                if activity.is_required
+                else quiz_progress["attempted"]
+            )
+            return {
+                "complete": complete,
+                "in_progress": quiz_progress["attempted"] and not complete,
+                **quiz_progress,
+            }
         if activity.activity_type == "lesson":
             progress = self.lesson_progress.get(ref)
-            return {"complete": progress is not None, "in_progress": False, "completed_at": progress.completed_at if progress else None}
+            return {
+                "complete": progress is not None,
+                "in_progress": False,
+                "completed_at": progress.completed_at if progress else None,
+            }
         if activity.activity_type == "guided_lab":
             run = self.lab_runs.get(ref)
             lab = self.labs.get(ref)
@@ -534,7 +721,9 @@ class _TrainingContext:
             return {
                 "complete": complete,
                 "in_progress": bool(run and not complete),
-                "completed_at": (run.verified_at or run.submitted_at) if complete else None,
+                "completed_at": (run.verified_at or run.submitted_at)
+                if complete
+                else None,
             }
         if activity.activity_type == "support_ticket":
             submission = self.ticket_submissions.get(ref)
@@ -546,14 +735,29 @@ class _TrainingContext:
             return {
                 "complete": complete,
                 "in_progress": bool(submission and not complete),
-                "completed_at": (submission.verified_at or submission.submitted_at) if complete else None,
-                "score": (submission.final_score if submission and submission.final_score is not None else submission.ai_score if submission else None),
+                "completed_at": (submission.verified_at or submission.submitted_at)
+                if complete
+                else None,
+                "score": (
+                    submission.final_score
+                    if submission and submission.final_score is not None
+                    else submission.ai_score
+                    if submission
+                    else None
+                ),
             }
         if activity.activity_type == "service_desk_scenario":
             scenario = self.service_desk_scenarios.get(activity.content_ref)
             if not scenario:
                 return {"complete": False, "in_progress": False, "completed_at": None}
-            versions = self.db.query(ServiceDeskScenarioVersion.id).filter(ServiceDeskScenarioVersion.scenario_id == scenario.id, ServiceDeskScenarioVersion.status == "published").all()
+            versions = (
+                self.db.query(ServiceDeskScenarioVersion.id)
+                .filter(
+                    ServiceDeskScenarioVersion.scenario_id == scenario.id,
+                    ServiceDeskScenarioVersion.status == "published",
+                )
+                .all()
+            )
             completed_attempt = next(
                 (
                     self.service_desk_completed_attempts.get(version_id)
@@ -573,20 +777,31 @@ class _TrainingContext:
             return {
                 "complete": completed_attempt is not None,
                 "in_progress": completed_attempt is None and active_attempt is not None,
-                "completed_at": completed_attempt.completed_at if completed_attempt else None,
+                "completed_at": completed_attempt.completed_at
+                if completed_attempt
+                else None,
                 "score": completed_attempt.score if completed_attempt else None,
             }
         if activity.activity_type == "networking_lab":
             attempt = self.cli_attempts.get(activity.content_ref)
             complete = bool(attempt and attempt.completed_at)
-            return {"complete": complete, "in_progress": bool(attempt and not complete), "completed_at": attempt.completed_at if complete else None}
+            return {
+                "complete": complete,
+                "in_progress": bool(attempt and not complete),
+                "completed_at": attempt.completed_at if complete else None,
+            }
         if activity.activity_type == "capstone":
             run = self.capstone_runs.get(ref)
-            complete = bool(run and (run.passed or run.status in {"submitted", "reviewed", "passed"}))
+            complete = bool(
+                run
+                and (run.passed or run.status in {"submitted", "reviewed", "passed"})
+            )
             return {
                 "complete": complete,
                 "in_progress": bool(run and not complete),
-                "completed_at": (run.reviewed_at or run.submitted_at) if complete else None,
+                "completed_at": (run.reviewed_at or run.submitted_at)
+                if complete
+                else None,
             }
         return {"complete": False, "in_progress": False, "completed_at": None}
 
@@ -596,7 +811,11 @@ def _active_weeks(db: Session) -> list[TrainingWeek]:
         db.query(TrainingWeek)
         .options(selectinload(TrainingWeek.activities))
         .filter(TrainingWeek.is_active.is_(True))
-        .order_by(TrainingWeek.display_order.asc(), TrainingWeek.week_number.asc(), TrainingWeek.id.asc())
+        .order_by(
+            TrainingWeek.display_order.asc(),
+            TrainingWeek.week_number.asc(),
+            TrainingWeek.id.asc(),
+        )
         .all()
     )
 
@@ -634,7 +853,9 @@ def derive_training_current_week(db: Session, student: Student) -> int | None:
     return weeks[-1].week_number
 
 
-def _serialize_activity(context: _TrainingContext, activity: TrainingWeekActivity) -> dict:
+def _serialize_activity(
+    context: _TrainingContext, activity: TrainingWeekActivity
+) -> dict:
     content = context.resolve(activity)
     progress = context.progress(activity)
     item = {
@@ -650,7 +871,9 @@ def _serialize_activity(context: _TrainingContext, activity: TrainingWeekActivit
         "content_ref": activity.content_ref,
         "display_order": activity.display_order,
         "is_required": activity.is_required,
-        "requirement_label": "Required" if activity.is_required else "Optional practice",
+        "requirement_label": "Required"
+        if activity.is_required
+        else "Optional practice",
         "estimated_minutes": activity.estimated_minutes
         or (content.estimated_minutes if content else None),
         "title": content.title if content else "Content unavailable",
@@ -699,12 +922,18 @@ def _serialize_week(
     optional_complete = sum(1 for item in optional if item["complete"])
     is_complete = required_complete == len(required)
     percent = round(required_complete / len(required) * 100) if required else 100
-    required_estimated_minutes = sum(int(item.get("estimated_minutes") or 0) for item in required)
+    required_estimated_minutes = sum(
+        int(item.get("estimated_minutes") or 0) for item in required
+    )
     if locked:
         status = "locked"
     elif is_complete:
         status = "complete"
-    elif required_complete or optional_complete or any(item["status"] == "in_progress" for item in activities):
+    elif (
+        required_complete
+        or optional_complete
+        or any(item["status"] == "in_progress" for item in activities)
+    ):
         status = "in_progress"
     else:
         status = "not_started"
@@ -770,7 +999,9 @@ def _serialize_module(state: dict, activities: list[dict] | None = None) -> dict
 
 
 def _build_stage_path(week_states: list[tuple]) -> list[dict]:
-    state_by_week = {state["week_number"]: (state, items) for _, state, items in week_states}
+    state_by_week = {
+        state["week_number"]: (state, items) for _, state, items in week_states
+    }
     stages = []
     for stage in sorted(STAGES, key=lambda item: item.display_order):
         modules = []
@@ -791,13 +1022,15 @@ def _build_stage_path(week_states: list[tuple]) -> list[dict]:
             status = "in_progress"
         else:
             status = "available"
-        stages.append({
-            **public_stage(stage),
-            "status": status,
-            "is_complete": status == "complete",
-            "locked": status == "locked",
-            "modules": modules,
-        })
+        stages.append(
+            {
+                **public_stage(stage),
+                "status": status,
+                "is_complete": status == "complete",
+                "locked": status == "locked",
+                "modules": modules,
+            }
+        )
     return stages
 
 
@@ -957,10 +1190,21 @@ def _build_state(db: Session, student: Student):
 def build_training_overview(db: Session, student: Student) -> dict:
     _, _, week_states = _build_state(db, student)
     public_weeks = [state for _, state, _ in week_states]
-    current_entry = next((entry for entry in week_states if not entry[1]["locked"] and not entry[1]["is_complete"]), None)
-    training_complete = bool(week_states) and all(state["is_complete"] for _, state, _ in week_states)
+    current_entry = next(
+        (
+            entry
+            for entry in week_states
+            if not entry[1]["locked"] and not entry[1]["is_complete"]
+        ),
+        None,
+    )
+    training_complete = bool(week_states) and all(
+        state["is_complete"] for _, state, _ in week_states
+    )
     if current_entry is None and week_states and not training_complete:
-        current_entry = next((entry for entry in week_states if not entry[1]["locked"]), week_states[0])
+        current_entry = next(
+            (entry for entry in week_states if not entry[1]["locked"]), week_states[0]
+        )
     if current_entry and current_entry[1]["status"] == "not_started":
         # The first available incomplete week is the student's active week even
         # before its first activity has been completed.
@@ -969,21 +1213,46 @@ def build_training_overview(db: Session, student: Student) -> dict:
     if current_entry:
         next_activity = next(
             (
-                item for item in current_entry[2]
-                if item["is_required"] and not item["complete"] and item["status"] != "locked" and not item["broken_reference"]
+                item
+                for item in current_entry[2]
+                if item["is_required"]
+                and not item["complete"]
+                and item["status"] != "locked"
+                and not item["broken_reference"]
             ),
             None,
         )
-    current_week = current_entry[1] if current_entry else (public_weeks[-1] if public_weeks else None)
+    current_week = (
+        current_entry[1]
+        if current_entry
+        else (public_weeks[-1] if public_weeks else None)
+    )
     current_module = _serialize_module(current_week) if current_week else None
     stages = _build_stage_path(week_states)
-    current_stage = next(
-        (stage for stage in stages if stage["stable_id"] == current_module["stage_id"]),
-        None,
-    ) if current_module else None
+    current_stage = (
+        next(
+            (
+                stage
+                for stage in stages
+                if stage["stable_id"] == current_module["stage_id"]
+            ),
+            None,
+        )
+        if current_module
+        else None
+    )
     recently_completed = sorted(
-        [item for _, _, items in week_states for item in items if item["complete"] and item.get("completed_at")],
-        key=lambda item: item["completed_at"] if isinstance(item["completed_at"], datetime) else datetime.min,
+        [
+            item
+            for _, _, items in week_states
+            for item in items
+            if item["complete"] and item.get("completed_at")
+        ],
+        key=lambda item: (
+            item["completed_at"]
+            if isinstance(item["completed_at"], datetime)
+            else datetime.min
+        ),
         reverse=True,
     )
     return {
@@ -1007,7 +1276,14 @@ def build_training_week(db: Session, student: Student, week_number: int) -> dict
         if state["week_number"] != week_number:
             continue
         next_activity = next(
-            (item for item in items if item["is_required"] and not item["complete"] and item["status"] != "locked" and not item["broken_reference"]),
+            (
+                item
+                for item in items
+                if item["is_required"]
+                and not item["complete"]
+                and item["status"] != "locked"
+                and not item["broken_reference"]
+            ),
             None,
         )
         return {**state, "activities": items, "next_activity": next_activity}
@@ -1027,14 +1303,20 @@ def build_training_module(db: Session, student: Student, module_id: str) -> dict
     return result
 
 
-def _metric(states: list[dict], activity_types: set[str], *, complete_key="complete") -> dict:
+def _metric(
+    states: list[dict], activity_types: set[str], *, complete_key="complete"
+) -> dict:
     unique = {}
     for item in states:
         if item["activity_type"] in activity_types:
             unique[(item["activity_type"], item["content_ref"])] = item
     rows = list(unique.values())
     completed = sum(1 for item in rows if item.get(complete_key))
-    return {"completed": completed, "total": len(rows), "percent": round(completed / len(rows) * 100) if rows else 0}
+    return {
+        "completed": completed,
+        "total": len(rows),
+        "percent": round(completed / len(rows) * 100) if rows else 0,
+    }
 
 
 def _group_cohort_rows(rows, student_id):
@@ -1074,24 +1356,36 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
         .all()
     )
     question_counts = (
-        db.query(Question.quiz_id.label("quiz_id"), func.count(Question.id).label("total"))
+        db.query(
+            Question.quiz_id.label("quiz_id"), func.count(Question.id).label("total")
+        )
         .group_by(Question.quiz_id)
         .subquery()
     )
-    quiz_rows = (
+    quiz_query = (
         db.query(
             QuizAttempt,
-            func.coalesce(question_counts.c.total, Quiz.question_count).label("question_total"),
+            func.coalesce(question_counts.c.total, Quiz.question_count).label(
+                "question_total"
+            ),
         )
         .join(Quiz, Quiz.id == QuizAttempt.quiz_id)
         .outerjoin(question_counts, question_counts.c.quiz_id == Quiz.id)
         .filter(QuizAttempt.student_id.in_(cohort_ids))
+    )
+    quiz_rows = (
+        filter_submitted_attempts(quiz_query, db)
         .order_by(QuizAttempt.completed_at.desc(), QuizAttempt.id.desc())
         .all()
     )
-    lesson_progress_rows = db.query(StudentLessonProgress).filter(
-        StudentLessonProgress.student_id.in_(cohort_ids), StudentLessonProgress.completed_at.isnot(None)
-    ).all()
+    lesson_progress_rows = (
+        db.query(StudentLessonProgress)
+        .filter(
+            StudentLessonProgress.student_id.in_(cohort_ids),
+            StudentLessonProgress.completed_at.isnot(None),
+        )
+        .all()
+    )
     lab_rows = (
         db.query(LabRun)
         .filter(LabRun.student_id.in_(cohort_ids))
@@ -1116,7 +1410,10 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
             ServiceDeskScenarioVersion,
             ServiceDeskScenarioVersion.id == ServiceDeskAttempt.scenario_version_id,
         )
-        .join(ServiceDeskScenario, ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id)
+        .join(
+            ServiceDeskScenario,
+            ServiceDeskScenario.id == ServiceDeskScenarioVersion.scenario_id,
+        )
         .filter(
             ServiceDeskAttempt.student_id.in_(cohort_ids),
             ServiceDeskScenarioVersion.status == "published",
@@ -1127,7 +1424,9 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
 
     videos_by_student = _group_cohort_rows(video_rows, lambda row: row[0].student_id)
     quizzes_by_student = _group_cohort_rows(quiz_rows, lambda row: row[0].student_id)
-    lesson_progress_by_student = _group_cohort_rows(lesson_progress_rows, lambda row: row.student_id)
+    lesson_progress_by_student = _group_cohort_rows(
+        lesson_progress_rows, lambda row: row.student_id
+    )
     labs_by_student = _group_cohort_rows(lab_rows, lambda row: row.student_id)
     cli_by_student = _group_cohort_rows(cli_rows, lambda row: row.student_id)
     capstones_by_student = _group_cohort_rows(capstone_rows, lambda row: row.student_id)
@@ -1138,12 +1437,19 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
     cutoff = datetime.now(timezone.utc) - timedelta(hours=AT_RISK_INACTIVITY_HOURS)
     summaries = []
     for student in students:
-        watched_video_ids = {str(content_id) for _, content_id in videos_by_student[student.id]}
+        watched_video_ids = {
+            str(content_id) for _, content_id in videos_by_student[student.id]
+        }
         quiz_attempts = defaultdict(list)
         for attempt, total in quizzes_by_student[student.id]:
             quiz_attempts[str(attempt.quiz_id)].append((attempt, int(total or 0)))
-        lesson_ids = {str(progress.lesson_id) for progress in lesson_progress_by_student[student.id]}
-        lab_runs = _latest_by(labs_by_student[student.id], lambda row: str(row.lab_template_id))
+        lesson_ids = {
+            str(progress.lesson_id)
+            for progress in lesson_progress_by_student[student.id]
+        }
+        lab_runs = _latest_by(
+            labs_by_student[student.id], lambda row: str(row.lab_template_id)
+        )
         cli_attempts = _latest_by(cli_by_student[student.id], lambda row: row.lab_id)
         capstone_runs = _latest_by(
             capstones_by_student[student.id], lambda row: str(row.capstone_template_id)
@@ -1181,7 +1487,10 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
             if activity.activity_type == "capstone":
                 run = capstone_runs.get(content_ref)
                 complete = bool(
-                    run and (run.passed or run.status in {"submitted", "reviewed", "passed"})
+                    run
+                    and (
+                        run.passed or run.status in {"submitted", "reviewed", "passed"}
+                    )
                 )
                 return complete, bool(run and not complete)
             if activity.activity_type == "service_desk_scenario":
@@ -1219,19 +1528,27 @@ def build_cohort_summary(db: Session, students: list[Student]) -> list[dict]:
                     and candidate["display_order"] < item["display_order"]
                     and candidate["activity_type"] != "review"
                 ]
-                item["complete"] = all(candidate["complete"] for candidate in prior_required)
+                item["complete"] = all(
+                    candidate["complete"] for candidate in prior_required
+                )
                 item["status"] = "complete" if item["complete"] else "not_started"
 
             locked = bool(
-                not student.is_mentor and week.requires_previous_week and not prior_required_complete
+                not student.is_mentor
+                and week.requires_previous_week
+                and not prior_required_complete
             )
-            lock_reason = f"Complete {prior_title} first." if locked and prior_title else None
+            lock_reason = (
+                f"Complete {prior_title} first." if locked and prior_title else None
+            )
             week_state = _serialize_week(
                 week, activity_states, locked=locked, lock_reason=lock_reason
             )
             week_states.append(week_state)
             all_activity_states.extend(activity_states)
-            prior_required_complete = prior_required_complete and week_state["is_complete"]
+            prior_required_complete = (
+                prior_required_complete and week_state["is_complete"]
+            )
             mapped_module = module_for_week(week.week_number)
             prior_title = mapped_module.title if mapped_module else week.title
 
@@ -1299,7 +1616,10 @@ def build_training_progress(db: Session, student: Student) -> dict:
     required_complete = sum(1 for item in required if item["complete"])
     video_metric = _metric(states, {"video"})
     quiz_metric = _metric(states, {"quiz"})
-    practice_metric = _metric([item for item in required if item["activity_type"] in PRACTICE_ACTIVITY_TYPES], PRACTICE_ACTIVITY_TYPES)
+    practice_metric = _metric(
+        [item for item in required if item["activity_type"] in PRACTICE_ACTIVITY_TYPES],
+        PRACTICE_ACTIVITY_TYPES,
+    )
     quiz_scores = list(
         {
             item["content_ref"]: item["score_percent"]
@@ -1309,7 +1629,11 @@ def build_training_progress(db: Session, student: Student) -> dict:
     )
     overview = build_training_overview(db, student)
     promotion = get_promotion_status(student.id, db)
-    accessible_capstones = [item for item in states if item["activity_type"] == "capstone" and not item["permission_locked"]]
+    accessible_capstones = [
+        item
+        for item in states
+        if item["activity_type"] == "capstone" and not item["permission_locked"]
+    ]
     return {
         "current_week": overview["current_week"],
         "current_stage": overview["current_stage"],
@@ -1374,49 +1698,114 @@ def build_training_progress(db: Session, student: Student) -> dict:
     }
 
 
-def validate_training_activity_reference(db: Session, activity: TrainingWeekActivity) -> dict | None:
+def validate_training_activity_reference(
+    db: Session, activity: TrainingWeekActivity
+) -> dict | None:
     ref = _int_ref(activity.content_ref)
     model_filters = {
-        "video": (CurriculumVideo, CurriculumVideo.id == ref, CurriculumVideo.active.is_(True)),
+        "video": (
+            CurriculumVideo,
+            CurriculumVideo.id == ref,
+            CurriculumVideo.active.is_(True),
+        ),
         "lesson": (Lesson, Lesson.id == ref, None),
-        "guided_lab": (LabTemplate, LabTemplate.id == ref, LabTemplate.is_published.is_(True)),
+        "guided_lab": (
+            LabTemplate,
+            LabTemplate.id == ref,
+            LabTemplate.is_published.is_(True),
+        ),
         "command_exercise": (CommandReference, CommandReference.id == ref, None),
-        "capstone": (CapstoneTemplate, CapstoneTemplate.id == ref, CapstoneTemplate.is_published.is_(True)),
+        "capstone": (
+            CapstoneTemplate,
+            CapstoneTemplate.id == ref,
+            CapstoneTemplate.is_published.is_(True),
+        ),
     }
     if activity.activity_type == "service_desk_scenario":
-        scenario = db.query(ServiceDeskScenario).filter(ServiceDeskScenario.stable_key == activity.content_ref, ServiceDeskScenario.status == "active").first()
-        if not scenario or not db.query(ServiceDeskScenarioVersion.id).filter(ServiceDeskScenarioVersion.scenario_id == scenario.id, ServiceDeskScenarioVersion.status == "published", ServiceDeskScenarioVersion.validation_status == "valid").first():
-            return {"code": "BROKEN_REFERENCE", "severity": "error", "message": "Referenced published Service Desk scenario does not exist."}
+        scenario = (
+            db.query(ServiceDeskScenario)
+            .filter(
+                ServiceDeskScenario.stable_key == activity.content_ref,
+                ServiceDeskScenario.status == "active",
+            )
+            .first()
+        )
+        if (
+            not scenario
+            or not db.query(ServiceDeskScenarioVersion.id)
+            .filter(
+                ServiceDeskScenarioVersion.scenario_id == scenario.id,
+                ServiceDeskScenarioVersion.status == "published",
+                ServiceDeskScenarioVersion.validation_status == "valid",
+            )
+            .first()
+        ):
+            return {
+                "code": "BROKEN_REFERENCE",
+                "severity": "error",
+                "message": "Referenced published Service Desk scenario does not exist.",
+            }
         return None
     if activity.activity_type == "quiz":
         quiz = db.query(Quiz).filter(Quiz.id == ref).first()
-        if quiz and not db.query(Quiz.id).filter(Quiz.id == ref, *student_visible_quiz_filters()).first():
-            return {"code": "QUIZ_NOT_STUDENT_VISIBLE", "severity": "error", "message": "Quiz is not approved for students."}
+        if (
+            quiz
+            and not db.query(Quiz.id)
+            .filter(Quiz.id == ref, *student_visible_quiz_filters())
+            .first()
+        ):
+            return {
+                "code": "QUIZ_NOT_STUDENT_VISIBLE",
+                "severity": "error",
+                "message": "Quiz is not approved for students.",
+            }
         if not quiz:
-            return {"code": "BROKEN_REFERENCE", "severity": "error", "message": "Referenced quiz does not exist."}
+            return {
+                "code": "BROKEN_REFERENCE",
+                "severity": "error",
+                "message": "Referenced quiz does not exist.",
+            }
         return None
     if activity.activity_type == "networking_lab":
         exists = db.query(CliLab.id).filter(CliLab.id == activity.content_ref).first()
         if not exists:
-            return {"code": "BROKEN_REFERENCE", "severity": "error", "message": "Referenced networking lab does not exist."}
+            return {
+                "code": "BROKEN_REFERENCE",
+                "severity": "error",
+                "message": "Referenced networking lab does not exist.",
+            }
         return None
     if activity.activity_type in {"terminal_exercise", "review"}:
         return None
     spec = model_filters.get(activity.activity_type)
     if not spec:
-        return {"code": "INVALID_ACTIVITY_TYPE", "severity": "error", "message": "Unsupported activity type."}
+        return {
+            "code": "INVALID_ACTIVITY_TYPE",
+            "severity": "error",
+            "message": "Unsupported activity type.",
+        }
     model, id_filter, state_filter = spec
     if ref is None:
-        return {"code": "BROKEN_REFERENCE", "severity": "error", "message": "Content reference must be numeric."}
+        return {
+            "code": "BROKEN_REFERENCE",
+            "severity": "error",
+            "message": "Content reference must be numeric.",
+        }
     query = db.query(model).filter(id_filter)
     if state_filter is not None:
         query = query.filter(state_filter)
     if not query.first():
-        return {"code": "BROKEN_REFERENCE", "severity": "error", "message": "Referenced content does not exist or is disabled."}
+        return {
+            "code": "BROKEN_REFERENCE",
+            "severity": "error",
+            "message": "Referenced content does not exist or is disabled.",
+        }
     return None
 
 
-def validate_video_quiz_mapping(db: Session, activity: TrainingWeekActivity) -> dict | None:
+def validate_video_quiz_mapping(
+    db: Session, activity: TrainingWeekActivity
+) -> dict | None:
     metadata = activity.metadata_json or {}
     quiz_id = _int_ref(metadata.get("quiz_id"))
     if quiz_id is None:
@@ -1425,7 +1814,11 @@ def validate_video_quiz_mapping(db: Session, activity: TrainingWeekActivity) -> 
             "severity": "error",
             "message": "Video does not have an explicit quiz mapping.",
         }
-    quiz = db.query(Quiz.id).filter(Quiz.id == quiz_id, *student_visible_quiz_filters()).first()
+    quiz = (
+        db.query(Quiz.id)
+        .filter(Quiz.id == quiz_id, *student_visible_quiz_filters())
+        .first()
+    )
     if not quiz:
         return {
             "code": "VIDEO_QUIZ_MAPPING_INVALID",
@@ -1460,7 +1853,11 @@ def _hard_prerequisite_cycles(activities: list[TrainingWeekActivity]) -> set[int
     for activity in activities:
         seen = set()
         current = activity
-        while current and current.prerequisite_mode == "hard" and current.prerequisite_activity_id:
+        while (
+            current
+            and current.prerequisite_mode == "hard"
+            and current.prerequisite_activity_id
+        ):
             if current.id in seen:
                 cycles.update(seen)
                 break
@@ -1474,11 +1871,21 @@ def _workload_row(db: Session, week: TrainingWeek) -> dict:
     by_type: dict[str, int] = defaultdict(int)
     for activity in required:
         by_type[activity.activity_type] += 1
-    video_ids = [_int_ref(activity.content_ref) for activity in required if activity.activity_type == "video"]
-    video_minutes = sum(
-        _duration_minutes(row.duration) or 0
-        for row in db.query(CurriculumVideo).filter(CurriculumVideo.id.in_(video_ids)).all()
-    ) if video_ids else 0
+    video_ids = [
+        _int_ref(activity.content_ref)
+        for activity in required
+        if activity.activity_type == "video"
+    ]
+    video_minutes = (
+        sum(
+            _duration_minutes(row.duration) or 0
+            for row in db.query(CurriculumVideo)
+            .filter(CurriculumVideo.id.in_(video_ids))
+            .all()
+        )
+        if video_ids
+        else 0
+    )
     non_video_minutes = sum(
         int(activity.estimated_minutes or 0)
         for activity in required
@@ -1497,7 +1904,9 @@ def _workload_row(db: Session, week: TrainingWeek) -> dict:
         "required_service_desk_scenarios": by_type["service_desk_scenario"],
         "required_capstones": by_type["capstone"],
         "estimated_minutes": video_minutes + non_video_minutes,
-        "optional_items": sum(1 for activity in week.activities if not activity.is_required),
+        "optional_items": sum(
+            1 for activity in week.activities if not activity.is_required
+        ),
     }
 
 
@@ -1511,7 +1920,9 @@ def validate_training_curriculum(db: Session) -> dict:
     issues = structure_definition_issues()
     activities = [activity for week in weeks for activity in week.activities]
     active_weeks = [week for week in weeks if week.is_active]
-    active_activities = [activity for week in active_weeks for activity in week.activities]
+    active_activities = [
+        activity for week in active_weeks for activity in week.activities
+    ]
 
     # Detect drift between the intended Stage/Module order (curriculum_structure.py)
     # and the authoritative TrainingWeek.display_order sequence. These must be
@@ -1519,7 +1930,9 @@ def validate_training_curriculum(db: Session) -> dict:
     # without the other (e.g. Stage metadata says a module comes later, but
     # its TrainingWeek row was never resequenced, or a later edit accidentally
     # restores an old display_order).
-    week_display_order_by_number = {week.week_number: week.display_order for week in active_weeks}
+    week_display_order_by_number = {
+        week.week_number: week.display_order for week in active_weeks
+    }
     last_order, last_module = None, None
     for module in intended_module_sequence():
         actual_order = week_display_order_by_number.get(module.source_week_number)
@@ -1531,25 +1944,29 @@ def validate_training_curriculum(db: Session) -> dict:
             # / UNMAPPED_ACTIVE_ACTIVITY above already catch the reverse and
             # more consequential case -- an active week/activity with no
             # module -- as errors.
-            issues.append({
-                "code": "MODULE_WEEK_MISSING",
-                "severity": "warning",
-                "stable_id": module.stable_id,
-                "week_number": module.source_week_number,
-                "message": "Module has no active TrainingWeek row backing its intended sequence position.",
-            })
+            issues.append(
+                {
+                    "code": "MODULE_WEEK_MISSING",
+                    "severity": "warning",
+                    "stable_id": module.stable_id,
+                    "week_number": module.source_week_number,
+                    "message": "Module has no active TrainingWeek row backing its intended sequence position.",
+                }
+            )
             continue
         if last_order is not None and actual_order <= last_order:
-            issues.append({
-                "code": "SEQUENCE_DRIFT",
-                "severity": "error",
-                "stable_id": module.stable_id,
-                "week_number": module.source_week_number,
-                "message": (
-                    f"TrainingWeek.display_order ({actual_order}) for {module.title!r} does not come after "
-                    f"{last_module.title!r} ({last_order}), contradicting the intended Stage/Module order."
-                ),
-            })
+            issues.append(
+                {
+                    "code": "SEQUENCE_DRIFT",
+                    "severity": "error",
+                    "stable_id": module.stable_id,
+                    "week_number": module.source_week_number,
+                    "message": (
+                        f"TrainingWeek.display_order ({actual_order}) for {module.title!r} does not come after "
+                        f"{last_module.title!r} ({last_order}), contradicting the intended Stage/Module order."
+                    ),
+                }
+            )
         last_order, last_module = actual_order, module
     cycle_ids = _hard_prerequisite_cycles(activities)
     activity_by_id = {activity.id: activity for activity in activities}
@@ -1558,72 +1975,223 @@ def validate_training_curriculum(db: Session) -> dict:
         stable_id_counts[activity.stable_id] += 1
     for stable_id, count in stable_id_counts.items():
         if count > 1:
-            issues.append({"code": "DUPLICATE_ACTIVITY_STABLE_ID", "severity": "error", "stable_id": stable_id, "message": "Activity stable ID is assigned more than once."})
+            issues.append(
+                {
+                    "code": "DUPLICATE_ACTIVITY_STABLE_ID",
+                    "severity": "error",
+                    "stable_id": stable_id,
+                    "message": "Activity stable ID is assigned more than once.",
+                }
+            )
     mapping_counts = defaultdict(int)
     if active_weeks and active_weeks[0].requires_previous_week:
-        issues.append({"code": "FIRST_WEEK_LOCKED", "severity": "error", "week_number": active_weeks[0].week_number, "message": "The first active week cannot require a previous week."})
+        issues.append(
+            {
+                "code": "FIRST_WEEK_LOCKED",
+                "severity": "error",
+                "week_number": active_weeks[0].week_number,
+                "message": "The first active week cannot require a previous week.",
+            }
+        )
     for week in weeks:
         module = module_for_week(week.week_number)
         if week.is_active and module is None:
-            issues.append({"code": "UNMAPPED_ACTIVE_WEEK", "severity": "error", "week_number": week.week_number, "message": "Active storage week has no Stage/Module mapping."})
+            issues.append(
+                {
+                    "code": "UNMAPPED_ACTIVE_WEEK",
+                    "severity": "error",
+                    "week_number": week.week_number,
+                    "message": "Active storage week has no Stage/Module mapping.",
+                }
+            )
         if week.is_active and not week.activities:
-            issues.append({"code": "EMPTY_WEEK", "severity": "error", "week_number": week.week_number, "message": "Active week has no activities and no completion path."})
-        if week.is_active and week.activities and not any(item.is_required for item in week.activities):
-            issues.append({"code": "NO_REQUIRED_PATH", "severity": "error", "week_number": week.week_number, "message": "Active week has no required activity to define a completion path."})
+            issues.append(
+                {
+                    "code": "EMPTY_WEEK",
+                    "severity": "error",
+                    "week_number": week.week_number,
+                    "message": "Active week has no activities and no completion path.",
+                }
+            )
+        if (
+            week.is_active
+            and week.activities
+            and not any(item.is_required for item in week.activities)
+        ):
+            issues.append(
+                {
+                    "code": "NO_REQUIRED_PATH",
+                    "severity": "error",
+                    "week_number": week.week_number,
+                    "message": "Active week has no required activity to define a completion path.",
+                }
+            )
         seen_orders = set()
         seen_required_refs = set()
         for activity in week.activities:
             if week.is_active and module is None:
-                issues.append({"code": "UNMAPPED_ACTIVE_ACTIVITY", "severity": "error", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "Active activity has no Stage/Module mapping."})
+                issues.append(
+                    {
+                        "code": "UNMAPPED_ACTIVE_ACTIVITY",
+                        "severity": "error",
+                        "week_number": week.week_number,
+                        "stable_id": activity.stable_id,
+                        "message": "Active activity has no Stage/Module mapping.",
+                    }
+                )
             role = learning_role_for(activity.activity_type, activity.metadata_json)
             if role not in LEARNING_ROLES:
-                issues.append({"code": "INVALID_LEARNING_ROLE", "severity": "error", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "Activity learning role must be Learn, Check, Practice, Troubleshoot, or Prove."})
+                issues.append(
+                    {
+                        "code": "INVALID_LEARNING_ROLE",
+                        "severity": "error",
+                        "week_number": week.week_number,
+                        "stable_id": activity.stable_id,
+                        "message": "Activity learning role must be Learn, Check, Practice, Troubleshoot, or Prove.",
+                    }
+                )
             if activity.display_order in seen_orders:
-                issues.append({"code": "DUPLICATE_ACTIVITY_ORDER", "severity": "warning", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "Two activities share a display order."})
+                issues.append(
+                    {
+                        "code": "DUPLICATE_ACTIVITY_ORDER",
+                        "severity": "warning",
+                        "week_number": week.week_number,
+                        "stable_id": activity.stable_id,
+                        "message": "Two activities share a display order.",
+                    }
+                )
             seen_orders.add(activity.display_order)
             issue = validate_training_activity_reference(db, activity)
             if issue:
-                issues.append({**issue, "week_number": week.week_number, "stable_id": activity.stable_id})
+                issues.append(
+                    {
+                        **issue,
+                        "week_number": week.week_number,
+                        "stable_id": activity.stable_id,
+                    }
+                )
             if activity.activity_type == "video" and week.is_active:
                 mapping_issue = validate_video_quiz_mapping(db, activity)
                 if mapping_issue:
-                    issues.append({**mapping_issue, "week_number": week.week_number, "stable_id": activity.stable_id})
+                    issues.append(
+                        {
+                            **mapping_issue,
+                            "week_number": week.week_number,
+                            "stable_id": activity.stable_id,
+                        }
+                    )
                 else:
-                    mapping_counts[(activity.metadata_json or {}).get("quiz_mapping_confidence")] += 1
-            if activity.activity_type in UNTRACKED_ACTIVITY_TYPES and activity.is_required:
-                issues.append({"code": "UNTRACKED_REQUIRED_ACTIVITY", "severity": "error", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "This activity type has no trustworthy completion record and must remain optional."})
+                    mapping_counts[
+                        (activity.metadata_json or {}).get("quiz_mapping_confidence")
+                    ] += 1
+            if (
+                activity.activity_type in UNTRACKED_ACTIVITY_TYPES
+                and activity.is_required
+            ):
+                issues.append(
+                    {
+                        "code": "UNTRACKED_REQUIRED_ACTIVITY",
+                        "severity": "error",
+                        "week_number": week.week_number,
+                        "stable_id": activity.stable_id,
+                        "message": "This activity type has no trustworthy completion record and must remain optional.",
+                    }
+                )
             if activity.is_required:
                 canonical_ref = (activity.activity_type, activity.content_ref)
                 if canonical_ref in seen_required_refs:
-                    issues.append({"code": "DUPLICATE_REQUIRED_ACTIVITY", "severity": "error", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "The same required content is counted more than once in this week."})
+                    issues.append(
+                        {
+                            "code": "DUPLICATE_REQUIRED_ACTIVITY",
+                            "severity": "error",
+                            "week_number": week.week_number,
+                            "stable_id": activity.stable_id,
+                            "message": "The same required content is counted more than once in this week.",
+                        }
+                    )
                 seen_required_refs.add(canonical_ref)
                 prerequisite = activity_by_id.get(activity.prerequisite_activity_id)
-                if activity.prerequisite_mode == "hard" and prerequisite and not prerequisite.is_required:
-                    issues.append({"code": "REQUIRED_DEPENDS_ON_OPTIONAL", "severity": "error", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "A required activity cannot hard-require optional work."})
+                if (
+                    activity.prerequisite_mode == "hard"
+                    and prerequisite
+                    and not prerequisite.is_required
+                ):
+                    issues.append(
+                        {
+                            "code": "REQUIRED_DEPENDS_ON_OPTIONAL",
+                            "severity": "error",
+                            "week_number": week.week_number,
+                            "stable_id": activity.stable_id,
+                            "message": "A required activity cannot hard-require optional work.",
+                        }
+                    )
             if activity.id in cycle_ids:
-                issues.append({"code": "PREREQUISITE_CYCLE", "severity": "error", "week_number": week.week_number, "stable_id": activity.stable_id, "message": "Hard prerequisites contain a cycle."})
+                issues.append(
+                    {
+                        "code": "PREREQUISITE_CYCLE",
+                        "severity": "error",
+                        "week_number": week.week_number,
+                        "stable_id": activity.stable_id,
+                        "message": "Hard prerequisites contain a cycle.",
+                    }
+                )
 
     active_video_counts: dict[int | None, int] = defaultdict(int)
     for activity in active_activities:
         if activity.activity_type == "video":
             active_video_counts[_int_ref(activity.content_ref)] += 1
     active_video_ids = set(active_video_counts)
-    enabled_video_ids = {row.id for row in db.query(CurriculumVideo.id).filter(CurriculumVideo.active.is_(True)).all()}
+    enabled_video_ids = {
+        row.id
+        for row in db.query(CurriculumVideo.id)
+        .filter(CurriculumVideo.active.is_(True))
+        .all()
+    }
     for video_id, count in active_video_counts.items():
         if video_id is not None and count > 1:
-            issues.append({"code": "ACTIVE_VIDEO_ASSIGNED_MULTIPLE_TIMES", "severity": "error", "week_number": None, "message": f"Active video {video_id} is assigned to {count} enabled activities."})
+            issues.append(
+                {
+                    "code": "ACTIVE_VIDEO_ASSIGNED_MULTIPLE_TIMES",
+                    "severity": "error",
+                    "week_number": None,
+                    "message": f"Active video {video_id} is assigned to {count} enabled activities.",
+                }
+            )
     for video_id in sorted(enabled_video_ids - active_video_ids):
-        issues.append({"code": "ACTIVE_VIDEO_UNASSIGNED", "severity": "error", "week_number": None, "message": f"Active video {video_id} is not assigned to an enabled training week."})
+        issues.append(
+            {
+                "code": "ACTIVE_VIDEO_UNASSIGNED",
+                "severity": "error",
+                "week_number": None,
+                "message": f"Active video {video_id} is not assigned to an enabled training week.",
+            }
+        )
     return {
         "valid": not any(issue["severity"] == "error" for issue in issues),
         "week_count": len(weeks),
         "activity_count": sum(len(week.activities) for week in weeks),
         "stage_count": len(STAGES),
         "module_count": len(MODULES),
-        "mapped_activity_count": sum(len(week.activities) for week in active_weeks if module_for_week(week.week_number)),
-        "required_mapped_activity_count": sum(1 for activity in active_activities if activity.is_required and module_for_week(activity.week.week_number)),
-        "optional_mapped_activity_count": sum(1 for activity in active_activities if not activity.is_required and module_for_week(activity.week.week_number)),
-        "unmapped_activity_count": sum(1 for activity in active_activities if module_for_week(activity.week.week_number) is None),
+        "mapped_activity_count": sum(
+            len(week.activities)
+            for week in active_weeks
+            if module_for_week(week.week_number)
+        ),
+        "required_mapped_activity_count": sum(
+            1
+            for activity in active_activities
+            if activity.is_required and module_for_week(activity.week.week_number)
+        ),
+        "optional_mapped_activity_count": sum(
+            1
+            for activity in active_activities
+            if not activity.is_required and module_for_week(activity.week.week_number)
+        ),
+        "unmapped_activity_count": sum(
+            1
+            for activity in active_activities
+            if module_for_week(activity.week.week_number) is None
+        ),
         "enabled_video_count": len(enabled_video_ids),
         "mapped_video_count": sum(mapping_counts.values()),
         "mapping_summary": dict(mapping_counts),
