@@ -24,7 +24,7 @@ export default function QuizPage() {
   return (
     <main className="mx-auto max-w-4xl space-y-4 p-6">
       <BackLink className="btn-secondary" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />
-      {showRetakeBanner ? <Banner variant="warning">Retakes do not award XP {"\u2014"} only your first attempt counts</Banner> : null}
+      {showRetakeBanner ? <Banner variant="warning">Your graded attempts stay in history. Retakes earn no additional XP.</Banner> : null}
       <QuizTaker quizId={quizId} studentId={studentId} />
     </main>
   );

@@ -100,6 +100,7 @@ export default function QuizReviewPage() {
 
   const { title, score, total, xp_awarded: xpAwarded, results, questions } = data;
   const pct = data.percentage;
+  const hidesKey = data.purpose === "assessment" && data.disclosure === "concepts_only";
   const byId = {};
   (results || []).forEach((row) => {
     byId[row.question_id] = row;
@@ -143,7 +144,8 @@ export default function QuizReviewPage() {
         {data.score_basis === "current_bank_legacy_estimate" ? <p>Historical question total is estimated from the current quiz. Original answer review is unavailable.</p> : null}
         <nav aria-label="Attempt history" className="flex flex-wrap gap-3">{(data.attempts || []).map((attempt, index) => <Link key={attempt.attempt_id} className="text-blue-600" aria-current={attempt.attempt_id === data.attempt_id ? "page" : undefined} to={withActivityOrigin(`/quizzes/${quizId}/review?attempt_id=${attempt.attempt_id}`, origin?.route, origin?.label)} state={location.state}>Attempt {index+1}: {attempt.percentage == null ? "Unknown percentage" : `${attempt.percentage}%`} · {attempt.passed == null ? "Pass state unavailable" : attempt.passed ? "Passed" : "Not passed"}</Link>)}</nav>
       </section>
-      <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Answer Review</h2>
+      {hidesKey ? <section className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm"><h2 className="font-bold">Review before another graded attempt</h2><p>Exact answers remain hidden because the current bank cannot produce a materially independent retry.</p></section> : null}
+      <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{hidesKey ? "Review recommendations" : "Answer Review"}</h2>
       {(questions || []).map((question, index) => {
         const row = byId[question.id];
         const studentAnswers = normalizeAnswers(row?.student_answer);
@@ -178,6 +180,9 @@ export default function QuizReviewPage() {
               ))}
             </div>
             {!studentAnswers.length ? <p className="mt-2 text-xs italic text-slate-400">Not answered</p> : null}
+            {!isCorrect && row?.student_answer_text ? <p className="mt-3 text-sm"><strong>Your answer:</strong> {row.student_answer_text}</p> : null}
+            {!isCorrect && row?.key_idea ? <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-800"><strong>Key idea:</strong> {row.key_idea}</p> : null}
+            {!isCorrect && row?.review ? <Link className="mt-2 inline-block text-sm text-blue-700 underline" to={row.review.url}><strong>Review:</strong> {row.review.label}</Link> : null}
             {row?.explanation ? (
               <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm italic text-slate-600 dark:bg-slate-800 dark:text-slate-300">Tip: {row.explanation}</p>
             ) : null}
@@ -185,9 +190,9 @@ export default function QuizReviewPage() {
         );
       })}
 
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <Link to={withActivityOrigin(`/quizzes/${quizId}`, origin?.route, origin?.label)} state={location.state} className="btn-primary flex-1 text-center">
-          Retake Quiz
+          {data.purpose === "assessment" ? "Retry assessment" : "Practice again"}
         </Link>
         <BackLink className="btn-secondary flex-1 justify-center text-center" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />
       </div>

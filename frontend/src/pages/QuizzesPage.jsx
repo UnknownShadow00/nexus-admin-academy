@@ -10,8 +10,8 @@ import { getQuizzes } from "../services/api";
 import TrainingSubnav from "../components/TrainingSubnav";
 
 const PURPOSE_LABELS = {
-  required: "Required",
-  practice: "Optional",
+  required: "Assessment · counts for credit",
+  practice: "Practice Check · no credit",
   remediation: "Remediation",
   cumulative: "Cumulative Review",
   gate: "Promotion Gate",
@@ -36,7 +36,7 @@ function QuizCard({ quiz }) {
       ) : <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Not started</p>}
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         {quiz.latest_attempt ? <Link className="btn-secondary flex-1 text-center" to={`/quizzes/${quiz.id}/review`}>Review</Link> : null}
-        <Link className="btn-primary flex-1 text-center" to={`/quizzes/${quiz.id}`}>{quiz.latest_attempt ? "Retake" : "Take Quiz"}</Link>
+        <Link className="btn-primary flex-1 text-center" to={`/quizzes/${quiz.id}`}>{quiz.is_required ? quiz.latest_attempt ? "Retry assessment" : "Start assessment" : "Start practice"}</Link>
       </div>
     </article>
   );

@@ -195,6 +195,14 @@ export const getQuizReview = (quizId, studentId = currentStudentId(), requestOpt
   request(() => api.get(`/api/quizzes/${quizId}/review/${studentId}`, { params: { attempt_id: attemptId } }), requestOptions);
 export const submitQuiz = (quizId, payload, requestOptions) =>
   request(() => api.post(`/api/quizzes/${quizId}/submit`, payload), requestOptions);
+export const startQuizAssessment = (quizId, studentId = currentStudentId(), requestOptions) =>
+  request(() => api.post(`/api/quizzes/${quizId}/attempts`, { student_id: studentId }), requestOptions);
+export const saveQuizAssessment = (quizId, attemptId, payload, requestOptions) =>
+  request(() => api.patch(`/api/quizzes/${quizId}/attempts/${attemptId}`, payload), requestOptions);
+export const submitQuizAssessment = (quizId, attemptId, payload, requestOptions) =>
+  request(() => api.post(`/api/quizzes/${quizId}/attempts/${attemptId}/submit`, payload), requestOptions);
+export const checkPracticeAnswer = (quizId, payload, requestOptions) =>
+  request(() => api.post(`/api/quizzes/${quizId}/practice/check`, payload), requestOptions);
 
 export const getV2Access = (requestOptions) =>
   request(() => api.get("/api/v2/curriculum/access"), requestOptions);

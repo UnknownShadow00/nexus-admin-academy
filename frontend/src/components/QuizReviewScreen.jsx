@@ -20,6 +20,13 @@ function OptionRow({ letter, text, correctAnswers, studentAnswer }) {
 
 export default function QuizReviewScreen({ quiz, result, onRetake }) {
   const origin = activityOrigin(useLocation());
+  const isAssessment = result.purpose === "assessment";
+  const hidesKey = isAssessment && result.disclosure === "concepts_only";
+  const resultLabel = isAssessment
+    ? result.passed
+      ? <><span className="mr-1">Assessment</span><span>Passed</span></>
+      : <><span className="mr-1">Assessment</span><span>Not passed</span><span className="ml-1">yet</span></>
+    : "Practice complete";
   const byId = {};
   (result.results || []).forEach((r) => {
     byId[r.question_id] = r;
@@ -27,7 +34,7 @@ export default function QuizReviewScreen({ quiz, result, onRetake }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"><h2 className="mb-2 text-lg font-semibold text-blue-200">{quiz.title}</h2><div className={`mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold ${result.passed ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-900"}`}>{result.passed ? "Passed" : "Not passed"}</div><p className="text-7xl font-bold">{result.score}<span className="text-4xl text-blue-300">/{result.total}</span></p><p className="mt-2 text-2xl font-semibold">{result.percentage}%</p>{result.xp_awarded > 0 && <p className="mt-2 text-blue-100">+{result.xp_awarded} XP earned!</p>}{result.message && <p className="mx-auto mt-3 max-w-xl text-sm text-blue-50">{result.message}</p>}</div>
+      <div className="rounded-xl bg-blue-600 p-8 text-center text-white shadow-lg"><h2 className="mb-2 text-lg font-semibold text-blue-200">{quiz.title}</h2><div className={`mb-3 inline-flex rounded-full px-3 py-1 text-sm font-bold ${result.passed ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-900"}`}>{resultLabel}</div><p className="text-7xl font-bold">{result.score}<span className="text-4xl text-blue-300">/{result.total}</span></p><p className="mt-2 text-2xl font-semibold">{result.percentage}%</p>{result.xp_awarded > 0 && <p className="mt-2 text-blue-100">+{result.xp_awarded} XP earned!</p>}{result.message && <p className="mx-auto mt-3 max-w-xl text-sm text-blue-50">{result.message}</p>}</div>
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"><p className="text-2xl font-bold text-green-600">{result.score}</p><p className="text-xs text-slate-500">Correct</p></div>
         <div className="rounded-lg border border-slate-200 bg-white p-4 text-center dark:border-slate-700 dark:bg-slate-900"><p className="text-2xl font-bold text-red-500">{result.total - result.score}</p><p className="text-xs text-slate-500">Wrong</p></div>
@@ -35,11 +42,12 @@ export default function QuizReviewScreen({ quiz, result, onRetake }) {
       </div>
       <p className="text-sm">Attempt #{result.attempt_id} · {result.submitted_at ? new Date(result.submitted_at).toLocaleString() : ""} · Passing score: {result.passing_percentage ?? 70}%</p>
       <Link className="text-blue-600" to={withActivityOrigin(`/quizzes/${quiz.id}/review?attempt_id=${result.attempt_id}`, origin?.route, origin?.label)}>Saved review of this attempt</Link>
-      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Answer Review</h3>
+      {hidesKey ? <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><p className="font-bold">Review before your next graded attempt</p><p className="mt-1">Exact answers stay hidden because this question bank is too small to create an independent retry. Use the concept guidance and linked lesson, then retry when ready.</p></div> : null}
+      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{hidesKey ? "Review recommendations" : "Answer Review"}</h3>
       {(quiz.questions || []).map((question, index) => {
         const review = byId[question.id];
         const studentAnswer = review?.student_answer;
-        const correctAnswers = review?.correct_answers || [review?.correct_answer || question.correct_answer];
+        const correctAnswers = hidesKey ? [] : review?.correct_answers || [review?.correct_answer || question.correct_answer];
         const isCorrect = review?.is_correct;
         const options = review?.options || {
           A: question.option_a,
@@ -57,6 +65,9 @@ export default function QuizReviewScreen({ quiz, result, onRetake }) {
           <div key={question.id} className={`rounded-xl border p-4 ${isCorrect ? "border-green-200 dark:border-green-900" : "border-red-200 dark:border-red-900"}`}>
             <div className="mb-3 flex items-start justify-between gap-2"><p className="font-semibold text-slate-900 dark:text-slate-100">Q{index + 1}. {question.question_text}</p><span className="shrink-0">{isCorrect ? <CheckCircle2 size={18} className="text-green-500" /> : <XCircle size={18} className="text-red-500" />}</span></div>
             <div className="space-y-1.5">{ALL_OPTS.map((opt) => { const text = options[opt]; if (!text) return null; return <OptionRow key={opt} letter={opt} text={text} correctAnswers={correctAnswers} studentAnswer={studentAnswerArr} />; })}</div>
+            {!isCorrect && review?.student_answer_text ? <p className="mt-3 text-sm"><strong>Your answer:</strong> {review.student_answer_text}</p> : null}
+            {!isCorrect && review?.key_idea ? <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-800"><strong>Key idea:</strong> {review.key_idea}</p> : null}
+            {!isCorrect && review?.review ? <Link className="mt-2 inline-block text-sm text-blue-700 underline" to={review.review.url}><strong>Review:</strong> {review.review.label}</Link> : null}
             {review?.explanation ? (
               <div className="mt-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-slate-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-slate-200">
                 <p className="mb-1 font-semibold text-blue-800 dark:text-blue-300">{isCorrect ? "Why this is correct" : "Not quite — review the reasoning"}</p>
@@ -64,13 +75,14 @@ export default function QuizReviewScreen({ quiz, result, onRetake }) {
                 <p>{review.explanation}</p>
               </div>
             ) : (
-              <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">An explanation is being reviewed for this question. Use the highlighted correct answer above for now.</p>
+              <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">{hidesKey ? "Use the concept review before your next graded attempt; the exact key remains hidden." : "An explanation is being reviewed for this question. Use the highlighted correct answer above for now."}</p>
             )}
           </div>
         );
       })}
-      <div className="flex gap-3">
-        <button type="button" className="btn-secondary flex-1" onClick={onRetake}>Try Again</button>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        {hidesKey && result.review ? <Link className="btn-primary flex-1 text-center" to={result.review.url}>Review {result.review.title}</Link> : null}
+        <button type="button" className={hidesKey ? "btn-secondary flex-1" : "btn-primary flex-1"} onClick={onRetake}>{isAssessment ? "Retry assessment" : "Practice again"}</button>
         <Link to={origin?.route || "/"} className="btn-primary flex-1 text-center">{origin ? `Back to ${origin.label}` : "Continue Learning"}</Link>
       </div>
     </div>
