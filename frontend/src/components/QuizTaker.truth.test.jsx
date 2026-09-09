@@ -4,7 +4,14 @@ import { StrictMode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import QuizTaker from "./QuizTaker";
 import { getQuiz } from "../services/api";
-vi.mock("../services/api", () => ({ getQuiz: vi.fn(), submitQuiz: vi.fn() }));
+vi.mock("../services/api", () => ({
+  checkPracticeAnswer: vi.fn(),
+  getQuiz: vi.fn(),
+  saveQuizAssessment: vi.fn(),
+  startQuizAssessment: vi.fn(),
+  submitQuiz: vi.fn(),
+  submitQuizAssessment: vi.fn(),
+}));
 afterEach(cleanup);
 it("ignores a stale load that would reshuffle an active quiz", async () => {
   const pending = [];
@@ -21,6 +28,8 @@ it("ignores a stale load that would reshuffle an active quiz", async () => {
   const response = (text) => ({
     data: {
       id: 1,
+      is_required: false,
+      show_in_weekly_checklist: false,
       questions: [
         { id: 1, question_text: text, option_a: "Correct", option_b: "Wrong" },
       ],

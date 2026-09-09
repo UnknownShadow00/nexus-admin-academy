@@ -29,7 +29,7 @@ async function attempt(page, correct, total = 4, quizId = 1) {
   }
   const response = page.waitForResponse(
     (r) =>
-      r.url().endsWith(`/quizzes/${quizId}/submit`) &&
+      new RegExp(`/quizzes/${quizId}/attempts/\\d+/submit$`).test(r.url()) &&
       r.request().method() === "POST",
   );
   await page.getByRole("button", { name: /Submit/ }).click();
@@ -42,7 +42,7 @@ async function attempt(page, correct, total = 4, quizId = 1) {
     Math.round(((correct * 100) / total) * 100) / 100,
   );
   await expect(
-    page.getByRole("heading", { name: "Answer Review" }),
+    page.getByRole("heading", { name: data.passed ? "Answer Review" : "Review recommendations" }),
   ).toBeVisible();
   await expect(
     page.getByText(`${data.percentage}%`, { exact: true }).first(),
