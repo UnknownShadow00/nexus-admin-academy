@@ -67,7 +67,7 @@ MODULES = [
                 "estimated_minutes": 90,
                 "summary": (
                     "A command line (CLI) is a text interface: type a command at the prompt, press Enter, then read the output. A prompt is the place where the device waits for your next command. This course uses a simulator, so follow its guided instructions and experiment there. A show command displays information without changing settings.\n\n"
-                    "GUI status icons summarize; command output proves. Technicians trust command output "
+                    "GUI status icons summarize; command output provides precise evidence. Technicians trust command output "
                     "because it is exact, timestamped, copyable into a ticket, and identical over remote "
                     "sessions where GUIs are slow or unavailable.\n\n"
                     "ACTIVITY: navigate a simulated network device, run show commands, and read real-looking "
@@ -75,7 +75,7 @@ MODULES = [
                     "VERIFICATION HABIT: after any change, run the command that would show the OLD bad "
                     "state and confirm it now shows the new good state. Paste that output into the ticket.\n\n"
                     "COMMON MISTAKES: typing commands from memory into production without checking syntax; "
-                    "trusting 'it looks connected' over 'ping succeeded 4/4'.\n\n"
+                    "treating either a status icon or one successful ping as proof that every network service works.\n\n"
                     "JOB RELEVANCE: every interview for desktop/network roles asks you to interpret "
                     "ipconfig or ping output. Reading output calmly is the skill."
                 ),
@@ -260,7 +260,7 @@ MODULES = [
                 "estimated_minutes": 120,
                 "summary": (
                     "The Windows support seven, and what their output MEANS:\n"
-                    "ipconfig /all → your identity on the network. Read: IP (169.254.x.x = DHCP failed), "
+                    "ipconfig /all → your identity on the network. Read: IP (169.254.x.x means normal DHCP configuration was not obtained), "
                     "gateway (empty = no route out), DNS servers (wrong = 'internet down' with working IP).\n"
                     "ping → reachability. Ping the gateway (local net ok?), then 1.1.1.1 (internet ok?), "
                     "then a NAME (DNS ok?). This three-step splits any 'no internet' ticket.\n"
@@ -268,8 +268,8 @@ MODULES = [
                     "nslookup → asks DNS directly; compare against a known resolver (nslookup site 1.1.1.1).\n"
                     "netstat -ano → who is talking; pair PID with Task Manager Details.\n"
                     "whoami /groups, gpresult /r → who Windows thinks you are and which policies applied.\n"
-                    "sfc /scannow then DISM /Online /Cleanup-Image /RestoreHealth → system file repair "
-                    "sequence (DISM repairs the store sfc repairs from).\n"
+                    "DISM /Online /Cleanup-Image /RestoreHealth then sfc /scannow → supported system file repair "
+                    "sequence (DISM repairs the component store first; SFC then checks and repairs protected files from it).\n"
                     "chkdsk SAFETY: /f needs a reboot lock; NEVER on a mechanically clicking drive.\n\n"
                     "ACTIVITY: practice the toolkit on an approved Windows machine or training VM, and keep "
                     "notes on what each command's output tells you.\n\n"
@@ -278,7 +278,7 @@ MODULES = [
                 ),
                 "outcomes": [
                     "Run and interpret ipconfig /all, ping, tracert, nslookup, netstat -ano, whoami, gpresult /r",
-                    "Execute the sfc → DISM repair sequence and read its outcomes",
+                    "Execute the DISM → SFC repair sequence and read its outcomes",
                     "State chkdsk safety rules and when not to run it",
                 ],
                 "required_notes_template": NOTES_TEMPLATE,
@@ -337,7 +337,7 @@ MODULES = [
                     "- ESCALATION: functional (needs deeper skill) vs hierarchical (needs authority).\n\n"
                     "THE TICKET YOU DON'T TOUCH: change-freeze windows, requests requiring approval "
                     "(access to HR folders!), anything where your change could widen an outage. Knowing "
-                    "when NOT to act is a graded anchor (safe_fix_or_escalation).\n\n"
+                    "when NOT to act is part of safe, professional troubleshooting.\n\n"
                     "HANDOFF NOTES: next tech continues without re-asking the user: current state, what's "
                     "been ruled out (with evidence), exact next step you'd take, and any promise made to "
                     "the user (deadline, callback).\n\n"
@@ -417,9 +417,9 @@ QUIZZES = [
             _q("Which items belong in INTERNAL notes? (select all that apply)",
                "Exact command output proving the fix", "Event ID and source", "A friendly closing greeting", "What was ruled out and how",
                "A", "Evidence, IDs, and eliminations are for technicians; greetings are user-facing.", multi="A,B,D"),
-            _q("A note says 'ran some commands, seems fine now.' Which grading anchor does this fail hardest?",
-               "communication", "verification", "investigation", "root_cause",
-               "B", "'Seems fine' claims success without proof; verification requires showing the problem is demonstrably gone."),
+            _q("A note says 'ran some commands, seems fine now.' Which ticket-quality problem is most serious?",
+               "The note lacks a friendly greeting", "It does not show how the resolution was verified", "It omits the technician's name", "It uses lowercase words",
+               "B", "'Seems fine' claims success without evidence; the note must state how the technician verified the result."),
             _q("Why do MSPs care intensely about ticket notes?",
                "They support billing and auditability", "They replace endpoint monitoring alerts",
                "They publish technical details to customers", "They satisfy a Windows licensing requirement",
@@ -455,7 +455,7 @@ QUIZZES = [
                "A", "Read (and Read & Execute for programs) suffice; Modify/Full Control violate least privilege.", multi="A,B"),
             _q("Granting Full Control to 'make the error go away' primarily violates:",
                "Least privilege", "Data retention law", "The OSI model", "Licensing",
-               "A", "It works — and grants far more than the task requires, which the safe_fix anchor penalizes."),
+               "A", "It may remove the immediate error, but it grants far more access than the task requires and violates least privilege."),
             _q("Permissions on C:\\Share\\Reports are inherited from:",
                "The domain controller policy", "The parent folder: C:\\Share", "The user's profile folder", "The share's network settings",
                "B", "NTFS permissions flow down from parent folders by default."),
@@ -509,7 +509,7 @@ QUIZZES = [
         "questions": [
             _q("ipconfig shows 169.254.23.7. This means:",
                "A static address was assigned", "DHCP failed; APIPA assigned", "DNS resolution failed", "The network adapter is disabled",
-               "B", "169.254.x.x is APIPA — the machine asked DHCP and got no answer."),
+               "B", "169.254.x.x is APIPA — normal DHCP configuration was not obtained. This narrows the issue but does not identify why the exchange failed."),
             _q("ping 1.1.1.1 works; ping google.com fails. The layer at fault:",
                "Physical cabling", "DNS resolution", "The default gateway", "The firewall blocks all traffic",
                "B", "IP connectivity is proven; only name resolution is failing."),

@@ -17,11 +17,19 @@ def _seed_lessons(db):
         module_id=module.id,
         title="Ticket Triage",
         summary="Read the ticket and identify the next safe action.",
-        outcomes=["Identify the reported symptoms", "  Verify the safe next action  ", " ", None, 42],
+        outcomes=[
+            "Identify the reported symptoms",
+            "  Verify the safe next action  ",
+            " ",
+            None,
+            42,
+        ],
         lesson_order=1,
         status="published",
     )
-    draft = Lesson(module_id=module.id, title="Draft Lesson", lesson_order=2, status="draft")
+    draft = Lesson(
+        module_id=module.id, title="Draft Lesson", lesson_order=2, status="draft"
+    )
     db.add_all([published, draft])
     db.commit()
     return module, published, draft
@@ -48,6 +56,8 @@ def test_direct_lesson_and_notes_remain_student_scoped(db):
         "related_activity_type": None,
         "is_orientation": False,
         "is_complete": False,
+        "presentation": {},
+        "next_activity": None,
     }
 
     saved = client.put(
@@ -56,17 +66,84 @@ def test_direct_lesson_and_notes_remain_student_scoped(db):
         headers=auth_headers(student),
     )
     assert saved.status_code == 200
-    assert client.get(f"/api/lessons/{lesson.id}/notes", headers=auth_headers(student)).json()["data"]["content"] == "Verify impact before changing anything."
-    assert client.get(f"/api/lessons/{lesson.id}/notes", headers=auth_headers(other)).json()["data"]["content"] == ""
-    assert client.get(f"/api/lessons/{lesson.id}", headers=auth_headers(student)).json()["data"]["is_complete"] is False
+    assert (
+        client.get(
+            f"/api/lessons/{lesson.id}/notes", headers=auth_headers(student)
+        ).json()["data"]["content"]
+        == "Verify impact before changing anything."
+    )
+    assert (
+        client.get(
+            f"/api/lessons/{lesson.id}/notes", headers=auth_headers(other)
+        ).json()["data"]["content"]
+        == ""
+    )
+    assert (
+        client.get(f"/api/lessons/{lesson.id}", headers=auth_headers(student)).json()[
+            "data"
+        ]["is_complete"]
+        is False
+    )
 
-    completed = client.post(f"/api/lessons/{lesson.id}/complete", headers=auth_headers(student))
+    completed = client.post(
+        f"/api/lessons/{lesson.id}/complete", headers=auth_headers(student)
+    )
     assert completed.status_code == 200
     completed_at = completed.json()["data"]["completed_at"]
-    assert client.post(f"/api/lessons/{lesson.id}/complete", headers=auth_headers(student)).json()["data"]["completed_at"] == completed_at
-    assert client.get(f"/api/lessons/{lesson.id}", headers=auth_headers(student)).json()["data"]["is_complete"] is True
-    assert client.post(f"/api/lessons/{lesson.id}/complete", headers=auth_headers(other)).status_code == 409
-    assert db.query(StudentLessonProgress).filter_by(student_id=other.id, lesson_id=lesson.id).first() is None
+    assert (
+        client.post(
+            f"/api/lessons/{lesson.id}/complete", headers=auth_headers(student)
+        ).json()["data"]["completed_at"]
+        == completed_at
+    )
+    assert (
+        client.get(f"/api/lessons/{lesson.id}", headers=auth_headers(student)).json()[
+            "data"
+        ]["is_complete"]
+        is True
+    )
+    assert (
+        client.post(
+            f"/api/lessons/{lesson.id}/complete", headers=auth_headers(other)
+        ).status_code
+        == 409
+    )
+    assert (
+        db.query(StudentLessonProgress)
+        .filter_by(student_id=other.id, lesson_id=lesson.id)
+        .first()
+        is None
+    )
+
+
+def test_note_save_rejects_stale_content_without_overwriting_newer_work(db):
+    student = make_student(db)
+    _, lesson, _ = _seed_lessons(db)
+    headers = auth_headers(student)
+
+    first = client.put(
+        f"/api/lessons/{lesson.id}/notes",
+        json={"content": "first draft", "base_content": ""},
+        headers=headers,
+    )
+    assert first.status_code == 200
+    newer = client.put(
+        f"/api/lessons/{lesson.id}/notes",
+        json={"content": "newer server draft", "base_content": "first draft"},
+        headers=headers,
+    )
+    assert newer.status_code == 200
+
+    stale = client.put(
+        f"/api/lessons/{lesson.id}/notes",
+        json={"content": "stale tab draft", "base_content": "first draft"},
+        headers=headers,
+    )
+    assert stale.status_code == 409
+    saved = client.get(f"/api/lessons/{lesson.id}/notes", headers=headers).json()[
+        "data"
+    ]
+    assert saved["content"] == "newer server draft"
 
 
 def test_direct_lesson_exposes_related_weekly_activity(db):
@@ -93,7 +170,10 @@ def test_direct_lesson_exposes_related_weekly_activity(db):
     assert response.status_code == 200
     assert response.json()["data"].get("related_activity_stable_id") == stable_id
     assert response.json()["data"].get("related_activity_week_number") == 1
-    assert response.json()["data"].get("related_training_module_id") == "module.endpoint.support_workflow"
+    assert (
+        response.json()["data"].get("related_training_module_id")
+        == "module.endpoint.support_workflow"
+    )
     assert response.json()["data"].get("related_activity_type") == "networking_lab"
 
 
@@ -102,7 +182,12 @@ def test_saving_a_note_never_completes_or_unlocks_a_lesson(db):
     module = Module(code="MOD-001", title="Week 1", module_order=1, active=True)
     db.add(module)
     db.flush()
-    lesson = Lesson(module_id=module.id, title="Meaningful lesson", lesson_order=1, status="published")
+    lesson = Lesson(
+        module_id=module.id,
+        title="Meaningful lesson",
+        lesson_order=1,
+        status="published",
+    )
     db.add(lesson)
     db.commit()
 
@@ -112,13 +197,20 @@ def test_saving_a_note_never_completes_or_unlocks_a_lesson(db):
         headers=auth_headers(student),
     )
     assert saved.status_code == 200
-    assert db.query(StudentLessonProgress).filter_by(student_id=student.id, lesson_id=lesson.id).first() is None
+    assert (
+        db.query(StudentLessonProgress)
+        .filter_by(student_id=student.id, lesson_id=lesson.id)
+        .first()
+        is None
+    )
     assert derive_current_week(student.id, db) == 1
 
 
 def test_direct_lesson_returns_empty_outcomes_list_by_default(db):
     student = make_student(db)
-    module = Module(code="MOD-002", title="Hardware Basics", module_order=2, active=True)
+    module = Module(
+        code="MOD-002", title="Hardware Basics", module_order=2, active=True
+    )
     db.add(module)
     db.flush()
     lesson = Lesson(
@@ -141,4 +233,9 @@ def test_direct_lesson_requires_auth_and_hides_drafts(db):
     _, lesson, draft = _seed_lessons(db)
 
     assert client.get(f"/api/lessons/{lesson.id}").status_code in (401, 403)
-    assert client.get(f"/api/lessons/{draft.id}", headers=auth_headers(student)).status_code == 404
+    assert (
+        client.get(
+            f"/api/lessons/{draft.id}", headers=auth_headers(student)
+        ).status_code
+        == 404
+    )

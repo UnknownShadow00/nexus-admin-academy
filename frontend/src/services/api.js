@@ -314,8 +314,8 @@ export const getLesson = (lessonId, requestOptions) =>
   request(() => api.get(`/api/lessons/${lessonId}`), requestOptions);
 export const completeLesson = (lessonId, requestOptions) =>
   request(() => api.post(`/api/lessons/${lessonId}/complete`), requestOptions);
-export const saveLessonNote = (lessonId, content, requestOptions) =>
-  request(() => api.put(`/api/lessons/${lessonId}/notes`, { content }), requestOptions);
+export const saveLessonNote = (lessonId, content, baseContent, requestOptions) =>
+  request(() => api.put(`/api/lessons/${lessonId}/notes`, { content, base_content: baseContent }), requestOptions);
 export const getOrientationProgress = (requestOptions) =>
   request(() => api.get("/api/onboarding"), requestOptions);
 export const globalSearch = (q, requestOptions) =>
