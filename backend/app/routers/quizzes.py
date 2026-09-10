@@ -7,12 +7,11 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.models.learning import Lesson
 from app.models.quiz import QUIZ_PURPOSE_REMEDIATION, Quiz, QuizAttempt
 from app.models.student import Student
-from app.models.training import TrainingWeekActivity
 from app.schemas.quiz import (
     PracticeAnswerRequest,
+    PracticeCompleteRequest,
     QuizAttemptSaveRequest,
     QuizAttemptStartRequest,
     QuizSubmitRequest,
@@ -32,6 +31,7 @@ from app.services.quiz_progression import (
     triggered_remediation_ids,
 )
 from app.services.quiz_visibility import v1_student_visible_quiz_filters
+from app.services.review_service import lesson_review
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
 
@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 ATTEMPT_IN_PROGRESS = "in_progress"
 ATTEMPT_SUBMITTED = "submitted"
+PRACTICE_COMPLETE = "practice_complete"
 
 
 def _grade_answer(question, raw_answer) -> tuple[object, bool]:
@@ -81,46 +82,6 @@ def _visible_quiz(db: Session, quiz_id: int) -> Quiz:
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
     return quiz
-
-
-def _lesson_review(db: Session, quiz: Quiz) -> dict | None:
-    lesson_id = quiz.lesson_id
-    if not lesson_id:
-        activity = (
-            db.query(TrainingWeekActivity)
-            .filter_by(activity_type="quiz", content_ref=str(quiz.id))
-            .order_by(TrainingWeekActivity.is_required.desc(), TrainingWeekActivity.id)
-            .first()
-        )
-        if activity:
-            prerequisite = activity.prerequisite_activity
-            if prerequisite and prerequisite.activity_type == "lesson":
-                lesson_id = int(prerequisite.content_ref)
-            else:
-                previous_lesson = (
-                    db.query(TrainingWeekActivity)
-                    .filter(
-                        TrainingWeekActivity.training_week_id
-                        == activity.training_week_id,
-                        TrainingWeekActivity.activity_type == "lesson",
-                        TrainingWeekActivity.display_order < activity.display_order,
-                    )
-                    .order_by(TrainingWeekActivity.display_order.desc())
-                    .first()
-                )
-                if previous_lesson:
-                    lesson_id = int(previous_lesson.content_ref)
-    if not lesson_id:
-        return None
-    lesson = db.get(Lesson, lesson_id)
-    if not lesson:
-        return None
-    return {
-        "lesson_id": lesson.id,
-        "title": lesson.title,
-        "url": f"/lessons/{lesson.id}#worked-example",
-        "label": f"{lesson.title} → Worked example",
-    }
 
 
 def _snapshot_questions(
@@ -195,7 +156,7 @@ def _result_for_learner(db: Session, quiz: Quiz, attempt: QuizAttempt) -> dict:
     score = attempt_score(attempt)
     passed = bool(score["passed"])
     disclose = passed
-    review = _lesson_review(db, quiz)
+    review = lesson_review(db, quiz)
     rows = []
     for stored in attempt.results or []:
         row = dict(stored)
@@ -519,7 +480,63 @@ def check_practice_answer(
             ),
             "key_idea": question.explanation
             or "Review the concept and compare each option to the symptom.",
-            "review": _lesson_review(db, quiz),
+            "review": lesson_review(db, quiz),
+        }
+    )
+
+
+@router.post("/{quiz_id}/practice/complete")
+def complete_practice(
+    quiz_id: int,
+    payload: PracticeCompleteRequest,
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    ensure_student_ownership(current_student, payload.student_id)
+    quiz = _visible_quiz(db, quiz_id)
+    student = db.get(Student, payload.student_id)
+    require_quiz_access(db, student, quiz)
+    if quiz.is_required and quiz.show_in_weekly_checklist:
+        raise HTTPException(
+            status_code=409,
+            detail="Assessment activity cannot be recorded as practice",
+        )
+    question_ids = {question.id for question in quiz.questions}
+    if set(payload.checked_question_ids) != question_ids:
+        raise HTTPException(
+            status_code=422,
+            detail="Check each practice question before finishing practice",
+        )
+    existing = (
+        db.query(QuizAttempt)
+        .filter_by(
+            student_id=student.id,
+            quiz_id=quiz.id,
+            status=PRACTICE_COMPLETE,
+        )
+        .first()
+    )
+    if not existing:
+        db.add(
+            QuizAttempt(
+                student_id=student.id,
+                quiz_id=quiz.id,
+                answers={"checked_question_ids": sorted(payload.checked_question_ids)},
+                results=[],
+                score=0,
+                xp_awarded=0,
+                best_score=0,
+                first_attempt_xp=0,
+                status=PRACTICE_COMPLETE,
+                submitted_at=datetime.now(timezone.utc),
+            )
+        )
+        db.commit()
+    return ok(
+        {
+            "purpose": "practice",
+            "practice_completed": True,
+            "awards_credit": False,
         }
     )
 

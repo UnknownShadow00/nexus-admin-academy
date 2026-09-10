@@ -157,6 +157,10 @@ class PracticeAnswerRequest(QuizAttemptStartRequest):
         return normalized["answer"]
 
 
+class PracticeCompleteRequest(QuizAttemptStartRequest):
+    checked_question_ids: list[int] = Field(min_length=1)
+
+
 class BulkTicketGenerateRequest(BaseModel):
     titles: list[str]
     week_number: int = Field(ge=1, le=24)

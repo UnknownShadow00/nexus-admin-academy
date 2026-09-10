@@ -203,6 +203,8 @@ export const submitQuizAssessment = (quizId, attemptId, payload, requestOptions)
   request(() => api.post(`/api/quizzes/${quizId}/attempts/${attemptId}/submit`, payload), requestOptions);
 export const checkPracticeAnswer = (quizId, payload, requestOptions) =>
   request(() => api.post(`/api/quizzes/${quizId}/practice/check`, payload), requestOptions);
+export const completePractice = (quizId, payload, requestOptions) =>
+  request(() => api.post(`/api/quizzes/${quizId}/practice/complete`, payload), requestOptions);
 
 export const getV2Access = (requestOptions) =>
   request(() => api.get("/api/v2/curriculum/access"), requestOptions);

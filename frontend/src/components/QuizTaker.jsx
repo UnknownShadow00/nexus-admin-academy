@@ -3,6 +3,7 @@ import { toast } from "react-hot-toast";
 
 import {
   checkPracticeAnswer,
+  completePractice,
   getQuiz,
   saveQuizAssessment,
   startQuizAssessment,
@@ -63,6 +64,7 @@ export default function QuizTaker({ quizId, studentId }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [timings, setTimings] = useState({});
   const [practiceComplete, setPracticeComplete] = useState(false);
+  const [practiceSaving, setPracticeSaving] = useState(false);
   const questionStartRef = useRef(Date.now());
   const loadSequence = useRef(0);
   const saveSequence = useRef(0);
@@ -210,6 +212,28 @@ export default function QuizTaker({ quizId, studentId }) {
     } finally { setSubmitting(false); }
   };
 
+  const finishPractice = async () => {
+    if (practiceSaving) return;
+    setPracticeSaving(true);
+    try {
+      await completePractice(
+        quizId,
+        {
+          student_id: studentId,
+          checked_question_ids: questions
+            .filter((question) => feedback[question.id])
+            .map((question) => question.id),
+        },
+        { suppressToast: true },
+      );
+      setPracticeComplete(true);
+    } catch (error) {
+      toast.error(error?.userMessage || "Check each practice answer before finishing.");
+    } finally {
+      setPracticeSaving(false);
+    }
+  };
+
   const answeredCount = useMemo(() => questions.filter((question) => hasAnswer(answers[String(question.id)])).length, [answers, questions]);
 
   if (loading) return <div className="panel"><Spinner text="Loading..." /></div>;
@@ -276,7 +300,7 @@ export default function QuizTaker({ quizId, studentId }) {
 
       <div className="flex flex-col gap-2 sm:flex-row">
         {currentIndex > 0 ? <button type="button" className="btn-secondary flex-1" onClick={() => moveTo(currentIndex - 1)}>Previous</button> : null}
-        {currentIndex < questions.length - 1 ? <button type="button" className="btn-primary flex-1" onClick={() => moveTo(currentIndex + 1)}>Next</button> : isAssessment ? <button type="button" className="btn-primary flex-1" disabled={submitting} onClick={submit}>{submitting ? "Submitting…" : "Submit assessment"}</button> : <button type="button" className="btn-primary flex-1" onClick={() => setPracticeComplete(true)}>Finish practice</button>}
+        {currentIndex < questions.length - 1 ? <button type="button" className="btn-primary flex-1" onClick={() => moveTo(currentIndex + 1)}>Next</button> : isAssessment ? <button type="button" className="btn-primary flex-1" disabled={submitting} onClick={submit}>{submitting ? "Submitting…" : "Submit assessment"}</button> : <button type="button" className="btn-primary flex-1" disabled={practiceSaving} onClick={finishPractice}>{practiceSaving ? "Saving practice…" : "Finish practice"}</button>}
       </div>
     </section>
   );
