@@ -17,7 +17,11 @@ from app.models.quiz import (
     QuizAttempt,
 )
 from app.models.ticket import Ticket, TicketSubmission
-from app.models.service_desk import ServiceDeskAttempt, ServiceDeskScenario, ServiceDeskScenarioVersion
+from app.models.service_desk import (
+    ServiceDeskAttempt,
+    ServiceDeskScenario,
+    ServiceDeskScenarioVersion,
+)
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.training_service import (
@@ -67,7 +71,17 @@ def add_week(db, number, title=None, *, active=True, requires_previous=True):
     return week
 
 
-def add_activity(db, week, stable_id, activity_type, content_ref, order, *, required=True, metadata=None):
+def add_activity(
+    db,
+    week,
+    stable_id,
+    activity_type,
+    content_ref,
+    order,
+    *,
+    required=True,
+    metadata=None,
+):
     activity = TrainingWeekActivity(
         training_week_id=week.id,
         stable_id=stable_id,
@@ -143,7 +157,9 @@ def test_week_and_activity_ordering_and_optional_items(db, student):
     week_one = add_week(db, 1)
     video = add_video(db)
     add_activity(db, week_one, "w1-video", "video", video.id, 20)
-    add_activity(db, week_one, "w1-optional-review", "review", "week-1", 30, required=False)
+    add_activity(
+        db, week_one, "w1-optional-review", "review", "week-1", 30, required=False
+    )
     add_activity(db, week_one, "w1-missing", "video", 999, 10)
     db.commit()
 
@@ -151,7 +167,11 @@ def test_week_and_activity_ordering_and_optional_items(db, student):
 
     assert [week["week_number"] for week in overview["weeks"]] == [1, 2]
     detail = build_training_week(db, student, week_one.week_number)
-    assert [item["stable_id"] for item in detail["activities"]] == ["w1-missing", "w1-video", "w1-optional-review"]
+    assert [item["stable_id"] for item in detail["activities"]] == [
+        "w1-missing",
+        "w1-video",
+        "w1-optional-review",
+    ]
     assert detail["required_total"] == 2
     assert detail["optional_total"] == 1
 
@@ -173,7 +193,9 @@ def test_structure_validation_fails_loudly_for_duplicate_or_orphaned_metadata():
         ModuleDefinition("module.test.two", "stage.test", "Two", "Two", 0, 1),
     )
     codes = {issue["code"] for issue in structure_definition_issues(stages, modules)}
-    assert {"DUPLICATE_STAGE_ID", "MISSING_STAGE", "DUPLICATE_MODULE_MAPPING"}.issubset(codes)
+    assert {"DUPLICATE_STAGE_ID", "MISSING_STAGE", "DUPLICATE_MODULE_MAPPING"}.issubset(
+        codes
+    )
 
 
 def test_learning_roles_are_presentation_metadata_not_completion_evidence():
@@ -187,7 +209,9 @@ def test_learning_roles_are_presentation_metadata_not_completion_evidence():
 
 def test_fresh_advanced_and_completed_students_resolve_stages_and_modules(db, student):
     weeks = [add_week(db, number, requires_previous=number > 0) for number in range(3)]
-    videos = [add_video(db, 100 + number, title=f"Video {number}") for number in range(3)]
+    videos = [
+        add_video(db, 100 + number, title=f"Video {number}") for number in range(3)
+    ]
     for number, (week, video) in enumerate(zip(weeks, videos, strict=True)):
         add_activity(db, week, f"activity-{number}", "video", video.id, 1)
     db.commit()
@@ -202,19 +226,29 @@ def test_fresh_advanced_and_completed_students_resolve_stages_and_modules(db, st
     advanced = build_training_overview(db, student)
     assert advanced["current_stage"]["stable_id"] == "stage.endpoint_foundations"
     assert advanced["current_module"]["stable_id"] == "module.endpoint.support_workflow"
-    assert build_training_module(db, student, "module.orientation.nexus")["is_complete"] is True
+    assert (
+        build_training_module(db, student, "module.orientation.nexus")["is_complete"]
+        is True
+    )
 
-    db.add_all(VideoWatch(student_id=student.id, video_key=video.video_key) for video in videos[1:])
+    db.add_all(
+        VideoWatch(student_id=student.id, video_key=video.video_key)
+        for video in videos[1:]
+    )
     db.commit()
     completed = build_training_overview(db, student)
     assert completed["training_complete"] is True
     assert completed["current_module"]["stable_id"] == "module.endpoint.pc_hardware"
 
 
-def test_existing_activity_completion_remains_authoritative_after_module_mapping(db, student):
+def test_existing_activity_completion_remains_authoritative_after_module_mapping(
+    db, student
+):
     week = add_week(db, 5, requires_previous=False)
     video = add_video(db, 105, title="Existing completed activity")
-    activity = add_activity(db, week, "stable-existing-completion", "video", video.id, 1)
+    activity = add_activity(
+        db, week, "stable-existing-completion", "video", video.id, 1
+    )
     db.add(VideoWatch(student_id=student.id, video_key=video.video_key))
     db.commit()
 
@@ -225,20 +259,36 @@ def test_existing_activity_completion_remains_authoritative_after_module_mapping
     assert detail["is_complete"] is True
 
 
-def test_unmapped_active_activity_and_invalid_learning_role_fail_validation(db, student):
+def test_unmapped_active_activity_and_invalid_learning_role_fail_validation(
+    db, student
+):
     week = add_week(db, 99, requires_previous=False)
     video = add_video(db, 199)
-    add_activity(db, week, "unmapped", "video", video.id, 1, metadata={"learning_role": "mastered"})
+    add_activity(
+        db,
+        week,
+        "unmapped",
+        "video",
+        video.id,
+        1,
+        metadata={"learning_role": "mastered"},
+    )
     db.commit()
 
     validation = validate_training_curriculum(db)
     codes = {issue["code"] for issue in validation["issues"]}
-    assert {"UNMAPPED_ACTIVE_WEEK", "UNMAPPED_ACTIVE_ACTIVITY", "INVALID_LEARNING_ROLE"}.issubset(codes)
+    assert {
+        "UNMAPPED_ACTIVE_WEEK",
+        "UNMAPPED_ACTIVE_ACTIVITY",
+        "INVALID_LEARNING_ROLE",
+    }.issubset(codes)
     assert validation["unmapped_activity_count"] == 1
     assert validation["valid"] is False
 
 
-def test_sequence_drift_detected_and_resolved_by_advanced_networking_resequence(db, student):
+def test_sequence_drift_detected_and_resolved_by_advanced_networking_resequence(
+    db, student
+):
     # Minimal weeks at the real week_numbers this Phase 4A.1 check cares
     # about: 9 (last support-networking week, unaffected), 10-12 (advanced
     # networking, to be moved later), 13-15 (Identity & Access, to move
@@ -264,13 +314,18 @@ def test_sequence_drift_detected_and_resolved_by_advanced_networking_resequence(
     assert "SEQUENCE_DRIFT" not in {issue["code"] for issue in after["issues"]}
 
     # Idempotent: a second run changes nothing.
-    assert sync_advanced_networking_resequence(db) == {"weeks_checked": 6, "weeks_updated": 0}
+    assert sync_advanced_networking_resequence(db) == {
+        "weeks_checked": 6,
+        "weeks_updated": 0,
+    }
 
     # week_number -- the stable identity key everything else keys off -- is
     # untouched; only display_order moves.
     weeks_by_number = {
         w.week_number: w
-        for w in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_(range(9, 16))).all()
+        for w in db.query(TrainingWeek)
+        .filter(TrainingWeek.week_number.in_(range(9, 16)))
+        .all()
     }
     assert weeks_by_number[9].display_order == 9
     assert weeks_by_number[10].display_order == 13
@@ -283,23 +338,57 @@ def test_sequence_drift_detected_and_resolved_by_advanced_networking_resequence(
         assert weeks_by_number[number].week_number == number
 
 
-def test_service_desk_activity_is_validated_and_completed_only_by_passed_attempt(db, student):
+def test_service_desk_activity_is_validated_and_completed_only_by_passed_attempt(
+    db, student
+):
     week = add_week(db, 1, requires_previous=False)
-    scenario = ServiceDeskScenario(stable_key="training-service-desk", title="Training Service Desk", description="A test scenario for curriculum integration.", category="Identity", difficulty=1, status="active")
+    scenario = ServiceDeskScenario(
+        stable_key="training-service-desk",
+        title="Training Service Desk",
+        description="A test scenario for curriculum integration.",
+        category="Identity",
+        difficulty=1,
+        status="active",
+    )
     db.add(scenario)
     db.flush()
-    version = ServiceDeskScenarioVersion(scenario_id=scenario.id, version_number=1, definition_json={}, definition_hash="a" * 64, validation_status="valid", status="published")
+    version = ServiceDeskScenarioVersion(
+        scenario_id=scenario.id,
+        version_number=1,
+        definition_json={},
+        definition_hash="a" * 64,
+        validation_status="valid",
+        status="published",
+    )
     db.add(version)
     db.flush()
-    add_activity(db, week, "w1-service-desk", "service_desk_scenario", scenario.stable_key, 1)
+    add_activity(
+        db, week, "w1-service-desk", "service_desk_scenario", scenario.stable_key, 1
+    )
     db.commit()
 
     assert validate_training_curriculum(db)["valid"] is True
     before = build_training_week(db, student, 1)["activities"][0]
     assert before["complete"] is False
-    assert before["destination_route"] == "/service-desk/tickets/TRAINING-SERVICE-DESK?returnTo=%2Ftraining%2Fmodule%2Fmodule.endpoint.support_workflow"
+    assert (
+        before["destination_route"]
+        == "/service-desk/tickets/TRAINING-SERVICE-DESK?returnTo=%2Ftraining%2Fmodule%2Fmodule.endpoint.support_workflow"
+    )
 
-    db.add(ServiceDeskAttempt(student_id=student.id, scenario_version_id=version.id, mode="learning", status="completed", current_state={}, current_state_hash="b" * 64, state_version=0, attempt_number=1, score=100, passed=True))
+    db.add(
+        ServiceDeskAttempt(
+            student_id=student.id,
+            scenario_version_id=version.id,
+            mode="learning",
+            status="completed",
+            current_state={},
+            current_state_hash="b" * 64,
+            state_version=0,
+            attempt_number=1,
+            score=100,
+            passed=True,
+        )
+    )
     db.commit()
     after = build_training_week(db, student, 1)["activities"][0]
     assert after["complete"] is True
@@ -310,9 +399,15 @@ def test_required_activity_blocks_next_week_but_optional_does_not(db, student):
     week_two = add_week(db, 2)
     required_video = add_video(db, 10)
     optional_video = add_video(db, 11, title="Optional Deep Dive")
-    add_activity(db, week_one, "w1-required", "video", required_video.id, 1, required=True)
-    add_activity(db, week_one, "w1-optional", "video", optional_video.id, 2, required=False)
-    add_activity(db, week_two, "w2-required", "video", optional_video.id, 1, required=True)
+    add_activity(
+        db, week_one, "w1-required", "video", required_video.id, 1, required=True
+    )
+    add_activity(
+        db, week_one, "w1-optional", "video", optional_video.id, 2, required=False
+    )
+    add_activity(
+        db, week_two, "w2-required", "video", optional_video.id, 1, required=True
+    )
     db.commit()
 
     before = build_training_overview(db, student)
@@ -380,12 +475,21 @@ def test_lesson_note_does_not_complete_a_required_training_activity(db, student)
     module = Module(code="MOD-001", title="Week 1", module_order=1)
     db.add(module)
     db.flush()
-    lesson = Lesson(module_id=module.id, title="Read a real lesson", lesson_order=1, status="published")
+    lesson = Lesson(
+        module_id=module.id,
+        title="Read a real lesson",
+        lesson_order=1,
+        status="published",
+    )
     db.add(lesson)
     db.flush()
     add_activity(db, week_one, "w1-lesson", "lesson", lesson.id, 1)
     add_activity(db, week_two, "w2-review", "review", "week-2", 1)
-    db.add(StudentLessonNote(student_id=student.id, lesson_id=lesson.id, content="Optional study note."))
+    db.add(
+        StudentLessonNote(
+            student_id=student.id, lesson_id=lesson.id, content="Optional study note."
+        )
+    )
     db.commit()
 
     before = build_training_overview(db, student)
@@ -394,15 +498,25 @@ def test_lesson_note_does_not_complete_a_required_training_activity(db, student)
     assert before["weeks"][1]["status"] == "locked"
     assert before["next_activity"]["stable_id"] == "w1-lesson"
 
-    db.add(StudentLessonProgress(student_id=student.id, lesson_id=lesson.id, completed_at=datetime.now(timezone.utc)))
+    db.add(
+        StudentLessonProgress(
+            student_id=student.id,
+            lesson_id=lesson.id,
+            completed_at=datetime.now(timezone.utc),
+        )
+    )
     db.commit()
     after = build_training_overview(db, student)
     assert after["weeks"][0]["required_complete"] == 1
     assert after["weeks"][0]["completion_percent"] == 100.0
-    assert after["weeks"][1]["status"] == "complete"  # a review activity is intentionally untracked
+    assert (
+        after["weeks"][1]["status"] == "complete"
+    )  # a review activity is intentionally untracked
 
 
-def test_video_quiz_lab_ticket_and_networking_completion_are_server_derived(db, student):
+def test_video_quiz_lab_ticket_and_networking_completion_are_server_derived(
+    db, student
+):
     week = add_week(db, 1, requires_previous=False)
     video = add_video(db, quiz_title="Computer Basics Quiz")
     quiz = add_quiz(db)
@@ -462,7 +576,14 @@ def test_video_quiz_lab_ticket_and_networking_completion_are_server_derived(db, 
     db.commit()
 
     initial = build_training_week(db, student, 1)
-    assert [item["status"] for item in initial["activities"]] == ["not_started", "locked", "not_started", "not_started", "not_started", "not_started"]
+    assert [item["status"] for item in initial["activities"]] == [
+        "not_started",
+        "locked",
+        "not_started",
+        "not_started",
+        "not_started",
+        "not_started",
+    ]
     assert initial["activities"][0]["linked_quiz"]["id"] == quiz.id
     assert initial["activities"][0]["linked_quiz"]["action"] == "take"
 
@@ -492,8 +613,22 @@ def test_video_quiz_lab_ticket_and_networking_completion_are_server_derived(db, 
             methodology_steps_mentioned={},
         )
     )
-    db.add(CliLabAttempt(student_id=student.id, lab_id=cli_lab.id, completed_at=quiz.created_at, command_log=[]))
-    db.add(CapstoneRun(capstone_template_id=capstone.id, student_id=student.id, status="submitted", passed=False))
+    db.add(
+        CliLabAttempt(
+            student_id=student.id,
+            lab_id=cli_lab.id,
+            completed_at=quiz.created_at,
+            command_log=[],
+        )
+    )
+    db.add(
+        CapstoneRun(
+            capstone_template_id=capstone.id,
+            student_id=student.id,
+            status="submitted",
+            passed=False,
+        )
+    )
     db.commit()
 
     complete = build_training_week(db, student, 1)
@@ -535,7 +670,9 @@ def test_structured_lab_requires_a_passing_graded_submission(db, student):
     db.add(LabRun(lab_template_id=lab.id, student_id=student.id, status="submitted"))
     db.commit()
     legacy = build_training_week(db, student, 2)
-    legacy_activity = {item["stable_id"]: item for item in legacy["activities"]}[activity.stable_id]
+    legacy_activity = {item["stable_id"]: item for item in legacy["activities"]}[
+        activity.stable_id
+    ]
     assert legacy_activity["complete"] is False
 
     # A graded-but-failing structured attempt must not count either.
@@ -546,12 +683,17 @@ def test_structured_lab_requires_a_passing_graded_submission(db, student):
             student_id=student.id,
             status="submitted",
             final_score=50,
-            structured_feedback={"questions": [{"id": "q1", "correct": False}], "score_pct": 50},
+            structured_feedback={
+                "questions": [{"id": "q1", "correct": False}],
+                "score_pct": 50,
+            },
         )
     )
     db.commit()
     failing = build_training_week(db, student, 2)
-    failing_activity = {item["stable_id"]: item for item in failing["activities"]}[activity.stable_id]
+    failing_activity = {item["stable_id"]: item for item in failing["activities"]}[
+        activity.stable_id
+    ]
     assert failing_activity["complete"] is False
 
     # A passing structured attempt counts.
@@ -562,12 +704,17 @@ def test_structured_lab_requires_a_passing_graded_submission(db, student):
             student_id=student.id,
             status="submitted",
             final_score=100,
-            structured_feedback={"questions": [{"id": "q1", "correct": True}], "score_pct": 100},
+            structured_feedback={
+                "questions": [{"id": "q1", "correct": True}],
+                "score_pct": 100,
+            },
         )
     )
     db.commit()
     passing = build_training_week(db, student, 2)
-    passing_activity = {item["stable_id"]: item for item in passing["activities"]}[activity.stable_id]
+    passing_activity = {item["stable_id"]: item for item in passing["activities"]}[
+        activity.stable_id
+    ]
     assert passing_activity["complete"] is True
 
 
@@ -575,7 +722,18 @@ def test_failed_required_quiz_blocks_until_passed(db, student):
     week = add_week(db, 1, requires_previous=False)
     quiz = add_quiz(db)
     add_activity(db, week, "required-quiz", "quiz", quiz.id, 1, required=True)
-    db.add(QuizAttempt(student_id=student.id, quiz_id=quiz.id, answers={}, results=[], score=1, best_score=1, first_attempt_xp=0, xp_awarded=0))
+    db.add(
+        QuizAttempt(
+            student_id=student.id,
+            quiz_id=quiz.id,
+            answers={},
+            results=[],
+            score=1,
+            best_score=1,
+            first_attempt_xp=0,
+            xp_awarded=0,
+        )
+    )
     db.commit()
 
     failed = build_training_week(db, student, 1)
@@ -583,7 +741,18 @@ def test_failed_required_quiz_blocks_until_passed(db, student):
     assert failed["activities"][0]["complete"] is False
     assert failed["activities"][0]["score_percent"] == 50
 
-    db.add(QuizAttempt(student_id=student.id, quiz_id=quiz.id, answers={}, results=[], score=2, best_score=2, first_attempt_xp=0, xp_awarded=0))
+    db.add(
+        QuizAttempt(
+            student_id=student.id,
+            quiz_id=quiz.id,
+            answers={},
+            results=[],
+            score=2,
+            best_score=2,
+            first_attempt_xp=0,
+            xp_awarded=0,
+        )
+    )
     db.commit()
     assert build_training_week(db, student, 1)["activities"][0]["complete"] is True
 
@@ -607,18 +776,20 @@ def test_server_graded_ticket_completes_week_without_waiting_for_mentor(db, stud
     db.add(ticket)
     db.flush()
     add_activity(db, week, "ticket", "support_ticket", ticket.id, 1)
-    db.add(TicketSubmission(
-        student_id=student.id,
-        ticket_id=ticket.id,
-        writeup="A server-graded response",
-        xp_awarded=0,
-        status="pending",
-        final_score=7,
-        graded_at=datetime.now(timezone.utc),
-        ai_feedback={},
-        collaborator_ids=[],
-        methodology_steps_mentioned={},
-    ))
+    db.add(
+        TicketSubmission(
+            student_id=student.id,
+            ticket_id=ticket.id,
+            writeup="A server-graded response",
+            xp_awarded=0,
+            status="pending",
+            final_score=7,
+            graded_at=datetime.now(timezone.utc),
+            ai_feedback={},
+            collaborator_ids=[],
+            methodology_steps_mentioned={},
+        )
+    )
     db.commit()
 
     detail = build_training_week(db, student, 1)
@@ -647,7 +818,11 @@ def test_broken_hidden_and_untracked_required_references_are_reported(db, studen
 
     validation = validate_training_curriculum(db)
     codes = {issue["code"] for issue in validation["issues"]}
-    assert {"BROKEN_REFERENCE", "QUIZ_NOT_STUDENT_VISIBLE", "UNTRACKED_REQUIRED_ACTIVITY"}.issubset(codes)
+    assert {
+        "BROKEN_REFERENCE",
+        "QUIZ_NOT_STUDENT_VISIBLE",
+        "UNTRACKED_REQUIRED_ACTIVITY",
+    }.issubset(codes)
     assert validation["valid"] is False
 
 
@@ -669,17 +844,127 @@ def test_progress_uses_one_required_activity_denominator(db, student):
     assert progress["videos"]["total"] == 2
 
 
+def test_progress_exposes_truthful_beginner_evidence_groups(db, student):
+    week = add_week(db, 1, title="Support Workflow Essentials", requires_previous=False)
+    module = Module(code="SUPPORT", title="Support", module_order=1)
+    db.add(module)
+    db.flush()
+    lesson = Lesson(
+        module_id=module.id,
+        title="Ticket fundamentals",
+        lesson_order=1,
+        status="published",
+    )
+    lab = LabTemplate(
+        title="Guided ticket triage",
+        description="Practice triage with guidance.",
+        lab_type="legacy",
+        week_number=1,
+        is_published=True,
+    )
+    independent = LabTemplate(
+        title="Independent ticket triage",
+        description="Demonstrate triage independently.",
+        lab_type="legacy",
+        week_number=1,
+        is_published=True,
+    )
+    db.add_all([lesson, lab, independent])
+    db.flush()
+    quiz = add_quiz(db, title="Ticketing Systems Quiz")
+    add_activity(db, week, "lesson", "lesson", lesson.id, 1)
+    add_activity(db, week, "assessment", "quiz", quiz.id, 2)
+    add_activity(
+        db,
+        week,
+        "guided",
+        "guided_lab",
+        lab.id,
+        3,
+        metadata={"learning_role": "practice", "assistance_level": "guided"},
+    )
+    add_activity(
+        db,
+        week,
+        "independent",
+        "guided_lab",
+        independent.id,
+        4,
+        metadata={"learning_role": "prove", "assistance_level": "independent"},
+    )
+    add_activity(db, week, "optional", "guided_lab", lab.id, 5, required=False)
+    db.add(
+        StudentLessonProgress(
+            student_id=student.id,
+            lesson_id=lesson.id,
+            completed_at=datetime.now(timezone.utc),
+        )
+    )
+    db.add(
+        LabRun(
+            student_id=student.id,
+            lab_template_id=lab.id,
+            status="submitted",
+            submitted_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+
+    progress = build_training_progress(db, student)
+    evidence = progress["evidence"]
+
+    assert evidence["started"] is True
+    assert evidence["course_required_activities"] == {"completed": 2, "total": 4}
+    assert evidence["current_module"]["required"] == {"completed": 2, "total": 4}
+    assert evidence["current_module"]["lessons"] == {"completed": 1, "total": 1}
+    assert evidence["current_module"]["assessments"] == {"passed": 0, "total": 1}
+    assert evidence["current_module"]["practical"] == {"completed": 1, "total": 2}
+    assert evidence["current_module"]["optional_practice"] == {
+        "completed": 1,
+        "total": 1,
+    }
+    assert evidence["practical"]["guided_completed"] == 1
+    assert evidence["practical"]["independent_completed"] == 0
+    assert evidence["practical"]["historical_unclassified_completed"] == 0
+
+
+def test_fresh_progress_is_zero_not_complete_or_mastered(db, student):
+    week = add_week(db, 1, requires_previous=False)
+    video = add_video(db)
+    add_activity(db, week, "first", "video", video.id, 1)
+    db.commit()
+
+    progress = build_training_progress(db, student)
+
+    assert progress["evidence"]["started"] is False
+    assert progress["evidence"]["course_required_activities"] == {
+        "completed": 0,
+        "total": 1,
+    }
+    assert "mastery" not in progress["evidence"]
+
+
 def test_reviewed_mapping_covers_every_seed_video_once():
-    assigned = [video_id for video_ids in VIDEO_WEEKS.values() for video_id in video_ids]
+    assigned = [
+        video_id for video_ids in VIDEO_WEEKS.values() for video_id in video_ids
+    ]
     assert len(assigned) == 137
     assert len(set(assigned)) == 137
     assert set(assigned) == set(VIDEO_QUIZ_MAPPINGS)
     assert all(mapping.quiz_id > 0 for mapping in VIDEO_QUIZ_MAPPINGS.values())
     confidence_counts = {
-        confidence: sum(mapping.confidence == confidence for mapping in VIDEO_QUIZ_MAPPINGS.values())
-        for confidence in {mapping.confidence for mapping in VIDEO_QUIZ_MAPPINGS.values()}
+        confidence: sum(
+            mapping.confidence == confidence for mapping in VIDEO_QUIZ_MAPPINGS.values()
+        )
+        for confidence in {
+            mapping.confidence for mapping in VIDEO_QUIZ_MAPPINGS.values()
+        }
     }
-    assert confidence_counts == {"Exact": 5, "Strong topical": 92, "Week-level fallback": 40}
+    assert confidence_counts == {
+        "Exact": 5,
+        "Strong topical": 92,
+        "Week-level fallback": 40,
+    }
 
 
 def test_shared_quiz_updates_each_video_but_counts_once(db, student):
@@ -696,11 +981,24 @@ def test_shared_quiz_updates_each_video_but_counts_once(db, student):
     add_activity(db, week, "first", "video", first.id, 1, metadata=metadata)
     add_activity(db, week, "second", "video", second.id, 2, metadata=metadata)
     add_activity(db, week, "quiz", "quiz", quiz.id, 3)
-    db.add(QuizAttempt(student_id=student.id, quiz_id=quiz.id, answers={}, results=[], score=2, best_score=2, first_attempt_xp=0, xp_awarded=0))
+    db.add(
+        QuizAttempt(
+            student_id=student.id,
+            quiz_id=quiz.id,
+            answers={},
+            results=[],
+            score=2,
+            best_score=2,
+            first_attempt_xp=0,
+            xp_awarded=0,
+        )
+    )
     db.commit()
 
     detail = build_training_week(db, student, 1)
-    video_rows = [item for item in detail["activities"] if item["activity_type"] == "video"]
+    video_rows = [
+        item for item in detail["activities"] if item["activity_type"] == "video"
+    ]
     assert {item["linked_quiz"]["action"] for item in video_rows} == {"review"}
     assert {item["linked_quiz"]["score_percent"] for item in video_rows} == {100}
     progress = build_training_progress(db, student)
@@ -748,7 +1046,11 @@ def test_post_seed_curriculum_sync_is_idempotent(db, student):
     first = sync_initial_training_activities(db)
     second = sync_initial_training_activities(db)
 
-    rows = db.query(TrainingWeekActivity).filter(TrainingWeekActivity.training_week_id == week.id).all()
+    rows = (
+        db.query(TrainingWeekActivity)
+        .filter(TrainingWeekActivity.training_week_id == week.id)
+        .all()
+    )
     assert first["created"] == 1
     assert second == {"created": 0, "skipped": True, "reason": "configuration_exists"}
     assert len(rows) == 1
@@ -766,7 +1068,9 @@ def test_week_zero_reconciliation_keeps_only_orientation_and_checkpoint_required
         lesson_order=1,
         status="published",
     )
-    retired = Lesson(module_id=module.id, title="Retired filler", lesson_order=2, status="draft")
+    retired = Lesson(
+        module_id=module.id, title="Retired filler", lesson_order=2, status="draft"
+    )
     quiz = Quiz(
         title="Ticketing Systems Quiz",
         week_number=0,
@@ -776,7 +1080,9 @@ def test_week_zero_reconciliation_keeps_only_orientation_and_checkpoint_required
     db.add_all([orientation, retired, quiz])
     db.flush()
     activities = [
-        add_activity(db, week, "orientation", "lesson", orientation.id, 1, required=True),
+        add_activity(
+            db, week, "orientation", "lesson", orientation.id, 1, required=True
+        ),
         add_activity(db, week, "video-a", "video", 166, 2, required=True),
         add_activity(db, week, "video-b", "video", 168, 3, required=True),
         add_activity(db, week, "checkpoint", "quiz", quiz.id, 4, required=True),

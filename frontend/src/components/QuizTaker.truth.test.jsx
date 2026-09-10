@@ -6,6 +6,7 @@ import QuizTaker from "./QuizTaker";
 import { getQuiz } from "../services/api";
 vi.mock("../services/api", () => ({
   checkPracticeAnswer: vi.fn(),
+  completePractice: vi.fn(),
   getQuiz: vi.fn(),
   saveQuizAssessment: vi.fn(),
   startQuizAssessment: vi.fn(),

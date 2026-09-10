@@ -76,10 +76,10 @@ test("fresh failure → Today → pass → Progress → latest and historical re
   await shot(page, "today-after-pass");
   await page.goto("/progress");
   await expect(
-    page.getByRole("heading", { name: "Quiz results" }),
+    page.getByRole("heading", { name: "Assessment results" }),
   ).toBeVisible();
   await expect(
-    page.getByText(/Latest attempt: 4\/4 · 100% · Passed/),
+    page.getByText(/Latest: 4\/4 · 100% · Passed/),
   ).toBeVisible();
   await expect(page.getByText("Skills Mastery")).toHaveCount(0);
   await shot(page, "progress-after-pass");
@@ -129,10 +129,10 @@ test("75 percent and a later failure preserve the best passing result", async ({
   ).toBeVisible();
   await page.goto("/progress");
   await expect(
-    page.getByText(/Latest attempt: 0\/4 · 0% · Not passed/),
+    page.getByText(/Latest: 0\/4 · 0% · Not passed/),
   ).toBeVisible();
   await expect(
-    page.getByText(/Best result: 4\/4 · 100% · Passed/),
+    page.getByText(/Best: 4\/4 · 100% · Passed/),
   ).toBeVisible();
 });
 test("mixed sizes retain explicit denominators and percentages", async ({
@@ -143,10 +143,10 @@ test("mixed sizes retain explicit denominators and percentages", async ({
   await attempt(page, 3, 6, 3);
   await page.goto("/progress");
   await expect(
-    page.getByText(/Latest attempt: 2\/2 · 100% · Passed/),
+    page.getByText(/Latest: 2\/2 · 100% · Passed/),
   ).toBeVisible();
   await expect(
-    page.getByText(/Latest attempt: 3\/6 · 50% · Not passed/),
+    page.getByText(/Latest: 3\/6 · 50% · Not passed/),
   ).toBeVisible();
 });
 test("admin learner summary has truthful units and evidence", async ({
@@ -163,7 +163,7 @@ test("admin learner summary has truthful units and evidence", async ({
     .click();
   await expect(page.getByText(/Required quizzes passed: 2 \/ 3/)).toBeVisible();
   await expect(
-    page.getByText(/Latest attempt: 0\/4 · 0% · Not passed/),
+    page.getByText(/Latest: 0\/4 · 0% · Not passed/),
   ).toBeVisible();
   await expect(page.getByText("Skills Mastery")).toHaveCount(0);
   await shot(page, "admin-learner-summary");

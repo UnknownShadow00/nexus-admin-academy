@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 
 import {
   checkPracticeAnswer,
+  completePractice,
   getQuiz,
   saveQuizAssessment,
   startQuizAssessment,
@@ -13,6 +14,7 @@ import QuizTaker, { hasAnswer } from "./QuizTaker";
 
 vi.mock("../services/api", () => ({
   checkPracticeAnswer: vi.fn(),
+  completePractice: vi.fn(),
   getQuiz: vi.fn(),
   saveQuizAssessment: vi.fn(),
   startQuizAssessment: vi.fn(),
@@ -85,5 +87,20 @@ describe("Wave 4 quiz contracts", () => {
     fireEvent.click(screen.getByText("Passwords"));
     fireEvent.click(screen.getByRole("button", { name: "Check answer" }));
     expect(await screen.findByText(/DHCP supplies normal IP configuration/)).toBeInTheDocument();
+  });
+
+  it("records finished practice without assessment credit", async () => {
+    getQuiz.mockResolvedValue({ data: { id: 8, title: "Practice DHCP", is_required: false, show_in_weekly_checklist: false, questions: [{ id: 45, question_text: "What does DHCP supply?", option_a: "IP settings", option_b: "Passwords", is_multi_select: false }] } });
+    checkPracticeAnswer.mockResolvedValue({ data: { purpose: "practice", awards_credit: false, is_correct: true, your_answer: "IP settings", correct_answer: "IP settings", key_idea: "DHCP supplies normal IP configuration." } });
+    completePractice.mockResolvedValue({ data: { purpose: "practice", practice_completed: true, awards_credit: false } });
+    render(<MemoryRouter><QuizTaker quizId={8} studentId={3} /></MemoryRouter>);
+
+    fireEvent.click(await screen.findByText("IP settings"));
+    fireEvent.click(screen.getByRole("button", { name: "Check answer" }));
+    await screen.findByText(/DHCP supplies normal IP configuration/);
+    fireEvent.click(screen.getByRole("button", { name: "Finish practice" }));
+
+    await waitFor(() => expect(completePractice).toHaveBeenCalledWith(8, { student_id: 3, checked_question_ids: [45] }, expect.anything()));
+    expect(await screen.findByText("Practice complete", { exact: true })).toBeInTheDocument();
   });
 });

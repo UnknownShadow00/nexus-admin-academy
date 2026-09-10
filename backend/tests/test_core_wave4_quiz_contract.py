@@ -185,6 +185,37 @@ def test_practice_teaches_but_cannot_award_required_credit(db):
     assert is_quiz_passed(db, student.id, required_quiz) is False
 
 
+def test_practice_completion_history_cannot_become_assessment_credit(db):
+    student = make_student(db)
+    required_quiz, _ = seed_quiz(db)
+    practice, questions = seed_quiz(db, required=False)
+
+    response = client.post(
+        f"/api/quizzes/{practice.id}/practice/complete",
+        json={
+            "student_id": student.id,
+            "checked_question_ids": [question.id for question in questions],
+        },
+        headers=auth_headers(student),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {
+        "purpose": "practice",
+        "practice_completed": True,
+        "awards_credit": False,
+    }
+    row = (
+        db.query(QuizAttempt)
+        .filter_by(student_id=student.id, quiz_id=practice.id)
+        .one()
+    )
+    assert row.status == "practice_complete"
+    assert row.score == 0
+    assert row.xp_awarded == 0
+    assert is_quiz_passed(db, student.id, required_quiz) is False
+
+
 def test_attempt_ownership_and_stale_save_are_enforced(db):
     owner = make_student(db, username="owner")
     other = make_student(db, username="other")
