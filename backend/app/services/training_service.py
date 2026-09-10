@@ -25,7 +25,11 @@ from app.models.service_desk import (
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.mastery_service import list_student_mastery
-from app.services.quiz_scores import attempt_summary, filter_submitted_attempts
+from app.services.quiz_scores import (
+    attempt_summary,
+    filter_submitted_attempts,
+    supports_attempt_state,
+)
 from app.services.progression_service import get_promotion_status
 from app.services.quiz_visibility import (
     student_visible_quiz_filters,
@@ -868,6 +872,12 @@ def _serialize_activity(
         "learning_role": learning_role_for(
             activity.activity_type, activity.metadata_json
         ),
+        "assistance_level": (
+            (activity.metadata_json or {}).get("assistance_level")
+            if (activity.metadata_json or {}).get("assistance_level")
+            in {"guided", "independent"}
+            else None
+        ),
         "content_ref": activity.content_ref,
         "display_order": activity.display_order,
         "is_required": activity.is_required,
@@ -1634,6 +1644,130 @@ def build_training_progress(db: Session, student: Student) -> dict:
         for item in states
         if item["activity_type"] == "capstone" and not item["permission_locked"]
     ]
+    current_week_number = (overview.get("current_week") or {}).get("week_number")
+    current_items = next(
+        (
+            items
+            for _, state, items in week_states
+            if state["week_number"] == current_week_number
+        ),
+        [],
+    )
+    required_current = [item for item in current_items if item["is_required"]]
+    required_lessons = [item for item in required if item["activity_type"] == "lesson"]
+    required_assessments = [
+        item for item in required if item["activity_type"] == "quiz"
+    ]
+    required_practical = [
+        item for item in required if item["activity_type"] in PRACTICE_ACTIVITY_TYPES
+    ]
+    current_lessons = [
+        item for item in required_current if item["activity_type"] == "lesson"
+    ]
+    current_assessments = [
+        item for item in required_current if item["activity_type"] == "quiz"
+    ]
+    current_practical = [
+        item
+        for item in required_current
+        if item["activity_type"] in PRACTICE_ACTIVITY_TYPES
+    ]
+    optional_current = [
+        item
+        for item in current_items
+        if not item["is_required"] and item["learning_role"] == "practice"
+    ]
+    practice_attempt_quiz_ids: set[int] = set()
+    if supports_attempt_state(db):
+        practice_attempt_quiz_ids = {
+            quiz_id
+            for (quiz_id,) in db.query(QuizAttempt.quiz_id)
+            .filter(
+                QuizAttempt.student_id == student.id,
+                QuizAttempt.status == "practice_complete",
+            )
+            .distinct()
+            .all()
+        }
+
+    def count_complete(rows: list[dict]) -> int:
+        return sum(1 for item in rows if item["complete"])
+
+    guided = [
+        item for item in required_practical if item["assistance_level"] == "guided"
+    ]
+    independent = [
+        item for item in required_practical if item["assistance_level"] == "independent"
+    ]
+    unclassified = [
+        item for item in required_practical if item["assistance_level"] is None
+    ]
+    ticket_rows = [
+        item
+        for item in required_practical
+        if item["activity_type"] == "service_desk_scenario"
+    ]
+    optional_practice_completed = sum(
+        1
+        for item in optional_current
+        if item["complete"]
+        or (
+            item["activity_type"] == "quiz"
+            and _int_ref(item["content_ref"]) in practice_attempt_quiz_ids
+        )
+    )
+    evidence = {
+        "started": bool(
+            practice_attempt_quiz_ids
+            or any(
+                item["complete"] or item["status"] == "in_progress" for item in states
+            )
+        ),
+        "course_required_activities": {
+            "completed": required_complete,
+            "total": len(required),
+        },
+        "current_module": {
+            "required": {
+                "completed": count_complete(required_current),
+                "total": len(required_current),
+            },
+            "lessons": {
+                "completed": count_complete(current_lessons),
+                "total": len(current_lessons),
+            },
+            "assessments": {
+                "passed": count_complete(current_assessments),
+                "total": len(current_assessments),
+            },
+            "practical": {
+                "completed": count_complete(current_practical),
+                "total": len(current_practical),
+            },
+            "optional_practice": {
+                "completed": optional_practice_completed,
+                "total": len(optional_current),
+            },
+        },
+        "learning": {
+            "lessons_completed": count_complete(required_lessons),
+            "lessons_required": len(required_lessons),
+        },
+        "assessments": {
+            "required_assessments_passed": count_complete(required_assessments),
+            "required_assessments_total": len(required_assessments),
+        },
+        "practice": {"completed": len(practice_attempt_quiz_ids)},
+        "practical": {
+            "guided_completed": count_complete(guided),
+            "guided_total": len(guided),
+            "independent_completed": count_complete(independent),
+            "independent_total": len(independent),
+            "historical_unclassified_completed": count_complete(unclassified),
+            "historical_unclassified_total": len(unclassified),
+            "tickets_passed": count_complete(ticket_rows),
+        },
+    }
     return {
         "current_week": overview["current_week"],
         "current_stage": overview["current_stage"],
@@ -1695,6 +1829,7 @@ def build_training_progress(db: Session, student: Student) -> dict:
                 [item for item in states if item["activity_type"] == "capstone"]
             ),
         },
+        "evidence": evidence,
     }
 
 

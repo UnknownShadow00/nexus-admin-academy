@@ -393,6 +393,11 @@ def get_student_stats(
         "level_name": level_name,
         "quizzes_completed": int(quiz_stats.completed or 0),
         "total_quizzes": int(total_quizzes),
+        # Wave 5 explicit learner contract. Keep the older keys above for
+        # compatible clients, but do not make new UI guess what "completed"
+        # means for a credit-bearing quiz.
+        "required_assessments_passed": int(quiz_stats.completed or 0),
+        "required_assessments_total": int(total_quizzes),
         "avg_quiz_score": round(
             float(quiz_stats.avg_score or 0), 1
         ),  # deprecated raw count

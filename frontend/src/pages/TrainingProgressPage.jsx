@@ -1,93 +1,71 @@
-import AssessmentEvidence from "../components/AssessmentEvidence";
-import { Award, CheckCircle2, FlaskConical, PlayCircle, Target, Ticket, Trophy } from "lucide-react";
-import { useEffect, useState } from "react";
+import { BookOpen, Brain, FlaskConical, Trophy } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getServiceDeskProgressSummary, getTrainingProgress } from "../services/api";
 
-function Metric({ label, metric, Icon, note }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-      <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p><p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{metric.completed} <span className="text-base font-medium text-slate-400">of {metric.total}</span></p></div><Icon className="text-blue-600 dark:text-blue-400" size={22} /></div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full rounded-full bg-blue-600" style={{ width: `${metric.percent}%` }} /></div><p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{note || `${metric.percent}% complete`}</p>
-    </div>
-  );
+import AssessmentEvidence from "../components/AssessmentEvidence";
+import ReviewEvidence from "../components/ReviewEvidence";
+import { getDueFlashcards, getServiceDeskProgressSummary, getTrainingProgress } from "../services/api";
+
+function Count({ label, completed, total = null, suffix = "complete" }) {
+  return <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"><p className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</p><p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{completed}{total !== null ? <span className="text-base font-medium text-slate-400"> / {total}</span> : null}</p><p className="mt-1 text-xs text-slate-500">{suffix}</p></div>;
 }
 
-function formatShortDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
+function Group({ title, description, Icon, children, id }) {
+  return <section className="space-y-4" id={id}><div className="flex items-start gap-3"><span className="rounded-lg bg-blue-50 p-2 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"><Icon size={20} /></span><div><h2 className="text-xl font-bold text-slate-950 dark:text-white">{title}</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{description}</p></div></div>{children}</section>;
 }
 
 export default function TrainingProgressPage() {
   const [data, setData] = useState(null);
   const [serviceDeskSummary, setServiceDeskSummary] = useState(null);
+  const [serviceDeskError, setServiceDeskError] = useState(false);
+  const [reviewSummary, setReviewSummary] = useState(null);
+  const [reviewError, setReviewError] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => { getTrainingProgress({ suppressToast: true }).then((res) => setData(res.data)).catch(() => setError("Progress could not be loaded.")); }, []);
-  useEffect(() => {
-    getServiceDeskProgressSummary({ suppressToast: true })
-      .then((res) => setServiceDeskSummary(res.data))
-      .catch(() => {});
+  const [reloadKey, setReloadKey] = useState(0);
+  const [reviewReloadKey, setReviewReloadKey] = useState(0);
+
+  const loadProgress = useCallback(() => {
+    setError("");
+    setData(null);
+    getTrainingProgress({ suppressToast: true }).then((response) => setData(response.data)).catch(() => setError("Progress could not be loaded."));
+    setServiceDeskError(false);
+    getServiceDeskProgressSummary({ suppressToast: true }).then((response) => setServiceDeskSummary(response.data)).catch(() => { setServiceDeskSummary(null); setServiceDeskError(true); });
   }, []);
-  if (error) return <main className="mx-auto max-w-3xl p-6"><div role="alert" className="panel">{error}</div></main>;
-  if (!data) return <main className="mx-auto max-w-5xl p-6"><div className="h-56 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
+
+  useEffect(() => loadProgress(), [loadProgress, reloadKey]);
+  useEffect(() => {
+    setReviewError(false);
+    setReviewSummary(null);
+    getDueFlashcards({ suppressToast: true }).then((response) => setReviewSummary(response)).catch(() => setReviewError(true));
+  }, [reviewReloadKey]);
+
+  const attemptedAssessments = useMemo(() => (data?.assessments || []).filter((row) => row.latest_attempt || row.earned_pass).slice(0, 3), [data]);
+
+  if (error) return <main className="mx-auto max-w-3xl p-6"><div className="panel" role="alert"><h1 className="font-bold">Progress is temporarily unavailable</h1><p className="mt-2">{error}</p><button className="btn-primary mt-4" onClick={() => setReloadKey((value) => value + 1)} type="button">Try again</button></div></main>;
+  if (!data) return <main className="mx-auto max-w-5xl p-6" role="status"><div className="h-56 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
+
+  const evidence = data.evidence;
+  const moduleEvidence = evidence.current_module;
   const current = data.current_module;
+  const practical = evidence.practical;
+
   return (
-    <main className="mx-auto max-w-5xl space-y-8 p-4 pb-20 sm:p-6">
-      <div><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Progress</h1><p className="mt-1 text-slate-600 dark:text-slate-300">What you've completed, and where the evidence of real skill comes from.</p></div>
+    <main className="mx-auto max-w-5xl space-y-10 p-4 pb-20 sm:p-6">
+      <header><p className="text-sm font-semibold text-blue-700 dark:text-blue-300">A+ Foundations</p><h1 className="mt-1 text-3xl font-bold text-slate-950 dark:text-white">Progress</h1><p className="mt-2 max-w-2xl text-slate-600 dark:text-slate-300">Completion, assessment results, and practical work are different kinds of evidence. No single percentage represents mastery or job readiness.</p></header>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-950 dark:text-white">Training Progress</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">How much of the course you've completed — not yet a measure of independent skill.</p>
-        </div>
-        <div className="rounded-2xl bg-slate-950 p-5 text-white dark:bg-blue-950 sm:p-7">
-          <p className="text-sm font-semibold uppercase tracking-wide text-blue-300">Course progress</p>
-          <p className="mt-2 text-4xl font-bold">{data.overall_training.percent}%</p>
-          <p className="mt-2 text-sm text-slate-300">{data.overall_training.completed} of {data.overall_training.total} required activities complete</p>
-          {current ? <p className="mt-3 text-sm text-white">Current module: {current.title}</p> : null}
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Metric label="Videos Watched" metric={data.videos} Icon={PlayCircle} /><Metric label="Required quizzes passed" metric={data.required_quizzes || data.quizzes} Icon={Trophy} note={data.assessments?.some(row => row.best_attempt) ? `Average of best quiz results: ${data.quizzes.average_score_percent ?? 0}% · Highest quiz result: ${data.quizzes.best_score_percent ?? 0}%` : "No scored attempts"} /><Metric label="Required Practice" metric={data.practice} Icon={FlaskConical} /><Metric label="Guided Labs" metric={data.guided_labs} Icon={CheckCircle2} /><Metric label="Tickets" metric={data.service_desk} Icon={Ticket} /><Metric label="Modules Completed" metric={{ completed: data.modules_completed, total: data.total_modules, percent: data.total_modules ? Math.round(data.modules_completed / data.total_modules * 100) : 0 }} Icon={Target} /></div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="panel"><div className="flex items-center gap-2"><Award className="text-violet-600" /><h3 className="text-lg font-bold">Rank Progress</h3></div><p className="mt-3 text-sm text-slate-600 dark:text-slate-300">Current role: <strong>{data.rank_progress?.current_role?.name || data.rank_progress?.current_role || "Trainee"}</strong></p><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{data.rank_progress?.next_role ? `Next role: ${data.rank_progress.next_role.name || data.rank_progress.next_role}` : "Highest configured role reached"}</p></div>
-          <div className="panel"><h3 className="text-lg font-bold">Capstone Readiness</h3><p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{data.capstone_readiness?.available ? "You can access the capstones appropriate for your current role." : "Keep completing module requirements and role gates to unlock capstones."}</p><p className="mt-2 text-sm font-semibold text-blue-600 dark:text-blue-400">{data.capstone_readiness?.available || 0} of {data.capstone_readiness?.total || 0} available</p></div>
-        </div>
-        <p className="text-sm"><Link className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to="/learning-path">View full learning path →</Link></p>
-      </section>
+      {!evidence.started ? <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-950/20 sm:p-6"><p className="text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">You’re just getting started</p><h2 className="mt-2 text-2xl font-bold">Current: {current?.title || "Nexus Orientation"}</h2><p className="mt-2 text-slate-700 dark:text-slate-300">Your progress will build in three areas: learn the ideas, pass assessments independently, and practice the skills.</p><Link className="btn-primary mt-4 inline-flex" to={current?.route || "/learning-path"}>Continue learning</Link></section> : null}
 
-      <AssessmentEvidence assessments={data.assessments} />
+      <section className="rounded-2xl bg-slate-950 p-5 text-white dark:bg-blue-950 sm:p-7"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">Current module</p><h2 className="mt-2 text-2xl font-bold">{current?.title || "A+ Foundations"}</h2><p className="mt-3 text-lg"><strong>{moduleEvidence.required.completed} of {moduleEvidence.required.total}</strong> required activities complete</p><div className="mt-5 grid gap-3 sm:grid-cols-3"><div><p className="text-sm text-slate-300">Lessons</p><p className="font-semibold">{moduleEvidence.lessons.completed} / {moduleEvidence.lessons.total} complete</p></div><div><p className="text-sm text-slate-300">Assessment</p><p className="font-semibold">{moduleEvidence.assessments.passed} / {moduleEvidence.assessments.total} passed</p></div><div><p className="text-sm text-slate-300">Practical</p><p className="font-semibold">{moduleEvidence.practical.completed} / {moduleEvidence.practical.total} complete</p></div></div><p className="mt-4 text-sm text-slate-300">Optional practice: {moduleEvidence.optional_practice.completed} completed · does not change required progress.</p>{current?.route ? <Link className="mt-4 inline-flex font-semibold text-blue-200 underline" to={current.route}>Open current module</Link> : null}</section>
 
-      {serviceDeskSummary ? (
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-950 dark:text-white">Skill Evidence</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Based on tickets you've actually resolved — real evidence, not a completion count.</p>
-          </div>
-          <div className="panel">
-            <h3 className="text-lg font-bold">Tickets</h3>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div><p className="text-sm text-slate-500 dark:text-slate-400">Resolved</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.tickets_completed}</p></div>
-              <div><p className="text-sm text-slate-500 dark:text-slate-400">Resolved first try</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.passed_first_try}</p></div>
-              <div><p className="text-sm text-slate-500 dark:text-slate-400">Needed a second attempt</p><p className="mt-1 text-2xl font-bold">{serviceDeskSummary.needed_revision}</p></div>
-            </div>
-            {serviceDeskSummary.skills?.length ? <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700"><h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Skills practiced</h4><div className="mt-2 flex flex-wrap gap-2">{serviceDeskSummary.skills.map((skill) => <span className="rounded-full bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 dark:bg-blue-950/30 dark:text-blue-200" key={skill.name}>{skill.name} · {skill.completed}</span>)}</div></div> : null}
-            {serviceDeskSummary.needs_practice?.length ? <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/20"><h4 className="font-semibold text-amber-900 dark:text-amber-200">Needs practice</h4><ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800 dark:text-amber-300">{serviceDeskSummary.needs_practice.map((title) => <li key={title}>{title}</li>)}</ul></div> : null}
-            {serviceDeskSummary.recent_activity?.length ? (
-              <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-700">
-                <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Recent activity</h4>
-                <ul className="mt-2 divide-y divide-slate-200 dark:divide-slate-700">
-                  {serviceDeskSummary.recent_activity.map((activity, index) => (
-                    <li className="flex items-start justify-between gap-4 py-2" key={`${activity.created_at}-${index}`}>
-                      <div><p className="font-medium">{activity.title}</p>{activity.detail ? <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{activity.detail}</p> : null}</div>
-                      <time className="shrink-0 text-xs text-slate-500 dark:text-slate-400" dateTime={activity.created_at}>{formatShortDate(activity.created_at)}</time>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
+      <Group title="Learning" description="A lesson complete means you explicitly finished it. It is not a mastery claim." Icon={BookOpen}><Count label="Required lessons" completed={evidence.learning.lessons_completed} total={evidence.learning.lessons_required} />{evidence.practice.completed ? <p className="text-sm text-slate-600 dark:text-slate-300">Practice completed: {evidence.practice.completed}. Practice helps you learn and does not award assessment credit.</p> : null}</Group>
+
+      <Group title="Assessments" description="A passed assessment shows you met its threshold independently; it does not by itself prove job competence." Icon={Trophy}><Count label="Required assessments passed" completed={evidence.assessments.required_assessments_passed} total={evidence.assessments.required_assessments_total} suffix="passed" />{attemptedAssessments.length ? <AssessmentEvidence assessments={attemptedAssessments} /> : <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">No assessment evidence recorded yet.</p>}</Group>
+
+      <Group title="Practical work" description="Guided work and independent demonstrations stay separate." Icon={FlaskConical}><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Count label="Guided practice" completed={practical.guided_completed} total={practical.guided_total} /><Count label="Independent demonstrations" completed={practical.independent_completed} total={practical.independent_total} suffix="recorded" /><Count label="Service Desk tickets passed" completed={serviceDeskSummary?.tickets_completed || practical.tickets_passed} suffix="met the ticket rubric" /></div>{practical.historical_unclassified_total ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">Historical practical work without assistance-level evidence: {practical.historical_unclassified_completed} completed. Nexus does not label these records independent.</p> : null}{serviceDeskError ? <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="status">Service Desk evidence is temporarily unavailable; other progress remains visible.</p> : null}</Group>
+
+      <Group id="review" title="Review" description="A small set of deterministic priorities from recent misses and scheduled reinforcement." Icon={Brain}><ReviewEvidence summary={reviewSummary} error={reviewError} onRetry={() => setReviewReloadKey((value) => value + 1)} /></Group>
+
+      <details className="panel"><summary className="cursor-pointer font-semibold">Course totals and planned certifications</summary><div className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300"><p><strong>Course required activities:</strong> {evidence.course_required_activities.completed} / {evidence.course_required_activities.total}</p><p><strong>Current:</strong> A+ Foundations</p><p><strong>Planned later:</strong> Network+, ITIL 4, Security+, Linux Essentials, AZ-900, AZ-104.</p><p>These later paths are plans, not completed or validated readiness claims.</p><Link className="font-semibold text-blue-600 dark:text-blue-400" to="/learning-path">View full learning path →</Link></div></details>
     </main>
   );
 }

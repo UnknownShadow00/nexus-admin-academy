@@ -27,7 +27,7 @@ export default function AssessmentEvidence({
 }) {
   return (
     <section className="space-y-3">
-      <h3 className="text-lg font-semibold">Quiz results</h3>
+      <h3 className="text-lg font-semibold">Assessment results</h3>
       {assessments.length ? (
         assessments.map((row) => (
           <article
@@ -36,15 +36,15 @@ export default function AssessmentEvidence({
           >
             <h4 className="font-semibold">{row.title}</h4>
             <p className="mt-2 text-sm">
-              Latest attempt: <AttemptResult attempt={row.latest_attempt} />
+              Latest: <AttemptResult attempt={row.latest_attempt} />
             </p>
             <p className="mt-1 text-sm">
-              Best result: <AttemptResult attempt={row.best_attempt} />
+              Best: <AttemptResult attempt={row.best_attempt} />
             </p>
             <p className="mt-1 text-sm">
               {row.earned_pass
-                ? "Passing requirement earned"
-                : "Passing requirement not yet earned"}
+                ? "Passed: Yes"
+                : "Passed: No"}
             </p>
             {row.legacy_passing_credit ? (
               <p className="text-sm">
