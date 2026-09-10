@@ -1,12 +1,12 @@
-import { ArrowRight, BookOpen, Brain, CheckCircle2, Circle, Clock3, FlaskConical, Flame, MessageSquare, Ticket, Trophy, Zap } from "lucide-react";
+import { ArrowRight, BookOpen, CheckCircle2, Circle, Clock3, FlaskConical, MessageSquare, Ticket } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { withActivityOrigin } from "../utils/activityOrigin";
-import FlashcardReviewPanel from "../components/FlashcardReviewPanel";
+import TodayReviewCard from "../components/TodayReviewCard";
 import { XPBadge } from "../components/ui/Badge";
 import PageHeader from "../components/ui/PageHeader";
 import { getCurrentStudent } from "../hooks/useAuth";
-import { checkInStudent, getLabs, getServiceDeskProgressSummary, getStudentStats, getTrainingDashboard } from "../services/api";
+import { checkInStudent, getDueFlashcards, getLabs, getServiceDeskProgressSummary, getStudentStats, getTrainingDashboard } from "../services/api";
 import { getV2Learning } from "../services/api";
 import { useV2Access } from "../hooks/useV2Access";
 import V2Status from "../components/v2/V2Status";
@@ -53,6 +53,8 @@ export default function StudentHome() {
   const [v2Learning, setV2Learning] = useState(null);
   const [serviceDeskSummary, setServiceDeskSummary] = useState(null);
   const [activeLab, setActiveLab] = useState(null);
+  const [reviewSummary, setReviewSummary] = useState(null);
+  const [reviewError, setReviewError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
@@ -111,6 +113,13 @@ export default function StudentHome() {
         setActiveLab(rows.find((lab) => lab.status === "in_progress") || null);
       })
       .catch(() => setActiveLab(null));
+    setReviewError(false);
+    getDueFlashcards({ suppressToast: true })
+      .then((response) => setReviewSummary(response))
+      .catch(() => {
+        setReviewSummary(null);
+        setReviewError(true);
+      });
   }, [studentId, retryKey]);
 
   const continueTarget = useMemo(() => {
@@ -143,12 +152,6 @@ export default function StudentHome() {
   const moduleActivities = training?.current_module_activities || [];
   const requiredActivities = moduleActivities.filter((item) => item.is_required);
   const optionalActivities = moduleActivities.filter((item) => !item.is_required);
-  const statChips = [
-    { label: "Total XP", value: stats.total_xp || 0, to: "/progress", Icon: Zap },
-    { label: "Day Streak", value: stats.streak || 0, to: "/progress", Icon: Flame },
-    { label: "Quizzes Done", value: stats.quizzes_completed || 0, to: "/quizzes", Icon: Trophy },
-    { label: "Tickets Passed", value: stats.service_desk_completed || 0, to: "/service-desk", Icon: Ticket },
-  ];
   const activeTicket = serviceDeskSummary?.active_attempt;
   const recentFeedback = serviceDeskSummary?.recent_mentor_feedback;
   const explainFeedback = v2Learning?.current?.explain_feedback;
@@ -235,35 +238,7 @@ export default function StudentHome() {
         </section>
       ) : null}
 
-      <section aria-label="Your stats" className="flex flex-wrap gap-3">
-        {statChips.map(({ label, value, to, Icon }) => {
-          const chipClassName = "group flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm hover:border-blue-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-700";
-          const chipContent = (
-            <>
-              <Icon className="text-slate-400 group-hover:text-blue-600 dark:text-slate-500 dark:group-hover:text-blue-400" size={iconSizes.inline} aria-hidden="true" />
-              <span className="font-semibold text-slate-900 dark:text-slate-100">{value}</span>
-              <span className="text-slate-500 dark:text-slate-400">{label}</span>
-            </>
-          );
-          return to === "/service-desk" ? (
-            <a key={label} href={to} className={chipClassName}>{chipContent}</a>
-          ) : (
-            <Link key={label} to={to} className={chipClassName}>{chipContent}</Link>
-          );
-        })}
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center gap-3">
-          <span className="rounded-lg bg-blue-100 p-2 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
-            <Brain size={iconSizes.heading} aria-hidden="true" />
-          </span>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Daily Review</h2>
-        </div>
-        <div className="panel">
-          <FlashcardReviewPanel />
-        </div>
-      </section>
+      <TodayReviewCard summary={reviewSummary} error={reviewError} onRetry={() => setRetryKey((value) => value + 1)} />
 
       <section className="panel space-y-3">
         <div className="flex items-center justify-between gap-3">

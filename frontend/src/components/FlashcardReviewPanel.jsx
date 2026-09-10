@@ -39,12 +39,15 @@ export default function FlashcardReviewPanel() {
   const [showAnswer, setShowAnswer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(null);
+  const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
 
     const loadCards = async () => {
       setLoading(true);
+      setError(false);
       try {
         const response = await getDueFlashcards({ suppressToast: true });
         if (active) {
@@ -53,7 +56,10 @@ export default function FlashcardReviewPanel() {
           setShowAnswer(false);
         }
       } catch {
-        if (active) setCards([]);
+        if (active) {
+          setCards([]);
+          setError(true);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -64,7 +70,7 @@ export default function FlashcardReviewPanel() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   const card = cards[index];
   const options = useMemo(() => optionEntries(card), [card]);
@@ -93,10 +99,18 @@ export default function FlashcardReviewPanel() {
   }
 
   if (!cards.length) {
+    if (error) {
+      return (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-center" role="alert">
+          <p className="font-semibold text-rose-900">We couldn’t load your review items.</p>
+          <button className="btn-secondary mt-3" onClick={() => setReloadKey((value) => value + 1)} type="button">Try again</button>
+        </div>
+      );
+    }
     return (
       <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 text-center dark:border-emerald-900/60 dark:bg-emerald-950/20">
         <CheckCircle className="h-10 w-10 text-emerald-600 dark:text-emerald-300" aria-hidden="true" />
-        <p className="text-lg font-semibold text-emerald-800 dark:text-emerald-200">All caught up for today!</p>
+        <p className="text-lg font-semibold text-emerald-800 dark:text-emerald-200">No review is due right now.</p>
       </div>
     );
   }
