@@ -113,3 +113,73 @@ def test_clone_retries_next_safe_vmid_after_collision(monkeypatch):
         call(newid=172, name="race-safe-lab", full=0),
         call(newid=174, name="race-safe-lab", full=0),
     ]
+
+
+def test_guest_exec_returns_stdout_after_success(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    proxmox = MagicMock()
+    vm = proxmox.nodes("pve").qemu(175)
+    vm.agent("exec").post.return_value = {"pid": 321}
+    vm.agent("exec-status").get.side_effect = [
+        {"exited": 0},
+        {"exited": 1, "exitcode": 0, "out-data": "NX-2504\\r\\n", "err-data": ""},
+    ]
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+    monkeypatch.setattr(proxmox_service.time, "sleep", lambda _seconds: None)
+
+    output = proxmox_service.guest_exec(
+        175,
+        ["cmd.exe", "/c", "hostname"],
+        timeout=5,
+    )
+
+    assert output == "NX-2504\\r\\n"
+    vm.agent("exec").post.assert_called_once_with(
+        command=["cmd.exe", "/c", "hostname"]
+    )
+    assert vm.agent("exec-status").get.call_args_list == [
+        call(pid=321),
+        call(pid=321),
+    ]
+
+
+def test_guest_exec_rejects_nonzero_exit(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    proxmox = MagicMock()
+    vm = proxmox.nodes("pve").qemu(175)
+    vm.agent("exec").post.return_value = {"pid": 322}
+    vm.agent("exec-status").get.return_value = {
+        "exited": 1,
+        "exitcode": 5,
+        "err-data": "Access denied",
+    }
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    with pytest.raises(RuntimeError, match="Guest command failed with exit code 5"):
+        proxmox_service.guest_exec(
+            175,
+            ["powershell.exe", "-NoProfile", "-Command", "exit 5"],
+            timeout=5,
+        )
+
+
+def test_guest_exec_times_out(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    proxmox = MagicMock()
+    vm = proxmox.nodes("pve").qemu(175)
+    vm.agent("exec").post.return_value = {"pid": 323}
+    vm.agent("exec-status").get.return_value = {"exited": 0}
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+    monkeypatch.setattr(proxmox_service.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(
+        proxmox_service.time,
+        "monotonic",
+        MagicMock(side_effect=[0.0, 0.0, 6.0]),
+    )
+
+    with pytest.raises(TimeoutError, match="Guest command did not finish"):
+        proxmox_service.guest_exec(
+            175,
+            ["cmd.exe", "/c", "hostname"],
+            timeout=5,
+        )

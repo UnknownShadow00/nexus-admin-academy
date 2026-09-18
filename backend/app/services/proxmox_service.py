@@ -170,6 +170,53 @@ def start_vm(vmid: int) -> None:
     logger.info("Started VM %s", vmid)
 
 
+
+def guest_exec(
+    vmid: int,
+    command: list[str],
+    *,
+    timeout: float = 60.0,
+    poll_interval: float = 0.5,
+) -> str:
+    """Execute a command through the QEMU Guest Agent and return stdout."""
+    if not command:
+        raise ValueError("Guest command must not be empty")
+
+    proxmox = _get_proxmox()
+    settings = _settings()
+    vm = proxmox.nodes(settings["node"]).qemu(vmid)
+
+    started = vm.agent("exec").post(command=command)
+    pid = started.get("pid") if isinstance(started, dict) else None
+    if pid is None:
+        raise RuntimeError("Guest agent did not return a process ID")
+
+    deadline = time.monotonic() + timeout
+
+    while True:
+        status = vm.agent("exec-status").get(pid=pid)
+
+        if status.get("exited"):
+            exitcode = status.get("exitcode", 0)
+            stdout = status.get("out-data") or ""
+            stderr = status.get("err-data") or ""
+
+            if exitcode != 0:
+                detail = stderr.strip() or stdout.strip()
+                suffix = f": {detail}" if detail else ""
+                raise RuntimeError(
+                    f"Guest command failed with exit code {exitcode}{suffix}"
+                )
+
+            return stdout
+
+        if time.monotonic() >= deadline:
+            raise TimeoutError(
+                f"Guest command did not finish within {timeout} seconds"
+            )
+
+        time.sleep(poll_interval)
+
 def get_vm_ip(vmid: int, timeout: int = 120) -> Optional[str]:
     proxmox = _get_proxmox()
     settings = _settings()
