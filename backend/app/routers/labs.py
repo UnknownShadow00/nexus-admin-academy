@@ -332,6 +332,28 @@ def _safe_provisioning_error(exc: Exception) -> str:
     return "Lab environment provisioning failed. Please contact an administrator."
 
 
+
+def _apply_vm_provisioning(lab: LabTemplate, vmid: int) -> None:
+    """Apply only server-approved VM provisioning handlers."""
+    provisioning = (lab.environment_requirements or {}).get("provisioning")
+    if not provisioning:
+        return
+
+    if not isinstance(provisioning, dict):
+        raise RuntimeError("VM provisioning metadata must be an object")
+
+    handler = str(provisioning.get("handler") or "").strip()
+    if not handler:
+        return
+
+    from app.services import hybrid_lab_provisioner
+
+    return hybrid_lab_provisioner.apply(
+        handler,
+        vmid=vmid,
+        config=provisioning,
+    )
+
 def _provision_vm_task(assignment_id: int) -> None:
     """Provision a VM using a worker-owned database session."""
     db = SessionLocal()
@@ -360,6 +382,11 @@ def _provision_vm_task(assignment_id: int) -> None:
         db.commit()
 
         proxmox_service.start_vm(vmid)
+        assignment.status = "configuring_vm"
+        db.commit()
+
+        vm_credentials = _apply_vm_provisioning(lab, vmid) or {}
+
         assignment.status = "waiting_for_ip"
         db.commit()
 
@@ -370,7 +397,23 @@ def _provision_vm_task(assignment_id: int) -> None:
         assignment.status = "configuring_connection"
         db.commit()
 
-        conn_id = guacamole_service.create_connection(ip, vmid)
+        vm_username = vm_credentials.get("username")
+        vm_password = vm_credentials.get("password")
+
+        if vm_username and vm_password:
+            conn_id = guacamole_service.create_connection(
+                ip,
+                vmid,
+                username=vm_username,
+                password=vm_password,
+            )
+        else:
+            conn_id = guacamole_service.create_connection(ip, vmid)
+
+        # The Windows credential is intentionally never persisted.
+        vm_password = None
+        vm_credentials = {}
+
         now = datetime.now(UTC)
         assignment.guac_conn_id = conn_id
         assignment.status = "running"

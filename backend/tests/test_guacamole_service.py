@@ -54,3 +54,38 @@ def test_scoped_access_uses_temporary_user_and_only_connection_read(monkeypatch)
     }]
     assert all("systemPermissions" not in r.content.decode(errors="ignore") for r in requests)
 
+
+
+def test_create_connection_accepts_temporary_windows_credentials(monkeypatch):
+    _configure(monkeypatch)
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path.endswith('/api/tokens'):
+            return httpx.Response(200, json={'authToken': 'admin-token'})
+        if request.method == 'POST' and request.url.path.endswith('/connections'):
+            return httpx.Response(201, json={'identifier': 'conn-175'})
+        raise AssertionError(f'Unexpected request: {request.method} {request.url}')
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    monkeypatch.setattr(guacamole_service, '_CLIENT', client)
+
+    connection_id = guacamole_service.create_connection(
+        '10.10.10.10',
+        175,
+        username='labadmin',
+        password='temporary-windows-password',
+    )
+
+    assert connection_id == 'conn-175'
+
+    request = next(
+        r for r in requests
+        if r.method == 'POST' and r.url.path.endswith('/connections')
+    )
+    payload = json.loads(request.content)
+
+    assert payload['parameters']['hostname'] == '10.10.10.10'
+    assert payload['parameters']['username'] == 'labadmin'
+    assert payload['parameters']['password'] == 'temporary-windows-password'

@@ -18,7 +18,14 @@ client = make_client(router)
 admin_client = make_client(admin_content_router)
 
 
-def _seed_lab(db, title="Subnetting Practice", week_number=1, is_published=True, proxmox_template_vmid=None):
+def _seed_lab(
+    db,
+    title="Subnetting Practice",
+    week_number=1,
+    is_published=True,
+    proxmox_template_vmid=None,
+    environment_requirements=None,
+):
     lab = LabTemplate(
         title=title,
         description="Practice exercise",
@@ -26,7 +33,7 @@ def _seed_lab(db, title="Subnetting Practice", week_number=1, is_published=True,
         difficulty=2,
         week_number=week_number,
         estimated_minutes=30,
-        environment_requirements={},
+        environment_requirements=environment_requirements or {},
         setup_instructions="Read the prompt and document your work.",
         success_criteria={"tasks": ["Complete the worksheet"]},
         required_evidence={},
@@ -791,3 +798,147 @@ def test_admin_can_see_safe_provisioning_failure(db, monkeypatch):
     assert row["status"] == "failed"
     assert row["provisioning_error"] == assignment.provisioning_error
     assert "guac_username" not in row
+
+
+def test_provisioning_worker_runs_approved_handler_before_connection(monkeypatch, db):
+    student = make_student(db)
+    lab = _seed_lab(
+        db,
+        proxmox_template_vmid=173,
+        environment_requirements={
+            "provisioning": {
+                "handler": "inc2504_printer_stale_ip",
+            }
+        },
+    )
+
+    worker_session = sessionmaker(bind=db.get_bind(), autocommit=False, autoflush=False)
+    monkeypatch.setattr(labs_module, "SessionLocal", worker_session)
+    monkeypatch.setattr(labs_module, "_provision_vm_task", lambda assignment_id: None)
+
+    started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
+    assignment_id = started.json()["data"]["vm_assignment"]["assignment_id"]
+
+    events = []
+    monkeypatch.setattr(
+        proxmox_service,
+        "clone_template",
+        lambda template_vmid, name: events.append(("clone", template_vmid)) or 175,
+    )
+    monkeypatch.setattr(
+        proxmox_service,
+        "start_vm",
+        lambda vmid: events.append(("start", vmid)),
+    )
+    monkeypatch.setattr(
+        labs_module,
+        "_apply_vm_provisioning",
+        lambda lab, vmid: events.append(
+            (
+                "scenario",
+                lab.environment_requirements["provisioning"]["handler"],
+                vmid,
+            )
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        proxmox_service,
+        "get_vm_ip",
+        lambda vmid: events.append(("ip", vmid)) or "10.10.10.10",
+    )
+    monkeypatch.setattr(
+        guacamole_service,
+        "create_connection",
+        lambda vm_ip, vmid: events.append(("guac", vm_ip, vmid)) or "conn-175",
+    )
+
+    provision_worker(assignment_id)
+
+    assert events == [
+        ("clone", 173),
+        ("start", 175),
+        ("scenario", "inc2504_printer_stale_ip", 175),
+        ("ip", 175),
+        ("guac", "10.10.10.10", 175),
+    ]
+
+    db.expire_all()
+    assignment = db.query(VmAssignment).filter_by(id=assignment_id).one()
+    assert assignment.status == "running"
+
+
+def test_provisioning_worker_passes_ephemeral_vm_credentials_to_guacamole(monkeypatch, db):
+    student = make_student(db)
+    lab = _seed_lab(
+        db,
+        proxmox_template_vmid=173,
+        environment_requirements={
+            'provisioning': {
+                'handler': 'inc2504_printer_stale_ip',
+            }
+        },
+    )
+
+    worker_session = sessionmaker(
+        bind=db.get_bind(),
+        autocommit=False,
+        autoflush=False,
+    )
+    monkeypatch.setattr(labs_module, 'SessionLocal', worker_session)
+    monkeypatch.setattr(labs_module, '_provision_vm_task', lambda assignment_id: None)
+
+    started = client.post(
+        f'/api/labs/{lab.id}/start',
+        headers=auth_headers(student),
+    )
+    assignment_id = started.json()['data']['vm_assignment']['assignment_id']
+
+    monkeypatch.setattr(
+        proxmox_service,
+        'clone_template',
+        lambda template_vmid, name: 175,
+    )
+    monkeypatch.setattr(proxmox_service, 'start_vm', lambda vmid: None)
+
+    monkeypatch.setattr(
+        labs_module,
+        '_apply_vm_provisioning',
+        lambda lab, vmid: {
+            'username': 'labadmin',
+            'password': 'ephemeral-secret',
+        },
+    )
+
+    monkeypatch.setattr(
+        proxmox_service,
+        'get_vm_ip',
+        lambda vmid: '10.10.10.10',
+    )
+
+    connection_calls = []
+
+    def create_connection(vm_ip, vmid, *, username=None, password=None):
+        connection_calls.append(
+            (vm_ip, vmid, username, password)
+        )
+        return 'conn-175'
+
+    monkeypatch.setattr(
+        guacamole_service,
+        'create_connection',
+        create_connection,
+    )
+
+    provision_worker(assignment_id)
+
+    assert connection_calls == [
+        ('10.10.10.10', 175, 'labadmin', 'ephemeral-secret')
+    ]
+
+    db.expire_all()
+    assignment = db.query(VmAssignment).filter_by(id=assignment_id).one()
+
+    assert assignment.status == 'running'
+    assert not hasattr(assignment, 'password')
+    assert not hasattr(assignment, 'vm_password')

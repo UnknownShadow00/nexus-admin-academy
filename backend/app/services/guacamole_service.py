@@ -82,7 +82,26 @@ def _api_url(resource: str) -> str:
     return f"{settings['base_url']}/api/session/data/{quote(settings['datasource'], safe='')}/{resource}"
 
 
-def create_connection(vm_ip: str, vmid: int) -> str:
+def create_connection(
+    vm_ip: str,
+    vmid: int,
+    *,
+    username: str | None = None,
+    password: str | None = None,
+) -> str:
+    if bool(username) != bool(password):
+        raise ValueError("RDP username and password must be provided together")
+
+    parameters = {
+        "hostname": vm_ip,
+        "port": "3389",
+        "ignore-cert": "true",
+        "security": "any",
+    }
+    if username and password:
+        parameters["username"] = username
+        parameters["password"] = password
+
     token = _admin_token()
     response = _CLIENT.post(
         _api_url("connections"),
@@ -91,12 +110,7 @@ def create_connection(vm_ip: str, vmid: int) -> str:
             "parentIdentifier": "ROOT",
             "name": f"Lab VM {vmid}",
             "protocol": "rdp",
-            "parameters": {
-                "hostname": vm_ip,
-                "port": "3389",
-                "ignore-cert": "true",
-                "security": "any",
-            },
+            "parameters": parameters,
             "attributes": {"max-connections": "1", "max-connections-per-user": "1"},
         },
     )
