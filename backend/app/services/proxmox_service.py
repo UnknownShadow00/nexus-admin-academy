@@ -21,8 +21,11 @@ def _settings() -> dict:
     host = (os.getenv("PROXMOX_HOST") or "").strip()
     token_id = (os.getenv("PROXMOX_TOKEN_ID") or "").strip()
     token_secret = (os.getenv("PROXMOX_TOKEN_SECRET") or "").strip()
+    resource_pool = (os.getenv("PROXMOX_POOL") or "").strip()
     if not host or not token_id or not token_secret:
         raise RuntimeError("Proxmox integration is not configured")
+    if not resource_pool:
+        raise RuntimeError("Proxmox resource pool is not configured")
 
     pool_start = int(os.getenv("VMID_POOL_START", "200"))
     pool_end = int(os.getenv("VMID_POOL_END", "299"))
@@ -44,6 +47,7 @@ def _settings() -> dict:
         "token_id": token_id,
         "token_secret": token_secret,
         "node": (os.getenv("PROXMOX_NODE") or "pve").strip(),
+        "resource_pool": resource_pool,
         "pool_start": pool_start,
         "pool_end": pool_end,
         "reserved_vmids": reserved_vmids,
@@ -147,6 +151,7 @@ def clone_template(template_vmid: int, name: str) -> int:
                 newid=new_vmid,
                 name=name,
                 full=1 if full_clone else 0,
+                pool=settings["resource_pool"],
             )
             _wait_for_task(proxmox, settings["node"], upid)
         except Exception as exc:

@@ -10,6 +10,7 @@ def _configure(monkeypatch, *, full_clone: bool):
     monkeypatch.setenv("PROXMOX_TOKEN_ID", "automation@pve!labs")
     monkeypatch.setenv("PROXMOX_TOKEN_SECRET", "secret")
     monkeypatch.setenv("PROXMOX_NODE", "pve")
+    monkeypatch.setenv("PROXMOX_POOL", "nexus-labs")
     monkeypatch.setenv("VMID_POOL_START", "200")
     monkeypatch.setenv("VMID_POOL_END", "299")
     monkeypatch.setenv("PROXMOX_FULL_CLONE", "true" if full_clone else "false")
@@ -32,7 +33,7 @@ def test_linked_clone_passes_full_zero_on_supported_storage(monkeypatch):
 
     assert proxmox_service.clone_template(900, "unique-lab-name") == 201
     proxmox.nodes("pve").qemu(900).clone.post.assert_called_once_with(
-        newid=201, name="unique-lab-name", full=0
+        newid=201, name="unique-lab-name", full=0, pool="nexus-labs"
     )
 
 
@@ -43,7 +44,7 @@ def test_linked_clone_falls_back_to_full_on_unsupported_storage(monkeypatch):
 
     proxmox_service.clone_template(900, "fallback-lab")
     proxmox.nodes("pve").qemu(900).clone.post.assert_called_once_with(
-        newid=201, name="fallback-lab", full=1
+        newid=201, name="fallback-lab", full=1, pool="nexus-labs"
     )
 
 
@@ -54,7 +55,7 @@ def test_explicit_full_clone_skips_storage_probe(monkeypatch):
 
     proxmox_service.clone_template(900, "full-lab")
     proxmox.nodes("pve").qemu(900).clone.post.assert_called_once_with(
-        newid=201, name="full-lab", full=1
+        newid=201, name="full-lab", full=1, pool="nexus-labs"
     )
     proxmox.nodes("pve").qemu(900).config.get.assert_not_called()
 
@@ -110,8 +111,8 @@ def test_clone_retries_next_safe_vmid_after_collision(monkeypatch):
     assert proxmox_service.clone_template(900, "race-safe-lab") == 174
 
     assert clone.call_args_list == [
-        call(newid=172, name="race-safe-lab", full=0),
-        call(newid=174, name="race-safe-lab", full=0),
+        call(newid=172, name="race-safe-lab", full=0, pool="nexus-labs"),
+        call(newid=174, name="race-safe-lab", full=0, pool="nexus-labs"),
     ]
 
 
