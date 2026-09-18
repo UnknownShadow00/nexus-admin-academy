@@ -24,13 +24,29 @@ def _settings() -> dict:
     if not host or not token_id or not token_secret:
         raise RuntimeError("Proxmox integration is not configured")
 
+    pool_start = int(os.getenv("VMID_POOL_START", "200"))
+    pool_end = int(os.getenv("VMID_POOL_END", "299"))
+    if pool_start > pool_end:
+        raise RuntimeError("VMID pool start must not be greater than pool end")
+
+    reserved_raw = (os.getenv("VMID_RESERVED") or "").strip()
+    try:
+        reserved_vmids = {
+            int(value.strip())
+            for value in reserved_raw.split(",")
+            if value.strip()
+        }
+    except ValueError as exc:
+        raise RuntimeError("VMID_RESERVED must be a comma-separated list of integers") from exc
+
     return {
         "host": host,
         "token_id": token_id,
         "token_secret": token_secret,
         "node": (os.getenv("PROXMOX_NODE") or "pve").strip(),
-        "pool_start": int(os.getenv("VMID_POOL_START", "200")),
-        "pool_end": int(os.getenv("VMID_POOL_END", "299")),
+        "pool_start": pool_start,
+        "pool_end": pool_end,
+        "reserved_vmids": reserved_vmids,
         "verify_ssl": _bool_env("PROXMOX_VERIFY_SSL", is_production_environment()),
         "full_clone": _bool_env("PROXMOX_FULL_CLONE", False),
     }
@@ -48,11 +64,12 @@ def _get_proxmox():
     )
 
 
-def _find_free_vmid(proxmox) -> int:
+def _find_free_vmid(proxmox, *, exclude: set[int] | None = None) -> int:
     settings = _settings()
     existing = {int(vm["vmid"]) for vm in proxmox.cluster.resources.get(type="vm")}
+    unavailable = existing | settings["reserved_vmids"] | (exclude or set())
     for vmid in range(settings["pool_start"], settings["pool_end"] + 1):
-        if vmid not in existing:
+        if vmid not in unavailable:
             return vmid
     raise RuntimeError("No free VMIDs available in pool")
 
@@ -87,10 +104,21 @@ def _wait_for_task(proxmox, node: str, upid: str | None, timeout: int = 300) -> 
     raise TimeoutError("Proxmox clone task did not finish before the timeout")
 
 
+def _is_vmid_collision_error(exc: Exception) -> bool:
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        message = str(current).lower()
+        if "already exists" in message and ("vm" in message or "vmid" in message):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
 def clone_template(template_vmid: int, name: str) -> int:
     proxmox = _get_proxmox()
     settings = _settings()
-    new_vmid = _find_free_vmid(proxmox)
     full_clone = settings["full_clone"]
     if not full_clone:
         try:
@@ -111,17 +139,28 @@ def clone_template(template_vmid: int, name: str) -> int:
             full_clone = True
 
     mode = "full" if full_clone else "linked"
-    try:
-        upid = proxmox.nodes(settings["node"]).qemu(template_vmid).clone.post(
-            newid=new_vmid,
-            name=name,
-            full=1 if full_clone else 0,
-        )
-        _wait_for_task(proxmox, settings["node"], upid)
-    except Exception as exc:
-        raise RuntimeError(f"Proxmox {mode} clone failed for template {template_vmid}") from exc
-    logger.info("Cloned template %s -> vmid %s using %s clone", template_vmid, new_vmid, mode)
-    return new_vmid
+    attempted_vmids: set[int] = set()
+    while True:
+        new_vmid = _find_free_vmid(proxmox, exclude=attempted_vmids)
+        try:
+            upid = proxmox.nodes(settings["node"]).qemu(template_vmid).clone.post(
+                newid=new_vmid,
+                name=name,
+                full=1 if full_clone else 0,
+            )
+            _wait_for_task(proxmox, settings["node"], upid)
+        except Exception as exc:
+            if _is_vmid_collision_error(exc):
+                attempted_vmids.add(new_vmid)
+                logger.warning(
+                    "VMID %s was claimed during clone; retrying another safe VMID",
+                    new_vmid,
+                )
+                continue
+            raise RuntimeError(f"Proxmox {mode} clone failed for template {template_vmid}") from exc
+
+        logger.info("Cloned template %s -> vmid %s using %s clone", template_vmid, new_vmid, mode)
+        return new_vmid
 
 
 def start_vm(vmid: int) -> None:

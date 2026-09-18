@@ -1,4 +1,6 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
+
+import pytest
 
 from app.services import proxmox_service
 
@@ -56,3 +58,58 @@ def test_explicit_full_clone_skips_storage_probe(monkeypatch):
     )
     proxmox.nodes("pve").qemu(900).config.get.assert_not_called()
 
+
+
+def test_vmid_pool_skips_reserved_ids(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.setenv("VMID_POOL_START", "170")
+    monkeypatch.setenv("VMID_POOL_END", "179")
+    monkeypatch.setenv("VMID_RESERVED", "170,171,173")
+
+    proxmox = _mock_proxmox()
+    proxmox.cluster.resources.get.return_value = [
+        {"vmid": 172},
+        {"vmid": 174},
+    ]
+
+    assert proxmox_service._find_free_vmid(proxmox) == 175
+
+
+def test_vmid_pool_fails_when_no_safe_id_remains(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.setenv("VMID_POOL_START", "170")
+    monkeypatch.setenv("VMID_POOL_END", "174")
+    monkeypatch.setenv("VMID_RESERVED", "170,171,173")
+
+    proxmox = _mock_proxmox()
+    proxmox.cluster.resources.get.return_value = [
+        {"vmid": 172},
+        {"vmid": 174},
+    ]
+
+    with pytest.raises(RuntimeError, match="No free VMIDs"):
+        proxmox_service._find_free_vmid(proxmox)
+
+
+def test_clone_retries_next_safe_vmid_after_collision(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.setenv("VMID_POOL_START", "170")
+    monkeypatch.setenv("VMID_POOL_END", "179")
+    monkeypatch.setenv("VMID_RESERVED", "170,171,173")
+
+    proxmox = _mock_proxmox("lvmthin")
+    proxmox.cluster.resources.get.return_value = []
+    clone = proxmox.nodes("pve").qemu(900).clone.post
+    clone.side_effect = [
+        RuntimeError("VM 172 already exists"),
+        None,
+    ]
+
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    assert proxmox_service.clone_template(900, "race-safe-lab") == 174
+
+    assert clone.call_args_list == [
+        call(newid=172, name="race-safe-lab", full=0),
+        call(newid=174, name="race-safe-lab", full=0),
+    ]
