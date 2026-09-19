@@ -9,6 +9,7 @@ from app.models.service_desk import (
 )
 from app.models.xp_ledger import XPLedger
 from app.routers import service_desk
+from app.services.beginner_learning import HYBRID_LAB_SCENARIO_KEYS
 from app.services.service_desk_grading import compute_grade
 from app.services.service_desk_objectives import (
     SCENARIO_OBJECTIVES,
@@ -240,7 +241,11 @@ def complete_process_workflow(client, student, attempt_id, stable_key):
 
 @pytest.mark.parametrize(
     "stable_key",
-    [f"inc{number}" for number in range(2501, 2511)],
+    [
+        key
+        for number in range(2501, 2511)
+        if (key := f"inc{number}") not in HYBRID_LAB_SCENARIO_KEYS
+    ],
 )
 def test_converted_legacy_cases_require_server_authoritative_process_evidence(
     db, stable_key
@@ -2073,7 +2078,9 @@ def test_raw_api_fabricated_full_evidence_sequence_is_not_trusted(
     assert grade.json()["passed"] is False
 
 
-@pytest.mark.parametrize("stable_key", sorted(SCENARIO_OBJECTIVES))
+@pytest.mark.parametrize(
+    "stable_key", sorted(set(SCENARIO_OBJECTIVES) - HYBRID_LAB_SCENARIO_KEYS)
+)
 def test_server_authorized_workflow_passes_every_auto_gradable_scenario(db, stable_key):
     student = make_student(db, username=f"authorized-{stable_key}")
     client = make_client(service_desk.router)
@@ -2090,6 +2097,19 @@ def test_server_authorized_workflow_passes_every_auto_gradable_scenario(db, stab
         json={"idempotency_key": "complete"},
     )
     assert grade.json()["passed"] is True and grade.json()["overall_score"] == 100
+
+
+def test_unpublished_hybrid_lab_cannot_start_even_when_directly_assigned(db):
+    student = make_student(db, username="hybrid-lab-blocked")
+    client = make_client(service_desk.router)
+    assignment = setup_assignment(
+        db, student, stable_key="inc2504", process_profile=True
+    )
+
+    response = start(client, student, assignment)
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "SERVICE_DESK_PACK_LOCKED"
 
 
 # The endpoint tests above exercise repeated completions and independent
