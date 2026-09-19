@@ -211,7 +211,20 @@ def clone_template(template_vmid: int, name: str) -> int:
 def start_vm(vmid: int) -> None:
     proxmox = _get_proxmox()
     settings = _settings()
-    proxmox.nodes(settings["node"]).qemu(vmid).status.start.post()
+    vm = proxmox.nodes(settings["node"]).qemu(vmid)
+
+    upid = vm.status.start.post()
+    _wait_for_task(
+        proxmox,
+        settings["node"],
+        upid,
+        operation="start",
+    )
+
+    current = vm.status.current.get()
+    if not isinstance(current, dict) or current.get("status") != "running":
+        raise RuntimeError(f"VM {vmid} did not reach running state after start")
+
     logger.info("Started VM %s", vmid)
 
 

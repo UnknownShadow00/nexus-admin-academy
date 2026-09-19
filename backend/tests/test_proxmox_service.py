@@ -389,3 +389,43 @@ def test_destroy_vm_denies_non_owned_pool_resource(monkeypatch, pool, message):
         proxmox_service.destroy_vm(175)
 
     proxmox.nodes("pve").qemu(175).delete.assert_not_called()
+
+
+def test_start_vm_waits_for_start_task_and_confirms_running(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+
+    proxmox = MagicMock()
+    vm = proxmox.nodes("pve").qemu(175)
+    vm.status.start.post.return_value = "UPID:start-task"
+    vm.status.current.get.return_value = {"status": "running"}
+
+    waiter = MagicMock()
+
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+    monkeypatch.setattr(proxmox_service, "_wait_for_task", waiter)
+
+    proxmox_service.start_vm(175)
+
+    vm.status.start.post.assert_called_once_with()
+    waiter.assert_called_once_with(
+        proxmox,
+        "pve",
+        "UPID:start-task",
+        operation="start",
+    )
+    vm.status.current.get.assert_called_once_with()
+
+
+def test_start_vm_fails_if_vm_is_not_running_after_task(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+
+    proxmox = MagicMock()
+    vm = proxmox.nodes("pve").qemu(175)
+    vm.status.start.post.return_value = "UPID:start-task"
+    vm.status.current.get.return_value = {"status": "stopped"}
+
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+    monkeypatch.setattr(proxmox_service, "_wait_for_task", lambda *args, **kwargs: None)
+
+    with pytest.raises(RuntimeError, match="did not reach running state"):
+        proxmox_service.start_vm(175)
