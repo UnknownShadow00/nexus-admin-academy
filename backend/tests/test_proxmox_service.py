@@ -348,7 +348,7 @@ def test_destroy_vm_allows_owned_dynamic_pool_member(monkeypatch):
     proxmox = _destruction_proxmox()
     monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
 
-    proxmox_service.destroy_vm(175)
+    proxmox_service.destroy_vm(175, expected_name="lab-1-student-2-run-3")
 
     proxmox.nodes("pve").qemu(175).status.stop.post.assert_not_called()
     proxmox.nodes("pve").qemu(175).delete.assert_called_once_with()
@@ -372,7 +372,7 @@ def test_destroy_vm_stops_running_owned_vm_before_delete(monkeypatch):
     }
     monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
 
-    proxmox_service.destroy_vm(175)
+    proxmox_service.destroy_vm(175, expected_name="lab-1-student-2-run-3")
 
     vm.status.stop.post.assert_called_once_with()
     vm.delete.assert_called_once_with()
@@ -388,7 +388,7 @@ def test_destroy_vm_treats_globally_absent_dynamic_vmid_as_deleted(monkeypatch):
     proxmox.nodes.reset_mock()
     monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
 
-    proxmox_service.destroy_vm(175)
+    proxmox_service.destroy_vm(175, expected_name="lab-1-student-2-run-3")
 
     proxmox.nodes.assert_not_called()
 
@@ -405,8 +405,25 @@ def test_destroy_vm_refuses_existing_vm_outside_owned_pool(monkeypatch):
     monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
 
     with pytest.raises(RuntimeError, match="outside Proxmox pool"):
-        proxmox_service.destroy_vm(175)
+        proxmox_service.destroy_vm(175, expected_name="lab-1-student-2-run-3")
 
+    proxmox.nodes("pve").qemu(175).delete.assert_not_called()
+
+
+def test_destroy_vm_refuses_vmid_reused_by_another_nexus_assignment(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.setenv("VMID_POOL_START", "170")
+    monkeypatch.setenv("VMID_POOL_END", "179")
+    proxmox = _destruction_proxmox(name="lab-9-student-8-run-7")
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    with pytest.raises(RuntimeError, match="expected assignment-owned name"):
+        proxmox_service.destroy_vm(
+            175,
+            expected_name="lab-1-student-2-run-3",
+        )
+
+    proxmox.nodes("pve").qemu(175).status.stop.post.assert_not_called()
     proxmox.nodes("pve").qemu(175).delete.assert_not_called()
 
 
@@ -423,7 +440,7 @@ def test_destroy_vm_denies_unsafe_vmid_before_api_mutation(monkeypatch, vmid, me
     monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
 
     with pytest.raises(RuntimeError, match=message):
-        proxmox_service.destroy_vm(vmid)
+        proxmox_service.destroy_vm(vmid, expected_name="lab-1-student-2-run-3")
 
     proxmox.nodes("pve").qemu(vmid).delete.assert_not_called()
 
@@ -434,7 +451,7 @@ def test_destroy_vm_denies_unsafe_vmid_before_api_mutation(monkeypatch, vmid, me
         ({"members": []}, "outside Proxmox pool"),
         (
             {"members": [{"type": "qemu", "vmid": 175, "name": "nexus-win11-auto-base"}]},
-            "without a Nexus-owned name",
+            "without the expected assignment-owned name",
         ),
     ],
 )
@@ -451,7 +468,7 @@ def test_destroy_vm_denies_non_owned_pool_resource(monkeypatch, pool, message):
     monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
 
     with pytest.raises(RuntimeError, match=message):
-        proxmox_service.destroy_vm(175)
+        proxmox_service.destroy_vm(175, expected_name="lab-1-student-2-run-3")
 
     proxmox.nodes("pve").qemu(175).delete.assert_not_called()
 

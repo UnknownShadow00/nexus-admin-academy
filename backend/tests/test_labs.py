@@ -620,7 +620,7 @@ def test_start_vm_backed_lab_marks_assignment_failed_without_ip(monkeypatch, db)
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: None)
     destroyed = []
-    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid: destroyed.append(vmid))
+    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid, **_kwargs: destroyed.append(vmid))
     provision_worker(assignment_id)
 
     db.expire_all()
@@ -675,7 +675,7 @@ def test_submit_vm_backed_lab_destroys_assignment(monkeypatch, db):
 
     worker_session = sessionmaker(bind=db.get_bind(), autocommit=False, autoflush=False)
     monkeypatch.setattr(labs_module, "SessionLocal", worker_session)
-    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid: destroyed.append(vmid))
+    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid, **_kwargs: destroyed.append(vmid))
     monkeypatch.setattr(guacamole_service, "delete_connection", lambda conn_id: deleted.append(conn_id))
     deleted_users = []
     monkeypatch.setattr(guacamole_service, "delete_user", lambda username: deleted_users.append(username))
@@ -786,7 +786,7 @@ def test_admin_cleanup_destroys_idle_vm_assignments(monkeypatch, db):
     destroyed = []
     deleted = []
 
-    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid: destroyed.append(vmid))
+    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid, **_kwargs: destroyed.append(vmid))
     monkeypatch.setattr(guacamole_service, "delete_connection", lambda conn_id: deleted.append(conn_id))
 
     res = admin_client.delete("/api/admin/vms/cleanup", headers={"X-Admin-Key": "unit-test-admin"})
@@ -936,13 +936,16 @@ def test_provisioning_worker_passes_ephemeral_vm_credentials_to_guacamole(monkey
         lambda lab, vmid: {
             'username': 'labadmin',
             'password': 'ephemeral-secret',
+            'ip_address': '10.10.10.10',
         },
     )
 
     monkeypatch.setattr(
         proxmox_service,
         'get_vm_ip',
-        lambda vmid: '10.10.10.10',
+        lambda vmid: (_ for _ in ()).throw(
+            AssertionError('verified provisioner IP must be used')
+        ),
     )
 
     connection_calls = []
@@ -998,7 +1001,7 @@ def test_provisioning_failure_destroys_clone_before_marking_failed(monkeypatch, 
         lambda lab, vmid: (_ for _ in ()).throw(RuntimeError("verification failed")),
     )
     destroyed = []
-    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid: destroyed.append(vmid))
+    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid, **_kwargs: destroyed.append(vmid))
 
     provision_worker(assignment_id)
 
@@ -1036,7 +1039,7 @@ def test_failed_vm_teardown_keeps_inc2504_singleton_guarded(monkeypatch, db):
     monkeypatch.setattr(
         proxmox_service,
         "destroy_vm",
-        lambda vmid: (_ for _ in ()).throw(RuntimeError("cleanup failed")),
+        lambda vmid, **_kwargs: (_ for _ in ()).throw(RuntimeError("cleanup failed")),
     )
 
     provision_worker(assignment_id)
@@ -1183,7 +1186,7 @@ def test_cleanup_retry_marks_assignment_destroyed_when_vm_is_already_absent(monk
     db.commit()
     worker_session = sessionmaker(bind=db.get_bind(), autocommit=False, autoflush=False)
     monkeypatch.setattr(labs_module, "SessionLocal", worker_session)
-    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda _vmid: None)
+    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda _vmid, **_kwargs: None)
 
     labs_module._destroy_vm_task(assignment.id)
 

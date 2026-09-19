@@ -216,7 +216,11 @@ $unattendExists =
             + ", ".join(sorted(missing))
         )
 
-    return {"username": "labadmin", "password": password}
+    return {
+        "username": "labadmin",
+        "password": password,
+        "ip_address": "10.10.10.10",
+    }
 
 
 APPROVED_PROVISIONERS: dict[str, Provisioner] = {

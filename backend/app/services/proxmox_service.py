@@ -15,6 +15,13 @@ logging.getLogger("proxmoxer.core").setLevel(logging.WARNING)
 _NEXUS_VM_NAME = re.compile(r"^lab-\d+-student-\d+-run-\d+$")
 
 
+def assignment_vm_name(*, lab_id: int, student_id: int, run_id: int) -> str:
+    identifiers = (lab_id, student_id, run_id)
+    if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in identifiers):
+        raise RuntimeError("Cannot derive a VM name from invalid assignment identifiers")
+    return f"lab-{lab_id}-student-{student_id}-run-{run_id}"
+
+
 def _bool_env(name: str, default: bool) -> bool:
     raw = (os.getenv(name) or "").strip().lower()
     if not raw:
@@ -340,13 +347,21 @@ def _vm_exists(proxmox, vmid: int) -> bool:
     )
 
 
-def _owned_pool_vm(proxmox, settings: dict, vmid: int) -> dict | None:
+def _owned_pool_vm(
+    proxmox,
+    settings: dict,
+    vmid: int,
+    *,
+    expected_name: str,
+) -> dict | None:
     if isinstance(vmid, bool) or not isinstance(vmid, int):
         raise RuntimeError("Refusing to operate on an invalid VMID")
     if not settings["pool_start"] <= vmid <= settings["pool_end"]:
         raise RuntimeError(f"Refusing to operate on VMID {vmid} outside the dynamic VMID pool")
     if vmid in settings["reserved_vmids"]:
         raise RuntimeError(f"Refusing to operate on reserved VMID {vmid}")
+    if not isinstance(expected_name, str) or not _NEXUS_VM_NAME.fullmatch(expected_name):
+        raise RuntimeError("Refusing to operate without a valid assignment-owned VM name")
 
     try:
         pool = proxmox.pools(settings["resource_pool"]).get()
@@ -372,15 +387,22 @@ def _owned_pool_vm(proxmox, settings: dict, vmid: int) -> dict | None:
         raise RuntimeError(
             f"Refusing to operate on VMID {vmid} outside Proxmox pool {settings['resource_pool']}"
         )
-    if not _NEXUS_VM_NAME.fullmatch(str(member.get("name") or "")):
-        raise RuntimeError(f"Refusing to operate on VMID {vmid} without a Nexus-owned name")
+    if member.get("name") != expected_name:
+        raise RuntimeError(
+            f"Refusing to operate on VMID {vmid} without the expected assignment-owned name"
+        )
     return member
 
 
-def destroy_vm(vmid: int) -> None:
+def destroy_vm(vmid: int, *, expected_name: str) -> None:
     proxmox = _get_proxmox()
     settings = _settings()
-    member = _owned_pool_vm(proxmox, settings, vmid)
+    member = _owned_pool_vm(
+        proxmox,
+        settings,
+        vmid,
+        expected_name=expected_name,
+    )
     if member is None:
         logger.info("VM %s is already absent", vmid)
         return

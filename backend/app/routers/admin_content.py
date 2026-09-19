@@ -724,7 +724,18 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
 
         if assignment.vmid is not None:
             try:
-                proxmox_service.destroy_vm(assignment.vmid)
+                run = db.get(LabRun, assignment.lab_run_id)
+                if not run or run.student_id != assignment.student_id:
+                    raise RuntimeError("VM assignment ownership could not be verified")
+                expected_name = proxmox_service.assignment_vm_name(
+                    lab_id=run.lab_template_id,
+                    student_id=run.student_id,
+                    run_id=run.id,
+                )
+                proxmox_service.destroy_vm(
+                    assignment.vmid,
+                    expected_name=expected_name,
+                )
             except Exception as exc:
                 logger.warning(
                     "Cleanup: failed to destroy VM %s: %s", assignment.vmid, exc

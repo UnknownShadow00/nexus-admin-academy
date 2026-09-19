@@ -43,6 +43,7 @@ def test_inc2504_provisioner_configures_reboots_and_verifies(monkeypatch):
     assert credentials == {
         'username': 'labadmin',
         'password': 'temporary-lab-password',
+        'ip_address': '10.10.10.10',
     }
 
     assert all(vmid == 175 for vmid, _command, _kwargs in commands)

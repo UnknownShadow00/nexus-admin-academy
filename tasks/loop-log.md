@@ -2406,3 +2406,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/admin_students.py; backend/app/services/student_deletion.py; backend/tests/test_student_data_integrity.py; tasks/loop-log.md
 - Result: pass — active VM ownership now returns a fail-closed 409 and preserves the student, assignment, and singleton lease; destroyed assignments retain the complete deletion path. All 96 broader admin/student-data/lab/runtime/security regressions passed with Ruff, compilation, and whitespace checks clean.
 - Next: Push the follow-up commit, resolve the new review thread, request Codex review on the final HEAD, and wait for the replacement CI run without merging or deploying.
+
+## [2026-09-19T09:57:19Z] Task Completed
+- Task: Addressed the final Codex review findings by requiring an exact assignment-owned VM name for protected destruction and passing the provisioner's verified INC2504 fixed address directly to Guacamole.
+- Files changed: backend/app/routers/admin_content.py; backend/app/routers/labs.py; backend/app/services/hybrid_lab_provisioner.py; backend/app/services/proxmox_service.py; backend/tests/test_hybrid_lab_provisioner.py; backend/tests/test_labs.py; backend/tests/test_proxmox_service.py; tasks/loop-log.md
+- Result: pass — recycled VMIDs with another valid Nexus assignment name are refused before mutation, all cleanup callers derive the expected name from the assignment's database ownership, and INC2504 no longer uses generic guest IPv4 discovery after verifying 10.10.10.10. All 84 focused regressions passed; Ruff, compilation, pip check, and whitespace checks passed.
+- Next: Push the final review-fix commit, resolve both addressed threads, request Codex review on the new HEAD, and wait for green replacement CI with no unresolved findings. Do not merge or deploy.

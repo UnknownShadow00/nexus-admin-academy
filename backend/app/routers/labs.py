@@ -389,23 +389,28 @@ def _apply_vm_provisioning(lab: LabTemplate, vmid: int) -> dict[str, str] | None
     )
 
 
-def _connection_credentials(
+def _connection_details(
     value: dict[str, str] | None,
-) -> tuple[str | None, str | None]:
+) -> tuple[str | None, str | None, str | None]:
     if value is None:
-        return None, None
-    if not isinstance(value, dict) or set(value) != {"username", "password"}:
+        return None, None, None
+    if not isinstance(value, dict) or set(value) not in (
+        {"username", "password"},
+        {"username", "password", "ip_address"},
+    ):
         raise RuntimeError("VM provisioner returned invalid connection credentials")
     username = value.get("username")
     password = value.get("password")
+    ip_address = value.get("ip_address")
     if (
         not isinstance(username, str)
         or not username
         or not isinstance(password, str)
         or not password
+        or (ip_address is not None and (not isinstance(ip_address, str) or not ip_address))
     ):
         raise RuntimeError("VM provisioner returned invalid connection credentials")
-    return username, password
+    return username, password, ip_address
 
 
 def _provision_vm_task(assignment_id: int) -> None:
@@ -415,6 +420,7 @@ def _provision_vm_task(assignment_id: int) -> None:
     connection_id = None
     vm_credentials = None
     vm_password = None
+    name = None
     try:
         from app.services import guacamole_service, proxmox_service
 
@@ -433,7 +439,11 @@ def _provision_vm_task(assignment_id: int) -> None:
         if not run or not lab or not lab.proxmox_template_vmid:
             raise RuntimeError("VM assignment is missing its lab template")
 
-        name = f"lab-{lab.id}-student-{run.student_id}-run-{run.id}"
+        name = proxmox_service.assignment_vm_name(
+            lab_id=lab.id,
+            student_id=run.student_id,
+            run_id=run.id,
+        )
         vmid = proxmox_service.clone_template(lab.proxmox_template_vmid, name)
         assignment.vmid = vmid
         assignment.status = "starting"
@@ -445,17 +455,17 @@ def _provision_vm_task(assignment_id: int) -> None:
 
         vm_credentials = _apply_vm_provisioning(lab, vmid)
 
+        vm_username, vm_password, provisioned_ip = _connection_details(vm_credentials)
+
         assignment.status = "waiting_for_ip"
         db.commit()
 
-        ip = proxmox_service.get_vm_ip(vmid)
+        ip = provisioned_ip or proxmox_service.get_vm_ip(vmid)
         if not ip:
             raise TimeoutError("VM did not report an IP address")
         assignment.ip_address = ip
         assignment.status = "configuring_connection"
         db.commit()
-
-        vm_username, vm_password = _connection_credentials(vm_credentials)
 
         if vm_username and vm_password:
             connection_id = guacamole_service.create_connection(
@@ -491,7 +501,9 @@ def _provision_vm_task(assignment_id: int) -> None:
                 )
         if vmid is not None:
             try:
-                proxmox_service.destroy_vm(vmid)
+                if name is None:
+                    raise RuntimeError("VM assignment name is unavailable for protected cleanup")
+                proxmox_service.destroy_vm(vmid, expected_name=name)
             except Exception:
                 vm_cleanup_failed = True
                 logger.exception(
@@ -539,7 +551,18 @@ def _destroy_vm_task(assignment_id: int) -> None:
                 cleanup_errors.append(exc)
         if assignment.vmid is not None:
             try:
-                proxmox_service.destroy_vm(assignment.vmid)
+                run = db.get(LabRun, assignment.lab_run_id)
+                if not run or run.student_id != assignment.student_id:
+                    raise RuntimeError("VM assignment ownership could not be verified")
+                expected_name = proxmox_service.assignment_vm_name(
+                    lab_id=run.lab_template_id,
+                    student_id=run.student_id,
+                    run_id=run.id,
+                )
+                proxmox_service.destroy_vm(
+                    assignment.vmid,
+                    expected_name=expected_name,
+                )
             except Exception as exc:
                 cleanup_errors.append(exc)
                 vm_cleanup_failed = True
