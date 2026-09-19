@@ -49,7 +49,11 @@ def _inc2504_printer_stale_ip(
     vmid: int,
     config: dict[str, Any],
 ) -> dict[str, str]:
-    del config
+    if (
+        set(config) != {"handler"}
+        or config.get("handler") != "inc2504_printer_stale_ip"
+    ):
+        raise RuntimeError("INC2504 provisioning metadata is invalid")
 
     _wait_for_marker(
         vmid,
@@ -68,11 +72,13 @@ if ((Get-LocalUser -Name 'labadmin' -ErrorAction SilentlyContinue) -and
 
     password = secrets.token_urlsafe(24)
 
-    configure_script = f"""
+    configure_script = """
 $ErrorActionPreference = 'Stop'
 
-$password = ConvertTo-SecureString '{password}' -AsPlainText -Force
-Set-LocalUser -Name 'labadmin' -Password $password
+$plainPassword = [Console]::In.ReadToEnd()
+if (-not $plainPassword) { throw 'No temporary password received' }
+$securePassword = ConvertTo-SecureString $plainPassword -AsPlainText -Force
+Set-LocalUser -Name 'labadmin' -Password $securePassword
 
 $winlogon = 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon'
 Set-ItemProperty $winlogon -Name AutoAdminLogon -Value '0'
@@ -80,39 +86,41 @@ Remove-ItemProperty $winlogon -Name AutoLogonCount -ErrorAction SilentlyContinue
 Remove-ItemProperty $winlogon -Name DefaultPassword -ErrorAction SilentlyContinue
 Remove-Item 'C:\\Windows\\System32\\Sysprep\\unattend.xml' -Force -ErrorAction SilentlyContinue
 
-$adapter = Get-NetAdapter | Where-Object {{ $_.Status -eq 'Up' }} | Select-Object -First 1
-if (-not $adapter) {{ throw 'No active network adapter found' }}
+$adapter = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | Select-Object -First 1
+if (-not $adapter) { throw 'No active network adapter found' }
 
 Set-NetIPInterface -InterfaceIndex $adapter.ifIndex -Dhcp Disabled -ErrorAction SilentlyContinue
 Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-    Where-Object {{ $_.IPAddress -ne '10.10.10.10' }} |
+    Where-Object { $_.IPAddress -ne '10.10.10.10' } |
     Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue
 
-if (-not (Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -IPAddress '10.10.10.10' -ErrorAction SilentlyContinue)) {{
+if (-not (Get-NetIPAddress -InterfaceIndex $adapter.ifIndex -AddressFamily IPv4 -IPAddress '10.10.10.10' -ErrorAction SilentlyContinue)) {
     New-NetIPAddress -InterfaceIndex $adapter.ifIndex -IPAddress '10.10.10.10' -PrefixLength 24
-}}
+}
 
 $badPort = 'IP_10.10.10.19'
-if (-not (Get-PrinterPort -Name $badPort -ErrorAction SilentlyContinue)) {{
+if (-not (Get-PrinterPort -Name $badPort -ErrorAction SilentlyContinue)) {
     Add-PrinterPort -Name $badPort -PrinterHostAddress '10.10.10.19' -PortNumber 9100
-}}
+}
 
-if (-not (Get-Printer -Name 'Front Office Printer' -ErrorAction SilentlyContinue)) {{
+if (-not (Get-Printer -Name 'Front Office Printer' -ErrorAction SilentlyContinue)) {
     Add-Printer -Name 'Front Office Printer' -DriverName 'Universal Print Class Driver' -PortName $badPort
-}} else {{
+} else {
     Set-Printer -Name 'Front Office Printer' -PortName $badPort
-}}
+}
 
-if ($env:COMPUTERNAME -ne 'NX-2504') {{
+if ($env:COMPUTERNAME -ne 'NX-2504') {
     Rename-Computer -NewName 'NX-2504' -Force
-}}
+}
 
 'CONFIGURED'
+$plainPassword = $null
 """
 
     configured = proxmox_service.guest_exec(
         vmid,
         _powershell(configure_script),
+        input_data=password,
         timeout=120,
     )
     if "CONFIGURED" not in configured:
@@ -208,6 +216,12 @@ def apply(
     vmid: int,
     config: dict[str, Any],
 ) -> dict[str, str] | None:
+    if not isinstance(handler, str) or not handler.strip():
+        raise RuntimeError("VM provisioning handler must be a non-empty string")
+    if not isinstance(config, dict):
+        raise RuntimeError("VM provisioning metadata must be an object")
+    if config.get("handler") != handler:
+        raise RuntimeError("VM provisioning handler metadata does not match the requested handler")
     provisioner = APPROVED_PROVISIONERS.get(handler)
     if provisioner is None:
         raise RuntimeError(f"Unsupported VM provisioning handler: {handler}")

@@ -34,11 +34,14 @@ UPLOAD_CHUNK_BYTES = 1024 * 1024
 ACTIVE_VM_STATUSES = {
     "provisioning",
     "starting",
+    "configuring_vm",
     "waiting_for_ip",
     "configuring_connection",
     "running",
     "destroying",
+    "cleanup_failed",
 }
+SINGLE_ACTIVE_PROVISIONERS = {"inc2504_printer_stale_ip"}
 
 
 def _normalize_hints(value):
@@ -333,18 +336,31 @@ def _safe_provisioning_error(exc: Exception) -> str:
 
 
 
-def _apply_vm_provisioning(lab: LabTemplate, vmid: int) -> None:
-    """Apply only server-approved VM provisioning handlers."""
-    provisioning = (lab.environment_requirements or {}).get("provisioning")
-    if not provisioning:
-        return
+def _provisioning_handler(lab: LabTemplate) -> str | None:
+    requirements = lab.environment_requirements
+    if requirements is None:
+        return None
+    if not isinstance(requirements, dict):
+        raise RuntimeError("Lab environment requirements must be an object")
+    if "provisioning" not in requirements:
+        return None
 
+    provisioning = requirements["provisioning"]
     if not isinstance(provisioning, dict):
         raise RuntimeError("VM provisioning metadata must be an object")
+    handler = provisioning.get("handler")
+    if not isinstance(handler, str) or not handler.strip():
+        raise RuntimeError("VM provisioning handler must be a non-empty string")
+    return handler.strip()
 
-    handler = str(provisioning.get("handler") or "").strip()
-    if not handler:
+
+def _apply_vm_provisioning(lab: LabTemplate, vmid: int) -> dict[str, str] | None:
+    """Apply only server-approved VM provisioning handlers."""
+    handler = _provisioning_handler(lab)
+    if handler is None:
         return
+
+    provisioning = lab.environment_requirements["provisioning"]
 
     from app.services import hybrid_lab_provisioner
 
@@ -354,10 +370,36 @@ def _apply_vm_provisioning(lab: LabTemplate, vmid: int) -> None:
         config=provisioning,
     )
 
+
+def _connection_credentials(
+    value: dict[str, str] | None,
+) -> tuple[str | None, str | None]:
+    if value is None:
+        return None, None
+    if not isinstance(value, dict) or set(value) != {"username", "password"}:
+        raise RuntimeError("VM provisioner returned invalid connection credentials")
+    username = value.get("username")
+    password = value.get("password")
+    if (
+        not isinstance(username, str)
+        or not username
+        or not isinstance(password, str)
+        or not password
+    ):
+        raise RuntimeError("VM provisioner returned invalid connection credentials")
+    return username, password
+
+
 def _provision_vm_task(assignment_id: int) -> None:
     """Provision a VM using a worker-owned database session."""
     db = SessionLocal()
+    vmid = None
+    connection_id = None
+    vm_credentials = None
+    vm_password = None
     try:
+        from app.services import guacamole_service, proxmox_service
+
         assignment = (
             db.query(VmAssignment)
             .filter(VmAssignment.id == assignment_id)
@@ -373,8 +415,6 @@ def _provision_vm_task(assignment_id: int) -> None:
         if not run or not lab or not lab.proxmox_template_vmid:
             raise RuntimeError("VM assignment is missing its lab template")
 
-        from app.services import guacamole_service, proxmox_service
-
         name = f"lab-{lab.id}-student-{run.student_id}-run-{run.id}"
         vmid = proxmox_service.clone_template(lab.proxmox_template_vmid, name)
         assignment.vmid = vmid
@@ -385,7 +425,7 @@ def _provision_vm_task(assignment_id: int) -> None:
         assignment.status = "configuring_vm"
         db.commit()
 
-        vm_credentials = _apply_vm_provisioning(lab, vmid) or {}
+        vm_credentials = _apply_vm_provisioning(lab, vmid)
 
         assignment.status = "waiting_for_ip"
         db.commit()
@@ -397,25 +437,24 @@ def _provision_vm_task(assignment_id: int) -> None:
         assignment.status = "configuring_connection"
         db.commit()
 
-        vm_username = vm_credentials.get("username")
-        vm_password = vm_credentials.get("password")
+        vm_username, vm_password = _connection_credentials(vm_credentials)
 
         if vm_username and vm_password:
-            conn_id = guacamole_service.create_connection(
+            connection_id = guacamole_service.create_connection(
                 ip,
                 vmid,
                 username=vm_username,
                 password=vm_password,
             )
         else:
-            conn_id = guacamole_service.create_connection(ip, vmid)
+            connection_id = guacamole_service.create_connection(ip, vmid)
 
         # The Windows credential is intentionally never persisted.
         vm_password = None
-        vm_credentials = {}
+        vm_credentials = None
 
         now = datetime.now(UTC)
-        assignment.guac_conn_id = conn_id
+        assignment.guac_conn_id = connection_id
         assignment.status = "running"
         assignment.started_at = now
         assignment.expires_at = now + timedelta(minutes=max(1, int(os.getenv("LAB_VM_TTL_MINUTES", "120"))))
@@ -423,13 +462,38 @@ def _provision_vm_task(assignment_id: int) -> None:
         db.commit()
     except Exception as exc:
         db.rollback()
+        vm_cleanup_failed = False
+        if connection_id is not None:
+            try:
+                guacamole_service.delete_connection(connection_id)
+            except Exception:
+                logger.warning(
+                    "Could not clean up Guacamole connection after assignment %s failed",
+                    assignment_id,
+                )
+        if vmid is not None:
+            try:
+                proxmox_service.destroy_vm(vmid)
+            except Exception:
+                vm_cleanup_failed = True
+                logger.exception(
+                    "Could not safely tear down VM %s after assignment %s failed",
+                    vmid,
+                    assignment_id,
+                )
         assignment = db.query(VmAssignment).filter(VmAssignment.id == assignment_id).first()
         if assignment and assignment.status != "destroyed":
-            assignment.status = "failed"
-            assignment.provisioning_error = _safe_provisioning_error(exc)
+            assignment.status = "cleanup_failed" if vm_cleanup_failed else "failed"
+            assignment.provisioning_error = (
+                "Lab environment cleanup failed. Please contact an administrator."
+                if vm_cleanup_failed
+                else _safe_provisioning_error(exc)
+            )
             db.commit()
         logger.exception("VM provisioning failed for assignment %s", assignment_id)
     finally:
+        vm_password = None
+        vm_credentials = None
         db.close()
 
 
@@ -442,6 +506,7 @@ def _destroy_vm_task(assignment_id: int) -> None:
         from app.services import guacamole_service, proxmox_service
 
         cleanup_errors = []
+        vm_cleanup_failed = False
         if assignment.guac_username:
             try:
                 guacamole_service.delete_user(assignment.guac_username)
@@ -457,9 +522,10 @@ def _destroy_vm_task(assignment_id: int) -> None:
                 proxmox_service.destroy_vm(assignment.vmid)
             except Exception as exc:
                 cleanup_errors.append(exc)
+                vm_cleanup_failed = True
 
         if cleanup_errors:
-            assignment.status = "failed"
+            assignment.status = "cleanup_failed" if vm_cleanup_failed else "failed"
             assignment.provisioning_error = "Lab environment cleanup failed. Please contact an administrator."
             db.commit()
             logger.warning("VM cleanup failed for assignment %s", assignment_id)
@@ -483,6 +549,29 @@ def _queue_assignment(db: Session, run: LabRun, background_tasks: BackgroundTask
         if existing.status == "failed":
             raise HTTPException(status_code=409, detail="Lab VM provisioning failed. Ask an administrator to retry it.")
         raise HTTPException(status_code=409, detail="This lab environment has ended and cannot be restarted.")
+
+    lab = db.query(LabTemplate).filter(LabTemplate.id == run.lab_template_id).first()
+    handler = _provisioning_handler(lab) if lab else None
+    if handler in SINGLE_ACTIVE_PROVISIONERS:
+        # The POC uses one shared vmbr1 address. Locking the lab-template rows
+        # serializes competing launches on databases which support row locks;
+        # the active-assignment query is the explicit collision guard.
+        db.query(LabTemplate.id).order_by(LabTemplate.id).with_for_update().all()
+        active = (
+            db.query(VmAssignment, LabTemplate)
+            .join(LabRun, LabRun.id == VmAssignment.lab_run_id)
+            .join(LabTemplate, LabTemplate.id == LabRun.lab_template_id)
+            .filter(
+                VmAssignment.status.in_(ACTIVE_VM_STATUSES),
+                VmAssignment.lab_run_id != run.id,
+            )
+            .all()
+        )
+        if any(_provisioning_handler(candidate_lab) == handler for _, candidate_lab in active):
+            raise HTTPException(
+                status_code=409,
+                detail="This POC lab already has an active instance. End it before starting another.",
+            )
 
     assignment = VmAssignment(
         student_id=run.student_id,

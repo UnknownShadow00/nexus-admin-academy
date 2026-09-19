@@ -595,6 +595,8 @@ def test_start_vm_backed_lab_marks_assignment_failed_without_ip(monkeypatch, db)
     monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 211)
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: None)
+    destroyed = []
+    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid: destroyed.append(vmid))
     provision_worker(assignment_id)
 
     db.expire_all()
@@ -602,6 +604,7 @@ def test_start_vm_backed_lab_marks_assignment_failed_without_ip(monkeypatch, db)
     assert assignment.status == "failed"
     assert assignment.vmid == 211
     assert assignment.provisioning_error == "Lab environment provisioning timed out. Please contact an administrator."
+    assert destroyed == [211]
 
 
 def test_provisioning_worker_persists_each_resource(monkeypatch, db):
@@ -942,3 +945,113 @@ def test_provisioning_worker_passes_ephemeral_vm_credentials_to_guacamole(monkey
     assert assignment.status == 'running'
     assert not hasattr(assignment, 'password')
     assert not hasattr(assignment, 'vm_password')
+    assert 'ephemeral-secret' not in json.dumps(started.json())
+
+
+def test_provisioning_failure_destroys_clone_before_marking_failed(monkeypatch, db):
+    student = make_student(db)
+    lab = _seed_lab(
+        db,
+        proxmox_template_vmid=173,
+        environment_requirements={
+            "provisioning": {"handler": "inc2504_printer_stale_ip"}
+        },
+    )
+    worker_session = sessionmaker(bind=db.get_bind(), autocommit=False, autoflush=False)
+    monkeypatch.setattr(labs_module, "SessionLocal", worker_session)
+    monkeypatch.setattr(labs_module, "_provision_vm_task", lambda assignment_id: None)
+
+    started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
+    assignment_id = started.json()["data"]["vm_assignment"]["assignment_id"]
+    monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 175)
+    monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
+    monkeypatch.setattr(
+        labs_module,
+        "_apply_vm_provisioning",
+        lambda lab, vmid: (_ for _ in ()).throw(RuntimeError("verification failed")),
+    )
+    destroyed = []
+    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda vmid: destroyed.append(vmid))
+
+    provision_worker(assignment_id)
+
+    db.expire_all()
+    assignment = db.query(VmAssignment).filter_by(id=assignment_id).one()
+    assert assignment.status == "failed"
+    assert destroyed == [175]
+
+
+def test_failed_vm_teardown_keeps_inc2504_singleton_guarded(monkeypatch, db):
+    first_student = make_student(db, username="first")
+    second_student = make_student(db, username="second")
+    lab = _seed_lab(
+        db,
+        proxmox_template_vmid=173,
+        environment_requirements={
+            "provisioning": {"handler": "inc2504_printer_stale_ip"}
+        },
+    )
+    worker_session = sessionmaker(bind=db.get_bind(), autocommit=False, autoflush=False)
+    monkeypatch.setattr(labs_module, "SessionLocal", worker_session)
+    monkeypatch.setattr(labs_module, "_provision_vm_task", lambda assignment_id: None)
+
+    started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(first_student))
+    assignment_id = started.json()["data"]["vm_assignment"]["assignment_id"]
+    monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 175)
+    monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
+    monkeypatch.setattr(
+        labs_module,
+        "_apply_vm_provisioning",
+        lambda lab, vmid: (_ for _ in ()).throw(RuntimeError("verification failed")),
+    )
+    monkeypatch.setattr(
+        proxmox_service,
+        "destroy_vm",
+        lambda vmid: (_ for _ in ()).throw(RuntimeError("cleanup failed")),
+    )
+
+    provision_worker(assignment_id)
+
+    db.expire_all()
+    assignment = db.query(VmAssignment).filter_by(id=assignment_id).one()
+    assert assignment.status == "cleanup_failed"
+    second = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(second_student))
+    assert second.status_code == 409
+
+
+def test_inc2504_rejects_second_active_instance(monkeypatch, db):
+    first_student = make_student(db, username="first")
+    second_student = make_student(db, username="second")
+    lab = _seed_lab(
+        db,
+        proxmox_template_vmid=173,
+        environment_requirements={
+            "provisioning": {"handler": "inc2504_printer_stale_ip"}
+        },
+    )
+    monkeypatch.setattr(labs_module, "_provision_vm_task", lambda assignment_id: None)
+
+    first = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(first_student))
+    assert first.status_code == 202
+
+    second = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(second_student))
+
+    assert second.status_code == 409
+    assert second.json()["detail"] == (
+        "This POC lab already has an active instance. End it before starting another."
+    )
+    assert db.query(VmAssignment).count() == 1
+
+
+def test_non_inc2504_vm_labs_are_not_singleton(monkeypatch, db):
+    first_student = make_student(db, username="first")
+    second_student = make_student(db, username="second")
+    lab = _seed_lab(db, proxmox_template_vmid=900)
+    monkeypatch.setattr(labs_module, "_provision_vm_task", lambda assignment_id: None)
+
+    first = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(first_student))
+    second = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(second_student))
+
+    assert first.status_code == 202
+    assert second.status_code == 202
+    assert db.query(VmAssignment).count() == 2

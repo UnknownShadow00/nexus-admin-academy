@@ -1,8 +1,13 @@
+import logging
 from unittest.mock import MagicMock, call
 
 import pytest
 
 from app.services import proxmox_service
+
+
+def test_proxmox_transport_payload_logging_is_disabled():
+    assert logging.getLogger("proxmoxer.core").level >= logging.WARNING
 
 
 def _configure(monkeypatch, *, full_clone: bool):
@@ -26,14 +31,37 @@ def _mock_proxmox(storage_type="lvmthin"):
     return proxmox
 
 
+def test_settings_require_resource_pool(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.delenv("PROXMOX_POOL")
+
+    with pytest.raises(RuntimeError, match="resource pool is not configured"):
+        proxmox_service._settings()
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "message"),
+    [
+        ("VMID_POOL_START", "not-an-integer", "bounds must be integers"),
+        ("PROXMOX_VERIFY_SSL", "sometimes", "must be a boolean value"),
+    ],
+)
+def test_settings_reject_invalid_safety_values(monkeypatch, name, value, message):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.setenv(name, value)
+
+    with pytest.raises(RuntimeError, match=message):
+        proxmox_service._settings()
+
+
 def test_linked_clone_passes_full_zero_on_supported_storage(monkeypatch):
     _configure(monkeypatch, full_clone=False)
     proxmox = _mock_proxmox("lvmthin")
     monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
 
-    assert proxmox_service.clone_template(900, "unique-lab-name") == 201
+    assert proxmox_service.clone_template(900, "lab-1-student-2-run-3") == 201
     proxmox.nodes("pve").qemu(900).clone.post.assert_called_once_with(
-        newid=201, name="unique-lab-name", full=0, pool="nexus-labs"
+        newid=201, name="lab-1-student-2-run-3", full=0, pool="nexus-labs"
     )
 
 
@@ -42,9 +70,9 @@ def test_linked_clone_falls_back_to_full_on_unsupported_storage(monkeypatch):
     proxmox = _mock_proxmox("dir")
     monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
 
-    proxmox_service.clone_template(900, "fallback-lab")
+    proxmox_service.clone_template(900, "lab-1-student-2-run-3")
     proxmox.nodes("pve").qemu(900).clone.post.assert_called_once_with(
-        newid=201, name="fallback-lab", full=1, pool="nexus-labs"
+        newid=201, name="lab-1-student-2-run-3", full=1, pool="nexus-labs"
     )
 
 
@@ -53,11 +81,22 @@ def test_explicit_full_clone_skips_storage_probe(monkeypatch):
     proxmox = _mock_proxmox()
     monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
 
-    proxmox_service.clone_template(900, "full-lab")
+    proxmox_service.clone_template(900, "lab-1-student-2-run-3")
     proxmox.nodes("pve").qemu(900).clone.post.assert_called_once_with(
-        newid=201, name="full-lab", full=1, pool="nexus-labs"
+        newid=201, name="lab-1-student-2-run-3", full=1, pool="nexus-labs"
     )
     proxmox.nodes("pve").qemu(900).config.get.assert_not_called()
+
+
+def test_clone_rejects_non_nexus_name_before_api_access(monkeypatch):
+    monkeypatch.setattr(
+        proxmox_service,
+        "_get_proxmox",
+        lambda: (_ for _ in ()).throw(AssertionError("API must not be called")),
+    )
+
+    with pytest.raises(ValueError, match="assignment-owned naming convention"):
+        proxmox_service.clone_template(900, "nexus-win11-auto-base")
 
 
 
@@ -108,11 +147,11 @@ def test_clone_retries_next_safe_vmid_after_collision(monkeypatch):
 
     monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
 
-    assert proxmox_service.clone_template(900, "race-safe-lab") == 174
+    assert proxmox_service.clone_template(900, "lab-1-student-2-run-3") == 174
 
     assert clone.call_args_list == [
-        call(newid=172, name="race-safe-lab", full=0, pool="nexus-labs"),
-        call(newid=174, name="race-safe-lab", full=0, pool="nexus-labs"),
+        call(newid=172, name="lab-1-student-2-run-3", full=0, pool="nexus-labs"),
+        call(newid=174, name="lab-1-student-2-run-3", full=0, pool="nexus-labs"),
     ]
 
 
@@ -184,3 +223,169 @@ def test_guest_exec_times_out(monkeypatch):
             ["cmd.exe", "/c", "hostname"],
             timeout=5,
         )
+
+
+@pytest.mark.parametrize("started", [{}, {"pid": 0}, {"pid": "321"}, {"pid": True}])
+def test_guest_exec_rejects_invalid_pid(monkeypatch, started):
+    _configure(monkeypatch, full_clone=False)
+    proxmox = MagicMock()
+    proxmox.nodes("pve").qemu(175).agent("exec").post.return_value = started
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    with pytest.raises(RuntimeError, match="process ID"):
+        proxmox_service.guest_exec(175, ["cmd.exe", "/c", "hostname"])
+
+
+def test_guest_exec_reports_abnormal_termination(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    proxmox = MagicMock()
+    vm = proxmox.nodes("pve").qemu(175)
+    vm.agent("exec").post.return_value = {"pid": 321}
+    vm.agent("exec-status").get.return_value = {
+        "exited": 1,
+        "signal": 9,
+        "out-data": "done",
+    }
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    with pytest.raises(RuntimeError, match="signal/exception 9"):
+        proxmox_service.guest_exec(175, ["cmd.exe", "/c", "hostname"])
+
+
+def test_guest_exec_rejects_invalid_exited_state(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    proxmox = MagicMock()
+    vm = proxmox.nodes("pve").qemu(175)
+    vm.agent("exec").post.return_value = {"pid": 321}
+    vm.agent("exec-status").get.return_value = {"exited": "yes"}
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    with pytest.raises(RuntimeError, match="invalid exited state"):
+        proxmox_service.guest_exec(175, ["cmd.exe", "/c", "hostname"])
+
+
+def test_guest_exec_passes_stdin_without_adding_it_to_command(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    proxmox = MagicMock()
+    vm = proxmox.nodes("pve").qemu(175)
+    vm.agent("exec").post.return_value = {"pid": 321}
+    vm.agent("exec-status").get.return_value = {"exited": 1, "exitcode": 0}
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    proxmox_service.guest_exec(
+        175,
+        ["powershell.exe", "-Command", "[Console]::In.ReadToEnd()"],
+        input_data="ephemeral-secret",
+    )
+
+    vm.agent("exec").post.assert_called_once_with(
+        command=["powershell.exe", "-Command", "[Console]::In.ReadToEnd()"],
+        **{"input-data": "ephemeral-secret"},
+    )
+
+
+def test_guest_exec_rejects_truncated_output(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    proxmox = MagicMock()
+    vm = proxmox.nodes("pve").qemu(175)
+    vm.agent("exec").post.return_value = {"pid": 321}
+    vm.agent("exec-status").get.return_value = {
+        "exited": 1,
+        "exitcode": 0,
+        "out-data": "partial",
+        "out-truncated": True,
+    }
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    with pytest.raises(RuntimeError, match="output was truncated"):
+        proxmox_service.guest_exec(175, ["cmd.exe", "/c", "hostname"])
+
+
+def _destruction_proxmox(vmid=175, *, name="lab-1-student-2-run-3", status="stopped"):
+    proxmox = MagicMock()
+    proxmox.pools("nexus-labs").get.return_value = {
+        "members": [{"type": "qemu", "vmid": vmid, "name": name}]
+    }
+    proxmox.nodes("pve").qemu(vmid).status.current.get.return_value = {"status": status}
+    proxmox.nodes("pve").qemu(vmid).delete.return_value = None
+    return proxmox
+
+
+def test_destroy_vm_allows_owned_dynamic_pool_member(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.setenv("VMID_POOL_START", "170")
+    monkeypatch.setenv("VMID_POOL_END", "179")
+    monkeypatch.setenv("VMID_RESERVED", "170,171,173")
+    proxmox = _destruction_proxmox()
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    proxmox_service.destroy_vm(175)
+
+    proxmox.nodes("pve").qemu(175).status.stop.post.assert_not_called()
+    proxmox.nodes("pve").qemu(175).delete.assert_called_once_with()
+
+
+def test_destroy_vm_stops_running_owned_vm_before_delete(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.setenv("VMID_POOL_START", "170")
+    monkeypatch.setenv("VMID_POOL_END", "179")
+    proxmox = _destruction_proxmox(status="running")
+    vm = proxmox.nodes("pve").qemu(175)
+    vm.status.stop.post.return_value = "UPID:stop"
+    vm.delete.return_value = "UPID:delete"
+    proxmox.nodes("pve").tasks("UPID:stop").status.get.return_value = {
+        "status": "stopped",
+        "exitstatus": "OK",
+    }
+    proxmox.nodes("pve").tasks("UPID:delete").status.get.return_value = {
+        "status": "stopped",
+        "exitstatus": "OK",
+    }
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    proxmox_service.destroy_vm(175)
+
+    vm.status.stop.post.assert_called_once_with()
+    vm.delete.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    ("vmid", "message"),
+    [(169, "outside the dynamic VMID pool"), (173, "reserved VMID")],
+)
+def test_destroy_vm_denies_unsafe_vmid_before_api_mutation(monkeypatch, vmid, message):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.setenv("VMID_POOL_START", "170")
+    monkeypatch.setenv("VMID_POOL_END", "179")
+    monkeypatch.setenv("VMID_RESERVED", "170,171,173")
+    proxmox = _destruction_proxmox(vmid)
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    with pytest.raises(RuntimeError, match=message):
+        proxmox_service.destroy_vm(vmid)
+
+    proxmox.nodes("pve").qemu(vmid).delete.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("pool", "message"),
+    [
+        ({"members": []}, "outside Proxmox pool"),
+        (
+            {"members": [{"type": "qemu", "vmid": 175, "name": "nexus-win11-auto-base"}]},
+            "without a Nexus-owned name",
+        ),
+    ],
+)
+def test_destroy_vm_denies_non_owned_pool_resource(monkeypatch, pool, message):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.setenv("VMID_POOL_START", "170")
+    monkeypatch.setenv("VMID_POOL_END", "179")
+    proxmox = _destruction_proxmox()
+    proxmox.pools("nexus-labs").get.return_value = pool
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    with pytest.raises(RuntimeError, match=message):
+        proxmox_service.destroy_vm(175)
+
+    proxmox.nodes("pve").qemu(175).delete.assert_not_called()

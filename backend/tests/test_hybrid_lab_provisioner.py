@@ -1,5 +1,3 @@
-from unittest.mock import call
-
 import pytest
 
 from app.services import hybrid_lab_provisioner, proxmox_service
@@ -7,17 +5,16 @@ from app.services import hybrid_lab_provisioner, proxmox_service
 
 def test_inc2504_provisioner_configures_reboots_and_verifies(monkeypatch):
     commands = []
-
     monkeypatch.setattr(
         hybrid_lab_provisioner.secrets,
-        'token_urlsafe',
-        lambda _size: 'temporary-lab-password',
+        "token_urlsafe",
+        lambda _size: "temporary-lab-password",
     )
 
     outputs = iter([
         'WAIT',
         'NEXUS_READY',
-        'CONFIGURED',
+        'CONFIGURED\r\n',
         '',
         'NEXUS_REBOOT_READY',
         (
@@ -31,7 +28,7 @@ def test_inc2504_provisioner_configures_reboots_and_verifies(monkeypatch):
     ])
 
     def guest_exec(vmid, command, **kwargs):
-        commands.append((vmid, command))
+        commands.append((vmid, command, kwargs))
         return next(outputs)
 
     monkeypatch.setattr(proxmox_service, 'guest_exec', guest_exec)
@@ -48,18 +45,24 @@ def test_inc2504_provisioner_configures_reboots_and_verifies(monkeypatch):
         'password': 'temporary-lab-password',
     }
 
-    assert all(vmid == 175 for vmid, _command in commands)
-    assert any('shutdown.exe' in command for _vmid, command in commands)
+    assert all(vmid == 175 for vmid, _command, _kwargs in commands)
+    assert any('shutdown.exe' in command for _vmid, command, _kwargs in commands)
+    assert [
+        kwargs["input_data"]
+        for _vmid, _command, kwargs in commands
+        if "input_data" in kwargs
+    ] == ["temporary-lab-password"]
 
     combined = '\n'.join(
         ' '.join(command)
-        for _vmid, command in commands
+        for _vmid, command, _kwargs in commands
     )
 
     assert '10.10.10.10' in combined
     assert '10.10.10.19' in combined
     assert 'Front Office Printer' in combined
     assert 'NX-2504' in combined
+    assert 'temporary-lab-password' not in combined
 
 
 def test_unknown_provisioner_fails_closed():
@@ -68,4 +71,52 @@ def test_unknown_provisioner_fails_closed():
             'not-approved',
             vmid=175,
             config={'handler': 'not-approved'},
+        )
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        None,
+        [],
+        {},
+        {"handler": 2504},
+        {"handler": "different"},
+        {"handler": "inc2504_printer_stale_ip", "script": "arbitrary"},
+    ],
+)
+def test_inc2504_provisioner_rejects_invalid_metadata(config):
+    with pytest.raises(RuntimeError, match="metadata|handler"):
+        hybrid_lab_provisioner.apply(
+            "inc2504_printer_stale_ip",
+            vmid=175,
+            config=config,
+        )
+
+
+def test_inc2504_provisioner_fails_closed_when_final_state_is_incomplete(monkeypatch):
+    outputs = iter([
+        "NEXUS_READY",
+        "CONFIGURED\n",
+        "",
+        "NEXUS_REBOOT_READY",
+        (
+            "HOSTNAME=NX-2504\n"
+            "IP=10.10.10.10\n"
+            "PRINTER=Front Office Printer\n"
+            "PRINTER_PORT=IP_10.10.10.19\n"
+            "AUTOLOGIN=0\n"
+        ),
+    ])
+    monkeypatch.setattr(
+        proxmox_service,
+        "guest_exec",
+        lambda vmid, command, **kwargs: next(outputs),
+    )
+
+    with pytest.raises(RuntimeError, match="UNATTEND_EXISTS=False"):
+        hybrid_lab_provisioner.apply(
+            "inc2504_printer_stale_ip",
+            vmid=175,
+            config={"handler": "inc2504_printer_stale_ip"},
         )

@@ -1,6 +1,7 @@
 import json
 
 import httpx
+import pytest
 
 from app.services import guacamole_service
 
@@ -89,3 +90,40 @@ def test_create_connection_accepts_temporary_windows_credentials(monkeypatch):
     assert payload['parameters']['hostname'] == '10.10.10.10'
     assert payload['parameters']['username'] == 'labadmin'
     assert payload['parameters']['password'] == 'temporary-windows-password'
+
+
+def test_create_connection_keeps_ordinary_vm_labs_credential_free(monkeypatch):
+    _configure(monkeypatch)
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path.endswith("/api/tokens"):
+            return httpx.Response(200, json={"authToken": "admin-token"})
+        if request.method == "POST" and request.url.path.endswith("/connections"):
+            return httpx.Response(201, json={"identifier": "conn-ordinary"})
+        raise AssertionError(f"Unexpected request: {request.method} {request.url}")
+
+    monkeypatch.setattr(
+        guacamole_service,
+        "_CLIENT",
+        httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    assert guacamole_service.create_connection("10.0.0.20", 205) == "conn-ordinary"
+    payload = json.loads(
+        next(
+            request
+            for request in requests
+            if request.method == "POST" and request.url.path.endswith("/connections")
+        ).content
+    )
+    assert "username" not in payload["parameters"]
+    assert "password" not in payload["parameters"]
+
+
+def test_create_connection_rejects_partial_credentials(monkeypatch):
+    _configure(monkeypatch)
+
+    with pytest.raises(ValueError, match="provided together"):
+        guacamole_service.create_connection("10.0.0.20", 205, username="labadmin")

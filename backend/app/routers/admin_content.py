@@ -729,7 +729,7 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
                 logger.warning(
                     "Cleanup: failed to destroy VM %s: %s", assignment.vmid, exc
                 )
-                assignment.status = "failed"
+                assignment.status = "cleanup_failed"
                 errors.append({"vmid": assignment.vmid, "error": "VM cleanup failed"})
                 continue
 
