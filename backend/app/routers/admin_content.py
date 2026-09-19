@@ -445,6 +445,20 @@ def delete_lab_template(template_id: int, db: Session = Depends(get_db)):
     row = db.query(LabTemplate).filter(LabTemplate.id == template_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Lab template not found")
+    active_assignment = (
+        db.query(VmAssignment.id)
+        .join(LabRun, LabRun.id == VmAssignment.lab_run_id)
+        .filter(
+            LabRun.lab_template_id == template_id,
+            VmAssignment.status != "destroyed",
+        )
+        .first()
+    )
+    if active_assignment:
+        raise HTTPException(
+            status_code=409,
+            detail="Destroy all lab VM assignments before deleting this template.",
+        )
 
     db.delete(row)
     db.commit()
@@ -702,6 +716,29 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
     destroyed = []
     errors = []
     for assignment in idle:
+        if (
+            assignment.retry_count > 0
+            and assignment.started_at is None
+            and assignment.status
+            in {
+                "provisioning",
+                "starting",
+                "configuring_vm",
+                "waiting_for_ip",
+                "configuring_connection",
+                "destroying",
+            }
+        ):
+            # The provisioning worker may still be inside an external clone
+            # request. Only that worker can safely reconcile its completion;
+            # keep the lease and assignment ownership intact.
+            errors.append(
+                {
+                    "vmid": assignment.vmid,
+                    "error": "VM provisioning is still being reconciled",
+                }
+            )
+            continue
         if assignment.guac_username:
             try:
                 guacamole_service.delete_user(assignment.guac_username)

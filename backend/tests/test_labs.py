@@ -818,6 +818,92 @@ def test_admin_cleanup_destroys_idle_vm_assignments(monkeypatch, db):
     assert deleted == ["conn-213"]
 
 
+def test_admin_cleanup_preserves_in_flight_clone_lease(monkeypatch, db):
+    monkeypatch.setenv("ADMIN_API_KEY", "unit-test-admin")
+    student = make_student(db)
+    lab = _seed_lab(db, proxmox_template_vmid=173)
+    run = LabRun(lab_template_id=lab.id, student_id=student.id, status="in_progress")
+    db.add(run)
+    db.flush()
+    assignment = VmAssignment(
+        vmid=175,
+        student_id=student.id,
+        lab_run_id=run.id,
+        status="provisioning",
+        retry_count=1,
+        singleton_key="inc2504_printer_stale_ip",
+        created_at=datetime.now(timezone.utc) - timedelta(hours=3),
+    )
+    db.add(assignment)
+    db.commit()
+    monkeypatch.setattr(
+        proxmox_service,
+        "destroy_vm",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("in-flight clone must be reconciled by its worker")
+        ),
+    )
+
+    response = admin_client.delete(
+        "/api/admin/vms/cleanup",
+        headers={"X-Admin-Key": "unit-test-admin"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {
+        "destroyed": [],
+        "errors": [
+            {
+                "vmid": 175,
+                "error": "VM provisioning is still being reconciled",
+            }
+        ],
+    }
+    db.refresh(assignment)
+    assert assignment.status == "provisioning"
+    assert assignment.singleton_key == "inc2504_printer_stale_ip"
+
+
+def test_admin_cannot_delete_template_with_live_vm_assignment(monkeypatch, db):
+    monkeypatch.setenv("ADMIN_API_KEY", "unit-test-admin")
+    student = make_student(db)
+    lab = _seed_lab(db, proxmox_template_vmid=173)
+    run = LabRun(lab_template_id=lab.id, student_id=student.id, status="in_progress")
+    db.add(run)
+    db.flush()
+    assignment = VmAssignment(
+        vmid=175,
+        student_id=student.id,
+        lab_run_id=run.id,
+        status="running",
+        singleton_key="inc2504_printer_stale_ip",
+    )
+    db.add(assignment)
+    db.commit()
+    lab_id = lab.id
+
+    blocked = admin_client.delete(
+        f"/api/admin/labs/templates/{lab_id}",
+        headers={"X-Admin-Key": "unit-test-admin"},
+    )
+
+    assert blocked.status_code == 409
+    assert db.get(LabTemplate, lab_id) is not None
+    assert db.get(VmAssignment, assignment.id) is not None
+
+    assignment.status = "destroyed"
+    assignment.singleton_key = None
+    db.commit()
+    deleted = admin_client.delete(
+        f"/api/admin/labs/templates/{lab_id}",
+        headers={"X-Admin-Key": "unit-test-admin"},
+    )
+
+    assert deleted.status_code == 200
+    db.expire_all()
+    assert db.get(LabTemplate, lab_id) is None
+
+
 def test_admin_can_see_safe_provisioning_failure(db, monkeypatch):
     monkeypatch.setenv("ADMIN_API_KEY", "unit-test-admin")
     student = make_student(db)

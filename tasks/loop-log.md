@@ -2430,3 +2430,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/services/proxmox_service.py; backend/tests/test_proxmox_service.py; tasks/loop-log.md
 - Result: pass — every non-collision failure after clone POST begins now raises CloneRequestError with the already-persisted VMID, causing the worker to retain the singleton lease for protected retry reconciliation. All 91 focused lab/Proxmox/provisioner/content/admin tests passed with Ruff, compileall, and whitespace checks clean. No deployment, merge, production migration/configuration, or Proxmox operation occurred.
 - Next: Push the fix, resolve the P2 thread, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T10:49:43Z] Task Completed
+- Task: Closed remaining admin-side lease-loss paths by preserving assignments still owned by in-flight provisioning during idle cleanup and rejecting lab-template deletion until every related VM assignment is destroyed.
+- Files changed: backend/app/routers/admin_content.py; backend/tests/test_labs.py; tasks/loop-log.md
+- Result: pass — admin cleanup no longer probes or releases an active clone lease, and template deletion cannot cascade away a live assignment or its ownership record. All 93 focused lab/Proxmox/provisioner/content/admin tests passed; Ruff, compileall, pip check, pip-audit, and whitespace checks passed. No deployment, merge, production migration/configuration, or Proxmox operation occurred.
+- Next: Push the fixes, resolve both P2 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
