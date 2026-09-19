@@ -4,14 +4,15 @@ A bare `alembic upgrade head` (no explicit scratch DATABASE_URL, no opt-in)
 must not be able to migrate the live production database. See
 `backend/app/db_guard.py` and `tasks/lessons.md`.
 
-The subprocess cases below are safe: production is already at head, so even a
-hypothetical bypass of `upgrade head` would be a no-op, and every case also
-asserts the production file's mtime is unchanged.
+The subprocess cases use an isolated copy of the backend and a synthetic
+default database. No case opens the checkout's or deployment's database.
 """
 
 from __future__ import annotations
 
 import os
+import shutil
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -120,12 +121,29 @@ def test_optin_env_var_absent_blocks(monkeypatch):
 # End-to-end via the real `alembic` CLI (production untouched throughout)
 # --------------------------------------------------------------------------- #
 
-def _run_alembic(args, env_overrides, remove=()):
+@pytest.fixture()
+def cli_backend(tmp_path):
+    root = tmp_path / "backend"
+    shutil.copytree(
+        BACKEND_DIR, root,
+        ignore=shutil.ignore_patterns(
+            ".venv", "venv", ".env*", "*.db*", "__pycache__", ".pytest_cache",
+            ".ruff_cache", "tests", "_tmp",
+        ),
+    )
+    # Only Alembic's revision marker is needed for read-only inspection.
+    with sqlite3.connect(root / "nexus.db") as database:
+        database.execute("CREATE TABLE alembic_version (version_num VARCHAR(64))")
+        database.execute("INSERT INTO alembic_version VALUES ('0064_v2_ai_grading_infrastructure')")
+    return root
+
+
+def _run_alembic(args, env_overrides, remove=(), *, cwd):
     env = {k: v for k, v in os.environ.items() if k not in remove}
     env.update(env_overrides)
     return subprocess.run(
         [sys.executable, "-m", "alembic", *args],
-        cwd=str(BACKEND_DIR),
+        cwd=str(cwd),
         env=env,
         capture_output=True,
         text=True,
@@ -133,43 +151,47 @@ def _run_alembic(args, env_overrides, remove=()):
     )
 
 
-def test_cli_bare_upgrade_is_refused_and_leaves_production_untouched():
-    before = PROD_DB.stat().st_mtime_ns
+def test_cli_bare_upgrade_is_refused_and_leaves_production_untouched(cli_backend):
+    default_db = cli_backend / "nexus.db"
+    before = default_db.read_bytes()
     proc = _run_alembic(
         ["upgrade", "head"],
         env_overrides={},
         remove=("DATABASE_URL", PROD_OPT_IN_ENV),  # simulate a bare invocation
+        cwd=cli_backend,
     )
     assert proc.returncode != 0
     assert "BLOCKED" in (proc.stderr + proc.stdout)
-    assert PROD_DB.stat().st_mtime_ns == before      # not written
+    assert default_db.read_bytes() == before
 
 
-def test_cli_readonly_current_still_works_without_optin():
-    proc = _run_alembic(["current"], env_overrides={}, remove=("DATABASE_URL", PROD_OPT_IN_ENV))
+def test_cli_readonly_current_still_works_without_optin(cli_backend):
+    proc = _run_alembic(["current"], env_overrides={},
+                        remove=("DATABASE_URL", PROD_OPT_IN_ENV), cwd=cli_backend)
     assert proc.returncode == 0
     assert "0064_v2_ai_grading_infrastructure" in (proc.stdout + proc.stderr)
 
 
-def test_cli_scratch_database_upgrade_and_downgrade(tmp_path):
+def test_cli_scratch_database_upgrade_and_downgrade(tmp_path, cli_backend):
     scratch = tmp_path / "ci-like.db"
     url = f"sqlite:///{scratch}"
-    before = PROD_DB.stat().st_mtime_ns
+    default_db = cli_backend / "nexus.db"
+    before = default_db.read_bytes()
 
     up = _run_alembic(["upgrade", "head"], env_overrides={"DATABASE_URL": url},
-                      remove=(PROD_OPT_IN_ENV,))
+                      remove=(PROD_OPT_IN_ENV,), cwd=cli_backend)
     assert up.returncode == 0, up.stderr
     assert scratch.exists()
 
-    cur = _run_alembic(["current"], env_overrides={"DATABASE_URL": url})
-    heads = _run_alembic(["heads"], env_overrides={"DATABASE_URL": url})
+    cur = _run_alembic(["current"], env_overrides={"DATABASE_URL": url}, cwd=cli_backend)
+    heads = _run_alembic(["heads"], env_overrides={"DATABASE_URL": url}, cwd=cli_backend)
     head_rev = heads.stdout.split()[0]
     assert head_rev and head_rev in cur.stdout  # scratch DB migrated to head
 
     down = _run_alembic(["downgrade", "0063_v2_content_and_assessment"],
-                        env_overrides={"DATABASE_URL": url})
+                        env_overrides={"DATABASE_URL": url}, cwd=cli_backend)
     assert down.returncode == 0, down.stderr
-    reup = _run_alembic(["upgrade", "head"], env_overrides={"DATABASE_URL": url})
+    reup = _run_alembic(["upgrade", "head"], env_overrides={"DATABASE_URL": url}, cwd=cli_backend)
     assert reup.returncode == 0, reup.stderr
 
-    assert PROD_DB.stat().st_mtime_ns == before       # production never touched
+    assert default_db.read_bytes() == before

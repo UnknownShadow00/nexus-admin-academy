@@ -26,11 +26,7 @@ from conftest import make_client
 
 @contextmanager
 def configured_admin_auth():
-    """verify_admin's own "not configured" check (500) runs before its
-    credential checks (403); CI has neither ADMIN_API_KEY nor ADMIN_PASSWORD
-    set, so tests exercising real (non-overridden) verify_admin must set one,
-    matching the convention in test_admin_session.py.
-    """
+    """Exercise the configured authenticator independently of host settings."""
     previous = os.environ.get("ADMIN_API_KEY")
     os.environ["ADMIN_API_KEY"] = "unit-test-api-key"
     load_env.cache_clear()
@@ -360,6 +356,9 @@ def test_cohort_summary_query_count_does_not_scale_with_student_count(db):
         add_student(db, str(index), None)
     db.commit()
     students = db.query(Student).order_by(Student.id.asc()).all()
+    # Compare cold schema-capability caches on both cohort sizes. Wave 4
+    # caches the quiz_attempts column probe in Session.info after the first call.
+    db.info.pop("quiz_attempt_state_supported", None)
     with count_queries(engine) as second_count:
         build_cohort_summary(db, students)
     eight_student_queries = second_count()

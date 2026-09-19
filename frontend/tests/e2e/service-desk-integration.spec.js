@@ -68,12 +68,12 @@ async function adminLogin(page) {
 
 async function completeWeekZero(page) {
   await page.goto("/");
-  await page.getByRole("link", { name: "Start Training" }).first().click();
-  await expect(page).toHaveURL(/\/lessons\/\d+$/);
+  await page.getByRole("link", { name: "Continue lesson", exact: true }).click();
+  await expect(page).toHaveURL(/\/lessons\/\d+(\?.*)?$/);
   await page.getByRole("button", { name: "Mark lesson complete", exact: true }).click();
   await expect(page.getByRole("button", { name: "Orientation complete", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Take quiz", exact: true }).click();
-  await expect(page).toHaveURL(/\/quizzes\/\d+$/);
+  await expect(page).toHaveURL(/\/quizzes\/\d+(\?.*)?$/);
 
   for (let index = 1; index <= 4; index += 1) {
     await expect(page.getByText("Question " + index + " of 4", { exact: true })).toBeVisible();
@@ -89,7 +89,7 @@ async function completeWeekZero(page) {
     for (const option of correctOptions) {
       await questionPanel.getByText(option, { exact: true }).click();
     }
-    await page.getByRole("button", { name: index === 4 ? "Submit Quiz" : "Next", exact: true }).click();
+    await page.getByRole("button", { name: index === 4 ? "Submit assessment" : "Next", exact: true }).click();
   }
 
   await expect(page.getByText("Passed", { exact: true })).toBeVisible();

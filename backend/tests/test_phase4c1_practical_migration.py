@@ -254,7 +254,10 @@ def test_phase4c1_fresh_and_historical_paths_converge_without_identity_churn(tmp
         assert _week_lab_complete(db, student, 17, 15) is True
 
     assert _target_identity(fresh_path) == _target_identity(historical_path)
-    assert _active_totals(fresh_path) == _active_totals(historical_path) == (35, 320, 143)
+    # Current seeds require Anatomy of a Good Ticket and Meet the Command
+    # Line (Core Wave 2); the historical migration must not alter those lessons.
+    assert _active_totals(fresh_path) == (35, 320, 145)
+    assert _active_totals(historical_path) == (35, 320, 143)
     assert _active_role_counts(fresh_path) == {
         "learn": 216,
         "check": 38,
@@ -305,4 +308,4 @@ def test_phase4c1_downgrade_and_reupgrade_restore_only_owned_content(tmp_path):
 
     _run([sys.executable, "-m", "alembic", "upgrade", REVISION_0059], database_url)
     assert _target_identity(database_path) == upgraded_identity
-    assert _active_totals(database_path) == (35, 320, 143)
+    assert _active_totals(database_path) == (35, 320, 145)

@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 import hashlib
 import json
 
+from sqlalchemy.orm import load_only
+
 from app.config import load_env
 from app.database import SessionLocal
 from app.models.command_reference import CommandReference
@@ -832,7 +834,13 @@ def seed_default_student_roles(db):
     first_role = db.query(Role).filter(Role.rank_order == 1).first()
     if not first_role:
         return
-    for student in db.query(Student).all():
+    # Keep the base seed compatible with historical migration checkpoints used
+    # by the downgrade/re-upgrade regression suite.  Loading the whole mapped
+    # Student row would select columns introduced after that checkpoint.
+    students = db.query(Student).options(
+        load_only(Student.id, Student.current_role_id, Student.role_since)
+    )
+    for student in students:
         if student.current_role_id is None:
             student.current_role_id = first_role.id
             student.role_since = datetime.now(timezone.utc)
@@ -931,7 +939,7 @@ def seed_methodology_completions(db):
     from app.models.progression import StudentMethodologyProgress
 
     frameworks = db.query(MethodologyFramework).all()
-    students = db.query(Student).all()
+    students = db.query(Student).options(load_only(Student.id)).all()
     for student in students:
         for fw in frameworks:
             exists = (
@@ -1320,7 +1328,12 @@ def seed_service_desk_scenarios(db, *, ticket_ids: set[str] | None = None):
 
 def seed_service_desk_assignments(db, scenarios):
     """Assign every simulation scenario to every current non-mentor student."""
-    students = db.query(Student).filter(Student.is_mentor.is_(False)).all()
+    students = (
+        db.query(Student)
+        .options(load_only(Student.id, Student.is_mentor))
+        .filter(Student.is_mentor.is_(False))
+        .all()
+    )
     for student in students:
         for scenario in scenarios.values():
             existing = (

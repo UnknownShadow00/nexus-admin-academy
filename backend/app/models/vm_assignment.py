@@ -13,6 +13,7 @@ class VmAssignment(Base):
     lab_run_id: Mapped[int] = mapped_column(
         ForeignKey("lab_runs.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
     )
+    singleton_key: Mapped[str | None] = mapped_column(String(80), nullable=True, unique=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="provisioning")
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     guac_conn_id: Mapped[str | None] = mapped_column(String(200), nullable=True)

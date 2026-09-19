@@ -1,36 +1,85 @@
 import logging
 import os
+import re
 import time
-from typing import Optional
+from typing import Callable, Optional
 
 from app.config import is_production_environment
 
 logger = logging.getLogger(__name__)
+# proxmoxer logs POST bodies at INFO and response bodies at DEBUG. Guest-agent
+# requests and responses can carry ephemeral credentials, so never allow that
+# transport logger to emit payloads even when application debug logging is on.
+logging.getLogger("proxmoxer.core").setLevel(logging.WARNING)
+
+_NEXUS_VM_NAME = re.compile(r"^lab-\d+-student-\d+-run-\d+$")
+
+
+class CloneRequestError(RuntimeError):
+    """A clone request was accepted, but its final outcome is uncertain."""
+
+    def __init__(self, message: str, *, vmid: int):
+        super().__init__(message)
+        self.vmid = vmid
+
+
+def assignment_vm_name(*, lab_id: int, student_id: int, run_id: int) -> str:
+    identifiers = (lab_id, student_id, run_id)
+    if any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in identifiers):
+        raise RuntimeError("Cannot derive a VM name from invalid assignment identifiers")
+    return f"lab-{lab_id}-student-{student_id}-run-{run_id}"
 
 
 def _bool_env(name: str, default: bool) -> bool:
     raw = (os.getenv(name) or "").strip().lower()
+    if not raw:
+        return default
     if raw in {"1", "true", "yes", "on"}:
         return True
     if raw in {"0", "false", "no", "off"}:
         return False
-    return default
+    raise RuntimeError(f"{name} must be a boolean value")
 
 
 def _settings() -> dict:
     host = (os.getenv("PROXMOX_HOST") or "").strip()
     token_id = (os.getenv("PROXMOX_TOKEN_ID") or "").strip()
     token_secret = (os.getenv("PROXMOX_TOKEN_SECRET") or "").strip()
+    resource_pool = (os.getenv("PROXMOX_POOL") or "").strip()
     if not host or not token_id or not token_secret:
         raise RuntimeError("Proxmox integration is not configured")
+    if not resource_pool:
+        raise RuntimeError("Proxmox resource pool is not configured")
+
+    try:
+        pool_start = int(os.getenv("VMID_POOL_START", "200"))
+        pool_end = int(os.getenv("VMID_POOL_END", "299"))
+    except ValueError as exc:
+        raise RuntimeError("VMID pool bounds must be integers") from exc
+    if pool_start < 100:
+        raise RuntimeError("VMID pool start must be at least 100")
+    if pool_start > pool_end:
+        raise RuntimeError("VMID pool start must not be greater than pool end")
+
+    reserved_raw = (os.getenv("VMID_RESERVED") or "").strip()
+    try:
+        reserved_vmids = {
+            int(value.strip())
+            for value in reserved_raw.split(",")
+            if value.strip()
+        }
+    except ValueError as exc:
+        raise RuntimeError("VMID_RESERVED must be a comma-separated list of integers") from exc
 
     return {
         "host": host,
         "token_id": token_id,
         "token_secret": token_secret,
         "node": (os.getenv("PROXMOX_NODE") or "pve").strip(),
-        "pool_start": int(os.getenv("VMID_POOL_START", "200")),
-        "pool_end": int(os.getenv("VMID_POOL_END", "299")),
+        "resource_pool": resource_pool,
+        "pool_start": pool_start,
+        "pool_end": pool_end,
+        "reserved_vmids": reserved_vmids,
         "verify_ssl": _bool_env("PROXMOX_VERIFY_SSL", is_production_environment()),
         "full_clone": _bool_env("PROXMOX_FULL_CLONE", False),
     }
@@ -40,19 +89,34 @@ def _get_proxmox():
     from proxmoxer import ProxmoxAPI
 
     settings = _settings()
+
+    try:
+        user, token_name = settings["token_id"].rsplit("!", 1)
+    except ValueError as exc:
+        raise RuntimeError(
+            "PROXMOX_TOKEN_ID must use the format user@realm!token-name"
+        ) from exc
+
+    if not user or not token_name:
+        raise RuntimeError(
+            "PROXMOX_TOKEN_ID must use the format user@realm!token-name"
+        )
+
     return ProxmoxAPI(
         settings["host"],
-        user=settings["token_id"],
+        user=user,
+        token_name=token_name,
         token_value=settings["token_secret"],
         verify_ssl=settings["verify_ssl"],
     )
 
 
-def _find_free_vmid(proxmox) -> int:
+def _find_free_vmid(proxmox, *, exclude: set[int] | None = None) -> int:
     settings = _settings()
     existing = {int(vm["vmid"]) for vm in proxmox.cluster.resources.get(type="vm")}
+    unavailable = existing | settings["reserved_vmids"] | (exclude or set())
     for vmid in range(settings["pool_start"], settings["pool_end"] + 1):
-        if vmid not in existing:
+        if vmid not in unavailable:
             return vmid
     raise RuntimeError("No free VMIDs available in pool")
 
@@ -73,7 +137,14 @@ def _linked_clone_supported(proxmox, node: str, template_vmid: int) -> bool:
     return bool(storage_types) and storage_types.issubset({"lvmthin", "zfspool", "rbd", "btrfs"})
 
 
-def _wait_for_task(proxmox, node: str, upid: str | None, timeout: int = 300) -> None:
+def _wait_for_task(
+    proxmox,
+    node: str,
+    upid: str | None,
+    timeout: int = 300,
+    *,
+    operation: str = "task",
+) -> None:
     if not upid:
         return
     deadline = time.monotonic() + timeout
@@ -81,16 +152,37 @@ def _wait_for_task(proxmox, node: str, upid: str | None, timeout: int = 300) -> 
         status = proxmox.nodes(node).tasks(upid).status.get()
         if status.get("status") == "stopped":
             if status.get("exitstatus") != "OK":
-                raise RuntimeError(f"Proxmox clone task failed: {status.get('exitstatus', 'unknown error')}")
+                raise RuntimeError(
+                    f"Proxmox {operation} task failed: {status.get('exitstatus', 'unknown error')}"
+                )
             return
         time.sleep(2)
-    raise TimeoutError("Proxmox clone task did not finish before the timeout")
+    raise TimeoutError(f"Proxmox {operation} task did not finish before the timeout")
 
 
-def clone_template(template_vmid: int, name: str) -> int:
+def _is_vmid_collision_error(exc: Exception) -> bool:
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        message = str(current).lower()
+        if "already exists" in message and ("vm" in message or "vmid" in message):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def clone_template(
+    template_vmid: int,
+    name: str,
+    *,
+    on_vmid_selected: Callable[[int], None] | None = None,
+) -> int:
+    if not _NEXUS_VM_NAME.fullmatch(name):
+        raise ValueError("Nexus VM names must use the assignment-owned naming convention")
+
     proxmox = _get_proxmox()
     settings = _settings()
-    new_vmid = _find_free_vmid(proxmox)
     full_clone = settings["full_clone"]
     if not full_clone:
         try:
@@ -111,24 +203,139 @@ def clone_template(template_vmid: int, name: str) -> int:
             full_clone = True
 
     mode = "full" if full_clone else "linked"
-    try:
-        upid = proxmox.nodes(settings["node"]).qemu(template_vmid).clone.post(
-            newid=new_vmid,
-            name=name,
-            full=1 if full_clone else 0,
-        )
-        _wait_for_task(proxmox, settings["node"], upid)
-    except Exception as exc:
-        raise RuntimeError(f"Proxmox {mode} clone failed for template {template_vmid}") from exc
-    logger.info("Cloned template %s -> vmid %s using %s clone", template_vmid, new_vmid, mode)
-    return new_vmid
+    attempted_vmids: set[int] = set()
+    while True:
+        new_vmid = _find_free_vmid(proxmox, exclude=attempted_vmids)
+        if on_vmid_selected is not None:
+            # Persist ownership before Proxmox can accept a clone request. If
+            # the worker is cancelled, the callback raises before any POST.
+            on_vmid_selected(new_vmid)
+        request_attempted = False
+        try:
+            # Once the POST begins, a transport error can mean the response
+            # was lost after Proxmox accepted the request.
+            request_attempted = True
+            upid = proxmox.nodes(settings["node"]).qemu(template_vmid).clone.post(
+                newid=new_vmid,
+                name=name,
+                full=1 if full_clone else 0,
+                pool=settings["resource_pool"],
+            )
+            _wait_for_task(proxmox, settings["node"], upid, operation="clone")
+        except Exception as exc:
+            if _is_vmid_collision_error(exc):
+                attempted_vmids.add(new_vmid)
+                logger.warning(
+                    "VMID %s was claimed during clone; retrying another safe VMID",
+                    new_vmid,
+                )
+                continue
+            if request_attempted:
+                raise CloneRequestError(
+                    f"Proxmox {mode} clone outcome is uncertain for template {template_vmid}",
+                    vmid=new_vmid,
+                ) from exc
+            raise RuntimeError(f"Proxmox {mode} clone failed for template {template_vmid}") from exc
+
+        logger.info("Cloned template %s -> vmid %s using %s clone", template_vmid, new_vmid, mode)
+        return new_vmid
 
 
 def start_vm(vmid: int) -> None:
     proxmox = _get_proxmox()
     settings = _settings()
-    proxmox.nodes(settings["node"]).qemu(vmid).status.start.post()
+    vm = proxmox.nodes(settings["node"]).qemu(vmid)
+
+    upid = vm.status.start.post()
+    _wait_for_task(
+        proxmox,
+        settings["node"],
+        upid,
+        operation="start",
+    )
+
+    current = vm.status.current.get()
+    if not isinstance(current, dict) or current.get("status") != "running":
+        raise RuntimeError(f"VM {vmid} did not reach running state after start")
+
     logger.info("Started VM %s", vmid)
+
+
+def guest_exec(
+    vmid: int,
+    command: list[str],
+    *,
+    input_data: str | None = None,
+    timeout: float = 60.0,
+    poll_interval: float = 0.5,
+) -> str:
+    """Execute a command through the QEMU Guest Agent and return stdout."""
+    if not command:
+        raise ValueError("Guest command must not be empty")
+    if not all(isinstance(part, str) and part for part in command):
+        raise ValueError("Guest command arguments must be non-empty strings")
+    if timeout <= 0 or poll_interval <= 0:
+        raise ValueError("Guest command timeout and poll interval must be positive")
+    if input_data is not None and not isinstance(input_data, str):
+        raise ValueError("Guest command input must be a string")
+    if input_data is not None and len(input_data) > 65536:
+        raise ValueError("Guest command input exceeds the Proxmox API limit")
+
+    proxmox = _get_proxmox()
+    settings = _settings()
+    vm = proxmox.nodes(settings["node"]).qemu(vmid)
+
+    request = {"command": command}
+    if input_data is not None:
+        request["input-data"] = input_data
+    started = vm.agent("exec").post(**request)
+    pid = started.get("pid") if isinstance(started, dict) else None
+    if isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0:
+        raise RuntimeError("Guest agent did not return a process ID")
+
+    deadline = time.monotonic() + timeout
+
+    while True:
+        status = vm.agent("exec-status").get(pid=pid)
+        if not isinstance(status, dict):
+            raise RuntimeError("Guest agent returned an invalid process status")
+
+        exited = status.get("exited")
+        if isinstance(exited, bool):
+            has_exited = exited
+        elif isinstance(exited, int) and exited in {0, 1}:
+            has_exited = bool(exited)
+        else:
+            raise RuntimeError("Guest agent returned an invalid exited state")
+
+        if has_exited:
+            exitcode = status.get("exitcode")
+            if isinstance(exitcode, bool) or not isinstance(exitcode, int):
+                signal = status.get("signal")
+                detail = f" (signal/exception {signal})" if isinstance(signal, int) else ""
+                raise RuntimeError(f"Guest command terminated without an exit code{detail}")
+            stdout = status.get("out-data") or ""
+            stderr = status.get("err-data") or ""
+            if not isinstance(stdout, str) or not isinstance(stderr, str):
+                raise RuntimeError("Guest agent returned invalid command output")
+            if status.get("out-truncated") or status.get("err-truncated"):
+                raise RuntimeError("Guest agent command output was truncated")
+
+            if exitcode != 0:
+                detail = stderr.strip() or stdout.strip()
+                suffix = f": {detail}" if detail else ""
+                raise RuntimeError(
+                    f"Guest command failed with exit code {exitcode}{suffix}"
+                )
+
+            return stdout
+
+        if time.monotonic() >= deadline:
+            raise TimeoutError(
+                f"Guest command did not finish within {timeout} seconds"
+            )
+
+        time.sleep(poll_interval)
 
 
 def get_vm_ip(vmid: int, timeout: int = 120) -> Optional[str]:
@@ -153,13 +360,96 @@ def get_vm_ip(vmid: int, timeout: int = 120) -> Optional[str]:
     return None
 
 
-def destroy_vm(vmid: int) -> None:
+def _vm_exists(proxmox, vmid: int) -> bool:
+    try:
+        resources = proxmox.cluster.resources.get(type="vm")
+    except Exception as exc:
+        raise RuntimeError("Could not verify whether the Proxmox VM exists") from exc
+    if not isinstance(resources, list):
+        raise RuntimeError("Could not verify whether the Proxmox VM exists")
+    return any(
+        isinstance(resource, dict) and str(resource.get("vmid")) == str(vmid)
+        for resource in resources
+    )
+
+
+def _owned_pool_vm(
+    proxmox,
+    settings: dict,
+    vmid: int,
+    *,
+    expected_name: str,
+) -> dict | None:
+    if isinstance(vmid, bool) or not isinstance(vmid, int):
+        raise RuntimeError("Refusing to operate on an invalid VMID")
+    if not settings["pool_start"] <= vmid <= settings["pool_end"]:
+        raise RuntimeError(f"Refusing to operate on VMID {vmid} outside the dynamic VMID pool")
+    if vmid in settings["reserved_vmids"]:
+        raise RuntimeError(f"Refusing to operate on reserved VMID {vmid}")
+    if not isinstance(expected_name, str) or not _NEXUS_VM_NAME.fullmatch(expected_name):
+        raise RuntimeError("Refusing to operate without a valid assignment-owned VM name")
+
+    try:
+        pool = proxmox.pools(settings["resource_pool"]).get()
+    except Exception as exc:
+        raise RuntimeError("Could not verify Proxmox resource-pool membership") from exc
+    members = pool.get("members") if isinstance(pool, dict) else None
+    if not isinstance(members, list):
+        raise RuntimeError("Could not verify Proxmox resource-pool membership")
+
+    member = next(
+        (
+            row
+            for row in members
+            if isinstance(row, dict)
+            and row.get("type") == "qemu"
+            and str(row.get("vmid")) == str(vmid)
+        ),
+        None,
+    )
+    if member is None:
+        if not _vm_exists(proxmox, vmid):
+            return None
+        raise RuntimeError(
+            f"Refusing to operate on VMID {vmid} outside Proxmox pool {settings['resource_pool']}"
+        )
+    if member.get("name") != expected_name:
+        raise RuntimeError(
+            f"Refusing to operate on VMID {vmid} without the expected assignment-owned name"
+        )
+    return member
+
+
+def destroy_vm(vmid: int, *, expected_name: str) -> None:
     proxmox = _get_proxmox()
     settings = _settings()
+    member = _owned_pool_vm(
+        proxmox,
+        settings,
+        vmid,
+        expected_name=expected_name,
+    )
+    if member is None:
+        logger.info("VM %s is already absent", vmid)
+        return
+    vm = proxmox.nodes(settings["node"]).qemu(vmid)
     try:
-        proxmox.nodes(settings["node"]).qemu(vmid).status.stop.post()
-        time.sleep(3)
+        current = vm.status.current.get()
+        if not isinstance(current, dict) or not current.get("status"):
+            raise RuntimeError(f"Could not verify current state for VMID {vmid}")
+        if current["status"] != "stopped":
+            _wait_for_task(
+                proxmox,
+                settings["node"],
+                vm.status.stop.post(),
+                operation="stop",
+            )
+        _wait_for_task(proxmox, settings["node"], vm.delete(), operation="delete")
     except Exception:
-        pass
-    proxmox.nodes(settings["node"]).qemu(vmid).delete()
+        # A prior delete, or a delete that completed while its response was lost,
+        # is successful only when the cluster inventory confirms the VMID is gone.
+        if not _vm_exists(proxmox, vmid):
+            logger.info("VM %s became absent during cleanup", vmid)
+            return
+        raise
     logger.info("Destroyed VM %s", vmid)

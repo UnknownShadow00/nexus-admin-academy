@@ -445,6 +445,20 @@ def delete_lab_template(template_id: int, db: Session = Depends(get_db)):
     row = db.query(LabTemplate).filter(LabTemplate.id == template_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Lab template not found")
+    active_assignment = (
+        db.query(VmAssignment.id)
+        .join(LabRun, LabRun.id == VmAssignment.lab_run_id)
+        .filter(
+            LabRun.lab_template_id == template_id,
+            VmAssignment.status != "destroyed",
+        )
+        .first()
+    )
+    if active_assignment:
+        raise HTTPException(
+            status_code=409,
+            detail="Destroy all lab VM assignments before deleting this template.",
+        )
 
     db.delete(row)
     db.commit()
@@ -702,6 +716,33 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
     destroyed = []
     errors = []
     for assignment in idle:
+        claim_updated_at = assignment.updated_at
+        if claim_updated_at is not None and claim_updated_at.tzinfo is None:
+            claim_updated_at = claim_updated_at.replace(tzinfo=timezone.utc)
+        if (
+            assignment.retry_count > 0
+            and assignment.started_at is None
+            and (claim_updated_at is None or claim_updated_at >= cutoff)
+            and assignment.status
+            in {
+                "provisioning",
+                "starting",
+                "configuring_vm",
+                "waiting_for_ip",
+                "configuring_connection",
+                "destroying",
+            }
+        ):
+            # A recently updated provisioning claim may still be inside an
+            # external clone request. Expired claims fall through to protected
+            # reconciliation so crashed workers do not block the lease forever.
+            errors.append(
+                {
+                    "vmid": assignment.vmid,
+                    "error": "VM provisioning is still being reconciled",
+                }
+            )
+            continue
         if assignment.guac_username:
             try:
                 guacamole_service.delete_user(assignment.guac_username)
@@ -724,16 +765,28 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
 
         if assignment.vmid is not None:
             try:
-                proxmox_service.destroy_vm(assignment.vmid)
+                run = db.get(LabRun, assignment.lab_run_id)
+                if not run or run.student_id != assignment.student_id:
+                    raise RuntimeError("VM assignment ownership could not be verified")
+                expected_name = proxmox_service.assignment_vm_name(
+                    lab_id=run.lab_template_id,
+                    student_id=run.student_id,
+                    run_id=run.id,
+                )
+                proxmox_service.destroy_vm(
+                    assignment.vmid,
+                    expected_name=expected_name,
+                )
             except Exception as exc:
                 logger.warning(
                     "Cleanup: failed to destroy VM %s: %s", assignment.vmid, exc
                 )
-                assignment.status = "failed"
+                assignment.status = "cleanup_failed"
                 errors.append({"vmid": assignment.vmid, "error": "VM cleanup failed"})
                 continue
 
         assignment.status = "destroyed"
+        assignment.singleton_key = None
         assignment.guac_username = None
         assignment.destroyed_at = datetime.now(timezone.utc)
         destroyed.append(assignment.vmid)

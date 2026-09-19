@@ -420,7 +420,9 @@ def test_phase4c2_historical_0059_lineage_and_fresh_paths_converge_without_ident
         )["complete"] is True
 
     assert _canonical_target_state(fresh_path) == _canonical_target_state(historical_path)
-    assert _active_totals(fresh_path) == _active_totals(historical_path) == (35, 320, 141, 179)
+    # Both paths ran current seeds, which require Anatomy of a Good Ticket
+    # and Meet the Command Line since Core Wave 2.
+    assert _active_totals(fresh_path) == _active_totals(historical_path) == (35, 320, 143, 177)
     assert _role_counts(fresh_path) == _role_counts(historical_path) == {
         "learn": 216,
         "check": 38,
@@ -437,7 +439,7 @@ def test_phase4c2_historical_0059_lineage_and_fresh_paths_converge_without_ident
     assert _activity_identity(historical_path, 9, "guided_lab", "1") == original_week_9_identity
     assert _legacy_network_template_count(fresh_path) == 0
     assert _legacy_network_template_count(historical_path) == original_legacy_network_count
-    assert _active_totals(historical_path) == (35, 320, 141, 179)
+    assert _active_totals(historical_path) == (35, 320, 143, 177)
 
     _run([sys.executable, "-m", "alembic", "downgrade", REVISION_0059], historical_url)
     with Session(historical_engine) as db:
@@ -452,7 +454,7 @@ def test_phase4c2_historical_0059_lineage_and_fresh_paths_converge_without_ident
 
     _run([sys.executable, "-m", "alembic", "upgrade", REVISION_0060], historical_url)
     assert _canonical_target_state(fresh_path) == _canonical_target_state(historical_path)
-    assert _active_totals(historical_path) == (35, 320, 141, 179)
+    assert _active_totals(historical_path) == (35, 320, 143, 177)
     with Session(historical_engine) as db:
         assert db.get(Student, progress_ids[0]).current_role_id == progress_ids[6]
         assert db.get(StudentRole, progress_ids[4]).role_id == progress_ids[6]
@@ -482,4 +484,4 @@ def test_phase4c2_downgrade_restores_only_owned_0059_content(tmp_path):
 
     _run([sys.executable, "-m", "alembic", "upgrade", REVISION_0060], database_url)
     assert _target_identity(database_path) == upgraded
-    assert _active_totals(database_path) == (35, 320, 141, 179)
+    assert _active_totals(database_path) == (35, 320, 143, 177)

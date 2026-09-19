@@ -6,6 +6,7 @@ from app.models.cli_lab import CliLab, CliLabAttempt
 from app.models.learning import Lesson, Module
 from app.models.lesson_notes import StudentLessonNote
 from app.models.lesson_progress import StudentLessonProgress
+from app.models.lab import LabTemplate
 from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz
 from app.models.ticket import Ticket, TicketSubmission
 from app.routers.students import router as students_router
@@ -78,6 +79,36 @@ def test_week_plan_excludes_retired_ticket_history(db):
     data = r.json()["data"]
     assert "tickets" not in data
     assert data["progress_percent"] == 0.0
+
+
+def test_week_plan_hides_hybrid_poc_before_rollout(monkeypatch, db):
+    monkeypatch.delenv("HYBRID_LABS_POC_ENABLED", raising=False)
+    student = make_student(db)
+    _seed_week1(db)
+    poc = LabTemplate(
+        title="Accidentally published Hybrid POC",
+        lab_type="guided",
+        difficulty=1,
+        week_number=1,
+        is_published=True,
+        proxmox_template_vmid=173,
+        environment_requirements={
+            "provisioning": {"handler": "inc2504_printer_stale_ip"}
+        },
+        success_criteria={},
+        required_evidence={},
+        hints={},
+    )
+    db.add(poc)
+    db.commit()
+
+    response = client.get(
+        "/api/students/me/week-plan?week=1",
+        headers=auth_headers(student),
+    )
+
+    assert response.status_code == 200
+    assert all(item["id"] != poc.id for item in response.json()["data"]["labs"])
 
 
 def test_note_does_not_complete_or_advance_the_week_plan(db):

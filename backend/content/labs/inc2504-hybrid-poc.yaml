@@ -1,11 +1,18 @@
 labs:
-- title: 'Print Path Lab: From Application to Paper'
-  description: Prove the student can deploy/inspect a printer, isolate print-path
-    layers, choose technology-specific maintenance, and document verification.
+- title: 'INC2504 Hybrid Lab POC (Disabled)'
+  description: Validate the isolated Windows 11 INC2504 stale-printer-IP environment before student rollout.
   estimated_minutes: 55
+  proxmox_template_vmid: 173
+  environment_requirements:
+    environment: Disposable Windows 11 INC2504 workstation on the isolated vmbr1 POC network.
+    service_desk_scenario: inc2504
+    concurrency: single_active_instance
+    provisioning:
+      handler: inc2504_printer_stale_ip
   success_criteria:
     practical_key: practical.aplus.printers.layered_isolation
     module_key: module.aplus.core1.printers_mfds
+    vm_required: true
     student_instructions:
     - Do not reset shared printers, clear other users jobs, install unsigned drivers,
       or change network/security settings without authorization.
@@ -78,4 +85,4 @@ labs:
     student_tasks: []
   source_name: null
   lab_type: guided
-  is_published: true
+  is_published: false

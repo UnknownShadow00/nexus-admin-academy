@@ -112,7 +112,9 @@ async def verify_admin(
 
     if not session_secret and not expected_api_key:
         logger.error("admin_auth_missing_env path=%s", request.url.path)
-        raise HTTPException(status_code=500, detail="Admin authentication is not configured")
+        # An unconfigured authenticator must deny access without exposing
+        # server configuration to anonymous or student callers.
+        raise HTTPException(status_code=403, detail="Unauthorized")
 
     if not provided:
         logger.warning("admin_auth_missing_header path=%s", request.url.path)

@@ -13,7 +13,40 @@ import PageHeader from "../components/ui/PageHeader";
 import { createLabVmAccess, getLab, getLabVmStatus, startLab, startV2Lab, submitLab, submitV2Lab, uploadLabEvidence, verifyEvidenceLab } from "../services/api";
 import { setMonitoringContext } from "../monitoring/sentry";
 
-const provisioningStatuses = new Set(["provisioning", "starting", "waiting_for_ip", "configuring_connection"]);
+const provisioningStatuses = new Set([
+  "provisioning",
+  "starting",
+  "configuring_vm",
+  "waiting_for_ip",
+  "configuring_connection",
+]);
+const vmErrorStatuses = new Set(["failed", "cleanup_failed"]);
+
+export function isVmProvisioningStatus(status) {
+  return provisioningStatuses.has(status);
+}
+
+export function isVmErrorStatus(status) {
+  return vmErrorStatuses.has(status);
+}
+
+export function normalizeLabTask(task, index) {
+  if (typeof task === "string") {
+    return { key: `task-${index}-${task}`, title: task, steps: [], evidence: null };
+  }
+  if (!task || typeof task !== "object" || Array.isArray(task)) {
+    return { key: `task-${index}`, title: `Task ${index + 1}`, steps: [], evidence: null };
+  }
+
+  const part = typeof task.part === "string" ? `Part ${task.part}` : null;
+  const taskTitle = typeof task.title === "string" ? task.title : null;
+  const title = [part, taskTitle].filter(Boolean).join(" — ") || `Task ${index + 1}`;
+  const steps = Array.isArray(task.steps)
+    ? task.steps.filter((step) => typeof step === "string")
+    : [];
+  const evidence = typeof task.evidence === "string" ? task.evidence : null;
+  return { key: `task-${index}-${title}`, title, steps, evidence };
+}
 
 const statusConfig = {
   not_started: { label: "Not Started", cls: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" },
@@ -81,7 +114,7 @@ export default function LabPage() {
   }, [lab, labId]);
 
   useEffect(() => {
-    if (!vmAssignment || !provisioningStatuses.has(vmAssignment.status)) return undefined;
+    if (!vmAssignment || !isVmProvisioningStatus(vmAssignment.status)) return undefined;
     let cancelled = false;
     const timer = window.setInterval(() => {
       getLabVmStatus(labId, { suppressToast: true })
@@ -224,6 +257,7 @@ export default function LabPage() {
   }
 
   const tasks = Array.isArray(lab.success_criteria?.tasks) ? lab.success_criteria.tasks : [];
+  const normalizedTasks = tasks.map(normalizeLabTask);
   const hints = Array.isArray(lab.hints) ? lab.hints : [];
   const status = statusConfig[lab.status] || statusConfig.not_started;
   const isStructured = typeof lab.lab_type === "string" && lab.lab_type.startsWith("structured_");
@@ -248,7 +282,7 @@ export default function LabPage() {
       {vmAssignment && provisioningStatuses.has(vmAssignment.status) ? (
         <Banner variant="info">Preparing the lab environment: {vmAssignment.status.replaceAll("_", " ")}…</Banner>
       ) : null}
-      {vmAssignment?.status === "failed" ? (
+      {isVmErrorStatus(vmAssignment?.status) ? (
         <Banner variant="error">{vmAssignment.provisioning_error || "Lab environment provisioning failed."}</Banner>
       ) : null}
 
@@ -313,10 +347,20 @@ export default function LabPage() {
             <div className="panel dark:border-slate-700 dark:bg-slate-900">
               <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Verify</h2>
               <ul className="space-y-2">
-                {tasks.map((task) => (
-                  <li key={task} className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-300">
+                {normalizedTasks.map((task) => (
+                  <li key={task.key} className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-300">
                     <span className="mt-0.5 h-2.5 w-2.5 rounded-full bg-blue-500" />
-                    <span>{task}</span>
+                    <div className="space-y-1">
+                      <span className="font-medium text-slate-700 dark:text-slate-200">{task.title}</span>
+                      {task.steps.length > 0 ? (
+                        <ul className="list-disc space-y-1 pl-5">
+                          {task.steps.map((step, stepIndex) => (
+                            <li key={`${task.key}-step-${stepIndex}`}>{step}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {task.evidence ? <p><strong>Evidence:</strong> {task.evidence}</p> : null}
+                    </div>
                   </li>
                 ))}
               </ul>

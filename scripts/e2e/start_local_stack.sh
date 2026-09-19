@@ -21,6 +21,13 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BACKEND_DIR="$REPO_ROOT/backend"
 FRONTEND_DIR="$REPO_ROOT/frontend"
 
+# Match the seed script on both local virtualenvs and setup-python runners.
+if [[ -x "$BACKEND_DIR/.venv/bin/python" ]]; then
+    PYTHON="$BACKEND_DIR/.venv/bin/python"
+else
+    PYTHON="$(command -v python)"
+fi
+
 SCRATCH_DIR="${1:-$(mktemp -d -t nexus-e2e-XXXXXX)}"
 mkdir -p "$SCRATCH_DIR/uploads"
 
@@ -87,7 +94,7 @@ if [[ -n "${E2E_SOURCE_DB:-}" ]]; then
     echo "destination: $DEST_DB"
     echo "production: $PRODUCTION_DB"
     echo "decision: SAFE — source is a disposable copy and destination is isolated"
-    "$BACKEND_DIR/.venv/bin/python" - "$SOURCE_DB" "$DEST_DB" <<'PY'
+    "$PYTHON" - "$SOURCE_DB" "$DEST_DB" <<'PY'
 import sqlite3
 import sys
 
@@ -101,7 +108,7 @@ PY
     echo "== Migrating isolated copy-derived destination to candidate head =="
     (
         cd "$BACKEND_DIR"
-        ./.venv/bin/python -m alembic upgrade head
+        "$PYTHON" -m alembic upgrade head
     )
 else
     echo "== Seeding throwaway database at $DATABASE_URL =="
@@ -110,7 +117,7 @@ fi
 
 echo "== Loading V2 foundation into throwaway database =="
 echo "DB mutation target: $(realpath "$SCRATCH_DIR/e2e.db")"
-TARGET_REVISION="$("$BACKEND_DIR/.venv/bin/python" - "$SCRATCH_DIR/e2e.db" <<'PY'
+TARGET_REVISION="$("$PYTHON" - "$SCRATCH_DIR/e2e.db" <<'PY'
 import sqlite3
 import sys
 
@@ -122,13 +129,13 @@ PY
 echo "target inode/size/revision: $(stat -c '%i/%s' "$SCRATCH_DIR/e2e.db")/$TARGET_REVISION"
 (
     cd "$BACKEND_DIR"
-    ./.venv/bin/python seed_v2_foundation.py
+    "$PYTHON" seed_v2_foundation.py
 )
 
 # The backend reads the pilot allowlist at request time, but its process must
 # receive a usable initial configuration. Create the primary disposable V2
 # learner before startup and enroll only that generated account.
-PILOT_STUDENT_ID="$(cd "$BACKEND_DIR" && ./.venv/bin/python - "$STUDENT_USERNAME_GEN" "$STUDENT_PASSWORD_GEN" <<'PY'
+PILOT_STUDENT_ID="$(cd "$BACKEND_DIR" && "$PYTHON" - "$STUDENT_USERNAME_GEN" "$STUDENT_PASSWORD_GEN" <<'PY'
 import sys
 from app.database import SessionLocal
 from app.models.student import Student
@@ -255,11 +262,6 @@ create_student "$ENDPOINT_USERNAME_GEN" "$ENDPOINT_PASSWORD_GEN" "Endpoint Manag
 # role directly in the throwaway database (role id 2 = Support Technician I,
 # rank 2 — enough to see at least one published capstone). This only ever
 # touches the scratch database created above, never production.
-if [[ -x "$BACKEND_DIR/.venv/bin/python" ]]; then
-    PYTHON="$BACKEND_DIR/.venv/bin/python"
-else
-    PYTHON="python"
-fi
 "$PYTHON" - "$SCRATCH_DIR/e2e.db" "$QUALIFIED_USERNAME_GEN" <<'PY'
 import sqlite3
 import sys

@@ -2370,3 +2370,105 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: docs/hybrid-labs/phase0/REPORT.md, docs/hybrid-labs/phase0/SERVER-INVENTORY.md, docs/hybrid-labs/phase0/NETWORK-DESIGN.md, docs/hybrid-labs/phase0/INC2504-POC-DESIGN.md, docs/hybrid-labs/phase0/GO-NO-GO.md, tasks/loop-log.md
 - Result: PASS for Phase 0 documentation and safety criteria — 21 focused existing tests passed; Markdown references, whitespace, docs-only path, and secret scans passed; no application or infrastructure behavior changed. Decision is READY AFTER SPECIFIC BLOCKERS because authorized PVE inventory was unavailable, physical capacity/template state remains UNKNOWN, current student isolation fails, and Windows licensing is unverified.
 - Next: Obtain operator-approved read-only PVE inventory; then close the documented capacity, isolation, restricted API, durable lifecycle, Windows template/licensing, Guacamole-hardening, and trusted endpoint blockers before any Phase 1 build.
+
+## [2026-09-19 00:28:28 UTC] Task Completed
+- Task: Finished and hardened the reusable Nexus hybrid-lab framework for the final controlled INC2504 POC test, including protected clone deletion, strict Guest Agent execution, allowlisted idempotent provisioning, ephemeral credential handoff, fail-closed teardown, single-active-instance enforcement, content metadata, environment examples, and the remaining worker-durability runbook.
+- Files changed: backend/.env.example; backend/app/routers/admin_content.py; backend/app/routers/labs.py; backend/app/services/hybrid_lab_provisioner.py; backend/app/services/proxmox_service.py; backend/content/labs/module-aplus-core1-printers-mfds.yaml; backend/tests/test_guacamole_service.py; backend/tests/test_hybrid_lab_content.py; backend/tests/test_hybrid_lab_provisioner.py; backend/tests/test_labs.py; backend/tests/test_proxmox_service.py; docs/hybrid-labs/INC2504-LIVE-TEST.md; tasks/loop-log.md
+- Result: pass — 65 focused and 137 broader lab/content/Service Desk tests passed; Ruff, compileall, whitespace, dependency consistency, and pip-audit passed with no known vulnerabilities. No deployment, migration, production configuration, Proxmox operation, or live VM action occurred.
+- Next: Run the controlled manual live INC2504 test on disposable VM172 or another verified-free dynamic VMID; before production multi-user rollout, replace FastAPI BackgroundTasks with the documented durable worker/reconciler.
+
+## [2026-09-19 03:34:28 UTC] Task Completed
+- Task: Reviewed the live hybrid-lab hardening commits, added Proxmox token parsing regression coverage, and documented the successful controlled INC2504 lifecycle POC, protected destruction, least-privilege role, tested architecture boundary, and production blockers.
+- Files changed: backend/tests/test_proxmox_service.py; docs/hybrid-labs/INC2504-LIVE-TEST.md; docs/hybrid-labs/phase0/INC2504-POC-DESIGN.md; docs/hybrid-labs/phase0/REPORT.md; tasks/loop-log.md
+- Result: pass — 72 focused and 454 broader lab/content/Service Desk tests passed; Ruff, compileall, whitespace, dependency consistency, pip-audit, environment-example validation, and scoped leakage review passed. No deployment, merge, migration, production configuration/service action, or Proxmox operation occurred.
+- Next: Review/PR only; production rollout remains blocked on Windows licensing/activation, single-instance fixed-IP vmbr1, final live Guacamole student-access validation, durable worker/reconciler/recovery, trusted Proxmox TLS, production secret provisioning, and broader capacity/concurrency design.
+
+## [2026-09-19 03:41:56 UTC] Task Completed
+- Task: Confirmed a clean Hybrid Labs POC branch and all four requested commits, reviewed the complete diff against its original research/hybrid-lab-phase0 base, published both review branches, and opened PR #34 (https://github.com/UnknownShadow00/nexus-admin-academy/pull/34) with live verification, local test evidence, and explicit production blockers.
+- Files changed: tasks/loop-log.md
+- Result: pass — PR is open and mergeable against its intended base; CI started and remains pending. Existing validation records 72 focused and 454 broader passing tests; a fresh local pip-audit found no known vulnerabilities and diff whitespace checks passed. No application code changed during PR preparation.
+- Next: Complete CI and human review of PR #34 without merging or deploying. This validates the POC architecture only; Windows licensing/activation, vmbr1 fixed-IP single-instance limits, Guacamole production student access, durable worker/reconciler/recovery, Proxmox TLS verification, production secrets, and multi-user capacity/concurrency remain production blockers.
+
+## [2026-09-19 04:28:30 UTC] Task Completed
+- Task: Triaged PR #34's actual Actions failures against research/hybrid-lab-phase0, reproduced inherited regressions, repaired portable test/stack interpreters and isolated migration guards, restored fail-closed admin rejection, aligned curriculum/browser tests with current base behavior, and patched compatible frontend dependencies without weakening audit gates.
+- Files changed: backend/app/services/admin_auth.py; backend/tests/test_admin_session.py; backend/tests/test_admin_students.py; backend/tests/test_alembic_prod_guard.py; backend/tests/test_operator_scripts.py; backend/tests/test_phase4c1_practical_migration.py; backend/tests/test_phase4c2_practical_migration.py; backend/tests/test_phase4c3_final_shift.py; backend/tests/test_service_desk_v2_inventory.py; scripts/e2e/start_local_stack.sh; frontend/package-lock.json; frontend/tests/e2e/my-training.spec.js; frontend/tests/e2e/service-desk-integration.spec.js; service-desk-app/apps/web/package.json; service-desk-app/package.json; service-desk-app/pnpm-lock.yaml; docs/hybrid-labs/PR34-CI-TRIAGE.md; tasks/loop-log.md
+- Result: pass for scoped repairs and completed local checks — seven representative original failures reproduced on the unmodified base; no original failure attributed to Hybrid Labs. Frontend 84 unit tests/build/audit, Service Desk 519 unit tests/lint/typecheck/build/high-severity audit, six training browser tests, 14 integration browser tests, 41 P0 integrity tests, curriculum/SQLite validation, 310 script-simulation assertions, Ruff/compilation/pip check and manifest pip-audit pass. The corrected migration regression also passes independently; a clean full-backend rerun and final sequential browser run are still pending at commit time. Two moderate Vitest findings remain explicitly documented; no high/critical findings are suppressed. No production or Proxmox operation occurred.
+- Next: Push the browser-contract fixes, finish local/Actions verification, and record final results on PR #34. Do not merge or deploy; all seven documented Hybrid Labs production blockers remain.
+
+## [2026-09-19T09:34:56Z] Task Completed
+- Task: Addressed PR #34's three P1 Codex findings by separating and default-gating the unpublished INC2504 POC, enforcing its fixed-network singleton with an atomic SQLite-safe database lease, and making protected Proxmox cleanup idempotent when cluster inventory confirms the VM is absent.
+- Files changed: backend/alembic/versions/0070_vm_singleton_key.py; backend/app/models/vm_assignment.py; backend/app/routers/admin_content.py; backend/app/routers/labs.py; backend/app/services/proxmox_service.py; backend/content/labs/inc2504-hybrid-poc.yaml; backend/content/labs/module-aplus-core1-printers-mfds.yaml; backend/tests/test_hybrid_lab_content.py; backend/tests/test_labs.py; backend/tests/test_proxmox_service.py; tasks/loop-log.md
+- Result: pass against local acceptance criteria — 91 focused lab/provisioner/router tests and the complete 1,263-test backend suite passed; fresh SQLite migration, Ruff, compileall, pip check, pip-audit, frontend build/84 tests/CLI checks/audit, and Service Desk lint/typecheck/tests/build/high-severity audit passed. No deployment, merge, production migration/configuration, or Proxmox operation occurred.
+- Next: Push the fix commit to PR #34, resolve the three addressed review threads, request Codex review on the new HEAD, and wait for GitHub CI/review results without merging.
+
+## [2026-09-19T09:46:30Z] Task Completed
+- Task: Addressed the follow-up Codex review finding by preventing student deletion from removing a non-destroyed VM assignment and releasing its singleton lease while managed resources may still exist.
+- Files changed: backend/app/routers/admin_students.py; backend/app/services/student_deletion.py; backend/tests/test_student_data_integrity.py; tasks/loop-log.md
+- Result: pass — active VM ownership now returns a fail-closed 409 and preserves the student, assignment, and singleton lease; destroyed assignments retain the complete deletion path. All 96 broader admin/student-data/lab/runtime/security regressions passed with Ruff, compilation, and whitespace checks clean.
+- Next: Push the follow-up commit, resolve the new review thread, request Codex review on the final HEAD, and wait for the replacement CI run without merging or deploying.
+
+## [2026-09-19T09:57:19Z] Task Completed
+- Task: Addressed the final Codex review findings by requiring an exact assignment-owned VM name for protected destruction and passing the provisioner's verified INC2504 fixed address directly to Guacamole.
+- Files changed: backend/app/routers/admin_content.py; backend/app/routers/labs.py; backend/app/services/hybrid_lab_provisioner.py; backend/app/services/proxmox_service.py; backend/tests/test_hybrid_lab_provisioner.py; backend/tests/test_labs.py; backend/tests/test_proxmox_service.py; tasks/loop-log.md
+- Result: pass — recycled VMIDs with another valid Nexus assignment name are refused before mutation, all cleanup callers derive the expected name from the assignment's database ownership, and INC2504 no longer uses generic guest IPv4 discovery after verifying 10.10.10.10. All 84 focused regressions passed; Ruff, compilation, pip check, and whitespace checks passed.
+- Next: Push the final review-fix commit, resolve both addressed threads, request Codex review on the new HEAD, and wait for green replacement CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T10:19:57Z] Task Completed
+- Task: Closed the follow-up provisioning-versus-cleanup race by making every worker state advance an atomic compare-and-set, retaining the singleton lease while a claimed clone has no persisted VMID, and reconciling a cancelled clone before releasing the lease.
+- Files changed: backend/app/routers/labs.py; backend/tests/test_labs.py; tasks/loop-log.md
+- Result: pass — the regression submits during the clone call, proves a competing INC2504 start remains blocked, verifies the cancelled clone is protected-destroyed, and confirms the lease is released only after destruction. All 88 focused lab/Proxmox/provisioner/content/admin tests and the complete 1,266-test backend suite passed; scoped Ruff, compileall, pip check, pip-audit, and whitespace checks passed. No deployment, merge, production migration/configuration, or Proxmox operation occurred.
+- Next: Commit and push the fix, resolve the addressed review thread, request Codex review on the new HEAD, and wait for green replacement CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T10:35:11Z] Task Completed
+- Task: Addressed the fresh Codex P2 findings by applying the default-off Hybrid Labs rollout gate to every student-visible lab lookup/list path and persisting the selected VMID before Proxmox accepts a clone request, with fail-closed reconciliation for uncertain clone completion.
+- Files changed: backend/app/routers/labs.py; backend/app/services/proxmox_service.py; backend/tests/test_labs.py; backend/tests/test_proxmox_service.py; tasks/loop-log.md
+- Result: pass — an accidentally published POC is absent from listings and returns 404 for detail, submit, and start; clone polling failures retain the selected VMID and singleton lease for protected retry cleanup. All 90 focused tests and 342 broader content/Service Desk tests passed; Ruff, compileall, pip check, pip-audit, and whitespace checks passed. No deployment, merge, production migration/configuration, or Proxmox operation occurred.
+- Next: Push the review fixes, resolve both P2 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T10:41:18Z] Task Completed
+- Task: Extended uncertain clone reconciliation to the lost-POST-response case, where Proxmox may accept a clone before the client receives an UPID.
+- Files changed: backend/app/services/proxmox_service.py; backend/tests/test_proxmox_service.py; tasks/loop-log.md
+- Result: pass — every non-collision failure after clone POST begins now raises CloneRequestError with the already-persisted VMID, causing the worker to retain the singleton lease for protected retry reconciliation. All 91 focused lab/Proxmox/provisioner/content/admin tests passed with Ruff, compileall, and whitespace checks clean. No deployment, merge, production migration/configuration, or Proxmox operation occurred.
+- Next: Push the fix, resolve the P2 thread, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T10:49:43Z] Task Completed
+- Task: Closed remaining admin-side lease-loss paths by preserving assignments still owned by in-flight provisioning during idle cleanup and rejecting lab-template deletion until every related VM assignment is destroyed.
+- Files changed: backend/app/routers/admin_content.py; backend/tests/test_labs.py; tasks/loop-log.md
+- Result: pass — admin cleanup no longer probes or releases an active clone lease, and template deletion cannot cascade away a live assignment or its ownership record. All 93 focused lab/Proxmox/provisioner/content/admin tests passed; Ruff, compileall, pip check, pip-audit, and whitespace checks passed. No deployment, merge, production migration/configuration, or Proxmox operation occurred.
+- Next: Push the fixes, resolve both P2 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T10:56:43Z] Task Completed
+- Task: Added expiry-aware recovery for abandoned provisioning claims and tolerated the expected Proxmox guest-agent disconnect during the intentional Windows reboot command.
+- Files changed: backend/app/routers/admin_content.py; backend/app/services/hybrid_lab_provisioner.py; backend/tests/test_labs.py; backend/tests/test_hybrid_lab_provisioner.py; tasks/loop-log.md
+- Result: pass — recent database-updated claims remain quarantined while claims older than the existing idle cutoff are protected-destroyed and release their lease; only the specific guest-agent-unavailable ResourceException is tolerated during reboot. All 94 focused tests passed with Ruff, compileall, and whitespace checks clean. No deployment, merge, production migration/configuration, or Proxmox operation occurred.
+- Next: Push the fixes, resolve both P2 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T11:05:08Z] Task Completed
+- Task: Fixed the Hybrid Lab student UI by polling through the configuring_vm lifecycle state and normalizing structured task objects into rendered titles, step lists, and evidence text.
+- Files changed: frontend/src/pages/LabPage.jsx; frontend/src/pages/LabPage.test.jsx; tasks/loop-log.md
+- Result: pass — Windows configuration no longer stops VM status polling, and the INC2504 structured task shape renders without invalid React object children. All 86 frontend tests, the production build, npm high-severity audit, and whitespace checks passed.
+- Next: Push the fixes, resolve both P1 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T11:15:14Z] Task Completed
+- Task: Serialized student deletion with VM assignment creation using an atomic database-backed per-student operation lease, and surfaced cleanup_failed as a terminal lab-page error.
+- Files changed: backend/alembic/versions/0071_student_vm_operation_lock.py; backend/app/models/student.py; backend/app/routers/admin_students.py; backend/app/routers/labs.py; backend/app/services/student_vm_operation.py; backend/tests/test_labs.py; backend/tests/test_student_data_integrity.py; frontend/src/pages/LabPage.jsx; frontend/src/pages/LabPage.test.jsx; tasks/loop-log.md
+- Result: pass — SQLite grants exactly one concurrent student VM operation lease, deletion returns 409 while assignment creation owns it, and cleanup_failed displays its safe provisioning error. A fresh SQLite database migrated through 0071 successfully; 107 focused backend tests and all 87 frontend tests passed with builds, Ruff, compileall, pip/npm audits, dependency checks, and whitespace checks clean.
+- Next: Push the fixes, resolve both P2 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T11:23:37Z] Task Completed
+- Task: Added atomic expiry/reclamation to crashed student VM operation leases and centralized Hybrid Lab student visibility so the week-plan feed honors the default-off rollout gate.
+- Files changed: backend/alembic/versions/0071_student_vm_operation_lock.py; backend/app/models/student.py; backend/app/routers/labs.py; backend/app/routers/students.py; backend/app/services/hybrid_lab_rollout.py; backend/app/services/student_vm_operation.py; backend/tests/test_labs.py; backend/tests/test_student_data_integrity.py; backend/tests/test_week_plan.py; tasks/loop-log.md
+- Result: pass — operation leases carry timestamps and can be atomically reclaimed after 30 minutes, while concurrent live holders remain exclusive; gated POCs are absent from both lab listings and week plans. Fresh SQLite migration through 0071 passed with both columns present; 113 focused backend tests, Ruff, compileall, pip audit/check, and whitespace checks passed.
+- Next: Push the fixes, resolve both P2 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T11:31:01Z] Task Completed
+- Task: Restored historical migration checkpoint seed compatibility after adding student VM operation lease columns.
+- Files changed: backend/seed.py; tasks/loop-log.md
+- Result: pass — seed queries now load only columns present at the historical checkpoint; all 7 orientation and migration-cycle regression tests passed, and Ruff passed.
+- Next: Push the CI fix, retrigger Codex review on the new HEAD, and wait for green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T11:54:03Z] Task Completed
+- Task: Made the Phase 4C.3 historical-schema fixture independent of additive columns in the current Student mapper.
+- Files changed: backend/tests/test_phase4c3_final_shift.py; tasks/loop-log.md
+- Result: pass — the historical Week 24 completion fixture inserts through its pinned schema, the previously failing regression passed, all 7 orientation migration-cycle tests passed, and Ruff passed.
+- Next: Push the CI fix and wait for final green CI with no unresolved findings. Do not merge or deploy.
