@@ -2442,3 +2442,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/admin_content.py; backend/app/services/hybrid_lab_provisioner.py; backend/tests/test_labs.py; backend/tests/test_hybrid_lab_provisioner.py; tasks/loop-log.md
 - Result: pass — recent database-updated claims remain quarantined while claims older than the existing idle cutoff are protected-destroyed and release their lease; only the specific guest-agent-unavailable ResourceException is tolerated during reboot. All 94 focused tests passed with Ruff, compileall, and whitespace checks clean. No deployment, merge, production migration/configuration, or Proxmox operation occurred.
 - Next: Push the fixes, resolve both P2 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T11:05:08Z] Task Completed
+- Task: Fixed the Hybrid Lab student UI by polling through the configuring_vm lifecycle state and normalizing structured task objects into rendered titles, step lists, and evidence text.
+- Files changed: frontend/src/pages/LabPage.jsx; frontend/src/pages/LabPage.test.jsx; tasks/loop-log.md
+- Result: pass — Windows configuration no longer stops VM status polling, and the INC2504 structured task shape renders without invalid React object children. All 86 frontend tests, the production build, npm high-severity audit, and whitespace checks passed.
+- Next: Push the fixes, resolve both P1 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
