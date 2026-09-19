@@ -82,6 +82,28 @@ def test_topic_gating_locks_advanced_and_hybrid_scenarios():
     assert HYBRID_LABS_ENABLED is False
 
 
+def test_instructor_assignment_bypasses_topic_order_but_not_hybrid_labs():
+    progression = {
+        "direct_assignment_override_keys": {"inc2504", "inc2506"},
+        "curriculum_unlocked_keys": set(),
+        "unlocked_pack_keys": set(),
+        "passed_keys": set(),
+        "guided_completed_keys": set(),
+        "assigned_keys": {"inc2504", "inc2506"},
+        "curriculum_current_keys": set(),
+        "topic_gating_enabled": True,
+        "topic_unlocked_keys": set(),
+        "in_progress_keys": set(),
+    }
+
+    assigned = scenario_access(progression, "inc2506")
+    hybrid = scenario_access(progression, "inc2504")
+
+    assert assigned["unlocked"] is True
+    assert assigned["queue_type"] == "assigned"
+    assert hybrid["unlocked"] is False
+
+
 def test_unlocked_aplus_ticket_remains_available_during_network_plus():
     progression = {
         "direct_assignment_override_keys": set(),

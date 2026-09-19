@@ -481,10 +481,22 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
     history_access = normalized in progression["passed_keys"] or normalized in progression.get(
         "in_progress_keys", set()
     )
-    unlocked = history_access or topic_allowed and (
-        pack.key in progression["unlocked_pack_keys"]
-        or assigned_override
-        or curriculum_unlocked
+    # An explicit instructor assignment is an intentional exception to the
+    # curriculum sequence. It must remain usable for targeted practice and
+    # accommodations, but the unpublished Hybrid Labs proof-of-concept is
+    # never exposed through that exception. Existing passed/in-progress work
+    # remains accessible so rollout changes cannot erase learner history.
+    hybrid_blocked = normalized in HYBRID_LAB_SCENARIO_KEYS
+    unlocked = history_access or (
+        not hybrid_blocked
+        and (
+            assigned_override
+            or topic_allowed
+            and (
+                pack.key in progression["unlocked_pack_keys"]
+                or curriculum_unlocked
+            )
+        )
     )
     passed = normalized in progression["passed_keys"]
     if passed:
