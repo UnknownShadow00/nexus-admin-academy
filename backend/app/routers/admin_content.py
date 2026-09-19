@@ -734,6 +734,7 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
                 continue
 
         assignment.status = "destroyed"
+        assignment.singleton_key = None
         assignment.guac_username = None
         assignment.destroyed_at = datetime.now(timezone.utc)
         destroyed.append(assignment.vmid)

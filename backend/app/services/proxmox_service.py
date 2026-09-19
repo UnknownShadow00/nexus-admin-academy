@@ -327,7 +327,20 @@ def get_vm_ip(vmid: int, timeout: int = 120) -> Optional[str]:
     return None
 
 
-def _owned_pool_vm(proxmox, settings: dict, vmid: int) -> dict:
+def _vm_exists(proxmox, vmid: int) -> bool:
+    try:
+        resources = proxmox.cluster.resources.get(type="vm")
+    except Exception as exc:
+        raise RuntimeError("Could not verify whether the Proxmox VM exists") from exc
+    if not isinstance(resources, list):
+        raise RuntimeError("Could not verify whether the Proxmox VM exists")
+    return any(
+        isinstance(resource, dict) and str(resource.get("vmid")) == str(vmid)
+        for resource in resources
+    )
+
+
+def _owned_pool_vm(proxmox, settings: dict, vmid: int) -> dict | None:
     if isinstance(vmid, bool) or not isinstance(vmid, int):
         raise RuntimeError("Refusing to operate on an invalid VMID")
     if not settings["pool_start"] <= vmid <= settings["pool_end"]:
@@ -354,6 +367,8 @@ def _owned_pool_vm(proxmox, settings: dict, vmid: int) -> dict:
         None,
     )
     if member is None:
+        if not _vm_exists(proxmox, vmid):
+            return None
         raise RuntimeError(
             f"Refusing to operate on VMID {vmid} outside Proxmox pool {settings['resource_pool']}"
         )
@@ -365,17 +380,28 @@ def _owned_pool_vm(proxmox, settings: dict, vmid: int) -> dict:
 def destroy_vm(vmid: int) -> None:
     proxmox = _get_proxmox()
     settings = _settings()
-    _owned_pool_vm(proxmox, settings, vmid)
+    member = _owned_pool_vm(proxmox, settings, vmid)
+    if member is None:
+        logger.info("VM %s is already absent", vmid)
+        return
     vm = proxmox.nodes(settings["node"]).qemu(vmid)
-    current = vm.status.current.get()
-    if not isinstance(current, dict) or not current.get("status"):
-        raise RuntimeError(f"Could not verify current state for VMID {vmid}")
-    if current["status"] != "stopped":
-        _wait_for_task(
-            proxmox,
-            settings["node"],
-            vm.status.stop.post(),
-            operation="stop",
-        )
-    _wait_for_task(proxmox, settings["node"], vm.delete(), operation="delete")
+    try:
+        current = vm.status.current.get()
+        if not isinstance(current, dict) or not current.get("status"):
+            raise RuntimeError(f"Could not verify current state for VMID {vmid}")
+        if current["status"] != "stopped":
+            _wait_for_task(
+                proxmox,
+                settings["node"],
+                vm.status.stop.post(),
+                operation="stop",
+            )
+        _wait_for_task(proxmox, settings["node"], vm.delete(), operation="delete")
+    except Exception:
+        # A prior delete, or a delete that completed while its response was lost,
+        # is successful only when the cluster inventory confirms the VMID is gone.
+        if not _vm_exists(proxmox, vmid):
+            logger.info("VM %s became absent during cleanup", vmid)
+            return
+        raise
     logger.info("Destroyed VM %s", vmid)

@@ -354,6 +354,24 @@ def _provisioning_handler(lab: LabTemplate) -> str | None:
     return handler.strip()
 
 
+def _hybrid_poc_rollout_enabled() -> bool:
+    return (os.getenv("HYBRID_LABS_POC_ENABLED") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _require_hybrid_poc_rollout(lab: LabTemplate) -> None:
+    if (
+        _provisioning_handler(lab) in SINGLE_ACTIVE_PROVISIONERS
+        and not _hybrid_poc_rollout_enabled()
+    ):
+        # Hide an accidentally published POC until operators explicitly enable rollout.
+        raise HTTPException(status_code=404, detail="Lab not found")
+
+
 def _apply_vm_provisioning(lab: LabTemplate, vmid: int) -> dict[str, str] | None:
     """Apply only server-approved VM provisioning handlers."""
     handler = _provisioning_handler(lab)
@@ -484,6 +502,8 @@ def _provision_vm_task(assignment_id: int) -> None:
         assignment = db.query(VmAssignment).filter(VmAssignment.id == assignment_id).first()
         if assignment and assignment.status != "destroyed":
             assignment.status = "cleanup_failed" if vm_cleanup_failed else "failed"
+            if not vm_cleanup_failed:
+                assignment.singleton_key = None
             assignment.provisioning_error = (
                 "Lab environment cleanup failed. Please contact an administrator."
                 if vm_cleanup_failed
@@ -526,11 +546,14 @@ def _destroy_vm_task(assignment_id: int) -> None:
 
         if cleanup_errors:
             assignment.status = "cleanup_failed" if vm_cleanup_failed else "failed"
+            if not vm_cleanup_failed:
+                assignment.singleton_key = None
             assignment.provisioning_error = "Lab environment cleanup failed. Please contact an administrator."
             db.commit()
             logger.warning("VM cleanup failed for assignment %s", assignment_id)
             return
         assignment.status = "destroyed"
+        assignment.singleton_key = None
         assignment.guac_username = None
         assignment.destroyed_at = datetime.now(UTC)
         db.commit()
@@ -552,30 +575,12 @@ def _queue_assignment(db: Session, run: LabRun, background_tasks: BackgroundTask
 
     lab = db.query(LabTemplate).filter(LabTemplate.id == run.lab_template_id).first()
     handler = _provisioning_handler(lab) if lab else None
-    if handler in SINGLE_ACTIVE_PROVISIONERS:
-        # The POC uses one shared vmbr1 address. Locking the lab-template rows
-        # serializes competing launches on databases which support row locks;
-        # the active-assignment query is the explicit collision guard.
-        db.query(LabTemplate.id).order_by(LabTemplate.id).with_for_update().all()
-        active = (
-            db.query(VmAssignment, LabTemplate)
-            .join(LabRun, LabRun.id == VmAssignment.lab_run_id)
-            .join(LabTemplate, LabTemplate.id == LabRun.lab_template_id)
-            .filter(
-                VmAssignment.status.in_(ACTIVE_VM_STATUSES),
-                VmAssignment.lab_run_id != run.id,
-            )
-            .all()
-        )
-        if any(_provisioning_handler(candidate_lab) == handler for _, candidate_lab in active):
-            raise HTTPException(
-                status_code=409,
-                detail="This POC lab already has an active instance. End it before starting another.",
-            )
+    singleton_key = handler if handler in SINGLE_ACTIVE_PROVISIONERS else None
 
     assignment = VmAssignment(
         student_id=run.student_id,
         lab_run_id=run.id,
+        singleton_key=singleton_key,
         status="provisioning",
         provisioning_started_at=datetime.now(UTC),
     )
@@ -587,6 +592,11 @@ def _queue_assignment(db: Session, run: LabRun, background_tasks: BackgroundTask
         existing = _assignment_for_run(db, run.id)
         if existing:
             return existing
+        if singleton_key:
+            raise HTTPException(
+                status_code=409,
+                detail="This POC lab already has an active instance. End it before starting another.",
+            )
         raise
     db.refresh(assignment)
     background_tasks.add_task(_provision_vm_task, assignment.id)
@@ -666,6 +676,7 @@ def start_lab(
     v2_assessment_key: str | None = None,
 ):
     lab = _get_published_lab(db, lab_id)
+    _require_hybrid_poc_rollout(lab)
     v2_context = _lab_access_context(
         db, lab_id, v2_module_key, v2_assessment_key, current_student
     )

@@ -1,14 +1,19 @@
 from datetime import datetime, timedelta, timezone
 import importlib
 import json
+import threading
 import time
 
+from fastapi import BackgroundTasks, HTTPException
 from conftest import auth_headers, make_client, make_student
+from app.database import Base
 from app.models.lab import LabRun, LabTemplate
+from app.models.student import Student
 from app.models.vm_assignment import VmAssignment
 from app.routers.admin_content import router as admin_content_router
 from app.routers.labs import router
 from app.services import guacamole_service, proxmox_service
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 labs_module = importlib.import_module("app.routers.labs")
@@ -581,6 +586,25 @@ def test_start_vm_backed_lab_provisions_guacamole_session(monkeypatch, db):
     assert queued == [assignment.id]
 
 
+def test_published_inc2504_poc_cannot_start_before_rollout(monkeypatch, db):
+    monkeypatch.delenv("HYBRID_LABS_POC_ENABLED", raising=False)
+    student = make_student(db)
+    lab = _seed_lab(
+        db,
+        title="Accidentally published INC2504 POC",
+        proxmox_template_vmid=173,
+        environment_requirements={
+            "provisioning": {"handler": "inc2504_printer_stale_ip"}
+        },
+    )
+
+    started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
+
+    assert started.status_code == 404
+    assert db.query(LabRun).filter_by(lab_template_id=lab.id).count() == 0
+    assert db.query(VmAssignment).count() == 0
+
+
 def test_start_vm_backed_lab_marks_assignment_failed_without_ip(monkeypatch, db):
     student = make_student(db)
     lab = _seed_lab(db, proxmox_template_vmid=900)
@@ -804,6 +828,7 @@ def test_admin_can_see_safe_provisioning_failure(db, monkeypatch):
 
 
 def test_provisioning_worker_runs_approved_handler_before_connection(monkeypatch, db):
+    monkeypatch.setenv("HYBRID_LABS_POC_ENABLED", "true")
     student = make_student(db)
     lab = _seed_lab(
         db,
@@ -872,6 +897,7 @@ def test_provisioning_worker_runs_approved_handler_before_connection(monkeypatch
 
 
 def test_provisioning_worker_passes_ephemeral_vm_credentials_to_guacamole(monkeypatch, db):
+    monkeypatch.setenv("HYBRID_LABS_POC_ENABLED", "true")
     student = make_student(db)
     lab = _seed_lab(
         db,
@@ -949,6 +975,7 @@ def test_provisioning_worker_passes_ephemeral_vm_credentials_to_guacamole(monkey
 
 
 def test_provisioning_failure_destroys_clone_before_marking_failed(monkeypatch, db):
+    monkeypatch.setenv("HYBRID_LABS_POC_ENABLED", "true")
     student = make_student(db)
     lab = _seed_lab(
         db,
@@ -978,10 +1005,12 @@ def test_provisioning_failure_destroys_clone_before_marking_failed(monkeypatch, 
     db.expire_all()
     assignment = db.query(VmAssignment).filter_by(id=assignment_id).one()
     assert assignment.status == "failed"
+    assert assignment.singleton_key is None
     assert destroyed == [175]
 
 
 def test_failed_vm_teardown_keeps_inc2504_singleton_guarded(monkeypatch, db):
+    monkeypatch.setenv("HYBRID_LABS_POC_ENABLED", "true")
     first_student = make_student(db, username="first")
     second_student = make_student(db, username="second")
     lab = _seed_lab(
@@ -1015,11 +1044,13 @@ def test_failed_vm_teardown_keeps_inc2504_singleton_guarded(monkeypatch, db):
     db.expire_all()
     assignment = db.query(VmAssignment).filter_by(id=assignment_id).one()
     assert assignment.status == "cleanup_failed"
+    assert assignment.singleton_key == "inc2504_printer_stale_ip"
     second = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(second_student))
     assert second.status_code == 409
 
 
 def test_inc2504_rejects_second_active_instance(monkeypatch, db):
+    monkeypatch.setenv("HYBRID_LABS_POC_ENABLED", "true")
     first_student = make_student(db, username="first")
     second_student = make_student(db, username="second")
     lab = _seed_lab(
@@ -1041,6 +1072,126 @@ def test_inc2504_rejects_second_active_instance(monkeypatch, db):
         "This POC lab already has an active instance. End it before starting another."
     )
     assert db.query(VmAssignment).count() == 1
+
+
+def test_inc2504_singleton_insert_is_atomic_on_sqlite(monkeypatch, tmp_path):
+    monkeypatch.setenv("HYBRID_LABS_POC_ENABLED", "true")
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'singleton-race.db'}",
+        connect_args={"check_same_thread": False, "timeout": 10},
+    )
+    Base.metadata.create_all(engine)
+    local_session = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    setup = local_session()
+    students = [
+        Student(name=f"Student {index}", email=f"race{index}@test.local", username=f"race{index}")
+        for index in (1, 2)
+    ]
+    lab = LabTemplate(
+        title="INC2504 race fixture",
+        lab_type="guided",
+        difficulty=1,
+        week_number=1,
+        is_published=True,
+        environment_requirements={
+            "provisioning": {"handler": "inc2504_printer_stale_ip"}
+        },
+        success_criteria={},
+        required_evidence={},
+        hints={},
+        proxmox_template_vmid=173,
+    )
+    setup.add_all([*students, lab])
+    setup.flush()
+    runs = [
+        LabRun(lab_template_id=lab.id, student_id=student.id, status="in_progress")
+        for student in students
+    ]
+    setup.add_all(runs)
+    setup.commit()
+    run_ids = [run.id for run in runs]
+    setup.close()
+
+    barrier = threading.Barrier(2)
+    original_lookup = labs_module._assignment_for_run
+    lookup_lock = threading.Lock()
+    initial_lookups = 0
+
+    def synchronized_initial_lookup(session, run_id):
+        nonlocal initial_lookups
+        result = original_lookup(session, run_id)
+        with lookup_lock:
+            should_wait = initial_lookups < 2
+            initial_lookups += 1
+        if should_wait:
+            barrier.wait(timeout=5)
+        return result
+
+    monkeypatch.setattr(labs_module, "_assignment_for_run", synchronized_initial_lookup)
+    outcomes = []
+
+    def queue(run_id):
+        session = local_session()
+        try:
+            run = session.get(LabRun, run_id)
+            assignment = labs_module._queue_assignment(session, run, BackgroundTasks())
+            outcomes.append(("created", assignment.id))
+        except HTTPException as exc:
+            outcomes.append(("rejected", exc.status_code))
+        except Exception as exc:  # pragma: no cover - surfaced by the assertion below
+            outcomes.append(("error", repr(exc)))
+        finally:
+            session.close()
+
+    threads = [threading.Thread(target=queue, args=(run_id,)) for run_id in run_ids]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10)
+
+    verify = local_session()
+    try:
+        assert not any(thread.is_alive() for thread in threads)
+        assert sorted(outcomes) == [("created", 1), ("rejected", 409)]
+        [assignment] = verify.query(VmAssignment).all()
+        assert assignment.singleton_key == "inc2504_printer_stale_ip"
+    finally:
+        verify.close()
+        engine.dispose()
+
+
+def test_cleanup_retry_marks_assignment_destroyed_when_vm_is_already_absent(monkeypatch, db):
+    student = make_student(db)
+    lab = _seed_lab(
+        db,
+        proxmox_template_vmid=173,
+        environment_requirements={
+            "provisioning": {"handler": "inc2504_printer_stale_ip"}
+        },
+    )
+    run = LabRun(lab_template_id=lab.id, student_id=student.id, status="in_progress")
+    db.add(run)
+    db.flush()
+    assignment = VmAssignment(
+        vmid=175,
+        student_id=student.id,
+        lab_run_id=run.id,
+        status="cleanup_failed",
+        singleton_key="inc2504_printer_stale_ip",
+    )
+    db.add(assignment)
+    db.commit()
+    worker_session = sessionmaker(bind=db.get_bind(), autocommit=False, autoflush=False)
+    monkeypatch.setattr(labs_module, "SessionLocal", worker_session)
+    monkeypatch.setattr(proxmox_service, "destroy_vm", lambda _vmid: None)
+
+    labs_module._destroy_vm_task(assignment.id)
+
+    db.expire_all()
+    cleaned = db.get(VmAssignment, assignment.id)
+    assert cleaned.status == "destroyed"
+    assert cleaned.destroyed_at is not None
+    assert cleaned.singleton_key is None
 
 
 def test_non_inc2504_vm_labs_are_not_singleton(monkeypatch, db):

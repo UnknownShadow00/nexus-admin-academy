@@ -378,6 +378,38 @@ def test_destroy_vm_stops_running_owned_vm_before_delete(monkeypatch):
     vm.delete.assert_called_once_with()
 
 
+def test_destroy_vm_treats_globally_absent_dynamic_vmid_as_deleted(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.setenv("VMID_POOL_START", "170")
+    monkeypatch.setenv("VMID_POOL_END", "179")
+    proxmox = _destruction_proxmox()
+    proxmox.pools("nexus-labs").get.return_value = {"members": []}
+    proxmox.cluster.resources.get.return_value = []
+    proxmox.nodes.reset_mock()
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    proxmox_service.destroy_vm(175)
+
+    proxmox.nodes.assert_not_called()
+
+
+def test_destroy_vm_refuses_existing_vm_outside_owned_pool(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.setenv("VMID_POOL_START", "170")
+    monkeypatch.setenv("VMID_POOL_END", "179")
+    proxmox = _destruction_proxmox()
+    proxmox.pools("nexus-labs").get.return_value = {"members": []}
+    proxmox.cluster.resources.get.return_value = [
+        {"type": "qemu", "vmid": 175, "name": "foreign-vm"}
+    ]
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+
+    with pytest.raises(RuntimeError, match="outside Proxmox pool"):
+        proxmox_service.destroy_vm(175)
+
+    proxmox.nodes("pve").qemu(175).delete.assert_not_called()
+
+
 @pytest.mark.parametrize(
     ("vmid", "message"),
     [(169, "outside the dynamic VMID pool"), (173, "reserved VMID")],
@@ -412,6 +444,10 @@ def test_destroy_vm_denies_non_owned_pool_resource(monkeypatch, pool, message):
     monkeypatch.setenv("VMID_POOL_END", "179")
     proxmox = _destruction_proxmox()
     proxmox.pools("nexus-labs").get.return_value = pool
+    if not pool["members"]:
+        proxmox.cluster.resources.get.return_value = [
+            {"type": "qemu", "vmid": 175, "name": "foreign-vm"}
+        ]
     monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
 
     with pytest.raises(RuntimeError, match=message):
