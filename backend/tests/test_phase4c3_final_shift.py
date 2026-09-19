@@ -82,7 +82,8 @@ def test_migration_upgrade_converts_week_23_24_and_adds_gate(tmp_path):
         gate = db.query(PromotionGate).filter_by(role_id=final_role.id, requirement_type="required_lab_pass").one()
         assert gate.requirement_config == {"lab_id": 22, "min_score_pct": 80}
 
-    assert _active_totals(database_path) == (35, 320, 141, 179)
+    # Current seeds include the two Core Wave 2 foundational required lessons.
+    assert _active_totals(database_path) == (35, 320, 143, 177)
     assert _role_counts(database_path) == {
         "learn": 216,
         "check": 38,
@@ -146,7 +147,7 @@ def test_migration_downgrade_restores_prior_content_and_removes_gate(tmp_path):
     _run([sys.executable, "-m", "alembic", "upgrade", REVISION_0061], database_url)
     with Session(engine) as db:
         assert db.get(LabTemplate, 21).lab_type == "structured_final_shift"
-    assert _active_totals(database_path) == (35, 320, 141, 179)
+    assert _active_totals(database_path) == (35, 320, 143, 177)
 
 
 def test_historical_week_24_completion_preserved_but_does_not_satisfy_new_gate(tmp_path):

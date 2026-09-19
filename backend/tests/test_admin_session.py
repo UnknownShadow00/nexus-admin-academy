@@ -1,5 +1,6 @@
 import os
 import unittest
+from unittest.mock import patch
 
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
@@ -99,6 +100,13 @@ class AdminSessionTests(unittest.TestCase):
         self.assertEqual(status.status_code, 200)
         self.assertFalse(status.json()["data"]["authenticated"])
         self.assertEqual(protected.status_code, 403)
+
+    def test_missing_admin_configuration_denies_all_credentials(self):
+        with patch.dict(os.environ, {"ADMIN_PASSWORD": "", "ADMIN_API_KEY": "", "ADMIN_SECRET_KEY": ""}):
+            for headers in ({}, {"Authorization": "Bearer student-token"}, {"X-Admin-Key": "invalid"}):
+                response = self.client.get("/protected", headers=headers)
+                self.assertEqual(response.status_code, 403)
+                self.assertEqual(response.json()["detail"], "Unauthorized")
 
 
 if __name__ == "__main__":

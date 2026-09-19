@@ -315,6 +315,7 @@ def test_pilot_status_is_read_only_and_counts_unique_valid_students(tmp_path):
         [os.path.join(SCRIPTS, "pilot_status.sh"), "--db", str(missing_db), "--json"],
         env={
             **os.environ,
+            "NEXUS_PYTHON": sys.executable,
             "NEXUS_ENV_FILE": str(env_file),
             "NEXUS_BACKEND_URL": "http://127.0.0.1:1",
             "NEXUS_FRONTEND_URL": "http://127.0.0.1:1",
