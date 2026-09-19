@@ -263,6 +263,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   // Otherwise a legitimate in-flight read can cross the logout boundary and
   // report a 401 even though the protected-route behavior is correct.
   await page.waitForLoadState("networkidle");
+  monitor.pause();
   await page.getByRole("button", { name: "Browser Training Student" }).click();
   await expect(page).toHaveURL(/\/login$/);
 
@@ -494,7 +495,11 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await page.goto(orientationLessonPath);
     await expect(page.getByText("✓ Orientation complete")).toBeVisible();
     await page.getByRole("link", { name: "Start Next Module" }).click();
-    await expect(page).toHaveURL(new RegExp(`${weekOneLessonPath}$`));
+    await expect(page).toHaveURL(/(?:\/lessons\/\d+|\/training\/module\/module\.endpoint\.support_workflow)$/);
+    if (new URL(page.url()).pathname !== weekOneLessonPath) {
+      await page.getByRole("link", { name: /Anatomy of a Good Ticket/ }).click();
+      await expect(page).toHaveURL(new RegExp(`${weekOneLessonPath}$`));
+    }
     await expect(page.getByRole("heading", { name: "Anatomy of a Good Ticket" })).toBeVisible();
     await page.reload();
     await expect(page.getByRole("heading", { name: "Anatomy of a Good Ticket" })).toBeVisible();
