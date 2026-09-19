@@ -2460,3 +2460,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/alembic/versions/0071_student_vm_operation_lock.py; backend/app/models/student.py; backend/app/routers/labs.py; backend/app/routers/students.py; backend/app/services/hybrid_lab_rollout.py; backend/app/services/student_vm_operation.py; backend/tests/test_labs.py; backend/tests/test_student_data_integrity.py; backend/tests/test_week_plan.py; tasks/loop-log.md
 - Result: pass — operation leases carry timestamps and can be atomically reclaimed after 30 minutes, while concurrent live holders remain exclusive; gated POCs are absent from both lab listings and week plans. Fresh SQLite migration through 0071 passed with both columns present; 113 focused backend tests, Ruff, compileall, pip audit/check, and whitespace checks passed.
 - Next: Push the fixes, resolve both P2 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T11:31:01Z] Task Completed
+- Task: Restored historical migration checkpoint seed compatibility after adding student VM operation lease columns.
+- Files changed: backend/seed.py; tasks/loop-log.md
+- Result: pass — seed queries now load only columns present at the historical checkpoint; all 7 orientation and migration-cycle regression tests passed, and Ruff passed.
+- Next: Push the CI fix, retrigger Codex review on the new HEAD, and wait for green CI with no unresolved findings. Do not merge or deploy.
