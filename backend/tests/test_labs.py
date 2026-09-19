@@ -598,8 +598,18 @@ def test_published_inc2504_poc_cannot_start_before_rollout(monkeypatch, db):
         },
     )
 
+    listed = client.get("/api/labs", headers=auth_headers(student))
+    detailed = client.get(f"/api/labs/{lab.id}", headers=auth_headers(student))
+    submitted = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json={"notes": "Attempted direct submission."},
+        headers=auth_headers(student),
+    )
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
 
+    assert all(item["id"] != lab.id for item in listed.json()["data"])
+    assert detailed.status_code == 404
+    assert submitted.status_code == 404
     assert started.status_code == 404
     assert db.query(LabRun).filter_by(lab_template_id=lab.id).count() == 0
     assert db.query(VmAssignment).count() == 0
@@ -616,7 +626,11 @@ def test_start_vm_backed_lab_marks_assignment_failed_without_ip(monkeypatch, db)
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
     assignment_id = started.json()["data"]["vm_assignment"]["assignment_id"]
 
-    monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 211)
+    monkeypatch.setattr(
+        proxmox_service,
+        "clone_template",
+        lambda template_vmid, name, **_kwargs: 211,
+    )
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: None)
     destroyed = []
@@ -640,7 +654,11 @@ def test_provisioning_worker_persists_each_resource(monkeypatch, db):
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
     assignment_id = started.json()["data"]["vm_assignment"]["assignment_id"]
 
-    monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 215)
+    monkeypatch.setattr(
+        proxmox_service,
+        "clone_template",
+        lambda template_vmid, name, **_kwargs: 215,
+    )
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(proxmox_service, "get_vm_ip", lambda vmid: "10.0.0.29")
     monkeypatch.setattr(guacamole_service, "create_connection", lambda vm_ip, vmid: "conn-215")
@@ -851,7 +869,7 @@ def test_provisioning_worker_runs_approved_handler_before_connection(monkeypatch
     monkeypatch.setattr(
         proxmox_service,
         "clone_template",
-        lambda template_vmid, name: events.append(("clone", template_vmid)) or 175,
+        lambda template_vmid, name, **_kwargs: events.append(("clone", template_vmid)) or 175,
     )
     monkeypatch.setattr(
         proxmox_service,
@@ -926,7 +944,7 @@ def test_provisioning_worker_passes_ephemeral_vm_credentials_to_guacamole(monkey
     monkeypatch.setattr(
         proxmox_service,
         'clone_template',
-        lambda template_vmid, name: 175,
+        lambda template_vmid, name, **_kwargs: 175,
     )
     monkeypatch.setattr(proxmox_service, 'start_vm', lambda vmid: None)
 
@@ -993,7 +1011,11 @@ def test_provisioning_failure_destroys_clone_before_marking_failed(monkeypatch, 
 
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
     assignment_id = started.json()["data"]["vm_assignment"]["assignment_id"]
-    monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 175)
+    monkeypatch.setattr(
+        proxmox_service,
+        "clone_template",
+        lambda template_vmid, name, **_kwargs: 175,
+    )
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(
         labs_module,
@@ -1010,6 +1032,52 @@ def test_provisioning_failure_destroys_clone_before_marking_failed(monkeypatch, 
     assert assignment.status == "failed"
     assert assignment.singleton_key is None
     assert destroyed == [175]
+
+
+def test_uncertain_clone_keeps_persisted_vmid_and_singleton_for_retry(monkeypatch, db):
+    monkeypatch.setenv("HYBRID_LABS_POC_ENABLED", "true")
+    student = make_student(db)
+    lab = _seed_lab(
+        db,
+        proxmox_template_vmid=173,
+        environment_requirements={
+            "provisioning": {"handler": "inc2504_printer_stale_ip"}
+        },
+    )
+    worker_session = sessionmaker(bind=db.get_bind(), autocommit=False, autoflush=False)
+    monkeypatch.setattr(labs_module, "SessionLocal", worker_session)
+    monkeypatch.setattr(labs_module, "_provision_vm_task", lambda assignment_id: None)
+
+    started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
+    assignment_id = started.json()["data"]["vm_assignment"]["assignment_id"]
+
+    def uncertain_clone(_template_vmid, _name, *, on_vmid_selected):
+        on_vmid_selected(175)
+        raise proxmox_service.CloneRequestError("clone polling failed", vmid=175)
+
+    monkeypatch.setattr(proxmox_service, "clone_template", uncertain_clone)
+    destroyed = []
+    monkeypatch.setattr(
+        proxmox_service,
+        "destroy_vm",
+        lambda vmid, **_kwargs: destroyed.append(vmid),
+    )
+
+    provision_worker(assignment_id)
+
+    db.expire_all()
+    assignment = db.get(VmAssignment, assignment_id)
+    assert assignment.vmid == 175
+    assert assignment.status == "cleanup_failed"
+    assert assignment.singleton_key == "inc2504_printer_stale_ip"
+    assert destroyed == [175]
+
+    labs_module._destroy_vm_task(assignment_id)
+    db.expire_all()
+    assignment = db.get(VmAssignment, assignment_id)
+    assert assignment.status == "destroyed"
+    assert assignment.singleton_key is None
+    assert destroyed == [175, 175]
 
 
 def test_submit_during_clone_keeps_singleton_until_worker_reconciles(monkeypatch, db):
@@ -1032,7 +1100,8 @@ def test_submit_during_clone_keeps_singleton_until_worker_reconciles(monkeypatch
     run_id = started.json()["data"]["run_id"]
     competing_starts = []
 
-    def clone_while_student_submits(_template_vmid, _name):
+    def clone_while_student_submits(_template_vmid, _name, *, on_vmid_selected):
+        on_vmid_selected(175)
         submitted = client.post(
             f"/api/labs/{lab.id}/submit",
             json={"notes": "Submitted while the VM clone was in flight."},
@@ -1040,8 +1109,8 @@ def test_submit_during_clone_keeps_singleton_until_worker_reconciles(monkeypatch
         )
         assert submitted.status_code == 200
 
-        # Submission cleanup cannot declare success while the claimed worker
-        # may still return a clone that has not yet been persisted.
+        # Submission cleanup may attempt deletion, but cannot release the
+        # lease until the claimed worker reconciles the in-flight clone task.
         guarded = worker_session()
         try:
             assignment = guarded.get(VmAssignment, assignment_id)
@@ -1074,16 +1143,17 @@ def test_submit_during_clone_keeps_singleton_until_worker_reconciles(monkeypatch
     provision_worker(assignment_id)
 
     assert [response.status_code for response in competing_starts] == [409]
-    assert destroyed == [
-        (
-            175,
-            proxmox_service.assignment_vm_name(
-                lab_id=lab.id,
-                student_id=first_student.id,
-                run_id=run_id,
-            ),
-        )
-    ]
+    expected_destroy = (
+        175,
+        proxmox_service.assignment_vm_name(
+            lab_id=lab.id,
+            student_id=first_student.id,
+            run_id=run_id,
+        ),
+    )
+    # Submission cleanup and the cancelled worker both use protected,
+    # idempotent destruction around the external clone race.
+    assert destroyed == [expected_destroy, expected_destroy]
     db.expire_all()
     assignment = db.get(VmAssignment, assignment_id)
     assert assignment.status == "destroyed"
@@ -1108,7 +1178,11 @@ def test_failed_vm_teardown_keeps_inc2504_singleton_guarded(monkeypatch, db):
 
     started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(first_student))
     assignment_id = started.json()["data"]["vm_assignment"]["assignment_id"]
-    monkeypatch.setattr(proxmox_service, "clone_template", lambda template_vmid, name: 175)
+    monkeypatch.setattr(
+        proxmox_service,
+        "clone_template",
+        lambda template_vmid, name, **_kwargs: 175,
+    )
     monkeypatch.setattr(proxmox_service, "start_vm", lambda vmid: None)
     monkeypatch.setattr(
         labs_module,

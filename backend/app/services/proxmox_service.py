@@ -2,7 +2,7 @@ import logging
 import os
 import re
 import time
-from typing import Optional
+from typing import Callable, Optional
 
 from app.config import is_production_environment
 
@@ -13,6 +13,14 @@ logger = logging.getLogger(__name__)
 logging.getLogger("proxmoxer.core").setLevel(logging.WARNING)
 
 _NEXUS_VM_NAME = re.compile(r"^lab-\d+-student-\d+-run-\d+$")
+
+
+class CloneRequestError(RuntimeError):
+    """A clone request was accepted, but its final outcome is uncertain."""
+
+    def __init__(self, message: str, *, vmid: int):
+        super().__init__(message)
+        self.vmid = vmid
 
 
 def assignment_vm_name(*, lab_id: int, student_id: int, run_id: int) -> str:
@@ -164,7 +172,12 @@ def _is_vmid_collision_error(exc: Exception) -> bool:
     return False
 
 
-def clone_template(template_vmid: int, name: str) -> int:
+def clone_template(
+    template_vmid: int,
+    name: str,
+    *,
+    on_vmid_selected: Callable[[int], None] | None = None,
+) -> int:
     if not _NEXUS_VM_NAME.fullmatch(name):
         raise ValueError("Nexus VM names must use the assignment-owned naming convention")
 
@@ -193,6 +206,11 @@ def clone_template(template_vmid: int, name: str) -> int:
     attempted_vmids: set[int] = set()
     while True:
         new_vmid = _find_free_vmid(proxmox, exclude=attempted_vmids)
+        if on_vmid_selected is not None:
+            # Persist ownership before Proxmox can accept a clone request. If
+            # the worker is cancelled, the callback raises before any POST.
+            on_vmid_selected(new_vmid)
+        request_submitted = False
         try:
             upid = proxmox.nodes(settings["node"]).qemu(template_vmid).clone.post(
                 newid=new_vmid,
@@ -200,6 +218,7 @@ def clone_template(template_vmid: int, name: str) -> int:
                 full=1 if full_clone else 0,
                 pool=settings["resource_pool"],
             )
+            request_submitted = True
             _wait_for_task(proxmox, settings["node"], upid, operation="clone")
         except Exception as exc:
             if _is_vmid_collision_error(exc):
@@ -209,6 +228,11 @@ def clone_template(template_vmid: int, name: str) -> int:
                     new_vmid,
                 )
                 continue
+            if request_submitted:
+                raise CloneRequestError(
+                    f"Proxmox {mode} clone outcome is uncertain for template {template_vmid}",
+                    vmid=new_vmid,
+                ) from exc
             raise RuntimeError(f"Proxmox {mode} clone failed for template {template_vmid}") from exc
 
         logger.info("Cloned template %s -> vmid %s using %s clone", template_vmid, new_vmid, mode)

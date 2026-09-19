@@ -231,6 +231,7 @@ def _get_published_lab(db: Session, lab_id: int) -> LabTemplate:
     lab = db.query(LabTemplate).filter(LabTemplate.id == lab_id, LabTemplate.is_published.is_(True)).first()
     if not lab:
         raise HTTPException(status_code=404, detail="Lab not found")
+    _require_hybrid_poc_rollout(lab)
     return lab
 
 
@@ -447,6 +448,7 @@ def _provision_vm_task(assignment_id: int) -> None:
     vm_credentials = None
     vm_password = None
     name = None
+    clone_outcome_uncertain = False
     try:
         from app.services import guacamole_service, proxmox_service
 
@@ -475,7 +477,26 @@ def _provision_vm_task(assignment_id: int) -> None:
             student_id=run.student_id,
             run_id=run.id,
         )
-        vmid = proxmox_service.clone_template(lab.proxmox_template_vmid, name)
+
+        def record_selected_vmid(selected_vmid: int) -> None:
+            nonlocal vmid
+            vmid = selected_vmid
+            _transition_assignment(
+                db,
+                assignment_id,
+                "provisioning",
+                vmid=selected_vmid,
+            )
+
+        try:
+            vmid = proxmox_service.clone_template(
+                lab.proxmox_template_vmid,
+                name,
+                on_vmid_selected=record_selected_vmid,
+            )
+        except proxmox_service.CloneRequestError:
+            clone_outcome_uncertain = True
+            raise
         _transition_assignment(
             db,
             assignment_id,
@@ -563,6 +584,10 @@ def _provision_vm_task(assignment_id: int) -> None:
                     vmid,
                     assignment_id,
                 )
+        if clone_outcome_uncertain:
+            # A timed-out clone task may complete after an immediate absence
+            # check. Keep the lease for a later protected cleanup retry.
+            vm_cleanup_failed = True
         assignment = db.query(VmAssignment).filter(VmAssignment.id == assignment_id).first()
         if assignment and assignment.status != "destroyed":
             if vm_cleanup_failed:
@@ -597,9 +622,14 @@ def _destroy_vm_task(assignment_id: int) -> None:
         assignment = db.query(VmAssignment).filter(VmAssignment.id == assignment_id).first()
         if not assignment or assignment.status == "destroyed":
             return
+        provisioning_in_flight = (
+            assignment.status == "destroying"
+            and assignment.retry_count > 0
+            and assignment.started_at is None
+        )
         if (
             assignment.vmid is None
-            and assignment.retry_count > 0
+            and provisioning_in_flight
         ):
             # The provisioner has claimed the assignment and may currently be
             # cloning. It must reconcile that clone before this lease is safe
@@ -646,6 +676,13 @@ def _destroy_vm_task(assignment_id: int) -> None:
             assignment.provisioning_error = "Lab environment cleanup failed. Please contact an administrator."
             db.commit()
             logger.warning("VM cleanup failed for assignment %s", assignment_id)
+            return
+        if provisioning_in_flight:
+            # The worker owns final reconciliation and will observe the
+            # destroying state at its next atomic transition.
+            assignment.guac_username = None
+            assignment.guac_conn_id = None
+            db.commit()
             return
         assignment.status = "destroyed"
         assignment.singleton_key = None
@@ -714,6 +751,12 @@ def get_labs(
     )
     query = query.filter(LabTemplate.id.not_in(v2_lab_ids))
     labs = query.order_by(LabTemplate.week_number.asc(), LabTemplate.created_at.desc()).all()
+    if not _hybrid_poc_rollout_enabled():
+        labs = [
+            lab
+            for lab in labs
+            if _provisioning_handler(lab) not in SINGLE_ACTIVE_PROVISIONERS
+        ]
 
     lab_ids = [lab.id for lab in labs]
     runs = {}
