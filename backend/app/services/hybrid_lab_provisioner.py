@@ -7,6 +7,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from proxmoxer.core import ResourceException
+
 from app.services import proxmox_service
 
 
@@ -35,6 +37,10 @@ def _wait_for_marker(
             )
             if marker in output:
                 return
+        except ResourceException as exc:
+            if "QEMU guest agent is not running" not in str(exc):
+                raise
+            last_error = exc
         except (RuntimeError, TimeoutError) as exc:
             last_error = exc
         time.sleep(delay)
@@ -85,6 +91,8 @@ Set-ItemProperty $winlogon -Name AutoAdminLogon -Value '0'
 Remove-ItemProperty $winlogon -Name AutoLogonCount -ErrorAction SilentlyContinue
 Remove-ItemProperty $winlogon -Name DefaultPassword -ErrorAction SilentlyContinue
 Remove-Item 'C:\\Windows\\System32\\Sysprep\\unattend.xml' -Force -ErrorAction SilentlyContinue
+Remove-Item 'C:/Windows/Panther/unattend.xml' -Force -ErrorAction SilentlyContinue
+Remove-Item 'C:/Windows/Panther/Unattend/unattend.xml' -Force -ErrorAction SilentlyContinue
 
 $adapter = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | Select-Object -First 1
 if (-not $adapter) { throw 'No active network adapter found' }
@@ -161,6 +169,8 @@ Remove-ItemProperty $winlogon -Name AutoLogonCount -ErrorAction SilentlyContinue
 Remove-ItemProperty $winlogon -Name DefaultPassword -ErrorAction SilentlyContinue
 Remove-ItemProperty $winlogon -Name ForceAutoLogon -ErrorAction SilentlyContinue
 Remove-Item 'C:\\Windows\\System32\\Sysprep\\unattend.xml' -Force -ErrorAction SilentlyContinue
+Remove-Item 'C:/Windows/Panther/unattend.xml' -Force -ErrorAction SilentlyContinue
+Remove-Item 'C:/Windows/Panther/Unattend/unattend.xml' -Force -ErrorAction SilentlyContinue
 
 'HOSTNAME=' + $env:COMPUTERNAME
 
@@ -175,7 +185,11 @@ $printer = Get-Printer -Name 'Front Office Printer'
 
 $state = Get-ItemProperty $winlogon
 'AUTOLOGIN=' + $state.AutoAdminLogon
-'UNATTEND_EXISTS=' + (Test-Path 'C:\\Windows\\System32\\Sysprep\\unattend.xml')
+$unattendExists =
+    (Test-Path 'C:/Windows/System32/Sysprep/unattend.xml') -or
+    (Test-Path 'C:/Windows/Panther/unattend.xml') -or
+    (Test-Path 'C:/Windows/Panther/Unattend/unattend.xml')
+'UNATTEND_EXISTS=' + $unattendExists
 """
         ),
         timeout=60,

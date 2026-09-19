@@ -74,9 +74,23 @@ def _get_proxmox():
     from proxmoxer import ProxmoxAPI
 
     settings = _settings()
+
+    try:
+        user, token_name = settings["token_id"].rsplit("!", 1)
+    except ValueError as exc:
+        raise RuntimeError(
+            "PROXMOX_TOKEN_ID must use the format user@realm!token-name"
+        ) from exc
+
+    if not user or not token_name:
+        raise RuntimeError(
+            "PROXMOX_TOKEN_ID must use the format user@realm!token-name"
+        )
+
     return ProxmoxAPI(
         settings["host"],
-        user=settings["token_id"],
+        user=user,
+        token_name=token_name,
         token_value=settings["token_secret"],
         verify_ssl=settings["verify_ssl"],
     )

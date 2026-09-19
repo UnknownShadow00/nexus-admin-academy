@@ -62,6 +62,8 @@ def test_inc2504_provisioner_configures_reboots_and_verifies(monkeypatch):
     assert '10.10.10.19' in combined
     assert 'Front Office Printer' in combined
     assert 'NX-2504' in combined
+    assert 'Panther' in combined
+    assert 'unattend.xml' in combined
     assert 'temporary-lab-password' not in combined
 
 
@@ -119,4 +121,61 @@ def test_inc2504_provisioner_fails_closed_when_final_state_is_incomplete(monkeyp
             "inc2504_printer_stale_ip",
             vmid=175,
             config={"handler": "inc2504_printer_stale_ip"},
+        )
+
+
+def test_wait_for_marker_retries_temporary_guest_agent_unavailable(monkeypatch):
+    class FakeResourceException(Exception):
+        pass
+
+    calls = {"count": 0}
+
+    def guest_exec(vmid, command, **kwargs):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise FakeResourceException(
+                "500 Internal Server Error: QEMU guest agent is not running"
+            )
+        return "NEXUS_REBOOT_READY"
+
+    monkeypatch.setattr(
+        hybrid_lab_provisioner,
+        "ResourceException",
+        FakeResourceException,
+    )
+    monkeypatch.setattr(proxmox_service, "guest_exec", guest_exec)
+    monkeypatch.setattr(hybrid_lab_provisioner.time, "sleep", lambda _seconds: None)
+
+    hybrid_lab_provisioner._wait_for_marker(
+        175,
+        "CHECK",
+        "NEXUS_REBOOT_READY",
+        attempts=2,
+        delay=0,
+    )
+
+    assert calls["count"] == 2
+
+
+def test_wait_for_marker_fails_closed_on_other_proxmox_error(monkeypatch):
+    class FakeResourceException(Exception):
+        pass
+
+    def guest_exec(vmid, command, **kwargs):
+        raise FakeResourceException("403 Permission check failed")
+
+    monkeypatch.setattr(
+        hybrid_lab_provisioner,
+        "ResourceException",
+        FakeResourceException,
+    )
+    monkeypatch.setattr(proxmox_service, "guest_exec", guest_exec)
+
+    with pytest.raises(FakeResourceException, match="Permission check failed"):
+        hybrid_lab_provisioner._wait_for_marker(
+            175,
+            "CHECK",
+            "NEXUS_REBOOT_READY",
+            attempts=2,
+            delay=0,
         )
