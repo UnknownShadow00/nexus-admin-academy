@@ -3,14 +3,17 @@ labs:
   description: Prove the student can deploy/inspect a printer, isolate print-path
     layers, choose technology-specific maintenance, and document verification.
   estimated_minutes: 55
+  proxmox_template_vmid: 173
   environment_requirements:
-    environment: Browser/Windows/document simulation with queue screenshots, test
-      pages, printer status/config pages, network evidence, and sample output defects.
-      Optional real printer if authorized. No VM required.
+    environment: Disposable Windows 11 INC2504 workstation on the isolated vmbr1 POC network.
+    service_desk_scenario: inc2504
+    concurrency: single_active_instance
+    provisioning:
+      handler: inc2504_printer_stale_ip
   success_criteria:
     practical_key: practical.aplus.printers.layered_isolation
     module_key: module.aplus.core1.printers_mfds
-    vm_required: false
+    vm_required: true
     student_instructions:
     - Do not reset shared printers, clear other users jobs, install unsigned drivers,
       or change network/security settings without authorization.
