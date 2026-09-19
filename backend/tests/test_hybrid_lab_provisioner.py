@@ -180,3 +180,47 @@ def test_wait_for_marker_fails_closed_on_other_proxmox_error(monkeypatch):
             attempts=2,
             delay=0,
         )
+
+
+def test_inc2504_tolerates_guest_agent_loss_during_reboot(monkeypatch):
+    class FakeResourceException(Exception):
+        pass
+
+    outputs = iter(
+        [
+            "NEXUS_READY",
+            "CONFIGURED",
+            "NEXUS_REBOOT_READY",
+            (
+                "HOSTNAME=NX-2504\n"
+                "IP=10.10.10.10\n"
+                "PRINTER=Front Office Printer\n"
+                "PRINTER_PORT=IP_10.10.10.19\n"
+                "AUTOLOGIN=0\n"
+                "UNATTEND_EXISTS=False\n"
+            ),
+        ]
+    )
+
+    def guest_exec(_vmid, command, **_kwargs):
+        if command[0] == "shutdown.exe":
+            raise FakeResourceException(
+                "500 Internal Server Error: QEMU guest agent is not running"
+            )
+        return next(outputs)
+
+    monkeypatch.setattr(
+        hybrid_lab_provisioner,
+        "ResourceException",
+        FakeResourceException,
+    )
+    monkeypatch.setattr(proxmox_service, "guest_exec", guest_exec)
+    monkeypatch.setattr(hybrid_lab_provisioner.time, "sleep", lambda _seconds: None)
+
+    credentials = hybrid_lab_provisioner.apply(
+        "inc2504_printer_stale_ip",
+        vmid=175,
+        config={"handler": "inc2504_printer_stale_ip"},
+    )
+
+    assert credentials["ip_address"] == "10.10.10.10"

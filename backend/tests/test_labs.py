@@ -863,6 +863,33 @@ def test_admin_cleanup_preserves_in_flight_clone_lease(monkeypatch, db):
     assert assignment.status == "provisioning"
     assert assignment.singleton_key == "inc2504_printer_stale_ip"
 
+    # Once the worker claim itself has exceeded the same idle cutoff, the
+    # admin reconciler may reclaim it with the normal protected destroy path.
+    db.query(VmAssignment).filter(VmAssignment.id == assignment.id).update(
+        {VmAssignment.updated_at: datetime.now(timezone.utc) - timedelta(hours=3)},
+        synchronize_session=False,
+    )
+    db.commit()
+    destroyed = []
+    monkeypatch.setattr(
+        proxmox_service,
+        "destroy_vm",
+        lambda vmid, **_kwargs: destroyed.append(vmid),
+    )
+
+    reclaimed = admin_client.delete(
+        "/api/admin/vms/cleanup",
+        headers={"X-Admin-Key": "unit-test-admin"},
+    )
+
+    assert reclaimed.status_code == 200
+    assert reclaimed.json()["data"] == {"destroyed": [175], "errors": []}
+    db.expire_all()
+    assignment = db.get(VmAssignment, assignment.id)
+    assert assignment.status == "destroyed"
+    assert assignment.singleton_key is None
+    assert destroyed == [175]
+
 
 def test_admin_cannot_delete_template_with_live_vm_assignment(monkeypatch, db):
     monkeypatch.setenv("ADMIN_API_KEY", "unit-test-admin")

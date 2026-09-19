@@ -716,9 +716,13 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
     destroyed = []
     errors = []
     for assignment in idle:
+        claim_updated_at = assignment.updated_at
+        if claim_updated_at is not None and claim_updated_at.tzinfo is None:
+            claim_updated_at = claim_updated_at.replace(tzinfo=timezone.utc)
         if (
             assignment.retry_count > 0
             and assignment.started_at is None
+            and (claim_updated_at is None or claim_updated_at >= cutoff)
             and assignment.status
             in {
                 "provisioning",
@@ -729,9 +733,9 @@ def cleanup_idle_vms(idle_hours: int = 2, db: Session = Depends(get_db)):
                 "destroying",
             }
         ):
-            # The provisioning worker may still be inside an external clone
-            # request. Only that worker can safely reconcile its completion;
-            # keep the lease and assignment ownership intact.
+            # A recently updated provisioning claim may still be inside an
+            # external clone request. Expired claims fall through to protected
+            # reconciliation so crashed workers do not block the lease forever.
             errors.append(
                 {
                     "vmid": assignment.vmid,

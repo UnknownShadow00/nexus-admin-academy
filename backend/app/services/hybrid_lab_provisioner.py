@@ -15,6 +15,10 @@ from app.services import proxmox_service
 Provisioner = Callable[..., dict[str, str] | None]
 
 
+def _guest_agent_unavailable(exc: ResourceException) -> bool:
+    return "QEMU guest agent is not running" in str(exc)
+
+
 def _powershell(script: str) -> list[str]:
     return ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script]
 
@@ -38,7 +42,7 @@ def _wait_for_marker(
             if marker in output:
                 return
         except ResourceException as exc:
-            if "QEMU guest agent is not running" not in str(exc):
+            if not _guest_agent_unavailable(exc):
                 raise
             last_error = exc
         except (RuntimeError, TimeoutError) as exc:
@@ -140,6 +144,9 @@ $plainPassword = $null
             ["shutdown.exe", "/r", "/t", "0", "/f"],
             timeout=15,
         )
+    except ResourceException as exc:
+        if not _guest_agent_unavailable(exc):
+            raise
     except (RuntimeError, TimeoutError):
         pass
 
