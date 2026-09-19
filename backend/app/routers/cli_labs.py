@@ -10,7 +10,12 @@ from app.models.squad_activity import SquadActivity
 from app.models.student import Student
 from app.schemas.cli_lab import CliLabCompleteRequest
 from app.services.auth_service import get_current_student
-from app.services.progression_service import CLI_PACK_WEEKS, require_week_reached
+from app.services.progression_service import (
+    CLI_PACK_WEEKS,
+    derive_current_week,
+    require_week_reached,
+    week_has_been_reached,
+)
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
 
@@ -78,6 +83,21 @@ def _serialize_lab(lab: CliLab, attempt: CliLabAttempt | None = None, include_co
     return data
 
 
+def _lab_is_unlocked(
+    db: Session,
+    student: Student,
+    lab: CliLab,
+    attempt: CliLabAttempt | None,
+    current_week: int | None = None,
+) -> bool:
+    if student.is_mentor or attempt is not None:
+        return True
+    required_week = CLI_PACK_WEEKS.get(lab.compartment_id, 1)
+    if current_week is None:
+        current_week = derive_current_week(student.id, db)
+    return week_has_been_reached(db, current_week, required_week)
+
+
 @router.get("")
 def list_cli_labs(
     db: Session = Depends(get_db),
@@ -85,7 +105,14 @@ def list_cli_labs(
 ):
     labs = db.query(CliLab).order_by(CliLab.compartment_id.asc(), CliLab.order_index.asc()).all()
     attempts = _completed_attempts(db, current_student.id, [lab.id for lab in labs])
-    data = [_serialize_lab(lab, attempts.get(lab.id)) for lab in labs]
+    current_week = None if current_student.is_mentor else derive_current_week(current_student.id, db)
+    data = [
+        _serialize_lab(lab, attempts.get(lab.id))
+        for lab in labs
+        if _lab_is_unlocked(
+            db, current_student, lab, attempts.get(lab.id), current_week
+        )
+    ]
     return ok(data, total=len(data), page=1, per_page=len(data) or 1)
 
 
@@ -99,6 +126,12 @@ def get_cli_lab(
     if not lab:
         raise HTTPException(status_code=404, detail="CLI lab not found")
     attempt = _completed_attempts(db, current_student.id, [lab.id]).get(lab.id)
+    if not _lab_is_unlocked(db, current_student, lab, attempt):
+        require_week_reached(
+            db,
+            current_student,
+            CLI_PACK_WEEKS.get(lab.compartment_id, 1),
+        )
     return ok(_serialize_lab(lab, attempt, include_content=True))
 
 
@@ -112,9 +145,6 @@ def complete_cli_lab(
     lab = db.query(CliLab).filter(CliLab.id == lab_id).first()
     if not lab:
         raise HTTPException(status_code=404, detail="CLI lab not found")
-    # CliLab has no week column; its curriculum pack is the assignment unit.
-    require_week_reached(db, current_student, CLI_PACK_WEEKS.get(lab.compartment_id, 1))
-
     prior_completed = (
         db.query(CliLabAttempt)
         .filter(
@@ -124,6 +154,14 @@ def complete_cli_lab(
         )
         .first()
     )
+    # CliLab has no week column; its curriculum pack is the assignment unit.
+    # A historical completion stays accessible after a rollout gate moves.
+    if not _lab_is_unlocked(db, current_student, lab, prior_completed):
+        require_week_reached(
+            db,
+            current_student,
+            CLI_PACK_WEEKS.get(lab.compartment_id, 1),
+        )
 
     now = datetime.now(UTC)
     started_at = None

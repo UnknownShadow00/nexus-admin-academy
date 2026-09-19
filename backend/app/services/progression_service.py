@@ -17,8 +17,10 @@ from app.services.quiz_progression import is_quiz_passed, required_quizzes_for_w
 # use one source of truth.
 CLI_PACK_WEEKS = {
     "meet-the-cli": 1,
-    "network-foundations": 9,
-    "learn-switching": 10,
+    # Reuse the existing network/switch lessons after two of the four
+    # Network+ modules are complete (entry to Week 11 = roughly 50%).
+    "network-foundations": 11,
+    "learn-switching": 11,
 }
 
 MODULE_WEEKS = {

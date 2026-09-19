@@ -80,11 +80,11 @@ export function TicketQueue() {
           </p>
           <h2 className="mt-2 font-display text-xl font-bold text-zinc-100">
             {progression.next_pack?.reason ||
-              'Complete Nexus Orientation to begin your first Service Desk shift.'}
+              'Complete your first A+ troubleshooting topics to unlock tickets.'}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-400">
-            Finish the Nexus orientation lesson and pass its checkpoint. Your
-            four Starter Support cases will then appear here automatically.
+            Finish the current lesson and its low-stakes quiz. A related
+            beginner case will appear here when that foundation is complete.
           </p>
         </Card>
       ) : null}
@@ -99,37 +99,39 @@ export function TicketQueue() {
         />
       ) : null}
 
-      <section aria-labelledby="practice-title">
-        <div className="mb-3 flex items-center gap-2">
-          <h2
-            className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-zinc-500"
-            id="practice-title"
-          >
-            <IconClipboardList
-              aria-hidden="true"
-              className="h-4 w-4 text-sky-400"
+      {visibleCount > 0 ? (
+        <section aria-labelledby="practice-title">
+          <div className="mb-3 flex items-center gap-2">
+            <h2
+              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-zinc-500"
+              id="practice-title"
+            >
+              <IconClipboardList
+                aria-hidden="true"
+                className="h-4 w-4 text-sky-400"
+              />
+              Practice
+            </h2>
+            <span className="ml-auto text-right text-xs font-semibold text-zinc-500">
+              Independent replay · no mastery or XP
+            </span>
+          </div>
+          {practiceTickets.length > 0 ? (
+            <TicketQueueSection
+              icon={IconRefresh}
+              label="Practice cases"
+              meta={`${practiceTickets.length} unlocked`}
+              tickets={practiceTickets}
+              assignmentByTicket={assignmentByTicket}
             />
-            Practice
-          </h2>
-          <span className="ml-auto text-right text-xs font-semibold text-zinc-500">
-            Independent replay · no mastery or XP
-          </span>
-        </div>
-        {practiceTickets.length > 0 ? (
-          <TicketQueueSection
-            icon={IconRefresh}
-            label="Practice cases"
-            meta={`${practiceTickets.length} unlocked`}
-            tickets={practiceTickets}
-            assignmentByTicket={assignmentByTicket}
-          />
-        ) : (
-          <Card className="border-dashed border-zinc-800 px-4 py-4 text-sm text-zinc-500">
-            No mastered cases yet. Pass an assessment to add it here for
-            independent replay.
-          </Card>
-        )}
-      </section>
+          ) : (
+            <Card className="border-dashed border-zinc-800 px-4 py-4 text-sm text-zinc-500">
+              No mastered cases yet. Pass an assessment to add it here for
+              independent replay.
+            </Card>
+          )}
+        </section>
+      ) : null}
 
       {earlierTickets.length > 0 ? (
         <details className="group rounded-md border border-zinc-800 bg-zinc-900/40">
@@ -198,15 +200,29 @@ export function TicketQueue() {
         </Card>
       ) : null}
 
-      {visibleCount === 0 ? (
+      {visibleCount === 0 &&
+      tickets.length === 0 &&
+      progression?.current_pack ? (
+        <Card className="flex min-h-56 flex-col items-center justify-center px-5 py-10 text-center">
+          <IconLock aria-hidden="true" className="h-9 w-9 text-sky-400" />
+          <h2 className="mt-4 text-base font-bold text-zinc-100">
+            Complete your first A+ troubleshooting topics to unlock tickets.
+          </h2>
+          <p className="mt-2 max-w-md text-sm text-zinc-400">
+            Keep going from Today. Tickets appear here only after you have
+            learned the related foundation.
+          </p>
+        </Card>
+      ) : null}
+
+      {visibleCount === 0 && tickets.length > 0 ? (
         <Card className="flex min-h-56 flex-col items-center justify-center px-5 py-10 text-center">
           <IconFilterOff aria-hidden="true" className="h-9 w-9 text-zinc-600" />
           <h2 className="mt-4 text-base font-bold text-zinc-100">
-            No incidents match this view
+            No tickets match these filters
           </h2>
           <p className="mt-2 max-w-md text-sm text-zinc-400">
-            Try a broader search or clear the filters to bring the active queue
-            back into view.
+            Clear the filters to return to your unlocked cases.
           </p>
           <Button
             className="mt-5"

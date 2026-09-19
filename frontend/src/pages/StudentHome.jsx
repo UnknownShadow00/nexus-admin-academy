@@ -105,6 +105,8 @@ export default function StudentHome() {
   }
 
   const recent = (stats.recent_activity || []).slice(0, 5);
+  const learningPhase = training?.learning_phase;
+  const isFoundationStart = learningPhase?.key === "aplus" && learningPhase.a_plus_completed_modules === 0;
   const moduleActivities = training?.current_module_activities || [];
   const requiredActivities = moduleActivities.filter((item) => item.is_required);
   const optionalActivities = moduleActivities.filter((item) => !item.is_required);
@@ -121,10 +123,10 @@ export default function StudentHome() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
-      <PageHeader title={stats.name || "Dashboard"} subtitle="Your next lesson, quiz, or ticket, picked for you." />
+      <PageHeader title="Today" subtitle="One clear next step at a time." />
 
       <section className="rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-700 p-5 text-white shadow-lg sm:p-7">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">Learning Path</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">{learningPhase?.label || "Learning Path"}</p>
         <h2 className="mt-2 text-2xl font-bold sm:text-3xl">{continueTarget.title}</h2>
         <p className="mt-2 text-blue-100">{continueTarget.detail}</p>
         {training?.next_activity ? (
@@ -192,7 +194,7 @@ export default function StudentHome() {
         </section>
       ) : null}
 
-      <section aria-label="Your stats" className="flex flex-wrap gap-3">
+      {!isFoundationStart ? <section aria-label="Your stats" className="flex flex-wrap gap-3">
         {statChips.map(({ label, value, to, Icon }) => {
           const chipClassName = "group flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm hover:border-blue-300 hover:shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-700";
           const chipContent = (
@@ -208,9 +210,9 @@ export default function StudentHome() {
             <Link key={label} to={to} className={chipClassName}>{chipContent}</Link>
           );
         })}
-      </section>
+      </section> : <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/20 dark:text-blue-100"><strong>Start with the lesson above.</strong> Your quiz and first beginner Service Desk ticket will appear as you complete the related A+ topic.</section>}
 
-      <section className="space-y-3">
+      {!isFoundationStart ? <section className="space-y-3">
         <div className="flex items-center gap-3">
           <span className="rounded-lg bg-blue-100 p-2 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
             <Brain size={iconSizes.heading} aria-hidden="true" />
@@ -220,9 +222,9 @@ export default function StudentHome() {
         <div className="panel">
           <FlashcardReviewPanel />
         </div>
-      </section>
+      </section> : null}
 
-      <section className="panel space-y-3">
+      {!isFoundationStart ? <section className="panel space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Recent Activity</h2>
           <Link className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" to="/skills">View skills</Link>
@@ -249,7 +251,7 @@ export default function StudentHome() {
             </div>
           );
         }) : <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">No recent submissions yet.</p>}
-      </section>
+      </section> : null}
     </main>
   );
 }

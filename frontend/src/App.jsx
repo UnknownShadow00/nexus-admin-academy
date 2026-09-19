@@ -43,11 +43,9 @@ const CurriculumTagsPage = lazy(() => import("./pages/admin/CurriculumTagsPage")
 const QuizEditorPage = lazy(() => import("./pages/admin/QuizEditorPage"));
 const AdminTrainingPage = lazy(() => import("./pages/admin/AdminTrainingPage"));
 const studentNavItems = [
-  { to: "/", label: "Dashboard" },
-  { to: "/learning-path", label: "Learning Path" },
-  { to: "/service-desk", label: "Tickets", external: true },
-  { to: "/labs", label: "Labs" },
-  { to: "/skills", label: "Skills" },
+  { to: "/", label: "Today" },
+  { to: "/service-desk", label: "Service Desk", external: true },
+  { to: "/learning-path", label: "Progress" },
 ];
 
 const adminNavItems = [
@@ -90,7 +88,7 @@ function NotFoundPage() {
       <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Page not found</p>
       <h1 className="mt-2 text-3xl font-bold">That page is not part of your learning path.</h1>
       <p className="mt-3 text-slate-600 dark:text-slate-300">Return to Today to continue with your next required activity.</p>
-      <Link className="btn-primary mt-6 inline-flex" to="/">Go to Dashboard</Link>
+      <Link className="btn-primary mt-6 inline-flex" to="/">Go to Today</Link>
     </main>
   );
 }

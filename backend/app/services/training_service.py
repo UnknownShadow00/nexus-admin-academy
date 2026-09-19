@@ -41,6 +41,7 @@ from app.services.curriculum_structure import (
     public_stage,
     structure_definition_issues,
 )
+from app.services.beginner_learning import build_learning_phase
 
 
 PRACTICE_ACTIVITY_TYPES = {
@@ -623,6 +624,45 @@ def derive_training_current_week(db: Session, student: Student) -> int | None:
     return weeks[-1].week_number
 
 
+def required_learning_complete_for_week(
+    db: Session, student: Student, week_number: int
+) -> bool:
+    """Check a topic's required learning without its Service Desk apply step.
+
+    This lets a ticket appear immediately after the related lesson/video,
+    quiz, and guided practice are complete while keeping the ticket itself in
+    the module's ordinary completion path.
+    """
+    week = (
+        db.query(TrainingWeek)
+        .options(selectinload(TrainingWeek.activities))
+        .filter(
+            TrainingWeek.week_number == int(week_number),
+            TrainingWeek.is_active.is_(True),
+        )
+        .first()
+    )
+    if week is None:
+        return False
+    required = [
+        activity
+        for activity in week.activities
+        if activity.is_required
+        and activity.activity_type
+        not in UNTRACKED_ACTIVITY_TYPES
+        | {"review", "service_desk_scenario", "support_ticket", "capstone"}
+    ]
+    if not required:
+        return False
+    context = _TrainingContext(
+        db,
+        student,
+        sorted(week.activities, key=lambda item: (item.display_order, item.id)),
+        include_service_desk_access=False,
+    )
+    return all(context.progress(activity)["complete"] for activity in required)
+
+
 def _serialize_activity(context: _TrainingContext, activity: TrainingWeekActivity) -> dict:
     content = context.resolve(activity)
     progress = context.progress(activity)
@@ -888,6 +928,10 @@ def build_training_overview(db: Session, student: Student) -> dict:
         "next_activity": next_activity,
         "recently_completed": recently_completed[0] if recently_completed else None,
         "training_complete": training_complete,
+        "learning_phase": build_learning_phase(
+            public_weeks,
+            current_week["week_number"] if current_week else None,
+        ),
     }
 
 

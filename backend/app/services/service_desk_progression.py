@@ -12,6 +12,10 @@ from app.models.service_desk import (
 from app.models.student import Student
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.curriculum_structure import module_for_week
+from app.services.beginner_learning import (
+    HYBRID_LAB_SCENARIO_KEYS,
+    SCENARIO_TOPIC_WEEKS,
+)
 from app.services.progression_service import derive_current_week, week_has_been_reached
 
 
@@ -176,6 +180,73 @@ def _guided_scenario_keys(db: Session, student_id: int) -> set[str]:
     }
 
 
+def _topic_gating_enabled(db: Session) -> bool:
+    """Focused unit fixtures without a curriculum keep legacy pack behavior."""
+    return (
+        db.query(TrainingWeekActivity.id)
+        .join(TrainingWeek, TrainingWeek.id == TrainingWeekActivity.training_week_id)
+        .filter(
+            TrainingWeek.is_active.is_(True),
+            TrainingWeekActivity.is_required.is_(True),
+            TrainingWeekActivity.activity_type.notin_(
+                {"review", "service_desk_scenario", "support_ticket", "capstone"}
+            ),
+        )
+        .first()
+        is not None
+    )
+
+
+def _topic_unlocked_scenario_keys(
+    db: Session, student: Student, current_week: int, enabled: bool
+) -> set[str]:
+    if not enabled:
+        return set(PACK_BY_SCENARIO) - set(HYBRID_LAB_SCENARIO_KEYS)
+    if student.is_mentor:
+        return set(PACK_BY_SCENARIO) - set(HYBRID_LAB_SCENARIO_KEYS)
+
+    relevant_weeks = set(SCENARIO_TOPIC_WEEKS.values()) | {current_week}
+    positions = {
+        week_number: display_order
+        for week_number, display_order in db.query(
+            TrainingWeek.week_number, TrainingWeek.display_order
+        )
+        .filter(
+            TrainingWeek.is_active.is_(True),
+            TrainingWeek.week_number.in_(relevant_weeks),
+        )
+        .all()
+    }
+    current_position = positions.get(current_week)
+    current_topic_complete: dict[int, bool] = {}
+    unlocked = set()
+    for stable_key, required_week in SCENARIO_TOPIC_WEEKS.items():
+        required_position = positions.get(required_week)
+        if current_position is not None and required_position is not None:
+            if required_position < current_position:
+                unlocked.add(stable_key)
+                continue
+            if required_position > current_position:
+                continue
+        elif required_week < current_week:
+            unlocked.add(stable_key)
+            continue
+        elif required_week > current_week:
+            continue
+
+        if required_week not in current_topic_complete:
+            from app.services.training_service import (
+                required_learning_complete_for_week,
+            )
+
+            current_topic_complete[required_week] = required_learning_complete_for_week(
+                db, student, required_week
+            )
+        if current_topic_complete[required_week]:
+            unlocked.add(stable_key)
+    return unlocked - set(HYBRID_LAB_SCENARIO_KEYS)
+
+
 def build_service_desk_progression(db: Session, student: Student) -> dict:
     current_week = (
         max(pack.required_week for pack in SERVICE_DESK_PACKS)
@@ -184,6 +255,10 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
     )
     passed_keys = _passed_scenario_keys(db, student.id)
     guided_completed_keys = _guided_scenario_keys(db, student.id)
+    topic_gating_enabled = _topic_gating_enabled(db)
+    topic_unlocked_keys = _topic_unlocked_scenario_keys(
+        db, student, current_week, topic_gating_enabled
+    )
     managed_assignments = (
         db.query(
             ServiceDeskScenario.stable_key,
@@ -241,6 +316,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         (week_number, stable_key)
         for week_number, stable_key in all_curriculum_rows
         if week_has_been_reached(db, current_week, week_number)
+        and stable_key in topic_unlocked_keys
     ]
     # A required weekly case is an exact curriculum assignment. It can be
     # started when that week is reached without unlocking the case's pack.
@@ -355,6 +431,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
             for key in active_pack.scenario_keys
             if key not in passed_keys
             and key not in assigned_keys
+            and key in topic_unlocked_keys
             and (key not in guided_completed_keys or key in curriculum_unlocked_keys)
         ]
         assigned_keys.update(active_candidates[: max(0, 4 - len(assigned_keys))])
@@ -369,6 +446,8 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         "curriculum_current_keys": curriculum_current_keys,
         "in_progress_keys": in_progress_keys,
         "assigned_keys": assigned_keys,
+        "topic_gating_enabled": topic_gating_enabled,
+        "topic_unlocked_keys": topic_unlocked_keys,
         "unlocked_pack_keys": unlocked_pack_keys,
         "active_pack": active_pack,
         "next_pack": next_pack_data,
@@ -395,7 +474,14 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
 
     assigned_override = normalized in progression["direct_assignment_override_keys"]
     curriculum_unlocked = normalized in progression["curriculum_unlocked_keys"]
-    unlocked = (
+    topic_allowed = (
+        not progression.get("topic_gating_enabled", False)
+        or normalized in progression.get("topic_unlocked_keys", set())
+    )
+    history_access = normalized in progression["passed_keys"] or normalized in progression.get(
+        "in_progress_keys", set()
+    )
+    unlocked = history_access or topic_allowed and (
         pack.key in progression["unlocked_pack_keys"]
         or assigned_override
         or curriculum_unlocked
@@ -428,6 +514,7 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
         ),
         "guided_completed": normalized in progression["guided_completed_keys"],
         "required_this_week": normalized in progression["curriculum_current_keys"],
+        "unavailable_reason": None,
     }
 
 

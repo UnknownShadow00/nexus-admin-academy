@@ -22,6 +22,7 @@ from app.services.training_curriculum_seed import (
     sync_advanced_networking_resequence,
     sync_microsoft_workplace_foundations,
     sync_intune_endpoint_management,
+    sync_beginner_learning_rollout,
 )
 from app.services.training_reference_seed import ensure_training_reference_content
 from app.services.windows_ad_server_practical import sync_windows_ad_server_practical_upgrade
@@ -191,14 +192,26 @@ try:
     intune_endpoint_result = sync_intune_endpoint_management(db)
     windows_ad_server_result = sync_windows_ad_server_practical_upgrade(db)
     current_revision = db.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
+    beginner_rollout_result = (
+        sync_beginner_learning_rollout(db)
+        if current_revision == "0062_beginner_learning_rollout"
+        else {"skipped": f"requires 0062; database is {current_revision or 'unversioned'}"}
+    )
     network_linux_cloud_result = (
         sync_network_linux_cloud_practical_upgrade(db)
-        if current_revision in {"0060_network_linux_cloud_practical_upgrade", "0061_integrated_support_prove"}
+        if current_revision in {
+            "0060_network_linux_cloud_practical_upgrade",
+            "0061_integrated_support_prove",
+            "0062_beginner_learning_rollout",
+        }
         else {"skipped": f"requires 0060; database is {current_revision or 'unversioned'}"}
     )
     integrated_support_final_shift_result = (
         sync_integrated_support_final_shift_upgrade(db)
-        if current_revision == "0061_integrated_support_prove"
+        if current_revision in {
+            "0061_integrated_support_prove",
+            "0062_beginner_learning_rollout",
+        }
         else {"skipped": f"requires 0061; database is {current_revision or 'unversioned'}"}
     )
     print(
@@ -211,6 +224,7 @@ try:
         f"Weeks 23-24 quality: {weeks_23_24_result}; Advanced networking resequence: {networking_resequence_result}; "
         f"Microsoft Workplace foundations: {microsoft_workplace_result}; "
         f"Intune endpoint management: {intune_endpoint_result}; "
+        f"Beginner learning rollout: {beginner_rollout_result}; "
         f"Windows/AD/server practical upgrade: {windows_ad_server_result}; "
         f"Network/Linux/cloud practical upgrade: {network_linux_cloud_result}; "
         f"Integrated support final shift: {integrated_support_final_shift_result}"

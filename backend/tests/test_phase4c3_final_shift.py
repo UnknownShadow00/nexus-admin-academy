@@ -21,6 +21,7 @@ from app.services.progression_service import check_promotion_eligibility
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 REVISION_0060 = "0060_network_linux_cloud_practical_upgrade"
 REVISION_0061 = "0061_integrated_support_prove"
+REVISION_0062 = "0062_beginner_learning_rollout"
 
 client = make_client(router)
 labs_client = make_client(labs_router)
@@ -56,7 +57,7 @@ def test_migration_upgrade_converts_week_23_24_and_adds_gate(tmp_path):
 
     engine = create_engine(database_url)
     with Session(engine) as db:
-        assert db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == REVISION_0061
+        assert db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == REVISION_0062
         lab21 = db.get(LabTemplate, 21)
         lab22 = db.get(LabTemplate, 22)
         assert lab21.lab_type == lab22.lab_type == "structured_final_shift"
@@ -80,7 +81,7 @@ def test_migration_upgrade_converts_week_23_24_and_adds_gate(tmp_path):
         gate = db.query(PromotionGate).filter_by(role_id=final_role.id, requirement_type="required_lab_pass").one()
         assert gate.requirement_config == {"lab_id": 22, "min_score_pct": 80}
 
-    assert _active_totals(database_path) == (35, 320, 141, 179)
+    assert _active_totals(database_path) == (35, 320, 139, 181)
     assert _role_counts(database_path) == {
         "learn": 216,
         "check": 38,

@@ -81,6 +81,55 @@ SERVICE_DESK_WEEKS = {
     14: "inc2510",
 }
 
+# Tomorrow-ready beginner sequence. Stable week numbers and every learner-owned
+# record remain unchanged; only the display sequence is aligned to A+ (1-8),
+# Network+ (9-12), then the existing later-career stages.
+BEGINNER_ROLLOUT_DISPLAY_ORDER = {
+    **{week: week for week in range(0, 16)},
+    **{week: week - 9 for week in range(25, 35)},
+    **{week: week + 10 for week in range(16, 25)},
+}
+
+
+def sync_beginner_learning_rollout(db: Session) -> dict:
+    """Converge the minimal beginner sequence without rewriting progress.
+
+    The two Week 10 switch exercises were formerly required before the lab
+    catalog is intentionally introduced. They remain available in place but
+    become optional so the catalog can unlock at the 50% Network+ boundary
+    after Weeks 9 and 10 are complete.
+    """
+    weeks_updated = 0
+    for week in db.query(TrainingWeek).filter(
+        TrainingWeek.week_number.in_(set(BEGINNER_ROLLOUT_DISPLAY_ORDER))
+    ):
+        desired = BEGINNER_ROLLOUT_DISPLAY_ORDER[week.week_number]
+        if week.display_order != desired:
+            week.display_order = desired
+            weeks_updated += 1
+
+    networking_labs_optionalized = 0
+    week_10 = db.query(TrainingWeek).filter_by(week_number=10).first()
+    if week_10 is not None:
+        required_labs = (
+            db.query(TrainingWeekActivity)
+            .filter(
+                TrainingWeekActivity.training_week_id == week_10.id,
+                TrainingWeekActivity.activity_type == "networking_lab",
+                TrainingWeekActivity.is_required.is_(True),
+            )
+            .all()
+        )
+        for activity in required_labs:
+            activity.is_required = False
+            networking_labs_optionalized += 1
+
+    db.commit()
+    return {
+        "weeks_updated": weeks_updated,
+        "networking_labs_optionalized": networking_labs_optionalized,
+    }
+
 ORIENTATION_LESSON_TITLE = "Welcome to Nexus: Your First Week"
 ORIENTATION_QUIZ_TITLE = "Ticketing Systems Quiz"
 

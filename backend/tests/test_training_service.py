@@ -39,7 +39,7 @@ from app.services.curriculum_structure import (
 from app.services.training_curriculum_seed import (
     reconcile_week_zero_requirements,
     sync_initial_training_activities,
-    sync_advanced_networking_resequence,
+    sync_beginner_learning_rollout,
 )
 from app.services.training_curriculum_seed import VIDEO_WEEKS
 from app.services.training_quiz_mapping import VIDEO_QUIZ_MAPPINGS
@@ -238,33 +238,31 @@ def test_unmapped_active_activity_and_invalid_learning_role_fail_validation(db, 
     assert validation["valid"] is False
 
 
-def test_sequence_drift_detected_and_resolved_by_advanced_networking_resequence(db, student):
-    # Minimal weeks at the real week_numbers this Phase 4A.1 check cares
-    # about: 9 (last support-networking week, unaffected), 10-12 (advanced
-    # networking, to be moved later), 13-15 (Identity & Access, to move
-    # earlier). display_order starts equal to week_number, matching today's
-    # un-resequenced data.
+def test_sequence_drift_detected_and_resolved_by_beginner_rollout(db, student):
+    # Reproduce the superseded order where advanced networking (10-12) sat
+    # after Identity & Access (13-15).
+    legacy_order = {9: 9, 10: 13, 11: 14, 12: 15, 13: 10, 14: 11, 15: 12}
     for number in (9, 10, 11, 12, 13, 14, 15):
         week = add_week(db, number, requires_previous=False)
+        week.display_order = legacy_order[number]
         video = add_video(db, 1000 + number, title=f"Week {number} video")
         add_activity(db, week, f"week-{number}-video", "video", video.id, 1)
     db.commit()
 
-    # Before resequencing, display_order still matches week_number, which
-    # contradicts the intended Stage order in curriculum_structure.py (the
-    # network_administration Stage's modules -- weeks 10-12 -- are supposed
-    # to come after identity_access's modules -- weeks 13-15).
     before = validate_training_curriculum(db)
     assert "SEQUENCE_DRIFT" in {issue["code"] for issue in before["issues"]}
 
-    result = sync_advanced_networking_resequence(db)
-    assert result == {"weeks_checked": 6, "weeks_updated": 6}
+    result = sync_beginner_learning_rollout(db)
+    assert result == {"weeks_updated": 6, "networking_labs_optionalized": 0}
 
     after = validate_training_curriculum(db)
     assert "SEQUENCE_DRIFT" not in {issue["code"] for issue in after["issues"]}
 
     # Idempotent: a second run changes nothing.
-    assert sync_advanced_networking_resequence(db) == {"weeks_checked": 6, "weeks_updated": 0}
+    assert sync_beginner_learning_rollout(db) == {
+        "weeks_updated": 0,
+        "networking_labs_optionalized": 0,
+    }
 
     # week_number -- the stable identity key everything else keys off -- is
     # untouched; only display_order moves.
@@ -273,12 +271,12 @@ def test_sequence_drift_detected_and_resolved_by_advanced_networking_resequence(
         for w in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_(range(9, 16))).all()
     }
     assert weeks_by_number[9].display_order == 9
-    assert weeks_by_number[10].display_order == 13
-    assert weeks_by_number[11].display_order == 14
-    assert weeks_by_number[12].display_order == 15
-    assert weeks_by_number[13].display_order == 10
-    assert weeks_by_number[14].display_order == 11
-    assert weeks_by_number[15].display_order == 12
+    assert weeks_by_number[10].display_order == 10
+    assert weeks_by_number[11].display_order == 11
+    assert weeks_by_number[12].display_order == 12
+    assert weeks_by_number[13].display_order == 13
+    assert weeks_by_number[14].display_order == 14
+    assert weeks_by_number[15].display_order == 15
     for number in range(9, 16):
         assert weeks_by_number[number].week_number == number
 
