@@ -82,6 +82,26 @@ def test_topic_gating_locks_advanced_and_hybrid_scenarios():
     assert HYBRID_LABS_ENABLED is False
 
 
+def test_unlocked_aplus_ticket_remains_available_during_network_plus():
+    progression = {
+        "direct_assignment_override_keys": set(),
+        "curriculum_unlocked_keys": set(),
+        "unlocked_pack_keys": {"starter-support", "core-desktop"},
+        "passed_keys": {"locked-user-account"},
+        "guided_completed_keys": set(),
+        "assigned_keys": set(),
+        "curriculum_current_keys": set(),
+        "topic_gating_enabled": True,
+        "topic_unlocked_keys": {"locked-user-account", "inc2503"},
+        "in_progress_keys": set(),
+    }
+
+    access = scenario_access(progression, "locked-user-account")
+
+    assert access["unlocked"] is True
+    assert access["queue_type"] == "practice"
+
+
 def _seed_topic_week(db, week_number, scenario_key):
     module = Module(
         code=f"MOD-{week_number:03d}",
