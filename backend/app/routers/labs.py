@@ -44,6 +44,32 @@ ACTIVE_VM_STATUSES = {
 SINGLE_ACTIVE_PROVISIONERS = {"inc2504_printer_stale_ip"}
 
 
+class _ProvisioningCancelled(RuntimeError):
+    """Raised when cleanup wins a race with a provisioning state transition."""
+
+
+def _transition_assignment(
+    db: Session,
+    assignment_id: int,
+    expected_status: str,
+    **values,
+) -> None:
+    """Advance provisioning only if cleanup has not changed the assignment."""
+    updated = (
+        db.query(VmAssignment)
+        .filter(
+            VmAssignment.id == assignment_id,
+            VmAssignment.status == expected_status,
+        )
+        .update(values, synchronize_session=False)
+    )
+    db.commit()
+    if updated != 1:
+        raise _ProvisioningCancelled(
+            f"VM assignment {assignment_id} left {expected_status} before provisioning completed"
+        )
+
+
 def _normalize_hints(value):
     if isinstance(value, list):
         return value
@@ -424,16 +450,21 @@ def _provision_vm_task(assignment_id: int) -> None:
     try:
         from app.services import guacamole_service, proxmox_service
 
-        assignment = (
+        claimed = (
             db.query(VmAssignment)
-            .filter(VmAssignment.id == assignment_id)
-            .with_for_update()
-            .first()
+            .filter(
+                VmAssignment.id == assignment_id,
+                VmAssignment.status == "provisioning",
+                VmAssignment.retry_count == 0,
+            )
+            .update({VmAssignment.retry_count: 1}, synchronize_session=False)
         )
-        if not assignment or assignment.status != "provisioning" or assignment.retry_count > 0:
-            return
-        assignment.retry_count += 1
         db.commit()
+        if claimed != 1:
+            return
+        assignment = db.get(VmAssignment, assignment_id)
+        if not assignment:
+            return
         run = db.query(LabRun).filter(LabRun.id == assignment.lab_run_id).first()
         lab = db.query(LabTemplate).filter(LabTemplate.id == run.lab_template_id).first() if run else None
         if not run or not lab or not lab.proxmox_template_vmid:
@@ -445,27 +476,43 @@ def _provision_vm_task(assignment_id: int) -> None:
             run_id=run.id,
         )
         vmid = proxmox_service.clone_template(lab.proxmox_template_vmid, name)
-        assignment.vmid = vmid
-        assignment.status = "starting"
-        db.commit()
+        _transition_assignment(
+            db,
+            assignment_id,
+            "provisioning",
+            vmid=vmid,
+            status="starting",
+        )
 
         proxmox_service.start_vm(vmid)
-        assignment.status = "configuring_vm"
-        db.commit()
+        _transition_assignment(
+            db,
+            assignment_id,
+            "starting",
+            status="configuring_vm",
+        )
 
         vm_credentials = _apply_vm_provisioning(lab, vmid)
 
         vm_username, vm_password, provisioned_ip = _connection_details(vm_credentials)
 
-        assignment.status = "waiting_for_ip"
-        db.commit()
+        _transition_assignment(
+            db,
+            assignment_id,
+            "configuring_vm",
+            status="waiting_for_ip",
+        )
 
         ip = provisioned_ip or proxmox_service.get_vm_ip(vmid)
         if not ip:
             raise TimeoutError("VM did not report an IP address")
-        assignment.ip_address = ip
-        assignment.status = "configuring_connection"
-        db.commit()
+        _transition_assignment(
+            db,
+            assignment_id,
+            "waiting_for_ip",
+            ip_address=ip,
+            status="configuring_connection",
+        )
 
         if vm_username and vm_password:
             connection_id = guacamole_service.create_connection(
@@ -482,13 +529,18 @@ def _provision_vm_task(assignment_id: int) -> None:
         vm_credentials = None
 
         now = datetime.now(UTC)
-        assignment.guac_conn_id = connection_id
-        assignment.status = "running"
-        assignment.started_at = now
-        assignment.expires_at = now + timedelta(minutes=max(1, int(os.getenv("LAB_VM_TTL_MINUTES", "120"))))
-        assignment.provisioning_error = None
-        db.commit()
+        _transition_assignment(
+            db,
+            assignment_id,
+            "configuring_connection",
+            guac_conn_id=connection_id,
+            status="running",
+            started_at=now,
+            expires_at=now + timedelta(minutes=max(1, int(os.getenv("LAB_VM_TTL_MINUTES", "120")))),
+            provisioning_error=None,
+        )
     except Exception as exc:
+        cancelled = isinstance(exc, _ProvisioningCancelled)
         db.rollback()
         vm_cleanup_failed = False
         if connection_id is not None:
@@ -513,16 +565,26 @@ def _provision_vm_task(assignment_id: int) -> None:
                 )
         assignment = db.query(VmAssignment).filter(VmAssignment.id == assignment_id).first()
         if assignment and assignment.status != "destroyed":
-            assignment.status = "cleanup_failed" if vm_cleanup_failed else "failed"
-            if not vm_cleanup_failed:
+            if vm_cleanup_failed:
+                assignment.status = "cleanup_failed"
+                assignment.provisioning_error = (
+                    "Lab environment cleanup failed. Please contact an administrator."
+                )
+            elif cancelled or assignment.status == "destroying":
+                assignment.status = "destroyed"
                 assignment.singleton_key = None
-            assignment.provisioning_error = (
-                "Lab environment cleanup failed. Please contact an administrator."
-                if vm_cleanup_failed
-                else _safe_provisioning_error(exc)
-            )
+                assignment.guac_username = None
+                assignment.destroyed_at = datetime.now(UTC)
+                assignment.provisioning_error = None
+            else:
+                assignment.status = "failed"
+                assignment.singleton_key = None
+                assignment.provisioning_error = _safe_provisioning_error(exc)
             db.commit()
-        logger.exception("VM provisioning failed for assignment %s", assignment_id)
+        if cancelled:
+            logger.info("VM provisioning cancelled for assignment %s", assignment_id)
+        else:
+            logger.exception("VM provisioning failed for assignment %s", assignment_id)
     finally:
         vm_password = None
         vm_credentials = None
@@ -534,6 +596,16 @@ def _destroy_vm_task(assignment_id: int) -> None:
     try:
         assignment = db.query(VmAssignment).filter(VmAssignment.id == assignment_id).first()
         if not assignment or assignment.status == "destroyed":
+            return
+        if (
+            assignment.vmid is None
+            and assignment.retry_count > 0
+        ):
+            # The provisioner has claimed the assignment and may currently be
+            # cloning. It must reconcile that clone before this lease is safe
+            # to release.
+            assignment.status = "destroying"
+            db.commit()
             return
         from app.services import guacamole_service, proxmox_service
 

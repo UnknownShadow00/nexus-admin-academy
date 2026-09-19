@@ -1012,6 +1012,85 @@ def test_provisioning_failure_destroys_clone_before_marking_failed(monkeypatch, 
     assert destroyed == [175]
 
 
+def test_submit_during_clone_keeps_singleton_until_worker_reconciles(monkeypatch, db):
+    monkeypatch.setenv("HYBRID_LABS_POC_ENABLED", "true")
+    first_student = make_student(db, username="first")
+    second_student = make_student(db, username="second")
+    lab = _seed_lab(
+        db,
+        proxmox_template_vmid=173,
+        environment_requirements={
+            "provisioning": {"handler": "inc2504_printer_stale_ip"}
+        },
+    )
+    worker_session = sessionmaker(bind=db.get_bind(), autocommit=False, autoflush=False)
+    monkeypatch.setattr(labs_module, "SessionLocal", worker_session)
+    monkeypatch.setattr(labs_module, "_provision_vm_task", lambda assignment_id: None)
+
+    started = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(first_student))
+    assignment_id = started.json()["data"]["vm_assignment"]["assignment_id"]
+    run_id = started.json()["data"]["run_id"]
+    competing_starts = []
+
+    def clone_while_student_submits(_template_vmid, _name):
+        submitted = client.post(
+            f"/api/labs/{lab.id}/submit",
+            json={"notes": "Submitted while the VM clone was in flight."},
+            headers=auth_headers(first_student),
+        )
+        assert submitted.status_code == 200
+
+        # Submission cleanup cannot declare success while the claimed worker
+        # may still return a clone that has not yet been persisted.
+        guarded = worker_session()
+        try:
+            assignment = guarded.get(VmAssignment, assignment_id)
+            assert assignment.status == "destroying"
+            assert assignment.singleton_key == "inc2504_printer_stale_ip"
+        finally:
+            guarded.close()
+
+        competing_starts.append(
+            client.post(
+                f"/api/labs/{lab.id}/start",
+                headers=auth_headers(second_student),
+            )
+        )
+        return 175
+
+    monkeypatch.setattr(proxmox_service, "clone_template", clone_while_student_submits)
+    monkeypatch.setattr(
+        proxmox_service,
+        "start_vm",
+        lambda _vmid: (_ for _ in ()).throw(AssertionError("cancelled VM was started")),
+    )
+    destroyed = []
+    monkeypatch.setattr(
+        proxmox_service,
+        "destroy_vm",
+        lambda vmid, **kwargs: destroyed.append((vmid, kwargs["expected_name"])),
+    )
+
+    provision_worker(assignment_id)
+
+    assert [response.status_code for response in competing_starts] == [409]
+    assert destroyed == [
+        (
+            175,
+            proxmox_service.assignment_vm_name(
+                lab_id=lab.id,
+                student_id=first_student.id,
+                run_id=run_id,
+            ),
+        )
+    ]
+    db.expire_all()
+    assignment = db.get(VmAssignment, assignment_id)
+    assert assignment.status == "destroyed"
+    assert assignment.singleton_key is None
+    assert assignment.destroyed_at is not None
+
+
 def test_failed_vm_teardown_keeps_inc2504_singleton_guarded(monkeypatch, db):
     monkeypatch.setenv("HYBRID_LABS_POC_ENABLED", "true")
     first_student = make_student(db, username="first")
