@@ -20,7 +20,12 @@ def upgrade() -> None:
         "students",
         sa.Column("vm_operation_lock", sa.String(length=36), nullable=True),
     )
+    op.add_column(
+        "students",
+        sa.Column("vm_operation_lock_at", sa.DateTime(timezone=True), nullable=True),
+    )
 
 
 def downgrade() -> None:
+    op.drop_column("students", "vm_operation_lock_at")
     op.drop_column("students", "vm_operation_lock")

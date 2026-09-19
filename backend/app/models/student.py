@@ -23,6 +23,7 @@ class Student(Base):
     total_xp: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     admin_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     vm_operation_lock: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    vm_operation_lock_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     current_role_id: Mapped[int | None] = mapped_column(ForeignKey("roles.id", ondelete="SET NULL"), nullable=True)
     role_since: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_active_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -1471,6 +1471,13 @@ def test_student_vm_operation_lease_is_atomic_on_sqlite(tmp_path):
         cleanup = local_session()
         try:
             release_student_vm_operation(cleanup, student_id, tokens[0])
+            stale = cleanup.get(Student, student_id)
+            stale.vm_operation_lock = "abandoned-operation"
+            stale.vm_operation_lock_at = datetime.now(timezone.utc) - timedelta(hours=1)
+            cleanup.commit()
+            reclaimed = acquire_student_vm_operation(cleanup, student_id)
+            assert reclaimed not in {None, "abandoned-operation"}
+            release_student_vm_operation(cleanup, student_id, reclaimed)
         finally:
             cleanup.close()
     finally:

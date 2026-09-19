@@ -30,6 +30,7 @@ from app.models.squad_activity import SquadActivity
 from app.models.ticket import Ticket, TicketSubmission
 from app.models.xp_ledger import XPLedger
 from app.services.activity_service import mark_student_active
+from app.services.hybrid_lab_rollout import student_lab_is_visible
 from app.services.auth_service import (
     ensure_student_access,
     ensure_student_ownership,
@@ -875,6 +876,14 @@ def get_week_plan(
         run.lab_template_id: run.status
         for run in db.query(LabRun).filter(LabRun.student_id == student_id).all()
     }
+    week_labs = (
+        db.query(LabTemplate)
+        .filter(
+            LabTemplate.week_number == current_week, LabTemplate.is_published.is_(True)
+        )
+        .order_by(LabTemplate.id)
+        .all()
+    )
     labs_out = [
         {
             "id": lt.id,
@@ -884,12 +893,8 @@ def get_week_plan(
             else "available",
             "route": f"/labs/{lt.id}",
         }
-        for lt in db.query(LabTemplate)
-        .filter(
-            LabTemplate.week_number == current_week, LabTemplate.is_published.is_(True)
-        )
-        .order_by(LabTemplate.id)
-        .all()
+        for lt in week_labs
+        if student_lab_is_visible(lt)
     ]
 
     scenario_keys = [

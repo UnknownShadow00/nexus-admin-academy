@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -490,6 +491,7 @@ def test_student_delete_rejects_concurrent_vm_assignment_creation(db):
     student_id = created.json()["data"]["student_id"]
     student = db.get(Student, student_id)
     student.vm_operation_lock = "assignment-creation-in-progress"
+    student.vm_operation_lock_at = datetime.now(timezone.utc)
     db.commit()
 
     response = client.delete(f"/api/admin/students/{student_id}")

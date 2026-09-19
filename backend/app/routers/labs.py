@@ -20,6 +20,12 @@ from app.schemas.lab import LabSubmitRequest, LabVerifyRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import get_current_student
 from app.services.progression_service import require_week_reached
+from app.services.hybrid_lab_rollout import (
+    SINGLE_ACTIVE_PROVISIONERS,
+    hybrid_poc_rollout_enabled,
+    lab_provisioning_handler,
+    student_lab_is_visible,
+)
 from app.services.student_vm_operation import (
     acquire_student_vm_operation,
     release_student_vm_operation,
@@ -45,7 +51,6 @@ ACTIVE_VM_STATUSES = {
     "destroying",
     "cleanup_failed",
 }
-SINGLE_ACTIVE_PROVISIONERS = {"inc2504_printer_stale_ip"}
 
 
 class _ProvisioningCancelled(RuntimeError):
@@ -368,30 +373,11 @@ def _safe_provisioning_error(exc: Exception) -> str:
 
 
 def _provisioning_handler(lab: LabTemplate) -> str | None:
-    requirements = lab.environment_requirements
-    if requirements is None:
-        return None
-    if not isinstance(requirements, dict):
-        raise RuntimeError("Lab environment requirements must be an object")
-    if "provisioning" not in requirements:
-        return None
-
-    provisioning = requirements["provisioning"]
-    if not isinstance(provisioning, dict):
-        raise RuntimeError("VM provisioning metadata must be an object")
-    handler = provisioning.get("handler")
-    if not isinstance(handler, str) or not handler.strip():
-        raise RuntimeError("VM provisioning handler must be a non-empty string")
-    return handler.strip()
+    return lab_provisioning_handler(lab)
 
 
 def _hybrid_poc_rollout_enabled() -> bool:
-    return (os.getenv("HYBRID_LABS_POC_ENABLED") or "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
+    return hybrid_poc_rollout_enabled()
 
 
 def _require_hybrid_poc_rollout(lab: LabTemplate) -> None:
@@ -772,12 +758,7 @@ def get_labs(
     )
     query = query.filter(LabTemplate.id.not_in(v2_lab_ids))
     labs = query.order_by(LabTemplate.week_number.asc(), LabTemplate.created_at.desc()).all()
-    if not _hybrid_poc_rollout_enabled():
-        labs = [
-            lab
-            for lab in labs
-            if _provisioning_handler(lab) not in SINGLE_ACTIVE_PROVISIONERS
-        ]
+    labs = [lab for lab in labs if student_lab_is_visible(lab)]
 
     lab_ids = [lab.id for lab in labs]
     runs = {}
