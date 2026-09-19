@@ -23,7 +23,7 @@ from app.services.quiz_scores import (
 from app.services.service_desk_progression import PACK_BY_SCENARIO
 from app.services.admin_auth import verify_admin
 from app.services.auth_service import hash_password, normalize_username
-from app.services.student_deletion import delete_student_owned_data
+from app.services.student_deletion import ActiveVmAssignmentError, delete_student_owned_data
 from app.services.training_service import build_cohort_summary, build_training_progress
 from app.utils.responses import ok
 
@@ -289,6 +289,13 @@ def delete_student(student_id: int, db: Session = Depends(get_db)):
         delete_student_owned_data(db, student_id)
         db.delete(student)
         db.commit()
+    except ActiveVmAssignmentError as exc:
+        db.rollback()
+        logger.warning("student_delete_active_vm student_id=%s", student_id)
+        raise HTTPException(
+            status_code=409,
+            detail="Student has an active lab environment; clean it up before deleting the account",
+        ) from exc
     except IntegrityError as exc:
         db.rollback()
         logger.warning("student_delete_integrity_conflict student_id=%s", student_id)

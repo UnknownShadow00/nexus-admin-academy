@@ -87,6 +87,10 @@ STUDENT_OWNED_MODELS: tuple[tuple[str, type, str], ...] = (
 )
 
 
+class ActiveVmAssignmentError(RuntimeError):
+    """Student deletion cannot orphan a VM or release its singleton lease."""
+
+
 def student_owned_row_counts(db: Session, student_id: int) -> dict[str, int]:
     """Return a complete, read-only count map for a student's owned rows.
 
@@ -193,6 +197,19 @@ def delete_student_owned_data(db: Session, student_id: int) -> None:
     Shared curriculum, scenarios, scenario versions, quizzes, questions, and
     administrator/instructor records are never selected here.
     """
+
+    active_vm = (
+        db.query(VmAssignment.id)
+        .filter(
+            VmAssignment.student_id == student_id,
+            VmAssignment.status != "destroyed",
+        )
+        .first()
+    )
+    if active_vm:
+        raise ActiveVmAssignmentError(
+            "Student has a VM assignment that must be cleaned up before deletion"
+        )
 
     attempt_ids = [
         attempt_id

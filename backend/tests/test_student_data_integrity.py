@@ -373,7 +373,7 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
     )
     db.flush()
     run = db.query(LabRun).filter_by(student_id=student_id).one()
-    db.add(VmAssignment(student_id=student_id, lab_run_id=run.id, status="running"))
+    db.add(VmAssignment(student_id=student_id, lab_run_id=run.id, status="destroyed"))
     assignment = ServiceDeskAssignment(student_id=student_id, scenario_id=scenario.id, mode="simulation", assigned_by="test")
     attempt = ServiceDeskAttempt(student_id=student_id, scenario_version_id=version.id, mode="simulation", status="completed", current_state={}, current_state_hash="s" * 64, state_version=1, attempt_number=1, score=100, passed=True)
     enrollment = ServiceDeskBetaEnrollment(student_id=student_id, enabled=True, enrolled_by="test")
@@ -439,6 +439,49 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
     assert db.query(QuizAttempt).filter_by(student_id=other_id).count() == 1
     assert db.query(XPLedger).filter_by(student_id=other_id).count() == 1
     assert db.query(ServiceDeskAssignment).filter_by(student_id=other_id).count() == 1
+
+
+def test_student_delete_rejects_active_vm_assignment(db):
+    client = _admin_client(db)
+    created = client.post("/api/admin/students", json=_student_payload("active-vm"))
+    student_id = created.json()["data"]["student_id"]
+    lab = LabTemplate(
+        title="Active deletion guard",
+        lab_type="guided",
+        difficulty=1,
+        week_number=1,
+        is_published=True,
+        environment_requirements={},
+        success_criteria={},
+        required_evidence={},
+        hints={},
+    )
+    db.add(lab)
+    db.flush()
+    run = LabRun(lab_template_id=lab.id, student_id=student_id, status="in_progress")
+    db.add(run)
+    db.flush()
+    assignment = VmAssignment(
+        student_id=student_id,
+        lab_run_id=run.id,
+        vmid=175,
+        status="running",
+        singleton_key="inc2504_printer_stale_ip",
+    )
+    db.add(assignment)
+    db.commit()
+
+    response = client.delete(f"/api/admin/students/{student_id}")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Student has an active lab environment; clean it up before deleting the account"
+    )
+    db.expire_all()
+    assert db.get(Student, student_id) is not None
+    guarded = db.get(VmAssignment, assignment.id)
+    assert guarded is not None
+    assert guarded.singleton_key == "inc2504_printer_stale_ip"
 
 
 def test_student_delete_rolls_back_everything_when_cleanup_fails(db, monkeypatch):
