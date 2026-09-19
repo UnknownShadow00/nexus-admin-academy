@@ -2448,3 +2448,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/pages/LabPage.jsx; frontend/src/pages/LabPage.test.jsx; tasks/loop-log.md
 - Result: pass — Windows configuration no longer stops VM status polling, and the INC2504 structured task shape renders without invalid React object children. All 86 frontend tests, the production build, npm high-severity audit, and whitespace checks passed.
 - Next: Push the fixes, resolve both P1 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T11:15:14Z] Task Completed
+- Task: Serialized student deletion with VM assignment creation using an atomic database-backed per-student operation lease, and surfaced cleanup_failed as a terminal lab-page error.
+- Files changed: backend/alembic/versions/0071_student_vm_operation_lock.py; backend/app/models/student.py; backend/app/routers/admin_students.py; backend/app/routers/labs.py; backend/app/services/student_vm_operation.py; backend/tests/test_labs.py; backend/tests/test_student_data_integrity.py; frontend/src/pages/LabPage.jsx; frontend/src/pages/LabPage.test.jsx; tasks/loop-log.md
+- Result: pass — SQLite grants exactly one concurrent student VM operation lease, deletion returns 409 while assignment creation owns it, and cleanup_failed displays its safe provisioning error. A fresh SQLite database migrated through 0071 successfully; 107 focused backend tests and all 87 frontend tests passed with builds, Ruff, compileall, pip/npm audits, dependency checks, and whitespace checks clean.
+- Next: Push the fixes, resolve both P2 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.

@@ -484,6 +484,24 @@ def test_student_delete_rejects_active_vm_assignment(db):
     assert guarded.singleton_key == "inc2504_printer_stale_ip"
 
 
+def test_student_delete_rejects_concurrent_vm_assignment_creation(db):
+    client = _admin_client(db)
+    created = client.post("/api/admin/students", json=_student_payload("vm-operation-lock"))
+    student_id = created.json()["data"]["student_id"]
+    student = db.get(Student, student_id)
+    student.vm_operation_lock = "assignment-creation-in-progress"
+    db.commit()
+
+    response = client.delete(f"/api/admin/students/{student_id}")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Student lab environment state is changing; retry after it completes"
+    )
+    db.expire_all()
+    assert db.get(Student, student_id) is not None
+
+
 def test_student_delete_rolls_back_everything_when_cleanup_fails(db, monkeypatch):
     client = _admin_client(db)
     module = Module(code="DEL-ROLLBACK", title="Deletion rollback shared curriculum")

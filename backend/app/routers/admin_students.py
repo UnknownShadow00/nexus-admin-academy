@@ -24,6 +24,10 @@ from app.services.service_desk_progression import PACK_BY_SCENARIO
 from app.services.admin_auth import verify_admin
 from app.services.auth_service import hash_password, normalize_username
 from app.services.student_deletion import ActiveVmAssignmentError, delete_student_owned_data
+from app.services.student_vm_operation import (
+    acquire_student_vm_operation,
+    release_student_vm_operation,
+)
 from app.services.training_service import build_cohort_summary, build_training_progress
 from app.utils.responses import ok
 
@@ -285,12 +289,20 @@ def delete_student(student_id: int, db: Session = Depends(get_db)):
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
+    operation_token = acquire_student_vm_operation(db, student_id)
+    if operation_token is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Student lab environment state is changing; retry after it completes",
+        )
+
     try:
         delete_student_owned_data(db, student_id)
         db.delete(student)
         db.commit()
     except ActiveVmAssignmentError as exc:
         db.rollback()
+        release_student_vm_operation(db, student_id, operation_token)
         logger.warning("student_delete_active_vm student_id=%s", student_id)
         raise HTTPException(
             status_code=409,
@@ -298,12 +310,14 @@ def delete_student(student_id: int, db: Session = Depends(get_db)):
         ) from exc
     except IntegrityError as exc:
         db.rollback()
+        release_student_vm_operation(db, student_id, operation_token)
         logger.warning("student_delete_integrity_conflict student_id=%s", student_id)
         raise HTTPException(
             status_code=409, detail="Student account has protected records"
         ) from exc
     except Exception:
         db.rollback()
+        release_student_vm_operation(db, student_id, operation_token)
         logger.exception("student_delete_failed student_id=%s", student_id)
         raise
     return ok({"deleted": True})

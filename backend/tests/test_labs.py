@@ -13,6 +13,10 @@ from app.models.vm_assignment import VmAssignment
 from app.routers.admin_content import router as admin_content_router
 from app.routers.labs import router
 from app.services import guacamole_service, proxmox_service
+from app.services.student_vm_operation import (
+    acquire_student_vm_operation,
+    release_student_vm_operation,
+)
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -1426,6 +1430,50 @@ def test_inc2504_singleton_insert_is_atomic_on_sqlite(monkeypatch, tmp_path):
         assert assignment.singleton_key == "inc2504_printer_stale_ip"
     finally:
         verify.close()
+        engine.dispose()
+
+
+def test_student_vm_operation_lease_is_atomic_on_sqlite(tmp_path):
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'student-vm-operation-race.db'}",
+        connect_args={"check_same_thread": False, "timeout": 10},
+    )
+    Base.metadata.create_all(engine)
+    local_session = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    setup = local_session()
+    student = Student(name="Race Student", email="operation-race@test.local", username="operation-race")
+    setup.add(student)
+    setup.commit()
+    student_id = student.id
+    setup.close()
+    barrier = threading.Barrier(2)
+    outcomes = []
+
+    def acquire():
+        session = local_session()
+        try:
+            barrier.wait(timeout=5)
+            outcomes.append(acquire_student_vm_operation(session, student_id))
+        finally:
+            session.close()
+
+    threads = [threading.Thread(target=acquire) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10)
+
+    try:
+        assert not any(thread.is_alive() for thread in threads)
+        tokens = [token for token in outcomes if token is not None]
+        assert len(tokens) == 1
+        assert outcomes.count(None) == 1
+        cleanup = local_session()
+        try:
+            release_student_vm_operation(cleanup, student_id, tokens[0])
+        finally:
+            cleanup.close()
+    finally:
         engine.dispose()
 
 

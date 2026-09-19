@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { isVmProvisioningStatus, normalizeLabTask } from "./LabPage";
+import { isVmErrorStatus, isVmProvisioningStatus, normalizeLabTask } from "./LabPage";
 
 
 describe("Hybrid lab presentation", () => {
   it("keeps polling while the worker configures the guest VM", () => {
     expect(isVmProvisioningStatus("configuring_vm")).toBe(true);
     expect(isVmProvisioningStatus("running")).toBe(false);
+  });
+
+  it("surfaces protected cleanup failures as terminal errors", () => {
+    expect(isVmErrorStatus("cleanup_failed")).toBe(true);
+    expect(isVmErrorStatus("running")).toBe(false);
   });
 
   it("normalizes structured curriculum tasks into renderable text", () => {

@@ -20,9 +20,14 @@ const provisioningStatuses = new Set([
   "waiting_for_ip",
   "configuring_connection",
 ]);
+const vmErrorStatuses = new Set(["failed", "cleanup_failed"]);
 
 export function isVmProvisioningStatus(status) {
   return provisioningStatuses.has(status);
+}
+
+export function isVmErrorStatus(status) {
+  return vmErrorStatuses.has(status);
 }
 
 export function normalizeLabTask(task, index) {
@@ -277,7 +282,7 @@ export default function LabPage() {
       {vmAssignment && provisioningStatuses.has(vmAssignment.status) ? (
         <Banner variant="info">Preparing the lab environment: {vmAssignment.status.replaceAll("_", " ")}…</Banner>
       ) : null}
-      {vmAssignment?.status === "failed" ? (
+      {isVmErrorStatus(vmAssignment?.status) ? (
         <Banner variant="error">{vmAssignment.provisioning_error || "Lab environment provisioning failed."}</Banner>
       ) : null}
 

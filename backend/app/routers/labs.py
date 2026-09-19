@@ -20,6 +20,10 @@ from app.schemas.lab import LabSubmitRequest, LabVerifyRequest
 from app.services.activity_service import log_activity, mark_student_active
 from app.services.auth_service import get_current_student
 from app.services.progression_service import require_week_reached
+from app.services.student_vm_operation import (
+    acquire_student_vm_operation,
+    release_student_vm_operation,
+)
 from app.services.v2_progress_service import record_activity
 from app.services.v2_access import V2_UNAVAILABLE_DETAIL, student_has_v2_access
 from app.utils.responses import ok
@@ -694,6 +698,23 @@ def _destroy_vm_task(assignment_id: int) -> None:
 
 
 def _queue_assignment(db: Session, run: LabRun, background_tasks: BackgroundTasks) -> VmAssignment:
+    operation_token = acquire_student_vm_operation(db, run.student_id)
+    if operation_token is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Student account or lab environment state is changing; retry shortly.",
+        )
+    try:
+        return _queue_assignment_with_lease(db, run, background_tasks)
+    finally:
+        release_student_vm_operation(db, run.student_id, operation_token)
+
+
+def _queue_assignment_with_lease(
+    db: Session,
+    run: LabRun,
+    background_tasks: BackgroundTasks,
+) -> VmAssignment:
     # Locks the run on databases which support row locks. The unique constraint
     # on lab_run_id is the final duplicate-start guard.
     db.query(LabRun).filter(LabRun.id == run.id).with_for_update().first()
