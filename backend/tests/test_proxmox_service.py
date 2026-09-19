@@ -2,6 +2,7 @@ import logging
 from unittest.mock import MagicMock, call
 
 import pytest
+import proxmoxer
 
 from app.services import proxmox_service
 
@@ -52,6 +53,34 @@ def test_settings_reject_invalid_safety_values(monkeypatch, name, value, message
 
     with pytest.raises(RuntimeError, match=message):
         proxmox_service._settings()
+
+
+def test_get_proxmox_splits_token_id_into_user_and_token_name(monkeypatch):
+    _configure(monkeypatch, full_clone=False)
+    client = MagicMock()
+    constructor = MagicMock(return_value=client)
+    monkeypatch.setattr(proxmoxer, "ProxmoxAPI", constructor)
+
+    assert proxmox_service._get_proxmox() is client
+    constructor.assert_called_once_with(
+        "pve.example",
+        user="automation@pve",
+        token_name="labs",
+        token_value="secret",
+        verify_ssl=False,
+    )
+
+
+@pytest.mark.parametrize(
+    "token_id",
+    ["automation@pve", "!labs", "automation@pve!"],
+)
+def test_get_proxmox_rejects_malformed_token_id(monkeypatch, token_id):
+    _configure(monkeypatch, full_clone=False)
+    monkeypatch.setenv("PROXMOX_TOKEN_ID", token_id)
+
+    with pytest.raises(RuntimeError, match="user@realm!token-name"):
+        proxmox_service._get_proxmox()
 
 
 def test_linked_clone_passes_full_zero_on_supported_storage(monkeypatch):

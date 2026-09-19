@@ -1,7 +1,36 @@
 # INC2504 Hybrid-Lab POC Live-Test Notes
 
-This branch prepares one controlled manual test. It does not deploy content,
-change Proxmox, or enable the lab in production.
+The controlled live POC passed end to end on 2026-09-19. This branch does not
+deploy content or enable the lab in production.
+
+## Live POC result
+
+The controlled run successfully:
+
+- cloned template VM173 into the `nexus-labs` resource pool with the enforced
+  Nexus assignment-owned VM name;
+- waited for the clone and start tasks, confirmed the VM was running, and
+  reached Windows through the QEMU Guest Agent;
+- ran the allowlisted `inc2504_printer_stale_ip` provisioner, tolerated the
+  expected temporary guest-agent outage during the Windows reboot, and
+  recovered after reboot;
+- returned the exact final six-state verification:
+
+```text
+HOSTNAME=NX-2504
+IP=10.10.10.10
+PRINTER=Front Office Printer
+PRINTER_PORT=IP_10.10.10.19
+AUTOLOGIN=0
+UNATTEND_EXISTS=False
+```
+
+- kept the generated temporary Windows password redacted and out of persisted
+  Nexus state, files, logs, and API responses; and
+- completed protected destruction after verifying the dynamic VMID, resource
+  pool membership, and Nexus-owned name. Disposable VM172 was removed.
+
+No secret, password, or token value is recorded in this document.
 
 ## POC boundaries
 
@@ -27,6 +56,24 @@ request with safe full-clone fallback, and SSL verification enabled. Supply
 the host, token ID, and token secret through the deployment secret mechanism;
 never commit or print them.
 
+The live POC used `PROXMOX_VERIFY_SSL=false` only as a temporary test
+exception. This produced `InsecureRequestWarning` messages and is not an
+acceptable production configuration. Production must trust and verify the
+Proxmox TLS certificate.
+
+The least-privilege `NexusLabs` role required these privileges during the
+successful live run:
+
+- `Pool.Audit` (required to verify `nexus-labs` membership before protected
+  destruction)
+- `VM.Allocate`
+- `VM.Audit`
+- `VM.Clone`
+- `VM.Config.Disk`
+- `VM.GuestAgent.Audit`
+- `VM.GuestAgent.Unrestricted`
+- `VM.PowerMgmt`
+
 ## Remaining worker durability gap
 
 VM lifecycle work still runs in FastAPI `BackgroundTasks`. Those tasks are not
@@ -46,9 +93,18 @@ worker/reconciler. For the one controlled live test, avoid API restarts during
 provisioning and use the admin assignment view plus protected cleanup path if
 the process is interrupted.
 
-## Final manual test
+## Production blockers
 
-With production still untouched, an operator may select stopped disposable
-VM172 or another verified-free dynamic VMID, launch INC2504 once, confirm the
-six final-state checks, exercise RDP through Guacamole, and end the assignment.
-Do not run two INC2504 instances concurrently.
+The implementation and controlled Proxmox/Windows lifecycle POC are complete,
+but production rollout remains blocked by all of the following:
+
+- Windows licensing and activation are unresolved.
+- Shared `vmbr1` supports only one active INC2504 fixed-IP instance.
+- The live Guacamole student-access path needs final production validation.
+- A durable worker, reconciler, restart recovery, and orphan/cleanup retry path
+  are still required; FastAPI `BackgroundTasks` is not a durable lifecycle
+  mechanism.
+- Proxmox TLS certificate verification must be addressed before production.
+- Production secret provisioning is still required.
+- Broader capacity and concurrency design is required before multi-user
+  rollout.

@@ -1,6 +1,25 @@
 # Hybrid Labs Phase 0 — INC2504 POC Design
 
-Status: design only. Nothing described here was created or configured.
+Status: Phase 0 target architecture, with a controlled lifecycle POC validated
+on 2026-09-19. This document's multi-user topology, trusted evidence, and
+durable lifecycle designs are not yet production implementations.
+
+## Validated implementation boundary
+
+The controlled implementation proved one allowlisted, single-instance
+INC2504 lifecycle on the shared isolated `vmbr1`: template VM173 clone into
+the `nexus-labs` pool, Nexus-owned naming, task-aware start, Windows Guest
+Agent provisioning and reboot recovery, exact final-state verification, and
+protected destruction of disposable VM172. The temporary Windows password was
+not persisted. The live Proxmox role required `Pool.Audit` plus the documented
+VM allocation, audit, clone, disk-config, guest-agent, and power privileges.
+
+That result validates the current POC mechanism, not the future topology below.
+The current fixed `10.10.10.10` address allows only one active instance, the
+Guacamole student path still needs final production validation, and the API
+still uses non-durable FastAPI `BackgroundTasks`. Windows licensing/activation,
+trusted Proxmox TLS, production secret provisioning, durable reconciliation,
+and multi-user capacity/concurrency remain production blockers.
 
 ## Scenario
 

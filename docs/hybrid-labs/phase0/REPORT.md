@@ -13,6 +13,31 @@ Supporting documents:
 - [INC2504 POC design](INC2504-POC-DESIGN.md)
 - [GO / NO-GO](GO-NO-GO.md)
 
+## Post-Phase-0 controlled POC validation (2026-09-19)
+
+Phase 0 recorded the evidence available at the time and remains the baseline
+for production architecture. A later controlled INC2504 POC has now validated
+the narrow single-instance lifecycle described in
+[INC2504 live-test notes](../INC2504-LIVE-TEST.md): clone template VM173 into
+the `nexus-labs` pool, enforce a Nexus-owned name, wait for clone/start task
+completion, confirm running state, provision through the Windows Guest Agent,
+recover through a Windows reboot, verify all six expected final-state values,
+and safely destroy disposable VM172 after rechecking VMID, pool membership,
+and name ownership.
+
+The generated temporary Windows password remained out of persisted state and
+transport payload logging. The live role required `Pool.Audit`, `VM.Allocate`,
+`VM.Audit`, `VM.Clone`, `VM.Config.Disk`, `VM.GuestAgent.Audit`,
+`VM.GuestAgent.Unrestricted`, and `VM.PowerMgmt`. `Pool.Audit` is specifically
+needed for the fail-closed resource-pool ownership check before destruction.
+
+This successful lifecycle POC does not supersede the production blockers:
+Windows licensing/activation, single-instance fixed-IP `vmbr1`, final live
+Guacamole student-access validation, durable worker/reconciler/recovery,
+trusted Proxmox TLS verification, production secret provisioning, and broader
+capacity/concurrency design. FastAPI `BackgroundTasks` remains a production
+blocker for lifecycle durability.
+
 ## Executive result
 
 Decision: **READY AFTER SPECIFIC BLOCKERS**.
