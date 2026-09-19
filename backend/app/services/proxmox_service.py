@@ -210,15 +210,17 @@ def clone_template(
             # Persist ownership before Proxmox can accept a clone request. If
             # the worker is cancelled, the callback raises before any POST.
             on_vmid_selected(new_vmid)
-        request_submitted = False
+        request_attempted = False
         try:
+            # Once the POST begins, a transport error can mean the response
+            # was lost after Proxmox accepted the request.
+            request_attempted = True
             upid = proxmox.nodes(settings["node"]).qemu(template_vmid).clone.post(
                 newid=new_vmid,
                 name=name,
                 full=1 if full_clone else 0,
                 pool=settings["resource_pool"],
             )
-            request_submitted = True
             _wait_for_task(proxmox, settings["node"], upid, operation="clone")
         except Exception as exc:
             if _is_vmid_collision_error(exc):
@@ -228,7 +230,7 @@ def clone_template(
                     new_vmid,
                 )
                 continue
-            if request_submitted:
+            if request_attempted:
                 raise CloneRequestError(
                     f"Proxmox {mode} clone outcome is uncertain for template {template_vmid}",
                     vmid=new_vmid,

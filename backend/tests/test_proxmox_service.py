@@ -207,6 +207,26 @@ def test_clone_propagates_selected_vmid_when_task_polling_fails(monkeypatch):
     proxmox.nodes("pve").qemu(900).clone.post.assert_called_once()
 
 
+def test_clone_treats_lost_post_response_as_uncertain(monkeypatch):
+    _configure(monkeypatch, full_clone=True)
+    proxmox = _mock_proxmox()
+    proxmox.nodes("pve").qemu(900).clone.post.side_effect = TimeoutError(
+        "response timed out"
+    )
+    monkeypatch.setattr(proxmox_service, "_get_proxmox", lambda: proxmox)
+    selected = []
+
+    with pytest.raises(proxmox_service.CloneRequestError) as raised:
+        proxmox_service.clone_template(
+            900,
+            "lab-1-student-2-run-3",
+            on_vmid_selected=selected.append,
+        )
+
+    assert selected == [201]
+    assert raised.value.vmid == 201
+
+
 def test_guest_exec_returns_stdout_after_success(monkeypatch):
     _configure(monkeypatch, full_clone=False)
     proxmox = MagicMock()

@@ -2424,3 +2424,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/labs.py; backend/app/services/proxmox_service.py; backend/tests/test_labs.py; backend/tests/test_proxmox_service.py; tasks/loop-log.md
 - Result: pass — an accidentally published POC is absent from listings and returns 404 for detail, submit, and start; clone polling failures retain the selected VMID and singleton lease for protected retry cleanup. All 90 focused tests and 342 broader content/Service Desk tests passed; Ruff, compileall, pip check, pip-audit, and whitespace checks passed. No deployment, merge, production migration/configuration, or Proxmox operation occurred.
 - Next: Push the review fixes, resolve both P2 threads, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T10:41:18Z] Task Completed
+- Task: Extended uncertain clone reconciliation to the lost-POST-response case, where Proxmox may accept a clone before the client receives an UPID.
+- Files changed: backend/app/services/proxmox_service.py; backend/tests/test_proxmox_service.py; tasks/loop-log.md
+- Result: pass — every non-collision failure after clone POST begins now raises CloneRequestError with the already-persisted VMID, causing the worker to retain the singleton lease for protected retry reconciliation. All 91 focused lab/Proxmox/provisioner/content/admin tests passed with Ruff, compileall, and whitespace checks clean. No deployment, merge, production migration/configuration, or Proxmox operation occurred.
+- Next: Push the fix, resolve the P2 thread, request Codex review on the new HEAD, and wait for final green CI with no unresolved findings. Do not merge or deploy.
