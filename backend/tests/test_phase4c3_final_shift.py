@@ -161,26 +161,34 @@ def test_historical_week_24_completion_preserved_but_does_not_satisfy_new_gate(t
 
     engine = create_engine(database_url)
     with Session(engine) as db:
-        from app.models.student import Student
-
-        student = Student(
-            name="Old Completion Student",
-            email="old-completion@example.test",
-            username="old-completion",
-            password_hash="not-a-real-hash",
+        # This database is intentionally pinned before later Student columns
+        # exist.  Insert using that historical schema instead of the current
+        # mapper so additive head migrations do not invalidate the fixture.
+        student_result = db.execute(
+            text(
+                """
+                INSERT INTO students (name, email, username, password_hash)
+                VALUES (:name, :email, :username, :password_hash)
+                """
+            ),
+            {
+                "name": "Old Completion Student",
+                "email": "old-completion@example.test",
+                "username": "old-completion",
+                "password_hash": "not-a-real-hash",
+            },
         )
-        db.add(student)
-        db.flush()
+        student_id = student_result.lastrowid
         old_run = LabRun(
             lab_template_id=22,
-            student_id=student.id,
+            student_id=student_id,
             status="submitted",
             final_score=100,
             structured_feedback={"score_pct": 100, "questions": []},
         )
         db.add(old_run)
         db.commit()
-        student_id, old_run_id = student.id, old_run.id
+        old_run_id = old_run.id
 
     _run([sys.executable, "-m", "alembic", "upgrade", REVISION_0061], database_url)
     with Session(engine) as db:

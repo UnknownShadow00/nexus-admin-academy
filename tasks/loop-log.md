@@ -2466,3 +2466,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/seed.py; tasks/loop-log.md
 - Result: pass — seed queries now load only columns present at the historical checkpoint; all 7 orientation and migration-cycle regression tests passed, and Ruff passed.
 - Next: Push the CI fix, retrigger Codex review on the new HEAD, and wait for green CI with no unresolved findings. Do not merge or deploy.
+
+## [2026-09-19T11:54:03Z] Task Completed
+- Task: Made the Phase 4C.3 historical-schema fixture independent of additive columns in the current Student mapper.
+- Files changed: backend/tests/test_phase4c3_final_shift.py; tasks/loop-log.md
+- Result: pass — the historical Week 24 completion fixture inserts through its pinned schema, the previously failing regression passed, all 7 orientation migration-cycle tests passed, and Ruff passed.
+- Next: Push the CI fix and wait for final green CI with no unresolved findings. Do not merge or deploy.
