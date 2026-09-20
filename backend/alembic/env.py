@@ -11,10 +11,14 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from app.config import load_env
-from app.database import Base, normalize_database_url
-from app.db_guard import assert_migration_allowed
-from app.models import *  # noqa: F401,F403
+from app.config import load_env  # noqa: E402
+from app.database import Base, normalize_database_url  # noqa: E402
+from app.db_guard import (  # noqa: E402
+    assert_migration_allowed,
+    production_sqlite_path,
+    resolves_to_production,
+)
+from app.models import *  # noqa: E402,F401,F403
 
 config = context.config
 load_env()
@@ -53,6 +57,24 @@ def _guard_production() -> None:
         effective_url=config.get_main_option("sqlalchemy.url"),
         database_url_was_set=bool(os.getenv("DATABASE_URL")),
     )
+
+
+def _avoid_creating_missing_production_database() -> None:
+    """Keep read-only inspection truly non-mutating when prod is absent.
+
+    SQLite creates a database file as soon as SQLAlchemy connects to a missing
+    path.  A checkout or CI runner normally has no ``backend/nexus.db``, so a
+    bare ``alembic current`` would otherwise leave behind an empty file even
+    though the command is read-only.  Use an ephemeral empty database only for
+    that missing-production/read-only combination.
+    """
+    effective_url = config.get_main_option("sqlalchemy.url")
+    if (
+        not _is_mutating_command()
+        and resolves_to_production(effective_url)
+        and not production_sqlite_path().exists()
+    ):
+        config.set_main_option("sqlalchemy.url", "sqlite:///:memory:")
 
 
 # Alembic hardcodes alembic_version.version_num as VARCHAR(32)
@@ -97,6 +119,7 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     _guard_production()
+    _avoid_creating_missing_production_database()
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

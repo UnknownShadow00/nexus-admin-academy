@@ -2477,3 +2477,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md
 - Result: pass against acceptance criteria; all 6 My Training browser tests pass on a fresh isolated merge-head database, including the full Week 0 unlock, persistence, and Service Desk return flow.
 - Next: Push the browser correction and confirm the replacement PR #36 CI run is fully green; do not merge or deploy.
+
+## [2026-09-20T10:28:37Z] Task Completed
+- Task: Kept read-only Alembic inspection non-mutating when a clean checkout has no production SQLite file.
+- Files changed: backend/alembic/env.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; all 24 production migration guard tests pass and a bare `alembic current` no longer creates `backend/nexus.db` when it is absent.
+- Next: Push the hermeticity correction and confirm all PR #36 checks pass; do not merge or deploy.
