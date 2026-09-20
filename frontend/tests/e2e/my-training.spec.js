@@ -369,6 +369,12 @@ test("required Nexus-authored quiz grades and reviews every answer", async ({ pa
     for (const option of correctOptions) {
       await questionPanel.getByText(option, { exact: true }).click();
     }
+    // Wait for React to commit the answer before navigating. Without this,
+    // the click on Next can race the final option-state update in CI.
+    await expect(page.getByRole("button", {
+      name: `Go to question ${index}, answered`,
+      exact: true,
+    })).toBeVisible();
     await page.getByRole("button", { name: index === 8 ? "Submit Quiz" : "Next", exact: true }).click();
   }
 

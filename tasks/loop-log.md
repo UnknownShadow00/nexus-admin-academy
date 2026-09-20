@@ -2519,3 +2519,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/labs.py, backend/app/services/v2_curriculum_service.py, backend/tests/test_operator_scripts.py, backend/tests/test_v2_runtime_stabilization.py, frontend/src/pages/v2/V2LessonPage.jsx, frontend/src/pages/v2/V2LessonPage.test.jsx, scripts/pilot_status.sh, tasks/loop-log.md
 - Result: pass against acceptance criteria; focused backend and operator regressions pass, all three lesson-page tests and the frontend production build pass, touched Python files pass Ruff, and shell/diff validation is clean.
 - Next: Push and resolve the four final review threads, then confirm final CI without merging or deploying.
+
+## [2026-09-20T12:49:00Z] Task Completed
+- Task: Removed a Playwright answer-state race by waiting for each quiz answer to be committed before navigating or submitting.
+- Files changed: frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md
+- Result: pass against acceptance criteria; the CI failure artifact proved only seven of eight answers were committed, and the regression now synchronizes on the quiz's own answered-state control.
+- Next: Push the browser stabilization and require a green replacement CI run; do not merge or deploy.
