@@ -1812,3 +1812,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/routers/service_desk.py, backend/tests/test_service_desk_attempts.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; 5 direct hybrid-route regressions and all 129 Service Desk rollout/attempt tests passed, touched files pass Ruff, Python compilation and diff validation passed.
 - Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T04:32:28Z] Task Completed
+- Task: Prevented a required Service Desk case deadlock when its mapped topic week has no required non-ticket preparation by treating the empty prerequisite set as satisfied.
+- Files changed: backend/app/services/training_service.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 56 focused training/progression regressions passed, including listing and starting the required case under global topic gating, and touched files pass Ruff, Python compilation and diff validation.
+- Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.

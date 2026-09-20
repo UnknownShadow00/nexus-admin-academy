@@ -495,6 +495,37 @@ def test_direct_api_cannot_start_locked_assignment(monkeypatch, db):
     assert response.json()["detail"]["data"]["pack"] == "Desktop Support"
 
 
+def test_required_case_unlocks_when_topic_has_no_required_learning(
+    monkeypatch, db
+):
+    student = make_student(db, "empty-topic-requirements")
+    scenarios = _seed_pack_assignments(db, student)
+    stable_key = "locked-user-account"
+    _map_required_case(db, 1, stable_key)
+    # Keep topic gating globally enabled through another week while the
+    # mapped topic itself contains only its required Service Desk apply step.
+    _enable_topic_gating(db, 2)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+    scenario, _ = scenarios[stable_key]
+
+    listing = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    )
+    response = client.post(
+        f"/api/service-desk/assignments/{_assignment_id(db, student, scenario)}/attempts",
+        headers=auth_headers(student),
+    )
+
+    assert stable_key in {
+        row["scenario"]["stable_key"] for row in listing.json()
+    }
+    assert response.status_code == 201
+    assert response.json()["experience_mode"] == "assessment"
+
+
 def test_completed_cases_move_to_practice_and_can_be_replayed(db):
     student = make_student(db, "practice-replay")
     scenarios = _seed_pack_assignments(db, student)

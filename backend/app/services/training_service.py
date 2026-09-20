@@ -689,7 +689,10 @@ def required_learning_complete_for_week(
         | {"review", "service_desk_scenario", "support_ticket", "capstone"}
     ]
     if not required:
-        return False
+        # An administrator may intentionally make every preparatory activity
+        # optional. The empty prerequisite set is satisfied; otherwise a
+        # required same-week Service Desk case can never become actionable.
+        return True
     context = _TrainingContext(
         db,
         student,
