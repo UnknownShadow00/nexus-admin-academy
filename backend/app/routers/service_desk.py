@@ -36,6 +36,7 @@ from app.services.auth_service import (
     ensure_student_ownership,
     get_current_student,
 )
+from app.services.beginner_learning import HYBRID_LAB_SCENARIO_KEYS
 from app.services.service_desk_grading import AttemptNotClosedError, compute_grade
 from app.services.service_desk_progression import (
     build_service_desk_progression,
@@ -213,6 +214,25 @@ def _owned_attempt(
     if not attempt:
         raise HTTPException(404, "Attempt not found")
     ensure_student_access(student, attempt.student_id)
+    stable_key = (
+        db.query(ServiceDeskScenario.stable_key)
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.scenario_id == ServiceDeskScenario.id,
+        )
+        .filter(ServiceDeskScenarioVersion.id == attempt.scenario_version_id)
+        .scalar()
+    )
+    if stable_key and stable_key.lower() in HYBRID_LAB_SCENARIO_KEYS:
+        raise HTTPException(
+            403,
+            detail={
+                "success": False,
+                "code": "SERVICE_DESK_PACK_LOCKED",
+                "error": "This Service Desk scenario is not available.",
+                "data": {"next_action_route": "/training"},
+            },
+        )
     return attempt
 
 

@@ -1806,3 +1806,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/routers/cli_labs.py, backend/app/services/progression_service.py, backend/app/services/training_service.py, backend/tests/test_cli_labs.py, backend/tests/test_training_service.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; 64 combined rollout regressions and 35 focused CLI/training tests passed, touched files pass Ruff, Python compilation and diff validation passed.
 - Next: Push the follow-up commit, resolve the two review threads, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T04:21:45Z] Task Completed
+- Task: Closed the disabled Hybrid Labs direct-attempt bypass by enforcing the hybrid exclusion centrally for every existing-attempt read and mutation route.
+- Files changed: backend/app/routers/service_desk.py, backend/tests/test_service_desk_attempts.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 5 direct hybrid-route regressions and all 129 Service Desk rollout/attempt tests passed, touched files pass Ruff, Python compilation and diff validation passed.
+- Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.

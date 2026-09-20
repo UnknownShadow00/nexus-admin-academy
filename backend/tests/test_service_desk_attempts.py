@@ -2112,6 +2112,75 @@ def test_unpublished_hybrid_lab_cannot_start_even_when_directly_assigned(db):
     assert response.json()["detail"]["code"] == "SERVICE_DESK_PACK_LOCKED"
 
 
+@pytest.mark.parametrize(
+    ("method", "suffix", "payload"),
+    [
+        ("get", "", None),
+        (
+            "post",
+            "/events",
+            {
+                "idempotency_key": "blocked-event",
+                "event_type": "ticket.close",
+                "tool": "ticket",
+                "payload": {"verifiedResolved": True},
+                "resulting_state": {},
+                "success": True,
+            },
+        ),
+        (
+            "post",
+            "/actions",
+            {
+                "idempotency_key": "blocked-action",
+                "event_type": "ticket.assign",
+                "tool": "ticket",
+                "payload": {"ticketId": "INC2504"},
+            },
+        ),
+        ("post", "/complete", {"idempotency_key": "blocked-complete"}),
+    ],
+)
+def test_existing_hybrid_attempt_routes_stay_blocked(
+    db, method, suffix, payload
+):
+    student = make_student(db, username=f"hybrid-existing-{suffix or 'get'}")
+    client = make_client(service_desk.router)
+    assignment = setup_assignment(
+        db, student, stable_key="inc2504", process_profile=True
+    )
+    version = (
+        db.query(ServiceDeskScenarioVersion)
+        .filter_by(scenario_id=assignment.scenario_id, status="published")
+        .one()
+    )
+    attempt = ServiceDeskAttempt(
+        student_id=student.id,
+        scenario_version_id=version.id,
+        mode="simulation",
+        experience_mode="assessment",
+        status="in_progress",
+        current_state={},
+        current_state_hash="blocked-hybrid-attempt",
+        state_version=0,
+        attempt_number=1,
+    )
+    db.add(attempt)
+    db.commit()
+
+    response = getattr(client, method)(
+        f"/api/service-desk/attempts/{attempt.id}{suffix}",
+        headers=auth_headers(student),
+        **({"json": payload} if payload is not None else {}),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "SERVICE_DESK_PACK_LOCKED"
+    db.refresh(attempt)
+    assert attempt.status == "in_progress"
+    assert attempt.passed is None
+
+
 # The endpoint tests above exercise repeated completions and independent
 # attempts. Migration 0047 separately proves the database-level partial unique
 # index rejects a duplicate `(student, service_desk_mastery, scenario)` row;
