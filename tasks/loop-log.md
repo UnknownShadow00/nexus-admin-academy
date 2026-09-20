@@ -1878,3 +1878,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; 75 focused rollout tests passed with real failed assessment and guided attempts, and touched files pass Ruff, Python compilation, and diff validation.
 - Next: Push the narrow correction, resolve the review thread, and confirm final CI and refreshed review status without merging or deploying.
+
+## [2026-09-20T06:09:49Z] Task Completed
+- Task: Prioritized the active Service Desk pack within the four-case assigned queue while separately retaining earlier topic-unlocked cases for assignment backfill.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 76 focused rollout tests passed, including active-pack quota priority and earlier-case backfill regressions, and touched files pass Ruff, Python compilation, and diff validation.
+- Next: Push the final follow-up commit, resolve the review thread, and confirm final CI and refreshed review status without merging or deploying.

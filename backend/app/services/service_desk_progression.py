@@ -479,12 +479,14 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         | set(failed_history_keys)
         | (curriculum_current_keys - passed_keys)
     ) - set(HYBRID_LAB_SCENARIO_KEYS)
+    backfill_keys = set(assigned_keys)
     if active_pack:
         candidate_packs = (
-            [
+            [active_pack]
+            + [
                 pack
                 for pack in SERVICE_DESK_PACKS
-                if pack.key in unlocked_pack_keys
+                if pack.key in unlocked_pack_keys and pack.key != active_pack.key
             ]
             if topic_gating_enabled
             else [active_pack]
@@ -499,6 +501,10 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
             and (key not in guided_completed_keys or key in curriculum_unlocked_keys)
         ]
         assigned_keys.update(active_candidates[: max(0, 4 - len(assigned_keys))])
+        # Older topic-unlocked work remains available in the "earlier" queue
+        # for accounts without pre-provisioned inventory, but only the
+        # active-pack-first slice above consumes the four assigned slots.
+        backfill_keys.update(active_candidates)
 
     return {
         "current_week": current_week,
@@ -514,6 +520,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         "failed_history_keys": failed_history_keys,
         "failed_history_modes": failed_history_modes,
         "assigned_keys": assigned_keys,
+        "backfill_keys": backfill_keys,
         "topic_gating_enabled": topic_gating_enabled,
         "topic_unlocked_keys": topic_unlocked_keys,
         "unlocked_pack_keys": unlocked_pack_keys,
@@ -704,10 +711,10 @@ def ensure_assigned_scenarios(db: Session, student: Student, progression: dict) 
     (training_service.py) and Service Desk's own endpoints so either one
     heals the gap on first visit, order-independent.
 
-    Idempotent and scoped to exactly progression["assigned_keys"] (a handful
-    of scenarios), not the full catalog -- cheap to call on every request.
+    Idempotent and scoped to progression's actionable/backfill keys, not the
+    full catalog -- cheap to call on every request.
     """
-    needed_keys = set(progression["assigned_keys"])
+    needed_keys = set(progression.get("backfill_keys", progression["assigned_keys"]))
     if not needed_keys:
         return False
     existing_keys = {

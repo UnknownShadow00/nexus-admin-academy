@@ -445,6 +445,41 @@ def test_seed_user_backfill_includes_topic_unlocked_case_from_earlier_pack(
     assert _assignment_id(db, student, mfa_scenario) is not None
 
 
+def test_active_pack_cases_take_priority_over_unfinished_earlier_cases(
+    monkeypatch, db
+):
+    student = make_student(db, "active-pack-priority")
+    scenarios = _seed_pack_assignments(db)
+    for stable_key in SERVICE_DESK_PACKS[0].scenario_keys[:2]:
+        _pass(db, student, scenarios[stable_key])
+    for stable_key in SERVICE_DESK_PACKS[1].scenario_keys[:2]:
+        _pass(db, student, scenarios[stable_key])
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 6,
+    )
+    monkeypatch.setattr(
+        "app.services.service_desk_progression._topic_gating_enabled",
+        lambda _db: True,
+    )
+    monkeypatch.setattr(
+        "app.services.service_desk_progression._topic_unlocked_scenario_keys",
+        lambda _db, _student, _current_week, _enabled: {
+            key for pack in SERVICE_DESK_PACKS for key in pack.scenario_keys
+        },
+    )
+
+    rows = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+
+    assigned_rows = [row for row in rows if row["queue_type"] == "assigned"]
+    assert {row["scenario"]["stable_key"] for row in assigned_rows} == set(
+        SERVICE_DESK_PACKS[2].scenario_keys
+    )
+    assert {row["pack_key"] for row in assigned_rows} == {"accounts-access"}
+
+
 def test_reached_required_custom_case_backfills_assignment_without_topic_mapping(
     monkeypatch, db
 ):
