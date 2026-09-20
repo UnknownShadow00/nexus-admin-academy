@@ -338,6 +338,17 @@ def test_explain_history_preserves_each_deterministic_result(db, monkeypatch):
     assert history[1]["id"] == second["submission_id"]
     assert history[1]["state"] == "pending"
 
+    job = db.query(PendingGrade).filter_by(
+        submission_ref=f"v2-explain:{second['submission_id']}"
+    ).one()
+    job.status = "failed_terminal"
+    db.commit()
+    terminal = explain_view(db, student.id, MODULE, prompt_key)["submissions"][1]
+    assert terminal["state"] == "mentor_review"
+    duplicate = submit_explain(db, student.id, MODULE, prompt_key, "Do not duplicate me")
+    assert duplicate["submission_id"] == second["submission_id"]
+    assert duplicate["state"] == "mentor_review"
+
 
 def test_mentor_override_cannot_resolve_without_score_and_pass_result(db, monkeypatch):
     student, _ = _ready(db, monkeypatch)
@@ -599,6 +610,12 @@ def test_v2_practical_bypasses_week_gate_only_with_valid_relationship(
     )
     assert downloaded.status_code == 200
     assert downloaded.content == b"review evidence"
+    frozen = client.post(
+        f"/api/labs/{activity.detail['lab_run_id']}/evidence",
+        files={"file": ("late.png", b"late image", "image/png")},
+        headers=auth_headers(student),
+    )
+    assert frozen.status_code == 409
     rejected = admin.post(
         f"/api/admin/labs/runs/{activity.detail['lab_run_id']}/v2-review",
         headers={"X-Admin-Key": "practical-review-key"},

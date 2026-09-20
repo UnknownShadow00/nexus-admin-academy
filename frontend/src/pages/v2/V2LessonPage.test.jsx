@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({ completeV2Lesson: vi.fn(), getV2Lesson: vi.fn(), recordV2Resource: vi.fn() }));
 vi.mock("../../services/api", () => api);
@@ -14,7 +14,8 @@ const response = { data: {
 } };
 
 describe("V2LessonPage", () => {
-  beforeEach(() => { response.data.lesson.progress.status = "not_started"; response.data.lesson.resources[0].opened_at = null; response.data.lesson.resources[0].completed = false; api.getV2Lesson.mockResolvedValue(response); api.completeV2Lesson.mockImplementation(async () => { response.data.lesson.progress.status = "completed"; return { data: { status: "completed" } }; }); api.recordV2Resource.mockImplementation(async (_module, _resource, activity) => { if (activity.opened) response.data.lesson.resources[0].opened_at = "2026-09-03T00:00:00Z"; if (activity.completed) response.data.lesson.resources[0].completed = true; return { data: {} }; }); vi.spyOn(window, "open").mockImplementation(() => null); });
+  afterEach(cleanup);
+  beforeEach(() => { response.data.lesson.progress.status = "not_started"; response.data.lesson.quick_check.available = true; response.data.lesson.resources[0].opened_at = null; response.data.lesson.resources[0].completed = false; api.getV2Lesson.mockResolvedValue(response); api.completeV2Lesson.mockImplementation(async () => { response.data.lesson.progress.status = "completed"; return { data: { status: "completed" } }; }); api.recordV2Resource.mockImplementation(async (_module, _resource, activity) => { if (activity.opened) response.data.lesson.resources[0].opened_at = "2026-09-03T00:00:00Z"; if (activity.completed) response.data.lesson.resources[0].completed = true; return { data: {} }; }); vi.spyOn(window, "open").mockImplementation(() => null); });
   it("renders safe Markdown and records deliberate resource completion", async () => {
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/lessons/lesson.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/lessons/:lessonKey" element={<V2LessonPage />} /></Routes></MemoryRouter>);
     expect(await screen.findByRole("heading", { name: "Dynamic lesson" })).toBeVisible();
@@ -29,5 +30,11 @@ describe("V2LessonPage", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Mark lesson complete" }));
     expect(await screen.findByText("✓ Completed")).toBeVisible();
     expect(screen.getByRole("link", { name: /Next lesson/ })).toHaveClass("btn-primary");
+  });
+  it("does not link to an unavailable quick check", async () => {
+    response.data.lesson.quick_check.available = false;
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/lessons/lesson.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/lessons/:lessonKey" element={<V2LessonPage />} /></Routes></MemoryRouter>);
+    expect(await screen.findByText("Quick Check unavailable")).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Start Quick Check" })).not.toBeInTheDocument();
   });
 });

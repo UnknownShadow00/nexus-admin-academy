@@ -211,14 +211,8 @@ if [ -r "$ENV_FILE" ]; then
     # keeps configuration status available in a clean checkout or during a
     # virtualenv repair, and never prints the ids themselves.
     PILOT_COUNT="$(
-        printf '%s\n' "${ALLOWLIST:-}" | awk -F, '
-            {
-                for (i = 1; i <= NF; i++) {
-                    value = $i
-                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
-                    if (value ~ /^[0-9]+$/ && value + 0 > 0) seen[value + 0] = 1
-                }
-            }
+        printf '%s\n' "${ALLOWLIST:-}" | awk 'BEGIN { RS = "[,;[:space:]]+" }
+            $0 ~ /^[0-9]+$/ && $0 + 0 > 0 { seen[$0 + 0] = 1 }
             END { print length(seen) }
         '
     )"

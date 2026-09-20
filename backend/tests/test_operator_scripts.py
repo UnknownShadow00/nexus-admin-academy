@@ -307,7 +307,7 @@ def test_stale_or_never_run_live_worker_warns(monkeypatch):
 def test_pilot_status_is_read_only_and_counts_unique_valid_students(tmp_path):
     env_file = tmp_path / "pilot.env"
     env_file.write_text(
-        "V2_CURRICULUM_ENABLED=true\nV2_PILOT_STUDENT_IDS=3, 3, 7, bad, 0, -1\n",
+        "V2_CURRICULUM_ENABLED=true\nV2_PILOT_STUDENT_IDS=3; 3 7 bad 0 -1\n",
         encoding="utf-8",
     )
     missing_db = tmp_path / "missing.db"

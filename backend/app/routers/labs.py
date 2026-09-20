@@ -867,6 +867,11 @@ async def upload_lab_evidence(
     lab = _get_published_lab(db, run.lab_template_id)
     if _v2_run_context(db, current_student, run) is None:
         require_week_reached(db, current_student, lab.week_number)
+    if run.status not in {"assigned", "in_progress"}:
+        raise HTTPException(
+            status_code=409,
+            detail="Evidence can only be uploaded while the lab is in progress",
+        )
 
     ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else ""
     if ext not in ALLOWED_EVIDENCE_EXTENSIONS:

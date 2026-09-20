@@ -25,7 +25,12 @@ from app.models.certification import (
     StudentResourceActivity,
     question_objective_codes,
 )
-from app.models.grading import GRADE_JOB_GRADED, GRADE_JOB_NEEDS_REVIEW, PendingGrade
+from app.models.grading import (
+    GRADE_JOB_FAILED_TERMINAL,
+    GRADE_JOB_GRADED,
+    GRADE_JOB_NEEDS_REVIEW,
+    PendingGrade,
+)
 from app.models.quiz import Question, Quiz
 from app.models.service_desk import (
     ServiceDeskAssignment,
@@ -1078,7 +1083,7 @@ def explain_view(db: Session, student_id: int, module_key: str, prompt_key: str)
         job = db.query(PendingGrade).filter_by(source_type=SOURCE_INTERVIEW, submission_ref=ref).one_or_none()
         if job and job.status == GRADE_JOB_GRADED:
             state, message, score, passed = "graded", "Your response has been graded.", job.resolved_score, job.resolved_passed
-        elif job and job.status == GRADE_JOB_NEEDS_REVIEW:
+        elif job and job.status in {GRADE_JOB_NEEDS_REVIEW, GRADE_JOB_FAILED_TERMINAL}:
             state, message, score, passed = "mentor_review", "Your response was saved and is waiting for a mentor to review it.", None, None
         elif job:
             state, message, score, passed = "pending", "Your response was saved and is waiting to be graded.", None, None
@@ -1113,7 +1118,11 @@ def submit_explain(db: Session, student_id: int, module_key: str, prompt_key: st
             return {
                 "submission_id": latest.id,
                 "attempt_number": latest.attempt_number,
-                "state": "mentor_review" if job.status == GRADE_JOB_NEEDS_REVIEW else "pending",
+                "state": (
+                    "mentor_review"
+                    if job.status in {GRADE_JOB_NEEDS_REVIEW, GRADE_JOB_FAILED_TERMINAL}
+                    else "pending"
+                ),
                 "message": "Your response was already saved and is still waiting for grading. You do not need to submit it again.",
                 "score": None,
                 "passed": None,
