@@ -204,6 +204,47 @@ def test_reached_required_cli_lab_bypasses_later_pack_gate(monkeypatch, db):
     assert completion.status_code == 200
 
 
+def test_detail_and_completion_enforce_active_network_module_gate(
+    monkeypatch, db
+):
+    student = make_student(db, "active-network-gate")
+    lab = CliLab(
+        id="active-network-gate-lab",
+        compartment_id="network-foundations",
+        vendor_id="cisco-ios",
+        title="Active Network Gate",
+        difficulty="Beginner",
+        est_minutes=8,
+        order_index=1,
+        content={},
+    )
+    db.add(lab)
+    db.commit()
+    monkeypatch.setattr(
+        "app.routers.cli_labs.derive_current_week",
+        lambda _student_id, _db: 11,
+    )
+    monkeypatch.setattr(
+        "app.services.training_service.network_cli_gate_is_unlocked",
+        lambda _db, _student: False,
+    )
+
+    detail = client.get(
+        f"/api/cli-labs/{lab.id}", headers=auth_headers(student)
+    )
+    completion = client.post(
+        f"/api/cli-labs/{lab.id}/complete",
+        json={"commandLog": [], "durationMs": 1000},
+        headers=auth_headers(student),
+    )
+
+    assert detail.status_code == 403
+    assert detail.json()["code"] == "PREREQUISITE_NOT_MET"
+    assert completion.status_code == 403
+    assert completion.json()["code"] == "PREREQUISITE_NOT_MET"
+    assert db.query(CliLabAttempt).filter_by(student_id=student.id).count() == 0
+
+
 def test_complete_cli_lab_awards_first_completion_xp(db):
     student = make_student(db)
     lab = _seed_cli_lab(db)

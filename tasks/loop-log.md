@@ -1842,3 +1842,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md
 - Result: pass against acceptance criteria; all 27 frontend unit tests passed, Playwright discovered all 6 My Training tests, and diff validation passed.
 - Next: Push the browser regression adjustment and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T05:14:07Z] Task Completed
+- Task: Enforced the shared active-module CLI gate on bookmarked detail/completion routes and excluded disabled Hybrid Labs keys before calculating the four-case Service Desk queue quota.
+- Files changed: backend/app/routers/cli_labs.py, backend/app/services/service_desk_progression.py, backend/tests/test_cli_labs.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 70 focused rollout regressions passed, including rejected detail/completion with zero XP attempt creation and a full four-case queue despite blocked hybrid history, and touched files pass Ruff, Python compilation and diff validation.
+- Next: Push the follow-up commit, resolve the two review threads, and confirm final CI and review status without merging or deploying.

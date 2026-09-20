@@ -448,7 +448,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         set(direct_assignment_override_keys)
         | set(in_progress_keys)
         | (curriculum_current_keys - passed_keys)
-    )
+    ) - set(HYBRID_LAB_SCENARIO_KEYS)
     if active_pack:
         candidate_packs = (
             [

@@ -112,6 +112,36 @@ def _lab_is_unlocked(
     )
 
 
+def _require_lab_unlocked(
+    db: Session,
+    student: Student,
+    lab: CliLab,
+    attempt: CliLabAttempt | None,
+) -> None:
+    if _lab_is_unlocked(db, student, lab, attempt):
+        return
+    required_week = CLI_PACK_WEEKS.get(lab.compartment_id, 1)
+    # Preserve the existing required-week response when the learner has not
+    # reached the pack at all. If that passes, the stricter active-module gate
+    # is the remaining blocker and must still reject detail/completion.
+    require_week_reached(db, student, required_week)
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "success": False,
+            "code": "PREREQUISITE_NOT_MET",
+            "error": (
+                "Complete at least 50% of your active Network+ modules "
+                "to unlock this networking lab."
+            ),
+            "data": {
+                "required_week": required_week,
+                "next_action_route": "/training",
+            },
+        },
+    )
+
+
 @router.get("")
 def list_cli_labs(
     db: Session = Depends(get_db),
@@ -163,12 +193,7 @@ def get_cli_lab(
     if not lab:
         raise HTTPException(status_code=404, detail="CLI lab not found")
     attempt = _completed_attempts(db, current_student.id, [lab.id]).get(lab.id)
-    if not _lab_is_unlocked(db, current_student, lab, attempt):
-        require_week_reached(
-            db,
-            current_student,
-            CLI_PACK_WEEKS.get(lab.compartment_id, 1),
-        )
+    _require_lab_unlocked(db, current_student, lab, attempt)
     return ok(_serialize_lab(lab, attempt, include_content=True))
 
 
@@ -193,12 +218,7 @@ def complete_cli_lab(
     )
     # CliLab has no week column; its curriculum pack is the assignment unit.
     # A historical completion stays accessible after a rollout gate moves.
-    if not _lab_is_unlocked(db, current_student, lab, prior_completed):
-        require_week_reached(
-            db,
-            current_student,
-            CLI_PACK_WEEKS.get(lab.compartment_id, 1),
-        )
+    _require_lab_unlocked(db, current_student, lab, prior_completed)
 
     now = datetime.now(UTC)
     started_at = None

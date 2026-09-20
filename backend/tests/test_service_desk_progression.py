@@ -360,6 +360,35 @@ def test_fresh_student_sees_only_four_starter_assignments_and_next_pack_preview(
     assert next_pack["required_module_id"] == "module.windows.fundamentals"
 
 
+def test_blocked_hybrid_history_does_not_consume_actionable_queue_slot(db):
+    student = make_student(db, "hybrid-does-not-consume-slot")
+    scenarios = _seed_pack_assignments(db, student)
+    _, hybrid_version = scenarios["inc2504"]
+    db.add(
+        ServiceDeskAttempt(
+            student_id=student.id,
+            scenario_version_id=hybrid_version.id,
+            mode="simulation",
+            experience_mode="assessment",
+            status="in_progress",
+            current_state={},
+            current_state_hash="blocked-hybrid-history",
+            state_version=0,
+            attempt_number=1,
+        )
+    )
+    db.commit()
+
+    rows = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+
+    assert len(rows) == 4
+    assert {
+        row["scenario"]["stable_key"] for row in rows
+    } == set(SERVICE_DESK_PACKS[0].scenario_keys)
+
+
 def test_new_student_accounts_receive_managed_assignment_inventory(db):
     _seed_pack_assignments(db)
 
