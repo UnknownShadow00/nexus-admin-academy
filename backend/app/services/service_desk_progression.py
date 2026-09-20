@@ -506,9 +506,9 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
     # never exposed through that exception. Existing passed/in-progress work
     # remains accessible so rollout changes cannot erase learner history.
     hybrid_blocked = normalized in HYBRID_LAB_SCENARIO_KEYS
-    unlocked = history_access or (
-        not hybrid_blocked
-        and (
+    unlocked = not hybrid_blocked and (
+        history_access
+        or (
             assigned_override
             or curriculum_topic_override
             or topic_allowed

@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pytest
+
 from app.models.cli_lab import CliLab, CliLabAttempt
 from app.models.learning import Lesson, Module
 from app.models.lesson_progress import StudentLessonProgress
@@ -102,6 +104,25 @@ def test_instructor_assignment_bypasses_topic_order_but_not_hybrid_labs():
     assert assigned["unlocked"] is True
     assert assigned["queue_type"] == "assigned"
     assert hybrid["unlocked"] is False
+
+
+@pytest.mark.parametrize("history_field", ["passed_keys", "in_progress_keys"])
+def test_hybrid_attempt_history_does_not_reenable_disabled_case(history_field):
+    progression = {
+        "direct_assignment_override_keys": set(),
+        "curriculum_unlocked_keys": set(),
+        "unlocked_pack_keys": {"advanced-troubleshooting"},
+        "passed_keys": set(),
+        "guided_completed_keys": set(),
+        "assigned_keys": set(),
+        "curriculum_current_keys": set(),
+        "topic_gating_enabled": True,
+        "topic_unlocked_keys": {"inc2504"},
+        "in_progress_keys": set(),
+    }
+    progression[history_field] = {"inc2504"}
+
+    assert scenario_access(progression, "inc2504")["unlocked"] is False
 
 
 def test_unlocked_aplus_ticket_remains_available_during_network_plus():

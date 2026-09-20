@@ -85,6 +85,12 @@
 - Result: pass against acceptance criteria; 566 backend tests, 27 frontend unit tests, 41 focused backend regressions, frontend build/CLI validation, Service Desk checks, fresh-seed checks, dependency audits, 287 deploy simulations, 9 predeploy checks, and 20 Playwright browser tests passed.
 - Next: Push the commits to PR #35, resolve the five addressed review threads, and request a fresh Codex review without merging or deploying.
 
+## [2026-09-20T03:33:10Z] Task Completed
+- Task: Addressed the new Codex follow-up finding by keeping the disabled Hybrid Labs case blocked even when a learner has passed or in-progress historical attempt data.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_beginner_learning_rollout.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 27 focused progression tests, Ruff, Python compilation, and diff validation passed.
+- Next: Push the follow-up commit, resolve the new review thread, and confirm the rerun CI result without merging or deploying.
+
 ## [2026-08-10T05:07:37Z] Task Completed
 - Task: Audited Nexus-authored quiz provenance and quality signals, repaired the known Internet-scope prompt, added authored-question identity preservation, and added a quality audit/regression guard.
 - Files changed: backend/app/models/quiz.py, backend/alembic/versions/0045_preserve_authored_question_identity.py, backend/app/services/seed_question_sync.py, backend/seed_phase_a.py, backend/seed_phase_b.py, backend/seed_phase_c.py, backend/seed_phase_d.py, backend/seed_phase_e.py, backend/seed_phase_f.py, backend/seed_phase_g.py, backend/scripts/audit_nexus_question_quality.py, backend/scripts/check_nexus_question_quality.py, backend/tests/test_nexus_question_quality.py, docs/NEXUS_QUESTION_QUALITY_AUDIT.md, docs/nexus_question_quality_prechange.json, docs/nexus_question_quality_postchange.json, tasks/loop-log.md
