@@ -324,7 +324,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         )
         .filter(
             ServiceDeskAttempt.student_id == student.id,
-            ServiceDeskAttempt.status == "completed",
+            ServiceDeskAttempt.status.in_({"failed", "completed"}),
             ServiceDeskAttempt.passed.is_(False),
         )
         .order_by(

@@ -711,7 +711,7 @@ def test_failed_historical_case_keeps_retry_access_and_mode(
             scenario_version_id=version.id,
             mode="simulation",
             experience_mode=experience_mode,
-            status="completed",
+            status="failed",
             current_state={},
             current_state_hash=f"failed-{experience_mode}",
             state_version=1,
