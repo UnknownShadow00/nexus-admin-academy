@@ -835,13 +835,19 @@ def submit_lab(
         assessment, module = v2_context
         practical_status = "completed" if is_structured_lab else "needs_review"
         practical_passed = True if is_structured_lab else None
-        record_activity(
+        practical_activity = record_activity(
             db, student_id=current_student.id, module_key=module.module_key,
             activity_type="practical", ref_key=assessment.assessment_key,
             status=practical_status, passed=practical_passed,
             detail={"lab_run_id": run.id, "evidence_review_required": not is_structured_lab},
             commit=True,
         )
+        if not is_structured_lab:
+            # A resubmission after mentor rejection is pending again; do not
+            # leak the prior deterministic fail/score into the new review.
+            practical_activity.passed = None
+            practical_activity.score = None
+            db.commit()
     return ok(_serialize_lab(lab, run))
 
 

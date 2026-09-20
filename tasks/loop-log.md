@@ -2501,3 +2501,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/admin_content.py, backend/app/routers/admin_quiz.py, backend/tests/test_v2_runtime_stabilization.py, frontend/src/pages/admin/AdminLabsPage.jsx, tasks/loop-log.md
 - Result: pass against acceptance criteria; all 29 V2 stabilization regressions pass, the evidence file endpoint and quiz deletion conflict are covered, and the frontend build plus all 56 unit tests pass.
 - Next: Push the final review fixes, resolve the two follow-up threads, request refreshed Codex review, and confirm replacement CI without merging or deploying.
+
+## [2026-09-20T12:25:00Z] Task Completed
+- Task: Made mentor-rejected V2 practical submissions retryable and made admin evidence links honor the configured backend origin.
+- Files changed: backend/app/routers/admin_content.py, backend/app/routers/labs.py, backend/tests/test_v2_runtime_stabilization.py, frontend/src/pages/admin/AdminLabsPage.jsx, frontend/src/pages/admin/AdminLabsPage.test.jsx, tasks/loop-log.md
+- Result: pass against acceptance criteria; rejection, revision, resubmission, and approval pass end to end, the configured-origin evidence-link regression passes, touched backend files pass Ruff, and the frontend production build passes.
+- Next: Push and resolve the refreshed review threads, then confirm final replacement CI; do not merge or deploy.

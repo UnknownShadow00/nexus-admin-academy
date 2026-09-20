@@ -599,6 +599,26 @@ def test_v2_practical_bypasses_week_gate_only_with_valid_relationship(
     )
     assert downloaded.status_code == 200
     assert downloaded.content == b"review evidence"
+    rejected = admin.post(
+        f"/api/admin/labs/runs/{activity.detail['lab_run_id']}/v2-review",
+        headers={"X-Admin-Key": "practical-review-key"},
+        json={"decision": "reject", "feedback": "Add the missing verification output."},
+    )
+    assert rejected.status_code == 200
+    db.refresh(activity)
+    run = db.get(LabRun, activity.detail["lab_run_id"])
+    assert (activity.status, activity.passed, activity.score) == ("failed", False, 0)
+    assert run.status == "in_progress"
+    assert run.submitted_at is None
+    assert run.final_score is None
+    resubmitted = client.post(
+        f"/api/labs/{assessment.lab_template_id}/submit", params=params,
+        headers=auth_headers(student),
+        json={"notes": "Added verification output and retained the command evidence.", "answers": {}},
+    )
+    assert resubmitted.status_code == 200
+    db.refresh(activity)
+    assert (activity.status, activity.passed) == ("needs_review", None)
     approved = admin.post(
         f"/api/admin/labs/runs/{activity.detail['lab_run_id']}/v2-review",
         headers={"X-Admin-Key": "practical-review-key"},

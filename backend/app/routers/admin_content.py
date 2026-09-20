@@ -490,6 +490,12 @@ def review_v2_practical(
     }
     run.final_score = score
     run.feedback = payload.feedback.strip()
+    if not approved:
+        # A rejected guided practical must remain actionable. Reuse the run so
+        # its evidence stays attached, but reopen it for revision/resubmission.
+        run.status = "in_progress"
+        run.submitted_at = None
+        run.final_score = None
     db.commit()
     return ok({
         "lab_run_id": run.id,

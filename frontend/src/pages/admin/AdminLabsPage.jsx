@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { StatusBadge } from "../../components/ui/Badge";
 import PageHeader from "../../components/ui/PageHeader";
 import {
+  buildApiUrl,
   createAdminLabTemplate,
   deleteAdminLabTemplate,
   getAdminLabTemplates,
@@ -432,7 +433,7 @@ export default function AdminLabsPage() {
                           <li key={artifact.id}>
                             <a
                               className="text-blue-600 underline dark:text-blue-300"
-                              href={artifact.file_url}
+                              href={buildApiUrl(artifact.file_url)}
                               target="_blank"
                               rel="noreferrer"
                             >
