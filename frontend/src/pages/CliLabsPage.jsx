@@ -76,7 +76,7 @@ export default function CliLabsPage() {
         </section>
       ) : null}
 
-      {!catalogError && availableIds?.size === 0 ? <section className="panel text-center"><h2 className="text-xl font-bold text-slate-900 dark:text-white">Networking labs unlock later</h2><p className="mt-2 text-slate-600 dark:text-slate-300">Complete A+, then finish the first half of Network+ to unlock the switch and network lab lessons.</p><Link className="btn-primary mt-4 inline-flex" to="/">Return to Today</Link></section> : null}
+      {!catalogError && availableIds?.size === 0 ? <section className="panel text-center"><h2 className="text-xl font-bold text-slate-900 dark:text-white">Networking labs unlock later</h2><p className="mt-2 text-slate-600 dark:text-slate-300">Complete orientation to reach the first CLI lessons. Switch and network labs unlock after A+ and the first half of your active Network+ modules.</p><Link className="btn-primary mt-4 inline-flex" to="/">Return to Today</Link></section> : null}
 
       {visibleCompartments.map((compartment) => {
         const lessons = compartment.lessons || [];

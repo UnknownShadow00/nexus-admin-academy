@@ -586,6 +586,81 @@ def test_learning_path_networking_lab_uses_cli_pack_gate(db, student):
     assert completed["destination_route"] == f"/cli-labs/{cli_lab.id}"
 
 
+def test_learning_path_explains_active_network_gate_after_fixed_week_is_reached(
+    db, student
+):
+    lessons = []
+    weeks = {}
+    for week_number in (10, 11, 12):
+        week = add_week(db, week_number, requires_previous=False)
+        weeks[week_number] = week
+        module = Module(
+            code=f"NETWORK-REASON-{week_number}",
+            title=f"Network Reason {week_number}",
+            module_order=week_number,
+            active=True,
+        )
+        db.add(module)
+        db.flush()
+        lesson = Lesson(
+            module_id=module.id,
+            title=f"Network Reason Lesson {week_number}",
+            lesson_order=1,
+            status="published",
+        )
+        db.add(lesson)
+        db.flush()
+        lessons.append(lesson)
+        add_activity(
+            db,
+            week,
+            f"network-reason-lesson-{week_number}",
+            "lesson",
+            lesson.id,
+            1,
+        )
+
+    cli_lab = CliLab(
+        id="network-path-active-gate-reason",
+        compartment_id="network-foundations",
+        vendor_id="cisco-ios",
+        title="Network Active Gate Reason",
+        order_index=1,
+        content={},
+    )
+    db.add(cli_lab)
+    db.flush()
+    add_activity(
+        db,
+        weeks[11],
+        "network-path-active-gate-reason",
+        "networking_lab",
+        cli_lab.id,
+        2,
+        required=False,
+    )
+    db.add(
+        StudentLessonProgress(
+            student_id=student.id,
+            lesson_id=lessons[0].id,
+            completed_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+
+    activity = next(
+        item
+        for item in build_training_week(db, student, 11)["activities"]
+        if item["stable_id"] == "network-path-active-gate-reason"
+    )
+
+    assert activity["permission_locked"] is True
+    assert activity["permission_reason"] == (
+        "Complete A+ and at least half of your active Network+ modules "
+        "to unlock this networking lab."
+    )
+
+
 def test_learning_path_derives_current_week_once_for_networking_labs(
     monkeypatch, db, student
 ):

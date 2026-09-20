@@ -428,6 +428,7 @@ class _TrainingContext:
             if not lab:
                 return None
             attempt = self.cli_attempts.get(lab.id)
+            network_gate = self.network_cli_gate()
             permission_locked = not cli_pack_is_unlocked(
                 self.db,
                 self.student,
@@ -439,11 +440,15 @@ class _TrainingContext:
                         self.db, self.current_week(), week_number
                     )
                 ),
-                network_gate_unlocked=self.network_cli_gate(),
+                network_gate_unlocked=network_gate,
                 current_week=self.current_week(),
             )
             required_week = CLI_PACK_WEEKS.get(lab.compartment_id, 1)
             required_module = module_for_week(required_week)
+            active_network_gate_locked = (
+                lab.compartment_id in {"network-foundations", "learn-switching"}
+                and network_gate is False
+            )
             return _ResolvedContent(
                 title=lab.title,
                 description=f"{lab.difficulty} networking practice",
@@ -451,7 +456,9 @@ class _TrainingContext:
                 estimated_minutes=lab.est_minutes,
                 permission_locked=permission_locked,
                 permission_reason=(
-                    f"Reach {required_module.title} to unlock this networking lab."
+                    "Complete A+ and at least half of your active Network+ modules to unlock this networking lab."
+                    if permission_locked and active_network_gate_locked
+                    else f"Reach {required_module.title} to unlock this networking lab."
                     if permission_locked and required_module
                     else "Complete more of your current learning path to unlock this networking lab."
                     if permission_locked

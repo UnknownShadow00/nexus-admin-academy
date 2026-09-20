@@ -35,4 +35,18 @@ describe("CliLabsPage", () => {
     await waitFor(() => expect(getCliLabs).toHaveBeenCalledTimes(2));
     expect(await screen.findByText("Meet the CLI")).toBeVisible();
   });
+
+  it("describes the orientation gate when no CLI labs are unlocked", async () => {
+    getCliLabs.mockResolvedValueOnce({ data: [] });
+
+    render(
+      <MemoryRouter>
+        <CliLabsPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Networking labs unlock later")).toBeVisible();
+    expect(screen.getByText(/Complete orientation to reach the first CLI lessons/i)).toBeVisible();
+    expect(screen.getByText(/first half of your active Network\+ modules/i)).toBeVisible();
+  });
 });
