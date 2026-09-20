@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.services.training_curriculum_seed import (
     BEGINNER_ROLLOUT_DISPLAY_ORDER,
+    BEGINNER_ROLLOUT_OPTIONALITY_MARKER,
     sync_beginner_learning_rollout,
 )
 from app.models.training import TrainingWeek, TrainingWeekActivity
@@ -58,7 +59,10 @@ def downgrade() -> None:
                 TrainingWeekActivity.activity_type == "networking_lab",
                 TrainingWeekActivity.content_ref.in_({"dev-sw-act-04", "dev-sw-act-18"}),
             ):
-                activity.is_required = True
+                metadata = dict(activity.metadata_json or {})
+                if metadata.pop(BEGINNER_ROLLOUT_OPTIONALITY_MARKER, False):
+                    activity.is_required = True
+                    activity.metadata_json = metadata
         session.commit()
     finally:
         session.close()

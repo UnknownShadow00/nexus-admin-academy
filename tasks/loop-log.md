@@ -1818,3 +1818,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/services/training_service.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; 56 focused training/progression regressions passed, including listing and starting the required case under global topic gating, and touched files pass Ruff, Python compilation and diff validation.
 - Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T04:43:10Z] Task Completed
+- Task: Made migration 0062 downgrade preserve pre-upgrade admin optionality by marking and restoring only the two switch-lab rows actually changed by the rollout synchronizer.
+- Files changed: backend/alembic/versions/0062_beginner_learning_rollout.py, backend/app/services/training_curriculum_seed.py, backend/tests/test_beginner_learning_rollout.py, backend/tests/test_phase4c3_final_shift.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 11 focused rollout/migration tests and all 21 Phase 4C.3 migration tests passed, touched files pass Ruff, Python compilation and diff validation passed.
+- Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.

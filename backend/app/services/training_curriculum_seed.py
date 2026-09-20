@@ -96,6 +96,7 @@ BEGINNER_ROLLOUT_DISPLAY_ORDER = {
     **{week: week - 9 for week in range(25, 35)},
     **{week: week + 10 for week in range(16, 25)},
 }
+BEGINNER_ROLLOUT_OPTIONALITY_MARKER = "_0062_optionalized_from_required"
 
 
 def sync_beginner_learning_rollout(db: Session) -> dict:
@@ -131,6 +132,9 @@ def sync_beginner_learning_rollout(db: Session) -> dict:
             .all()
         )
         for activity in required_labs:
+            metadata = dict(activity.metadata_json or {})
+            metadata[BEGINNER_ROLLOUT_OPTIONALITY_MARKER] = True
+            activity.metadata_json = metadata
             activity.is_required = False
             networking_labs_optionalized += 1
 

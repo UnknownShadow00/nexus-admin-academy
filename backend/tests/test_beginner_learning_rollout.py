@@ -17,7 +17,10 @@ from app.services.service_desk_progression import (
     build_service_desk_progression,
     scenario_access,
 )
-from app.services.training_curriculum_seed import sync_beginner_learning_rollout
+from app.services.training_curriculum_seed import (
+    BEGINNER_ROLLOUT_OPTIONALITY_MARKER,
+    sync_beginner_learning_rollout,
+)
 from conftest import make_student
 
 
@@ -315,5 +318,14 @@ def test_rollout_reorders_existing_weeks_without_resetting_progress(db):
     assert db.get(TrainingWeekActivity, activities[0].id).is_required is False
     assert db.get(TrainingWeekActivity, activities[1].id).is_required is False
     assert db.get(TrainingWeekActivity, activities[2].id).is_required is True
+    assert db.get(TrainingWeekActivity, activities[0].id).metadata_json[
+        BEGINNER_ROLLOUT_OPTIONALITY_MARKER
+    ] is True
+    assert db.get(TrainingWeekActivity, activities[1].id).metadata_json[
+        BEGINNER_ROLLOUT_OPTIONALITY_MARKER
+    ] is True
+    assert BEGINNER_ROLLOUT_OPTIONALITY_MARKER not in db.get(
+        TrainingWeekActivity, activities[2].id
+    ).metadata_json
     assert db.get(StudentLessonProgress, progress_id).completed_at is not None
     assert db.get(CliLabAttempt, attempt_id).completed_at is not None
