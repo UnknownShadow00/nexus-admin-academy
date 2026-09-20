@@ -1854,3 +1854,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/services/training_service.py, backend/tests/test_training_service.py, frontend/src/pages/CliLabsPage.jsx, frontend/src/pages/CliLabsPage.test.jsx, tasks/loop-log.md
 - Result: pass against acceptance criteria; 71 focused backend rollout tests and all 28 frontend unit tests passed, the frontend production build and high-severity dependency audit passed, and touched backend files pass Ruff.
 - Next: Push the follow-up commit, resolve the two new review threads, and confirm final CI and refreshed review status without merging or deploying.
+
+## [2026-09-20T05:32:29Z] Task Completed
+- Task: Kept reached required custom Service Desk scenarios without built-in topic mappings in the actionable curriculum unlock set and backfilled their missing student assignments.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 72 focused rollout tests passed, including assignment backfill and successful attempt creation for an unmapped custom required case, and touched files pass Ruff, Python compilation, and diff validation.
+- Next: Push the final follow-up commit, resolve the review thread, and confirm final CI and refreshed review status without merging or deploying.

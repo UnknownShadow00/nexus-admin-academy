@@ -445,6 +445,60 @@ def test_seed_user_backfill_includes_topic_unlocked_case_from_earlier_pack(
     assert _assignment_id(db, student, mfa_scenario) is not None
 
 
+def test_reached_required_custom_case_backfills_assignment_without_topic_mapping(
+    monkeypatch, db
+):
+    student = make_student(db, "custom-curriculum-case")
+    seed_service_desk_scenarios(db)
+    source_version = db.query(ServiceDeskScenarioVersion).first()
+    stable_key = "custom-printer-triage"
+    scenario = ServiceDeskScenario(
+        stable_key=stable_key,
+        title="Custom printer triage",
+        description="An instructor-authored required support case.",
+        category="support",
+        difficulty=1,
+        status="active",
+    )
+    db.add(scenario)
+    db.flush()
+    db.add(
+        ServiceDeskScenarioVersion(
+            scenario_id=scenario.id,
+            version_number=1,
+            definition_json=source_version.definition_json,
+            definition_hash="custom-printer-triage".ljust(64, "0"),
+            validation_status="valid",
+            status="published",
+        )
+    )
+    db.commit()
+    _map_required_case(db, 1, stable_key)
+    _enable_topic_gating(db, 1)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+
+    response = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    )
+
+    assert response.status_code == 200
+    custom_row = next(
+        row for row in response.json() if row["scenario"]["stable_key"] == stable_key
+    )
+    assert custom_row["queue_type"] == "assigned"
+    assert _assignment_id(db, student, scenario) is not None
+    assert (
+        client.post(
+            f"/api/service-desk/assignments/{custom_row['id']}/attempts",
+            headers=auth_headers(student),
+        ).status_code
+        == 201
+    )
+
+
 def test_one_students_unlocks_never_change_another_students_queue(monkeypatch, db):
     first = make_student(db, "student-a")
     second = make_student(db, "student-b")

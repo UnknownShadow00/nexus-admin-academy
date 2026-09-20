@@ -336,7 +336,8 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         for week_number, stable_key in all_curriculum_rows
         if week_has_been_reached(db, current_week, week_number)
         and (
-            stable_key in topic_unlocked_keys
+            stable_key not in SCENARIO_TOPIC_WEEKS
+            or stable_key in topic_unlocked_keys
             or stable_key in curriculum_topic_override_keys
         )
     ]
