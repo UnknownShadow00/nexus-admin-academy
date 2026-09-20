@@ -28,21 +28,28 @@ fi
 cd "$BACKEND_DIR"
 
 # Use the local venv when present (developer machines); fall back to
-# whatever `python` CI's setup-python step put on PATH.
-if [[ -x "./.venv/bin/python" ]]; then
-    PYTHON="./.venv/bin/python"
+# interpreter CI or the host put on PATH.
+if [[ -n "${BACKEND_PYTHON:-}" ]]; then
+    [[ -x "$BACKEND_PYTHON" ]] || {
+        echo "BACKEND_PYTHON is not executable: $BACKEND_PYTHON" >&2
+        exit 1
+    }
+elif [[ -x "./.venv/bin/python" ]]; then
+    BACKEND_PYTHON="./.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+    BACKEND_PYTHON="$(command -v python3)"
 else
-    PYTHON="python"
+    BACKEND_PYTHON="$(command -v python)"
 fi
 
 echo "== alembic upgrade head =="
-"$PYTHON" -m alembic upgrade head
+"$BACKEND_PYTHON" -m alembic upgrade head
 
 echo "== seed_users.py =="
-"$PYTHON" scripts/seed_users.py
+"$BACKEND_PYTHON" scripts/seed_users.py
 
 echo "== seed.py =="
-"$PYTHON" seed.py
+"$BACKEND_PYTHON" seed.py
 
 echo "== seed_curriculum.py =="
-"$PYTHON" seed_curriculum.py
+"$BACKEND_PYTHON" seed_curriculum.py

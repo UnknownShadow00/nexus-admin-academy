@@ -32,6 +32,19 @@ FRONTEND_HOST="127.0.0.1"
 SERVICE_DESK_DIR="$REPO_ROOT/service-desk-app"
 API_BASE="http://$BACKEND_HOST:$BACKEND_PORT"
 
+if [[ -n "${BACKEND_PYTHON:-}" ]]; then
+    [[ -x "$BACKEND_PYTHON" ]] || {
+        echo "BACKEND_PYTHON is not executable: $BACKEND_PYTHON" >&2
+        exit 1
+    }
+elif [[ -x "$BACKEND_DIR/.venv/bin/python" ]]; then
+    BACKEND_PYTHON="$BACKEND_DIR/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+    BACKEND_PYTHON="$(command -v python3)"
+else
+    BACKEND_PYTHON="$(command -v python)"
+fi
+
 rand() { openssl rand -hex 16; }
 
 # Fixture credentials generated fresh for this run — never hard-coded, never logged.
@@ -87,7 +100,7 @@ if [[ -n "${E2E_SOURCE_DB:-}" ]]; then
     echo "destination: $DEST_DB"
     echo "production: $PRODUCTION_DB"
     echo "decision: SAFE — source is a disposable copy and destination is isolated"
-    "$BACKEND_DIR/.venv/bin/python" - "$SOURCE_DB" "$DEST_DB" <<'PY'
+    "$BACKEND_PYTHON" - "$SOURCE_DB" "$DEST_DB" <<'PY'
 import sqlite3
 import sys
 
@@ -101,7 +114,7 @@ PY
     echo "== Migrating isolated copy-derived destination to candidate head =="
     (
         cd "$BACKEND_DIR"
-        ./.venv/bin/python -m alembic upgrade head
+        "$BACKEND_PYTHON" -m alembic upgrade head
     )
 else
     echo "== Seeding throwaway database at $DATABASE_URL =="
@@ -110,7 +123,7 @@ fi
 
 echo "== Loading V2 foundation into throwaway database =="
 echo "DB mutation target: $(realpath "$SCRATCH_DIR/e2e.db")"
-TARGET_REVISION="$("$BACKEND_DIR/.venv/bin/python" - "$SCRATCH_DIR/e2e.db" <<'PY'
+TARGET_REVISION="$("$BACKEND_PYTHON" - "$SCRATCH_DIR/e2e.db" <<'PY'
 import sqlite3
 import sys
 
@@ -122,13 +135,13 @@ PY
 echo "target inode/size/revision: $(stat -c '%i/%s' "$SCRATCH_DIR/e2e.db")/$TARGET_REVISION"
 (
     cd "$BACKEND_DIR"
-    ./.venv/bin/python seed_v2_foundation.py
+    "$BACKEND_PYTHON" seed_v2_foundation.py
 )
 
 # The backend reads the pilot allowlist at request time, but its process must
 # receive a usable initial configuration. Create the primary disposable V2
 # learner before startup and enroll only that generated account.
-PILOT_STUDENT_ID="$(cd "$BACKEND_DIR" && ./.venv/bin/python - "$STUDENT_USERNAME_GEN" "$STUDENT_PASSWORD_GEN" <<'PY'
+PILOT_STUDENT_ID="$(cd "$BACKEND_DIR" && "$BACKEND_PYTHON" - "$STUDENT_USERNAME_GEN" "$STUDENT_PASSWORD_GEN" <<'PY'
 import sys
 from app.database import SessionLocal
 from app.models.student import Student
@@ -154,15 +167,17 @@ export V2_CURRICULUM_ENABLED=true
 export V2_PILOT_STUDENT_IDS="$PILOT_STUDENT_ID"
 
 if [[ -x "$BACKEND_DIR/.venv/bin/uvicorn" ]]; then
-    UVICORN="$BACKEND_DIR/.venv/bin/uvicorn"
+    UVICORN_COMMAND=("$BACKEND_DIR/.venv/bin/uvicorn")
+elif command -v uvicorn >/dev/null 2>&1; then
+    UVICORN_COMMAND=("$(command -v uvicorn)")
 else
-    UVICORN="uvicorn"
+    UVICORN_COMMAND=("$BACKEND_PYTHON" -m uvicorn)
 fi
 
 echo "== Starting isolated backend on $BACKEND_HOST:$BACKEND_PORT =="
 (
     cd "$BACKEND_DIR"
-    setsid "$UVICORN" app.main:app --host "$BACKEND_HOST" --port "$BACKEND_PORT" \
+    setsid "${UVICORN_COMMAND[@]}" app.main:app --host "$BACKEND_HOST" --port "$BACKEND_PORT" \
         > "$SCRATCH_DIR/uvicorn.log" 2>&1 < /dev/null &
     echo $! > "$SCRATCH_DIR/backend.pid"
 )
@@ -255,12 +270,7 @@ create_student "$ENDPOINT_USERNAME_GEN" "$ENDPOINT_PASSWORD_GEN" "Endpoint Manag
 # role directly in the throwaway database (role id 2 = Support Technician I,
 # rank 2 — enough to see at least one published capstone). This only ever
 # touches the scratch database created above, never production.
-if [[ -x "$BACKEND_DIR/.venv/bin/python" ]]; then
-    PYTHON="$BACKEND_DIR/.venv/bin/python"
-else
-    PYTHON="python"
-fi
-"$PYTHON" - "$SCRATCH_DIR/e2e.db" "$QUALIFIED_USERNAME_GEN" <<'PY'
+"$BACKEND_PYTHON" - "$SCRATCH_DIR/e2e.db" "$QUALIFIED_USERNAME_GEN" <<'PY'
 import sqlite3
 import sys
 
@@ -278,7 +288,7 @@ PY
 # override path, preserving broad tool-workflow coverage without manufacturing
 # course completions. The two fresh fixtures receive the complete catalog and
 # therefore exercise the real server-authoritative pack progression.
-"$PYTHON" - "$SCRATCH_DIR/e2e.db" "$STUDENT_USERNAME_GEN" "$QUALIFIED_USERNAME_GEN" "$STUDENT_C_USERNAME_GEN" "$STUDENT_D_USERNAME_GEN" <<'PY'
+"$BACKEND_PYTHON" - "$SCRATCH_DIR/e2e.db" "$STUDENT_USERNAME_GEN" "$QUALIFIED_USERNAME_GEN" "$STUDENT_C_USERNAME_GEN" "$STUDENT_D_USERNAME_GEN" <<'PY'
 import sqlite3
 import sys
 
@@ -320,7 +330,7 @@ PY
 # This is an instructor-assignment override on the disposable database so the
 # browser can exercise the live workflows without manufacturing weeks 0-31 of
 # unrelated completion history.
-"$PYTHON" - "$SCRATCH_DIR/e2e.db" "$ENDPOINT_USERNAME_GEN" <<'PY'
+"$BACKEND_PYTHON" - "$SCRATCH_DIR/e2e.db" "$ENDPOINT_USERNAME_GEN" <<'PY'
 import sqlite3
 import sys
 
@@ -349,7 +359,7 @@ for scenario_id in scenario_ids:
 db.commit()
 PY
 
-"$PYTHON" - "$SCRATCH_DIR/e2e.db" "$FRESH_A_USERNAME_GEN" "$FRESH_B_USERNAME_GEN" <<'PY'
+"$BACKEND_PYTHON" - "$SCRATCH_DIR/e2e.db" "$FRESH_A_USERNAME_GEN" "$FRESH_B_USERNAME_GEN" <<'PY'
 import sqlite3
 import sys
 

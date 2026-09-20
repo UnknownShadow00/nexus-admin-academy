@@ -139,7 +139,9 @@ jobs:
           python -m alembic current | tee /tmp/alembic-current.txt
 
           mapfile -t heads < <(sed -nE 's/^([^[:space:]]+)[[:space:]]+\(head\)$/\1/p' /tmp/alembic-heads.txt)
-          mapfile -t current < <(sed -nE 's/^([^[:space:]]+)([[:space:]]+\(head\))?$/\1/p' /tmp/alembic-current.txt)
+          # A merge revision is reported as `(head) (mergepoint)`. Parse that
+          # valid single-head form without weakening the exact-count check.
+          mapfile -t current < <(sed -nE 's/^([^[:space:]]+)[[:space:]]+\(head\)([[:space:]]+\(mergepoint\))?$/\1/p' /tmp/alembic-current.txt)
 
           if [[ ${#heads[@]} -ne 1 ]]; then
             echo "Expected exactly one Alembic head, found ${#heads[@]}" >&2
