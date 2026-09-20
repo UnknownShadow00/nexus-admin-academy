@@ -40,6 +40,7 @@ from app.services.service_desk_progression import (
     assignment_mode_for_experience,
     attempt_v2_context,
 )
+from app.services.v2_access import pilot_student_ids
 from app.services.v2_curriculum_service import module_view
 from app.services.v2_progress_service import V2ProgressError
 
@@ -569,7 +570,10 @@ def cohort_progress(db: Session, module_key: str = DEFAULT_MODULE_KEY) -> dict:
         for row in available_modules
         if db.query(LessonV2Meta).filter_by(certification_module_id=row.id).first() is not None
     ]
-    students = db.query(Student).filter(Student.is_mentor.is_(False)).order_by(Student.name, Student.id).all()
+    enrolled_ids = pilot_student_ids()
+    students = db.query(Student).filter(
+        Student.is_mentor.is_(False), Student.id.in_(enrolled_ids or {-1}),
+    ).order_by(Student.name, Student.id).all()
     reports = [module_report(db, student.id, module_key) for student in students]
     topic_students: dict[str, set[int]] = defaultdict(set)
     topic_misses: dict[str, int] = defaultdict(int)

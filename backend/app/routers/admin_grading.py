@@ -22,7 +22,6 @@ from app.services.grading_queue import (
     apply_mentor_override,
     grading_history,
     mentor_queue,
-    resolve_pending,
     run_pending_batch,
 )
 from app.utils.responses import ok
@@ -119,8 +118,6 @@ def regrade(pending_grade_id: int, body: RegradeRequest, db: Session = Depends(g
     job.next_retry_at = datetime.now(timezone.utc)
     job.last_error_category = None
     job.last_error_message = None
-    db.flush()
-    resolve_pending(db, job)
     db.commit()
     return ok({"pending_grade_id": job.id, "status": job.status})
 

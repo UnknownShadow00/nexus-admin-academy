@@ -633,7 +633,7 @@ fi
 # --- 8. Build the frontend (if requested) --------------------------------
 if [ "$DO_FRONTEND" = "1" ]; then
   ( cd frontend && npm ci ) || fail "frontend: npm ci failed"
-  ( cd frontend && VITE_API_URL= npm run build ) || fail "frontend: build failed"
+  ( cd frontend && VITE_API_URL= VITE_V2_CURRICULUM_ENABLED=true npm run build ) || fail "frontend: build failed"
   [ -f frontend/dist/index.html ] || fail "frontend: build produced no dist/index.html"
   log "frontend build complete"
 fi

@@ -135,11 +135,13 @@ def test_multi_objective_miss_counts_question_once_and_each_objective(db):
     assert sum(row["missed_count"] for row in report["weak_objectives"]) == 2
 
 
-def test_cohort_aggregation_is_student_based_deterministic_and_external_scores_do_not_count(db):
+def test_cohort_aggregation_is_student_based_deterministic_and_external_scores_do_not_count(db, monkeypatch):
     _loaded(db)
     one = make_student(db, "cohort_one")
     two = make_student(db, "cohort_two")
     three = make_student(db, "cohort_three")
+    excluded = make_student(db, "not_in_pilot")
+    monkeypatch.setenv("V2_PILOT_STUDENT_IDS", f"{one.id},{two.id},{three.id}")
     dns = _question(db, "What does DNS provide to a client?")
     apipa = _question(db, "Which statement accurately describes the configuration APIPA supplies?")
     _quiz_attempt(db, one.id, [{"attempt_number": 1, "results": [_miss(dns), _miss(apipa)]}])
@@ -158,6 +160,7 @@ def test_cohort_aggregation_is_student_based_deterministic_and_external_scores_d
     assert cohort["suggested_review_topics"][0]["reason"] == "2 students showing difficulty"
     assert any(note["question_for_mentor"] for note in cohort["student_questions"])
     assert cohort["student_count"] == 3
+    assert excluded.id not in {row["student_id"] for row in cohort["students"]}
 
 
 def test_explain_detail_and_override_history_are_composed(db):

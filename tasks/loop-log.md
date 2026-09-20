@@ -2507,3 +2507,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/admin_content.py, backend/app/routers/labs.py, backend/tests/test_v2_runtime_stabilization.py, frontend/src/pages/admin/AdminLabsPage.jsx, frontend/src/pages/admin/AdminLabsPage.test.jsx, tasks/loop-log.md
 - Result: pass against acceptance criteria; rejection, revision, resubmission, and approval pass end to end, the configured-origin evidence-link regression passes, touched backend files pass Ruff, and the frontend production build passes.
 - Next: Push and resolve the refreshed review threads, then confirm final replacement CI; do not merge or deploy.
+
+## [2026-09-20T12:34:00Z] Task Completed
+- Task: Enabled V2 routes in supported frontend deployments, kept override-backed regrades claimable, and limited mentor cohort metrics to enrolled pilot students.
+- Files changed: backend/app/routers/admin_grading.py, backend/app/services/v2_mentor_service.py, backend/tests/test_v2_ai_grading.py, backend/tests/test_v2_mentor_intelligence.py, scripts/deploy.sh, tasks/loop-log.md
+- Result: pass against acceptance criteria; four focused grading/cohort regressions pass, touched Python files pass Ruff, deploy shell syntax passes, and all 287 deployment failure simulations pass.
+- Next: Push and resolve the three refreshed review threads, then confirm final CI without merging or deploying.

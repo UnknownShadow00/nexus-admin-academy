@@ -19,6 +19,7 @@ from app.models.grading import (
     GRADE_JOB_FAILED_RETRYABLE,
     GRADE_JOB_GRADED,
     GRADE_JOB_NEEDS_REVIEW,
+    GRADE_JOB_PENDING,
     AIGrade,
     MentorGradeOverride,
     PendingGrade,
@@ -652,6 +653,29 @@ def test_regrade_endpoint_queues_fresh_attempt(db):
     assert refreshed.rubric_version == "net-v2"
     assert refreshed.retry_count == 0
     assert len(refreshed.ai_grades) == 1  # old attempt preserved
+
+
+def test_regrade_after_override_remains_claimable(db):
+    stu = _student(db)
+    out = _enqueue_free_response(
+        db, stu,
+        answer="A fallback address appeared once nothing answered on the network here.",
+    )
+    job = db.get(PendingGrade, out["pending_grade_id"])
+    process_pending_grade(db, job, provider=FakeProvider(_ok_result()), cfg=TEST_CFG, now=NOW)
+    apply_mentor_override(
+        db, job, reason="Mentor correction", override_score=0.8,
+        override_passed=True, mentor_label="mentor",
+    )
+
+    response = _admin_client().post(
+        f"/api/admin/grading/{job.id}/regrade", json={"rubric_version": "net-v2"},
+    )
+
+    assert response.status_code == 200
+    db.refresh(job)
+    assert job.status == GRADE_JOB_PENDING
+    assert db.query(MentorGradeOverride).filter_by(pending_grade_id=job.id).count() == 1
 
 
 def test_student_status_endpoint_enforces_ownership(db):
