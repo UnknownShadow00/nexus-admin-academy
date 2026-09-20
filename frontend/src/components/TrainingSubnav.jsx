@@ -1,9 +1,7 @@
 import { NavLink } from "react-router-dom";
 
 const items = [
-  { to: "/learning-path", label: "Overview", end: true },
-  { to: "/training/content", label: "All Course Content" },
-  { to: "/quizzes", label: "Quiz Library" },
+  { to: "/learning-path", label: "Progress", end: true },
 ];
 
 export default function TrainingSubnav() {

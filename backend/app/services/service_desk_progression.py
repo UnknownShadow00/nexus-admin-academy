@@ -12,6 +12,10 @@ from app.models.service_desk import (
 from app.models.student import Student
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.curriculum_structure import module_for_week
+from app.services.beginner_learning import (
+    HYBRID_LAB_SCENARIO_KEYS,
+    SCENARIO_TOPIC_WEEKS,
+)
 from app.services.progression_service import derive_current_week, week_has_been_reached
 
 
@@ -176,6 +180,73 @@ def _guided_scenario_keys(db: Session, student_id: int) -> set[str]:
     }
 
 
+def _topic_gating_enabled(db: Session) -> bool:
+    """Focused unit fixtures without a curriculum keep legacy pack behavior."""
+    return (
+        db.query(TrainingWeekActivity.id)
+        .join(TrainingWeek, TrainingWeek.id == TrainingWeekActivity.training_week_id)
+        .filter(
+            TrainingWeek.is_active.is_(True),
+            TrainingWeekActivity.is_required.is_(True),
+            TrainingWeekActivity.activity_type.notin_(
+                {"review", "service_desk_scenario", "support_ticket", "capstone"}
+            ),
+        )
+        .first()
+        is not None
+    )
+
+
+def _topic_unlocked_scenario_keys(
+    db: Session, student: Student, current_week: int, enabled: bool
+) -> set[str]:
+    if not enabled:
+        return set(PACK_BY_SCENARIO) - set(HYBRID_LAB_SCENARIO_KEYS)
+    if student.is_mentor:
+        return set(PACK_BY_SCENARIO) - set(HYBRID_LAB_SCENARIO_KEYS)
+
+    relevant_weeks = set(SCENARIO_TOPIC_WEEKS.values()) | {current_week}
+    positions = {
+        week_number: display_order
+        for week_number, display_order in db.query(
+            TrainingWeek.week_number, TrainingWeek.display_order
+        )
+        .filter(
+            TrainingWeek.is_active.is_(True),
+            TrainingWeek.week_number.in_(relevant_weeks),
+        )
+        .all()
+    }
+    current_position = positions.get(current_week)
+    current_topic_complete: dict[int, bool] = {}
+    unlocked = set()
+    for stable_key, required_week in SCENARIO_TOPIC_WEEKS.items():
+        required_position = positions.get(required_week)
+        if current_position is not None and required_position is not None:
+            if required_position < current_position:
+                unlocked.add(stable_key)
+                continue
+            if required_position > current_position:
+                continue
+        elif required_week < current_week:
+            unlocked.add(stable_key)
+            continue
+        elif required_week > current_week:
+            continue
+
+        if required_week not in current_topic_complete:
+            from app.services.training_service import (
+                required_learning_complete_for_week,
+            )
+
+            current_topic_complete[required_week] = required_learning_complete_for_week(
+                db, student, required_week
+            )
+        if current_topic_complete[required_week]:
+            unlocked.add(stable_key)
+    return unlocked - set(HYBRID_LAB_SCENARIO_KEYS)
+
+
 def build_service_desk_progression(db: Session, student: Student) -> dict:
     current_week = (
         max(pack.required_week for pack in SERVICE_DESK_PACKS)
@@ -184,6 +255,10 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
     )
     passed_keys = _passed_scenario_keys(db, student.id)
     guided_completed_keys = _guided_scenario_keys(db, student.id)
+    topic_gating_enabled = _topic_gating_enabled(db)
+    topic_unlocked_keys = _topic_unlocked_scenario_keys(
+        db, student, current_week, topic_gating_enabled
+    )
     managed_assignments = (
         db.query(
             ServiceDeskScenario.stable_key,
@@ -207,9 +282,11 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         for stable_key, assigned_by in managed_assignments
         if assigned_by and assigned_by not in catalog_owners
     }
-    in_progress_keys = {
-        stable_key
-        for (stable_key,) in db.query(ServiceDeskScenario.stable_key)
+    in_progress_rows = (
+        db.query(
+            ServiceDeskScenario.stable_key,
+            ServiceDeskAttempt.experience_mode,
+        )
         .join(
             ServiceDeskScenarioVersion,
             ServiceDeskScenarioVersion.scenario_id == ServiceDeskScenario.id,
@@ -222,9 +299,44 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
             ServiceDeskAttempt.student_id == student.id,
             ServiceDeskAttempt.status == "in_progress",
         )
-        .distinct()
+        .order_by(
+            ServiceDeskAttempt.started_at.desc(),
+            ServiceDeskAttempt.id.desc(),
+        )
         .all()
-    }
+    )
+    in_progress_modes = {}
+    for stable_key, experience_mode in in_progress_rows:
+        in_progress_modes.setdefault(stable_key, experience_mode)
+    in_progress_keys = set(in_progress_modes)
+    failed_history_rows = (
+        db.query(
+            ServiceDeskScenario.stable_key,
+            ServiceDeskAttempt.experience_mode,
+        )
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.scenario_id == ServiceDeskScenario.id,
+        )
+        .join(
+            ServiceDeskAttempt,
+            ServiceDeskAttempt.scenario_version_id == ServiceDeskScenarioVersion.id,
+        )
+        .filter(
+            ServiceDeskAttempt.student_id == student.id,
+            ServiceDeskAttempt.status.in_({"failed", "completed"}),
+            ServiceDeskAttempt.passed.is_(False),
+        )
+        .order_by(
+            ServiceDeskAttempt.completed_at.desc(),
+            ServiceDeskAttempt.id.desc(),
+        )
+        .all()
+    )
+    failed_history_modes = {}
+    for stable_key, experience_mode in failed_history_rows:
+        failed_history_modes.setdefault(stable_key, experience_mode)
+    failed_history_keys = set(failed_history_modes)
     all_curriculum_rows = (
         db.query(TrainingWeek.week_number, TrainingWeekActivity.content_ref)
         .join(
@@ -237,13 +349,30 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         )
         .all()
     )
+    curriculum_topic_override_keys = {
+        stable_key
+        for week_number, stable_key in all_curriculum_rows
+        if week_has_been_reached(db, current_week, week_number)
+        and stable_key in SCENARIO_TOPIC_WEEKS
+        and week_number != SCENARIO_TOPIC_WEEKS[stable_key]
+        and week_has_been_reached(
+            db, SCENARIO_TOPIC_WEEKS[stable_key], week_number
+        )
+    }
     curriculum_rows = [
         (week_number, stable_key)
         for week_number, stable_key in all_curriculum_rows
         if week_has_been_reached(db, current_week, week_number)
+        and (
+            stable_key not in SCENARIO_TOPIC_WEEKS
+            or stable_key in topic_unlocked_keys
+            or stable_key in curriculum_topic_override_keys
+        )
     ]
-    # A required weekly case is an exact curriculum assignment. It can be
-    # started when that week is reached without unlocking the case's pack.
+    # Invalid historical/admin rows that require a case before its topic can
+    # otherwise deadlock progression. Keep valid same-week assignments behind
+    # topic completion, but make a reached mismatched assignment actionable as
+    # an exact-case exception. This never unlocks the case's whole pack.
     curriculum_unlocked_keys = {stable_key for _, stable_key in curriculum_rows}
     curriculum_current_keys = {
         stable_key
@@ -347,17 +476,35 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
     assigned_keys = (
         set(direct_assignment_override_keys)
         | set(in_progress_keys)
+        | set(failed_history_keys)
         | (curriculum_current_keys - passed_keys)
-    )
+    ) - set(HYBRID_LAB_SCENARIO_KEYS)
+    backfill_keys = set(assigned_keys)
     if active_pack:
+        candidate_packs = (
+            [active_pack]
+            + [
+                pack
+                for pack in SERVICE_DESK_PACKS
+                if pack.key in unlocked_pack_keys and pack.key != active_pack.key
+            ]
+            if topic_gating_enabled
+            else [active_pack]
+        )
         active_candidates = [
             key
-            for key in active_pack.scenario_keys
+            for pack in candidate_packs
+            for key in pack.scenario_keys
             if key not in passed_keys
             and key not in assigned_keys
+            and key in topic_unlocked_keys
             and (key not in guided_completed_keys or key in curriculum_unlocked_keys)
         ]
         assigned_keys.update(active_candidates[: max(0, 4 - len(assigned_keys))])
+        # Older topic-unlocked work remains available in the "earlier" queue
+        # for accounts without pre-provisioned inventory, but only the
+        # active-pack-first slice above consumes the four assigned slots.
+        backfill_keys.update(active_candidates)
 
     return {
         "current_week": current_week,
@@ -366,9 +513,16 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         "passed_by_pack": passed_by_pack,
         "direct_assignment_override_keys": direct_assignment_override_keys,
         "curriculum_unlocked_keys": curriculum_unlocked_keys,
+        "curriculum_topic_override_keys": curriculum_topic_override_keys,
         "curriculum_current_keys": curriculum_current_keys,
         "in_progress_keys": in_progress_keys,
+        "in_progress_modes": in_progress_modes,
+        "failed_history_keys": failed_history_keys,
+        "failed_history_modes": failed_history_modes,
         "assigned_keys": assigned_keys,
+        "backfill_keys": backfill_keys,
+        "topic_gating_enabled": topic_gating_enabled,
+        "topic_unlocked_keys": topic_unlocked_keys,
         "unlocked_pack_keys": unlocked_pack_keys,
         "active_pack": active_pack,
         "next_pack": next_pack_data,
@@ -391,16 +545,63 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
             "pack_key": "custom",
             "pack_name": "Assigned by instructor",
             "pack_order": len(SERVICE_DESK_PACKS),
+            "topic_blocked": False,
+            "unavailable_reason": None,
         }
 
     assigned_override = normalized in progression["direct_assignment_override_keys"]
     curriculum_unlocked = normalized in progression["curriculum_unlocked_keys"]
-    unlocked = (
-        pack.key in progression["unlocked_pack_keys"]
-        or assigned_override
-        or curriculum_unlocked
+    curriculum_topic_override = normalized in progression.get(
+        "curriculum_topic_override_keys", set()
+    )
+    topic_allowed = (
+        not progression.get("topic_gating_enabled", False)
+        or normalized in progression.get("topic_unlocked_keys", set())
+    )
+    history_access = (
+        normalized in progression["passed_keys"]
+        or normalized in progression.get("guided_completed_keys", set())
+        or normalized in progression.get("in_progress_keys", set())
+        or normalized in progression.get("failed_history_keys", set())
+    )
+    required_topic_week = SCENARIO_TOPIC_WEEKS.get(normalized)
+    topic_blocked = (
+        progression.get("topic_gating_enabled", False)
+        and required_topic_week is not None
+        and not topic_allowed
+        and not curriculum_topic_override
+    )
+    required_module = (
+        module_for_week(required_topic_week) if required_topic_week is not None else None
+    )
+    topic_lock_reason = (
+        f"Complete the {required_module.title if required_module else f'Week {required_topic_week}'} "
+        "learning activities to unlock this case."
+        if topic_blocked
+        else None
+    )
+    # An explicit instructor assignment is an intentional exception to the
+    # curriculum sequence. It must remain usable for targeted practice and
+    # accommodations, but the unpublished Hybrid Labs proof-of-concept is
+    # never exposed through that exception. Existing passed, guided-completed,
+    # or in-progress work remains accessible so rollout changes cannot erase
+    # learner history.
+    hybrid_blocked = normalized in HYBRID_LAB_SCENARIO_KEYS
+    unlocked = not hybrid_blocked and (
+        history_access
+        or (
+            assigned_override
+            or curriculum_topic_override
+            or topic_allowed
+            and (
+                pack.key in progression["unlocked_pack_keys"]
+                or curriculum_unlocked
+            )
+        )
     )
     passed = normalized in progression["passed_keys"]
+    in_progress_mode = progression.get("in_progress_modes", {}).get(normalized)
+    failed_history_mode = progression.get("failed_history_modes", {}).get(normalized)
     if passed:
         queue_type = "practice"
     elif assigned_override:
@@ -419,6 +620,10 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
         "experience_mode": (
             "practice"
             if passed
+            else in_progress_mode
+            if in_progress_mode
+            else failed_history_mode
+            if failed_history_mode
             else "assessment"
             if (
                 normalized in progression["curriculum_unlocked_keys"]
@@ -428,6 +633,8 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
         ),
         "guided_completed": normalized in progression["guided_completed_keys"],
         "required_this_week": normalized in progression["curriculum_current_keys"],
+        "topic_blocked": topic_blocked,
+        "unavailable_reason": topic_lock_reason,
     }
 
 
@@ -439,7 +646,30 @@ def require_scenario_unlocked(
     if access["unlocked"]:
         return access
 
-    pack = PACK_BY_SCENARIO[scenario.stable_key.lower()]
+    normalized = scenario.stable_key.lower()
+    required_topic_week = SCENARIO_TOPIC_WEEKS.get(normalized)
+    topic_blocked = access.get("topic_blocked", False)
+    if topic_blocked:
+        required_module = module_for_week(required_topic_week)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "success": False,
+                "code": "SERVICE_DESK_TOPIC_LOCKED",
+                "error": access["unavailable_reason"],
+                "data": {
+                    "pack": PACK_BY_SCENARIO[normalized].name,
+                    "required_week": required_topic_week,
+                    "required_module_id": (
+                        required_module.stable_id if required_module else None
+                    ),
+                    "current_week": progression["current_week"],
+                    "next_action_route": "/training",
+                },
+            },
+        )
+
+    pack = PACK_BY_SCENARIO[normalized]
     next_pack = progression["next_pack"]
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
@@ -481,10 +711,10 @@ def ensure_assigned_scenarios(db: Session, student: Student, progression: dict) 
     (training_service.py) and Service Desk's own endpoints so either one
     heals the gap on first visit, order-independent.
 
-    Idempotent and scoped to exactly progression["assigned_keys"] (a handful
-    of scenarios), not the full catalog -- cheap to call on every request.
+    Idempotent and scoped to progression's actionable/backfill keys, not the
+    full catalog -- cheap to call on every request.
     """
-    needed_keys = set(progression["assigned_keys"])
+    needed_keys = set(progression.get("backfill_keys", progression["assigned_keys"]))
     if not needed_keys:
         return False
     existing_keys = {

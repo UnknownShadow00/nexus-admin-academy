@@ -57,11 +57,16 @@ export default function TrainingDashboardPage() {
   const actionLabel = data.training_complete ? "Review Learning Path" : module?.required_complete ? "Continue Module" : "Start Module";
   const currentIndex = allModules.findIndex((item) => item.stable_id === module?.stable_id);
   const upNext = currentIndex >= 0 ? allModules[currentIndex + 1] : null;
+  const learningPhase = data.learning_phase;
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6">
       <div><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Learning Path</h1><p className="mt-1 text-slate-600 dark:text-slate-300">Your stages, modules, and next activity—without the calendar clutter.</p></div>
       <TrainingSubnav />
+      {learningPhase ? <section className="grid gap-3 sm:grid-cols-2" aria-label="Certification progress">
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/20"><p className="text-xs font-bold uppercase tracking-wide text-blue-700 dark:text-blue-300">CompTIA A+</p><p className="mt-1 text-lg font-bold text-slate-950 dark:text-white">{learningPhase.a_plus_completed_modules} of {learningPhase.a_plus_total_modules} modules complete</p><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Complete A+ to unlock Network+.</p></div>
+        <div className={`rounded-xl border p-4 ${learningPhase.network_plus_locked ? "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900" : "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/20"}`}><p className="text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">CompTIA Network+</p><p className="mt-1 text-lg font-bold text-slate-950 dark:text-white">{learningPhase.network_plus_locked ? "Locked until A+ is complete" : `${learningPhase.network_plus_completed_modules} of ${learningPhase.network_plus_total_modules} modules complete`}</p><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Switch and network lab lessons unlock at about 50%.</p></div>
+      </section> : null}
       {module ? (
         <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-700 p-5 text-white shadow-lg sm:p-7">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-100">{data.training_complete ? "Training Complete" : "Current Stage"}</p>

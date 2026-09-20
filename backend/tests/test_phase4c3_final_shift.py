@@ -17,10 +17,14 @@ from app.routers.labs import router as labs_router
 from app.services.final_shift_grading import compute_final_shift_grade
 from app.services.integrated_support_final_shift import WEEK_24_CASE
 from app.services.progression_service import check_promotion_eligibility
+from app.services.training_curriculum_seed import (
+    BEGINNER_ROLLOUT_OPTIONALITY_MARKER,
+)
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 REVISION_0060 = "0060_network_linux_cloud_practical_upgrade"
 REVISION_0061 = "0061_integrated_support_prove"
+REVISION_0062 = "0062_beginner_learning_rollout"
 
 client = make_client(router)
 labs_client = make_client(labs_router)
@@ -56,7 +60,7 @@ def test_migration_upgrade_converts_week_23_24_and_adds_gate(tmp_path):
 
     engine = create_engine(database_url)
     with Session(engine) as db:
-        assert db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == REVISION_0061
+        assert db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == REVISION_0062
         lab21 = db.get(LabTemplate, 21)
         lab22 = db.get(LabTemplate, 22)
         assert lab21.lab_type == lab22.lab_type == "structured_final_shift"
@@ -80,7 +84,7 @@ def test_migration_upgrade_converts_week_23_24_and_adds_gate(tmp_path):
         gate = db.query(PromotionGate).filter_by(role_id=final_role.id, requirement_type="required_lab_pass").one()
         assert gate.requirement_config == {"lab_id": 22, "min_score_pct": 80}
 
-    assert _active_totals(database_path) == (35, 320, 141, 179)
+    assert _active_totals(database_path) == (35, 320, 139, 181)
     assert _role_counts(database_path) == {
         "learn": 216,
         "check": 38,
@@ -145,6 +149,64 @@ def test_migration_downgrade_restores_prior_content_and_removes_gate(tmp_path):
     with Session(engine) as db:
         assert db.get(LabTemplate, 21).lab_type == "structured_final_shift"
     assert _active_totals(database_path) == (35, 320, 141, 179)
+
+
+def test_beginner_rollout_downgrade_restores_only_owned_optionality(tmp_path):
+    database_path = tmp_path / "beginner-optionality-cycle.db"
+    database_url = f"sqlite:///{database_path}"
+    _run([sys.executable, "-m", "alembic", "upgrade", REVISION_0061], database_url)
+    _seed(database_url)
+
+    engine = create_engine(database_url)
+    with Session(engine) as db:
+        week_10 = db.query(TrainingWeek).filter_by(week_number=10).one()
+        activities = {
+            row.content_ref: row
+            for row in db.query(TrainingWeekActivity).filter(
+                TrainingWeekActivity.training_week_id == week_10.id,
+                TrainingWeekActivity.content_ref.in_(
+                    {"dev-sw-act-04", "dev-sw-act-18"}
+                ),
+            )
+        }
+        activities["dev-sw-act-04"].is_required = False
+        activities["dev-sw-act-04"].metadata_json = {"admin_optional": True}
+        activities["dev-sw-act-18"].is_required = True
+        db.commit()
+
+    _run([sys.executable, "-m", "alembic", "upgrade", REVISION_0062], database_url)
+    with Session(engine) as db:
+        rows = {
+            row.content_ref: row
+            for row in db.query(TrainingWeekActivity).filter(
+                TrainingWeekActivity.content_ref.in_(
+                    {"dev-sw-act-04", "dev-sw-act-18"}
+                )
+            )
+        }
+        assert rows["dev-sw-act-04"].is_required is False
+        assert rows["dev-sw-act-04"].metadata_json == {"admin_optional": True}
+        assert rows["dev-sw-act-18"].is_required is False
+        assert rows["dev-sw-act-18"].metadata_json[
+            BEGINNER_ROLLOUT_OPTIONALITY_MARKER
+        ] is True
+
+    _run([sys.executable, "-m", "alembic", "downgrade", REVISION_0061], database_url)
+    with Session(engine) as db:
+        rows = {
+            row.content_ref: row
+            for row in db.query(TrainingWeekActivity).filter(
+                TrainingWeekActivity.content_ref.in_(
+                    {"dev-sw-act-04", "dev-sw-act-18"}
+                )
+            )
+        }
+        assert rows["dev-sw-act-04"].is_required is False
+        assert rows["dev-sw-act-04"].metadata_json == {"admin_optional": True}
+        assert rows["dev-sw-act-18"].is_required is True
+        assert BEGINNER_ROLLOUT_OPTIONALITY_MARKER not in rows[
+            "dev-sw-act-18"
+        ].metadata_json
 
 
 def test_historical_week_24_completion_preserved_but_does_not_satisfy_new_gate(tmp_path):

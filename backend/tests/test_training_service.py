@@ -25,6 +25,7 @@ from app.services.training_service import (
     build_training_overview,
     build_training_progress,
     build_training_week,
+    network_cli_gate_is_unlocked,
     validate_training_curriculum,
 )
 from app.services.progression_service import derive_current_week, require_week_reached
@@ -39,7 +40,7 @@ from app.services.curriculum_structure import (
 from app.services.training_curriculum_seed import (
     reconcile_week_zero_requirements,
     sync_initial_training_activities,
-    sync_advanced_networking_resequence,
+    sync_beginner_learning_rollout,
 )
 from app.services.training_curriculum_seed import VIDEO_WEEKS
 from app.services.training_quiz_mapping import VIDEO_QUIZ_MAPPINGS
@@ -238,33 +239,31 @@ def test_unmapped_active_activity_and_invalid_learning_role_fail_validation(db, 
     assert validation["valid"] is False
 
 
-def test_sequence_drift_detected_and_resolved_by_advanced_networking_resequence(db, student):
-    # Minimal weeks at the real week_numbers this Phase 4A.1 check cares
-    # about: 9 (last support-networking week, unaffected), 10-12 (advanced
-    # networking, to be moved later), 13-15 (Identity & Access, to move
-    # earlier). display_order starts equal to week_number, matching today's
-    # un-resequenced data.
+def test_sequence_drift_detected_and_resolved_by_beginner_rollout(db, student):
+    # Reproduce the superseded order where advanced networking (10-12) sat
+    # after Identity & Access (13-15).
+    legacy_order = {9: 9, 10: 13, 11: 14, 12: 15, 13: 10, 14: 11, 15: 12}
     for number in (9, 10, 11, 12, 13, 14, 15):
         week = add_week(db, number, requires_previous=False)
+        week.display_order = legacy_order[number]
         video = add_video(db, 1000 + number, title=f"Week {number} video")
         add_activity(db, week, f"week-{number}-video", "video", video.id, 1)
     db.commit()
 
-    # Before resequencing, display_order still matches week_number, which
-    # contradicts the intended Stage order in curriculum_structure.py (the
-    # network_administration Stage's modules -- weeks 10-12 -- are supposed
-    # to come after identity_access's modules -- weeks 13-15).
     before = validate_training_curriculum(db)
     assert "SEQUENCE_DRIFT" in {issue["code"] for issue in before["issues"]}
 
-    result = sync_advanced_networking_resequence(db)
-    assert result == {"weeks_checked": 6, "weeks_updated": 6}
+    result = sync_beginner_learning_rollout(db)
+    assert result == {"weeks_updated": 6, "networking_labs_optionalized": 0}
 
     after = validate_training_curriculum(db)
     assert "SEQUENCE_DRIFT" not in {issue["code"] for issue in after["issues"]}
 
     # Idempotent: a second run changes nothing.
-    assert sync_advanced_networking_resequence(db) == {"weeks_checked": 6, "weeks_updated": 0}
+    assert sync_beginner_learning_rollout(db) == {
+        "weeks_updated": 0,
+        "networking_labs_optionalized": 0,
+    }
 
     # week_number -- the stable identity key everything else keys off -- is
     # untouched; only display_order moves.
@@ -273,12 +272,12 @@ def test_sequence_drift_detected_and_resolved_by_advanced_networking_resequence(
         for w in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_(range(9, 16))).all()
     }
     assert weeks_by_number[9].display_order == 9
-    assert weeks_by_number[10].display_order == 13
-    assert weeks_by_number[11].display_order == 14
-    assert weeks_by_number[12].display_order == 15
-    assert weeks_by_number[13].display_order == 10
-    assert weeks_by_number[14].display_order == 11
-    assert weeks_by_number[15].display_order == 12
+    assert weeks_by_number[10].display_order == 10
+    assert weeks_by_number[11].display_order == 11
+    assert weeks_by_number[12].display_order == 12
+    assert weeks_by_number[13].display_order == 13
+    assert weeks_by_number[14].display_order == 14
+    assert weeks_by_number[15].display_order == 15
     for number in range(9, 16):
         assert weeks_by_number[number].week_number == number
 
@@ -303,6 +302,66 @@ def test_service_desk_activity_is_validated_and_completed_only_by_passed_attempt
     db.commit()
     after = build_training_week(db, student, 1)["activities"][0]
     assert after["complete"] is True
+
+
+def test_learning_path_explains_service_desk_topic_prerequisite(db, student):
+    week = add_week(db, 1, requires_previous=False)
+    module = Module(
+        code="SERVICE-DESK-TOPIC-REASON",
+        title="Service Desk Topic Reason",
+        module_order=1,
+        active=True,
+    )
+    db.add(module)
+    db.flush()
+    lesson = Lesson(
+        module_id=module.id,
+        title="Account access fundamentals",
+        lesson_order=1,
+        status="published",
+    )
+    scenario = ServiceDeskScenario(
+        stable_key="locked-user-account",
+        title="Locked user account",
+        description="Restore access safely.",
+        category="Identity",
+        difficulty=1,
+        status="active",
+    )
+    db.add_all([lesson, scenario])
+    db.flush()
+    db.add(
+        ServiceDeskScenarioVersion(
+            scenario_id=scenario.id,
+            version_number=1,
+            definition_json={},
+            definition_hash="c" * 64,
+            validation_status="valid",
+            status="published",
+        )
+    )
+    add_activity(db, week, "w1-topic-lesson", "lesson", lesson.id, 1)
+    add_activity(
+        db,
+        week,
+        "w1-topic-case",
+        "service_desk_scenario",
+        scenario.stable_key,
+        2,
+    )
+    db.commit()
+
+    activity = next(
+        item
+        for item in build_training_week(db, student, 1)["activities"]
+        if item["stable_id"] == "w1-topic-case"
+    )
+
+    assert activity["permission_locked"] is True
+    assert activity["permission_reason"] == (
+        "Complete the Support Workflow Essentials learning activities "
+        "to unlock this case."
+    )
 
 
 def test_required_activity_blocks_next_week_but_optional_does_not(db, student):
@@ -502,6 +561,257 @@ def test_video_quiz_lab_ticket_and_networking_completion_are_server_derived(db, 
     assert by_id["video"]["linked_quiz"]["action"] == "review"
     assert by_id["video"]["linked_quiz"]["score"] == 2
     assert complete["required_complete"] == complete["required_total"]
+
+
+def test_learning_path_networking_lab_uses_cli_pack_gate(db, student):
+    week = add_week(db, 9, requires_previous=False)
+    module = Module(code="NETWORK-GATE", title="Network Gate", module_order=9)
+    db.add(module)
+    db.flush()
+    lesson = Lesson(
+        module_id=module.id,
+        title="Network Gate Lesson",
+        lesson_order=1,
+        status="published",
+    )
+    db.add(lesson)
+    db.flush()
+    add_activity(
+        db,
+        week,
+        "network-gate-lesson",
+        "lesson",
+        lesson.id,
+        1,
+    )
+    cli_lab = CliLab(
+        id="network-path-gate",
+        compartment_id="network-foundations",
+        vendor_id="cisco-ios",
+        title="Network Path Gate",
+        order_index=1,
+        content={},
+    )
+    db.add(cli_lab)
+    db.flush()
+    activity = add_activity(
+        db,
+        week,
+        "network-path-gate",
+        "networking_lab",
+        cli_lab.id,
+        2,
+        required=False,
+    )
+    db.commit()
+
+    locked = next(
+        item
+        for item in build_training_week(db, student, 9)["activities"]
+        if item["stable_id"] == "network-path-gate"
+    )
+    assert locked["status"] == "locked"
+    assert locked["permission_locked"] is True
+    assert locked["destination_route"] is None
+
+    activity.is_required = True
+    db.commit()
+
+    required = next(
+        item
+        for item in build_training_week(db, student, 9)["activities"]
+        if item["stable_id"] == "network-path-gate"
+    )
+    assert required["status"] == "not_started"
+    assert required["permission_locked"] is False
+    assert required["destination_route"] == f"/cli-labs/{cli_lab.id}"
+
+    db.add(
+        CliLabAttempt(
+            student_id=student.id,
+            lab_id=cli_lab.id,
+            completed_at=datetime.now(timezone.utc),
+            command_log=[],
+        )
+    )
+    db.commit()
+
+    completed = next(
+        item
+        for item in build_training_week(db, student, 9)["activities"]
+        if item["stable_id"] == "network-path-gate"
+    )
+    assert completed["status"] == "complete"
+    assert completed["permission_locked"] is False
+    assert completed["destination_route"] == f"/cli-labs/{cli_lab.id}"
+
+
+def test_learning_path_explains_active_network_gate_after_fixed_week_is_reached(
+    db, student
+):
+    lessons = []
+    weeks = {}
+    for week_number in (10, 11, 12):
+        week = add_week(db, week_number, requires_previous=False)
+        weeks[week_number] = week
+        module = Module(
+            code=f"NETWORK-REASON-{week_number}",
+            title=f"Network Reason {week_number}",
+            module_order=week_number,
+            active=True,
+        )
+        db.add(module)
+        db.flush()
+        lesson = Lesson(
+            module_id=module.id,
+            title=f"Network Reason Lesson {week_number}",
+            lesson_order=1,
+            status="published",
+        )
+        db.add(lesson)
+        db.flush()
+        lessons.append(lesson)
+        add_activity(
+            db,
+            week,
+            f"network-reason-lesson-{week_number}",
+            "lesson",
+            lesson.id,
+            1,
+        )
+
+    cli_lab = CliLab(
+        id="network-path-active-gate-reason",
+        compartment_id="network-foundations",
+        vendor_id="cisco-ios",
+        title="Network Active Gate Reason",
+        order_index=1,
+        content={},
+    )
+    db.add(cli_lab)
+    db.flush()
+    add_activity(
+        db,
+        weeks[11],
+        "network-path-active-gate-reason",
+        "networking_lab",
+        cli_lab.id,
+        2,
+        required=False,
+    )
+    db.add(
+        StudentLessonProgress(
+            student_id=student.id,
+            lesson_id=lessons[0].id,
+            completed_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+
+    activity = next(
+        item
+        for item in build_training_week(db, student, 11)["activities"]
+        if item["stable_id"] == "network-path-active-gate-reason"
+    )
+
+    assert activity["permission_locked"] is True
+    assert activity["permission_reason"] == (
+        "Complete A+ and at least half of your active Network+ modules "
+        "to unlock this networking lab."
+    )
+
+
+def test_learning_path_derives_current_week_once_for_networking_labs(
+    monkeypatch, db, student
+):
+    week = add_week(db, 9, requires_previous=False)
+    for index in range(2):
+        lab = CliLab(
+            id=f"network-path-cache-{index}",
+            compartment_id="network-foundations",
+            vendor_id="cisco-ios",
+            title=f"Network Path Cache {index}",
+            order_index=index,
+            content={},
+        )
+        db.add(lab)
+        db.flush()
+        add_activity(
+            db,
+            week,
+            f"network-path-cache-{index}",
+            "networking_lab",
+            lab.id,
+            index + 1,
+            required=False,
+        )
+    db.commit()
+    calls = {"count": 0}
+
+    def current_week(_student_id, _db):
+        calls["count"] += 1
+        return 9
+
+    monkeypatch.setattr(
+        "app.services.training_service.derive_current_week", current_week
+    )
+
+    build_training_week(db, student, 9)
+
+    assert calls["count"] == 1
+
+
+def test_network_cli_gate_uses_half_of_active_network_modules(db, student):
+    lesson_ids = []
+    for week_number in (10, 11, 12):
+        week = add_week(db, week_number, requires_previous=False)
+        module = Module(
+            code=f"ACTIVE-NET-{week_number}",
+            title=f"Active Network {week_number}",
+            description="Network module",
+            module_order=week_number,
+            active=True,
+        )
+        db.add(module)
+        db.flush()
+        lesson = Lesson(
+            module_id=module.id,
+            title=f"Network Lesson {week_number}",
+            lesson_order=1,
+            status="published",
+        )
+        db.add(lesson)
+        db.flush()
+        lesson_ids.append(lesson.id)
+        add_activity(
+            db,
+            week,
+            f"network-lesson-{week_number}",
+            "lesson",
+            lesson.id,
+            1,
+        )
+    db.add(
+        StudentLessonProgress(
+            student_id=student.id,
+            lesson_id=lesson_ids[0],
+            completed_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+
+    assert network_cli_gate_is_unlocked(db, student) is False
+
+    db.add(
+        StudentLessonProgress(
+            student_id=student.id,
+            lesson_id=lesson_ids[1],
+            completed_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+
+    assert network_cli_gate_is_unlocked(db, student) is True
 
 
 def test_structured_lab_requires_a_passing_graded_submission(db, student):

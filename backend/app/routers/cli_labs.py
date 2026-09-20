@@ -10,7 +10,13 @@ from app.models.squad_activity import SquadActivity
 from app.models.student import Student
 from app.schemas.cli_lab import CliLabCompleteRequest
 from app.services.auth_service import get_current_student
-from app.services.progression_service import CLI_PACK_WEEKS, require_week_reached
+from app.services.progression_service import (
+    CLI_PACK_WEEKS,
+    cli_pack_is_unlocked,
+    derive_current_week,
+    reached_required_cli_lab_ids,
+    require_week_reached,
+)
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
 
@@ -78,6 +84,64 @@ def _serialize_lab(lab: CliLab, attempt: CliLabAttempt | None = None, include_co
     return data
 
 
+def _lab_is_unlocked(
+    db: Session,
+    student: Student,
+    lab: CliLab,
+    attempt: CliLabAttempt | None,
+    current_week: int | None = None,
+    reached_required_lab_ids: set[str] | None = None,
+    network_gate_unlocked: bool | None = None,
+) -> bool:
+    if student.is_mentor:
+        return True
+    if current_week is None:
+        current_week = derive_current_week(student.id, db)
+    if reached_required_lab_ids is None:
+        reached_required_lab_ids = reached_required_cli_lab_ids(
+            db, current_week, {lab.id}
+        )
+    return cli_pack_is_unlocked(
+        db,
+        student,
+        lab.compartment_id,
+        has_completion=attempt is not None,
+        required_assignment_reached=lab.id in reached_required_lab_ids,
+        network_gate_unlocked=network_gate_unlocked,
+        current_week=current_week,
+    )
+
+
+def _require_lab_unlocked(
+    db: Session,
+    student: Student,
+    lab: CliLab,
+    attempt: CliLabAttempt | None,
+) -> None:
+    if _lab_is_unlocked(db, student, lab, attempt):
+        return
+    required_week = CLI_PACK_WEEKS.get(lab.compartment_id, 1)
+    # Preserve the existing required-week response when the learner has not
+    # reached the pack at all. If that passes, the stricter active-module gate
+    # is the remaining blocker and must still reject detail/completion.
+    require_week_reached(db, student, required_week)
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "success": False,
+            "code": "PREREQUISITE_NOT_MET",
+            "error": (
+                "Complete at least 50% of your active Network+ modules "
+                "to unlock this networking lab."
+            ),
+            "data": {
+                "required_week": required_week,
+                "next_action_route": "/training",
+            },
+        },
+    )
+
+
 @router.get("")
 def list_cli_labs(
     db: Session = Depends(get_db),
@@ -85,7 +149,37 @@ def list_cli_labs(
 ):
     labs = db.query(CliLab).order_by(CliLab.compartment_id.asc(), CliLab.order_index.asc()).all()
     attempts = _completed_attempts(db, current_student.id, [lab.id for lab in labs])
-    data = [_serialize_lab(lab, attempts.get(lab.id)) for lab in labs]
+    current_week = None if current_student.is_mentor else derive_current_week(current_student.id, db)
+    reached_required_lab_ids = (
+        set()
+        if current_week is None
+        else reached_required_cli_lab_ids(
+            db, current_week, {lab.id for lab in labs}
+        )
+    )
+    network_gate_unlocked = None
+    if not current_student.is_mentor and any(
+        lab.compartment_id in {"network-foundations", "learn-switching"}
+        for lab in labs
+    ):
+        from app.services.training_service import network_cli_gate_is_unlocked
+
+        network_gate_unlocked = network_cli_gate_is_unlocked(
+            db, current_student
+        )
+    data = [
+        _serialize_lab(lab, attempts.get(lab.id))
+        for lab in labs
+        if _lab_is_unlocked(
+            db,
+            current_student,
+            lab,
+            attempts.get(lab.id),
+            current_week,
+            reached_required_lab_ids,
+            network_gate_unlocked,
+        )
+    ]
     return ok(data, total=len(data), page=1, per_page=len(data) or 1)
 
 
@@ -99,6 +193,7 @@ def get_cli_lab(
     if not lab:
         raise HTTPException(status_code=404, detail="CLI lab not found")
     attempt = _completed_attempts(db, current_student.id, [lab.id]).get(lab.id)
+    _require_lab_unlocked(db, current_student, lab, attempt)
     return ok(_serialize_lab(lab, attempt, include_content=True))
 
 
@@ -112,9 +207,6 @@ def complete_cli_lab(
     lab = db.query(CliLab).filter(CliLab.id == lab_id).first()
     if not lab:
         raise HTTPException(status_code=404, detail="CLI lab not found")
-    # CliLab has no week column; its curriculum pack is the assignment unit.
-    require_week_reached(db, current_student, CLI_PACK_WEEKS.get(lab.compartment_id, 1))
-
     prior_completed = (
         db.query(CliLabAttempt)
         .filter(
@@ -124,6 +216,9 @@ def complete_cli_lab(
         )
         .first()
     )
+    # CliLab has no week column; its curriculum pack is the assignment unit.
+    # A historical completion stays accessible after a rollout gate moves.
+    _require_lab_unlocked(db, current_student, lab, prior_completed)
 
     now = datetime.now(UTC)
     started_at = None

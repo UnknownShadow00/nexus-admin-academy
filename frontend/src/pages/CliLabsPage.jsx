@@ -3,30 +3,44 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import BackLink from "../components/BackLink";
 import PageHeader from "../components/ui/PageHeader";
-import { cliLabCompartments, cliLessons } from "../features/cli-labs/data/lessonCatalog";
+import { cliLabCompartments } from "../features/cli-labs/data/lessonCatalog";
 import { getCliLabs } from "../services/api";
 
 export default function CliLabsPage() {
   const [completionById, setCompletionById] = useState({});
+  const [availableIds, setAvailableIds] = useState(null);
+  const [catalogError, setCatalogError] = useState(null);
+  const [requestVersion, setRequestVersion] = useState(0);
   const [expandedCompartmentIds, setExpandedCompartmentIds] = useState(() => new Set());
 
   useEffect(() => {
     let cancelled = false;
+    setCatalogError(null);
+    setAvailableIds(null);
     getCliLabs({ suppressToast: true })
       .then((response) => {
         if (cancelled) return;
         const rows = Array.isArray(response.data) ? response.data : [];
         setCompletionById(Object.fromEntries(rows.map((row) => [row.id, row])));
+        setAvailableIds(new Set(rows.map((row) => row.id)));
       })
-      .catch(() => {
-        if (!cancelled) setCompletionById({});
+      .catch((error) => {
+        if (!cancelled) {
+          setCompletionById({});
+          setCatalogError(error?.userMessage || "Unable to load networking labs. Please try again.");
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [requestVersion]);
 
-  const completedCount = useMemo(() => cliLessons.filter((lesson) => completionById[lesson.id]?.completed).length, [completionById]);
+  const visibleCompartments = useMemo(() => (cliLabCompartments || []).map((compartment) => ({
+    ...compartment,
+    lessons: (compartment.lessons || []).filter((lesson) => availableIds?.has(lesson.id)),
+  })).filter((compartment) => compartment.lessons.length), [availableIds]);
+  const visibleLessons = visibleCompartments.flatMap((compartment) => compartment.lessons);
+  const completedCount = useMemo(() => visibleLessons.filter((lesson) => completionById[lesson.id]?.completed).length, [completionById, visibleLessons]);
 
   function toggleCompartment(compartmentId) {
     setExpandedCompartmentIds((current) => {
@@ -46,13 +60,25 @@ export default function CliLabsPage() {
           subtitle="Cisco IOS command practice for Network+ and CCNA-adjacent skills."
           actions={
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-              {completedCount}/{cliLessons.length} complete
+              {completedCount}/{visibleLessons.length} complete
             </span>
           }
         />
       </div>
 
-      {cliLabCompartments.map((compartment) => {
+      {catalogError ? (
+        <section className="panel text-center" role="alert">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Networking labs unavailable</h2>
+          <p className="mt-2 text-slate-600 dark:text-slate-300">{catalogError}</p>
+          <button className="btn-primary mt-4" type="button" onClick={() => setRequestVersion((value) => value + 1)}>
+            Try again
+          </button>
+        </section>
+      ) : null}
+
+      {!catalogError && availableIds?.size === 0 ? <section className="panel text-center"><h2 className="text-xl font-bold text-slate-900 dark:text-white">Networking labs unlock later</h2><p className="mt-2 text-slate-600 dark:text-slate-300">Complete orientation to reach the first CLI lessons. Switch and network labs unlock after A+ and the first half of your active Network+ modules.</p><Link className="btn-primary mt-4 inline-flex" to="/">Return to Today</Link></section> : null}
+
+      {visibleCompartments.map((compartment) => {
         const lessons = compartment.lessons || [];
         const expanded = expandedCompartmentIds.has(compartment.compartmentId);
         const topicCompleted = lessons.filter((lesson) => completionById[lesson.id]?.completed).length;

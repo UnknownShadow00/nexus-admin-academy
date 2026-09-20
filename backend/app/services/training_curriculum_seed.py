@@ -23,6 +23,7 @@ from app.models.progression import PromotionGate, Role
 from app.models.quiz import Question, Quiz
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.training import TrainingWeek, TrainingWeekActivity
+from app.services.beginner_learning import SCENARIO_TOPIC_WEEKS
 from app.services.quiz_visibility import student_visible_quiz_filters
 from app.services.training_quiz_mapping import OPTIONAL_LESSON_IDS, OPTIONAL_LESSON_TITLES, mapping_metadata, video_is_required
 
@@ -80,6 +81,68 @@ SERVICE_DESK_WEEKS = {
     8: "inc2407",
     14: "inc2510",
 }
+
+
+def service_desk_activity_is_required(week_number: int, scenario_key: str) -> bool:
+    """Never seed a required case before the curriculum teaches its topic."""
+    topic_week = SCENARIO_TOPIC_WEEKS.get(scenario_key)
+    return topic_week is None or topic_week <= week_number
+
+# Tomorrow-ready beginner sequence. Stable week numbers and every learner-owned
+# record remain unchanged; only the display sequence is aligned to A+ (1-8),
+# Network+ (9-12), then the existing later-career stages.
+BEGINNER_ROLLOUT_DISPLAY_ORDER = {
+    **{week: week for week in range(0, 16)},
+    **{week: week - 9 for week in range(25, 35)},
+    **{week: week + 10 for week in range(16, 25)},
+}
+BEGINNER_ROLLOUT_OPTIONALITY_MARKER = "_0062_optionalized_from_required"
+
+
+def sync_beginner_learning_rollout(db: Session) -> dict:
+    """Converge the minimal beginner sequence without rewriting progress.
+
+    The two Week 10 switch exercises were formerly required before the lab
+    catalog is intentionally introduced. They remain available in place but
+    become optional so the catalog can unlock at the 50% Network+ boundary
+    after Weeks 9 and 10 are complete.
+    """
+    weeks_updated = 0
+    for week in db.query(TrainingWeek).filter(
+        TrainingWeek.week_number.in_(set(BEGINNER_ROLLOUT_DISPLAY_ORDER))
+    ):
+        desired = BEGINNER_ROLLOUT_DISPLAY_ORDER[week.week_number]
+        if week.display_order != desired:
+            week.display_order = desired
+            weeks_updated += 1
+
+    networking_labs_optionalized = 0
+    week_10 = db.query(TrainingWeek).filter_by(week_number=10).first()
+    if week_10 is not None:
+        required_labs = (
+            db.query(TrainingWeekActivity)
+            .filter(
+                TrainingWeekActivity.training_week_id == week_10.id,
+                TrainingWeekActivity.activity_type == "networking_lab",
+                TrainingWeekActivity.content_ref.in_(
+                    {"dev-sw-act-04", "dev-sw-act-18"}
+                ),
+                TrainingWeekActivity.is_required.is_(True),
+            )
+            .all()
+        )
+        for activity in required_labs:
+            metadata = dict(activity.metadata_json or {})
+            metadata[BEGINNER_ROLLOUT_OPTIONALITY_MARKER] = True
+            activity.metadata_json = metadata
+            activity.is_required = False
+            networking_labs_optionalized += 1
+
+    db.commit()
+    return {
+        "weeks_updated": weeks_updated,
+        "networking_labs_optionalized": networking_labs_optionalized,
+    }
 
 ORIENTATION_LESSON_TITLE = "Welcome to Nexus: Your First Week"
 ORIENTATION_QUIZ_TITLE = "Ticketing Systems Quiz"
@@ -2545,7 +2608,13 @@ def sync_initial_training_activities(db: Session) -> dict:
         add(lab.week_number, "guided_lab", lab.id, True, lab.estimated_minutes)
 
     for week_number, scenario_key in SERVICE_DESK_WEEKS.items():
-        add(week_number, "service_desk_scenario", scenario_key, True, 30)
+        add(
+            week_number,
+            "service_desk_scenario",
+            scenario_key,
+            service_desk_activity_is_required(week_number, scenario_key),
+            30,
+        )
 
     cli_labs = {row.id: row for row in db.query(CliLab).filter(CliLab.id.in_(set(CLI_WEEKS))).all()}
     for lab_id, week_number in CLI_WEEKS.items():
