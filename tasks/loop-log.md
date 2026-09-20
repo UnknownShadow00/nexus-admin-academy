@@ -1800,3 +1800,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; 29 focused progression tests, Ruff, Python compilation, and diff validation passed, including a zero-inventory seed-user regression.
 - Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T04:11:52Z] Task Completed
+- Task: Addressed the required CLI lab deadlock and Learning Path query amplification findings by allowing reached exact required lab assignments through the pack gate and caching derived current week per training context.
+- Files changed: backend/app/routers/cli_labs.py, backend/app/services/progression_service.py, backend/app/services/training_service.py, backend/tests/test_cli_labs.py, backend/tests/test_training_service.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 64 combined rollout regressions and 35 focused CLI/training tests passed, touched files pass Ruff, Python compilation and diff validation passed.
+- Next: Push the follow-up commit, resolve the two review threads, and confirm final CI and review status without merging or deploying.

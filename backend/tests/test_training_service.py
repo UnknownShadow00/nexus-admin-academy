@@ -514,7 +514,7 @@ def test_learning_path_networking_lab_uses_cli_pack_gate(db, student):
     )
     db.add(cli_lab)
     db.flush()
-    add_activity(
+    activity = add_activity(
         db,
         week,
         "network-path-gate",
@@ -530,6 +530,14 @@ def test_learning_path_networking_lab_uses_cli_pack_gate(db, student):
     assert locked["permission_locked"] is True
     assert locked["destination_route"] is None
 
+    activity.is_required = True
+    db.commit()
+
+    required = build_training_week(db, student, 9)["activities"][0]
+    assert required["status"] == "not_started"
+    assert required["permission_locked"] is False
+    assert required["destination_route"] == f"/cli-labs/{cli_lab.id}"
+
     db.add(
         CliLabAttempt(
             student_id=student.id,
@@ -544,6 +552,46 @@ def test_learning_path_networking_lab_uses_cli_pack_gate(db, student):
     assert completed["status"] == "complete"
     assert completed["permission_locked"] is False
     assert completed["destination_route"] == f"/cli-labs/{cli_lab.id}"
+
+
+def test_learning_path_derives_current_week_once_for_networking_labs(
+    monkeypatch, db, student
+):
+    week = add_week(db, 9, requires_previous=False)
+    for index in range(2):
+        lab = CliLab(
+            id=f"network-path-cache-{index}",
+            compartment_id="network-foundations",
+            vendor_id="cisco-ios",
+            title=f"Network Path Cache {index}",
+            order_index=index,
+            content={},
+        )
+        db.add(lab)
+        db.flush()
+        add_activity(
+            db,
+            week,
+            f"network-path-cache-{index}",
+            "networking_lab",
+            lab.id,
+            index + 1,
+            required=False,
+        )
+    db.commit()
+    calls = {"count": 0}
+
+    def current_week(_student_id, _db):
+        calls["count"] += 1
+        return 9
+
+    monkeypatch.setattr(
+        "app.services.training_service.derive_current_week", current_week
+    )
+
+    build_training_week(db, student, 9)
+
+    assert calls["count"] == 1
 
 
 def test_structured_lab_requires_a_passing_graded_submission(db, student):

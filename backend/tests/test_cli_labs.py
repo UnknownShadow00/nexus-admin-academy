@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from conftest import auth_headers, make_client, make_student
 
 from app.models.cli_lab import CliLab, CliLabAttempt
+from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.xp_ledger import XPLedger
 from app.routers.cli_labs import router
 
@@ -147,6 +148,60 @@ def test_existing_cli_lab_completion_remains_visible_when_gate_moves(db):
 
     assert [row["id"] for row in response.json()["data"]] == [lab.id]
     assert response.json()["data"][0]["completed"] is True
+
+
+def test_reached_required_cli_lab_bypasses_later_pack_gate(monkeypatch, db):
+    student = make_student(db, "required-network-lab")
+    lab = CliLab(
+        id="required-network-foundations",
+        compartment_id="network-foundations",
+        vendor_id="cisco-ios",
+        title="Required Network Foundations",
+        difficulty="Beginner",
+        est_minutes=8,
+        order_index=1,
+        content={},
+    )
+    week = TrainingWeek(
+        week_number=9,
+        display_order=9,
+        title="Week 9",
+        learning_goals=[],
+        requires_previous_week=False,
+    )
+    db.add_all([lab, week])
+    db.flush()
+    db.add(
+        TrainingWeekActivity(
+            stable_id="week-9-required-network-foundations",
+            training_week_id=week.id,
+            activity_type="networking_lab",
+            content_ref=lab.id,
+            display_order=1,
+            is_required=True,
+            prerequisite_mode="soft",
+            metadata_json={},
+        )
+    )
+    db.commit()
+    monkeypatch.setattr(
+        "app.routers.cli_labs.derive_current_week",
+        lambda _student_id, _db: 9,
+    )
+
+    listing = client.get("/api/cli-labs", headers=auth_headers(student))
+    detail = client.get(
+        f"/api/cli-labs/{lab.id}", headers=auth_headers(student)
+    )
+    completion = client.post(
+        f"/api/cli-labs/{lab.id}/complete",
+        json={"commandLog": [], "durationMs": 1000},
+        headers=auth_headers(student),
+    )
+
+    assert [row["id"] for row in listing.json()["data"]] == [lab.id]
+    assert detail.status_code == 200
+    assert completion.status_code == 200
 
 
 def test_complete_cli_lab_awards_first_completion_xp(db):

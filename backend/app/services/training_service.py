@@ -24,7 +24,9 @@ from app.services.mastery_service import list_student_mastery
 from app.services.progression_service import (
     CLI_PACK_WEEKS,
     cli_pack_is_unlocked,
+    derive_current_week,
     get_promotion_status,
+    week_has_been_reached,
 )
 from app.services.quiz_visibility import student_visible_quiz_filters
 from app.services.service_desk_progression import (
@@ -140,6 +142,7 @@ class _TrainingContext:
         self.db = db
         self.student = student
         self.activities = activities
+        self._current_week: int | None = None
         refs: dict[str, set[str]] = defaultdict(set)
         for activity in activities:
             refs[activity.activity_type].add(activity.content_ref)
@@ -329,6 +332,11 @@ class _TrainingContext:
             "completed_at": latest.completed_at if latest else None,
         }
 
+    def current_week(self) -> int:
+        if self._current_week is None:
+            self._current_week = derive_current_week(self.student.id, self.db)
+        return self._current_week
+
     def resolve(self, activity: TrainingWeekActivity) -> _ResolvedContent | None:
         ref = _int_ref(activity.content_ref)
         week_number = activity.week.week_number
@@ -411,6 +419,13 @@ class _TrainingContext:
                 self.student,
                 lab.compartment_id,
                 has_completion=bool(attempt and attempt.completed_at),
+                required_assignment_reached=(
+                    activity.is_required
+                    and week_has_been_reached(
+                        self.db, self.current_week(), week_number
+                    )
+                ),
+                current_week=self.current_week(),
             )
             required_week = CLI_PACK_WEEKS.get(lab.compartment_id, 1)
             required_module = module_for_week(required_week)

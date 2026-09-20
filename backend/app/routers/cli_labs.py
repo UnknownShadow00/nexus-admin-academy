@@ -14,6 +14,7 @@ from app.services.progression_service import (
     CLI_PACK_WEEKS,
     cli_pack_is_unlocked,
     derive_current_week,
+    reached_required_cli_lab_ids,
     require_week_reached,
 )
 from app.services.xp_service import award_xp
@@ -89,12 +90,22 @@ def _lab_is_unlocked(
     lab: CliLab,
     attempt: CliLabAttempt | None,
     current_week: int | None = None,
+    reached_required_lab_ids: set[str] | None = None,
 ) -> bool:
+    if student.is_mentor:
+        return True
+    if current_week is None:
+        current_week = derive_current_week(student.id, db)
+    if reached_required_lab_ids is None:
+        reached_required_lab_ids = reached_required_cli_lab_ids(
+            db, current_week, {lab.id}
+        )
     return cli_pack_is_unlocked(
         db,
         student,
         lab.compartment_id,
         has_completion=attempt is not None,
+        required_assignment_reached=lab.id in reached_required_lab_ids,
         current_week=current_week,
     )
 
@@ -107,11 +118,23 @@ def list_cli_labs(
     labs = db.query(CliLab).order_by(CliLab.compartment_id.asc(), CliLab.order_index.asc()).all()
     attempts = _completed_attempts(db, current_student.id, [lab.id for lab in labs])
     current_week = None if current_student.is_mentor else derive_current_week(current_student.id, db)
+    reached_required_lab_ids = (
+        set()
+        if current_week is None
+        else reached_required_cli_lab_ids(
+            db, current_week, {lab.id for lab in labs}
+        )
+    )
     data = [
         _serialize_lab(lab, attempts.get(lab.id))
         for lab in labs
         if _lab_is_unlocked(
-            db, current_student, lab, attempts.get(lab.id), current_week
+            db,
+            current_student,
+            lab,
+            attempts.get(lab.id),
+            current_week,
+            reached_required_lab_ids,
         )
     ]
     return ok(data, total=len(data), page=1, per_page=len(data) or 1)
