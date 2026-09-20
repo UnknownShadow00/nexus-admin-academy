@@ -312,14 +312,29 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         )
         .all()
     )
+    curriculum_topic_override_keys = {
+        stable_key
+        for week_number, stable_key in all_curriculum_rows
+        if week_has_been_reached(db, current_week, week_number)
+        and stable_key in SCENARIO_TOPIC_WEEKS
+        and week_number != SCENARIO_TOPIC_WEEKS[stable_key]
+        and week_has_been_reached(
+            db, SCENARIO_TOPIC_WEEKS[stable_key], week_number
+        )
+    }
     curriculum_rows = [
         (week_number, stable_key)
         for week_number, stable_key in all_curriculum_rows
         if week_has_been_reached(db, current_week, week_number)
-        and stable_key in topic_unlocked_keys
+        and (
+            stable_key in topic_unlocked_keys
+            or stable_key in curriculum_topic_override_keys
+        )
     ]
-    # A required weekly case is an exact curriculum assignment. It can be
-    # started when that week is reached without unlocking the case's pack.
+    # Invalid historical/admin rows that require a case before its topic can
+    # otherwise deadlock progression. Keep valid same-week assignments behind
+    # topic completion, but make a reached mismatched assignment actionable as
+    # an exact-case exception. This never unlocks the case's whole pack.
     curriculum_unlocked_keys = {stable_key for _, stable_key in curriculum_rows}
     curriculum_current_keys = {
         stable_key
@@ -443,6 +458,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         "passed_by_pack": passed_by_pack,
         "direct_assignment_override_keys": direct_assignment_override_keys,
         "curriculum_unlocked_keys": curriculum_unlocked_keys,
+        "curriculum_topic_override_keys": curriculum_topic_override_keys,
         "curriculum_current_keys": curriculum_current_keys,
         "in_progress_keys": in_progress_keys,
         "assigned_keys": assigned_keys,
@@ -474,6 +490,9 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
 
     assigned_override = normalized in progression["direct_assignment_override_keys"]
     curriculum_unlocked = normalized in progression["curriculum_unlocked_keys"]
+    curriculum_topic_override = normalized in progression.get(
+        "curriculum_topic_override_keys", set()
+    )
     topic_allowed = (
         not progression.get("topic_gating_enabled", False)
         or normalized in progression.get("topic_unlocked_keys", set())
@@ -491,6 +510,7 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
         not hybrid_blocked
         and (
             assigned_override
+            or curriculum_topic_override
             or topic_allowed
             and (
                 pack.key in progression["unlocked_pack_keys"]

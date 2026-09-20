@@ -236,6 +236,32 @@ def _map_required_case(db, week_number, stable_key):
     db.commit()
 
 
+def _enable_topic_gating(db, week_number):
+    week = db.query(TrainingWeek).filter_by(week_number=week_number).one_or_none()
+    if week is None:
+        week = TrainingWeek(
+            week_number=week_number,
+            display_order=week_number,
+            title=f"Week {week_number}",
+            learning_goals=[],
+        )
+        db.add(week)
+        db.flush()
+    db.add(
+        TrainingWeekActivity(
+            stable_id=f"week-{week_number}-lesson-topic-gate",
+            training_week_id=week.id,
+            activity_type="lesson",
+            content_ref="999999",
+            display_order=99,
+            is_required=True,
+            prerequisite_mode="soft",
+            metadata_json={},
+        )
+    )
+    db.commit()
+
+
 def _assignment_id(db, student, scenario):
     return (
         db.query(ServiceDeskAssignment.id)
@@ -502,6 +528,7 @@ def test_replaying_one_scenario_does_not_count_as_two_unique_passes(monkeypatch,
 def test_instructor_assignment_unlocks_only_the_exact_case(monkeypatch, db):
     student = make_student(db, "mentor-override")
     scenarios = _seed_pack_assignments(db, student)
+    _enable_topic_gating(db, 1)
     monkeypatch.setattr(
         "app.services.service_desk_progression.derive_current_week",
         lambda _student_id, _db: 1,
@@ -549,6 +576,57 @@ def test_instructor_assignment_unlocks_only_the_exact_case(monkeypatch, db):
             "/api/service-desk/progression", headers=auth_headers(student)
         ).json()["current_pack"]["key"]
         == "starter-support"
+    )
+
+
+@pytest.mark.parametrize(
+    ("current_week", "required_key", "future_week", "future_key"),
+    [
+        (3, "password-reset", 4, "mfa-reset"),
+        (4, "mfa-reset", 5, "inc2502"),
+    ],
+)
+def test_reached_required_case_bypasses_later_topic_gate_without_unlocking_future_case(
+    monkeypatch, db, current_week, required_key, future_week, future_key
+):
+    student = make_student(db, f"required-topic-{current_week}")
+    scenarios = _seed_pack_assignments(db, student)
+    _map_required_case(db, current_week, required_key)
+    _map_required_case(db, future_week, future_key)
+    _enable_topic_gating(db, current_week)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: current_week,
+    )
+
+    rows = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+    required_row = next(
+        row for row in rows if row["scenario"]["stable_key"] == required_key
+    )
+    assert required_row["required_this_week"] is True
+    assert required_row["queue_type"] == "assigned"
+    assert (
+        client.post(
+            f"/api/service-desk/assignments/{required_row['id']}/attempts",
+            headers=auth_headers(student),
+        ).status_code
+        == 201
+    )
+
+    future_scenario, _ = scenarios[future_key]
+    future_assignment = (
+        db.query(ServiceDeskAssignment)
+        .filter_by(student_id=student.id, scenario_id=future_scenario.id)
+        .one()
+    )
+    assert (
+        client.post(
+            f"/api/service-desk/assignments/{future_assignment.id}/attempts",
+            headers=auth_headers(student),
+        ).status_code
+        == 403
     )
 
 

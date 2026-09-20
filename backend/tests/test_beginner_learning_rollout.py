@@ -241,34 +241,44 @@ def test_rollout_reorders_existing_weeks_without_resetting_progress(db):
         )
     db.flush()
     week_10 = db.query(TrainingWeek).filter_by(week_number=10).one()
-    lab = CliLab(
-        id="dev-sw-act-04",
-        compartment_id="learn-switching",
-        vendor_id="cisco-ios",
-        title="Restore the Silent Port",
-        order_index=4,
-        content={},
-    )
-    db.add(lab)
+    labs = [
+        CliLab(
+            id=lab_id,
+            compartment_id="learn-switching",
+            vendor_id="cisco-ios",
+            title=title,
+            order_index=order_index,
+            content={},
+        )
+        for lab_id, title, order_index in (
+            ("dev-sw-act-04", "Restore the Silent Port", 4),
+            ("dev-sw-act-18", "Assign the Access VLAN", 18),
+            ("dev-sw-act-09", "Required Switching Lab", 9),
+        )
+    ]
+    db.add_all(labs)
     db.flush()
     attempt = CliLabAttempt(
         student_id=student.id,
-        lab_id=lab.id,
+        lab_id=labs[0].id,
         completed_at=datetime.now(timezone.utc),
         xp_awarded=50,
     )
     db.add(attempt)
-    activity = TrainingWeekActivity(
-        stable_id="week-10-networking_lab-dev-sw-act-04",
-        training_week_id=week_10.id,
-        activity_type="networking_lab",
-        content_ref=lab.id,
-        display_order=1,
-        is_required=True,
-        prerequisite_mode="soft",
-        metadata_json={},
-    )
-    db.add(activity)
+    activities = [
+        TrainingWeekActivity(
+            stable_id=f"week-10-networking_lab-{lab.id}",
+            training_week_id=week_10.id,
+            activity_type="networking_lab",
+            content_ref=lab.id,
+            display_order=index,
+            is_required=True,
+            prerequisite_mode="soft",
+            metadata_json={},
+        )
+        for index, lab in enumerate(labs, start=1)
+    ]
+    db.add_all(activities)
     db.commit()
     progress_id = progress.id
     attempt_id = attempt.id
@@ -277,10 +287,12 @@ def test_rollout_reorders_existing_weeks_without_resetting_progress(db):
     second = sync_beginner_learning_rollout(db)
 
     assert first["weeks_updated"] > 0
-    assert first["networking_labs_optionalized"] == 1
+    assert first["networking_labs_optionalized"] == 2
     assert second == {"weeks_updated": 0, "networking_labs_optionalized": 0}
     assert db.query(TrainingWeek).filter_by(week_number=10).one().display_order == 10
     assert db.query(TrainingWeek).filter_by(week_number=13).one().display_order == 13
-    assert db.get(TrainingWeekActivity, activity.id).is_required is False
+    assert db.get(TrainingWeekActivity, activities[0].id).is_required is False
+    assert db.get(TrainingWeekActivity, activities[1].id).is_required is False
+    assert db.get(TrainingWeekActivity, activities[2].id).is_required is True
     assert db.get(StudentLessonProgress, progress_id).completed_at is not None
     assert db.get(CliLabAttempt, attempt_id).completed_at is not None
