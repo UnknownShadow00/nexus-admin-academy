@@ -2489,3 +2489,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/labs.py, backend/app/services/grading_queue.py, backend/app/services/service_desk_progression.py, backend/app/services/student_deletion.py, backend/app/services/v2_curriculum_service.py, backend/app/services/v2_mentor_service.py, backend/tests/test_student_data_integrity.py, backend/tests/test_v2_full_module_rehearsal.py, backend/tests/test_v2_mentor_intelligence.py, backend/tests/test_v2_runtime_stabilization.py, docs/STUDENT_DELETION_DATA_OWNERSHIP_AUDIT.md, frontend/tests/e2e/service-desk-integration.spec.js, tasks/loop-log.md
 - Result: pass against acceptance criteria; 1182 backend tests passed, focused regression suites passed, frontend and Service Desk validation passed, deployment simulations passed, the corrected browser regression passed on a fresh isolated stack, and an offline live-database copy upgraded from 0064 to 0069 with all SQLite checks clean.
 - Next: Push the review fixes, resolve the addressed threads, request refreshed Codex review, and wait for PR CI; do not merge or deploy.
+
+## [2026-09-20T11:38:40Z] Task Completed
+- Task: Added the missing mentor approval and rejection workflow for V2 guided-practical evidence so reviewed submissions can leave `needs_review` and module completion cannot deadlock.
+- Files changed: backend/app/routers/admin_content.py, backend/tests/test_v2_runtime_stabilization.py, frontend/src/pages/admin/AdminLabsPage.jsx, frontend/src/services/api.js, tasks/loop-log.md
+- Result: pass against acceptance criteria; the focused approval/idempotency regression passes, the admin page exposes pending evidence with approve/reject actions, and frontend build plus all 56 unit tests pass.
+- Next: Push the follow-up, resolve the refreshed review thread, and wait for replacement PR CI; do not merge or deploy.

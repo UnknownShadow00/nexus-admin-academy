@@ -38,6 +38,7 @@ from app.routers.grading import router as grading_router
 from app.routers.admin_grading import router as admin_grading_router
 from app.routers.admin_v2_mentor import router as admin_v2_router
 from app.routers.admin_curriculum import router as admin_curriculum_router
+from app.routers.admin_content import router as admin_content_router
 from app.services.grading_provider import OUTCOME_OK, ProviderResult
 from app.services.grading_queue import apply_mentor_override, claim_due_jobs, process_pending_grade
 from app.services.grading_schema import AIGradeResponse, GRADING_SCHEMA_VERSION
@@ -566,6 +567,29 @@ def test_v2_practical_bypasses_week_gate_only_with_valid_relationship(db, monkey
     assert activity.status == "needs_review"
     assert activity.passed is None
     assert activity.detail["evidence_review_required"] is True
+    monkeypatch.setenv("ADMIN_API_KEY", "practical-review-key")
+    admin = make_client(admin_content_router)
+    queued = admin.get(
+        "/api/admin/labs/runs/review",
+        headers={"X-Admin-Key": "practical-review-key"},
+    )
+    assert queued.status_code == 200
+    assert queued.json()["data"][0]["lab_run_id"] == activity.detail["lab_run_id"]
+    approved = admin.post(
+        f"/api/admin/labs/runs/{activity.detail['lab_run_id']}/v2-review",
+        headers={"X-Admin-Key": "practical-review-key"},
+        json={"decision": "approve", "score": 92, "feedback": "Evidence meets the rubric."},
+    )
+    assert approved.status_code == 200
+    db.refresh(activity)
+    assert (activity.status, activity.passed, activity.score) == ("passed", True, 92)
+    assert activity.detail["review_decision"] == "approve"
+    repeated = admin.post(
+        f"/api/admin/labs/runs/{activity.detail['lab_run_id']}/v2-review",
+        headers={"X-Admin-Key": "practical-review-key"},
+        json={"decision": "reject", "feedback": "Cannot overwrite a completed review."},
+    )
+    assert repeated.status_code == 409
     invalid = client.post(
         f"/api/labs/{assessment.lab_template_id}/start",
         params={"v2_module_key": MODULE, "v2_assessment_key": "not-related"},

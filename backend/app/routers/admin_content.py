@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -19,6 +20,7 @@ from app.models.progression import MethodologyFramework, PromotionGate, Role
 from app.models.quiz import Quiz, QuizAttempt
 from app.models.resource import Resource
 from app.models.student import Student
+from app.models.v2_progress import V2ModuleActivity
 from app.models.ticket import Ticket
 from app.models.vm_assignment import VmAssignment
 from app.schemas.resource import ResourceCreateRequest
@@ -38,7 +40,7 @@ from app.schemas.admin_content import (
     ModuleUpdate,
     TicketAnswerKeyUpdate,
 )
-from app.services.admin_auth import verify_admin
+from app.services.admin_auth import get_admin_username, verify_admin
 from app.services.ai_service import ai_health_test
 from app.services.a_plus_access import get_a_plus_unlock_threshold, set_a_plus_unlock_threshold
 from app.utils.responses import ok
@@ -49,6 +51,12 @@ logger = logging.getLogger(__name__)
 
 class APlusUnlockSettingUpdate(BaseModel):
     a_plus_unlock_threshold_pct: int = Field(ge=0, le=100)
+
+
+class V2PracticalReviewRequest(BaseModel):
+    decision: Literal["approve", "reject"]
+    score: int | None = Field(default=None, ge=0, le=100)
+    feedback: str = Field(min_length=1, max_length=4000)
 
 
 @router.get("/settings/a-plus-unlock")
@@ -357,6 +365,87 @@ def list_lab_templates(lesson_id: int | None = None, db: Session = Depends(get_d
             for r in rows
         ]
     )
+
+
+def _pending_v2_practical_activities(db: Session) -> list[tuple[V2ModuleActivity, int]]:
+    pending = db.query(V2ModuleActivity).filter_by(
+        activity_type="practical", status="needs_review",
+    ).all()
+    rows = []
+    for activity in pending:
+        run_id = (activity.detail or {}).get("lab_run_id")
+        if isinstance(run_id, int):
+            rows.append((activity, run_id))
+    return rows
+
+
+@router.get("/labs/runs/review")
+def list_v2_practical_reviews(db: Session = Depends(get_db)):
+    pending = _pending_v2_practical_activities(db)
+    run_ids = [run_id for _, run_id in pending]
+    runs = {row.id: row for row in db.query(LabRun).filter(LabRun.id.in_(run_ids)).all()}
+    student_ids = {row.student_id for row in runs.values()}
+    lab_ids = {row.lab_template_id for row in runs.values()}
+    students = {row.id: row for row in db.query(Student).filter(Student.id.in_(student_ids)).all()}
+    labs = {row.id: row for row in db.query(LabTemplate).filter(LabTemplate.id.in_(lab_ids)).all()}
+    return ok([
+        {
+            "lab_run_id": run.id,
+            "student_id": run.student_id,
+            "student_name": students.get(run.student_id).name if students.get(run.student_id) else "Unknown student",
+            "lab_title": labs.get(run.lab_template_id).title if labs.get(run.lab_template_id) else "Unknown lab",
+            "module_key": activity.module_key,
+            "assessment_key": activity.ref_key,
+            "notes": run.notes,
+            "submitted_at": run.submitted_at,
+        }
+        for activity, run_id in pending
+        if (run := runs.get(run_id)) is not None
+    ])
+
+
+@router.post("/labs/runs/{lab_run_id}/v2-review")
+def review_v2_practical(
+    lab_run_id: int,
+    payload: V2PracticalReviewRequest,
+    db: Session = Depends(get_db),
+):
+    run = db.get(LabRun, lab_run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Lab run not found")
+    activity = next(
+        (
+            row for row, run_id in _pending_v2_practical_activities(db)
+            if run_id == lab_run_id and row.student_id == run.student_id
+        ),
+        None,
+    )
+    if activity is None:
+        raise HTTPException(status_code=409, detail="This V2 practical is not awaiting review")
+
+    approved = payload.decision == "approve"
+    score = payload.score if payload.score is not None else (100 if approved else 0)
+    reviewed_at = datetime.now(timezone.utc)
+    activity.status = "passed" if approved else "failed"
+    activity.passed = approved
+    activity.score = score
+    activity.detail = {
+        **(activity.detail or {}),
+        "evidence_review_required": False,
+        "review_decision": payload.decision,
+        "review_feedback": payload.feedback.strip(),
+        "reviewed_by": get_admin_username() or "admin",
+        "reviewed_at": reviewed_at.isoformat(),
+    }
+    run.final_score = score
+    run.feedback = payload.feedback.strip()
+    db.commit()
+    return ok({
+        "lab_run_id": run.id,
+        "status": activity.status,
+        "passed": activity.passed,
+        "score": activity.score,
+    })
 
 @router.post("/labs/templates")
 def create_lab_template(payload: LabTemplateCreate, db: Session = Depends(get_db)):

@@ -461,6 +461,10 @@ export const getAdminLabTemplates = (requestOptions) =>
   request(() => adminApi.get("/api/admin/labs/templates"), requestOptions);
 export const getAdminVmAssignments = (requestOptions) =>
   request(() => adminApi.get("/api/admin/vms/assignments"), requestOptions);
+export const getAdminV2PracticalReviews = (requestOptions) =>
+  request(() => adminApi.get("/api/admin/labs/runs/review"), requestOptions);
+export const reviewAdminV2Practical = (labRunId, data, requestOptions) =>
+  request(() => adminApi.post(`/api/admin/labs/runs/${labRunId}/v2-review`, data), requestOptions);
 export const createAdminLabTemplate = (data, requestOptions) =>
   request(() => adminApi.post("/api/admin/labs/templates", data), requestOptions);
 export const updateAdminLabTemplate = (id, data, requestOptions) =>

@@ -7,7 +7,9 @@ import {
   createAdminLabTemplate,
   deleteAdminLabTemplate,
   getAdminLabTemplates,
+  getAdminV2PracticalReviews,
   getAdminVmAssignments,
+  reviewAdminV2Practical,
   updateAdminLabTemplate,
 } from "../../services/api";
 
@@ -48,22 +50,26 @@ function toNullableNumber(value) {
 export default function AdminLabsPage() {
   const [templates, setTemplates] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [practicalReviews, setPracticalReviews] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [reviewingRunId, setReviewingRunId] = useState(null);
 
   const loadTemplates = async () => {
     setLoading(true);
     try {
-      const [templatesRes, assignmentsRes] = await Promise.all([
+      const [templatesRes, assignmentsRes, reviewsRes] = await Promise.all([
         getAdminLabTemplates(),
         getAdminVmAssignments(),
+        getAdminV2PracticalReviews(),
       ]);
       setTemplates(templatesRes.data || []);
       setAssignments(assignmentsRes.data || []);
+      setPracticalReviews(reviewsRes.data || []);
     } finally {
       setLoading(false);
     }
@@ -170,6 +176,21 @@ export default function AdminLabsPage() {
     if (!window.confirm(`Delete lab template "${template.title}"?`)) return;
     await deleteAdminLabTemplate(template.id);
     await loadTemplates();
+  };
+
+  const handlePracticalReview = async (review, decision) => {
+    const feedback = window.prompt(
+      `${decision === "approve" ? "Approval" : "Rejection"} feedback for ${review.student_name}`,
+    );
+    if (!feedback?.trim()) return;
+    setReviewingRunId(review.lab_run_id);
+    setError("");
+    try {
+      await reviewAdminV2Practical(review.lab_run_id, { decision, feedback: feedback.trim() });
+      await loadTemplates();
+    } finally {
+      setReviewingRunId(null);
+    }
   };
 
   return (
@@ -390,6 +411,45 @@ export default function AdminLabsPage() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="panel space-y-3 dark:border-slate-700 dark:bg-slate-900">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Guided Practical Reviews</h2>
+        {practicalReviews.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">No guided practicals awaiting review.</p>
+        ) : (
+          <div className="space-y-3">
+            {practicalReviews.map((review) => (
+              <article key={review.lab_run_id} className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">{review.lab_title}</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">{review.student_name}</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm">{review.notes || "No evidence note supplied."}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="btn-primary"
+                      type="button"
+                      disabled={reviewingRunId === review.lab_run_id}
+                      onClick={() => handlePracticalReview(review, "approve")}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="btn-danger"
+                      type="button"
+                      disabled={reviewingRunId === review.lab_run_id}
+                      onClick={() => handlePracticalReview(review, "reject")}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="panel space-y-3 dark:border-slate-700 dark:bg-slate-900">
