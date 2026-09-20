@@ -140,6 +140,23 @@ def week_has_been_reached(db: Session, current_week: int, required_week: int) ->
     return int(required_week) <= int(current_week)
 
 
+def cli_pack_is_unlocked(
+    db: Session,
+    student: Student,
+    compartment_id: str,
+    *,
+    has_completion: bool = False,
+    current_week: int | None = None,
+) -> bool:
+    """Use one gate for the CLI catalog, detail API, and Learning Path."""
+    if student.is_mentor or has_completion:
+        return True
+    required_week = CLI_PACK_WEEKS.get(compartment_id, 1)
+    if current_week is None:
+        current_week = derive_current_week(student.id, db)
+    return week_has_been_reached(db, current_week, required_week)
+
+
 def has_reached_week(db: Session, student_id: int, required_week: int) -> bool:
     return week_has_been_reached(
         db, derive_current_week(student_id, db), int(required_week or 0)

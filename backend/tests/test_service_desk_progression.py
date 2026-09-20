@@ -485,6 +485,45 @@ def test_completed_cases_move_to_practice_and_can_be_replayed(db):
     assert response.json()["attempt_number"] == 2
 
 
+def test_history_unlocked_assessment_resumes_in_its_original_mode(monkeypatch, db):
+    student = make_student(db, "resume-history-assessment")
+    scenarios = _seed_pack_assignments(db, student)
+    _enable_topic_gating(db, 1)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+    scenario, version = scenarios["inc2506"]
+    attempt = ServiceDeskAttempt(
+        student_id=student.id,
+        scenario_version_id=version.id,
+        mode="simulation",
+        experience_mode="assessment",
+        status="in_progress",
+        current_state={},
+        current_state_hash="history-assessment",
+        state_version=0,
+        attempt_number=1,
+    )
+    db.add(attempt)
+    db.commit()
+
+    response = client.post(
+        f"/api/service-desk/assignments/{_assignment_id(db, student, scenario)}/attempts",
+        headers=auth_headers(student),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == attempt.id
+    assert response.json()["experience_mode"] == "assessment"
+    assert (
+        db.query(ServiceDeskAttempt)
+        .filter_by(student_id=student.id, scenario_version_id=version.id)
+        .count()
+        == 1
+    )
+
+
 def test_unfinished_older_cases_are_earlier_never_practice(monkeypatch, db):
     student = make_student(db, "earlier-not-practice")
     scenarios = _seed_pack_assignments(db, student)

@@ -1782,3 +1782,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_beginner_learning_rollout.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; 27 focused progression tests, Ruff, Python compilation, and diff validation passed.
 - Next: Push the follow-up commit, resolve the new review thread, and confirm the rerun CI result without merging or deploying.
+
+## [2026-09-20T03:48:53Z] Task Completed
+- Task: Addressed the final Codex review findings by preserving the original mode of history-unlocked in-progress Service Desk attempts and applying the authoritative CLI pack gate to early Learning Path networking-lab cards.
+- Files changed: backend/app/routers/cli_labs.py, backend/app/services/progression_service.py, backend/app/services/service_desk_progression.py, backend/app/services/training_service.py, backend/tests/test_service_desk_progression.py, backend/tests/test_training_service.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 61 focused backend tests and all 570 backend tests passed, touched files pass Ruff, Python compilation and diff validation passed, and all six GitHub CI jobs passed on rerun.
+- Next: Commit and push the final review fixes, resolve the two addressed threads, and request a final Codex review without merging or deploying.

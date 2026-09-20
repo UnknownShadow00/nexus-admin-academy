@@ -21,7 +21,11 @@ from app.models.service_desk import ServiceDeskAttempt, ServiceDeskScenario, Ser
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.mastery_service import list_student_mastery
-from app.services.progression_service import get_promotion_status
+from app.services.progression_service import (
+    CLI_PACK_WEEKS,
+    cli_pack_is_unlocked,
+    get_promotion_status,
+)
 from app.services.quiz_visibility import student_visible_quiz_filters
 from app.services.service_desk_progression import (
     build_service_desk_progression,
@@ -401,11 +405,28 @@ class _TrainingContext:
             lab = self.cli_labs.get(activity.content_ref)
             if not lab:
                 return None
+            attempt = self.cli_attempts.get(lab.id)
+            permission_locked = not cli_pack_is_unlocked(
+                self.db,
+                self.student,
+                lab.compartment_id,
+                has_completion=bool(attempt and attempt.completed_at),
+            )
+            required_week = CLI_PACK_WEEKS.get(lab.compartment_id, 1)
+            required_module = module_for_week(required_week)
             return _ResolvedContent(
                 title=lab.title,
                 description=f"{lab.difficulty} networking practice",
-                destination_route=f"/cli-labs/{lab.id}",
+                destination_route=None if permission_locked else f"/cli-labs/{lab.id}",
                 estimated_minutes=lab.est_minutes,
+                permission_locked=permission_locked,
+                permission_reason=(
+                    f"Reach {required_module.title} to unlock this networking lab."
+                    if permission_locked and required_module
+                    else "Complete more of your current learning path to unlock this networking lab."
+                    if permission_locked
+                    else None
+                ),
             )
         if activity.activity_type == "support_ticket":
             ticket = self.tickets.get(ref)

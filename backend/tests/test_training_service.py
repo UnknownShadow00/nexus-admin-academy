@@ -502,6 +502,50 @@ def test_video_quiz_lab_ticket_and_networking_completion_are_server_derived(db, 
     assert complete["required_complete"] == complete["required_total"]
 
 
+def test_learning_path_networking_lab_uses_cli_pack_gate(db, student):
+    week = add_week(db, 9, requires_previous=False)
+    cli_lab = CliLab(
+        id="network-path-gate",
+        compartment_id="network-foundations",
+        vendor_id="cisco-ios",
+        title="Network Path Gate",
+        order_index=1,
+        content={},
+    )
+    db.add(cli_lab)
+    db.flush()
+    add_activity(
+        db,
+        week,
+        "network-path-gate",
+        "networking_lab",
+        cli_lab.id,
+        1,
+        required=False,
+    )
+    db.commit()
+
+    locked = build_training_week(db, student, 9)["activities"][0]
+    assert locked["status"] == "locked"
+    assert locked["permission_locked"] is True
+    assert locked["destination_route"] is None
+
+    db.add(
+        CliLabAttempt(
+            student_id=student.id,
+            lab_id=cli_lab.id,
+            completed_at=datetime.now(timezone.utc),
+            command_log=[],
+        )
+    )
+    db.commit()
+
+    completed = build_training_week(db, student, 9)["activities"][0]
+    assert completed["status"] == "complete"
+    assert completed["permission_locked"] is False
+    assert completed["destination_route"] == f"/cli-labs/{cli_lab.id}"
+
+
 def test_structured_lab_requires_a_passing_graded_submission(db, student):
     """A deterministic (structured_*) lab must not count as complete just
     because a LabRun row exists in "submitted" status — it must have gone

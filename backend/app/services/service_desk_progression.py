@@ -282,9 +282,11 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         for stable_key, assigned_by in managed_assignments
         if assigned_by and assigned_by not in catalog_owners
     }
-    in_progress_keys = {
-        stable_key
-        for (stable_key,) in db.query(ServiceDeskScenario.stable_key)
+    in_progress_rows = (
+        db.query(
+            ServiceDeskScenario.stable_key,
+            ServiceDeskAttempt.experience_mode,
+        )
         .join(
             ServiceDeskScenarioVersion,
             ServiceDeskScenarioVersion.scenario_id == ServiceDeskScenario.id,
@@ -297,9 +299,16 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
             ServiceDeskAttempt.student_id == student.id,
             ServiceDeskAttempt.status == "in_progress",
         )
-        .distinct()
+        .order_by(
+            ServiceDeskAttempt.started_at.desc(),
+            ServiceDeskAttempt.id.desc(),
+        )
         .all()
-    }
+    )
+    in_progress_modes = {}
+    for stable_key, experience_mode in in_progress_rows:
+        in_progress_modes.setdefault(stable_key, experience_mode)
+    in_progress_keys = set(in_progress_modes)
     all_curriculum_rows = (
         db.query(TrainingWeek.week_number, TrainingWeekActivity.content_ref)
         .join(
@@ -461,6 +470,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         "curriculum_topic_override_keys": curriculum_topic_override_keys,
         "curriculum_current_keys": curriculum_current_keys,
         "in_progress_keys": in_progress_keys,
+        "in_progress_modes": in_progress_modes,
         "assigned_keys": assigned_keys,
         "topic_gating_enabled": topic_gating_enabled,
         "topic_unlocked_keys": topic_unlocked_keys,
@@ -519,6 +529,7 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
         )
     )
     passed = normalized in progression["passed_keys"]
+    in_progress_mode = progression.get("in_progress_modes", {}).get(normalized)
     if passed:
         queue_type = "practice"
     elif assigned_override:
@@ -537,6 +548,8 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
         "experience_mode": (
             "practice"
             if passed
+            else in_progress_mode
+            if in_progress_mode
             else "assessment"
             if (
                 normalized in progression["curriculum_unlocked_keys"]

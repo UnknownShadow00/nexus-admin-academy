@@ -12,9 +12,9 @@ from app.schemas.cli_lab import CliLabCompleteRequest
 from app.services.auth_service import get_current_student
 from app.services.progression_service import (
     CLI_PACK_WEEKS,
+    cli_pack_is_unlocked,
     derive_current_week,
     require_week_reached,
-    week_has_been_reached,
 )
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
@@ -90,12 +90,13 @@ def _lab_is_unlocked(
     attempt: CliLabAttempt | None,
     current_week: int | None = None,
 ) -> bool:
-    if student.is_mentor or attempt is not None:
-        return True
-    required_week = CLI_PACK_WEEKS.get(lab.compartment_id, 1)
-    if current_week is None:
-        current_week = derive_current_week(student.id, db)
-    return week_has_been_reached(db, current_week, required_week)
+    return cli_pack_is_unlocked(
+        db,
+        student,
+        lab.compartment_id,
+        has_completion=attempt is not None,
+        current_week=current_week,
+    )
 
 
 @router.get("")
