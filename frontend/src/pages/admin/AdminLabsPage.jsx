@@ -426,6 +426,23 @@ export default function AdminLabsPage() {
                     <h3 className="font-semibold">{review.lab_title}</h3>
                     <p className="text-sm text-slate-600 dark:text-slate-300">{review.student_name}</p>
                     <p className="mt-2 whitespace-pre-wrap text-sm">{review.notes || "No evidence note supplied."}</p>
+                    {review.artifacts?.length ? (
+                      <ul className="mt-3 space-y-1 text-sm">
+                        {review.artifacts.map((artifact) => (
+                          <li key={artifact.id}>
+                            <a
+                              className="text-blue-600 underline dark:text-blue-300"
+                              href={artifact.file_url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {artifact.original_filename || `Evidence ${artifact.id}`}
+                            </a>
+                            <span className="ml-2 text-slate-500">({artifact.artifact_type})</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">No uploaded artifacts.</p>}
                   </div>
                   <div className="flex gap-2">
                     <button

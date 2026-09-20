@@ -15,6 +15,7 @@ from app.models.certification import (
     QuestionV2Meta,
 )
 from app.models.grading import GRADE_JOB_PROCESSING, PendingGrade
+from app.models.evidence import EvidenceArtifact
 from app.models.lab import LabRun, LabTemplate
 from app.models.quiz import Question, Quiz
 from app.models.service_desk import (
@@ -39,6 +40,7 @@ from app.routers.admin_grading import router as admin_grading_router
 from app.routers.admin_v2_mentor import router as admin_v2_router
 from app.routers.admin_curriculum import router as admin_curriculum_router
 from app.routers.admin_content import router as admin_content_router
+from app.routers.admin_quiz import router as admin_quiz_router
 from app.services.grading_provider import OUTCOME_OK, ProviderResult
 from app.services.grading_queue import apply_mentor_override, claim_due_jobs, process_pending_grade
 from app.services.grading_schema import AIGradeResponse, GRADING_SCHEMA_VERSION
@@ -526,7 +528,9 @@ def test_draft_lessons_and_unapproved_banks_are_not_student_visible(db, monkeypa
     assert blocked.status_code == 404
 
 
-def test_v2_practical_bypasses_week_gate_only_with_valid_relationship(db, monkeypatch):
+def test_v2_practical_bypasses_week_gate_only_with_valid_relationship(
+    db, monkeypatch, tmp_path
+):
     student, _ = _ready(db, monkeypatch)
     module = db.query(CertificationModule).filter_by(module_key=MODULE).one()
     assessment = db.query(ModuleAssessment).filter_by(
@@ -567,6 +571,19 @@ def test_v2_practical_bypasses_week_gate_only_with_valid_relationship(db, monkey
     assert activity.status == "needs_review"
     assert activity.passed is None
     assert activity.detail["evidence_review_required"] is True
+    upload_root = tmp_path / "uploads"
+    screenshots = upload_root / "screenshots"
+    screenshots.mkdir(parents=True)
+    (screenshots / "review.png").write_bytes(b"review evidence")
+    artifact = EvidenceArtifact(
+        student_id=student.id, submission_type="lab",
+        submission_id=activity.detail["lab_run_id"], artifact_type="screenshot",
+        storage_key="review.png", original_filename="student-review.png",
+        file_size_bytes=15, mime_type="image/png",
+    )
+    db.add(artifact)
+    db.commit()
+    monkeypatch.setenv("UPLOAD_DIR", str(upload_root))
     monkeypatch.setenv("ADMIN_API_KEY", "practical-review-key")
     admin = make_client(admin_content_router)
     queued = admin.get(
@@ -575,6 +592,13 @@ def test_v2_practical_bypasses_week_gate_only_with_valid_relationship(db, monkey
     )
     assert queued.status_code == 200
     assert queued.json()["data"][0]["lab_run_id"] == activity.detail["lab_run_id"]
+    queued_artifact = queued.json()["data"][0]["artifacts"][0]
+    assert queued_artifact["id"] == artifact.id
+    downloaded = admin.get(
+        queued_artifact["file_url"], headers={"X-Admin-Key": "practical-review-key"}
+    )
+    assert downloaded.status_code == 200
+    assert downloaded.content == b"review evidence"
     approved = admin.post(
         f"/api/admin/labs/runs/{activity.detail['lab_run_id']}/v2-review",
         headers={"X-Admin-Key": "practical-review-key"},
@@ -596,6 +620,36 @@ def test_v2_practical_bypasses_week_gate_only_with_valid_relationship(db, monkey
         headers=auth_headers(student),
     )
     assert invalid.status_code == 404
+
+
+def test_quiz_with_v2_attempt_history_returns_delete_conflict(db, monkeypatch):
+    student, _ = _ready(db, monkeypatch)
+    assessment = db.query(ModuleAssessment).filter(
+        ModuleAssessment.quiz_id.is_not(None),
+    ).first()
+    question = db.query(Question).filter_by(quiz_id=assessment.quiz_id).first()
+    attempt = V2AssessmentAttempt(
+        student_id=student.id, assessment_id=assessment.id,
+        module_key=MODULE, assessment_key=assessment.assessment_key,
+        attempt_number=1,
+    )
+    db.add(attempt)
+    db.flush()
+    db.add(V2AssessmentAttemptQuestion(
+        attempt_id=attempt.id, question_id=question.id, position=0,
+        question_snapshot={"id": question.id, "text": question.question_text},
+    ))
+    db.commit()
+
+    monkeypatch.setenv("ADMIN_API_KEY", "quiz-delete-key")
+    admin = make_client(admin_quiz_router)
+    response = admin.delete(
+        f"/api/admin/quizzes/{assessment.quiz_id}",
+        headers={"X-Admin-Key": "quiz-delete-key"},
+    )
+    assert response.status_code == 409
+    assert "immutable V2 assessment history" in response.json()["detail"]
+    assert db.get(Quiz, assessment.quiz_id) is not None
 
 
 def test_v2_practical_is_absent_from_legacy_list_and_revocation_is_immediate(db, monkeypatch):

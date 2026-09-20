@@ -1,9 +1,12 @@
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -388,6 +391,13 @@ def list_v2_practical_reviews(db: Session = Depends(get_db)):
     lab_ids = {row.lab_template_id for row in runs.values()}
     students = {row.id: row for row in db.query(Student).filter(Student.id.in_(student_ids)).all()}
     labs = {row.id: row for row in db.query(LabTemplate).filter(LabTemplate.id.in_(lab_ids)).all()}
+    artifacts_by_run: dict[int, list[EvidenceArtifact]] = {}
+    if run_ids:
+        for artifact in db.query(EvidenceArtifact).filter(
+            EvidenceArtifact.submission_type == "lab",
+            EvidenceArtifact.submission_id.in_(run_ids),
+        ).order_by(EvidenceArtifact.uploaded_at, EvidenceArtifact.id):
+            artifacts_by_run.setdefault(artifact.submission_id, []).append(artifact)
     return ok([
         {
             "lab_run_id": run.id,
@@ -398,10 +408,51 @@ def list_v2_practical_reviews(db: Session = Depends(get_db)):
             "assessment_key": activity.ref_key,
             "notes": run.notes,
             "submitted_at": run.submitted_at,
+            "artifacts": [
+                {
+                    "id": artifact.id,
+                    "artifact_type": artifact.artifact_type,
+                    "original_filename": artifact.original_filename,
+                    "mime_type": artifact.mime_type,
+                    "file_size_bytes": artifact.file_size_bytes,
+                    "file_url": f"/api/admin/evidence/{artifact.id}/file",
+                }
+                for artifact in artifacts_by_run.get(run.id, [])
+            ],
         }
         for activity, run_id in pending
         if (run := runs.get(run_id)) is not None
     ])
+
+
+@router.get("/evidence/{artifact_id}/file")
+def download_admin_evidence(artifact_id: int, db: Session = Depends(get_db)):
+    artifact = db.get(EvidenceArtifact, artifact_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="Evidence not found")
+    storage_name = Path(artifact.storage_key).name
+    if storage_name != artifact.storage_key:
+        raise HTTPException(status_code=404, detail="Evidence file not found")
+    configured = os.getenv("UPLOAD_DIR")
+    upload_root = (
+        Path(configured) if configured
+        else Path(__file__).resolve().parents[2] / "uploads" / "screenshots"
+    ).resolve()
+    if artifact.submission_type == "lab" and configured:
+        upload_root = (upload_root / "screenshots").resolve()
+    path = (upload_root / storage_name).resolve()
+    try:
+        path.relative_to(upload_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Evidence file not found") from exc
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Evidence file not found")
+    return FileResponse(
+        path,
+        media_type=artifact.mime_type or "application/octet-stream",
+        filename=artifact.original_filename or storage_name,
+        content_disposition_type="inline",
+    )
 
 
 @router.post("/labs/runs/{lab_run_id}/v2-review")

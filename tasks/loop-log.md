@@ -2495,3 +2495,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/admin_content.py, backend/tests/test_v2_runtime_stabilization.py, frontend/src/pages/admin/AdminLabsPage.jsx, frontend/src/services/api.js, tasks/loop-log.md
 - Result: pass against acceptance criteria; the focused approval/idempotency regression passes, the admin page exposes pending evidence with approve/reject actions, and frontend build plus all 56 unit tests pass.
 - Next: Push the follow-up, resolve the refreshed review thread, and wait for replacement PR CI; do not merge or deploy.
+
+## [2026-09-20T12:06:13Z] Task Completed
+- Task: Exposed uploaded V2 practical evidence to authenticated mentors and prevented deletion of quizzes referenced by immutable V2 attempt history.
+- Files changed: backend/app/routers/admin_content.py, backend/app/routers/admin_quiz.py, backend/tests/test_v2_runtime_stabilization.py, frontend/src/pages/admin/AdminLabsPage.jsx, tasks/loop-log.md
+- Result: pass against acceptance criteria; all 29 V2 stabilization regressions pass, the evidence file endpoint and quiz deletion conflict are covered, and the frontend build plus all 56 unit tests pass.
+- Next: Push the final review fixes, resolve the two follow-up threads, request refreshed Codex review, and confirm replacement CI without merging or deploying.
