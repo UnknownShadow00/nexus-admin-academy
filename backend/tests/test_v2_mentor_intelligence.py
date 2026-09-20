@@ -322,9 +322,10 @@ def test_focus_and_mentor_routes_are_flagged_and_admin_only(db, monkeypatch):
     assert focus.value["module_key"] == MODULE_KEY
 
 
-def test_no_legacy_progression_interaction(db):
+def test_no_legacy_progression_interaction(db, monkeypatch):
     _loaded(db)
     student = make_student(db, "legacy_guard")
+    monkeypatch.setenv("V2_PILOT_STUDENT_IDS", str(student.id))
     legacy_before = db.query(TrainingWeek).count()
     report = cohort_progress(db, MODULE_KEY)
     assert report["students"][0]["student_id"] == student.id

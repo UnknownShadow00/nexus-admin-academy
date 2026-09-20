@@ -289,9 +289,10 @@ def test_modules11_12_resources_practical_and_explain_resolve(db, module_key):
         assert codes and prompt.expected_concepts and prompt.rubric and prompt.rubric_version
 
 
-def test_modules10_12_sequence_mentor_visibility_and_resource_mastery_separation(db):
+def test_modules10_12_sequence_mentor_visibility_and_resource_mastery_separation(db, monkeypatch):
     load_module(db, commit=True)
     student = make_student(db, username="modules11_12_flow")
+    monkeypatch.setenv("V2_PILOT_STUDENT_IDS", str(student.id))
     keys = [row["module"]["key"] for row in entry_view(db, student.id)["modules"]]
     module10 = "module.aplus.core1.virtualization_cloud_foundations"
     module11, module12 = MODULES

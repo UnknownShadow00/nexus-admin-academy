@@ -233,9 +233,10 @@ def test_student_sequence_advances_from_module6_through_modules7_9(db):
     assert keys[start : start + 4] == sequence
 
 
-def test_new_modules_are_mentor_visible_and_opening_resources_is_not_mastery(db):
+def test_new_modules_are_mentor_visible_and_opening_resources_is_not_mastery(db, monkeypatch):
     load_module(db, commit=True)
     student = make_student(db, username="modules7_9_mentor")
+    monkeypatch.setenv("V2_PILOT_STUDENT_IDS", str(student.id))
     module_key = "module.aplus.core1.network_services_troubleshooting"
     cohort = cohort_progress(db, module_key)
     available = {row["module_key"] for row in cohort["available_modules"]}

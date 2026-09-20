@@ -2525,3 +2525,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md
 - Result: pass against acceptance criteria; the CI failure artifact proved only seven of eight answers were committed, and the regression now synchronizes on the quiz's own answered-state control.
 - Next: Push the browser stabilization and require a green replacement CI run; do not merge or deploy.
+
+## [2026-09-20T13:09:00Z] Task Completed
+- Task: Updated older mentor-cohort tests to enroll their test students explicitly under the new pilot-only cohort contract.
+- Files changed: backend/tests/test_v2_mentor_intelligence.py, backend/tests/test_v2_module10_curriculum.py, backend/tests/test_v2_modules11_12_curriculum.py, backend/tests/test_v2_modules7_9_curriculum.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; production filtering remains fail-closed while test fixtures now model actual pilot enrollment.
+- Next: Run the four prior failures, push, and require a fully green replacement CI run; do not merge or deploy.

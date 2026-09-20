@@ -165,9 +165,10 @@ def test_module10_resources_practical_and_explain_resolve(db):
         assert codes and prompt.expected_concepts and prompt.rubric and prompt.rubric_version
 
 
-def test_module10_sequence_mentor_visibility_and_resource_mastery_separation(db):
+def test_module10_sequence_mentor_visibility_and_resource_mastery_separation(db, monkeypatch):
     load_module(db, commit=True)
     student = make_student(db, username="module10_flow")
+    monkeypatch.setenv("V2_PILOT_STUDENT_IDS", str(student.id))
     keys = [row["module"]["key"] for row in entry_view(db, student.id)["modules"]]
     module9 = keys.index("module.aplus.core1.printers_mfds")
     assert keys[module9 : module9 + 2] == ["module.aplus.core1.printers_mfds", MODULE_KEY]
