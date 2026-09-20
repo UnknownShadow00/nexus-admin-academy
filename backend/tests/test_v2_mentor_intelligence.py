@@ -214,6 +214,32 @@ def test_deterministically_graded_explain_submission_is_still_visible(db):
     assert len(report["explain_responses"]) == 1
     assert report["explain_responses"][0]["submitted_answer"].startswith("DHCP")
     assert report["explain_responses"][0]["resolved"]["grade_source"] == "deterministic"
+    assert report["explain_responses"][0]["status"] == "graded"
+    assert report["explain_status"] == "graded"
+
+
+def test_module_queue_filters_before_limit(db):
+    _loaded(db)
+    student = make_student(db, "module_queue")
+    for index in range(55):
+        db.add(PendingGrade(
+            student_id=student.id, source_type="interview_explain",
+            source_key=f"unrelated.module.prompt.{index}",
+            submission_ref=f"unrelated:{index}", submitted_answer="Needs review",
+            status="needs_review",
+        ))
+    relevant_key = "interview.aplus.ipcfg.what_does_dhcp_do"
+    db.add(PendingGrade(
+        student_id=student.id, source_type="interview_explain",
+        source_key=relevant_key, submission_ref="relevant:after-global-limit",
+        submitted_answer="Relevant review", status="needs_review",
+    ))
+    db.commit()
+
+    cohort = cohort_progress(db, MODULE_KEY)
+    assert [row["submission_ref"] for row in cohort["needs_review"]] == [
+        "relevant:after-global-limit"
+    ]
 
 
 def test_pending_assessment_and_failed_quiz_have_actionable_blockers(db):

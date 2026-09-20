@@ -7,7 +7,13 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi import HTTPException
 
-from app.models.certification import CertificationModule, LessonV2Meta, ModuleAssessment, QuestionV2Meta
+from app.models.certification import (
+    CertificationModule,
+    InterviewPrompt,
+    LessonV2Meta,
+    ModuleAssessment,
+    QuestionV2Meta,
+)
 from app.models.grading import GRADE_JOB_PROCESSING, PendingGrade
 from app.models.lab import LabRun, LabTemplate
 from app.models.quiz import Question, Quiz
@@ -37,6 +43,7 @@ from app.services.grading_queue import apply_mentor_override, claim_due_jobs, pr
 from app.services.grading_schema import AIGradeResponse, GRADING_SCHEMA_VERSION
 from app.services.v2_content_loader import load_module
 from app.services.v2_curriculum_service import (
+    explain_view,
     module_view,
     resource_activity,
     submit_assessment,
@@ -300,6 +307,35 @@ def test_explain_submission_and_pending_job_roll_back_together(db, monkeypatch):
     assert db.query(PendingGrade).filter_by(student_id=student.id).count() == 0
 
 
+def test_explain_history_preserves_each_deterministic_result(db, monkeypatch):
+    student, _ = _ready(db, monkeypatch)
+    prompt_key = module_view(db, student.id, MODULE)["explain_prompts"][0]["key"]
+    prompt = db.query(InterviewPrompt).filter_by(prompt_key=prompt_key).one()
+    concepts = [
+        item if isinstance(item, str) else item.get("concept", "")
+        for item in (prompt.expected_concepts or [])
+    ]
+    first = submit_explain(db, student.id, MODULE, prompt_key, ". ".join(concepts))
+    assert first["state"] == "graded"
+    assert first["passed"] is True
+
+    prompt.expected_concepts = ["concept that is absent", "another absent concept"]
+    db.commit()
+    second = submit_explain(
+        db, student.id, MODULE, prompt_key,
+        "A later ambiguous retry requiring mentor review.",
+    )
+    assert second["state"] == "pending"
+
+    history = explain_view(db, student.id, MODULE, prompt_key)["submissions"]
+    assert history[0]["id"] == first["submission_id"]
+    assert history[0]["state"] == "graded"
+    assert history[0]["score"] == 100
+    assert history[0]["passed"] is True
+    assert history[1]["id"] == second["submission_id"]
+    assert history[1]["state"] == "pending"
+
+
 def test_mentor_override_cannot_resolve_without_score_and_pass_result(db, monkeypatch):
     student, _ = _ready(db, monkeypatch)
     prompt_key = module_view(db, student.id, MODULE)["explain_prompts"][0]["key"]
@@ -511,6 +547,25 @@ def test_v2_practical_bypasses_week_gate_only_with_valid_relationship(db, monkey
         headers=auth_headers(student),
     )
     assert valid.status_code in {200, 202}
+    params = {"v2_module_key": MODULE, "v2_assessment_key": assessment.assessment_key}
+    blank = client.post(
+        f"/api/labs/{assessment.lab_template_id}/submit", params=params,
+        headers=auth_headers(student), json={"notes": "", "answers": {}},
+    )
+    assert blank.status_code == 400
+    submitted = client.post(
+        f"/api/labs/{assessment.lab_template_id}/submit", params=params,
+        headers=auth_headers(student),
+        json={"notes": "Collected command output and documented verification.", "answers": {}},
+    )
+    assert submitted.status_code == 200
+    activity = db.query(V2ModuleActivity).filter_by(
+        student_id=student.id, activity_type="practical",
+        ref_key=assessment.assessment_key,
+    ).one()
+    assert activity.status == "needs_review"
+    assert activity.passed is None
+    assert activity.detail["evidence_review_required"] is True
     invalid = client.post(
         f"/api/labs/{assessment.lab_template_id}/start",
         params={"v2_module_key": MODULE, "v2_assessment_key": "not-related"},
@@ -648,12 +703,15 @@ def test_service_desk_reconciliation_uses_exact_v2_activity_with_both_modes(db, 
         attempt_id=optional_started.json()["id"], score=100, passed=True,
     ) is None
     optional_attempt = db.get(ServiceDeskAttempt, optional_started.json()["id"])
+    optional_attempt.status = "failed"
+    optional_attempt.passed = False
+    db.commit()
+    legacy_progress = build_service_desk_progression(db, student)
+    assert scenario.stable_key not in legacy_progress["passed_keys"]
+    assert scenario.stable_key not in legacy_progress["failed_history_keys"]
     optional_attempt.status = "completed"
     optional_attempt.passed = True
     db.commit()
-    assert scenario.stable_key not in build_service_desk_progression(
-        db, student
-    )["passed_keys"]
     started = service_client.post(
         f"/api/service-desk/assignments/{learning_assignment.id}/attempts",
         params={

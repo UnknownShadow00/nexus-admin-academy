@@ -78,14 +78,20 @@ async function completeWeekZero(page) {
   for (let index = 1; index <= 4; index += 1) {
     await expect(page.getByText("Question " + index + " of 4", { exact: true })).toBeVisible();
     const questionPanel = page.locator("section .panel").first();
-    const questionText = await questionPanel.textContent();
-    const correctOptions = questionText.includes("initial data collection")
-      ? ["User information", "Device information", "Problem description"]
-      : questionText.includes("future reporting")
-        ? ["Category"]
-        : questionText.includes("Level 2 hardware specialist")
-          ? ["Escalation level"]
-          : ["Progress notes"];
+    const answerSets = [
+      ["User information", "Device information", "Problem description"],
+      ["Category"],
+      ["Escalation level"],
+      ["Progress notes"],
+    ];
+    const correctOptions = await answerSets.reduce(async (selectedPromise, candidate) => {
+      const selected = await selectedPromise;
+      if (selected) return selected;
+      return (await questionPanel.getByText(candidate[0], { exact: true }).count()) > 0
+        ? candidate
+        : null;
+    }, Promise.resolve(null));
+    expect(correctOptions, "orientation question must match an authored answer set").not.toBeNull();
     for (const option of correctOptions) {
       await questionPanel.getByText(option, { exact: true }).click();
     }

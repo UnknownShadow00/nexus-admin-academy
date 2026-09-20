@@ -1,4 +1,5 @@
 import sqlite3
+import pytest
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -11,8 +12,11 @@ from app.models.certification import (
     CertificationModule,
     CertificationVersion,
     InterviewPrompt,
+    LearningResource,
     ModuleAssessment,
+    StudentResourceActivity,
 )
+from app.models.grading import AIGrade, MentorGradeOverride, PendingGrade
 from app.models.cli_lab import CliLab, CliLabAttempt
 from app.models.evidence import EvidenceArtifact
 from app.models.flashcard import FlashcardReview
@@ -272,7 +276,10 @@ def test_orphan_repair_is_dry_run_transactional_and_idempotent():
     connection.close()
 
 
-def test_populated_student_delete_removes_complete_owned_graph_and_preserves_shared_data(db):
+@pytest.mark.parametrize("foreign_keys_enabled", [True, False])
+def test_populated_student_delete_removes_complete_owned_graph_and_preserves_shared_data(
+    db, foreign_keys_enabled
+):
     """The supported endpoint removes every mapped ownership type for one student."""
     client = _admin_client(db)
     role = Role(name="Trainee", rank_order=1)
@@ -327,7 +334,11 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
         certification_module_id=certification_module.id,
         prompt="Explain deletion.",
     )
-    db.add_all([module_assessment, interview_prompt])
+    resource = LearningResource(
+        resource_key="resource.deletion.shared", title="Deletion resource",
+        resource_type="reference", certification_version_id=certification_version.id,
+    )
+    db.add_all([module_assessment, interview_prompt, resource])
     db.commit()
 
     first = client.post("/api/admin/students", json=_student_payload("populated"))
@@ -369,6 +380,10 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
                 activity_type="module_quiz", ref_key=module_assessment.assessment_key,
                 status="in_progress",
             ),
+            StudentResourceActivity(
+                student_id=student_id, resource_id=resource.id,
+                completed=True, student_note="Owned resource note",
+            ),
         ]
     )
     db.flush()
@@ -390,6 +405,24 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
         attempt_id=v2_attempt.id, question_id=question.id, position=0,
         question_snapshot={"id": question.id, "text": question.question_text},
     ))
+    pending = PendingGrade(
+        student_id=student_id, source_type="interview_explain",
+        source_key=interview_prompt.prompt_key,
+        submission_ref="v2-explain:owned-deletion", submitted_answer="Owned answer",
+        status="graded",
+    )
+    db.add(pending)
+    db.flush()
+    ai_grade = AIGrade(
+        pending_grade_id=pending.id, attempt_number=1, provider="test",
+        outcome="accepted", score=1.0, passed=True,
+    )
+    db.add(ai_grade)
+    db.flush()
+    db.add(MentorGradeOverride(
+        pending_grade_id=pending.id, mentor_label="test", override_score=1.0,
+        override_passed=True, reason="Owned override",
+    ))
     attempt_id = attempt.id
     db.add_all([
         ServiceDeskAttemptEvent(attempt_id=attempt.id, sequence_number=1, idempotency_key="deletion-populated-event", event_type="ticket.close", tool="ticket", payload_json={}, previous_state_hash="0" * 64, resulting_state_hash="s" * 64, success=True, trusted=True),
@@ -406,8 +439,12 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
     # Explicit cleanup must remain complete even if a legacy SQLite client
     # opened this connection without cascade enforcement.
     connection = db.connection()
-    connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
-    assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 0
+    connection.exec_driver_sql(
+        f"PRAGMA foreign_keys={'ON' if foreign_keys_enabled else 'OFF'}"
+    )
+    assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == int(
+        foreign_keys_enabled
+    )
     before = student_owned_row_counts(db, student_id)
     assert all(count > 0 for table, count in before.items() if table not in {"students", "service_desk_attempt_events", "service_desk_attempt_grades"})
     assert before["service_desk_attempt_events"] == before["service_desk_attempt_grades"] == 1
@@ -427,6 +464,8 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
         "service_desk_attempt_events": 0,
         "service_desk_attempt_grades": 0,
         "v2_assessment_attempt_questions": 0,
+        "ai_grades": 0,
+        "mentor_grade_overrides": 0,
     }
     assert db.connection().exec_driver_sql("PRAGMA foreign_key_check").all() == []
     assert {table: db.query(model).count() for table, model in {

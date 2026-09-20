@@ -81,7 +81,10 @@ column or an indirect foreign-key path from a student-owned row at `0047`.
 
 Runtime stabilization adds `v2_assessment_attempts`, its indirect
 `v2_assessment_attempt_questions` children, `v2_explain_submissions`, and
-`v2_module_activity` to the explicit student-deletion ownership map. Attempt
-question children are removed before their attempt root, including when a
-legacy SQLite connection has foreign-key enforcement disabled. Shared module,
-assessment, quiz, and question records remain untouched.
+`v2_module_activity` to the explicit student-deletion ownership map. The map
+also includes `v2_student_resource_activity` and `pending_grades`; indirect
+`ai_grades` and `mentor_grade_overrides` rows are removed before their pending
+grade root. Attempt-question and grading children are removed before their
+owners, including when a legacy SQLite connection has foreign-key enforcement
+disabled. Shared module, resource, assessment, quiz, prompt, and question
+records remain untouched.

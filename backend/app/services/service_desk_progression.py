@@ -427,6 +427,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
             ServiceDeskAttempt.student_id == student.id,
             ServiceDeskAttempt.status.in_({"failed", "completed"}),
             ServiceDeskAttempt.passed.is_(False),
+            _legacy_attempt_only(),
         )
         .order_by(
             ServiceDeskAttempt.completed_at.desc(),

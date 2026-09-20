@@ -722,6 +722,11 @@ def submit_lab(
     if v2_context is None:
         require_week_reached(db, current_student, lab.week_number)
     is_structured_lab = (lab.lab_type or "").startswith("structured_")
+    if v2_context and not is_structured_lab and not payload.notes.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Describe the evidence you collected before submitting this practical",
+        )
     questions = []
     if is_structured_lab:
         if not payload.answers:
@@ -828,10 +833,14 @@ def submit_lab(
     log_activity(db, current_student.id, "lab_submitted", lab.title, "Lab submitted")
     if v2_context:
         assessment, module = v2_context
+        practical_status = "completed" if is_structured_lab else "needs_review"
+        practical_passed = True if is_structured_lab else None
         record_activity(
             db, student_id=current_student.id, module_key=module.module_key,
             activity_type="practical", ref_key=assessment.assessment_key,
-            status="completed", passed=True, detail={"lab_run_id": run.id}, commit=True,
+            status=practical_status, passed=practical_passed,
+            detail={"lab_run_id": run.id, "evidence_review_required": not is_structured_lab},
+            commit=True,
         )
     return ok(_serialize_lab(lab, run))
 

@@ -1085,9 +1085,13 @@ def explain_view(db: Session, student_id: int, module_key: str, prompt_key: str)
         else:
             act = _activity(db, student_id, V2_ACTIVITY_EXPLAIN, prompt_key)
             detail = (act.detail or {}) if act else {}
-            state = detail.get("grading_state", "graded")
-            score, passed = detail.get("score"), detail.get("passed")
-            message = detail.get("message", "Your response has been saved.")
+            result = (detail.get("submission_results") or {}).get(str(row.id))
+            if result is None and detail.get("submission_id") == row.id:
+                result = detail
+            result = result or {}
+            state = result.get("grading_state", "graded")
+            score, passed = result.get("score"), result.get("passed")
+            message = result.get("message", "Your response has been saved.")
         history.append({"id": row.id, "attempt_number": row.attempt_number, "submitted_answer": row.submitted_answer, "submitted_at": row.submitted_at, "state": state, "message": message, "score": score, "passed": passed})
     return {"module_key": module_key, "prompt": {"key": prompt.prompt_key, "text": prompt.prompt, "importance": prompt.importance}, "submissions": history}
 
@@ -1141,9 +1145,25 @@ def submit_explain(db: Session, student_id: int, module_key: str, prompt_key: st
         score, passed = None, None
         state, message = "pending", "Your response was saved and is waiting to be graded."
         status = V2_STATUS_NEEDS_REVIEW
+    prior_activity = _activity(db, student_id, V2_ACTIVITY_EXPLAIN, prompt_key)
+    submission_results = dict(
+        ((prior_activity.detail or {}).get("submission_results") or {})
+        if prior_activity else {}
+    )
+    immutable_result = {
+        "grading_state": state,
+        "message": message,
+        "score": score,
+        "passed": passed,
+    }
+    submission_results[str(submission.id)] = immutable_result
     record_activity(
         db, student_id=student_id, module_key=module_key, activity_type=V2_ACTIVITY_EXPLAIN,
         ref_key=prompt_key, status=status, score=score, passed=passed,
-        detail={"submission_id": submission.id, "grading_state": state, "message": message, "score": score, "passed": passed}, commit=True,
+        detail={
+            "submission_id": submission.id,
+            **immutable_result,
+            "submission_results": submission_results,
+        }, commit=True,
     )
     return {"submission_id": submission.id, "attempt_number": attempt_number, "state": state, "message": message, "score": score, "passed": passed}

@@ -2483,3 +2483,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/alembic/env.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; all 24 production migration guard tests pass and a bare `alembic current` no longer creates `backend/nexus.db` when it is absent.
 - Next: Push the hermeticity correction and confirm all PR #36 checks pass; do not merge or deploy.
+
+## [2026-09-20T11:29:44Z] Task Completed
+- Task: Addressed all six PR #36 review findings covering V2 practical evidence, complete student-data deletion, V2 attempt isolation, deterministic Explain history/status, and module-scoped mentor review queues.
+- Files changed: backend/app/routers/labs.py, backend/app/services/grading_queue.py, backend/app/services/service_desk_progression.py, backend/app/services/student_deletion.py, backend/app/services/v2_curriculum_service.py, backend/app/services/v2_mentor_service.py, backend/tests/test_student_data_integrity.py, backend/tests/test_v2_full_module_rehearsal.py, backend/tests/test_v2_mentor_intelligence.py, backend/tests/test_v2_runtime_stabilization.py, docs/STUDENT_DELETION_DATA_OWNERSHIP_AUDIT.md, frontend/tests/e2e/service-desk-integration.spec.js, tasks/loop-log.md
+- Result: pass against acceptance criteria; 1182 backend tests passed, focused regression suites passed, frontend and Service Desk validation passed, deployment simulations passed, the corrected browser regression passed on a fresh isolated stack, and an offline live-database copy upgraded from 0064 to 0069 with all SQLite checks clean.
+- Next: Push the review fixes, resolve the addressed threads, request refreshed Codex review, and wait for PR CI; do not merge or deploy.

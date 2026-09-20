@@ -468,18 +468,24 @@ def _job_priority(job: PendingGrade) -> int:
     return 4
 
 
-def mentor_queue(db: Session, *, limit: int = 50, offset: int = 0) -> list[dict]:
-    jobs = (
-        db.query(PendingGrade)
-        .filter(PendingGrade.status.in_((
+def mentor_queue(
+    db: Session,
+    *,
+    limit: int = 50,
+    offset: int = 0,
+    source_keys: set[str] | None = None,
+) -> list[dict]:
+    query = db.query(PendingGrade).filter(PendingGrade.status.in_((
             GRADE_JOB_PENDING,
             GRADE_JOB_NEEDS_REVIEW,
             GRADE_JOB_FAILED_RETRYABLE,
             GRADE_JOB_FAILED_TERMINAL,
         )))
-        .order_by(PendingGrade.updated_at.asc())
-        .all()
-    )
+    if source_keys is not None:
+        if not source_keys:
+            return []
+        query = query.filter(PendingGrade.source_key.in_(source_keys))
+    jobs = query.order_by(PendingGrade.updated_at.asc()).all()
     ranked = sorted(jobs, key=lambda j: (_job_priority(j), j.created_at))
     return [_job_summary(j) for j in ranked[offset : offset + limit]]
 

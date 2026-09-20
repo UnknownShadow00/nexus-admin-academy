@@ -8,6 +8,7 @@ failed/retried quiz and Service Desk attempts plus mentor grading.
 from app.models.certification import CertificationModule, ModuleAssessment, QuestionV2Meta
 from app.models.grading import PendingGrade
 from app.models.quiz import Question
+from app.models.v2_progress import V2ModuleActivity
 from app.models.service_desk import ServiceDeskAssignment
 from app.routers import admin_grading, labs, service_desk, v2_curriculum, v2_progress
 from app.services.service_desk_realism import fixture_catalog
@@ -145,6 +146,17 @@ def test_authenticated_full_module_rehearsal(db, monkeypatch):
         headers=headers, params=lab_params,
         json={"notes": "Reviewed ipconfig, gateway, DHCP, DNS, ping, and nslookup evidence.", "answers": {}},
     ).status_code == 200
+    practical_activity = db.query(V2ModuleActivity).filter_by(
+        student_id=student.id, activity_type="practical",
+        ref_key=practical.assessment_key,
+    ).one()
+    assert practical_activity.status == "needs_review"
+    assert practical_activity.passed is None
+    record_activity(
+        db, student_id=student.id, module_key=MODULE,
+        activity_type="practical", ref_key=practical.assessment_key,
+        status="passed", score=100, passed=True, commit=True,
+    )
 
     ticket = next(row for row in assessments if row.assessment_role == "service_desk")
     for orientation_key in SERVICE_DESK_ONBOARDING:

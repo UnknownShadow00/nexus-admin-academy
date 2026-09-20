@@ -281,23 +281,27 @@ def _explain_responses(db: Session, student_id: int, module_id: int) -> list[dic
         activity = activities.get(prompt.prompt_key)
         detail = activity.detail or {} if activity else {}
         is_latest = detail.get("submission_id") == submission.id
+        result = (detail.get("submission_results") or {}).get(str(submission.id))
+        if result is None and is_latest:
+            result = detail
+        result = result or {}
         output.append({
             "pending_grade_id": None, "submission_ref": ref,
             "prompt_key": prompt.prompt_key, "prompt": prompt.prompt,
             "submitted_answer": submission.submitted_answer,
-            "status": activity.status if activity and is_latest else "graded",
+            "status": "graded",
             "deterministic": {
-                "status": detail.get("grading_state", "graded") if is_latest else "graded",
-                "score": (detail.get("score") / 100) if is_latest and detail.get("score") is not None else None,
-                "passed": detail.get("passed") if is_latest else None,
+                "status": result.get("grading_state", "graded"),
+                "score": (result.get("score") / 100) if result.get("score") is not None else None,
+                "passed": result.get("passed"),
             },
             "ai_attempts": [], "confidence": None, "review_recommended": False,
             "rubric": prompt.rubric, "rubric_version": prompt.rubric_version,
             "expected_concepts": prompt.expected_concepts, "mentor_overrides": [],
             "resolved": {
                 "grade_source": "deterministic",
-                "score": (detail.get("score") / 100) if is_latest and detail.get("score") is not None else None,
-                "passed": detail.get("passed") if is_latest else None,
+                "score": (result.get("score") / 100) if result.get("score") is not None else None,
+                "passed": result.get("passed"),
                 "graded_at": submission.submitted_at.isoformat() if submission.submitted_at else None,
             },
         })
@@ -554,7 +558,7 @@ def set_cohort_focus(db: Session, module_key: str) -> dict:
 
 
 def cohort_progress(db: Session, module_key: str = DEFAULT_MODULE_KEY) -> dict:
-    _module(db, module_key)
+    selected_module = _module(db, module_key)
     available_modules = db.query(CertificationModule).join(
         CertificationVersion, CertificationVersion.id == CertificationModule.certification_version_id
     ).filter(CertificationModule.active.is_(True)).order_by(
@@ -597,6 +601,21 @@ def cohort_progress(db: Session, module_key: str = DEFAULT_MODULE_KEY) -> dict:
             "blockers": r["blockers"],
             "explain_status": r["explain_status"], "weak_topics": r["weak_topics"], "current_position": r["current_position"],
         } for r in reports],
-        "needs_review": mentor_queue(db, limit=50), "weak_areas": weak_areas,
+        "needs_review": mentor_queue(
+            db,
+            limit=50,
+            source_keys={
+                row.assessment_key
+                for row in db.query(ModuleAssessment).filter_by(
+                    certification_module_id=selected_module.id
+                )
+            }
+            | {
+                row.prompt_key
+                for row in db.query(InterviewPrompt).filter_by(
+                    certification_module_id=selected_module.id
+                )
+            },
+        ), "weak_areas": weak_areas,
         "suggested_review_topics": suggestions, "student_questions": questions,
     }
