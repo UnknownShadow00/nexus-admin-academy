@@ -228,8 +228,15 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "That page is not part of your learning path." })).toBeVisible();
   await page.goto("/labs/4");
   await expect(page.getByRole("heading", { name: "Hardware Component Identification", exact: true })).toBeVisible();
+  // This learner is still in orientation, so the individual CLI endpoint is
+  // expected to return 403 and the page must render its prerequisite state.
+  // Exclude that intentional response from the generic unexpected-error
+  // monitor while keeping the UI assertion explicit.
+  monitor.pause();
   await page.goto("/cli-labs/meet-cli-001");
   await expect(page.getByRole("heading", { name: "First Contact", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Continue your current week" })).toBeVisible();
+  monitor.resume();
 
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/learning-path");
