@@ -79,18 +79,6 @@
 - Result: pass against acceptance criteria; `python -m compileall app seed.py -q`, `python -m pytest -q`, focused quiz/capstone tests, and `npm run build` all passed.
 - Next: Existing tracked `frontend/dist` files still show build churn; fully enforcing the new ignore policy requires a later one-time untrack/restore decision for those tracked artifacts.
 
-## [2026-09-20T03:26:33Z] Task Completed
-- Task: Addressed all five unresolved PR #35 review threads by preventing Service Desk topic-gate deadlocks, preserving instructor overrides, limiting Week 10 optionalization to the two superseded switch labs, and adding honest CLI catalog and individual-lab failure/lock states with retry handling.
-- Files changed: backend/app/services/service_desk_progression.py, backend/app/services/training_curriculum_seed.py, backend/tests/test_beginner_learning_rollout.py, backend/tests/test_service_desk_progression.py, backend/tests/test_training_curriculum_realignment.py, frontend/src/pages/CliLabPage.jsx, frontend/src/pages/CliLabPage.test.jsx, frontend/src/pages/CliLabsPage.jsx, frontend/src/pages/CliLabsPage.test.jsx, tasks/loop-log.md
-- Result: pass against acceptance criteria; 566 backend tests, 27 frontend unit tests, 41 focused backend regressions, frontend build/CLI validation, Service Desk checks, fresh-seed checks, dependency audits, 287 deploy simulations, 9 predeploy checks, and 20 Playwright browser tests passed.
-- Next: Push the commits to PR #35, resolve the five addressed review threads, and request a fresh Codex review without merging or deploying.
-
-## [2026-09-20T03:33:10Z] Task Completed
-- Task: Addressed the new Codex follow-up finding by keeping the disabled Hybrid Labs case blocked even when a learner has passed or in-progress historical attempt data.
-- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_beginner_learning_rollout.py, tasks/loop-log.md
-- Result: pass against acceptance criteria; 27 focused progression tests, Ruff, Python compilation, and diff validation passed.
-- Next: Push the follow-up commit, resolve the new review thread, and confirm the rerun CI result without merging or deploying.
-
 ## [2026-08-10T05:07:37Z] Task Completed
 - Task: Audited Nexus-authored quiz provenance and quality signals, repaired the known Internet-scope prompt, added authored-question identity preservation, and added a quality audit/regression guard.
 - Files changed: backend/app/models/quiz.py, backend/alembic/versions/0045_preserve_authored_question_identity.py, backend/app/services/seed_question_sync.py, backend/seed_phase_a.py, backend/seed_phase_b.py, backend/seed_phase_c.py, backend/seed_phase_d.py, backend/seed_phase_e.py, backend/seed_phase_f.py, backend/seed_phase_g.py, backend/scripts/audit_nexus_question_quality.py, backend/scripts/check_nexus_question_quality.py, backend/tests/test_nexus_question_quality.py, docs/NEXUS_QUESTION_QUALITY_AUDIT.md, docs/nexus_question_quality_prechange.json, docs/nexus_question_quality_postchange.json, tasks/loop-log.md
@@ -1782,3 +1770,15 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: frontend/package-lock.json; service-desk-app/apps/web/package.json; service-desk-app/package.json; service-desk-app/pnpm-lock.yaml; backend/app/services/service_desk_progression.py; backend/tests/test_beginner_learning_rollout.py; backend/tests/test_service_desk_attempts.py; frontend/tests/e2e/my-training.spec.js; frontend/tests/e2e/service-desk-integration.spec.js; scripts/e2e/start_local_stack.sh; tasks/loop-log.md
 - Result: pass against acceptance criteria — PR #35 is open against main with all six CI jobs green; isolated learner and cross-app browser smoke tests passed; frontend audit reports zero vulnerabilities; Service Desk high/critical audit passes with two moderate build-tooling advisories remaining; migration 0062 upgrades cleanly from main's 0061 head without resetting existing progress.
 - Next: Obtain normal review/approval, then merge and deploy through the approved release process. No merge or deployment was performed.
+
+## [2026-09-20T03:26:33Z] Task Completed
+- Task: Addressed all five unresolved PR #35 review threads by preventing Service Desk topic-gate deadlocks, preserving instructor overrides, limiting Week 10 optionalization to the two superseded switch labs, and adding honest CLI catalog and individual-lab failure/lock states with retry handling.
+- Files changed: backend/app/services/service_desk_progression.py, backend/app/services/training_curriculum_seed.py, backend/tests/test_beginner_learning_rollout.py, backend/tests/test_service_desk_progression.py, backend/tests/test_training_curriculum_realignment.py, frontend/src/pages/CliLabPage.jsx, frontend/src/pages/CliLabPage.test.jsx, frontend/src/pages/CliLabsPage.jsx, frontend/src/pages/CliLabsPage.test.jsx, tasks/loop-log.md
+- Result: pass against acceptance criteria; 566 backend tests, 27 frontend unit tests, 41 focused backend regressions, frontend build/CLI validation, Service Desk checks, fresh-seed checks, dependency audits, 287 deploy simulations, 9 predeploy checks, and 20 Playwright browser tests passed.
+- Next: Push the commits to PR #35, resolve the five addressed review threads, and request a fresh Codex review without merging or deploying.
+
+## [2026-09-20T03:33:10Z] Task Completed
+- Task: Addressed the new Codex follow-up finding by keeping the disabled Hybrid Labs case blocked even when a learner has passed or in-progress historical attempt data.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_beginner_learning_rollout.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 27 focused progression tests, Ruff, Python compilation, and diff validation passed.
+- Next: Push the follow-up commit, resolve the new review thread, and confirm the rerun CI result without merging or deploying.
