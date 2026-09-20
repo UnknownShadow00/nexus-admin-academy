@@ -2471,3 +2471,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: .github/workflows/ci.yml, scripts/e2e/start_local_stack.sh, scripts/e2e/seed_fresh_db.sh, tasks/loop-log.md
 - Result: pass against acceptance criteria; strict single-head parsing accepts the valid `(head) (mergepoint)` form, shell syntax passes, and a fresh isolated stack completed migration, seed, V2 load, fixture creation, and health startup using an explicitly selected external backend interpreter.
 - Next: Push the CI correction and confirm all PR #36 checks pass; do not merge or deploy.
+
+## [2026-09-20T10:05:55Z] Task Completed
+- Task: Removed a seed-order race from the Week 0 Playwright flow by navigating to the API-authoritative next lesson when the module landing page selects another tied current activity.
+- Files changed: frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md
+- Result: pass against acceptance criteria; all 6 My Training browser tests pass on a fresh isolated merge-head database, including the full Week 0 unlock, persistence, and Service Desk return flow.
+- Next: Push the browser correction and confirm the replacement PR #36 CI run is fully green; do not merge or deploy.

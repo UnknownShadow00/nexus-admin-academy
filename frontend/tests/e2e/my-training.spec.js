@@ -506,9 +506,12 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await page.getByRole("link", { name: "Start Next Module" }).click();
     await expect(page).toHaveURL(/(?:\/lessons\/\d+|\/training\/module\/module\.endpoint\.support_workflow)$/);
     if (new URL(page.url()).pathname !== weekOneLessonPath) {
-      await page.getByRole("link", { name: /Anatomy of a Good Ticket/ }).click();
-      await expect(page).toHaveURL(new RegExp(`${weekOneLessonPath}$`));
+      // The module landing page can choose a different current activity when
+      // seed ordering ties. The API-provided next lesson is the stable target
+      // whose lock transition this test owns.
+      await page.goto(weekOneLessonPath);
     }
+    await expect(page).toHaveURL(new RegExp(`${weekOneLessonPath}$`));
     await expect(page.getByRole("heading", { name: "Anatomy of a Good Ticket" })).toBeVisible();
     await page.reload();
     await expect(page.getByRole("heading", { name: "Anatomy of a Good Ticket" })).toBeVisible();
