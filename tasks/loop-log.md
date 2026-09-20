@@ -1788,3 +1788,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/routers/cli_labs.py, backend/app/services/progression_service.py, backend/app/services/service_desk_progression.py, backend/app/services/training_service.py, backend/tests/test_service_desk_progression.py, backend/tests/test_training_service.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; 61 focused backend tests and all 570 backend tests passed, touched files pass Ruff, Python compilation and diff validation passed, and all six GitHub CI jobs passed on rerun.
 - Next: Commit and push the final review fixes, resolve the two addressed threads, and request a final Codex review without merging or deploying.
+
+## [2026-09-20T03:54:53Z] Task Completed
+- Task: Addressed the final follow-up review finding by preserving access to guided Service Desk cases completed before topic gating was introduced, without counting guided completion as assessment mastery.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 28 focused progression tests, Ruff, Python compilation, and diff validation passed.
+- Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.

@@ -174,6 +174,7 @@ def test_guided_starter_pass_does_not_count_as_curriculum_mastery_or_pack_progre
     student = make_student(db, "guided-is-not-mastery")
     scenarios = _seed_pack_assignments(db, student)
     _map_required_case(db, 3, "password-reset")
+    _enable_topic_gating(db, 1)
     monkeypatch.setattr(
         "app.services.service_desk_progression.derive_current_week",
         lambda _student_id, _db: 1,

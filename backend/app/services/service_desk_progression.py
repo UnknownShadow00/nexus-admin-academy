@@ -507,14 +507,17 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
         not progression.get("topic_gating_enabled", False)
         or normalized in progression.get("topic_unlocked_keys", set())
     )
-    history_access = normalized in progression["passed_keys"] or normalized in progression.get(
-        "in_progress_keys", set()
+    history_access = (
+        normalized in progression["passed_keys"]
+        or normalized in progression.get("guided_completed_keys", set())
+        or normalized in progression.get("in_progress_keys", set())
     )
     # An explicit instructor assignment is an intentional exception to the
     # curriculum sequence. It must remain usable for targeted practice and
     # accommodations, but the unpublished Hybrid Labs proof-of-concept is
-    # never exposed through that exception. Existing passed/in-progress work
-    # remains accessible so rollout changes cannot erase learner history.
+    # never exposed through that exception. Existing passed, guided-completed,
+    # or in-progress work remains accessible so rollout changes cannot erase
+    # learner history.
     hybrid_blocked = normalized in HYBRID_LAB_SCENARIO_KEYS
     unlocked = not hybrid_blocked and (
         history_access
