@@ -507,6 +507,8 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
             "pack_key": "custom",
             "pack_name": "Assigned by instructor",
             "pack_order": len(SERVICE_DESK_PACKS),
+            "topic_blocked": False,
+            "unavailable_reason": None,
         }
 
     assigned_override = normalized in progression["direct_assignment_override_keys"]
@@ -522,6 +524,22 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
         normalized in progression["passed_keys"]
         or normalized in progression.get("guided_completed_keys", set())
         or normalized in progression.get("in_progress_keys", set())
+    )
+    required_topic_week = SCENARIO_TOPIC_WEEKS.get(normalized)
+    topic_blocked = (
+        progression.get("topic_gating_enabled", False)
+        and required_topic_week is not None
+        and not topic_allowed
+        and not curriculum_topic_override
+    )
+    required_module = (
+        module_for_week(required_topic_week) if required_topic_week is not None else None
+    )
+    topic_lock_reason = (
+        f"Complete the {required_module.title if required_module else f'Week {required_topic_week}'} "
+        "learning activities to unlock this case."
+        if topic_blocked
+        else None
     )
     # An explicit instructor assignment is an intentional exception to the
     # curriculum sequence. It must remain usable for targeted practice and
@@ -573,7 +591,8 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
         ),
         "guided_completed": normalized in progression["guided_completed_keys"],
         "required_this_week": normalized in progression["curriculum_current_keys"],
-        "unavailable_reason": None,
+        "topic_blocked": topic_blocked,
+        "unavailable_reason": topic_lock_reason,
     }
 
 
@@ -587,29 +606,15 @@ def require_scenario_unlocked(
 
     normalized = scenario.stable_key.lower()
     required_topic_week = SCENARIO_TOPIC_WEEKS.get(normalized)
-    topic_blocked = (
-        progression.get("topic_gating_enabled", False)
-        and required_topic_week is not None
-        and normalized not in progression.get("topic_unlocked_keys", set())
-        and normalized
-        not in progression.get("curriculum_topic_override_keys", set())
-    )
+    topic_blocked = access.get("topic_blocked", False)
     if topic_blocked:
         required_module = module_for_week(required_topic_week)
-        module_title = (
-            required_module.title
-            if required_module
-            else f"Week {required_topic_week}"
-        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "success": False,
                 "code": "SERVICE_DESK_TOPIC_LOCKED",
-                "error": (
-                    f"Complete the {module_title} learning activities "
-                    "to unlock this case."
-                ),
+                "error": access["unavailable_reason"],
                 "data": {
                     "pack": PACK_BY_SCENARIO[normalized].name,
                     "required_week": required_topic_week,

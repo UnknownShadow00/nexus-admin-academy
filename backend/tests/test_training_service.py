@@ -304,6 +304,66 @@ def test_service_desk_activity_is_validated_and_completed_only_by_passed_attempt
     assert after["complete"] is True
 
 
+def test_learning_path_explains_service_desk_topic_prerequisite(db, student):
+    week = add_week(db, 1, requires_previous=False)
+    module = Module(
+        code="SERVICE-DESK-TOPIC-REASON",
+        title="Service Desk Topic Reason",
+        module_order=1,
+        active=True,
+    )
+    db.add(module)
+    db.flush()
+    lesson = Lesson(
+        module_id=module.id,
+        title="Account access fundamentals",
+        lesson_order=1,
+        status="published",
+    )
+    scenario = ServiceDeskScenario(
+        stable_key="locked-user-account",
+        title="Locked user account",
+        description="Restore access safely.",
+        category="Identity",
+        difficulty=1,
+        status="active",
+    )
+    db.add_all([lesson, scenario])
+    db.flush()
+    db.add(
+        ServiceDeskScenarioVersion(
+            scenario_id=scenario.id,
+            version_number=1,
+            definition_json={},
+            definition_hash="c" * 64,
+            validation_status="valid",
+            status="published",
+        )
+    )
+    add_activity(db, week, "w1-topic-lesson", "lesson", lesson.id, 1)
+    add_activity(
+        db,
+        week,
+        "w1-topic-case",
+        "service_desk_scenario",
+        scenario.stable_key,
+        2,
+    )
+    db.commit()
+
+    activity = next(
+        item
+        for item in build_training_week(db, student, 1)["activities"]
+        if item["stable_id"] == "w1-topic-case"
+    )
+
+    assert activity["permission_locked"] is True
+    assert activity["permission_reason"] == (
+        "Complete the Support Workflow Essentials learning activities "
+        "to unlock this case."
+    )
+
+
 def test_required_activity_blocks_next_week_but_optional_does_not(db, student):
     week_one = add_week(db, 1)
     week_two = add_week(db, 2)

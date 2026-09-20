@@ -490,9 +490,11 @@ class _TrainingContext:
                 next_pack = self.service_desk_progression["next_pack"]
                 pack_key = access.get("pack_key")
                 permission_reason = (
-                    next_pack["reason"]
+                    access.get("unavailable_reason")
+                    or next_pack["reason"]
                     if next_pack and next_pack["key"] == pack_key
-                    else "Complete the earlier Service Desk cases first."
+                    else access.get("unavailable_reason")
+                    or "Complete the earlier Service Desk cases first."
                 )
             ticket_key = _service_desk_ticket_key(scenario.stable_key)
             # Kept in sync with the allowlist in service-desk-app/apps/web/lib/nexus-return.ts.

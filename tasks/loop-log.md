@@ -1860,3 +1860,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; 72 focused rollout tests passed, including assignment backfill and successful attempt creation for an unmapped custom required case, and touched files pass Ruff, Python compilation, and diff validation.
 - Next: Push the final follow-up commit, resolve the review thread, and confirm final CI and refreshed review status without merging or deploying.
+
+## [2026-09-20T05:41:12Z] Task Completed
+- Task: Propagated mapped Service Desk topic-lock reasons through shared scenario access so Learning Path cards direct learners to the actual prerequisite module.
+- Files changed: backend/app/services/service_desk_progression.py, backend/app/services/training_service.py, backend/tests/test_training_service.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 73 focused rollout tests passed, including a locked Week 1 case card with the Support Workflow Essentials prerequisite, and touched files pass Ruff, Python compilation, and diff validation.
+- Next: Push the final follow-up commit, resolve the review thread, and confirm final CI and refreshed review status without merging or deploying.
