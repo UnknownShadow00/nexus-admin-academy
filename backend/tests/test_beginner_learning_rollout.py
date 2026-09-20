@@ -63,6 +63,28 @@ def test_network_plus_begins_after_aplus_and_switch_labs_unlock_at_halfway():
     assert phase["switch_labs_unlocked"] is True
 
 
+def test_phase_completion_uses_only_active_certification_modules():
+    states = [
+        *[
+            _week_state(week, complete=True)
+            for week in A_PLUS_WEEKS
+            if week != 4
+        ],
+        _week_state(9),
+        _week_state(10, locked=True),
+        _week_state(11, locked=True),
+        _week_state(12, locked=True),
+    ]
+
+    phase = build_learning_phase(states, current_week=9)
+
+    assert phase["key"] == "network_plus"
+    assert phase["a_plus_complete"] is True
+    assert phase["a_plus_completed_modules"] == 7
+    assert phase["a_plus_total_modules"] == 7
+    assert phase["network_plus_locked"] is False
+
+
 def test_topic_gating_locks_advanced_and_hybrid_scenarios():
     progression = {
         "direct_assignment_override_keys": set(),

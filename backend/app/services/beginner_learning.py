@@ -50,12 +50,24 @@ def _completed_count(states_by_week: dict[int, dict], weeks: tuple[int, ...]) ->
 def build_learning_phase(week_states: list[dict], current_week: int | None) -> dict:
     """Return presentation metadata derived from existing completion states."""
     states_by_week = {int(state["week_number"]): state for state in week_states}
-    a_plus_completed = _completed_count(states_by_week, A_PLUS_WEEKS)
-    network_completed = _completed_count(states_by_week, NETWORK_PLUS_WEEKS)
-    a_plus_complete = a_plus_completed == len(A_PLUS_WEEKS)
+    active_a_plus_weeks = tuple(
+        week for week in A_PLUS_WEEKS if week in states_by_week
+    )
+    active_network_weeks = tuple(
+        week for week in NETWORK_PLUS_WEEKS if week in states_by_week
+    )
+    a_plus_completed = _completed_count(states_by_week, active_a_plus_weeks)
+    network_completed = _completed_count(states_by_week, active_network_weeks)
+    a_plus_total = len(active_a_plus_weeks)
+    network_total = len(active_network_weeks)
+    a_plus_complete = a_plus_completed == a_plus_total
     network_plus_locked = not a_plus_complete
-    network_progress = round(network_completed / len(NETWORK_PLUS_WEEKS) * 100)
-    switch_labs_unlocked = a_plus_complete and network_completed >= 2
+    network_progress = (
+        round(network_completed / network_total * 100)
+        if network_total
+        else 100
+    )
+    switch_labs_unlocked = a_plus_complete and network_progress >= 50
 
     if current_week in NETWORK_PLUS_WEEKS and a_plus_complete:
         key = "network_plus"
@@ -64,22 +76,26 @@ def build_learning_phase(week_states: list[dict], current_week: int | None) -> d
     elif current_week in A_PLUS_WEEKS or not a_plus_complete:
         key = "aplus"
         label = "CompTIA A+"
-        progress_percent = round(a_plus_completed / len(A_PLUS_WEEKS) * 100)
+        progress_percent = (
+            round(a_plus_completed / a_plus_total * 100)
+            if a_plus_total
+            else 100
+        )
     else:
         key = "career_path"
         label = "Career Path"
-        progress_percent = 100 if network_completed == len(NETWORK_PLUS_WEEKS) else network_progress
+        progress_percent = 100 if network_completed == network_total else network_progress
 
     return {
         "key": key,
         "label": label,
         "progress_percent": progress_percent,
         "a_plus_completed_modules": a_plus_completed,
-        "a_plus_total_modules": len(A_PLUS_WEEKS),
+        "a_plus_total_modules": a_plus_total,
         "a_plus_complete": a_plus_complete,
         "network_plus_locked": network_plus_locked,
         "network_plus_completed_modules": network_completed,
-        "network_plus_total_modules": len(NETWORK_PLUS_WEEKS),
+        "network_plus_total_modules": network_total,
         "network_plus_progress_percent": network_progress,
         "switch_labs_unlocked": switch_labs_unlocked,
         "switch_labs_unlock_percent": 50,
