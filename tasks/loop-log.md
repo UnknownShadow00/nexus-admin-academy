@@ -2531,3 +2531,15 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/tests/test_v2_mentor_intelligence.py, backend/tests/test_v2_module10_curriculum.py, backend/tests/test_v2_modules11_12_curriculum.py, backend/tests/test_v2_modules7_9_curriculum.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; production filtering remains fail-closed while test fixtures now model actual pilot enrollment.
 - Next: Run the four prior failures, push, and require a fully green replacement CI run; do not merge or deploy.
+
+## [2026-09-20T20:49:02Z] Task Completed
+- Task: Reproduced and fixed the Service Desk production Docker build in an isolated hotfix worktree based on 0fbbba629d2716b6b3c8c997497171f6eb31d4d1; added CI production-image regression and health/contract coverage.
+- Files changed: service-desk-app/.dockerignore, scripts/tests/service_desk_docker_smoke.sh, .github/workflows/ci.yml, tasks/loop-log.md
+- Result: pass; recursive node_modules exclusion prevents stale host Next 15.5.22 links from overwriting the lockfile-installed Next 15.5.24 links. Full production image and container health passed, uncached lint/typecheck/production build passed, 517 Service Desk tests and 7 backend contract-gate tests passed, and live read-only backend contract compatibility passed at 2.0. Audit high-severity gate passed with two moderate development-tool findings. Serving checkout remains at the deployed SHA with only its pre-existing tasks/loop-log.md modification; production containers were untouched.
+- Next: Push the hotfix and open a PR against main; require CI review before any separately authorized merge/deployment. Launch smoke testing remains outstanding.
+
+## [2026-09-20T21:16:47+00:00] Task Completed
+- Task: Verified PR #37 CI, review state, and merge readiness without modifying the production checkout or deployed Service Desk.
+- Files changed: tasks/loop-log.md
+- Result: pass; all six CI jobs were green on the reviewed hotfix commit, GitHub reported zero unresolved review threads and no new Codex review findings, and the PR merge state was CLEAN.
+- Next: Push this verification record, wait for its replacement CI run to pass, then hand off PR #37 for separately authorized merge; do not deploy.
