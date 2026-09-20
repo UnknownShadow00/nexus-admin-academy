@@ -5,7 +5,9 @@
 .npm-cache
 coverage
 dist
-node_modules
+# Workspace installs contain links into the root pnpm store. Never let host
+# links overwrite the lockfile installation performed inside the image.
+**/node_modules
 *.tsbuildinfo
 
 .env

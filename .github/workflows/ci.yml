@@ -360,6 +360,10 @@ jobs:
         working-directory: service-desk-app
         run: pnpm audit --audit-level=high
 
+      - name: Production Docker image, stale workspace regression, health and contract
+        timeout-minutes: 15
+        run: bash scripts/tests/service_desk_docker_smoke.sh
+
   playwright:
     name: Playwright browser tests
     runs-on: ubuntu-latest
