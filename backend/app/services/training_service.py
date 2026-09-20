@@ -47,7 +47,11 @@ from app.services.curriculum_structure import (
     public_stage,
     structure_definition_issues,
 )
-from app.services.beginner_learning import build_learning_phase
+from app.services.beginner_learning import (
+    A_PLUS_WEEKS,
+    NETWORK_PLUS_WEEKS,
+    build_learning_phase,
+)
 
 
 PRACTICE_ACTIVITY_TYPES = {
@@ -143,6 +147,8 @@ class _TrainingContext:
         self.student = student
         self.activities = activities
         self._current_week: int | None = None
+        self._network_cli_gate_loaded = False
+        self._network_cli_gate: bool | None = None
         refs: dict[str, set[str]] = defaultdict(set)
         for activity in activities:
             refs[activity.activity_type].add(activity.content_ref)
@@ -337,6 +343,14 @@ class _TrainingContext:
             self._current_week = derive_current_week(self.student.id, self.db)
         return self._current_week
 
+    def network_cli_gate(self) -> bool | None:
+        if not self._network_cli_gate_loaded:
+            self._network_cli_gate = network_cli_gate_is_unlocked(
+                self.db, self.student
+            )
+            self._network_cli_gate_loaded = True
+        return self._network_cli_gate
+
     def resolve(self, activity: TrainingWeekActivity) -> _ResolvedContent | None:
         ref = _int_ref(activity.content_ref)
         week_number = activity.week.week_number
@@ -425,6 +439,7 @@ class _TrainingContext:
                         self.db, self.current_week(), week_number
                     )
                 ),
+                network_gate_unlocked=self.network_cli_gate(),
                 current_week=self.current_week(),
             )
             required_week = CLI_PACK_WEEKS.get(lab.compartment_id, 1)
@@ -658,6 +673,54 @@ def derive_training_current_week(db: Session, student: Student) -> int | None:
         if any(not context.progress(activity)["complete"] for activity in required):
             return week.week_number
     return weeks[-1].week_number
+
+
+def network_cli_gate_is_unlocked(
+    db: Session, student: Student
+) -> bool | None:
+    """Return the active-curriculum 50% Network+ lab gate.
+
+    ``None`` preserves the numeric fallback for legacy databases and focused
+    fixtures that do not contain any active Network+ curriculum weeks.
+    """
+    weeks = [
+        week
+        for week in _active_weeks(db)
+        if week.week_number in (*A_PLUS_WEEKS, *NETWORK_PLUS_WEEKS)
+    ]
+    network_weeks = [
+        week for week in weeks if week.week_number in NETWORK_PLUS_WEEKS
+    ]
+    if not network_weeks:
+        return None
+    activities = [
+        activity
+        for week in weeks
+        for activity in sorted(
+            week.activities, key=lambda item: (item.display_order, item.id)
+        )
+    ]
+    context = _TrainingContext(
+        db, student, activities, include_service_desk_access=False
+    )
+
+    def module_complete(week: TrainingWeek) -> bool:
+        required = [
+            activity
+            for activity in week.activities
+            if activity.is_required
+            and activity.activity_type
+            not in UNTRACKED_ACTIVITY_TYPES | {"review"}
+        ]
+        return all(context.progress(activity)["complete"] for activity in required)
+
+    a_plus_weeks = [week for week in weeks if week.week_number in A_PLUS_WEEKS]
+    if not all(module_complete(week) for week in a_plus_weeks):
+        return False
+    completed_network_modules = sum(
+        module_complete(week) for week in network_weeks
+    )
+    return completed_network_modules * 2 >= len(network_weeks)
 
 
 def required_learning_complete_for_week(

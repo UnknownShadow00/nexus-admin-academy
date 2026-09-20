@@ -25,6 +25,7 @@ from app.services.training_service import (
     build_training_overview,
     build_training_progress,
     build_training_week,
+    network_cli_gate_is_unlocked,
     validate_training_curriculum,
 )
 from app.services.progression_service import derive_current_week, require_week_reached
@@ -504,6 +505,25 @@ def test_video_quiz_lab_ticket_and_networking_completion_are_server_derived(db, 
 
 def test_learning_path_networking_lab_uses_cli_pack_gate(db, student):
     week = add_week(db, 9, requires_previous=False)
+    module = Module(code="NETWORK-GATE", title="Network Gate", module_order=9)
+    db.add(module)
+    db.flush()
+    lesson = Lesson(
+        module_id=module.id,
+        title="Network Gate Lesson",
+        lesson_order=1,
+        status="published",
+    )
+    db.add(lesson)
+    db.flush()
+    add_activity(
+        db,
+        week,
+        "network-gate-lesson",
+        "lesson",
+        lesson.id,
+        1,
+    )
     cli_lab = CliLab(
         id="network-path-gate",
         compartment_id="network-foundations",
@@ -520,12 +540,16 @@ def test_learning_path_networking_lab_uses_cli_pack_gate(db, student):
         "network-path-gate",
         "networking_lab",
         cli_lab.id,
-        1,
+        2,
         required=False,
     )
     db.commit()
 
-    locked = build_training_week(db, student, 9)["activities"][0]
+    locked = next(
+        item
+        for item in build_training_week(db, student, 9)["activities"]
+        if item["stable_id"] == "network-path-gate"
+    )
     assert locked["status"] == "locked"
     assert locked["permission_locked"] is True
     assert locked["destination_route"] is None
@@ -533,7 +557,11 @@ def test_learning_path_networking_lab_uses_cli_pack_gate(db, student):
     activity.is_required = True
     db.commit()
 
-    required = build_training_week(db, student, 9)["activities"][0]
+    required = next(
+        item
+        for item in build_training_week(db, student, 9)["activities"]
+        if item["stable_id"] == "network-path-gate"
+    )
     assert required["status"] == "not_started"
     assert required["permission_locked"] is False
     assert required["destination_route"] == f"/cli-labs/{cli_lab.id}"
@@ -548,7 +576,11 @@ def test_learning_path_networking_lab_uses_cli_pack_gate(db, student):
     )
     db.commit()
 
-    completed = build_training_week(db, student, 9)["activities"][0]
+    completed = next(
+        item
+        for item in build_training_week(db, student, 9)["activities"]
+        if item["stable_id"] == "network-path-gate"
+    )
     assert completed["status"] == "complete"
     assert completed["permission_locked"] is False
     assert completed["destination_route"] == f"/cli-labs/{cli_lab.id}"
@@ -592,6 +624,59 @@ def test_learning_path_derives_current_week_once_for_networking_labs(
     build_training_week(db, student, 9)
 
     assert calls["count"] == 1
+
+
+def test_network_cli_gate_uses_half_of_active_network_modules(db, student):
+    lesson_ids = []
+    for week_number in (10, 11, 12):
+        week = add_week(db, week_number, requires_previous=False)
+        module = Module(
+            code=f"ACTIVE-NET-{week_number}",
+            title=f"Active Network {week_number}",
+            description="Network module",
+            module_order=week_number,
+            active=True,
+        )
+        db.add(module)
+        db.flush()
+        lesson = Lesson(
+            module_id=module.id,
+            title=f"Network Lesson {week_number}",
+            lesson_order=1,
+            status="published",
+        )
+        db.add(lesson)
+        db.flush()
+        lesson_ids.append(lesson.id)
+        add_activity(
+            db,
+            week,
+            f"network-lesson-{week_number}",
+            "lesson",
+            lesson.id,
+            1,
+        )
+    db.add(
+        StudentLessonProgress(
+            student_id=student.id,
+            lesson_id=lesson_ids[0],
+            completed_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+
+    assert network_cli_gate_is_unlocked(db, student) is False
+
+    db.add(
+        StudentLessonProgress(
+            student_id=student.id,
+            lesson_id=lesson_ids[1],
+            completed_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+
+    assert network_cli_gate_is_unlocked(db, student) is True
 
 
 def test_structured_lab_requires_a_passing_graded_submission(db, student):

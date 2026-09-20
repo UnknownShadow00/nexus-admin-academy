@@ -1830,3 +1830,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/services/beginner_learning.py, backend/tests/test_beginner_learning_rollout.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; 37 focused beginner-rollout and training-service tests passed, including a deactivated A+ module transition regression, and touched files pass Ruff, Python compilation and diff validation.
 - Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T05:00:05Z] Task Completed
+- Task: Aligned CLI lab unlocks with 50% completion of active A+/Network+ modules and added accurate topic-prerequisite errors for topic-gated Service Desk cases.
+- Files changed: backend/app/routers/cli_labs.py, backend/app/services/progression_service.py, backend/app/services/service_desk_progression.py, backend/app/services/training_service.py, backend/tests/test_service_desk_progression.py, backend/tests/test_training_service.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 68 focused CLI/training/Service Desk rollout tests passed, including active-module percentage and topic-error regressions, and touched files pass Ruff, Python compilation and diff validation.
+- Next: Push the follow-up commit, resolve the two review threads, and confirm final CI and review status without merging or deploying.

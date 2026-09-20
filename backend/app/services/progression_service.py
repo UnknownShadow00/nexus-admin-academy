@@ -147,11 +147,19 @@ def cli_pack_is_unlocked(
     *,
     has_completion: bool = False,
     required_assignment_reached: bool = False,
+    network_gate_unlocked: bool | None = None,
     current_week: int | None = None,
 ) -> bool:
     """Use one gate for the CLI catalog, detail API, and Learning Path."""
     if student.is_mentor or has_completion or required_assignment_reached:
         return True
+    if compartment_id in {"network-foundations", "learn-switching"}:
+        if network_gate_unlocked is None:
+            from app.services.training_service import network_cli_gate_is_unlocked
+
+            network_gate_unlocked = network_cli_gate_is_unlocked(db, student)
+        if network_gate_unlocked is not None:
+            return network_gate_unlocked
     required_week = CLI_PACK_WEEKS.get(compartment_id, 1)
     if current_week is None:
         current_week = derive_current_week(student.id, db)

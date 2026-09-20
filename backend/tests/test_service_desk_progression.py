@@ -495,6 +495,29 @@ def test_direct_api_cannot_start_locked_assignment(monkeypatch, db):
     assert response.json()["detail"]["data"]["pack"] == "Desktop Support"
 
 
+def test_direct_api_reports_topic_prerequisite_for_topic_locked_case(
+    monkeypatch, db
+):
+    student = make_student(db, "topic-lock-reason")
+    scenarios = _seed_pack_assignments(db, student)
+    _enable_topic_gating(db, 1)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+    scenario, _ = scenarios["locked-user-account"]
+
+    response = client.post(
+        f"/api/service-desk/assignments/{_assignment_id(db, student, scenario)}/attempts",
+        headers=auth_headers(student),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "SERVICE_DESK_TOPIC_LOCKED"
+    assert response.json()["detail"]["data"]["required_week"] == 1
+    assert "learning activities" in response.json()["detail"]["error"]
+
+
 def test_required_case_unlocks_when_topic_has_no_required_learning(
     monkeypatch, db
 ):

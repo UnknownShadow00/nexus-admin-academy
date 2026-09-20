@@ -584,7 +584,44 @@ def require_scenario_unlocked(
     if access["unlocked"]:
         return access
 
-    pack = PACK_BY_SCENARIO[scenario.stable_key.lower()]
+    normalized = scenario.stable_key.lower()
+    required_topic_week = SCENARIO_TOPIC_WEEKS.get(normalized)
+    topic_blocked = (
+        progression.get("topic_gating_enabled", False)
+        and required_topic_week is not None
+        and normalized not in progression.get("topic_unlocked_keys", set())
+        and normalized
+        not in progression.get("curriculum_topic_override_keys", set())
+    )
+    if topic_blocked:
+        required_module = module_for_week(required_topic_week)
+        module_title = (
+            required_module.title
+            if required_module
+            else f"Week {required_topic_week}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "success": False,
+                "code": "SERVICE_DESK_TOPIC_LOCKED",
+                "error": (
+                    f"Complete the {module_title} learning activities "
+                    "to unlock this case."
+                ),
+                "data": {
+                    "pack": PACK_BY_SCENARIO[normalized].name,
+                    "required_week": required_topic_week,
+                    "required_module_id": (
+                        required_module.stable_id if required_module else None
+                    ),
+                    "current_week": progression["current_week"],
+                    "next_action_route": "/training",
+                },
+            },
+        )
+
+    pack = PACK_BY_SCENARIO[normalized]
     next_pack = progression["next_pack"]
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,

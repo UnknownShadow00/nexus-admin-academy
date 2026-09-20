@@ -91,6 +91,7 @@ def _lab_is_unlocked(
     attempt: CliLabAttempt | None,
     current_week: int | None = None,
     reached_required_lab_ids: set[str] | None = None,
+    network_gate_unlocked: bool | None = None,
 ) -> bool:
     if student.is_mentor:
         return True
@@ -106,6 +107,7 @@ def _lab_is_unlocked(
         lab.compartment_id,
         has_completion=attempt is not None,
         required_assignment_reached=lab.id in reached_required_lab_ids,
+        network_gate_unlocked=network_gate_unlocked,
         current_week=current_week,
     )
 
@@ -125,6 +127,16 @@ def list_cli_labs(
             db, current_week, {lab.id for lab in labs}
         )
     )
+    network_gate_unlocked = None
+    if not current_student.is_mentor and any(
+        lab.compartment_id in {"network-foundations", "learn-switching"}
+        for lab in labs
+    ):
+        from app.services.training_service import network_cli_gate_is_unlocked
+
+        network_gate_unlocked = network_cli_gate_is_unlocked(
+            db, current_student
+        )
     data = [
         _serialize_lab(lab, attempts.get(lab.id))
         for lab in labs
@@ -135,6 +147,7 @@ def list_cli_labs(
             attempts.get(lab.id),
             current_week,
             reached_required_lab_ids,
+            network_gate_unlocked,
         )
     ]
     return ok(data, total=len(data), page=1, per_page=len(data) or 1)
