@@ -50,6 +50,7 @@ from app.services.auth_service import (
     ensure_student_ownership,
     get_current_student,
 )
+from app.services.beginner_learning import HYBRID_LAB_SCENARIO_KEYS
 from app.services.service_desk_grading import AttemptNotClosedError, compute_grade
 from app.services.service_desk_progression import (
     assignment_attempts_used,
@@ -357,6 +358,29 @@ def _owned_attempt(
     ensure_student_access(student, attempt.student_id)
     if _attempt_v2_context(db, attempt) and not student_has_v2_access(student):
         raise HTTPException(404, V2_UNAVAILABLE_DETAIL)
+    stable_key = (
+        db.query(ServiceDeskScenario.stable_key)
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.scenario_id == ServiceDeskScenario.id,
+        )
+        .filter(ServiceDeskScenarioVersion.id == attempt.scenario_version_id)
+        .scalar()
+    )
+    if (
+        stable_key
+        and stable_key.lower() in HYBRID_LAB_SCENARIO_KEYS
+        and _attempt_v2_context(db, attempt) is None
+    ):
+        raise HTTPException(
+            403,
+            detail={
+                "success": False,
+                "code": "SERVICE_DESK_PACK_LOCKED",
+                "error": "This Service Desk scenario is not available.",
+                "data": {"next_action_route": "/training"},
+            },
+        )
     return attempt
 
 
@@ -530,13 +554,18 @@ def list_assignments(
         if assignment.scenario_id == requested_v2_scenario_id:
             # Legacy guided history for the same stable scenario is not V2
             # module credit. Keep the curriculum launch on learning/guided
-            # until this exact V2 activity passes.
+            # until this exact V2 activity passes. The validated V2 launch is
+            # also its own availability gate: a legacy pack or hybrid-lab
+            # lock must not hide the case that the module just assigned.
             access = {
                 **access,
+                "unlocked": True,
                 "guided_completed": requested_v2_completed,
                 "experience_mode": (
                     "assessment" if requested_v2_completed else "guided"
                 ),
+                "topic_blocked": False,
+                "unavailable_reason": None,
             }
         if assignment.mode == "learning":
             access = {**access, "experience_mode": "guided"}
@@ -826,11 +855,31 @@ def start_attempt(
     scenario = db.get(ServiceDeskScenario, assignment.scenario_id)
     if not scenario or scenario.status != "active":
         raise HTTPException(404, "Assignment not found")
-    require_scenario_unlocked(db, current_student, scenario)
+    # V2 has its own enrollment, prerequisite, assessment, and retry gates in
+    # _v2_launch_context. Applying the legacy pack gate as well can deadlock a
+    # valid V2 launch (and would disable a scenario reused by V2 when its
+    # legacy/hybrid entry point is intentionally hidden).
+    if v2_context is None:
+        require_scenario_unlocked(db, current_student, scenario)
     progression = build_service_desk_progression(db, current_student)
     access = scenario_access(progression, scenario.stable_key)
+    learning_assignment_exists = (
+        assignment.mode == "simulation"
+        and db.query(ServiceDeskAssignment.id)
+        .filter_by(
+            student_id=current_student.id,
+            scenario_id=assignment.scenario_id,
+            mode="learning",
+        )
+        .first()
+        is not None
+    )
     experience_mode = (
-        "guided" if assignment.mode == "learning" else access["experience_mode"]
+        "guided"
+        if assignment.mode == "learning"
+        else "assessment"
+        if learning_assignment_exists and access["experience_mode"] == "guided"
+        else access["experience_mode"]
     )
     candidates = (
         db.query(ServiceDeskAttempt)

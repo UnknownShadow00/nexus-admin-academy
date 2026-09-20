@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import BackLink from "../components/BackLink";
 import EmptyState from "../components/EmptyState";
-import PrerequisiteLock from "../components/PrerequisiteLock";
+import PrerequisiteLock, { getPrerequisiteLock } from "../components/PrerequisiteLock";
 import PageHeader from "../components/ui/PageHeader";
 import LabRunner from "../features/cli-labs/components/LabRunner";
 import { findCliLesson, nextCliLesson } from "../features/cli-labs/data/lessonCatalog";
@@ -15,21 +15,34 @@ export default function CliLabPage() {
   const nextLesson = nextCliLesson(labId);
   const [completed, setCompleted] = useState(false);
   const [prerequisiteLock, setPrerequisiteLock] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const [requestVersion, setRequestVersion] = useState(0);
 
   useEffect(() => {
     if (!labId) return;
     let cancelled = false;
+    setLoaded(false);
+    setLoadError(null);
+    setPrerequisiteLock(null);
     getCliLab(labId, { suppressToast: true })
       .then((response) => {
         if (!cancelled) setCompleted(Boolean(response.data?.completed));
       })
-      .catch(() => {
-        if (!cancelled) setCompleted(false);
+      .catch((error) => {
+        if (cancelled) return;
+        setCompleted(false);
+        const lock = getPrerequisiteLock(error);
+        if (lock) setPrerequisiteLock(lock);
+        else setLoadError(error?.userMessage || "Unable to load this networking lab. Please try again.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [labId]);
+  }, [labId, requestVersion]);
 
   useEffect(() => {
     if (!lesson) return;
@@ -72,7 +85,18 @@ export default function CliLabPage() {
         }
       />
       <PrerequisiteLock lock={prerequisiteLock} />
-      <LabRunner key={lesson.id} lesson={lesson} initialCompleted={completed} onPrerequisiteLocked={setPrerequisiteLock} />
+      {loadError ? (
+        <section className="panel text-center" role="alert">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Lab unavailable</h2>
+          <p className="mt-2 text-slate-600 dark:text-slate-300">{loadError}</p>
+          <button className="btn-primary mt-4" type="button" onClick={() => setRequestVersion((value) => value + 1)}>
+            Try again
+          </button>
+        </section>
+      ) : null}
+      {loaded && !prerequisiteLock && !loadError ? (
+        <LabRunner key={lesson.id} lesson={lesson} initialCompleted={completed} onPrerequisiteLocked={setPrerequisiteLock} />
+      ) : null}
     </main>
   );
 }

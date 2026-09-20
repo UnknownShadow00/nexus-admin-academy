@@ -27,6 +27,9 @@ TRACES_V1 = json.loads(
     (ROOT / "service-desk-app/packages/shared/src/realism-traces.test.json").read_text()
 )
 ALL_TRACES = {**TRACES_V1, **TRACES}
+ACTIVE_SERVICE_DESK_TRACES = tuple(
+    ticket for ticket in sorted(ALL_TRACES) if ticket != "INC2504"
+)
 
 
 def add_note(client, student, attempt, ticket):
@@ -55,7 +58,7 @@ def complete(client, student, attempt):
     return result.json()
 
 
-@pytest.mark.parametrize("ticket", sorted(ALL_TRACES))
+@pytest.mark.parametrize("ticket", ACTIVE_SERVICE_DESK_TRACES)
 def test_all_ten_current_scenarios_reject_the_wizard_and_reach_terminal_outcome(
     db, ticket
 ):

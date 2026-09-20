@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import seed_v2_foundation
@@ -34,7 +35,7 @@ def test_inventory_generator_is_scratch_only_and_committed_outputs_match(tmp_pat
     env = {**os.environ, "DATABASE_URL": database_url, "V2_CURRICULUM_ENABLED": "false"}
     result = subprocess.run(
         [
-            str(REPO_ROOT / "backend/.venv/bin/python"),
+            sys.executable,
             "scripts/generate_service_desk_v2_inventory.py",
             "--output",
             str(markdown),

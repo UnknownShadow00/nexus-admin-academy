@@ -2334,3 +2334,134 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: Service Desk workspace/header/stage/tool/context components and unit tests; frontend P0/P1/integrated browser specs; .github/workflows/ci.yml; tasks/p1-service-desk-wave1-handoff.md; tasks/p1-wave1-screenshots/; tasks/loop-log.md.
 - Result: PASS — backend integrity gate 41; Service Desk shared 37, simulation 268, web 176, UI 36; frontend 53; standalone browser 27, integrated browser 14, P1 workspace browser 2, authenticated beginner browser 1. Builds, lint, typechecks, YAML and whitespace checks passed. P0 grading preserved; no production operations. Dependency audits retain documented npm/pip advisories outside this wave.
 - Next: Review saved desktop/mobile screenshots before Wave 2; authored evidence labels, stage-specific goals, and post-debrief evidence meaning remain deferred. Track existing dependency advisories separately.
+## [2026-09-19T20:39:04Z] Task Completed
+- Task: Implemented the minimal beginner-learning rollout on an isolated feature branch: A+ first, topic-gated Service Desk tickets, Network+ after A+, and existing switch/network labs at 50% Network+ progress; Hybrid Labs remain unavailable.
+- Files changed: backend/alembic/versions/0062_beginner_learning_rollout.py; backend/app/routers/cli_labs.py; backend/app/services/beginner_learning.py; backend/app/services/curriculum_structure.py; backend/app/services/progression_service.py; backend/app/services/service_desk_progression.py; backend/app/services/training_curriculum_seed.py; backend/app/services/training_service.py; backend/seed_curriculum.py; backend/tests/test_beginner_learning_rollout.py; backend/tests/test_cli_labs.py; backend/tests/test_phase4c3_final_shift.py; backend/tests/test_training_service.py; frontend/src/App.jsx; frontend/src/components/TrainingSubnav.jsx; frontend/src/pages/CliLabsPage.jsx; frontend/src/pages/StudentHome.jsx; frontend/src/pages/TrainingDashboardPage.jsx; service-desk-app/apps/web/components/TicketQueue.tsx; tasks/loop-log.md
+- Result: pass against acceptance criteria — 563 backend tests, 25 frontend tests, 322 Service Desk tests, frontend and Service Desk production builds, Service Desk lint/typecheck, Ruff, Python compilation, CLI validation/sanity, and migration upgrade/downgrade/re-upgrade passed. Pip audit found no vulnerabilities; frontend npm audit reports one pre-existing high-severity build-tooling advisory also present on main.
+- Next: Before deployment, review the feature diff/PR, resolve or explicitly accept the pre-existing frontend dependency advisory, run the normal release smoke test with a fresh student, then apply migration 0062 through the approved deployment process. No merge or deployment was performed.
+
+## [2026-09-19T21:27:11Z] Task Completed
+- Task: Prepared the beginner rollout release candidate: pushed feature/beginner-learning-rollout, opened PR #35 against main, ran full CI and an isolated fresh-student smoke test, patched compatible frontend and Service Desk dependency advisories, and preserved explicit instructor ticket assignments while keeping Hybrid Labs/INC2504 unavailable.
+- Files changed: frontend/package-lock.json; service-desk-app/apps/web/package.json; service-desk-app/package.json; service-desk-app/pnpm-lock.yaml; backend/app/services/service_desk_progression.py; backend/tests/test_beginner_learning_rollout.py; backend/tests/test_service_desk_attempts.py; frontend/tests/e2e/my-training.spec.js; frontend/tests/e2e/service-desk-integration.spec.js; scripts/e2e/start_local_stack.sh; tasks/loop-log.md
+- Result: pass against acceptance criteria — PR #35 is open against main with all six CI jobs green; isolated learner and cross-app browser smoke tests passed; frontend audit reports zero vulnerabilities; Service Desk high/critical audit passes with two moderate build-tooling advisories remaining; migration 0062 upgrades cleanly from main's 0061 head without resetting existing progress.
+- Next: Obtain normal review/approval, then merge and deploy through the approved release process. No merge or deployment was performed.
+
+## [2026-09-20T03:26:33Z] Task Completed
+- Task: Addressed all five unresolved PR #35 review threads by preventing Service Desk topic-gate deadlocks, preserving instructor overrides, limiting Week 10 optionalization to the two superseded switch labs, and adding honest CLI catalog and individual-lab failure/lock states with retry handling.
+- Files changed: backend/app/services/service_desk_progression.py, backend/app/services/training_curriculum_seed.py, backend/tests/test_beginner_learning_rollout.py, backend/tests/test_service_desk_progression.py, backend/tests/test_training_curriculum_realignment.py, frontend/src/pages/CliLabPage.jsx, frontend/src/pages/CliLabPage.test.jsx, frontend/src/pages/CliLabsPage.jsx, frontend/src/pages/CliLabsPage.test.jsx, tasks/loop-log.md
+- Result: pass against acceptance criteria; 566 backend tests, 27 frontend unit tests, 41 focused backend regressions, frontend build/CLI validation, Service Desk checks, fresh-seed checks, dependency audits, 287 deploy simulations, 9 predeploy checks, and 20 Playwright browser tests passed.
+- Next: Push the commits to PR #35, resolve the five addressed review threads, and request a fresh Codex review without merging or deploying.
+
+## [2026-09-20T03:33:10Z] Task Completed
+- Task: Addressed the new Codex follow-up finding by keeping the disabled Hybrid Labs case blocked even when a learner has passed or in-progress historical attempt data.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_beginner_learning_rollout.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 27 focused progression tests, Ruff, Python compilation, and diff validation passed.
+- Next: Push the follow-up commit, resolve the new review thread, and confirm the rerun CI result without merging or deploying.
+
+## [2026-09-20T03:48:53Z] Task Completed
+- Task: Addressed the final Codex review findings by preserving the original mode of history-unlocked in-progress Service Desk attempts and applying the authoritative CLI pack gate to early Learning Path networking-lab cards.
+- Files changed: backend/app/routers/cli_labs.py, backend/app/services/progression_service.py, backend/app/services/service_desk_progression.py, backend/app/services/training_service.py, backend/tests/test_service_desk_progression.py, backend/tests/test_training_service.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 61 focused backend tests and all 570 backend tests passed, touched files pass Ruff, Python compilation and diff validation passed, and all six GitHub CI jobs passed on rerun.
+- Next: Commit and push the final review fixes, resolve the two addressed threads, and request a final Codex review without merging or deploying.
+
+## [2026-09-20T03:54:53Z] Task Completed
+- Task: Addressed the final follow-up review finding by preserving access to guided Service Desk cases completed before topic gating was introduced, without counting guided completion as assessment mastery.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 28 focused progression tests, Ruff, Python compilation, and diff validation passed.
+- Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T04:03:28Z] Task Completed
+- Task: Addressed the seed-user backfill review finding by including topic-unlocked cases from all reached Service Desk packs when topic gating is active, including newly unlocked cases from earlier packs.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 29 focused progression tests, Ruff, Python compilation, and diff validation passed, including a zero-inventory seed-user regression.
+- Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T04:11:52Z] Task Completed
+- Task: Addressed the required CLI lab deadlock and Learning Path query amplification findings by allowing reached exact required lab assignments through the pack gate and caching derived current week per training context.
+- Files changed: backend/app/routers/cli_labs.py, backend/app/services/progression_service.py, backend/app/services/training_service.py, backend/tests/test_cli_labs.py, backend/tests/test_training_service.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 64 combined rollout regressions and 35 focused CLI/training tests passed, touched files pass Ruff, Python compilation and diff validation passed.
+- Next: Push the follow-up commit, resolve the two review threads, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T04:21:45Z] Task Completed
+- Task: Closed the disabled Hybrid Labs direct-attempt bypass by enforcing the hybrid exclusion centrally for every existing-attempt read and mutation route.
+- Files changed: backend/app/routers/service_desk.py, backend/tests/test_service_desk_attempts.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 5 direct hybrid-route regressions and all 129 Service Desk rollout/attempt tests passed, touched files pass Ruff, Python compilation and diff validation passed.
+- Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T04:32:28Z] Task Completed
+- Task: Prevented a required Service Desk case deadlock when its mapped topic week has no required non-ticket preparation by treating the empty prerequisite set as satisfied.
+- Files changed: backend/app/services/training_service.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 56 focused training/progression regressions passed, including listing and starting the required case under global topic gating, and touched files pass Ruff, Python compilation and diff validation.
+- Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T04:43:10Z] Task Completed
+- Task: Made migration 0062 downgrade preserve pre-upgrade admin optionality by marking and restoring only the two switch-lab rows actually changed by the rollout synchronizer.
+- Files changed: backend/alembic/versions/0062_beginner_learning_rollout.py, backend/app/services/training_curriculum_seed.py, backend/tests/test_beginner_learning_rollout.py, backend/tests/test_phase4c3_final_shift.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 11 focused rollout/migration tests and all 21 Phase 4C.3 migration tests passed, touched files pass Ruff, Python compilation and diff validation passed.
+- Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T04:49:46Z] Task Completed
+- Task: Aligned beginner phase presentation with authoritative active curriculum modules so deactivated A+ or Network+ weeks no longer leave dashboard phase status permanently incomplete or locked.
+- Files changed: backend/app/services/beginner_learning.py, backend/tests/test_beginner_learning_rollout.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 37 focused beginner-rollout and training-service tests passed, including a deactivated A+ module transition regression, and touched files pass Ruff, Python compilation and diff validation.
+- Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T05:00:05Z] Task Completed
+- Task: Aligned CLI lab unlocks with 50% completion of active A+/Network+ modules and added accurate topic-prerequisite errors for topic-gated Service Desk cases.
+- Files changed: backend/app/routers/cli_labs.py, backend/app/services/progression_service.py, backend/app/services/service_desk_progression.py, backend/app/services/training_service.py, backend/tests/test_service_desk_progression.py, backend/tests/test_training_service.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 68 focused CLI/training/Service Desk rollout tests passed, including active-module percentage and topic-error regressions, and touched files pass Ruff, Python compilation and diff validation.
+- Next: Push the follow-up commit, resolve the two review threads, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T05:06:17Z] Task Completed
+- Task: Updated the My Training browser regression to explicitly validate the intentional locked individual CLI-lab state without classifying its expected 403 prerequisite response as an unexpected console error.
+- Files changed: frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md
+- Result: pass against acceptance criteria; all 27 frontend unit tests passed, Playwright discovered all 6 My Training tests, and diff validation passed.
+- Next: Push the browser regression adjustment and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T05:14:07Z] Task Completed
+- Task: Enforced the shared active-module CLI gate on bookmarked detail/completion routes and excluded disabled Hybrid Labs keys before calculating the four-case Service Desk queue quota.
+- Files changed: backend/app/routers/cli_labs.py, backend/app/services/service_desk_progression.py, backend/tests/test_cli_labs.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 70 focused rollout regressions passed, including rejected detail/completion with zero XP attempt creation and a full four-case queue despite blocked hybrid history, and touched files pass Ruff, Python compilation and diff validation.
+- Next: Push the follow-up commit, resolve the two review threads, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T05:23:49Z] Task Completed
+- Task: Corrected CLI catalog and Learning Path lock explanations so orientation learners see the Week 1 prerequisite and active-module-gated learners see the actual A+/Network+ percentage prerequisite.
+- Files changed: backend/app/services/training_service.py, backend/tests/test_training_service.py, frontend/src/pages/CliLabsPage.jsx, frontend/src/pages/CliLabsPage.test.jsx, tasks/loop-log.md
+- Result: pass against acceptance criteria; 71 focused backend rollout tests and all 28 frontend unit tests passed, the frontend production build and high-severity dependency audit passed, and touched backend files pass Ruff.
+- Next: Push the follow-up commit, resolve the two new review threads, and confirm final CI and refreshed review status without merging or deploying.
+
+## [2026-09-20T05:32:29Z] Task Completed
+- Task: Kept reached required custom Service Desk scenarios without built-in topic mappings in the actionable curriculum unlock set and backfilled their missing student assignments.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 72 focused rollout tests passed, including assignment backfill and successful attempt creation for an unmapped custom required case, and touched files pass Ruff, Python compilation, and diff validation.
+- Next: Push the final follow-up commit, resolve the review thread, and confirm final CI and refreshed review status without merging or deploying.
+
+## [2026-09-20T05:41:12Z] Task Completed
+- Task: Propagated mapped Service Desk topic-lock reasons through shared scenario access so Learning Path cards direct learners to the actual prerequisite module.
+- Files changed: backend/app/services/service_desk_progression.py, backend/app/services/training_service.py, backend/tests/test_training_service.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 73 focused rollout tests passed, including a locked Week 1 case card with the Support Workflow Essentials prerequisite, and touched files pass Ruff, Python compilation, and diff validation.
+- Next: Push the final follow-up commit, resolve the review thread, and confirm final CI and refreshed review status without merging or deploying.
+
+## [2026-09-20T05:50:19Z] Task Completed
+- Task: Preserved retry access and the original assessment or guided mode for failed completed Service Desk attempts that predate topic gating.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 75 focused rollout tests passed, including failed historical retries in both modes with attempt-number continuity, and touched files pass Ruff, Python compilation, and diff validation.
+- Next: Push the final follow-up commit, resolve the review thread, and confirm final CI and refreshed review status without merging or deploying.
+
+## [2026-09-20T05:58:19Z] Task Completed
+- Task: Aligned historical Service Desk retry detection and regression coverage with the production failed-attempt status while retaining legacy completed-false compatibility.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 75 focused rollout tests passed with real failed assessment and guided attempts, and touched files pass Ruff, Python compilation, and diff validation.
+- Next: Push the narrow correction, resolve the review thread, and confirm final CI and refreshed review status without merging or deploying.
+
+## [2026-09-20T06:09:49Z] Task Completed
+- Task: Prioritized the active Service Desk pack within the four-case assigned queue while separately retaining earlier topic-unlocked cases for assignment backfill.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 76 focused rollout tests passed, including active-pack quota priority and earlier-case backfill regressions, and touched files pass Ruff, Python compilation, and diff validation.
+- Next: Push the final follow-up commit, resolve the review thread, and confirm final CI and refreshed review status without merging or deploying.
+
+## [2026-09-20T09:50:54Z] Task Completed
+- Task: Reconciled the production V2 lineage through migration 0068 with the merged beginner rollout, added the Alembic merge head, and validated an offline copy of the live SQLite database plus the complete application test gates.
+- Files changed: backend/alembic/versions/0069_merge_v2_beginner_heads.py, backend/app/routers/service_desk.py, backend/seed_curriculum.py, backend/tests/test_alembic_prod_guard.py, backend/tests/test_phase4c3_final_shift.py, backend/tests/test_service_desk_realism.py, backend/tests/test_service_desk_realism_v2.py, backend/tests/test_service_desk_v2_inventory.py, backend/tests/test_v2_realism_publication.py, backend/tests/test_v2_runtime_migration_0068.py, backend/tests/test_v2_runtime_stabilization.py, frontend/src/App.jsx, frontend/src/pages/StudentHome.jsx, frontend/src/pages/TrainingProgressPage.jsx, frontend/tests/e2e/my-training.spec.js, frontend/tests/e2e/p1-service-desk-workspace.spec.js, scripts/pilot_status.sh, service-desk-app/apps/web/components/TicketQueue.tsx, tasks/loop-log.md, and the beginner-rollout files merged from origin/main.
+- Result: pass against acceptance criteria; the copied live database upgraded from 0064 to the single 0069 head, passed quick/integrity/foreign-key checks and safe seeding with learner data preserved, while backend, frontend, Service Desk, security, build, and ordered Playwright gates passed.
+- Next: Review PR CI and merge the reconciliation PR separately; production deployment, migration, seeding, service restart, and Proxmox work remain explicitly out of scope.

@@ -9,6 +9,7 @@ from app.models.service_desk import (
 )
 from app.models.xp_ledger import XPLedger
 from app.routers import service_desk
+from app.services.beginner_learning import HYBRID_LAB_SCENARIO_KEYS
 from app.services.service_desk_grading import compute_grade
 from app.services.service_desk_objectives import (
     SCENARIO_OBJECTIVES,
@@ -252,9 +253,10 @@ def complete_process_workflow(client, student, attempt_id, stable_key):
 @pytest.mark.parametrize(
     "stable_key",
     [
-        f"inc{number}"
+        key
         for number in range(2501, 2511)
-        if f"inc{number}" not in _ESCALATION_ONLY_KEYS
+        if (key := f"inc{number}")
+        not in (_ESCALATION_ONLY_KEYS | HYBRID_LAB_SCENARIO_KEYS)
     ],
 )
 def test_converted_legacy_cases_require_server_authoritative_process_evidence(
@@ -2090,7 +2092,11 @@ def test_raw_api_fabricated_full_evidence_sequence_is_not_trusted(
 
 @pytest.mark.parametrize(
     "stable_key",
-    sorted(set(SCENARIO_OBJECTIVES) - _ESCALATION_ONLY_KEYS),
+    sorted(
+        set(SCENARIO_OBJECTIVES)
+        - _ESCALATION_ONLY_KEYS
+        - HYBRID_LAB_SCENARIO_KEYS
+    ),
 )
 def test_server_authorized_workflow_passes_every_auto_gradable_scenario(db, stable_key):
     student = make_student(db, username=f"authorized-{stable_key}")
@@ -2108,6 +2114,88 @@ def test_server_authorized_workflow_passes_every_auto_gradable_scenario(db, stab
         json={"idempotency_key": "complete"},
     )
     assert grade.json()["passed"] is True and grade.json()["overall_score"] == 100
+
+
+def test_unpublished_hybrid_lab_cannot_start_even_when_directly_assigned(db):
+    student = make_student(db, username="hybrid-lab-blocked")
+    client = make_client(service_desk.router)
+    assignment = setup_assignment(
+        db, student, stable_key="inc2504", process_profile=True
+    )
+
+    response = start(client, student, assignment)
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "SERVICE_DESK_PACK_LOCKED"
+
+
+@pytest.mark.parametrize(
+    ("method", "suffix", "payload"),
+    [
+        ("get", "", None),
+        (
+            "post",
+            "/events",
+            {
+                "idempotency_key": "blocked-event",
+                "event_type": "ticket.close",
+                "tool": "ticket",
+                "payload": {"verifiedResolved": True},
+                "resulting_state": {},
+                "success": True,
+            },
+        ),
+        (
+            "post",
+            "/actions",
+            {
+                "idempotency_key": "blocked-action",
+                "event_type": "ticket.assign",
+                "tool": "ticket",
+                "payload": {"ticketId": "INC2504"},
+            },
+        ),
+        ("post", "/complete", {"idempotency_key": "blocked-complete"}),
+    ],
+)
+def test_existing_hybrid_attempt_routes_stay_blocked(
+    db, method, suffix, payload
+):
+    student = make_student(db, username=f"hybrid-existing-{suffix or 'get'}")
+    client = make_client(service_desk.router)
+    assignment = setup_assignment(
+        db, student, stable_key="inc2504", process_profile=True
+    )
+    version = (
+        db.query(ServiceDeskScenarioVersion)
+        .filter_by(scenario_id=assignment.scenario_id, status="published")
+        .one()
+    )
+    attempt = ServiceDeskAttempt(
+        student_id=student.id,
+        scenario_version_id=version.id,
+        mode="simulation",
+        experience_mode="assessment",
+        status="in_progress",
+        current_state={},
+        current_state_hash="blocked-hybrid-attempt",
+        state_version=0,
+        attempt_number=1,
+    )
+    db.add(attempt)
+    db.commit()
+
+    response = getattr(client, method)(
+        f"/api/service-desk/attempts/{attempt.id}{suffix}",
+        headers=auth_headers(student),
+        **({"json": payload} if payload is not None else {}),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "SERVICE_DESK_PACK_LOCKED"
+    db.refresh(attempt)
+    assert attempt.status == "in_progress"
+    assert attempt.passed is None
 
 
 # The endpoint tests above exercise repeated completions and independent

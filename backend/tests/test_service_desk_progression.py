@@ -174,6 +174,7 @@ def test_guided_starter_pass_does_not_count_as_curriculum_mastery_or_pack_progre
     student = make_student(db, "guided-is-not-mastery")
     scenarios = _seed_pack_assignments(db, student)
     _map_required_case(db, 3, "password-reset")
+    _enable_topic_gating(db, 1)
     monkeypatch.setattr(
         "app.services.service_desk_progression.derive_current_week",
         lambda _student_id, _db: 1,
@@ -228,6 +229,32 @@ def _map_required_case(db, week_number, stable_key):
             activity_type="service_desk_scenario",
             content_ref=stable_key,
             display_order=1,
+            is_required=True,
+            prerequisite_mode="soft",
+            metadata_json={},
+        )
+    )
+    db.commit()
+
+
+def _enable_topic_gating(db, week_number):
+    week = db.query(TrainingWeek).filter_by(week_number=week_number).one_or_none()
+    if week is None:
+        week = TrainingWeek(
+            week_number=week_number,
+            display_order=week_number,
+            title=f"Week {week_number}",
+            learning_goals=[],
+        )
+        db.add(week)
+        db.flush()
+    db.add(
+        TrainingWeekActivity(
+            stable_id=f"week-{week_number}-lesson-topic-gate",
+            training_week_id=week.id,
+            activity_type="lesson",
+            content_ref="999999",
+            display_order=99,
             is_required=True,
             prerequisite_mode="soft",
             metadata_json={},
@@ -333,6 +360,35 @@ def test_fresh_student_sees_only_four_starter_assignments_and_next_pack_preview(
     assert next_pack["required_module_id"] == "module.windows.fundamentals"
 
 
+def test_blocked_hybrid_history_does_not_consume_actionable_queue_slot(db):
+    student = make_student(db, "hybrid-does-not-consume-slot")
+    scenarios = _seed_pack_assignments(db, student)
+    _, hybrid_version = scenarios["inc2504"]
+    db.add(
+        ServiceDeskAttempt(
+            student_id=student.id,
+            scenario_version_id=hybrid_version.id,
+            mode="simulation",
+            experience_mode="assessment",
+            status="in_progress",
+            current_state={},
+            current_state_hash="blocked-hybrid-history",
+            state_version=0,
+            attempt_number=1,
+        )
+    )
+    db.commit()
+
+    rows = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+
+    assert len(rows) == 4
+    assert {
+        row["scenario"]["stable_key"] for row in rows
+    } == set(SERVICE_DESK_PACKS[0].scenario_keys)
+
+
 def test_new_student_accounts_receive_managed_assignment_inventory(db):
     _seed_pack_assignments(db)
 
@@ -355,6 +411,126 @@ def test_new_student_accounts_receive_managed_assignment_inventory(db):
     ).json()
     assert [row["scenario"]["stable_key"] for row in rows] == list(
         SERVICE_DESK_PACKS[0].scenario_keys
+    )
+
+
+def test_seed_user_backfill_includes_topic_unlocked_case_from_earlier_pack(
+    monkeypatch, db
+):
+    student = make_student(db, "seed-user-topic-backfill")
+    scenarios = _seed_pack_assignments(db)
+    _enable_topic_gating(db, 8)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 8,
+    )
+    for stable_key in SERVICE_DESK_PACKS[0].scenario_keys[:2]:
+        _pass(db, student, scenarios[stable_key])
+
+    assert (
+        db.query(ServiceDeskAssignment)
+        .filter_by(student_id=student.id)
+        .count()
+        == 0
+    )
+
+    rows = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+
+    assert "mfa-reset" in {
+        row["scenario"]["stable_key"] for row in rows
+    }
+    mfa_scenario, _ = scenarios["mfa-reset"]
+    assert _assignment_id(db, student, mfa_scenario) is not None
+
+
+def test_active_pack_cases_take_priority_over_unfinished_earlier_cases(
+    monkeypatch, db
+):
+    student = make_student(db, "active-pack-priority")
+    scenarios = _seed_pack_assignments(db)
+    for stable_key in SERVICE_DESK_PACKS[0].scenario_keys[:2]:
+        _pass(db, student, scenarios[stable_key])
+    for stable_key in SERVICE_DESK_PACKS[1].scenario_keys[:2]:
+        _pass(db, student, scenarios[stable_key])
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 6,
+    )
+    monkeypatch.setattr(
+        "app.services.service_desk_progression._topic_gating_enabled",
+        lambda _db: True,
+    )
+    monkeypatch.setattr(
+        "app.services.service_desk_progression._topic_unlocked_scenario_keys",
+        lambda _db, _student, _current_week, _enabled: {
+            key for pack in SERVICE_DESK_PACKS for key in pack.scenario_keys
+        },
+    )
+
+    rows = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+
+    assigned_rows = [row for row in rows if row["queue_type"] == "assigned"]
+    assert {row["scenario"]["stable_key"] for row in assigned_rows} == set(
+        SERVICE_DESK_PACKS[2].scenario_keys
+    )
+    assert {row["pack_key"] for row in assigned_rows} == {"accounts-access"}
+
+
+def test_reached_required_custom_case_backfills_assignment_without_topic_mapping(
+    monkeypatch, db
+):
+    student = make_student(db, "custom-curriculum-case")
+    seed_service_desk_scenarios(db)
+    source_version = db.query(ServiceDeskScenarioVersion).first()
+    stable_key = "custom-printer-triage"
+    scenario = ServiceDeskScenario(
+        stable_key=stable_key,
+        title="Custom printer triage",
+        description="An instructor-authored required support case.",
+        category="support",
+        difficulty=1,
+        status="active",
+    )
+    db.add(scenario)
+    db.flush()
+    db.add(
+        ServiceDeskScenarioVersion(
+            scenario_id=scenario.id,
+            version_number=1,
+            definition_json=source_version.definition_json,
+            definition_hash="custom-printer-triage".ljust(64, "0"),
+            validation_status="valid",
+            status="published",
+        )
+    )
+    db.commit()
+    _map_required_case(db, 1, stable_key)
+    _enable_topic_gating(db, 1)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+
+    response = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    )
+
+    assert response.status_code == 200
+    custom_row = next(
+        row for row in response.json() if row["scenario"]["stable_key"] == stable_key
+    )
+    assert custom_row["queue_type"] == "assigned"
+    assert _assignment_id(db, student, scenario) is not None
+    assert (
+        client.post(
+            f"/api/service-desk/assignments/{custom_row['id']}/attempts",
+            headers=auth_headers(student),
+        ).status_code
+        == 201
     )
 
 
@@ -437,6 +613,60 @@ def test_direct_api_cannot_start_locked_assignment(monkeypatch, db):
     assert response.json()["detail"]["data"]["pack"] == "Desktop Support"
 
 
+def test_direct_api_reports_topic_prerequisite_for_topic_locked_case(
+    monkeypatch, db
+):
+    student = make_student(db, "topic-lock-reason")
+    scenarios = _seed_pack_assignments(db, student)
+    _enable_topic_gating(db, 1)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+    scenario, _ = scenarios["locked-user-account"]
+
+    response = client.post(
+        f"/api/service-desk/assignments/{_assignment_id(db, student, scenario)}/attempts",
+        headers=auth_headers(student),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "SERVICE_DESK_TOPIC_LOCKED"
+    assert response.json()["detail"]["data"]["required_week"] == 1
+    assert "learning activities" in response.json()["detail"]["error"]
+
+
+def test_required_case_unlocks_when_topic_has_no_required_learning(
+    monkeypatch, db
+):
+    student = make_student(db, "empty-topic-requirements")
+    scenarios = _seed_pack_assignments(db, student)
+    stable_key = "locked-user-account"
+    _map_required_case(db, 1, stable_key)
+    # Keep topic gating globally enabled through another week while the
+    # mapped topic itself contains only its required Service Desk apply step.
+    _enable_topic_gating(db, 2)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+    scenario, _ = scenarios[stable_key]
+
+    listing = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    )
+    response = client.post(
+        f"/api/service-desk/assignments/{_assignment_id(db, student, scenario)}/attempts",
+        headers=auth_headers(student),
+    )
+
+    assert stable_key in {
+        row["scenario"]["stable_key"] for row in listing.json()
+    }
+    assert response.status_code == 201
+    assert response.json()["experience_mode"] == "assessment"
+
+
 def test_completed_cases_move_to_practice_and_can_be_replayed(db):
     student = make_student(db, "practice-replay")
     scenarios = _seed_pack_assignments(db, student)
@@ -457,6 +687,93 @@ def test_completed_cases_move_to_practice_and_can_be_replayed(db):
     )
     assert response.status_code == 201
     assert response.json()["attempt_number"] == 2
+
+
+def test_history_unlocked_assessment_resumes_in_its_original_mode(monkeypatch, db):
+    student = make_student(db, "resume-history-assessment")
+    scenarios = _seed_pack_assignments(db, student)
+    _enable_topic_gating(db, 1)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+    scenario, version = scenarios["inc2506"]
+    attempt = ServiceDeskAttempt(
+        student_id=student.id,
+        scenario_version_id=version.id,
+        mode="simulation",
+        experience_mode="assessment",
+        status="in_progress",
+        current_state={},
+        current_state_hash="history-assessment",
+        state_version=0,
+        attempt_number=1,
+    )
+    db.add(attempt)
+    db.commit()
+
+    response = client.post(
+        f"/api/service-desk/assignments/{_assignment_id(db, student, scenario)}/attempts",
+        headers=auth_headers(student),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == attempt.id
+    assert response.json()["experience_mode"] == "assessment"
+    assert (
+        db.query(ServiceDeskAttempt)
+        .filter_by(student_id=student.id, scenario_version_id=version.id)
+        .count()
+        == 1
+    )
+
+
+@pytest.mark.parametrize("experience_mode", ["assessment", "guided"])
+def test_failed_historical_case_keeps_retry_access_and_mode(
+    monkeypatch, db, experience_mode
+):
+    student = make_student(db, f"failed-history-{experience_mode}")
+    scenarios = _seed_pack_assignments(db, student)
+    _enable_topic_gating(db, 1)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+    scenario, version = scenarios["password-reset"]
+    db.add(
+        ServiceDeskAttempt(
+            student_id=student.id,
+            scenario_version_id=version.id,
+            mode="simulation",
+            experience_mode=experience_mode,
+            status="failed",
+            current_state={},
+            current_state_hash=f"failed-{experience_mode}",
+            state_version=1,
+            attempt_number=1,
+            completed_at=datetime.now(timezone.utc),
+            score=40,
+            passed=False,
+        )
+    )
+    db.commit()
+
+    rows = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+    password_reset = next(
+        row for row in rows if row["scenario"]["stable_key"] == "password-reset"
+    )
+    response = client.post(
+        f"/api/service-desk/assignments/{_assignment_id(db, student, scenario)}/attempts",
+        headers=auth_headers(student),
+    )
+
+    assert password_reset["queue_type"] == "assigned"
+    assert password_reset["experience_mode"] == experience_mode
+    assert response.status_code == 201
+    assert response.json()["attempt_number"] == 2
+    assert response.json()["experience_mode"] == experience_mode
 
 
 def test_unfinished_older_cases_are_earlier_never_practice(monkeypatch, db):
@@ -502,6 +819,7 @@ def test_replaying_one_scenario_does_not_count_as_two_unique_passes(monkeypatch,
 def test_instructor_assignment_unlocks_only_the_exact_case(monkeypatch, db):
     student = make_student(db, "mentor-override")
     scenarios = _seed_pack_assignments(db, student)
+    _enable_topic_gating(db, 1)
     monkeypatch.setattr(
         "app.services.service_desk_progression.derive_current_week",
         lambda _student_id, _db: 1,
@@ -549,6 +867,57 @@ def test_instructor_assignment_unlocks_only_the_exact_case(monkeypatch, db):
             "/api/service-desk/progression", headers=auth_headers(student)
         ).json()["current_pack"]["key"]
         == "starter-support"
+    )
+
+
+@pytest.mark.parametrize(
+    ("current_week", "required_key", "future_week", "future_key"),
+    [
+        (3, "password-reset", 4, "mfa-reset"),
+        (4, "mfa-reset", 5, "inc2502"),
+    ],
+)
+def test_reached_required_case_bypasses_later_topic_gate_without_unlocking_future_case(
+    monkeypatch, db, current_week, required_key, future_week, future_key
+):
+    student = make_student(db, f"required-topic-{current_week}")
+    scenarios = _seed_pack_assignments(db, student)
+    _map_required_case(db, current_week, required_key)
+    _map_required_case(db, future_week, future_key)
+    _enable_topic_gating(db, current_week)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: current_week,
+    )
+
+    rows = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+    required_row = next(
+        row for row in rows if row["scenario"]["stable_key"] == required_key
+    )
+    assert required_row["required_this_week"] is True
+    assert required_row["queue_type"] == "assigned"
+    assert (
+        client.post(
+            f"/api/service-desk/assignments/{required_row['id']}/attempts",
+            headers=auth_headers(student),
+        ).status_code
+        == 201
+    )
+
+    future_scenario, _ = scenarios[future_key]
+    future_assignment = (
+        db.query(ServiceDeskAssignment)
+        .filter_by(student_id=student.id, scenario_id=future_scenario.id)
+        .one()
+    )
+    assert (
+        client.post(
+            f"/api/service-desk/assignments/{future_assignment.id}/attempts",
+            headers=auth_headers(student),
+        ).status_code
+        == 403
     )
 
 

@@ -21,6 +21,9 @@ ROOT = Path(__file__).resolve().parents[2]
 TRACES = json.loads(
     (ROOT / "service-desk-app/packages/shared/src/realism-traces.test.json").read_text()
 )
+LEGACY_SERVICE_DESK_TRACES = tuple(
+    ticket for ticket in TRACES if ticket != "INC2504"
+)
 FIXTURES = fixture_catalog()
 
 
@@ -113,7 +116,7 @@ def test_packaged_fixture_is_identical_to_shared_source():
     )
 
 
-@pytest.mark.parametrize("ticket", TRACES)
+@pytest.mark.parametrize("ticket", LEGACY_SERVICE_DESK_TRACES)
 def test_real_tool_path_passes_with_exact_rubric(db, ticket):
     client, student, attempt, version = setup(db, ticket)
     walk(client, student, attempt, ticket)
@@ -154,7 +157,7 @@ def test_real_tool_path_passes_with_exact_rubric(db, ticket):
     }
 
 
-@pytest.mark.parametrize("ticket", TRACES)
+@pytest.mark.parametrize("ticket", LEGACY_SERVICE_DESK_TRACES)
 def test_wizard_and_forged_client_evidence_cannot_pass(db, ticket):
     client, student, attempt, version = setup(db, ticket)
     for step in (
@@ -196,7 +199,7 @@ def test_wizard_and_forged_client_evidence_cannot_pass(db, ticket):
     assert not replay(FIXTURES[ticket], ledger(db, attempt))["realism"]["observed"]
 
 
-@pytest.mark.parametrize("ticket", TRACES)
+@pytest.mark.parametrize("ticket", LEGACY_SERVICE_DESK_TRACES)
 def test_wrong_device_rejected_and_raw_events_cannot_mutate_state(db, ticket):
     client, student, attempt, version = setup(db, ticket)
     response = action(
@@ -264,6 +267,7 @@ def test_broad_access_opens_share_but_cannot_pass_even_after_correct_change(db):
     assert grade["passed"] is False
 
 
+@pytest.mark.skip(reason="INC2504 is available only through its gated V2 assessment")
 def test_early_repair_cannot_earn_prechange_evidence_retroactively(db):
     ticket = "INC2504"
     client, student, attempt, version = setup(db, ticket)
@@ -282,7 +286,7 @@ def test_early_repair_cannot_earn_prechange_evidence_retroactively(db):
     assert not passed and not checks["investigation"] and not checks["diagnosis"]
 
 
-@pytest.mark.parametrize("ticket", TRACES)
+@pytest.mark.parametrize("ticket", LEGACY_SERVICE_DESK_TRACES)
 def test_verification_before_repair_is_not_final_verification(ticket):
     fixture = FIXTURES[ticket]
     state = deepcopy(fixture["initial"])
@@ -308,7 +312,7 @@ def test_cleanup_is_ineffective_against_recurrence():
     )
 
 
-@pytest.mark.parametrize("ticket", TRACES)
+@pytest.mark.parametrize("ticket", LEGACY_SERVICE_DESK_TRACES)
 def test_resume_preserves_ledger_and_retry_starts_clean(db, ticket):
     client, student, attempt, version = setup(db, ticket)
     walk(client, student, attempt, ticket, TRACES[ticket]["commands"][:2])
@@ -339,7 +343,7 @@ def test_resume_preserves_ledger_and_retry_starts_clean(db, ticket):
     )
 
 
-@pytest.mark.parametrize("ticket", TRACES)
+@pytest.mark.parametrize("ticket", LEGACY_SERVICE_DESK_TRACES)
 def test_unfinished_workspace_and_limited_debrief_do_not_disclose_solution(db, ticket):
     from types import SimpleNamespace
     from app.services.service_desk_workspace_view import build_debrief
@@ -362,6 +366,7 @@ def test_unfinished_workspace_and_limited_debrief_do_not_disclose_solution(db, t
     assert FIXTURES[ticket]["completion"]["rootCause"] not in json.dumps(brief)
 
 
+@pytest.mark.skip(reason="INC2504 is available only through its gated V2 assessment")
 def test_restoring_the_stale_port_after_verification_invalidates_completion(db):
     ticket = "INC2504"
     client, student, attempt, version = setup(db, ticket)

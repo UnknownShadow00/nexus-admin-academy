@@ -90,6 +90,10 @@ def test_weeks_1_4_practice_realignment_converges_seeded_curriculum(db):
         .one()
         for number, week in ((n, db.query(TrainingWeek).filter_by(week_number=n).one()) for n in range(1, 5))
     }
+    assert apply_activities[1].is_required is True
+    assert apply_activities[2].is_required is True
+    assert apply_activities[3].is_required is False
+    assert apply_activities[4].is_required is False
 
     first = sync_weeks_1_4_practice_realignment(db)
 

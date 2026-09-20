@@ -824,6 +824,9 @@ def test_revoked_student_cannot_continue_v2_service_desk_attempt(db, monkeypatch
 
 
 def test_student_ownership_and_privileged_endpoint_matrix(db, monkeypatch):
+    monkeypatch.setenv("ADMIN_USERNAME", "runtime-admin")
+    monkeypatch.setenv("ADMIN_PASSWORD", "runtime-admin-password")
+    monkeypatch.setenv("ADMIN_API_KEY", "runtime-admin-api-key")
     student_a, _ = _ready(db, monkeypatch)
     student_b = make_student(db, username="runtime_student_b")
     # Both are enrolled: this proves per-student ownership inside the pilot,

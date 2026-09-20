@@ -54,18 +54,27 @@ const V2AssessmentPage = lazy(() => import("./pages/v2/V2AssessmentPage"));
 const V2ExplainPage = lazy(() => import("./pages/v2/V2ExplainPage"));
 const V2PracticalRedirect = lazy(() => import("./pages/v2/V2PracticalRedirect"));
 const V2ServiceDeskRedirect = lazy(() => import("./pages/v2/V2ServiceDeskRedirect"));
-export function buildStudentNavItems(v2Enabled) { return [
-  { to: "/", label: "Today" },
-  { to: "/service-desk", label: "Service Desk", external: true },
-  { to: "/progress", label: "Progress" },
-  ...(v2Enabled ? [{ to: "/learning-v2", label: "My Course" }] : []),
-  { label: "Extra Practice", children: [
-    { to: "/learning-path", label: "Legacy Learning Path" },
-    { to: "/labs", label: "Labs" },
-    { to: "/cli-labs", label: "CLI Labs" },
-    { to: "/commands", label: "Command Reference" },
-  ] },
-]; }
+export function buildStudentNavItems(v2Enabled) {
+  if (!v2Enabled) {
+    return [
+      { to: "/", label: "Today" },
+      { to: "/service-desk", label: "Service Desk", external: true },
+      { to: "/learning-path", label: "Progress" },
+    ];
+  }
+  return [
+    { to: "/", label: "Today" },
+    { to: "/service-desk", label: "Service Desk", external: true },
+    { to: "/progress", label: "Progress" },
+    { to: "/learning-v2", label: "My Course" },
+    { label: "Extra Practice", children: [
+      { to: "/learning-path", label: "Legacy Learning Path" },
+      { to: "/labs", label: "Labs" },
+      { to: "/cli-labs", label: "CLI Labs" },
+      { to: "/commands", label: "Command Reference" },
+    ] },
+  ];
+}
 
 const adminNavItems = [
   { to: "/admin", label: "Dashboard" },
@@ -108,7 +117,7 @@ function NotFoundPage() {
       <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">Page not found</p>
       <h1 className="mt-2 text-3xl font-bold">That page is not part of your learning path.</h1>
       <p className="mt-3 text-slate-600 dark:text-slate-300">Return to Today to continue with your next required activity.</p>
-      <Link className="btn-primary mt-6 inline-flex" to="/">Back to Today</Link>
+      <Link className="btn-primary mt-6 inline-flex" to="/">Go to Today</Link>
     </main>
   );
 }

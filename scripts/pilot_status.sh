@@ -20,6 +20,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$REPO_ROOT/backend"
 ENV_FILE="${NEXUS_ENV_FILE:-$BACKEND_DIR/.env}"
 PYTHON="${NEXUS_PYTHON:-$BACKEND_DIR/.venv/bin/python}"
+if [ -z "${NEXUS_PYTHON:-}" ] && [ ! -x "$PYTHON" ] && command -v python3 >/dev/null 2>&1; then
+    PYTHON="$(command -v python3)"
+fi
 BACKUP_DIR="${NEXUS_BACKUP_DIR:-$HOME/backups/nexus}"
 BACKEND_URL="${NEXUS_BACKEND_URL:-http://127.0.0.1:8000}"
 FRONTEND_URL="${NEXUS_FRONTEND_URL:-http://127.0.0.1:80}"
@@ -204,17 +207,22 @@ if [ -r "$ENV_FILE" ]; then
     MASTER="$(env_value V2_CURRICULUM_ENABLED || true)"
     row "V2 master flag" "OK" "${MASTER:-unset (off)}"
     ALLOWLIST="$(env_value V2_PILOT_STUDENT_IDS || true)"
-    if [ -x "$PYTHON" ]; then
-        # Reuse the backend's parser; this command reports only the count.
-        PILOT_COUNT="$(
-            cd "$BACKEND_DIR" &&
-            V2_PILOT_STUDENT_IDS="${ALLOWLIST:-}" \
-                "$PYTHON" -c 'from app.services.v2_access import pilot_student_count; print(pilot_student_count())'
-        )"
-        row "pilot students enrolled" "OK" "${PILOT_COUNT:-0}"
-    else
-        row "pilot students enrolled" "SKIP" "backend interpreter unavailable"
-    fi
+    # Count unique positive integer ids without importing the backend. This
+    # keeps configuration status available in a clean checkout or during a
+    # virtualenv repair, and never prints the ids themselves.
+    PILOT_COUNT="$(
+        printf '%s\n' "${ALLOWLIST:-}" | awk -F, '
+            {
+                for (i = 1; i <= NF; i++) {
+                    value = $i
+                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+                    if (value ~ /^[0-9]+$/ && value + 0 > 0) seen[value + 0] = 1
+                }
+            }
+            END { print length(seen) }
+        '
+    )"
+    row "pilot students enrolled" "OK" "${PILOT_COUNT:-0}"
 else
     row "V2 master flag" "SKIP" "environment file unreadable"
     row "pilot students enrolled" "SKIP" "environment file unreadable"

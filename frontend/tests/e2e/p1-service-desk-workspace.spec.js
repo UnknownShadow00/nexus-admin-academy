@@ -145,6 +145,10 @@ test("P1 desktop curriculum shell retains note, evidence and return context acro
   await expect(
     page.getByRole("heading", { name: /Directory/ }).first(),
   ).toBeVisible();
+  // The tool pane updates optimistically while Next.js commits the query
+  // navigation. Wait for that navigation before exercising the back action,
+  // otherwise its replace can race the still-pending tool push.
+  await expect(page).toHaveURL(/[?&]tool=directory(?:&|$)/);
   await expect(page.getByLabel("Add a note")).toHaveValue(draft);
   await expect(page.getByLabel("Ticket workspace rail")).toContainText(
     "Spooler",
@@ -154,6 +158,7 @@ test("P1 desktop curriculum shell retains note, evidence and return context acro
     .click();
   await expect(page.getByLabel("Add a note")).toHaveValue(draft);
   await capture(page, "desktop-evidence-notes");
+  await expect(page).not.toHaveURL(/[?&]tool=/);
   const url = new URL(page.url());
   expect(url.searchParams.get("ticket")).toBe("INC2504");
   expect(url.searchParams.get("tool")).toBeNull();

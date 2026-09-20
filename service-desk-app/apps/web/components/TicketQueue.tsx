@@ -80,11 +80,11 @@ export function TicketQueue() {
           </p>
           <h2 className="mt-2 font-display text-xl font-bold text-text">
             {progression.next_pack?.reason ||
-              'Complete Nexus Orientation to begin your first Service Desk shift.'}
+              'Complete your first A+ troubleshooting topics to unlock tickets.'}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-muted">
-            Finish the Nexus orientation lesson and pass its checkpoint. Your
-            four Starter Support cases will then appear here automatically.
+            Finish the current lesson and its low-stakes quiz. A related
+            beginner case will appear here when that foundation is complete.
           </p>
         </Card>
       ) : null}
@@ -99,7 +99,8 @@ export function TicketQueue() {
         />
       ) : null}
 
-      <section aria-labelledby="practice-title">
+      {visibleCount > 0 ? (
+        <section aria-labelledby="practice-title">
         <div className="mb-3 flex items-center gap-2">
           <h2
             className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-text-muted"
@@ -129,7 +130,8 @@ export function TicketQueue() {
             independent replay.
           </Card>
         )}
-      </section>
+        </section>
+      ) : null}
 
       {earlierTickets.length > 0 ? (
         <details className="group rounded-md border border-border bg-surface-raised/40">
@@ -198,15 +200,27 @@ export function TicketQueue() {
         </Card>
       ) : null}
 
-      {visibleCount === 0 ? (
+      {visibleCount === 0 &&
+      tickets.length === 0 &&
+      progression?.current_pack ? (
         <Card className="flex min-h-56 flex-col items-center justify-center px-5 py-10 text-center">
-          <IconFilterOff aria-hidden="true" className="h-9 w-9 text-text-muted" />
+          <IconLock aria-hidden="true" className="h-9 w-9 text-accent" />
           <h2 className="mt-4 text-base font-bold text-text">
-            No incidents match this view
+            Complete your first A+ troubleshooting topics to unlock tickets.
           </h2>
           <p className="mt-2 max-w-md text-sm text-text-muted">
-            Try a broader search or clear the filters to bring the active queue
-            back into view.
+            Keep going from Today. Tickets appear here only after you have
+            learned the related foundation.
+          </p>
+        </Card>
+      ) : null}
+
+      {visibleCount === 0 && tickets.length > 0 ? (
+        <Card className="flex min-h-56 flex-col items-center justify-center px-5 py-10 text-center">
+          <IconFilterOff aria-hidden="true" className="h-9 w-9 text-text-muted" />
+          <h2 className="mt-4 text-base font-bold text-text">No tickets match these filters</h2>
+          <p className="mt-2 max-w-md text-sm text-text-muted">
+            Clear the filters to return to your unlocked cases.
           </p>
           <Button
             className="mt-5"

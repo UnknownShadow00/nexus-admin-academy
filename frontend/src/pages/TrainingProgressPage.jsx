@@ -33,7 +33,7 @@ export default function TrainingProgressPage() {
   const current = data.current_module;
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-4 pb-20 sm:p-6">
-      <div><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Progress</h1><p className="mt-1 text-slate-600 dark:text-slate-300">What you've completed, and where the evidence of real skill comes from.</p></div>
+      <div><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Skills</h1><p className="mt-1 text-slate-600 dark:text-slate-300">What you've completed, and where the evidence of real skill comes from.</p></div>
 
       <section className="space-y-4">
         <div>

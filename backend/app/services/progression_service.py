@@ -17,8 +17,10 @@ from app.services.quiz_progression import is_quiz_passed, required_quizzes_for_w
 # use one source of truth.
 CLI_PACK_WEEKS = {
     "meet-the-cli": 1,
-    "network-foundations": 9,
-    "learn-switching": 10,
+    # Reuse the existing network/switch lessons after two of the four
+    # Network+ modules are complete (entry to Week 11 = roughly 50%).
+    "network-foundations": 11,
+    "learn-switching": 11,
 }
 
 MODULE_WEEKS = {
@@ -136,6 +138,61 @@ def week_has_been_reached(db: Session, current_week: int, required_week: int) ->
     if current_week in positions and required_week in positions:
         return positions[required_week] <= positions[current_week]
     return int(required_week) <= int(current_week)
+
+
+def cli_pack_is_unlocked(
+    db: Session,
+    student: Student,
+    compartment_id: str,
+    *,
+    has_completion: bool = False,
+    required_assignment_reached: bool = False,
+    network_gate_unlocked: bool | None = None,
+    current_week: int | None = None,
+) -> bool:
+    """Use one gate for the CLI catalog, detail API, and Learning Path."""
+    if student.is_mentor or has_completion or required_assignment_reached:
+        return True
+    if compartment_id in {"network-foundations", "learn-switching"}:
+        if network_gate_unlocked is None:
+            from app.services.training_service import network_cli_gate_is_unlocked
+
+            network_gate_unlocked = network_cli_gate_is_unlocked(db, student)
+        if network_gate_unlocked is not None:
+            return network_gate_unlocked
+    required_week = CLI_PACK_WEEKS.get(compartment_id, 1)
+    if current_week is None:
+        current_week = derive_current_week(student.id, db)
+    return week_has_been_reached(db, current_week, required_week)
+
+
+def reached_required_cli_lab_ids(
+    db: Session,
+    current_week: int,
+    lab_ids: set[str] | None = None,
+) -> set[str]:
+    """Return exact required CLI assignments the learner has reached."""
+    from app.models.training import TrainingWeek, TrainingWeekActivity
+
+    query = (
+        db.query(TrainingWeek.week_number, TrainingWeekActivity.content_ref)
+        .join(
+            TrainingWeekActivity,
+            TrainingWeekActivity.training_week_id == TrainingWeek.id,
+        )
+        .filter(
+            TrainingWeek.is_active.is_(True),
+            TrainingWeekActivity.activity_type == "networking_lab",
+            TrainingWeekActivity.is_required.is_(True),
+        )
+    )
+    if lab_ids is not None:
+        query = query.filter(TrainingWeekActivity.content_ref.in_(lab_ids))
+    return {
+        lab_id
+        for week_number, lab_id in query.all()
+        if week_has_been_reached(db, current_week, week_number)
+    }
 
 
 def has_reached_week(db: Session, student_id: int, required_week: int) -> bool:

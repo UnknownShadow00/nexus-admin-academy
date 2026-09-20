@@ -170,6 +170,16 @@ def test_every_converted_curriculum_assignment_launches_its_current_version(
         assignment = db.query(ServiceDeskAssignment).filter_by(
             student_id=student.id, scenario_id=scenario.id, mode="learning"
         ).one()
+        listed = client.get(
+            "/api/service-desk/assignments",
+            params={
+                "v2_module_key": module.module_key,
+                "v2_assessment_key": assessment.assessment_key,
+            },
+            headers=auth_headers(student),
+        )
+        assert listed.status_code == 200, listed.text
+        assert assignment.id in {row["id"] for row in listed.json()}
         started = client.post(
             f"/api/service-desk/assignments/{assignment.id}/attempts",
             headers=auth_headers(student),
@@ -210,8 +220,12 @@ def test_every_converted_curriculum_assignment_launches_its_current_version(
             f"/api/service-desk/assignments/{assignment.id}/attempts",
             headers=auth_headers(student),
         )
+        if ticket_id == "INC2504":
+            assert started.status_code == 403
+            assert started.json()["detail"]["code"] == "SERVICE_DESK_PACK_LOCKED"
+            continue
         assert started.status_code == 201, started.text
         attempt = db.get(ServiceDeskAttempt, started.json()["id"])
         assert attempt.scenario_version_id == current.id
         launched_ticket_ids.add(ticket_id)
-    assert launched_ticket_ids == set(fixtures)
+    assert launched_ticket_ids == set(fixtures) - {"INC2504"}

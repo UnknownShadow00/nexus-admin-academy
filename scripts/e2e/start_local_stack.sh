@@ -287,7 +287,10 @@ scenario_ids = [
     row[0]
     for row in db.execute(
         "SELECT id FROM service_desk_scenarios "
-        "WHERE status = 'active' AND stable_key LIKE 'inc%' AND stable_key != 'inc2502'"
+        "WHERE status = 'active' "
+        "AND (stable_key LIKE 'inc%' OR stable_key IN "
+        "('locked-user-account', 'password-reset', 'mfa-reset')) "
+        "AND stable_key != 'inc2502'"
     )
 ]
 for username in sys.argv[2:]:

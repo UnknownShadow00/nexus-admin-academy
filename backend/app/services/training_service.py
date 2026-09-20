@@ -21,7 +21,13 @@ from app.models.service_desk import ServiceDeskAttempt, ServiceDeskScenario, Ser
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.services.mastery_service import list_student_mastery
-from app.services.progression_service import get_promotion_status
+from app.services.progression_service import (
+    CLI_PACK_WEEKS,
+    cli_pack_is_unlocked,
+    derive_current_week,
+    get_promotion_status,
+    week_has_been_reached,
+)
 from app.services.quiz_visibility import (
     student_visible_quiz_filters,
     v1_student_visible_quiz_filters_for,
@@ -43,6 +49,11 @@ from app.services.curriculum_structure import (
     public_module,
     public_stage,
     structure_definition_issues,
+)
+from app.services.beginner_learning import (
+    A_PLUS_WEEKS,
+    NETWORK_PLUS_WEEKS,
+    build_learning_phase,
 )
 
 
@@ -138,6 +149,9 @@ class _TrainingContext:
         self.db = db
         self.student = student
         self.activities = activities
+        self._current_week: int | None = None
+        self._network_cli_gate_loaded = False
+        self._network_cli_gate: bool | None = None
         refs: dict[str, set[str]] = defaultdict(set)
         for activity in activities:
             refs[activity.activity_type].add(activity.content_ref)
@@ -327,6 +341,19 @@ class _TrainingContext:
             "completed_at": latest.completed_at if latest else None,
         }
 
+    def current_week(self) -> int:
+        if self._current_week is None:
+            self._current_week = derive_current_week(self.student.id, self.db)
+        return self._current_week
+
+    def network_cli_gate(self) -> bool | None:
+        if not self._network_cli_gate_loaded:
+            self._network_cli_gate = network_cli_gate_is_unlocked(
+                self.db, self.student
+            )
+            self._network_cli_gate_loaded = True
+        return self._network_cli_gate
+
     def resolve(self, activity: TrainingWeekActivity) -> _ResolvedContent | None:
         ref = _int_ref(activity.content_ref)
         week_number = activity.week.week_number
@@ -403,11 +430,43 @@ class _TrainingContext:
             lab = self.cli_labs.get(activity.content_ref)
             if not lab:
                 return None
+            attempt = self.cli_attempts.get(lab.id)
+            network_gate = self.network_cli_gate()
+            permission_locked = not cli_pack_is_unlocked(
+                self.db,
+                self.student,
+                lab.compartment_id,
+                has_completion=bool(attempt and attempt.completed_at),
+                required_assignment_reached=(
+                    activity.is_required
+                    and week_has_been_reached(
+                        self.db, self.current_week(), week_number
+                    )
+                ),
+                network_gate_unlocked=network_gate,
+                current_week=self.current_week(),
+            )
+            required_week = CLI_PACK_WEEKS.get(lab.compartment_id, 1)
+            required_module = module_for_week(required_week)
+            active_network_gate_locked = (
+                lab.compartment_id in {"network-foundations", "learn-switching"}
+                and network_gate is False
+            )
             return _ResolvedContent(
                 title=lab.title,
                 description=f"{lab.difficulty} networking practice",
-                destination_route=f"/cli-labs/{lab.id}",
+                destination_route=None if permission_locked else f"/cli-labs/{lab.id}",
                 estimated_minutes=lab.est_minutes,
+                permission_locked=permission_locked,
+                permission_reason=(
+                    "Complete A+ and at least half of your active Network+ modules to unlock this networking lab."
+                    if permission_locked and active_network_gate_locked
+                    else f"Reach {required_module.title} to unlock this networking lab."
+                    if permission_locked and required_module
+                    else "Complete more of your current learning path to unlock this networking lab."
+                    if permission_locked
+                    else None
+                ),
             )
         if activity.activity_type == "support_ticket":
             ticket = self.tickets.get(ref)
@@ -434,9 +493,11 @@ class _TrainingContext:
                 next_pack = self.service_desk_progression["next_pack"]
                 pack_key = access.get("pack_key")
                 permission_reason = (
-                    next_pack["reason"]
+                    access.get("unavailable_reason")
+                    or next_pack["reason"]
                     if next_pack and next_pack["key"] == pack_key
-                    else "Complete the earlier Service Desk cases first."
+                    else access.get("unavailable_reason")
+                    or "Complete the earlier Service Desk cases first."
                 )
             ticket_key = _service_desk_ticket_key(scenario.stable_key)
             # Kept in sync with the allowlist in service-desk-app/apps/web/lib/nexus-return.ts.
@@ -624,6 +685,96 @@ def derive_training_current_week(db: Session, student: Student) -> int | None:
         if any(not context.progress(activity)["complete"] for activity in required):
             return week.week_number
     return weeks[-1].week_number
+
+
+def network_cli_gate_is_unlocked(
+    db: Session, student: Student
+) -> bool | None:
+    """Return the active-curriculum 50% Network+ lab gate.
+
+    ``None`` preserves the numeric fallback for legacy databases and focused
+    fixtures that do not contain any active Network+ curriculum weeks.
+    """
+    weeks = [
+        week
+        for week in _active_weeks(db)
+        if week.week_number in (*A_PLUS_WEEKS, *NETWORK_PLUS_WEEKS)
+    ]
+    network_weeks = [
+        week for week in weeks if week.week_number in NETWORK_PLUS_WEEKS
+    ]
+    if not network_weeks:
+        return None
+    activities = [
+        activity
+        for week in weeks
+        for activity in sorted(
+            week.activities, key=lambda item: (item.display_order, item.id)
+        )
+    ]
+    context = _TrainingContext(
+        db, student, activities, include_service_desk_access=False
+    )
+
+    def module_complete(week: TrainingWeek) -> bool:
+        required = [
+            activity
+            for activity in week.activities
+            if activity.is_required
+            and activity.activity_type
+            not in UNTRACKED_ACTIVITY_TYPES | {"review"}
+        ]
+        return all(context.progress(activity)["complete"] for activity in required)
+
+    a_plus_weeks = [week for week in weeks if week.week_number in A_PLUS_WEEKS]
+    if not all(module_complete(week) for week in a_plus_weeks):
+        return False
+    completed_network_modules = sum(
+        module_complete(week) for week in network_weeks
+    )
+    return completed_network_modules * 2 >= len(network_weeks)
+
+
+def required_learning_complete_for_week(
+    db: Session, student: Student, week_number: int
+) -> bool:
+    """Check a topic's required learning without its Service Desk apply step.
+
+    This lets a ticket appear immediately after the related lesson/video,
+    quiz, and guided practice are complete while keeping the ticket itself in
+    the module's ordinary completion path.
+    """
+    week = (
+        db.query(TrainingWeek)
+        .options(selectinload(TrainingWeek.activities))
+        .filter(
+            TrainingWeek.week_number == int(week_number),
+            TrainingWeek.is_active.is_(True),
+        )
+        .first()
+    )
+    if week is None:
+        return False
+    required = [
+        activity
+        for activity in week.activities
+        if activity.is_required
+        and activity.activity_type
+        not in UNTRACKED_ACTIVITY_TYPES
+        | {"review", "service_desk_scenario", "support_ticket", "capstone"}
+    ]
+    if not required:
+        # An administrator may intentionally make every preparatory activity
+        # optional. The empty prerequisite set is satisfied; otherwise a
+        # required same-week Service Desk case can never become actionable.
+        return True
+    context = _TrainingContext(
+        db,
+        student,
+        sorted(week.activities, key=lambda item: (item.display_order, item.id)),
+        include_service_desk_access=False,
+    )
+    return all(context.progress(activity)["complete"] for activity in required)
 
 
 def _serialize_activity(context: _TrainingContext, activity: TrainingWeekActivity) -> dict:
@@ -891,6 +1042,10 @@ def build_training_overview(db: Session, student: Student) -> dict:
         "next_activity": next_activity,
         "recently_completed": recently_completed[0] if recently_completed else None,
         "training_complete": training_complete,
+        "learning_phase": build_learning_phase(
+            public_weeks,
+            current_week["week_number"] if current_week else None,
+        ),
     }
 
 

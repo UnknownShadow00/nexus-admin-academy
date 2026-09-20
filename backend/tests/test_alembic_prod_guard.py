@@ -4,9 +4,9 @@ A bare `alembic upgrade head` (no explicit scratch DATABASE_URL, no opt-in)
 must not be able to migrate the live production database. See
 `backend/app/db_guard.py` and `tasks/lessons.md`.
 
-The subprocess cases below are safe: production is already at head, so even a
-hypothetical bypass of `upgrade head` would be a no-op, and every case also
-asserts the production file's mtime is unchanged.
+The subprocess cases below are hermetic: they assert that a bare command does
+not create or modify the checkout-local production path, whether or not a
+developer happens to have a database file there.
 """
 
 from __future__ import annotations
@@ -133,8 +133,15 @@ def _run_alembic(args, env_overrides, remove=()):
     )
 
 
+def _production_file_state():
+    if not PROD_DB.exists():
+        return (False, None, None)
+    stat = PROD_DB.stat()
+    return (True, stat.st_size, stat.st_mtime_ns)
+
+
 def test_cli_bare_upgrade_is_refused_and_leaves_production_untouched():
-    before = PROD_DB.stat().st_mtime_ns
+    before = _production_file_state()
     proc = _run_alembic(
         ["upgrade", "head"],
         env_overrides={},
@@ -142,19 +149,20 @@ def test_cli_bare_upgrade_is_refused_and_leaves_production_untouched():
     )
     assert proc.returncode != 0
     assert "BLOCKED" in (proc.stderr + proc.stdout)
-    assert PROD_DB.stat().st_mtime_ns == before      # not written
+    assert _production_file_state() == before      # not created or written
 
 
 def test_cli_readonly_current_still_works_without_optin():
+    before = _production_file_state()
     proc = _run_alembic(["current"], env_overrides={}, remove=("DATABASE_URL", PROD_OPT_IN_ENV))
     assert proc.returncode == 0
-    assert "0064_v2_ai_grading_infrastructure" in (proc.stdout + proc.stderr)
+    assert _production_file_state() == before
 
 
 def test_cli_scratch_database_upgrade_and_downgrade(tmp_path):
     scratch = tmp_path / "ci-like.db"
     url = f"sqlite:///{scratch}"
-    before = PROD_DB.stat().st_mtime_ns
+    before = _production_file_state()
 
     up = _run_alembic(["upgrade", "head"], env_overrides={"DATABASE_URL": url},
                       remove=(PROD_OPT_IN_ENV,))
@@ -172,4 +180,4 @@ def test_cli_scratch_database_upgrade_and_downgrade(tmp_path):
     reup = _run_alembic(["upgrade", "head"], env_overrides={"DATABASE_URL": url})
     assert reup.returncode == 0, reup.stderr
 
-    assert PROD_DB.stat().st_mtime_ns == before       # production never touched
+    assert _production_file_state() == before       # production never touched

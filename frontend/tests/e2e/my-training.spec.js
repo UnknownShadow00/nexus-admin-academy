@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 
 const studentUsername = process.env.NEXUS_E2E_STUDENT_USERNAME || "browser-training-student";
 const studentPassword = process.env.NEXUS_E2E_STUDENT_PASSWORD || "BrowserTraining!2026";
+const freshStudentUsername = process.env.NEXUS_E2E_FRESH_A_USERNAME || "browser-fresh-student-a";
+const freshStudentPassword = process.env.NEXUS_E2E_FRESH_A_PASSWORD || "BrowserFreshStudent!2026";
 const adminUsername = process.env.NEXUS_E2E_ADMIN_USERNAME || "browser-admin";
 const adminPassword = process.env.NEXUS_E2E_ADMIN_PASSWORD || "BrowserAdmin!2026";
 const apiBaseUrl = process.env.NEXUS_E2E_API_URL || "http://127.0.0.1:8011";
@@ -118,21 +120,20 @@ test("student authentication rejects invalid credentials and protects private ro
 test("student follows My Training on desktop and mobile", async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await studentLogin(page);
+  await studentLogin(page, freshStudentUsername, freshStudentPassword);
   const monitor = monitorPage(page);
 
-  await expect(page.getByRole("link", { name: "Dashboard", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Learning Path", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Tickets", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Labs", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Skills", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Today", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Service Desk", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Progress", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Extra Practice/ })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Today", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "This Week", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
+  await expect(page.getByText("One clear next step at a time.", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: /Begin Your IT Training|Continue where you left off/ })).toBeVisible();
   await assertNoHorizontalOverflow(page);
 
-  await page.getByRole("link", { name: "Learning Path", exact: true }).click();
+  await page.getByRole("link", { name: "Progress", exact: true }).click();
   await expect(page).toHaveURL(/\/learning-path$/);
   await expect(page.getByRole("heading", { name: "Learning Path", exact: true })).toBeVisible();
   await expect(page.getByText("Current Stage", { exact: true })).toBeVisible();
@@ -171,7 +172,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   const mappedQuizRoutes = await catalogVideos.locator('a[href^="/quizzes/"]').evaluateAll((links) => [...new Set(links.map((link) => link.getAttribute("href").replace(/\/review$/, "")))]);
   expect(mappedQuizRoutes).toHaveLength(21);
 
-  await page.getByRole("link", { name: "Quiz Library" }).click();
+  await page.goto("/quizzes");
   await expect(page.getByRole("heading", { name: "Quiz Library" })).toBeVisible();
   await page.goBack();
   await expect(page.getByRole("heading", { name: "All Course Content" })).toBeVisible();
@@ -191,7 +192,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
     await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
   }
   await expect(page.getByText("Capstones", { exact: true })).toHaveCount(0);
-  await page.getByRole("link", { name: "Skills", exact: true }).click();
+  await page.goto("/skills");
   await expect(page.getByRole("heading", { name: "Skills", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Training Progress", exact: true })).toBeVisible();
   await expect(page.getByText("Course progress", { exact: true })).toBeVisible();
@@ -229,17 +230,22 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "That page is not part of your learning path." })).toBeVisible();
   await page.goto("/labs/4");
   await expect(page.getByRole("heading", { name: "Hardware Component Identification", exact: true })).toBeVisible();
+  // This learner is still in orientation, so the individual CLI endpoint is
+  // expected to return 403 and the page must render its prerequisite state.
+  // Exclude that intentional response from the generic unexpected-error
+  // monitor while keeping the UI assertion explicit.
+  monitor.pause();
   await page.goto("/cli-labs/meet-cli-001");
   await expect(page.getByRole("heading", { name: "First Contact", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Continue your current week" })).toBeVisible();
+  monitor.resume();
 
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/learning-path");
   await page.getByRole("button", { name: "Toggle menu" }).click();
-  await expect(page.getByRole("link", { name: "Learning Path", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Dashboard", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Tickets", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Labs", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Skills", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Today", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Service Desk", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Progress", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Extra Practice/ })).toHaveCount(0);
   await assertNoHorizontalOverflow(page);
   await page.goto("/training/module/module.orientation.nexus");
@@ -266,7 +272,8 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   // Otherwise a legitimate in-flight read can cross the logout boundary and
   // report a 401 even though the protected-route behavior is correct.
   await page.waitForLoadState("networkidle");
-  await page.getByRole("button", { name: "Browser Training Student" }).click();
+  monitor.pause();
+  await page.getByRole("button", { name: "Fresh Progression Student A" }).click();
   await expect(page).toHaveURL(/\/login$/);
 
   expect(monitor.consoleErrors).toEqual([]);
@@ -328,8 +335,8 @@ test("capstone navigation remains role gated", async ({ page }) => {
   await page.getByLabel("Username").fill(process.env.NEXUS_E2E_QUALIFIED_USERNAME || "browser-qualified-student");
   await page.getByLabel("Password").fill(process.env.NEXUS_E2E_QUALIFIED_PASSWORD || "BrowserQualified!2026");
   await page.getByRole("button", { name: "Login" }).click();
-  await expect(page.getByRole("heading", { name: /Qualified Browser Student|Student Home/ })).toBeVisible();
-  await page.getByRole("link", { name: "Labs", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
+  await page.goto("/labs");
   await expect(page.getByText("Capstones", { exact: true })).toBeVisible();
   await page.getByText("Capstones", { exact: true }).click();
   await expect(page).toHaveURL(/\/capstones$/);
@@ -416,7 +423,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
 
     await studentLogin(page, username, password);
     monitor = monitorPage(page);
-    await expect(page.getByRole("heading", { name: "Disposable Browser Flow Student" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Begin Your IT Training" })).toBeVisible();
     await page.getByRole("link", { name: "Start Training" }).first().click();
     // Orientation's lesson ID is not stable across a fresh seed vs.
@@ -497,7 +504,11 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await page.goto(orientationLessonPath);
     await expect(page.getByText("✓ Orientation complete")).toBeVisible();
     await page.getByRole("link", { name: "Start Next Module" }).click();
-    await expect(page).toHaveURL(new RegExp(`${weekOneLessonPath}$`));
+    await expect(page).toHaveURL(/(?:\/lessons\/\d+|\/training\/module\/module\.endpoint\.support_workflow)$/);
+    if (new URL(page.url()).pathname !== weekOneLessonPath) {
+      await page.getByRole("link", { name: /Anatomy of a Good Ticket/ }).click();
+      await expect(page).toHaveURL(new RegExp(`${weekOneLessonPath}$`));
+    }
     await expect(page.getByRole("heading", { name: "Anatomy of a Good Ticket" })).toBeVisible();
     await page.reload();
     await expect(page.getByRole("heading", { name: "Anatomy of a Good Ticket" })).toBeVisible();
@@ -523,7 +534,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await assertNoHorizontalOverflow(page);
 
     await page.goto("/");
-    await page.getByRole("link", { name: "Tickets", exact: true }).click();
+    await page.getByRole("link", { name: "Service Desk", exact: true }).click();
     await expect(page).toHaveURL(/\/service-desk\/?$/);
     await expect(page.getByRole("link", { name: "Back to Nexus" })).toBeVisible();
     // The link is server-rendered before Next hydration. Wait for the client

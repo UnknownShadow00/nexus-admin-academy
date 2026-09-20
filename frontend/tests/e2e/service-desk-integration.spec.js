@@ -374,7 +374,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await context.close();
   });
 
-  test("Week 0 unlocks an isolated four-ticket starter queue with a compact next-pack preview", async ({ browser }) => {
+  test("orientation keeps tickets locked until the related A+ foundation is complete", async ({ browser }) => {
     test.setTimeout(180_000);
     const contextA = await browser.newContext({ viewport: { width: 375, height: 812 } });
     const pageA = await contextA.newPage();
@@ -396,48 +396,19 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await pageA.goto("/service-desk");
     assignmentsResponse = await pageA.request.get("/api/service-desk/assignments");
     expect(assignmentsResponse.ok()).toBeTruthy();
-    const assignments = await assignmentsResponse.json();
-    expect(new Set(assignments.map((row) => row.scenario.stable_key))).toEqual(
-      new Set(["locked-user-account", "password-reset", "mfa-reset", "inc2404"]),
-    );
-    expect(assignments.every((row) => row.queue_type === "assigned")).toBeTruthy();
-
-    const progressA = pageA.getByRole("region", { name: "Training progress" });
-    await expect(progressA.getByText("4", { exact: true })).toBeVisible();
-    await expect(progressA.getByText("Available", { exact: true })).toBeVisible();
-    await expect(pageA.getByRole("region", { name: "Assigned" })).toBeVisible();
-    await expect(pageA.getByRole("heading", { name: "Practice" })).toBeVisible();
-    await expect(pageA.getByText("No mastered cases yet", { exact: false })).toBeVisible();
-    await expect(pageA.getByText("Next case pack", { exact: true })).toBeVisible();
-    await expect(pageA.getByRole("heading", { name: "Desktop Support" })).toBeVisible();
-    await expect(pageA.getByText("○ Reach Windows Fundamentals & Diagnostics")).toBeVisible();
-    await expect(pageA.getByText(/○ Successfully resolve 2 Starter Support cases \(0\/2\)/)).toBeVisible();
-    await expect(pageA.locator('a[href^="/service-desk/tickets/"]')).toHaveCount(4);
-    await expect(pageA.getByText("Desktop opens with a temporary Windows profile")).toHaveCount(0);
+    expect(await assignmentsResponse.json()).toEqual([]);
+    await expect(pageA.getByRole("region", { name: "Assigned" })).toHaveCount(0);
+    await expect(pageA.locator('a[href^="/service-desk/tickets/"]')).toHaveCount(0);
+    await expect(
+      pageA.getByRole("heading", {
+        name: "Complete your first A+ troubleshooting topics to unlock tickets.",
+      }),
+    ).toBeVisible();
     const dimensions = await pageA.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
     }));
     expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth + 1);
-
-    const resumableAssignment = assignments.find(
-      (assignment) => assignment.scenario.stable_key === "locked-user-account",
-    );
-    const started = await pageA.request.post(
-      "/api/service-desk/assignments/" + resumableAssignment.id + "/attempts",
-      withOrigin({}),
-    );
-    expect(started.status()).toBe(201);
-    await pageA.reload();
-    await expect(progressA.getByText("3", { exact: true })).toBeVisible();
-    await expect(progressA.getByText("1", { exact: true })).toBeVisible();
-    await expect(progressA.getByText("In progress", { exact: true })).toBeVisible();
-
-    await pageA.goto("/training/module/module.endpoint.support_workflow");
-    const resumableActivity = pageA.locator('article[data-activity-type="service_desk_scenario"]').filter({
-      hasText: resumableAssignment.scenario.title,
-    });
-    await expect(resumableActivity.getByRole("link", { name: "Resume", exact: true })).toBeVisible();
 
     await pageA.goto("/service-desk/tickets/INC2408");
     await expect(pageA.getByRole("heading", { name: "Case unavailable" })).toBeVisible();
@@ -458,10 +429,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     test.setTimeout(180_000);
     const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
     const page = await context.newPage();
-    await studentLogin(page, freshAUsername, freshAPassword);
-    if ((await (await page.request.get("/api/service-desk/assignments")).json()).length === 0) {
-      await completeWeekZero(page);
-    }
+    await studentLogin(page, studentAUsername, studentAPassword);
 
     const cases = [
       {
@@ -514,7 +482,6 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     }
 
     await page.goto("/service-desk");
-    await expect(page.getByRole("region", { name: "Assigned" }).locator('a[href^="/service-desk/tickets/"]')).toHaveCount(1);
     const starterAssignments = await (
       await page.request.get("/api/service-desk/assignments")
     ).json();
@@ -527,11 +494,6 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
         most_recent_attempt: { status: "completed" },
       });
     }
-    await page.goto("/training/module/module.endpoint.support_workflow");
-    const completedActivity = page.locator('article[data-activity-type="service_desk_scenario"]').filter({
-      hasText: cases[0].title,
-    });
-    await expect(completedActivity.getByRole("link", { name: "Review", exact: true })).toBeVisible();
     const dimensions = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
