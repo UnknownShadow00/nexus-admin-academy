@@ -9,10 +9,14 @@ import { getCliLabs } from "../services/api";
 export default function CliLabsPage() {
   const [completionById, setCompletionById] = useState({});
   const [availableIds, setAvailableIds] = useState(null);
+  const [catalogError, setCatalogError] = useState(null);
+  const [requestVersion, setRequestVersion] = useState(0);
   const [expandedCompartmentIds, setExpandedCompartmentIds] = useState(() => new Set());
 
   useEffect(() => {
     let cancelled = false;
+    setCatalogError(null);
+    setAvailableIds(null);
     getCliLabs({ suppressToast: true })
       .then((response) => {
         if (cancelled) return;
@@ -20,16 +24,16 @@ export default function CliLabsPage() {
         setCompletionById(Object.fromEntries(rows.map((row) => [row.id, row])));
         setAvailableIds(new Set(rows.map((row) => row.id)));
       })
-      .catch(() => {
+      .catch((error) => {
         if (!cancelled) {
           setCompletionById({});
-          setAvailableIds(new Set());
+          setCatalogError(error?.userMessage || "Unable to load networking labs. Please try again.");
         }
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [requestVersion]);
 
   const visibleCompartments = useMemo(() => (cliLabCompartments || []).map((compartment) => ({
     ...compartment,
@@ -62,7 +66,17 @@ export default function CliLabsPage() {
         />
       </div>
 
-      {availableIds?.size === 0 ? <section className="panel text-center"><h2 className="text-xl font-bold text-slate-900 dark:text-white">Networking labs unlock later</h2><p className="mt-2 text-slate-600 dark:text-slate-300">Complete A+, then finish the first half of Network+ to unlock the switch and network lab lessons.</p><Link className="btn-primary mt-4 inline-flex" to="/">Return to Today</Link></section> : null}
+      {catalogError ? (
+        <section className="panel text-center" role="alert">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Networking labs unavailable</h2>
+          <p className="mt-2 text-slate-600 dark:text-slate-300">{catalogError}</p>
+          <button className="btn-primary mt-4" type="button" onClick={() => setRequestVersion((value) => value + 1)}>
+            Try again
+          </button>
+        </section>
+      ) : null}
+
+      {!catalogError && availableIds?.size === 0 ? <section className="panel text-center"><h2 className="text-xl font-bold text-slate-900 dark:text-white">Networking labs unlock later</h2><p className="mt-2 text-slate-600 dark:text-slate-300">Complete A+, then finish the first half of Network+ to unlock the switch and network lab lessons.</p><Link className="btn-primary mt-4 inline-flex" to="/">Return to Today</Link></section> : null}
 
       {visibleCompartments.map((compartment) => {
         const lessons = compartment.lessons || [];
