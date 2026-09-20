@@ -693,6 +693,54 @@ def test_history_unlocked_assessment_resumes_in_its_original_mode(monkeypatch, d
     )
 
 
+@pytest.mark.parametrize("experience_mode", ["assessment", "guided"])
+def test_failed_historical_case_keeps_retry_access_and_mode(
+    monkeypatch, db, experience_mode
+):
+    student = make_student(db, f"failed-history-{experience_mode}")
+    scenarios = _seed_pack_assignments(db, student)
+    _enable_topic_gating(db, 1)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 1,
+    )
+    scenario, version = scenarios["password-reset"]
+    db.add(
+        ServiceDeskAttempt(
+            student_id=student.id,
+            scenario_version_id=version.id,
+            mode="simulation",
+            experience_mode=experience_mode,
+            status="completed",
+            current_state={},
+            current_state_hash=f"failed-{experience_mode}",
+            state_version=1,
+            attempt_number=1,
+            completed_at=datetime.now(timezone.utc),
+            score=40,
+            passed=False,
+        )
+    )
+    db.commit()
+
+    rows = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+    password_reset = next(
+        row for row in rows if row["scenario"]["stable_key"] == "password-reset"
+    )
+    response = client.post(
+        f"/api/service-desk/assignments/{_assignment_id(db, student, scenario)}/attempts",
+        headers=auth_headers(student),
+    )
+
+    assert password_reset["queue_type"] == "assigned"
+    assert password_reset["experience_mode"] == experience_mode
+    assert response.status_code == 201
+    assert response.json()["attempt_number"] == 2
+    assert response.json()["experience_mode"] == experience_mode
+
+
 def test_unfinished_older_cases_are_earlier_never_practice(monkeypatch, db):
     student = make_student(db, "earlier-not-practice")
     scenarios = _seed_pack_assignments(db, student)

@@ -1866,3 +1866,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/services/service_desk_progression.py, backend/app/services/training_service.py, backend/tests/test_training_service.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; 73 focused rollout tests passed, including a locked Week 1 case card with the Support Workflow Essentials prerequisite, and touched files pass Ruff, Python compilation, and diff validation.
 - Next: Push the final follow-up commit, resolve the review thread, and confirm final CI and refreshed review status without merging or deploying.
+
+## [2026-09-20T05:50:19Z] Task Completed
+- Task: Preserved retry access and the original assessment or guided mode for failed completed Service Desk attempts that predate topic gating.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 75 focused rollout tests passed, including failed historical retries in both modes with attempt-number continuity, and touched files pass Ruff, Python compilation, and diff validation.
+- Next: Push the final follow-up commit, resolve the review thread, and confirm final CI and refreshed review status without merging or deploying.

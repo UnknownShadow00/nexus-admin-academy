@@ -309,6 +309,34 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
     for stable_key, experience_mode in in_progress_rows:
         in_progress_modes.setdefault(stable_key, experience_mode)
     in_progress_keys = set(in_progress_modes)
+    failed_history_rows = (
+        db.query(
+            ServiceDeskScenario.stable_key,
+            ServiceDeskAttempt.experience_mode,
+        )
+        .join(
+            ServiceDeskScenarioVersion,
+            ServiceDeskScenarioVersion.scenario_id == ServiceDeskScenario.id,
+        )
+        .join(
+            ServiceDeskAttempt,
+            ServiceDeskAttempt.scenario_version_id == ServiceDeskScenarioVersion.id,
+        )
+        .filter(
+            ServiceDeskAttempt.student_id == student.id,
+            ServiceDeskAttempt.status == "completed",
+            ServiceDeskAttempt.passed.is_(False),
+        )
+        .order_by(
+            ServiceDeskAttempt.completed_at.desc(),
+            ServiceDeskAttempt.id.desc(),
+        )
+        .all()
+    )
+    failed_history_modes = {}
+    for stable_key, experience_mode in failed_history_rows:
+        failed_history_modes.setdefault(stable_key, experience_mode)
+    failed_history_keys = set(failed_history_modes)
     all_curriculum_rows = (
         db.query(TrainingWeek.week_number, TrainingWeekActivity.content_ref)
         .join(
@@ -448,6 +476,7 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
     assigned_keys = (
         set(direct_assignment_override_keys)
         | set(in_progress_keys)
+        | set(failed_history_keys)
         | (curriculum_current_keys - passed_keys)
     ) - set(HYBRID_LAB_SCENARIO_KEYS)
     if active_pack:
@@ -482,6 +511,8 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         "curriculum_current_keys": curriculum_current_keys,
         "in_progress_keys": in_progress_keys,
         "in_progress_modes": in_progress_modes,
+        "failed_history_keys": failed_history_keys,
+        "failed_history_modes": failed_history_modes,
         "assigned_keys": assigned_keys,
         "topic_gating_enabled": topic_gating_enabled,
         "topic_unlocked_keys": topic_unlocked_keys,
@@ -524,6 +555,7 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
         normalized in progression["passed_keys"]
         or normalized in progression.get("guided_completed_keys", set())
         or normalized in progression.get("in_progress_keys", set())
+        or normalized in progression.get("failed_history_keys", set())
     )
     required_topic_week = SCENARIO_TOPIC_WEEKS.get(normalized)
     topic_blocked = (
@@ -562,6 +594,7 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
     )
     passed = normalized in progression["passed_keys"]
     in_progress_mode = progression.get("in_progress_modes", {}).get(normalized)
+    failed_history_mode = progression.get("failed_history_modes", {}).get(normalized)
     if passed:
         queue_type = "practice"
     elif assigned_override:
@@ -582,6 +615,8 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
             if passed
             else in_progress_mode
             if in_progress_mode
+            else failed_history_mode
+            if failed_history_mode
             else "assessment"
             if (
                 normalized in progression["curriculum_unlocked_keys"]
