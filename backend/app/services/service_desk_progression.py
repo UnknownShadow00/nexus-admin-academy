@@ -450,9 +450,19 @@ def build_service_desk_progression(db: Session, student: Student) -> dict:
         | (curriculum_current_keys - passed_keys)
     )
     if active_pack:
+        candidate_packs = (
+            [
+                pack
+                for pack in SERVICE_DESK_PACKS
+                if pack.key in unlocked_pack_keys
+            ]
+            if topic_gating_enabled
+            else [active_pack]
+        )
         active_candidates = [
             key
-            for key in active_pack.scenario_keys
+            for pack in candidate_packs
+            for key in pack.scenario_keys
             if key not in passed_keys
             and key not in assigned_keys
             and key in topic_unlocked_keys

@@ -385,6 +385,37 @@ def test_new_student_accounts_receive_managed_assignment_inventory(db):
     )
 
 
+def test_seed_user_backfill_includes_topic_unlocked_case_from_earlier_pack(
+    monkeypatch, db
+):
+    student = make_student(db, "seed-user-topic-backfill")
+    scenarios = _seed_pack_assignments(db)
+    _enable_topic_gating(db, 8)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 8,
+    )
+    for stable_key in SERVICE_DESK_PACKS[0].scenario_keys[:2]:
+        _pass(db, student, scenarios[stable_key])
+
+    assert (
+        db.query(ServiceDeskAssignment)
+        .filter_by(student_id=student.id)
+        .count()
+        == 0
+    )
+
+    rows = client.get(
+        "/api/service-desk/assignments", headers=auth_headers(student)
+    ).json()
+
+    assert "mfa-reset" in {
+        row["scenario"]["stable_key"] for row in rows
+    }
+    mfa_scenario, _ = scenarios["mfa-reset"]
+    assert _assignment_id(db, student, mfa_scenario) is not None
+
+
 def test_one_students_unlocks_never_change_another_students_queue(monkeypatch, db):
     first = make_student(db, "student-a")
     second = make_student(db, "student-b")

@@ -1794,3 +1794,9 @@ STANDING OPEN ITEMS (unchanged): live-AI grader calibration (needs Ollama VM —
 - Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
 - Result: pass against acceptance criteria; 28 focused progression tests, Ruff, Python compilation, and diff validation passed.
 - Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.
+
+## [2026-09-20T04:03:28Z] Task Completed
+- Task: Addressed the seed-user backfill review finding by including topic-unlocked cases from all reached Service Desk packs when topic gating is active, including newly unlocked cases from earlier packs.
+- Files changed: backend/app/services/service_desk_progression.py, backend/tests/test_service_desk_progression.py, tasks/loop-log.md
+- Result: pass against acceptance criteria; 29 focused progression tests, Ruff, Python compilation, and diff validation passed, including a zero-inventory seed-user regression.
+- Next: Push the follow-up commit, resolve the review thread, and confirm final CI and review status without merging or deploying.
