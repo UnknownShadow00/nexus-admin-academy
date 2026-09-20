@@ -102,14 +102,20 @@ async function documentAndClose(page: Page, accountCase: AccountCase) {
   await page.goto(`/tickets/${accountCase.ticketId}`);
   await page.getByLabel('Add a note').fill(resolutionNote);
   await page.getByRole('button', { name: 'Add internal note' }).click();
-  await page.getByRole('button', { name: 'Resolve / close' }).click();
+  await expect(page.getByLabel('Add a note')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Resolve', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Resolve or close ticket' });
+  await expect(dialog.getByRole('textbox')).toHaveCount(0);
+  await expect(dialog.getByText(resolutionNote, { exact: true })).toBeVisible();
   await dialog.getByRole('checkbox').check();
   await dialog.getByRole('button', { name: 'Continue to review' }).click();
   await expect(dialog.getByText('Ready to resolve')).toBeVisible();
   await dialog.getByRole('button', { name: 'Resolve ticket' }).click();
   await expect(
-    page.getByText('Resolved', { exact: true }).first(),
+    page
+      .getByText(accountCase.ticketId, { exact: true })
+      .locator('..')
+      .getByText('Resolved', { exact: true }),
   ).toBeVisible();
 }
 

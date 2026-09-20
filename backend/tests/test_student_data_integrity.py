@@ -1,4 +1,5 @@
 import sqlite3
+import pytest
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -6,6 +7,16 @@ from fastapi.testclient import TestClient
 from app.database import get_db
 from app.models.ai_rate_limit import AIRateLimit
 from app.models.capstone import CapstoneRun, CapstoneTemplate
+from app.models.certification import (
+    Certification,
+    CertificationModule,
+    CertificationVersion,
+    InterviewPrompt,
+    LearningResource,
+    ModuleAssessment,
+    StudentResourceActivity,
+)
+from app.models.grading import AIGrade, MentorGradeOverride, PendingGrade
 from app.models.cli_lab import CliLab, CliLabAttempt
 from app.models.evidence import EvidenceArtifact
 from app.models.flashcard import FlashcardReview
@@ -36,6 +47,12 @@ from app.models.video_watch import VideoWatch
 from app.models.vm_assignment import VmAssignment
 from app.models.weekly_lead import WeeklyDomainLead
 from app.models.xp_ledger import XPLedger
+from app.models.v2_progress import (
+    V2AssessmentAttempt,
+    V2AssessmentAttemptQuestion,
+    V2ExplainSubmission,
+    V2ModuleActivity,
+)
 from app.routers.admin_students import router as admin_students_router
 from app.services.admin_auth import verify_admin
 from app.services.student_deletion import (
@@ -259,7 +276,10 @@ def test_orphan_repair_is_dry_run_transactional_and_idempotent():
     connection.close()
 
 
-def test_populated_student_delete_removes_complete_owned_graph_and_preserves_shared_data(db):
+@pytest.mark.parametrize("foreign_keys_enabled", [True, False])
+def test_populated_student_delete_removes_complete_owned_graph_and_preserves_shared_data(
+    db, foreign_keys_enabled
+):
     """The supported endpoint removes every mapped ownership type for one student."""
     client = _admin_client(db)
     role = Role(name="Trainee", rank_order=1)
@@ -288,6 +308,37 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
         status="published",
     )
     db.add_all([question, version])
+    certification = Certification(
+        cert_key="deletion-cert", name="Deletion shared certification",
+    )
+    db.add(certification)
+    db.flush()
+    certification_version = CertificationVersion(
+        certification_id=certification.id, version_key="deletion-v1", label="Deletion V1",
+    )
+    db.add(certification_version)
+    db.flush()
+    certification_module = CertificationModule(
+        certification_version_id=certification_version.id,
+        module_key="module.deletion.shared", title="Deletion shared V2 module",
+    )
+    db.add(certification_module)
+    db.flush()
+    module_assessment = ModuleAssessment(
+        assessment_key="assess.deletion.shared", certification_module_id=certification_module.id,
+        assessment_role="module_quiz", title="Deletion assessment", quiz_id=quiz.id,
+    )
+    interview_prompt = InterviewPrompt(
+        prompt_key="interview.deletion.shared",
+        certification_version_id=certification_version.id,
+        certification_module_id=certification_module.id,
+        prompt="Explain deletion.",
+    )
+    resource = LearningResource(
+        resource_key="resource.deletion.shared", title="Deletion resource",
+        resource_type="reference", certification_version_id=certification_version.id,
+    )
+    db.add_all([module_assessment, interview_prompt, resource])
     db.commit()
 
     first = client.post("/api/admin/students", json=_student_payload("populated"))
@@ -320,6 +371,19 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
             XPLedger(student_id=student_id, source_type="test", source_id=1, delta=10),
             AIRateLimit(user_id=student_id, endpoint="delete-test"),
             StudentOnboardingPractice(student_id=student_id, response="Owned orientation"),
+            V2ExplainSubmission(
+                student_id=student_id, prompt_id=interview_prompt.id,
+                submitted_answer="Owned explanation", attempt_number=1,
+            ),
+            V2ModuleActivity(
+                student_id=student_id, module_key=certification_module.module_key,
+                activity_type="module_quiz", ref_key=module_assessment.assessment_key,
+                status="in_progress",
+            ),
+            StudentResourceActivity(
+                student_id=student_id, resource_id=resource.id,
+                completed=True, student_note="Owned resource note",
+            ),
         ]
     )
     db.flush()
@@ -330,6 +394,35 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
     enrollment = ServiceDeskBetaEnrollment(student_id=student_id, enabled=True, enrolled_by="test")
     db.add_all([assignment, attempt, enrollment])
     db.flush()
+    v2_attempt = V2AssessmentAttempt(
+        student_id=student_id, assessment_id=module_assessment.id,
+        module_key=certification_module.module_key,
+        assessment_key=module_assessment.assessment_key, attempt_number=1,
+    )
+    db.add(v2_attempt)
+    db.flush()
+    db.add(V2AssessmentAttemptQuestion(
+        attempt_id=v2_attempt.id, question_id=question.id, position=0,
+        question_snapshot={"id": question.id, "text": question.question_text},
+    ))
+    pending = PendingGrade(
+        student_id=student_id, source_type="interview_explain",
+        source_key=interview_prompt.prompt_key,
+        submission_ref="v2-explain:owned-deletion", submitted_answer="Owned answer",
+        status="graded",
+    )
+    db.add(pending)
+    db.flush()
+    ai_grade = AIGrade(
+        pending_grade_id=pending.id, attempt_number=1, provider="test",
+        outcome="accepted", score=1.0, passed=True,
+    )
+    db.add(ai_grade)
+    db.flush()
+    db.add(MentorGradeOverride(
+        pending_grade_id=pending.id, mentor_label="test", override_score=1.0,
+        override_passed=True, reason="Owned override",
+    ))
     attempt_id = attempt.id
     db.add_all([
         ServiceDeskAttemptEvent(attempt_id=attempt.id, sequence_number=1, idempotency_key="deletion-populated-event", event_type="ticket.close", tool="ticket", payload_json={}, previous_state_hash="0" * 64, resulting_state_hash="s" * 64, success=True, trusted=True),
@@ -346,8 +439,12 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
     # Explicit cleanup must remain complete even if a legacy SQLite client
     # opened this connection without cascade enforcement.
     connection = db.connection()
-    connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
-    assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == 0
+    connection.exec_driver_sql(
+        f"PRAGMA foreign_keys={'ON' if foreign_keys_enabled else 'OFF'}"
+    )
+    assert connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one() == int(
+        foreign_keys_enabled
+    )
     before = student_owned_row_counts(db, student_id)
     assert all(count > 0 for table, count in before.items() if table not in {"students", "service_desk_attempt_events", "service_desk_attempt_grades"})
     assert before["service_desk_attempt_events"] == before["service_desk_attempt_grades"] == 1
@@ -363,7 +460,13 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
     assert remaining_student_owned_rows(db, student_id) == {}
     assert db.query(ServiceDeskAttemptEvent).filter_by(attempt_id=attempt_id).count() == 0
     assert db.query(ServiceDeskAttemptGrade).filter_by(attempt_id=attempt_id).count() == 0
-    assert global_student_ownership_orphans(db) == {"service_desk_attempt_events": 0, "service_desk_attempt_grades": 0}
+    assert global_student_ownership_orphans(db) == {
+        "service_desk_attempt_events": 0,
+        "service_desk_attempt_grades": 0,
+        "v2_assessment_attempt_questions": 0,
+        "ai_grades": 0,
+        "mentor_grade_overrides": 0,
+    }
     assert db.connection().exec_driver_sql("PRAGMA foreign_key_check").all() == []
     assert {table: db.query(model).count() for table, model in {
         "lessons": Lesson, "quizzes": Quiz, "questions": Question, "lab_templates": LabTemplate,

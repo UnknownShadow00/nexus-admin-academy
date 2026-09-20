@@ -1,0 +1,214 @@
+scenarios:
+- stable_key: sd.aplus.security.mobile_secure_wifi_profile
+  title: Managed Phone Cannot Rejoin Secure Wi-Fi After Profile Update
+  description: The phone stopped joining the corporate secure SSID after an approved
+    Wi-Fi/certificate profile update.
+  category: service_desk
+  difficulty: 1
+  definition:
+    id: SD.APLUS.SECURITY.MOBILE_SECURE_WIFI_PROFILE
+    title: Managed Phone Cannot Rejoin Secure Wi-Fi After Profile Update
+    slug: sd.aplus.security.mobile_secure_wifi_profile
+    category: service_desk
+    priority: medium
+    difficulty: easy
+    pointValue: 100
+    explanation: Restore the approved managed Wi-Fi/certificate configuration or hand
+      off for authorized profile/certificate remediation while preserving corporate
+      wireless security and MDM compliance.
+    description:
+      issue: The phone stopped joining the corporate secure SSID after an approved
+        Wi-Fi/certificate profile update.
+      reportedByLine: Avery Cole
+      businessImpact: The coordinator cannot sync field work over the protected office
+        network.
+      troubleshooting:
+      - Personal hotspot works.
+      - Other corporate phones join the SSID.
+      - The device shows the SSID but authentication fails.
+      - MDM reports the device enrolled but the latest Wi-Fi profile is pending/failed.
+      - No widespread wireless outage is reported.
+      - The old certificate/profile is near expiration.
+      - Confirm scope, device identity/ownership, MDM compliance, SSID/security type,
+        profile/certificate status, time, and known-good comparison.
+      - Identify a device-specific managed Wi-Fi/certificate/profile mismatch rather
+        than a general wireless outage.
+      - Use the approved MDM/profile re-push, certificate renewal, or re-enrollment
+        workflow as authorized; do not downgrade wireless security or remove management
+        to bypass the issue.
+      - Device joins the secure SSID, authenticates, syncs the original field-work
+        service, and remains MDM-compliant.
+      - Record profile/certificate evidence, approved action, verification, and any
+        handoff.
+    requester:
+      name: Avery Cole
+      department: Field Operations
+      email: Not specified by approved curriculum package
+      contact: Not specified by approved curriculum package
+      location: Not specified by approved curriculum package
+    device:
+      assetTag: SD.APLUS.SECURITY.MOBILE_SECURE_WIFI_PROFILE
+      deviceName: FIELD-PH-17
+      kind: laptop
+      operatingSystem: Android Enterprise
+      state: active
+    sla:
+      dueAt: Not specified by approved curriculum package
+      target: medium
+    initialWorldState:
+      directoryOverlaySeeds: {}
+      assetOverlaySeeds: {}
+      chatMessageSeeds: []
+    objectives:
+    - id: professional-pending-or-completed-outcome
+      description: Restore the approved managed Wi-Fi/certificate configuration or
+        hand off for authorized profile/certificate remediation while preserving corporate
+        wireless security and MDM compliance.
+      predicateType: action_event_occurred
+      predicateParams:
+        actionType: ticket.add_note
+        payloadMatch:
+          ticketId: SD.APLUS.SECURITY.MOBILE_SECURE_WIFI_PROFILE
+      required: true
+      pointValue: 100
+    requiredActions:
+    - id: document-professional-outcome
+      actionType: ticket.add_note
+      description: Restore the approved managed Wi-Fi/certificate configuration or
+        hand off for authorized profile/certificate remediation while preserving corporate
+        wireless security and MDM compliance.
+      payloadMatch:
+        ticketId: SD.APLUS.SECURITY.MOBILE_SECURE_WIFI_PROFILE
+    forbiddenActions: []
+    hints:
+    - id: hint-01
+      order: 1
+      pointPenalty: 0
+      text: Because other managed phones still connect, start by narrowing the issue
+        to this device rather than changing the access point.
+    - id: hint-02
+      order: 2
+      pointPenalty: 5
+      text: Inspect the phone's MDM compliance, managed Wi-Fi profile, certificate
+        status, and device time; compare them with a working corporate phone.
+    - id: hint-03
+      order: 3
+      pointPenalty: 5
+      text: If the SSID and infrastructure are healthy but the updated profile/certificate
+        did not apply correctly, use the approved re-push/renewal/re-enrollment path
+        instead of weakening WPA settings or deleting management.
+    curriculum:
+      scenario_key: sd.aplus.security.mobile_secure_wifi_profile
+      title: Managed Phone Cannot Rejoin Secure Wi-Fi After Profile Update
+      module_key: module.aplus.core2.connected_endpoint_mobile_security
+      mode: learning
+      objectives:
+      - '2.3'
+      - '2.8'
+      - '3.3'
+      reinforcement_objectives:
+      - '3.2'
+      - '4.1'
+      - '4.7'
+      requester:
+        name: Avery Cole
+        department: Field Operations
+        role: Coordinator
+      device:
+        name: FIELD-PH-17
+        os: Android Enterprise
+        management: Corporate-owned, MDM-managed
+      ticket:
+        summary: The phone stopped joining the corporate secure SSID after an approved
+          Wi-Fi/certificate profile update.
+        business_impact: The coordinator cannot sync field work over the protected
+          office network.
+        reported_symptoms:
+        - Personal hotspot works.
+        - Other corporate phones join the SSID.
+        - The device shows the SSID but authentication fails.
+        starting_evidence:
+        - MDM reports the device enrolled but the latest Wi-Fi profile is pending/failed.
+        - No widespread wireless outage is reported.
+        - The old certificate/profile is near expiration.
+      stages:
+      - name: Investigation
+        expected:
+        - Confirm scope, device identity/ownership, MDM compliance, SSID/security
+          type, profile/certificate status, time, and known-good comparison.
+      - name: Diagnosis
+        expected:
+        - Identify a device-specific managed Wi-Fi/certificate/profile mismatch rather
+          than a general wireless outage.
+      - name: Remediation
+        expected:
+        - Use the approved MDM/profile re-push, certificate renewal, or re-enrollment
+          workflow as authorized; do not downgrade wireless security or remove management
+          to bypass the issue.
+      - name: Verification
+        expected:
+        - Device joins the secure SSID, authenticates, syncs the original field-work
+          service, and remains MDM-compliant.
+      - name: Documentation
+        expected:
+        - Record profile/certificate evidence, approved action, verification, and
+          any handoff.
+      hints:
+      - Because other managed phones still connect, start by narrowing the issue to
+        this device rather than changing the access point.
+      - Inspect the phone's MDM compliance, managed Wi-Fi profile, certificate status,
+        and device time; compare them with a working corporate phone.
+      - If the SSID and infrastructure are healthy but the updated profile/certificate
+        did not apply correctly, use the approved re-push/renewal/re-enrollment path
+        instead of weakening WPA settings or deleting management.
+      grading:
+        Investigation: 15
+        Diagnosis: 25
+        Remediation: 30
+        Verification: 20
+        Documentation: 10
+      grading_anchors:
+        Investigation: Scopes to one device and captures MDM/profile/certificate/security
+          evidence.
+        Diagnosis: Identifies managed profile/certificate authentication mismatch.
+        Remediation: Uses approved managed remediation; no downgrade/bypass.
+        Verification: Secure Wi-Fi and original sync task work; compliance remains
+          good.
+        Documentation: Clear evidence, action, outcome, and handoff if used.
+      intended_outcome: Restore the approved managed Wi-Fi/certificate configuration
+        or hand off for authorized profile/certificate remediation while preserving
+        corporate wireless security and MDM compliance.
+      unsafe_or_incorrect:
+      - Downgrade WPA security
+      - Remove MDM profile to bypass compliance
+      - Install an untrusted certificate
+      - Factory-reset before preserving evidence/backup
+      - Close after signal appears without testing authentication and business sync
+    rubric_dimensions:
+      Investigation:
+      - Confirm scope, device identity/ownership, MDM compliance, SSID/security type,
+        profile/certificate status, time, and known-good comparison.
+      Diagnosis:
+      - Identify a device-specific managed Wi-Fi/certificate/profile mismatch rather
+        than a general wireless outage.
+      Remediation:
+      - Use the approved MDM/profile re-push, certificate renewal, or re-enrollment
+        workflow as authorized; do not downgrade wireless security or remove management
+        to bypass the issue.
+      Verification:
+      - Device joins the secure SSID, authenticates, syncs the original field-work
+        service, and remains MDM-compliant.
+      Documentation:
+      - Record profile/certificate evidence, approved action, verification, and any
+        handoff.
+    grading_anchors:
+      Investigation: Scopes to one device and captures MDM/profile/certificate/security
+        evidence.
+      Diagnosis: Identifies managed profile/certificate authentication mismatch.
+      Remediation: Uses approved managed remediation; no downgrade/bypass.
+      Verification: Secure Wi-Fi and original sync task work; compliance remains good.
+      Documentation: Clear evidence, action, outcome, and handoff if used.
+    successful_professional_outcomes:
+    - Restore the approved managed Wi-Fi/certificate configuration or hand off for
+      authorized profile/certificate remediation while preserving corporate wireless
+      security and MDM compliance.

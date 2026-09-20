@@ -6,10 +6,13 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_ROOT="$REPO_ROOT/backend"
 BACKEND_PYTHON="$BACKEND_ROOT/.venv/bin/python"
 ENV_FILE="${NEXUS_ENV_FILE:-$BACKEND_ROOT/.env}"
+BACKEND_BASE_URL="${NEXUS_BACKEND_URL:-http://127.0.0.1:8000}"
+BACKEND_BASE_URL="${BACKEND_BASE_URL%/}"
 FAILED=0
 
 pass() { printf 'PASS: %s\n' "$1"; }
 fail() { printf 'FAIL: %s\n' "$1" >&2; FAILED=1; }
+warn() { printf 'WARN: %s\n' "$1" >&2; }
 info() { printf 'INFO: %s\n' "$1"; }
 read_env_value() {
     python3 - "$ENV_FILE" "$1" <<'PY'
@@ -49,11 +52,41 @@ service_desk_container_ok() {
     esac
 }
 
+service_desk_contract_ok() {
+    local backend_base="${1:-$BACKEND_BASE_URL}"
+    local service_desk_base="${2:-http://127.0.0.1:13000}"
+    local backend_payload service_desk_payload
+    backend_base="${backend_base%/}"
+    service_desk_base="${service_desk_base%/}"
+    backend_payload="$(curl --fail --silent --show-error \
+        "$backend_base/api/service-desk/contract")" \
+        || { printf 'backend contract endpoint unavailable'; return 1; }
+    service_desk_payload="$(curl --fail --silent --show-error \
+        "$service_desk_base/service-desk/api/health")" \
+        || { printf 'Service Desk contract endpoint unavailable'; return 1; }
+    "${CONTRACT_GATE_PYTHON:-python3}" "$REPO_ROOT/scripts/service_desk_contract_gate.py" \
+        --backend-json "$backend_payload" --service-desk-json "$service_desk_payload"
+}
+
+backend_health_ok() {
+    local backend_base="${1:-$BACKEND_BASE_URL}"
+    backend_base="${backend_base%/}"
+    curl --fail --silent --show-error "$backend_base/health"
+}
+
 # Allow `PREDEPLOY_CHECK_SOURCED=1 source predeploy_check.sh` in tests to load
 # the helpers above without executing the gate.
 if [ "${PREDEPLOY_CHECK_SOURCED:-0}" = "1" ]; then
     return 0 2>/dev/null || exit 0
 fi
+
+REQUIRE_LIVE_CONTRACT="${NEXUS_REQUIRE_LIVE_CONTRACT:-0}"
+for argument in "$@"; do
+    case "$argument" in
+        --require-live-contract) REQUIRE_LIVE_CONTRACT=1 ;;
+        *) printf 'Unknown argument: %s\n' "$argument" >&2; exit 2 ;;
+    esac
+done
 
 cd "$REPO_ROOT"
 info "branch $(git branch --show-current) at $(git rev-parse --short=12 HEAD)"
@@ -137,6 +170,11 @@ for command in python3 gzip tar docker curl; do
 done
 if [ -x "$BACKEND_PYTHON" ]; then pass "backend virtual environment is available"; else fail "backend virtual environment is missing"; fi
 if [ -x "$REPO_ROOT/scripts/backup_sqlite.sh" ]; then pass "SQLite backup script is executable"; else fail "SQLite backup script is not executable"; fi
+if CONTRACT_SOURCE_STATUS="$(python3 "$REPO_ROOT/scripts/service_desk_contract_gate.py" --candidate-root "$REPO_ROOT")"; then
+    pass "$CONTRACT_SOURCE_STATUS"
+else
+    fail "$CONTRACT_SOURCE_STATUS"
+fi
 
 if [ -x "$BACKEND_PYTHON" ]; then
     # Use the venv interpreter as a module from backend/. Unlike the generated
@@ -177,7 +215,18 @@ if [ -x "$BACKEND_PYTHON" ]; then
 fi
 
 AVAILABLE_KB="$(df -Pk "$REPO_ROOT" | awk 'NR==2 {print $4}')"
-if [ "$AVAILABLE_KB" -ge 2097152 ]; then pass "at least 2 GiB of disk space is available"; else fail "less than 2 GiB of disk space is available"; fi
+AVAILABLE_GIB="$(awk -v kb="$AVAILABLE_KB" 'BEGIN {printf "%.1f", kb/1048576}')"
+if [ "$AVAILABLE_KB" -lt 2097152 ]; then
+    fail "only ${AVAILABLE_GIB} GiB is available; a deploy needs at least 2 GiB"
+elif [ "$AVAILABLE_KB" -lt 4194304 ]; then
+    pass "${AVAILABLE_GIB} GiB is above the 2 GiB hard minimum"
+    warn "2–4 GiB is low headroom; free space before rebuilding images. Never prune Docker automatically."
+elif [ "$AVAILABLE_KB" -lt 8388608 ]; then
+    pass "${AVAILABLE_GIB} GiB is acceptable (at least 4 GiB)"
+    info "8 GiB or more is recommended for a rebuild or cutover"
+else
+    pass "${AVAILABLE_GIB} GiB is recommended rebuild/cutover headroom"
+fi
 
 if [ -f "$REPO_ROOT/frontend/dist/index.html" ]; then pass "frontend production build exists"; else fail "frontend production build is missing"; fi
 if SD_CONTAINER_STATUS="$(service_desk_container_ok nexus-service-desk)"; then
@@ -207,8 +256,17 @@ if docker inspect nexus-service-desk >/dev/null 2>&1; then
 else
     fail "Service Desk container is missing"
 fi
-if curl --fail --silent --show-error http://127.0.0.1:8000/health >/dev/null; then pass "backend health endpoint responds"; else fail "backend health endpoint failed"; fi
+if backend_health_ok "$BACKEND_BASE_URL" >/dev/null; then pass "backend health endpoint responds"; else fail "backend health endpoint failed"; fi
 if curl --fail --silent --show-error http://127.0.0.1:13000/service-desk/api/health >/dev/null; then pass "Service Desk health endpoint responds"; else fail "Service Desk health endpoint failed"; fi
+if CONTRACT_STATUS="$(service_desk_contract_ok \
+    "$BACKEND_BASE_URL" \
+    "${NEXUS_SERVICE_DESK_URL:-http://127.0.0.1:13000}")"; then
+    pass "CURRENT-LIVE $CONTRACT_STATUS"
+elif [ "$REQUIRE_LIVE_CONTRACT" = "1" ]; then
+    fail "CANDIDATE/POST-DEPLOY contract check: $CONTRACT_STATUS"
+else
+    warn "CURRENT-LIVE contract incompatibility (informational before coordinated replacement): $CONTRACT_STATUS"
+fi
 
 if [ "$FAILED" -ne 0 ]; then
     printf 'PREDEPLOY CHECK FAILED\n' >&2

@@ -1,0 +1,205 @@
+resources:
+- resource_key: res.aplus.network.common_ports
+  title: Common Ports (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/common-ports-220-1201/
+  provider: Professor Messer
+  duration: '12:52'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.network.ports_protocols
+    module_key: module.aplus.core1.network_services_troubleshooting
+    required: true
+    order: 1
+- resource_key: res.aplus.network.wireless
+  title: Wireless Network Technologies (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/wireless-network-technologies-220-1201/
+  provider: Professor Messer
+  duration: '7:16'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.network.wireless
+    module_key: module.aplus.core1.network_services_troubleshooting
+    required: true
+    order: 1
+- resource_key: res.aplus.network.services
+  title: Network Services (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/network-services-220-1201/
+  provider: Professor Messer
+  duration: '17:03'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.network.host_services
+    module_key: module.aplus.core1.network_services_troubleshooting
+    required: true
+    order: 1
+- resource_key: res.aplus.network.vlans_vpns
+  title: VLANs and VPNs (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/vlans-and-vpns-220-1201/
+  provider: Professor Messer
+  duration: '7:32'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Required deep-dive video; DNS/DHCP are already prerequisites from
+    Module 1.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.network.dns_dhcp_vlan_vpn
+    module_key: module.aplus.core1.network_services_troubleshooting
+    required: true
+    order: 1
+- resource_key: res.aplus.network.dns_review
+  title: DNS Configuration (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/dns-configuration-220-1201/
+  provider: Professor Messer
+  duration: '18:18'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Optional refresher; avoids forcing students to repeat Module 1 fundamentals.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.network.dns_dhcp_vlan_vpn
+    module_key: module.aplus.core1.network_services_troubleshooting
+    required: false
+    order: 2
+- resource_key: res.aplus.network.dhcp_review
+  title: DHCP (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/dhcp-220-1201/
+  provider: Professor Messer
+  duration: '10:46'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Optional refresher; not required duplication of Module 1.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.network.dns_dhcp_vlan_vpn
+    module_key: module.aplus.core1.network_services_troubleshooting
+    required: false
+    order: 3
+- resource_key: res.aplus.network.devices
+  title: Network Devices (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/network-devices-220-1201/
+  provider: Professor Messer
+  duration: '18:01'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.network.devices_poe
+    module_key: module.aplus.core1.network_services_troubleshooting
+    required: true
+    order: 1
+- resource_key: res.aplus.network.internet_types
+  title: Internet Connection Types (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/internet-connection-types-220-1201/
+  provider: Professor Messer
+  duration: '7:33'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.network.connections_types_tools
+    module_key: module.aplus.core1.network_services_troubleshooting
+    required: true
+    order: 1
+- resource_key: res.aplus.network.tools
+  title: Network Tools (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/network-tools-220-1201/
+  provider: Professor Messer
+  duration: '11:48'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.network.connections_types_tools
+    module_key: module.aplus.core1.network_services_troubleshooting
+    required: true
+    order: 2
+- resource_key: res.aplus.network.network_types
+  title: Network Types (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/network-types-220-1201/
+  provider: Professor Messer
+  duration: '4:46'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Optional terminology reinforcement.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.network.connections_types_tools
+    module_key: module.aplus.core1.network_services_troubleshooting
+    required: false
+    order: 3
+- resource_key: res.aplus.network.troubleshooting
+  title: Troubleshooting Networks (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/troubleshooting-networks-220-1201/
+  provider: Professor Messer
+  duration: '15:14'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Required troubleshooting spine; linked, not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.network.troubleshooting
+    module_key: module.aplus.core1.network_services_troubleshooting
+    required: true
+    order: 1
+- resource_key: res.aplus.network.crucial_practice
+  title: CompTIA A+ 220-1201 V15 Practice Tests
+  resource_type: external_practice
+  url: https://crucialexams.com/exams/comptia/a/220-1201/practice-tests-practice-questions
+  provider: Crucial Exams
+  duration: optional practice
+  certification_version: comptia_aplus_220-1201
+  source_name: Crucial Exams 220-1201 V15
+  source_url: https://crucialexams.com/exams/comptia/a/220-1201/practice-tests-practice-questions
+  permission_status: permitted
+  license_note: Optional practice; no page content rehosted.
+  active: true
+  links:
+  - module_key: module.aplus.core1.network_services_troubleshooting
+    required: false
+    order: 99

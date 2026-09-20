@@ -1,0 +1,222 @@
+scenarios:
+- stable_key: sd.aplus.windows_admin.project_share_after_vpn
+  title: Project Share Fails After VPN Reconnect
+  description: 'Mapped P: drive fails after reconnecting to VPN'
+  category: service_desk
+  difficulty: 1
+  definition:
+    id: SD.APLUS.WINDOWS_ADMIN.PROJECT_SHARE_AFTER_VPN
+    title: Project Share Fails After VPN Reconnect
+    slug: sd.aplus.windows_admin.project_share_after_vpn
+    category: service_desk
+    priority: medium
+    difficulty: easy
+    pointValue: 100
+    explanation: 'Authorized technician remaps P: to the approved current share and
+      verifies the original workflow
+
+      Technician without mapping-change authority documents evidence and hands off/pends
+      correctly'
+    description:
+      issue: 'Mapped P: drive fails after reconnecting to VPN'
+      reportedByLine: Jordan Lee
+      businessImpact: User can work locally but cannot open the team project folder
+        through the usual mapped drive.
+      troubleshooting:
+      - VPN client shows connected
+      - Internet access works
+      - 'P: returns path unavailable'
+      - Approved share path is \\files01\Projects
+      - nslookup files01.example succeeds
+      - Direct \\files01\Projects opens
+      - 'net use shows P: mapped to \\oldfiles\Projects'
+      - Confirm requester/device and exact failing workflow
+      - Inspect VPN state and existing mapping
+      - Use direct UNC/DNS evidence rather than assuming the server is down
+      - 'Identify P: as a stale saved mapping to the retired server'
+      - Rule out broad VPN/DNS/file-server outage from supplied evidence
+      - Verify the approved current share path
+      - Remove/recreate the mapping only if role/approval permits
+      - Otherwise hand off with complete evidence
+      - 'Open P: after remediation or confirm corrected mapping by authorized staff'
+      - Retest the user’s original project-folder workflow
+      - Record old and approved share paths
+      - Record commands/evidence used
+      - Record remediation or handoff and verification result
+    requester:
+      name: Jordan Lee
+      department: Project Operations
+      email: Not specified by approved curriculum package
+      contact: Not specified by approved curriculum package
+      location: Not specified by approved curriculum package
+    device:
+      assetTag: SD.APLUS.WINDOWS_ADMIN.PROJECT_SHARE_AFTER_VPN
+      deviceName: PROJ-LT-22
+      kind: laptop
+      operatingSystem: Windows 11 Pro
+      state: active
+    sla:
+      dueAt: Not specified by approved curriculum package
+      target: medium
+    initialWorldState:
+      directoryOverlaySeeds: {}
+      assetOverlaySeeds: {}
+      chatMessageSeeds: []
+    objectives:
+    - id: professional-pending-or-completed-outcome
+      description: 'Authorized technician remaps P: to the approved current share
+        and verifies the original workflow
+
+        Technician without mapping-change authority documents evidence and hands off/pends
+        correctly'
+      predicateType: action_event_occurred
+      predicateParams:
+        actionType: ticket.add_note
+        payloadMatch:
+          ticketId: SD.APLUS.WINDOWS_ADMIN.PROJECT_SHARE_AFTER_VPN
+      required: true
+      pointValue: 100
+    requiredActions:
+    - id: document-professional-outcome
+      actionType: ticket.add_note
+      description: 'Authorized technician remaps P: to the approved current share
+        and verifies the original workflow
+
+        Technician without mapping-change authority documents evidence and hands off/pends
+        correctly'
+      payloadMatch:
+        ticketId: SD.APLUS.WINDOWS_ADMIN.PROJECT_SHARE_AFTER_VPN
+    forbiddenActions: []
+    hints:
+    - id: hint-01
+      order: 1
+      pointPenalty: 0
+      text: 'Start by comparing what works through the VPN with what specifically
+        fails. Test the approved project share directly and inspect the existing P:
+        mapping before treating this as a VPN or file-server outage.'
+    - id: hint-02
+      order: 2
+      pointPenalty: 5
+      text: Use `net use` to inspect the target currently saved for P:, then compare
+        that target with the approved UNC path `\\files01\Projects` from the ticket
+        evidence.
+    - id: hint-03
+      order: 3
+      pointPenalty: 5
+      text: 'If the approved UNC path opens but P: targets a different or retired
+        path, focus on correcting that stale mapping if you are authorized—or hand
+        it off with the evidence if you are not—then retest P: and the user''s original
+        project-folder workflow.'
+    curriculum:
+      scenario_key: sd.aplus.windows_admin.project_share_after_vpn
+      title: Project Share Fails After VPN Reconnect
+      module_key: module.aplus.core2.windows_admin_cli_networking
+      mode: learning
+      objectives:
+      - '1.5'
+      - '1.7'
+      requester:
+        name: Jordan Lee
+        department: Project Operations
+        role: Project Coordinator
+      device:
+        name: PROJ-LT-22
+        os: Windows 11 Pro
+      ticket:
+        summary: 'Mapped P: drive fails after reconnecting to VPN'
+        business_impact: User can work locally but cannot open the team project folder
+          through the usual mapped drive.
+        reported_symptoms:
+        - VPN client shows connected
+        - Internet access works
+        - 'P: returns path unavailable'
+        starting_evidence:
+        - Approved share path is \\files01\Projects
+        - nslookup files01.example succeeds
+        - Direct \\files01\Projects opens
+        - 'net use shows P: mapped to \\oldfiles\Projects'
+      stages:
+      - stage: Investigation
+        required_actions:
+        - Confirm requester/device and exact failing workflow
+        - Inspect VPN state and existing mapping
+        - Use direct UNC/DNS evidence rather than assuming the server is down
+      - stage: Diagnosis
+        required_actions:
+        - 'Identify P: as a stale saved mapping to the retired server'
+        - Rule out broad VPN/DNS/file-server outage from supplied evidence
+      - stage: Remediation
+        required_actions:
+        - Verify the approved current share path
+        - Remove/recreate the mapping only if role/approval permits
+        - Otherwise hand off with complete evidence
+      - stage: Verification
+        required_actions:
+        - 'Open P: after remediation or confirm corrected mapping by authorized staff'
+        - Retest the user’s original project-folder workflow
+      - stage: Documentation
+        required_actions:
+        - Record old and approved share paths
+        - Record commands/evidence used
+        - Record remediation or handoff and verification result
+      correct_outcomes:
+      - 'Authorized technician remaps P: to the approved current share and verifies
+        the original workflow'
+      - Technician without mapping-change authority documents evidence and hands off/pends
+        correctly
+      unsafe_or_incorrect:
+      - Disable the firewall
+      - Reset all networking because one mapping is stale
+      - Grant new share permissions without evidence/approval
+      - Close without verification
+      reinforces:
+      - Module 5 documentation/authorization
+      - Module 7 DNS/connectivity evidence
+      hints:
+      - 'Start by comparing what works through the VPN with what specifically fails.
+        Test the approved project share directly and inspect the existing P: mapping
+        before treating this as a VPN or file-server outage.'
+      - Use `net use` to inspect the target currently saved for P:, then compare that
+        target with the approved UNC path `\\files01\Projects` from the ticket evidence.
+      - 'If the approved UNC path opens but P: targets a different or retired path,
+        focus on correcting that stale mapping if you are authorized—or hand it off
+        with the evidence if you are not—then retest P: and the user''s original project-folder
+        workflow.'
+    rubric_dimensions:
+      Investigation:
+      - Confirm requester/device and exact failing workflow
+      - Inspect VPN state and existing mapping
+      - Use direct UNC/DNS evidence rather than assuming the server is down
+      Diagnosis:
+      - 'Identify P: as a stale saved mapping to the retired server'
+      - Rule out broad VPN/DNS/file-server outage from supplied evidence
+      Remediation:
+      - Verify the approved current share path
+      - Remove/recreate the mapping only if role/approval permits
+      - Otherwise hand off with complete evidence
+      Verification:
+      - 'Open P: after remediation or confirm corrected mapping by authorized staff'
+      - Retest the user’s original project-folder workflow
+      Documentation:
+      - Record old and approved share paths
+      - Record commands/evidence used
+      - Record remediation or handoff and verification result
+    grading_anchors:
+    - Confirm requester/device and exact failing workflow
+    - Inspect VPN state and existing mapping
+    - Use direct UNC/DNS evidence rather than assuming the server is down
+    - 'Identify P: as a stale saved mapping to the retired server'
+    - Rule out broad VPN/DNS/file-server outage from supplied evidence
+    - Verify the approved current share path
+    - Remove/recreate the mapping only if role/approval permits
+    - Otherwise hand off with complete evidence
+    - 'Open P: after remediation or confirm corrected mapping by authorized staff'
+    - Retest the user’s original project-folder workflow
+    - Record old and approved share paths
+    - Record commands/evidence used
+    - Record remediation or handoff and verification result
+    successful_professional_outcomes:
+    - 'Authorized technician remaps P: to the approved current share and verifies
+      the original workflow'
+    - Technician without mapping-change authority documents evidence and hands off/pends
+      correctly

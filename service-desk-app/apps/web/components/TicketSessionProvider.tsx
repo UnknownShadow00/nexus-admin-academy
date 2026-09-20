@@ -12,6 +12,7 @@ import {
   PcShelfDeviceState,
   REMOTE_DESKTOP_WORKSTATION_FIXTURES,
   getRemoteDesktopScenarioByAsset,
+  getRemoteDesktopScenarioByTicket,
   getRemoteDesktopTerminalFixture,
   SERVER_ROOM_NODE_FIXTURES,
   type RemoteDesktopNetworkStatus,
@@ -42,6 +43,8 @@ import {
   applyAction,
   derivedRemoteDesktopWorkflowAction,
   createAttempt,
+  createInitialPcShelfOverlays,
+  createInitialServerRoomOverlays,
   createWorkstationState,
   deriveAnalyticsSummary,
   derivePastTickets,
@@ -100,7 +103,12 @@ import {
   type NexusGrade,
   type NexusServiceDeskProgression,
   type NexusAttemptCompletionInput,
+  type NexusWorkspaceView,
 } from '../lib/nexus-service-desk-client';
+import {
+  EXPECTED_NEXUS_SERVICE_DESK_CONTRACT,
+  NEXUS_SERVICE_DESK_CONTRACT_HEADER,
+} from '../lib/service-desk-contract';
 import {
   outboxStatus,
   readNexusOutbox,
@@ -116,12 +124,25 @@ interface TicketSessionContextValue {
   closeTicket: (
     ticketId: string,
     options: { resolutionNote: string; verifiedResolved: boolean },
+  ) => ActionEvent;
+  escalateTicket: (
+    ticketId: string,
+    details: { reason: string; routeTeam: string; context?: string },
   ) => void;
-  escalateTicket: (ticketId: string) => void;
   getTicket: (ticketId: string) => Ticket | undefined;
+  getAttemptIdentity: (ticketId: string) => Readonly<NexusTicketMapping> | undefined;
   recordHintReveal: (ticketId: string, step: number) => void;
+  /**
+   * Begin the next server-owned attempt for a ticket after a failed one.
+   * Resolves false when the server refuses (for example the maximum-attempts
+   * ceiling has been reached) so the caller can keep the debrief on screen.
+   */
+  startNextAttempt: (ticketId: string) => Promise<boolean>;
+  submitResolutionNote: (ticketId: string, body: string) => Promise<{ success: boolean }>;
+  awaitingGradeByTicket: Readonly<Record<string, boolean>>;
   assignmentByTicket: Readonly<Record<string, NexusAssignment>>;
   authoritativeGradeByTicket: Readonly<Record<string, NexusGrade>>;
+  workspaceViewByTicket: Readonly<Record<string, NexusWorkspaceView>>;
   progression: NexusServiceDeskProgression | null;
   tickets: readonly Ticket[];
   unassignTicket: (ticketId: string) => void;
@@ -636,6 +657,33 @@ export function normalizeTicketKey(value: string): string {
   return value.toUpperCase();
 }
 
+export function resolutionNoteAction(
+  ticketId: string,
+  body: string,
+  documentationTarget: NexusWorkspaceView['documentation_target'],
+  assetTag?: string,
+): SimulationAction | null {
+  if (documentationTarget === 'remote_desktop') {
+    return assetTag
+      ? {
+          type: 'remote_desktop.add_internal_note',
+          payload: { assetTag, ticketId, text: body },
+        }
+      : null;
+  }
+  return { type: 'ticket.add_note', payload: { ticketId, body } };
+}
+
+export function documentationTargetForTicket(
+  ticketId: string,
+  serverTarget?: NexusWorkspaceView['documentation_target'],
+): NexusWorkspaceView['documentation_target'] {
+  if (serverTarget) return serverTarget;
+  return getRemoteDesktopScenarioByTicket(ticketId)?.workflow
+    ? 'remote_desktop'
+    : 'ticket';
+}
+
 function isDirectorySimulationAction(
   action: SimulationAction,
 ): action is DirectorySimulationAction {
@@ -788,6 +836,99 @@ export function getNexusActionSyncDetails(
   };
 }
 
+function eventBelongsToTicket(
+  event: ActionEvent,
+  ticketId: string,
+): boolean {
+  if (normalizeTicketKey(String(event.payload.ticketId ?? '')) === ticketId) {
+    return true;
+  }
+  const directoryTicket = DIRECTORY_TICKET_BY_USER_ID[
+    String(event.payload.directoryUserId ?? '')
+  ];
+  const assetTicket = ASSET_TICKET_BY_TAG[String(event.payload.assetTag ?? '')];
+  const shippingTicket = SHIPPING_TICKET_BY_RECIPIENT[
+    String(event.payload.recipientDirectoryUserId ?? '')
+  ];
+  const remoteTicket = getRemoteDesktopScenarioByAsset(
+    String(event.payload.assetTag ?? ''),
+  )?.ticketId;
+  return [directoryTicket, assetTicket, shippingTicket, remoteTicket].some(
+    (candidate) => normalizeTicketKey(candidate ?? '') === ticketId,
+  );
+}
+
+/** Restore every simulator surface touched by one ticket to its fixture state. */
+export function resetTicketStateForRetry(
+  attempt: Attempt,
+  rawTicketId: string,
+): Attempt {
+  const ticketId = normalizeTicketKey(rawTicketId);
+  const touched = (events: readonly ActionEvent[]) =>
+    events.some((event) => eventBelongsToTicket(event, ticketId));
+  const withoutTouched = <T extends { events: readonly ActionEvent[] }>(
+    rows: Readonly<Record<string, T>>,
+  ): Record<string, T> =>
+    Object.fromEntries(
+      Object.entries(rows).filter(([, row]) => !touched(row.events)),
+    );
+
+  const ticketOverlays = { ...attempt.ticketOverlays };
+  delete ticketOverlays[ticketId];
+  const grades = { ...attempt.grades };
+  delete grades[ticketId];
+
+  const pristinePcShelf = createInitialPcShelfOverlays();
+  const pcShelfOverlays = { ...attempt.pcShelfOverlays };
+  for (const [key, row] of Object.entries(pcShelfOverlays)) {
+    if (touched(row.events)) {
+      const pristine = pristinePcShelf[key];
+      if (pristine) pcShelfOverlays[key] = pristine;
+      else delete pcShelfOverlays[key];
+    }
+  }
+  const pristineServerRoom = createInitialServerRoomOverlays();
+  const serverRoomOverlays = { ...attempt.serverRoomOverlays };
+  for (const [key, row] of Object.entries(serverRoomOverlays)) {
+    if (touched(row.events)) {
+      const pristine = pristineServerRoom[key];
+      if (pristine) serverRoomOverlays[key] = pristine;
+      else delete serverRoomOverlays[key];
+    }
+  }
+
+  const remoteDesktopOverlays = { ...attempt.remoteDesktopOverlays };
+  const scenario = getRemoteDesktopScenarioByTicket(ticketId);
+  if (scenario) delete remoteDesktopOverlays[scenario.assetTag];
+  for (const [key, row] of Object.entries(remoteDesktopOverlays)) {
+    if (touched(row.events)) delete remoteDesktopOverlays[key];
+  }
+
+  const deploymentRuns = withoutTouched(attempt.deploymentRuns);
+  const shipments = withoutTouched(attempt.shipments);
+  return {
+    ...attempt,
+    ticketOverlays,
+    grades,
+    directoryOverlays: withoutTouched(attempt.directoryOverlays),
+    chatThreads: withoutTouched(attempt.chatThreads),
+    assetOverlays: withoutTouched(attempt.assetOverlays),
+    pcShelfOverlays,
+    deploymentRuns,
+    activeDeploymentRunId:
+      attempt.activeDeploymentRunId && deploymentRuns[attempt.activeDeploymentRunId]
+        ? attempt.activeDeploymentRunId
+        : null,
+    shipments,
+    lastShippingAddress:
+      Object.keys(shipments).length === Object.keys(attempt.shipments).length
+        ? attempt.lastShippingAddress
+        : null,
+    serverRoomOverlays,
+    remoteDesktopOverlays,
+  };
+}
+
 function getUnattributedNexusActionWarningKey(
   action: SimulationAction,
 ): string | null {
@@ -804,6 +945,29 @@ function getUnattributedNexusActionWarningKey(
   }
 
   return null;
+}
+
+export function selectAssignmentsByTicket(
+  assignments: readonly NexusAssignment[],
+): readonly NexusAssignment[] {
+  const selected = new Map<string, NexusAssignment>();
+  for (const assignment of assignments) {
+    const ticket = normalizeTicketKey(assignment.scenario.stable_key);
+    const current = selected.get(ticket);
+    const desiredMode = assignment.guided_completed ? 'simulation' : 'learning';
+    const isDesired = assignment.mode === desiredMode;
+    const currentIsDesired = current?.mode === desiredMode;
+    if (
+      !current ||
+      (isDesired && !currentIsDesired) ||
+      (isDesired === currentIsDesired &&
+        assignment.most_recent_attempt?.status === 'in_progress' &&
+        current.most_recent_attempt?.status !== 'in_progress')
+    ) {
+      selected.set(ticket, assignment);
+    }
+  }
+  return [...selected.values()];
 }
 
 function mapAssignmentsByTicket(
@@ -830,7 +994,11 @@ function syncNexusProgress(event: NexusProgressEvent) {
   void fetch('/api/service-desk/progress', {
     body: JSON.stringify(event),
     credentials: 'same-origin',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      [NEXUS_SERVICE_DESK_CONTRACT_HEADER]:
+        EXPECTED_NEXUS_SERVICE_DESK_CONTRACT,
+    },
     keepalive: true,
     method: 'POST',
   })
@@ -985,7 +1153,9 @@ export function ticketsForAssignments(
       ) {
         return [];
       }
-      const legacy = definition.id === expectedId;
+      const legacy =
+        definition.id === expectedId &&
+        Object.values(TicketStatus).includes(definition.status as TicketStatus);
       const projected = legacy
         ? definition
         : {
@@ -1112,9 +1282,39 @@ function projectRemoteDesktopWorkstations(
 ): RemoteDesktopWorkstationRecord[] {
   return REMOTE_DESKTOP_WORKSTATION_FIXTURES.map((fixture) => {
     const overlay = attempt.remoteDesktopOverlays[fixture.assetTag];
+    const machine =
+      overlay?.workstation ?? createWorkstationState(fixture.assetTag);
+    const storage = machine.storage;
 
     return {
       ...fixture,
+      drives: machine.realism
+        ? fixture.drives
+            .filter((drive) => drive.kind === 'local')
+            .map((drive) => ({
+              ...drive,
+              ...(storage
+                ? {
+                    totalGb: storage.capacityBytes / 1024 ** 3,
+                    freeGb: storage.freeBytes / 1024 ** 3,
+                  }
+                : {}),
+              entries: Object.values(machine.filesystem.nodes)
+                .filter(
+                  (node) => node.kind === 'file' || node.kind === 'folder',
+                )
+                .map((node) => ({
+                  kind: node.kind as 'file' | 'folder',
+                  name: node.name,
+                  path: node.path,
+                  modifiedAt: node.modifiedAt ?? '',
+                  size:
+                    node.sizeBytes === null
+                      ? undefined
+                      : `${node.sizeBytes} bytes`,
+                })),
+            }))
+        : fixture.drives,
       workstation:
         overlay?.workstation ?? createWorkstationState(fixture.assetTag),
       completedScenarioIds: overlay?.completedScenarioIds ?? [],
@@ -1254,6 +1454,9 @@ export function TicketSessionProvider({
   const [runtimeAssignments, setRuntimeAssignments] = useState<
     Readonly<Record<string, NexusAssignment>>
   >({});
+  const [workspaceViewByTicket, setWorkspaceViewByTicket] = useState<
+    Readonly<Record<string, NexusWorkspaceView>>
+  >({});
   const [serviceDeskProgression, setServiceDeskProgression] =
     useState<NexusServiceDeskProgression | null>(null);
   const storageKey =
@@ -1379,14 +1582,29 @@ export function TicketSessionProvider({
           return;
         }
 
-        const mappings = mapAssignmentsByTicket(assignments);
-        setRuntimeTickets(ticketsForAssignments(assignments));
+        const selectedAssignments = selectAssignmentsByTicket(assignments);
+        const mappings = mapAssignmentsByTicket(selectedAssignments);
+        setRuntimeTickets(ticketsForAssignments(selectedAssignments));
         setRuntimeAssignments(
           Object.fromEntries(
-            assignments.map((assignment) => [
+            selectedAssignments.map((assignment) => [
               normalizeTicketKey(assignment.scenario.stable_key),
               assignment,
             ]),
+          ),
+        );
+        setWorkspaceViewByTicket(
+          Object.fromEntries(
+            selectedAssignments.flatMap((assignment) =>
+              assignment.workspace_view
+                ? [
+                    [
+                      normalizeTicketKey(assignment.scenario.stable_key),
+                      assignment.workspace_view,
+                    ],
+                  ]
+                : [],
+            ),
           ),
         );
         setServiceDeskProgression(progression);
@@ -1419,7 +1637,7 @@ export function TicketSessionProvider({
           );
         };
 
-        for (const assignment of assignments) {
+        for (const assignment of selectedAssignments) {
           const recentAttempt = assignment.most_recent_attempt;
           if (!recentAttempt || recentAttempt.status !== 'in_progress') {
             continue;
@@ -1431,6 +1649,13 @@ export function TicketSessionProvider({
           }
 
           const currentState = nexusAttempt?.current_state;
+          if (nexusAttempt?.workspace_view) {
+            const ticketId = normalizeTicketKey(assignment.scenario.stable_key);
+            setWorkspaceViewByTicket((current) => ({
+              ...current,
+              [ticketId]: nexusAttempt.workspace_view!,
+            }));
+          }
           if (
             nexusAttempt &&
             (!newestNexusAttempt ||
@@ -1483,9 +1708,15 @@ export function TicketSessionProvider({
         }
 
         const completedGrades: Record<string, NexusGrade> = {};
-        for (const assignment of assignments) {
+        for (const assignment of selectedAssignments) {
           const recentAttempt = assignment.most_recent_attempt;
-          if (!recentAttempt || recentAttempt.status !== 'completed') {
+          // A finished attempt is completed OR failed; both carry an
+          // authoritative grade + debrief and must survive a reload.
+          if (
+            !recentAttempt ||
+            (recentAttempt.status !== 'completed' &&
+              recentAttempt.status !== 'failed')
+          ) {
             continue;
           }
           const completedAttempt = await getAttempt(recentAttempt.id);
@@ -1496,6 +1727,13 @@ export function TicketSessionProvider({
             completedGrades[
               normalizeTicketKey(assignment.scenario.stable_key)
             ] = completedAttempt.grade;
+          }
+          if (completedAttempt?.workspace_view) {
+            setWorkspaceViewByTicket((current) => ({
+              ...current,
+              [normalizeTicketKey(assignment.scenario.stable_key)]:
+                completedAttempt.workspace_view!,
+            }));
           }
         }
         if (Object.keys(completedGrades).length > 0) {
@@ -1525,6 +1763,7 @@ export function TicketSessionProvider({
         nexusSnapshotTargetRef.current = null;
         setRuntimeTickets(TICKET_FIXTURES);
         setRuntimeAssignments({});
+        setWorkspaceViewByTicket({});
         setServiceDeskProgression(null);
       }
 
@@ -1603,6 +1842,18 @@ export function TicketSessionProvider({
                 });
         if (!accepted)
           throw new Error('Nexus did not confirm the saved action.');
+        const refreshedAttempt = await getAttempt(attemptId);
+        // Mirror only the server-issued identity; tools never create attempts.
+        nexusTicketMappingsRef.current[item.ticketId] = {
+          assignmentId: item.assignmentId,
+          attemptId,
+        };
+        if (refreshedAttempt?.workspace_view) {
+          setWorkspaceViewByTicket((current) => ({
+            ...current,
+            [item.ticketId]: refreshedAttempt.workspace_view!,
+          }));
+        }
         if (item.completion) {
           const grade = await completeAttempt(attemptId, item.completion);
           if (!grade) {
@@ -2010,10 +2261,71 @@ export function TicketSessionProvider({
     [actorId, attempt, runtimeTickets],
   );
 
+  /**
+   * Fix 1 (P0): start the next legitimate attempt after a failed one.
+   *
+   * The SERVER owns attempt numbering and the maximum-attempts ceiling - this
+   * only calls the existing `POST /assignments/{id}/attempts` endpoint
+   * (`service_desk.start_attempt`) and then clears the *attempt-scoped* client
+   * state for this one ticket, so attempt N+1 opens clean. Assignment,
+   * progression and cross-ticket world state are deliberately untouched, and
+   * the previous attempt keeps its grade on the server as history.
+   */
+  const startNextAttempt = useCallback(
+    async (ticketId: string): Promise<boolean> => {
+      const assignment = runtimeAssignments[ticketId];
+      if (!NEXUS_INTEGRATION_ENABLED || !assignment) {
+        return false;
+      }
+
+      // A 403 at the attempt ceiling (or any other refusal) surfaces as null.
+      const started = await startOrResumeAttempt(assignment.id);
+      if (!started) {
+        return false;
+      }
+      const refreshed = await getAttempt(started.id);
+
+      nexusTicketMappingsRef.current = {
+        ...nexusTicketMappingsRef.current,
+        [ticketId]: { assignmentId: assignment.id, attemptId: started.id },
+      };
+      nexusSnapshotTargetRef.current = {
+        assignmentId: assignment.id,
+        attemptId: started.id,
+      };
+
+      setAuthoritativeGradeByTicket((current) => {
+        const next = { ...current };
+        delete next[ticketId];
+        return next;
+      });
+      setWorkspaceViewByTicket((current) => {
+        const next = { ...current };
+        if (refreshed?.workspace_view) {
+          next[ticketId] = refreshed.workspace_view;
+        } else {
+          delete next[ticketId];
+        }
+        return next;
+      });
+
+      const nextAttempt = resetTicketStateForRetry(
+        attemptRef.current,
+        ticketId,
+      );
+      attemptRef.current = nextAttempt;
+      setAttempt(nextAttempt);
+      return true;
+    },
+    [runtimeAssignments],
+  );
+
   const ticketSessionValue = useMemo<TicketSessionContextValue>(
     () => ({
       assignmentByTicket: runtimeAssignments,
+      getAttemptIdentity: (ticketId) => nexusTicketMappingsRef.current[ticketId],
       authoritativeGradeByTicket,
+      workspaceViewByTicket,
       addNote: (ticketId, body) => {
         dispatchAction({
           type: 'ticket.add_note',
@@ -2033,15 +2345,20 @@ export function TicketSessionProvider({
         });
       },
       closeTicket: (ticketId, options) => {
-        dispatchAction({
+        return dispatchAction({
           type: 'ticket.close',
           payload: { ticketId, ...options },
         });
       },
-      escalateTicket: (ticketId) => {
+      escalateTicket: (ticketId, details) => {
         dispatchAction({
           type: 'ticket.escalate',
-          payload: { ticketId },
+          payload: {
+            ticketId,
+            reason: details.reason,
+            routeTeam: details.routeTeam,
+            ...(details.context ? { context: details.context } : {}),
+          },
         });
       },
       getTicket: (ticketId) => tickets.find((ticket) => ticket.id === ticketId),
@@ -2051,6 +2368,34 @@ export function TicketSessionProvider({
           payload: { ticketId, step },
         });
       },
+      startNextAttempt,
+      submitResolutionNote: async (ticketId, body) => {
+        const documentationTarget = documentationTargetForTicket(
+          ticketId,
+          workspaceViewByTicket[ticketId]?.documentation_target,
+        );
+        const assetTag = tickets.find((ticket) => ticket.id === ticketId)
+          ?.device.assetTag;
+        const action = resolutionNoteAction(
+          ticketId,
+          body,
+          documentationTarget,
+          assetTag,
+        );
+        if (!action) return { success: false };
+        const event = dispatchAction(action);
+        if (!event.success || !NEXUS_INTEGRATION_ENABLED) return event;
+        await flushNexusOutbox();
+        if (!nexusTicketMappingsRef.current[ticketId] || nexusOutboxRef.current.items.some((item) => item.event.idempotency_key === event.id)) {
+          throw new Error('Nexus has not confirmed this note.');
+        }
+        return { success: true };
+      },
+      awaitingGradeByTicket: Object.fromEntries(
+        Object.keys(attempt.grades).map((ticketId) => [ticketId,
+          NEXUS_INTEGRATION_ENABLED && !authoritativeGradeByTicket[ticketId],
+        ]),
+      ),
       progression: serviceDeskProgression,
       tickets,
       unassignTicket: (ticketId) => {
@@ -2062,10 +2407,14 @@ export function TicketSessionProvider({
     }),
     [
       authoritativeGradeByTicket,
+      attempt.grades,
+      flushNexusOutbox,
       dispatchAction,
       runtimeAssignments,
       serviceDeskProgression,
+      startNextAttempt,
       tickets,
+      workspaceViewByTicket,
     ],
   );
 
@@ -2577,7 +2926,7 @@ export function TicketSessionProvider({
   if (identityError) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-sm text-zinc-300"
+        className="flex min-h-screen items-center justify-center bg-surface px-4 text-sm text-text"
         role="alert"
       >
         Unable to load your service desk session.
@@ -2588,7 +2937,7 @@ export function TicketSessionProvider({
   if (!identity || !hydrated) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-sm text-zinc-400"
+        className="flex min-h-screen items-center justify-center bg-surface px-4 text-sm text-text-muted"
         role="status"
       >
         Loading service desk…

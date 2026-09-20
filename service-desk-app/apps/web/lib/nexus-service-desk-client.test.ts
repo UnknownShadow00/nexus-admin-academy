@@ -10,6 +10,10 @@ import {
   recordAttemptHint,
   startOrResumeAttempt,
 } from './nexus-service-desk-client';
+import {
+  EXPECTED_NEXUS_SERVICE_DESK_CONTRACT,
+  NEXUS_SERVICE_DESK_CONTRACT_HEADER,
+} from './service-desk-contract';
 
 // IDs are plain integers on the wire (SQLAlchemy primary keys serialized as
 // JSON numbers), not strings - these fixtures intentionally mirror that.
@@ -27,6 +31,12 @@ const attempt = {
   state_version: 1,
   status: 'in_progress',
   updated_at: '2026-08-13T00:00:00Z',
+  workspace_view: {
+    documentation_target: 'remote_desktop',
+    escalation: { available: true },
+    evidence: [{ id: 'checked-ip', label: 'IP configuration checked' }],
+    stages: [{ key: 'investigate', status: 'current' }],
+  },
 };
 
 const grade = {
@@ -50,7 +60,9 @@ describe('Nexus service desk client', () => {
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input);
       const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-      const response = path.endsWith('/assignments')
+      const response = path.endsWith('/contract')
+        ? { contract_version: '2.0' }
+        : path.endsWith('/assignments')
         ? [
             {
               id: 1,
@@ -123,6 +135,10 @@ describe('Nexus service desk client', () => {
     });
     await expect(getAttempt(101)).resolves.toMatchObject({
       id: 101,
+      workspace_view: {
+        documentation_target: 'remote_desktop',
+        evidence: [{ label: 'IP configuration checked' }],
+      },
     });
     await expect(
       recordAttemptEvent(101, {
@@ -159,6 +175,11 @@ describe('Nexus service desk client', () => {
     expect(completeCall?.[1]?.body).toBe(
       JSON.stringify({ idempotency_key: 'event-3' }),
     );
+    expect(
+      new Headers(completeCall?.[1]?.headers).get(
+        NEXUS_SERVICE_DESK_CONTRACT_HEADER,
+      ),
+    ).toBe(EXPECTED_NEXUS_SERVICE_DESK_CONTRACT);
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/service-desk/attempts/101/events',
       expect.objectContaining({ credentials: 'same-origin', method: 'POST' }),
@@ -187,6 +208,47 @@ describe('Nexus service desk client', () => {
         tool: 'ticket',
       }),
     ).resolves.toBe(false);
+  });
+
+  it('refuses persistence calls when the backend contract is incompatible', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ contract_version: '1.0' }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(startOrResumeAttempt(1)).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/service-desk/contract',
+      expect.objectContaining({ cache: 'no-store' }),
+    );
+  });
+
+  it('forwards exact V2 curriculum launch context when present', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const response = String(input).endsWith('/contract')
+        ? { contract_version: '2.0' }
+        : attempt;
+      return Promise.resolve(new Response(JSON.stringify(response), { status: 200 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('window', {
+      location: {
+        search:
+          '?returnTo=%2Flearning-v2&v2ModuleKey=module.aplus.ip&v2AssessmentKey=assess.aplus.ip.sd',
+      },
+    });
+
+    await listAssignments();
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/service-desk/assignments?v2_module_key=module.aplus.ip&v2_assessment_key=assess.aplus.ip.sd',
+      expect.anything(),
+    );
+    await expect(startOrResumeAttempt(7)).resolves.toMatchObject({ id: 101 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/service-desk/assignments/7/attempts?v2_module_key=module.aplus.ip&v2_assessment_key=assess.aplus.ip.sd',
+      expect.anything(),
+    );
   });
 
   it('returns safe failure values when the network rejects', async () => {

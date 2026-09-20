@@ -1,0 +1,125 @@
+prompts:
+- prompt_key: explain.aplus.mobile.swollen_battery
+  title: Respond to a swollen mobile-device battery
+  objectives:
+  - '5.4'
+  - '1.1'
+  prompt: A user hands you a phone with the case separating because the battery appears
+    swollen. Explain what you would do and what you would avoid.
+  expected_concepts:
+  - Treat as a safety issue and discontinue normal use/charging
+  - Do not puncture, compress, bend, or force the enclosure closed
+  - Follow manufacturer/organization handling and escalation procedure
+  - Route to trained service/replacement/disposal as appropriate
+  - Document the condition and actions
+  minimum_concepts: 3
+  must_include:
+  - safe stop-use/charging concept
+  - no puncture/compression
+  - approved escalation/service
+  rubric:
+    approved_text: 5 concepts; 2 points each. Passing response earns at least 6/10
+      and includes all must-include safety concepts. Equivalent wording is accepted.
+    minimum_concepts: 3
+    must_include:
+    - safe stop-use/charging concept
+    - no puncture/compression
+    - approved escalation/service
+  rubric_version: module6-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.mobile_device_support
+  domain: '1.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.mobile.wifi_isolation
+  title: Troubleshoot a phone that cannot use Wi-Fi
+  objectives:
+  - '1.3'
+  - '5.4'
+  prompt: A user's phone cannot reach the internet on office Wi-Fi, but other people
+    can. Explain how you would narrow the problem without guessing.
+  expected_concepts:
+  - Confirm exact symptom and Wi-Fi connection/state
+  - Test known site/resource
+  - Compare with another device or known-good network
+  - Test cellular path if allowed to isolate Wi-Fi vs whole-device failure
+  - Check network selection/credentials/radio state/policy as appropriate
+  - Make one controlled change
+  - Verify the original symptom after the change
+  minimum_concepts: 4
+  must_include:
+  - isolate Wi-Fi from cellular/other paths
+  - verification
+  rubric:
+    approved_text: 7 concepts; 2 points each. Passing response earns at least 8/14
+      and includes both must-include concepts. Plausible evidence-first alternatives
+      receive credit.
+    minimum_concepts: 4
+    must_include:
+    - isolate Wi-Fi from cellular/other paths
+    - verification
+  rubric_version: module6-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.mobile_device_support
+  domain: '1.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.mobile.mdm
+  title: Explain MDM and device ownership
+  objectives:
+  - '1.3'
+  prompt: What is MDM, why does a company use it, and what changes when the phone
+    is company-owned versus BYOD?
+  expected_concepts:
+  - Centralized device configuration/management
+  - Policy enforcement
+  - Corporate application/data management
+  - Company-owned devices normally allow broader organizational control
+  - BYOD requires respecting the personal-device boundary and the organization's approved
+    management model
+  - Support should not remove management or wipe a device without authorization
+  minimum_concepts: 4
+  must_include:
+  - centralized management/policy
+  - ownership/BYOD distinction
+  rubric:
+    approved_text: 6 concepts; 2 points each. Passing response earns at least 8/12
+      and includes both must-include concepts.
+    minimum_concepts: 4
+    must_include:
+    - centralized management/policy
+    - ownership/BYOD distinction
+  rubric_version: module6-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.mobile_device_support
+  domain: '1.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.mobile.sim_esim_wifi
+  title: Separate cellular identity from Wi-Fi
+  objectives:
+  - '1.3'
+  prompt: Explain SIM/eSIM versus Wi-Fi, then describe how you would tell whether
+    a user's connectivity problem is cellular or Wi-Fi.
+  expected_concepts:
+  - SIM/eSIM provides subscriber identity for cellular service
+  - Physical SIM is removable; eSIM is electronically provisioned
+  - Wi-Fi is a separate local wireless network path
+  - Test Wi-Fi and cellular independently
+  - Use comparison evidence rather than assuming the phone is fully offline
+  - Verify after any change
+  minimum_concepts: 4
+  must_include:
+  - cellular identity role
+  - Wi-Fi is separate
+  - independent path testing
+  rubric:
+    approved_text: 6 concepts; 2 points each. Passing response earns at least 8/12
+      and includes all three must-include concepts.
+    minimum_concepts: 4
+    must_include:
+    - cellular identity role
+    - Wi-Fi is separate
+    - independent path testing
+  rubric_version: module6-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.mobile_device_support
+  domain: '1.0'
+  importance: working_knowledge

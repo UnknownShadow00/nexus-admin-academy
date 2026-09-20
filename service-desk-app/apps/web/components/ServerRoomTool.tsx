@@ -20,14 +20,16 @@ import {
 } from '@service-desk/ui';
 import {
   IconActivity,
-  IconArrowLeft,
   IconFileText,
   IconNetwork,
   IconRefresh,
   IconServer,
   IconWorld,
 } from '@tabler/icons-react';
-import Link from 'next/link';
+import {
+  ToolBackLink,
+  IntegratedToolLink as Link,
+} from './IntegratedToolContext';
 import { useMemo, useState } from 'react';
 
 import { AssetActionDialog } from './AssetActionDialog';
@@ -49,10 +51,10 @@ function StatusBadge({ status }: { status: ServerRoomNodeStatus }) {
         aria-hidden="true"
         className={`mr-1.5 h-2 w-2 rounded-full ${
           status === 'online'
-            ? 'bg-emerald-500'
+            ? 'bg-success'
             : status === 'degraded'
-              ? 'bg-amber-400'
-              : 'bg-red-500'
+              ? 'bg-warning'
+              : 'bg-danger'
         }`}
       />
       {status}
@@ -91,29 +93,23 @@ export function ServerRoomTool() {
       className="mx-auto w-full max-w-7xl p-0"
       variant="contained"
     >
-      <header className="border-b border-zinc-700 px-4 py-4 sm:px-5">
+      <header className="border-b border-border px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link
-            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 self-start rounded-sm px-2 text-sm font-extrabold uppercase text-sky-400 hover:bg-zinc-800 hover:text-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
-            href="/"
-          >
-            <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
-            Dashboard
-          </Link>
+          <ToolBackLink />
           <Badge variant={onlineCount === nodes.length ? 'success' : 'amber'}>
             {onlineCount}/{nodes.length} nodes up
           </Badge>
         </div>
         <div className="mt-4 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-sky-400/30 bg-sky-400/10 text-sky-400">
+          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 text-accent">
             <IconServer aria-hidden="true" className="h-6 w-6" />
           </span>
           <div>
-            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-sky-400">
+            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-accent">
               Infrastructure health
             </p>
             <h1
-              className="font-display text-2xl font-bold uppercase text-zinc-100"
+              className="font-display text-2xl font-bold uppercase text-text"
               id="server-room-title"
             >
               SERVER ROOM
@@ -121,12 +117,12 @@ export function ServerRoomTool() {
           </div>
         </div>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <p className="max-w-3xl text-sm leading-relaxed text-zinc-400">
+          <p className="max-w-3xl text-sm leading-relaxed text-text-muted">
             Inspect deterministic network and server health, review logs, and
             record maintenance actions against this simulation attempt.
           </p>
           <Link
-            className="sd-link-button sd-focus-ring shrink-0 rounded-sm text-sm font-bold text-sky-400 hover:text-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+            className="sd-link-button sd-focus-ring shrink-0 rounded-sm text-sm font-bold text-accent hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             href="/tools/documentation"
           >
             What is a server room?
@@ -138,8 +134,8 @@ export function ServerRoomTool() {
         <div
           className={`mx-4 mt-4 rounded-sm border px-4 py-3 text-sm ${
             lastEvent.success
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-              : 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+              ? 'border-success/30 bg-success/10 text-success'
+              : 'border-warning/30 bg-warning/10 text-warning'
           }`}
           role={lastEvent.success ? 'status' : 'alert'}
         >
@@ -206,7 +202,7 @@ function OverviewTab({
       <Card className="grid animate-pulse gap-4 p-5 sm:grid-cols-2">
         {Array.from({ length: 4 }, (_, index) => (
           <div
-            className="h-28 rounded-md bg-zinc-800"
+            className="h-28 rounded-md bg-surface-muted"
             key={`server-room-skeleton-${index}`}
           />
         ))}
@@ -224,7 +220,7 @@ function OverviewTab({
         >
           <div className="mt-2 flex items-center justify-between gap-2">
             <StatusBadge status={isp?.status ?? 'offline'} />
-            <span className="font-mono text-xs text-zinc-400">
+            <span className="font-mono text-xs text-text-muted">
               12ms latency
             </span>
           </div>
@@ -254,7 +250,7 @@ function OverviewTab({
             meta={`${onlineDevices.length}/8`}
             title="Device status"
           />
-          <div className="divide-y divide-zinc-800">
+          <div className="divide-y divide-border">
             {devices.map((device) => (
               <NodeSummaryRow key={device.id} node={device} />
             ))}
@@ -265,7 +261,7 @@ function OverviewTab({
             meta={`${healthyServers.length}/5`}
             title="Server status"
           />
-          <div className="divide-y divide-zinc-800">
+          <div className="divide-y divide-border">
             {servers.map((server) => (
               <NodeSummaryRow key={server.id} node={server} />
             ))}
@@ -289,13 +285,13 @@ function SummaryCard({
 }) {
   return (
     <Card className="p-4">
-      <div className="flex items-center gap-2 text-sky-400">
+      <div className="flex items-center gap-2 text-accent">
         {icon}
         <p className="text-xs font-extrabold uppercase tracking-wide">
           {label}
         </p>
       </div>
-      <p className="mt-3 font-display text-lg font-bold uppercase text-zinc-100">
+      <p className="mt-3 font-display text-lg font-bold uppercase text-text">
         {value}
       </p>
       {children}
@@ -307,14 +303,14 @@ function NodeSummaryRow({ node }: { node: ServerRoomNodeRecord }) {
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3">
       <div>
-        <p className="font-bold text-zinc-100">{node.name}</p>
-        <p className="mt-0.5 text-xs uppercase text-zinc-500">
+        <p className="font-bold text-text">{node.name}</p>
+        <p className="mt-0.5 text-xs uppercase text-text-muted">
           {node.kind === 'server' ? node.role : node.location}
         </p>
       </div>
       <div className="flex items-center gap-3">
         {node.kind === 'server' ? (
-          <span className="hidden font-mono text-xs text-zinc-400 sm:inline">
+          <span className="hidden font-mono text-xs text-text-muted sm:inline">
             CPU {node.cpuPercent}% · MEM {node.memoryPercent}%
           </span>
         ) : null}
@@ -337,14 +333,14 @@ function DeviceList({
         <Card className="p-4" key={device.id}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="font-bold text-zinc-100">{device.name}</p>
-              <p className="mt-1 text-xs font-semibold uppercase text-zinc-500">
+              <p className="font-bold text-text">{device.name}</p>
+              <p className="mt-1 text-xs font-semibold uppercase text-text-muted">
                 {device.location}
               </p>
             </div>
             <StatusBadge status={device.status} />
           </div>
-          <div className="mt-4 flex justify-end border-t border-zinc-800 pt-4">
+          <div className="mt-4 flex justify-end border-t border-border pt-4">
             <AssetActionDialog
               confirmLabel="Restart device"
               description={`Restart ${device.name}. The deterministic simulator will return it to online immediately.`}
@@ -383,20 +379,20 @@ function ServerList({
               title={<span className="font-mono">{server.name}</span>}
             />
             <div className="p-4">
-              <p className="text-sm font-bold text-zinc-200">{server.role}</p>
-              <p className="mt-1 text-xs uppercase text-zinc-500">
+              <p className="text-sm font-bold text-text">{server.role}</p>
+              <p className="mt-1 text-xs uppercase text-text-muted">
                 {server.location}
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <Metric label="CPU" value={server.cpuPercent} />
                 <Metric label="Memory" value={server.memoryPercent} />
               </div>
-              <div className="mt-4 flex items-center justify-between gap-3 rounded-sm border border-zinc-800 bg-zinc-950/50 p-3">
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-sm border border-border bg-surface/50 p-3">
                 <div>
-                  <p className="text-xs font-extrabold uppercase text-zinc-500">
+                  <p className="text-xs font-extrabold uppercase text-text-muted">
                     Service
                   </p>
-                  <p className="mt-1 text-sm font-bold text-zinc-200">
+                  <p className="mt-1 text-sm font-bold text-text">
                     {server.serviceName}
                   </p>
                 </div>
@@ -410,7 +406,7 @@ function ServerList({
                   {server.serviceStates[server.serviceName] ?? 'stopped'}
                 </Badge>
               </div>
-              <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-zinc-800 pt-4">
+              <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-border pt-4">
                 <ServerLogsModal server={server} />
                 <AssetActionDialog
                   confirmLabel="Restart service"
@@ -458,9 +454,9 @@ function ServerLogsModal({
         </Button>
       }
     >
-      <div className="rounded-sm border border-zinc-700 bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-300">
+      <div className="rounded-sm border border-border bg-surface p-4 font-mono text-xs leading-relaxed text-text">
         {server.logs.map((line) => (
-          <p className="border-b border-zinc-800 py-2 last:border-0" key={line}>
+          <p className="border-b border-border py-2 last:border-0" key={line}>
             {line}
           </p>
         ))}
@@ -472,9 +468,9 @@ function ServerLogsModal({
 function Metric({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <div className="flex justify-between text-xs font-extrabold uppercase text-zinc-500">
+      <div className="flex justify-between text-xs font-extrabold uppercase text-text-muted">
         <span>{label}</span>
-        <span className="font-mono text-zinc-300">{value}%</span>
+        <span className="font-mono text-text">{value}%</span>
       </div>
       <MetricBar value={value} />
     </div>
@@ -485,13 +481,13 @@ function MetricBar({ value }: { value: number }) {
   return (
     <div
       aria-label={`${value}%`}
-      className="mt-2 h-2 overflow-hidden rounded-sm bg-zinc-800"
+      className="mt-2 h-2 overflow-hidden rounded-sm bg-surface-muted"
       role="meter"
       aria-valuemax={100}
       aria-valuemin={0}
       aria-valuenow={value}
     >
-      <div className="h-full bg-sky-500" style={{ width: `${value}%` }} />
+      <div className="h-full bg-accent" style={{ width: `${value}%` }} />
     </div>
   );
 }
@@ -523,7 +519,7 @@ function TopologyTab({ nodes }: { nodes: readonly ServerRoomNodeRecord[] }) {
               {tierIndex > 0 ? (
                 <div
                   aria-hidden="true"
-                  className="mx-auto h-7 w-px bg-sky-400/40"
+                  className="mx-auto h-7 w-px bg-accent/40"
                 />
               ) : null}
               <div
@@ -554,11 +550,11 @@ function TopologyTab({ nodes }: { nodes: readonly ServerRoomNodeRecord[] }) {
         <div className="grid gap-x-6 gap-y-2 p-4 sm:grid-cols-2">
           {SERVER_ROOM_CONNECTIONS.map(([from, to]) => (
             <div
-              className="flex items-center gap-2 font-mono text-xs text-zinc-400"
+              className="flex items-center gap-2 font-mono text-xs text-text-muted"
               key={`${from}-${to}`}
             >
               <span>{byId.get(from)?.name}</span>
-              <span className="text-sky-400">→</span>
+              <span className="text-accent">→</span>
               <span>{byId.get(to)?.name}</span>
             </div>
           ))}
@@ -570,19 +566,19 @@ function TopologyTab({ nodes }: { nodes: readonly ServerRoomNodeRecord[] }) {
 
 function TopologyNode({ node }: { node: ServerRoomNodeRecord }) {
   return (
-    <div className="rounded-md border border-zinc-700 bg-zinc-950 p-3 text-center">
+    <div className="rounded-md border border-border bg-surface p-3 text-center">
       <span
         aria-hidden="true"
         className={`mx-auto block h-3 w-3 rounded-full ${
           node.status === 'online'
-            ? 'bg-emerald-500'
+            ? 'bg-success'
             : node.status === 'degraded'
-              ? 'bg-amber-400'
-              : 'bg-red-500'
+              ? 'bg-warning'
+              : 'bg-danger'
         }`}
       />
-      <p className="mt-2 text-xs font-bold text-zinc-100">{node.name}</p>
-      <p className="mt-1 text-[10px] uppercase text-zinc-500">
+      <p className="mt-2 text-xs font-bold text-text">{node.name}</p>
+      <p className="mt-1 text-[10px] uppercase text-text-muted">
         {node.kind === 'server' ? node.role : node.location}
       </p>
     </div>

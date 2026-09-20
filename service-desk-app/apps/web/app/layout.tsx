@@ -9,41 +9,31 @@ export const metadata: Metadata = {
 };
 
 const themeScript = `
-  try {
-    const savedTheme = localStorage.getItem('theme');
-    document.documentElement.dataset.theme = savedTheme === 'light' ? 'light' : 'dark';
-  } catch (_) {
-    document.documentElement.dataset.theme = 'dark';
-  }
-`;
-
-const fontScript = `
-  document.getElementById('service-desk-fonts')?.addEventListener('load', function () {
-    this.media = 'all';
-  });
+  (function () {
+    var root = document.documentElement;
+    var savedTheme = null;
+    try { savedTheme = localStorage.getItem('theme'); } catch (_) {}
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      root.dataset.theme = savedTheme;
+      return;
+    }
+    try {
+      root.dataset.theme = window.matchMedia('(prefers-color-scheme: light)').matches
+        ? 'light'
+        : 'dark';
+    } catch (_) {
+      root.dataset.theme = 'dark';
+    }
+  })();
 `;
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
   return (
-    <html data-theme="dark" lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <link href="https://fonts.googleapis.com" rel="preconnect" />
-        <link
-          crossOrigin="anonymous"
-          href="https://fonts.gstatic.com"
-          rel="preconnect"
-        />
-        <link
-          id="service-desk-fonts"
-          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap"
-          media="print"
-          rel="stylesheet"
-          suppressHydrationWarning
-        />
-        <script dangerouslySetInnerHTML={{ __html: fontScript }} />
       </head>
       <body>{children}</body>
     </html>

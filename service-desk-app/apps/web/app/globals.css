@@ -14,13 +14,11 @@
   }
 
   body {
-    @apply min-h-screen bg-zinc-950 text-zinc-100 antialiased;
+    @apply min-h-screen antialiased;
+    background-color: var(--sd-surface);
+    color: var(--sd-text);
     min-height: var(--app-vh);
     overflow-x: hidden;
-  }
-
-  html[data-theme='light'] body {
-    @apply bg-zinc-100 text-zinc-900;
   }
 
   button,
@@ -30,12 +28,32 @@
   }
 
   ::selection {
-    @apply bg-sky-400/30 text-zinc-100;
+    background-color: color-mix(in srgb, var(--sd-accent) 30%, transparent);
+    color: var(--sd-text);
   }
 }
 
 @theme inline {
-  --font-display: 'Orbitron', ui-sans-serif, system-ui, sans-serif;
-  --font-label: 'Rajdhani', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Share Tech Mono', ui-monospace, monospace;
+  /* Neutral, professional system stacks - no external font dependency. */
+  --font-display: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-label: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+
+  /* Semantic theme tokens - see packages/ui/src/styles.css for the values. */
+  --color-surface: var(--sd-surface);
+  --color-surface-raised: var(--sd-surface-raised);
+  --color-surface-muted: var(--sd-surface-muted);
+  --color-text: var(--sd-text);
+  --color-text-muted: var(--sd-text-muted);
+  --color-border: var(--sd-border);
+  --color-accent: var(--sd-accent);
+  --color-accent-contrast: var(--sd-accent-contrast);
+  --color-success: var(--sd-success);
+  --color-warning: var(--sd-warning);
+  --color-danger: var(--sd-danger);
+  --color-pending: var(--sd-pending);
+  --color-focus: var(--sd-focus);
 }

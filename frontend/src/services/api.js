@@ -79,13 +79,23 @@ function isRetriableError(error) {
   return RETRYABLE_STATUS_CODES.has(error.response.status);
 }
 
-function getErrorMessage(error) {
+export function getErrorMessage(error) {
   const detail = error?.response?.data?.detail;
   if (error?.response) {
-    return error.response.data?.error
+    const serverMessage = error.response.data?.error
       || error.response.data?.message
-      || (typeof detail === "string" ? detail : detail?.error || detail?.message)
-      || "Request failed";
+      || (typeof detail === "string" ? detail : detail?.error || detail?.message);
+    if (serverMessage && !/request failed|traceback|development environment|internal server/i.test(serverMessage)) {
+      return serverMessage;
+    }
+    return ({
+      400: "We couldn't use that information. Check it and try again.",
+      401: "Your session ended. Sign in again, then retry this step.",
+      403: "You do not have access to this activity yet. Return to your module to see what to complete first.",
+      404: "This activity could not be found. Return to your module and choose an available activity.",
+      409: "This activity changed while you were working. Reload it before trying again.",
+      422: "Some information is missing or incomplete. Review your work and try again.",
+    })[error.response.status] || "Something went wrong on our side. Try again. If it keeps happening, ask your mentor for help.";
   }
   if (error?.code === "ECONNABORTED") {
     return "The server is taking too long to respond. If the backend is waking up, wait a few seconds and try again.";
@@ -93,7 +103,7 @@ function getErrorMessage(error) {
   if (error?.request) {
     return "Unable to reach the server. If this is the first request, the backend may still be waking up.";
   }
-  return "Unexpected request error";
+  return "Something unexpected happened. Your work may still be here. Try again.";
 }
 
 async function delay(ms) {
@@ -185,9 +195,51 @@ export const getQuizReview = (quizId, studentId = currentStudentId(), requestOpt
   request(() => api.get(`/api/quizzes/${quizId}/review/${studentId}`), requestOptions);
 export const submitQuiz = (quizId, payload, requestOptions) =>
   request(() => api.post(`/api/quizzes/${quizId}/submit`, payload), requestOptions);
+
+export const getV2Access = (requestOptions) =>
+  request(() => api.get("/api/v2/curriculum/access"), requestOptions);
+export const getV2Learning = (requestOptions) =>
+  request(() => api.get("/api/v2/curriculum"), requestOptions);
+export const getV2Module = (moduleKey, requestOptions) =>
+  request(() => api.get(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}`), requestOptions);
+export const getV2Lesson = (moduleKey, lessonKey, requestOptions) =>
+  request(() => api.get(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/lessons/${encodeURIComponent(lessonKey)}`), requestOptions);
+export const completeV2Lesson = (moduleKey, lessonKey, requestOptions) =>
+  request(() => api.post(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/lessons/${encodeURIComponent(lessonKey)}/complete`), requestOptions);
+export const recordV2Resource = (moduleKey, resourceKey, payload, requestOptions) =>
+  request(() => api.post(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/resources/${encodeURIComponent(resourceKey)}/activity`, payload), requestOptions);
+export const getV2Assessment = (moduleKey, assessmentKey, requestOptions) =>
+  request(() => api.get(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/assessments/${encodeURIComponent(assessmentKey)}`), requestOptions);
+export const startV2AssessmentAttempt = (moduleKey, assessmentKey, requestOptions) =>
+  request(() => api.post(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/assessments/${encodeURIComponent(assessmentKey)}/attempts`), requestOptions);
+export const submitV2Assessment = (moduleKey, assessmentKey, attemptId, answers, requestOptions) =>
+  request(() => api.post(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/assessments/${encodeURIComponent(assessmentKey)}/submit`, { attempt_id: attemptId, answers }), requestOptions);
+export const getV2Explain = (moduleKey, promptKey, requestOptions) =>
+  request(() => api.get(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/explain/${encodeURIComponent(promptKey)}`), requestOptions);
+export const submitV2Explain = (moduleKey, promptKey, answer, requestOptions) =>
+  request(() => api.post(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/explain/${encodeURIComponent(promptKey)}/submit`, { answer }), requestOptions);
+export const launchV2ServiceDesk = (moduleKey, assessmentKey, requestOptions) =>
+  request(() => api.post(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/service-desk/${encodeURIComponent(assessmentKey)}/launch`), requestOptions);
+export const startV2Lab = (labId, moduleKey, assessmentKey, requestOptions) =>
+  request(() => api.post(`/api/labs/${labId}/start`, null, { params: { v2_module_key: moduleKey, v2_assessment_key: assessmentKey } }), requestOptions);
+export const submitV2Lab = (labId, moduleKey, assessmentKey, payload, requestOptions) =>
+  request(() => api.post(`/api/labs/${labId}/submit`, payload, { params: { v2_module_key: moduleKey, v2_assessment_key: assessmentKey } }), requestOptions);
+export const getV2MentorCohort = (moduleKey, requestOptions) =>
+  request(() => adminApi.get(`/api/admin/v2/mentor/cohort/${encodeURIComponent(moduleKey)}`), requestOptions);
+export const getV2MentorStudent = (moduleKey, studentId, requestOptions) =>
+  request(() => adminApi.get(`/api/admin/v2/mentor/module/${encodeURIComponent(moduleKey)}/student/${studentId}`), requestOptions);
+export const updateV2CohortFocus = (moduleKey, requestOptions) =>
+  request(() => adminApi.put("/api/admin/v2/mentor/cohort-focus", { module_key: moduleKey }), requestOptions);
+export const getMentorGrade = (pendingGradeId, requestOptions) =>
+  request(() => adminApi.get(`/api/admin/grading/${pendingGradeId}`), requestOptions);
+export const submitMentorGrade = (pendingGradeId, payload, requestOptions) =>
+  request(() => adminApi.post(`/api/admin/grading/${pendingGradeId}/override`, payload), requestOptions);
 export const getLabs = (weekNumber, requestOptions) =>
   request(() => api.get("/api/labs", { params: { week_number: weekNumber } }), requestOptions);
-export const getLab = (labId, requestOptions) => request(() => api.get(`/api/labs/${labId}`), requestOptions);
+export const getLab = (labId, moduleKey, assessmentKey, requestOptions) =>
+  request(() => api.get(`/api/labs/${labId}`, {
+    params: moduleKey && assessmentKey ? { v2_module_key: moduleKey, v2_assessment_key: assessmentKey } : {},
+  }), requestOptions);
 export const startLab = (labId, requestOptions) => request(() => api.post(`/api/labs/${labId}/start`), requestOptions);
 export const getLabVmStatus = (labId, requestOptions) =>
   request(() => api.get(`/api/labs/${labId}/vm-status`), requestOptions);
@@ -375,6 +427,8 @@ export const submitServiceDeskMentorFeedback = (attemptId, feedback, requestOpti
     () => adminApi.post(`/api/admin/service-desk/attempts/${attemptId}/feedback`, { mentor_feedback: feedback }),
     requestOptions
   );
+export const grantServiceDeskRetry = (attemptId, requestOptions) =>
+  request(() => adminApi.post(`/api/admin/service-desk/attempts/${attemptId}/grant-retry`), requestOptions);
 export const verifySubmission = (id, comment, requestOptions) =>
   request(
     () => adminApi.put(`/api/admin/submissions/${id}/verify-proof`, null, { params: comment ? { comment } : {} }),
@@ -407,6 +461,10 @@ export const getAdminLabTemplates = (requestOptions) =>
   request(() => adminApi.get("/api/admin/labs/templates"), requestOptions);
 export const getAdminVmAssignments = (requestOptions) =>
   request(() => adminApi.get("/api/admin/vms/assignments"), requestOptions);
+export const getAdminV2PracticalReviews = (requestOptions) =>
+  request(() => adminApi.get("/api/admin/labs/runs/review"), requestOptions);
+export const reviewAdminV2Practical = (labRunId, data, requestOptions) =>
+  request(() => adminApi.post(`/api/admin/labs/runs/${labRunId}/v2-review`, data), requestOptions);
 export const createAdminLabTemplate = (data, requestOptions) =>
   request(() => adminApi.post("/api/admin/labs/templates", data), requestOptions);
 export const updateAdminLabTemplate = (id, data, requestOptions) =>

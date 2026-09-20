@@ -15,7 +15,7 @@ describe('Select', () => {
     const select = screen.getByRole('combobox', { name: 'Priority' });
     fireEvent.change(select, { target: { value: 'high' } });
 
-    expect(select).toHaveClass('sd-select', 'sd-focus-ring', 'bg-zinc-950');
+    expect(select).toHaveClass('sd-select', 'sd-focus-ring', 'bg-surface');
     expect(select).toHaveValue('high');
   });
 });

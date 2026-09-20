@@ -3,7 +3,7 @@ const STORAGE_KEY = 'sd:nexusReturnTo';
 // Only same-origin Nexus training routes are ever accepted as a return
 // destination. Reject anything that could be turned into an open redirect
 // (absolute URLs, protocol-relative paths, javascript: links, etc.).
-const SAFE_RETURN_PATTERN = /^\/training(\/week\/[1-9][0-9]*)?$/;
+const SAFE_RETURN_PATTERN = /^(?:\/training(?:\/week\/[1-9][0-9]*)?|\/learning-v2\/modules\/[a-z0-9][a-z0-9._-]*)$/i;
 
 export function isSafeNexusReturnPath(
   value: string | null | undefined,
@@ -15,6 +15,7 @@ export function isSafeNexusReturnPath(
 }
 
 export function nexusReturnLabel(path: string): string {
+  if (path.startsWith('/learning-v2/modules/')) return 'Back to your module';
   const match = path.match(/^\/training\/week\/(\d+)$/);
   return match ? `Back to Week ${match[1]}` : 'Back to Training';
 }

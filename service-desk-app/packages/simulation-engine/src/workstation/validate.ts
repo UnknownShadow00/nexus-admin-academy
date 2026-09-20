@@ -71,6 +71,16 @@ export function isWorkstationState(value: unknown): value is WorkstationState {
   const terminal = value.terminal;
 
   return (
+    (value.realism === undefined ||
+      (record(value.realism) &&
+        valuesMatch(
+          value.realism.observed,
+          (entry) => typeof entry === 'boolean',
+        ) &&
+        typeof value.realism.changed === 'boolean' &&
+        typeof value.realism.repaired === 'boolean' &&
+        typeof value.realism.harmful === 'boolean' &&
+        nullableText(value.realism.lastEvidence))) &&
     record(machine) &&
     text(machine.assetTag) &&
     text(machine.hostname) &&

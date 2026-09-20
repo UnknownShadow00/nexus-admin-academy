@@ -1,0 +1,217 @@
+resources:
+- resource_key: res.aplus.printers.mfd
+  title: Multifunction Devices (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/multifunction-devices-220-1201/
+  provider: Professor Messer
+  duration: '14:25'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.printers.deploy_configure
+    module_key: module.aplus.core1.printers_mfds
+    required: true
+    order: 1
+  - lesson_key: lesson.aplus.printers.queues_shares_scan_security
+    module_key: module.aplus.core1.printers_mfds
+    required: false
+    order: 1
+- resource_key: res.aplus.printers.laser_maintenance
+  title: Laser Printer Maintenance (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/laser-printer-maintenance-220-1201/
+  provider: Professor Messer
+  duration: '7:30'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.printers.laser
+    module_key: module.aplus.core1.printers_mfds
+    required: true
+    order: 1
+- resource_key: res.aplus.printers.inkjet
+  title: Inkjet Printers (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/inkjet-printers-220-1201/
+  provider: Professor Messer
+  duration: '3:29'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.printers.inkjet_thermal_impact
+    module_key: module.aplus.core1.printers_mfds
+    required: true
+    order: 1
+- resource_key: res.aplus.printers.inkjet_maintenance
+  title: Inkjet Printer Maintenance (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/inkjet-printer-maintenance-220-1201/
+  provider: Professor Messer
+  duration: '3:54'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.printers.inkjet_thermal_impact
+    module_key: module.aplus.core1.printers_mfds
+    required: false
+    order: 2
+- resource_key: res.aplus.printers.thermal
+  title: Thermal Printers (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/thermal-printers-220-1201/
+  provider: Professor Messer
+  duration: '3:39'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.printers.inkjet_thermal_impact
+    module_key: module.aplus.core1.printers_mfds
+    required: true
+    order: 3
+- resource_key: res.aplus.printers.thermal_maintenance
+  title: Thermal Printer Maintenance (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/thermal-printer-maintenance-220-1201/
+  provider: Professor Messer
+  duration: '4:16'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.printers.inkjet_thermal_impact
+    module_key: module.aplus.core1.printers_mfds
+    required: false
+    order: 4
+- resource_key: res.aplus.printers.impact
+  title: Impact Printers (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/impact-printers-220-1201/
+  provider: Professor Messer
+  duration: '6:19'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.printers.inkjet_thermal_impact
+    module_key: module.aplus.core1.printers_mfds
+    required: true
+    order: 5
+- resource_key: res.aplus.printers.impact_maintenance
+  title: Impact Printer Maintenance (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/impact-printer-maintenance-220-1201/
+  provider: Professor Messer
+  duration: '3:11'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.printers.inkjet_thermal_impact
+    module_key: module.aplus.core1.printers_mfds
+    required: false
+    order: 6
+- resource_key: res.aplus.printers.troubleshooting
+  title: Troubleshooting Printers (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/troubleshooting-printers-220-1201/
+  provider: Professor Messer
+  duration: '11:54'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.printers.troubleshooting
+    module_key: module.aplus.core1.printers_mfds
+    required: true
+    order: 1
+- resource_key: res.aplus.printers.microsoft_windows
+  title: Fix printer connection and printing problems in Windows
+  resource_type: documentation
+  url: https://support.microsoft.com/en-us/windows/hardware/printer/fix-printer-connection-and-printing-problems-in-windows
+  provider: Microsoft
+  duration: reference
+  certification_version: comptia_aplus_220-1201
+  source_name: Microsoft Support
+  source_url: https://support.microsoft.com/en-us/windows/hardware/printer/fix-printer-connection-and-printing-problems-in-windows
+  permission_status: permitted
+  license_note: Optional OS/vendor troubleshooting reference; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.printers.queues_shares_scan_security
+    module_key: module.aplus.core1.printers_mfds
+    required: false
+    order: 2
+  - lesson_key: lesson.aplus.printers.troubleshooting
+    module_key: module.aplus.core1.printers_mfds
+    required: false
+    order: 2
+- resource_key: res.aplus.printers.hp_quality
+  title: HP LaserJet — Fixing Poor Print Quality
+  resource_type: documentation
+  url: https://support.hp.com/us-en/document/c06677995
+  provider: HP
+  duration: reference
+  certification_version: comptia_aplus_220-1201
+  source_name: HP Support
+  source_url: https://support.hp.com/us-en/document/c06677995
+  permission_status: permitted
+  license_note: Optional manufacturer example for paper/toner/print-quality evidence;
+    model-specific details should not be generalized beyond the documented device.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.printers.laser
+    module_key: module.aplus.core1.printers_mfds
+    required: false
+    order: 2
+  - lesson_key: lesson.aplus.printers.troubleshooting
+    module_key: module.aplus.core1.printers_mfds
+    required: false
+    order: 3
+- resource_key: res.aplus.printers.crucial_practice
+  title: CompTIA A+ 220-1201 V15 Practice Tests
+  resource_type: external_practice
+  url: https://crucialexams.com/exams/comptia/a/220-1201/practice-tests-practice-questions
+  provider: Crucial Exams
+  duration: optional practice
+  certification_version: comptia_aplus_220-1201
+  source_name: Crucial Exams 220-1201 V15
+  source_url: https://crucialexams.com/exams/comptia/a/220-1201/practice-tests-practice-questions
+  permission_status: permitted
+  license_note: Optional practice; no question text copied.
+  active: true
+  links:
+  - module_key: module.aplus.core1.printers_mfds
+    required: false
+    order: 99

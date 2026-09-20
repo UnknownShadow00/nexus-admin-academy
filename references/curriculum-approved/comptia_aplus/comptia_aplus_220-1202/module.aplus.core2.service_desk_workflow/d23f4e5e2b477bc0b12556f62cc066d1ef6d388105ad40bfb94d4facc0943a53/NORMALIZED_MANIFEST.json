@@ -1,0 +1,111 @@
+{
+  "certification_key": "comptia_aplus",
+  "domain_key": "4.0",
+  "explain_count": 4,
+  "lesson_count": 6,
+  "lessons": [
+    "lesson.aplus.service_desk.assets_cmdb_docs_slas",
+    "lesson.aplus.service_desk.change_management",
+    "lesson.aplus.service_desk.escalation_handoffs_sla",
+    "lesson.aplus.service_desk.professional_communication",
+    "lesson.aplus.service_desk.ticket_intake_triage",
+    "lesson.aplus.service_desk.ticket_notes_user_updates"
+  ],
+  "manifest_version": 1,
+  "module_key": "module.aplus.core2.service_desk_workflow",
+  "module_title": "Service Desk Workflow, Documentation & Professional Communication",
+  "objectives": [
+    "4.1",
+    "4.2",
+    "4.7"
+  ],
+  "original_filename": "Nexus_APlus_Module_05_Final.zip",
+  "practical_present": true,
+  "provenance": {
+    "certification_version": "comptia_aplus_220-1202",
+    "module": "Nexus A+ V15 Module 5 \u2014 Service Desk Workflow, Documentation & Professional Communication",
+    "module_key": "module.aplus.core2.service_desk_workflow",
+    "permission_note": "Third-party material is labeled permitted/owner-permitted third-party, never user-owned. User-owned wording is reserved for Nexus-owned material.",
+    "question_bank_summary": {
+      "answer_position_qa": "Passed: 29 single-choice questions = A 7, B 8, C 7, D 7; maximum position share 27.6%.",
+      "editorial_status": "All 35 current questions reviewed; 32 approved as written and 3 approved after edit.",
+      "source_mix": [
+        {
+          "count": 8,
+          "source": "Nexus legacy Ticket Writing Fundamentals",
+          "use": "Reused/adapted; Q005/Q006/Q007 received final editorial edits."
+        },
+        {
+          "count": 5,
+          "source": "ExamCompass 220-1202",
+          "use": "Owner-permitted third-party foundation adaptations, individually reviewed."
+        },
+        {
+          "count": 22,
+          "source": "Nexus-authored/source-guided gap fill",
+          "use": "Current CompTIA/Messer-guided job scenarios, objective gaps, and free-response/application items, including Q033/Q034/Q035."
+        }
+      ],
+      "total_questions": 35
+    },
+    "sources": [
+      {
+        "name": "CompTIA A+ 220-1202 V15 Exam Objectives v3.0",
+        "permission_or_authority": "Official source",
+        "reuse_status": "Referenced/paraphrased; not treated as Nexus-created objective text.",
+        "role": "Official objective authority",
+        "url": "https://assets.ctfassets.net/82ripq7fjls2/6I8WL66IBa1AUovioDGrnM/f74a7eca336fd4e4c8e723a1f893086d/CompTIA-A-220-1202-Exam-Objectives-3.0.pdf"
+      },
+      {
+        "name": "Professor Messer 220-1202 V15",
+        "permission_or_authority": "Public reference / owner-approved source",
+        "reuse_status": "Linked/referenced; Nexus lessons are concise adaptations/summaries.",
+        "role": "Primary required video instruction and source verification",
+        "url": "https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/"
+      },
+      {
+        "name": "Nexus legacy seed_phase_a.py",
+        "permission_or_authority": "Owner-permitted / user-owned Nexus material",
+        "reuse_status": "8 questions reused/adapted; prioritization/communication lesson ideas adapted for V2.",
+        "role": "Existing validated ticket-writing questions and legacy lessons",
+        "url": "GitHub repository: UnknownShadow00/nexus-admin-academy/backend/seed_phase_a.py"
+      },
+      {
+        "name": "Nexus Service Desk fixtures",
+        "permission_or_authority": "Owner-permitted / user-owned Nexus material",
+        "reuse_status": "INC2402/INC2403/INC2405 adapted for practical; INC2405 adapted for guided Service Desk scenario.",
+        "role": "Existing realistic support scenarios",
+        "url": "GitHub repository: UnknownShadow00/nexus-admin-academy/backend/seed.py"
+      },
+      {
+        "name": "ExamCompass 220-1202",
+        "permission_or_authority": "Owner-permitted third-party",
+        "reuse_status": "5 foundation items adapted and editorially reviewed; no bulk copying.",
+        "role": "Permitted question-source pool",
+        "url": "https://www.examcompass.com/comptia-a-plus-certification-practice-test-220-1202"
+      },
+      {
+        "name": "Crucial Exams 220-1202",
+        "permission_or_authority": "Owner-permitted third-party",
+        "reuse_status": "Research/candidate source only; no questions bulk-copied into this Module 5 bank.",
+        "role": "Supplemental future question/PBQ candidate source",
+        "url": "https://crucialexams.com/exams/comptia/a/220-1202/practice-tests-practice-questions"
+      },
+      {
+        "name": "Jason Dion 220-1202 practice exams",
+        "permission_or_authority": "Owner-permitted third-party",
+        "reuse_status": "Research/candidate source only; no questions bulk-copied into this Module 5 bank.",
+        "role": "Supplemental permitted harder-scenario source",
+        "url": "https://www.udemy.com/course/comptia-a-core-2-220-1202-6-practice-exams/"
+      }
+    ]
+  },
+  "question_count": 35,
+  "resource_count": 6,
+  "service_desk_keys": [
+    "curriculum-aplus-core2-service-desk-workflow-service-desk-01"
+  ],
+  "service_desk_present": true,
+  "source_package_hash": "d23f4e5e2b477bc0b12556f62cc066d1ef6d388105ad40bfb94d4facc0943a53",
+  "version_key": "comptia_aplus_220-1202"
+}

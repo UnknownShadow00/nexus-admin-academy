@@ -11,9 +11,14 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from app.config import load_env
-from app.database import Base, normalize_database_url
-from app.models import *  # noqa: F401,F403
+from app.config import load_env  # noqa: E402
+from app.database import Base, normalize_database_url  # noqa: E402
+from app.db_guard import (  # noqa: E402
+    assert_migration_allowed,
+    production_sqlite_path,
+    resolves_to_production,
+)
+from app.models import *  # noqa: E402,F401,F403
 
 config = context.config
 load_env()
@@ -25,6 +30,51 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+
+
+# Alembic subcommands that actually change database state. Read-only
+# inspection (current / heads / history / show) is never guarded so
+# predeploy checks and rollback introspection keep working against prod.
+_SCHEMA_MUTATING_COMMANDS = {"upgrade", "downgrade", "stamp"}
+
+
+def _is_mutating_command() -> bool:
+    cmd_opts = getattr(config, "cmd_opts", None)
+    cmd = getattr(cmd_opts, "cmd", None) if cmd_opts is not None else None
+    if cmd is None:
+        # Programmatic use (alembic.command.* from Python) — assume it mutates.
+        return True
+    return getattr(cmd[0], "__name__", "") in _SCHEMA_MUTATING_COMMANDS
+
+
+def _guard_production() -> None:
+    """Refuse to run a schema-mutating migration against the live production
+    database unless the operator explicitly opted in
+    (NEXUS_ALLOW_PROD_MIGRATION=1). Read-only commands are unaffected."""
+    if not _is_mutating_command():
+        return
+    assert_migration_allowed(
+        effective_url=config.get_main_option("sqlalchemy.url"),
+        database_url_was_set=bool(os.getenv("DATABASE_URL")),
+    )
+
+
+def _avoid_creating_missing_production_database() -> None:
+    """Keep read-only inspection truly non-mutating when prod is absent.
+
+    SQLite creates a database file as soon as SQLAlchemy connects to a missing
+    path.  A checkout or CI runner normally has no ``backend/nexus.db``, so a
+    bare ``alembic current`` would otherwise leave behind an empty file even
+    though the command is read-only.  Use an ephemeral empty database only for
+    that missing-production/read-only combination.
+    """
+    effective_url = config.get_main_option("sqlalchemy.url")
+    if (
+        not _is_mutating_command()
+        and resolves_to_production(effective_url)
+        and not production_sqlite_path().exists()
+    ):
+        config.set_main_option("sqlalchemy.url", "sqlite:///:memory:")
 
 
 # Alembic hardcodes alembic_version.version_num as VARCHAR(32)
@@ -59,6 +109,7 @@ def _ensure_wide_version_table(connection) -> None:
 
 
 def run_migrations_offline() -> None:
+    _guard_production()
     url = config.get_main_option("sqlalchemy.url")
     context.configure(url=url, target_metadata=target_metadata, literal_binds=True)
 
@@ -67,6 +118,8 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    _guard_production()
+    _avoid_creating_missing_production_database()
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

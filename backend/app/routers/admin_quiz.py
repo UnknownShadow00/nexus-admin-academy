@@ -17,6 +17,7 @@ from app.models.quiz import (
     Question,
     Quiz,
 )
+from app.models.v2_progress import V2AssessmentAttemptQuestion
 from app.schemas.quiz import QuizGenerateRequest, QuizUpdateRequest
 from app.schemas.admin_content import QuestionUpdate, QuizImportRequest, ScrapePreviewRequest
 from app.services.admin_auth import verify_admin
@@ -256,6 +257,18 @@ def delete_quiz(quiz_id: int, db: Session = Depends(get_db)):
     quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
+    has_v2_history = (
+        db.query(V2AssessmentAttemptQuestion.id)
+        .join(Question, Question.id == V2AssessmentAttemptQuestion.question_id)
+        .filter(Question.quiz_id == quiz_id)
+        .first()
+        is not None
+    )
+    if has_v2_history:
+        raise HTTPException(
+            status_code=409,
+            detail="Quiz cannot be deleted because it has immutable V2 assessment history; archive it instead",
+        )
     db.delete(quiz)
     db.commit()
     return ok({"deleted": True})

@@ -25,6 +25,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 REVISION_0060 = "0060_network_linux_cloud_practical_upgrade"
 REVISION_0061 = "0061_integrated_support_prove"
 REVISION_0062 = "0062_beginner_learning_rollout"
+RECONCILED_HEAD = "0069_merge_v2_beginner_heads"
 
 client = make_client(router)
 labs_client = make_client(labs_router)
@@ -60,7 +61,7 @@ def test_migration_upgrade_converts_week_23_24_and_adds_gate(tmp_path):
 
     engine = create_engine(database_url)
     with Session(engine) as db:
-        assert db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == REVISION_0062
+        assert db.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == RECONCILED_HEAD
         lab21 = db.get(LabTemplate, 21)
         lab22 = db.get(LabTemplate, 22)
         assert lab21.lab_type == lab22.lab_type == "structured_final_shift"
@@ -131,7 +132,7 @@ def _active_totals(database_path):
 def test_migration_downgrade_restores_prior_content_and_removes_gate(tmp_path):
     database_path = tmp_path / "cycle.db"
     database_url = f"sqlite:///{database_path}"
-    _run([sys.executable, "-m", "alembic", "upgrade", "head"], database_url)
+    _run([sys.executable, "-m", "alembic", "upgrade", REVISION_0061], database_url)
     _seed(database_url)
 
     _run([sys.executable, "-m", "alembic", "downgrade", REVISION_0060], database_url)

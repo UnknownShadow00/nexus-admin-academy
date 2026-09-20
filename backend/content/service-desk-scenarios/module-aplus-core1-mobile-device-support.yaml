@@ -1,0 +1,286 @@
+scenarios:
+- stable_key: service_desk.aplus.mobile.intermittent_charge_mail_sync
+  title: Field Phone Charges Intermittently and Mail Stopped Syncing
+  description: My phone only charges if I hold the cable at an angle, and this morning
+    my company mail stopped updating. I have a trip this afternoon. Can you just reset
+    the whole phone?
+  category: service_desk
+  difficulty: 1
+  definition:
+    id: SERVICE_DESK.APLUS.MOBILE.INTERMITTENT_CHARGE_MAIL_SYNC
+    title: Field Phone Charges Intermittently and Mail Stopped Syncing
+    slug: service_desk.aplus.mobile.intermittent_charge_mail_sync
+    category: service_desk
+    priority: medium
+    difficulty: easy
+    pointValue: 100
+    explanation: 'Authorized repair/replacement for the physical charging-port fault
+      plus verified mail-sync remediation.
+
+      Safe escalation/replacement if physical condition becomes unsafe.
+
+      Mail issue escalated to the MDM/app owner with complete evidence if the technician
+      lacks authority.'
+    description:
+      issue: My phone only charges if I hold the cable at an angle, and this morning
+        my company mail stopped updating. I have a trip this afternoon. Can you just
+        reset the whole phone?
+      reportedByLine: Jordan Lee
+      businessImpact: The user can continue work from a laptop now, but needs reliable
+        mobile mail and charging during travel later today.
+      troubleshooting:
+      - The phone is company-managed.
+      - Wi-Fi browsing works at the time the ticket is opened.
+      - A second known-good approved charging cable behaves the same way.
+      - No swelling or liquid exposure has been reported, but the port has visible
+        wear.
+      - Calendar is updating; mail is stale.
+      - Factory reset requires approval and is not a first-line action.
+      - Clarify whether charging failure follows multiple approved cables/chargers
+        and whether angle/port movement changes it.
+      - Ask about swelling, overheating, liquid exposure, drops, debris, or other
+        safety signs.
+      - Confirm Wi-Fi/cellular status and whether other business apps/sync categories
+        work.
+      - Check work-account/app/MDM status and recent policy/app changes available
+        to the technician.
+      - Separate the physical charging symptom from the mail-sync symptom.
+      - Recognize that angle-dependent charging with a known-good cable points toward
+        port/physical connection damage.
+      - Recognize that working browsing plus selective mail failure points toward
+        mail app/account/sync/management state rather than total network failure.
+      - Do not force the port or factory-reset the phone as the first action.
+      - If unsafe battery/liquid/heat signs appear, stop normal use/charging and escalate
+        under the safety procedure.
+      - For the worn port, arrange authorized repair/replacement or temporary approved
+        charging alternative if the organization supports one.
+      - For mail sync, perform only approved account/app sync, update, or MDM-guided
+        remediation within the technician's permissions; escalate if policy/management
+        control requires higher authority.
+      - Verify stable charging without cable pressure/unsafe manipulation OR document
+        that repair/replacement is pending and the device should not be relied on.
+      - Send/receive or refresh a test work message using the approved verification
+        method.
+      - Confirm the user's required mobile workflow is restored or clearly state the
+        handoff/pending state.
+      - Record both symptoms separately, evidence collected, safe actions, MDM/approval
+        boundary, verification, and user-facing next step.
+      - Do not record credentials or private message content.
+    requester:
+      name: Jordan Lee
+      department: Field Operations
+      email: Not specified by approved curriculum package
+      contact: Not specified by approved curriculum package
+      location: Remote / traveling
+    device:
+      assetTag: SERVICE_DESK.APLUS.MOBILE.INTERMITTENT_CHARGE_MAIL_SYNC
+      deviceName: Company-managed smartphone
+      kind: mobile
+      operatingSystem: Not specified by approved curriculum package
+      state: active
+    sla:
+      dueAt: Not specified by approved curriculum package
+      target: medium
+    initialWorldState:
+      directoryOverlaySeeds: {}
+      assetOverlaySeeds: {}
+      chatMessageSeeds: []
+    objectives:
+    - id: professional-pending-or-completed-outcome
+      description: 'Authorized repair/replacement for the physical charging-port fault
+        plus verified mail-sync remediation.
+
+        Safe escalation/replacement if physical condition becomes unsafe.
+
+        Mail issue escalated to the MDM/app owner with complete evidence if the technician
+        lacks authority.'
+      predicateType: action_event_occurred
+      predicateParams:
+        actionType: ticket.add_note
+        payloadMatch:
+          ticketId: SERVICE_DESK.APLUS.MOBILE.INTERMITTENT_CHARGE_MAIL_SYNC
+      required: true
+      pointValue: 100
+    requiredActions:
+    - id: document-professional-outcome
+      actionType: ticket.add_note
+      description: 'Authorized repair/replacement for the physical charging-port fault
+        plus verified mail-sync remediation.
+
+        Safe escalation/replacement if physical condition becomes unsafe.
+
+        Mail issue escalated to the MDM/app owner with complete evidence if the technician
+        lacks authority.'
+      payloadMatch:
+        ticketId: SERVICE_DESK.APLUS.MOBILE.INTERMITTENT_CHARGE_MAIL_SYNC
+    forbiddenActions: []
+    hints:
+    - id: hint-01
+      order: 1
+      pointPenalty: 0
+      text: You may be dealing with two different root causes.
+    - id: hint-02
+      order: 2
+      pointPenalty: 5
+      text: What does a second known-good cable tell you when the angle-dependent
+        symptom remains?
+    - id: hint-03
+      order: 3
+      pointPenalty: 5
+      text: Working web browsing does not prove every managed business app is healthy.
+    - id: hint-04
+      order: 4
+      pointPenalty: 5
+      text: A correct handoff can be the professional resolution if repair or MDM
+        authority is outside your role.
+    curriculum:
+      scenario_key: service_desk.aplus.mobile.intermittent_charge_mail_sync
+      title: Field Phone Charges Intermittently and Mail Stopped Syncing
+      module_key: module.aplus.core1.mobile_device_support
+      objectives:
+      - '1.3'
+      - '5.4'
+      reinforces:
+      - '1.1'
+      - '1.2'
+      mode: learning
+      requester:
+        name: Jordan Lee
+        department: Field Operations
+        role: Field Coordinator
+        device: Company-managed smartphone
+        location: Remote / traveling
+      complaint: My phone only charges if I hold the cable at an angle, and this morning
+        my company mail stopped updating. I have a trip this afternoon. Can you just
+        reset the whole phone?
+      business_impact: The user can continue work from a laptop now, but needs reliable
+        mobile mail and charging during travel later today.
+      initial_facts:
+      - The phone is company-managed.
+      - Wi-Fi browsing works at the time the ticket is opened.
+      - A second known-good approved charging cable behaves the same way.
+      - No swelling or liquid exposure has been reported, but the port has visible
+        wear.
+      - Calendar is updating; mail is stale.
+      - Factory reset requires approval and is not a first-line action.
+      stages:
+      - stage: Investigation
+        expectations:
+        - Clarify whether charging failure follows multiple approved cables/chargers
+          and whether angle/port movement changes it.
+        - Ask about swelling, overheating, liquid exposure, drops, debris, or other
+          safety signs.
+        - Confirm Wi-Fi/cellular status and whether other business apps/sync categories
+          work.
+        - Check work-account/app/MDM status and recent policy/app changes available
+          to the technician.
+      - stage: Diagnosis
+        expectations:
+        - Separate the physical charging symptom from the mail-sync symptom.
+        - Recognize that angle-dependent charging with a known-good cable points toward
+          port/physical connection damage.
+        - Recognize that working browsing plus selective mail failure points toward
+          mail app/account/sync/management state rather than total network failure.
+      - stage: Remediation
+        expectations:
+        - Do not force the port or factory-reset the phone as the first action.
+        - If unsafe battery/liquid/heat signs appear, stop normal use/charging and
+          escalate under the safety procedure.
+        - For the worn port, arrange authorized repair/replacement or temporary approved
+          charging alternative if the organization supports one.
+        - For mail sync, perform only approved account/app sync, update, or MDM-guided
+          remediation within the technician's permissions; escalate if policy/management
+          control requires higher authority.
+      - stage: Verification
+        expectations:
+        - Verify stable charging without cable pressure/unsafe manipulation OR document
+          that repair/replacement is pending and the device should not be relied on.
+        - Send/receive or refresh a test work message using the approved verification
+          method.
+        - Confirm the user's required mobile workflow is restored or clearly state
+          the handoff/pending state.
+      - stage: Documentation
+        expectations:
+        - Record both symptoms separately, evidence collected, safe actions, MDM/approval
+          boundary, verification, and user-facing next step.
+        - Do not record credentials or private message content.
+      correct_outcomes:
+      - Authorized repair/replacement for the physical charging-port fault plus verified
+        mail-sync remediation.
+      - Safe escalation/replacement if physical condition becomes unsafe.
+      - Mail issue escalated to the MDM/app owner with complete evidence if the technician
+        lacks authority.
+      incorrect_outcomes:
+      - Factory-resetting immediately without evidence/approval.
+      - Removing MDM enrollment to make mail work.
+      - Forcing/bending the connector to keep charging.
+      - Closing the ticket after mail starts updating without addressing or handing
+        off the charging fault.
+      - Claiming the charging issue is fixed without a stable verification test.
+      hints:
+      - You may be dealing with two different root causes.
+      - What does a second known-good cable tell you when the angle-dependent symptom
+        remains?
+      - Working web browsing does not prove every managed business app is healthy.
+      - A correct handoff can be the professional resolution if repair or MDM authority
+        is outside your role.
+      grading_anchors:
+        investigation: Collects physical-safety, cable/port, network, mail-sync, and
+          management evidence.
+        diagnosis: Separates physical charging fault from selective sync fault.
+        remediation: Uses safe, authorized actions or correct escalation; no destructive
+          reset or MDM removal.
+        verification: Verifies charging state/repair path and mail workflow separately.
+        documentation: Records evidence, outcome/handoff, and user expectations without
+          private data.
+    rubric_dimensions:
+      Investigation:
+      - Clarify whether charging failure follows multiple approved cables/chargers
+        and whether angle/port movement changes it.
+      - Ask about swelling, overheating, liquid exposure, drops, debris, or other
+        safety signs.
+      - Confirm Wi-Fi/cellular status and whether other business apps/sync categories
+        work.
+      - Check work-account/app/MDM status and recent policy/app changes available
+        to the technician.
+      Diagnosis:
+      - Separate the physical charging symptom from the mail-sync symptom.
+      - Recognize that angle-dependent charging with a known-good cable points toward
+        port/physical connection damage.
+      - Recognize that working browsing plus selective mail failure points toward
+        mail app/account/sync/management state rather than total network failure.
+      Remediation:
+      - Do not force the port or factory-reset the phone as the first action.
+      - If unsafe battery/liquid/heat signs appear, stop normal use/charging and escalate
+        under the safety procedure.
+      - For the worn port, arrange authorized repair/replacement or temporary approved
+        charging alternative if the organization supports one.
+      - For mail sync, perform only approved account/app sync, update, or MDM-guided
+        remediation within the technician's permissions; escalate if policy/management
+        control requires higher authority.
+      Verification:
+      - Verify stable charging without cable pressure/unsafe manipulation OR document
+        that repair/replacement is pending and the device should not be relied on.
+      - Send/receive or refresh a test work message using the approved verification
+        method.
+      - Confirm the user's required mobile workflow is restored or clearly state the
+        handoff/pending state.
+      Documentation:
+      - Record both symptoms separately, evidence collected, safe actions, MDM/approval
+        boundary, verification, and user-facing next step.
+      - Do not record credentials or private message content.
+    grading_anchors:
+      investigation: Collects physical-safety, cable/port, network, mail-sync, and
+        management evidence.
+      diagnosis: Separates physical charging fault from selective sync fault.
+      remediation: Uses safe, authorized actions or correct escalation; no destructive
+        reset or MDM removal.
+      verification: Verifies charging state/repair path and mail workflow separately.
+      documentation: Records evidence, outcome/handoff, and user expectations without
+        private data.
+    successful_professional_outcomes:
+    - Authorized repair/replacement for the physical charging-port fault plus verified
+      mail-sync remediation.
+    - Safe escalation/replacement if physical condition becomes unsafe.
+    - Mail issue escalated to the MDM/app owner with complete evidence if the technician
+      lacks authority.

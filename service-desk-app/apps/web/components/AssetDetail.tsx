@@ -53,11 +53,11 @@ export function AssetDetail({
         <div className="p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="font-label text-xs font-extrabold uppercase tracking-widest text-sky-400">
+              <p className="font-label text-xs font-extrabold uppercase tracking-widest text-accent">
                 Asset tag
               </p>
               <h2
-                className="mt-1 font-mono text-xl font-bold text-zinc-100"
+                className="mt-1 font-mono text-xl font-bold text-text"
                 id="asset-detail-title"
               >
                 {asset.assetTag}
@@ -78,20 +78,20 @@ export function AssetDetail({
               value={owner?.department ?? 'Unassigned pool'}
             />
           </dl>
-          <div className="mt-5 border-t border-zinc-800 pt-4">
-            <p className="text-xs font-extrabold uppercase text-zinc-500">
+          <div className="mt-5 border-t border-border pt-4">
+            <p className="text-xs font-extrabold uppercase text-text-muted">
               Assigned employee
             </p>
             {owner ? (
               <div className="mt-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <Link
-                    className="sd-focus-ring rounded-sm text-sm font-bold text-sky-400 hover:text-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                    className="sd-focus-ring rounded-sm text-sm font-bold text-accent hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     href={`/tools/directory?user=${owner.id}`}
                   >
                     {owner.fullName}
                   </Link>
-                  <span className="font-mono text-xs text-zinc-500">
+                  <span className="font-mono text-xs text-text-muted">
                     {owner.id}
                   </span>
                   {owner.disabled ? (
@@ -109,7 +109,7 @@ export function AssetDetail({
                 </div>
               </div>
             ) : (
-              <p className="mt-2 text-sm text-zinc-400">
+              <p className="mt-2 text-sm text-text-muted">
                 This asset is ready for assignment.
               </p>
             )}
@@ -213,7 +213,7 @@ export function AssetDetail({
         <Card>
           <CardHeader title="Hardware isolation" />
           <div className="space-y-2 p-4">
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-text-muted">
               Record the comparison that establishes whether static follows the
               headset or remains with the workstation before arranging a replacement.
             </p>
@@ -286,11 +286,11 @@ function DetailField({
 }) {
   return (
     <div>
-      <dt className="text-xs font-extrabold uppercase text-zinc-500">
+      <dt className="text-xs font-extrabold uppercase text-text-muted">
         {label}
       </dt>
       <dd
-        className={`mt-1 capitalize text-zinc-200 ${mono ? 'font-mono' : ''}`}
+        className={`mt-1 capitalize text-text ${mono ? 'font-mono' : ''}`}
       >
         {value}
       </dd>

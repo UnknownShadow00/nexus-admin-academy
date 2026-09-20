@@ -104,10 +104,13 @@ export function WindowFrame({
     onMove(draftBounds);
   };
 
+  // A window inside the SIMULATED WINDOWS DESKTOP. It keeps its own light
+  // Windows palette in both console themes on purpose - see the note in
+  // RemoteDesktopTool. Do not convert these raw utilities to `--sd-*` tokens.
   return (
     <section
       aria-label={`${Meta.label} window`}
-      className={`absolute flex min-h-0 flex-col overflow-hidden border bg-zinc-100 text-zinc-900 shadow-2xl max-sm:!inset-x-2 max-sm:!bottom-12 max-sm:!top-2 max-sm:!h-auto max-sm:!w-auto ${focused ? 'border-sky-300 ring-2 ring-sky-300/30' : 'border-zinc-500'}`}
+      className={`absolute flex min-h-0 flex-col overflow-hidden border bg-zinc-100 text-zinc-900 shadow-2xl max-sm:!inset-x-2 max-sm:!bottom-12 max-sm:!top-2 max-sm:!h-auto max-sm:!w-auto ${focused ? 'border-accent ring-2 ring-sky-300/30' : 'border-zinc-500'}`}
       onPointerDown={() => {
         if (!focused) onFocus();
       }}
@@ -138,7 +141,7 @@ export function WindowFrame({
           {Meta.label}
           <IconArrowsMove
             aria-hidden="true"
-            className="h-3.5 w-3.5 text-zinc-500 max-sm:hidden"
+            className="h-3.5 w-3.5 text-text-muted max-sm:hidden"
           />
         </span>
         <span className="flex" data-window-control>
@@ -160,7 +163,7 @@ export function WindowFrame({
           </button>
           <button
             aria-label={`Close ${Meta.label}`}
-            className="rounded-sm p-1 hover:bg-red-500 hover:text-white"
+            className="rounded-sm p-1 hover:bg-danger hover:text-white"
             onClick={onClose}
             type="button"
           >

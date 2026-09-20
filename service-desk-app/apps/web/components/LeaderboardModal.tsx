@@ -41,14 +41,14 @@ export function LeaderboardModal({
       title="Leaderboard"
     >
       {!isHydrated ? (
-        <p className="py-8 text-center text-sm text-zinc-400">
+        <p className="py-8 text-center text-sm text-text-muted">
           Loading your saved score…
         </p>
       ) : (
         <>
           <div className="mb-4 flex items-center justify-between gap-3">
             <Badge variant="sky">Global</Badge>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-text-muted">
               Your highlighted row is live. Cohort names are illustrative.
             </p>
           </div>
@@ -59,14 +59,14 @@ export function LeaderboardModal({
                 <li
                   className={`grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-md border px-3 py-3 ${
                     row.isStudent
-                      ? 'border-sky-400/40 bg-sky-400/10'
-                      : 'border-zinc-800 bg-zinc-950/70'
+                      ? 'border-accent/40 bg-accent/10'
+                      : 'border-border bg-surface/70'
                   }`}
                   key={row.id}
                 >
                   <span
                     className={`font-display text-sm font-bold ${
-                      index === 0 ? 'text-amber-400' : 'text-zinc-500'
+                      index === 0 ? 'text-warning' : 'text-text-muted'
                     }`}
                   >
                     #{index + 1}
@@ -74,7 +74,7 @@ export function LeaderboardModal({
                   <span className="min-w-0">
                     <span
                       className={`block truncate font-semibold ${
-                        row.isStudent ? 'text-sky-200' : 'text-zinc-200'
+                        row.isStudent ? 'text-accent' : 'text-text'
                       }`}
                     >
                       {row.name}
@@ -86,10 +86,10 @@ export function LeaderboardModal({
                       {tier}
                     </Badge>
                   </span>
-                  <span className="flex items-center gap-1.5 font-display text-sm font-bold tabular-nums text-zinc-100">
+                  <span className="flex items-center gap-1.5 font-display text-sm font-bold tabular-nums text-text">
                     <IconTrophy
                       aria-hidden="true"
-                      className="h-4 w-4 text-amber-400"
+                      className="h-4 w-4 text-warning"
                     />
                     {row.points.toLocaleString()}
                   </span>

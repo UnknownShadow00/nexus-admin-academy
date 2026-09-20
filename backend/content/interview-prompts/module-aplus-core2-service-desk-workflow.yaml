@@ -1,0 +1,103 @@
+prompts:
+- id: E01
+  objectives:
+  - '4.1'
+  prompt: What makes a ticket note useful to the next technician?
+  expected_concepts:
+  - reported symptom/context
+  - evidence/tests
+  - actions and results
+  - current state or root cause when known
+  - verification
+  - next step/handoff
+  minimum_for_pass: 4
+  prompt_key: interview.aplus.core2.service.desk.workflow.e01
+  rubric_version: module5-explain-v2
+  rubric:
+    minimum_for_pass: 4
+    partial_credit: 'Give credit for technically equivalent wording. Do not require
+      exact sentences. Missing all verification/next-action thinking should cap a
+      response below full credit.
+
+      '
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.service_desk_workflow
+  domain: '4.0'
+  importance: working_knowledge
+- id: E02
+  objectives:
+  - '4.1'
+  prompt: When should you escalate a ticket instead of continuing to troubleshoot?
+  expected_concepts:
+  - scope/skill boundary
+  - permissions or approval boundary
+  - security/safety risk
+  - SLA/business impact or policy stop point
+  - complete evidence-rich handoff
+  minimum_for_pass: 3
+  prompt_key: interview.aplus.core2.service.desk.workflow.e02
+  rubric_version: module5-explain-v2
+  rubric:
+    minimum_for_pass: 3
+    partial_credit: 'Give credit for technically equivalent wording. Do not require
+      exact sentences. Missing all verification/next-action thinking should cap a
+      response below full credit.
+
+      '
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.service_desk_workflow
+  domain: '4.0'
+  importance: working_knowledge
+- id: E03
+  objectives:
+  - '4.2'
+  prompt: Why does a production change need a rollback plan, and what should the plan
+    accomplish?
+  expected_concepts:
+  - changes can fail despite testing
+  - restore previous known-good state
+  - reduce outage/impact
+  - define concrete reversal steps/resources
+  - backup can support recovery but is not itself a complete rollback plan
+  - verification after rollback
+  minimum_for_pass: 3
+  prompt_key: interview.aplus.core2.service.desk.workflow.e03
+  rubric_version: module5-explain-v2
+  rubric:
+    minimum_for_pass: 3
+    partial_credit: 'Give credit for technically equivalent wording. Do not require
+      exact sentences. Missing all verification/next-action thinking should cap a
+      response below full credit.
+
+      '
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.service_desk_workflow
+  domain: '4.0'
+  importance: working_knowledge
+- id: E04
+  objectives:
+  - '4.7'
+  prompt: How would you respond to an angry user whose issue cannot be fixed immediately?
+  expected_concepts:
+  - stay calm and actively listen
+  - clarify the user's statements with useful questions
+  - acknowledge impact
+  - avoid blame/argument
+  - state the next action
+  - set a realistic update expectation/timeline
+  - follow up at the promised time
+  - document the interaction
+  minimum_for_pass: 5
+  prompt_key: interview.aplus.core2.service.desk.workflow.e04
+  rubric_version: module5-explain-v2
+  rubric:
+    minimum_for_pass: 5
+    partial_credit: 'Give credit for technically equivalent wording. Do not require
+      exact sentences. Missing all verification/next-action thinking should cap a
+      response below full credit.
+
+      '
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.service_desk_workflow
+  domain: '4.0'
+  importance: working_knowledge

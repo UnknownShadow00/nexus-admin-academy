@@ -17,7 +17,7 @@ export function TabsList({
 }: ComponentProps<typeof RadixTabs.List>) {
   return (
     <RadixTabs.List
-      className={cn('sd-tabs-list flex border-b border-zinc-700', className)}
+      className={cn('sd-tabs-list flex border-b border-border', className)}
       {...props}
     />
   );
@@ -30,7 +30,7 @@ export function TabsTrigger({
   return (
     <RadixTabs.Trigger
       className={cn(
-        'sd-tabs-trigger sd-focus-ring -mb-px min-h-10 border-b-2 border-transparent px-3 py-2.5 text-xs font-extrabold uppercase text-zinc-500 transition-colors hover:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400 data-[state=active]:border-sky-400 data-[state=active]:text-sky-300',
+        'sd-tabs-trigger sd-focus-ring -mb-px min-h-10 border-b-2 border-transparent px-3 py-2.5 text-xs font-extrabold uppercase text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus data-[state=active]:border-accent data-[state=active]:text-accent',
         className,
       )}
       {...props}
@@ -45,7 +45,7 @@ export function TabsContent({
   return (
     <RadixTabs.Content
       className={cn(
-        'sd-tabs-content py-4 text-sm text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400',
+        'sd-tabs-content py-4 text-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         className,
       )}
       {...props}

@@ -217,6 +217,35 @@ progression. `test_historical_ticket_data_does_not_affect_service_desk_gate_or_m
 in `backend/tests/test_seed_promotion_gates_service_desk.py` asserts this
 directly.
 
+## E2. Escalation as a terminal Service Desk outcome
+
+The V2 Service Desk redesign adds escalation as a first-class terminal outcome
+alongside `ticket.close`. It changes what "passed" means for the two scenarios
+that carry a server-owned `EscalationProfile` (`inc2506`, `inc2508`); every
+other scenario's grading is unchanged.
+
+- The model lives in `backend/app/services/service_desk_escalation.py`, keyed by
+  `stable_key` on the already-published `definition_json`. **No Alembic
+  migration and no new scenario version** — `alembic current` is unchanged.
+- For an `EscalationProfile.expected` scenario, a **pass** requires a trusted
+  `ticket.escalate` to the profile's declared team with an accepted reason,
+  every `required_containment` event, and no `prohibited` event. A prohibited
+  event (e.g. self-serving restricted access on `inc2506`) is a
+  `critical_failure` and can never pass.
+- Process score for an escalation outcome is **normalized across the applicable
+  categories** (investigation, diagnosis, documentation, and the remediation
+  weight repurposed as the escalation slot). Verification counts **only** when
+  the profile requires verifiable containment; otherwise it is *not applicable*
+  and is never reported as earned work. `POINTS_BY_PRIORITY` scaling and the
+  XP-on-assessment-pass path are unchanged, so a correct escalation feeds the
+  same authoritative Service Desk gate signal as a correct fix.
+- An ordinary-scenario `ticket.escalate` is recorded **untrusted**; it cannot
+  satisfy grading and does not move the score.
+
+Coverage: `backend/tests/test_service_desk_escalation.py`. Deeper containment /
+session-revocation fidelity for `inc2508` is deferred — see
+`service-desk-app/docs/WORKSPACE.md` §9.
+
 ## F. Seed safety
 
 `seed_promotion_gates()` in `backend/seed.py`:

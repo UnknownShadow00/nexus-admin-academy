@@ -10,7 +10,7 @@ describe('Input', () => {
     expect(screen.getByRole('textbox', { name: 'Search' })).toHaveClass(
       'sd-input',
       'sd-focus-ring',
-      'bg-zinc-950',
+      'bg-surface',
     );
   });
 });

@@ -206,6 +206,57 @@ script plus the matching `csp` request failure; all other console and network
 errors still fail the suite. Remove the flag after the configuration rule is
 active and confirm the beacon no longer appears.
 
+### Alembic production safety guard
+
+`backend/app/db_guard.py` (wired into `alembic/env.py`) refuses any
+schema-mutating Alembic command (`upgrade` / `downgrade` / `stamp`) that
+resolves to the live production SQLite file
+(`backend/nexus.db`) unless the operator explicitly opts in with
+`NEXUS_ALLOW_PROD_MIGRATION=1`. It exists because on 2026-08-29 a bare
+`alembic upgrade head` with `DATABASE_URL` unset fell back to `alembic.ini`
+(`sqlalchemy.url = sqlite:///./nexus.db`) and migrated production
+(`tasks/lessons.md`).
+
+- **Read-only inspection is never blocked** — `alembic current` / `heads` /
+  `history` / `show` work against production with no opt-in, so
+  `predeploy_check.sh` and rollback introspection are unaffected.
+- **`scripts/deploy.sh` opts in for you** — its `alembic_backend()` wrapper
+  sets both `DATABASE_URL` (pinned to the `.env` database) and
+  `NEXUS_ALLOW_PROD_MIGRATION=1`. The sanctioned way to migrate production is
+  a normal `deploy.sh` run; it still enforces `--allow-db-ahead` and every
+  other predeploy guard — this check is additive to those, not a replacement.
+- **The stable `~/bin/nexus-deploy` copy must be refreshed** from the updated
+  `scripts/deploy.sh` (per the "stable copy" note above) so the opt-in is
+  present there too.
+
+Scratch / verification workflow (never touches production):
+
+```bash
+cd backend
+DATABASE_URL="sqlite:////tmp/nexus-scratch.db" ./.venv/bin/python -m alembic upgrade head
+DATABASE_URL="sqlite:////tmp/nexus-scratch.db" ./.venv/bin/python -m alembic downgrade -1
+```
+
+Deliberate manual production migration (only outside `deploy.sh`, e.g.
+recovery):
+
+```bash
+cd backend
+# take a fresh verified backup first (SQLite online-backup API; see below)
+NEXUS_ALLOW_PROD_MIGRATION=1 DATABASE_URL="sqlite:///$(pwd)/nexus.db" \
+  ./.venv/bin/python -m alembic upgrade head
+```
+
+Rules:
+
+- **Never** run Alembic without first confirming the database it resolved to
+  (the guard prints it on refusal; on success, check the `Running upgrade …`
+  lines name the revisions you expect).
+- **Never** suppress migration output with `>/dev/null 2>&1` — you cannot see
+  which database was touched or whether it succeeded.
+- CI is unaffected: the `db-migrations-seeds` job sets `DATABASE_URL` to a
+  throwaway path under `$RUNNER_TEMP`, which never resolves to production.
+
 Before every deployment:
 
 1. Confirm the intended commit and a clean worktree.
@@ -221,7 +272,10 @@ Backend update:
 ```bash
 cd backend
 ./.venv/bin/pip install -r requirements.txt
-./.venv/bin/python -m alembic upgrade head
+# alembic is guarded — either run the migration through scripts/deploy.sh, or
+# opt in explicitly (see "Alembic production safety guard" above):
+NEXUS_ALLOW_PROD_MIGRATION=1 DATABASE_URL="sqlite:///$(pwd)/nexus.db" \
+  ./.venv/bin/python -m alembic upgrade head
 sudo systemctl restart nexus-admin-academy.service
 curl --fail http://127.0.0.1:8000/health
 sudo journalctl -u nexus-admin-academy.service -n 100 --no-pager
@@ -310,6 +364,12 @@ unset -f read_nexus_env_value
 
 curl --fail http://127.0.0.1:13000/service-desk/api/health
 docker inspect nexus-service-desk --format '{{.State.Health.Status}}'
+
+# Required after the candidate backend and Service Desk have both been replaced.
+# This fails closed on missing/malformed metadata or a semantic version mismatch.
+NEXUS_BACKEND_URL=http://127.0.0.1:8000 \
+NEXUS_SERVICE_DESK_URL=http://127.0.0.1:13000 \
+./scripts/predeploy_check.sh --require-live-contract
 docker cp frontend/nginx.host.conf nexus-frontend:/etc/nginx/conf.d/default.conf
 docker exec nexus-frontend nginx -t
 docker exec nexus-frontend nginx -s reload
@@ -586,3 +646,221 @@ and port.
 Automated Proxmox/Guacamole delivery remains opt-in until a staging test proves
 start, scoped student access, isolation, refresh recovery, expiry, and cleanup.
 Manual VM delivery remains the safe fallback.
+
+## V2 pilot operations
+
+Everything in this section is read-only tooling and documentation for the V2
+pilot cutover. None of it is wired into `scripts/deploy.sh`, and none of the
+install commands below are executed by any script in the repository — an
+operator runs them deliberately.
+
+### Per-student pilot targeting
+
+V2 access is the conjunction of two controls, both read from `backend/.env`:
+
+```
+V2_CURRICULUM_ENABLED=true      # master kill switch — off means nobody
+V2_PILOT_STUDENT_IDS=3,7        # who is enrolled while the switch is on
+```
+
+It fails closed. Turning the master switch on without naming anyone enrols
+nobody, so a mis-set flag cannot expose the whole cohort mid-pilot. The list
+tolerates whitespace, duplicates, and junk entries — anything that is not a
+positive integer is dropped rather than failing the list. Mentors
+(`students.is_mentor`) reach V2 without being enrolled, so they can preview
+the cohort's experience; admin surfaces authorize through `verify_admin` and
+the master switch alone.
+
+Both values are parsed in exactly one place, `app/services/v2_access.py`.
+Do not read these variables anywhere else.
+
+To change the roster, edit `backend/.env` and restart the backend service.
+Confirm afterwards with `scripts/pilot_status.sh`, which reports the flag
+state and how many students are enrolled — never which.
+
+### Pilot preflight
+
+`scripts/v2_pilot_preflight.py` answers one question: if the pilot were
+switched on against this database now, would a student hit a wall? It opens
+the database, runs SELECTs, and rolls back — it never writes.
+
+```bash
+cd backend
+./.venv/bin/python ../scripts/v2_pilot_preflight.py
+./.venv/bin/python ../scripts/v2_pilot_preflight.py --json
+./.venv/bin/python ../scripts/v2_pilot_preflight.py --database-url sqlite:///./copy.db
+./.venv/bin/python ../scripts/v2_pilot_preflight.py --check-links     # opt-in network
+```
+
+It checks the Alembic revision and head count; curriculum counts and
+student-visible modules; that no assessment reports itself available while
+being unopenable; which question banks are approved, published, blocked, or
+missing approval; Service Desk stable keys, published versions, relationship
+wiring, and all ten evidence-based INC2501–INC2510 fixtures; practical-to-lab
+resolution, publication, `lab_type`, Proxmox independence, and explicit V2
+launch relationships; required-resource URLs; duplicate stable keys; orphaned
+rows; and V1 quiz visibility. It reports blocked banks — it never approves
+them.
+
+Exit status is 1 if any check FAILs. WARNs never fail the run.
+
+For a cutover rehearsal on a disposable copy, capture V1 visibility first and
+compare after loading content:
+
+```bash
+./.venv/bin/python ../scripts/v2_pilot_preflight.py --database-url sqlite:///./copy.db --baseline /tmp/before.json
+# ... run migrations and seed_v2_foundation.py against the copy ...
+./.venv/bin/python ../scripts/v2_pilot_preflight.py --database-url sqlite:///./copy.db --compare-baseline /tmp/before.json
+```
+
+The comparison FAILs if any quiz became newly visible — or lost visibility —
+in the legacy student surfaces.
+
+### Loading V2 foundation content
+
+`backend/seed_v2_foundation.py` is one logical transaction: it loads, then
+validates, then commits once, and rolls back to the pre-load state on any
+failure. Rehearse it first:
+
+```bash
+cd backend
+./.venv/bin/python seed_v2_foundation.py --dry-run   # loads, validates, rolls back
+./.venv/bin/python seed_v2_foundation.py
+```
+
+Validation holds only student-reachable modules to the bar. A module still
+being authored is reported as a note, not a failure.
+
+### Pilot status
+
+`scripts/pilot_status.sh` is the whole monitoring story for a cohort of five
+to ten students — no Prometheus, no Grafana, no agent. It modifies nothing:
+every database read opens SQLite read-only.
+
+```bash
+scripts/pilot_status.sh
+scripts/pilot_status.sh --db /path/to/copy.db
+scripts/pilot_status.sh --json
+```
+
+| Row | Meaning |
+| --- | --- |
+| backend / frontend / service desk | HTTP health probes |
+| Docker / Service Desk container | container state where Docker is available; otherwise SKIP |
+| backend service, grading timer | `systemctl is-active`; SKIP where systemd or the unit is absent |
+| disk free | `OK` / `LOW` (under 4 GiB) / `CRITICAL` (under 2 GiB) |
+| V2 master flag | `V2_CURRICULUM_ENABLED` as configured |
+| pilot students enrolled | how many ids are in the allowlist, never which |
+| alembic revision | read from `alembic_version`, not the alembic CLI |
+| pending / stale grading jobs | queue depth, and jobs stuck over 30 minutes |
+| stale processing leases | crashed workers holding a lease over 10 minutes |
+| service desk attempts | in progress, and failures in the last 24 hours |
+| V2 activity (24h) | whether pilot students are actually working |
+| latest backup age | newest `*.db.gz`; `STALE` past 48 hours |
+
+It degrades rather than failing: on a machine without systemd, Docker, a
+database, or a running backend it prints SKIP with a reason and still exits 0.
+A row reading `SKIP: no such column` means the target database predates that
+migration — useful in itself.
+
+### Grading worker installation
+
+The unit files in `deploy/systemd/` are **not installed by this repository**.
+Validate them first — the check is read-only, needs no root, and installs
+nothing:
+
+```bash
+cd backend
+./.venv/bin/python ../scripts/check_grading_worker_install.py
+```
+
+It confirms both units parse, runs `systemd-analyze verify` where available,
+decodes the `\x20`-escaped paths and checks they exist, verifies the virtualenv
+interpreter and worker script, imports the worker without running it, checks
+the timer interval, and compares User/Group and WorkingDirectory against the
+live `nexus-admin-academy.service`.
+
+Once it passes, an operator installs the timer by hand:
+
+```bash
+sudo install -m 0644 deploy/systemd/nexus-grading-worker.service /etc/systemd/system/
+sudo install -m 0644 deploy/systemd/nexus-grading-worker.timer  /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now nexus-grading-worker.timer
+
+systemctl list-timers nexus-grading-worker.timer
+systemctl status nexus-grading-worker.service
+journalctl -u nexus-grading-worker.service --since '-15 min'
+```
+
+To roll back:
+
+```bash
+sudo systemctl disable --now nexus-grading-worker.timer
+sudo rm /etc/systemd/system/nexus-grading-worker.{service,timer}
+sudo systemctl daemon-reload
+```
+
+Until the timer is installed, no pending grade is ever processed: short-answer
+and Explain submissions queue up and wait. Installing it is a prerequisite for
+the pilot, not an optimisation.
+
+### Cutover backup retention safety
+
+The nightly job prunes with:
+
+```bash
+find "$DEST" -name 'nexus-*.db.gz' -mtime +14 -delete
+```
+
+A cutover snapshot named with the `nexus-` prefix is therefore deleted
+fourteen days later — exactly when someone finally needs it. Use the helper,
+which writes `v2-cutover-<revision>-<stamp>.db.gz`, a name that glob cannot
+match:
+
+```bash
+scripts/make_cutover_snapshot.sh              # dry run — prints the plan only
+scripts/make_cutover_snapshot.sh --confirm
+```
+
+It uses SQLite's online backup API (safe against a live writer), refuses a
+label that would match the retention glob, applies the same 100 KiB sanity
+floor as the nightly job, and never deletes anything. The nightly retention
+policy itself is unchanged: a `v2-cutover-*` snapshot is kept until a human
+removes it.
+
+### Disk policy for the V2 rollout
+
+`scripts/predeploy_check.sh` grades available space on the repository
+filesystem:
+
+| Free space | Result |
+| --- | --- |
+| under 2 GiB | FAIL — a deploy cannot complete |
+| 2–4 GiB | PASS with a loud WARN — enough to deploy, not to rebuild images |
+| 4–8 GiB | PASS |
+| 8 GiB or more | PASS — recommended before a frontend or Service Desk rebuild |
+
+Warnings never change the exit code, so ordinary development is not blocked.
+Nothing is ever pruned automatically: review what would be removed before
+reclaiming space by hand.
+
+### Service Desk theme selection
+
+The Service Desk resolves its first-paint theme in this order: an explicit
+`light` or `dark` choice saved by the student, otherwise the operating-system
+color-scheme preference, otherwise dark when browser preference detection is
+unavailable. This remains browser-local; no account-level theme setting or
+second Service Desk preference was added.
+# Network exposure expectation
+
+Production browser traffic should enter through nginx only. The backend on
+port 8000, Service Desk application port, and any staging frontend ports must
+remain loopback/container-network only unless an operator has explicitly
+documented another requirement. `scripts/pilot_status.sh` reports externally
+bound known ports as warnings; it never changes firewall or listener state.
+
+For the final production-copy/cutover check, run V2 preflight with
+`--production-candidate`. In that mode an uninstalled, disabled, inactive, or
+otherwise unverifiable grading timer is a failure instead of a development-host
+warning.

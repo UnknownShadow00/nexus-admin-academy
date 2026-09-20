@@ -1,0 +1,1383 @@
+{
+  "INC2504": {
+    "assetTag": "NX-2504",
+    "id": "printer-dhcp-port",
+    "title": "My drawing packets are not printing",
+    "issue": "Printing worked yesterday, but today everything I send just sits there. I made a copy at the copier and that worked. I need the drawings for our review this afternoon.",
+    "hints": [
+      "Separate a printer problem from a problem with this computer's print connection.",
+      "Inspect the Windows print service, local port settings and the printer's asset record. Test the addresses you find.",
+      "Compare the configured destination with the reachable printer address; retest printing after any change."
+    ],
+    "initial": {
+      "printer": {
+        "name": "ENG-COPIER",
+        "currentAddress": "10.26.19.94",
+        "portTarget": "10.26.19.80",
+        "online": true,
+        "queue": 2,
+        "completed": 0,
+        "driver": "Nexus Universal PCL6"
+      },
+      "services": {
+        "Print Spooler": {
+          "name": "Print Spooler",
+          "displayName": "Print Spooler",
+          "state": "running",
+          "startupType": "automatic",
+          "dependencies": []
+        }
+      },
+      "realism": {
+        "observed": {},
+        "changed": false,
+        "repaired": false,
+        "harmful": false,
+        "lastEvidence": null
+      },
+      "machine": {
+        "signedInUser": "NEXUS\\sofia.nguyen",
+        "profileState": "normal"
+      },
+      "filesystem": {
+        "nodes": {}
+      }
+    },
+    "categories": {
+      "investigation": [
+        "spooler",
+        "port",
+        "asset",
+        "old-address"
+      ],
+      "diagnosis": [
+        "current-address"
+      ],
+      "remediation": [
+        "port-updated"
+      ],
+      "verification": [
+        "test-page"
+      ],
+      "documentation": []
+    },
+    "commands": {
+      "Get-Printer": [
+        {
+          "output": [
+            "Name: {printer/name}",
+            "Driver: {printer/driver}",
+            "Queued jobs: {printer/queue}"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "sc query \"Print Spooler\"": [
+        {
+          "output": [
+            "Print Spooler: {services/Print Spooler/state}"
+          ],
+          "evidence": "spooler",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-PrinterPort -Name ENG-COPIER": [
+        {
+          "output": [
+            "Port target: {printer/portTarget}"
+          ],
+          "evidence": "port",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-Asset -Name ENG-COPIER": [
+        {
+          "output": [
+            "Current address: {printer/currentAddress}",
+            "Online: {printer/online}",
+            "Connection: direct TCP/IP; no shared print server"
+          ],
+          "evidence": "asset",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "ping 10.26.19.80": [
+        {
+          "output": [
+            "Request timed out."
+          ],
+          "evidence": "old-address",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "ping 10.26.19.94": [
+        {
+          "output": [
+            "Reply from {printer/currentAddress}: bytes=32 time=4ms"
+          ],
+          "evidence": "current-address",
+          "when": {
+            "realism/observed/port": true,
+            "realism/observed/asset": true,
+            "realism/observed/spooler": true
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Reply from {printer/currentAddress}: bytes=32 time=4ms"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Restart-Service -Name Spooler": [
+        {
+          "output": [
+            "Print Spooler restarted. Queued jobs: {printer/queue}"
+          ],
+          "when": {},
+          "set": {
+            "services/Print Spooler/state": "running"
+          },
+          "effect": "ineffective"
+        }
+      ],
+      "Set-PrinterPort -Name ENG-COPIER -PrinterHostAddress 10.26.19.94": [
+        {
+          "output": [
+            "Port configuration saved."
+          ],
+          "evidence": "port-updated",
+          "when": {},
+          "set": {
+            "printer/portTarget": "10.26.19.94"
+          },
+          "effect": "repair"
+        }
+      ],
+      "Set-PrinterPort -Name ENG-COPIER -PrinterHostAddress 10.26.19.80": [
+        {
+          "output": [
+            "Port configuration saved."
+          ],
+          "when": {},
+          "set": {
+            "printer/portTarget": "10.26.19.80"
+          },
+          "effect": "ineffective"
+        }
+      ],
+      "Print-TestPage -Name ENG-COPIER": [
+        {
+          "output": [
+            "Test page completed.",
+            "Queued jobs: {printer/queue}",
+            "Completed jobs: {printer/completed}"
+          ],
+          "evidence": "test-page",
+          "when": {
+            "printer/portTarget": "10.26.19.94",
+            "services/Print Spooler/state": "running",
+            "printer/online": true,
+            "realism/repaired": true
+          },
+          "set": {
+            "printer/queue": 0,
+            "printer/completed": 3
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Job remains queued; printer did not acknowledge the page."
+          ],
+          "when": {},
+          "set": {
+            "printer/queue": 3
+          },
+          "effect": "ineffective"
+        }
+      ],
+      "help": [
+        {
+          "output": [
+            "Simulated support shell. Commands are scoped to this assigned workstation.",
+            "Get-Printer",
+            "sc query \"Print Spooler\"",
+            "Get-PrinterPort -Name ENG-COPIER",
+            "Get-Asset -Name ENG-COPIER",
+            "ping 10.26.19.80",
+            "ping 10.26.19.94",
+            "Restart-Service -Name Spooler",
+            "Set-PrinterPort -Name ENG-COPIER -PrinterHostAddress 10.26.19.94",
+            "Set-PrinterPort -Name ENG-COPIER -PrinterHostAddress 10.26.19.80",
+            "Print-TestPage -Name ENG-COPIER",
+            "whoami",
+            "Stop-Service -Name Spooler",
+            "Start-Service -Name Spooler"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "whoami": [
+        {
+          "output": [
+            "{machine/signedInUser}"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Stop-Service -Name Spooler": [
+        {
+          "output": [
+            "Print Spooler: {services/Print Spooler/state}"
+          ],
+          "when": {},
+          "set": {
+            "services/Print Spooler/state": "stopped"
+          },
+          "effect": "ineffective"
+        }
+      ],
+      "Start-Service -Name Spooler": [
+        {
+          "output": [
+            "Print Spooler: {services/Print Spooler/state}"
+          ],
+          "when": {},
+          "set": {
+            "services/Print Spooler/state": "running"
+          },
+          "effect": "ineffective"
+        }
+      ]
+    },
+    "completion": {
+      "rootCause": "The local TCP/IP port retained 10.26.19.80 while the online printer was at 10.26.19.94.",
+      "whatFixed": "Updated the local port to 10.26.19.94 and produced a completed test page with an empty queue.",
+      "whyItWorked": "The spooler and driver were available. Restarting the spooler could not change the destination. No server repair or escalation was needed."
+    },
+    "noteFacts": [
+      [
+        "10.26.19.80"
+      ],
+      [
+        "10.26.19.94"
+      ],
+      [
+        "port"
+      ],
+      [
+        "test",
+        "page"
+      ]
+    ],
+    "finalConditions": {
+      "printer/portTarget": "10.26.19.94",
+      "printer/queue": 0,
+      "services/Print Spooler/state": "running"
+    }
+  },
+  "INC2505": {
+    "assetTag": "NX-2505",
+    "id": "department-share-least-privilege",
+    "title": "I cannot open the team folder",
+    "issue": "It's my first week and the Marketing folder from the welcome email won't open. Email works. Am I using the wrong link? I need the campaign files before onboarding tomorrow.",
+    "hints": [
+      "Work out whether the resource is missing, unreachable or refusing this user's access.",
+      "Compare the requester with an authorized colleague and read the access approval before changing memberships.",
+      "Use only the group approved for this resource, then test using a fresh requester session."
+    ],
+    "initial": {
+      "directory": {
+        "requester": "taylor.reed",
+        "peer": "jamie.chen",
+        "requesterGroups": [
+          "Domain Users"
+        ],
+        "peerGroups": [
+          "Domain Users",
+          "Marketing-Share-RW"
+        ],
+        "approvedGroup": "Marketing-Share-RW",
+        "broadGroup": "All-Departments-RW",
+        "approved": true,
+        "sessionGroups": [
+          "Domain Users"
+        ],
+        "sessionAccess": false
+      },
+      "share": {
+        "path": "\\\\files.nexus.internal\\Marketing",
+        "reachable": true
+      },
+      "filesystem": {
+        "nodes": {
+          "marketing": {
+            "id": "marketing",
+            "path": "\\\\files.nexus.internal\\Marketing",
+            "sizeBytes": 0,
+            "kind": "share",
+            "parentId": null,
+            "name": "Marketing",
+            "access": "read-write",
+            "available": true,
+            "modifiedAt": null
+          }
+        }
+      },
+      "realism": {
+        "observed": {},
+        "changed": false,
+        "repaired": false,
+        "harmful": false,
+        "lastEvidence": null
+      },
+      "machine": {
+        "signedInUser": "NEXUS\\taylor.reed",
+        "profileState": "normal"
+      }
+    },
+    "categories": {
+      "investigation": [
+        "share-denied",
+        "requester-groups",
+        "peer-groups",
+        "approval"
+      ],
+      "diagnosis": [
+        "group-scope"
+      ],
+      "remediation": [
+        "membership"
+      ],
+      "verification": [
+        "share-open"
+      ],
+      "documentation": []
+    },
+    "commands": {
+      "Test-Path \\\\files.nexus.internal\\Marketing": [
+        {
+          "output": [
+            "Access denied. Server reachable; share exists."
+          ],
+          "evidence": "share-denied",
+          "when": {
+            "directory/sessionAccess": false
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Share opens: Campaigns, Brand, Onboarding."
+          ],
+          "when": {
+            "directory/sessionAccess": true,
+            "directory/broadGranted": true
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Access denied. Server reachable; share exists."
+          ],
+          "evidence": "share-denied",
+          "when": {
+            "realism/repaired": false
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Share opens: Campaigns, Brand, Onboarding."
+          ],
+          "evidence": "share-open",
+          "when": {
+            "directory/sessionAccess": true,
+            "realism/repaired": true
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Access denied. Start a fresh requester session."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-ADPrincipalGroupMembership taylor.reed": [
+        {
+          "output": [
+            "taylor.reed: {directory/requesterGroups}"
+          ],
+          "evidence": "requester-groups",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-ADPrincipalGroupMembership jamie.chen": [
+        {
+          "output": [
+            "jamie.chen (same approved role): {directory/peerGroups}"
+          ],
+          "evidence": "peer-groups",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-AccessApproval -User taylor.reed": [
+        {
+          "output": [
+            "MKT-ONBOARD-05: Marketing manager approved Marketing-Share-RW for taylor.reed. Tier 1 may apply this recorded membership only."
+          ],
+          "evidence": "approval",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-ADGroup Marketing-Share-RW": [
+        {
+          "output": [
+            "Marketing-Share-RW: read/write Marketing only. All-Departments-RW: read/write across every department; restricted to central operations."
+          ],
+          "evidence": "group-scope",
+          "when": {
+            "realism/observed/requester-groups": true,
+            "realism/observed/peer-groups": true,
+            "realism/observed/approval": true
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Marketing-Share-RW: read/write Marketing only."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Add-ADGroupMember -Identity Marketing-Share-RW -Members taylor.reed": [
+        {
+          "output": [
+            "Membership updated."
+          ],
+          "evidence": "membership",
+          "when": {
+            "realism/observed/approval": true
+          },
+          "set": {
+            "directory/requesterGroups": [
+              "Domain Users",
+              "Marketing-Share-RW"
+            ]
+          },
+          "effect": "repair"
+        },
+        {
+          "output": [
+            "A recorded resource-owner approval must be reviewed first."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "rejected"
+        }
+      ],
+      "Add-ADGroupMember -Identity All-Departments-RW -Members taylor.reed": [
+        {
+          "output": [
+            "Membership updated. This group grants access across departments."
+          ],
+          "when": {},
+          "set": {
+            "directory/requesterGroups": [
+              "Domain Users",
+              "All-Departments-RW"
+            ],
+            "directory/broadGranted": true
+          },
+          "effect": "harmful"
+        }
+      ],
+      "Start-UserSession taylor.reed": [
+        {
+          "output": [
+            "New session created."
+          ],
+          "when": {
+            "directory/broadGranted": true
+          },
+          "set": {
+            "directory/sessionAccess": true
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "New session created."
+          ],
+          "when": {
+            "realism/repaired": true
+          },
+          "set": {
+            "directory/sessionAccess": true
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "New session created."
+          ],
+          "when": {},
+          "set": {
+            "directory/sessionAccess": false
+          },
+          "effect": "observe"
+        }
+      ],
+      "help": [
+        {
+          "output": [
+            "Simulated support shell. Commands are scoped to this assigned workstation.",
+            "Test-Path \\\\files.nexus.internal\\Marketing",
+            "Get-ADPrincipalGroupMembership taylor.reed",
+            "Get-ADPrincipalGroupMembership jamie.chen",
+            "Get-AccessApproval -User taylor.reed",
+            "Get-ADGroup Marketing-Share-RW",
+            "Add-ADGroupMember -Identity Marketing-Share-RW -Members taylor.reed",
+            "Add-ADGroupMember -Identity All-Departments-RW -Members taylor.reed",
+            "Start-UserSession taylor.reed",
+            "whoami"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "whoami": [
+        {
+          "output": [
+            "{machine/signedInUser}"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ]
+    },
+    "completion": {
+      "rootCause": "The share was reachable, but Taylor lacked the approved Marketing-Share-RW group.",
+      "whatFixed": "Reviewed the recorded approval, compared an authorized peer, applied only Marketing-Share-RW and tested a fresh session.",
+      "whyItWorked": "Access denied distinguished authorization from routing or a missing path. All-Departments-RW can open the share but violates least privilege; technical access alone is not a professional success."
+    },
+    "noteFacts": [
+      [
+        "marketing"
+      ],
+      [
+        "marketing-share-rw"
+      ],
+      [
+        "group",
+        "membership"
+      ],
+      [
+        "access",
+        "open"
+      ]
+    ],
+    "finalConditions": {
+      "directory/requesterGroups": [
+        "Domain Users",
+        "Marketing-Share-RW"
+      ],
+      "directory/sessionAccess": true
+    }
+  },
+  "INC2501": {
+    "assetTag": "NX-2501",
+    "id": "temporary-windows-profile",
+    "title": "My Desktop and Documents have disappeared",
+    "issue": "I signed in this morning and everything looks new. My month-end files aren't on the Desktop or in Documents. Did the restart erase them? I've stopped working because I don't want to make it worse.",
+    "hints": [
+      "Identify the signed-in account and active profile, then look for the original files before changing anything.",
+      "Compare the environment profile path with the folders under C:\\Users. Check Desktop and Documents separately.",
+      "If Windows loaded a different profile while the original data remains, preserve that data before resetting the profile mapping and signing in again."
+    ],
+    "initial": {
+      "machine": {
+        "profileState": "temporary",
+        "profilePath": "C:\\Users\\TEMP",
+        "signedInUser": "NEXUS\\morgan.ellis"
+      },
+      "profile": {
+        "originalPath": "C:\\Users\\morgan.ellis",
+        "backupVerified": false,
+        "mappingReset": false
+      },
+      "filesystem": {
+        "currentPath": "C:\\Users\\TEMP",
+        "nodes": {
+          "users": {
+            "id": "users",
+            "path": "C:\\Users",
+            "sizeBytes": 0,
+            "kind": "folder",
+            "parentId": null,
+            "name": "Users",
+            "access": "read-write",
+            "available": true,
+            "modifiedAt": null
+          },
+          "temp": {
+            "id": "temp",
+            "path": "C:\\Users\\TEMP",
+            "sizeBytes": 0,
+            "kind": "folder",
+            "parentId": "users",
+            "name": "TEMP",
+            "access": "read-write",
+            "available": true,
+            "modifiedAt": null
+          },
+          "morgan": {
+            "id": "morgan",
+            "path": "C:\\Users\\morgan.ellis",
+            "sizeBytes": 0,
+            "kind": "folder",
+            "parentId": "users",
+            "name": "morgan.ellis",
+            "access": "read-write",
+            "available": true,
+            "modifiedAt": null
+          },
+          "desktop": {
+            "id": "desktop",
+            "path": "C:\\Users\\morgan.ellis\\Desktop",
+            "sizeBytes": 2147483648,
+            "kind": "folder",
+            "parentId": "morgan",
+            "name": "Desktop",
+            "access": "read-write",
+            "available": true,
+            "modifiedAt": null
+          },
+          "documents": {
+            "id": "documents",
+            "path": "C:\\Users\\morgan.ellis\\Documents",
+            "sizeBytes": 5368709120,
+            "kind": "folder",
+            "parentId": "morgan",
+            "name": "Documents",
+            "access": "read-write",
+            "available": true,
+            "modifiedAt": null
+          },
+          "Budget-review.xlsx": {
+            "id": "Budget-review.xlsx",
+            "parentId": "desktop",
+            "name": "Budget-review.xlsx",
+            "path": "C:\\Users\\morgan.ellis\\Desktop\\Budget-review.xlsx",
+            "kind": "file",
+            "access": "read-write",
+            "available": true,
+            "sizeBytes": 131072,
+            "modifiedAt": null
+          },
+          "Month-end.xlsx": {
+            "id": "Month-end.xlsx",
+            "parentId": "documents",
+            "name": "Month-end.xlsx",
+            "path": "C:\\Users\\morgan.ellis\\Documents\\Month-end.xlsx",
+            "kind": "file",
+            "access": "read-write",
+            "available": true,
+            "sizeBytes": 524288,
+            "modifiedAt": null
+          },
+          "C:\\": {
+            "id": "C:\\",
+            "parentId": null,
+            "name": "C:",
+            "path": "C:\\",
+            "kind": "drive",
+            "access": "read-write",
+            "available": true,
+            "sizeBytes": null,
+            "modifiedAt": null
+          }
+        }
+      },
+      "realism": {
+        "observed": {},
+        "changed": false,
+        "repaired": false,
+        "harmful": false,
+        "lastEvidence": null
+      }
+    },
+    "categories": {
+      "investigation": [
+        "identity",
+        "profile-path",
+        "desktop-data",
+        "documents-data"
+      ],
+      "diagnosis": [
+        "profile-events"
+      ],
+      "remediation": [
+        "profile-restored"
+      ],
+      "verification": [
+        "desktop-restored",
+        "documents-restored"
+      ],
+      "documentation": []
+    },
+    "commands": {
+      "whoami": [
+        {
+          "output": [
+            "{machine/signedInUser}"
+          ],
+          "evidence": "identity",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "echo %USERPROFILE%": [
+        {
+          "output": [
+            "{machine/profilePath}"
+          ],
+          "evidence": "profile-path",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "dir C:\\Users": [
+        {
+          "output": [
+            "TEMP",
+            "morgan.ellis",
+            "Public"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "dir C:\\Users\\morgan.ellis\\Desktop": [
+        {
+          "output": [
+            "Budget-review.xlsx  2147483648 bytes",
+            "Original data exists."
+          ],
+          "evidence": "desktop-data",
+          "when": {
+            "machine/profileState": "temporary"
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Budget-review.xlsx"
+          ],
+          "evidence": "desktop-restored",
+          "when": {
+            "machine/profileState": "normal",
+            "realism/repaired": true
+          },
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "dir C:\\Users\\morgan.ellis\\Documents": [
+        {
+          "output": [
+            "Month-end.xlsx  5368709120 bytes",
+            "Original data exists."
+          ],
+          "evidence": "documents-data",
+          "when": {
+            "machine/profileState": "temporary"
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Month-end.xlsx"
+          ],
+          "evidence": "documents-restored",
+          "when": {
+            "machine/profileState": "normal",
+            "realism/repaired": true
+          },
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "dir C:\\Users\\TEMP": [
+        {
+          "output": [
+            "Directory is empty."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-WinEvent -LogName UserProfileService": [
+        {
+          "output": [
+            "Event 1511: Windows signed in with a temporary profile. Original profile mapping could not be loaded."
+          ],
+          "evidence": "profile-events",
+          "when": {
+            "realism/observed/identity": true,
+            "realism/observed/profile-path": true,
+            "realism/observed/desktop-data": true,
+            "realism/observed/documents-data": true
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Event 1511: Windows signed in with a temporary profile."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Backup-UserData -Path C:\\Users\\morgan.ellis": [
+        {
+          "output": [
+            "Desktop and Documents copied to approved recovery storage; checksum verification complete."
+          ],
+          "when": {
+            "realism/observed/desktop-data": true,
+            "realism/observed/documents-data": true
+          },
+          "set": {
+            "profile/backupVerified": true
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Locate and inspect the source folders before creating a recovery copy."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "rejected"
+        }
+      ],
+      "Reset-ProfileMapping -User morgan.ellis": [
+        {
+          "output": [
+            "Mapping reset. A fresh sign-in is required."
+          ],
+          "when": {
+            "profile/backupVerified": true,
+            "realism/observed/profile-events": true
+          },
+          "set": {
+            "profile/mappingReset": true
+          },
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Preserve user data and review the profile service evidence before resetting the mapping."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "rejected"
+        }
+      ],
+      "Start-UserSession morgan.ellis": [
+        {
+          "output": [
+            "Signed in. Profile path: {machine/profilePath}"
+          ],
+          "evidence": "profile-restored",
+          "when": {
+            "profile/mappingReset": true,
+            "profile/backupVerified": true
+          },
+          "set": {
+            "machine/profileState": "normal",
+            "machine/profilePath": "C:\\Users\\morgan.ellis"
+          },
+          "effect": "repair"
+        },
+        {
+          "output": [
+            "Signed in. Profile path: {machine/profilePath}"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Remove-UserProfile -User morgan.ellis": [
+        {
+          "output": [
+            "Removal refused: this operation would delete user data and is outside the approved recovery procedure."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "rejected"
+        }
+      ],
+      "help": [
+        {
+          "output": [
+            "Simulated support shell. Commands are scoped to this assigned workstation.",
+            "whoami",
+            "echo %USERPROFILE%",
+            "dir C:\\Users",
+            "dir C:\\Users\\morgan.ellis\\Desktop",
+            "dir C:\\Users\\morgan.ellis\\Documents",
+            "dir C:\\Users\\TEMP",
+            "Get-WinEvent -LogName UserProfileService",
+            "Backup-UserData -Path C:\\Users\\morgan.ellis",
+            "Reset-ProfileMapping -User morgan.ellis",
+            "Start-UserSession morgan.ellis",
+            "Remove-UserProfile -User morgan.ellis"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ]
+    },
+    "completion": {
+      "rootCause": "Morgan was signed into the correct account using C:\\Users\\TEMP. The original Desktop and Documents still existed under C:\\Users\\morgan.ellis.",
+      "whatFixed": "Verified a recovery copy, reset the profile mapping and established a normal sign-in with both original folders accessible.",
+      "whyItWorked": "Empty current folders were not proof of deletion. Identity, profile events and surviving files distinguished this from wrong-account and sync failures. Removing the profile without preserving data would be unsafe."
+    },
+    "noteFacts": [
+      [
+        "temp",
+        "temporary"
+      ],
+      [
+        "morgan.ellis"
+      ],
+      [
+        "backup",
+        "copy",
+        "preserv"
+      ],
+      [
+        "profile"
+      ],
+      [
+        "desktop"
+      ],
+      [
+        "documents"
+      ]
+    ],
+    "finalConditions": {
+      "machine/profileState": "normal",
+      "machine/profilePath": "C:\\Users\\morgan.ellis",
+      "profile/backupVerified": true
+    }
+  },
+  "INC2509": {
+    "assetTag": "NX-2509",
+    "id": "recurring-disk-growth",
+    "title": "The disk warning is back again",
+    "issue": "The computer says it's almost out of space again. Someone cleared some files last week and it was fine for a while. I haven't downloaded anything big that I know of. Now I can't save my support notes.",
+    "hints": [
+      "Measure where the space is used and compare that with earlier measurements before deleting anything.",
+      "Compare Temp and Downloads with application storage. Read the growing application's configuration and the support authority guidance.",
+      "Stabilize storage using the approved archive procedure and hand the recurring configuration issue to its owning team; an immediate free-space check alone cannot prove a durable repair."
+    ],
+    "initial": {
+      "storage": {
+        "capacityBytes": 274877906944,
+        "freeBytes": 2147483648,
+        "history": "7 days ago: logs 80 GiB, free 104 GiB; 3 days ago: logs 140 GiB, free 44 GiB; today: logs 182 GiB, free 2 GiB",
+        "logPath": "C:\\ProgramData\\NexusAgent\\Logs",
+        "logging": "debug",
+        "retention": "unbounded",
+        "archiveVerified": false,
+        "fixedUsedBytes": 66571993088,
+        "usageNodeIds": [
+          "temp",
+          "downloads",
+          "logs"
+        ]
+      },
+      "filesystem": {
+        "nodes": {
+          "temp": {
+            "id": "temp",
+            "path": "C:\\Windows\\Temp",
+            "sizeBytes": 2147483648,
+            "kind": "folder",
+            "parentId": null,
+            "name": "Temp",
+            "access": "read-write",
+            "available": true,
+            "modifiedAt": null
+          },
+          "downloads": {
+            "id": "downloads",
+            "path": "C:\\Users\\devon.ross\\Downloads",
+            "sizeBytes": 8589934592,
+            "kind": "folder",
+            "parentId": null,
+            "name": "Downloads",
+            "access": "read-write",
+            "available": true,
+            "modifiedAt": null
+          },
+          "logs": {
+            "id": "logs",
+            "path": "C:\\ProgramData\\NexusAgent\\Logs",
+            "sizeBytes": 195421011968,
+            "kind": "folder",
+            "parentId": null,
+            "name": "Logs",
+            "access": "read-write",
+            "available": true,
+            "modifiedAt": null
+          },
+          "C:\\Windows": {
+            "id": "C:\\Windows",
+            "parentId": null,
+            "name": "Windows",
+            "path": "C:\\Windows",
+            "kind": "folder",
+            "access": "read-write",
+            "available": true,
+            "sizeBytes": null,
+            "modifiedAt": null
+          },
+          "C:\\": {
+            "id": "C:\\",
+            "parentId": null,
+            "name": "C:",
+            "path": "C:\\",
+            "kind": "drive",
+            "access": "read-write",
+            "available": true,
+            "sizeBytes": null,
+            "modifiedAt": null
+          },
+          "C:\\Users\\devon.ross": {
+            "id": "C:\\Users\\devon.ross",
+            "parentId": null,
+            "name": "devon.ross",
+            "path": "C:\\Users\\devon.ross",
+            "kind": "folder",
+            "access": "read-write",
+            "available": true,
+            "sizeBytes": null,
+            "modifiedAt": null
+          },
+          "C:\\Users": {
+            "id": "C:\\Users",
+            "parentId": null,
+            "name": "Users",
+            "path": "C:\\Users",
+            "kind": "folder",
+            "access": "read-write",
+            "available": true,
+            "sizeBytes": null,
+            "modifiedAt": null
+          },
+          "C:\\ProgramData\\NexusAgent": {
+            "id": "C:\\ProgramData\\NexusAgent",
+            "parentId": null,
+            "name": "NexusAgent",
+            "path": "C:\\ProgramData\\NexusAgent",
+            "kind": "folder",
+            "access": "read-write",
+            "available": true,
+            "sizeBytes": null,
+            "modifiedAt": null
+          },
+          "C:\\ProgramData": {
+            "id": "C:\\ProgramData",
+            "parentId": null,
+            "name": "ProgramData",
+            "path": "C:\\ProgramData",
+            "kind": "folder",
+            "access": "read-write",
+            "available": true,
+            "sizeBytes": null,
+            "modifiedAt": null
+          }
+        }
+      },
+      "realism": {
+        "observed": {},
+        "changed": false,
+        "repaired": false,
+        "harmful": false,
+        "lastEvidence": null
+      },
+      "machine": {
+        "signedInUser": "NEXUS\\devon.ross",
+        "profileState": "normal"
+      }
+    },
+    "categories": {
+      "investigation": [
+        "capacity",
+        "sizes",
+        "history"
+      ],
+      "diagnosis": [
+        "logging-config",
+        "authority"
+      ],
+      "remediation": [
+        "archive"
+      ],
+      "verification": [
+        "capacity-stabilized"
+      ],
+      "documentation": []
+    },
+    "commands": {
+      "Get-Volume C:": [
+        {
+          "output": [
+            "C: capacity {storage/capacityBytes} bytes; free {storage/freeBytes} bytes."
+          ],
+          "evidence": "capacity-stabilized",
+          "when": {
+            "storage/archiveVerified": true,
+            "realism/repaired": true
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "C: capacity {storage/capacityBytes} bytes; free {storage/freeBytes} bytes."
+          ],
+          "evidence": "capacity",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-FolderSize C:": [
+        {
+          "output": [
+            "C:\\Windows\\Temp: {filesystem/nodes/temp/sizeBytes} bytes",
+            "C:\\Users\\devon.ross\\Downloads: {filesystem/nodes/downloads/sizeBytes} bytes",
+            "C:\\ProgramData\\NexusAgent\\Logs: {filesystem/nodes/logs/sizeBytes} bytes"
+          ],
+          "evidence": "sizes",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-CapacityHistory C:": [
+        {
+          "output": [
+            "{storage/history}"
+          ],
+          "evidence": "history",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-Content C:\\ProgramData\\NexusAgent\\logging.conf": [
+        {
+          "output": [
+            "Level: {storage/logging}",
+            "Retention: {storage/retention}",
+            "Owner: Application Support"
+          ],
+          "evidence": "logging-config",
+          "when": {
+            "realism/observed/sizes": true,
+            "realism/observed/history": true
+          },
+          "set": {},
+          "effect": "observe"
+        },
+        {
+          "output": [
+            "Level: {storage/logging}",
+            "Retention: {storage/retention}"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Get-SupportPolicy NexusAgent": [
+        {
+          "output": [
+            "Tier 1: preserve incident logs, archive closed logs to approved storage and verify free space. Application Support owns debug-level and retention changes; escalate with measurements and configuration evidence."
+          ],
+          "evidence": "authority",
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "Clear-TempFiles C:": [
+        {
+          "output": [
+            "Temporary files removed. Free bytes: {storage/freeBytes}"
+          ],
+          "when": {
+            "filesystem/nodes/temp/sizeBytes": 2147483648
+          },
+          "set": {
+            "filesystem/nodes/temp/sizeBytes": 0
+          },
+          "effect": "ineffective"
+        },
+        {
+          "output": [
+            "No temporary files remain."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "ineffective"
+        }
+      ],
+      "Archive-ClosedLogs NexusAgent": [
+        {
+          "output": [
+            "Closed logs archived and checksums verified. Active logs retained; ongoing growth still needs Application Support."
+          ],
+          "evidence": "archive",
+          "when": {
+            "realism/observed/logging-config": true,
+            "realism/observed/authority": true
+          },
+          "set": {
+            "storage/archiveVerified": true,
+            "filesystem/nodes/logs/sizeBytes": 90194313216
+          },
+          "effect": "repair"
+        },
+        {
+          "output": [
+            "Review source measurements and the support policy before archiving application data."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "rejected"
+        }
+      ],
+      "Set-LogRetention NexusAgent 7": [
+        {
+          "output": [
+            "Change refused: Application Support owns logging policy. Attach evidence to an escalation."
+          ],
+          "when": {},
+          "set": {},
+          "effect": "rejected"
+        }
+      ],
+      "help": [
+        {
+          "output": [
+            "Simulated support shell. Commands are scoped to this assigned workstation.",
+            "Get-Volume C:",
+            "Get-FolderSize C:",
+            "Get-CapacityHistory C:",
+            "Get-Content C:\\ProgramData\\NexusAgent\\logging.conf",
+            "Get-SupportPolicy NexusAgent",
+            "Clear-TempFiles C:",
+            "Archive-ClosedLogs NexusAgent",
+            "Set-LogRetention NexusAgent 7",
+            "whoami"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ],
+      "whoami": [
+        {
+          "output": [
+            "{machine/signedInUser}"
+          ],
+          "when": {},
+          "set": {},
+          "effect": "observe"
+        }
+      ]
+    },
+    "completion": {
+      "rootCause": "NexusAgent debug logs grew from 80 to 182 GiB in seven days with no retention bound.",
+      "whatFixed": "Archived closed logs with verification, measured restored headroom and escalated logging policy to Application Support.",
+      "whyItWorked": "Temp cleanup recovers only 2 GiB and cannot stop recurrence. Tier 1 stabilization is not a durable fix; Application Support must approve the retention change. Time-based recurrence verification is deferred."
+    },
+    "noteFacts": [
+      [
+        "space",
+        "bytes",
+        "gib",
+        "gb"
+      ],
+      [
+        "nexusagent"
+      ],
+      [
+        "log"
+      ],
+      [
+        "archiv"
+      ],
+      [
+        "application support"
+      ]
+    ],
+    "finalConditions": {
+      "storage/archiveVerified": true
+    }
+  }
+}

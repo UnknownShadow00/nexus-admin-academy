@@ -43,3 +43,9 @@ artifacts/e2e-launch-verification/
 # (backend/scripts/audit_question_bank.py, build_editorial_review_worklist.py)
 /docs/editorial_review_worklist.json
 /docs/question_bank_audit.json
+
+# Owner curriculum inbox: packages are temporary and must never be committed.
+/references/curriculum-dropbox/*
+!/references/curriculum-dropbox/README.md
+!/references/curriculum-dropbox/.gitkeep
+/references/curriculum-dropbox/.reports/

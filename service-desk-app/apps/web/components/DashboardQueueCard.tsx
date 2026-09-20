@@ -32,25 +32,25 @@ export function DashboardQueueCard({
         meta={meta}
         title={
           <span className="flex items-center gap-2">
-            <Icon aria-hidden="true" className="h-5 w-5 text-sky-400" />
+            <Icon aria-hidden="true" className="h-5 w-5 text-accent" />
             {label}
           </span>
         }
       />
-      <div className="divide-y divide-zinc-800">
+      <div className="divide-y divide-border">
         {tickets.map((ticket) => (
           <button
             aria-label={`Preview ticket: ${ticket.title}`}
-            className="sd-focus-ring group flex w-full min-w-0 items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-zinc-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400"
+            className="sd-focus-ring group flex w-full min-w-0 items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
             key={`${ticket.requester}-${ticket.title}`}
             onClick={() => onSelectTicket(ticket)}
             type="button"
           >
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold leading-snug text-zinc-100 sm:text-base">
+              <span className="block truncate text-sm font-semibold leading-snug text-text sm:text-base">
                 {ticket.title}
               </span>
-              <span className="mt-1 block text-xs font-semibold uppercase tracking-wide text-zinc-400 sm:text-sm">
+              <span className="mt-1 block text-xs font-semibold uppercase tracking-wide text-text-muted sm:text-sm">
                 {ticket.requester}
               </span>
             </span>
@@ -60,7 +60,7 @@ export function DashboardQueueCard({
             />
             <IconChevronRight
               aria-hidden="true"
-              className="mt-0.5 h-5 w-5 shrink-0 text-zinc-600 transition-colors group-hover:text-sky-400"
+              className="mt-0.5 h-5 w-5 shrink-0 text-text-muted transition-colors group-hover:text-accent"
             />
           </button>
         ))}

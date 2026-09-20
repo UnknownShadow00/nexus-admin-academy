@@ -1,5 +1,6 @@
 import { Priority, TicketCategory } from './enums';
 import { TicketStatus, type Ticket } from './ticket-types';
+import { REALISM_FIXTURES } from './service-desk-realism';
 
 export const FIXTURE_REFERENCE_TIME = '2026-07-28T10:30:00.000Z';
 
@@ -21,6 +22,8 @@ type ConvertedTicketSpec = {
 };
 
 function convertedTicket(spec: ConvertedTicketSpec): Ticket {
+  const realistic = REALISM_FIXTURES[spec.id];
+  if (realistic) spec = { ...spec, title: realistic.title, issue: realistic.issue, hints: realistic.hints, troubleshooting: [] };
   return {
     activity: [{ id: `${spec.id}-created`, label: 'Ticket created', timestamp: FIXTURE_REFERENCE_TIME }],
     assignedTo: 'you',

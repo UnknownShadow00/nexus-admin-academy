@@ -1,0 +1,221 @@
+scenarios:
+- stable_key: sd.aplus.security.approved_app_standard_user
+  title: Approved Engineering Tool Requests Administrator Rights
+  description: An approved engineering utility is installed, but one maintenance action
+    prompts for administrator credentials.
+  category: service_desk
+  difficulty: 1
+  definition:
+    id: SD.APLUS.SECURITY.APPROVED_APP_STANDARD_USER
+    title: Approved Engineering Tool Requests Administrator Rights
+    slug: sd.aplus.security.approved_app_standard_user
+    category: service_desk
+    priority: medium
+    difficulty: easy
+    pointValue: 100
+    explanation: Complete the approved calibration using controlled elevation or hand
+      off for authorized elevation while preserving standard-user membership and security
+      controls.
+    description:
+      issue: An approved engineering utility is installed, but one maintenance action
+        prompts for administrator credentials.
+      reportedByLine: Jordan Lee
+      businessImpact: The technician can work normally but cannot complete the monthly
+        vendor-approved device calibration.
+      troubleshooting:
+      - Application launches normally.
+      - Calibration task triggers a UAC credential prompt.
+      - User asks to be made a permanent local administrator.
+      - Software is on the approved-software list.
+      - User is a standard user by policy.
+      - No Defender detection is present.
+      - The monthly calibration procedure documents an approved elevation workflow.
+      - Confirm requester identity, approved software, exact task, UAC prompt, current
+        group membership, and approved procedure.
+      - Determine that the security control is working as designed; the task requires
+        elevation but the user does not require standing administrator rights.
+      - Use or request the documented scoped elevation/managed deployment process.
+        Do not add the user permanently to Administrators and do not disable UAC/security
+        controls.
+      - Repeat the calibration task successfully under approved elevation, then confirm
+        the user remains a standard user and protections remain enabled.
+      - Record evidence, approval/workflow used, action taken, verification, and that
+        no standing privilege was granted.
+    requester:
+      name: Jordan Lee
+      department: Engineering
+      email: Not specified by approved curriculum package
+      contact: Not specified by approved curriculum package
+      location: Not specified by approved curriculum package
+    device:
+      assetTag: SD.APLUS.SECURITY.APPROVED_APP_STANDARD_USER
+      deviceName: ENG-WS-22
+      kind: laptop
+      operatingSystem: Windows 11 Enterprise
+      state: active
+    sla:
+      dueAt: Not specified by approved curriculum package
+      target: medium
+    initialWorldState:
+      directoryOverlaySeeds: {}
+      assetOverlaySeeds: {}
+      chatMessageSeeds: []
+    objectives:
+    - id: professional-pending-or-completed-outcome
+      description: Complete the approved calibration using controlled elevation or
+        hand off for authorized elevation while preserving standard-user membership
+        and security controls.
+      predicateType: action_event_occurred
+      predicateParams:
+        actionType: ticket.add_note
+        payloadMatch:
+          ticketId: SD.APLUS.SECURITY.APPROVED_APP_STANDARD_USER
+      required: true
+      pointValue: 100
+    requiredActions:
+    - id: document-professional-outcome
+      actionType: ticket.add_note
+      description: Complete the approved calibration using controlled elevation or
+        hand off for authorized elevation while preserving standard-user membership
+        and security controls.
+      payloadMatch:
+        ticketId: SD.APLUS.SECURITY.APPROVED_APP_STANDARD_USER
+    forbiddenActions: []
+    hints:
+    - id: hint-01
+      order: 1
+      pointPenalty: 0
+      text: First confirm whether the application itself is blocked or whether only
+        one administrative task is asking for elevation.
+    - id: hint-02
+      order: 2
+      pointPenalty: 5
+      text: Check the user's current group membership, the UAC prompt, and the approved
+        software/calibration procedure before changing any account rights.
+    - id: hint-03
+      order: 3
+      pointPenalty: 5
+      text: If the tool is approved and only the calibration action needs admin privilege,
+        focus on the documented temporary/scoped elevation path rather than changing
+        the user's permanent role.
+    curriculum:
+      scenario_key: sd.aplus.security.approved_app_standard_user
+      title: Approved Engineering Tool Requests Administrator Rights
+      module_key: module.aplus.core2.identity_endpoint_hardening
+      mode: learning
+      objectives:
+      - '2.1'
+      - '2.2'
+      - '2.7'
+      reinforcement_objectives:
+      - '4.1'
+      - '4.2'
+      - '4.7'
+      requester:
+        name: Jordan Lee
+        department: Engineering
+        role: Design Technician
+      device:
+        name: ENG-WS-22
+        os: Windows 11 Enterprise
+        management: Domain-managed standard-user workstation
+      ticket:
+        summary: An approved engineering utility is installed, but one maintenance
+          action prompts for administrator credentials.
+        business_impact: The technician can work normally but cannot complete the
+          monthly vendor-approved device calibration.
+        reported_symptoms:
+        - Application launches normally.
+        - Calibration task triggers a UAC credential prompt.
+        - User asks to be made a permanent local administrator.
+        starting_evidence:
+        - Software is on the approved-software list.
+        - User is a standard user by policy.
+        - No Defender detection is present.
+        - The monthly calibration procedure documents an approved elevation workflow.
+      stages:
+      - name: Investigation
+        expected:
+        - Confirm requester identity, approved software, exact task, UAC prompt, current
+          group membership, and approved procedure.
+      - name: Diagnosis
+        expected:
+        - Determine that the security control is working as designed; the task requires
+          elevation but the user does not require standing administrator rights.
+      - name: Remediation
+        expected:
+        - Use or request the documented scoped elevation/managed deployment process.
+          Do not add the user permanently to Administrators and do not disable UAC/security
+          controls.
+      - name: Verification
+        expected:
+        - Repeat the calibration task successfully under approved elevation, then
+          confirm the user remains a standard user and protections remain enabled.
+      - name: Documentation
+        expected:
+        - Record evidence, approval/workflow used, action taken, verification, and
+          that no standing privilege was granted.
+      hints:
+      - First confirm whether the application itself is blocked or whether only one
+        administrative task is asking for elevation.
+      - Check the user's current group membership, the UAC prompt, and the approved
+        software/calibration procedure before changing any account rights.
+      - If the tool is approved and only the calibration action needs admin privilege,
+        focus on the documented temporary/scoped elevation path rather than changing
+        the user's permanent role.
+      grading:
+        Investigation: 15
+        Diagnosis: 25
+        Remediation: 30
+        Verification: 20
+        Documentation: 10
+      grading_anchors:
+        Investigation: Identifies user context, approved app/task, UAC evidence, and
+          current privilege.
+        Diagnosis: Correctly states that standing admin is unnecessary and the control
+          is functioning as intended.
+        Remediation: Uses/requests approved scoped elevation; no security bypass.
+        Verification: Original calibration succeeds and standard-user/security state
+          is rechecked.
+        Documentation: Clear evidence, approval, action, verification, and residual
+          risk/none.
+      intended_outcome: Complete the approved calibration using controlled elevation
+        or hand off for authorized elevation while preserving standard-user membership
+        and security controls.
+      unsafe_or_incorrect:
+      - Permanently add user to local Administrators
+      - Disable UAC
+      - Disable Defender or firewall
+      - Share an administrator password
+      - Close as fixed without verification
+    rubric_dimensions:
+      Investigation:
+      - Confirm requester identity, approved software, exact task, UAC prompt, current
+        group membership, and approved procedure.
+      Diagnosis:
+      - Determine that the security control is working as designed; the task requires
+        elevation but the user does not require standing administrator rights.
+      Remediation:
+      - Use or request the documented scoped elevation/managed deployment process.
+        Do not add the user permanently to Administrators and do not disable UAC/security
+        controls.
+      Verification:
+      - Repeat the calibration task successfully under approved elevation, then confirm
+        the user remains a standard user and protections remain enabled.
+      Documentation:
+      - Record evidence, approval/workflow used, action taken, verification, and that
+        no standing privilege was granted.
+    grading_anchors:
+      Investigation: Identifies user context, approved app/task, UAC evidence, and
+        current privilege.
+      Diagnosis: Correctly states that standing admin is unnecessary and the control
+        is functioning as intended.
+      Remediation: Uses/requests approved scoped elevation; no security bypass.
+      Verification: Original calibration succeeds and standard-user/security state
+        is rechecked.
+      Documentation: Clear evidence, approval, action, verification, and residual
+        risk/none.
+    successful_professional_outcomes:
+    - Complete the approved calibration using controlled elevation or hand off for
+      authorized elevation while preserving standard-user membership and security
+      controls.

@@ -31,6 +31,7 @@ export interface WorkstationMachineState {
   domainJoinState: 'joined' | 'workgroup' | 'trust-broken';
   signedInUser: string;
   profileState: WorkstationProfileState;
+  profilePath?: string;
   compliance: WorkstationComplianceState;
   model: string;
   location: string;
@@ -213,6 +214,50 @@ export interface WorkstationTerminalState {
 }
 
 export interface WorkstationState {
+  printer?: {
+    name: string;
+    currentAddress: string;
+    portTarget: string;
+    online: boolean;
+    queue: number;
+    completed: number;
+    driver: string;
+  };
+  directory?: {
+    requester: string;
+    peer: string;
+    requesterGroups: string[];
+    peerGroups: string[];
+    approvedGroup: string;
+    broadGroup: string;
+    approved: boolean;
+    sessionGroups: string[];
+    sessionAccess: boolean;
+    broadGranted?: boolean;
+  };
+  profile?: {
+    originalPath: string;
+    backupVerified: boolean;
+    mappingReset: boolean;
+  };
+  storage?: {
+    capacityBytes: number;
+    freeBytes: number;
+    fixedUsedBytes: number;
+    usageNodeIds: string[];
+    history: string;
+    logPath: string;
+    logging: string;
+    retention: string;
+    archiveVerified: boolean;
+  };
+  realism?: {
+    observed: Record<string, boolean>;
+    changed: boolean;
+    repaired: boolean;
+    harmful: boolean;
+    lastEvidence: string | null;
+  };
   schemaVersion: typeof WORKSTATION_STATE_SCHEMA_VERSION;
   machine: WorkstationMachineState;
   network: WorkstationNetworkState;

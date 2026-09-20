@@ -87,7 +87,7 @@ describe('Remote Desktop fixtures', () => {
           Number.isFinite(new Date(workstation.lastLogon).getTime()) &&
           REMOTE_DESKTOP_POWER_STATES.includes(workstation.powerState) &&
           REMOTE_DESKTOP_NETWORK_STATUSES.includes(workstation.networkStatus) &&
-          workstation.services.length === 3 &&
+          workstation.services.length === (workstation.assetTag === 'NX-2504' ? 4 : 3) &&
           workstation.services.every((service) =>
             REMOTE_DESKTOP_SERVICE_STATES.includes(service.state),
           ),

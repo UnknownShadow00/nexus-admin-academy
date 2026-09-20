@@ -82,18 +82,18 @@ export function AccountSignInTestDialog({
       }
     >
       <div className="space-y-4">
-        <div className="grid gap-3 rounded-sm border border-zinc-700 bg-zinc-950/60 p-4 sm:grid-cols-2">
+        <div className="grid gap-3 rounded-sm border border-border bg-surface/60 p-4 sm:grid-cols-2">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+            <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
               Simulated user
             </p>
-            <p className="mt-1 text-sm font-bold text-zinc-100">
+            <p className="mt-1 text-sm font-bold text-text">
               {user.fullName}
             </p>
-            <p className="text-xs text-zinc-400">@{user.username}</p>
+            <p className="text-xs text-text-muted">@{user.username}</p>
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+            <p className="text-xs font-bold uppercase tracking-wide text-text-muted">
               Credential handling
             </p>
             <Badge className="mt-1" variant="success">
@@ -104,7 +104,7 @@ export function AccountSignInTestDialog({
 
         {!testStarted ? (
           <div>
-            <p className="text-sm leading-relaxed text-zinc-300">
+            <p className="text-sm leading-relaxed text-text">
               Expected checkpoint: {test.expected}
             </p>
             <Button
@@ -117,17 +117,17 @@ export function AccountSignInTestDialog({
             </Button>
           </div>
         ) : (
-          <div className="rounded-sm border border-emerald-500/30 bg-emerald-500/10 p-4">
+          <div className="rounded-sm border border-success/30 bg-success/10 p-4">
             <div className="flex items-start gap-3">
               <IconShieldCheck
                 aria-hidden="true"
-                className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400"
+                className="mt-0.5 h-5 w-5 shrink-0 text-success"
               />
               <div>
-                <p className="text-sm font-bold text-emerald-300">
+                <p className="text-sm font-bold text-success">
                   Checkpoint reached
                 </p>
-                <p className="mt-1 text-sm leading-relaxed text-zinc-300">
+                <p className="mt-1 text-sm leading-relaxed text-text">
                   {test.result}
                 </p>
               </div>

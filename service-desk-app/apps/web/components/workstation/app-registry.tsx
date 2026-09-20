@@ -26,17 +26,17 @@ export const WORKSTATION_APP_REGISTRY: Record<
   explorer: {
     label: 'File Explorer',
     Icon: IconFolder,
-    tint: 'text-amber-300',
+    tint: 'text-warning',
   },
   vpn: {
     label: 'VPN Client',
     Icon: IconShieldCheck,
-    tint: 'text-emerald-300',
+    tint: 'text-success',
   },
   settings: {
     label: 'Settings',
     Icon: IconSettings,
-    tint: 'text-zinc-100',
+    tint: 'text-text',
   },
   services: {
     label: 'Services',
@@ -46,16 +46,16 @@ export const WORKSTATION_APP_REGISTRY: Record<
   chat: {
     label: 'Company Chat',
     Icon: IconMessageCircle,
-    tint: 'text-sky-300',
+    tint: 'text-accent',
   },
-  mail: { label: 'Mail', Icon: IconMail, tint: 'text-blue-300' },
+  mail: { label: 'Mail', Icon: IconMail, tint: 'text-accent' },
   browser: { label: 'Web Browser', Icon: IconWorld, tint: 'text-cyan-300' },
   updates: {
     label: 'System Update',
     Icon: IconRefresh,
     tint: 'text-violet-300',
   },
-  trash: { label: 'Recycle Bin', Icon: IconTrash, tint: 'text-zinc-300' },
+  trash: { label: 'Recycle Bin', Icon: IconTrash, tint: 'text-text' },
   system: {
     label: 'System Information',
     Icon: IconTerminal2,
@@ -64,11 +64,11 @@ export const WORKSTATION_APP_REGISTRY: Record<
   terminal: {
     label: 'Command Prompt',
     Icon: IconTerminal2,
-    tint: 'text-emerald-300',
+    tint: 'text-success',
   },
   'credential-manager': {
     label: 'Credential Manager',
     Icon: IconKey,
-    tint: 'text-amber-200',
+    tint: 'text-warning',
   },
 };

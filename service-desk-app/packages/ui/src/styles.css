@@ -1,32 +1,58 @@
-@layer components {
-  [data-theme='light'] .sd-card,
-  [data-theme='light'] .sd-modal-card,
-  [data-theme='light'] .sd-panel-frame,
-  [data-theme='light'] .sd-tabs-content {
-    @apply border-zinc-300 bg-zinc-100 text-zinc-700;
+@layer base {
+  /*
+   * Semantic theme tokens. Dark is the default (bare :root); light overrides
+   * the same names under [data-theme='light']. Every colour has a value in
+   * BOTH themes here - never define one only inside a theme block. Values are
+   * WCAG AA for body and UI text on their own surface.
+   */
+  :root,
+  [data-theme='dark'] {
+    --sd-surface: #09090b;
+    --sd-surface-raised: #18181b;
+    --sd-surface-muted: #27272a;
+    --sd-text: #f4f4f5;
+    --sd-text-muted: #a1a1aa;
+    --sd-border: #3f3f46;
+    --sd-accent: #38bdf8;
+    --sd-accent-contrast: #09090b;
+    --sd-success: #34d399;
+    --sd-warning: #fbbf24;
+    --sd-danger: #f87171;
+    --sd-pending: #a1a1aa;
+    --sd-focus: #38bdf8;
   }
 
-  [data-theme='light'] .sd-card-header,
-  [data-theme='light'] .sd-tooltip {
-    @apply border-zinc-300 bg-zinc-300 text-zinc-900 ring-zinc-300/60;
-  }
-
-  [data-theme='light'] .sd-card-header__title,
-  [data-theme='light'] .sd-modal-header {
-    @apply text-zinc-900;
-  }
-
-  [data-theme='light'] .sd-card-header__meta {
-    @apply text-zinc-600;
-  }
-
-  [data-theme='light'] .sd-input,
-  [data-theme='light'] .sd-select,
-  [data-theme='light'] .sd-textarea {
-    @apply border-zinc-300 bg-zinc-100 text-zinc-900 placeholder:text-zinc-500;
-  }
-
-  [data-theme='light'] .sd-tabs-list {
-    @apply border-zinc-300;
+  [data-theme='light'] {
+    --sd-surface: #ffffff;
+    --sd-surface-raised: #f4f4f5;
+    --sd-surface-muted: #e4e4e7;
+    --sd-text: #18181b;
+    --sd-text-muted: #52525b;
+    --sd-border: #d4d4d8;
+    --sd-accent: #0369a1;
+    --sd-accent-contrast: #ffffff;
+    --sd-success: #047857;
+    --sd-warning: #b45309;
+    --sd-danger: #dc2626;
+    --sd-pending: #52525b;
+    --sd-focus: #0369a1;
   }
 }
+
+/*
+ * There are deliberately NO per-component `[data-theme='light']` overrides
+ * here any more.
+ *
+ * They could never work: an override written in `@layer components` loses to a
+ * raw `bg-zinc-900` utility in `@layer utilities`, whatever its specificity.
+ * That is why the primitives and the core student surfaces looked dark in light
+ * mode. Every one of them now paints with the semantic token utilities
+ * (`bg-surface`, `bg-surface-raised`, `bg-surface-muted`, `text-text`,
+ * `text-text-muted`, `border-border`, `text-accent`, `text-success`,
+ * `text-warning`, `text-danger`), so the value follows `data-theme` on its own.
+ *
+ * Add a colour to the token block above rather than reintroducing an override.
+ * The one intentional exception is the simulated Windows desktop inside
+ * RemoteDesktopTool / workstation: it is a screen-within-a-screen and stays
+ * light in both console themes.
+ */

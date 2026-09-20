@@ -1,0 +1,110 @@
+approvals:
+- filename: aplus-ip-configuration.csv
+  quiz_title: A+ IP Configuration & Basic Connectivity — Module Bank
+  sha256: b3a0d587782b95ba4bf1d9a2c462a0182ae33f63ba2a55371215f5c1d6f26e25
+  reviewed_question_count: 40
+  editorial_status: validated
+  reviewed_at: '2026-09-05'
+  review_note: Full manual question-by-question editorial and answer-key review against repository 220-1201 objectives 2.4, 2.6, and 5.5
+- filename: aplus-hardware-support.csv
+  quiz_title: A+ PC Components, Power & Safe Upgrades — Module Bank
+  sha256: 226daa2d9fec1fd1b1ca8f502eb947c0b5baed52550549d007680ec41f62520a
+  reviewed_question_count: 25
+  editorial_status: validated
+  reviewed_at: '2026-08-29'
+  review_note: Phase 3A.1 individual lesson/question editorial review
+- filename: aplus-windows-support-tools.csv
+  quiz_title: A+ Windows Support Tools & Client Configuration — Module Bank
+  sha256: 3004146b1a9bb25985a858b4988a8810031031000efdfb5ddc874ed2c4651e4b
+  reviewed_question_count: 25
+  editorial_status: validated
+  reviewed_at: '2026-08-29'
+  review_note: Phase 3A.1 individual lesson/question editorial review
+- filename: aplus-windows-troubleshooting.csv
+  quiz_title: A+ Windows Performance, Startup & Application Troubleshooting — Module
+    Bank
+  sha256: 41f31fb2bc12fd2eb21fe60481170b498d4fd4f963de8f1bde228d1403185ea1
+  reviewed_question_count: 25
+  editorial_status: validated
+  reviewed_at: '2026-08-29'
+  review_note: Phase 3A.1 individual lesson/question editorial review
+- filename: module-aplus-core2-service-desk-workflow.csv
+  quiz_title: Module 5 Quiz — Service Desk Workflow
+  sha256: df99a8395eaa914381bb81f464cc4c163b3a66d904018a1994f49cac67251218
+  reviewed_question_count: 35
+  editorial_status: validated
+  reviewed_at: '2026-08-30'
+  review_note: External approved package d23f4e5e2b477bc0b12556f62cc066d1ef6d388105ad40bfb94d4facc0943a53
+- filename: module-aplus-core1-mobile-device-support.csv
+  quiz_title: Module 6 Quiz — Mobile Device Support
+  sha256: 10163e857f8f075ce3f40a9d34ff75681b0a5bbf2351a4ff2341238b4f13ceef
+  reviewed_question_count: 36
+  editorial_status: validated
+  reviewed_at: '2026-08-30'
+  review_note: External approved package 21774037c877d9c5f0b7b30454783dc43a41bcc41c2179ce0ecb50c4ca10e8f0
+- filename: module-aplus-core1-network-services-troubleshooting.csv
+  quiz_title: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+  sha256: 9c7df95b62b1606b80c37d5eb02cbcd0f1824a00622c8a8c49b57b76bb3e2ebf
+  reviewed_question_count: 40
+  editorial_status: validated
+  reviewed_at: '2026-08-31'
+  review_note: External approved package fa07a720cca18f4b3b7156e0322938e261d520b78cbe737c6bcfc8788cce99ec
+- filename: module-aplus-core1-hardware-fault-isolation.csv
+  quiz_title: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+  sha256: 9db0224d9767e1a3837ce24e3231ee8a725ce64727120ba4c91f947e9e9d007d
+  reviewed_question_count: 36
+  editorial_status: validated
+  reviewed_at: '2026-08-31'
+  review_note: External approved package dee6ba3f9f0c079b3bb838381e72fe169370b586d8268193bca0bafcaa73b055
+- filename: module-aplus-core1-printers-mfds.csv
+  quiz_title: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+  sha256: 1532fb95187d1846b39addaa8aac46b0f98fc035e2fff87cab2641707fa7f9f5
+  reviewed_question_count: 30
+  editorial_status: validated
+  reviewed_at: '2026-08-31'
+  review_note: External approved package e8fe208b0f469484c1e5ec679d0b291bfb9d865a50899e001f1959044a5d26a1
+- filename: module-aplus-core1-virtualization-cloud-foundations.csv
+  quiz_title: Module 10 — Virtualization & Cloud Foundations Quiz
+  sha256: 8d9a5f0cbe29abb4073a7aacf00166706a4222d3ed12cfb386ce4a74273814bc
+  reviewed_question_count: 30
+  editorial_status: validated
+  reviewed_at: '2026-08-31'
+  review_note: External approved package ff879a2779425e93467558c32aa4f8767ae4a1f11ec710dcb53e3f394f0d867d
+- filename: module-aplus-core2-windows-admin-cli-networking.csv
+  quiz_title: Module 11 — Windows Administration, Command Line & Client Networking
+    Quiz
+  sha256: 20b237eddfcef031c73b39e64966363e974bcfeacfa0fdf3c78881c52d33cc11
+  reviewed_question_count: 36
+  editorial_status: validated
+  reviewed_at: '2026-08-31'
+  review_note: External approved package 5a242ea944d95925063912147a3c61c13e1a45bd4db7f88aed9316c8cd4ea644
+- filename: module-aplus-core2-cross-platform-app-cloud-support.csv
+  quiz_title: Module 12 — Cross-Platform Desktop, Applications & Cloud Productivity
+    Support Quiz
+  sha256: 6cd78e21866dc0744944805d8d48a63d1971d207ef7da4ba5a68ff3d94563e7e
+  reviewed_question_count: 32
+  editorial_status: validated
+  reviewed_at: '2026-08-31'
+  review_note: External approved package 3205bca048c76c780e47fe48c7203ad5c9d46fa5f3b18f03092baabe9585ac22
+- filename: module-aplus-core2-identity-endpoint-hardening.csv
+  quiz_title: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+  sha256: 594089cedfb7af011f769f42b60e4e772a1173b82c7cad319bd66398228da40f
+  reviewed_question_count: 36
+  editorial_status: validated
+  reviewed_at: '2026-09-03'
+  review_note: External approved package a6b4648d6f4cf8ba3bfb78e8ade9212a92566fc170c85623f7b1bd4f4d6d71f2
+- filename: module-aplus-core2-connected-endpoint-mobile-security.csv
+  quiz_title: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+  sha256: b0c8a179bdeacc8be3c10188db12e2f1a6ba59b27e83b8621cda5e0f8a586093
+  reviewed_question_count: 38
+  editorial_status: validated
+  reviewed_at: '2026-09-03'
+  review_note: External approved package 584796dc025d04249dd0b21c055414867b7f813fbcd2490905322bb731029c0d
+- filename: module-aplus-core2-threat-malware-response.csv
+  quiz_title: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+    Troubleshooting
+  sha256: e765e3397bf7aefb735068181b7ad9501a70e84f48a8cd66f3f3a8383457008a
+  reviewed_question_count: 36
+  editorial_status: validated
+  reviewed_at: '2026-09-03'
+  review_note: External approved package c29667b031365cf30245ac1bf9bbc27cf6eec20f11527e0f2d7e62747583a980

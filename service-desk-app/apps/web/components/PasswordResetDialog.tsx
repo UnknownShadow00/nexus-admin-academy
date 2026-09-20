@@ -35,30 +35,30 @@ export function PasswordResetDialog({
       }
     >
       <div className="space-y-4">
-        <div className="rounded-sm border border-zinc-700 bg-zinc-950/60 p-4">
-          <p className="text-sm font-bold text-zinc-100">{fullName}</p>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+        <div className="rounded-sm border border-border bg-surface/60 p-4">
+          <p className="text-sm font-bold text-text">{fullName}</p>
+          <p className="mt-1 text-xs leading-relaxed text-text-muted">
             A simulated temporary credential will be issued. The value is never
             generated, displayed, copied, or stored.
           </p>
         </div>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-sky-400/30 bg-sky-400/10 p-3">
+        <label className="flex cursor-pointer items-start gap-3 rounded-sm border border-accent/30 bg-accent/10 p-3">
           <input
             checked={requireChange}
-            className="mt-0.5 h-4 w-4 accent-sky-500"
+            className="mt-0.5 h-4 w-4 accent-accent"
             onChange={(event) => setRequireChange(event.target.checked)}
             type="checkbox"
           />
           <span>
-            <span className="flex items-center gap-2 text-sm font-bold text-zinc-100">
+            <span className="flex items-center gap-2 text-sm font-bold text-text">
               <IconShieldCheck
                 aria-hidden="true"
-                className="h-4 w-4 text-sky-400"
+                className="h-4 w-4 text-accent"
               />
               Require change at next sign-in
             </span>
-            <span className="mt-1 block text-xs leading-relaxed text-zinc-400">
+            <span className="mt-1 block text-xs leading-relaxed text-text-muted">
               The requester must replace the temporary credential during the
               simulated sign-in handoff.
             </span>
@@ -66,7 +66,7 @@ export function PasswordResetDialog({
         </label>
 
         {!requireChange ? (
-          <p className="rounded-sm border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
+          <p className="rounded-sm border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
             This leaves a temporary credential usable after first sign-in and
             does not meet the Starter Support reset policy.
           </p>

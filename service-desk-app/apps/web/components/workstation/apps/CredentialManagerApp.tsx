@@ -28,7 +28,7 @@ export function CredentialManagerApp({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-lg font-bold">Credential Manager</h3>
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 text-sm text-text-muted">
             Manage synthetic Windows credential targets used by this training
             workstation.
           </p>
@@ -116,7 +116,7 @@ export function CredentialManagerApp({
                   <p className="truncate font-mono text-sm font-semibold">
                     {credential.target}
                   </p>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-text-muted">
                     {credential.username} · {credential.persistence}
                   </p>
                 </div>
@@ -132,7 +132,7 @@ export function CredentialManagerApp({
               </article>
             ))
           ) : (
-            <p className="bg-white p-6 text-center text-sm text-zinc-500">
+            <p className="bg-white p-6 text-center text-sm text-text-muted">
               No Windows credentials are stored.
             </p>
           )}

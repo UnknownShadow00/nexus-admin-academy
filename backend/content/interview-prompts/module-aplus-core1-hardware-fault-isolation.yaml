@@ -1,0 +1,95 @@
+prompts:
+- prompt_key: explain.aplus.hardware.no_power
+  title: No-Power Triage
+  objectives:
+  - '3.6'
+  - '5.1'
+  prompt: A desktop shows no LEDs or fan movement. Explain the first checks and when
+    you would stop/escalate.
+  expected_concepts:
+  - verify external outlet/strip/UPS and cable
+  - verify PSU switch/input and internal power connections if authorized
+  - use known-good compatible PSU only according to procedure
+  - never open PSU for field repair
+  - stop for burning/smoke/electrical danger
+  - verify system powers and POSTs after correction
+  minimum_concepts: 4
+  rubric:
+    approved_text: 1 point per concept; pass 4/6 including external power path and
+      PSU safety.
+    minimum_concepts: 4
+    must_include: []
+  rubric_version: module8-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.hardware_fault_isolation
+  domain: '3.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.hardware.clicking_drive
+  title: Clicking Drive Priority
+  objectives:
+  - '5.2'
+  prompt: Explain why a clicking hard drive containing the only copy of important
+    data changes the troubleshooting plan.
+  expected_concepts:
+  - mechanical failure risk
+  - minimize unnecessary reads/writes
+  - protect/recover/back up data according to policy
+  - avoid aggressive write-heavy repair as first step
+  - replace/recover/escalate using approved process
+  minimum_concepts: 3
+  rubric:
+    approved_text: Pass 3/5, but data preservation and avoiding unnecessary write-heavy
+      repair are required.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module8-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.hardware_fault_isolation
+  domain: '3.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.hardware.ram_ecc
+  title: ECC and Memory Compatibility
+  objectives:
+  - '3.3'
+  prompt: Explain ECC vs non-ECC RAM and what you must verify before installing a
+    replacement module.
+  expected_concepts:
+  - ECC detects/corrects certain memory errors
+  - platform must support ECC
+  - verify DIMM/SO-DIMM form factor
+  - verify DDR generation/electrical compatibility
+  - verify capacity/speed/slot population according to system documentation
+  minimum_concepts: 3
+  rubric:
+    approved_text: Pass 3/5 including ECC purpose and platform/DDR compatibility.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module8-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.hardware_fault_isolation
+  domain: '3.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.hardware.no_signal
+  title: No-Signal Display Isolation
+  objectives:
+  - '5.3'
+  - '3.2'
+  prompt: Explain how you would isolate a monitor that shows No Signal after a desk
+    move.
+  expected_concepts:
+  - check monitor power
+  - verify correct input source
+  - check/reseat/swap video cable
+  - use known-good monitor/source/cable comparison
+  - investigate GPU/driver/system only after external path evidence
+  - verify original display output
+  minimum_concepts: 4
+  rubric:
+    approved_text: Pass 4/6 including input/cable and a known-good comparison.
+    minimum_concepts: 4
+    must_include: []
+  rubric_version: module8-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.hardware_fault_isolation
+  domain: '3.0'
+  importance: working_knowledge

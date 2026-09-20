@@ -1,0 +1,2736 @@
+certification:
+  cert_key: comptia_aplus
+  name: CompTIA A+
+  provider: CompTIA
+  display_order: 1
+versions:
+- version_key: comptia_aplus_220-1201
+  label: CompTIA A+ Core 1 (220-1201)
+  exam_codes:
+  - 220-1201
+  is_current: true
+  effective_date: '2025'
+  source_name: CompTIA A+ Certification Exam Objectives (Core 1, 220-1201)
+  source_url: https://www.comptia.org/certifications/a
+  objectives_file: comptia-a-plus-220-1201.yaml
+  domains:
+  - domain_key: '1.0'
+    title: Mobile Devices
+    weight_percent: 13
+    display_order: 1
+  - domain_key: '2.0'
+    title: Networking
+    weight_percent: 23
+    display_order: 2
+  - domain_key: '3.0'
+    title: Hardware
+    weight_percent: 25
+    display_order: 3
+  - domain_key: '4.0'
+    title: Virtualization and Cloud Computing
+    weight_percent: 11
+    display_order: 4
+  - domain_key: '5.0'
+    title: Hardware and Network Troubleshooting
+    weight_percent: 28
+    display_order: 5
+  modules:
+  - module_key: module.aplus.core1.networking_fundamentals
+    title: Networking Fundamentals & Client Triage
+    skill_promise: Explain core networking concepts and isolate a client connectivity
+      fault.
+    certification_domain_key: '2.0'
+    importance_hint: job_critical
+    display_order: 1
+    assessments:
+    - assessment_key: assess.aplus.core1.networking_fundamentals.quick_check
+      assessment_role: quick_check
+      title: Networking Fundamentals — Quick Check
+      lesson_key: lesson.aplus.core1.networking_fundamentals.tcp_udp_ports
+      displayed_count: 5
+      pass_percent: 80
+      display_order: 1
+    - assessment_key: assess.aplus.core1.networking_fundamentals.module_quiz
+      assessment_role: module_quiz
+      title: Networking Fundamentals — Module Quiz
+      displayed_count: 20
+      pass_percent: 70
+      display_order: 2
+    - assessment_key: assess.aplus.core1.networking_fundamentals.explain
+      assessment_role: explain
+      title: Networking Fundamentals — Explain
+      display_order: 3
+  - module_key: module.aplus.core1.hardware_support
+    title: PC Components, Power & Safe Upgrades
+    skill_promise: Select compatible motherboard, CPU, expansion-card, and power components
+      and plan a safe support upgrade.
+    certification_domain_key: '3.0'
+    importance_hint: job_critical
+    display_order: 4
+    assessments:
+    - assessment_key: assess.aplus.hardware.qc.platform
+      assessment_role: quick_check
+      title: Quick Check — Motherboards and Form Factors
+      lesson_key: lesson.aplus.core1.hardware_support.platform
+      quiz_ref: A+ PC Components, Power & Safe Upgrades — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.4'
+        tags_any:
+        - motherboard
+        - form-factor
+        - compatibility
+        - tools
+      display_order: 1
+    - assessment_key: assess.aplus.hardware.qc.cpu
+      assessment_role: quick_check
+      title: Quick Check — CPUs and Cooling
+      lesson_key: lesson.aplus.core1.hardware_support.cpu_cooling
+      quiz_ref: A+ PC Components, Power & Safe Upgrades — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.4'
+        tags_any:
+        - cpu
+        - cooling
+      display_order: 2
+    - assessment_key: assess.aplus.hardware.qc.cards
+      assessment_role: quick_check
+      title: Quick Check — Expansion Cards
+      lesson_key: lesson.aplus.core1.hardware_support.expansion_cards
+      quiz_ref: A+ PC Components, Power & Safe Upgrades — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.4'
+        tags_any:
+        - expansion
+        - pcie
+      display_order: 3
+    - assessment_key: assess.aplus.hardware.qc.power
+      assessment_role: quick_check
+      title: Quick Check — Power Supplies
+      lesson_key: lesson.aplus.core1.hardware_support.power
+      quiz_ref: A+ PC Components, Power & Safe Upgrades — Module Bank
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.5'
+        tags_any:
+        - psu
+        - power
+      display_order: 4
+    - assessment_key: assess.aplus.hardware.qc.upgrade
+      assessment_role: quick_check
+      title: Quick Check — Safe Upgrade Workflow
+      lesson_key: lesson.aplus.core1.hardware_support.safe_upgrade
+      quiz_ref: A+ PC Components, Power & Safe Upgrades — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.4'
+        - '3.5'
+        tags_any:
+        - workflow
+        - verification
+        - documentation
+      display_order: 5
+    - assessment_key: assess.aplus.hardware.module_quiz
+      assessment_role: module_quiz
+      title: Module Quiz — PC Components, Power & Safe Upgrades
+      quiz_ref: A+ PC Components, Power & Safe Upgrades — Module Bank
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - tags_any:
+          - motherboard
+          - form-factor
+          - cpu
+          - cooling
+          count: 4
+        - tags_any:
+          - expansion
+          - pcie
+          count: 2
+        - objective_codes:
+          - '3.5'
+          count: 3
+        - tags_any:
+          - workflow
+          - safety
+          - verification
+          - documentation
+          count: 3
+      display_order: 6
+    - assessment_key: assess.aplus.hardware.practical
+      assessment_role: practical
+      title: Practical — Plan a Compatible PC Upgrade
+      lab_ref: A+ Practical — Plan a Compatible PC Upgrade
+      pass_percent: 70
+      display_order: 7
+    - assessment_key: assess.aplus.hardware.explain
+      assessment_role: explain
+      title: Explain — Hardware Upgrade Decisions
+      pass_percent: 70
+      display_order: 8
+  - module_key: module.aplus.core1.ip_configuration
+    title: IP Configuration & Basic Connectivity Troubleshooting
+    skill_promise: 'Read a Windows machine''s IPv4 settings, recognise DHCP vs APIPA,
+      explain the default gateway and DNS, and work through common workstation connectivity
+      faults with the right commands.
+
+      '
+    certification_domain_key: '2.0'
+    importance_hint: job_critical
+    display_order: 3
+    assessments:
+    - assessment_key: assess.aplus.ipcfg.qc.ipv4_basics
+      assessment_role: quick_check
+      title: Quick Check — IPv4 Configuration Basics
+      lesson_key: lesson.aplus.core1.ip_configuration.ipv4_basics
+      quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '2.6'
+        tags_any:
+        - ipv4
+        - subnet-mask
+        - static-vs-dynamic
+        - private-addressing
+        - ipv6
+        - healthy-config
+        question_blueprint:
+        - objective_codes:
+          - '2.6'
+          count: 4
+        category_requirements:
+        - category: applied_ipv4
+          minimum: 1
+          tags_any:
+          - scenario
+      display_order: 1
+    - assessment_key: assess.aplus.ipcfg.qc.dhcp_apipa
+      assessment_role: quick_check
+      title: Quick Check — DHCP and APIPA
+      lesson_key: lesson.aplus.core1.ip_configuration.dhcp_and_apipa
+      quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '2.4'
+        - '2.6'
+        - '5.5'
+        tags_any:
+        - dhcp
+        - apipa
+        question_blueprint:
+        - objective_codes: []
+          count: 5
+        category_requirements:
+        - category: dhcp
+          minimum: 2
+          tags_any:
+          - dhcp
+        - category: apipa
+          minimum: 2
+          tags_any:
+          - apipa
+        - category: troubleshooting
+          minimum: 2
+          tags_any:
+          - troubleshooting
+      display_order: 2
+    - assessment_key: assess.aplus.ipcfg.qc.gateway
+      assessment_role: quick_check
+      title: Quick Check — Default Gateway and Connectivity
+      lesson_key: lesson.aplus.core1.ip_configuration.default_gateway
+      quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '2.6'
+        - '5.5'
+        tags_any:
+        - gateway
+        question_blueprint:
+        - objective_codes: []
+          count: 4
+        category_requirements:
+        - category: applied_gateway
+          minimum: 2
+          tags_any:
+          - scenario
+      display_order: 3
+    - assessment_key: assess.aplus.ipcfg.qc.dns
+      assessment_role: quick_check
+      title: Quick Check — DNS Basics
+      lesson_key: lesson.aplus.core1.ip_configuration.dns_basics
+      quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '2.4'
+        - '5.5'
+        tags_any:
+        - dns
+        - nslookup
+        question_blueprint:
+        - objective_codes: []
+          count: 4
+        category_requirements:
+        - category: applied_dns
+          minimum: 2
+          tags_any:
+          - scenario
+      display_order: 4
+    - assessment_key: assess.aplus.ipcfg.qc.win_cmds
+      assessment_role: quick_check
+      title: Quick Check — Windows Network Troubleshooting Commands
+      lesson_key: lesson.aplus.core1.ip_configuration.windows_commands
+      quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '5.5'
+        tags_any:
+        - commands
+        - ping
+        - nslookup
+        question_blueprint:
+        - objective_codes:
+          - '5.5'
+          count: 5
+        category_requirements:
+        - category: command_recall
+          minimum: 2
+          tags_any:
+          - short-answer
+        - category: troubleshooting_use
+          minimum: 2
+          tags_any:
+          - troubleshooting
+      display_order: 5
+    - assessment_key: assess.aplus.ipcfg.module_quiz
+      assessment_role: module_quiz
+      title: Module Quiz — IP Configuration & Basic Connectivity
+      quiz_ref: A+ IP Configuration & Basic Connectivity — Module Bank
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '2.4'
+          count: 3
+        - objective_codes:
+          - '2.6'
+          count: 4
+        - objective_codes:
+          - '5.5'
+          count: 5
+        category_requirements:
+        - category: ip_addressing
+          minimum: 2
+          tags_any:
+          - ipv4
+          - subnet-mask
+          - static-vs-dynamic
+          - private-addressing
+          - ipv6
+          - healthy-config
+        - category: dhcp_apipa
+          minimum: 2
+          tags_any:
+          - dhcp
+          - apipa
+        - category: gateway
+          minimum: 2
+          tags_any:
+          - gateway
+        - category: dns
+          minimum: 2
+          tags_any:
+          - dns
+          - nslookup
+        - category: commands
+          minimum: 2
+          tags_any:
+          - commands
+          - short-answer
+        - category: troubleshooting
+          minimum: 4
+          tags_any:
+          - scenario
+          - troubleshooting
+        selection_requirements:
+          multi_select_minimum: 1
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 6
+    - assessment_key: assess.aplus.ipcfg.practical
+      assessment_role: practical
+      title: Practical — Inspect a Windows Machine's IP Configuration
+      lab_ref: A+ Practical — Inspect Windows IP Configuration
+      pass_percent: 70
+      display_order: 7
+    - assessment_key: assess.aplus.ipcfg.service_desk
+      assessment_role: service_desk
+      title: Service Desk — Workstation Lost Network Connectivity
+      service_desk_ref: inc2503
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus.ipcfg.explain
+      assessment_role: explain
+      title: Explain — IP Configuration & Connectivity
+      pass_percent: 70
+      display_order: 9
+  - module_key: module.aplus.core1.mobile_device_support
+    title: Module 6 — Mobile Device Hardware, Connectivity & Troubleshooting
+    skill_promise: null
+    certification_domain_key: '1.0'
+    importance_hint: working_knowledge
+    display_order: 5
+    assessments:
+    - assessment_key: assess.aplus-core1-mobile-device-support.qc.hardware-safe-service
+      assessment_role: quick_check
+      title: Quick Check — Mobile/Laptop Hardware & Safe Service
+      lesson_key: lesson.aplus.mobile.hardware_safe_service
+      quiz_ref: Module 6 Quiz — Mobile Device Support
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q001
+        - Q003
+        - Q004
+        - Q006
+      display_order: 1
+    - assessment_key: assess.aplus-core1-mobile-device-support.qc.ports-accessories-docking
+      assessment_role: quick_check
+      title: Quick Check — Ports, Accessories & Docking
+      lesson_key: lesson.aplus.mobile.ports_accessories_docking
+      quiz_ref: Module 6 Quiz — Mobile Device Support
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q007
+        - Q009
+        - Q012
+        - Q013
+      display_order: 2
+    - assessment_key: assess.aplus-core1-mobile-device-support.qc.connectivity-radios
+      assessment_role: quick_check
+      title: Quick Check — Wi-Fi, Cellular, SIM/eSIM, Hotspots & Bluetooth
+      lesson_key: lesson.aplus.mobile.connectivity_radios
+      quiz_ref: Module 6 Quiz — Mobile Device Support
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q015
+        - Q016
+        - Q017
+        - Q019
+      display_order: 3
+    - assessment_key: assess.aplus-core1-mobile-device-support.qc.mdm-sync
+      assessment_role: quick_check
+      title: Quick Check — MDM, BYOD, Corporate Devices & Business Sync
+      lesson_key: lesson.aplus.mobile.mdm_sync
+      quiz_ref: Module 6 Quiz — Mobile Device Support
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q021
+        - Q022
+        - Q023
+        - Q024
+      display_order: 4
+    - assessment_key: assess.aplus-core1-mobile-device-support.qc.physical-power-troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — Battery, Charging, Screen & Physical Damage
+      lesson_key: lesson.aplus.mobile.physical_power_troubleshooting
+      quiz_ref: Module 6 Quiz — Mobile Device Support
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q025
+        - Q026
+        - Q027
+        - Q028
+      display_order: 5
+    - assessment_key: assess.aplus-core1-mobile-device-support.qc.connectivity-app-performance-troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — Troubleshooting Mobile Connectivity, Apps & Performance
+      lesson_key: lesson.aplus.mobile.connectivity_app_performance_troubleshooting
+      quiz_ref: Module 6 Quiz — Mobile Device Support
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q029
+        - Q030
+        - Q032
+        - Q033
+      display_order: 6
+    - assessment_key: assess.aplus-core1-mobile-device-support.module_quiz
+      assessment_role: module_quiz
+      title: Module 6 Quiz — Mobile Device Support
+      quiz_ref: Module 6 Quiz — Mobile Device Support
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '1.1'
+          tags_any:
+          - Q001
+          - Q002
+          - Q003
+          - Q004
+          - Q005
+          - Q006
+          - Q026
+          count: 3
+        - objective_codes:
+          - '1.2'
+          tags_any:
+          - Q007
+          - Q008
+          - Q009
+          - Q010
+          - Q011
+          - Q012
+          - Q013
+          - Q014
+          - Q027
+          count: 2
+        - objective_codes:
+          - '1.3'
+          tags_any:
+          - Q011
+          - Q015
+          - Q016
+          - Q017
+          - Q018
+          - Q019
+          - Q020
+          - Q021
+          - Q022
+          - Q023
+          - Q024
+          - Q033
+          - Q034
+          - Q035
+          count: 4
+        - objective_codes:
+          - '5.4'
+          tags_any:
+          - Q006
+          - Q013
+          - Q019
+          - Q025
+          - Q026
+          - Q027
+          - Q028
+          - Q029
+          - Q030
+          - Q031
+          - Q032
+          - Q033
+          - Q034
+          count: 3
+        category_requirements:
+        - category: safe_service_hardware
+          minimum: 1
+          tags_any:
+          - Q001
+          - Q002
+          - Q003
+          - Q004
+          - Q006
+        - category: connection_accessory_selection
+          minimum: 1
+          tags_any:
+          - Q007
+          - Q008
+          - Q009
+          - Q010
+          - Q011
+          - Q012
+          - Q013
+          - Q014
+        - category: mobile_network_sync
+          minimum: 1
+          tags_any:
+          - Q015
+          - Q016
+          - Q017
+          - Q018
+          - Q020
+          - Q035
+        - category: troubleshooting_safety
+          minimum: 1
+          tags_any:
+          - Q025
+          - Q026
+          - Q027
+          - Q028
+        - category: integrated_troubleshooting
+          minimum: 1
+          tags_any:
+          - Q019
+          - Q022
+          - Q024
+          - Q029
+          - Q030
+          - Q031
+          - Q032
+          - Q033
+          - Q034
+        exclude_question_ids: []
+      display_order: 7
+    - assessment_key: assess.aplus-core1-mobile-device-support.practical
+      assessment_role: practical
+      title: Inspect, Isolate, and Document a Mobile Device
+      lab_ref: Inspect, Isolate, and Document a Mobile Device
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus-core1-mobile-device-support.service_desk
+      assessment_role: service_desk
+      title: Service Desk — service_desk.aplus.mobile.intermittent_charge_mail_sync
+      service_desk_ref: service_desk.aplus.mobile.intermittent_charge_mail_sync
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core1-mobile-device-support.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 10
+  - module_key: module.aplus.core1.network_services_troubleshooting
+    title: Network Services, Devices, Wireless & Troubleshooting
+    skill_promise: null
+    certification_domain_key: '2.0'
+    importance_hint: working_knowledge
+    display_order: 6
+    assessments:
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.ports-protocols
+      assessment_role: quick_check
+      title: Quick Check — Ports, Protocols & What Services Are Listening
+      lesson_key: lesson.aplus.network.ports_protocols
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q001
+        - M7Q002
+        - M7Q004
+        - M7Q005
+      display_order: 1
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.wireless
+      assessment_role: quick_check
+      title: Quick Check — Wireless Networks, Bands & Interference
+      lesson_key: lesson.aplus.network.wireless
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q006
+        - M7Q007
+        - M7Q008
+        - M7Q009
+      display_order: 2
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.host-services
+      assessment_role: quick_check
+      title: Quick Check — Network Host Services & Appliances
+      lesson_key: lesson.aplus.network.host_services
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q010
+        - M7Q011
+        - M7Q012
+        - M7Q013
+      display_order: 3
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.dns-dhcp-vlan-vpn
+      assessment_role: quick_check
+      title: Quick Check — DNS, DHCP, VLANs & VPNs
+      lesson_key: lesson.aplus.network.dns_dhcp_vlan_vpn
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q014
+        - M7Q016
+        - M7Q017
+        - M7Q018
+      display_order: 4
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.devices-poe
+      assessment_role: quick_check
+      title: Quick Check — Routers, Switches, Access Points, Firewalls & PoE
+      lesson_key: lesson.aplus.network.devices_poe
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q020
+        - M7Q021
+        - M7Q022
+        - M7Q023
+      display_order: 5
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.connections-types-tools
+      assessment_role: quick_check
+      title: Quick Check — SOHO Networks, Internet Types & Technician Tools
+      lesson_key: lesson.aplus.network.connections_types_tools
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q025
+        - M7Q027
+        - M7Q028
+        - M7Q029
+      display_order: 6
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.qc.troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — Evidence-First Network Troubleshooting
+      lesson_key: lesson.aplus.network.troubleshooting
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M7Q031
+        - M7Q032
+        - M7Q033
+        - M7Q037
+      display_order: 7
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.module_quiz
+      assessment_role: module_quiz
+      title: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      quiz_ref: Module 7 — Network Services, Devices, Wireless & Troubleshooting Quiz
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '2.1'
+          count: 1
+        - objective_codes:
+          - '2.2'
+          count: 1
+        - objective_codes:
+          - '2.3'
+          count: 1
+        - objective_codes:
+          - '2.4'
+          count: 2
+        - objective_codes:
+          - '2.5'
+          count: 1
+        - objective_codes:
+          - '2.6'
+          count: 1
+        - objective_codes:
+          - '2.7'
+          count: 1
+        - objective_codes:
+          - '2.8'
+          count: 1
+        - objective_codes:
+          - '5.5'
+          count: 3
+        category_requirements:
+        - category: ports_protocols_or_services
+          minimum: 2
+          question_ids:
+          - M7Q001
+          - M7Q002
+          - M7Q003
+          - M7Q004
+          - M7Q005
+          - M7Q010
+          - M7Q011
+          - M7Q012
+          - M7Q013
+        - category: wireless
+          minimum: 2
+          question_ids:
+          - M7Q006
+          - M7Q007
+          - M7Q008
+          - M7Q009
+          - M7Q033
+        - category: dns_dhcp_vlan_vpn
+          minimum: 2
+          question_ids:
+          - M7Q014
+          - M7Q015
+          - M7Q016
+          - M7Q017
+          - M7Q018
+          - M7Q019
+          - M7Q036
+        - category: devices_tools_connections
+          minimum: 2
+          question_ids:
+          - M7Q020
+          - M7Q021
+          - M7Q022
+          - M7Q023
+          - M7Q024
+          - M7Q025
+          - M7Q026
+          - M7Q027
+          - M7Q028
+          - M7Q029
+          - M7Q030
+        - category: troubleshooting_reasoning
+          minimum: 3
+          question_ids:
+          - M7Q007
+          - M7Q009
+          - M7Q031
+          - M7Q032
+          - M7Q033
+          - M7Q034
+          - M7Q037
+          - M7Q038
+        exclude_question_ids:
+        - M7Q039
+        - M7Q040
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 7
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40% in eligible
+            bank without documented reason.
+      display_order: 8
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.practical
+      assessment_role: practical
+      title: Map, Test, and Diagnose a Small Office Network
+      lab_ref: Map, Test, and Diagnose a Small Office Network
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.service_desk
+      assessment_role: service_desk
+      title: Service Desk — service_desk.aplus.network.loading_dock_wifi
+      service_desk_ref: service_desk.aplus.network.loading_dock_wifi
+      pass_percent: 70
+      display_order: 10
+    - assessment_key: assess.aplus-core1-network-services-troubleshooting.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 11
+  - module_key: module.aplus.core1.hardware_fault_isolation
+    title: PC Hardware, Displays & Fault Isolation
+    skill_promise: null
+    certification_domain_key: '3.0'
+    importance_hint: working_knowledge
+    display_order: 7
+    assessments:
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.qc.displays-attributes
+      assessment_role: quick_check
+      title: 'Quick Check — Displays: Types, Attributes & Choosing the Right Screen'
+      lesson_key: lesson.aplus.hardware.displays_attributes
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M8Q001
+        - M8Q002
+        - M8Q003
+        - M8Q004
+      display_order: 1
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.qc.cables-connectors
+      assessment_role: quick_check
+      title: Quick Check — Cables, Connectors & Adapters Without Guessing
+      lesson_key: lesson.aplus.hardware.cables_connectors
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M8Q005
+        - M8Q006
+        - M8Q007
+        - M8Q008
+      display_order: 2
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.qc.ram
+      assessment_role: quick_check
+      title: 'Quick Check — RAM: DIMMs, SO-DIMMs, DDR, ECC & Channel Configurations'
+      lesson_key: lesson.aplus.hardware.ram
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M8Q010
+        - M8Q011
+        - M8Q012
+        - M8Q013
+      display_order: 3
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.qc.power
+      assessment_role: quick_check
+      title: Quick Check — PC Power Supplies, Connectors & Safe Replacement
+      lesson_key: lesson.aplus.hardware.power
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M8Q014
+        - M8Q015
+        - M8Q016
+        - M8Q017
+      display_order: 4
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.qc.core-fault-isolation
+      assessment_role: quick_check
+      title: Quick Check — POST, No-Power, Thermal & Core Hardware Fault Isolation
+      lesson_key: lesson.aplus.hardware.core_fault_isolation
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M8Q018
+        - M8Q019
+        - M8Q020
+        - M8Q021
+      display_order: 5
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.qc.storage-display-troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — Storage, RAID & Display Troubleshooting
+      lesson_key: lesson.aplus.hardware.storage_display_troubleshooting
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M8Q023
+        - M8Q024
+        - M8Q027
+        - M8Q031
+      display_order: 6
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.module_quiz
+      assessment_role: module_quiz
+      title: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      quiz_ref: Module 8 — PC Hardware, Displays & Fault Isolation Quiz
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '3.1'
+          count: 2
+        - objective_codes:
+          - '3.2'
+          count: 2
+        - objective_codes:
+          - '3.3'
+          count: 1
+        - objective_codes:
+          - '3.6'
+          count: 1
+        - objective_codes:
+          - '5.1'
+          count: 2
+        - objective_codes:
+          - '5.2'
+          count: 2
+        - objective_codes:
+          - '5.3'
+          count: 2
+        category_requirements:
+        - category: component_specs
+          minimum: 4
+          question_ids:
+          - M8Q001
+          - M8Q002
+          - M8Q003
+          - M8Q004
+          - M8Q005
+          - M8Q006
+          - M8Q007
+          - M8Q008
+          - M8Q009
+          - M8Q010
+          - M8Q011
+          - M8Q012
+          - M8Q013
+          - M8Q014
+          - M8Q015
+          - M8Q016
+        - category: core_hardware_troubleshooting
+          minimum: 2
+          question_ids:
+          - M8Q017
+          - M8Q018
+          - M8Q019
+          - M8Q020
+          - M8Q021
+          - M8Q022
+        - category: storage_troubleshooting
+          minimum: 2
+          question_ids:
+          - M8Q023
+          - M8Q024
+          - M8Q025
+          - M8Q026
+          - M8Q034
+        - category: display_troubleshooting
+          minimum: 2
+          question_ids:
+          - M8Q027
+          - M8Q028
+          - M8Q029
+          - M8Q030
+          - M8Q031
+          - M8Q032
+        exclude_question_ids:
+        - M8Q035
+        - M8Q036
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 7
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 7
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.practical
+      assessment_role: practical
+      title: 'Bench Triage: Isolate Hardware Without Making It Worse'
+      lab_ref: 'Bench Triage: Isolate Hardware Without Making It Worse'
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.service_desk
+      assessment_role: service_desk
+      title: Service Desk — service_desk.aplus.hardware.render_shutdown
+      service_desk_ref: service_desk.aplus.hardware.render_shutdown
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core1-hardware-fault-isolation.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 10
+  - module_key: module.aplus.core1.printers_mfds
+    title: Printers, MFDs & Print Troubleshooting
+    skill_promise: null
+    certification_domain_key: '3.0'
+    importance_hint: working_knowledge
+    display_order: 8
+    assessments:
+    - assessment_key: assess.aplus-core1-printers-mfds.qc.deploy-configure
+      assessment_role: quick_check
+      title: Quick Check — Deploying Printers & Multifunction Devices
+      lesson_key: lesson.aplus.printers.deploy_configure
+      quiz_ref: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M9Q001
+        - M9Q002
+        - M9Q003
+        - M9Q004
+      display_order: 1
+    - assessment_key: assess.aplus-core1-printers-mfds.qc.queues-shares-scan-security
+      assessment_role: quick_check
+      title: Quick Check — Queues, Shares, Secure Print & Scanning
+      lesson_key: lesson.aplus.printers.queues_shares_scan_security
+      quiz_ref: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M9Q005
+        - M9Q006
+        - M9Q007
+        - M9Q008
+      display_order: 2
+    - assessment_key: assess.aplus-core1-printers-mfds.qc.laser
+      assessment_role: quick_check
+      title: Quick Check — Laser Printer Maintenance & Safety
+      lesson_key: lesson.aplus.printers.laser
+      quiz_ref: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M9Q010
+        - M9Q011
+        - M9Q012
+        - M9Q013
+      display_order: 3
+    - assessment_key: assess.aplus-core1-printers-mfds.qc.inkjet-thermal-impact
+      assessment_role: quick_check
+      title: Quick Check — Inkjet, Thermal & Impact Printer Maintenance
+      lesson_key: lesson.aplus.printers.inkjet_thermal_impact
+      quiz_ref: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M9Q014
+        - M9Q015
+        - M9Q016
+        - M9Q017
+      display_order: 4
+    - assessment_key: assess.aplus-core1-printers-mfds.qc.troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — Printer Troubleshooting from Test Page to Hardware
+      lesson_key: lesson.aplus.printers.troubleshooting
+      quiz_ref: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M9Q019
+        - M9Q020
+        - M9Q023
+        - M9Q027
+      display_order: 5
+    - assessment_key: assess.aplus-core1-printers-mfds.module_quiz
+      assessment_role: module_quiz
+      title: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      quiz_ref: Module 9 — Printers, MFDs & Print Troubleshooting Quiz
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '3.7'
+          count: 4
+        - objective_codes:
+          - '3.8'
+          count: 3
+        - objective_codes:
+          - '5.6'
+          count: 5
+        category_requirements:
+        - category: deployment_and_workflow
+          minimum: 3
+          question_ids:
+          - M9Q001
+          - M9Q002
+          - M9Q003
+          - M9Q004
+          - M9Q005
+          - M9Q006
+          - M9Q007
+          - M9Q008
+          - M9Q009
+          - M9Q028
+        - category: maintenance_by_technology
+          minimum: 3
+          question_ids:
+          - M9Q010
+          - M9Q011
+          - M9Q012
+          - M9Q013
+          - M9Q014
+          - M9Q015
+          - M9Q016
+          - M9Q017
+          - M9Q018
+        - category: troubleshooting_reasoning
+          minimum: 4
+          question_ids:
+          - M9Q007
+          - M9Q009
+          - M9Q019
+          - M9Q020
+          - M9Q021
+          - M9Q022
+          - M9Q023
+          - M9Q024
+          - M9Q025
+          - M9Q026
+          - M9Q027
+        exclude_question_ids:
+        - M9Q030
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 7
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 6
+    - assessment_key: assess.aplus-core1-printers-mfds.practical
+      assessment_role: practical
+      title: 'Print Path Lab: From Application to Paper'
+      lab_ref: 'Print Path Lab: From Application to Paper'
+      pass_percent: 70
+      display_order: 7
+    - assessment_key: assess.aplus-core1-printers-mfds.service_desk
+      assessment_role: service_desk
+      title: Service Desk — service_desk.aplus.printers.hr_queue
+      service_desk_ref: inc2504
+      pass_percent: 70
+      config:
+        onboarding_order: 1
+        guidance_level: tutorial
+      display_order: 8
+    - assessment_key: assess.aplus-core1-printers-mfds.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 9
+  - module_key: module.aplus.core1.virtualization_cloud_foundations
+    title: Virtualization & Cloud Foundations
+    skill_promise: null
+    certification_domain_key: '4.0'
+    importance_hint: working_knowledge
+    display_order: 9
+    assessments:
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.qc.vm-use-cases
+      assessment_role: quick_check
+      title: Quick Check — Why Virtualize? VMs, Sandboxes & Application Isolation
+      lesson_key: lesson.aplus.virtualization_cloud.vm_use_cases
+      quiz_ref: Module 10 — Virtualization & Cloud Foundations Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M10Q001
+        - M10Q002
+        - M10Q003
+        - M10Q025
+      display_order: 1
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.qc.hypervisors-resources
+      assessment_role: quick_check
+      title: Quick Check — Hypervisors, Host Resources & Safe VM Planning
+      lesson_key: lesson.aplus.virtualization_cloud.hypervisors_resources
+      quiz_ref: Module 10 — Virtualization & Cloud Foundations Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M10Q004
+        - M10Q005
+        - M10Q006
+        - M10Q026
+      display_order: 2
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.qc.vdi-containers
+      assessment_role: quick_check
+      title: Quick Check — VDI, Containers & Choosing the Right Virtualization Model
+      lesson_key: lesson.aplus.virtualization_cloud.vdi_containers
+      quiz_ref: Module 10 — Virtualization & Cloud Foundations Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M10Q007
+        - M10Q008
+        - M10Q009
+        - M10Q023
+      display_order: 3
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.qc.cloud-models
+      assessment_role: quick_check
+      title: Quick Check — Cloud Deployment & Service Models
+      lesson_key: lesson.aplus.virtualization_cloud.cloud_models
+      quiz_ref: Module 10 — Virtualization & Cloud Foundations Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M10Q010
+        - M10Q011
+        - M10Q012
+        - M10Q028
+      display_order: 4
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.qc.cloud-characteristics
+      assessment_role: quick_check
+      title: Quick Check — Cloud Characteristics & Support Decisions
+      lesson_key: lesson.aplus.virtualization_cloud.cloud_characteristics
+      quiz_ref: Module 10 — Virtualization & Cloud Foundations Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M10Q013
+        - M10Q014
+        - M10Q015
+        - M10Q029
+      display_order: 5
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.module_quiz
+      assessment_role: module_quiz
+      title: Module 10 — Virtualization & Cloud Foundations Quiz
+      quiz_ref: Module 10 — Virtualization & Cloud Foundations Quiz
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '4.1'
+          count: 6
+        - objective_codes:
+          - '4.2'
+          count: 6
+        category_requirements:
+        - category: virtualization_use_cases
+          minimum: 2
+          question_ids:
+          - M10Q001
+          - M10Q002
+          - M10Q003
+          - M10Q019
+          - M10Q025
+        - category: hypervisors_resources
+          minimum: 2
+          question_ids:
+          - M10Q004
+          - M10Q005
+          - M10Q006
+          - M10Q017
+          - M10Q018
+          - M10Q026
+        - category: vdi_containers
+          minimum: 2
+          question_ids:
+          - M10Q007
+          - M10Q008
+          - M10Q009
+          - M10Q023
+        - category: cloud_models_services
+          minimum: 2
+          question_ids:
+          - M10Q010
+          - M10Q011
+          - M10Q012
+          - M10Q020
+          - M10Q024
+          - M10Q028
+        - category: cloud_characteristics_support
+          minimum: 3
+          question_ids:
+          - M10Q013
+          - M10Q014
+          - M10Q015
+          - M10Q016
+          - M10Q021
+          - M10Q022
+          - M10Q027
+          - M10Q029
+        exclude_question_ids:
+        - M10Q030
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 6
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 6
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.practical
+      assessment_role: practical
+      title: Virtualization & Cloud Decision Lab
+      lab_ref: Virtualization & Cloud Decision Lab
+      pass_percent: 70
+      display_order: 7
+    - assessment_key: assess.aplus-core1-virtualization-cloud-foundations.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 8
+- version_key: comptia_aplus_220-1202
+  label: CompTIA A+ Core 2 (220-1202)
+  exam_codes:
+  - 220-1202
+  is_current: true
+  effective_date: '2025'
+  source_name: CompTIA A+ Certification Exam Objectives (Core 2, 220-1202)
+  source_url: https://www.comptia.org/certifications/a
+  objectives_file: comptia-a-plus-220-1202.yaml
+  domains:
+  - domain_key: '1.0'
+    title: Operating Systems
+    weight_percent: 28
+    display_order: 1
+  - domain_key: '2.0'
+    title: Security
+    weight_percent: 28
+    display_order: 2
+  - domain_key: '3.0'
+    title: Software Troubleshooting
+    weight_percent: 23
+    display_order: 3
+  - domain_key: '4.0'
+    title: Operational Procedures
+    weight_percent: 21
+    display_order: 4
+  modules:
+  - module_key: module.aplus.core2.windows_troubleshooting
+    title: Windows Performance, Startup & Application Troubleshooting
+    skill_promise: Use an evidence-first workflow to isolate slow performance, startup
+      failures, shutdowns, and application crashes.
+    certification_domain_key: '3.0'
+    importance_hint: job_critical
+    display_order: 2
+    assessments:
+    - assessment_key: assess.aplus.wintriage.qc.method
+      assessment_role: quick_check
+      title: Quick Check — Safe Windows Triage
+      lesson_key: lesson.aplus.core2.windows_troubleshooting.method
+      quiz_ref: A+ Windows Performance, Startup & Application Troubleshooting — Module
+        Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.1'
+        tags_any:
+        - method
+        - evidence
+        - scope
+        - escalation
+        - reproduce
+      display_order: 1
+    - assessment_key: assess.aplus.wintriage.qc.performance
+      assessment_role: quick_check
+      title: Quick Check — Slow Performance
+      lesson_key: lesson.aplus.core2.windows_troubleshooting.performance
+      quiz_ref: A+ Windows Performance, Startup & Application Troubleshooting — Module
+        Bank
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.1'
+        tags_any:
+        - performance
+        - task-manager
+        - disk
+      display_order: 2
+    - assessment_key: assess.aplus.wintriage.qc.startup
+      assessment_role: quick_check
+      title: Quick Check — Startup and Shutdown
+      lesson_key: lesson.aplus.core2.windows_troubleshooting.startup
+      quiz_ref: A+ Windows Performance, Startup & Application Troubleshooting — Module
+        Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.1'
+        tags_any:
+        - startup
+        - post
+        - bsod
+        - shutdown
+        - safe-mode
+        - driver
+      display_order: 3
+    - assessment_key: assess.aplus.wintriage.qc.crashes
+      assessment_role: quick_check
+      title: Quick Check — Crashes and Reliability
+      lesson_key: lesson.aplus.core2.windows_troubleshooting.crashes
+      quiz_ref: A+ Windows Performance, Startup & Application Troubleshooting — Module
+        Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.1'
+        tags_any:
+        - crash
+        - application
+        - reliability
+        - event-viewer
+        - isolation
+      display_order: 4
+    - assessment_key: assess.aplus.wintriage.qc.verify
+      assessment_role: quick_check
+      title: Quick Check — Fix, Verify, Document
+      lesson_key: lesson.aplus.core2.windows_troubleshooting.verify
+      quiz_ref: A+ Windows Performance, Startup & Application Troubleshooting — Module
+        Bank
+      displayed_count: 3
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '3.1'
+        tags_any:
+        - verification
+        - documentation
+      display_order: 5
+    - assessment_key: assess.aplus.wintriage.module_quiz
+      assessment_role: module_quiz
+      title: Module Quiz — Windows Troubleshooting
+      quiz_ref: A+ Windows Performance, Startup & Application Troubleshooting — Module
+        Bank
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - tags_any:
+          - method
+          - scope
+          - escalation
+          - reproduce
+          count: 2
+        - tags_any:
+          - performance
+          - task-manager
+          - disk
+          count: 3
+        - tags_any:
+          - startup
+          - post
+          - bsod
+          - shutdown
+          - safe-mode
+          - driver
+          count: 3
+        - tags_any:
+          - crash
+          - application
+          - reliability
+          - event-viewer
+          - isolation
+          count: 2
+        - tags_any:
+          - verification
+          - documentation
+          count: 2
+      display_order: 6
+    - assessment_key: assess.aplus.wintriage.practical
+      assessment_role: practical
+      title: Practical — Build a Windows Triage Record
+      lab_ref: A+ Practical — Build a Windows Triage Record
+      pass_percent: 70
+      display_order: 7
+    - assessment_key: assess.aplus.wintriage.service_desk
+      assessment_role: service_desk
+      title: Service Desk — Application Crash Investigation
+      service_desk_ref: inc2403
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus.wintriage.explain
+      assessment_role: explain
+      title: Explain — Windows Troubleshooting
+      pass_percent: 70
+      display_order: 9
+  - module_key: module.aplus.core2.windows_support_tools
+    title: Windows Support Tools & Client Configuration
+    skill_promise: Recognise Windows support boundaries and gather useful evidence
+      with safe command-line and client-network tools.
+    certification_domain_key: '1.0'
+    importance_hint: job_critical
+    display_order: 1
+    assessments:
+    - assessment_key: assess.aplus.wintools.qc.os
+      assessment_role: quick_check
+      title: Quick Check — Operating Systems and Filesystems
+      lesson_key: lesson.aplus.core2.windows_support_tools.os_filesystems
+      quiz_ref: A+ Windows Support Tools & Client Configuration — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '1.1'
+        tags_any:
+        - os
+        - filesystem
+        - support
+        - lifecycle
+      display_order: 1
+    - assessment_key: assess.aplus.wintools.qc.network_review
+      assessment_role: quick_check
+      title: Quick Check — Network Commands Review
+      lesson_key: lesson.aplus.core2.windows_support_tools.network_commands
+      quiz_ref: A+ Windows Support Tools & Client Configuration — Module Bank
+      displayed_count: 3
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '1.2'
+        tags_any:
+        - network
+        - dns
+        - ping
+      display_order: 2
+    - assessment_key: assess.aplus.wintools.qc.system
+      assessment_role: quick_check
+      title: Quick Check — Windows System Commands
+      lesson_key: lesson.aplus.core2.windows_support_tools.system_commands
+      quiz_ref: A+ Windows Support Tools & Client Configuration — Module Bank
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '1.2'
+        tags_any:
+        - netstat
+        - policy
+        - sfc
+        - chkdsk
+      display_order: 3
+    - assessment_key: assess.aplus.wintools.qc.sharing
+      assessment_role: quick_check
+      title: Quick Check — Workgroups, Domains and Shares
+      lesson_key: lesson.aplus.core2.windows_support_tools.shares_domains
+      quiz_ref: A+ Windows Support Tools & Client Configuration — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '1.6'
+        tags_any:
+        - shares
+        - domain
+        - workgroup
+        - unc
+        - security
+      display_order: 4
+    - assessment_key: assess.aplus.wintools.qc.client
+      assessment_role: quick_check
+      title: Quick Check — Client Network Settings
+      lesson_key: lesson.aplus.core2.windows_support_tools.client_settings
+      quiz_ref: A+ Windows Support Tools & Client Configuration — Module Bank
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        objective_codes:
+        - '1.6'
+        tags_any:
+        - network
+        - metered
+        - proxy
+        - firewall
+      display_order: 5
+    - assessment_key: assess.aplus.wintools.module_quiz
+      assessment_role: module_quiz
+      title: Module Quiz — Windows Support Tools & Client Configuration
+      quiz_ref: A+ Windows Support Tools & Client Configuration — Module Bank
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '1.1'
+          count: 3
+        - objective_codes:
+          - '1.2'
+          count: 5
+        - objective_codes:
+          - '1.6'
+          count: 4
+      display_order: 6
+    - assessment_key: assess.aplus.wintools.practical
+      assessment_role: practical
+      title: Practical — Collect a Windows Support Snapshot
+      lab_ref: A+ Practical — Collect a Windows Support Snapshot
+      pass_percent: 70
+      display_order: 7
+    - assessment_key: assess.aplus.wintools.explain
+      assessment_role: explain
+      title: Explain — Windows Support Decisions
+      pass_percent: 70
+      display_order: 8
+  - module_key: module.aplus.core2.service_desk_workflow
+    title: Service Desk Workflow, Documentation & Professional Communication
+    skill_promise: null
+    certification_domain_key: '4.0'
+    importance_hint: working_knowledge
+    display_order: 3
+    assessments:
+    - assessment_key: assess.aplus-core2-service-desk-workflow.qc.ticket-intake-triage
+      assessment_role: quick_check
+      title: Quick Check — Ticket Intake, Triage & Ownership
+      lesson_key: lesson.aplus.service_desk.ticket_intake_triage
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q001
+        - Q007
+        - Q009
+        - Q025
+      display_order: 1
+    - assessment_key: assess.aplus-core2-service-desk-workflow.qc.ticket-notes-user-updates
+      assessment_role: quick_check
+      title: Quick Check — Internal Notes, User Updates & Resolution Notes
+      lesson_key: lesson.aplus.service_desk.ticket_notes_user_updates
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q002
+        - Q004
+        - Q005
+        - Q006
+      display_order: 2
+    - assessment_key: assess.aplus-core2-service-desk-workflow.qc.assets-cmdb-docs-slas
+      assessment_role: quick_check
+      title: Quick Check — Assets, CMDBs, SOPs, Knowledge Bases & SLAs
+      lesson_key: lesson.aplus.service_desk.assets_cmdb_docs_slas
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q010
+        - Q011
+        - Q015
+        - Q017
+        - Q018
+      display_order: 3
+    - assessment_key: assess.aplus-core2-service-desk-workflow.qc.escalation-handoffs-sla
+      assessment_role: quick_check
+      title: Quick Check — Escalation, Handoffs & SLA Awareness
+      lesson_key: lesson.aplus.service_desk.escalation_handoffs_sla
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 3
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q003
+        - Q016
+        - Q026
+      display_order: 4
+    - assessment_key: assess.aplus-core2-service-desk-workflow.qc.change-management
+      assessment_role: quick_check
+      title: Quick Check — Change Management Without Breaking Production
+      lesson_key: lesson.aplus.service_desk.change_management
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q012
+        - Q019
+        - Q020
+        - Q021
+        - Q022
+      display_order: 5
+    - assessment_key: assess.aplus-core2-service-desk-workflow.qc.professional-communication
+      assessment_role: quick_check
+      title: Quick Check — Professional Communication & Difficult Users
+      lesson_key: lesson.aplus.service_desk.professional_communication
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 5
+      pass_percent: 60
+      config:
+        tags_any:
+        - Q008
+        - Q013
+        - Q027
+        - Q028
+        - Q029
+      display_order: 6
+    - assessment_key: assess.aplus-core2-service-desk-workflow.module_quiz
+      assessment_role: module_quiz
+      title: Module 5 Quiz — Service Desk Workflow
+      quiz_ref: Module 5 Quiz — Service Desk Workflow
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '4.1'
+          tags_any:
+          - Q001
+          - Q002
+          - Q003
+          - Q004
+          - Q005
+          - Q006
+          - Q009
+          - Q010
+          - Q011
+          - Q014
+          - Q015
+          - Q016
+          - Q017
+          - Q018
+          - Q025
+          - Q026
+          - Q030
+          count: 5
+        - objective_codes:
+          - '4.2'
+          tags_any:
+          - Q012
+          - Q019
+          - Q020
+          - Q021
+          - Q022
+          - Q023
+          - Q024
+          - Q031
+          count: 4
+        - objective_codes:
+          - '4.7'
+          tags_any:
+          - Q007
+          - Q008
+          - Q013
+          - Q027
+          - Q028
+          - Q029
+          - Q033
+          - Q034
+          - Q035
+          count: 3
+        category_requirements:
+        - category: ticket_documentation
+          minimum: 1
+          tags_any:
+          - Q001
+          - Q002
+          - Q003
+          - Q004
+          - Q005
+          - Q006
+          - Q009
+          - Q016
+          - Q026
+        - category: asset_document_system
+          minimum: 1
+          tags_any:
+          - Q010
+          - Q011
+          - Q014
+          - Q015
+          - Q017
+          - Q018
+          - Q030
+        - category: change_planning_scenario
+          minimum: 1
+          tags_any:
+          - Q019
+          - Q020
+          - Q021
+          - Q022
+          - Q023
+          - Q024
+        - category: customer_communication_scenario
+          minimum: 1
+          tags_any:
+          - Q007
+          - Q027
+          - Q028
+          - Q029
+          - Q033
+          - Q034
+          - Q035
+        exclude_question_ids: []
+      display_order: 7
+    - assessment_key: assess.aplus-core2-service-desk-workflow.practical
+      assessment_role: practical
+      title: Triage, Document, Escalate
+      lab_ref: Triage, Document, Escalate
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus-core2-service-desk-workflow.service_desk
+      assessment_role: service_desk
+      title: Service Desk — curriculum-aplus-core2-service-desk-workflow-service-desk-01
+      service_desk_ref: inc2506
+      pass_percent: 70
+      config:
+        onboarding_order: 3
+        guidance_level: guided_escalation
+      display_order: 9
+    - assessment_key: assess.aplus-core2-service-desk-workflow.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 10
+  - module_key: module.aplus.core2.windows_admin_cli_networking
+    title: Windows Administration, Command Line & Client Networking
+    skill_promise: null
+    certification_domain_key: '1.0'
+    importance_hint: working_knowledge
+    display_order: 4
+    assessments:
+    - assessment_key: assess.aplus-core2-windows-admin-cli-networking.qc.editions-boundaries
+      assessment_role: quick_check
+      title: Quick Check — Windows Editions, Requirements & Support Boundaries
+      lesson_key: lesson.aplus.windows_admin.editions_boundaries
+      quiz_ref: Module 11 — Windows Administration, Command Line & Client Networking
+        Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M11Q001
+        - M11Q002
+        - M11Q003
+        - M11Q029
+      display_order: 1
+    - assessment_key: assess.aplus-core2-windows-admin-cli-networking.qc.admin-consoles
+      assessment_role: quick_check
+      title: Quick Check — Windows Administrative Consoles & Evidence
+      lesson_key: lesson.aplus.windows_admin.admin_consoles
+      quiz_ref: Module 11 — Windows Administration, Command Line & Client Networking
+        Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M11Q004
+        - M11Q005
+        - M11Q006
+        - M11Q030
+      display_order: 2
+    - assessment_key: assess.aplus-core2-windows-admin-cli-networking.qc.cli-core
+      assessment_role: quick_check
+      title: 'Quick Check — Windows Command Line: Navigation, Files & Identity'
+      lesson_key: lesson.aplus.windows_admin.cli_core
+      quiz_ref: Module 11 — Windows Administration, Command Line & Client Networking
+        Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M11Q007
+        - M11Q008
+        - M11Q009
+        - M11Q031
+      display_order: 3
+    - assessment_key: assess.aplus-core2-windows-admin-cli-networking.qc.cli-diagnostics-policy
+      assessment_role: quick_check
+      title: 'Quick Check — Windows CLI: Network, Disk, Repair & Policy Evidence'
+      lesson_key: lesson.aplus.windows_admin.cli_diagnostics_policy
+      quiz_ref: Module 11 — Windows Administration, Command Line & Client Networking
+        Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M11Q010
+        - M11Q011
+        - M11Q012
+        - M11Q032
+      display_order: 4
+    - assessment_key: assess.aplus-core2-windows-admin-cli-networking.qc.client-networking
+      assessment_role: quick_check
+      title: Quick Check — Windows Client Networking, Shares & Mapped Drives
+      lesson_key: lesson.aplus.windows_admin.client_networking
+      quiz_ref: Module 11 — Windows Administration, Command Line & Client Networking
+        Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M11Q013
+        - M11Q014
+        - M11Q015
+        - M11Q033
+      display_order: 5
+    - assessment_key: assess.aplus-core2-windows-admin-cli-networking.qc.firewall-vpn-handoff
+      assessment_role: quick_check
+      title: Quick Check — Windows Firewall, VPN & Safe Client-Network Troubleshooting
+      lesson_key: lesson.aplus.windows_admin.firewall_vpn_handoff
+      quiz_ref: Module 11 — Windows Administration, Command Line & Client Networking
+        Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M11Q016
+        - M11Q017
+        - M11Q018
+        - M11Q024
+      display_order: 6
+    - assessment_key: assess.aplus-core2-windows-admin-cli-networking.module_quiz
+      assessment_role: module_quiz
+      title: Module 11 — Windows Administration, Command Line & Client Networking
+        Quiz
+      quiz_ref: Module 11 — Windows Administration, Command Line & Client Networking
+        Quiz
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '1.3'
+          count: 2
+        - objective_codes:
+          - '1.4'
+          count: 2
+        - objective_codes:
+          - '1.5'
+          count: 4
+        - objective_codes:
+          - '1.7'
+          count: 4
+        category_requirements:
+        - category: windows_editions
+          minimum: 1
+          question_ids:
+          - M11Q001
+          - M11Q002
+          - M11Q025
+          - M11Q028
+          - M11Q029
+        - category: admin_tools
+          minimum: 2
+          question_ids:
+          - M11Q004
+          - M11Q005
+          - M11Q006
+          - M11Q019
+          - M11Q020
+          - M11Q026
+          - M11Q030
+        - category: cli_evidence
+          minimum: 3
+          question_ids:
+          - M11Q003
+          - M11Q007
+          - M11Q008
+          - M11Q009
+          - M11Q010
+          - M11Q011
+          - M11Q012
+          - M11Q021
+          - M11Q022
+          - M11Q027
+          - M11Q031
+          - M11Q034
+        - category: client_networking
+          minimum: 3
+          question_ids:
+          - M11Q013
+          - M11Q014
+          - M11Q015
+          - M11Q016
+          - M11Q017
+          - M11Q018
+          - M11Q023
+          - M11Q024
+          - M11Q028
+          - M11Q032
+          - M11Q033
+        exclude_question_ids:
+        - M11Q035
+        - M11Q036
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 6
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 7
+    - assessment_key: assess.aplus-core2-windows-admin-cli-networking.practical
+      assessment_role: practical
+      title: Windows Support Evidence Runbook
+      lab_ref: Windows Support Evidence Runbook
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus-core2-windows-admin-cli-networking.service_desk
+      assessment_role: service_desk
+      title: Service Desk — sd.aplus.windows_admin.project_share_after_vpn
+      service_desk_ref: inc2505
+      pass_percent: 70
+      config:
+        onboarding_order: 2
+        guidance_level: guided
+      display_order: 9
+    - assessment_key: assess.aplus-core2-windows-admin-cli-networking.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 10
+  - module_key: module.aplus.core2.cross_platform_app_cloud_support
+    title: Cross-Platform Desktop, Applications & Cloud Productivity Support
+    skill_promise: null
+    certification_domain_key: '1.0'
+    importance_hint: working_knowledge
+    display_order: 5
+    assessments:
+    - assessment_key: assess.aplus-core2-cross-platform-app-cloud-support.qc.macos-apps-folders
+      assessment_role: quick_check
+      title: Quick Check — macOS Apps, File Types & System Folders
+      lesson_key: lesson.aplus.cross_platform.macos_apps_folders
+      quiz_ref: Module 12 — Cross-Platform Desktop, Applications & Cloud Productivity
+        Support Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M12Q001
+        - M12Q002
+        - M12Q003
+        - M12Q021
+      display_order: 1
+    - assessment_key: assess.aplus-core2-cross-platform-app-cloud-support.qc.macos-support-tools
+      assessment_role: quick_check
+      title: Quick Check — macOS Support Tools, Backups & Security Features
+      lesson_key: lesson.aplus.cross_platform.macos_support_tools
+      quiz_ref: Module 12 — Cross-Platform Desktop, Applications & Cloud Productivity
+        Support Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M12Q004
+        - M12Q022
+        - M12Q025
+        - M12Q030
+      display_order: 2
+    - assessment_key: assess.aplus-core2-cross-platform-app-cloud-support.qc.linux-files-config
+      assessment_role: quick_check
+      title: Quick Check — Linux Files, Permissions, Components & Configuration
+      lesson_key: lesson.aplus.cross_platform.linux_files_config
+      quiz_ref: Module 12 — Cross-Platform Desktop, Applications & Cloud Productivity
+        Support Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M12Q005
+        - M12Q006
+        - M12Q007
+        - M12Q026
+      display_order: 3
+    - assessment_key: assess.aplus-core2-cross-platform-app-cloud-support.qc.linux-admin-network
+      assessment_role: quick_check
+      title: Quick Check — Linux Administration, Packages, Storage & Network Evidence
+      lesson_key: lesson.aplus.cross_platform.linux_admin_network
+      quiz_ref: Module 12 — Cross-Platform Desktop, Applications & Cloud Productivity
+        Support Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M12Q008
+        - M12Q009
+        - M12Q010
+        - M12Q011
+      display_order: 4
+    - assessment_key: assess.aplus-core2-cross-platform-app-cloud-support.qc.application-installation
+      assessment_role: quick_check
+      title: Quick Check — Application Requirements, Distribution & Safe Deployment
+        Decisions
+      lesson_key: lesson.aplus.cross_platform.application_installation
+      quiz_ref: Module 12 — Cross-Platform Desktop, Applications & Cloud Productivity
+        Support Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M12Q013
+        - M12Q014
+        - M12Q015
+        - M12Q027
+      display_order: 5
+    - assessment_key: assess.aplus-core2-cross-platform-app-cloud-support.qc.cloud-productivity
+      assessment_role: quick_check
+      title: Quick Check — Cloud Productivity, Sync, Identity & Licensing Support
+      lesson_key: lesson.aplus.cross_platform.cloud_productivity
+      quiz_ref: Module 12 — Cross-Platform Desktop, Applications & Cloud Productivity
+        Support Quiz
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M12Q017
+        - M12Q018
+        - M12Q019
+        - M12Q028
+      display_order: 6
+    - assessment_key: assess.aplus-core2-cross-platform-app-cloud-support.module_quiz
+      assessment_role: module_quiz
+      title: Module 12 — Cross-Platform Desktop, Applications & Cloud Productivity
+        Support Quiz
+      quiz_ref: Module 12 — Cross-Platform Desktop, Applications & Cloud Productivity
+        Support Quiz
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - objective_codes:
+          - '1.8'
+          count: 3
+        - objective_codes:
+          - '1.9'
+          count: 3
+        - objective_codes:
+          - '1.10'
+          count: 3
+        - objective_codes:
+          - '1.11'
+          count: 3
+        category_requirements:
+        - category: macos_support
+          minimum: 2
+          question_ids:
+          - M12Q001
+          - M12Q002
+          - M12Q003
+          - M12Q004
+          - M12Q021
+          - M12Q022
+          - M12Q025
+          - M12Q030
+        - category: linux_support
+          minimum: 2
+          question_ids:
+          - M12Q005
+          - M12Q006
+          - M12Q007
+          - M12Q008
+          - M12Q009
+          - M12Q010
+          - M12Q011
+          - M12Q012
+          - M12Q026
+          - M12Q029
+        - category: application_installation
+          minimum: 2
+          question_ids:
+          - M12Q013
+          - M12Q014
+          - M12Q015
+          - M12Q016
+          - M12Q023
+          - M12Q027
+        - category: cloud_productivity
+          minimum: 2
+          question_ids:
+          - M12Q017
+          - M12Q018
+          - M12Q019
+          - M12Q020
+          - M12Q024
+          - M12Q028
+        exclude_question_ids:
+        - M12Q031
+        - M12Q032
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 6
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 7
+    - assessment_key: assess.aplus-core2-cross-platform-app-cloud-support.practical
+      assessment_role: practical
+      title: Cross-Platform Support & Deployment Lab
+      lab_ref: Cross-Platform Support & Deployment Lab
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus-core2-cross-platform-app-cloud-support.service_desk
+      assessment_role: service_desk
+      title: Service Desk — sd.aplus.cross_platform.unlicensed_suite_mac
+      service_desk_ref: sd.aplus.cross_platform.unlicensed_suite_mac
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core2-cross-platform-app-cloud-support.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 10
+  - module_key: module.aplus.core2.identity_endpoint_hardening
+    title: Identity, Windows Endpoint & Workstation Hardening
+    skill_promise: null
+    certification_domain_key: '2.0'
+    importance_hint: working_knowledge
+    display_order: 6
+    assessments:
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.qc.identity-controls
+      assessment_role: quick_check
+      title: Quick Check — Identity, Access & Security Controls
+      lesson_key: lesson.aplus.security.identity_controls
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M13Q001
+        - M13Q002
+        - M13Q003
+        - M13Q004
+      display_order: 1
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.qc.windows-defender-firewall
+      assessment_role: quick_check
+      title: Quick Check — Windows Defender, Firewall, Accounts & UAC
+      lesson_key: lesson.aplus.security.windows_defender_firewall
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M13Q005
+        - M13Q006
+        - M13Q007
+        - M13Q008
+      display_order: 2
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.qc.permissions-ad
+      assessment_role: quick_check
+      title: Quick Check — Permissions, Groups & Active Directory Security
+      lesson_key: lesson.aplus.security.permissions_ad
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M13Q009
+        - M13Q010
+        - M13Q011
+        - M13Q012
+      display_order: 3
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.qc.encryption
+      assessment_role: quick_check
+      title: 'Quick Check — Protecting Data at Rest: BitLocker, BitLocker To Go &
+        EFS'
+      lesson_key: lesson.aplus.security.encryption
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M13Q013
+        - M13Q014
+        - M13Q015
+        - M13Q016
+      display_order: 4
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.qc.workstation-hardening
+      assessment_role: quick_check
+      title: Quick Check — Workstation Hardening & Account Hygiene
+      lesson_key: lesson.aplus.security.workstation_hardening
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M13Q017
+        - M13Q018
+        - M13Q019
+        - M13Q020
+      display_order: 5
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.qc.secure-support-decisions
+      assessment_role: quick_check
+      title: 'Quick Check — Secure Support Decisions: Elevate, Allow, Deny or Escalate'
+      lesson_key: lesson.aplus.security.secure_support_decisions
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M13Q021
+        - M13Q022
+        - M13Q023
+        - M13Q024
+      display_order: 6
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.module_quiz
+      assessment_role: module_quiz
+      title: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      quiz_ref: Module 13 Quiz — Identity, Windows Endpoint & Workstation Hardening
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - count: 3
+          objective_codes:
+          - '2.1'
+        - count: 5
+          objective_codes:
+          - '2.2'
+        - count: 3
+          objective_codes:
+          - '2.7'
+        - count: 1
+          objective_codes: []
+          tags_any:
+          - multi_objective
+        category_requirements:
+        - category: scenario_application_or_reasoning
+          minimum: 5
+          tags_any:
+          - question_style:scenario-application
+          - question_style:troubleshooting-reasoning
+        - category: job_critical
+          minimum: 7
+          tags_any:
+          - importance:job_critical
+        - category: multi_select
+          minimum: 1
+          tags_any:
+          - question_type:multi
+        exclude_question_ids:
+        - M13Q035
+        - M13Q036
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 5
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 7
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.practical
+      assessment_role: practical
+      title: Windows Endpoint Hardening Audit & Support Decision
+      lab_ref: Windows Endpoint Hardening Audit & Support Decision
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.service_desk
+      assessment_role: service_desk
+      title: Service Desk — sd.aplus.security.approved_app_standard_user
+      service_desk_ref: sd.aplus.security.approved_app_standard_user
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core2-identity-endpoint-hardening.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 10
+  - module_key: module.aplus.core2.connected_endpoint_mobile_security
+    title: Connected Endpoint, Mobile & Browser Security
+    skill_promise: null
+    certification_domain_key: '2.0'
+    importance_hint: working_knowledge
+    display_order: 7
+    assessments:
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.wireless-auth
+      assessment_role: quick_check
+      title: Quick Check — Wireless Encryption & Enterprise Authentication
+      lesson_key: lesson.aplus.security.wireless_auth
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q001
+        - M14Q002
+        - M14Q003
+        - M14Q004
+      display_order: 1
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.soho-security
+      assessment_role: quick_check
+      title: Quick Check — Securing SOHO Routers & Small Networks
+      lesson_key: lesson.aplus.security.soho_security
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q005
+        - M14Q006
+        - M14Q007
+        - M14Q008
+      display_order: 2
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.browser-security
+      assessment_role: quick_check
+      title: Quick Check — Browser Security, Certificates, Downloads & Extensions
+      lesson_key: lesson.aplus.security.browser_security
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q009
+        - M14Q010
+        - M14Q011
+        - M14Q012
+      display_order: 3
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.mobile-hardening
+      assessment_role: quick_check
+      title: Quick Check — Managed Mobile Device Security & BYOD Boundaries
+      lesson_key: lesson.aplus.security.mobile_hardening
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q013
+        - M14Q014
+        - M14Q015
+        - M14Q016
+      display_order: 4
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.mobile-app-troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — Mobile OS & Application Troubleshooting
+      lesson_key: lesson.aplus.security.mobile_app_troubleshooting
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q017
+        - M14Q018
+        - M14Q019
+        - M14Q020
+      display_order: 5
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.mobile-security-troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — Mobile Security Troubleshooting & Compromise Indicators
+      lesson_key: lesson.aplus.security.mobile_security_troubleshooting
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q021
+        - M14Q022
+        - M14Q023
+        - M14Q024
+      display_order: 6
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.qc.connected-endpoint-workflow
+      assessment_role: quick_check
+      title: Quick Check — Secure Connected-Endpoint Workflow
+      lesson_key: lesson.aplus.security.connected_endpoint_workflow
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M14Q025
+        - M14Q026
+        - M14Q027
+        - M14Q028
+      display_order: 7
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.module_quiz
+      assessment_role: module_quiz
+      title: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      quiz_ref: Module 14 Quiz — Connected Endpoint, Mobile & Browser Security
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - count: 2
+          objective_codes:
+          - '2.3'
+        - count: 2
+          objective_codes:
+          - '2.8'
+        - count: 1
+          objective_codes:
+          - '2.10'
+        - count: 1
+          objective_codes:
+          - '2.11'
+        - count: 2
+          objective_codes:
+          - '3.2'
+        - count: 2
+          objective_codes:
+          - '3.3'
+        - count: 2
+          objective_codes: []
+          tags_any:
+          - multi_objective
+        category_requirements:
+        - category: scenario_application_or_reasoning
+          minimum: 6
+          tags_any:
+          - question_style:scenario-application
+          - question_style:troubleshooting-reasoning
+        - category: job_critical
+          minimum: 8
+          tags_any:
+          - importance:job_critical
+        - category: multi_select
+          minimum: 1
+          tags_any:
+          - question_type:multi
+        exclude_question_ids:
+        - M14Q037
+        - M14Q038
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 6
+          multi_select_minimum: 1
+          max_same_narrow_category: 2
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 8
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.practical
+      assessment_role: practical
+      title: Connected Endpoint Security & Troubleshooting Lab
+      lab_ref: Connected Endpoint Security & Troubleshooting Lab
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.service_desk
+      assessment_role: service_desk
+      title: Service Desk — sd.aplus.security.mobile_secure_wifi_profile
+      service_desk_ref: sd.aplus.security.mobile_secure_wifi_profile
+      pass_percent: 70
+      display_order: 10
+    - assessment_key: assess.aplus-core2-connected-endpoint-mobile-security.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 11
+  - module_key: module.aplus.core2.threat_malware_response
+    title: Threat Recognition, Malware Response & PC Security Troubleshooting
+    skill_promise: null
+    certification_domain_key: '2.0'
+    importance_hint: working_knowledge
+    display_order: 8
+    assessments:
+    - assessment_key: assess.aplus-core2-threat-malware-response.qc.malware-families-tools
+      assessment_role: quick_check
+      title: Quick Check — Malware Families & Defensive Tools
+      lesson_key: lesson.aplus.security.malware_families_tools
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M15Q001
+        - M15Q002
+        - M15Q003
+        - M15Q004
+      display_order: 1
+    - assessment_key: assess.aplus-core2-threat-malware-response.qc.social-engineering
+      assessment_role: quick_check
+      title: Quick Check — Social Engineering, Phishing & Business Email Compromise
+      lesson_key: lesson.aplus.security.social_engineering
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M15Q005
+        - M15Q006
+        - M15Q007
+        - M15Q008
+      display_order: 2
+    - assessment_key: assess.aplus-core2-threat-malware-response.qc.threats-vulnerabilities
+      assessment_role: quick_check
+      title: Quick Check — Technical Threats, Vulnerabilities & Unsafe Endpoint States
+      lesson_key: lesson.aplus.security.threats_vulnerabilities
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M15Q009
+        - M15Q010
+        - M15Q011
+        - M15Q012
+      display_order: 3
+    - assessment_key: assess.aplus-core2-threat-malware-response.qc.malware-removal
+      assessment_role: quick_check
+      title: Quick Check — Malware Removal, Quarantine & Reimage Decisions
+      lesson_key: lesson.aplus.security.malware_removal
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M15Q013
+        - M15Q014
+        - M15Q015
+        - M15Q016
+      display_order: 4
+    - assessment_key: assess.aplus-core2-threat-malware-response.qc.pc-security-troubleshooting
+      assessment_role: quick_check
+      title: Quick Check — PC Security Symptoms & Evidence-First Troubleshooting
+      lesson_key: lesson.aplus.security.pc_security_troubleshooting
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M15Q017
+        - M15Q018
+        - M15Q019
+        - M15Q020
+      display_order: 5
+    - assessment_key: assess.aplus-core2-threat-malware-response.qc.incident-triage
+      assessment_role: quick_check
+      title: 'Quick Check — Incident Triage: Contain, Remediate, Escalate & Document'
+      lesson_key: lesson.aplus.security.incident_triage
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 4
+      pass_percent: 60
+      config:
+        tags_any:
+        - M15Q021
+        - M15Q022
+        - M15Q023
+        - M15Q024
+      display_order: 6
+    - assessment_key: assess.aplus-core2-threat-malware-response.module_quiz
+      assessment_role: module_quiz
+      title: Module 15 Quiz — Threat Recognition, Malware Response & PC Security Troubleshooting
+      quiz_ref: Module 15 Quiz — Threat Recognition, Malware Response & PC Security
+        Troubleshooting
+      displayed_count: 12
+      pass_percent: 70
+      config:
+        question_blueprint:
+        - count: 3
+          objective_codes:
+          - '2.4'
+        - count: 4
+          objective_codes:
+          - '2.5'
+        - count: 2
+          objective_codes:
+          - '2.6'
+        - count: 2
+          objective_codes:
+          - '3.4'
+        - count: 1
+          objective_codes: []
+          tags_any:
+          - multi_objective
+        category_requirements:
+        - category: scenario_application_or_reasoning
+          minimum: 6
+          tags_any:
+          - question_style:scenario-application
+          - question_style:troubleshooting-reasoning
+        - category: job_critical
+          minimum: 8
+          tags_any:
+          - importance:job_critical
+        - category: multi_select
+          minimum: 1
+          tags_any:
+          - question_type:multi
+        exclude_question_ids:
+        - M15Q035
+        - M15Q036
+        selection_requirements:
+          scenario_application_or_reasoning_minimum: 6
+          multi_select_minimum: 1
+          max_same_narrow_category: 3
+          answer_position_guardrail: No single-choice correct position >40%.
+      display_order: 7
+    - assessment_key: assess.aplus-core2-threat-malware-response.practical
+      assessment_role: practical
+      title: Security Incident Evidence & Response Lab
+      lab_ref: Security Incident Evidence & Response Lab
+      pass_percent: 70
+      display_order: 8
+    - assessment_key: assess.aplus-core2-threat-malware-response.service_desk
+      assessment_role: service_desk
+      title: Service Desk — sd.aplus.security.suspicious_attachment_endpoint
+      service_desk_ref: inc2508
+      pass_percent: 70
+      display_order: 9
+    - assessment_key: assess.aplus-core2-threat-malware-response.explain
+      assessment_role: explain
+      title: Explain
+      pass_percent: 70
+      display_order: 10

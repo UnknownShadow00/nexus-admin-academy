@@ -1,0 +1,123 @@
+resources:
+- resource_key: res.aplus.virtualization_cloud.virtualization_concepts
+  title: Virtualization Concepts (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/virtualization-concepts-220-1201/
+  provider: Professor Messer
+  duration: '5:45'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.virtualization_cloud.vm_use_cases
+    module_key: module.aplus.core1.virtualization_cloud_foundations
+    required: true
+    order: 1
+- resource_key: res.aplus.virtualization_cloud.hyperv_requirements
+  title: Hyper-V host hardware requirements
+  resource_type: documentation
+  url: https://learn.microsoft.com/en-us/windows-server/virtualization/hyper-v/host-hardware-requirements
+  provider: Microsoft Learn
+  duration: reference
+  certification_version: comptia_aplus_220-1201
+  source_name: Microsoft Learn
+  source_url: https://learn.microsoft.com/
+  permission_status: unknown
+  license_note: Official vendor documentation for host requirements.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.virtualization_cloud.hypervisors_resources
+    module_key: module.aplus.core1.virtualization_cloud_foundations
+    required: true
+    order: 1
+- resource_key: res.aplus.virtualization_cloud.virtualization_services
+  title: Virtualization Services (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/virtualization-services-220-1201/
+  provider: Professor Messer
+  duration: '11:23'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.virtualization_cloud.vdi_containers
+    module_key: module.aplus.core1.virtualization_cloud_foundations
+    required: true
+    order: 1
+  - lesson_key: lesson.aplus.virtualization_cloud.hypervisors_resources
+    module_key: module.aplus.core1.virtualization_cloud_foundations
+    required: false
+    order: 2
+- resource_key: res.aplus.virtualization_cloud.cloud_models
+  title: Cloud Models (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/cloud-models-220-1201/
+  provider: Professor Messer
+  duration: '9:48'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.virtualization_cloud.cloud_models
+    module_key: module.aplus.core1.virtualization_cloud_foundations
+    required: true
+    order: 1
+- resource_key: res.aplus.virtualization_cloud.cloud_characteristics
+  title: Cloud Characteristics (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/cloud-characteristics-220-1201/
+  provider: Professor Messer
+  duration: '6:50'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.virtualization_cloud.cloud_characteristics
+    module_key: module.aplus.core1.virtualization_cloud_foundations
+    required: true
+    order: 1
+- resource_key: res.aplus.virtualization_cloud.windows_sandbox
+  title: Windows Sandbox
+  resource_type: documentation
+  url: https://learn.microsoft.com/en-us/windows/security/application-security/application-isolation/windows-sandbox/
+  provider: Microsoft Learn
+  duration: reference
+  certification_version: comptia_aplus_220-1201
+  source_name: Microsoft Learn
+  source_url: https://learn.microsoft.com/
+  permission_status: unknown
+  license_note: Optional official disposable-environment example.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.virtualization_cloud.vm_use_cases
+    module_key: module.aplus.core1.virtualization_cloud_foundations
+    required: false
+    order: 2
+- resource_key: res.aplus.virtualization_cloud.crucial_practice
+  title: CompTIA A+ 220-1201 V15 Practice Tests
+  resource_type: external_practice
+  url: https://crucialexams.com/exams/comptia/a/220-1201/practice-tests-practice-questions
+  provider: Crucial Exams
+  duration: optional practice
+  certification_version: comptia_aplus_220-1201
+  source_name: Crucial Exams 220-1201 V15
+  source_url: https://crucialexams.com/exams/comptia/a/220-1201/practice-tests-practice-questions
+  permission_status: permitted
+  license_note: Optional practice; content not rehosted.
+  active: true
+  links:
+  - module_key: module.aplus.core1.virtualization_cloud_foundations
+    required: false
+    order: 99

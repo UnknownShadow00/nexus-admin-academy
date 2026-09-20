@@ -37,7 +37,7 @@ export function NavCluster({ activePath, onLeaderboardOpen }: NavClusterProps) {
         {unreadThreadCount > 0 ? (
           <span
             aria-hidden="true"
-            className="absolute right-0.5 top-0.5 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full border border-zinc-900 bg-sky-400 px-1 text-[9px] font-black leading-none text-zinc-950"
+            className="absolute right-0.5 top-0.5 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full border border-border bg-accent px-1 text-[9px] font-black leading-none text-accent-contrast"
           >
             {unreadThreadCount > 9 ? '9+' : unreadThreadCount}
           </span>
@@ -45,7 +45,7 @@ export function NavCluster({ activePath, onLeaderboardOpen }: NavClusterProps) {
       </Button>
       <Button
         aria-label="Leaderboard"
-        className="px-2 text-amber-400 hover:text-amber-300"
+        className="px-2 text-warning hover:text-warning"
         onClick={onLeaderboardOpen}
         variant="ghost"
       >

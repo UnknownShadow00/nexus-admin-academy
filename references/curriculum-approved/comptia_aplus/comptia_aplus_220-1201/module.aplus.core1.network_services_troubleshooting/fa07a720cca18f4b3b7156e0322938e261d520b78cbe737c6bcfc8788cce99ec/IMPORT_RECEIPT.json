@@ -1,0 +1,257 @@
+{
+  "approved_destination": "/opt/apps/IT TRAINING PROJECT CODE/projects/nexus-admin-academy/references/curriculum-approved/comptia_aplus/comptia_aplus_220-1201/module.aplus.core1.network_services_troubleshooting/fa07a720cca18f4b3b7156e0322938e261d520b78cbe737c6bcfc8788cce99ec",
+  "certification": "comptia_aplus",
+  "classification": "NEW",
+  "created": 636,
+  "domain": "2.0",
+  "explain_count": 4,
+  "lesson_count": 7,
+  "loader_importer_results": {
+    "first": {
+      "by_entity": {
+        "certification": {
+          "created": 1,
+          "unchanged": 1,
+          "updated": 0
+        },
+        "certification_domain": {
+          "created": 9,
+          "unchanged": 9,
+          "updated": 0
+        },
+        "certification_module": {
+          "created": 8,
+          "unchanged": 8,
+          "updated": 0
+        },
+        "certification_objective": {
+          "created": 40,
+          "unchanged": 40,
+          "updated": 0
+        },
+        "certification_version": {
+          "created": 2,
+          "unchanged": 2,
+          "updated": 0
+        },
+        "interview_prompt": {
+          "created": 22,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "interview_prompt_objective": {
+          "created": 29,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lab_template": {
+          "created": 7,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson": {
+          "created": 40,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson_objective": {
+          "created": 56,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "lesson_relationship": {
+          "created": 8,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "module_assessment": {
+          "created": 68,
+          "unchanged": 11,
+          "updated": 57
+        },
+        "question": {
+          "created": 226,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "question_bank_editorial_approval": {
+          "created": 0,
+          "unchanged": 0,
+          "updated": 6
+        },
+        "resource": {
+          "created": 49,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "resource_link": {
+          "created": 65,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "service_desk_scenario": {
+          "created": 3,
+          "unchanged": 0,
+          "updated": 0
+        },
+        "service_desk_scenario_version": {
+          "created": 3,
+          "unchanged": 0,
+          "updated": 0
+        }
+      },
+      "created": 636,
+      "references": {
+        "content_engine_assessments": 55,
+        "content_engine_resolved": 53,
+        "content_engine_unresolved": [
+          "assess.aplus.core1.networking_fundamentals.module_quiz",
+          "assess.aplus.core1.networking_fundamentals.quick_check"
+        ],
+        "service_desk_assessments": 5,
+        "service_desk_resolved": 5
+      },
+      "unchanged": 71,
+      "updated": 63
+    },
+    "references": {
+      "content_engine_assessments": 55,
+      "content_engine_resolved": 53,
+      "content_engine_unresolved": [
+        "assess.aplus.core1.networking_fundamentals.module_quiz",
+        "assess.aplus.core1.networking_fundamentals.quick_check"
+      ],
+      "package_content_engine_unresolved": [],
+      "package_service_desk_unresolved": [],
+      "service_desk_assessments": 5,
+      "service_desk_resolved": 5
+    },
+    "second": {
+      "by_entity": {
+        "certification": {
+          "created": 0,
+          "unchanged": 2,
+          "updated": 0
+        },
+        "certification_domain": {
+          "created": 0,
+          "unchanged": 18,
+          "updated": 0
+        },
+        "certification_module": {
+          "created": 0,
+          "unchanged": 16,
+          "updated": 0
+        },
+        "certification_objective": {
+          "created": 0,
+          "unchanged": 80,
+          "updated": 0
+        },
+        "certification_version": {
+          "created": 0,
+          "unchanged": 4,
+          "updated": 0
+        },
+        "interview_prompt": {
+          "created": 0,
+          "unchanged": 22,
+          "updated": 0
+        },
+        "lab_template": {
+          "created": 0,
+          "unchanged": 7,
+          "updated": 0
+        },
+        "lesson": {
+          "created": 0,
+          "unchanged": 40,
+          "updated": 0
+        },
+        "module_assessment": {
+          "created": 0,
+          "unchanged": 136,
+          "updated": 0
+        },
+        "question": {
+          "created": 0,
+          "unchanged": 226,
+          "updated": 0
+        },
+        "question_bank_editorial_approval": {
+          "created": 0,
+          "unchanged": 6,
+          "updated": 0
+        },
+        "resource": {
+          "created": 0,
+          "unchanged": 49,
+          "updated": 0
+        },
+        "resource_link": {
+          "created": 0,
+          "unchanged": 65,
+          "updated": 0
+        },
+        "service_desk_scenario": {
+          "created": 0,
+          "unchanged": 3,
+          "updated": 0
+        },
+        "service_desk_scenario_version": {
+          "created": 0,
+          "unchanged": 3,
+          "updated": 0
+        }
+      },
+      "created": 0,
+      "references": {
+        "content_engine_assessments": 55,
+        "content_engine_resolved": 53,
+        "content_engine_unresolved": [
+          "assess.aplus.core1.networking_fundamentals.module_quiz",
+          "assess.aplus.core1.networking_fundamentals.quick_check"
+        ],
+        "service_desk_assessments": 5,
+        "service_desk_resolved": 5
+      },
+      "unchanged": 677,
+      "updated": 0
+    }
+  },
+  "module_key": "module.aplus.core1.network_services_troubleshooting",
+  "module_title": "Network Services, Devices, Wireless & Troubleshooting",
+  "objective_codes": [
+    "2.1",
+    "2.2",
+    "2.3",
+    "2.4",
+    "2.5",
+    "2.6",
+    "2.7",
+    "2.8",
+    "5.5"
+  ],
+  "original_filename": "Nexus_APlus_Module_07_Final.zip",
+  "package_hash": "fa07a720cca18f4b3b7156e0322938e261d520b78cbe737c6bcfc8788cce99ec",
+  "practical_present": true,
+  "question_count": 40,
+  "resource_count": 12,
+  "runtime_destinations": [
+    "certifications/comptia_aplus.yaml",
+    "curriculum/comptia_aplus/comptia_aplus_220-1201/module-aplus-core1-network-services-troubleshooting",
+    "questions/module-aplus-core1-network-services-troubleshooting.csv",
+    "questions/editorial-approvals.yaml",
+    "resources/module-aplus-core1-network-services-troubleshooting.yaml",
+    "interview-prompts/module-aplus-core1-network-services-troubleshooting.yaml",
+    "labs/module-aplus-core1-network-services-troubleshooting.yaml",
+    "service-desk-scenarios/module-aplus-core1-network-services-troubleshooting.yaml"
+  ],
+  "service_desk_present": true,
+  "timestamp": "2026-08-31T14:13:13.335536+00:00",
+  "tool_version": "nexus-curriculum-intake/1",
+  "unchanged": 71,
+  "updated": 63,
+  "validation_result": "VALID",
+  "version": "comptia_aplus_220-1201"
+}

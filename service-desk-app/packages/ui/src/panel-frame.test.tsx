@@ -5,7 +5,7 @@ import { PanelFrame, type PanelFrameVariant } from './panel-frame';
 
 describe('PanelFrame', () => {
   it.each([
-    ['default', 'bg-zinc-900'],
+    ['default', 'bg-surface-raised'],
     ['ad', 'sd-panel-frame--ad'],
     ['assets', 'sd-panel-frame--assets'],
     ['contained', 'sd-panel-frame--contained'],

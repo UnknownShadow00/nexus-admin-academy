@@ -1,0 +1,150 @@
+# Nexus V2 guided practical labs for CompTIA A+ (Phase 2A).
+#
+# DATA. `load_labs` upserts this idempotently keyed on `title` — the same key
+# `module_assessments.lab_ref` resolves against. These are self-contained
+# guided labs: no VM is provisioned and `proxmox_template_vmid` is left unset.
+# A broken-VM version of the connectivity practical is deferred to Phase 2B.
+
+labs:
+  - title: "A+ Practical — Inspect Windows IP Configuration"
+    lab_type: guided
+    difficulty: 1
+    estimated_minutes: 20
+    is_published: true
+    lesson_key: lesson.aplus.core1.ip_configuration.windows_commands
+    environment_requirements:
+      machine: "Any Windows 10/11 workstation (a lab VM, a spare PC, or the student's own machine)"
+      network: "Connected to a normal DHCP network"
+      privileges: "Standard user is enough to VIEW configuration"
+    setup_instructions: |
+      No environment is built for you. Use any working Windows machine on a
+      normal network. You are going to READ its network configuration and
+      report what you find — you will not change anything.
+
+      1. Open Command Prompt (press Start, type `cmd`, press Enter).
+      2. Run `ipconfig` and read the active adapter's IPv4 Address,
+         Subnet Mask, and Default Gateway.
+      3. Run `ipconfig /all` and additionally read: "DHCP Enabled",
+         "DHCP Server", and "DNS Servers".
+      4. Run `ping <your default gateway>` and note whether it replies.
+      5. Run `ping 8.8.8.8` and then `ping www.comptia.org` and note which
+         (if either) replies.
+      6. Run `nslookup www.comptia.org` and note which server answered.
+    success_criteria:
+      evidence_required:
+        - "Pasted output of `ipconfig /all` for the active adapter"
+      diagnostic_questions:
+        - id: q_ipv4
+          prompt: "What is the machine's IPv4 address, and is it a normal DHCP address or a 169.254.x.x APIPA address?"
+        - id: q_mask
+          prompt: "What is the subnet mask, and in plain terms what does it tell the computer?"
+        - id: q_gateway
+          prompt: "What is the default gateway, and is it on the same subnet as the IPv4 address?"
+        - id: q_dhcp
+          prompt: "Is DHCP enabled? What DHCP server address (if any) is shown?"
+        - id: q_dns
+          prompt: "What DNS server(s) is the machine using? Does `nslookup` show that server answering?"
+        - id: q_reason
+          prompt: "Based on the ping results, is this machine's local network healthy, its internet path healthy, and its name resolution healthy? How do you know?"
+      pass_rule: "Mentor/self review: all six diagnostic questions answered correctly against the machine's real output."
+    required_evidence:
+      - type: text
+        label: "ipconfig /all output"
+      - type: text
+        label: "Answers to the six diagnostic questions"
+    hints:
+      - "The active adapter is the one WITHOUT 'Media disconnected' under it."
+      - "APIPA looks like 169.254.x.x with mask 255.255.0.0 and a blank gateway."
+      - "If the gateway's first three octets match the IPv4 address (with a /24 mask), they are on the same subnet."
+      - "`nslookup` prints the answering server on the 'Server:' / 'Address:' lines before the result."
+    model_solution: |
+      A healthy result: an in-range IPv4 (e.g. 192.168.1.50), a mask matching
+      the rest of the LAN (e.g. 255.255.255.0), a default gateway on the same
+      subnet (e.g. 192.168.1.1), DHCP Enabled = Yes with a DHCP Server shown,
+      one or more DNS servers listed, the gateway and 8.8.8.8 both replying,
+      the name resolving, and `nslookup` showing the configured DNS server
+      answering. A 169.254.x.x address, a blank gateway, or a name that fails
+      while 8.8.8.8 succeeds each points at a specific fault (APIPA/DHCP,
+      routing, or DNS respectively).
+
+  - title: "A+ Practical — Plan a Compatible PC Upgrade"
+    description: "Guided, no-VM compatibility and safety plan using a supplied or real desktop specification."
+    lab_type: guided
+    difficulty: 2
+    estimated_minutes: 30
+    is_published: true
+    lesson_key: lesson.aplus.core1.hardware_support.safe_upgrade
+    environment_requirements:
+      machine: "No live disassembly required; use a manufacturer service manual and a real or supplied system specification."
+      privileges: "None"
+    setup_instructions: |
+      Choose a desktop model approved by the mentor or use a supplied sample.
+      Record its motherboard form factor, CPU/socket/chipset, expansion slots,
+      case clearance, PSU form factor/wattage/connectors, and current components.
+      Compare at least two candidate CPU or expansion-card upgrades. Reject one
+      candidate with a specific compatibility reason, select the defensible
+      option, and select a suitable PSU if needed. Write the safe installation,
+      rollback, and verification plan.
+    success_criteria:
+      evidence_required: ["System/vendor source", "Compatibility table", "Safety and rollback checklist", "Verification plan"]
+      pass_rule: "The selected and rejected candidates are supported by model-specific documentation; the plan covers physical, electrical, firmware/driver, safety, rollback, and end-to-end verification."
+    required_evidence:
+      items: ["System specification", "Part choice and evidence", "Installation/rollback plan", "Verification steps"]
+    hints:
+      - "Physical fit is only one compatibility dimension."
+      - "Never assume modular PSU cables are interchangeable."
+    model_solution: "A defensible plan cites the service manual/support list, checks form factor/socket/chipset/RAM/clearance/connectors/power, uses ESD and power isolation, records connections, and verifies POST, OS recognition, temperature and the original task."
+
+  - title: "A+ Practical — Collect a Windows Support Snapshot"
+    description: "Guided evidence collection on an existing Windows 10/11 machine; no configuration changes required."
+    lab_type: guided
+    difficulty: 2
+    estimated_minutes: 25
+    is_published: true
+    lesson_key: lesson.aplus.core2.windows_support_tools.system_commands
+    environment_requirements:
+      machine: "Any approved Windows 10/11 workstation or existing Nexus Windows lab"
+      privileges: "Standard user for most steps; mentor-approved elevation for chkdsk/SFC evidence"
+    setup_instructions: |
+      Record `winver` and `systeminfo` basics. Run `ipconfig /all`, `ping` to
+      the default gateway, `nslookup` for an approved name, and `netstat -ano`.
+      With mentor-approved elevation, run plain `chkdsk` and `sfc /verifyonly`.
+      If elevation is unavailable, record that boundary rather than bypassing it.
+      Do not run repair switches. Explain what question each output answers and
+      redact usernames, addresses, domain names, or identifiers required by policy.
+    success_criteria:
+      evidence_required: ["OS/version", "Network evidence", "Connection/listener evidence", "Read-only system/filesystem result"]
+      pass_rule: "Evidence is safely collected, each tool's purpose is accurate, no repair/change was made, and sensitive details are handled appropriately."
+    required_evidence:
+      items: ["Redacted command output", "Tool-purpose table", "Short support summary"]
+    hints:
+      - "A successful ping proves only an ICMP reply."
+      - "Use read-only checks before repair commands."
+    model_solution: "The snapshot identifies the OS, documents adapter/DNS/reachability, explains netstat connections/listeners, records read-only SFC/chkdsk findings, and recommends a next step without claiming unsupported causes."
+
+  - title: "A+ Practical — Build a Windows Triage Record"
+    description: "Guided observation and documentation practical using a healthy or mentor-prepared Windows machine."
+    lab_type: guided
+    difficulty: 2
+    estimated_minutes: 30
+    is_published: true
+    lesson_key: lesson.aplus.core2.windows_troubleshooting.verify
+    environment_requirements:
+      machine: "Existing Windows lab/VM or approved workstation; no fault injection required"
+      privileges: "Standard user"
+    setup_instructions: |
+      Choose a repeatable normal workload (sign-in and launch an approved app).
+      Run it twice to establish a baseline, recording timing and Task Manager
+      CPU/memory/disk observations. Open
+      Reliability Monitor and note the recent timeline without deleting data.
+      Identify one safe hypothesis or state that no fault is proven. Write the
+      lowest-risk next test, verification criteria, and a concise ticket note.
+    success_criteria:
+      evidence_required: ["Baseline and scope", "Resource observations", "Reliability evidence", "Theory/test", "Verification/ticket note"]
+      pass_rule: "The record distinguishes observation from cause, proposes a safe test, and defines repeatable verification."
+    required_evidence:
+      items: ["Triage worksheet", "Redacted observation", "Ticket-quality summary"]
+    hints:
+      - "High resource use may be expected for the workload."
+      - "Do not manufacture a fault or delete diagnostic history."
+    model_solution: "A strong record defines the workload, timestamps resource/reliability evidence, states a testable theory without overclaiming, proposes one approved change or escalation, and repeats the same workload for verification."

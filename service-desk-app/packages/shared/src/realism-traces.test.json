@@ -1,0 +1,58 @@
+{
+  "INC2504": {
+    "commands": [
+      "sc query \"Print Spooler\"",
+      "Get-PrinterPort -Name ENG-COPIER",
+      "Get-Asset -Name ENG-COPIER",
+      "ping 10.26.19.80",
+      "ping 10.26.19.94",
+      "Restart-Service -Name Spooler",
+      "Print-TestPage -Name ENG-COPIER",
+      "Set-PrinterPort -Name ENG-COPIER -PrinterHostAddress 10.26.19.94",
+      "Print-TestPage -Name ENG-COPIER"
+    ],
+    "note": "Observed stale port 10.26.19.80 and reachable 10.26.19.94. Updated the port; test page completed and queue drained."
+  },
+  "INC2505": {
+    "commands": [
+      "Test-Path \\\\files.nexus.internal\\Marketing",
+      "Get-ADPrincipalGroupMembership taylor.reed",
+      "Get-ADPrincipalGroupMembership jamie.chen",
+      "Get-AccessApproval -User taylor.reed",
+      "Get-ADGroup Marketing-Share-RW",
+      "Add-ADGroupMember -Identity Marketing-Share-RW -Members taylor.reed",
+      "Start-UserSession taylor.reed",
+      "Test-Path \\\\files.nexus.internal\\Marketing"
+    ],
+    "note": "Marketing access denied despite reachable share. Approved missing group Marketing-Share-RW added to Taylor; fresh session confirmed access."
+  },
+  "INC2501": {
+    "commands": [
+      "whoami",
+      "echo %USERPROFILE%",
+      "dir C:\\Users",
+      "dir C:\\Users\\morgan.ellis\\Desktop",
+      "dir C:\\Users\\morgan.ellis\\Documents",
+      "Get-WinEvent -LogName UserProfileService",
+      "Backup-UserData -Path C:\\Users\\morgan.ellis",
+      "Reset-ProfileMapping -User morgan.ellis",
+      "Start-UserSession morgan.ellis",
+      "dir C:\\Users\\morgan.ellis\\Desktop",
+      "dir C:\\Users\\morgan.ellis\\Documents"
+    ],
+    "note": "C:\\Users\\TEMP loaded for Morgan. Original Desktop and Documents at C:\\Users\\morgan.ellis preserved in verified backup. Reset mapping and signed in; normal profile and files restored."
+  },
+  "INC2509": {
+    "commands": [
+      "Get-Volume C:",
+      "Get-FolderSize C:",
+      "Get-CapacityHistory C:",
+      "Clear-TempFiles C:",
+      "Get-Content C:\\ProgramData\\NexusAgent\\logging.conf",
+      "Get-SupportPolicy NexusAgent",
+      "Archive-ClosedLogs NexusAgent",
+      "Get-Volume C:"
+    ],
+    "note": "2 GiB free initially. NexusAgent logs grew 80 to 182 GiB; debug logging has unbounded retention. Archived closed logs, verified 102 GiB free after temp cleanup; escalated policy change to Application Support."
+  }
+}

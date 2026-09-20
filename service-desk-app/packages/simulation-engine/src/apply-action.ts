@@ -1,4 +1,7 @@
 import {
+  realismFixture,
+  realismNoteComplete,
+  readStatePath,
   AssetStatus,
   CLOSED_TICKET_STATUSES,
   DEPLOYMENT_BOOT_SOURCES,
@@ -283,13 +286,40 @@ function ticketRejectReason(
           action.payload.ticketId,
         );
         if (!scenario?.workflow) return null;
-        if (!action.payload.verifiedResolved) {
-          return 'Phase-based tickets must be closed as verified resolved.';
-        }
         const progress =
           attempt.remoteDesktopOverlays[scenario.assetTag]?.scenarioProgress[
             scenario.id
           ];
+        if (
+          realismFixture(scenario.assetTag) &&
+          (!progress?.phases.investigated ||
+            !progress.phases.diagnosed ||
+            (!progress.phases.fixed && !overlay.escalated) ||
+            (!progress.phases.verified &&
+              realismFixture(scenario.assetTag)?.escalation
+                ?.verificationApplicable !== false))
+        )
+          return 'The evidence, action and post-change checks are not complete for this attempt.';
+        if (scenario.ticketId === 'INC2509' && !overlay.escalated)
+          return 'The application-owned follow-up has not been handed off. Record your stabilization results before closing.';
+        // An escalated ticket is a terminal hand-off, not an abandoned repair:
+        // the receiving team owns the fix, so the local repair and verification
+        // phases cannot apply and requiring them would force the technician to
+        // perform the very change they correctly refused to make. Documentation
+        // is still required. Whether escalating was the RIGHT call is decided by
+        // the server (service_desk_grading.compute_grade), never here.
+        if (overlay.escalated) {
+          if (!progress?.phases.noted || !progress.internalNote) {
+            return 'Add your internal hand-off note before closing this escalated ticket.';
+          }
+          if (action.payload.resolutionNote.trim() !== progress.internalNote) {
+            return 'Close the ticket with the internal note written during this attempt.';
+          }
+          return null;
+        }
+        if (!action.payload.verifiedResolved) {
+          return 'Phase-based tickets must be closed as verified resolved.';
+        }
         if (!progress?.phases.fixed) {
           return 'Complete the repair and leave the computer in the corrected state before closing this ticket.';
         }
@@ -1143,6 +1173,13 @@ function createRemoteDesktopOverlay(assetTag: string): RemoteDesktopOverlay {
 function canonicalExplorerPath(assetTag: string, requestedPath: string) {
   const normalized = requestedPath.trim().replace(/\//g, '\\');
   if (normalized.toLowerCase() === 'this pc') return 'This PC';
+  if (realismFixture(assetTag)) {
+    return (
+      Object.values(createWorkstationState(assetTag).filesystem.nodes).find(
+        (node) => node.path.toLowerCase() === normalized.toLowerCase(),
+      )?.path ?? null
+    );
+  }
   const workstation = getRemoteDesktopWorkstation(assetTag);
   const paths =
     workstation?.drives.flatMap((drive) => [
@@ -1171,6 +1208,16 @@ function explorerErrorForPath(
   overlay: RemoteDesktopOverlay,
 ): RemoteDesktopOverlay['explorerError'] {
   const drive = explorerDriveForPath(assetTag, path);
+  if (
+    overlay.workstation.realism &&
+    path.startsWith('\\\\') &&
+    !readStatePath(overlay.workstation, 'directory/sessionAccess')
+  )
+    return {
+      kind: 'permission-error',
+      message: 'Access denied. The server and share are reachable.',
+      path,
+    };
   if (!drive || drive.kind === 'local') return null;
   const status = overlay.driveStates[drive.letter] ?? drive.initialStatus;
 
@@ -1290,6 +1337,7 @@ function terminalWorkflowEvidence(
   after: RemoteDesktopOverlay,
 ) {
   const normalized = command.trim().replace(/\s+/g, ' ').toLowerCase();
+  if (after.workstation.realism) return after.workstation.realism.lastEvidence;
   const target = command.trim().split(/\s+/).slice(1).join(' ');
   const isIpTarget = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(target);
   const dnsFinal = scenario.workflow?.finalState.dnsServers;
@@ -1349,6 +1397,19 @@ export function workflowEvidenceForAction(
   before: RemoteDesktopOverlay,
   after: RemoteDesktopOverlay,
 ) {
+  if (
+    after.workstation.realism &&
+    action.type === 'remote_desktop.explorer_navigate'
+  )
+    return after.workstation.realism.lastEvidence;
+  if (
+    after.workstation.realism &&
+    action.type === 'remote_desktop.open_app' &&
+    action.payload.appId === 'services' &&
+    scenario.assetTag === 'NX-2504' &&
+    !before.workstation.realism?.changed
+  )
+    return 'spooler';
   if (action.type === 'remote_desktop.open_app') {
     if (
       scenario.id === 'pdf-export-update' &&
@@ -1541,6 +1602,21 @@ function recordRemoteDesktopWorkflowProgress(
 ) {
   const scenario = getRemoteDesktopScenarioByAsset(action.payload.assetTag);
   if (!scenario?.workflow) return after;
+  if (
+    after.workstation.realism &&
+    action.type === 'remote_desktop.open_app' &&
+    action.payload.appId === 'services' &&
+    scenario.assetTag === 'NX-2504'
+  ) {
+    after = {
+      ...after,
+      workstation: executeWorkstationCommand(
+        after.workstation,
+        'sc query "Print Spooler"',
+        '2026-07-30T10:00:00Z',
+      ).state,
+    };
+  }
   const current =
     before.scenarioProgress[scenario.id] ??
     createRemoteDesktopScenarioProgress();
@@ -1600,12 +1676,23 @@ function recordRemoteDesktopWorkflowProgress(
         diagnosisEvidence,
       ),
       fixed:
+        realismFixture(action.payload.assetTag)?.escalation
+          ?.verificationApplicable !== false &&
+        !after.workstation.realism?.harmful &&
         objectivesSatisfied(scenario.workflow.fix, fixEvidence) &&
         workflowFinalStateSatisfied(scenario, after),
-      verified: objectivesSatisfied(
-        scenario.workflow.verify,
-        verificationEvidence,
-      ),
+      verified:
+        realismFixture(action.payload.assetTag)?.escalation
+          ?.verificationApplicable !== false &&
+        (!after.workstation.realism ||
+          Object.entries(
+            realismFixture(action.payload.assetTag)!.finalConditions,
+          ).every(
+            ([path, expected]) =>
+              JSON.stringify(readStatePath(after.workstation, path)) ===
+              JSON.stringify(expected),
+          )) &&
+        objectivesSatisfied(scenario.workflow.verify, verificationEvidence),
       noted:
         (internalNote?.length ?? 0) >= scenario.workflow.note.minimumLength,
     },
@@ -1833,13 +1920,16 @@ function remoteDesktopRejectReason(
         return 'This internal note does not apply to the selected machine and ticket.';
       }
       const length = action.payload.text.trim().length;
+      const realistic = realismFixture(action.payload.assetTag);
+      if (realistic && !realismNoteComplete(realistic, action.payload.text))
+        return 'Include the observed values or paths, the action taken, and the actual retest or hand-off result in your note.';
       if (length < scenario.workflow.note.minimumLength) {
         return `Write at least ${scenario.workflow.note.minimumLength} characters describing the diagnosis, repair, and verification.`;
       }
       if (length > 1000) {
         return 'An internal note cannot exceed 1,000 characters.';
       }
-      return isMeaningfulInternalNote(action.payload.text)
+      return realistic || isMeaningfulInternalNote(action.payload.text)
         ? null
         : 'Document the diagnosis, repair, and verification in meaningful student-authored language.';
     }
@@ -1854,6 +1944,8 @@ function remoteDesktopRejectReason(
         return 'This action does not apply to the selected machine and ticket.';
       }
       if (scenario.workflow) {
+        if (overlay.workstation.realism)
+          return 'Use workstation tools to inspect and change this system.';
         if (scenario.incorrectSteps.includes(action.payload.stepId)) {
           return 'That action does not address the reported issue. Review the affected service before changing the computer.';
         }
@@ -1885,8 +1977,21 @@ function remoteDesktopRejectReason(
         : `Complete “${expected ?? 'the remaining required step'}” before attempting another repair.`;
     }
     case 'remote_desktop.run_terminal_command':
-      if (overlay.connectionState !== 'connected') {
+      if (
+        overlay.connectionState !== 'connected' &&
+        !realismFixture(action.payload.assetTag)?.questions?.some(
+          (question) => question.command === action.payload.command,
+        )
+      ) {
         return 'Connect to the simulated computer before running Terminal commands.';
+      }
+      if (overlay.workstation.realism) {
+        const result = executeWorkstationCommand(
+          overlay.workstation,
+          action.payload.command,
+          '2026-07-30T10:00:00.000Z',
+        );
+        if (!result.success) return result.output.join(' ');
       }
       return action.payload.command.length <=
         WORKSTATION_TERMINAL_COMMAND_MAX_LENGTH
@@ -2282,6 +2387,15 @@ function applyValidRemoteDesktopAction(
       if (!path) return overlay;
       const next: RemoteDesktopOverlay = {
         ...overlay,
+        ...(overlay.workstation.realism
+          ? {
+              workstation: executeWorkstationCommand(
+                overlay.workstation,
+                `${path.startsWith('\\\\') ? 'Test-Path' : 'dir'} ${path}`,
+                createdAt,
+              ).state,
+            }
+          : {}),
         explorerCurrentPath: path,
         explorerError: explorerErrorForPath(
           action.payload.assetTag,

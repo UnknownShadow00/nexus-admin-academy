@@ -22,13 +22,13 @@ export function TicketQueueFilters({
   return (
     <section
       aria-label="Filter ticket queue"
-      className="grid gap-3 rounded-md border border-zinc-800 bg-zinc-900 p-3 sm:grid-cols-[minmax(0,1fr)_11rem_11rem] sm:p-4"
+      className="grid gap-3 rounded-md border border-border bg-surface-raised p-3 sm:grid-cols-[minmax(0,1fr)_11rem_11rem] sm:p-4"
     >
       <label className="relative min-w-0">
         <span className="sr-only">Search tickets</span>
         <IconSearch
           aria-hidden="true"
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
         />
         <Input
           className="pl-9"
@@ -65,7 +65,7 @@ export function TicketQueueFilters({
         <span className="sr-only">Filter by status</span>
         <IconAdjustments
           aria-hidden="true"
-          className="pointer-events-none absolute right-8 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600"
+          className="pointer-events-none absolute right-8 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
         />
         <Select
           aria-label="Filter by status"

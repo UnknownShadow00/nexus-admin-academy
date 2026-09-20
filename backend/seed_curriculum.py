@@ -194,7 +194,10 @@ try:
     current_revision = db.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
     beginner_rollout_result = (
         sync_beginner_learning_rollout(db)
-        if current_revision == "0062_beginner_learning_rollout"
+        if current_revision in {
+            "0062_beginner_learning_rollout",
+            "0069_merge_v2_beginner_heads",
+        }
         else {"skipped": f"requires 0062; database is {current_revision or 'unversioned'}"}
     )
     network_linux_cloud_result = (
@@ -203,6 +206,7 @@ try:
             "0060_network_linux_cloud_practical_upgrade",
             "0061_integrated_support_prove",
             "0062_beginner_learning_rollout",
+            "0069_merge_v2_beginner_heads",
         }
         else {"skipped": f"requires 0060; database is {current_revision or 'unversioned'}"}
     )
@@ -211,6 +215,7 @@ try:
         if current_revision in {
             "0061_integrated_support_prove",
             "0062_beginner_learning_rollout",
+            "0069_merge_v2_beginner_heads",
         }
         else {"skipped": f"requires 0061; database is {current_revision or 'unversioned'}"}
     )

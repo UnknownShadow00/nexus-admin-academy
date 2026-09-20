@@ -28,7 +28,10 @@ from app.services.progression_service import (
     get_promotion_status,
     week_has_been_reached,
 )
-from app.services.quiz_visibility import student_visible_quiz_filters
+from app.services.quiz_visibility import (
+    student_visible_quiz_filters,
+    v1_student_visible_quiz_filters_for,
+)
 from app.services.service_desk_progression import (
     build_service_desk_progression,
     ensure_assigned_scenarios,
@@ -180,7 +183,7 @@ class _TrainingContext:
         visible_quizzes = (
             db.query(Quiz)
             .options(selectinload(Quiz.questions))
-            .filter(*student_visible_quiz_filters())
+            .filter(*v1_student_visible_quiz_filters_for(db))
             .all()
         )
         self.visible_quizzes_by_title = {row.title: row for row in visible_quizzes}

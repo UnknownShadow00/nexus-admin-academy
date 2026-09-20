@@ -2,8 +2,8 @@
 
 import type { ActionEvent } from '@service-desk/simulation-engine';
 import { Badge, Input, PanelFrame, Select } from '@service-desk/ui';
-import { IconArrowLeft, IconSearch, IconUsers } from '@tabler/icons-react';
-import Link from 'next/link';
+import { IconSearch, IconUsers } from '@tabler/icons-react';
+import { ToolBackLink, useIntegratedTool } from './IntegratedToolContext';
 import { useEffect, useMemo, useState } from 'react';
 
 import { DirectoryUserDetail } from './DirectoryUserDetail';
@@ -48,11 +48,12 @@ function eventMessage(event: ActionEvent) {
 }
 
 export function DirectoryTool() {
+  const integrated = useIntegratedTool();
   const { directoryUsers, isHydrated } = useDirectorySession();
   const [accountFilter, setAccountFilter] = useState<AccountFilter>('all');
   const [lastEvent, setLastEvent] = useState<ActionEvent | null>(null);
   const [query, setQuery] = useState('');
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(() => directoryUsers.find((user) => user.fullName === integrated?.ticket.requester.name)?.id ?? null);
   const filteredUsers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
@@ -91,34 +92,28 @@ export function DirectoryTool() {
       className="mx-auto w-full max-w-7xl p-0"
       variant="ad"
     >
-      <header className="border-b border-zinc-800 px-4 py-4 sm:px-5">
+      <header className="border-b border-border px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link
-            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 self-start rounded-sm px-2 text-sm font-extrabold uppercase text-sky-400 hover:bg-zinc-900 hover:text-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
-            href="/"
-          >
-            <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
-            Dashboard
-          </Link>
+          <ToolBackLink />
           <Badge variant="sky">{directoryUsers.length} user records</Badge>
         </div>
         <div className="mt-4 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-sky-400/30 bg-sky-400/10 text-sky-400">
+          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 text-accent">
             <IconUsers aria-hidden="true" className="h-6 w-6" />
           </span>
           <div>
-            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-sky-400">
+            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-accent">
               Identity administration
             </p>
             <h1
-              className="font-display text-2xl font-bold text-zinc-100"
+              className="font-display text-2xl font-bold text-text"
               id="directory-title"
             >
               Directory
             </h1>
           </div>
         </div>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400">
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-text-muted">
           Search the practice organization, review identity access, and apply
           account or group changes to the current simulation attempt.
         </p>
@@ -128,8 +123,8 @@ export function DirectoryTool() {
         <div
           className={`mx-4 mt-4 rounded-sm border px-4 py-3 text-sm ${
             lastEvent.success
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-              : 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+              ? 'border-success/30 bg-success/10 text-success'
+              : 'border-warning/30 bg-warning/10 text-warning'
           }`}
           role={lastEvent.success ? 'status' : 'alert'}
         >
@@ -149,7 +144,7 @@ export function DirectoryTool() {
               </span>
               <IconSearch
                 aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
               />
               <Input
                 className="pl-9"
@@ -174,7 +169,7 @@ export function DirectoryTool() {
               </Select>
             </label>
           </div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
             {isHydrated
               ? `${filteredUsers.length} matching users`
               : 'Restoring directory state…'}
@@ -190,12 +185,12 @@ export function DirectoryTool() {
         {selectedUser ? (
           <DirectoryUserDetail onAction={setLastEvent} user={selectedUser} />
         ) : (
-          <section className="flex min-h-72 flex-col items-center justify-center rounded-md border border-dashed border-zinc-800 bg-zinc-900/40 p-8 text-center">
-            <IconUsers aria-hidden="true" className="h-10 w-10 text-zinc-600" />
-            <h2 className="mt-4 text-base font-bold text-zinc-100">
+          <section className="flex min-h-72 flex-col items-center justify-center rounded-md border border-dashed border-border bg-surface-raised/40 p-8 text-center">
+            <IconUsers aria-hidden="true" className="h-10 w-10 text-text-muted" />
+            <h2 className="mt-4 text-base font-bold text-text">
               Select a directory user
             </h2>
-            <p className="mt-2 max-w-sm text-sm text-zinc-400">
+            <p className="mt-2 max-w-sm text-sm text-text-muted">
               Open a row to review account status, groups, devices, licenses,
               and available identity actions.
             </p>

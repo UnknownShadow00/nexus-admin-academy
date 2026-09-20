@@ -1,3 +1,9 @@
+import {
+  EXPECTED_NEXUS_SERVICE_DESK_CONTRACT,
+  NEXUS_SERVICE_DESK_CONTRACT_HEADER,
+  contractIsCompatible,
+} from './service-desk-contract';
+
 export interface NexusAssignmentAttemptSummary {
   attempt_number: number;
   experience_mode: 'guided' | 'practice' | 'assessment';
@@ -30,6 +36,34 @@ export interface NexusAssignment {
     title: string;
   };
   scenario_id: string | number;
+  workspace_view?: NexusWorkspaceView | null;
+}
+
+export type NexusWorkflowStageKey =
+  | 'understand'
+  | 'investigate'
+  | 'diagnose'
+  | 'fix'
+  | 'verify'
+  | 'document';
+
+export interface NexusWorkflowStage {
+  key: NexusWorkflowStageKey;
+  // Always the literal 'fix'. The server never sends an "escalate" outcome
+  // signal before completion (see service_desk_workspace_view.process_progress);
+  // retained only so the stage shape is stable.
+  mode?: 'fix';
+  needs_more_evidence?: boolean;
+  status: 'complete' | 'current' | 'not_started';
+}
+
+export interface NexusWorkspaceView {
+  documentation_target: 'ticket' | 'remote_desktop';
+  // Route-free and identical for every ticket: escalation is a professional
+  // option everywhere and the server decides whether it was appropriate.
+  escalation: { available: boolean } | null;
+  evidence: readonly { id: string; label: string }[];
+  stages: readonly NexusWorkflowStage[];
 }
 
 export interface NexusServiceDeskProgression {
@@ -79,6 +113,7 @@ export interface NexusAttempt {
   state_version: number;
   status: string;
   updated_at: string;
+  workspace_view?: NexusWorkspaceView;
 }
 
 export interface NexusAttemptEventInput {
@@ -101,15 +136,43 @@ export interface NexusAttemptCompletionInput {
   idempotency_key: string;
 }
 
+export interface NexusDebriefCategory {
+  key: string;
+  label: string;
+  points: number;
+  max: number;
+  status: 'full' | 'partial' | 'missed' | 'not_applicable';
+  explanation: string;
+}
+
+export interface NexusDebrief {
+  // 'limited' when the attempt failed with a graded attempt still remaining:
+  // no ordered path, no correct escalation route, no verdict.
+  coaching_tier: 'full' | 'limited';
+  result: {
+    passed: boolean;
+    score: number;
+    attempts_remaining: number | null;
+    outcome: 'resolved' | 'escalated' | 'needs_another_try';
+  };
+  categories: readonly NexusDebriefCategory[];
+  student_note: string;
+  note_dimensions: { cause: boolean; action: boolean; verification: boolean };
+  stronger_path: readonly string[];
+  escalation_feedback: { appropriate: boolean; text: string } | null;
+}
+
 export interface NexusGrade {
   attempt_id: string | number;
   critical_failure: boolean;
+  debrief?: NexusDebrief | null;
   feedback_summary: string;
   id: string | number;
   overall_score: number;
   passed: boolean;
   rubric_version: string;
   scenario_version_id: string | number;
+  learner_outcome?: 'pass' | 'escalated_successfully' | 'needs_another_attempt' | 'awaiting_review';
   technical_complete: boolean;
 }
 
@@ -143,7 +206,26 @@ function isAttempt(value: unknown): value is NexusAttempt {
     typeof value.started_at === 'string' &&
     typeof value.state_version === 'number' &&
     typeof value.status === 'string' &&
-    typeof value.updated_at === 'string'
+    typeof value.updated_at === 'string' &&
+    (value.workspace_view === undefined || isWorkspaceView(value.workspace_view))
+  );
+}
+
+function isWorkspaceView(value: unknown): value is NexusWorkspaceView {
+  if (!isRecord(value) || !Array.isArray(value.stages)) return false;
+  return (
+    (value.documentation_target === 'ticket' ||
+      value.documentation_target === 'remote_desktop') &&
+    (value.escalation === null || isRecord(value.escalation)) &&
+    Array.isArray(value.evidence) &&
+    value.stages.every(
+      (stage) =>
+        isRecord(stage) &&
+        typeof stage.key === 'string' &&
+        (stage.status === 'complete' ||
+          stage.status === 'current' ||
+          stage.status === 'not_started'),
+    )
   );
 }
 
@@ -196,7 +278,10 @@ function isAssignment(value: unknown): value is NexusAssignment {
     typeof value.required_this_week === 'boolean' &&
     typeof value.scenario.stable_key === 'string' &&
     typeof value.scenario.title === 'string' &&
-    isId(value.scenario_id)
+    isId(value.scenario_id) &&
+    (value.workspace_view === undefined ||
+      value.workspace_view === null ||
+      isWorkspaceView(value.workspace_view))
   );
 }
 
@@ -228,13 +313,27 @@ async function request(
   init: RequestInit,
 ): Promise<unknown | null> {
   try {
+    const contract = await fetch('/api/service-desk/contract', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
+    const contractBody: unknown = contract.ok ? await contract.json() : null;
+    if (!contract.ok || !contractIsCompatible(contractBody)) {
+      console.error(
+        `Nexus Service Desk contract mismatch; expected ${EXPECTED_NEXUS_SERVICE_DESK_CONTRACT}.`,
+      );
+      return null;
+    }
+    const headers = new Headers(init.headers);
+    headers.set(
+      NEXUS_SERVICE_DESK_CONTRACT_HEADER,
+      EXPECTED_NEXUS_SERVICE_DESK_CONTRACT,
+    );
+    headers.set('content-type', 'application/json');
     const response = await fetch(path, {
       ...init,
       credentials: 'same-origin',
-      headers: {
-        'content-type': 'application/json',
-        ...init.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -255,7 +354,8 @@ async function request(
 }
 
 export async function listAssignments(): Promise<readonly NexusAssignment[]> {
-  const result = await request('/api/service-desk/assignments', {
+  const query = v2LaunchContextQuery();
+  const result = await request(`/api/service-desk/assignments${query}`, {
     method: 'GET',
   });
 
@@ -273,12 +373,27 @@ export async function getServiceDeskProgression(): Promise<NexusServiceDeskProgr
 export async function startOrResumeAttempt(
   assignmentId: string | number,
 ): Promise<NexusAttempt | null> {
+  const suffix = v2LaunchContextQuery();
   const result = await request(
-    `/api/service-desk/assignments/${encodeURIComponent(assignmentId)}/attempts`,
+    `/api/service-desk/assignments/${encodeURIComponent(assignmentId)}/attempts${suffix}`,
     { method: 'POST' },
   );
 
   return isAttempt(result) ? result : null;
+}
+
+function v2LaunchContextQuery(): string {
+  const query = new URLSearchParams();
+  if (typeof window !== 'undefined') {
+    const launch = new URLSearchParams(window.location.search);
+    const moduleKey = launch.get('v2ModuleKey');
+    const assessmentKey = launch.get('v2AssessmentKey');
+    if (moduleKey && assessmentKey) {
+      query.set('v2_module_key', moduleKey);
+      query.set('v2_assessment_key', assessmentKey);
+    }
+  }
+  return query.size ? `?${query.toString()}` : '';
 }
 
 export async function getAttempt(

@@ -44,16 +44,33 @@ async function runTerminalCommand(page: Page, command: string) {
   await terminal.press('Enter');
 }
 
-async function saveNoteAndClose(page: Page, screenshotPath?: string) {
-  await page.getByLabel('Student-authored internal note').fill(completionNote);
-  await page.getByRole('button', { name: 'Save internal note' }).click();
-  const closeTicket = page.getByRole('button', { name: 'Close ticket' });
-  await expect(closeTicket).toBeEnabled();
-  await closeTicket.click();
+async function saveNoteAndClose(
+  page: Page,
+  ticketId: string,
+  screenshotPath?: string,
+) {
+  // Documentation lives only in the unified ticket workspace. Resolve reads
+  // that note and must never render a second editable note control.
+  await page.goto(`/tickets/${ticketId}`);
+  const noteInput = page.getByLabel('Add a note');
+  await expect(noteInput).toHaveCount(1);
+  await noteInput.fill(completionNote);
+  await page.getByRole('button', { name: 'Add internal note' }).click();
+
+  await page.getByRole('button', { name: 'Resolve', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Resolve or close ticket' });
+  await expect(dialog.getByRole('textbox')).toHaveCount(0);
+  await expect(dialog.getByText(completionNote, { exact: true })).toBeVisible();
+  await dialog.getByRole('checkbox').check();
+  await dialog.getByRole('button', { name: 'Continue to review' }).click();
+  await expect(dialog.getByText('Ready to resolve')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Resolve ticket' }).click();
   await expect(
-    page.getByText('Solution complete', { exact: true }),
+    page
+      .getByText(ticketId, { exact: true })
+      .locator('..')
+      .getByText('Resolved', { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText(/Final score:\s*100\/100/)).toBeVisible();
   if (screenshotPath) {
     await page.screenshot({ fullPage: true, path: screenshotPath });
   }
@@ -120,9 +137,7 @@ test('completes the VPN shared-drive ticket through the desktop', async ({
   ).toBeVisible();
 
   await page.getByRole('button', { name: 'Focus File Explorer' }).click();
-  await expect(page.getByLabel('File Explorer window')).toHaveClass(
-    /border-sky-300/,
-  );
+  await expect(page.getByLabel('File Explorer window')).toBeVisible();
   await page.getByRole('button', { name: 'This PC', exact: true }).click();
   await page
     .getByRole('button', { name: 'Open Partner Workspace (Z:)' })
@@ -149,6 +164,7 @@ test('completes the VPN shared-drive ticket through the desktop', async ({
   );
   await saveNoteAndClose(
     page,
+    'INC2406',
     'docs/visual-qa/service-desk-workstation/desktop-grading-complete.png',
   );
   expect(pageErrors).toEqual([]);
@@ -192,7 +208,7 @@ test('maps the Facilities calendar with an exact persistent UNC configuration', 
     'INC2405',
     'NX-6128',
   );
-  await saveNoteAndClose(page);
+  await saveNoteAndClose(page, 'INC2405');
   expect(pageErrors).toEqual([]);
 });
 
@@ -212,7 +228,7 @@ test('completes the DNS ticket through the desktop', async ({ page }) => {
   await page.getByRole('button', { name: 'Focus Command Prompt' }).click();
   await runTerminalCommand(page, 'nslookup portal.nexus.internal');
 
-  await saveNoteAndClose(page);
+  await saveNoteAndClose(page, 'INC2407');
   expect(pageErrors).toEqual([]);
 });
 
@@ -239,6 +255,6 @@ test('completes the Print Spooler ticket through the desktop', async ({
     'successfully',
   );
 
-  await saveNoteAndClose(page);
+  await saveNoteAndClose(page, 'INC2408');
   expect(pageErrors).toEqual([]);
 });

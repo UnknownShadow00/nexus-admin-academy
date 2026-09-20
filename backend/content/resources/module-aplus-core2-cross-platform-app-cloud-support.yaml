@@ -1,0 +1,155 @@
+resources:
+- resource_key: res.aplus.cross_platform.macos_overview
+  title: macOS Overview (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/macos-overview-220-1202/
+  provider: Professor Messer
+  duration: '11:24'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.cross_platform.macos_apps_folders
+    module_key: module.aplus.core2.cross_platform_app_cloud_support
+    required: true
+    order: 1
+- resource_key: res.aplus.cross_platform.macos_features
+  title: macOS Features (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/macos-features-220-1202/
+  provider: Professor Messer
+  duration: '11:17'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.cross_platform.macos_support_tools
+    module_key: module.aplus.core2.cross_platform_app_cloud_support
+    required: true
+    order: 1
+- resource_key: res.aplus.cross_platform.linux_overview
+  title: Linux (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/linux-220-1202/
+  provider: Professor Messer
+  duration: '11:11'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.cross_platform.linux_files_config
+    module_key: module.aplus.core2.cross_platform_app_cloud_support
+    required: true
+    order: 1
+- resource_key: res.aplus.cross_platform.linux_commands_1
+  title: Linux Commands Part 1 (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/linux-commands-part-1-220-1202/
+  provider: Professor Messer
+  duration: course video
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Optional linked supplement; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.cross_platform.linux_files_config
+    module_key: module.aplus.core2.cross_platform_app_cloud_support
+    required: false
+    order: 2
+- resource_key: res.aplus.cross_platform.linux_commands_2
+  title: Linux Commands Part 2 (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/linux-commands-part-2-220-1202/
+  provider: Professor Messer
+  duration: course video
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.cross_platform.linux_admin_network
+    module_key: module.aplus.core2.cross_platform_app_cloud_support
+    required: true
+    order: 1
+- resource_key: res.aplus.cross_platform.ubuntu_cli
+  title: The Linux command line for beginners
+  resource_type: documentation
+  url: https://ubuntu.com/tutorials/command-line-for-beginners
+  provider: Ubuntu / Canonical
+  duration: reference
+  certification_version: comptia_aplus_220-1202
+  source_name: Ubuntu documentation
+  source_url: https://ubuntu.com/tutorials
+  permission_status: unknown
+  license_note: Optional official distribution tutorial.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.cross_platform.linux_admin_network
+    module_key: module.aplus.core2.cross_platform_app_cloud_support
+    required: false
+    order: 2
+- resource_key: res.aplus.cross_platform.installing_applications
+  title: Installing Applications (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/installing-applications-220-1202/
+  provider: Professor Messer
+  duration: '16:27'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.cross_platform.application_installation
+    module_key: module.aplus.core2.cross_platform_app_cloud_support
+    required: true
+    order: 1
+- resource_key: res.aplus.cross_platform.cloud_productivity
+  title: Cloud Productivity Tools (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/cloud-productivity-tools-220-1202/
+  provider: Professor Messer
+  duration: '5:47'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.cross_platform.cloud_productivity
+    module_key: module.aplus.core2.cross_platform_app_cloud_support
+    required: true
+    order: 1
+- resource_key: res.aplus.cross_platform.onedrive_sync
+  title: Fix OneDrive sync problems
+  resource_type: documentation
+  url: https://support.microsoft.com/en-us/onedrive/fix-onedrive-sync-problems
+  provider: Microsoft Support
+  duration: reference
+  certification_version: comptia_aplus_220-1202
+  source_name: Microsoft Support
+  source_url: https://support.microsoft.com/
+  permission_status: unknown
+  license_note: Optional vendor troubleshooting reference for a representative cloud
+    sync client.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.cross_platform.cloud_productivity
+    module_key: module.aplus.core2.cross_platform_app_cloud_support
+    required: false
+    order: 2

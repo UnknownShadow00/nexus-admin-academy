@@ -1,0 +1,255 @@
+resources:
+- resource_key: res.aplus.hardware.display_types
+  title: Display Types (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/display-types-220-1201/
+  provider: Professor Messer
+  duration: '9:13'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.displays_attributes
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: true
+    order: 1
+- resource_key: res.aplus.hardware.display_attributes
+  title: Display Attributes (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/display-attributes-220-1201/
+  provider: Professor Messer
+  duration: '12:01'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.displays_attributes
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: true
+    order: 2
+- resource_key: res.aplus.hardware.network_cables
+  title: Network Cables (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/network-cables-220-1201/
+  provider: Professor Messer
+  duration: '12:14'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.cables_connectors
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: true
+    order: 1
+- resource_key: res.aplus.hardware.peripheral_cables
+  title: Peripheral Cables (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/peripheral-cables-220-1201/
+  provider: Professor Messer
+  duration: '8:59'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.cables_connectors
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: true
+    order: 2
+- resource_key: res.aplus.hardware.video_cables
+  title: Video Cables (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/video-cables-220-1201/
+  provider: Professor Messer
+  duration: '7:03'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.cables_connectors
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: true
+    order: 3
+- resource_key: res.aplus.hardware.copper_connectors
+  title: Copper Connectors (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/copper-connectors-220-1201/
+  provider: Professor Messer
+  duration: '8:33'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.cables_connectors
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: true
+    order: 4
+- resource_key: res.aplus.hardware.fiber_connectors
+  title: Fiber Connectors (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/fiber-connectors-220-1201/
+  provider: Professor Messer
+  duration: '2:49'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.cables_connectors
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: false
+    order: 5
+- resource_key: res.aplus.hardware.memory_overview
+  title: An Overview of Memory (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/an-overview-of-memory-220-1201/
+  provider: Professor Messer
+  duration: '8:38'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.ram
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: true
+    order: 1
+- resource_key: res.aplus.hardware.memory_technologies
+  title: Memory Technologies (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/memory-technologies-220-1201/
+  provider: Professor Messer
+  duration: '8:44'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.ram
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: true
+    order: 2
+- resource_key: res.aplus.hardware.computer_power
+  title: Computer Power (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/computer-power-220-1201/
+  provider: Professor Messer
+  duration: '15:31'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.power
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: true
+    order: 1
+- resource_key: res.aplus.hardware.troubleshooting_hardware
+  title: Troubleshooting Hardware (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/troubleshooting-hardware-220-1201/
+  provider: Professor Messer
+  duration: '25:15'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.core_fault_isolation
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: true
+    order: 1
+- resource_key: res.aplus.hardware.troubleshooting_storage
+  title: Troubleshooting Storage Devices (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/troubleshooting-storage-devices-220-1201/
+  provider: Professor Messer
+  duration: '17:04'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.storage_display_troubleshooting
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: true
+    order: 1
+- resource_key: res.aplus.hardware.troubleshooting_display
+  title: Troubleshooting Display Issues (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/troubleshooting-display-issues-220-1201/
+  provider: Professor Messer
+  duration: '18:52'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.storage_display_troubleshooting
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: true
+    order: 2
+- resource_key: res.aplus.hardware.dell_monitor_reference
+  title: Fix Monitor Display Issues
+  resource_type: documentation
+  url: https://www.dell.com/support/kbdoc/en-us/000132110/how-to-troubleshoot-a-dell-desktop-monitor
+  provider: Dell
+  duration: reference
+  certification_version: comptia_aplus_220-1201
+  source_name: Dell Support
+  source_url: https://www.dell.com/support/kbdoc/en-us/000132110/how-to-troubleshoot-a-dell-desktop-monitor
+  permission_status: permitted
+  license_note: Optional vendor troubleshooting reference; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.hardware.storage_display_troubleshooting
+    module_key: module.aplus.core1.hardware_fault_isolation
+    required: false
+    order: 3
+- resource_key: res.aplus.hardware.crucial_practice
+  title: CompTIA A+ 220-1201 V15 Practice Tests
+  resource_type: external_practice
+  url: https://crucialexams.com/exams/comptia/a/220-1201/practice-tests-practice-questions
+  provider: Crucial Exams
+  duration: optional practice
+  certification_version: comptia_aplus_220-1201
+  source_name: Crucial Exams 220-1201 V15
+  source_url: https://crucialexams.com/exams/comptia/a/220-1201/practice-tests-practice-questions
+  permission_status: permitted
+  license_note: Optional practice; no question text copied.
+  active: true
+  links:
+  - module_key: module.aplus.core1.hardware_fault_isolation
+    required: false
+    order: 99

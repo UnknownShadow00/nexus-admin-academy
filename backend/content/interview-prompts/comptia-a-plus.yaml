@@ -1,0 +1,274 @@
+# Nexus V2 Explain / interview prompts for CompTIA A+ (Phase 1B fixture).
+#
+# DATA. `load_interview_prompts` upserts this idempotently keyed on
+# `prompt_key`. These prompts feed the "Explain" practical role. NO AI is
+# wired in Phase 1B — `rubric` / `rubric_version` / `expected_concepts` are
+# stored so a later phase can grade against them (AI or mentor).
+
+prompts:
+  - prompt_key: interview.aplus.core1.tcp_udp_ports.explain_difference
+    certification_version: comptia_aplus_220-1201
+    module: module.aplus.core1.networking_fundamentals
+    domain: "2.0"
+    objectives:
+      - "2.1"
+    importance: job_critical
+    prompt: >
+      A colleague asks you to explain, in plain terms, the difference between
+      TCP and UDP and to give one everyday example of each. How do you answer?
+    expected_concepts:
+      - "connection-oriented vs connectionless"
+      - "reliable delivery / retransmission"
+      - "overhead / latency trade-off"
+      - "TCP example (web, email, RDP)"
+      - "UDP example (DNS, DHCP, streaming, VoIP)"
+    rubric:
+      pass: "Names the connection model for both, the reliability trade-off, and a correct example of each."
+      partial: "Gets the reliability idea but no concrete examples, or swaps one example."
+      fail: "Cannot distinguish the two, or gives reversed examples."
+    rubric_version: "2026-08-a"
+    model_answer_outline: >
+      TCP makes a connection first and guarantees delivery by re-sending lost
+      data, at the cost of overhead — used for web (443), email, RDP (3389).
+      UDP just fires packets with no setup or guarantee but low latency — used
+      for DNS (53), DHCP (67/68), and live audio/video.
+    source_name: "Nexus curriculum team"
+    active: true
+
+  # ---- Phase 3A: A+ Batch 1 -------------------------------------------- #
+  - prompt_key: interview.aplus.hardware.compatible_upgrade
+    certification_version: comptia_aplus_220-1201
+    module: module.aplus.core1.hardware_support
+    domain: "3.0"
+    objectives: ["3.4"]
+    importance: job_critical
+    prompt: "Explain how you would confirm that a motherboard, CPU, or expansion-card upgrade is compatible before ordering it."
+    expected_concepts:
+      - { concept: "system model and vendor documentation", aliases: ["exact model and service manual", "manufacturer support list"] }
+      - { concept: "form factor and physical clearance", aliases: ["case fit and board size", "card clearance"] }
+      - { concept: "socket chipset and firmware", aliases: ["CPU support list", "socket and BIOS support"] }
+      - { concept: "RAM slot and connector compatibility", aliases: ["memory type and slots", "required internal connectors"] }
+      - { concept: "power budget and connectors", aliases: ["PSU wattage and cables", "power requirements"] }
+      - { concept: "driver/OS support", aliases: ["supported driver", "operating system compatibility"] }
+    rubric:
+      pass: "Uses model-specific documentation and covers physical, platform, power, and software compatibility."
+      partial: "Checks only physical fit or names several checks without a reliable source."
+      fail: "Assumes parts are compatible because the connector looks similar."
+    rubric_version: "hardware-2026-08-b"
+    model_answer_outline: "Identify the exact system and service manual, then verify form factor/clearance, socket/chipset/firmware/RAM, slots/lanes, connectors/wattage, and supported drivers before approval."
+    source_name: "Nexus curriculum team"
+    active: true
+
+  - prompt_key: interview.aplus.hardware.load_restart
+    certification_version: comptia_aplus_220-1201
+    module: module.aplus.core1.hardware_support
+    domain: "3.0"
+    objectives: ["3.4", "3.5"]
+    importance: job_critical
+    prompt: "A PC restarts only under heavy load after an upgrade. Explain your troubleshooting reasoning and how you would prove the fix."
+    expected_concepts:
+      - { concept: "reproduce and capture scope", aliases: ["repeat the same load", "record when it restarts"] }
+      - { concept: "temperature and fan checks", aliases: ["check thermals", "verify cooling"] }
+      - { concept: "seating and auxiliary power", aliases: ["reseat the card", "check PCIe power"] }
+      - { concept: "PSU wattage/connectors", aliases: ["power budget", "PSU capacity and cables"] }
+      - { concept: "one controlled change", aliases: ["change one thing", "known-good component test"] }
+      - { concept: "same-load verification", aliases: ["repeat the workload", "stable under the original load"] }
+    rubric:
+      pass: "Uses evidence to test cooling, seating/power and PSU capacity, then repeats the workload."
+      partial: "Suspects heat or power but provides little isolation or verification."
+      fail: "Opens the PSU or applies unrelated changes."
+    rubric_version: "hardware-2026-08-b"
+    model_answer_outline: "Record the load boundary, inspect temperatures/fans and card seating/connectors, compare PSU requirements, change one supported item, then repeat the same load and document stable results."
+    source_name: "Nexus curriculum team"
+    active: true
+
+  - prompt_key: interview.aplus.wintools.choose_command
+    certification_version: comptia_aplus_220-1202
+    module: module.aplus.core2.windows_support_tools
+    domain: "1.0"
+    objectives: ["1.2"]
+    importance: job_critical
+    prompt: "Explain when you would use netstat, gpupdate, sfc, and chkdsk, and why you would start with read-only evidence where possible."
+    expected_concepts:
+      - { concept: "netstat connections/listeners", aliases: ["netstat shows active connections", "netstat -ano"] }
+      - { concept: "gpupdate policy refresh", aliases: ["refresh Group Policy", "update applied policy"] }
+      - { concept: "sfc protected system files", aliases: ["System File Checker", "sfc /verifyonly"] }
+      - { concept: "chkdsk filesystem", aliases: ["check volume metadata", "plain chkdsk"] }
+      - { concept: "read-only first", aliases: ["collect evidence before repair", "verify before fixing"] }
+      - { concept: "approval/downtime before repair", aliases: ["authorize repair switches", "schedule the restart"] }
+    rubric:
+      pass: "Correctly distinguishes all four tools and explains safe evidence-first use."
+      partial: "Correctly describes two or three tools but confuses scope or safety."
+      fail: "Treats the tools as interchangeable or recommends destructive use."
+    rubric_version: "wintools-2026-08-b"
+    model_answer_outline: "Use netstat for connections/listeners, gpupdate for policy refresh, SFC for protected files, and chkdsk for filesystem state; capture output and seek approval before repair switches or downtime."
+    source_name: "Nexus curriculum team"
+    active: true
+
+  - prompt_key: interview.aplus.wintools.one_app_blocked
+    certification_version: comptia_aplus_220-1202
+    module: module.aplus.core2.windows_support_tools
+    domain: "1.0"
+    objectives: ["1.6"]
+    importance: job_critical
+    prompt: "A user can browse websites but one business app cannot connect. Explain how you would inspect Windows client networking without disabling protection."
+    expected_concepts:
+      - { concept: "isolate app/user/device scope", aliases: ["confirm only one app fails", "compare user and device"] }
+      - { concept: "network profile", aliases: ["Public Private or Domain profile", "active firewall profile"] }
+      - { concept: "proxy settings", aliases: ["Windows proxy", "WinHTTP proxy"] }
+      - { concept: "relevant firewall rule/log", aliases: ["application firewall rule", "firewall logging"] }
+      - { concept: "known-good comparison", aliases: ["compare a working app", "test another device"] }
+      - { concept: "verify original app", aliases: ["retest the application", "confirm the connection"] }
+    rubric:
+      pass: "Uses targeted scope, proxy/profile/firewall evidence, avoids broad disablement, and retests the app."
+      partial: "Names proxy or firewall but lacks isolation or verification."
+      fail: "Disables the firewall or makes broad permission changes."
+    rubric_version: "wintools-2026-08-b"
+    model_answer_outline: "Confirm scope and error, compare a working app/device, inspect profile/proxy and relevant firewall rule/log, make the least approved change, and repeat the original connection."
+    source_name: "Nexus curriculum team"
+    active: true
+
+  - prompt_key: interview.aplus.wintriage.slow_pc
+    certification_version: comptia_aplus_220-1202
+    module: module.aplus.core2.windows_troubleshooting
+    domain: "3.0"
+    objectives: ["3.1"]
+    importance: job_critical
+    prompt: "A user says their Windows PC is slow. Explain how you turn that statement into a tested diagnosis rather than a guess."
+    expected_concepts:
+      - { concept: "define timing scope and workload", aliases: ["ask when it is slow", "identify the affected task"] }
+      - { concept: "baseline/reproduce", aliases: ["repeat the problem", "measure before changes"] }
+      - { concept: "measure CPU memory disk and network", aliases: ["inspect resource usage", "Task Manager resource columns"] }
+      - { concept: "identify owning process", aliases: ["find the process", "sort processes by usage"] }
+      - { concept: "one safe supported change", aliases: ["change one approved item", "least disruptive fix"] }
+      - { concept: "repeat and measure verification", aliases: ["run the same workload again", "compare before and after"] }
+    rubric:
+      pass: "Defines the symptom, measures the bottleneck/process, tests a theory safely, and repeats the workload."
+      partial: "Mentions Task Manager but does not connect evidence to a controlled test and verification."
+      fail: "Proposes random cleanup or reinstall without diagnosis."
+    rubric_version: "wintriage-2026-08-b"
+    model_answer_outline: "Ask when and during what task, reproduce, observe live resources and the owning process, test the most likely cause with one approved change, repeat the same task, and document before/after evidence."
+    source_name: "Nexus curriculum team"
+    active: true
+
+  - prompt_key: interview.aplus.wintriage.crash_escalation
+    certification_version: comptia_aplus_220-1202
+    module: module.aplus.core2.windows_troubleshooting
+    domain: "3.0"
+    objectives: ["3.1"]
+    importance: job_critical
+    prompt: "An application crashes during one repeatable operation. What evidence would you collect, what comparisons would you run, and what would make an escalation useful?"
+    expected_concepts:
+      - { concept: "exact action error and timestamp", aliases: ["record what failed and when", "capture the error message"] }
+      - { concept: "file/user/device comparisons", aliases: ["test another file user or PC", "isolate what the crash follows"] }
+      - { concept: "version and recent changes", aliases: ["check app and OS versions", "review recent updates"] }
+      - { concept: "Reliability Monitor or Event Viewer", aliases: ["reliability history", "application event log"] }
+      - { concept: "smallest reproducible case", aliases: ["minimal repeatable example", "smallest file that fails"] }
+      - { concept: "impact and safe actions already tried", aliases: ["business impact and tests", "document attempted steps"] }
+    rubric:
+      pass: "Captures exact evidence, isolates scope, checks changes/logs, and produces a reproducible escalation."
+      partial: "Captures an error but gives weak comparison or escalation detail."
+      fail: "Deletes evidence or immediately reinstalls Windows."
+    rubric_version: "wintriage-2026-08-b"
+    model_answer_outline: "Record action/error/time, compare files/users/devices, check versions and changes, correlate Reliability/Event Viewer records, preserve a minimal reproducible sample, and escalate with impact and tests."
+    source_name: "Nexus curriculum team"
+    active: true
+
+  # ---- Phase 2A: module.aplus.core1.ip_configuration -------------------- #
+
+  - prompt_key: interview.aplus.ipcfg.what_does_dhcp_do
+    certification_version: comptia_aplus_220-1201
+    module: module.aplus.core1.ip_configuration
+    domain: "2.0"
+    objectives:
+      - "2.4"
+      - "2.6"
+    importance: job_critical
+    prompt: >
+      In plain language, what does DHCP do for a computer on a network, and
+      what happens if it stops working?
+    expected_concepts:
+      - "assigns IP configuration automatically"
+      - "hands out address, subnet mask, gateway, DNS"
+      - "lease / time-limited"
+      - "no DHCP means no automatic address"
+      - "Windows falls back to APIPA 169.254"
+    rubric:
+      pass: "Explains DHCP automatically provides IP address plus mask, gateway and DNS on a lease, and that failure leads to no address / APIPA."
+      partial: "Says DHCP gives out IP addresses but omits the other settings or the failure behaviour."
+      fail: "Confuses DHCP with DNS, or cannot say what it provides."
+    rubric_version: "ipcfg-2026-08-a"
+    model_answer_outline: >
+      DHCP automatically gives a joining device its IPv4 address, subnet mask,
+      default gateway and DNS server(s), leased for a set time and renewed.
+      If no DHCP server answers, the device gets no usable address; Windows
+      self-assigns a 169.254.x.x APIPA address with no gateway or DNS, so only
+      other local machines are reachable.
+    source_name: "Nexus curriculum team"
+    active: true
+
+  - prompt_key: interview.aplus.ipcfg.what_does_169_254_tell_you
+    certification_version: comptia_aplus_220-1201
+    module: module.aplus.core1.ip_configuration
+    domain: "2.0"
+    objectives:
+      - "2.6"
+      - "5.5"
+    importance: job_critical
+    prompt: >
+      A Windows PC shows an IP address of 169.254.14.203. What does that tell
+      you, and what would you check first?
+    expected_concepts:
+      - "APIPA / automatic private address"
+      - "DHCP did not respond"
+      - "no gateway / no internet"
+      - "check physical or wireless link"
+      - "check switch port / DHCP server"
+      - "ipconfig release and renew"
+    rubric:
+      pass: "Identifies APIPA, explains it means DHCP got no reply, and gives a sensible first check (link, then release/renew, then upstream)."
+      partial: "Recognises 169.254 as a problem address but cannot explain the cause or a next step."
+      fail: "Thinks 169.254 is a normal address, or proposes an unrelated fix (e.g. reinstall the browser)."
+    rubric_version: "ipcfg-2026-08-a"
+    model_answer_outline: >
+      169.254.x.x is APIPA — the PC asked for a DHCP lease and nothing
+      answered. I'd confirm the cable/Wi-Fi link and link light, then
+      ipconfig /release and /renew. If it still self-assigns, compare a working
+      neighbour to decide between this desk's switch port and a wider DHCP
+      outage, then escalate. Finally verify a real address and connectivity.
+    source_name: "Nexus curriculum team"
+    active: true
+
+  - prompt_key: interview.aplus.ipcfg.ip_works_names_dont
+    certification_version: comptia_aplus_220-1201
+    module: module.aplus.core1.ip_configuration
+    domain: "2.0"
+    objectives:
+      - "2.4"
+      - "5.5"
+    importance: job_critical
+    prompt: >
+      A user can reach websites by IP address but not by name (for example,
+      "ping 8.8.8.8" works but "ping google.com" fails). How would you
+      troubleshoot this?
+    expected_concepts:
+      - "points to DNS not connectivity"
+      - "confirm with ping IP vs ping name"
+      - "check configured DNS server with ipconfig /all"
+      - "nslookup to test resolution"
+      - "flush DNS cache / renew / correct DNS setting"
+      - "verify a name resolves and the resource opens"
+    rubric:
+      pass: "Recognises this as a DNS problem, confirms it, inspects the DNS server setting, tests with nslookup, applies a fix, and verifies."
+      partial: "Says it is probably DNS but gives no method to confirm or fix it."
+      fail: "Treats it as a connectivity/cable problem or an application problem."
+    rubric_version: "ipcfg-2026-08-a"
+    model_answer_outline: >
+      IP working but names failing points at DNS, not the network. Confirm with
+      ping to an IP vs a name. Use ipconfig /all to see the configured DNS
+      server — is it correct for this network? Try nslookup <name> to see if
+      the server answers. Fixes range from setting the adapter back to
+      automatic DNS with ipconfig /renew and /flushdns, to escalating a down
+      DNS server. Verify a name resolves and the user's resource opens.
+    source_name: "Nexus curriculum team"
+    active: true

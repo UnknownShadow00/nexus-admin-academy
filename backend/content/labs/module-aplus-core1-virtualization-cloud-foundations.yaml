@@ -1,0 +1,71 @@
+labs:
+- title: Virtualization & Cloud Decision Lab
+  description: null
+  estimated_minutes: 45
+  environment_requirements:
+    environment: null
+  success_criteria:
+    practical_key: practical.aplus.virtualization_cloud.choose_and_evidence
+    module_key: module.aplus.core1.virtualization_cloud_foundations
+    vm_required: false
+    student_goal: Use host/service evidence to choose appropriate virtualization/cloud
+      approaches without overcommitting resources or crossing support boundaries.
+    tasks:
+    - task: Host capacity check
+      instructions:
+      - Review CPU virtualization status, RAM use, free storage, and network/security
+        requirements.
+      - Decide whether the proposed VM workload is safe.
+      - Document the limiting evidence and one safe alternative.
+      expected_evidence:
+      - capacity table
+      - supported/not-supported decision
+    - task: Choose the virtualization model
+      instructions:
+      - Match four needs to VM, sandbox, VDI, container, or application virtualization.
+      - Explain each choice.
+      expected_evidence:
+      - four selections
+      - four rationale statements
+    - task: Choose the cloud model
+      instructions:
+      - Match workplace needs to deployment model and SaaS/PaaS/IaaS.
+      - State provider vs customer ownership.
+      expected_evidence:
+      - model selections
+      - support-boundary notes
+    - task: Troubleshoot the support boundary
+      instructions:
+      - Use supplied stale-sync and service-status evidence.
+      - Classify local client/account vs connectivity vs provider-wide scope.
+      - Write a ticket note and verification step.
+      expected_evidence:
+      - fault-domain decision
+      - ticket note
+      - verification
+    rubric:
+      total_points: 20
+      pass_points: 14
+      sections:
+      - name: Host evidence/capacity
+        points: 5
+      - name: Virtualization choices
+        points: 5
+      - name: Cloud ownership/models
+        points: 5
+      - name: Support reasoning/documentation
+        points: 5
+      auto_fail:
+      - Claims virtualization creates unlimited physical resources
+      - Treats isolation as permission to run unsafe software without controls
+      - Makes unauthorized production/infrastructure changes
+      - Claims sync is a complete backup strategy
+    hints:
+    - Locate the workload first.
+    - Separate capacity from compatibility.
+    - Identify which layer the organization controls.
+  required_evidence:
+    student_tasks: []
+  source_name: null
+  lab_type: guided
+  is_published: true

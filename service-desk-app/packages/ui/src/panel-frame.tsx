@@ -10,13 +10,13 @@ export type PanelFrameVariant =
   | 'fab-clearance';
 
 const variants: Record<PanelFrameVariant, string> = {
-  ad: 'sd-panel-frame--ad border-zinc-800 bg-zinc-950',
-  assets: 'sd-panel-frame--assets border-zinc-700 bg-zinc-900',
+  ad: 'sd-panel-frame--ad border-border bg-surface',
+  assets: 'sd-panel-frame--assets border-border bg-surface-raised',
   contained:
-    'sd-panel-frame--contained mx-auto max-w-5xl border-zinc-700 bg-zinc-900',
-  default: 'border-zinc-800 bg-zinc-900',
+    'sd-panel-frame--contained mx-auto max-w-5xl border-border bg-surface-raised',
+  default: 'border-border bg-surface-raised',
   'fab-clearance':
-    'sd-panel-frame--fab-clearance border-zinc-800 bg-zinc-900 pb-24',
+    'sd-panel-frame--fab-clearance border-border bg-surface-raised pb-24',
 };
 
 export interface PanelFrameProps extends HTMLAttributes<HTMLDivElement> {
@@ -31,7 +31,7 @@ export function PanelFrame({
   return (
     <section
       className={cn(
-        'sd-panel-frame min-h-28 rounded-md border p-4 text-zinc-300',
+        'sd-panel-frame min-h-28 rounded-md border p-4 text-text',
         variants[variant],
         className,
       )}

@@ -16,7 +16,18 @@ from app.services.service_desk_objectives import (
     payload_matches,
 )
 from app.services.service_desk_objectives import PROCESS_CATALOG_VERSION
+from app.services.service_desk_escalation import escalation_profile
 from conftest import auth_headers, make_client, make_student
+
+# Scenarios whose correct terminal outcome is escalation, not a self-service
+# repair.  Their pass/fail behaviour is covered by test_service_desk_escalation
+# because the generic "run every remediation step" workflow is, by design, the
+# wrong path for them.
+_ESCALATION_ONLY_KEYS = {
+    key
+    for key in SCENARIO_OBJECTIVES
+    if (_p := escalation_profile(key)) is not None and _p.expected
+}
 
 
 def _process_ticket_id(stable_key: str) -> str:
@@ -244,7 +255,8 @@ def complete_process_workflow(client, student, attempt_id, stable_key):
     [
         key
         for number in range(2501, 2511)
-        if (key := f"inc{number}") not in HYBRID_LAB_SCENARIO_KEYS
+        if (key := f"inc{number}")
+        not in (_ESCALATION_ONLY_KEYS | HYBRID_LAB_SCENARIO_KEYS)
     ],
 )
 def test_converted_legacy_cases_require_server_authoritative_process_evidence(
@@ -2079,7 +2091,12 @@ def test_raw_api_fabricated_full_evidence_sequence_is_not_trusted(
 
 
 @pytest.mark.parametrize(
-    "stable_key", sorted(set(SCENARIO_OBJECTIVES) - HYBRID_LAB_SCENARIO_KEYS)
+    "stable_key",
+    sorted(
+        set(SCENARIO_OBJECTIVES)
+        - _ESCALATION_ONLY_KEYS
+        - HYBRID_LAB_SCENARIO_KEYS
+    ),
 )
 def test_server_authorized_workflow_passes_every_auto_gradable_scenario(db, stable_key):
     student = make_student(db, username=f"authorized-{stable_key}")

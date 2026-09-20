@@ -7,6 +7,16 @@ export {
   TicketCategory,
 } from './enums';
 export {
+  ESCALATION_REASONS,
+  ESCALATION_REASON_DESCRIPTIONS,
+  ESCALATION_REASON_LABELS,
+  ESCALATION_ROUTES,
+  isEscalationReason,
+  isEscalationRoute,
+  type EscalationReason,
+  type EscalationRoute,
+} from './escalation';
+export {
   INITIAL_PC_SHELF_ASSET_TAGS,
   PC_SHELF_FIXTURES,
   getPcShelfFixture,
@@ -249,3 +259,4 @@ export {
   type WorkstationWindowBounds,
   type WorkstationWindowState,
 } from './workstation-state';
+export { REALISM_FIXTURES, realismFixture, realismNoteComplete, readStatePath, mergeFixtureState, runRealismCommand, type RealismFixture } from './service-desk-realism';

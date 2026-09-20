@@ -1,0 +1,145 @@
+# Curriculum Intake Workflow
+
+Nexus accepts externally authored and reviewed curriculum through one inbox:
+
+`references/curriculum-dropbox/`
+
+Put either the downloaded ZIP or its unzipped directory there. Do not rename or
+reorganize files inside it. Then ask Codex: `Process the curriculum dropbox.`
+
+## Check and apply
+
+From the repository root:
+
+```bash
+backend/.venv/bin/python backend/scripts/process_curriculum_dropbox.py --check
+backend/.venv/bin/python backend/scripts/process_curriculum_dropbox.py --apply
+```
+
+`--check` discovers every package independently, extracts ZIPs into a temporary
+directory, validates and normalizes temporary runtime artifacts, and exercises
+the real V2 loaders twice in a fresh migrated scratch database. It does not
+change approved or runtime curriculum.
+
+`--apply` repeats all checks, writes normalized files to the existing V2 content
+paths, archives the exact approved source, writes a receipt, verifies both, and
+only then removes the successful inbox item. A failed package remains in the
+inbox, and does not prevent independent packages from being checked.
+
+Reports are written under the ignored
+`references/curriculum-dropbox/.reports/` directory.
+
+## Source, normalization, and runtime data
+
+The three layers have deliberately different jobs:
+
+- `references/curriculum-dropbox/` is the temporary owner inbox. Payloads are
+  ignored by Git.
+- `references/curriculum-approved/<certification>/<version>/<module>/<hash>/`
+  is immutable history. It retains the original ZIP bytes or exact submitted
+  folder tree, a generated normalized manifest, and `IMPORT_RECEIPT.json`.
+- `backend/content/` contains normalized data for the existing V2 loaders.
+
+Structured metadata, not the package filename, selects the canonical
+certification, version, domain, and module. Certification versions and
+objectives must already exist in `backend/content/certifications/` and
+`backend/content/objectives/`. This makes intake certification-agnostic while
+preventing a package from inventing or crossing objective versions.
+
+`module_overview.md` may be plain Markdown. When it has YAML frontmatter, those
+values are cross-checked against the package. Otherwise, unanimous lesson and
+other structured package metadata determines version, domain, and module; the
+certification is resolved from the existing version hierarchy. A clearly
+labelled Markdown module title may supply display text, but prose is never used
+as certification-routing evidence. Missing evidence or conflicting structured
+values fails safely.
+
+Lesson order may be explicit in frontmatter or derived from an unambiguous
+numeric filename prefix such as `01-`. Explicit, filename, and structured
+lesson-number evidence must agree; duplicate, missing, or non-contiguous
+orders fail. A derived order is added only to the normalized runtime copy, and
+the approved source remains byte-for-byte unchanged.
+
+Mechanical normalization includes friendly enum names and workbook column
+aliases such as `Job Critical`, `single-choice`, `question`, and `objective`.
+It does not rewrite lesson prose, question wording, answers, distractors,
+rubrics, objectives, resources, or practical and Service Desk outcomes. A
+contradiction that cannot be mapped safely is an error.
+
+Check mode scans independent package components even when another component
+has failed. Findings are categorized as `NORMALIZABLE`, `BLOCKING_METADATA`,
+`BLOCKING_CONTENT`, or `WARNING`, with file, field, row, and stable key where
+available. This exposes workbook, resource, Explain, practical, Service Desk,
+quiz, provenance, and lesson issues in one report without attempting dependent
+loader operations against invalid state.
+
+The generated manifest records package identity, component counts, objectives,
+provenance, and the SHA-256 of the submitted source. Optional resources,
+practical, Explain prompts, and Service Desk components may be absent. A
+Service Desk component may name an existing stable Nexus scenario key or
+provide one complete approved inline scenario. For an inline scenario without
+a key, intake deterministically derives one from the canonical module key and
+scenario ordinal, then stages it for the existing versioned Service Desk
+engine. The original scenario remains unchanged in the approved archive.
+
+## Existing V2 systems used
+
+The processor creates no new teaching runtime. It stages files for:
+
+- the Markdown lesson loader under `backend/content/curriculum/`;
+- the existing CSV/XLSX question importer through its canonical columns,
+  validation, fingerprints, provenance, and hash-bound editorial approval;
+- the learning-resource loader under `backend/content/resources/`;
+- `LabTemplate` practicals under `backend/content/labs/`;
+- existing and curriculum-owned Service Desk scenarios via stable keys under
+  `backend/content/service-desk-scenarios/`;
+- Explain/interview prompts under `backend/content/interview-prompts/`;
+- certification modules, objectives, Quick Checks, and Module Quiz blueprints
+through the certification YAML and module-assessment loader.
+
+Question imports may declare one objective or an ordered comma-separated list.
+The first objective remains the backwards-compatible primary value, while the
+complete validated set is stored in the V2 question-objective association.
+Missed-question reporting retains one raw question row and attributes that miss
+to each mapped objective. Lesson/objective links remain the source of truth for
+curriculum coverage.
+
+Module Quiz blueprints may combine exact objective quotas with category
+minimums. A finite exact selector validates and satisfies both constraints
+without duplicate questions or retry-based chance failures. Existing simple
+objective-only blueprints continue through their original selection path.
+
+The question importer owns its database transaction. Intake therefore performs
+all package validation and creates all normalized files in temporary storage,
+then runs migrations and both loader passes only against a disposable database.
+No development or production database is part of intake. Runtime files are
+promoted only after the scratch load succeeds, and file promotion is rolled
+back if approved-source archiving or verification fails.
+
+## Repeats and changed packages
+
+- A module with no approved history is `NEW`.
+- The same module and identical source hash is `UNCHANGED`; apply verifies the
+  archive and safely clears that duplicate from the inbox.
+- The same module with a different source hash is
+  `CHANGED_REQUIRES_REVIEW`. It remains in the inbox unless an explicit
+  reviewed apply is requested with `--apply --allow-changed`.
+
+A changed apply creates a new hash directory and retains every earlier approved
+version. The normalized question-bank file receives a newly computed approval
+hash; modifying that runtime bank later invalidates the loader’s existing
+hash-bound approval check.
+
+## Package components and future certifications
+
+Supported package names are `module_overview.md`, `lessons/*.md`, an XLSX or CSV
+question workbook, `module_quiz_blueprint.yaml`, `provenance.yaml`, and optional
+`resources.yaml`, `explain_prompts.yaml`, `practical.yaml`, and
+`service_desk.yaml`. Other editorial files remain preserved in the exact
+approved archive even when they have no runtime mapping.
+
+To add a future certification, first add its canonical certification version,
+domains, and objective data to the existing V2 hierarchy. Packages can then
+identify those keys without changing this processor. Add new optional package
+components only by mapping them to an existing Nexus loader or engine; do not
+create a parallel curriculum schema.

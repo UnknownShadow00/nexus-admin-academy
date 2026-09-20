@@ -13,6 +13,7 @@ from app.models.service_desk import (
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
 )
+from app.services.service_desk_escalation import escalation_profile
 from app.services.service_desk_objectives import (
     PROCESS_WEIGHTS,
     evaluate_objectives,
@@ -63,7 +64,15 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     )
 
     close_events = [event for event in events if event.event_type == "ticket.close"]
-    if not close_events:
+    escalate_events = [
+        event
+        for event in events
+        if event.event_type == "ticket.escalate"
+        and event.trusted is True
+        and event.success is True
+    ]
+    # A trusted escalation terminates the attempt exactly like a close does.
+    if not close_events and not escalate_events:
         raise AttemptNotClosedError("Attempt has not been closed yet")
     # ticket.close is only a request to grade.  Its success flag and payload
     # are browser assertions and are never resolution evidence.
@@ -74,6 +83,148 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     objective_definition_for_version = objective_definition(
         scenario.stable_key, definition
     )
+
+    # First-class escalation grading.  Only scenarios with an
+    # ``EscalationProfile.expected`` profile enter this branch; every ordinary
+    # scenario's grading below is untouched.
+    profile = escalation_profile(scenario.stable_key)
+    if definition.get("objective_catalog_version") == "realism-v2":
+        profile = None  # Historical converted profiles must not grade new versions.
+    escalation_details: dict[str, Any] = {}
+    escalation_process_points: int | None = None
+    critical_failure = False
+    _any_trusted_escalate = bool(escalate_events)
+    if profile is not None and profile.expected:
+        escalate_event = escalate_events[-1] if escalate_events else None
+        escalate_payload = (escalate_event.payload_json or {}) if escalate_event else {}
+        reason_ok = escalate_payload.get("reason") in profile.accepted_reasons
+        route_ok = escalate_payload.get("routeTeam") == profile.route
+
+        def _trusted_match(rule: Any) -> bool:
+            return any(
+                event.trusted is True
+                and event.success is True
+                and event.event_type == rule.event_type
+                and payload_matches(event.payload_json or {}, rule.payload)
+                for event in events
+            )
+
+        prohibited_hit = any(_trusted_match(rule) for rule in profile.prohibited)
+        containment_met = all(
+            _trusted_match(rule) for rule in profile.required_containment
+        )
+        escalation_valid = _any_trusted_escalate and reason_ok and route_ok
+        escalation_correct = escalation_valid and containment_met and not prohibited_hit
+        # Investigate -> Diagnose -> Fix/Escalate -> Verify -> Document. A
+        # correctly routed hand-off is still not a passing ticket until the
+        # closure/hand-off note is on the trusted ledger, exactly like an
+        # ordinary resolved ticket. ``escalation_correct`` stays true so the
+        # debrief can say "right call, documentation still required".
+        documentation_complete = bool(objective_checks.get("documentation", False))
+
+        resolved = escalation_correct and documentation_complete
+        critical_failure = prohibited_hit
+
+        # Normalize process credit across the categories that actually apply to
+        # this escalation outcome.  Verification is N/A unless the profile
+        # requires verifiable containment; it is never shown as earned work.
+        earned = 0
+        applicable_total = 0
+        for category in ("investigation", "diagnosis", "documentation"):
+            applicable_total += PROCESS_WEIGHTS[category]
+            if objective_checks.get(category, False):
+                earned += PROCESS_WEIGHTS[category]
+        # The remediation weight becomes the "escalation/remediation" slot and
+        # is awarded for a correct hand-off.
+        applicable_total += PROCESS_WEIGHTS["remediation"]
+        if escalation_correct:
+            earned += PROCESS_WEIGHTS["remediation"]
+        if profile.verification_applicable:
+            applicable_total += PROCESS_WEIGHTS["verification"]
+            if containment_met:
+                earned += PROCESS_WEIGHTS["verification"]
+        escalation_process_points = (
+            _js_round(earned * 100 / applicable_total) if applicable_total else 0
+        )
+
+        escalation_details = {
+            "escalated": _any_trusted_escalate,
+            "escalation_expected": True,
+            "escalation_route": escalate_payload.get("routeTeam"),
+            "escalation_reason": escalate_payload.get("reason"),
+            "escalation_valid": escalation_valid,
+            "escalation_correct": escalation_correct,
+            "documentation_complete": documentation_complete,
+            "containment_required": profile.verification_applicable,
+            "containment_met": (
+                containment_met if profile.verification_applicable else None
+            ),
+            "prohibited_hit": prohibited_hit,
+            "verification_applicable": profile.verification_applicable,
+        }
+    elif profile is None and any(
+        event.event_type == "ticket.escalate" for event in events
+    ):
+        # Ordinary scenario: ``ticket.escalate`` is never trusted here, so
+        # grading is byte-identical to not escalating.  Record only that the
+        # student tried it, for advisory feedback - the score path is untouched.
+        escalation_details = {
+            "escalated": False,
+            "escalation_expected": False,
+            "escalation_attempted": True,
+        }
+    if definition.get("objective_catalog_version") in {"realism-v1", "realism-v2"}:
+        from app.services.service_desk_realism import replay
+
+        simulated = replay(definition["simulation_fixture"], events)
+        critical_failure = simulated["realism"]["harmful"]
+        resolved = resolved and not critical_failure
+        if critical_failure:
+            objective_checks["remediation"] = False
+        route = definition["simulation_fixture"].get("escalation")
+        if route:
+            handed_off = bool(escalate_events)
+            resolved = resolved and handed_off
+            objective_checks["remediation"] = handed_off and not critical_failure
+            applicable = {
+                key: weight for key, weight in PROCESS_WEIGHTS.items()
+                if key != "verification" or route["verificationApplicable"]
+            }
+            escalation_process_points = _js_round(
+                sum(weight for key, weight in applicable.items() if objective_checks.get(key, False))
+                * 100 / sum(applicable.values())
+            )
+            escalation_details = {
+                "escalated": handed_off,
+                "escalation_expected": True,
+                "escalation_correct": handed_off and not critical_failure,
+                "verification_applicable": route["verificationApplicable"],
+                "containment_met": objective_checks.get("verification") if route["verificationApplicable"] else None,
+                "documentation_complete": objective_checks.get("documentation", False),
+            }
+        if scenario.stable_key == "inc2509":
+            handed_off = bool(escalate_events)
+            resolved = resolved and handed_off
+            escalation_details = {
+                "escalated": handed_off,
+                "escalation_expected": True,
+                "escalation_correct": handed_off,
+                "verification_applicable": True,
+                "documentation_complete": objective_checks.get("documentation", False),
+            }
+    # Legacy process-v3 permits partial process credit after a technical fix.
+    # Curriculum competency additionally requires evidence-led investigation
+    # and diagnosis, in the order evaluated from the trusted ledger.
+    v2_competency = any(
+        event.event_type == "v2.curriculum_launch" and event.trusted is True
+        for event in events
+    )
+    if v2_competency:
+        resolved = resolved and all(
+            objective_checks.get(category, False)
+            for category in ("investigation", "diagnosis")
+        )
+
     hints_used = sum(event.event_type == "hint_requested" for event in events)
     # Learning Mode is for practicing without penalty: hint use and an
     # unresolved close still get recorded and shown to the student, but do
@@ -81,7 +232,9 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     is_learning_mode = attempt.mode == "learning"
 
     process_points = (
-        sum(
+        escalation_process_points
+        if escalation_process_points is not None
+        else sum(
             weight
             for category, weight in PROCESS_WEIGHTS.items()
             if objective_checks.get(category, False)
@@ -140,7 +293,60 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
         _js_round((points_awarded / points_possible) * 100) if points_possible else 0
     )
 
-    if is_learning_mode:
+    if critical_failure:
+        feedback_summary = (
+            "You applied a change that was not yours to make. This ticket "
+            "required escalation to the responsible team."
+        )
+        if definition.get("objective_catalog_version") in {"realism-v1", "realism-v2"}:
+            feedback_summary = "Access was expanded beyond the recorded approval. A technically successful access test does not satisfy least privilege."
+        if definition.get("objective_catalog_version") == "realism-v2":
+            feedback_summary = "The attempt includes an unsafe action or an uncontained exposure. Technical success alone does not satisfy the professional outcome."
+    elif profile is not None and profile.expected:
+        if resolved:
+            route = escalation_details.get("escalation_route") or profile.route
+            feedback_summary = f"You correctly escalated this to {route}."
+            if penalty_points > 0:
+                feedback_summary += (
+                    f" The final score includes {penalty_points} hint or "
+                    "closure penalty points."
+                )
+        elif escalation_details.get(
+            "escalation_correct"
+        ) and not escalation_details.get("documentation_complete"):
+            feedback_summary = (
+                "You made the right call and routed this correctly, but the "
+                "ticket cannot pass until you record a closure/hand-off note "
+                "documenting what you found and where it went."
+            )
+        elif escalation_details.get("escalated") and profile.verification_applicable:
+            feedback_summary = (
+                "You escalated this, but the required containment step was not "
+                "completed first."
+            )
+        elif escalation_details.get("escalated"):
+            feedback_summary = (
+                "Escalation is the right call here, but the destination team or "
+                "reason did not match what this ticket needs."
+            )
+        else:
+            feedback_summary = (
+                f"This ticket needed to be escalated to {profile.route}. "
+                "Closing it yourself is outside a help-desk technician's "
+                "authority."
+            )
+    elif (
+        profile is None
+        and escalation_details.get("escalation_attempted")
+        and not resolved
+    ):
+        feedback_summary = (
+            "This ticket was within your authority - it did not need "
+            "escalation. Review what a full fix looks like."
+        )
+    elif resolved and escalation_details.get("escalation_expected"):
+        feedback_summary = "You completed the required professional hand-off. The receiving team owns restoration."
+    elif is_learning_mode:
         feedback_summary = (
             "Learning Mode: hints and retries do not affect your score. "
             + (
@@ -158,13 +364,26 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
     else:
         feedback_summary = "Your ticket could not be verified yet. Review the required troubleshooting steps and try again."
 
+    # A single, unambiguous learner-facing outcome, distinct from the ticket's
+    # operational status. "awaiting_review" is layered on by the caller when a
+    # mentor/AI grade is still pending; grading alone only ever produces a
+    # decisive pass / escalation / retry result.
+    if not resolved:
+        learner_outcome = "needs_another_attempt"
+    elif escalation_details.get("escalation_expected"):
+        learner_outcome = "escalated_successfully"
+    else:
+        learner_outcome = "pass"
+
     return {
         "technical_complete": resolved,
-        "critical_failure": False,
+        "critical_failure": critical_failure,
         "overall_score": overall_score,
         "passed": resolved,
+        "learner_outcome": learner_outcome,
         "feedback_summary": feedback_summary,
         "details": {
+            "learner_outcome": learner_outcome,
             "points_possible": points_possible,
             "points_awarded": points_awarded,
             "process_points": process_points,
@@ -180,6 +399,7 @@ def compute_grade(db: Session, attempt: ServiceDeskAttempt) -> dict[str, Any]:
             "was_closed": was_closed,
             "objective_checks": objective_checks,
             "is_learning_mode": is_learning_mode,
+            **escalation_details,
         },
         "rubric_version": RUBRIC_VERSION,
     }

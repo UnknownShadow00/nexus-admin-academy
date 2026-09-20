@@ -29,7 +29,7 @@ export function Tooltip({
         <RadixTooltip.Portal>
           <RadixTooltip.Content
             className={cn(
-              'sd-tooltip z-50 rounded-md bg-zinc-800 px-2.5 py-1.5 text-xs font-semibold text-zinc-200 shadow-lg ring-1 ring-zinc-700/60',
+              'sd-tooltip z-50 rounded-md bg-surface-muted px-2.5 py-1.5 text-xs font-semibold text-text shadow-lg ring-1 ring-border/60',
               className,
             )}
             side={side}

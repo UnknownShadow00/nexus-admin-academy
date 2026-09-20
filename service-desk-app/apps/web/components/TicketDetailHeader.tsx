@@ -14,16 +14,16 @@ export function TicketDetailHeader({
 }) {
   return (
     <Card>
-      <div className="border-b border-zinc-800 bg-zinc-800/40 px-4 py-4 sm:px-6 sm:py-5">
+      <div className="border-b border-border bg-surface-muted/40 px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="font-mono text-sm font-semibold text-sky-400">
+          <span className="font-mono text-sm font-semibold text-accent">
             {ticket.id}
           </span>
           <PriorityBadge pill priority={ticket.priority} />
           <TicketStatusBadge status={ticket.status} />
           {assignment?.difficulty_label ? (
             <Badge>
-              <span aria-hidden="true" className="text-amber-400">
+              <span aria-hidden="true" className="text-warning">
                 {assignment.difficulty_stars}
               </span>{' '}
               {assignment.difficulty_label}
@@ -42,25 +42,25 @@ export function TicketDetailHeader({
             </Badge>
           ) : null}
         </div>
-        <h1 className="mt-3 max-w-4xl font-display text-xl font-bold leading-snug text-zinc-100 sm:text-2xl">
+        <h1 className="mt-3 max-w-4xl font-display text-xl font-bold leading-snug text-text sm:text-2xl">
           {ticket.title}
         </h1>
-        <div className="mt-3 flex items-center gap-2 text-xs text-zinc-400">
-          <IconClockHour4 aria-hidden="true" className="h-4 w-4 text-sky-400" />
+        <div className="mt-3 flex items-center gap-2 text-xs text-text-muted">
+          <IconClockHour4 aria-hidden="true" className="h-4 w-4 text-accent" />
           <span>{ticket.sla.target}</span>
         </div>
         {assignment?.experience_mode === 'guided' ? (
-          <p className="mt-3 max-w-3xl text-sm text-sky-200">
+          <p className="mt-3 max-w-3xl text-sm text-accent">
             Guided practice. This case may return later as an independent
             assessment.
           </p>
         ) : assignment?.experience_mode === 'practice' ? (
-          <p className="mt-3 max-w-3xl text-sm text-zinc-400">
+          <p className="mt-3 max-w-3xl text-sm text-text-muted">
             Independent replay. Practice does not replace required assessment
             mastery or award XP.
           </p>
         ) : assignment?.guided_completed ? (
-          <p className="mt-3 max-w-3xl text-sm text-sky-200">
+          <p className="mt-3 max-w-3xl text-sm text-accent">
             You practiced this case earlier. Complete it independently to
             demonstrate mastery.
           </p>

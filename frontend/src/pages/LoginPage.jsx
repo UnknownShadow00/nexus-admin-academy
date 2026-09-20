@@ -11,7 +11,7 @@ function getErrorMessage(error) {
   const detail = error?.response?.data?.detail;
   if (typeof detail === "string") return detail;
   if (typeof error?.response?.data?.error === "string") return error.response.data.error;
-  return "Request failed";
+  return "We couldn't sign you in. Check your username and password, then try again.";
 }
 
 // Only same-origin relative paths are honored. Protocol-relative URLs and
@@ -71,15 +71,15 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-900 px-6 py-10 text-slate-100">
-      <section className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-950/90 p-8 shadow-2xl shadow-black/30">
-        <h1 className="text-center text-3xl font-semibold text-white">Nexus Admin Academy</h1>
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-10 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-2xl shadow-slate-300/30 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/30">
+        <h1 className="text-center text-3xl font-semibold text-slate-950 dark:text-white">Nexus Admin Academy</h1>
 
         <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
           <label className="block">
-            <span className="mb-2 block text-sm text-slate-300">Username</span>
+            <span className="mb-2 block text-sm text-slate-700 dark:text-slate-300">Username</span>
             <input
-              className="input-field border-slate-700 bg-slate-950"
+              className="input-field"
               value={loginForm.username}
               onChange={(event) => setLoginForm((current) => ({ ...current, username: event.target.value }))}
               required
@@ -88,9 +88,9 @@ export default function LoginPage() {
           </label>
 
           <label className="block">
-            <span className="mb-2 block text-sm text-slate-300">Password</span>
+            <span className="mb-2 block text-sm text-slate-700 dark:text-slate-300">Password</span>
             <input
-              className="input-field border-slate-700 bg-slate-950"
+              className="input-field"
               value={loginForm.password}
               onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))}
               required
@@ -99,7 +99,7 @@ export default function LoginPage() {
           </label>
 
           {error ? (
-            <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200" role="alert">
               {error}
             </div>
           ) : null}
@@ -109,9 +109,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 border-t border-slate-800 pt-6">
+        <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
           <Link
-            className="btn-secondary flex w-full items-center justify-center border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800"
+            className="btn-secondary flex w-full items-center justify-center"
             to="/admin-login"
           >
             Admin Login

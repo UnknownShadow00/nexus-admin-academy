@@ -35,17 +35,12 @@ export function hasAnotherHint(
 }
 
 export function shouldProactivelyRevealHint(
-  scenario: RemoteDesktopScenarioFixture,
-  hintsRevealed: number,
-  learningMode: RemoteDesktopLearningMode,
-  completed: boolean,
+  _scenario: RemoteDesktopScenarioFixture,
+  _hintsRevealed: number,
+  _learningMode: RemoteDesktopLearningMode,
+  _completed: boolean,
 ) {
-  return (
-    learningMode === 'guided' &&
-    !completed &&
-    hintsRevealed === 0 &&
-    scenario.studentHints.length > 0
-  );
+  return false;
 }
 
 export function scenarioActionLabel(

@@ -41,7 +41,15 @@ from app.models.video_watch import VideoWatch
 from app.models.vm_assignment import VmAssignment
 from app.models.weekly_lead import WeeklyDomainLead
 from app.models.comptia import StudentObjectiveProgress
+from app.models.certification import StudentResourceActivity
+from app.models.grading import AIGrade, MentorGradeOverride, PendingGrade
 from app.models.xp_ledger import XPLedger
+from app.models.v2_progress import (
+    V2AssessmentAttempt,
+    V2AssessmentAttemptQuestion,
+    V2ExplainSubmission,
+    V2ModuleActivity,
+)
 
 
 # Each tuple is (database table name, ORM model, ownership column).  Keep this
@@ -72,6 +80,11 @@ STUDENT_OWNED_MODELS: tuple[tuple[str, type, str], ...] = (
     ("student_roles", StudentRole, "student_id"),
     ("ticket_submissions", TicketSubmission, "student_id"),
     ("video_watches", VideoWatch, "student_id"),
+    ("v2_student_resource_activity", StudentResourceActivity, "student_id"),
+    ("v2_assessment_attempts", V2AssessmentAttempt, "student_id"),
+    ("v2_explain_submissions", V2ExplainSubmission, "student_id"),
+    ("v2_module_activity", V2ModuleActivity, "student_id"),
+    ("pending_grades", PendingGrade, "student_id"),
     ("vm_assignments", VmAssignment, "student_id"),
     ("weekly_domain_leads", WeeklyDomainLead, "student_id"),
     ("xp_ledger", XPLedger, "student_id"),
@@ -112,6 +125,29 @@ def student_owned_row_counts(db: Session, student_id: int) -> dict[str, int]:
         if attempt_ids
         else 0
     )
+    v2_attempt_ids = [
+        attempt_id for (attempt_id,) in db.query(V2AssessmentAttempt.id)
+        .filter(V2AssessmentAttempt.student_id == student_id).all()
+    ]
+    counts["v2_assessment_attempt_questions"] = (
+        db.query(V2AssessmentAttemptQuestion)
+        .filter(V2AssessmentAttemptQuestion.attempt_id.in_(v2_attempt_ids))
+        .count()
+        if v2_attempt_ids else 0
+    )
+    pending_grade_ids = [
+        grade_id for (grade_id,) in db.query(PendingGrade.id)
+        .filter(PendingGrade.student_id == student_id).all()
+    ]
+    counts["ai_grades"] = (
+        db.query(AIGrade).filter(AIGrade.pending_grade_id.in_(pending_grade_ids)).count()
+        if pending_grade_ids else 0
+    )
+    counts["mentor_grade_overrides"] = (
+        db.query(MentorGradeOverride)
+        .filter(MentorGradeOverride.pending_grade_id.in_(pending_grade_ids)).count()
+        if pending_grade_ids else 0
+    )
     return counts
 
 
@@ -147,6 +183,27 @@ def global_student_ownership_orphans(db: Session) -> dict[str, int]:
             .filter(ServiceDeskAttempt.id.is_(None))
             .count()
         ),
+        "v2_assessment_attempt_questions": (
+            db.query(V2AssessmentAttemptQuestion)
+            .outerjoin(
+                V2AssessmentAttempt,
+                V2AssessmentAttempt.id == V2AssessmentAttemptQuestion.attempt_id,
+            )
+            .filter(V2AssessmentAttempt.id.is_(None))
+            .count()
+        ),
+        "ai_grades": (
+            db.query(AIGrade)
+            .outerjoin(PendingGrade, PendingGrade.id == AIGrade.pending_grade_id)
+            .filter(PendingGrade.id.is_(None))
+            .count()
+        ),
+        "mentor_grade_overrides": (
+            db.query(MentorGradeOverride)
+            .outerjoin(PendingGrade, PendingGrade.id == MentorGradeOverride.pending_grade_id)
+            .filter(PendingGrade.id.is_(None))
+            .count()
+        ),
     }
 
 
@@ -180,6 +237,29 @@ def delete_student_owned_data(db: Session, student_id: int) -> None:
             ServiceDeskAttemptEvent.attempt_id.in_(attempt_ids)
         ).delete(synchronize_session=False)
 
+    v2_attempt_ids = [
+        attempt_id for (attempt_id,) in db.query(V2AssessmentAttempt.id)
+        .filter(V2AssessmentAttempt.student_id == student_id).all()
+    ]
+    if v2_attempt_ids:
+        db.query(V2AssessmentAttemptQuestion).filter(
+            V2AssessmentAttemptQuestion.attempt_id.in_(v2_attempt_ids)
+        ).delete(synchronize_session=False)
+
+    pending_grade_ids = [
+        grade_id for (grade_id,) in db.query(PendingGrade.id)
+        .filter(PendingGrade.student_id == student_id).all()
+    ]
+    if pending_grade_ids:
+        # Append-only grading rows still belong to the deleted student. Bulk
+        # deletion intentionally bypasses the normal history mutation guards.
+        db.query(MentorGradeOverride).filter(
+            MentorGradeOverride.pending_grade_id.in_(pending_grade_ids)
+        ).delete(synchronize_session=False)
+        db.query(AIGrade).filter(
+            AIGrade.pending_grade_id.in_(pending_grade_ids)
+        ).delete(synchronize_session=False)
+
     # Children whose foreign keys are RESTRICT must be removed before their
     # direct owner; VM assignments must be removed before the lab run.
     _delete_rows(
@@ -189,6 +269,8 @@ def delete_student_owned_data(db: Session, student_id: int) -> None:
             (ServiceDeskAttempt, "student_id"),
             (ServiceDeskAssignment, "student_id"),
             (ServiceDeskBetaEnrollment, "student_id"),
+            (V2AssessmentAttempt, "student_id"),
+            (PendingGrade, "student_id"),
         ),
         student_id,
     )
@@ -207,6 +289,8 @@ def delete_student_owned_data(db: Session, student_id: int) -> None:
                 "service_desk_assignments",
                 "service_desk_attempts",
                 "service_desk_beta_enrollments",
+                "v2_assessment_attempts",
+                "pending_grades",
                 "vm_assignments",
             }
         ),

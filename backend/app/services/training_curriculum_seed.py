@@ -24,7 +24,7 @@ from app.models.quiz import Question, Quiz
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.beginner_learning import SCENARIO_TOPIC_WEEKS
-from app.services.quiz_visibility import student_visible_quiz_filters
+from app.services.quiz_visibility import v1_student_visible_quiz_filters_for
 from app.services.training_quiz_mapping import OPTIONAL_LESSON_IDS, OPTIONAL_LESSON_TITLES, mapping_metadata, video_is_required
 
 
@@ -2591,7 +2591,7 @@ def sync_initial_training_activities(db: Session) -> dict:
 
     quizzes = (
         db.query(Quiz)
-        .filter(*student_visible_quiz_filters(), Quiz.week_number.between(0, 24))
+        .filter(*v1_student_visible_quiz_filters_for(db), Quiz.week_number.between(0, 24))
         .order_by(Quiz.week_number, Quiz.id)
         .all()
     )

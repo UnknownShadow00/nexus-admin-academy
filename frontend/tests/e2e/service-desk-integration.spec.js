@@ -78,14 +78,20 @@ async function completeWeekZero(page) {
   for (let index = 1; index <= 4; index += 1) {
     await expect(page.getByText("Question " + index + " of 4", { exact: true })).toBeVisible();
     const questionPanel = page.locator("section .panel").first();
-    const questionText = await questionPanel.textContent();
-    const correctOptions = questionText.includes("initial data collection")
-      ? ["User information", "Device information", "Problem description"]
-      : questionText.includes("future reporting")
-        ? ["Category"]
-        : questionText.includes("Level 2 hardware specialist")
-          ? ["Escalation level"]
-          : ["Progress notes"];
+    const answerSets = [
+      ["User information", "Device information", "Problem description"],
+      ["Category"],
+      ["Escalation level"],
+      ["Progress notes"],
+    ];
+    const correctOptions = await answerSets.reduce(async (selectedPromise, candidate) => {
+      const selected = await selectedPromise;
+      if (selected) return selected;
+      return (await questionPanel.getByText(candidate[0], { exact: true }).count()) > 0
+        ? candidate
+        : null;
+    }, Promise.resolve(null));
+    expect(correctOptions, "orientation question must match an authored answer set").not.toBeNull();
     for (const option of correctOptions) {
       await questionPanel.getByText(option, { exact: true }).click();
     }
@@ -102,7 +108,14 @@ async function completeWeekZero(page) {
 // does not, since it is not executed by the page's own JS engine. Any direct
 // POST made via page.request in this spec must set it explicitly.
 function withOrigin(extra) {
-  return { ...extra, headers: { ...extra?.headers, origin: baseUrl } };
+  return {
+    ...extra,
+    headers: {
+      ...extra?.headers,
+      origin: baseUrl,
+      "X-Nexus-Service-Desk-Contract": "2.0",
+    },
+  };
 }
 
 async function getMyAssignment(page, stableKey) {
@@ -123,6 +136,22 @@ async function clickAndWaitForTrustedAction(page, buttonName) {
   await page.getByRole("button", { name: buttonName, exact: true }).click();
   const response = await responsePromise;
   expect(response.status()).toBe(201);
+}
+
+async function openTicketRail(page) {
+  const note = page.getByLabel("Add a note");
+  if ((page.viewportSize()?.width || 1280) < 640) {
+    await page.getByRole("tab", { name: "Notes", exact: true }).click();
+  }
+  await expect(note).toBeVisible();
+}
+
+async function resolveFromWorkspace(page, ticketId) {
+  await page.goto(`/service-desk/tickets/${ticketId}`);
+  await page.getByRole("button", { name: "Resolve", exact: true }).click();
+  await page.getByLabel("I verified the requester has a working outcome").check();
+  await page.getByRole("button", { name: "Continue to review" }).click();
+  await page.getByRole("button", { name: "Resolve ticket", exact: true }).click();
 }
 
 async function resolveEndpointCase(page, scenario) {
@@ -165,9 +194,10 @@ async function resolveEndpointCase(page, scenario) {
   await clickAndWaitForTrustedAction(page, "Ask user to retest original symptom");
 
   await page.goto(`/service-desk/tickets/${scenario.ticketId}`);
+  await openTicketRail(page);
   await page.getByLabel("Add a note").fill(scenario.note);
   await clickAndWaitForTrustedAction(page, "Add internal note");
-  await page.getByRole("button", { name: "Resolve / close" }).click();
+  await page.getByRole("button", { name: "Resolve", exact: true }).click();
   await page.getByLabel("I verified the requester has a working outcome").check();
   await page.getByRole("button", { name: "Continue to review" }).click();
   await page.getByRole("button", { name: "Resolve ticket", exact: true }).click();
@@ -189,12 +219,16 @@ async function resolveFoundationalAccountCase(page, scenario) {
   expect([200, 201]).toContain(started.status());
 
   await page.goto("/service-desk/tickets/" + scenario.ticketId);
-  await expect(page.getByRole("heading", { name: scenario.title })).toBeVisible();
-  await expect(page.getByText("Read").first()).toBeVisible();
-  await expect(page.getByText("Investigate").first()).toBeVisible();
-  await page.getByRole("link", { name: "Directory", exact: true }).click();
+  const ticketHeading = page.getByRole("heading", { name: scenario.title });
+  const openTicket = page.getByRole("button", { name: "Open ticket", exact: true });
+  await expect(ticketHeading.or(openTicket)).toBeVisible();
+  if (await openTicket.isVisible()) await openTicket.click();
+  await expect(ticketHeading).toBeVisible();
+  await expect(page.getByRole("region", { name: "Ticket workflow", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "All tools", exact: true }).click();
+  await page.getByRole("navigation", { name: "Workspace tools" }).getByRole("button", { name: "Directory", exact: true }).click();
   await page.getByPlaceholder("Search name, username, or department").fill(scenario.requester);
-  await page.getByRole("button", { name: new RegExp(scenario.requester) }).click();
+  await page.getByRole("button", { name: new RegExp(`^${scenario.requester}`) }).click();
 
   await expect(page.getByText("Account status has not been reviewed yet.")).toBeVisible();
   await page.getByRole("button", { name: "Review account state" }).click();
@@ -205,7 +239,7 @@ async function resolveFoundationalAccountCase(page, scenario) {
   await page.getByRole("button", { name: "Run approved identity check" }).click();
   await page.goto("/service-desk/tools/directory");
   await page.getByPlaceholder("Search name, username, or department").fill(scenario.requester);
-  await page.getByRole("button", { name: new RegExp(scenario.requester) }).click();
+  await page.getByRole("button", { name: new RegExp(`^${scenario.requester}`) }).click();
   await page.getByRole("button", { name: "Record verified chat evidence" }).click();
   if (scenario.testPrimaryAuth) {
     await page.getByRole("button", { name: "Test primary password sign-in" }).click();
@@ -242,10 +276,12 @@ async function resolveFoundationalAccountCase(page, scenario) {
   await page.getByRole("link", { name: "Dashboard", exact: true }).click();
   await page.getByRole("link", { name: new RegExp(scenario.title) }).click();
   await expect(page).toHaveURL(new RegExp("/service-desk/tickets/" + scenario.ticketId + "$"));
+  await openTicketRail(page);
   await page.getByLabel("Add a note").fill(scenario.note);
   await page.getByRole("button", { name: "Add internal note" }).click();
-  await expect(page.getByText(scenario.note, { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Resolve / close" }).click();
+  await expect(page.getByLabel("Add a note")).toHaveValue("");
+  await expect(page.getByText(scenario.note, { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Resolve", exact: true }).click();
   await page.getByLabel("I verified the requester has a working outcome").check();
   await page.getByRole("button", { name: "Continue to review" }).click();
   await expect(page.getByText("Ready to resolve", { exact: true })).toBeVisible();
@@ -293,11 +329,12 @@ async function prepareInc2401Workflow(page) {
   await page.getByRole("button", { name: "Clear support browser profile storage" }).click();
   await openDesktopApp(page, "Web Browser");
   await page.getByRole("button", { name: "Retry portal sign-in" }).click();
-  await page.getByLabel("Student-authored internal note").fill(
+  await page.goto(`/service-desk/tickets/${TICKET_ID}`);
+  await openTicketRail(page);
+  await page.getByLabel("Add a note").fill(
     "I confirmed stale browser profile storage, applied the repair by clearing the profile, and verified the portal opened.",
   );
-  await page.getByRole("button", { name: "Save internal note" }).click();
-  await expect(page.getByRole("button", { name: "Close ticket" })).toBeEnabled();
+  await clickAndWaitForTrustedAction(page, "Add internal note");
 }
 
 test.describe("Service Desk integration (requires an integrated stack)", () => {
@@ -660,7 +697,9 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     await studentLogin(page, studentAUsername, studentAPassword);
-    const assignment = await getMyAssignment(page, SCENARIO_STABLE_KEY);
+    const offlineTicketId = "INC2404";
+    const offlineNote = "Offline evidence note for the affected headset and replacement workflow.";
+    const assignment = await getMyAssignment(page, "inc2404");
     const started = await page.request.post(
       `/api/service-desk/assignments/${assignment.id}/attempts`,
       withOrigin({}),
@@ -668,11 +707,18 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     expect(started.ok()).toBeTruthy();
     const attemptId = (await started.json()).id;
 
-    await page.goto(`/service-desk/tickets/${TICKET_ID}`);
-    await expect(page.getByText(TICKET_ID).first()).toBeVisible();
+    await page.goto(`/service-desk/tickets/${offlineTicketId}`);
+    await expect(page.getByText(offlineTicketId).first()).toBeVisible();
+    const assigned = page.getByRole("button", { name: "Unassign", exact: true });
+    const unassigned = page.getByRole("button", { name: "Assign to me", exact: true });
+    await expect(assigned.or(unassigned)).toBeVisible();
+    if (await unassigned.isVisible()) {
+      await clickAndWaitForTrustedAction(page, "Assign to me");
+    }
     await page.route(/\/api\/service-desk\/attempts\/\d+\/(actions|events|hints)$/, (route) => route.abort());
 
-    await page.getByLabel("Add a note").fill("Offline evidence note.");
+    await openTicketRail(page);
+    await page.getByLabel("Add a note").fill(offlineNote);
     await page.getByRole("button", { name: "Add internal note" }).click();
     await page.getByRole("button", { name: "Unassign", exact: true }).click();
     await page.getByRole("button", { name: "Assign to me", exact: true }).click();
@@ -690,7 +736,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const storedTypes = ["ticket.add_note", "ticket.unassign", "ticket.assign"];
 
     await page.reload();
-    await expect(page.getByText("Offline evidence note.")).toBeVisible();
+    await expect(page.getByText(offlineNote)).toBeVisible();
     expect((await readOutbox()).items.map((item) => item.event.idempotency_key)).toEqual(queuedKeys);
     const retriedRequests = [];
     const retriedResponses = [];
@@ -723,11 +769,11 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await expect.poll(async () => {
       const response = await adminPage.request.get(`/api/admin/service-desk/attempts/${attemptId}`);
       return (await response.json()).events
-        .filter((event) => event.event_type !== "snapshot.persisted")
+        .filter((event) => queuedKeys.includes(event.idempotency_key))
         .map((event) => event.event_type);
     }).toEqual(storedTypes);
     const timeline = await (await adminPage.request.get(`/api/admin/service-desk/attempts/${attemptId}`)).json();
-    const retried = timeline.events.filter((event) => storedTypes.includes(event.event_type));
+    const retried = timeline.events.filter((event) => queuedKeys.includes(event.idempotency_key));
     expect(retried.map((event) => event.event_type)).toEqual(storedTypes);
     expect(new Set(retried.map((event) => event.idempotency_key))).toEqual(new Set(queuedKeys));
     expect(retried).toHaveLength(3);
@@ -744,7 +790,7 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const assignment = await getMyAssignment(page, SCENARIO_STABLE_KEY);
     const attemptId = assignment.most_recent_attempt.id;
     await page.route(/\/api\/service-desk\/attempts\/\d+\/(actions|events|hints|complete)$/, (route) => route.abort());
-    await page.getByRole("button", { name: "Close ticket" }).click();
+    await resolveFromWorkspace(page, TICKET_ID);
     await expect(page.getByText(/Saving…|Sync problem — retrying/)).toBeVisible();
 
     const beforeReconnect = await page.request.get(`/api/service-desk/attempts/${attemptId}`);
@@ -779,7 +825,9 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const sourceContext = await browser.newContext();
     const sourcePage = await sourceContext.newPage();
     await studentLogin(sourcePage, studentDUsername, studentDPassword);
-    const assignment = await getMyAssignment(sourcePage, SCENARIO_STABLE_KEY);
+    const restoreTicketId = "INC2404";
+    const restoreAssetTag = "NX-9052";
+    const assignment = await getMyAssignment(sourcePage, "inc2404");
     const started = await sourcePage.request.post(
       `/api/service-desk/assignments/${assignment.id}/attempts`,
       withOrigin({}),
@@ -787,13 +835,14 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     expect(started.ok()).toBeTruthy();
     const attemptId = (await started.json()).id;
 
-    await sourcePage.goto(`/service-desk/tickets/${TICKET_ID}`);
+    await sourcePage.goto(`/service-desk/tickets/${restoreTicketId}`);
+    await openTicketRail(sourcePage);
     await sourcePage.getByLabel("Add a note").fill("Student D clean-browser restoration note.");
     await sourcePage.getByRole("button", { name: "Add internal note" }).click();
     await sourcePage.goto("/service-desk/tools/asset-management");
-    await sourcePage.getByPlaceholder("Search assets").fill("NX-4831");
-    await sourcePage.getByText("NX-4831", { exact: true }).first().click();
-    const statusSelect = sourcePage.locator("#status-NX-4831");
+    await sourcePage.getByPlaceholder("Search assets").fill(restoreAssetTag);
+    await sourcePage.getByText(restoreAssetTag, { exact: true }).first().click();
+    const statusSelect = sourcePage.locator(`#status-${restoreAssetTag}`);
     await statusSelect.selectOption({ index: 1 });
     const changedStatus = await statusSelect.inputValue();
     await sourcePage.getByRole("button", { name: "Update status" }).click();
@@ -807,9 +856,9 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
       nexus_service_desk_attempt: {
         chatThreads: expect.any(Object),
         deploymentRuns: expect.any(Object),
-        assetOverlays: { "NX-4831": { status: changedStatus } },
+        assetOverlays: { [restoreAssetTag]: { status: changedStatus } },
         remoteDesktopOverlays: expect.any(Object),
-        ticketOverlays: { [TICKET_ID]: { notes: [expect.objectContaining({ body: "Student D clean-browser restoration note." })] } },
+        ticketOverlays: { [restoreTicketId]: { notes: [expect.objectContaining({ body: "Student D clean-browser restoration note." })] } },
       },
     });
     await sourceContext.close();
@@ -819,12 +868,12 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     const cleanContext = await browser.newContext();
     const cleanPage = await cleanContext.newPage();
     await studentLogin(cleanPage, studentDUsername, studentDPassword);
-    await cleanPage.goto(`/service-desk/tickets/${TICKET_ID}`);
+    await cleanPage.goto(`/service-desk/tickets/${restoreTicketId}`);
     await expect(cleanPage.getByText("Student D clean-browser restoration note.")).toBeVisible();
     await cleanPage.goto("/service-desk/tools/asset-management");
-    await cleanPage.getByPlaceholder("Search assets").fill("NX-4831");
-    await cleanPage.getByText("NX-4831", { exact: true }).first().click();
-    await expect(cleanPage.locator("#status-NX-4831")).toHaveValue(changedStatus);
+    await cleanPage.getByPlaceholder("Search assets").fill(restoreAssetTag);
+    await cleanPage.getByText(restoreAssetTag, { exact: true }).first().click();
+    await expect(cleanPage.locator(`#status-${restoreAssetTag}`)).toHaveValue(changedStatus);
     await cleanContext.close();
   });
 
@@ -841,8 +890,8 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await pageA1.goto(`/service-desk/tickets/${TICKET_ID}`);
     await expect(pageA1.getByText(TICKET_ID).first()).toBeVisible();
     await prepareInc2401Workflow(pageA1);
-    await pageA1.getByRole("button", { name: "Close ticket" }).click();
-    await expect(pageA1.getByText("Server assessment complete")).toBeVisible({ timeout: 10_000 });
+    await resolveFromWorkspace(pageA1, TICKET_ID);
+    await expect(pageA1.getByRole("region", { name: "Ticket debrief" })).toBeVisible({ timeout: 10_000 });
     await expect(pageA1.getByText("Saving…")).toBeHidden();
 
     // --- Verify Nexus is now authoritative for this attempt ---
@@ -955,12 +1004,14 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await openDesktopApp(page, "Company Chat");
     await page.getByPlaceholder("Write a ticket update").fill("The scanner connection remained stable after the profile repair.");
     await page.getByRole("button", { name: "Send", exact: true }).click();
-    await page.getByLabel("Student-authored internal note").fill(
+    await page.goto("/service-desk/tickets/INC2402");
+    await openTicketRail(page);
+    await page.getByLabel("Add a note").fill(
       "I confirmed the managed profile caused the failure, applied the repair, renewed the address, and verified stable service.",
     );
-    await page.getByRole("button", { name: "Save internal note" }).click();
-    await page.getByRole("button", { name: "Close ticket" }).click();
-    await expect(page.getByText("Server assessment complete")).toBeVisible({ timeout: 10_000 });
+    await clickAndWaitForTrustedAction(page, "Add internal note");
+    await resolveFromWorkspace(page, "INC2402");
+    await expect(page.getByRole("region", { name: "Ticket debrief" })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("Saving…")).toBeHidden();
 
     const assignment = await getMyAssignment(page, "inc2402");
@@ -1001,15 +1052,13 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await page.getByRole("button", { name: "Confirm clean audio with replacement" }).click();
 
     await page.goto("/service-desk/tickets/INC2404");
-    const noteBox = page.getByPlaceholder(/note/i).or(page.locator("textarea").first());
-    await noteBox.first().fill(
+    await openTicketRail(page);
+    await page.getByLabel("Add a note").fill(
       "Confirmed the static followed the headset, marked NX-9052 damaged, and shipped Elliot a replacement for verification.",
     );
-    await page.getByRole("button", { name: /add.*note/i }).first().click();
-    await page.getByRole("button", { name: "Resolve / close" }).click();
-    await page.getByLabel("Resolution note").fill(
-      "Replacement headset shipped; Elliot will verify clear audio on the next call.",
-    );
+    await clickAndWaitForTrustedAction(page, "Add internal note");
+    await page.getByRole("button", { name: "Resolve", exact: true }).click();
+    await expect(page.getByRole("dialog")).toContainText("Documentation recorded");
     await page.getByRole("checkbox", { name: /verified the requester/i }).check();
     await page.getByRole("button", { name: "Continue to review" }).click();
     await page.getByRole("button", { name: "Resolve ticket" }).click();
@@ -1029,9 +1078,9 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
       ["INC2401", "Finance portal returns to sign-in after verification"],
       ["INC2405", "Facilities calendar shortcut shows a location error"],
       ["INC2407", "Internal sites fail while IP connectivity still works"],
-      ["INC2501", "Desktop and Documents are missing after sign-in"],
-      ["INC2506", "Assistant requests access to restricted salary records"],
-      ["INC2508", "Employee entered credentials into a phishing page"],
+      ["INC2501", "My Desktop and Documents have disappeared"],
+      ["INC2506", "I need the salary spreadsheet for a meeting"],
+      ["INC2508", "I may have used a fake sign-in page"],
     ];
 
     for (const [ticketId, title] of scenarios) {
@@ -1039,7 +1088,8 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
       await expect(page.getByText(ticketId).first()).toBeVisible();
       await expect(page.getByRole("heading", { name: title })).toBeVisible();
       await expect(page.getByRole("region", { name: "Ticket actions" })).toBeVisible();
-      await expect(page.getByRole("navigation", { name: "Suggested tools" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "All tools", exact: true })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Workspace tools" })).toBeHidden();
     }
 
     await page.setViewportSize({ width: 375, height: 812 });

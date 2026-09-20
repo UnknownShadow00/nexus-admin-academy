@@ -1,0 +1,90 @@
+labs:
+- title: Map, Test, and Diagnose a Small Office Network
+  description: Prove the student can identify device/service roles, collect evidence
+    at the right layer, select physical/wireless tools, diagnose multiple network
+    symptoms, and document verification.
+  estimated_minutes: 60
+  environment_requirements:
+    environment: Browser/document evidence lab with supplied topology, command outputs,
+      Wi-Fi analyzer screenshots, and cabling/tool evidence. Optional real SOHO observation;
+      no VM required.
+  success_criteria:
+    practical_key: practical.aplus.network.evidence_lab
+    module_key: module.aplus.core1.network_services_troubleshooting
+    vm_required: false
+    student_instructions:
+    - Do not change a real router, access point, VLAN, firewall, or ISP device unless
+      explicitly authorized.
+    - Use the supplied topology/evidence if you do not have an approved network to
+      inspect.
+    - Treat Module 1 IP/DNS commands as Review; focus on new infrastructure/radio/tool
+      evidence.
+    tasks:
+    - part: A
+      title: Topology and dependency map
+      steps:
+      - Label router, managed switch, access point, firewall function, patch panel,
+        ONT/modem, NIC, and PoE path on the supplied diagram.
+      - Match six supplied user activities to the most relevant service/port dependency.
+      - Identify which components are passive vs active.
+      evidence: Annotated topology plus service/port table.
+    - part: B
+      title: Wireless evidence
+      steps:
+      - Compare two Wi-Fi analyzer snapshots from a normal area and affected conference
+        room/loading lane.
+      - Identify the strongest band/channel/interference hypothesis supported by evidence.
+      - Name one additional comparison that would test the hypothesis without resetting
+        infrastructure.
+      evidence: Three-sentence radio diagnosis with evidence.
+    - part: C
+      title: Physical tool selection
+      steps:
+      - Choose the correct tool for an unlabeled wall run, suspected miswire/continuity
+        fault, and authorized interface loopback test.
+      - State what each result would prove and what it would not prove.
+      evidence: Tool → test → conclusion table.
+    - part: D
+      title: Diagnose three tickets
+      steps:
+      - 'Case 1: APIPA/no gateway on one new desk.'
+      - 'Case 2: can ping IPs but internal names fail.'
+      - 'Case 3: choppy VoIP/intermittent Wi-Fi in one area.'
+      - 'For each: state fault domain, next evidence, allowed remediation/escalation,
+        and verification of the original symptom.'
+      evidence: Three structured technician notes.
+    expected_results:
+    - Student does not conflate physical link, IP addressing, DNS, authentication,
+      radio quality, and destination service.
+    - Student chooses tools that answer the specific question.
+    - Student uses known-good comparisons and one-change-at-a-time reasoning.
+    - Student verifies the original symptom and produces escalation-ready evidence.
+    rubric:
+      total_points: 24
+      pass_points: 17
+      dimensions:
+      - name: Topology/service/device identification
+        points: 5
+      - name: Wireless evidence and reasoning
+        points: 5
+      - name: Network tool selection
+        points: 4
+      - name: Three-case troubleshooting quality
+        points: 6
+      - name: Verification and documentation
+        points: 4
+      automatic_fail_conditions:
+      - Student makes an unauthorized infrastructure/firewall/VLAN change in a real
+        environment.
+      - Student claims resolution without verifying the original symptom.
+      - Student recommends mass resetting/replacing infrastructure without evidence.
+    hints:
+    - An APIPA address is not a DNS symptom.
+    - A Wi-Fi analyzer answers radio questions; a cable tester answers cabling questions.
+    - If IP reachability works but names fail, separate DNS from general connectivity.
+    - Correct escalation with useful evidence is a successful outcome.
+  required_evidence:
+    student_tasks: []
+  source_name: null
+  lab_type: guided
+  is_published: true

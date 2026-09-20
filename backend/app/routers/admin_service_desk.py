@@ -26,6 +26,12 @@ from app.schemas.service_desk import (
     ServiceDeskScenarioVersionCreate,
 )
 from app.services.admin_auth import get_admin_username, verify_admin
+from app.services.service_desk_progression import (
+    assignment_attempts_used,
+    assignment_attempt_limit,
+    assignment_mode_for_experience,
+    attempt_v2_context,
+)
 from app.services.service_desk_scenario_validation import validate_runtime_definition, validate_scenario_definition
 
 router = APIRouter(
@@ -170,6 +176,29 @@ def _full(db, attempt):
         .order_by(ServiceDeskAttemptEvent.sequence_number)
         .all()
     )
+    version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
+    assignment_mode = assignment_mode_for_experience(attempt.experience_mode)
+    assignment = db.query(ServiceDeskAssignment).filter_by(
+        student_id=attempt.student_id,
+        scenario_id=version.scenario_id if version else None,
+        mode=assignment_mode,
+    ).one_or_none()
+    attempts_used = 0
+    if version:
+        attempts_used = assignment_attempts_used(
+            db,
+            student_id=attempt.student_id,
+            scenario_id=version.scenario_id,
+            assignment_mode=assignment_mode,
+            v2_context=attempt_v2_context(db, attempt),
+        )
+    context = attempt_v2_context(db, attempt)
+    attempt_limit = assignment_attempt_limit(assignment, context)
+    attempts_remaining = (
+        max(0, attempt_limit - attempts_used)
+        if attempt_limit is not None
+        else None
+    )
     return {
         "id": attempt.id,
         "student_id": attempt.student_id,
@@ -201,6 +230,17 @@ def _full(db, attempt):
             for e in events
         ],
         "grade": _grade(grade),
+        "retry": {
+            "assignment_id": assignment.id if assignment else None,
+            "maximum_attempts": attempt_limit,
+            "attempts_used": attempts_used,
+            "attempts_remaining": attempts_remaining,
+            "exhausted": bool(
+                assignment
+                and attempt_limit is not None
+                and attempts_remaining == 0
+            ),
+        },
     }
 
 
@@ -285,6 +325,70 @@ def feedback(
     db.commit()
     db.refresh(grade)
     return jsonable_encoder(_grade(grade))
+
+
+@router.post("/attempts/{attempt_id}/grant-retry")
+def grant_retry(
+    attempt_id: int,
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_admin),
+):
+    """Grant one additional attempt without deleting history or changing rubric."""
+    attempt = db.query(ServiceDeskAttempt).filter_by(id=attempt_id).first()
+    if not attempt:
+        raise HTTPException(404, "Attempt not found")
+    if attempt.status != "failed":
+        raise HTTPException(409, "Only a failed attempt can receive another retry")
+    version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
+    if version is None:
+        raise HTTPException(409, "The attempt's scenario version is unavailable")
+    assignment_mode = assignment_mode_for_experience(attempt.experience_mode)
+    assignment = db.query(ServiceDeskAssignment).filter_by(
+        student_id=attempt.student_id,
+        scenario_id=version.scenario_id,
+        mode=assignment_mode,
+    ).one_or_none()
+    if assignment is None:
+        raise HTTPException(409, "No matching assignment exists for this attempt")
+    context = attempt_v2_context(db, attempt)
+    attempt_limit = assignment_attempt_limit(assignment, context)
+    if attempt_limit is None:
+        raise HTTPException(409, "This assignment already permits unlimited retries")
+    used = assignment_attempts_used(
+        db,
+        student_id=attempt.student_id,
+        scenario_id=version.scenario_id,
+        assignment_mode=assignment_mode,
+        v2_context=context,
+    )
+    if attempt.admin_reset_at is not None:
+        return jsonable_encoder({
+            "assignment_id": assignment.id,
+            "maximum_attempts": attempt_limit,
+            "attempts_used": used,
+            "attempts_remaining": max(0, attempt_limit - used),
+            "exhausted": used >= attempt_limit,
+        })
+    if context is None:
+        assignment.maximum_attempts = max(attempt_limit, used) + 1
+        attempt_limit = assignment.maximum_attempts
+    attempt.admin_reset_at = datetime.now(timezone.utc)
+    attempt.admin_reset_by = get_admin_username() or "admin"
+    db.commit()
+    updated_used = assignment_attempts_used(
+        db,
+        student_id=attempt.student_id,
+        scenario_id=version.scenario_id,
+        assignment_mode=assignment_mode,
+        v2_context=context,
+    )
+    return jsonable_encoder({
+        "assignment_id": assignment.id,
+        "maximum_attempts": attempt_limit,
+        "attempts_used": updated_used,
+        "attempts_remaining": attempt_limit - updated_used,
+        "exhausted": False,
+    })
 
 
 @router.post("/assignments", status_code=201)

@@ -5,6 +5,7 @@ import PageHeader from "../../components/ui/PageHeader";
 import {
   getAdminServiceDeskAttempt,
   getAdminServiceDeskAttempts,
+  grantServiceDeskRetry,
   submitServiceDeskMentorFeedback,
 } from "../../services/api";
 
@@ -154,6 +155,20 @@ export default function AdminServiceDeskReviewPage() {
     }
   }
 
+  async function handleGrantRetry() {
+    if (!detail) return;
+    setActionLoading(true);
+    setFeedbackError("");
+    try {
+      const res = await grantServiceDeskRetry(detail.id, { suppressToast: true });
+      setDetail((current) => ({ ...current, retry: res.data }));
+    } catch (err) {
+      setFeedbackError(err?.userMessage || "Unable to grant another attempt.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
       <PageHeader title="Service Desk Review" subtitle={`${attempts.length} attempt${attempts.length === 1 ? "" : "s"}`} />
@@ -217,7 +232,9 @@ export default function AdminServiceDeskReviewPage() {
                 <DetailField label="Completed">{formatDate(detail.completed_at)}</DetailField>
                 <DetailField label="Final score">{detail.score ?? detail.grade?.overall_score ?? "-"}</DetailField>
                 <DetailField label="Passed"><BooleanValue value={detail.passed ?? detail.grade?.passed} /></DetailField>
+                <DetailField label="Retries">{detail.retry?.maximum_attempts == null ? "Unlimited" : `${detail.retry.attempts_remaining} remaining (${detail.retry.attempts_used}/${detail.retry.maximum_attempts} used)`}</DetailField>
               </dl>
+              {detail.retry?.exhausted ? <Banner variant="warning">This student has exhausted the assignment retry limit. <button className="ml-2 font-semibold underline" disabled={actionLoading} onClick={handleGrantRetry} type="button">Grant one retry</button></Banner> : null}
 
               <div>
                 <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-slate-200">Automated grading</h3>

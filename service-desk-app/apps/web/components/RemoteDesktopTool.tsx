@@ -8,6 +8,7 @@ import {
   REMOTE_DESKTOP_APP_IDS,
   REMOTE_DESKTOP_SCENARIOS,
   getRemoteDesktopScenarioByTicket,
+  realismFixture,
   type RemoteDesktopAppId,
 } from '@service-desk/shared';
 import { Button, Input } from '@service-desk/ui';
@@ -34,11 +35,8 @@ import {
 import type { NexusGrade } from '../lib/nexus-service-desk-client';
 import {
   canInspectScenarioRequirements,
-  hasAnotherHint,
   mentorScenarioRequirements,
-  progressiveHints,
   scenarioActionLabel,
-  shouldProactivelyRevealHint,
   studentFeedbackMessage,
 } from '../lib/remote-desktop-learning';
 import { WORKSTATION_APP_REGISTRY } from './workstation/app-registry';
@@ -54,16 +52,22 @@ const TICKET_TOOL_LABELS: Record<string, string> = {
   'server-room': 'Server Room',
 };
 
-function initialTicketFromUrl() {
-  if (typeof window === 'undefined') return 'INC2406';
-  const value = new URLSearchParams(window.location.search).get('ticket');
-  return value && getRemoteDesktopScenarioByTicket(value) ? value : 'INC2406';
+export function ticketFromSearch(search: string): string | null {
+  const value = new URLSearchParams(search).get('ticket');
+  return value && getRemoteDesktopScenarioByTicket(value) ? value : null;
 }
 
-function replaceLocation(ticketId: string, assetTag: string | null) {
+function initialTicketFromUrl(): string | null {
+  return typeof window === 'undefined'
+    ? null
+    : ticketFromSearch(window.location.search);
+}
+
+function replaceLocation(ticketId: string | null, assetTag: string | null) {
   if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
-  url.searchParams.set('ticket', ticketId);
+  if (ticketId) url.searchParams.set('ticket', ticketId);
+  else url.searchParams.delete('ticket');
   if (assetTag) url.searchParams.set('computer', assetTag);
   else url.searchParams.delete('computer');
   window.history.replaceState(null, '', url);
@@ -77,86 +81,82 @@ function pushLocation(ticketId: string, assetTag: string) {
   window.history.pushState(null, '', url);
 }
 
-export function RemoteDesktopTool() {
+export function RemoteDesktopTool({
+  activeTicketId,
+}: { activeTicketId?: string } = {}) {
   const remote = useRemoteDesktopSession();
   const tickets = useTicketSession();
   const identity = useSessionIdentity();
-  const [ticketId, setTicketId] = useState(initialTicketFromUrl);
-  const [computer, setComputer] = useState<string | null>(() =>
-    typeof window === 'undefined'
-      ? null
-      : new URLSearchParams(window.location.search).get('computer'),
+  const [ticketId, setTicketId] = useState(
+    () => activeTicketId ?? initialTicketFromUrl(),
   );
+  const [computer, setComputer] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const requested = new URLSearchParams(window.location.search).get(
+      'computer',
+    );
+    return activeTicketId &&
+      requested !== getRemoteDesktopScenarioByTicket(activeTicketId)?.assetTag
+      ? null
+      : requested;
+  });
   const [query, setQuery] = useState('');
   const consoleLabel =
     ticketId === 'INC2402' ? 'Managed Device Console' : 'Remote Desktop';
   const [ticketOpen, setTicketOpen] = useState(true);
   const [toast, setToast] = useState<ActionEvent | null>(null);
-  const scenario =
-    getRemoteDesktopScenarioByTicket(ticketId) ?? REMOTE_DESKTOP_SCENARIOS[0]!;
-  const ticket = tickets.getTicket(scenario.ticketId);
+  const scenario = ticketId ? getRemoteDesktopScenarioByTicket(ticketId) : null;
+  const ticket = scenario ? tickets.getTicket(scenario.ticketId) : undefined;
   const workstation =
     remote.workstations.find((item) => item.assetTag === computer) ?? null;
-  const assignedExperienceMode =
-    tickets.assignmentByTicket[ticketId]?.experience_mode;
+  const assignedExperienceMode = ticketId
+    ? tickets.assignmentByTicket[ticketId]?.experience_mode
+    : undefined;
   const learningMode =
     assignedExperienceMode ?? workstation?.learningMode ?? 'guided';
-  const hintsRevealed =
-    learningMode === 'assessment' ? 0 : (ticket?.hintsRevealedCount ?? 0);
   const canReviewScenario = canInspectScenarioRequirements(identity);
-  const scenarioComplete =
-    workstation?.completedScenarioIds.includes(scenario.id) ?? false;
-  const revealedHints = progressiveHints(
-    scenario,
-    hintsRevealed,
-    learningMode,
-    scenarioComplete,
-  );
-  const workflowProgress = workstation?.scenarioProgress[scenario.id];
+  const scenarioComplete = scenario
+    ? (workstation?.completedScenarioIds.includes(scenario.id) ?? false)
+    : false;
+  const workflowProgress = scenario
+    ? workstation?.scenarioProgress[scenario.id]
+    : undefined;
 
   useEffect(() => replaceLocation(ticketId, computer), [computer, ticketId]);
   useEffect(() => {
     const onPopState = () => {
       const params = new URLSearchParams(window.location.search);
-      const nextTicketId = params.get('ticket');
+      const nextTicketId = activeTicketId ?? params.get('ticket');
       setTicketId(
         nextTicketId && getRemoteDesktopScenarioByTicket(nextTicketId)
           ? nextTicketId
-          : 'INC2406',
+          : null,
       );
-      setComputer(params.get('computer'));
+      const requestedComputer = params.get('computer');
+      setComputer(
+        activeTicketId &&
+          requestedComputer !==
+            getRemoteDesktopScenarioByTicket(activeTicketId)?.assetTag
+          ? null
+          : requestedComputer,
+      );
     };
 
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, []);
+  }, [activeTicketId]);
   useEffect(() => {
-    if (!workstation || workstation.connectionState !== 'connecting') return;
+    if (
+      !scenario ||
+      !workstation ||
+      workstation.connectionState !== 'connecting'
+    )
+      return;
     const timer = window.setTimeout(() => {
       setToast(remote.beginLogin(workstation.assetTag, scenario.ticketId));
     }, 650);
     return () => window.clearTimeout(timer);
-  }, [remote, scenario.ticketId, workstation]);
-  useEffect(() => {
-    if (
-      ticket &&
-      shouldProactivelyRevealHint(
-        scenario,
-        hintsRevealed,
-        learningMode,
-        scenarioComplete,
-      )
-    ) {
-      tickets.recordHintReveal(ticket.id, 1);
-    }
-  }, [
-    hintsRevealed,
-    learningMode,
-    scenario,
-    scenarioComplete,
-    ticket,
-    tickets,
-  ]);
+  }, [remote, scenario, workstation]);
 
   const selectScenario = (nextTicketId: string) => {
     setComputer(null);
@@ -171,24 +171,32 @@ export function RemoteDesktopTool() {
     )
       return;
     if (scenarioComplete && !event.success) return;
-    if (
-      !event.success &&
-      learningMode === 'guided' &&
-      ticket &&
-      hasAnotherHint(scenario, hintsRevealed, learningMode, scenarioComplete)
-    ) {
-      tickets.recordHintReveal(ticket.id, hintsRevealed + 1);
-    }
     setToast(event);
   };
-  const revealNextHint = () => {
-    if (
-      !ticket ||
-      !hasAnotherHint(scenario, hintsRevealed, learningMode, scenarioComplete)
-    )
-      return;
-    tickets.recordHintReveal(ticket.id, hintsRevealed + 1);
-  };
+
+  if (!scenario)
+    return (
+      <section
+        className="mx-auto max-w-2xl rounded-md border border-border bg-surface-raised p-8 text-center"
+        role="status"
+      >
+        <IconDeviceDesktop
+          className="mx-auto h-10 w-10 text-text-muted"
+          aria-hidden="true"
+        />
+        <h1 className="mt-4 text-xl font-bold text-text">Choose a ticket</h1>
+        <p className="mt-2 text-sm text-text-muted">
+          Open Remote Desktop from a ticket so the correct customer and computer
+          follow you.
+        </p>
+        <a
+          className="sd-button sd-button--default sd-focus-ring mt-5 inline-flex px-4 py-2"
+          href="/"
+        >
+          Back to ticket queue
+        </a>
+      </section>
+    );
 
   return (
     <section
@@ -197,27 +205,29 @@ export function RemoteDesktopTool() {
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
         <div>
-          <p className="font-label text-xs font-extrabold uppercase tracking-[0.16em] text-sky-400">
-            Support simulation
-          </p>
-          <h1
+          {!activeTicketId ? (
+            <p className="font-label text-xs font-extrabold uppercase tracking-[0.16em] text-accent">
+              Support simulation
+            </p>
+          ) : null}
+          <h2
             id="remote-desktop-title"
-            className="font-display text-2xl font-bold text-zinc-100"
+            className="font-display text-2xl font-bold text-text"
           >
             {consoleLabel}
-          </h1>
+          </h2>
         </div>
-        {assignedExperienceMode ? (
-          <span className="rounded-full border border-zinc-800 bg-zinc-950/70 px-3 py-1.5 text-xs font-semibold text-sky-300">
+        {activeTicketId ? null : assignedExperienceMode ? (
+          <span className="rounded-full border border-border bg-surface/70 px-3 py-1.5 text-xs font-semibold text-accent">
             {assignedExperienceMode[0]?.toUpperCase()}
             {assignedExperienceMode.slice(1)} attempt
           </span>
         ) : canReviewScenario ? (
-          <label className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/70 px-3 py-1.5 text-xs font-semibold text-zinc-300">
-            <span className="text-sky-300">Learning mode</span>
+          <label className="flex items-center gap-2 rounded-full border border-border bg-surface/70 px-3 py-1.5 text-xs font-semibold text-text">
+            <span className="text-accent">Learning mode</span>
             <select
               aria-label="Learning mode"
-              className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-100"
+              className="rounded border border-border bg-surface-raised px-2 py-1 text-text"
               disabled={!workstation}
               onChange={(event) =>
                 workstation &&
@@ -246,186 +256,174 @@ export function RemoteDesktopTool() {
         />
       ) : null}
 
-      <div className="grid min-w-0 gap-3 xl:min-h-[calc(100dvh-12rem)] xl:grid-cols-[minmax(17rem,0.72fr)_minmax(0,1.65fr)] xl:items-stretch">
-        <aside
-          className={`min-w-0 overflow-hidden border border-sky-900/30 bg-zinc-950 shadow-sm ${ticketOpen ? '' : 'max-xl:hidden'}`}
-        >
-          <button
-            aria-expanded={ticketOpen}
-            className="flex w-full items-center justify-between border-b border-sky-900/30 bg-zinc-900 px-4 py-3 text-left xl:pointer-events-none"
-            onClick={() => setTicketOpen((open) => !open)}
-            type="button"
+      <div
+        className={
+          activeTicketId
+            ? 'min-w-0'
+            : 'grid min-w-0 gap-3 xl:min-h-[calc(100dvh-12rem)] xl:grid-cols-[minmax(17rem,0.72fr)_minmax(0,1.65fr)] xl:items-stretch'
+        }
+      >
+        {!activeTicketId ? (
+          <aside
+            className={`min-w-0 overflow-hidden border border-sky-900/30 bg-surface shadow-sm ${ticketOpen ? '' : 'max-xl:hidden'}`}
           >
-            <span className="font-label text-xs font-extrabold uppercase tracking-[0.14em] text-sky-300">
-              Ticket workspace
-            </span>
-            <IconChevronDown
-              aria-hidden="true"
-              className={`h-4 w-4 text-zinc-400 transition-transform ${ticketOpen ? '' : '-rotate-90'}`}
-            />
-          </button>
-          <div className="space-y-5 p-5 text-zinc-200">
-            <label className="block">
-              <span className="sr-only">Choose a ticket</span>
-              <select
-                aria-label="Choose a ticket"
-                className="w-full rounded-sm border border-zinc-700/80 bg-zinc-900 px-3 py-2.5 text-sm font-medium text-zinc-100"
-                onChange={(event) => selectScenario(event.target.value)}
-                value={scenario.ticketId}
-              >
-                {REMOTE_DESKTOP_SCENARIOS.map((item) => (
-                  <option key={item.id} value={item.ticketId}>
-                    {tickets.getTicket(item.ticketId)?.title ?? item.title}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <button
+              aria-expanded={ticketOpen}
+              className="flex w-full items-center justify-between border-b border-sky-900/30 bg-surface-raised px-4 py-3 text-left xl:pointer-events-none"
+              onClick={() => setTicketOpen((open) => !open)}
+              type="button"
+            >
+              <span className="font-label text-xs font-extrabold uppercase tracking-[0.14em] text-accent">
+                Ticket workspace
+              </span>
+              <IconChevronDown
+                aria-hidden="true"
+                className={`h-4 w-4 text-text-muted transition-transform ${ticketOpen ? '' : '-rotate-90'}`}
+              />
+            </button>
+            <div className="space-y-5 p-5 text-text">
+              {!activeTicketId ? (
+                <label className="block">
+                  <span className="sr-only">Choose a ticket</span>
+                  <select
+                    aria-label="Choose a ticket"
+                    className="w-full rounded-sm border border-border/80 bg-surface-raised px-3 py-2.5 text-sm font-medium text-text"
+                    onChange={(event) => selectScenario(event.target.value)}
+                    value={scenario.ticketId}
+                  >
+                    {REMOTE_DESKTOP_SCENARIOS.map((item) => (
+                      <option key={item.id} value={item.ticketId}>
+                        {tickets.getTicket(item.ticketId)?.title ?? item.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
 
-            <section>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-sky-300">
-                {ticket?.priority ?? 'High'} priority
-              </p>
-              <h2 className="mt-2 text-xl font-bold leading-snug text-zinc-50">
-                {ticket?.title ?? 'Support request'}
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-zinc-200">
-                <span className="font-semibold text-zinc-100">Requester:</span>{' '}
-                {ticket?.requester.name ?? 'Employee'} ·{' '}
-                {ticket?.requester.department ?? 'Support'}
-              </p>
-            </section>
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">
+                  {ticket?.priority ?? 'High'} priority
+                </p>
+                <h2 className="mt-2 text-xl font-bold leading-snug text-text">
+                  {ticket?.title ?? 'Support request'}
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-text">
+                  <span className="font-semibold text-text">Requester:</span>{' '}
+                  {ticket?.requester.name ?? 'Employee'} ·{' '}
+                  {ticket?.requester.department ?? 'Support'}
+                </p>
+              </section>
 
-            <section className="space-y-3 border-y border-zinc-800/80 py-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                  Issue
-                </p>
-                <p className="mt-1.5 text-sm leading-6 text-zinc-100">
-                  {ticket?.description.issue ??
-                    'Review the reported issue on the affected device.'}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                  Business impact
-                </p>
-                <p className="mt-1.5 text-sm leading-6 text-zinc-200">
-                  {ticket?.description.businessImpact ??
-                    'The requester needs service restored.'}
-                </p>
-              </div>
-              <div className="rounded-sm bg-zinc-900/70 px-3 py-2.5 text-sm text-zinc-300">
-                <span className="font-semibold text-zinc-100">
-                  Affected device:
-                </span>{' '}
-                <span className="font-mono text-sky-200">
-                  {ticket?.device.deviceName ?? scenario.assetTag}
-                </span>
-              </div>
-            </section>
-
-            <section>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                Already tried
-              </p>
-              <ul className="mt-2 space-y-2 text-sm leading-6 text-zinc-200">
-                {(ticket?.description.troubleshooting ?? []).map((entry) => (
-                  <li className="flex gap-2" key={entry}>
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
-                    {entry}
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <section>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                Available tools
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {learningMode === 'assessment' ? (
-                  <span className="text-sm text-zinc-400">
-                    Choose workstation applications from the ticket evidence.
+              <section className="space-y-3 border-y border-border/80 py-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                    Issue
+                  </p>
+                  <p className="mt-1.5 text-sm leading-6 text-text">
+                    {ticket?.description.issue ??
+                      'Review the reported issue on the affected device.'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                    Business impact
+                  </p>
+                  <p className="mt-1.5 text-sm leading-6 text-text">
+                    {ticket?.description.businessImpact ??
+                      'The requester needs service restored.'}
+                  </p>
+                </div>
+                <div className="rounded-sm bg-surface-raised/70 px-3 py-2.5 text-sm text-text">
+                  <span className="font-semibold text-text">
+                    Affected device:
+                  </span>{' '}
+                  <span className="font-mono text-accent">
+                    {ticket?.device.deviceName ?? scenario.assetTag}
                   </span>
-                ) : (
-                  (ticket?.suggestedTools ?? ['remote-desktop']).map((tool) => (
-                    <span
-                      className="rounded-full bg-sky-400/10 px-2.5 py-1 text-xs font-medium text-sky-200"
-                      key={tool}
-                    >
-                      {TICKET_TOOL_LABELS[tool] ?? tool}
+                </div>
+              </section>
+
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                  Already tried
+                </p>
+                <ul className="mt-2 space-y-2 text-sm leading-6 text-text">
+                  {(ticket?.description.troubleshooting ?? []).map((entry) => (
+                    <li className="flex gap-2" key={entry}>
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                      {entry}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+
+              <section>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+                  Available tools
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {learningMode === 'assessment' ? (
+                    <span className="text-sm text-text-muted">
+                      Choose workstation applications from the ticket evidence.
                     </span>
-                  ))
-                )}
-              </div>
-            </section>
+                  ) : (
+                    (ticket?.suggestedTools ?? ['remote-desktop']).map(
+                      (tool) => (
+                        <span
+                          className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent"
+                          key={tool}
+                        >
+                          {TICKET_TOOL_LABELS[tool] ?? tool}
+                        </span>
+                      ),
+                    )
+                  )}
+                </div>
+              </section>
 
-            <ProgressiveHints
-              canReveal={hasAnotherHint(
-                scenario,
-                hintsRevealed,
-                learningMode,
-                scenarioComplete,
-              )}
-              completed={scenarioComplete}
-              hints={revealedHints}
-              learningMode={learningMode}
-              onReveal={revealNextHint}
-            />
+              {workstation?.completedScenarioIds.includes(scenario.id) ? (
+                <CompletionSummary
+                  onClose={
+                    scenario.workflow
+                      ? undefined
+                      : () =>
+                          ticket &&
+                          tickets.closeTicket(ticket.id, {
+                            resolutionNote: '',
+                            verifiedResolved: true,
+                          })
+                  }
+                  progress={workflowProgress}
+                  scenario={scenario}
+                  serverGrade={
+                    tickets.authoritativeGradeByTicket[scenario.ticketId]
+                  }
+                  workstation={workstation}
+                />
+              ) : null}
 
-            {scenario.workflow && workstation && !scenarioComplete ? (
-              <WorkflowClosure
-                learningMode={learningMode}
-                onClose={() =>
-                  ticket &&
-                  workflowProgress?.internalNote &&
-                  tickets.closeTicket(ticket.id, {
-                    resolutionNote: workflowProgress.internalNote,
-                    verifiedResolved: true,
-                  })
-                }
-                onSaveNote={(text) =>
-                  report(
-                    remote.addInternalNote(
-                      workstation.assetTag,
-                      scenario.ticketId,
-                      text,
-                    ),
-                  )
-                }
-                progress={workflowProgress}
-                scenario={scenario}
-              />
-            ) : null}
+              {canReviewScenario ? (
+                <MentorScenarioReview scenario={scenario} />
+              ) : null}
+            </div>
+          </aside>
+        ) : null}
 
-            {workstation?.completedScenarioIds.includes(scenario.id) ? (
-              <CompletionSummary
-                hintsUsed={hintsRevealed}
-                hintTexts={revealedHints}
-                onClose={
-                  scenario.workflow
-                    ? undefined
-                    : () =>
-                        ticket &&
-                        tickets.closeTicket(ticket.id, {
-                          resolutionNote: '',
-                          verifiedResolved: true,
-                        })
-                }
-                progress={workflowProgress}
-                scenario={scenario}
-                serverGrade={tickets.authoritativeGradeByTicket[scenario.ticketId]}
-                workstation={workstation}
-              />
-            ) : null}
-
-            {canReviewScenario ? (
-              <MentorScenarioReview scenario={scenario} />
-            ) : null}
-          </div>
-        </aside>
-
-        <main className="flex min-w-0 min-h-[calc(100dvh-12rem)] bg-zinc-100 shadow-[0_18px_50px_rgba(0,0,0,.22)] xl:min-h-0">
+        {/*
+          Everything from here down is the SIMULATED WINDOWS DESKTOP - a
+          screen-within-a-screen. It deliberately keeps its own light Windows
+          palette in both console themes, exactly like a real remote session
+          would. Do not convert these raw utilities to `--sd-*` tokens; the
+          console chrome around it is already tokenized.
+        */}
+        <main
+          data-testid="remote-session-surface"
+          className={
+            activeTicketId
+              ? 'flex h-[32rem] min-h-0 min-w-0 bg-zinc-100 sm:h-[38rem]'
+              : 'flex min-w-0 min-h-[calc(100dvh-12rem)] bg-zinc-100 shadow-[0_18px_50px_rgba(0,0,0,.22)] xl:min-h-0'
+          }
+        >
           {workstation ? (
             <RemoteSurface
               onBack={() => setComputer(null)}
@@ -445,7 +443,13 @@ export function RemoteDesktopTool() {
               onQueryChange={setQuery}
               query={query}
               scenario={scenario}
-              workstations={remote.workstations}
+              workstations={
+                activeTicketId
+                  ? remote.workstations.filter(
+                      (item) => item.assetTag === scenario.assetTag,
+                    )
+                  : remote.workstations
+              }
             />
           )}
         </main>
@@ -465,7 +469,7 @@ function Feedback({
 }) {
   return (
     <div
-      className={`mb-3 flex items-start justify-between gap-3 border px-4 py-3 text-sm ${event.success ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100' : 'border-amber-400/35 bg-amber-400/10 text-amber-100'}`}
+      className={`mb-3 flex items-start justify-between gap-3 border px-4 py-3 text-sm ${event.success ? 'border-success/30 bg-success/10 text-success' : 'border-warning/35 bg-warning/10 text-warning'}`}
       role={event.success ? 'status' : 'alert'}
     >
       <span>
@@ -490,186 +494,13 @@ function Feedback({
   );
 }
 
-export function ProgressiveHints({
-  canReveal,
-  hints,
-  learningMode,
-  onReveal,
-}: {
-  canReveal: boolean;
-  completed?: boolean;
-  hints: readonly string[];
-  learningMode: 'guided' | 'practice' | 'assessment';
-  onReveal: () => void;
-}) {
-  const hasHints = hints.length > 0;
-  return (
-    <section className="rounded-sm bg-sky-500/[0.07] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-sky-300">
-            {learningMode === 'guided'
-              ? 'Guided support'
-              : learningMode === 'practice'
-                ? 'Practice hints'
-                : 'Assessment mode'}
-          </p>
-          <p className="mt-1 text-sm leading-5 text-sky-100/80">
-            {learningMode === 'guided'
-              ? 'The first hint appears proactively; reveal more as you work.'
-              : learningMode === 'practice'
-                ? 'Hints are available on request.'
-                : 'Hints are not shown during an assessment attempt.'}
-          </p>
-        </div>
-      </div>
-      {hasHints ? (
-        <ol className="mt-3 space-y-2 text-sm leading-5 text-sky-50">
-          {hints.map((hint, index) => (
-            <li className="flex gap-2" key={hint}>
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-400/20 text-xs font-bold text-sky-200">
-                {index + 1}
-              </span>
-              <span>{hint}</span>
-            </li>
-          ))}
-        </ol>
-      ) : null}
-      {canReveal ? (
-        <button
-          className="mt-3 text-sm font-semibold text-sky-200 underline decoration-sky-400/60 underline-offset-4 hover:text-white"
-          onClick={onReveal}
-          type="button"
-        >
-          Reveal another hint
-        </button>
-      ) : hasHints && learningMode !== 'assessment' ? (
-        <p className="mt-3 text-xs text-sky-100/65">
-          No more hints are available.
-        </p>
-      ) : null}
-    </section>
-  );
-}
-
-function WorkflowClosure({
-  learningMode,
-  onClose,
-  onSaveNote,
-  progress,
-  scenario,
-}: {
-  learningMode: 'guided' | 'practice' | 'assessment';
-  onClose: () => void;
-  onSaveNote: (text: string) => void;
-  progress: RemoteDesktopScenarioProgress | undefined;
-  scenario: (typeof REMOTE_DESKTOP_SCENARIOS)[number];
-}) {
-  const [note, setNote] = useState(progress?.internalNote ?? '');
-  const minimumLength = scenario.workflow?.note.minimumLength ?? 20;
-  const readyToClose = Boolean(
-    progress?.phases.diagnosed &&
-      progress.phases.fixed &&
-      progress.phases.verified &&
-      progress.phases.noted,
-  );
-
-  useEffect(() => {
-    setNote(progress?.internalNote ?? '');
-  }, [progress?.internalNote]);
-
-  const phases = [
-    ['Diagnosis evidence', progress?.phases.diagnosed],
-    ['Correct fix', progress?.phases.fixed],
-    ['Post-fix verification', progress?.phases.verified],
-    ['Internal note', progress?.phases.noted],
-  ] as const;
-
-  return (
-    <section className="rounded-sm border border-sky-400/30 bg-sky-500/[0.07] p-4">
-      <p className="font-display text-lg font-bold text-sky-100">
-        {learningMode === 'assessment'
-          ? 'Assessment closure'
-          : 'Resolution workflow'}
-      </p>
-      {learningMode === 'assessment' ? (
-        <p className="mt-2 text-sm leading-5 text-sky-100/75">
-          Document your work and close the ticket when you believe the original
-          symptom is resolved.
-        </p>
-      ) : (
-        <ul className="mt-3 grid gap-2 text-sm text-sky-50 sm:grid-cols-2">
-          {phases.map(([label, complete]) => (
-            <li className="flex items-center gap-2" key={label}>
-              <span
-                aria-hidden="true"
-                className={`flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${complete ? 'bg-emerald-400/20 text-emerald-200' : 'bg-zinc-700 text-zinc-300'}`}
-              >
-                {complete ? '✓' : '•'}
-              </span>
-              {label}
-            </li>
-          ))}
-        </ul>
-      )}
-      <form
-        className="mt-4"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSaveNote(note);
-        }}
-      >
-        <label className="block text-sm font-semibold text-sky-100">
-          Student-authored internal note
-          <textarea
-            aria-describedby="internal-note-help"
-            className="mt-2 min-h-24 w-full rounded-sm border border-zinc-700 bg-zinc-950 p-3 text-sm font-normal text-zinc-100"
-            maxLength={1000}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="Describe the evidence, root cause, fix, and verification in your own words."
-            value={note}
-          />
-        </label>
-        <p className="mt-1 text-xs text-sky-100/70" id="internal-note-help">
-          Minimum {minimumLength} characters. Document the diagnosis, repair,
-          and verification in your own words; the note is never autofilled.
-        </p>
-        <Button
-          className="mt-3"
-          disabled={note.trim().length < minimumLength}
-          type="submit"
-          variant="light"
-        >
-          Save internal note
-        </Button>
-      </form>
-      <div className="mt-4 border-t border-sky-300/20 pt-4">
-        <Button disabled={!readyToClose} onClick={onClose} variant="soft">
-          Close ticket
-        </Button>
-        {!readyToClose ? (
-          <p className="mt-2 text-xs leading-5 text-sky-100/70">
-            {learningMode === 'assessment'
-              ? 'Continue investigating, remediate safely, verify the original symptom, and save your note.'
-              : 'Close stays blocked until diagnosis, fix, verification, and a saved internal note are complete.'}
-          </p>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
 export function CompletionSummary({
-  hintTexts,
-  hintsUsed,
   onClose,
   progress,
   scenario,
   serverGrade,
   workstation,
 }: {
-  hintTexts: readonly string[];
-  hintsUsed: number;
   onClose?: () => void;
   progress: RemoteDesktopScenarioProgress | undefined;
   scenario: (typeof REMOTE_DESKTOP_SCENARIOS)[number];
@@ -693,40 +524,53 @@ export function CompletionSummary({
   const missedOptional = scenario.optionalSteps.filter(
     (step) => !performed.has(step),
   );
+  if (
+    realismFixture(scenario.assetTag) &&
+    serverGrade?.debrief?.coaching_tier !== 'full'
+  ) {
+    return (
+      <section
+        role="status"
+        className="rounded border border-border p-4 text-sm"
+      >
+        {serverGrade
+          ? 'Review the assessment feedback in the ticket workspace before your next attempt.'
+          : 'Your assessment is being confirmed. Return to the ticket workspace for feedback.'}
+      </section>
+    );
+  }
   return (
-    <section className="rounded-sm border border-emerald-400/35 bg-emerald-400/[0.08] p-4">
-      <IconCheck aria-hidden="true" className="h-7 w-7 text-emerald-300" />
-      <p className="mt-2 font-display text-xl font-bold text-emerald-100">
+    <section className="rounded-sm border border-success/35 bg-success/[0.08] p-4">
+      <IconCheck aria-hidden="true" className="h-7 w-7 text-success" />
+      <p className="mt-2 font-display text-xl font-bold text-success">
         {serverGrade
           ? serverGrade.passed
             ? 'Server assessment complete'
             : 'Server assessment incomplete'
-          : 'Awaiting authoritative server grade'}
+          : 'Grade is being confirmed'}
       </p>
       <div className="mt-4 space-y-3 text-sm leading-6 text-emerald-50/90">
         <p>
-          <span className="font-semibold text-emerald-200">Root cause:</span>{' '}
+          <span className="font-semibold text-success">Root cause:</span>{' '}
           {scenario.completion.rootCause}
         </p>
         <p>
-          <span className="font-semibold text-emerald-200">Fix performed:</span>{' '}
+          <span className="font-semibold text-success">Fix performed:</span>{' '}
           {scenario.completion.whatFixed}
         </p>
         <p>
-          <span className="font-semibold text-emerald-200">Why it worked:</span>{' '}
+          <span className="font-semibold text-success">Why it worked:</span>{' '}
           {scenario.completion.whyItWorked}
         </p>
       </div>
-      <div className="mt-4 border-t border-emerald-300/20 pt-3 text-sm">
-        <p className="font-semibold text-emerald-100">Evidence gathered</p>
+      <div className="mt-4 border-t border-success/20 pt-3 text-sm">
+        <p className="font-semibold text-success">Evidence gathered</p>
         <ul className="mt-1.5 space-y-1 text-emerald-50/85">
           {evidence.map((step) => (
             <li key={step}>• {scenarioActionLabel(scenario, step)}</li>
           ))}
         </ul>
-        <p className="mt-3 font-semibold text-emerald-100">
-          Missed useful actions
-        </p>
+        <p className="mt-3 font-semibold text-success">Missed useful actions</p>
         <p className="mt-1 text-emerald-50/85">
           {missedOptional.length
             ? missedOptional
@@ -734,27 +578,21 @@ export function CompletionSummary({
                 .join(', ')
             : 'None.'}
         </p>
-        <p className="mt-3 font-semibold text-emerald-100">
-          Hints used: {hintsUsed}
-        </p>
-        <p className="mt-1 text-emerald-50/85">
-          {hintTexts.length ? hintTexts.join(' · ') : 'None.'}
-        </p>
         {serverGrade ? (
           <>
             <p className="mt-3 text-emerald-50/85">
-              <span className="font-semibold text-emerald-100">Final score:</span>{' '}
+              <span className="font-semibold text-success">Final score:</span>{' '}
               {serverGrade.overall_score}/100
             </p>
             <p className="mt-1 text-emerald-50/85">
-              <span className="font-semibold text-emerald-100">Feedback:</span>{' '}
+              <span className="font-semibold text-success">Feedback:</span>{' '}
               {serverGrade.feedback_summary}
             </p>
           </>
         ) : (
           <p className="mt-3 text-emerald-50/85">
-            Your work is saved locally. Final pass/fail and score will appear
-            only after the server confirms this attempt.
+            Your ticket work is saved. The final pass/fail and score are still
+            processing and will appear after the server confirms this attempt.
           </p>
         )}
       </div>
@@ -822,7 +660,7 @@ function ComputerPicker({
           <h2 className="font-mono text-xl font-bold tracking-[0.12em] text-zinc-900">
             REMOTE DESKTOP
           </h2>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-text-muted">
             Select a computer to connect
           </p>
         </div>
@@ -830,10 +668,10 @@ function ComputerPicker({
           <label className="relative block">
             <IconSearch
               aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
             />
             <Input
-              className="border-sky-400 bg-white pl-9 text-zinc-900 shadow-[0_0_0_3px_rgba(56,189,248,.14)]"
+              className="border-accent bg-white pl-9 text-zinc-900 shadow-[0_0_0_3px_rgba(56,189,248,.14)]"
               onChange={(event) => onQueryChange(event.target.value)}
               placeholder="Search by asset tag, hostname, or owner"
               type="search"
@@ -846,7 +684,7 @@ function ComputerPicker({
           className="max-h-[520px] overflow-y-auto px-4 pb-3"
         >
           {!isHydrated ? (
-            <p className="p-6 text-center text-sm text-zinc-500">
+            <p className="p-6 text-center text-sm text-text-muted">
               Restoring your simulated computers…
             </p>
           ) : (
@@ -854,18 +692,18 @@ function ComputerPicker({
               const isAffected = item.assetTag === scenario.assetTag;
               return (
                 <div
-                  className={`flex items-center gap-3 border-b px-3 py-3 ${isAffected ? 'border-sky-300 bg-sky-50' : 'border-sky-100'}`}
+                  className={`flex items-center gap-3 border-b px-3 py-3 ${isAffected ? 'border-accent bg-sky-50' : 'border-sky-100'}`}
                   key={item.assetTag}
                 >
                   <IconDeviceDesktop
                     aria-hidden="true"
-                    className="h-5 w-5 shrink-0 text-zinc-500"
+                    className="h-5 w-5 shrink-0 text-text-muted"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="font-mono text-xs font-semibold text-zinc-700">
+                    <p className="font-mono text-xs font-semibold text-text-muted">
                       {item.assetTag}
                     </p>
-                    <p className="truncate text-sm text-zinc-700">
+                    <p className="truncate text-sm text-text-muted">
                       {item.employeeName}
                     </p>
                   </div>
@@ -881,7 +719,7 @@ function ComputerPicker({
             })
           )}
           {isHydrated && filtered.length === 0 ? (
-            <p className="p-6 text-center text-sm text-zinc-500">
+            <p className="p-6 text-center text-sm text-text-muted">
               No computer matches that search.
             </p>
           ) : null}
@@ -905,7 +743,6 @@ function RemoteSurface({
   workstation: RemoteDesktopWorkstationRecord;
 }) {
   const [showDomain, setShowDomain] = useState(false);
-  const [showHint, setShowHint] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const status = workstation.connectionState;
@@ -913,7 +750,7 @@ function RemoteSurface({
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[#f7f8fb]">
       {sessionHeader ? (
-        <div className="flex h-7 items-center justify-between border-b border-zinc-300 bg-white px-4 text-xs text-zinc-700">
+        <div className="flex h-7 items-center justify-between border-b border-zinc-300 bg-white px-4 text-xs text-text-muted">
           <span className="truncate">
             <IconDeviceDesktop
               aria-hidden="true"
@@ -923,7 +760,7 @@ function RemoteSurface({
             {workstation.employeeName}
           </span>
           <button
-            className="font-semibold uppercase text-zinc-700 hover:text-red-700"
+            className="font-semibold uppercase text-text-muted hover:text-red-700"
             onClick={() => {
               onEvent(remote.disconnect(workstation.assetTag));
               onBack();
@@ -947,13 +784,11 @@ function RemoteSurface({
         <LoginGate
           domainOpen={showDomain}
           error={workstation.lastError}
-          hintOpen={showHint}
           onCancel={() => {
             onEvent(remote.cancelConnection(workstation.assetTag));
             onBack();
           }}
           onDomain={() => setShowDomain((open) => !open)}
-          onHint={() => setShowHint((open) => !open)}
           onRetry={() =>
             onEvent(remote.beginLogin(workstation.assetTag, scenario.ticketId))
           }
@@ -996,8 +831,8 @@ function ConnectingScreen({
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center bg-[#bdbdbd]">
       <div className="text-center">
-        <span className="mx-auto block h-10 w-10 animate-spin rounded-full border-4 border-sky-500 border-t-transparent" />
-        <p className="mt-4 font-semibold text-zinc-700">
+        <span className="mx-auto block h-10 w-10 animate-spin rounded-full border-4 border-accent border-t-transparent" />
+        <p className="mt-4 font-semibold text-text-muted">
           Connecting to {workstation.assetTag}…
         </p>
         <Button className="mt-4" onClick={onCancel} variant="light">
@@ -1011,10 +846,8 @@ function ConnectingScreen({
 function LoginGate({
   domainOpen,
   error,
-  hintOpen,
   onCancel,
   onDomain,
-  onHint,
   onRetry,
   onSubmit,
   password,
@@ -1025,10 +858,8 @@ function LoginGate({
 }: {
   domainOpen: boolean;
   error: string | null;
-  hintOpen: boolean;
   onCancel: () => void;
   onDomain: () => void;
-  onHint: () => void;
   onRetry: () => void;
   onSubmit: () => void;
   password: string;
@@ -1044,30 +875,16 @@ function LoginGate({
           Remote Login
         </div>
         <div className="px-8 py-7 text-center text-white">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded bg-sky-700/40 text-sky-200">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded bg-sky-700/40 text-accent">
             <IconDeviceDesktop aria-hidden="true" className="h-7 w-7" />
           </span>
           <p className="mt-3 font-bold">{workstation.assetTag}</p>
-          <p className="mt-1 text-xs text-sky-100/65">
+          <p className="mt-1 text-xs text-accent/65">
             Enter your simulated admin credentials for the remote computer
           </p>
-          <button
-            className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-sky-200 hover:text-white"
-            onClick={onHint}
-            type="button"
-          >
-            <IconKey aria-hidden="true" className="h-3.5 w-3.5" />
-            {hintOpen ? 'Hide hint' : 'Hint'}
-          </button>
-          {hintOpen ? (
-            <p className="mt-2 rounded border border-sky-300/20 bg-sky-950/30 p-2 text-xs text-sky-100">
-              Any non-empty simulated administrator credentials are accepted for
-              the affected machine.
-            </p>
-          ) : null}
           {error ? (
             <div
-              className="mt-3 rounded border border-amber-300/40 bg-amber-200/10 p-2 text-xs text-amber-100"
+              className="mt-3 rounded border border-warning/40 bg-amber-200/10 p-2 text-xs text-warning"
               role="alert"
             >
               <p>{error}</p>
@@ -1130,7 +947,7 @@ function LoginGate({
           </div>
           <div className="clear-both mt-8 flex justify-center gap-3">
             <button
-              className="min-w-32 border border-sky-300 bg-sky-600 px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-white/40"
+              className="min-w-32 border border-accent bg-accent px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-white/40"
               disabled={Boolean(error) || !username.trim() || !password.trim()}
               onClick={onSubmit}
               type="button"
@@ -1181,7 +998,7 @@ function SimulatedDesktop({
   return (
     <div className="relative flex min-h-0 flex-1 overflow-hidden bg-[radial-gradient(circle_at_76%_16%,rgba(91,234,208,.54),transparent_25%),radial-gradient(circle_at_18%_80%,rgba(44,146,197,.38),transparent_32%),linear-gradient(135deg,#0a3854,#096761_51%,#103d68)] pb-11 text-white">
       <div className="absolute inset-0 opacity-[0.14] [background-image:linear-gradient(rgba(255,255,255,.16)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.16)_1px,transparent_1px)] [background-size:44px_44px]" />
-      <div className="relative z-10 grid w-24 gap-3 p-3 sm:w-28 sm:gap-4 sm:p-4">
+      <div className="relative z-10 grid min-h-0 w-24 gap-3 overflow-y-auto p-3 sm:w-28 sm:gap-4 sm:p-4">
         {REMOTE_DESKTOP_APP_IDS.map((appId) => (
           <DesktopIcon
             appId={appId}
@@ -1263,7 +1080,7 @@ function SimulatedDesktop({
           return (
             <button
               aria-label={`Focus ${Meta.label}`}
-              className={`mx-0.5 flex h-8 w-9 items-center justify-center rounded-sm border-b-2 ${workstation.focusedApp === appId ? 'border-sky-300 bg-white/15' : 'border-transparent hover:bg-white/10'}`}
+              className={`mx-0.5 flex h-8 w-9 items-center justify-center rounded-sm border-b-2 ${workstation.focusedApp === appId ? 'border-accent bg-white/15' : 'border-transparent hover:bg-white/10'}`}
               key={appId}
               onClick={() =>
                 onEvent(remote.focusApp(workstation.assetTag, appId))
@@ -1301,7 +1118,7 @@ function DesktopIcon({
       type="button"
     >
       <span
-        className={`flex h-10 w-10 items-center justify-center rounded-md bg-zinc-950/25 ${Meta.tint}`}
+        className={`flex h-10 w-10 items-center justify-center rounded-md bg-surface/25 ${Meta.tint}`}
       >
         <Meta.Icon aria-hidden="true" className="h-7 w-7" />
       </span>
@@ -1317,7 +1134,7 @@ function StartMenu({
 }) {
   return (
     <div className="absolute bottom-11 left-1 z-40 w-[min(18rem,calc(100%-0.5rem))] border border-white/15 bg-[#142f41]/95 p-3 shadow-2xl backdrop-blur">
-      <p className="px-2 pb-2 text-xs font-bold uppercase tracking-widest text-sky-200">
+      <p className="px-2 pb-2 text-xs font-bold uppercase tracking-widest text-accent">
         Start
       </p>
       <div className="grid grid-cols-2 gap-1">

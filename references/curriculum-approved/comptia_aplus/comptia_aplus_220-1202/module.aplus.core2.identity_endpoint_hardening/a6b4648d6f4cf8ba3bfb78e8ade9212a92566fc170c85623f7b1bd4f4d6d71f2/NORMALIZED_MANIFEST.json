@@ -1,0 +1,73 @@
+{
+  "certification_key": "comptia_aplus",
+  "domain_key": "2.0",
+  "explain_count": 4,
+  "lesson_count": 6,
+  "lessons": [
+    "lesson.aplus.security.encryption",
+    "lesson.aplus.security.identity_controls",
+    "lesson.aplus.security.permissions_ad",
+    "lesson.aplus.security.secure_support_decisions",
+    "lesson.aplus.security.windows_defender_firewall",
+    "lesson.aplus.security.workstation_hardening"
+  ],
+  "manifest_version": 1,
+  "module_key": "module.aplus.core2.identity_endpoint_hardening",
+  "module_title": "Identity, Windows Endpoint & Workstation Hardening",
+  "objectives": [
+    "2.1",
+    "2.2",
+    "2.7"
+  ],
+  "original_filename": "Nexus_APlus_Module_13_Final_v2.zip",
+  "practical_present": true,
+  "provenance": {
+    "module_key": "module.aplus.core2.identity_endpoint_hardening",
+    "principles": [
+      "Reuse strong Nexus concepts first; do not reactivate archived banks wholesale.",
+      "Third-party items are concept-guided adaptations, not verbatim copies.",
+      "Official/vendor documentation is reference material; links are preserved rather than reproduced.",
+      "New items fill job-relevant gaps after reuse review."
+    ],
+    "sources": [
+      {
+        "permission_status": "reference",
+        "source": "CompTIA A+ 220-1202 V15 objectives",
+        "use": "Authoritative objective scope"
+      },
+      {
+        "permission_status": "permitted",
+        "source": "Professor Messer A+ 220-1202 V15",
+        "use": "Required learning spine and concept validation"
+      },
+      {
+        "permission_status": "reference",
+        "source": "Microsoft Learn / Microsoft Support",
+        "use": "Vendor-specific Windows security and BitLocker reference"
+      },
+      {
+        "permission_status": "owned",
+        "source": "Existing Nexus reviewed concepts",
+        "use": "Adapted concepts for selected assessment items"
+      },
+      {
+        "permission_status": "permitted",
+        "source": "ExamCompass 220-1202 V15",
+        "use": "Permitted concept/question-pattern guidance; rewritten"
+      },
+      {
+        "permission_status": "permitted",
+        "source": "Crucial Exams 220-1202 V15",
+        "use": "Permitted concept/question-pattern guidance; rewritten"
+      }
+    ]
+  },
+  "question_count": 36,
+  "resource_count": 9,
+  "service_desk_keys": [
+    "sd.aplus.security.approved_app_standard_user"
+  ],
+  "service_desk_present": true,
+  "source_package_hash": "a6b4648d6f4cf8ba3bfb78e8ade9212a92566fc170c85623f7b1bd4f4d6d71f2",
+  "version_key": "comptia_aplus_220-1202"
+}

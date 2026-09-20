@@ -47,14 +47,14 @@ export function DashboardStats() {
     >
       {stats.map(({ icon: Icon, label, value }) => (
         <Card className="flex items-center gap-3 p-4" key={label}>
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-sky-400/30 bg-sky-400/10 text-sky-400">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-accent/30 bg-accent/10 text-accent">
             <Icon aria-hidden="true" className="h-5 w-5" />
           </span>
           <span>
-            <span className="block font-display text-lg font-bold text-zinc-100">
+            <span className="block font-display text-lg font-bold text-text">
               {value}
             </span>
-            <span className="block text-xs font-bold uppercase tracking-wide text-zinc-500">
+            <span className="block text-xs font-bold uppercase tracking-wide text-text-muted">
               {label}
             </span>
           </span>

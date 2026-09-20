@@ -1,0 +1,87 @@
+prompts:
+- prompt_key: explain.aplus.windows_admin.edition_capability
+  title: Edition Changes the Support Path
+  objectives:
+  - '1.3'
+  prompt: Explain why a technician should verify the Windows edition before troubleshooting
+    a requested business feature such as traditional Active Directory domain join.
+  expected_concepts:
+  - edition determines feature availability
+  - Windows Home lacks some business capabilities such as traditional AD domain join
+  - verify company-supported upgrade/path
+  - do not misdiagnose unsupported feature as network failure
+  minimum_concepts: 3
+  rubric:
+    approved_text: Pass 3/4; must include edition capability plus supported-path reasoning.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module11-explain-v1
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.windows_admin_cli_networking
+  domain: '1.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.windows_admin.choose_console
+  title: Choose the Right Windows Evidence Tool
+  objectives:
+  - '1.4'
+  prompt: A user reports a recurring failure at the same time every day. Explain which
+    built-in Windows tools you would check and what evidence each can provide.
+  expected_concepts:
+  - Event Viewer for time-correlated logs
+  - Task Scheduler if a scheduled task is involved
+  - Task Manager/Resource Monitor when live resource evidence matters
+  - evidence before changes
+  minimum_concepts: 3
+  rubric:
+    approved_text: Pass 3/4 including at least one correct tool-to-evidence relationship.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module11-explain-v1
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.windows_admin_cli_networking
+  domain: '1.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.windows_admin.gpresult_gpupdate
+  title: gpresult vs gpupdate
+  objectives:
+  - '1.5'
+  prompt: Explain the difference between gpresult and gpupdate and why you normally
+    inspect resultant policy before forcing a refresh.
+  expected_concepts:
+  - gpresult reports applied/resultant policy
+  - gpupdate requests a policy refresh
+  - reporting evidence is different from changing/refreshing state
+  - collect evidence before repeated changes
+  minimum_concepts: 3
+  rubric:
+    approved_text: Pass 3/4; must distinguish reporting from refresh.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module11-explain-v1
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.windows_admin_cli_networking
+  domain: '1.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.windows_admin.mapped_drive_firewall
+  title: Safe Windows Network Troubleshooting
+  objectives:
+  - '1.7'
+  - '1.5'
+  prompt: Explain how you would distinguish a stale mapped drive from a broader VPN/file-server
+    problem and why disabling the firewall is a poor shortcut.
+  expected_concepts:
+  - test direct UNC/current share path
+  - use net use to inspect mapping
+  - use DNS/connectivity evidence only as needed
+  - working UNC with bad mapping points to mapping issue
+  - use narrow authorized firewall rules instead of disabling protection
+  minimum_concepts: 4
+  rubric:
+    approved_text: Pass 4/5 including mapping evidence and safe firewall reasoning.
+    minimum_concepts: 4
+    must_include: []
+  rubric_version: module11-explain-v1
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.windows_admin_cli_networking
+  domain: '1.0'
+  importance: working_knowledge

@@ -17,6 +17,6 @@ describe('Tooltip', () => {
     // no classes, so we target the styled surface by class, not by role.
     expect(
       screen.getByText('Helpful detail', { selector: '.sd-tooltip' }),
-    ).toHaveClass('sd-tooltip', 'bg-zinc-800');
+    ).toHaveClass('sd-tooltip', 'bg-surface-muted');
   });
 });

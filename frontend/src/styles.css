@@ -2,6 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+.v2-markdown { color: inherit; line-height: 1.75; }
+.v2-markdown h2 { margin-top: 2rem; margin-bottom: .75rem; font-size: 1.4rem; font-weight: 750; color: rgb(15 23 42); }
+.v2-markdown h3 { margin-top: 1.5rem; margin-bottom: .5rem; font-size: 1.15rem; font-weight: 700; }
+.v2-markdown p { margin: .75rem 0; }
+.v2-markdown ul, .v2-markdown ol { margin: .75rem 0; padding-left: 1.5rem; }
+.v2-markdown ul { list-style: disc; }
+.v2-markdown ol { list-style: decimal; }
+.v2-markdown li { margin: .35rem 0; }
+.v2-markdown code { border-radius: .3rem; background: rgb(241 245 249); padding: .12rem .35rem; font-size: .92em; }
+.v2-markdown pre { max-width: 100%; overflow-x: auto; border-radius: .75rem; background: rgb(15 23 42); padding: 1rem; color: rgb(241 245 249); }
+.v2-markdown pre code { background: transparent; padding: 0; color: inherit; }
+.v2-markdown table { min-width: 36rem; border-collapse: collapse; }
+.v2-markdown th, .v2-markdown td { border: 1px solid rgb(203 213 225); padding: .6rem; text-align: left; }
+.v2-markdown a { color: rgb(37 99 235); text-decoration: underline; text-underline-offset: 2px; }
+.dark .v2-markdown h2 { color: rgb(248 250 252); }
+.dark .v2-markdown h3, .dark .v2-markdown p, .dark .v2-markdown li { color: rgb(226 232 240); }
+.dark .v2-markdown code { background: rgb(30 41 59); }
+.dark .v2-markdown th, .dark .v2-markdown td { border-color: rgb(71 85 105); }
+.dark .v2-markdown a { color: rgb(96 165 250); }
+
 @layer base {
   body {
     @apply bg-slate-50 font-sans text-slate-800 antialiased;

@@ -1,0 +1,181 @@
+resources:
+- resource_key: res.aplus.mobile.laptop_hardware
+  title: Laptop Hardware (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/laptop-hardware-220-1201/
+  provider: Professor Messer
+  duration: '16:42'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.mobile.hardware_safe_service
+    module_key: module.aplus.core1.mobile_device_support
+    required: true
+    order: 1
+- resource_key: res.aplus.mobile.connecting_devices
+  title: Connecting Mobile Devices (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/connecting-mobile-devices-220-1201/
+  provider: Professor Messer
+  duration: '6:08'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.mobile.ports_accessories_docking
+    module_key: module.aplus.core1.mobile_device_support
+    required: true
+    order: 1
+- resource_key: res.aplus.mobile.accessories
+  title: Mobile Device Accessories (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/mobile-device-accessories-220-1201/
+  provider: Professor Messer
+  duration: '7:18'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.mobile.ports_accessories_docking
+    module_key: module.aplus.core1.mobile_device_support
+    required: true
+    order: 2
+- resource_key: res.aplus.mobile.networks
+  title: Mobile Device Networks (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/mobile-device-networks-220-1201/
+  provider: Professor Messer
+  duration: '10:14'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.mobile.connectivity_radios
+    module_key: module.aplus.core1.mobile_device_support
+    required: true
+    order: 1
+- resource_key: res.aplus.mobile.mdm
+  title: Mobile Device Management (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/mobile-device-management-220-1201/
+  provider: Professor Messer
+  duration: '8:31'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.mobile.mdm_sync
+    module_key: module.aplus.core1.mobile_device_support
+    required: true
+    order: 1
+- resource_key: res.aplus.mobile.troubleshooting
+  title: Troubleshooting Mobile Devices (220-1201)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/troubleshooting-mobile-devices-220-1201/
+  provider: Professor Messer
+  duration: '17:52'
+  certification_version: comptia_aplus_220-1201
+  source_name: Professor Messer 220-1201 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.mobile.physical_power_troubleshooting
+    module_key: module.aplus.core1.mobile_device_support
+    required: true
+    order: 1
+  - lesson_key: lesson.aplus.mobile.connectivity_app_performance_troubleshooting
+    module_key: module.aplus.core1.mobile_device_support
+    required: false
+    order: 1
+- resource_key: res.aplus.mobile.apple_safety
+  title: Important safety information for iPhone
+  resource_type: documentation
+  url: https://support.apple.com/guide/iphone/important-safety-information-iph301fc905/26/ios/26
+  provider: Apple
+  duration: reference
+  certification_version: comptia_aplus_220-1201
+  source_name: Apple Support
+  source_url: https://support.apple.com/guide/iphone/important-safety-information-iph301fc905/26/ios/26
+  permission_status: permitted
+  license_note: Linked vendor documentation; not rehosted. Used as safety corroboration,
+    not as the only platform-specific rule.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.mobile.hardware_safe_service
+    module_key: module.aplus.core1.mobile_device_support
+    required: false
+    order: 2
+  - lesson_key: lesson.aplus.mobile.physical_power_troubleshooting
+    module_key: module.aplus.core1.mobile_device_support
+    required: false
+    order: 2
+- resource_key: res.aplus.mobile.android_tethering
+  title: Share a mobile connection by hotspot or tethering on Android
+  resource_type: documentation
+  url: https://support.google.com/android/answer/9059108?hl=en
+  provider: Google
+  duration: reference
+  certification_version: comptia_aplus_220-1201
+  source_name: Android Help
+  source_url: https://support.google.com/android/answer/9059108?hl=en
+  permission_status: permitted
+  license_note: Linked vendor documentation; not rehosted.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.mobile.connectivity_radios
+    module_key: module.aplus.core1.mobile_device_support
+    required: false
+    order: 2
+- resource_key: res.aplus.mobile.intune_core
+  title: Microsoft Intune core concepts
+  resource_type: documentation
+  url: https://learn.microsoft.com/en-us/intune/intune-service/fundamentals/manage-apps
+  provider: Microsoft
+  duration: reference
+  certification_version: comptia_aplus_220-1201
+  source_name: Microsoft Learn
+  source_url: https://learn.microsoft.com/en-us/intune/intune-service/fundamentals/manage-apps
+  permission_status: permitted
+  license_note: Linked vendor documentation; used only for workplace context. Deep
+    Intune administration is out of scope for A+ Module 6.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.mobile.mdm_sync
+    module_key: module.aplus.core1.mobile_device_support
+    required: false
+    order: 2
+- resource_key: res.aplus.mobile.crucial_practice
+  title: CompTIA A+ 220-1201 V15 Practice Tests
+  resource_type: external_practice
+  url: https://crucialexams.com/exams/comptia/a/220-1201/practice-tests-practice-questions
+  provider: Crucial Exams
+  duration: optional practice
+  certification_version: comptia_aplus_220-1201
+  source_name: Crucial Exams 220-1201 V15
+  source_url: https://crucialexams.com/exams/comptia/a/220-1201/practice-tests-practice-questions
+  permission_status: permitted
+  license_note: Optional external practice; no questions copied into Nexus from this
+    page.
+  active: true
+  links:
+  - module_key: module.aplus.core1.mobile_device_support
+    required: false
+    order: 99

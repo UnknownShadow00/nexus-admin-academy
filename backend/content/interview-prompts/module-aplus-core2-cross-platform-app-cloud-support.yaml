@@ -1,0 +1,88 @@
+prompts:
+- prompt_key: explain.aplus.cross_platform.time_machine_filevault
+  title: Time Machine vs FileVault
+  objectives:
+  - '1.8'
+  prompt: Explain Time Machine vs FileVault and give one support situation where each
+    matters.
+  expected_concepts:
+  - Time Machine is backup/version recovery
+  - FileVault is full-disk encryption
+  - backup and encryption solve different problems
+  - example such as restoring a file vs protecting data at rest
+  minimum_concepts: 3
+  rubric:
+    approved_text: Pass 3/4; must correctly distinguish backup from encryption.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module12-explain-v1
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.cross_platform_app_cloud_support
+  domain: '1.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.cross_platform.sudo_evidence
+  title: Safe Linux Elevation
+  objectives:
+  - '1.9'
+  prompt: Explain what sudo does and why an evidence-first technician should not put
+    sudo in front of every Linux command.
+  expected_concepts:
+  - sudo can run an allowed command with elevated privileges
+  - elevation increases impact/risk
+  - many evidence commands can run without elevation
+  - use least privilege/only when required
+  minimum_concepts: 3
+  rubric:
+    approved_text: Pass 3/4 including elevated privilege plus a safety/least-privilege
+      concept.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module12-explain-v1
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.cross_platform_app_cloud_support
+  domain: '1.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.cross_platform.app_install_decision
+  title: Can This App Be Installed?
+  objectives:
+  - '1.10'
+  prompt: Explain the checks you would make before approving a new workstation application
+    install.
+  expected_concepts:
+  - OS/32-bit/64-bit compatibility
+  - CPU/RAM/storage requirements
+  - graphics/VRAM or hardware token if required
+  - approved distribution source/method
+  - device/network/operational/business impact
+  minimum_concepts: 4
+  rubric:
+    approved_text: Pass 4/5 including compatibility and impact.
+    minimum_concepts: 4
+    must_include: []
+  rubric_version: module12-explain-v1
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.cross_platform_app_cloud_support
+  domain: '1.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.cross_platform.sync_license_identity
+  title: Sync vs License vs Identity
+  objectives:
+  - '1.11'
+  prompt: A cloud user can sign in but one desktop app says unlicensed and one folder
+    is not syncing. Explain how you separate identity, licensing, and sync problems.
+  expected_concepts:
+  - successful sign-in proves identity access only at a high level
+  - verify service/application license assignment
+  - inspect sync client/account/folder state separately
+  - check provider scope/status if multiple users affected
+  - verify each original workflow after correction
+  minimum_concepts: 4
+  rubric:
+    approved_text: Pass 4/5 including identity-vs-license and sync separation.
+    minimum_concepts: 4
+    must_include: []
+  rubric_version: module12-explain-v1
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.cross_platform_app_cloud_support
+  domain: '1.0'
+  importance: working_knowledge

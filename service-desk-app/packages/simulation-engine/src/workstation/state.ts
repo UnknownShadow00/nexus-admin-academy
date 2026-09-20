@@ -6,6 +6,8 @@ import {
   WORKSTATION_VPN_LOG_LIMIT,
   getRemoteDesktopTerminalFixture,
   getRemoteDesktopWorkstation,
+  realismFixture,
+  mergeFixtureState,
   type RemoteDesktopAppId,
   type RemoteDesktopDriveStatus,
   type RemoteDesktopServiceState,
@@ -217,7 +219,7 @@ export function createWorkstationState(assetTag: string): WorkstationState {
     },
   ];
 
-  return {
+  const state: WorkstationState = {
     schemaVersion: WORKSTATION_STATE_SCHEMA_VERSION,
     machine: {
       assetTag: fixture.assetTag,
@@ -316,6 +318,21 @@ export function createWorkstationState(assetTag: string): WorkstationState {
       history: [],
       commandHistory: [],
       historyCursor: 0,
+    },
+  };
+  const fault = realismFixture(assetTag);
+  if (!fault) return state;
+  const patched = mergeFixtureState(state, fault.initial);
+  const faultFilesystem = fault.initial.filesystem as {
+    nodes: WorkstationState['filesystem']['nodes'];
+  };
+  return {
+    ...patched,
+    filesystem: {
+      ...patched.filesystem,
+      nodes: JSON.parse(
+        JSON.stringify(faultFilesystem.nodes),
+      ) as WorkstationState['filesystem']['nodes'],
     },
   };
 }

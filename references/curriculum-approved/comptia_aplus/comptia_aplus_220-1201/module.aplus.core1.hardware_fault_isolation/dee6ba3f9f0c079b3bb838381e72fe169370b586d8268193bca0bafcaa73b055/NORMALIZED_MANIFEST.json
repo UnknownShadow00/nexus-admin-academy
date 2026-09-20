@@ -1,0 +1,88 @@
+{
+  "certification_key": "comptia_aplus",
+  "domain_key": "3.0",
+  "explain_count": 4,
+  "lesson_count": 6,
+  "lessons": [
+    "lesson.aplus.hardware.cables_connectors",
+    "lesson.aplus.hardware.core_fault_isolation",
+    "lesson.aplus.hardware.displays_attributes",
+    "lesson.aplus.hardware.power",
+    "lesson.aplus.hardware.ram",
+    "lesson.aplus.hardware.storage_display_troubleshooting"
+  ],
+  "manifest_version": 1,
+  "module_key": "module.aplus.core1.hardware_fault_isolation",
+  "module_title": "PC Hardware, Displays & Fault Isolation",
+  "objectives": [
+    "3.1",
+    "3.2",
+    "3.3",
+    "3.6",
+    "5.1",
+    "5.2",
+    "5.3"
+  ],
+  "original_filename": "Nexus_APlus_Module_08_Final.zip",
+  "practical_present": true,
+  "provenance": {
+    "community_research": {
+      "usage": "Community reports were used only to emphasize hands-on troubleshooting and weak-topic review; technical conclusions were verified against official/current resources."
+    },
+    "module_key": "module.aplus.core1.hardware_fault_isolation",
+    "official_sources": [
+      {
+        "permission_status": "reference",
+        "source_name": "CompTIA A+ 220-1201 V15 Exam Objectives",
+        "source_url": "https://assets.ctfassets.net/82ripq7fjls2/1oSdlyujpaX3GrM0rir6Ge/91afb2be72785281e8fb4c0d9a70c6f4/CompTIA-A-220-1201-Exam-Objectives-3.0.pdf",
+        "usage": "Authoritative objective scope for 3.1,3.2,3.3,3.6,5.1,5.2,5.3."
+      }
+    ],
+    "question_bank_source_mix": {
+      "nexus_authored_source_guided_current_items": 20,
+      "nexus_existing_concept_adaptations": 8,
+      "owner_permitted_examcompass_source_guided_rewrites": 8,
+      "total": 36
+    },
+    "question_sources": [
+      {
+        "permission_status": "Nexus-owned",
+        "source_name": "Nexus Phase A / historical hardware curriculum",
+        "usage": "Eight items adapt validated Nexus storage/POST/power/data-safety concepts into current V15 coverage."
+      },
+      {
+        "permission_status": "owner-permitted third-party",
+        "source_name": "ExamCompass 220-1201 display/cabling/RAM/power/hardware troubleshooting topic banks",
+        "usage": "Eight items are source-guided rewrites; no verbatim archived imports."
+      },
+      {
+        "permission_status": "owner-permitted third-party",
+        "source_name": "Crucial Exams 220-1201 V15",
+        "source_url": "https://crucialexams.com/exams/comptia/a/220-1201/practice-tests-practice-questions",
+        "usage": "Research/optional practice only."
+      }
+    ],
+    "teaching_sources": [
+      {
+        "permission_status": "permitted",
+        "source_name": "Professor Messer 220-1201 V15",
+        "source_url": "https://www.professormesser.com/free-a-plus-training/220-1201/220-1201-video/220-1201-training-course/",
+        "usage": "Required video spine; linked, not rehosted."
+      },
+      {
+        "permission_status": "permitted",
+        "source_name": "Dell Monitor Support",
+        "source_url": "https://www.dell.com/support/kbdoc/en-us/000132110/how-to-troubleshoot-a-dell-desktop-monitor",
+        "usage": "Optional known-good display/isolation reference."
+      }
+    ]
+  },
+  "question_count": 36,
+  "resource_count": 15,
+  "service_desk_keys": [
+    "service_desk.aplus.hardware.render_shutdown"
+  ],
+  "service_desk_present": true,
+  "source_package_hash": "dee6ba3f9f0c079b3bb838381e72fe169370b586d8268193bca0bafcaa73b055",
+  "version_key": "comptia_aplus_220-1201"
+}

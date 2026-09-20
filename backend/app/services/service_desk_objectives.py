@@ -172,8 +172,30 @@ SCENARIO_OBJECTIVES: dict[str, ScenarioObjectiveDefinition] = {
         ),
     ),
     "inc2402": _process(
-        ProcessCategory("investigation", (_terminal("NX-7714", "ipconfig"),)),
-        ProcessCategory("diagnosis", (_terminal("NX-7714", "ping 10.20.0.10"),)),
+        ProcessCategory(
+            "investigation",
+            (
+                _objective(
+                    "ip-configuration-checked",
+                    EvidenceRule(
+                        "remote_desktop.run_terminal_command",
+                        {"assetTag": "NX-7714", "command": "ipconfig"},
+                    ),
+                ),
+            ),
+        ),
+        ProcessCategory(
+            "diagnosis",
+            (
+                _objective(
+                    "internet-reachable-by-ip",
+                    EvidenceRule(
+                        "remote_desktop.run_terminal_command",
+                        {"assetTag": "NX-7714", "command": "ping 10.20.0.10"},
+                    ),
+                ),
+            ),
+        ),
         ProcessCategory(
             "remediation",
             (
@@ -688,6 +710,36 @@ SCENARIO_OBJECTIVES.update(
 )
 
 
+# Student-facing descriptions of evidence the trusted ledger has already
+# established. This catalog is deliberately separate from rule payloads: the
+# workspace may name achieved evidence, but must never expose an unmet rule or
+# its implementation details before completion.
+EVIDENCE_OBJECTIVE_LABELS: dict[str, str] = {
+    "profile-evidence-reviewed": "Profile evidence reviewed",
+    "sign-in-loop-reproduced": "Sign-in loop reproduced",
+    "profile-storage-cleared": "Profile storage cleared",
+    "finance-portal-restored": "Finance portal access restored",
+    "terminal-evidence": "Terminal evidence collected",
+    "ip-configuration-checked": "IP configuration checked",
+    "internet-reachable-by-ip": "Internet reachable by IP",
+    "managed-profile-refreshed": "Managed network profile refreshed",
+    "lease-renewed": "Network lease renewed",
+    "scanner-stable": "Scanner connection confirmed stable",
+    "closure-note": "Resolution documented",
+    "scope-or-evidence-established": "Issue scope and evidence established",
+    "root-cause-isolated": "Root cause isolated",
+    "safe-remediation-applied": "Safe remediation applied",
+    "original-symptom-verified": "Original symptom verified",
+}
+
+
+def evidence_objective_label(identifier: str) -> str:
+    """Return authored student-facing copy with a safe generic fallback."""
+    return EVIDENCE_OBJECTIVE_LABELS.get(
+        identifier, identifier.replace("-", " ").replace("_", " ").title()
+    )
+
+
 def _account_process(
     *,
     ticket_id: str,
@@ -831,7 +883,11 @@ def _device_process(
                     *(
                         EvidenceRule(
                             "chat.verify_identity",
-                            {"ticketId": ticket_id, "contactId": requester_contact_id, "method": method},
+                            {
+                                "ticketId": ticket_id,
+                                "contactId": requester_contact_id,
+                                "method": method,
+                            },
                         )
                         for method in identity_methods
                     ),
@@ -854,7 +910,9 @@ def _device_process(
                 ),
             ),
         ),
-        ProcessCategory("remediation", (_objective("safe-device-action", remediation),)),
+        ProcessCategory(
+            "remediation", (_objective("safe-device-action", remediation),)
+        ),
         ProcessCategory(
             "verification",
             (
@@ -876,7 +934,10 @@ def _device_process(
             (
                 _objective(
                     "requester-confirmed-original-symptom",
-                    EvidenceRule("chat.request_resolution_confirmation", {"ticketId": ticket_id, "contactId": requester_contact_id}),
+                    EvidenceRule(
+                        "chat.request_resolution_confirmation",
+                        {"ticketId": ticket_id, "contactId": requester_contact_id},
+                    ),
                 ),
                 _objective(
                     "meaningful-resolution-note",
@@ -1170,6 +1231,55 @@ def objective_definition(
     stable_key: str, definition_json: dict[str, Any]
 ) -> ScenarioObjectiveDefinition | None:
     key = stable_key.lower()
+    if definition_json.get("objective_catalog_version") in {"realism-v1", "realism-v2"}:
+        fixture = definition_json.get("simulation_fixture", {})
+        categories = fixture.get("categories", {})
+        if not categories:
+            return None
+        return _process(
+            *(
+                ProcessCategory(
+                    name,
+                    tuple(
+                        _objective(
+                            identifier,
+                            *(
+                                EvidenceRule(
+                                    event_type,
+                                    {
+                                        "assetTag": fixture["assetTag"],
+                                        "realismEvidence": identifier,
+                                    },
+                                )
+                                for event_type in (
+                                    "remote_desktop.run_terminal_command",
+                                    "remote_desktop.explorer_navigate",
+                                    "remote_desktop.open_app",
+                                )
+                            ),
+                        )
+                        for identifier in identifiers
+                    ),
+                )
+                if name != "documentation"
+                else ProcessCategory(
+                    name,
+                    (
+                        _objective(
+                            "closure-note",
+                            EvidenceRule(
+                                "remote_desktop.add_internal_note",
+                                {
+                                    "assetTag": fixture["assetTag"],
+                                    "ticketId": definition_json["id"],
+                                },
+                            ),
+                        ),
+                    ),
+                )
+                for name, identifiers in categories.items()
+            )
+        )
     if definition_json.get("objective_catalog_version") == PROCESS_CATALOG_VERSION:
         return SCENARIO_OBJECTIVES.get(key)
     return LEGACY_SCENARIO_OBJECTIVES.get(key) or definition_objectives(definition_json)
@@ -1292,4 +1402,37 @@ def evaluate_objectives(
         and checks.get("verification", False)
         and checks.get("documentation", False)
     )
+    if (definition_json or {}).get("objective_catalog_version") in {"realism-v1", "realism-v2"}:
+        from app.services.service_desk_realism import replay, read_path
+
+        state = replay(definition_json["simulation_fixture"], events)
+        fixture = definition_json["simulation_fixture"]
+        handoff_only = fixture.get("escalation", {}).get("verificationApplicable") is False
+        checks["verification"] = checks["verification"] and all(
+            read_path(state, path) == expected
+            for path, expected in definition_json["simulation_fixture"][
+                "finalConditions"
+            ].items()
+        )
+        checks["professional_outcome"] = not state["realism"]["harmful"]
+        if handoff_only:
+            # No simulated repair or verification is fabricated for a handoff.
+            checks["verification"] = False
+            checks["remediation"] = False
+            checks["technical_complete"] = all(
+                checks.get(name, False)
+                for name in ("investigation", "diagnosis", "documentation", "professional_outcome")
+            ) and all(read_path(state, path) == value for path, value in fixture["finalConditions"].items())
+            return checks["technical_complete"], checks
+        checks["technical_complete"] = all(
+            checks.get(name, False)
+            for name in (
+                "investigation",
+                "diagnosis",
+                "remediation",
+                "verification",
+                "documentation",
+                "professional_outcome",
+            )
+        )
     return checks["technical_complete"], checks

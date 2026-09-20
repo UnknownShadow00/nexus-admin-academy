@@ -22,11 +22,11 @@ export function DocumentationArticleList({
   if (articles.length === 0) {
     return (
       <Card className="flex min-h-64 flex-col items-center justify-center px-5 py-10 text-center">
-        <IconFilterOff aria-hidden="true" className="h-9 w-9 text-zinc-600" />
-        <h2 className="mt-4 text-base font-bold text-zinc-100">
+        <IconFilterOff aria-hidden="true" className="h-9 w-9 text-text-muted" />
+        <h2 className="mt-4 text-base font-bold text-text">
           No articles match your search
         </h2>
-        <p className="mt-2 max-w-md text-sm text-zinc-400">
+        <p className="mt-2 max-w-md text-sm text-text-muted">
           Try a broader service, symptom, or procedure term to bring knowledge
           articles back into view.
         </p>
@@ -38,42 +38,42 @@ export function DocumentationArticleList({
     <section aria-labelledby="documentation-article-list-title">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <p className="font-label text-xs font-extrabold uppercase tracking-widest text-sky-400">
+          <p className="font-label text-xs font-extrabold uppercase tracking-widest text-accent">
             Knowledge articles
           </p>
           <h2
-            className="mt-1 font-display text-xl font-bold text-zinc-100"
+            className="mt-1 font-display text-xl font-bold text-text"
             id="documentation-article-list-title"
           >
             {heading}
           </h2>
         </div>
-        <span className="text-xs font-semibold uppercase text-zinc-500">
+        <span className="text-xs font-semibold uppercase text-text-muted">
           {articles.length} {articles.length === 1 ? 'result' : 'results'}
         </span>
       </div>
-      <Card className="divide-y divide-zinc-800">
+      <Card className="divide-y divide-border">
         {articles.map((article) => (
           <button
-            className="sd-focus-ring group flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-zinc-800/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-400"
+            className="sd-focus-ring group flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-surface-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
             key={article.id}
             onClick={() => onSelect(article.id)}
             type="button"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-zinc-700 bg-zinc-950 text-sky-400">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm border border-border bg-surface text-accent">
               <IconFileText aria-hidden="true" className="h-4 w-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-bold text-zinc-100">
+              <span className="block text-sm font-bold text-text">
                 {article.title}
               </span>
-              <span className="mt-1 block text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              <span className="mt-1 block text-xs font-semibold uppercase tracking-wide text-text-muted">
                 {article.category}
               </span>
             </span>
             <IconChevronRight
               aria-hidden="true"
-              className="h-5 w-5 shrink-0 text-zinc-600 transition-colors group-hover:text-sky-400"
+              className="h-5 w-5 shrink-0 text-text-muted transition-colors group-hover:text-accent"
             />
           </button>
         ))}

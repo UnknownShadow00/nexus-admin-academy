@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
@@ -39,3 +39,13 @@ class Lesson(Base):
     required_notes_template: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Nexus V2 mapping lives in the companion table ``lesson_v2_meta``
+    # (app.models.certification.LessonV2Meta), NOT as columns here, so the
+    # legacy ``lessons`` schema is byte-for-byte unchanged in Phase 1A.
+    v2_meta = relationship(
+        "LessonV2Meta",
+        uselist=False,
+        cascade="all, delete-orphan",
+        back_populates="lesson",
+    )

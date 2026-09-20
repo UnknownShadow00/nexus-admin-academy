@@ -1,0 +1,91 @@
+prompts:
+- prompt_key: explain.aplus.printers.layer_isolation
+  title: Application vs Queue vs Printer
+  objectives:
+  - '3.7'
+  - '5.6'
+  prompt: Explain how a printer-internal test page and an OS test page help separate
+    printer hardware from client/driver/queue problems.
+  expected_concepts:
+  - internal page bypasses client app/OS/driver
+  - good internal page shows printer engine can produce output
+  - OS test page exercises OS/driver/connection without a specific app
+  - good OS test but bad one app points toward application/document/settings
+  - verify original workflow after fix
+  minimum_concepts: 4
+  rubric:
+    approved_text: Pass 4/5 including the distinction between internal and OS test
+      pages.
+    minimum_concepts: 4
+    must_include: []
+  rubric_version: module9-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.printers_mfds
+  domain: '3.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.printers.secure_print
+  title: Why Secure Print Exists
+  objectives:
+  - '3.7'
+  prompt: Explain secure print/PIN/badge release and why a workplace may require it.
+  expected_concepts:
+  - job is held instead of immediately output
+  - authorized user releases at device
+  - reduces unattended confidential output
+  - may support auditing/accountability where configured
+  minimum_concepts: 3
+  rubric:
+    approved_text: Pass 3/4. Equivalent authentication methods accepted.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module9-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.printers_mfds
+  domain: '3.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.printers.maintenance_types
+  title: Technology-Specific Maintenance
+  objectives:
+  - '3.8'
+  prompt: Give one maintenance task for laser, inkjet, thermal, and impact printers
+    and explain why the same consumable is not used for all four.
+  expected_concepts:
+  - laser toner/maintenance kit/calibration/fuser safety
+  - inkjet cartridge/print-head cleaning/calibration
+  - thermal correct paper/heating-path cleaning
+  - impact ribbon/print-head/tractor-feed maintenance
+  - technologies use different imaging/marking mechanisms
+  minimum_concepts: 4
+  rubric:
+    approved_text: Pass 4/5 and must include at least three distinct printer technologies
+      correctly.
+    minimum_concepts: 4
+    must_include: []
+  rubric_version: module9-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.printers_mfds
+  domain: '3.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.printers.frozen_queue
+  title: Frozen Print Queue
+  objectives:
+  - '5.6'
+  prompt: Explain how you would investigate a frozen/backlogged Windows print queue
+    without immediately blaming the printer.
+  expected_concepts:
+  - check scope/other clients/printer status
+  - inspect queue/error state
+  - use test page or known-good client
+  - inspect/restart Print Spooler according to approval/procedure
+  - check driver/port/share path
+  - verify original job after correction
+  minimum_concepts: 4
+  rubric:
+    approved_text: Pass 4/6 including queue/spooler evidence and verification.
+    minimum_concepts: 4
+    must_include: []
+  rubric_version: module9-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.printers_mfds
+  domain: '3.0'
+  importance: working_knowledge

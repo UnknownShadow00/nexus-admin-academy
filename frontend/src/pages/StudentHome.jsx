@@ -6,21 +6,51 @@ import { XPBadge } from "../components/ui/Badge";
 import PageHeader from "../components/ui/PageHeader";
 import { getCurrentStudent } from "../hooks/useAuth";
 import { checkInStudent, getLabs, getServiceDeskProgressSummary, getStudentStats, getTrainingDashboard } from "../services/api";
+import { getV2Learning } from "../services/api";
+import { useV2Access } from "../hooks/useV2Access";
+import V2Status from "../components/v2/V2Status";
 import { iconSizes, scoreBand } from "../utils/theme";
 
 function SkeletonCard() {
   return <div className="panel h-28 animate-pulse dark:border-slate-700 dark:bg-slate-900" />;
 }
 
+export function buildContinueTarget(v2Learning, training) {
+  const v2 = v2Learning?.current;
+  if (v2) {
+    const next = v2.continue;
+    const activityType = ({ lesson: "Lesson", resource: "Required resource", quick_check: "Quick Check", module_quiz: "Module Quiz", practical: "Practical", service_desk: "Service Desk", explain: "Explain" })[next.kind] || "Course activity";
+    const status = next.status || "not_started";
+    const label = ["needs_review", "failed", "passed"].includes(status)
+      ? "Review result"
+      : status === "completed" || next.kind === "complete"
+        ? "Review result"
+        : status === "in_progress"
+          ? next.kind === "service_desk" ? "Resume" : "Continue"
+          : "Start";
+    return { activityType, certification: v2.certification.name, detail: v2.module.title, estimatedMinutes: next.estimated_minutes, label, status, title: next.title, to: next.route, v2: true };
+  }
+  const module = training?.current_module;
+  const stage = training?.current_stage;
+  const next = training?.next_activity;
+  if (!module) return { label: "Open Learning Path", to: "/learning-path", title: "Learning Path", detail: "Open your learning path." };
+  if (training.training_complete) return { label: "Review Training", to: "/learning-path", title: "Training Complete", detail: "Review completed modules or revisit course content." };
+  const fresh = module.stable_id === "module.orientation.nexus" && module.required_complete === 0;
+  return { label: fresh ? "Start Training" : "Continue Training", to: next?.destination_route || module.route, title: fresh ? "Begin Your IT Training" : "Continue where you left off", detail: `${stage?.title || "Learning Path"} — ${module.title}` };
+}
+
 export default function StudentHome() {
   const studentId = getCurrentStudent()?.id;
   const [stats, setStats] = useState(null);
   const [training, setTraining] = useState(null);
+  const [v2Learning, setV2Learning] = useState(null);
   const [serviceDeskSummary, setServiceDeskSummary] = useState(null);
   const [activeLab, setActiveLab] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [retryKey, setRetryKey] = useState(0);
+  // Today only fetches and shows V2 work for students actually in the pilot.
+  const { studentEnabled: v2Enabled, loading: v2AccessLoading } = useV2Access(Boolean(studentId));
 
   useEffect(() => {
     if (!studentId) {
@@ -28,6 +58,10 @@ export default function StudentHome() {
       setLoading(false);
       return;
     }
+    // Hold the first read until pilot access is known, so Today is composed
+    // once rather than rendering without a pilot student's course and then
+    // rearranging under them.
+    if (v2AccessLoading) return;
     const run = async () => {
       setLoading(true);
       setLoadError("");
@@ -35,22 +69,27 @@ export default function StudentHome() {
         // A failed check-in must not block Today; awaiting the handled request
         // lets the following read include the latest streak when it succeeds.
         await checkInStudent(studentId, { suppressToast: true }).catch(() => null);
-        const [res, trainingRes] = await Promise.all([
+        const [res, trainingRes, v2Res] = await Promise.all([
           getStudentStats(studentId, { suppressToast: true }),
           getTrainingDashboard({ suppressToast: true }),
+          v2Enabled ? getV2Learning({ suppressToast: true }) : Promise.resolve(null),
         ]);
         setStats(res?.data || null);
         setTraining(trainingRes?.data || null);
+        setV2Learning(v2Res?.data || null);
       } catch {
         setStats(null);
         setTraining(null);
+        setV2Learning(null);
         setLoadError("Today could not be loaded. Check your connection, then try again.");
       } finally {
         setLoading(false);
       }
     };
     run();
-  }, [retryKey, studentId]);
+    // Wait for the access answer before the first read, so a pilot student
+    // does not briefly render Today without their course.
+  }, [retryKey, studentId, v2Enabled, v2AccessLoading]);
 
   useEffect(() => {
     if (!studentId) return;
@@ -68,19 +107,8 @@ export default function StudentHome() {
   }, [studentId, retryKey]);
 
   const continueTarget = useMemo(() => {
-    const module = training?.current_module;
-    const stage = training?.current_stage;
-    const next = training?.next_activity;
-    if (!module) return { label: "Open Learning Path", to: "/learning-path", title: "Learning Path", detail: "Open your learning path." };
-    if (training.training_complete) return { label: "Review Training", to: "/learning-path", title: "Training Complete", detail: "Review completed modules or revisit course content." };
-    const fresh = module.stable_id === "module.orientation.nexus" && module.required_complete === 0;
-    return {
-      label: fresh ? "Start Training" : "Continue Training",
-      to: next?.destination_route || module.route,
-      title: fresh ? "Begin Your IT Training" : "Continue where you left off",
-      detail: `${stage?.title || "Learning Path"} — ${module.title}`,
-    };
-  }, [training]);
+    return buildContinueTarget(v2Learning, training);
+  }, [training, v2Learning]);
 
   if (loading) {
     return (
@@ -118,18 +146,24 @@ export default function StudentHome() {
   ];
   const activeTicket = serviceDeskSummary?.active_attempt;
   const recentFeedback = serviceDeskSummary?.recent_mentor_feedback;
+  const explainFeedback = v2Learning?.current?.explain_feedback;
   const needsPractice = serviceDeskSummary?.needs_practice || [];
-  const hasFollowUpWidgets = Boolean(activeTicket || activeLab || recentFeedback);
+  const hasFollowUpWidgets = Boolean(activeTicket || activeLab || recentFeedback || explainFeedback);
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
-      <PageHeader title="Today" subtitle="One clear next step at a time." />
+      <PageHeader
+        title="Today"
+        subtitle={v2Enabled
+          ? `${stats.name || "Student"}, here is the one thing to do next.`
+          : "One clear next step at a time."}
+      />
 
       <section className="rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-700 p-5 text-white shadow-lg sm:p-7">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">{learningPhase?.label || "Learning Path"}</p>
         <h2 className="mt-2 text-2xl font-bold sm:text-3xl">{continueTarget.title}</h2>
-        <p className="mt-2 text-blue-100">{continueTarget.detail}</p>
-        {training?.next_activity ? (
+        <p className="mt-2 text-blue-100">{continueTarget.certification ? `${continueTarget.certification} · ` : ""}{continueTarget.detail}</p>
+        {continueTarget.v2 ? <div className="mt-4 flex flex-wrap items-center gap-3"><span className="rounded-full bg-white/15 px-3 py-1 text-sm font-semibold">{continueTarget.activityType}</span><V2Status status={continueTarget.status} />{continueTarget.estimatedMinutes ? <span className="inline-flex items-center gap-1 text-sm text-blue-100"><Clock3 size={14} aria-hidden="true" />About {continueTarget.estimatedMinutes} min</span> : null}</div> : training?.next_activity ? (
           <div className="mt-4 flex flex-col gap-3 rounded-xl border border-white/20 bg-blue-950/20 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-wide text-blue-200">Next up</p>
@@ -139,11 +173,15 @@ export default function StudentHome() {
             <ArrowRight className="hidden shrink-0 text-blue-200 sm:block" size={20} aria-hidden="true" />
           </div>
         ) : null}
-        {training?.current_module ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{training.current_module.required_complete} of {training.current_module.required_total} required activities complete</span><strong>{training.current_module.completion_percent}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${training.current_module.completion_percent}%` }} /></div></div> : null}
+        {v2Learning?.current ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{v2Learning.current.progress.lessons.completed} of {v2Learning.current.progress.lessons.total} lessons complete</span><strong>{v2Learning.current.progress.module_complete ? "Complete" : "In progress"}</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${v2Learning.current.progress.lessons.total ? Math.round(v2Learning.current.progress.lessons.completed / v2Learning.current.progress.lessons.total * 100) : 0}%` }} /></div></div> : training?.current_module ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{training.current_module.required_complete} of {training.current_module.required_total} required activities complete</span><strong>{training.current_module.completion_percent}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${training.current_module.completion_percent}%` }} /></div></div> : null}
         <Link className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 font-bold text-blue-700 hover:bg-blue-50" to={continueTarget.to}>{continueTarget.label}</Link>
       </section>
 
-      {training?.current_module ? (
+      {v2Learning?.current ? (
+        <section className="panel">
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">Current module</p><h2 className="mt-1 text-xl font-semibold">{v2Learning.current.module.title}</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Course progress and every available activity are in My Course.</p></div><Link className="btn-secondary" to={`/learning-v2/modules/${v2Learning.current.module.key}`}>Open module</Link></div>
+        </section>
+      ) : training?.current_module ? (
         <section className="panel space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-400">Current Module</p><h2 className="mt-1 text-xl font-semibold text-slate-900 dark:text-white">{training.current_module.title}</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{training.current_stage?.title}</p></div>
@@ -158,6 +196,8 @@ export default function StudentHome() {
           {optionalActivities.length ? <p className="rounded-lg bg-violet-50 px-3 py-2 text-sm text-violet-800 dark:bg-violet-950/30 dark:text-violet-200"><strong>Optional practice:</strong> {optionalActivities.length} item{optionalActivities.length === 1 ? "" : "s"}. These do not block your next module.</p> : null}
         </section>
       ) : null}
+
+      {v2Enabled ? <section className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><h2 className="font-semibold">Extra practice</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">The legacy Learning Path and labs are optional during the V2 transition.</p><Link className="mt-2 inline-flex text-sm font-semibold text-blue-600 dark:text-blue-400" to="/learning-path">Open legacy Learning Path →</Link></section> : null}
 
       {hasFollowUpWidgets ? (
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -181,6 +221,13 @@ export default function StudentHome() {
               <p className="font-semibold text-slate-900 dark:text-slate-100">{recentFeedback.scenario_title}</p>
               <p className="line-clamp-3 text-sm text-slate-600 dark:text-slate-300">{recentFeedback.feedback}</p>
             </div>
+          ) : null}
+          {explainFeedback ? (
+            <Link className="panel flex flex-col gap-2 p-4 hover:border-blue-300 dark:hover:border-blue-700" to={explainFeedback.route}>
+              <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300"><MessageSquare size={14} aria-hidden="true" />Explain feedback</span>
+              <p className="font-semibold text-slate-900 dark:text-slate-100">{explainFeedback.status === "needs_review" ? "Waiting for grading" : "Feedback available"}</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300">{explainFeedback.message || "Open your response to see its current status."}</p>
+            </Link>
           ) : null}
         </section>
       ) : null}

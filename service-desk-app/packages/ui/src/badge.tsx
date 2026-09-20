@@ -7,10 +7,10 @@ import { cn } from './lib/cn';
 export type BadgeVariant = 'amber' | 'default' | 'sky' | 'success';
 
 const badgeVariants: Record<BadgeVariant, string> = {
-  amber: 'border-amber-400/30 bg-amber-400/10 text-amber-300',
-  default: 'border-zinc-700 bg-zinc-800 text-zinc-300',
-  sky: 'border-sky-400/30 bg-sky-400/10 text-sky-300',
-  success: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+  amber: 'border-warning/30 bg-warning/10 text-warning',
+  default: 'border-border bg-surface-muted text-text',
+  sky: 'border-accent/30 bg-accent/10 text-accent',
+  success: 'border-success/30 bg-success/10 text-success',
 };
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
@@ -34,11 +34,13 @@ export function Badge({
   );
 }
 
+// A four-step severity ramp built from the semantic tokens, so it stays legible
+// in both themes: danger for the two red tiers, warning for the two amber ones.
 const priorityClasses: Record<Priority, string> = {
-  [Priority.Critical]: 'text-red-500',
-  [Priority.High]: 'text-red-400',
-  [Priority.Medium]: 'text-orange-400',
-  [Priority.Low]: 'text-amber-500',
+  [Priority.Critical]: 'text-danger',
+  [Priority.High]: 'text-danger/85',
+  [Priority.Medium]: 'text-warning',
+  [Priority.Low]: 'text-warning/85',
 };
 
 export interface PriorityBadgeProps extends HTMLAttributes<HTMLSpanElement> {
@@ -58,7 +60,7 @@ export function PriorityBadge({
       className={cn(
         'sd-priority-badge inline-flex items-center text-xs font-extrabold uppercase',
         priorityClasses[priority],
-        pill && 'rounded-sm border border-current/30 bg-zinc-950 px-2 py-0.5',
+        pill && 'rounded-sm border border-current/30 bg-surface px-2 py-0.5',
         className,
       )}
       data-priority={priority}

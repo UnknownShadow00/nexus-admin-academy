@@ -81,15 +81,15 @@ export function DirectoryUserDetail({
         <CardHeader meta={`@${user.username}`} title="User profile" />
         <div className="p-4">
           <h2
-            className="font-display text-xl font-bold text-zinc-100"
+            className="font-display text-xl font-bold text-text"
             id="directory-user-name"
           >
             {user.fullName}
           </h2>
-          <p className="mt-1 text-sm text-zinc-400">
+          <p className="mt-1 text-sm text-text-muted">
             {user.jobTitle} · {user.department}
           </p>
-          <p className="mt-1 text-xs font-semibold uppercase text-zinc-500">
+          <p className="mt-1 text-xs font-semibold uppercase text-text-muted">
             Primary asset {user.assetTag}
           </p>
           {!isStarterAccountCase || user.accountInspected ? (
@@ -115,22 +115,22 @@ export function DirectoryUserDetail({
                 ) : null}
               </div>
               {isStarterAccountCase ? (
-                <dl className="grid gap-2 rounded-sm border border-zinc-800 bg-zinc-950/60 p-3 text-xs sm:grid-cols-2">
+                <dl className="grid gap-2 rounded-sm border border-border bg-surface/60 p-3 text-xs sm:grid-cols-2">
                   <div>
-                    <dt className="font-bold uppercase tracking-wide text-zinc-500">
+                    <dt className="font-bold uppercase tracking-wide text-text-muted">
                       Primary authentication
                     </dt>
-                    <dd className="mt-1 text-zinc-200">
+                    <dd className="mt-1 text-text">
                       {user.primaryAuthSucceeds
                         ? 'Expected to succeed'
                         : 'Blocked'}
                     </dd>
                   </div>
                   <div>
-                    <dt className="font-bold uppercase tracking-wide text-zinc-500">
+                    <dt className="font-bold uppercase tracking-wide text-text-muted">
                       Registered MFA factor
                     </dt>
-                    <dd className="mt-1 text-zinc-200">
+                    <dd className="mt-1 text-text">
                       {user.mfaFactorStatus === 'device-unavailable'
                         ? 'Device unavailable'
                         : user.mfaFactorStatus === 'reset-ready'
@@ -142,7 +142,7 @@ export function DirectoryUserDetail({
               ) : null}
             </div>
           ) : (
-            <p className="mt-4 rounded-sm border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-400">
+            <p className="mt-4 rounded-sm border border-border bg-surface px-3 py-2 text-sm text-text-muted">
               Account status has not been reviewed yet.
             </p>
           )}
@@ -183,7 +183,7 @@ export function DirectoryUserDetail({
               ) : (
                 <Link
                   aria-disabled={!user.accountInspected}
-                  className={`sd-button sd-button--light sd-focus-ring inline-flex min-h-10 items-center justify-center rounded-sm border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-extrabold uppercase text-zinc-900 ${!user.accountInspected ? 'pointer-events-none opacity-50' : ''}`}
+                  className={`sd-button sd-button--light sd-focus-ring inline-flex min-h-10 items-center justify-center rounded-sm border border-border bg-surface-raised px-4 py-2 text-sm font-extrabold uppercase text-text ${!user.accountInspected ? 'pointer-events-none opacity-50' : ''}`}
                   href={`/tools/company-chat?contact=${user.id}${supportTicketId ? `&ticket=${supportTicketId}` : ''}`}
                 >
                   Verify through Company Chat
@@ -208,7 +208,7 @@ export function DirectoryUserDetail({
                 </Button>
               ) : null}
             </div>
-            <p className="text-xs leading-relaxed text-zinc-500">
+            <p className="text-xs leading-relaxed text-text-muted">
               Training assumption: the identity check represents an approved
               internal verification process. Never request or record a real
               password, recovery code, or security answer.
@@ -335,7 +335,7 @@ export function DirectoryUserDetail({
                   trigger={
                     <button
                       aria-label={`Remove ${group} from ${user.fullName}`}
-                      className="sd-focus-ring rounded-sm p-0.5 text-sky-200 hover:bg-sky-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                      className="sd-focus-ring rounded-sm p-0.5 text-accent hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                       type="button"
                     >
                       <IconX aria-hidden="true" className="h-3 w-3" />
@@ -384,18 +384,18 @@ export function DirectoryUserDetail({
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader title="Devices" />
-          <div className="divide-y divide-zinc-800">
+          <div className="divide-y divide-border">
             {user.devices.map((device) => (
               <div className="flex gap-3 p-4" key={device.assetTag}>
                 <IconDeviceLaptop
                   aria-hidden="true"
-                  className="h-5 w-5 shrink-0 text-sky-400"
+                  className="h-5 w-5 shrink-0 text-accent"
                 />
                 <div>
-                  <p className="text-sm font-bold text-zinc-100">
+                  <p className="text-sm font-bold text-text">
                     {device.assetTag}
                   </p>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-text-muted">
                     {device.deviceType} · {device.status}
                   </p>
                 </div>
@@ -405,13 +405,13 @@ export function DirectoryUserDetail({
         </Card>
         <Card>
           <CardHeader title="Licenses" />
-          <div className="divide-y divide-zinc-800">
+          <div className="divide-y divide-border">
             {user.licenses.map((license) => (
               <div
                 className="flex items-center justify-between gap-3 p-4"
                 key={license.productName}
               >
-                <p className="text-sm font-semibold text-zinc-200">
+                <p className="text-sm font-semibold text-text">
                   {license.productName}
                 </p>
                 <Badge variant={license.assigned ? 'success' : 'default'}>

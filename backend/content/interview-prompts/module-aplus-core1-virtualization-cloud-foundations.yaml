@@ -1,0 +1,85 @@
+prompts:
+- prompt_key: explain.aplus.virtualization_cloud.hypervisor_types
+  title: Type 1 vs Type 2 Hypervisors
+  objectives:
+  - '4.1'
+  prompt: Explain Type 1 and Type 2 hypervisors and give one realistic use case for
+    each.
+  expected_concepts:
+  - Type 1 runs directly on hardware
+  - Type 2 runs on a host OS
+  - server/datacenter use for Type 1
+  - desktop/test/lab use for Type 2
+  minimum_concepts: 3
+  rubric:
+    approved_text: 1 point per concept; pass 3/4; vendor-neutral examples accepted.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module10-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.virtualization_cloud_foundations
+  domain: '4.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.virtualization_cloud.vm_container
+  title: VM vs Container
+  objectives:
+  - '4.1'
+  prompt: Explain one practical difference between a VM and a container and why it
+    matters for support/resource planning.
+  expected_concepts:
+  - VM has a fuller separate guest OS environment
+  - container shares more host OS resources
+  - containers are generally lighter
+  - choice depends on isolation/compatibility/resources
+  minimum_concepts: 3
+  rubric:
+    approved_text: Pass 3/4; vendor-neutral wording accepted.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module10-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.virtualization_cloud_foundations
+  domain: '4.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.virtualization_cloud.service_models
+  title: SaaS vs PaaS vs IaaS
+  objectives:
+  - '4.2'
+  prompt: Explain SaaS, PaaS, and IaaS in plain language and how the support boundary
+    changes.
+  expected_concepts:
+  - SaaS finished application/provider-managed stack
+  - PaaS managed platform/runtime
+  - IaaS infrastructure with more customer OS/app responsibility
+  - support ownership changes by model
+  minimum_concepts: 3
+  rubric:
+    approved_text: Pass 3/4 including at least two model distinctions and ownership.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module10-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.virtualization_cloud_foundations
+  domain: '4.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.virtualization_cloud.elasticity_availability
+  title: Elasticity vs Availability
+  objectives:
+  - '4.2'
+  prompt: Explain elasticity vs availability and why file synchronization is not the
+    same as backup.
+  expected_concepts:
+  - elasticity changes capacity with demand
+  - availability is service reachability/uptime
+  - sync keeps copies aligned
+  - sync can propagate deletion/corruption and is not independent backup
+  minimum_concepts: 3
+  rubric:
+    approved_text: Pass 3/4; must distinguish elasticity from availability.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: module10-explain-v1
+  certification_version: comptia_aplus_220-1201
+  module: module.aplus.core1.virtualization_cloud_foundations
+  domain: '4.0'
+  importance: working_knowledge

@@ -1,0 +1,111 @@
+resources:
+- resource_key: res.aplus.service_desk.ticketing_systems
+  title: Ticketing Systems (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/ticketing-systems-220-1202/
+  provider: Professor Messer
+  duration: '13:48'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.service_desk.ticket_intake_triage
+    module_key: module.aplus.core2.service_desk_workflow
+    required: true
+    order: 1
+  - lesson_key: lesson.aplus.service_desk.ticket_notes_user_updates
+    module_key: module.aplus.core2.service_desk_workflow
+    required: true
+    order: 1
+  - lesson_key: lesson.aplus.service_desk.escalation_handoffs_sla
+    module_key: module.aplus.core2.service_desk_workflow
+    required: true
+    order: 1
+- resource_key: res.aplus.service_desk.asset_management
+  title: Asset Management (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/asset-management-220-1202/
+  provider: Professor Messer
+  duration: '4:51'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.service_desk.assets_cmdb_docs_slas
+    module_key: module.aplus.core2.service_desk_workflow
+    required: true
+    order: 1
+- resource_key: res.aplus.service_desk.document_types
+  title: Document Types (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/document-types-220-1202/
+  provider: Professor Messer
+  duration: '7:29'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.service_desk.assets_cmdb_docs_slas
+    module_key: module.aplus.core2.service_desk_workflow
+    required: true
+    order: 2
+- resource_key: res.aplus.service_desk.change_management
+  title: Change Management (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/change-management-220-1202/
+  provider: Professor Messer
+  duration: '21:42'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.service_desk.change_management
+    module_key: module.aplus.core2.service_desk_workflow
+    required: true
+    order: 1
+- resource_key: res.aplus.service_desk.professionalism
+  title: Professionalism (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/professionalism-220-1202/
+  provider: Professor Messer
+  duration: '4:47'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.service_desk.professional_communication
+    module_key: module.aplus.core2.service_desk_workflow
+    required: true
+    order: 1
+- resource_key: res.aplus.service_desk.communication
+  title: Communication (220-1202)
+  resource_type: video
+  url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/communication-220-1202/
+  provider: Professor Messer
+  duration: '7:00'
+  certification_version: comptia_aplus_220-1202
+  source_name: Professor Messer 220-1202 V15
+  source_url: https://www.professormesser.com/free-a-plus-training/220-1202/220-1202-video/220-1202-training-course/
+  permission_status: permitted
+  license_note: Linked external resource; not rehosted by Nexus.
+  active: true
+  links:
+  - lesson_key: lesson.aplus.service_desk.professional_communication
+    module_key: module.aplus.core2.service_desk_workflow
+    required: true
+    order: 2

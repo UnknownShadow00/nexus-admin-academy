@@ -1,0 +1,86 @@
+labs:
+- title: 'Print Path Lab: From Application to Paper'
+  description: Prove the student can deploy/inspect a printer, isolate print-path
+    layers, choose technology-specific maintenance, and document verification.
+  estimated_minutes: 55
+  environment_requirements:
+    environment: Browser/Windows/document simulation with queue screenshots, test
+      pages, printer status/config pages, network evidence, and sample output defects.
+      Optional real printer if authorized. No VM required.
+  success_criteria:
+    practical_key: practical.aplus.printers.layered_isolation
+    module_key: module.aplus.core1.printers_mfds
+    vm_required: false
+    student_instructions:
+    - Do not reset shared printers, clear other users jobs, install unsigned drivers,
+      or change network/security settings without authorization.
+    - Use supplied evidence if you do not have an approved printer.
+    - Treat hot fusers and grinding/mechanical faults according to safety guidance.
+    tasks:
+    - part: A
+      title: Deployment check
+      steps:
+      - Choose supported connection/driver and stable network design for a supplied
+        MFD.
+      - Set duplex/tray/orientation defaults for the described workflow.
+      - Choose appropriate secure-print and scan destination options.
+      evidence: Deployment checklist and rationale.
+    - part: B
+      title: Layer isolation
+      steps:
+      - Use internal printer page, OS test page, and application result for three
+        cases.
+      - Identify whether each fault is application, driver/queue, connectivity, or
+        printer hardware/media.
+      evidence: Evidence matrix with fault domain.
+    - part: C
+      title: Maintenance matching
+      steps:
+      - Match laser, inkjet, thermal, and impact symptoms to correct maintenance/consumable
+        actions.
+      - Identify fuser/heat and grinding/mechanical safety concerns.
+      evidence: Technology → symptom → safe maintenance table.
+    - part: D
+      title: Resolve/document one queue ticket
+      steps:
+      - Inspect supplied Windows queue/spooler/driver evidence.
+      - Choose an approved remediation or escalation.
+      - Verify OS test page and original user document.
+      - Write internal resolution note and plain-language user update.
+      evidence: Final technician note + verification.
+    expected_results:
+    - Student uses test pages to separate layers instead of guessing.
+    - Student chooses printer-technology-specific maintenance.
+    - Student respects print security/shared-queue permissions.
+    - Student verifies the original user workflow after lower-level tests pass.
+    rubric:
+      total_points: 20
+      pass_points: 14
+      dimensions:
+      - name: Deployment/configuration
+        points: 4
+      - name: Layer isolation
+        points: 5
+      - name: Technology-specific maintenance
+        points: 4
+      - name: Queue troubleshooting
+        points: 4
+      - name: Verification/documentation
+        points: 3
+      automatic_fail_conditions:
+      - Disables secure-print/authentication or clears other users shared jobs without
+        authorization.
+      - Services a hot fuser unsafely or continues repeated printing through severe
+        grinding/mechanical damage.
+      - Claims resolution without original-document verification.
+    hints:
+    - A printer-internal page and Windows test page exercise different layers.
+    - If one neighboring workstation prints successfully, use it as a control group.
+    - A thermal printer does not need toner.
+    - The user cares whether the original document prints, not just whether a test
+      page exists.
+  required_evidence:
+    student_tasks: []
+  source_name: null
+  lab_type: guided
+  is_published: true

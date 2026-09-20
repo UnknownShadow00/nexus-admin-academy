@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 
 const studentUsername = process.env.NEXUS_E2E_STUDENT_USERNAME || "browser-training-student";
 const studentPassword = process.env.NEXUS_E2E_STUDENT_PASSWORD || "BrowserTraining!2026";
+const freshStudentUsername = process.env.NEXUS_E2E_FRESH_A_USERNAME || "browser-fresh-student-a";
+const freshStudentPassword = process.env.NEXUS_E2E_FRESH_A_PASSWORD || "BrowserFreshStudent!2026";
 const adminUsername = process.env.NEXUS_E2E_ADMIN_USERNAME || "browser-admin";
 const adminPassword = process.env.NEXUS_E2E_ADMIN_PASSWORD || "BrowserAdmin!2026";
 const apiBaseUrl = process.env.NEXUS_E2E_API_URL || "http://127.0.0.1:8011";
@@ -118,7 +120,7 @@ test("student authentication rejects invalid credentials and protects private ro
 test("student follows My Training on desktop and mobile", async ({ page }) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await studentLogin(page);
+  await studentLogin(page, freshStudentUsername, freshStudentPassword);
   const monitor = monitorPage(page);
 
   await expect(page.getByRole("link", { name: "Today", exact: true })).toBeVisible();
@@ -271,7 +273,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   // report a 401 even though the protected-route behavior is correct.
   await page.waitForLoadState("networkidle");
   monitor.pause();
-  await page.getByRole("button", { name: "Browser Training Student" }).click();
+  await page.getByRole("button", { name: "Fresh Progression Student A" }).click();
   await expect(page).toHaveURL(/\/login$/);
 
   expect(monitor.consoleErrors).toEqual([]);
@@ -367,6 +369,12 @@ test("required Nexus-authored quiz grades and reviews every answer", async ({ pa
     for (const option of correctOptions) {
       await questionPanel.getByText(option, { exact: true }).click();
     }
+    // Wait for React to commit the answer before navigating. Without this,
+    // the click on Next can race the final option-state update in CI.
+    await expect(page.getByRole("button", {
+      name: `Go to question ${index}, answered`,
+      exact: true,
+    })).toBeVisible();
     await page.getByRole("button", { name: index === 8 ? "Submit Quiz" : "Next", exact: true }).click();
   }
 
@@ -504,9 +512,12 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     await page.getByRole("link", { name: "Start Next Module" }).click();
     await expect(page).toHaveURL(/(?:\/lessons\/\d+|\/training\/module\/module\.endpoint\.support_workflow)$/);
     if (new URL(page.url()).pathname !== weekOneLessonPath) {
-      await page.getByRole("link", { name: /Anatomy of a Good Ticket/ }).click();
-      await expect(page).toHaveURL(new RegExp(`${weekOneLessonPath}$`));
+      // The module landing page can choose a different current activity when
+      // seed ordering ties. The API-provided next lesson is the stable target
+      // whose lock transition this test owns.
+      await page.goto(weekOneLessonPath);
     }
+    await expect(page).toHaveURL(new RegExp(`${weekOneLessonPath}$`));
     await expect(page.getByRole("heading", { name: "Anatomy of a Good Ticket" })).toBeVisible();
     await page.reload();
     await expect(page.getByRole("heading", { name: "Anatomy of a Good Ticket" })).toBeVisible();

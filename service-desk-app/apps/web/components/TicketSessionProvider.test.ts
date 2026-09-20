@@ -1,12 +1,81 @@
-import { createAttempt } from '@service-desk/simulation-engine';
-import { AssetStatus, TICKET_FIXTURES } from '@service-desk/shared';
+import { applyAction, createAttempt } from '@service-desk/simulation-engine';
+import {
+  AssetStatus,
+  TicketStatus,
+  TICKET_FIXTURES,
+} from '@service-desk/shared';
 import { describe, expect, it } from 'vitest';
 
 import {
+  documentationTargetForTicket,
   getNexusActionSyncDetails,
   normalizeTicketKey,
+  resolutionNoteAction,
+  resetTicketStateForRetry,
+  selectAssignmentsByTicket,
   ticketsForAssignments,
 } from './TicketSessionProvider';
+import type { NexusAssignment } from '../lib/nexus-service-desk-client';
+
+function assignmentForMode(
+  id: number,
+  mode: 'learning' | 'simulation',
+  guidedCompleted: boolean,
+): NexusAssignment {
+  return {
+    id,
+    is_required: true,
+    latest_published_version: {
+      definition_json: structuredClone(TICKET_FIXTURES[0]),
+      id: 10,
+      version_number: 2,
+    },
+    mode,
+    experience_mode: mode === 'learning' ? 'guided' : 'assessment',
+    guided_completed: guidedCompleted,
+    most_recent_attempt: null,
+    maximum_attempts: 3,
+    required_this_week: true,
+    scenario: { stable_key: TICKET_FIXTURES[0].id, title: TICKET_FIXTURES[0].title },
+    scenario_id: 1,
+  };
+}
+
+describe('resolution note routing', () => {
+  it('uses the scenario workflow only when no server target is available', () => {
+    expect(documentationTargetForTicket('INC2406')).toBe('remote_desktop');
+    expect(documentationTargetForTicket('INC2511')).toBe('ticket');
+    expect(documentationTargetForTicket('INC2406', 'ticket')).toBe('ticket');
+  });
+
+  it('routes each server documentation target to its graded event', () => {
+    expect(
+      resolutionNoteAction(
+        'INC2511',
+        'A sufficiently detailed note.',
+        'ticket',
+      ),
+    ).toEqual({
+      type: 'ticket.add_note',
+      payload: { ticketId: 'INC2511', body: 'A sufficiently detailed note.' },
+    });
+    expect(
+      resolutionNoteAction(
+        'INC2401',
+        'A sufficiently detailed note.',
+        'remote_desktop',
+        'NX-4831',
+      ),
+    ).toEqual({
+      type: 'remote_desktop.add_internal_note',
+      payload: {
+        assetTag: 'NX-4831',
+        ticketId: 'INC2401',
+        text: 'A sufficiently detailed note.',
+      },
+    });
+  });
+});
 
 describe('Nexus evidence attribution', () => {
   const attempt = createAttempt({ id: 'attempt-1' });
@@ -219,6 +288,62 @@ describe('Nexus evidence attribution', () => {
     );
   });
 
+  it('projects current authored scenarios with a valid runtime ticket status', () => {
+    const definition = {
+      id: 'SD.APLUS.WINDOWS_ADMIN.PROJECT_SHARE_AFTER_VPN',
+      title: 'Project Share Fails After VPN Reconnect',
+      category: 'service_desk',
+      priority: 'medium',
+      description: {
+        issue: 'Mapped drive fails',
+        reportedByLine: 'Jordan Lee',
+        businessImpact: 'Project folder unavailable',
+        troubleshooting: [],
+      },
+      requester: {
+        name: 'Jordan Lee',
+        department: 'Project Operations',
+        email: 'jordan@example.test',
+        contact: 'Chat',
+        location: 'Remote',
+      },
+      device: {
+        assetTag: 'PROJ-LT-22',
+        deviceName: 'PROJ-LT-22',
+        kind: 'laptop',
+        operatingSystem: 'Windows 11 Pro',
+        state: 'active',
+      },
+      sla: { dueAt: 'Today', target: 'medium' },
+      hints: [{ id: 'hint-01', order: 1, text: 'Inspect the mapping.' }],
+    };
+    const [ticket] = ticketsForAssignments([
+      {
+        id: 11,
+        is_required: true,
+        maximum_attempts: null,
+        mode: 'learning',
+        experience_mode: 'guided',
+        guided_completed: false,
+        most_recent_attempt: null,
+        required_this_week: false,
+        scenario_id: 11,
+        scenario: {
+          stable_key: 'sd.aplus.windows_admin.project_share_after_vpn',
+          title: definition.title,
+        },
+        latest_published_version: {
+          definition_json: definition,
+          id: 111,
+          version_number: 1,
+        },
+      },
+    ]);
+
+    expect(ticket?.status).toBe(TicketStatus.Open);
+    expect(ticket?.hints).toEqual(['Inspect the mapping.']);
+  });
+
   it('does not reconstruct locked bundled fixtures that were not assigned', () => {
     const definition = structuredClone(TICKET_FIXTURES[4]);
     const tickets = ticketsForAssignments([
@@ -242,5 +367,55 @@ describe('Nexus evidence attribution', () => {
     ]);
 
     expect(tickets.map((ticket) => ticket.id)).toEqual(['INC2405']);
+  });
+});
+
+describe('assignment mode selection', () => {
+  it('selects guided learning before completion regardless of row order', () => {
+    const learning = assignmentForMode(2, 'learning', false);
+    const simulation = assignmentForMode(1, 'simulation', false);
+
+    expect(selectAssignmentsByTicket([learning, simulation])).toEqual([learning]);
+    expect(selectAssignmentsByTicket([simulation, learning])).toEqual([learning]);
+  });
+
+  it('selects assessment/practice after guided completion regardless of row order', () => {
+    const learning = assignmentForMode(2, 'learning', true);
+    const simulation = assignmentForMode(1, 'simulation', true);
+
+    expect(selectAssignmentsByTicket([learning, simulation])).toEqual([simulation]);
+    expect(selectAssignmentsByTicket([simulation, learning])).toEqual([simulation]);
+  });
+});
+
+describe('retry state isolation', () => {
+  it('clears ticket-owned directory and device state without clobbering another ticket', () => {
+    let attempt = createAttempt({ id: 'retry-state' });
+    attempt = applyAction(attempt, 'student', {
+      type: 'directory.inspect_account',
+      payload: { directoryUserId: 'directory-user-taylor-morgan' },
+    }).attempt;
+    attempt = applyAction(attempt, 'student', {
+      type: 'directory.inspect_account',
+      payload: { directoryUserId: 'directory-user-jordan-lee' },
+    }).attempt;
+    attempt = applyAction(attempt, 'student', {
+      type: 'device.inspect_record',
+      payload: { ticketId: 'INC3001', deviceId: 'device-nex-lt-2214' },
+    }).attempt;
+
+    const directoryReset = resetTicketStateForRetry(attempt, 'INC2511');
+    expect(
+      directoryReset.directoryOverlays['directory-user-taylor-morgan'],
+    ).toBeUndefined();
+    expect(
+      directoryReset.directoryOverlays['directory-user-jordan-lee'],
+    ).toBeDefined();
+
+    const deviceReset = resetTicketStateForRetry(directoryReset, 'INC3001');
+    expect(deviceReset.ticketOverlays.INC3001).toBeUndefined();
+    expect(
+      deviceReset.directoryOverlays['directory-user-jordan-lee'],
+    ).toBeDefined();
   });
 });

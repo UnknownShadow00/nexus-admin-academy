@@ -1,0 +1,80 @@
+{
+  "INC2502": {
+    "commands": [
+      "excel open Monthly.xlsx",
+      "excel new",
+      "excel /safe Monthly.xlsx",
+      "excel addins",
+      "excel disable ReportLink",
+      "excel open Monthly.xlsx",
+      "excel enable ReportLink",
+      "excel open Monthly.xlsx",
+      "excel disable ReportLink",
+      "excel open Monthly.xlsx",
+      "excel save Monthly.xlsx"
+    ],
+    "note": "Monthly.xlsx failed with ReportLink enabled. Isolated by Safe Mode and re-enable reproduction; disabled only ReportLink. Original workbook opened in normal mode and saved."
+  },
+  "INC2503": {
+    "commands": [
+      "Ask-Requester move",
+      "ipconfig",
+      "Test-Cable -Replacement approved",
+      "Test-Desk -Device NX-2503-peer -Port B-18",
+      "Test-Desk -Device NX-2503 -Port B-18",
+      "Test-Desk -Device NX-2503-peer -Port B-17"
+    ],
+    "note": "NX-2503 works at B-18 after cable comparison; NX-2503-peer fails at B-17 with link but no DHCP. Port-side evidence sent to Network Support; no switch change made."
+  },
+  "INC2506": {
+    "commands": [
+      "Get-DirectoryUser casey.lane",
+      "Get-Resource \\\\HR-FS\\Salary",
+      "Get-UserGroups casey.lane",
+      "Ask-Requester approval",
+      "Get-Approval -User casey.lane -Resource Salary",
+      "Get-SupportPolicy salary"
+    ],
+    "note": "Salary resource is restricted to HR Compensation. Approval absent in records and requester has none. No access change made; referred to Identity & Access for owner authorization."
+  },
+  "INC2507": {
+    "commands": [
+      "Get-Account avery.monroe",
+      "Get-LockoutEvents avery.monroe",
+      "cmdkey /list",
+      "net use",
+      "Test-CredentialSource files.nexus.local",
+      "cmdkey /delete:files.nexus.local",
+      "Unlock-Account avery.monroe",
+      "Advance-Time 15",
+      "Test-Account avery.monroe"
+    ],
+    "note": "NX-2507 retried files.nexus.local via P: with a stale saved credential. Removed that credential, unlocked the account and observed 15 minutes: no recurrence; fresh access succeeds."
+  },
+  "INC2508": {
+    "commands": [
+      "Ask-Requester exposure",
+      "Get-ExposureReport riley.brown",
+      "Reset-Password riley.brown",
+      "Revoke-Sessions riley.brown",
+      "Get-SignInActivity riley.brown",
+      "Get-Sessions riley.brown",
+      "Test-Containment riley.brown"
+    ],
+    "note": "At 10:05 requester entered password and approved MFA. Password reset immediately and sessions revoked; old tokens rejected in containment check. Suspicious sign-in evidence sent to Information Security; incident remains open."
+  },
+  "INC2510": {
+    "commands": [
+      "Ask-Requester elsewhere",
+      "Get-DirectoryUser sam.ortiz",
+      "ipconfig",
+      "nslookup nexus.local",
+      "whoami",
+      "nltest /sc_verify:nexus.local",
+      "Get-RepairAuthorization NX-2510",
+      "Repair-SecureChannel NX-2510 -Authorization EP-2510",
+      "Test-DomainSignIn sam.ortiz -Computer NX-2510"
+    ],
+    "note": "sam.ortiz works on loaner; NX-2510 network and DNS healthy, local sign-in works. Failed secure channel repaired under EP-2510; domain sign-in on original NX-2510 now succeeds."
+  }
+}

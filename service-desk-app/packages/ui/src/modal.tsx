@@ -36,27 +36,27 @@ export function Modal({
     >
       {trigger ? <Dialog.Trigger asChild>{trigger}</Dialog.Trigger> : null}
       <Dialog.Portal>
-        <Dialog.Overlay className="sd-modal-backdrop fixed inset-0 z-40 bg-zinc-950/80" />
+        <Dialog.Overlay className="sd-modal-backdrop fixed inset-0 z-40 bg-surface/80" />
         <Dialog.Content
           className={cn(
-            'sd-modal-card fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-md border border-zinc-700 bg-zinc-900 text-zinc-300 shadow-lg ring-1 ring-zinc-700/60 focus:outline-none',
+            'sd-modal-card fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-md border border-border bg-surface-raised text-text shadow-lg ring-1 ring-border/60 focus:outline-none',
             className,
           )}
         >
-          <header className="sd-modal-header flex items-start justify-between gap-4 border-b border-zinc-800 px-5 py-4">
+          <header className="sd-modal-header flex items-start justify-between gap-4 border-b border-border px-5 py-4">
             <div>
-              <Dialog.Title className="text-base font-extrabold uppercase text-zinc-100">
+              <Dialog.Title className="text-base font-extrabold uppercase text-text">
                 {title}
               </Dialog.Title>
               {description ? (
-                <Dialog.Description className="mt-1 text-sm text-zinc-400">
+                <Dialog.Description className="mt-1 text-sm text-text-muted">
                   {description}
                 </Dialog.Description>
               ) : null}
             </div>
             <Dialog.Close
               aria-label={closeLabel}
-              className="sd-icon-btn sd-focus-ring inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-xl text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+              className="sd-icon-btn sd-focus-ring inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-xl text-text-muted hover:bg-surface-muted hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               <span aria-hidden="true">×</span>
             </Dialog.Close>

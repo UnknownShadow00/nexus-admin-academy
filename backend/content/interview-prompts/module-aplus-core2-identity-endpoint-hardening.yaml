@@ -1,0 +1,93 @@
+prompts:
+- prompt_key: explain.aplus.m13.least_privilege
+  title: Explain least privilege to a new technician
+  module_key: module.aplus.core2.identity_endpoint_hardening
+  objectives:
+  - '2.1'
+  expected_concepts:
+  - minimum necessary access
+  - reduces blast radius
+  - temporary/scoped privilege when needed
+  - approval/auditability
+  minimum_concepts: 3
+  rubric:
+    approved_text: Clear definition plus a practical help-desk example and why permanent
+      broad privilege is risky.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: '1.0'
+  prompt: Explain least privilege to a new technician
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.identity_endpoint_hardening
+  domain: '2.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.m13.ntfs_share
+  title: Explain NTFS vs share permissions
+  module_key: module.aplus.core2.identity_endpoint_hardening
+  objectives:
+  - '2.2'
+  expected_concepts:
+  - NTFS permissions
+  - share permissions
+  - both can constrain network access
+  - effective permissions/inheritance
+  minimum_concepts: 3
+  rubric:
+    approved_text: Must distinguish the two layers and explain why a user may still
+      receive Access Denied when one layer appears permissive.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: '1.0'
+  prompt: Explain NTFS vs share permissions
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.identity_endpoint_hardening
+  domain: '2.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.m13.encryption_scope
+  title: Compare BitLocker, BitLocker To Go and EFS
+  module_key: module.aplus.core2.identity_endpoint_hardening
+  objectives:
+  - '2.2'
+  - '2.7'
+  expected_concepts:
+  - full-volume BitLocker
+  - removable-drive BitLocker To Go
+  - file/folder EFS
+  - recovery material protection
+  minimum_concepts: 3
+  rubric:
+    approved_text: Correctly matches each technology to its protection scope and mentions
+      recovery-key/certificate handling.
+    minimum_concepts: 3
+    must_include: []
+  rubric_version: '1.0'
+  prompt: Compare BitLocker, BitLocker To Go and EFS
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.identity_endpoint_hardening
+  domain: '2.0'
+  importance: working_knowledge
+- prompt_key: explain.aplus.m13.safe_elevation
+  title: Explain safe elevation for an approved task
+  module_key: module.aplus.core2.identity_endpoint_hardening
+  objectives:
+  - '2.1'
+  - '2.2'
+  - '2.7'
+  expected_concepts:
+  - verify request/software
+  - least privilege
+  - approved temporary/scoped elevation
+  - do not disable controls
+  - verify and document
+  minimum_concepts: 4
+  rubric:
+    approved_text: Walks through an evidence-based, approved elevation path and explicitly
+      rejects permanent broad privilege as the default.
+    minimum_concepts: 4
+    must_include: []
+  rubric_version: '1.0'
+  prompt: Explain safe elevation for an approved task
+  certification_version: comptia_aplus_220-1202
+  module: module.aplus.core2.identity_endpoint_hardening
+  domain: '2.0'
+  importance: working_knowledge

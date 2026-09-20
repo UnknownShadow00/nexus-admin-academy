@@ -1,0 +1,19 @@
+[Unit]
+Description=Nexus pending-grade worker
+After=network-online.target nexus-admin-academy.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Set User/Group and WorkingDirectory to match nexus-admin-academy.service
+# before installing this example on a host.
+User=nexus
+Group=nexus
+WorkingDirectory=/opt/apps/IT\x20TRAINING\x20PROJECT\x20CODE/projects/nexus-admin-academy/backend
+EnvironmentFile=/opt/apps/IT\x20TRAINING\x20PROJECT\x20CODE/projects/nexus-admin-academy/backend/.env
+ExecStart=/usr/bin/env bash -lc 'exec ./.venv/bin/python process_pending_grades.py --limit 25'
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/apps/IT\x20TRAINING\x20PROJECT\x20CODE/projects/nexus-admin-academy/backend

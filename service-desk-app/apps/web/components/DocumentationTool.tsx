@@ -6,12 +6,11 @@ import {
 } from '@service-desk/shared';
 import { Badge, Button, Input, PanelFrame } from '@service-desk/ui';
 import {
-  IconArrowLeft,
   IconBooks,
   IconChevronLeft,
   IconSearch,
 } from '@tabler/icons-react';
-import Link from 'next/link';
+import { ToolBackLink } from './IntegratedToolContext';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -99,36 +98,30 @@ export function DocumentationTool() {
       className="mx-auto w-full max-w-7xl p-0"
       variant="contained"
     >
-      <header className="border-b border-zinc-700 px-4 py-4 sm:px-5">
+      <header className="border-b border-border px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link
-            className="sd-back-button sd-focus-ring inline-flex min-h-10 items-center gap-2 self-start rounded-sm px-2 text-sm font-extrabold uppercase text-sky-400 hover:bg-zinc-800 hover:text-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
-            href="/"
-          >
-            <IconArrowLeft aria-hidden="true" className="h-4 w-4" />
-            Dashboard
-          </Link>
+          <ToolBackLink />
           <Badge variant="sky">
             {DOCUMENTATION_ARTICLE_FIXTURES.length} articles
           </Badge>
         </div>
         <div className="mt-4 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-sky-400/30 bg-sky-400/10 text-sky-400">
+          <span className="flex h-11 w-11 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 text-accent">
             <IconBooks aria-hidden="true" className="h-6 w-6" />
           </span>
           <div>
-            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-sky-400">
+            <p className="font-label text-xs font-extrabold uppercase tracking-widest text-accent">
               Service desk reference
             </p>
             <h1
-              className="font-display text-2xl font-bold text-zinc-100"
+              className="font-display text-2xl font-bold text-text"
               id="documentation-title"
             >
               Documentation
             </h1>
           </div>
         </div>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-400">
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-text-muted">
           Find concise procedures, service notes, and escalation guidance for
           the practice environment.
         </p>
@@ -138,7 +131,7 @@ export function DocumentationTool() {
           </span>
           <IconSearch
             aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
           />
           <Input
             className="pl-9"
@@ -158,10 +151,10 @@ export function DocumentationTool() {
           <>
             <nav
               aria-label="Documentation breadcrumb"
-              className="mb-4 flex flex-wrap items-center gap-1 text-xs font-semibold uppercase text-zinc-500"
+              className="mb-4 flex flex-wrap items-center gap-1 text-xs font-semibold uppercase text-text-muted"
             >
               <button
-                className="sd-focus-ring rounded-sm px-2 py-1 text-sky-400 hover:text-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                className="sd-focus-ring rounded-sm px-2 py-1 text-accent hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 onClick={showAllCategories}
                 type="button"
               >
@@ -169,14 +162,14 @@ export function DocumentationTool() {
               </button>
               <span aria-hidden="true">/</span>
               <button
-                className="sd-focus-ring rounded-sm px-2 py-1 text-sky-400 hover:text-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                className="sd-focus-ring rounded-sm px-2 py-1 text-accent hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 onClick={showArticleCategory}
                 type="button"
               >
                 {selectedArticle.category}
               </button>
               <span aria-hidden="true">/</span>
-              <span className="max-w-full truncate px-2 text-zinc-400">
+              <span className="max-w-full truncate px-2 text-text-muted">
                 {selectedArticle.title}
               </span>
             </nav>
