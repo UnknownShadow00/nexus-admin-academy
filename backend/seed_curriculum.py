@@ -8,6 +8,7 @@ from sqlalchemy import text
 from app.database import SessionLocal
 from app.models.curriculum_video import CurriculumVideo
 from app.services.training_curriculum_seed import (
+    _revision_includes,
     reconcile_week_zero_requirements,
     reconcile_optional_lesson_requirements,
     reconcile_video_requirements,
@@ -194,29 +195,17 @@ try:
     current_revision = db.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
     beginner_rollout_result = (
         sync_beginner_learning_rollout(db)
-        if current_revision in {
-            "0062_beginner_learning_rollout",
-            "0069_merge_v2_beginner_heads",
-        }
+        if _revision_includes(current_revision, "0062_beginner_learning_rollout")
         else {"skipped": f"requires 0062; database is {current_revision or 'unversioned'}"}
     )
     network_linux_cloud_result = (
         sync_network_linux_cloud_practical_upgrade(db)
-        if current_revision in {
-            "0060_network_linux_cloud_practical_upgrade",
-            "0061_integrated_support_prove",
-            "0062_beginner_learning_rollout",
-            "0069_merge_v2_beginner_heads",
-        }
+        if _revision_includes(current_revision, "0060_network_linux_cloud_practical_upgrade")
         else {"skipped": f"requires 0060; database is {current_revision or 'unversioned'}"}
     )
     integrated_support_final_shift_result = (
         sync_integrated_support_final_shift_upgrade(db)
-        if current_revision in {
-            "0061_integrated_support_prove",
-            "0062_beginner_learning_rollout",
-            "0069_merge_v2_beginner_heads",
-        }
+        if _revision_includes(current_revision, "0061_integrated_support_prove")
         else {"skipped": f"requires 0061; database is {current_revision or 'unversioned'}"}
     )
     print(

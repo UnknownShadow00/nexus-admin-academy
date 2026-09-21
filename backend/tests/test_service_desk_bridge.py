@@ -197,6 +197,28 @@ def test_admin_authorize_requires_mentor_or_active_admin_session(db):
         revoke_admin_session(admin_token)
 
 
+def test_admin_authorize_blocks_mentor_until_temporary_password_is_changed(db):
+    mentor = make_student(db, username="forced-mentor")
+    mentor.is_mentor = True
+    mentor.must_change_password = True
+    db.commit()
+    client = make_client(service_desk_bridge.router)
+    token = create_access_token(
+        {
+            "sub": str(mentor.id),
+            "name": mentor.name,
+            "is_mentor": True,
+            "av": mentor.auth_version,
+        }
+    )
+    client.cookies.set(STUDENT_SESSION_COOKIE, token)
+
+    response = client.get("/api/service-desk/admin-authorize")
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "PASSWORD_CHANGE_REQUIRED"
+
+
 def test_progress_summary_surfaces_active_attempt_for_dashboard(db):
     student = make_student(db, username="active-ticket-student")
     _, version = _scenario_version(db, "dashboard-active")

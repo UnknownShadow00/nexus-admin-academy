@@ -105,7 +105,7 @@ export default function AdminStudentsPage() {
           <input className="input-field" placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
           <input className="input-field" placeholder="Email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
           <input className="input-field" placeholder="Username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
-          <input className="input-field" type="password" placeholder="Password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          <input className="input-field" maxLength={72} type="password" placeholder="Temporary password (12–72 characters)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
           <button
             className="btn-primary"
             onClick={onCreate}
@@ -166,9 +166,7 @@ export default function AdminStudentsPage() {
                   <td className="px-2 py-2">
                     {editing ? (
                       <input className="input-field" value={editUsername} onChange={(e) => setEditUsername(e.target.value)} />
-                    ) : (
-                      r.username || "-"
-                    )}
+                    ) : <div>{r.username || "-"}{r.must_change_password ? <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">Password change required</p> : null}</div>}
                   </td>
                   <td className="px-2 py-2">
                     {editing ? (
@@ -199,9 +197,13 @@ export default function AdminStudentsPage() {
                   <td className="px-2 py-2">{r.avg_ticket}</td>
                   <td className="px-2 py-2">
                     {editing ? (
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2">
+                        <input className="input-field" maxLength={72} type="password" placeholder="Reset temporary password (12–72 characters)" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} />
+                        {editPassword ? <p className="text-xs text-amber-700 dark:text-amber-300">Student must change this password at next sign-in.</p> : null}
+                        <div className="flex gap-2">
                         <button className="btn-primary" onClick={() => onSaveEdit(r.student_id)}>Save</button>
                         <button className="btn-secondary" onClick={() => setEditingId(null)}>Cancel</button>
+                        </div>
                       </div>
                     ) : (
                       <div className="flex gap-2">

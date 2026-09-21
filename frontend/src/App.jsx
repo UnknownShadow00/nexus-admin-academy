@@ -10,6 +10,7 @@ import { setStudentMonitoringUser, syncRouteMonitoringContext } from "./monitori
 import { withSentryReactRouterV7Routing } from "@sentry/react";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import LoginPage from "./pages/LoginPage";
+import ChangePasswordPage from "./pages/ChangePasswordPage";
 import StudentHome from "./pages/StudentHome";
 import { authLogout, globalSearch } from "./services/api";
 import { V2_CURRICULUM_ENABLED } from "./config/features";
@@ -241,20 +242,21 @@ export default function App() {
   const isAdminLoginRoute = location.pathname === "/admin-login";
   const authenticated = isAuthenticated();
   const currentStudent = authenticated ? getCurrentStudent() : null;
+  const passwordChangeRequired = Boolean(currentStudent?.must_change_password);
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState({ lessons: [], commands: [] });
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const showChrome = (authenticated && !isAdminRoute) || (isAdminRoute && adminAuthenticated);
-  const showSearch = authenticated && !isAdminRoute && !isAdminLoginRoute;
+  const showChrome = (authenticated && !isAdminRoute && !passwordChangeRequired) || (isAdminRoute && adminAuthenticated);
+  const showSearch = authenticated && !isAdminRoute && !isAdminLoginRoute && !passwordChangeRequired;
   const hasSearchResults = searchResults.lessons?.length || searchResults.commands?.length;
 
   // Student V2 navigation follows the student's own pilot enrolment, which
   // only the backend knows. The build flag says V2 exists; it cannot say who
   // is in the pilot. Routes stay compiled either way — the server refuses a
   // typed V2 URL from a student who is not enrolled.
-  const { studentEnabled: v2StudentEnabled } = useV2Access(authenticated && !isAdminRoute);
+  const { studentEnabled: v2StudentEnabled } = useV2Access(authenticated && !isAdminRoute && !passwordChangeRequired);
 
   const navItems = useMemo(() => {
     if (isAdminRoute) {
@@ -411,6 +413,7 @@ export default function App() {
       <MonitoredRoutes>
         <Route path="/" element={<RequireAuth><StudentHome /></RequireAuth>} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/change-password" element={<RequireAuth passwordChangeOnly><ChangePasswordPage /></RequireAuth>} />
         <Route path="/lessons/:lessonId" element={<RequireAuth><LessonPage /></RequireAuth>} />
         <Route path="/learning-path" element={<RequireAuth><TrainingDashboardPage /></RequireAuth>} />
         {V2_CURRICULUM_ENABLED ? <>

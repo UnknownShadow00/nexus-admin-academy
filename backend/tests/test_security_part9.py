@@ -16,6 +16,7 @@ from conftest import auth_headers, make_client, make_student
 from app.models.evidence import EvidenceArtifact
 from app.models.quiz import QUIZ_STATUS_PUBLISHED, Question, Quiz
 from app.models.ticket import Ticket
+from app.database import get_db
 from app.routers.evidence import router as evidence_router
 from app.routers.labs import router as labs_router
 from app.routers.quizzes import router as quizzes_router
@@ -267,6 +268,7 @@ def test_valid_student_jwt_still_passes(db, monkeypatch):
     from app.services.admin_auth import allow_admin_or_student
     student = make_student(db)
     app = FastAPI()
+    app.dependency_overrides[get_db] = lambda: db
 
     @app.get("/guarded", dependencies=[Depends(allow_admin_or_student)])
     def guarded():
@@ -286,6 +288,7 @@ def test_student_session_cookie_passes(db, monkeypatch):
     from app.services.auth_service import STUDENT_SESSION_COOKIE, create_access_token
     student = make_student(db)
     app = FastAPI()
+    app.dependency_overrides[get_db] = lambda: db
 
     @app.get("/guarded", dependencies=[Depends(allow_admin_or_student)])
     def guarded():

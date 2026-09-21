@@ -45,6 +45,7 @@ export function getCurrentStudent() {
       name: payload.name,
       email: payload.email,
       is_mentor: Boolean(payload.is_mentor),
+      must_change_password: Boolean(payload.must_change_password ?? profile?.must_change_password),
       has_unlocked_capstones: profile?.has_unlocked_capstones,
       a_plus_progress_pct: profile?.a_plus_progress_pct,
       a_plus_unlocked: profile?.a_plus_unlocked,

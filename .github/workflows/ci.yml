@@ -420,6 +420,10 @@ jobs:
         # scripts/e2e/start_local_stack.sh.
         run: bash scripts/e2e/start_local_stack.sh
 
+      - name: Run Playwright (forced first-login password rotation)
+        working-directory: frontend
+        run: npx playwright test tests/e2e/forced-password-change.spec.js --workers=1 --reporter=list
+
       - name: Run Playwright (desktop + mobile viewports)
         working-directory: frontend
         # my-training.spec.js exercises both the 1440x1000 desktop and

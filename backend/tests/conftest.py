@@ -89,6 +89,7 @@ def auth_headers(student):
         "name": student.name,
         "email": student.email or "",
         "is_mentor": student.is_mentor,
+        "av": student.auth_version,
     })
     return {
         "Authorization": f"Bearer {token}",

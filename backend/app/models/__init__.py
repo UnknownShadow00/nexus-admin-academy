@@ -1,4 +1,4 @@
-from app.models.student import Student
+from app.models.student import Student, StudentAuthState
 from app.models.quiz import Quiz, Question, QuizAssignment, QuizAttempt
 from app.models.ticket import Ticket, TicketSubmission
 from app.models.xp_ledger import XPLedger
@@ -70,6 +70,7 @@ from app.models.service_desk import (
 
 __all__ = [
     "Student",
+    "StudentAuthState",
     "Quiz",
     "Question",
     "QuizAttempt",

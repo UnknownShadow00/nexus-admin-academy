@@ -35,7 +35,7 @@ from app.models.service_desk import (
     ServiceDeskBetaEnrollment,
 )
 from app.models.squad_activity import SquadActivity
-from app.models.student import Student
+from app.models.student import Student, StudentAuthState
 from app.models.ticket import TicketSubmission
 from app.models.video_watch import VideoWatch
 from app.models.vm_assignment import VmAssignment
@@ -77,6 +77,7 @@ STUDENT_OWNED_MODELS: tuple[tuple[str, type, str], ...] = (
     ("student_methodology_progress", StudentMethodologyProgress, "student_id"),
     ("student_objective_progress", StudentObjectiveProgress, "student_id"),
     ("student_onboarding_practice", StudentOnboardingPractice, "student_id"),
+    ("student_auth_states", StudentAuthState, "student_id"),
     ("student_roles", StudentRole, "student_id"),
     ("ticket_submissions", TicketSubmission, "student_id"),
     ("video_watches", VideoWatch, "student_id"),

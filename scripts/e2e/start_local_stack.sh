@@ -265,6 +265,28 @@ create_student "$FRESH_A_USERNAME_GEN" "$FRESH_A_PASSWORD_GEN" "Fresh Progressio
 create_student "$FRESH_B_USERNAME_GEN" "$FRESH_B_PASSWORD_GEN" "Fresh Progression Student B"
 create_student "$ENDPOINT_USERNAME_GEN" "$ENDPOINT_PASSWORD_GEN" "Endpoint Management Student"
 
+# These shared accounts support unrelated progression and Service Desk specs,
+# so model them as returning students whose initial credential rotation was
+# already completed. The dedicated forced-password-change Playwright spec
+# creates its own account through the live admin API and must retain the real
+# first-login gate. This updates only the throwaway database created above.
+"$BACKEND_PYTHON" - "$SCRATCH_DIR/e2e.db" \
+    "$QUALIFIED_USERNAME_GEN" "$STUDENT_C_USERNAME_GEN" "$STUDENT_D_USERNAME_GEN" \
+    "$FRESH_A_USERNAME_GEN" "$FRESH_B_USERNAME_GEN" "$ENDPOINT_USERNAME_GEN" <<'PY'
+import sqlite3
+import sys
+
+db = sqlite3.connect(sys.argv[1])
+placeholders = ",".join("?" for _ in sys.argv[2:])
+db.execute(
+    "UPDATE student_auth_states SET must_change_password = 0 "
+    f"WHERE student_id IN (SELECT id FROM students WHERE username IN ({placeholders}))",
+    tuple(sys.argv[2:]),
+)
+db.commit()
+db.close()
+PY
+
 # There is no admin API for directly granting a role — promotion is normally
 # earned by completing gates. For the capstone-visibility fixture we grant a
 # role directly in the throwaway database (role id 2 = Support Technician I,

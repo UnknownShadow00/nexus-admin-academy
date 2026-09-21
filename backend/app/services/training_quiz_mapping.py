@@ -114,6 +114,10 @@ BEGINNER_REQUIRED_VIDEO_IDS = {
 # The Week 3 Defender/update lesson is repeated more coherently in Week 7.
 OPTIONAL_LESSON_IDS = {10}
 OPTIONAL_LESSON_TITLES = {"Anatomy of a Good Ticket", "Meet the Command Line"}
+BEGINNER_POLISH_REQUIRED_LESSON_TITLES = {
+    "Anatomy of a Good Ticket",
+    "Meet the Command Line",
+}
 
 
 def mapping_metadata(video_id: int) -> dict:

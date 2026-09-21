@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from app.models.lab import LabRun, LabTemplate
+from app.models.learning import Lesson
 from app.models.progression import PromotionGate, Role, StudentRole
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.routers.final_shift import router
@@ -25,7 +26,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 REVISION_0060 = "0060_network_linux_cloud_practical_upgrade"
 REVISION_0061 = "0061_integrated_support_prove"
 REVISION_0062 = "0062_beginner_learning_rollout"
-RECONCILED_HEAD = "0069_merge_v2_beginner_heads"
+RECONCILED_HEAD = "0071_forced_first_login_password_change"
 
 client = make_client(router)
 labs_client = make_client(labs_router)
@@ -85,7 +86,42 @@ def test_migration_upgrade_converts_week_23_24_and_adds_gate(tmp_path):
         gate = db.query(PromotionGate).filter_by(role_id=final_role.id, requirement_type="required_lab_pass").one()
         assert gate.requirement_config == {"lab_id": 22, "min_score_pct": 80}
 
-    assert _active_totals(database_path) == (35, 320, 139, 181)
+        week1 = db.query(TrainingWeek).filter_by(week_number=1).one()
+        week1_rows = db.query(TrainingWeekActivity).filter_by(training_week_id=week1.id).all()
+        intro_ids = {
+            str(lesson.id)
+            for lesson in db.query(Lesson).filter(
+                Lesson.title.in_(["Anatomy of a Good Ticket", "Meet the Command Line"])
+            )
+        }
+        assert all(
+            activity.is_required
+            for activity in week1_rows
+            if activity.activity_type == "lesson" and activity.content_ref in intro_ids
+        )
+        intro_estimates = {
+            lesson.title: lesson.estimated_minutes
+            for lesson in db.query(Lesson).filter(Lesson.id.in_([int(value) for value in intro_ids]))
+        }
+        assert intro_estimates == {
+            "Anatomy of a Good Ticket": 25,
+            "Meet the Command Line": 10,
+        }
+        assert {activity.estimated_minutes for activity in week1_rows if activity.content_ref in intro_ids} == {10, 25}
+        week1_order = {activity.activity_type: activity.display_order for activity in week1_rows}
+        assert week1_order["networking_lab"] < week1_order["service_desk_scenario"]
+
+        week2 = db.query(TrainingWeek).filter_by(week_number=2).one()
+        week2_rows = db.query(TrainingWeekActivity).filter_by(training_week_id=week2.id).all()
+        week2_order = {
+            (activity.activity_type, activity.content_ref): activity.display_order
+            for activity in week2_rows
+        }
+        assert week2_order[("video", "44")] < week2_order[("quiz", "78")]
+        assert week2_order[("quiz", "78")] < week2_order[("guided_lab", "4")]
+        assert week2_order[("guided_lab", "4")] < week2_order[("service_desk_scenario", "inc2404")]
+
+    assert _active_totals(database_path) == (35, 320, 141, 179)
     assert _role_counts(database_path) == {
         "learn": 216,
         "check": 38,
