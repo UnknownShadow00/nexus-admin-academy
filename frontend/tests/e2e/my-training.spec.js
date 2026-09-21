@@ -73,8 +73,8 @@ async function studentLogin(page, username = studentUsername, password = student
   await page.getByRole("button", { name: "Login" }).click();
   if (replacementPassword) {
     await expect(page).toHaveURL(/\/change-password$/);
-    await page.getByLabel("New password").fill(replacementPassword);
-    await page.getByLabel("Confirm new password").fill(replacementPassword);
+    await page.getByLabel("New password", { exact: true }).fill(replacementPassword);
+    await page.getByLabel("Confirm new password", { exact: true }).fill(replacementPassword);
     await page.getByRole("button", { name: "Change password" }).click();
   }
   await expect(page).toHaveURL(/\/$/);

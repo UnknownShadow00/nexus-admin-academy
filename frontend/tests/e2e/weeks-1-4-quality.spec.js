@@ -14,8 +14,8 @@ async function studentLogin(page, username = studentUsername, password = student
   await page.getByRole("button", { name: "Login" }).click();
   if (replacementPassword) {
     await expect(page).toHaveURL(/\/change-password$/);
-    await page.getByLabel("New password").fill(replacementPassword);
-    await page.getByLabel("Confirm new password").fill(replacementPassword);
+    await page.getByLabel("New password", { exact: true }).fill(replacementPassword);
+    await page.getByLabel("Confirm new password", { exact: true }).fill(replacementPassword);
     await page.getByRole("button", { name: "Change password" }).click();
   }
   await expect(page).toHaveURL(/\/$/);
@@ -188,17 +188,15 @@ test("Hardware Component Identification is a real structured exercise, not a tex
   await expect(submit).toBeEnabled();
 });
 
-test("Weeks 3-6 provide deterministic practice and Week 3 uses the real terminal", async ({ page }) => {
+test("Weeks 3-6 provide deterministic structured practice", async ({ page }) => {
   await studentLogin(page);
 
   await page.goto("/labs/3");
   await expect(page.getByRole("heading", { name: "Windows Command-Line Diagnostics", exact: true })).toBeVisible();
   await expect(page.getByText("Work and explain", { exact: false })).toHaveCount(0);
-  await expect(page.getByText("Use the practice terminal first", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: /Try hostname/ }).click();
-  await page.locator(".xterm-helper-textarea").press("Enter");
-  await expect(page.getByRole("button", { name: /hostname/ })).toContainText("✓");
-  await expect(page.locator("fieldset").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Windows host evidence case", exact: true })).toBeVisible();
+  await expect(page.getByRole("tablist", { name: "Evidence panels" })).toBeVisible();
+  await expect(page.getByText("Inspect the required evidence before making a decision.", { exact: true })).toBeVisible();
 
   await page.goto("/labs/6");
   await expect(page.getByRole("heading", { name: "Prioritize the Queue", exact: true })).toBeVisible();
@@ -207,11 +205,13 @@ test("Weeks 3-6 provide deterministic practice and Week 3 uses the real terminal
 
   await page.goto("/labs/7");
   await expect(page.getByRole("heading", { name: "Isolate the Windows Failure", exact: true })).toBeVisible();
-  await expect(page.locator("fieldset")).toHaveCount(3);
+  await expect(page.getByRole("heading", { name: "Windows troubleshooting case", exact: true })).toBeVisible();
+  await expect(page.getByRole("tablist", { name: "Evidence panels" })).toBeVisible();
 
   await page.goto("/labs/8");
   await expect(page.getByRole("heading", { name: "Make the Safe Access Decision", exact: true })).toBeVisible();
-  await expect(page.locator("fieldset")).toHaveCount(3);
+  await expect(page.getByRole("heading", { name: "Windows access evidence case", exact: true })).toBeVisible();
+  await expect(page.getByRole("tablist", { name: "Evidence panels" })).toBeVisible();
 });
 
 test("no mobile horizontal overflow on rebuilt lab pages", async ({ page }) => {
@@ -219,7 +219,11 @@ test("no mobile horizontal overflow on rebuilt lab pages", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   for (const labId of [4, 3, 6]) {
     await page.goto(`/labs/${labId}`);
-    await expect(page.locator("fieldset").first()).toBeVisible();
+    if (labId === 3) {
+      await expect(page.getByRole("tablist", { name: "Evidence panels" })).toBeVisible();
+    } else {
+      await expect(page.locator("fieldset").first()).toBeVisible();
+    }
     await assertNoHorizontalOverflow(page);
   }
 });
