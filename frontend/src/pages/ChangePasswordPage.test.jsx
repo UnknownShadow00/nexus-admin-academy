@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ChangePasswordPage from "./ChangePasswordPage";
 import { authChangePassword } from "../services/api";
+import { setSelectedProfile } from "../services/profile";
 
 vi.mock("../services/api", () => ({ authChangePassword: vi.fn(), authLogout: vi.fn() }));
 vi.mock("../hooks/useAuth", () => ({ clearAuthSession: vi.fn(), setToken: vi.fn() }));
@@ -30,6 +31,10 @@ describe("ChangePasswordPage", () => {
       email: "fresh@example.test",
       is_mentor: false,
       must_change_password: false,
+      has_unlocked_capstones: false,
+      a_plus_progress_pct: 0,
+      a_plus_unlocked: true,
+      a_plus_unlock_threshold_pct: 80,
     });
     render(
       <MemoryRouter initialEntries={["/change-password"]}>
@@ -47,6 +52,12 @@ describe("ChangePasswordPage", () => {
       new_password: "NewPermanentPass123!",
       confirm_password: "NewPermanentPass123!",
     }, { suppressToast: true }));
+    expect(setSelectedProfile).toHaveBeenCalledWith(expect.objectContaining({
+      has_unlocked_capstones: false,
+      a_plus_progress_pct: 0,
+      a_plus_unlocked: true,
+      a_plus_unlock_threshold_pct: 80,
+    }));
     expect(await screen.findByText("Today destination")).toBeInTheDocument();
   });
 

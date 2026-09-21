@@ -10,6 +10,7 @@ from app.services.auth_service import (
     STUDENT_SESSION_COOKIE,
     create_access_token,
     get_authenticated_student,
+    get_current_student,
     hash_password,
     normalize_username,
     validate_new_password,
@@ -81,19 +82,23 @@ def _me_response(student: Student) -> dict:
     return {"success": True, "data": payload}
 
 
+def _completed_token_response(student: Student, db: Session, response: Response) -> dict:
+    from app.routers.capstones import has_unlocked_capstones
+
+    payload = _token_response(student, response)
+    payload["has_unlocked_capstones"] = has_unlocked_capstones(db, student)
+    payload.update(get_a_plus_progress(db, student))
+    return payload
+
+
 @router.post("/auth/login")
 def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
     student = db.query(Student).filter(func.lower(Student.username) == normalize_username(request.username)).first()
     if not student or not student.password_hash or not verify_password(request.password, student.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    from app.routers.capstones import has_unlocked_capstones
-
-    payload = _token_response(student, response)
     if student.must_change_password:
-        return payload
-    payload["has_unlocked_capstones"] = has_unlocked_capstones(db, student)
-    payload.update(get_a_plus_progress(db, student))
-    return payload
+        return _token_response(student, response)
+    return _completed_token_response(student, db, response)
 
 
 @router.get("/auth/me")
@@ -106,6 +111,12 @@ def me(db: Session = Depends(get_db), current_student: Student = Depends(get_aut
     response["data"]["has_unlocked_capstones"] = has_unlocked_capstones(db, current_student)
     response["data"].update(get_a_plus_progress(db, current_student))
     return response
+
+
+@router.get("/auth/authorize", status_code=status.HTTP_204_NO_CONTENT)
+def authorize(_current_student: Student = Depends(get_current_student)) -> Response:
+    """Nginx auth_request target for application surfaces outside the SPA."""
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/auth/change-password")
@@ -137,7 +148,7 @@ def change_password(
     current_student.auth_version += 1
     db.commit()
     db.refresh(current_student)
-    return _token_response(current_student, response)
+    return _completed_token_response(current_student, db, response)
 
 
 @router.post("/auth/logout")

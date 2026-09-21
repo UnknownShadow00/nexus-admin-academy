@@ -36,6 +36,10 @@ export default function ChangePasswordPage() {
         email: response.email,
         is_mentor: response.is_mentor,
         must_change_password: false,
+        has_unlocked_capstones: response.has_unlocked_capstones,
+        a_plus_progress_pct: response.a_plus_progress_pct,
+        a_plus_unlocked: response.a_plus_unlocked,
+        a_plus_unlock_threshold_pct: response.a_plus_unlock_threshold_pct,
       });
       navigate("/", { replace: true });
     } catch (err) {

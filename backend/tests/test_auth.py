@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends
 
 from conftest import auth_headers, make_client, make_student
@@ -72,6 +74,7 @@ def test_forced_password_change_blocks_bypass_and_rotates_session(db):
     assert current.status_code == 200
     assert current.json()["data"]["must_change_password"] is True
     assert "a_plus_progress_pct" not in current.json()["data"]
+    assert client.get("/auth/authorize").status_code == 403
 
     blocked = client.get("/protected")
     assert blocked.status_code == 403
@@ -110,6 +113,8 @@ def test_forced_password_change_blocks_bypass_and_rotates_session(db):
     )
     assert changed.status_code == 200
     assert changed.json()["must_change_password"] is False
+    assert changed.json()["has_unlocked_capstones"] is False
+    assert "a_plus_progress_pct" in changed.json()
     assert changed.json()["access_token"] != temporary_token
     assert "student_session=" in changed.headers.get("set-cookie", "")
 
@@ -125,6 +130,17 @@ def test_forced_password_change_blocks_bypass_and_rotates_session(db):
     )
     assert stale.status_code == 401
     assert client.get("/protected").status_code == 200
+    assert client.get("/auth/authorize").status_code == 204
+
+
+def test_service_desk_nginx_auth_uses_password_gate():
+    repository_root = Path(__file__).resolve().parents[2]
+    for relative_path in ("frontend/nginx.conf", "frontend/nginx.host.conf"):
+        config = (repository_root / relative_path).read_text()
+        auth_location = config.split("location = /_service_desk_auth", 1)[1].split("}", 1)[0]
+        assert "/auth/authorize" in auth_location
+        assert "/auth/me" not in auth_location
+        assert "error_page 403 = @service_desk_password_change;" in config
 
 
 def test_change_password_requires_confirmation_and_authentication(db):
