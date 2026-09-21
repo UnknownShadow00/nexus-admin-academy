@@ -106,6 +106,12 @@ def test_beginner_polish_revision_policy_follows_migration_ancestry():
     assert _revision_includes("0069_merge_v2_beginner_heads", "0070_beginner_content_ux_polish") is False
     assert _revision_includes("0070_beginner_content_ux_polish", "0070_beginner_content_ux_polish") is True
     assert _revision_includes("0071_forced_first_login_password_change", "0070_beginner_content_ux_polish") is True
+    for rollout_revision in (
+        "0060_network_linux_cloud_practical_upgrade",
+        "0061_integrated_support_prove",
+        "0062_beginner_learning_rollout",
+    ):
+        assert _revision_includes("0071_forced_first_login_password_change", rollout_revision) is True
 
 
 def test_weeks_1_4_practice_realignment_converges_seeded_curriculum(db):
