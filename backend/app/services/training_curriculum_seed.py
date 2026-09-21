@@ -26,6 +26,7 @@ from app.models.quiz import Question, Quiz
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.beginner_learning import SCENARIO_TOPIC_WEEKS
+from app.services.curriculum_structure import learning_role_for
 from app.services.quiz_visibility import v1_student_visible_quiz_filters_for
 from app.services.training_quiz_mapping import (
     BEGINNER_POLISH_REQUIRED_LESSON_TITLES,
@@ -2571,17 +2572,7 @@ def sync_weeks_1_4_practice_realignment(db: Session) -> dict:
     # its ticket before required CLI practice, while Week 2 put its quiz before
     # the required Computer Power video. Reorder in place so existing activity
     # identities and completion history remain intact.
-    role_order = {
-        "lesson": 0,
-        "video": 0,
-        "quiz": 1,
-        "guided_lab": 2,
-        "networking_lab": 2,
-        "terminal_exercise": 2,
-        "command_exercise": 2,
-        "service_desk_scenario": 3,
-        "capstone": 4,
-    }
+    role_order = {"learn": 0, "check": 1, "practice": 2, "troubleshoot": 3, "prove": 4}
     for week_number in ((1, 2) if beginner_polish_enabled else ()):
         rows = (
             db.query(TrainingWeekActivity)
@@ -2592,7 +2583,7 @@ def sync_weeks_1_4_practice_realignment(db: Session) -> dict:
         desired = sorted(
             rows,
             key=lambda row: (
-                role_order.get(row.activity_type, 5),
+                role_order.get(learning_role_for(row.activity_type, row.metadata_json), 5),
                 row.display_order,
                 row.id,
             ),

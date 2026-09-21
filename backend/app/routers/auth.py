@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
-from sqlalchemy import func
+from sqlalchemy import func, update
 from sqlalchemy.orm import Session
 
 from app.config import use_secure_cookies
 from app.database import get_db
-from app.models.student import Student
+from app.models.student import Student, StudentAuthState
 from app.services.auth_service import (
     STUDENT_SESSION_COOKIE,
     create_access_token,
@@ -91,6 +91,41 @@ def _completed_token_response(student: Student, db: Session, response: Response)
     return payload
 
 
+def _rotate_forced_password(
+    db: Session,
+    *,
+    student_id: int,
+    expected_auth_version: int,
+    password_hash: str,
+) -> bool:
+    """Atomically claim a required rotation before replacing its credential."""
+    claimed = db.execute(
+        update(StudentAuthState)
+        .where(
+            StudentAuthState.student_id == student_id,
+            StudentAuthState.must_change_password.is_(True),
+            StudentAuthState.auth_version == expected_auth_version,
+        )
+        .values(
+            must_change_password=False,
+            auth_version=expected_auth_version + 1,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount != 1:
+        db.rollback()
+        return False
+    db.execute(
+        update(Student)
+        .where(Student.id == student_id)
+        .values(password_hash=password_hash)
+        .execution_options(synchronize_session=False)
+    )
+    db.commit()
+    db.expire_all()
+    return True
+
+
 @router.post("/auth/login")
 def login(request: LoginRequest, response: Response, db: Session = Depends(get_db)):
     student = db.query(Student).filter(func.lower(Student.username) == normalize_username(request.username)).first()
@@ -143,11 +178,17 @@ def change_password(
             detail="New password must be different from the temporary password",
         )
 
-    current_student.password_hash = hash_password(request.new_password)
-    current_student.must_change_password = False
-    current_student.auth_version += 1
-    db.commit()
-    db.refresh(current_student)
+    expected_auth_version = current_student.auth_version
+    if not _rotate_forced_password(
+        db,
+        student_id=current_student.id,
+        expected_auth_version=expected_auth_version,
+        password_hash=hash_password(request.new_password),
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Password was already changed. Sign in again with the new password.",
+        )
     return _completed_token_response(current_student, db, response)
 
 

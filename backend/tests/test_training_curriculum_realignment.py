@@ -16,6 +16,7 @@ from app.services.training_curriculum_seed import (
     sync_weeks_23_24_quality,
     sync_weeks_1_4_practice_realignment,
 )
+from app.services.curriculum_structure import learning_role_for
 from app.services.training_service import validate_training_curriculum
 
 
@@ -224,6 +225,10 @@ def test_week_two_required_quiz_follows_all_required_learning(db):
             TrainingWeekActivity(training_week_id=weeks[2].id, stable_id="week-2-quiz-78", activity_type="quiz", content_ref="78", display_order=2, is_required=True, prerequisite_mode="soft", metadata_json={}),
             TrainingWeekActivity(training_week_id=weeks[2].id, stable_id="week-2-video-44", activity_type="video", content_ref="44", display_order=3, is_required=True, prerequisite_mode="soft", metadata_json={}),
             TrainingWeekActivity(training_week_id=weeks[2].id, stable_id="week-2-service_desk_scenario-inc2404", activity_type="service_desk_scenario", content_ref="inc2404", display_order=4, is_required=True, prerequisite_mode="soft", metadata_json={}),
+            TrainingWeekActivity(training_week_id=weeks[2].id, stable_id="week-2-capstone-test", activity_type="capstone", content_ref="test", display_order=5, is_required=False, prerequisite_mode="soft", metadata_json={}),
+            TrainingWeekActivity(training_week_id=weeks[2].id, stable_id="week-2-review-test", activity_type="review", content_ref="test", display_order=6, is_required=False, prerequisite_mode="soft", metadata_json={}),
+            TrainingWeekActivity(training_week_id=weeks[2].id, stable_id="week-2-support-ticket-test", activity_type="support_ticket", content_ref="test", display_order=7, is_required=False, prerequisite_mode="soft", metadata_json={}),
+            TrainingWeekActivity(training_week_id=weeks[2].id, stable_id="week-2-review-prove-override", activity_type="review", content_ref="prove-test", display_order=8, is_required=False, prerequisite_mode="soft", metadata_json={"learning_role": "prove"}),
         ]
     )
     db.commit()
@@ -240,6 +245,16 @@ def test_week_two_required_quiz_follows_all_required_learning(db):
     assert ordered_types.index("video") < ordered_types.index("quiz")
     assert ordered_types.index("quiz") < ordered_types.index("guided_lab")
     assert ordered_types.index("guided_lab") < ordered_types.index("service_desk_scenario")
+    ordered_rows = list(
+        db.query(TrainingWeekActivity)
+        .filter_by(training_week_id=weeks[2].id)
+        .order_by(TrainingWeekActivity.display_order)
+    )
+    role_rank = {"learn": 0, "check": 1, "practice": 2, "troubleshoot": 3, "prove": 4}
+    ordered_roles = [learning_role_for(row.activity_type, row.metadata_json) for row in ordered_rows]
+    assert [role_rank[role] for role in ordered_roles] == sorted(role_rank[role] for role in ordered_roles)
+    assert ordered_types.index("review") < ordered_types.index("guided_lab")
+    assert ordered_types.index("support_ticket") < ordered_types.index("capstone")
 
 
 def test_weeks_3_6_quality_sync_builds_aligned_required_paths_idempotently(db):

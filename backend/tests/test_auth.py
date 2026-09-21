@@ -3,9 +3,9 @@ from pathlib import Path
 from fastapi import APIRouter, Depends
 
 from conftest import auth_headers, make_client, make_student
-from app.routers.auth import router
+from app.routers.auth import _rotate_forced_password, router
 from app.routers.study_tracker import router as study_tracker_router
-from app.services.auth_service import get_current_student, verify_password
+from app.services.auth_service import get_current_student, hash_password, verify_password
 
 protected_router = APIRouter()
 
@@ -157,3 +157,33 @@ def test_change_password_requires_confirmation_and_authentication(db):
         json={"new_password": "NewPermanentPass123!", "confirm_password": "NewPermanentPass123!"},
     )
     assert response.status_code == 403
+
+
+def test_forced_password_rotation_can_only_be_claimed_once(db):
+    student = make_student(db, username="rotation-race", password="TemporaryPass123!")
+    student.must_change_password = True
+    db.commit()
+
+    expected_version = student.auth_version
+    winning_hash = hash_password("WinningPermanentPass123!")
+    losing_hash = hash_password("LosingPermanentPass123!")
+
+    assert _rotate_forced_password(
+        db,
+        student_id=student.id,
+        expected_auth_version=expected_version,
+        password_hash=winning_hash,
+    ) is True
+    assert _rotate_forced_password(
+        db,
+        student_id=student.id,
+        expected_auth_version=expected_version,
+        password_hash=losing_hash,
+    ) is False
+
+    db.expire_all()
+    rotated = db.get(type(student), student.id)
+    assert rotated.must_change_password is False
+    assert rotated.auth_version == expected_version + 1
+    assert verify_password("WinningPermanentPass123!", rotated.password_hash)
+    assert not verify_password("LosingPermanentPass123!", rotated.password_hash)
