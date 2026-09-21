@@ -15,6 +15,13 @@ branch_labels = None
 depends_on = None
 
 _INTRO_TITLES = ("Anatomy of a Good Ticket", "Meet the Command Line")
+_LESSON_MODULE_CODES = {
+    "Anatomy of a Good Ticket": "MOD-001",
+    "Meet the Command Line": "MOD-001",
+    "Storage: Symptoms Before Specs": "MOD-002",
+    "RAM, CPU, Power, and POST": "MOD-002",
+    "BIOS/UEFI and Boot Order": "MOD-002",
+}
 _POLISHED_ESTIMATES = {
     "Anatomy of a Good Ticket": 25,
     "Meet the Command Line": 10,
@@ -37,25 +44,19 @@ def _connection():
 
 def _set_intro_requirement(required: bool) -> None:
     connection = _connection()
-    lesson_ids = [
-        str(row.id)
-        for row in connection.execute(
-            sa.text("SELECT id FROM lessons WHERE title IN (:first, :second)"),
-            {"first": _INTRO_TITLES[0], "second": _INTRO_TITLES[1]},
-        )
-    ]
-    if not lesson_ids:
-        return
     connection.execute(
         sa.text(
             "UPDATE training_week_activities "
             "SET is_required = :required "
-            "WHERE activity_type = 'lesson' AND content_ref IN (:first, :second)"
+            "WHERE activity_type = 'lesson' AND content_ref IN ("
+            "SELECT CAST(lessons.id AS TEXT) FROM lessons "
+            "JOIN modules ON modules.id = lessons.module_id "
+            "WHERE modules.code = 'MOD-001' AND lessons.title IN (:first, :second))"
         ),
         {
             "required": required,
-            "first": lesson_ids[0],
-            "second": lesson_ids[-1],
+            "first": _INTRO_TITLES[0],
+            "second": _INTRO_TITLES[1],
         },
     )
 
@@ -63,17 +64,24 @@ def _set_intro_requirement(required: bool) -> None:
 def _set_estimates(estimates: dict[str, int], module_hours: tuple[int, int]) -> None:
     connection = _connection()
     for title, minutes in estimates.items():
+        module_code = _LESSON_MODULE_CODES[title]
         connection.execute(
-            sa.text("UPDATE lessons SET estimated_minutes = :minutes WHERE title = :title"),
-            {"minutes": minutes, "title": title},
+            sa.text(
+                "UPDATE lessons SET estimated_minutes = :minutes WHERE id IN ("
+                "SELECT lessons.id FROM lessons JOIN modules ON modules.id = lessons.module_id "
+                "WHERE modules.code = :module_code AND lessons.title = :title)"
+            ),
+            {"minutes": minutes, "module_code": module_code, "title": title},
         )
         connection.execute(
             sa.text(
                 "UPDATE training_week_activities SET estimated_minutes = :minutes "
                 "WHERE activity_type = 'lesson' AND content_ref IN "
-                "(SELECT CAST(id AS TEXT) FROM lessons WHERE title = :title)"
+                "(SELECT CAST(lessons.id AS TEXT) FROM lessons "
+                "JOIN modules ON modules.id = lessons.module_id "
+                "WHERE modules.code = :module_code AND lessons.title = :title)"
             ),
-            {"minutes": minutes, "title": title},
+            {"minutes": minutes, "module_code": module_code, "title": title},
         )
     connection.execute(
         sa.text(

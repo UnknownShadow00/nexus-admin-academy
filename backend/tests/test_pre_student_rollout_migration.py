@@ -142,6 +142,34 @@ def test_0069_snapshot_upgrades_reconciles_and_preserves_student_history(tmp_pat
             "resulting_state_hash, success, trusted) VALUES (?, 1, ?, 'ticket.close', 'ticket', ?, ?, ?, 1, 1)",
             (attempt_id, "preserved-event", json.dumps({"resolution": "preserved"}), "0" * 64, "a" * 64),
         )
+        connection.execute(
+            "INSERT INTO modules "
+            "(code, title, difficulty_band, estimated_hours, unlock_threshold, module_order, active) "
+            "VALUES ('CUSTOM-INTRO', 'Instructor Optional Material', 1, 9, 70, 99, 1)"
+        )
+        custom_module_id = connection.execute("SELECT last_insert_rowid()").fetchone()[0]
+        connection.execute(
+            "INSERT INTO lessons "
+            "(module_id, title, lesson_order, outcomes, estimated_minutes, status) "
+            "VALUES (?, 'Anatomy of a Good Ticket', 1, '[]', 777, 'published')",
+            (custom_module_id,),
+        )
+        custom_lesson_id = connection.execute("SELECT last_insert_rowid()").fetchone()[0]
+        week_one_id = connection.execute(
+            "SELECT id FROM training_weeks WHERE week_number = 1"
+        ).fetchone()[0]
+        next_display_order = connection.execute(
+            "SELECT COALESCE(MAX(display_order), 0) + 1 FROM training_week_activities "
+            "WHERE training_week_id = ?",
+            (week_one_id,),
+        ).fetchone()[0]
+        connection.execute(
+            "INSERT INTO training_week_activities "
+            "(stable_id, training_week_id, activity_type, content_ref, display_order, is_required, "
+            "estimated_minutes, prerequisite_mode, metadata_json) "
+            "VALUES ('custom-instructor-anatomy', ?, 'lesson', ?, ?, 0, 777, 'soft', '{}')",
+            (week_one_id, str(custom_lesson_id), next_display_order),
+        )
         connection.commit()
         before = _history_snapshot(connection, student_id)
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone()[0] == PRODUCTION_REVISION
@@ -177,7 +205,9 @@ def test_0069_snapshot_upgrades_reconciles_and_preserves_student_history(tmp_pat
         # Week 1–2 polish reconciled on upgrade without changing history IDs.
         polished = dict(
             connection.execute(
-                "SELECT title, estimated_minutes FROM lessons WHERE title IN "
+                "SELECT lessons.title, lessons.estimated_minutes FROM lessons "
+                "JOIN modules ON modules.id = lessons.module_id "
+                "WHERE modules.code IN ('MOD-001', 'MOD-002') AND lessons.title IN "
                 "('Anatomy of a Good Ticket', 'Meet the Command Line', 'Storage: Symptoms Before Specs', "
                 "'RAM, CPU, Power, and POST', 'BIOS/UEFI and Boot Order')"
             ).fetchall()
@@ -189,3 +219,12 @@ def test_0069_snapshot_upgrades_reconciles_and_preserves_student_history(tmp_pat
             "RAM, CPU, Power, and POST": 45,
             "BIOS/UEFI and Boot Order": 30,
         }
+        assert connection.execute(
+            "SELECT lessons.estimated_minutes, training_week_activities.estimated_minutes, "
+            "training_week_activities.is_required FROM lessons "
+            "JOIN training_week_activities "
+            "ON training_week_activities.content_ref = CAST(lessons.id AS TEXT) "
+            "WHERE lessons.id = ? AND training_week_activities.activity_type = 'lesson' "
+            "AND training_week_activities.stable_id = 'custom-instructor-anatomy'",
+            (custom_lesson_id,),
+        ).fetchone() == (777, 777, 0)

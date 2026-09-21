@@ -2246,8 +2246,19 @@ def reconcile_optional_lesson_requirements(db: Session) -> dict:
     if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
         return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
 
-    lessons = {str(lesson.id): lesson for lesson in db.query(Lesson).all()}
-    if not lessons:
+    beginner_lesson_ids = {
+        str(lesson_id)
+        for (lesson_id,) in (
+            db.query(Lesson.id)
+            .join(Module, Module.id == Lesson.module_id)
+            .filter(
+                Module.code == "MOD-001",
+                Lesson.title.in_(BEGINNER_POLISH_REQUIRED_LESSON_TITLES),
+            )
+            .all()
+        )
+    }
+    if not beginner_lesson_ids:
         return {"updated": 0, "skipped": True, "reason": "lessons_missing"}
 
     revision = (
@@ -2263,12 +2274,7 @@ def reconcile_optional_lesson_requirements(db: Session) -> dict:
         .all()
     )
     for activity in activities:
-        lesson = lessons.get(activity.content_ref)
-        if (
-            lesson is None
-            or not beginner_polish_enabled
-            or lesson.title not in BEGINNER_POLISH_REQUIRED_LESSON_TITLES
-        ):
+        if not beginner_polish_enabled or activity.content_ref not in beginner_lesson_ids:
             continue
         if not activity.is_required:
             activity.is_required = True
