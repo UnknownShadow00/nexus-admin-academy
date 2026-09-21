@@ -49,4 +49,16 @@ describe("ChangePasswordPage", () => {
     }, { suppressToast: true }));
     expect(await screen.findByText("Today destination")).toBeInTheDocument();
   });
+
+  it("shows the backend password-policy reason", async () => {
+    authChangePassword.mockRejectedValue({
+      userMessage: "Password cannot begin or end with whitespace.",
+    });
+    render(<MemoryRouter><ChangePasswordPage /></MemoryRouter>);
+    fireEvent.change(screen.getByLabelText("New password"), { target: { value: " NewPermanentPass123!" } });
+    fireEvent.change(screen.getByLabelText("Confirm new password"), { target: { value: " NewPermanentPass123!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Change password" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Password cannot begin or end with whitespace.");
+  });
 });

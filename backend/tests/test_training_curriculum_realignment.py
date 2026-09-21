@@ -5,6 +5,7 @@ from app.models.quiz import Quiz
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.training_curriculum_seed import (
+    _revision_includes,
     reconcile_optional_lesson_requirements,
     sync_initial_training_activities,
     sync_weeks_3_6_quality,
@@ -64,6 +65,13 @@ def test_beginner_intro_lessons_are_required_and_existing_rows_converge(db):
         Lesson(module_id=module.id, title="Anatomy of a Good Ticket", lesson_order=1, status="published"),
         Lesson(module_id=module.id, title="Meet the Command Line", lesson_order=2, status="published"),
     ]
+    instructor_optional = Lesson(
+        module_id=module.id,
+        title="Instructor Optional Enrichment",
+        lesson_order=3,
+        status="published",
+    )
+    lessons.append(instructor_optional)
     db.add_all(lessons)
     week = _add_week(db, 1)
     db.flush()
@@ -85,8 +93,19 @@ def test_beginner_intro_lessons_are_required_and_existing_rows_converge(db):
     db.commit()
 
     assert reconcile_optional_lesson_requirements(db) == {"updated": 2, "skipped": False}
-    assert all(row.is_required for row in db.query(TrainingWeekActivity).all())
+    activities = {
+        row.content_ref: row for row in db.query(TrainingWeekActivity).all()
+    }
+    assert activities[str(lessons[0].id)].is_required is True
+    assert activities[str(lessons[1].id)].is_required is True
+    assert activities[str(instructor_optional.id)].is_required is False
     assert reconcile_optional_lesson_requirements(db) == {"updated": 0, "skipped": False}
+
+
+def test_beginner_polish_revision_policy_follows_migration_ancestry():
+    assert _revision_includes("0069_merge_v2_beginner_heads", "0070_beginner_content_ux_polish") is False
+    assert _revision_includes("0070_beginner_content_ux_polish", "0070_beginner_content_ux_polish") is True
+    assert _revision_includes("0071_forced_first_login_password_change", "0070_beginner_content_ux_polish") is True
 
 
 def test_weeks_1_4_practice_realignment_converges_seeded_curriculum(db):

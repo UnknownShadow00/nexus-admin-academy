@@ -10,7 +10,9 @@ import hashlib
 import json
 from collections import defaultdict
 from datetime import datetime, timezone
+from pathlib import Path
 
+from alembic.script import ScriptDirectory
 from sqlalchemy import func, inspect, text
 from sqlalchemy.orm import Session
 
@@ -58,6 +60,23 @@ VIDEO_WEEKS = {
     23: [174],
     24: [171, 172, 173],
 }
+
+
+def _revision_includes(current_revision: str | None, required_revision: str) -> bool:
+    """Return whether the checked-out migration graph includes a revision.
+
+    Fresh databases call the seed after upgrading to head, while small unit
+    fixtures may not create ``alembic_version`` at all. Treat the latter as
+    current and walk the real migration graph for every persisted revision so
+    later migrations continue to inherit rollout behavior.
+    """
+    if current_revision is None:
+        return True
+    script = ScriptDirectory(str(Path(__file__).resolve().parents[2] / "alembic"))
+    return any(
+        migration.revision == required_revision
+        for migration in script.iterate_revisions(current_revision, "base")
+    )
 
 CLI_WEEKS = {
     "meet-cli-001": 1,
@@ -2236,11 +2255,7 @@ def reconcile_optional_lesson_requirements(db: Session) -> dict:
         if inspect(bind).has_table("alembic_version")
         else None
     )
-    beginner_polish_enabled = revision in {
-        None,
-        "0070_beginner_content_ux_polish",
-        "0071_forced_first_login_password_change",
-    }
+    beginner_polish_enabled = _revision_includes(revision, "0070_beginner_content_ux_polish")
     updated = 0
     activities = (
         db.query(TrainingWeekActivity)
@@ -2249,17 +2264,14 @@ def reconcile_optional_lesson_requirements(db: Session) -> dict:
     )
     for activity in activities:
         lesson = lessons.get(activity.content_ref)
-        if lesson is None:
+        if (
+            lesson is None
+            or not beginner_polish_enabled
+            or lesson.title not in BEGINNER_POLISH_REQUIRED_LESSON_TITLES
+        ):
             continue
-        should_be_required = lesson.id not in OPTIONAL_LESSON_IDS and (
-            lesson.title not in OPTIONAL_LESSON_TITLES
-            or (
-                beginner_polish_enabled
-                and lesson.title in BEGINNER_POLISH_REQUIRED_LESSON_TITLES
-            )
-        )
-        if bool(activity.is_required) != should_be_required:
-            activity.is_required = should_be_required
+        if not activity.is_required:
+            activity.is_required = True
             updated += 1
     db.commit()
     return {"updated": updated, "skipped": False}
@@ -2312,11 +2324,7 @@ def sync_weeks_1_4_practice_realignment(db: Session) -> dict:
         if inspect(bind).has_table("alembic_version")
         else None
     )
-    beginner_polish_enabled = revision in {
-        None,
-        "0070_beginner_content_ux_polish",
-        "0071_forced_first_login_password_change",
-    }
+    beginner_polish_enabled = _revision_includes(revision, "0070_beginner_content_ux_polish")
 
     weeks = {
         week.week_number: week

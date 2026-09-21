@@ -39,8 +39,7 @@ export default function ChangePasswordPage() {
       });
       navigate("/", { replace: true });
     } catch (err) {
-      const detail = err?.response?.data?.detail;
-      setError(typeof detail === "string" ? detail : "Password could not be changed. Try again.");
+      setError(err?.userMessage || "Password could not be changed. Try again.");
     } finally {
       setSubmitting(false);
     }
