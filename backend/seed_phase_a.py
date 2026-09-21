@@ -24,14 +24,14 @@ MODULES = [
         "description": "Ticket writing, internal vs user-facing notes, and first command-line contact. Week 1.",
         "target_role": "Support Technician I",
         "difficulty_band": 1,
-        "estimated_hours": 6,
+        "estimated_hours": 2,
         "module_order": 2,
         "unlock_threshold": 70,
         "lessons": [
             {
                 "title": "Anatomy of a Good Ticket",
                 "lesson_order": 1,
-                "estimated_minutes": 60,
+                "estimated_minutes": 25,
                 "summary": (
                     "A ticket is the product of your work — the fix is invisible if the ticket is bad. "
                     "A good ticket lets a stranger continue your work without re-asking the user anything.\n\n"
@@ -64,7 +64,7 @@ MODULES = [
             {
                 "title": "Meet the Command Line",
                 "lesson_order": 2,
-                "estimated_minutes": 90,
+                "estimated_minutes": 10,
                 "summary": (
                     "GUI status icons summarize; command output proves. Technicians trust command output "
                     "because it is exact, timestamped, copyable into a ticket, and identical over remote "
@@ -94,14 +94,14 @@ MODULES = [
         "description": "Symptom-first hardware diagnosis: storage, RAM/CPU/power/POST, BIOS/UEFI. Week 2.",
         "target_role": "Support Technician I",
         "difficulty_band": 1,
-        "estimated_hours": 14,
+        "estimated_hours": 5,
         "module_order": 3,
         "unlock_threshold": 70,
         "lessons": [
             {
                 "title": "Storage: Symptoms Before Specs",
                 "lesson_order": 1,
-                "estimated_minutes": 90,
+                "estimated_minutes": 45,
                 "summary": (
                     "You will never be asked 'what is an SSD'. You WILL be asked why a laptop takes five "
                     "minutes to boot. Storage symptoms map to causes:\n"
@@ -130,7 +130,7 @@ MODULES = [
             {
                 "title": "RAM, CPU, Power, and POST",
                 "lesson_order": 2,
-                "estimated_minutes": 90,
+                "estimated_minutes": 45,
                 "summary": (
                     "No-POST triage is pattern recognition:\n"
                     "- Nothing at all (no fans, no LEDs) → power path: outlet, cable, PSU switch, PSU.\n"
@@ -157,7 +157,7 @@ MODULES = [
             {
                 "title": "BIOS/UEFI and Boot Order",
                 "lesson_order": 3,
-                "estimated_minutes": 60,
+                "estimated_minutes": 30,
                 "summary": (
                     "'No operating system found' has three very different causes: boot order pointing at "
                     "the wrong device (cheap fix), a dead disk (data conversation), or a broken bootloader "

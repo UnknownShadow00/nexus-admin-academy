@@ -1,9 +1,11 @@
 from app.models.cli_lab import CliLab
 from app.models.lab import LabTemplate
+from app.models.learning import Lesson, Module
 from app.models.quiz import Quiz
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.training_curriculum_seed import (
+    reconcile_optional_lesson_requirements,
     sync_initial_training_activities,
     sync_weeks_3_6_quality,
     sync_weeks_7_10_quality,
@@ -46,6 +48,45 @@ def _add_lab(db, lab_id, title, week_number, lab_type="guided"):
             hints={},
         )
     )
+
+
+def test_beginner_intro_lessons_are_required_and_existing_rows_converge(db):
+    module = Module(
+        code="MOD-001",
+        title="The Ticket Is the Job",
+        module_order=2,
+        difficulty_band=1,
+        estimated_hours=1,
+    )
+    db.add(module)
+    db.flush()
+    lessons = [
+        Lesson(module_id=module.id, title="Anatomy of a Good Ticket", lesson_order=1, status="published"),
+        Lesson(module_id=module.id, title="Meet the Command Line", lesson_order=2, status="published"),
+    ]
+    db.add_all(lessons)
+    week = _add_week(db, 1)
+    db.flush()
+    db.add_all(
+        [
+            TrainingWeekActivity(
+                training_week_id=week.id,
+                stable_id=f"week-1-lesson-{lesson.id}",
+                activity_type="lesson",
+                content_ref=str(lesson.id),
+                display_order=index,
+                is_required=False,
+                prerequisite_mode="soft",
+                metadata_json={},
+            )
+            for index, lesson in enumerate(lessons, start=1)
+        ]
+    )
+    db.commit()
+
+    assert reconcile_optional_lesson_requirements(db) == {"updated": 2, "skipped": False}
+    assert all(row.is_required for row in db.query(TrainingWeekActivity).all())
+    assert reconcile_optional_lesson_requirements(db) == {"updated": 0, "skipped": False}
 
 
 def test_weeks_1_4_practice_realignment_converges_seeded_curriculum(db):
@@ -118,6 +159,12 @@ def test_weeks_1_4_practice_realignment_converges_seeded_curriculum(db):
     assert db.query(TrainingWeekActivity).filter_by(activity_type="networking_lab", content_ref="meet-cli-001").one().is_required is True
     assert validate_training_curriculum(db)["valid"] is True
 
+    week_one_cli = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[1].id,
+        activity_type="networking_lab",
+    ).one()
+    assert week_one_cli.display_order < apply_activities[1].display_order
+
     # Practice must be sequenced before Apply, not appended after it.
     for number in (2, 3, 4):
         week = weeks[number]
@@ -133,8 +180,41 @@ def test_weeks_1_4_practice_realignment_converges_seeded_curriculum(db):
         "created_activities": 0,
         "deleted_activities": 0,
         "updated_cli_activities": 0,
+        "reordered_activities": 0,
         "skipped": False,
     }
+
+
+def test_week_two_required_quiz_follows_all_required_learning(db):
+    weeks = {number: _add_week(db, number) for number in range(1, 5)}
+    db.flush()
+    _add_lab(db, 1, "IP Addressing & Subnetting Practice", 2)
+    _add_lab(db, 2, "Troubleshoot a Network Connectivity Scenario", 3, "scenario")
+    _add_lab(db, 3, "Windows Command-Line Diagnostics", 4)
+    _add_lab(db, 4, "Hardware Component Identification", 1, "identification")
+    _add_lab(db, 5, "AD Break-Fix: locked and misplaced account on a live domain", 15, "break_fix")
+    db.add_all(
+        [
+            TrainingWeekActivity(training_week_id=weeks[2].id, stable_id="week-2-lesson-1", activity_type="lesson", content_ref="1", display_order=1, is_required=True, prerequisite_mode="soft", metadata_json={}),
+            TrainingWeekActivity(training_week_id=weeks[2].id, stable_id="week-2-quiz-78", activity_type="quiz", content_ref="78", display_order=2, is_required=True, prerequisite_mode="soft", metadata_json={}),
+            TrainingWeekActivity(training_week_id=weeks[2].id, stable_id="week-2-video-44", activity_type="video", content_ref="44", display_order=3, is_required=True, prerequisite_mode="soft", metadata_json={}),
+            TrainingWeekActivity(training_week_id=weeks[2].id, stable_id="week-2-service_desk_scenario-inc2404", activity_type="service_desk_scenario", content_ref="inc2404", display_order=4, is_required=True, prerequisite_mode="soft", metadata_json={}),
+        ]
+    )
+    db.commit()
+
+    result = sync_weeks_1_4_practice_realignment(db)
+    ordered_types = [
+        row.activity_type
+        for row in db.query(TrainingWeekActivity)
+        .filter_by(training_week_id=weeks[2].id)
+        .order_by(TrainingWeekActivity.display_order)
+    ]
+
+    assert result["reordered_activities"] > 0
+    assert ordered_types.index("video") < ordered_types.index("quiz")
+    assert ordered_types.index("quiz") < ordered_types.index("guided_lab")
+    assert ordered_types.index("guided_lab") < ordered_types.index("service_desk_scenario")
 
 
 def test_weeks_3_6_quality_sync_builds_aligned_required_paths_idempotently(db):

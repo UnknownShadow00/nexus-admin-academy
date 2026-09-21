@@ -11,7 +11,7 @@ import json
 from collections import defaultdict
 from datetime import datetime, timezone
 
-from sqlalchemy import func, inspect
+from sqlalchemy import func, inspect, text
 from sqlalchemy.orm import Session
 
 from app.models.capstone import CapstoneTemplate
@@ -25,7 +25,13 @@ from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVers
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.beginner_learning import SCENARIO_TOPIC_WEEKS
 from app.services.quiz_visibility import v1_student_visible_quiz_filters_for
-from app.services.training_quiz_mapping import OPTIONAL_LESSON_IDS, OPTIONAL_LESSON_TITLES, mapping_metadata, video_is_required
+from app.services.training_quiz_mapping import (
+    BEGINNER_POLISH_REQUIRED_LESSON_TITLES,
+    OPTIONAL_LESSON_IDS,
+    OPTIONAL_LESSON_TITLES,
+    mapping_metadata,
+    video_is_required,
+)
 
 
 VIDEO_WEEKS = {
@@ -2216,30 +2222,40 @@ def reconcile_week_zero_requirements(db: Session) -> dict:
 
 
 def reconcile_optional_lesson_requirements(db: Session) -> dict:
-    """Retire selected standalone lessons without removing their activities or history."""
+    """Keep lesson requirement flags aligned without replacing activity history."""
     bind = db.get_bind()
     if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
         return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
 
-    optional_ids = {
-        str(lesson.id)
-        for lesson in db.query(Lesson).filter(Lesson.title.in_(OPTIONAL_LESSON_TITLES)).all()
-    }
-    if not optional_ids:
-        return {"updated": 0, "skipped": True, "reason": "optional_lessons_missing"}
+    lessons = {str(lesson.id): lesson for lesson in db.query(Lesson).all()}
+    if not lessons:
+        return {"updated": 0, "skipped": True, "reason": "lessons_missing"}
 
+    revision = (
+        db.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
+        if inspect(bind).has_table("alembic_version")
+        else None
+    )
+    beginner_polish_enabled = revision in {None, "0070_beginner_content_ux_polish"}
     updated = 0
     activities = (
         db.query(TrainingWeekActivity)
-        .filter(
-            TrainingWeekActivity.activity_type == "lesson",
-            TrainingWeekActivity.content_ref.in_(optional_ids),
-        )
+        .filter(TrainingWeekActivity.activity_type == "lesson")
         .all()
     )
     for activity in activities:
-        if activity.is_required:
-            activity.is_required = False
+        lesson = lessons.get(activity.content_ref)
+        if lesson is None:
+            continue
+        should_be_required = lesson.id not in OPTIONAL_LESSON_IDS and (
+            lesson.title not in OPTIONAL_LESSON_TITLES
+            or (
+                beginner_polish_enabled
+                and lesson.title in BEGINNER_POLISH_REQUIRED_LESSON_TITLES
+            )
+        )
+        if bool(activity.is_required) != should_be_required:
+            activity.is_required = should_be_required
             updated += 1
     db.commit()
     return {"updated": updated, "skipped": False}
@@ -2287,6 +2303,12 @@ def sync_weeks_1_4_practice_realignment(db: Session) -> dict:
     bind = db.get_bind()
     if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
         return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    revision = (
+        db.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
+        if inspect(bind).has_table("alembic_version")
+        else None
+    )
+    beginner_polish_enabled = revision in {None, "0070_beginner_content_ux_polish"}
 
     weeks = {
         week.week_number: week
@@ -2302,6 +2324,7 @@ def sync_weeks_1_4_practice_realignment(db: Session) -> dict:
         "created_activities": 0,
         "deleted_activities": 0,
         "updated_cli_activities": 0,
+        "reordered_activities": 0,
         "skipped": False,
     }
 
@@ -2520,6 +2543,51 @@ def sync_weeks_1_4_practice_realignment(db: Session) -> dict:
         if not activity.is_required:
             activity.is_required = True
             result["updated_cli_activities"] += 1
+
+    # Keep the stored next-action sequence consistent with the student-facing
+    # Learn -> Check -> Practice -> Troubleshoot flow. Week 1 historically put
+    # its ticket before required CLI practice, while Week 2 put its quiz before
+    # the required Computer Power video. Reorder in place so existing activity
+    # identities and completion history remain intact.
+    role_order = {
+        "lesson": 0,
+        "video": 0,
+        "quiz": 1,
+        "guided_lab": 2,
+        "networking_lab": 2,
+        "terminal_exercise": 2,
+        "command_exercise": 2,
+        "service_desk_scenario": 3,
+        "capstone": 4,
+    }
+    for week_number in ((1, 2) if beginner_polish_enabled else ()):
+        rows = (
+            db.query(TrainingWeekActivity)
+            .filter(TrainingWeekActivity.training_week_id == weeks[week_number].id)
+            .order_by(TrainingWeekActivity.display_order, TrainingWeekActivity.id)
+            .all()
+        )
+        desired = sorted(
+            rows,
+            key=lambda row: (
+                role_order.get(row.activity_type, 5),
+                row.display_order,
+                row.id,
+            ),
+        )
+        if [row.id for row in desired] == [row.id for row in rows]:
+            continue
+
+        result["reordered_activities"] += sum(
+            current.id != expected.id for current, expected in zip(rows, desired)
+        )
+        temporary_start = max(row.display_order for row in rows) + len(rows) + 1
+        for offset, row in enumerate(rows):
+            row.display_order = temporary_start + offset
+            db.flush()
+        for display_order, row in enumerate(desired, start=1):
+            row.display_order = display_order
+            db.flush()
 
     db.commit()
     return result

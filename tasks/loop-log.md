@@ -2543,3 +2543,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: tasks/loop-log.md
 - Result: pass; all six CI jobs were green on the reviewed hotfix commit, GitHub reported zero unresolved review threads and no new Codex review findings, and the PR merge state was CLEAN.
 - Next: Push this verification record, wait for its replacement CI run to pass, then hand off PR #37 for separately authorized merge; do not deploy.
+
+## [2026-09-21T03:40:34Z] Task Completed
+- Task: Audited and polished the brand-new-student A+ Weeks 1-2 flow on an isolated branch, aligning required introductions, realistic time estimates, stored next actions, ticket lock guidance, and regression coverage.
+- Files changed: backend/alembic/versions/0070_beginner_content_ux_polish.py, backend/app/services/service_desk_progression.py, backend/app/services/training_curriculum_seed.py, backend/app/services/training_quiz_mapping.py, backend/seed_curriculum.py, backend/seed_phase_a.py, backend/tests/test_phase4c3_final_shift.py, backend/tests/test_training_curriculum_realignment.py, backend/tests/test_training_service.py, backend/tests/test_v2_runtime_migration_0068.py, frontend/tests/e2e/weeks-1-4-quality.spec.js, tasks/loop-log.md
+- Result: pass against acceptance criteria; 83 focused backend tests and 10 migration-lineage tests passed, all 58 frontend unit tests passed, the production frontend build passed, the Playwright spec parsed, all 20 Week 1-2 video URLs returned HTTP 200, and migration upgrade/downgrade preserves historical convergence. No production deployment, migration, seed, service restart, Proxmox action, or Hybrid Labs change occurred.
+- Next: Review and merge the branch separately, then schedule migration 0070 through the normal deployment process; the live browser E2E remains for an isolated test stack and must not be run against production as part of this task.

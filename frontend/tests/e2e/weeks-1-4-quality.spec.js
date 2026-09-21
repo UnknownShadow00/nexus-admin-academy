@@ -126,8 +126,11 @@ test("Support Workflow Essentials: learning roles, CLI CTA, and formative ticket
     const applySection = page.locator("section").filter({ has: page.getByRole("heading", { name: "4. Troubleshoot" }) });
     await expect(applySection.locator('article[data-activity-type="service_desk_scenario"]')).toBeVisible();
 
-    // Phase 3: "Meet the Command Line" no longer claims a dead requirement, CTA works
-    await page.locator("details > summary").click();
+    // The required CLI introduction appears before the required CLI practice.
+    const requiredLessons = page.locator('article[data-activity-type="lesson"]');
+    await expect(requiredLessons).toHaveCount(2);
+    await expect(requiredLessons.nth(0)).toContainText("Anatomy of a Good Ticket");
+    await expect(requiredLessons.nth(1)).toContainText("Meet the Command Line");
     await page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Meet the Command Line" }).getByRole("link").click();
     await expect(page.getByRole("heading", { name: "Meet the Command Line", exact: true })).toBeVisible();
     await expect(page.getByText(/complete CLI labs 1-9/i)).toHaveCount(0);
@@ -141,7 +144,6 @@ test("Support Workflow Essentials: learning roles, CLI CTA, and formative ticket
 
     // Phase 3: "Anatomy of a Good Ticket" has a real formative exercise
     await page.goto("/training/week/1");
-    await page.locator("details > summary").click();
     await expect(page.locator('article[data-activity-type="lesson"]').filter({ hasText: "Anatomy of a Good Ticket" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Rewrite this bad ticket note" })).toBeVisible();
     await page.getByRole("button", { name: "Check my note" }).click();

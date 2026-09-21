@@ -359,8 +359,8 @@ def test_learning_path_explains_service_desk_topic_prerequisite(db, student):
 
     assert activity["permission_locked"] is True
     assert activity["permission_reason"] == (
-        "Complete the Support Workflow Essentials learning activities "
-        "to unlock this case."
+        "Complete the required learning activities—Learn, Check, and Practice—in "
+        "Support Workflow Essentials to unlock this beginner case."
     )
 
 

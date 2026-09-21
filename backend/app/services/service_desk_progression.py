@@ -677,8 +677,9 @@ def scenario_access(progression: dict, stable_key: str) -> dict:
         module_for_week(required_topic_week) if required_topic_week is not None else None
     )
     topic_lock_reason = (
-        f"Complete the {required_module.title if required_module else f'Week {required_topic_week}'} "
-        "learning activities to unlock this case."
+        "Complete the required learning activities—Learn, Check, and Practice—in "
+        f"{required_module.title if required_module else f'Week {required_topic_week}'} "
+        "to unlock this beginner case."
         if topic_blocked
         else None
     )

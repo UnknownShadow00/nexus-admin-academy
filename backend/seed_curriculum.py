@@ -197,6 +197,7 @@ try:
         if current_revision in {
             "0062_beginner_learning_rollout",
             "0069_merge_v2_beginner_heads",
+            "0070_beginner_content_ux_polish",
         }
         else {"skipped": f"requires 0062; database is {current_revision or 'unversioned'}"}
     )
@@ -207,6 +208,7 @@ try:
             "0061_integrated_support_prove",
             "0062_beginner_learning_rollout",
             "0069_merge_v2_beginner_heads",
+            "0070_beginner_content_ux_polish",
         }
         else {"skipped": f"requires 0060; database is {current_revision or 'unversioned'}"}
     )
@@ -216,6 +218,7 @@ try:
             "0061_integrated_support_prove",
             "0062_beginner_learning_rollout",
             "0069_merge_v2_beginner_heads",
+            "0070_beginner_content_ux_polish",
         }
         else {"skipped": f"requires 0061; database is {current_revision or 'unversioned'}"}
     )
