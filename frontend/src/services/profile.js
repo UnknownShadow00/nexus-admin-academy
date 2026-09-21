@@ -12,6 +12,7 @@ export function getSelectedProfile() {
       name: String(parsed.name),
       email: parsed.email ? String(parsed.email) : "",
       is_mentor: Boolean(parsed.is_mentor),
+      must_change_password: Boolean(parsed.must_change_password),
       has_unlocked_capstones:
         typeof parsed.has_unlocked_capstones === "boolean" ? parsed.has_unlocked_capstones : undefined,
       a_plus_progress_pct:
@@ -34,6 +35,7 @@ export function setSelectedProfile(profile) {
         name: String(profile.name),
         email: profile.email ? String(profile.email) : "",
         is_mentor: Boolean(profile.is_mentor),
+        must_change_password: Boolean(profile.must_change_password),
         has_unlocked_capstones:
           typeof profile.has_unlocked_capstones === "boolean" ? profile.has_unlocked_capstones : undefined,
         a_plus_progress_pct:

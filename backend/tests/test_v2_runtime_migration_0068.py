@@ -12,7 +12,7 @@ from pathlib import Path
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 PREVIOUS = "0067_v2_question_objectives"
 RUNTIME_REVISION = "0068_v2_runtime_stabilization"
-RECONCILED_HEAD = "0070_beginner_content_ux_polish"
+RECONCILED_HEAD = "0071_forced_first_login_password_change"
 
 
 def _alembic(database_url: str, *arguments: str) -> None:

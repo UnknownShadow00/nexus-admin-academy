@@ -20,8 +20,9 @@ from app.models.xp_ledger import XPLedger
 from app.services.admin_auth import get_admin_api_key, has_valid_admin_session
 from app.services.auth_service import (
     STUDENT_SESSION_COOKIE,
-    decode_token,
     get_current_student,
+    get_student_from_token,
+    require_password_change_complete,
 )
 from app.services.service_desk_contract import require_service_desk_contract
 
@@ -313,18 +314,12 @@ def authorize_service_desk_admin(
     token = request.cookies.get(STUDENT_SESSION_COOKIE)
     if token:
         try:
-            payload = decode_token(token)
-            student_id = int(payload["sub"])
-        except (HTTPException, KeyError, TypeError, ValueError):
-            student_id = None
-
-        if student_id is not None:
-            mentor = (
-                db.query(Student)
-                .filter(Student.id == student_id, Student.is_mentor.is_(True))
-                .first()
-            )
-            if mentor:
+            mentor = get_student_from_token(token, db)
+            require_password_change_complete(mentor)
+            if mentor.is_mentor:
                 return Response(status_code=status.HTTP_204_NO_CONTENT)
+        except HTTPException as exc:
+            if isinstance(exc.detail, dict) and exc.detail.get("code") == "PASSWORD_CHANGE_REQUIRED":
+                raise
 
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")

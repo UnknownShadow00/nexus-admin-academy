@@ -85,6 +85,8 @@ def get_student_token(request: Request, response: Response, db: Session = Depend
         "name": mentor.name,
         "email": mentor.email or "",
         "is_mentor": mentor.is_mentor,
+        "av": mentor.auth_version,
+        "must_change_password": bool(mentor.must_change_password),
     }
     token = create_access_token(payload)
     secure_cookie = use_secure_cookies()
@@ -103,6 +105,7 @@ def get_student_token(request: Request, response: Response, db: Session = Depend
             "access_token": token,
             "token_type": "bearer",
             "student_id": mentor.id,
+            "must_change_password": bool(mentor.must_change_password),
             "name": mentor.name,
             "email": mentor.email or "",
             "is_mentor": mentor.is_mentor,

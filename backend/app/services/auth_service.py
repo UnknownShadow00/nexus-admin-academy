@@ -112,6 +112,16 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
+def validate_new_password(password: str) -> None:
+    """Validate a credential without returning or logging its value."""
+    if len(password) < 12:
+        raise ValueError("Password must be at least 12 characters long")
+    if len(password.encode("utf-8")) > 72:
+        raise ValueError("Password must be no more than 72 UTF-8 bytes long")
+    if password != password.strip():
+        raise ValueError("Password cannot begin or end with whitespace")
+
+
 def ensure_student_access(current_student: Student, student_id: int) -> None:
     """Allow a student to read their data and a mentor to review it."""
     if current_student.is_mentor or current_student.id == student_id:
@@ -164,15 +174,7 @@ def decode_token(token: str) -> dict:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication token")
 
 
-def get_current_student(
-    request: Request,
-    token: str | None = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
-) -> Student:
-    token = token or request.cookies.get(STUDENT_SESSION_COOKIE)
-    if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-
+def get_student_from_token(token: str, db: Session) -> Student:
     payload = decode_token(token)
     try:
         student_id = int(payload["sub"])
@@ -182,4 +184,40 @@ def get_current_student(
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Student not found")
+    try:
+        token_auth_version = int(payload.get("av", 0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication token")
+    if token_auth_version != student.auth_version:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication session is no longer valid")
+    return student
+
+
+def get_authenticated_student(
+    request: Request,
+    token: str | None = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> Student:
+    token = token or request.cookies.get(STUDENT_SESSION_COOKIE)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    return get_student_from_token(token, db)
+
+
+def require_password_change_complete(student: Student) -> None:
+    if student.must_change_password:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "PASSWORD_CHANGE_REQUIRED",
+                "message": "Change your temporary password before continuing.",
+            },
+        )
+
+
+def get_current_student(
+    student: Student = Depends(get_authenticated_student),
+) -> Student:
+    require_password_change_complete(student)
     return student

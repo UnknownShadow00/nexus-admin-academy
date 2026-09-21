@@ -403,9 +403,15 @@ def test_new_student_accounts_receive_managed_assignment_inventory(db):
     )
 
     student = db.query(Student).filter_by(username="new-progression").one()
+    assert student.must_change_password is True
     assert db.query(ServiceDeskAssignment).filter(
         ServiceDeskAssignment.student_id == student.id
     ).count() == sum(len(pack.scenario_keys) for pack in SERVICE_DESK_PACKS)
+    # This test owns assignment visibility, not onboarding. Model the result
+    # of completing the required first-login password change before reading it.
+    student.must_change_password = False
+    student.auth_version += 1
+    db.commit()
     rows = client.get(
         "/api/service-desk/assignments", headers=auth_headers(student)
     ).json()

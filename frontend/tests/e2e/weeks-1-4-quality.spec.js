@@ -7,11 +7,17 @@ const adminPassword = process.env.NEXUS_E2E_ADMIN_PASSWORD || "BrowserAdmin!2026
 const apiBaseUrl = process.env.NEXUS_E2E_API_URL || "http://127.0.0.1:8011";
 const browserBaseUrl = process.env.NEXUS_E2E_BASE_URL || "http://127.0.0.1:5173";
 
-async function studentLogin(page, username = studentUsername, password = studentPassword) {
+async function studentLogin(page, username = studentUsername, password = studentPassword, replacementPassword = null) {
   await page.goto("/login");
   await page.getByLabel("Username").fill(username);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Login" }).click();
+  if (replacementPassword) {
+    await expect(page).toHaveURL(/\/change-password$/);
+    await page.getByLabel("New password").fill(replacementPassword);
+    await page.getByLabel("Confirm new password").fill(replacementPassword);
+    await page.getByRole("button", { name: "Change password" }).click();
+  }
   await expect(page).toHaveURL(/\/$/);
 }
 
@@ -36,6 +42,7 @@ async function createStudentAtWeekOne(page) {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const username = `browser-w1-${suffix}`;
   const password = "BrowserWeek1!2026";
+  const permanentPassword = "BrowserWeek1Permanent!2026";
 
   await adminLogin(page);
   const createResponse = await page.request.post(`${apiBaseUrl}/api/admin/students`, {
@@ -47,7 +54,7 @@ async function createStudentAtWeekOne(page) {
   const studentId = createBody.data.student_id;
   await page.getByRole("button", { name: "Admin Sign Out" }).click();
 
-  await studentLogin(page, username, password);
+  await studentLogin(page, username, password, permanentPassword);
   await page.getByRole("link", { name: "Start Training" }).first().click();
   await expect(page).toHaveURL(/\/lessons\/\d+$/);
   const orientationLessonPath = new URL(page.url()).pathname;
@@ -78,7 +85,7 @@ async function createStudentAtWeekOne(page) {
   }
   await expect(page.getByText("Passed", { exact: true })).toBeVisible();
 
-  return { username, password, studentId, orientationLessonPath };
+  return { username, password: permanentPassword, studentId, orientationLessonPath };
 }
 
 async function deleteStudent(page, studentId) {

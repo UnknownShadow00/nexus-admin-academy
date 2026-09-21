@@ -42,6 +42,21 @@ const clientConfig = {
 const api = axios.create(clientConfig);
 const adminApi = axios.create(clientConfig);
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const detail = error?.response?.data?.detail;
+    if (
+      isBrowser()
+      && detail?.code === "PASSWORD_CHANGE_REQUIRED"
+      && window.location.pathname !== "/change-password"
+    ) {
+      window.location.assign("/change-password");
+    }
+    return Promise.reject(error);
+  },
+);
+
 let warmupPromise = null;
 
 api.interceptors.request.use((config) => {
@@ -517,6 +532,8 @@ export const authLogin = (data, requestOptions) =>
 export const authMe = (requestOptions) =>
   request(() => api.get("/auth/me"), { retries: 1, warmupOnRetry: true, ...requestOptions });
 export const authLogout = (requestOptions) => request(() => api.post("/auth/logout"), requestOptions);
+export const authChangePassword = (data, requestOptions) =>
+  requestData(() => api.post("/auth/change-password", data), requestOptions);
 
 export const getDueFlashcards = (requestOptions) => request(() => api.get("/api/flashcards/due"), requestOptions);
 export const rateFlashcard = (cardId, rating, requestOptions) =>

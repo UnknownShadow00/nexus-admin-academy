@@ -60,6 +60,7 @@ student and a forced mid-cleanup failure.
 | `student_methodology_progress` | `student_id → students` CASCADE | explicit + cascade defense | delete |
 | `student_objective_progress` | `student_id → students` CASCADE | explicit + cascade defense | delete |
 | `student_onboarding_practice` | `student_id → students` CASCADE | explicit + cascade defense | delete |
+| `student_auth_states` | `student_id → students` CASCADE | explicit + cascade defense | delete first-login flag and session version |
 | `student_roles` | `student_id → students` CASCADE | explicit + cascade defense | delete |
 | `ticket_submissions` | `student_id → students` CASCADE | explicit + cascade defense | delete legacy compatibility history |
 | `video_watches` | `student_id → students` CASCADE | explicit + cascade defense | delete |
@@ -88,3 +89,11 @@ grade root. Attempt-question and grading children are removed before their
 owners, including when a legacy SQLite connection has foreign-key enforcement
 disabled. Shared module, resource, assessment, quiz, prompt, and question
 records remain untouched.
+
+### Revision 0071 addendum
+
+Forced first-login password rotation adds `student_auth_states` as an optional
+one-to-one student-owned record. Existing students have no row and retain
+normal access; admin-created accounts and password resets create or update the
+row. Student deletion removes it explicitly, with the foreign-key cascade kept
+as defense in depth.

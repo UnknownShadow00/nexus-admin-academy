@@ -19,7 +19,7 @@ from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.models.video_watch import VideoWatch
 from app.routers import admin_students
 from app.services.admin_auth import verify_admin
-from app.services.auth_service import create_access_token
+from app.services.auth_service import create_access_token, verify_password
 from app.services.training_service import build_cohort_summary, build_training_progress
 from conftest import make_client
 
@@ -48,6 +48,43 @@ def admin_client():
     client = make_client(admin_students.router)
     client.app.dependency_overrides[verify_admin] = lambda: True
     return client
+
+
+def test_admin_created_student_requires_password_change(db):
+    response = admin_client().post(
+        "/api/admin/students",
+        json={
+            "name": "Fresh Student",
+            "email": "fresh-admin@test.local",
+            "username": "fresh-admin",
+            "password": "TemporaryPass123!",
+        },
+    )
+
+    assert response.status_code == 200
+    student = db.query(Student).filter_by(username="fresh-admin").one()
+    assert student.must_change_password is True
+    assert student.auth_version == 0
+    assert verify_password("TemporaryPass123!", student.password_hash)
+
+
+def test_admin_password_reset_forces_change_and_invalidates_old_sessions(db):
+    student = add_student(db, "reset", None)
+    student.password_hash = "old-hash"
+    student.must_change_password = False
+    student.auth_version = 4
+    db.commit()
+
+    response = admin_client().put(
+        f"/api/admin/students/{student.id}",
+        json={"password": "ResetPassword123!"},
+    )
+
+    assert response.status_code == 200
+    db.refresh(student)
+    assert student.must_change_password is True
+    assert student.auth_version == 5
+    assert verify_password("ResetPassword123!", student.password_hash)
 
 
 def unauthenticated_client():

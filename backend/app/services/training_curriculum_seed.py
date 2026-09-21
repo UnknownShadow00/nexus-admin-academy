@@ -2236,7 +2236,11 @@ def reconcile_optional_lesson_requirements(db: Session) -> dict:
         if inspect(bind).has_table("alembic_version")
         else None
     )
-    beginner_polish_enabled = revision in {None, "0070_beginner_content_ux_polish"}
+    beginner_polish_enabled = revision in {
+        None,
+        "0070_beginner_content_ux_polish",
+        "0071_forced_first_login_password_change",
+    }
     updated = 0
     activities = (
         db.query(TrainingWeekActivity)
@@ -2308,7 +2312,11 @@ def sync_weeks_1_4_practice_realignment(db: Session) -> dict:
         if inspect(bind).has_table("alembic_version")
         else None
     )
-    beginner_polish_enabled = revision in {None, "0070_beginner_content_ux_polish"}
+    beginner_polish_enabled = revision in {
+        None,
+        "0070_beginner_content_ux_polish",
+        "0071_forced_first_login_password_change",
+    }
 
     weeks = {
         week.week_number: week

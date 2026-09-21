@@ -62,6 +62,8 @@ def seed(db) -> None:
             legacy.name = account["username"]
             legacy.email = f"{target}@nexus.local"
             legacy.password_hash = hash_password(_password_for(account))
+            legacy.must_change_password = True
+            legacy.auth_version += 1
             legacy.is_mentor = account["is_mentor"]
             db.commit()
             print(f"Renamed: {account['legacy']} -> {account['username']} (id={legacy.id}, linked data preserved)")
@@ -72,6 +74,7 @@ def seed(db) -> None:
             name=account["username"],
             email=f"{target}@nexus.local",
             password_hash=hash_password(_password_for(account)),
+            must_change_password=True,
             is_mentor=account["is_mentor"],
             total_xp=0,
             current_role_id=_rank_one_role_id(db),

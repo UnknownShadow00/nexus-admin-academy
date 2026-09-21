@@ -66,11 +66,17 @@ function monitorPage(page) {
   };
 }
 
-async function studentLogin(page, username = studentUsername, password = studentPassword) {
+async function studentLogin(page, username = studentUsername, password = studentPassword, replacementPassword = null) {
   await page.goto("/login");
   await page.getByLabel("Username").fill(username);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Login" }).click();
+  if (replacementPassword) {
+    await expect(page).toHaveURL(/\/change-password$/);
+    await page.getByLabel("New password").fill(replacementPassword);
+    await page.getByLabel("Confirm new password").fill(replacementPassword);
+    await page.getByRole("button", { name: "Change password" }).click();
+  }
   await expect(page).toHaveURL(/\/$/);
 }
 
@@ -396,8 +402,10 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
   const username = `browser-flow-${suffix}`;
   const password = "BrowserFlow!2026";
+  const permanentPassword = "BrowserFlowPermanent!2026";
   const studentIds = [];
   const secondUsername = `browser-fresh-${suffix}`;
+  const secondPermanentPassword = "BrowserFreshPermanent!2026";
 
   try {
     await adminLogin(page);
@@ -427,7 +435,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     studentIds.push(secondCreateBody.data.student_id);
     await page.getByRole("button", { name: "Admin Sign Out" }).click();
 
-    await studentLogin(page, username, password);
+    await studentLogin(page, username, password, permanentPassword);
     monitor = monitorPage(page);
     await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Begin Your IT Training" })).toBeVisible();
@@ -534,7 +542,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     monitor.pause();
     await page.getByRole("button", { name: "Disposable Browser Flow Student" }).click();
     await expect(page).toHaveURL(/\/login$/);
-    await studentLogin(page, username, password);
+    await studentLogin(page, username, permanentPassword);
     monitor.resume();
     await expect(page.getByRole("heading", { name: "Continue where you left off" })).toBeVisible();
     await expect(page.getByText(/Endpoint Foundations — Support Workflow Essentials/).first()).toBeVisible();
@@ -566,7 +574,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     const secondContext = await browser.newContext({ baseURL: browserBaseUrl });
     const secondPage = await secondContext.newPage();
     await secondPage.setViewportSize({ width: 375, height: 812 });
-    await studentLogin(secondPage, secondUsername, password);
+    await studentLogin(secondPage, secondUsername, password, secondPermanentPassword);
     await secondPage.goto(weekOneLessonPath);
     await expect(secondPage.getByRole("heading", { name: "Support Workflow Essentials locked" })).toBeVisible();
     await expect(secondPage.getByText("Complete the required lesson and quiz in Nexus Orientation first.")).toBeVisible();

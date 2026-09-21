@@ -198,6 +198,7 @@ try:
             "0062_beginner_learning_rollout",
             "0069_merge_v2_beginner_heads",
             "0070_beginner_content_ux_polish",
+            "0071_forced_first_login_password_change",
         }
         else {"skipped": f"requires 0062; database is {current_revision or 'unversioned'}"}
     )
@@ -209,6 +210,7 @@ try:
             "0062_beginner_learning_rollout",
             "0069_merge_v2_beginner_heads",
             "0070_beginner_content_ux_polish",
+            "0071_forced_first_login_password_change",
         }
         else {"skipped": f"requires 0060; database is {current_revision or 'unversioned'}"}
     )
@@ -219,6 +221,7 @@ try:
             "0062_beginner_learning_rollout",
             "0069_merge_v2_beginner_heads",
             "0070_beginner_content_ux_polish",
+            "0071_forced_first_login_password_change",
         }
         else {"skipped": f"requires 0061; database is {current_revision or 'unversioned'}"}
     )

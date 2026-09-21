@@ -2,7 +2,7 @@
 from statistics import mean
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -18,7 +18,7 @@ from app.services.onboarding_service import get_orientation_state
 from app.services.quiz_progression import is_quiz_passed
 from app.services.service_desk_progression import PACK_BY_SCENARIO
 from app.services.admin_auth import verify_admin
-from app.services.auth_service import hash_password, normalize_username
+from app.services.auth_service import hash_password, normalize_username, validate_new_password
 from app.services.student_deletion import delete_student_owned_data
 from app.services.training_service import build_cohort_summary, build_training_progress
 from app.utils.responses import ok
@@ -31,7 +31,7 @@ class StudentCreateRequest(BaseModel):
     name: str
     email: str
     username: str
-    password: str
+    password: str = Field(min_length=12, max_length=128)
 
 
 class StudentUpdateRequest(BaseModel):
@@ -39,7 +39,7 @@ class StudentUpdateRequest(BaseModel):
     email: str | None = None
     admin_notes: str | None = None
     username: str | None = None
-    password: str | None = None
+    password: str | None = Field(default=None, min_length=12, max_length=128)
     is_mentor: bool | None = None
 
 
@@ -74,6 +74,7 @@ def student_overview(db: Session = Depends(get_db)):
                 "username": student.username,
                 "admin_notes": student.admin_notes,
                 "is_mentor": bool(student.is_mentor),
+                "must_change_password": bool(student.must_change_password),
                 "xp": student.total_xp,
                 "quiz_done": completed_required,
                 "quiz_total": total_quizzes,
@@ -128,6 +129,10 @@ def student_activity(student_id: int, db: Session = Depends(get_db)):
 
 @router.post("/students")
 def create_student(payload: StudentCreateRequest, db: Session = Depends(get_db)):
+    try:
+        validate_new_password(payload.password)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     existing = db.query(Student).filter(Student.email == payload.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="A student with this email already exists")
@@ -145,6 +150,7 @@ def create_student(payload: StudentCreateRequest, db: Session = Depends(get_db))
         total_xp=0,
         username=username,
         password_hash=hash_password(payload.password),
+        must_change_password=True,
     )
     db.add(student)
     db.flush()
@@ -208,7 +214,13 @@ def update_student(student_id: int, payload: StudentUpdateRequest, db: Session =
     if payload.username is not None:
         student.username = payload.username
     if payload.password is not None:
+        try:
+            validate_new_password(payload.password)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         student.password_hash = hash_password(payload.password)
+        student.must_change_password = True
+        student.auth_version += 1
     if payload.is_mentor is not None:
         student.is_mentor = payload.is_mentor
 

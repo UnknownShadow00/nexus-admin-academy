@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { clearToken, isAuthenticated, setToken } from "../hooks/useAuth";
+import { clearToken, getCurrentStudent, isAuthenticated, setToken } from "../hooks/useAuth";
 import { authLogin } from "../services/api";
 import { clearSelectedProfile, setSelectedProfile } from "../services/profile";
 
@@ -31,7 +31,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (isAuthenticated()) {
-    return <Navigate to={nextPath} replace />;
+    return <Navigate to={getCurrentStudent()?.must_change_password ? "/change-password" : nextPath} replace />;
   }
 
   async function handleSuccess(response) {
@@ -43,11 +43,16 @@ export default function LoginPage() {
       name: response.name,
       email: response.email,
       is_mentor: response.is_mentor,
+      must_change_password: response.must_change_password,
       has_unlocked_capstones: response.has_unlocked_capstones,
       a_plus_progress_pct: response.a_plus_progress_pct,
       a_plus_unlocked: response.a_plus_unlocked,
       a_plus_unlock_threshold_pct: response.a_plus_unlock_threshold_pct,
     });
+    if (response.must_change_password) {
+      navigate("/change-password", { replace: true });
+      return;
+    }
     if (nextPath === "/service-desk" || nextPath.startsWith("/service-desk/")) {
       window.location.assign(nextPath);
       return;

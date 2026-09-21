@@ -5,9 +5,10 @@ import secrets
 import time
 from hashlib import sha256
 
-from fastapi import Header, HTTPException, Request
+from fastapi import Depends, Header, HTTPException, Request
 
 from app.config import load_env
+from app.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +132,7 @@ async def verify_admin(
     raise HTTPException(status_code=403, detail="Unauthorized")
 
 
-async def allow_admin_or_student(request: Request) -> bool:
+async def allow_admin_or_student(request: Request, db=Depends(get_db)) -> bool:
     """Allow access if user has valid admin session OR valid student JWT."""
     # Check for admin session cookie
     if has_valid_admin_session(request):
@@ -141,21 +142,29 @@ async def allow_admin_or_student(request: Request) -> bool:
     # Now the JWT must actually verify.
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
-        from app.services.auth_service import decode_token
+        from app.services.auth_service import get_student_from_token, require_password_change_complete
         try:
-            decode_token(auth_header.removeprefix("Bearer ").strip())
+            student = get_student_from_token(auth_header.removeprefix("Bearer ").strip(), db)
+            require_password_change_complete(student)
             return True
+        except HTTPException as exc:
+            if isinstance(exc.detail, dict) and exc.detail.get("code") == "PASSWORD_CHANGE_REQUIRED":
+                raise
         except Exception:
             pass
 
     # After a page refresh the frontend has no in-memory token — only the
     # httpOnly student_session cookie (same JWT get_current_student accepts).
-    from app.services.auth_service import STUDENT_SESSION_COOKIE, decode_token
+    from app.services.auth_service import STUDENT_SESSION_COOKIE, get_student_from_token, require_password_change_complete
     cookie_token = request.cookies.get(STUDENT_SESSION_COOKIE)
     if cookie_token:
         try:
-            decode_token(cookie_token)
+            student = get_student_from_token(cookie_token, db)
+            require_password_change_complete(student)
             return True
+        except HTTPException as exc:
+            if isinstance(exc.detail, dict) and exc.detail.get("code") == "PASSWORD_CHANGE_REQUIRED":
+                raise
         except Exception:
             pass
 
