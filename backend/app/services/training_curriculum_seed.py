@@ -451,6 +451,7 @@ WEEKS_3_4_OPTIONAL_LESSON_ESTIMATES = {
 WEEKS_3_4_REQUIRED_QUIZZES = {3: {2, 3, 4}, 4: {5}}
 WEEKS_3_4_REQUIRED_VIDEOS = {3: {117, 118}, 4: {169}}
 WEEK_3_CLI_LAB_SEED_KEY = "weeks-3-4-windows-cli-v1"
+WEEK_4_TRIAGE_LAB_SEED_KEY = "weeks-3-4-queue-triage-v1"
 WEEK_4_TROUBLESHOOT_LAB_SEED_KEY = "weeks-3-4-queue-troubleshoot-v1"
 WEEK_4_VIDEO_RELOCATIONS = {
     **{video_id: 2 for video_id in (1, 3, 45, 46, 47, 48, 49, 50, 51, 52)},
@@ -779,18 +780,50 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
                 activity.stable_id = f"week-3-guided_lab-{week_three_lab.id}"
                 result["updated_activities"] += 1
 
-    triage = db.get(LabTemplate, 6) or db.query(LabTemplate).filter_by(title="Prioritize the Queue").first()
-    if triage is not None:
-        triage_values = {
-            "estimated_minutes": 20,
-            "difficulty": 1,
-            "lab_type": "structured_diagnostic",
-            "success_criteria": {"questions": TRIAGE_QUESTIONS},
-        }
-        if any(getattr(triage, field) != value for field, value in triage_values.items()):
-            for field, value in triage_values.items():
-                setattr(triage, field, value)
-            result["updated_templates"] += 1
+    triage = next(
+        (
+            lab
+            for lab in db.query(LabTemplate).all()
+            if (lab.environment_requirements or {}).get("_nexus_seed_key")
+            == WEEK_4_TRIAGE_LAB_SEED_KEY
+        ),
+        None,
+    )
+    if triage is None:
+        triage = next(
+            (
+                lab
+                for lab in db.query(LabTemplate).all()
+                if lab.title == "Prioritize the Queue"
+                and (lab.success_criteria or {}) == {"questions": TRIAGE_QUESTIONS}
+            ),
+            None,
+        )
+    triage_values = {
+        "title": "Prioritize the Queue",
+        "description": "Use impact, urgency, and available workarounds to choose a safe support order.",
+        "lab_type": "structured_diagnostic",
+        "week_number": 4,
+        "difficulty": 1,
+        "estimated_minutes": 20,
+        "is_published": True,
+        "environment_requirements": {
+            "_nexus_seed_key": WEEK_4_TRIAGE_LAB_SEED_KEY,
+        },
+        "setup_instructions": "Read every ticket first, then choose the priority supported by scope and workaround evidence.",
+        "success_criteria": {"questions": TRIAGE_QUESTIONS},
+        "required_evidence": {},
+        "hints": {},
+    }
+    if triage is None:
+        triage = LabTemplate(**triage_values)
+        db.add(triage)
+        db.flush()
+        result["created_templates"] += 1
+    elif any(getattr(triage, field) != value for field, value in triage_values.items()):
+        for field, value in triage_values.items():
+            setattr(triage, field, value)
+        result["updated_templates"] += 1
 
     troubleshoot = next(
         (
@@ -999,6 +1032,30 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
             for field, value in values.items():
                 setattr(troubleshoot_activity, field, value)
             result["updated_activities"] += 1
+
+    triage_activity = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[4].id,
+        activity_type="guided_lab",
+        content_ref=str(triage.id),
+    ).first()
+    if triage_activity is None:
+        max_order = db.query(func.max(TrainingWeekActivity.display_order)).filter_by(
+            training_week_id=weeks[4].id
+        ).scalar() or 0
+        triage_activity = TrainingWeekActivity(
+            training_week_id=weeks[4].id,
+            stable_id=f"week-4-guided_lab-{triage.id}",
+            activity_type="guided_lab",
+            content_ref=str(triage.id),
+            display_order=max_order + 1,
+            is_required=True,
+            estimated_minutes=triage.estimated_minutes,
+            prerequisite_mode="soft",
+            metadata_json={"learning_role": "practice"},
+        )
+        db.add(triage_activity)
+        db.flush()
+        result["created_activities"] += 1
 
     db.flush()
     for week in weeks.values():

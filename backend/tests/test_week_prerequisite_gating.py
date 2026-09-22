@@ -210,7 +210,7 @@ def test_existing_lab_run_remains_reviewable_after_prerequisite_changes(db):
         LabRun(
             lab_template_id=lab.id,
             student_id=student.id,
-            status="submitted",
+            status="in_progress",
             final_score=100,
             structured_feedback={"summary": "Historical result retained"},
         )
@@ -220,7 +220,7 @@ def test_existing_lab_run_remains_reviewable_after_prerequisite_changes(db):
     response = client.get(f"/api/labs/{lab.id}", headers=auth_headers(student))
 
     assert response.status_code == 200
-    assert response.json()["data"]["status"] == "submitted"
+    assert response.json()["data"]["status"] == "in_progress"
     assert response.json()["data"]["structured_feedback"] == {
         "summary": "Historical result retained"
     }
@@ -229,6 +229,13 @@ def test_existing_lab_run_remains_reviewable_after_prerequisite_changes(db):
     assert lab.id not in {item["id"] for item in listing.json()["data"]}
     start = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
     assert start.status_code == 404
+    submit = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json={"notes": "Completed the already-started legacy exercise."},
+        headers=auth_headers(student),
+    )
+    assert submit.status_code == 200
+    assert submit.json()["data"]["status"] == "submitted"
 
 
 def test_locked_week_three_quiz_detail_and_submit_cannot_bypass_direct_url(db):

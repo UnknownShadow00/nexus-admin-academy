@@ -18,6 +18,7 @@ from app.services.training_curriculum_seed import (
     sync_weeks_19_22_quality,
     sync_weeks_23_24_quality,
     sync_weeks_1_4_practice_realignment,
+    TRIAGE_QUESTIONS,
 )
 from app.services.curriculum_structure import learning_role_for
 from app.services.training_service import validate_training_curriculum
@@ -482,14 +483,17 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
     db.add(custom_question)
 
     _add_lab(db, 3, "Windows Command-Line Diagnostics", 3, "structured_evidence_case")
-    _add_lab(db, 6, "Prioritize the Queue", 4, "structured_diagnostic")
+    _add_lab(db, 6, "Instructor-owned lab at legacy ID 6", 4, "instructor_custom")
     _add_lab(db, 7, "Windows Command-Line Diagnostics Practice", 3, "instructor_custom")
     _add_lab(db, 8, "Work the Queue: Three Tickets", 4, "instructor_custom")
+    _add_lab(db, 9, "Prioritize the Queue", 4, "structured_diagnostic")
     db.flush()
     custom_lab = db.get(LabTemplate, 7)
     custom_lab.success_criteria = {"questions": [{"id": "custom-owned"}]}
     custom_queue_lab = db.get(LabTemplate, 8)
     custom_queue_lab.success_criteria = {"questions": [{"id": "custom-queue"}]}
+    canonical_triage = db.get(LabTemplate, 9)
+    canonical_triage.success_criteria = {"questions": TRIAGE_QUESTIONS}
     legacy_lab = db.get(LabTemplate, 3)
     legacy_lab.success_criteria = {
         "questions": [
@@ -547,7 +551,8 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
     for video_id in (1, 2, 4, 5, 46, 62, 169, 181):
         add_activity(4, "video", video_id)
     add_activity(4, "quiz", 5)
-    add_activity(4, "guided_lab", 6, required=True)
+    add_activity(4, "guided_lab", 6, required=False)
+    add_activity(4, "guided_lab", 9, required=True)
     add_activity(4, "service_desk_scenario", "mfa-reset")
     db.commit()
 
@@ -670,6 +675,9 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
     assert custom_lab.success_criteria == {"questions": [{"id": "custom-owned"}]}
     assert custom_queue_lab.lab_type == "instructor_custom"
     assert custom_queue_lab.success_criteria == {"questions": [{"id": "custom-queue"}]}
+    instructor_id_six = db.get(LabTemplate, 6)
+    assert instructor_id_six.lab_type == "instructor_custom"
+    assert instructor_id_six.success_criteria == {"tasks": ["Legacy task"]}
     custom_lab_activity = db.query(TrainingWeekActivity).filter_by(
         training_week_id=weeks[3].id,
         activity_type="guided_lab",
