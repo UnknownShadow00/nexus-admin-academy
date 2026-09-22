@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from conftest import auth_headers, make_client, make_student
 from app.models.quiz import EDITORIAL_STATUS_VALIDATED, QUIZ_STATUS_PUBLISHED, Question, Quiz, QuizAttempt
 from app.routers.admin_quiz import router as admin_quiz_router
@@ -93,6 +95,48 @@ def test_get_quiz_review_draft_excluded_even_with_attempt(db):
     res = client.get(f"/api/quizzes/{draft.id}/review/{student.id}", headers=auth_headers(student))
 
     assert res.status_code == 404
+
+
+def test_get_quiz_review_returns_latest_attempt_and_preserves_older_history(db):
+    student = make_student(db)
+    quiz = _seed_quiz(db, title="Latest Review Attempt", week_number=1)
+    question = _seed_question(db, quiz.id)
+    now = datetime.now(UTC)
+    db.add_all(
+        [
+            QuizAttempt(
+                student_id=student.id,
+                quiz_id=quiz.id,
+                answers={str(question.id): "B"},
+                results=[{"question_id": question.id, "student_answer": "B", "is_correct": False}],
+                score=0,
+                xp_awarded=0,
+                best_score=0,
+                first_attempt_xp=0,
+                completed_at=now - timedelta(minutes=5),
+            ),
+            QuizAttempt(
+                student_id=student.id,
+                quiz_id=quiz.id,
+                answers={str(question.id): "A"},
+                results=[{"question_id": question.id, "student_answer": "A", "is_correct": True}],
+                score=1,
+                xp_awarded=0,
+                best_score=1,
+                first_attempt_xp=0,
+                completed_at=now,
+            ),
+        ]
+    )
+    db.commit()
+
+    res = client.get(f"/api/quizzes/{quiz.id}/review/{student.id}", headers=auth_headers(student))
+
+    assert res.status_code == 200
+    payload = res.json()["data"]
+    assert payload["score"] == 1
+    assert payload["results"][0]["student_answer"] == "A"
+    assert db.query(QuizAttempt).filter_by(student_id=student.id, quiz_id=quiz.id).count() == 2
 
 
 def test_admin_can_publish_draft_quiz(monkeypatch, db):

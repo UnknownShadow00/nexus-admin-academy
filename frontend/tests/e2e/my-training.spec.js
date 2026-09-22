@@ -4,6 +4,8 @@ const studentUsername = process.env.NEXUS_E2E_STUDENT_USERNAME || "browser-train
 const studentPassword = process.env.NEXUS_E2E_STUDENT_PASSWORD || "BrowserTraining!2026";
 const freshStudentUsername = process.env.NEXUS_E2E_FRESH_A_USERNAME || "browser-fresh-student-a";
 const freshStudentPassword = process.env.NEXUS_E2E_FRESH_A_PASSWORD || "BrowserFreshStudent!2026";
+const weeks34Username = process.env.NEXUS_E2E_W34_USERNAME || "browser-weeks-3-4-student";
+const weeks34Password = process.env.NEXUS_E2E_W34_PASSWORD || "BrowserWeeks34!2026";
 const adminUsername = process.env.NEXUS_E2E_ADMIN_USERNAME || "browser-admin";
 const adminPassword = process.env.NEXUS_E2E_ADMIN_PASSWORD || "BrowserAdmin!2026";
 const apiBaseUrl = process.env.NEXUS_E2E_API_URL || "http://127.0.0.1:8011";
@@ -188,8 +190,13 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   for (const route of mappedQuizRoutes) {
     const response = await page.request.get(`${apiBaseUrl}/api${route}`);
     const body = await response.json();
-    expect(response.ok(), `mapped quiz route ${route}`).toBeTruthy();
-    expect(body.data.questions.length, `mapped quiz route ${route} has questions`).toBeGreaterThan(0);
+    if (route === "/quizzes/42") {
+      expect(response.ok(), `current Week 0 quiz route ${route}`).toBeTruthy();
+      expect(body.data.questions.length, `current quiz route ${route} has questions`).toBeGreaterThan(0);
+    } else {
+      expect(response.status(), `future mapped quiz route ${route}`).toBe(403);
+      expect(body.code, `future mapped quiz route ${route} explains its lock`).toBe("PREREQUISITE_NOT_MET");
+    }
   }
 
   await page.goto("/labs");
@@ -234,13 +241,16 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByText("Question 1 of 4", { exact: true })).toBeVisible();
   await page.goto("/tickets");
   await expect(page.getByRole("heading", { name: "That page is not part of your learning path." })).toBeVisible();
+  // A future guided lab must explain the prerequisite instead of exposing
+  // its exercise through a direct URL.
+  monitor.pause();
   await page.goto("/labs/4");
-  await expect(page.getByRole("heading", { name: "Hardware Component Identification", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Lab locked", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Continue your current week" })).toBeVisible();
   // This learner is still in orientation, so the individual CLI endpoint is
   // expected to return 403 and the page must render its prerequisite state.
   // Exclude that intentional response from the generic unexpected-error
   // monitor while keeping the UI assertion explicit.
-  monitor.pause();
   await page.goto("/cli-labs/meet-cli-001");
   await expect(page.getByRole("heading", { name: "First Contact", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Continue your current week" })).toBeVisible();
@@ -350,7 +360,10 @@ test("capstone navigation remains role gated", async ({ page }) => {
 });
 
 test("required Nexus-authored quiz grades and reviews every answer", async ({ page }) => {
-  await studentLogin(page);
+  // This disposable learner has completed Weeks 0-4, including a prior quiz
+  // attempt. The retake proves historical review remains available even
+  // though a fresh learner cannot bypass week gates with a direct URL.
+  await studentLogin(page, weeks34Username, weeks34Password);
   await page.goto("/quizzes/1");
   await expect(page.getByText(/Question 1 of 8/)).toBeVisible();
 

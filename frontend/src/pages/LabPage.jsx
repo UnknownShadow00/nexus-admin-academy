@@ -60,7 +60,9 @@ export default function LabPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err?.userMessage || "Unable to load lab.");
+          const lock = getPrerequisiteLock(err);
+          if (lock) setPrerequisiteLock(lock);
+          else setError(err?.userMessage || "Unable to load lab.");
         }
       });
 
@@ -205,6 +207,16 @@ export default function LabPage() {
     } finally {
       setEvidenceBusy(false);
     }
+  }
+
+  if (!lab && prerequisiteLock) {
+    return (
+      <main className="mx-auto max-w-4xl space-y-4 p-6">
+        <BackLink fallbackLabel="Guided Labs" fallbackTo="/labs" />
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Lab locked</h1>
+        <PrerequisiteLock lock={prerequisiteLock} />
+      </main>
+    );
   }
 
   if (!lab && !error) {

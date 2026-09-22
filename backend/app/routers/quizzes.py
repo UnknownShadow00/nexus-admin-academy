@@ -340,6 +340,7 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
     attempt = (
         db.query(QuizAttempt)
         .filter(QuizAttempt.quiz_id == quiz_id, QuizAttempt.student_id == student_id)
+        .order_by(QuizAttempt.completed_at.desc(), QuizAttempt.id.desc())
         .first()
     )
     if not attempt:
