@@ -396,7 +396,8 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
                         "(169.254.x.x = DHCP failed), gateway (empty = no route "
                         "out), DNS servers (wrong = 'internet down' with working IP).\n"
                         "netstat -ano → who is talking; pair PID with Task Manager Details.\n"
-                        "Run sfc /scannow then DISM /Online /Cleanup-Image /RestoreHealth."
+                        "sfc /scannow then DISM /Online /Cleanup-Image /RestoreHealth → system file repair "
+                        "sequence (DISM repairs the store sfc repairs from)."
                     ),
                     "Accounts, Profiles, and Permissions": (
                         "PROFILES: a profile is the user's world (Desktop, Documents, HKCU). "
@@ -615,6 +616,7 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
     assert command_lesson.summary.index("DISM") < command_lesson.summary.index("sfc")
     assert "Domain Name System (DNS)" in command_lesson.summary
     assert "process identifier (PID)" in command_lesson.summary
+    assert "component store that System File Checker (SFC) uses as its source" in command_lesson.summary
     assert "DISM → SFC" in command_lesson.outcomes[0]
     accounts_lesson = lessons["Accounts, Profiles, and Permissions"]
     assert "HKCU" not in accounts_lesson.summary

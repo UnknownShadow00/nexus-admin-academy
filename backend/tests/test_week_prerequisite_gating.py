@@ -7,7 +7,7 @@ from conftest import auth_headers, make_client, make_student
 from app.models.capstone import CapstoneTemplate
 from app.models.cli_lab import CliLab
 from app.models.curriculum_video import CurriculumVideo
-from app.models.lab import LabTemplate
+from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.lesson_progress import StudentLessonProgress
 from app.models.progression import Role, StudentRole
@@ -198,6 +198,31 @@ def test_locked_week_three_lab_detail_cannot_be_read_through_direct_url(db):
     assert response.json()["code"] == "PREREQUISITE_NOT_MET"
     assert response.json()["data"]["required_week"] == 3
     assert response.json()["data"]["current_week"] == 0
+
+
+def test_existing_lab_run_remains_reviewable_after_prerequisite_changes(db):
+    student = make_student(db, username="historical-lab-reader")
+    _seed_week_zero_gate(db)
+    lab = _seed_hands_on_week_one(db)[1]
+    lab.week_number = 3
+    db.add(
+        LabRun(
+            lab_template_id=lab.id,
+            student_id=student.id,
+            status="submitted",
+            final_score=100,
+            structured_feedback={"summary": "Historical result retained"},
+        )
+    )
+    db.commit()
+
+    response = client.get(f"/api/labs/{lab.id}", headers=auth_headers(student))
+
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "submitted"
+    assert response.json()["data"]["structured_feedback"] == {
+        "summary": "Historical result retained"
+    }
 
 
 def test_locked_week_three_quiz_detail_and_submit_cannot_bypass_direct_url(db):
