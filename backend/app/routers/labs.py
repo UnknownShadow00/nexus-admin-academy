@@ -502,11 +502,13 @@ def get_lab(
     v2_module_key: str | None = None,
     v2_assessment_key: str | None = None,
 ):
-    lab = _get_published_lab(db, lab_id)
+    lab = db.get(LabTemplate, lab_id)
+    run = _get_lab_run(db, lab_id, current_student.id)
+    if lab is None or (not lab.is_published and run is None):
+        raise HTTPException(status_code=404, detail="Lab not found")
     v2_context = _lab_access_context(
         db, lab_id, v2_module_key, v2_assessment_key, current_student
     )
-    run = _get_lab_run(db, lab_id, current_student.id)
     if v2_context is None and run is None:
         require_week_reached(db, current_student, lab.week_number)
     data = _serialize_lab(lab, run)

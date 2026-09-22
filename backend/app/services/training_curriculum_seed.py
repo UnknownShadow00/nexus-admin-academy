@@ -450,6 +450,7 @@ WEEKS_3_4_OPTIONAL_LESSON_ESTIMATES = {
 }
 WEEKS_3_4_REQUIRED_QUIZZES = {3: {2, 3, 4}, 4: {5}}
 WEEKS_3_4_REQUIRED_VIDEOS = {3: {117, 118}, 4: {169}}
+WEEK_3_CLI_LAB_SEED_KEY = "weeks-3-4-windows-cli-v1"
 WEEK_4_VIDEO_RELOCATIONS = {
     **{video_id: 2 for video_id in (1, 3, 45, 46, 47, 48, 49, 50, 51, 52)},
     **{video_id: 8 for video_id in (2, 4)},
@@ -707,7 +708,15 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
     result["updated_questions"] = _apply_week_3_4_question_corrections(db)
 
     legacy_week_three_lab = db.get(LabTemplate, 3)
-    week_three_lab = legacy_week_three_lab
+    week_three_lab = next(
+        (
+            lab
+            for lab in db.query(LabTemplate).all()
+            if (lab.environment_requirements or {}).get("_nexus_seed_key")
+            == WEEK_3_CLI_LAB_SEED_KEY
+        ),
+        None,
+    )
     if legacy_week_three_lab is not None:
         values = {
             "title": "Windows Command-Line Diagnostics",
@@ -717,7 +726,9 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
             "difficulty": 1,
             "estimated_minutes": 30,
             "is_published": True,
-            "environment_requirements": {},
+            "environment_requirements": {
+                "_nexus_seed_key": WEEK_3_CLI_LAB_SEED_KEY,
+            },
             "setup_instructions": "Use each command button as a prompt. Read the simulated output before answering; the goal is diagnosis, not memorizing command names.",
             "success_criteria": {
                 "questions": WINDOWS_DIAGNOSTICS_QUESTIONS,
@@ -733,30 +744,31 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
         # make submitted answers render against questions the learner never
         # saw. Allocate a new identity when any historical run exists and
         # leave the old template intact for review.
-        has_historical_runs = (
+        legacy_has_historical_runs = (
             db.query(LabRun.id)
             .filter(LabRun.lab_template_id == legacy_week_three_lab.id)
             .first()
             is not None
         )
-        if has_historical_runs:
+        if week_three_lab is not None and week_three_lab.id != legacy_week_three_lab.id:
             values["title"] = "Windows Command-Line Diagnostics Practice"
-            week_three_lab = (
-                db.query(LabTemplate)
-                .filter(LabTemplate.title == values["title"])
-                .first()
-            )
-            if week_three_lab is None:
-                week_three_lab = LabTemplate(**values)
-                db.add(week_three_lab)
-                db.flush()
-                result["created_templates"] += 1
+        if week_three_lab is None and legacy_has_historical_runs:
+            values["title"] = "Windows Command-Line Diagnostics Practice"
+            week_three_lab = LabTemplate(**values)
+            db.add(week_three_lab)
+            db.flush()
+            result["created_templates"] += 1
+        elif week_three_lab is None:
+            week_three_lab = legacy_week_three_lab
         if any(getattr(week_three_lab, field) != value for field, value in values.items()):
             for field, value in values.items():
                 setattr(week_three_lab, field, value)
             result["updated_templates"] += 1
 
         if week_three_lab.id != legacy_week_three_lab.id:
+            if legacy_week_three_lab.is_published:
+                legacy_week_three_lab.is_published = False
+                result["updated_templates"] += 1
             for activity in db.query(TrainingWeekActivity).filter_by(
                 training_week_id=weeks[3].id,
                 activity_type="guided_lab",
@@ -805,8 +817,13 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
 
     week_three_rows = db.query(TrainingWeekActivity).filter_by(training_week_id=weeks[3].id).all()
     old_week_three_cases = [row for row in week_three_rows if row.activity_type == "service_desk_scenario"]
-    inc2501 = next((row for row in old_week_three_cases if row.content_ref == "inc2501"), old_week_three_cases[0] if old_week_three_cases else None)
-    for duplicate in old_week_three_cases:
+    inc2501 = next((row for row in old_week_three_cases if row.content_ref == "inc2501"), None)
+    obsolete_cases = [
+        row for row in old_week_three_cases if row.content_ref in {"password-reset", "mfa-reset"}
+    ]
+    if inc2501 is None and obsolete_cases:
+        inc2501 = obsolete_cases.pop(0)
+    for duplicate in obsolete_cases:
         if duplicate is not inc2501:
             db.delete(duplicate)
             result["deleted_activities"] += 1
@@ -923,8 +940,8 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
             should_be_required = True
             lab = db.get(LabTemplate, _content_int(activity.content_ref))
             minutes = lab.estimated_minutes if lab else minutes
-        elif activity.activity_type == "service_desk_scenario":
-            should_be_required = number == 3 and activity.content_ref == "inc2501"
+        elif activity.activity_type == "service_desk_scenario" and number == 3 and activity.content_ref == "inc2501":
+            should_be_required = True
             minutes = 30
         if activity.is_required != should_be_required or activity.estimated_minutes != minutes:
             activity.is_required = should_be_required

@@ -483,7 +483,10 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
 
     _add_lab(db, 3, "Windows Command-Line Diagnostics", 3, "structured_evidence_case")
     _add_lab(db, 6, "Prioritize the Queue", 4, "structured_diagnostic")
+    _add_lab(db, 7, "Windows Command-Line Diagnostics Practice", 3, "instructor_custom")
     db.flush()
+    custom_lab = db.get(LabTemplate, 7)
+    custom_lab.success_criteria = {"questions": [{"id": "custom-owned"}]}
     legacy_lab = db.get(LabTemplate, 3)
     legacy_lab.success_criteria = {
         "questions": [
@@ -533,6 +536,7 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
         add_activity(3, "quiz", quiz_id)
     add_activity(3, "guided_lab", 3, required=True)
     add_activity(3, "service_desk_scenario", "password-reset")
+    add_activity(3, "service_desk_scenario", "instructor-custom-week-3", required=True)
 
     for title in lesson_specs[4]:
         add_activity(4, "lesson", lessons[title[0]].id)
@@ -590,7 +594,10 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
         training_week_id=weeks[3].id,
         activity_type="service_desk_scenario",
     ).all()
-    assert [(row.content_ref, row.is_required) for row in week_three_cases] == [("inc2501", True)]
+    assert {(row.content_ref, row.is_required) for row in week_three_cases} == {
+        ("inc2501", True),
+        ("instructor-custom-week-3", True),
+    }
     assert db.query(TrainingWeekActivity).filter_by(
         training_week_id=weeks[4].id,
         activity_type="service_desk_scenario",
@@ -638,6 +645,7 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
     ).one()
     cli = db.get(LabTemplate, int(cli_activity.content_ref))
     assert cli.id != legacy_lab.id
+    assert cli.id != custom_lab.id
     assert cli.title == "Windows Command-Line Diagnostics Practice"
     assert cli.lab_type == "structured_cli"
     assert cli.success_criteria["required_commands"] == [
@@ -651,6 +659,10 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
     ]
     db.refresh(legacy_lab)
     db.refresh(historical_run)
+    db.refresh(custom_lab)
+    assert legacy_lab.is_published is False
+    assert custom_lab.lab_type == "instructor_custom"
+    assert custom_lab.success_criteria == {"questions": [{"id": "custom-owned"}]}
     assert legacy_lab.success_criteria == legacy_criteria
     assert historical_run.lab_template_id == legacy_lab.id
     assert [

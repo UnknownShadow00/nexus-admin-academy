@@ -205,6 +205,7 @@ def test_existing_lab_run_remains_reviewable_after_prerequisite_changes(db):
     _seed_week_zero_gate(db)
     lab = _seed_hands_on_week_one(db)[1]
     lab.week_number = 3
+    lab.is_published = False
     db.add(
         LabRun(
             lab_template_id=lab.id,
@@ -223,6 +224,11 @@ def test_existing_lab_run_remains_reviewable_after_prerequisite_changes(db):
     assert response.json()["data"]["structured_feedback"] == {
         "summary": "Historical result retained"
     }
+    listing = client.get("/api/labs", headers=auth_headers(student))
+    assert listing.status_code == 200
+    assert lab.id not in {item["id"] for item in listing.json()["data"]}
+    start = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
+    assert start.status_code == 404
 
 
 def test_locked_week_three_quiz_detail_and_submit_cannot_bypass_direct_url(db):
