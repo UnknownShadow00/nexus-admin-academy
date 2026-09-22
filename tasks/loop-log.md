@@ -2573,3 +2573,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/components/{QuizTaker,QuizReviewScreen,LessonNotes,OrientationPracticePanel}.jsx; frontend/src/pages/{QuizPage,QuizReviewPage,LessonPage,TrainingProgressPage}.jsx; frontend/src/utils/quizDraft.js; frontend unit/browser tests; scripts/e2e/start_local_stack.sh; .github/workflows/ci.yml; docs/NEXUS_STUDENT_EXPERIENCE_MASTER_AUDIT.md; docs/evidence/overnight-2026-09-22/; tasks/loop-log.md
 - Result: PASS for local unit/build/CLI/audit gates: 89 frontend tests, production build, 48 CLI lessons validated, CLI engine sanity, zero npm audit vulnerabilities. All 30 fresh-stack browser checks pass (27 core/recovery + 2 workspace + 1 beginner integrity); remote review is tracked in the final report. Port-collision preflight prevents tests targeting an unrelated server. No production, backend schema, broad curriculum, or Hybrid changes.
 - Next: Finish fresh browser validation, open the quality PR, verify CI/review, check combination with PR #39, and write the final report. Do not merge or deploy.
+
+## 2026-09-22T09:35:00Z Task Completed
+- Task: Carry PR #39's latest failed-quiz-route regression into the independent student-experience branch.
+- Files changed: frontend/src/components/QuizTaker.test.jsx, tasks/loop-log.md
+- Result: PASS — the quality implementation already clears prior quiz state; the added regression confirms old questions cannot render after the next route fails. All 90 frontend tests pass. GitHub Codex review for PR #40 is unavailable because the account review quota is exhausted.
+- Next: Finish combined validation and final CI/report; obtain an independent review when quota is restored or from a human reviewer. No merge or deployment.

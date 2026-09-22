@@ -192,3 +192,16 @@ describe("QuizTaker learning and recovery", () => {
     await waitFor(() => expect(submitQuiz).toHaveBeenCalledTimes(1));
   });
 });
+
+it("does not show prior questions when the next quiz route fails to load", async () => {
+  vi.resetAllMocks();
+  localStorage.clear();
+  getQuiz.mockResolvedValueOnce({ data: quiz }).mockRejectedValueOnce({ userMessage: "This quiz is locked" });
+  const { rerender } = render(<QuizTaker quizId={1} studentId={7} />);
+  await screen.findByText("Question 1 of 4");
+  fireEvent.click(screen.getByRole("radio", { name: /Ask the user/ }));
+  rerender(<QuizTaker quizId={2} studentId={7} />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("This quiz is locked");
+  expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Submit Quiz" })).not.toBeInTheDocument();
+});
