@@ -4,7 +4,7 @@ Audit date: 22 September 2026 (UTC). Audience: the instructor preparing seven pe
 
 ## Scope, safety, and evidence
 
-This audit covers the student and instructor surfaces requested in `NEXUS_OVERNIGHT_MASTER_PROMPT.md`. Source baseline: current remote main `07780a98b6f93e76c5744a0af6ec9480cd3105d9`. Weeks 3–4 candidate: PR #39, initially `a4820628036e348db2e58411074a7e7fa3428a18`, continued through `6a292d7` (final SHA/checks are recorded in the prelaunch report).
+This audit covers the student and instructor surfaces requested in `NEXUS_OVERNIGHT_MASTER_PROMPT.md`. Source baseline: current remote main `07780a98b6f93e76c5744a0af6ec9480cd3105d9`. Weeks 3–4 candidate: PR #39, initially `a4820628036e348db2e58411074a7e7fa3428a18`, continued through `b4d5711` (final SHA/checks are recorded in the prelaunch report).
 
 The original working directory is the production-serving checkout and was **not edited**. It already contained changes to Admin Students and its tests/log, plus the untracked master prompt. The original Weeks 3–4 worktree also had four uncommitted fixes; these were preserved in place, inspected, and copied into a clean continuation worktree. Remote main differs from the stale local branch named `main`; the new quality branch is based on **remote main**, not that local branch.
 
@@ -62,7 +62,7 @@ Severity reflects baseline impact, even when a fix is supplied. P0 = launch bloc
 - Files: `frontend/src/components/QuizTaker.jsx`, `QuizTaker.test.jsx`.
 - UX change: the learner stays on the current question. Risk: low; ensure retry and route changes still load.
 - Tests required: both race reproductions, full frontend suite, real orientation journey.
-- Disposition: fixed on PR #39 at `1303c55`; carry the same lifecycle guard into the independent quality branch where QuizTaker is edited.
+- Disposition: request-generation fix on PR #39 at `1303c55`; `b4d5711` also clears the previous quiz when the next route fails to load. The independent quality branch includes both protections and all three route regressions.
 
 ### N02 — Quiz drafts mix learners and lose their place
 

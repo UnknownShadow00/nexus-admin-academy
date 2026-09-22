@@ -30,3 +30,5 @@ The before/after `findings.json` files contain measured widths, focused-element 
 - [Progression through Week 12](progression-through-week12.json): the real progression engine evaluated against synthetic completion records. It reached Week 13, kept password reset at Week 6/MFA at Week 7, opened the switch gate at the start of Week 11, and left Hybrid unavailable. This is not a claim that every Week 5–12 exercise was completed in the UI.
 
 The report distinguishes these model checks from actual Playwright beginner, auth, Service Desk, and Weeks 1–4 journeys.
+
+See the [validation and coverage ledger](VALIDATION.md) for exact candidate identities, regression evidence, test counts, master-prompt coverage, known harness failures, and cleanup.
