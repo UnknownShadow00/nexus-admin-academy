@@ -518,29 +518,29 @@ def _reorder_week_by_learning_role(db: Session, week: TrainingWeek) -> int:
 
 
 def _apply_week_3_4_question_corrections(db: Session) -> int:
-    """Apply small, stable editorial corrections by quiz and question order."""
+    """Apply editorial corrections to canonical quizzes by ID and question order."""
     corrections = {
-        ("Windows Accounts and Permissions", 3): {
+        (2, 3): {
             "question_text": "NTFS: GroupA grants Modify, while GroupB has an explicit Write DENY. What is the effective ability to save changes to the file?",
             "explanation": "The explicit Write deny blocks saving even though another group grants Modify. In support, confirm whether a deny is explicit or inherited before changing the access control list; not every allow/deny conflict is this simple.",
         },
-        ("The Investigator's Toolkit", 1): {
+        (3, 1): {
             "question_text": "Several related errors appear during one 20-minute failure. Which event is usually the best starting point for finding the cause?",
             "explanation": "Start with the earliest event that is directly tied to the failing component, because later related errors may be consequences. Do not choose the oldest event blindly—match source, time, and symptom.",
         },
-        ("Windows Command-Line Diagnostics", 1): {
+        (4, 1): {
             "explanation": "A 169.254.x.x address is APIPA: Windows assigned it after DHCP did not answer. Check link and DHCP reachability before chasing DNS, because the missing usable lease and gateway are the evidence you would see on the workstation.",
         },
-        ("Windows Command-Line Diagnostics", 2): {
+        (4, 2): {
             "explanation": "A successful ping to 1.1.1.1 proves the local link, gateway, and an IP path are working. Failure only when using a name points to DNS; changing cabling or the gateway would ignore that evidence.",
         },
-        ("Windows Command-Line Diagnostics", 3): {
+        (4, 3): {
             "explanation": "Run DISM first so the Windows component store can supply healthy repair files, then run SFC to check and replace protected system files. Formatting, defragmenting, or repeating SFC does not repair a damaged source store.",
         },
-        ("Windows Command-Line Diagnostics", 4): {
+        (4, 4): {
             "explanation": "ipconfig shows addressing, ping separates reachability stages, and nslookup tests name resolution. gpresult is useful for policy problems, but it does not diagnose the basic network path in this symptom.",
         },
-        ("Windows Command-Line Diagnostics", 5): {
+        (4, 5): {
             "question_text": "A mechanical hard drive is clicking and contains needed files. What is the safest response before running chkdsk /f?",
             "option_a": "Stop repair writes and escalate for data recovery or an approved backup-first process",
             "option_b": "Run chkdsk /f repeatedly until the clicking stops",
@@ -550,10 +550,10 @@ def _apply_week_3_4_question_corrections(db: Session) -> int:
             "correct_answers": None,
             "explanation": "Clicking suggests physical failure, and repair writes can make the remaining data harder to recover. Preserve the device state and use the approved recovery path; chkdsk repairs logical filesystem errors, not failed hardware.",
         },
-        ("Windows Command-Line Diagnostics", 6): {
+        (4, 6): {
             "explanation": "gpresult /r reports which Group Policy Objects applied to the computer and user. In a real support case, compare that result with the expected policy before forcing updates or changing settings.",
         },
-        ("Help-Desk Operations", 1): {
+        (5, 1): {
             "question_text": "Three tickets arrive together. Which one should be worked first?",
             "option_a": "A VIP's personal printer jam, with another printer available",
             "option_b": "A shared-drive outage blocking a 40-person department with no stated workaround",
@@ -563,28 +563,28 @@ def _apply_week_3_4_question_corrections(db: Session) -> int:
             "correct_answers": None,
             "explanation": "The department outage has the highest confirmed impact and no workaround, so it comes first. VIP status and quick wins matter for communication and scheduling, but they do not outweigh a broad blocked service under this course's priority rubric.",
         },
-        ("Help-Desk Operations", 2): {
+        (5, 2): {
             "explanation": "Functional escalation means the case needs deeper technical skill; hierarchical escalation means it needs authority or approval. A technician sees the difference when they know how to act but are not authorized, versus when they lack the specialist knowledge.",
         },
-        ("Help-Desk Operations", 3): {
+        (5, 3): {
             "explanation": "Nothing failed: the user is asking for new access, so this is a service request. An incident restores a broken service, while a change is the controlled implementation that may follow an approved request.",
         },
-        ("Help-Desk Operations", 4): {
+        (5, 4): {
             "explanation": "Urgency changes priority, not authorization. Record the requester, business reason, scope, and approver; granting even temporary read access before approval would bypass the control protecting HR data.",
         },
-        ("Help-Desk Operations", 5): {
+        (5, 5): {
             "explanation": "A handoff needs current state, evidence-backed eliminations, the exact next step, and promises already made. 'See above' forces the next technician to reconstruct the case and often makes the user repeat information.",
         },
-        ("Help-Desk Operations", 6): {
+        (5, 6): {
             "explanation": "Send the promised update even without a fix: state what is confirmed, what is happening now, and when the next update will arrive. Silence breaks trust; closing or escalating does not replace communication.",
         },
     }
     updated = 0
-    quizzes = db.query(Quiz).filter(Quiz.title.in_({key[0] for key in corrections})).all()
+    quizzes = db.query(Quiz).filter(Quiz.id.in_({key[0] for key in corrections})).all()
     for quiz in quizzes:
         questions = db.query(Question).filter_by(quiz_id=quiz.id).order_by(Question.id).all()
         for ordinal, question in enumerate(questions, start=1):
-            values = corrections.get((quiz.title, ordinal))
+            values = corrections.get((quiz.id, ordinal))
             if not values:
                 continue
             if any(getattr(question, field) != value for field, value in values.items()):

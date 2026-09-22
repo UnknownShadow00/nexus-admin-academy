@@ -455,6 +455,32 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
             )
         )
 
+    custom_quiz = Quiz(
+        id=105,
+        title="Help-Desk Operations",
+        week_number=4,
+        quiz_purpose="practice",
+        is_required=False,
+        show_in_weekly_checklist=False,
+        status="published",
+        editorial_status="validated",
+        answer_keys_validated=True,
+        is_active=True,
+    )
+    db.add(custom_quiz)
+    db.flush()
+    custom_question = Question(
+        quiz_id=custom_quiz.id,
+        question_text="Instructor-authored duplicate-title question",
+        option_a="Custom correct answer",
+        option_b="Custom distractor",
+        option_c="Custom distractor",
+        option_d="Custom distractor",
+        correct_answer="A",
+        explanation="Instructor-authored explanation.",
+    )
+    db.add(custom_question)
+
     _add_lab(db, 3, "Windows Command-Line Diagnostics", 3, "structured_evidence_case")
     _add_lab(db, 6, "Prioritize the Queue", 4, "structured_diagnostic")
     db.flush()
@@ -519,6 +545,10 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
 
     first = sync_weeks_3_4_prelaunch_quality(db)
     assert first["skipped"] is False
+    db.refresh(custom_question)
+    assert custom_question.question_text == "Instructor-authored duplicate-title question"
+    assert custom_question.correct_answer == "A"
+    assert custom_question.explanation == "Instructor-authored explanation."
 
     lessons_by_id = {lesson.id: lesson for lesson in lessons.values()}
     required_titles = {
