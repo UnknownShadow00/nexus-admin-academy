@@ -897,8 +897,7 @@ async def upload_lab_evidence(
         current_student.id,
         active_run_required=True,
     )
-    if _v2_run_context(db, current_student, run) is None:
-        require_week_reached(db, current_student, lab.week_number)
+    _authorize_existing_run(db, current_student, run, lab)
     if run.status not in {"assigned", "in_progress"}:
         raise HTTPException(
             status_code=409,

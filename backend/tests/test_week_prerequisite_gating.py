@@ -556,3 +556,50 @@ def test_fresh_database_seeds_assign_all_capstone_role_levels(db):
         "CompTIA A+ Module 2 Capstone: Networking & OS": 3,
         "Take Over Maple & Finch Co.": 5,
     }
+
+
+@pytest.mark.parametrize("status", ["assigned", "in_progress"])
+def test_retired_owned_active_lab_accepts_evidence_after_week_relocks(monkeypatch, tmp_path, db, status):
+    student = make_student(db)
+    _seed_week_zero_gate(db)
+    _, lab, *_ = _seed_hands_on_week_one(db)
+    lab.is_published = False
+    run = LabRun(student_id=student.id, lab_template_id=lab.id, status=status)
+    db.add(run)
+    db.commit()
+    monkeypatch.setattr("app.routers.labs._screenshots_dir", lambda: tmp_path)
+    response = client.post(
+        f"/api/labs/{run.id}/evidence",
+        files={"file": ("evidence.png", b"disposable-test-image", "image/png")},
+        headers=auth_headers(student),
+    )
+    assert response.status_code == 200
+    assert len(list(tmp_path.iterdir())) == 1
+    db.refresh(run)
+    assert run.status == status
+
+
+@pytest.mark.parametrize("published,owner,status,expected", [
+    (True, True, "in_progress", 403),
+    (False, False, "in_progress", 403),
+    (False, True, "submitted", 404),
+])
+def test_evidence_retirement_exception_preserves_gates_and_ownership(
+    monkeypatch, tmp_path, db, published, owner, status, expected,
+):
+    student = make_student(db)
+    _seed_week_zero_gate(db)
+    _, lab, *_ = _seed_hands_on_week_one(db)
+    lab.is_published = published
+    run_owner = student if owner else make_student(db, username="other-evidence-owner")
+    run = LabRun(student_id=run_owner.id, lab_template_id=lab.id, status=status)
+    db.add(run)
+    db.commit()
+    monkeypatch.setattr("app.routers.labs._screenshots_dir", lambda: tmp_path)
+    response = client.post(
+        f"/api/labs/{run.id}/evidence",
+        files={"file": ("evidence.png", b"disposable-test-image", "image/png")},
+        headers=auth_headers(student),
+    )
+    assert response.status_code == expected
+    assert list(tmp_path.iterdir()) == []

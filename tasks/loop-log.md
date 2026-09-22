@@ -2579,3 +2579,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/pages/LabPage.jsx, frontend/src/pages/LabPage.test.jsx, tasks/loop-log.md
 - Result: PASS — two regressions reproduced before the fix; all three route lifecycle tests and all 69 frontend tests pass afterward; production build and npm audit pass (zero vulnerabilities). Lab state is scoped by lab and V2 assessment route keys. Production untouched.
 - Next: Push for current-head CI and automated review; do not merge or deploy.
+
+## 2026-09-22T09:18:00Z Task Completed
+- Task: Fix PR #39 review finding preventing evidence uploads to owned active retired lab runs after curriculum prerequisites relock.
+- Files changed: backend/app/routers/labs.py, backend/tests/test_week_prerequisite_gating.py, tasks/loop-log.md
+- Result: PASS — assigned/in-progress regressions reproduced before the fix; 50 lab/gating/availability tests and 62 V2/security tests pass afterward. Published future labs, other students' runs, and submitted retired runs remain blocked. Ruff passes. Isolated audit tooling upgraded to remove bootstrap pip/setuptools advisories; environment pip-audit now reports no known vulnerabilities. No application dependency or production changes.
+- Next: Push for current-head CI and automated review; do not merge or deploy.
