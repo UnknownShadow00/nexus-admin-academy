@@ -2573,3 +2573,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/quizzes.py; backend/app/services/training_curriculum_seed.py; backend/tests/test_week_prerequisite_gating.py; backend/tests/test_training_curriculum_realignment.py; frontend/src/components/QuizTaker.jsx; frontend/src/components/QuizTaker.test.jsx; tasks/loop-log.md
 - Result: PASS — 43 focused backend tests; 66 frontend tests; production frontend build; Ruff; pip check; npm audit and pip-audit; 26 isolated browser tests including the previously failed orientation flow. Both new race regressions fail against the original implementation and pass with the fix. Existing instructor quiz/video requirements remain required; unassigned remediation is blocked on GET/submit at both current and future weeks.
 - Next: Full backend run and fresh remote CI/review are pending; do not merge or deploy.
+
+## 2026-09-22T09:07:00Z Task Completed
+- Task: Reproduce and fix PR #39 automated review finding for stale lab and prerequisite state during direct route changes.
+- Files changed: frontend/src/pages/LabPage.jsx, frontend/src/pages/LabPage.test.jsx, tasks/loop-log.md
+- Result: PASS — two regressions reproduced before the fix; all three route lifecycle tests and all 69 frontend tests pass afterward; production build and npm audit pass (zero vulnerabilities). Lab state is scoped by lab and V2 assessment route keys. Production untouched.
+- Next: Push for current-head CI and automated review; do not merge or deploy.

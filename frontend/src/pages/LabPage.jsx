@@ -25,6 +25,14 @@ const statusConfig = {
 export default function LabPage() {
   const { labId } = useParams();
   const [searchParams] = useSearchParams();
+  // Route changes must discard all lab-specific state, including pending actions.
+  const scope = JSON.stringify([labId, searchParams.get("v2Module"), searchParams.get("v2Assessment")]);
+  return <LabSession key={scope} />;
+}
+
+function LabSession() {
+  const { labId } = useParams();
+  const [searchParams] = useSearchParams();
   const v2ModuleKey = searchParams.get("v2Module");
   const v2AssessmentKey = searchParams.get("v2Assessment");
   const isV2Practical = Boolean(v2ModuleKey && v2AssessmentKey);
