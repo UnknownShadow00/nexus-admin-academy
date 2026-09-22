@@ -484,9 +484,12 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
     _add_lab(db, 3, "Windows Command-Line Diagnostics", 3, "structured_evidence_case")
     _add_lab(db, 6, "Prioritize the Queue", 4, "structured_diagnostic")
     _add_lab(db, 7, "Windows Command-Line Diagnostics Practice", 3, "instructor_custom")
+    _add_lab(db, 8, "Work the Queue: Three Tickets", 4, "instructor_custom")
     db.flush()
     custom_lab = db.get(LabTemplate, 7)
     custom_lab.success_criteria = {"questions": [{"id": "custom-owned"}]}
+    custom_queue_lab = db.get(LabTemplate, 8)
+    custom_queue_lab.success_criteria = {"questions": [{"id": "custom-queue"}]}
     legacy_lab = db.get(LabTemplate, 3)
     legacy_lab.success_criteria = {
         "questions": [
@@ -535,6 +538,7 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
     for quiz_id in (2, 3, 4):
         add_activity(3, "quiz", quiz_id)
     add_activity(3, "guided_lab", 3, required=True)
+    add_activity(3, "guided_lab", 7, required=False)
     add_activity(3, "service_desk_scenario", "password-reset")
     add_activity(3, "service_desk_scenario", "instructor-custom-week-3", required=True)
 
@@ -660,9 +664,18 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
     db.refresh(legacy_lab)
     db.refresh(historical_run)
     db.refresh(custom_lab)
+    db.refresh(custom_queue_lab)
     assert legacy_lab.is_published is False
     assert custom_lab.lab_type == "instructor_custom"
     assert custom_lab.success_criteria == {"questions": [{"id": "custom-owned"}]}
+    assert custom_queue_lab.lab_type == "instructor_custom"
+    assert custom_queue_lab.success_criteria == {"questions": [{"id": "custom-queue"}]}
+    custom_lab_activity = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[3].id,
+        activity_type="guided_lab",
+        content_ref=str(custom_lab.id),
+    ).one()
+    assert custom_lab_activity.is_required is False
     assert legacy_lab.success_criteria == legacy_criteria
     assert historical_run.lab_template_id == legacy_lab.id
     assert [

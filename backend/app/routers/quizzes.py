@@ -35,6 +35,12 @@ def _require_quiz_access(db: Session, student: Student, quiz: Quiz) -> None:
     remediation_ids = assigned_remediation_ids(db, student.id) | triggered_remediation_ids(db, student.id)
     if quiz.id in remediation_ids:
         return
+    if (
+        quiz.show_in_practice_library
+        and not quiz.is_required
+        and not quiz.show_in_weekly_checklist
+    ):
+        return
     require_week_reached(db, student, quiz.week_number)
 
 

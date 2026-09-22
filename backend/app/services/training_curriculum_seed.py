@@ -451,6 +451,7 @@ WEEKS_3_4_OPTIONAL_LESSON_ESTIMATES = {
 WEEKS_3_4_REQUIRED_QUIZZES = {3: {2, 3, 4}, 4: {5}}
 WEEKS_3_4_REQUIRED_VIDEOS = {3: {117, 118}, 4: {169}}
 WEEK_3_CLI_LAB_SEED_KEY = "weeks-3-4-windows-cli-v1"
+WEEK_4_TROUBLESHOOT_LAB_SEED_KEY = "weeks-3-4-queue-troubleshoot-v1"
 WEEK_4_VIDEO_RELOCATIONS = {
     **{video_id: 2 for video_id in (1, 3, 45, 46, 47, 48, 49, 50, 51, 52)},
     **{video_id: 8 for video_id in (2, 4)},
@@ -791,7 +792,15 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
                 setattr(triage, field, value)
             result["updated_templates"] += 1
 
-    troubleshoot = db.query(LabTemplate).filter_by(title="Work the Queue: Three Tickets").first()
+    troubleshoot = next(
+        (
+            lab
+            for lab in db.query(LabTemplate).all()
+            if (lab.environment_requirements or {}).get("_nexus_seed_key")
+            == WEEK_4_TROUBLESHOOT_LAB_SEED_KEY
+        ),
+        None,
+    )
     troubleshoot_values = {
         "description": "Use scope, impact, urgency, and available workarounds to triage three related support tickets, then prepare a safe handoff.",
         "lab_type": "structured_operations",
@@ -799,7 +808,9 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
         "difficulty": 1,
         "estimated_minutes": 30,
         "is_published": True,
-        "environment_requirements": {},
+        "environment_requirements": {
+            "_nexus_seed_key": WEEK_4_TROUBLESHOOT_LAB_SEED_KEY,
+        },
         "setup_instructions": "Read all three tickets before choosing an order. Separate confirmed evidence from assumptions and choose the handoff another technician could act on.",
         "success_criteria": {"questions": WEEK_4_TROUBLESHOOT_QUESTIONS},
         "required_evidence": {},
@@ -920,6 +931,10 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
         db.delete(row)
         result["deleted_activities"] += 1
 
+    required_lab_ids_by_week = {
+        3: {week_three_lab.id} if week_three_lab is not None else set(),
+        4: {lab.id for lab in (triage, troubleshoot) if lab is not None},
+    }
     all_activities = db.query(TrainingWeekActivity).filter(
         TrainingWeekActivity.training_week_id.in_((weeks[3].id, weeks[4].id))
     ).all()
@@ -936,7 +951,10 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
         elif activity.activity_type == "quiz":
             should_be_required = _content_int(activity.content_ref) in WEEKS_3_4_REQUIRED_QUIZZES[number]
             minutes = 15
-        elif activity.activity_type == "guided_lab":
+        elif (
+            activity.activity_type == "guided_lab"
+            and _content_int(activity.content_ref) in required_lab_ids_by_week[number]
+        ):
             should_be_required = True
             lab = db.get(LabTemplate, _content_int(activity.content_ref))
             minutes = lab.estimated_minutes if lab else minutes

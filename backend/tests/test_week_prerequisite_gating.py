@@ -274,6 +274,48 @@ def test_locked_week_three_quiz_detail_and_submit_cannot_bypass_direct_url(db):
     assert submit.json()["code"] == "PREREQUISITE_NOT_MET"
 
 
+def test_future_optional_practice_library_quiz_remains_available(db):
+    student = make_student(db, username="future-practice-reader")
+    _seed_week_zero_gate(db)
+    quiz = Quiz(
+        title="Optional future practice",
+        week_number=9,
+        question_count=1,
+        status=QUIZ_STATUS_PUBLISHED,
+        quiz_purpose="certification",
+        is_required=False,
+        show_in_weekly_checklist=False,
+        show_in_practice_library=True,
+        answer_keys_validated=True,
+        editorial_status="validated",
+        is_active=True,
+    )
+    db.add(quiz)
+    db.flush()
+    question = Question(
+        quiz_id=quiz.id,
+        question_text="Which answer is supported?",
+        option_a="Supported",
+        option_b="Unsupported",
+        option_c="Unsupported",
+        option_d="Unsupported",
+        correct_answer="A",
+        explanation="The evidence supports A.",
+    )
+    db.add(question)
+    db.commit()
+
+    detail = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student))
+    submit = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={"student_id": student.id, "answers": {str(question.id): "A"}},
+        headers=auth_headers(student),
+    )
+
+    assert detail.status_code == 200
+    assert submit.status_code == 200
+
+
 def test_existing_quiz_attempt_remains_reviewable_after_prerequisite_changes(db):
     student = make_student(db, username="quiz-history-reader")
     _seed_week_zero_gate(db)
