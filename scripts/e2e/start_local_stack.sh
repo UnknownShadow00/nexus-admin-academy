@@ -45,6 +45,24 @@ else
     BACKEND_PYTHON="$(command -v python)"
 fi
 
+# Refuse occupied ports before creating credentials or mutating the scratch DB.
+# Otherwise Vite can select another port while readiness checks hit an unrelated app.
+"$BACKEND_PYTHON" - "$BACKEND_PORT" "$FRONTEND_PORT" "$SERVICE_DESK_PORT" <<'PORT_CHECK'
+import socket
+import sys
+
+ports = [int(value) for value in sys.argv[1:]]
+if len(set(ports)) != len(ports):
+    raise SystemExit("E2E ports must be distinct")
+for port in ports:
+    with socket.socket() as listener:
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            listener.bind(("127.0.0.1", port))
+        except OSError:
+            raise SystemExit(f"E2E port {port} is unavailable; choose unused loopback ports")
+PORT_CHECK
+
 rand() { openssl rand -hex 16; }
 
 # Fixture credentials generated fresh for this run — never hard-coded, never logged.
@@ -64,6 +82,8 @@ FRESH_B_USERNAME_GEN="browser-fresh-student-b"
 FRESH_B_PASSWORD_GEN="$(rand)"
 ENDPOINT_USERNAME_GEN="browser-endpoint-student"
 ENDPOINT_PASSWORD_GEN="$(rand)"
+W34_USERNAME_GEN="browser-weeks-3-4-student"
+W34_PASSWORD_GEN="$(rand)"
 
 export DATABASE_URL="sqlite:///$SCRATCH_DIR/e2e.db"
 export JWT_SECRET_KEY="$(rand)$(rand)"
@@ -163,6 +183,15 @@ print(student.id)
 db.close()
 PY
 )"
+
+# Build one disposable learner through the real Weeks 0-4 completion model.
+# This fixture lets browser tests inspect historical Week 3/4 screens without
+# weakening direct-URL gates or borrowing a real student's records.
+NEXUS_E2E_W34_USERNAME="$W34_USERNAME_GEN" \
+NEXUS_E2E_W34_PASSWORD="$W34_PASSWORD_GEN" \
+PYTHONPATH="$BACKEND_DIR" \
+    "$BACKEND_PYTHON" "$REPO_ROOT/scripts/e2e/audit_weeks_3_4_journey.py" \
+    > "$SCRATCH_DIR/weeks-3-4-journey.json"
 export V2_CURRICULUM_ENABLED=true
 export V2_PILOT_STUDENT_IDS="$PILOT_STUDENT_ID"
 
@@ -225,7 +254,7 @@ fi
     E2E_SERVICE_DESK_URL="http://$BACKEND_HOST:$SERVICE_DESK_PORT" \
     VITE_API_URL="http://$BACKEND_HOST:$BACKEND_PORT" \
     VITE_V2_CURRICULUM_ENABLED=true setsid npm run dev -- \
-        --port "$FRONTEND_PORT" --host "$FRONTEND_HOST" \
+        --strictPort --port "$FRONTEND_PORT" --host "$FRONTEND_HOST" \
         > "$SCRATCH_DIR/vite.log" 2>&1 < /dev/null &
     echo $! > "$SCRATCH_DIR/frontend.pid"
 )
@@ -456,6 +485,8 @@ STACK_ENV="$SCRATCH_DIR/stack.env"
     echo "NEXUS_E2E_NONPILOT_PASSWORD=$QUALIFIED_PASSWORD_GEN"
     echo "NEXUS_E2E_ENDPOINT_USERNAME=$ENDPOINT_USERNAME_GEN"
     echo "NEXUS_E2E_ENDPOINT_PASSWORD=$ENDPOINT_PASSWORD_GEN"
+    echo "NEXUS_E2E_W34_USERNAME=$W34_USERNAME_GEN"
+    echo "NEXUS_E2E_W34_PASSWORD=$W34_PASSWORD_GEN"
 } > "$STACK_ENV"
 chmod 600 "$STACK_ENV"
 

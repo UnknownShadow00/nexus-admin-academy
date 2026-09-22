@@ -1,0 +1,72 @@
+[
+  {
+    "area": "quiz",
+    "width": 375,
+    "dimensions": {
+      "client": 375,
+      "scroll": 375
+    }
+  },
+  {
+    "area": "quiz",
+    "width": 390,
+    "dimensions": {
+      "client": 390,
+      "scroll": 390
+    }
+  },
+  {
+    "area": "quiz",
+    "width": 768,
+    "dimensions": {
+      "client": 768,
+      "scroll": 768
+    }
+  },
+  {
+    "area": "quiz-focus",
+    "details": {
+      "element": "INPUT",
+      "width": 1,
+      "height": 1,
+      "labelOutline": "none",
+      "labelShadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(37, 99, 235) 0px 0px 0px 4px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+    }
+  },
+  {
+    "area": "quiz-refresh",
+    "resumesAt": 2,
+    "originalQuestionRetained": true,
+    "draftKeys": [
+      "nexus:quiz-draft:16:42"
+    ]
+  },
+  {
+    "area": "quiz-review-failure",
+    "reproduced": "HTTP 500 displayed as retryable review failure"
+  },
+  {
+    "area": "lesson-failure",
+    "reproduced": "HTTP 500 displayed as retryable lesson failure"
+  },
+  {
+    "area": "cli-route",
+    "url": "/cli-labs/meet-cli-001",
+    "heading": [
+      "First Contact"
+    ]
+  },
+  {
+    "area": "service-desk",
+    "dimensions": {
+      "client": 375,
+      "scroll": 375
+    },
+    "headings": [
+      "PDF editor closes while exporting annotated drawings"
+    ]
+  },
+  {
+    "disposableStudentDeleted": true
+  }
+]

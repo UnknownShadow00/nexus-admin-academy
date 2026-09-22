@@ -22,18 +22,22 @@ export default function TrainingProgressPage() {
   const [data, setData] = useState(null);
   const [serviceDeskSummary, setServiceDeskSummary] = useState(null);
   const [error, setError] = useState("");
-  useEffect(() => { getTrainingProgress({ suppressToast: true }).then((res) => setData(res.data)).catch(() => setError("Progress could not be loaded.")); }, []);
+  const [retry, setRetry] = useState(0);
+  const [summaryError, setSummaryError] = useState(false);
   useEffect(() => {
-    getServiceDeskProgressSummary({ suppressToast: true })
-      .then((res) => setServiceDeskSummary(res.data))
-      .catch(() => {});
-  }, []);
-  if (error) return <main className="mx-auto max-w-3xl p-6"><div role="alert" className="panel">{error}</div></main>;
+    let cancelled = false;
+    setError("");
+    setSummaryError(false);
+    getTrainingProgress({ suppressToast: true }).then((res) => { if (!cancelled) setData(res.data); }).catch(() => { if (!cancelled) setError("Progress could not be loaded."); });
+    getServiceDeskProgressSummary({ suppressToast: true }).then((res) => { if (!cancelled) setServiceDeskSummary(res.data); }).catch(() => { if (!cancelled) setSummaryError(true); });
+    return () => { cancelled = true; };
+  }, [retry]);
+  if (error) return <main className="mx-auto max-w-3xl p-6"><div role="alert" className="panel"><h1 className="text-xl font-bold">Progress unavailable</h1><p className="mt-2">{error} Your completed work has not changed.</p><button className="btn-primary mt-3" onClick={() => setRetry((value) => value + 1)} type="button">Retry progress</button></div></main>;
   if (!data) return <main className="mx-auto max-w-5xl p-6"><div className="h-56 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
   const current = data.current_module;
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-4 pb-20 sm:p-6">
-      <div><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Skills</h1><p className="mt-1 text-slate-600 dark:text-slate-300">What you've completed, and where the evidence of real skill comes from.</p></div>
+      <div><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Progress</h1><p className="mt-1 text-slate-600 dark:text-slate-300">What you've completed, and where the evidence of real skill comes from.</p></div>
 
       <section className="space-y-4">
         <div>
@@ -54,6 +58,7 @@ export default function TrainingProgressPage() {
         <p className="text-sm"><Link className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to="/learning-path">View full learning path →</Link></p>
       </section>
 
+      {summaryError ? <div className="panel" role="alert"><p>Service Desk skill evidence could not be loaded. Course progress above is still available.</p><button className="btn-secondary mt-3" onClick={() => setRetry((value) => value + 1)} type="button">Retry skill evidence</button></div> : null}
       {serviceDeskSummary ? (
         <section className="space-y-4">
           <div>

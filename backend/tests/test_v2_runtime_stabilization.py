@@ -711,7 +711,9 @@ def test_v2_practical_is_absent_from_legacy_list_and_revocation_is_immediate(db,
     ).status_code == 404
 
 
-def test_revoked_v2_practical_run_cannot_use_vm_or_upload_evidence(db, monkeypatch):
+@pytest.mark.parametrize("published", [True, False])
+@pytest.mark.parametrize("restriction", ["pilot_revoked", "module_inactive", "assessment_inactive"])
+def test_revoked_v2_practical_run_cannot_use_vm_or_upload_evidence(db, monkeypatch, published, restriction):
     student, _ = _ready(db, monkeypatch)
     module = db.query(CertificationModule).filter_by(module_key=MODULE).one()
     assessment = db.query(ModuleAssessment).filter_by(
@@ -731,7 +733,14 @@ def test_revoked_v2_practical_run_cannot_use_vm_or_upload_evidence(db, monkeypat
     ))
     db.commit()
 
-    monkeypatch.setenv("V2_PILOT_STUDENT_IDS", "")
+    db.get(LabTemplate, assessment.lab_template_id).is_published = published
+    if restriction == "pilot_revoked":
+        monkeypatch.setenv("V2_PILOT_STUDENT_IDS", "")
+    elif restriction == "module_inactive":
+        module.active = False
+    else:
+        assessment.active = False
+    db.commit()
     assert client.get(
         f"/api/labs/{assessment.lab_template_id}/vm-status", headers=headers
     ).status_code == 404

@@ -1,13 +1,16 @@
 from app.models.cli_lab import CliLab
-from app.models.lab import LabTemplate
+from conftest import make_student
+
+from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson, Module
-from app.models.quiz import Quiz
+from app.models.quiz import Question, Quiz
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.training_curriculum_seed import (
     _revision_includes,
     reconcile_optional_lesson_requirements,
     sync_initial_training_activities,
+    sync_weeks_3_4_prelaunch_quality,
     sync_weeks_3_6_quality,
     sync_weeks_7_10_quality,
     sync_weeks_11_14_quality,
@@ -15,6 +18,7 @@ from app.services.training_curriculum_seed import (
     sync_weeks_19_22_quality,
     sync_weeks_23_24_quality,
     sync_weeks_1_4_practice_realignment,
+    TRIAGE_QUESTIONS,
 )
 from app.services.curriculum_structure import learning_role_for
 from app.services.training_service import validate_training_curriculum
@@ -338,6 +342,433 @@ def test_weeks_3_6_quality_sync_builds_aligned_required_paths_idempotently(db):
     assert second["created_templates"] == 0
     assert second["created_activities"] == 0
     assert second["updated_activities"] == 0
+
+
+def test_weeks_3_4_prelaunch_quality_waits_for_normal_seed_content(db):
+    """Fresh migrations must not consume fixed lab IDs before seed.py runs."""
+    _add_week(db, 3)
+    _add_week(db, 4)
+    db.commit()
+
+    result = sync_weeks_3_4_prelaunch_quality(db)
+
+    assert result == {
+        "updated": 0,
+        "skipped": True,
+        "reason": "curriculum_not_seeded",
+    }
+    assert db.query(LabTemplate).count() == 0
+
+
+def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_deadlocks(db):
+    weeks = {
+        number: _add_week(db, number)
+        for number in (1, 2, 3, 4, 5, 7, 8, 23)
+    }
+    modules = {
+        3: Module(code="MOD-003", title="Windows 11 as Your Workbench", module_order=4, estimated_hours=15),
+        4: Module(code="MOD-004", title="Working the Queue", module_order=5, estimated_hours=13),
+    }
+    db.add_all(modules.values())
+    db.flush()
+    lesson_specs = {
+        3: (
+            ("Accounts, Profiles, and Permissions", 90),
+            ("The Investigator's Toolkit", 90),
+            ("Command-Line Diagnostics", 120),
+            ("Windows Update and Defender Basics", 60),
+        ),
+        4: (
+            ("Priority, Impact, and Not Making It Worse", 90),
+            ("Talking to Humans", 60),
+        ),
+    }
+    lessons = {}
+    for week_number, specs in lesson_specs.items():
+        for order, (title, minutes) in enumerate(specs, start=1):
+            lesson = Lesson(
+                module_id=modules[week_number].id,
+                title=title,
+                lesson_order=order,
+                estimated_minutes=minutes,
+                status="published",
+                summary={
+                    "Command-Line Diagnostics": (
+                        "The Windows support seven, and what their output MEANS:\n"
+                        "ipconfig /all → your identity on the network. Read: IP "
+                        "(169.254.x.x = DHCP failed), gateway (empty = no route "
+                        "out), DNS servers (wrong = 'internet down' with working IP).\n"
+                        "netstat -ano → who is talking; pair PID with Task Manager Details.\n"
+                        "sfc /scannow then DISM /Online /Cleanup-Image /RestoreHealth → system file repair "
+                        "sequence (DISM repairs the store sfc repairs from)."
+                    ),
+                    "Accounts, Profiles, and Permissions": (
+                        "PROFILES: a profile is the user's world (Desktop, Documents, HKCU). "
+                        "NTFS PERMISSIONS: Read/Write/Modify/Full Control; DENY beats ALLOW; "
+                        "permissions inherit down folders; effective access = what actually "
+                        "applies after group math."
+                    ),
+                    "Priority, Impact, and Not Making It Worse": (
+                        "PRACTICAL ITIL VOCABULARY (Nexus original summary — enough to be dangerous): "
+                        "when NOT to act is a graded anchor (safe_fix_or_escalation)."
+                    ),
+                }.get(title, f"Beginner lesson for {title}."),
+                outcomes=(
+                    ["Execute the sfc → DISM repair sequence and read its outcomes"]
+                    if title == "Command-Line Diagnostics"
+                    else []
+                ),
+            )
+            db.add(lesson)
+            db.flush()
+            lessons[title] = lesson
+
+    for quiz_id, title, week_number in (
+        (2, "Windows Accounts and Permissions", 3),
+        (3, "The Investigator's Toolkit", 3),
+        (4, "Windows Command-Line Diagnostics", 3),
+        (5, "Help-Desk Operations", 4),
+    ):
+        quiz = Quiz(
+            id=quiz_id,
+            title=title,
+            week_number=week_number,
+            quiz_purpose="practice",
+            is_required=False,
+            show_in_weekly_checklist=False,
+            status="published",
+            editorial_status="validated",
+            answer_keys_validated=True,
+            is_active=True,
+        )
+        db.add(quiz)
+        db.flush()
+        db.add(
+            Question(
+                quiz_id=quiz.id,
+                question_text="Placeholder audited question",
+                option_a="Supported answer",
+                option_b="Distractor",
+                option_c="Distractor",
+                option_d="Distractor",
+                correct_answer="A",
+                explanation="Placeholder explanation.",
+            )
+        )
+
+    custom_quiz = Quiz(
+        id=105,
+        title="Help-Desk Operations",
+        week_number=4,
+        quiz_purpose="practice",
+        is_required=False,
+        show_in_weekly_checklist=False,
+        status="published",
+        editorial_status="validated",
+        answer_keys_validated=True,
+        is_active=True,
+    )
+    db.add(custom_quiz)
+    db.flush()
+    custom_question = Question(
+        quiz_id=custom_quiz.id,
+        question_text="Instructor-authored duplicate-title question",
+        option_a="Custom correct answer",
+        option_b="Custom distractor",
+        option_c="Custom distractor",
+        option_d="Custom distractor",
+        correct_answer="A",
+        explanation="Instructor-authored explanation.",
+    )
+    db.add(custom_question)
+
+    _add_lab(db, 3, "Windows Command-Line Diagnostics", 3, "structured_evidence_case")
+    _add_lab(db, 6, "Instructor-owned lab at legacy ID 6", 4, "instructor_custom")
+    _add_lab(db, 7, "Windows Command-Line Diagnostics Practice", 3, "instructor_custom")
+    _add_lab(db, 8, "Work the Queue: Three Tickets", 4, "instructor_custom")
+    _add_lab(db, 9, "Prioritize the Queue", 4, "structured_diagnostic")
+    db.flush()
+    custom_lab = db.get(LabTemplate, 7)
+    custom_lab.success_criteria = {"questions": [{"id": "custom-owned"}]}
+    custom_queue_lab = db.get(LabTemplate, 8)
+    custom_queue_lab.success_criteria = {"questions": [{"id": "custom-queue"}]}
+    canonical_triage = db.get(LabTemplate, 9)
+    canonical_triage.success_criteria = {"questions": TRIAGE_QUESTIONS}
+    legacy_lab = db.get(LabTemplate, 3)
+    legacy_lab.success_criteria = {
+        "questions": [
+            {"id": "scope", "prompt": "What is the scope?"},
+            {"id": "cause", "prompt": "What is the likely cause?"},
+            {"id": "action", "prompt": "What is the safe next action?"},
+        ]
+    }
+    legacy_criteria = legacy_lab.success_criteria
+    historical_student = make_student(db, username="week-three-history")
+    historical_run = LabRun(
+        lab_template_id=legacy_lab.id,
+        student_id=historical_student.id,
+        status="submitted",
+        final_score=100,
+        structured_feedback={
+            "questions": [
+                {"id": "scope", "is_correct": True},
+                {"id": "cause", "is_correct": True},
+                {"id": "action", "is_correct": True},
+            ]
+        },
+    )
+    db.add(historical_run)
+    display_order = {3: 0, 4: 0}
+
+    def add_activity(week_number, activity_type, content_ref, *, required=False, metadata=None):
+        display_order[week_number] += 1
+        db.add(
+            TrainingWeekActivity(
+                training_week_id=weeks[week_number].id,
+                stable_id=f"week-{week_number}-{activity_type}-{content_ref}",
+                activity_type=activity_type,
+                content_ref=str(content_ref),
+                display_order=display_order[week_number],
+                is_required=required,
+                prerequisite_mode="soft",
+                metadata_json=metadata or {},
+            )
+        )
+
+    for title in lesson_specs[3]:
+        add_activity(3, "lesson", lessons[title[0]].id)
+    for video_id in (108, 117, 118):
+        add_activity(3, "video", video_id)
+    for quiz_id in (2, 3, 4):
+        add_activity(3, "quiz", quiz_id)
+    add_activity(3, "quiz", custom_quiz.id, required=True)
+    add_activity(3, "video", 999, required=True)
+    add_activity(3, "guided_lab", 3, required=True)
+    add_activity(3, "guided_lab", 7, required=False)
+    add_activity(3, "service_desk_scenario", "password-reset")
+    add_activity(3, "service_desk_scenario", "instructor-custom-week-3", required=True)
+
+    for title in lesson_specs[4]:
+        add_activity(4, "lesson", lessons[title[0]].id)
+    for video_id in (1, 2, 4, 5, 46, 62, 169, 181):
+        add_activity(4, "video", video_id)
+    add_activity(4, "quiz", 5)
+    add_activity(4, "guided_lab", 6, required=False)
+    add_activity(4, "guided_lab", 9, required=True)
+    add_activity(4, "service_desk_scenario", "mfa-reset")
+    db.commit()
+
+    first = sync_weeks_3_4_prelaunch_quality(db)
+    assert first["skipped"] is False
+    db.refresh(custom_question)
+    assert custom_question.question_text == "Instructor-authored duplicate-title question"
+    assert custom_question.correct_answer == "A"
+    assert custom_question.explanation == "Instructor-authored explanation."
+
+    lessons_by_id = {lesson.id: lesson for lesson in lessons.values()}
+    required_titles = {
+        number: {
+            lessons_by_id[int(row.content_ref)].title
+            for row in db.query(TrainingWeekActivity).filter_by(
+                training_week_id=weeks[number].id,
+                activity_type="lesson",
+                is_required=True,
+            )
+        }
+        for number in (3, 4)
+    }
+    assert required_titles[3] == {
+        "Accounts, Profiles, and Permissions",
+        "The Investigator's Toolkit",
+        "Command-Line Diagnostics",
+    }
+    assert required_titles[4] == {
+        "Priority, Impact, and Not Making It Worse",
+        "Talking to Humans",
+    }
+    assert lessons["Windows Update and Defender Basics"].estimated_minutes == 30
+
+    required_quizzes = {
+        number: {
+            int(row.content_ref)
+            for row in db.query(TrainingWeekActivity).filter_by(
+                training_week_id=weeks[number].id,
+                activity_type="quiz",
+                is_required=True,
+            )
+        }
+        for number in (3, 4)
+    }
+    assert required_quizzes == {3: {2, 3, 4, custom_quiz.id}, 4: {5}}
+    custom_video_activity = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[3].id,
+        activity_type="video",
+        content_ref="999",
+    ).one()
+    assert custom_video_activity.is_required is True
+
+    week_three_cases = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[3].id,
+        activity_type="service_desk_scenario",
+    ).all()
+    assert {(row.content_ref, row.is_required) for row in week_three_cases} == {
+        ("inc2501", True),
+        ("instructor-custom-week-3", True),
+    }
+    assert db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[4].id,
+        activity_type="service_desk_scenario",
+    ).count() == 0
+    assert {
+        int(row.content_ref)
+        for row in db.query(TrainingWeekActivity).filter_by(
+            training_week_id=weeks[2].id,
+            activity_type="video",
+        )
+    } == {1, 46}
+    assert {
+        int(row.content_ref)
+        for row in db.query(TrainingWeekActivity).filter_by(
+            training_week_id=weeks[5].id,
+            activity_type="video",
+        )
+    } == {62}
+    assert {
+        int(row.content_ref)
+        for row in db.query(TrainingWeekActivity).filter_by(
+            training_week_id=weeks[7].id,
+            activity_type="video",
+        )
+    } == {5}
+    assert {
+        int(row.content_ref)
+        for row in db.query(TrainingWeekActivity).filter_by(
+            training_week_id=weeks[8].id,
+            activity_type="video",
+        )
+    } == {2, 4}
+    assert {
+        int(row.content_ref)
+        for row in db.query(TrainingWeekActivity).filter_by(
+            training_week_id=weeks[23].id,
+            activity_type="video",
+        )
+    } == {181}
+
+    cli_activity = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[3].id,
+        activity_type="guided_lab",
+        is_required=True,
+    ).one()
+    cli = db.get(LabTemplate, int(cli_activity.content_ref))
+    assert cli.id != legacy_lab.id
+    assert cli.id != custom_lab.id
+    assert cli.title == "Windows Command-Line Diagnostics Practice"
+    assert cli.lab_type == "structured_cli"
+    assert cli.success_criteria["required_commands"] == [
+        "hostname",
+        "whoami",
+        "ipconfig /all",
+        "ping 192.168.1.1",
+        "nslookup intranet.nexus.internal",
+        "tracert intranet.nexus.internal",
+        "netstat -ano",
+    ]
+    db.refresh(legacy_lab)
+    db.refresh(historical_run)
+    db.refresh(custom_lab)
+    db.refresh(custom_queue_lab)
+    assert legacy_lab.is_published is False
+    assert custom_lab.lab_type == "instructor_custom"
+    assert custom_lab.success_criteria == {"questions": [{"id": "custom-owned"}]}
+    assert custom_queue_lab.lab_type == "instructor_custom"
+    assert custom_queue_lab.success_criteria == {"questions": [{"id": "custom-queue"}]}
+    instructor_id_six = db.get(LabTemplate, 6)
+    assert instructor_id_six.lab_type == "instructor_custom"
+    assert instructor_id_six.success_criteria == {"tasks": ["Legacy task"]}
+    custom_lab_activity = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[3].id,
+        activity_type="guided_lab",
+        content_ref=str(custom_lab.id),
+    ).one()
+    assert custom_lab_activity.is_required is False
+    assert legacy_lab.success_criteria == legacy_criteria
+    assert historical_run.lab_template_id == legacy_lab.id
+    assert [
+        item["id"] for item in historical_run.structured_feedback["questions"]
+    ] == ["scope", "cause", "action"]
+    week_four_labs = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[4].id,
+        activity_type="guided_lab",
+        is_required=True,
+    ).all()
+    assert {learning_role_for(row.activity_type, row.metadata_json) for row in week_four_labs} == {
+        "practice",
+        "troubleshoot",
+    }
+
+    for number in (3, 4):
+        ordered = db.query(TrainingWeekActivity).filter_by(
+            training_week_id=weeks[number].id
+        ).order_by(TrainingWeekActivity.display_order).all()
+        ranks = {
+            "learn": 0,
+            "check": 1,
+            "practice": 2,
+            "troubleshoot": 3,
+            "prove": 4,
+        }
+        assert [ranks[learning_role_for(row.activity_type, row.metadata_json)] for row in ordered] == sorted(
+            ranks[learning_role_for(row.activity_type, row.metadata_json)] for row in ordered
+        )
+
+    command_lesson = lessons["Command-Line Diagnostics"]
+    assert "DISM" in command_lesson.summary
+    assert command_lesson.summary.index("DISM") < command_lesson.summary.index("sfc")
+    assert "Domain Name System (DNS)" in command_lesson.summary
+    assert "process identifier (PID)" in command_lesson.summary
+    assert "component store that System File Checker (SFC) uses as its source" in command_lesson.summary
+    assert "DISM → SFC" in command_lesson.outcomes[0]
+    accounts_lesson = lessons["Accounts, Profiles, and Permissions"]
+    assert "HKCU" not in accounts_lesson.summary
+    assert "WINDOWS FILE PERMISSIONS (NTFS)" in accounts_lesson.summary
+    priority_lesson = lessons["Priority, Impact, and Not Making It Worse"]
+    assert "safe_fix_or_escalation" not in priority_lesson.summary
+    assert "COMMON SERVICE-DESK TERMS" in priority_lesson.summary
+
+    # A normal seed replay runs the older Weeks 1-4 practice synchronizer
+    # before this prelaunch synchronizer. With a historical run on legacy lab
+    # 3, that replay must not leave both the recreated legacy activity and the
+    # replacement activity competing for the replacement stable identity.
+    _add_lab(db, 1, "Legacy Week 1 Lab", 1, "legacy")
+    _add_lab(db, 2, "Legacy Week 2 Lab", 2, "legacy")
+    _add_lab(db, 4, "Hardware Component Identification", 2, "structured_identification")
+    db.commit()
+    practice_replay = sync_weeks_1_4_practice_realignment(db)
+    assert practice_replay["skipped"] is False
+
+    second = sync_weeks_3_4_prelaunch_quality(db)
+    assert second["created_templates"] == 0
+    assert second["created_activities"] == 0
+    assert second["deleted_activities"] == 1
+    assert db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[3].id,
+        activity_type="guided_lab",
+        stable_id=f"week-3-guided_lab-{legacy_lab.id}",
+    ).count() == 0
+    replacement_activities = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[3].id,
+        activity_type="guided_lab",
+        stable_id=f"week-3-guided_lab-{cli.id}",
+        content_ref=str(cli.id),
+    ).all()
+    assert len(replacement_activities) == 1
+
+    third = sync_weeks_3_4_prelaunch_quality(db)
+    assert third["created_templates"] == 0
+    assert third["created_activities"] == 0
+    assert third["updated_activities"] == 0
+    assert third["deleted_activities"] == 0
 
 
 def test_weeks_3_6_quality_sync_preserves_promotion_gate_quiz_purpose(db):
@@ -834,3 +1265,45 @@ def test_weeks_23_24_quality_sync_moves_integrated_quiz_and_adds_final_practice(
     assert second["created_templates"] == 0
     assert second["created_activities"] == 0
     assert second["updated_activities"] == 0
+
+
+def test_weeks_3_4_relocation_preserves_distinct_instructor_assignments(db):
+    weeks = {number: _add_week(db, number) for number in (2, 3, 4, 5)}
+    db.flush()
+    canonical = []
+    for number, video in ((2, 1), (3, 117), (4, 1), (4, 62)):
+        row = TrainingWeekActivity(
+            training_week_id=weeks[number].id, stable_id=f"week-{number}-video-{video}",
+            activity_type="video", content_ref=str(video), display_order=len(canonical) + 1,
+            is_required=False, metadata_json={},
+        )
+        db.add(row)
+        canonical.append(row)
+    custom = []
+    for number, kind, ref in (
+        (4, "video", "1"), (4, "video", "62"),
+        (3, "service_desk_scenario", "password-reset"),
+        (3, "service_desk_scenario", "inc2501"),
+        (4, "service_desk_scenario", "mfa-reset"), (4, "capstone", "1"),
+    ):
+        row = TrainingWeekActivity(
+            training_week_id=weeks[number].id, stable_id=f"instructor-{number}-{kind}-{ref}",
+            activity_type=kind, content_ref=ref, display_order=20 + len(custom),
+            is_required=True, estimated_minutes=77,
+            metadata_json={"instructor_note": "Preserve this assignment"},
+        )
+        db.add(row)
+        custom.append(row)
+    db.commit()
+    fields = ("training_week_id", "stable_id", "activity_type", "content_ref", "is_required", "estimated_minutes", "metadata_json")
+    expected = {row.id: tuple(getattr(row, field) for field in fields) for row in custom}
+    for _ in range(2):
+        sync_weeks_3_4_prelaunch_quality(db)
+        for row_id, values in expected.items():
+            row = db.get(TrainingWeekActivity, row_id)
+            assert row is not None
+            assert tuple(getattr(row, field) for field in fields) == values
+    assert db.query(TrainingWeekActivity).filter_by(stable_id="week-4-video-1").first() is None
+    moved = db.query(TrainingWeekActivity).filter_by(stable_id="week-5-video-62").one()
+    assert moved.training_week_id == weeks[5].id
+    assert moved.is_required is False

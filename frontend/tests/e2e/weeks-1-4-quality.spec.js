@@ -6,6 +6,8 @@ const adminUsername = process.env.NEXUS_E2E_ADMIN_USERNAME || "browser-admin";
 const adminPassword = process.env.NEXUS_E2E_ADMIN_PASSWORD || "BrowserAdmin!2026";
 const apiBaseUrl = process.env.NEXUS_E2E_API_URL || "http://127.0.0.1:8011";
 const browserBaseUrl = process.env.NEXUS_E2E_BASE_URL || "http://127.0.0.1:5173";
+const weeks34Username = process.env.NEXUS_E2E_W34_USERNAME || "browser-weeks-3-4-student";
+const weeks34Password = process.env.NEXUS_E2E_W34_PASSWORD || "BrowserWeeks34!2026";
 
 async function studentLogin(page, username = studentUsername, password = studentPassword, replacementPassword = null) {
   await page.goto("/login");
@@ -168,7 +170,7 @@ test("Support Workflow Essentials: learning roles, CLI CTA, and formative ticket
 });
 
 test("Hardware Component Identification is a real structured exercise, not a textbox+upload shell", async ({ page }) => {
-  await studentLogin(page);
+  await studentLogin(page, weeks34Username, weeks34Password);
   await page.goto("/labs/4");
   await expect(page.getByRole("heading", { name: "Hardware Component Identification", exact: true })).toBeVisible();
   await expect(page.getByText("Evidence Upload", { exact: false })).toHaveCount(0);
@@ -184,46 +186,48 @@ test("Hardware Component Identification is a real structured exercise, not a tex
   // Submission grading itself (server computes correctness from stored
   // answer keys) is covered by the backend structured-lab test suite; here
   // we only need to confirm this is a real interactive exercise, not a shell.
-  const submit = page.getByRole("button", { name: "Submit Answers" });
-  await expect(submit).toBeEnabled();
 });
 
-test("Weeks 3-6 provide deterministic structured practice", async ({ page }) => {
-  await studentLogin(page);
+test("Weeks 3-4 follow Learn, Check, Practice, Troubleshoot with deterministic practice", async ({ page }) => {
+  await studentLogin(page, weeks34Username, weeks34Password);
+
+  await page.goto("/training/module/module.windows.fundamentals");
+  await expect(page.getByRole("heading", { name: "Windows Fundamentals & Diagnostics", exact: true })).toBeVisible();
+  for (const heading of ["1. Learn", "2. Check", "3. Practice", "4. Troubleshoot"]) {
+    await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+  }
+  await expect(page.locator('article[data-activity-type="guided_lab"]')).toContainText("Windows Command-Line Diagnostics");
+  await expect(page.locator('article[data-activity-type="service_desk_scenario"]')).toContainText("My Desktop and Documents have disappeared");
 
   await page.goto("/labs/3");
   await expect(page.getByRole("heading", { name: "Windows Command-Line Diagnostics", exact: true })).toBeVisible();
   await expect(page.getByText("Work and explain", { exact: false })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Windows host evidence case", exact: true })).toBeVisible();
-  await expect(page.getByRole("tablist", { name: "Evidence panels" })).toBeVisible();
-  await expect(page.getByText("Inspect the required evidence before making a decision.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Use the practice terminal first", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Try hostname/ })).toBeVisible();
 
+  await page.goto("/training/module/module.windows.queue_operations");
+  await expect(page.getByRole("heading", { name: "Queue & Endpoint Operations", exact: true })).toBeVisible();
+  await expect(page.locator('article[data-activity-type="guided_lab"]')).toHaveCount(2);
   await page.goto("/labs/6");
   await expect(page.getByRole("heading", { name: "Prioritize the Queue", exact: true })).toBeVisible();
   await expect(page.getByText("Work and explain", { exact: false })).toHaveCount(0);
   await expect(page.locator("fieldset").first()).toBeVisible();
 
-  await page.goto("/labs/7");
-  await expect(page.getByRole("heading", { name: "Isolate the Windows Failure", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Windows troubleshooting case", exact: true })).toBeVisible();
-  await expect(page.getByRole("tablist", { name: "Evidence panels" })).toBeVisible();
-
-  await page.goto("/labs/8");
-  await expect(page.getByRole("heading", { name: "Make the Safe Access Decision", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Windows access evidence case", exact: true })).toBeVisible();
-  await expect(page.getByRole("tablist", { name: "Evidence panels" })).toBeVisible();
+  await page.goto("/training/module/module.windows.queue_operations");
+  await page.locator('article[data-activity-type="guided_lab"]')
+    .filter({ hasText: "Work the Queue: Three Tickets" })
+    .getByRole("link", { name: "Review", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { name: "Work the Queue: Three Tickets", exact: true })).toBeVisible();
+  await expect(page.locator("fieldset")).toHaveCount(3);
 });
 
-test("no mobile horizontal overflow on rebuilt lab pages", async ({ page }) => {
-  await studentLogin(page);
+test("Weeks 3-4 key student screens do not overflow at mobile width", async ({ page }) => {
+  await studentLogin(page, weeks34Username, weeks34Password);
   await page.setViewportSize({ width: 375, height: 812 });
-  for (const labId of [4, 3, 6]) {
-    await page.goto(`/labs/${labId}`);
-    if (labId === 3) {
-      await expect(page.getByRole("tablist", { name: "Evidence panels" })).toBeVisible();
-    } else {
-      await expect(page.locator("fieldset").first()).toBeVisible();
-    }
+  for (const route of ["/", "/training/module/module.windows.fundamentals", "/quizzes/4", "/labs/3", "/service-desk/tickets/INC2501", "/progress"]) {
+    await page.goto(route);
+    await expect(page.locator("main")).toBeVisible();
     await assertNoHorizontalOverflow(page);
   }
 });

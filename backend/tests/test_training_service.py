@@ -989,7 +989,7 @@ def test_reviewed_mapping_covers_every_seed_video_once():
         confidence: sum(mapping.confidence == confidence for mapping in VIDEO_QUIZ_MAPPINGS.values())
         for confidence in {mapping.confidence for mapping in VIDEO_QUIZ_MAPPINGS.values()}
     }
-    assert confidence_counts == {"Exact": 5, "Strong topical": 92, "Week-level fallback": 40}
+    assert confidence_counts == {"Exact": 5, "Strong topical": 95, "Week-level fallback": 37}
 
 
 def test_shared_quiz_updates_each_video_but_counts_once(db, student):

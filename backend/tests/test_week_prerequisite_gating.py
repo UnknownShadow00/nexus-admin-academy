@@ -2,28 +2,31 @@
 
 from datetime import datetime, timezone
 
+import pytest
+
 from conftest import auth_headers, make_client, make_student
 
 from app.models.capstone import CapstoneTemplate
 from app.models.cli_lab import CliLab
 from app.models.curriculum_video import CurriculumVideo
-from app.models.lab import LabTemplate
+from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.lesson_progress import StudentLessonProgress
 from app.models.progression import Role, StudentRole
-from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
+from app.models.quiz import QUIZ_STATUS_PUBLISHED, Question, Quiz, QuizAttempt
 from app.models.ticket import Ticket
 from app.models.video_watch import VideoWatch
 from app.routers.capstones import has_unlocked_capstones, router as capstones_router
 from app.routers.cli_labs import router as cli_labs_router
 from app.routers.labs import router as labs_router
+from app.routers.quizzes import router as quizzes_router
 from app.routers.students import router as students_router
 from app.routers.tickets import router as tickets_router
 from seed import seed_capstones
 from seed_phase_g import seed_phase_g
 
 
-client = make_client(tickets_router, labs_router, cli_labs_router, capstones_router, students_router)
+client = make_client(tickets_router, labs_router, cli_labs_router, capstones_router, students_router, quizzes_router)
 
 
 def _ticket_payload(student_id):
@@ -184,6 +187,228 @@ def test_later_week_ticket_remains_locked_by_general_week_rule(db):
     assert response.json()["error"] == "You'll unlock this when you reach Windows Fundamentals & Diagnostics."
 
 
+def test_locked_week_three_lab_detail_cannot_be_read_through_direct_url(db):
+    student = make_student(db, username="direct-lab-reader")
+    _seed_week_zero_gate(db)
+    lab = _seed_hands_on_week_one(db)[1]
+    lab.week_number = 3
+    db.commit()
+
+    response = client.get(f"/api/labs/{lab.id}", headers=auth_headers(student))
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "PREREQUISITE_NOT_MET"
+    assert response.json()["data"]["required_week"] == 3
+    assert response.json()["data"]["current_week"] == 0
+
+
+def test_existing_lab_run_remains_reviewable_after_prerequisite_changes(db):
+    student = make_student(db, username="historical-lab-reader")
+    _seed_week_zero_gate(db)
+    lab = _seed_hands_on_week_one(db)[1]
+    lab.week_number = 3
+    lab.is_published = False
+    db.add(
+        LabRun(
+            lab_template_id=lab.id,
+            student_id=student.id,
+            status="in_progress",
+            final_score=100,
+            structured_feedback={"summary": "Historical result retained"},
+        )
+    )
+    db.commit()
+
+    response = client.get(f"/api/labs/{lab.id}", headers=auth_headers(student))
+
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "in_progress"
+    assert response.json()["data"]["structured_feedback"] == {
+        "summary": "Historical result retained"
+    }
+    listing = client.get("/api/labs", headers=auth_headers(student))
+    assert listing.status_code == 200
+    assert lab.id not in {item["id"] for item in listing.json()["data"]}
+    start = client.post(f"/api/labs/{lab.id}/start", headers=auth_headers(student))
+    assert start.status_code == 404
+    submit = client.post(
+        f"/api/labs/{lab.id}/submit",
+        json={"notes": "Completed the already-started legacy exercise."},
+        headers=auth_headers(student),
+    )
+    assert submit.status_code == 200
+    assert submit.json()["data"]["status"] == "submitted"
+
+
+def test_locked_week_three_quiz_detail_and_submit_cannot_bypass_direct_url(db):
+    student = make_student(db, username="direct-quiz-reader")
+    _seed_week_zero_gate(db)
+    quiz = Quiz(
+        title="Week 3 direct URL check",
+        week_number=3,
+        question_count=1,
+        status=QUIZ_STATUS_PUBLISHED,
+        quiz_purpose="required",
+        is_required=True,
+        show_in_weekly_checklist=True,
+        answer_keys_validated=True,
+        editorial_status="validated",
+        is_active=True,
+    )
+    db.add(quiz)
+    db.flush()
+    question = Question(
+        quiz_id=quiz.id,
+        question_text="Which answer is supported?",
+        option_a="Supported",
+        option_b="Unsupported",
+        option_c="Unsupported",
+        option_d="Unsupported",
+        correct_answer="A",
+        explanation="The evidence supports A.",
+    )
+    db.add(question)
+    db.commit()
+
+    detail = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student))
+    submit = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={"student_id": student.id, "answers": {str(question.id): "A"}},
+        headers=auth_headers(student),
+    )
+
+    assert detail.status_code == 403
+    assert submit.status_code == 403
+    assert detail.json()["code"] == "PREREQUISITE_NOT_MET"
+    assert submit.json()["code"] == "PREREQUISITE_NOT_MET"
+
+
+def test_future_optional_practice_library_quiz_remains_available(db):
+    student = make_student(db, username="future-practice-reader")
+    _seed_week_zero_gate(db)
+    quiz = Quiz(
+        title="Optional future practice",
+        week_number=9,
+        question_count=1,
+        status=QUIZ_STATUS_PUBLISHED,
+        quiz_purpose="certification",
+        is_required=False,
+        show_in_weekly_checklist=False,
+        show_in_practice_library=True,
+        answer_keys_validated=True,
+        editorial_status="validated",
+        is_active=True,
+    )
+    db.add(quiz)
+    db.flush()
+    question = Question(
+        quiz_id=quiz.id,
+        question_text="Which answer is supported?",
+        option_a="Supported",
+        option_b="Unsupported",
+        option_c="Unsupported",
+        option_d="Unsupported",
+        correct_answer="A",
+        explanation="The evidence supports A.",
+    )
+    db.add(question)
+    db.commit()
+
+    detail = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student))
+    submit = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={"student_id": student.id, "answers": {str(question.id): "A"}},
+        headers=auth_headers(student),
+    )
+
+    assert detail.status_code == 200
+    assert submit.status_code == 200
+
+
+@pytest.mark.parametrize("week_number", [0, 9])
+def test_unassigned_remediation_quiz_cannot_use_practice_library_bypass(db, week_number):
+    student = make_student(db, username="unassigned-remediation-reader")
+    _seed_week_zero_gate(db)
+    quiz = Quiz(
+        title="Unassigned remediation",
+        week_number=week_number,
+        question_count=1,
+        status=QUIZ_STATUS_PUBLISHED,
+        quiz_purpose="remediation",
+        is_required=False,
+        show_in_weekly_checklist=False,
+        show_in_practice_library=True,
+        answer_keys_validated=True,
+        editorial_status="validated",
+        is_active=True,
+    )
+    db.add(quiz)
+    db.flush()
+    db.add(
+        Question(
+            quiz_id=quiz.id,
+            question_text="Which answer is supported?",
+            option_a="Supported",
+            option_b="Unsupported",
+            option_c="Unsupported",
+            option_d="Unsupported",
+            correct_answer="A",
+        )
+    )
+    db.commit()
+
+    detail = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student))
+
+    submit = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={"student_id": student.id, "answers": {}},
+        headers=auth_headers(student),
+    )
+
+    assert submit.status_code == 403
+    assert db.query(QuizAttempt).filter_by(student_id=student.id, quiz_id=quiz.id).count() == 0
+    assert detail.status_code == 403
+    assert "instructor assigns" in detail.json()["detail"]
+
+
+def test_existing_quiz_attempt_remains_reviewable_after_prerequisite_changes(db):
+    student = make_student(db, username="quiz-history-reader")
+    _seed_week_zero_gate(db)
+    quiz = Quiz(
+        title="Historical Week 3 check",
+        week_number=3,
+        question_count=1,
+        status=QUIZ_STATUS_PUBLISHED,
+        quiz_purpose="practice",
+        is_required=False,
+        show_in_weekly_checklist=False,
+        answer_keys_validated=True,
+        editorial_status="validated",
+        is_active=True,
+    )
+    db.add(quiz)
+    db.flush()
+    db.add_all(
+        [
+            Question(
+                quiz_id=quiz.id,
+                question_text="Historical question",
+                option_a="A",
+                option_b="B",
+                option_c="C",
+                option_d="D",
+                correct_answer="A",
+            ),
+            QuizAttempt(student_id=student.id, quiz_id=quiz.id, answers={}, results=[], score=0, xp_awarded=0),
+        ]
+    )
+    db.commit()
+
+    response = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student))
+
+    assert response.status_code == 200
+
+
 def test_a_plus_video_progress_never_changes_hands_on_week_access(db):
     student = make_student(db)
     _seed_week_zero_gate(db)
@@ -331,3 +556,50 @@ def test_fresh_database_seeds_assign_all_capstone_role_levels(db):
         "CompTIA A+ Module 2 Capstone: Networking & OS": 3,
         "Take Over Maple & Finch Co.": 5,
     }
+
+
+@pytest.mark.parametrize("status", ["assigned", "in_progress"])
+def test_retired_owned_active_lab_accepts_evidence_after_week_relocks(monkeypatch, tmp_path, db, status):
+    student = make_student(db)
+    _seed_week_zero_gate(db)
+    _, lab, *_ = _seed_hands_on_week_one(db)
+    lab.is_published = False
+    run = LabRun(student_id=student.id, lab_template_id=lab.id, status=status)
+    db.add(run)
+    db.commit()
+    monkeypatch.setattr("app.routers.labs._screenshots_dir", lambda: tmp_path)
+    response = client.post(
+        f"/api/labs/{run.id}/evidence",
+        files={"file": ("evidence.png", b"disposable-test-image", "image/png")},
+        headers=auth_headers(student),
+    )
+    assert response.status_code == 200
+    assert len(list(tmp_path.iterdir())) == 1
+    db.refresh(run)
+    assert run.status == status
+
+
+@pytest.mark.parametrize("published,owner,status,expected", [
+    (True, True, "in_progress", 403),
+    (False, False, "in_progress", 403),
+    (False, True, "submitted", 404),
+])
+def test_evidence_retirement_exception_preserves_gates_and_ownership(
+    monkeypatch, tmp_path, db, published, owner, status, expected,
+):
+    student = make_student(db)
+    _seed_week_zero_gate(db)
+    _, lab, *_ = _seed_hands_on_week_one(db)
+    lab.is_published = published
+    run_owner = student if owner else make_student(db, username="other-evidence-owner")
+    run = LabRun(student_id=run_owner.id, lab_template_id=lab.id, status=status)
+    db.add(run)
+    db.commit()
+    monkeypatch.setattr("app.routers.labs._screenshots_dir", lambda: tmp_path)
+    response = client.post(
+        f"/api/labs/{run.id}/evidence",
+        files={"file": ("evidence.png", b"disposable-test-image", "image/png")},
+        headers=auth_headers(student),
+    )
+    assert response.status_code == expected
+    assert list(tmp_path.iterdir()) == []

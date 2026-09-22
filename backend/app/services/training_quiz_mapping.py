@@ -57,7 +57,10 @@ _map([114, 115, 116], 3, TOPIC_GROUP, "Strong topical", "The Investigator's Tool
 _map([117, 118], 4, TOPIC_GROUP, "Strong topical", "Windows Command-Line Diagnostics directly assesses the commands taught by these videos.")
 _map([1], 78, TOPIC_GROUP, "Strong topical", "Laptop hardware is assessed by the approved broad hardware troubleshooting quiz.")
 _map([2, 4], 9, TOPIC_GROUP, "Strong topical", "Mobile connectivity and mobile networking support the Client Network Triage objectives.")
+_map([5], 8, TOPIC_GROUP, "Strong topical", "Mobile-device management supports the endpoint security and policy objectives.")
 _map([169, 175, 180], 5, TOPIC_GROUP, "Strong topical", "Change control, policy/authorization, escalation, and remote support are assessed by Help-Desk Operations.")
+_map([62], 6, TOPIC_GROUP, "Strong topical", "Printer fault isolation supports the Windows troubleshooting assessment.")
+_map([181], 25, TOPIC_GROUP, "Strong topical", "Responsible AI use is an operational policy decision assessed by Integrated Operations Readiness.")
 _map([58, 59, 60], 78, TOPIC_GROUP, "Strong topical", "Storage, display, and mobile-hardware symptoms are part of broad PC hardware troubleshooting.")
 _map([162, 163], 6, TOPIC_GROUP, "Strong topical", "The Windows troubleshooting quiz assesses startup, application, and device/app fault isolation.")
 _map([164, 165], 8, TOPIC_GROUP, "Strong topical", "Endpoint Security assesses malware, credential compromise, firewall, and safe response.")
@@ -84,7 +87,7 @@ _map([182], 42, WEEK_FALLBACK, "Week-level fallback", "Week 0 has one approved o
 _map([167], 1, WEEK_FALLBACK, "Week-level fallback", "Asset records support Week 1 ticket documentation, but no narrower approved asset quiz exists.")
 _map([19, 20], 78, WEEK_FALLBACK, "Week-level fallback", "The approved Week 2 hardware quiz is broader than display technology.")
 _map([108, 109, 110, 111, 112, 113, 119, 120, 131], 3, WEEK_FALLBACK, "Week-level fallback", "The approved Windows toolkit quiz is the broadest Week 3 Windows assessment.")
-_map([3, 5, 45, 46, 47, 48, 49, 50, 51, 52, 62, 181], 5, WEEK_FALLBACK, "Week-level fallback", "Help-Desk Operations is the approved Week 4 assessment; no approved peripheral-specific quiz exists.")
+_map([3, 45, 46, 47, 48, 49, 50, 51, 52], 78, WEEK_FALLBACK, "Week-level fallback", "The approved hardware assessment is the closest available check for optional mobile-accessory and printer-hardware resources.")
 _map([125, 126, 127], 6, WEEK_FALLBACK, "Week-level fallback", "Windows Deep Troubleshooting is the approved Week 5 troubleshooting assessment; no approved macOS quiz exists.")
 _map(range(21, 30), 12, WEEK_FALLBACK, "Week-level fallback", "The approved Week 10 networking quiz is broader than individual cable and connector videos.")
 _map([171, 172, 173], 25, WEEK_FALLBACK, "Week-level fallback", "Integrated Operations Readiness is the only approved Week 24 assessment; no approved safety quiz exists.")
@@ -102,8 +105,12 @@ BEGINNER_REQUIRED_VIDEO_IDS = {
     # those components instead of the BIOS-heavy set that used to gate this
     # week — BIOS/UEFI concepts are covered by the required BIOS/UEFI lesson.
     2: {30, 32, 35, 36, 37, 44},
-    3: {110, 114, 117, 118},
-    4: {46, 47, 62, 169, 180},
+    # The three required lessons carry the Windows concepts; these two videos
+    # reinforce the commands actually used by the Week 3 practice terminal.
+    3: {117, 118},
+    # Keep Week 4 focused on queue operations. Mobile, printer, and AI videos
+    # remain searchable resources rather than progression gates.
+    4: {169},
     7: {137, 138, 143, 156, 157},
     8: {6, 7, 18, 61, 123},
     # Week 20's required path is Linux operations. These security videos are
@@ -118,7 +125,6 @@ BEGINNER_POLISH_REQUIRED_LESSON_TITLES = {
     "Anatomy of a Good Ticket",
     "Meet the Command Line",
 }
-
 
 def mapping_metadata(video_id: int) -> dict:
     mapping = VIDEO_QUIZ_MAPPINGS.get(int(video_id))

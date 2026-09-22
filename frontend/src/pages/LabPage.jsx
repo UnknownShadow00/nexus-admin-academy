@@ -25,6 +25,14 @@ const statusConfig = {
 export default function LabPage() {
   const { labId } = useParams();
   const [searchParams] = useSearchParams();
+  // Route changes must discard all lab-specific state, including pending actions.
+  const scope = JSON.stringify([labId, searchParams.get("v2Module"), searchParams.get("v2Assessment")]);
+  return <LabSession key={scope} />;
+}
+
+function LabSession() {
+  const { labId } = useParams();
+  const [searchParams] = useSearchParams();
   const v2ModuleKey = searchParams.get("v2Module");
   const v2AssessmentKey = searchParams.get("v2Assessment");
   const isV2Practical = Boolean(v2ModuleKey && v2AssessmentKey);
@@ -60,7 +68,9 @@ export default function LabPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err?.userMessage || "Unable to load lab.");
+          const lock = getPrerequisiteLock(err);
+          if (lock) setPrerequisiteLock(lock);
+          else setError(err?.userMessage || "Unable to load lab.");
         }
       });
 
@@ -205,6 +215,16 @@ export default function LabPage() {
     } finally {
       setEvidenceBusy(false);
     }
+  }
+
+  if (!lab && prerequisiteLock) {
+    return (
+      <main className="mx-auto max-w-4xl space-y-4 p-6">
+        <BackLink fallbackLabel="Guided Labs" fallbackTo="/labs" />
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Lab locked</h1>
+        <PrerequisiteLock lock={prerequisiteLock} />
+      </main>
+    );
   }
 
   if (!lab && !error) {

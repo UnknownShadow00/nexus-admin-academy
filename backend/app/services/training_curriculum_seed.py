@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from app.models.capstone import CapstoneTemplate
 from app.models.cli_lab import CliLab
 from app.models.curriculum_video import CurriculumVideo
-from app.models.lab import LabTemplate
+from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.progression import PromotionGate, Role
 from app.models.quiz import Question, Quiz
@@ -374,6 +374,738 @@ TRIAGE_QUESTIONS = [
         "explanation": "This is a single-user request with no outage, no urgent deadline, and a usable device. It fits P4 Low.",
     },
 ]
+
+
+WEEK_4_TROUBLESHOOT_QUESTIONS = [
+    {
+        "id": "queue-order",
+        "prompt": "Which ticket should be worked first?",
+        "context": (
+            "Three tickets arrive together: a personal printer jam with another printer available; "
+            "a shared drive outage blocking 40 people; and one user's mapped drive failing after a password change."
+        ),
+        "type": "single_choice",
+        "options": [
+            {"id": "printer", "label": "The personal printer jam, because an executive reported it"},
+            {"id": "department", "label": "The 40-person shared drive outage"},
+            {"id": "mapped-drive", "label": "The single-user mapped drive issue"},
+            {"id": "arrival", "label": "Whichever ticket appears first in the list"},
+        ],
+        "correct": ["department"],
+        "explanation": (
+            "The shared drive has the widest impact and no stated workaround. The printer has a workaround, "
+            "and the mapped-drive symptom affects one person, so neither should displace the department outage."
+        ),
+    },
+    {
+        "id": "mapped-drive-scope",
+        "prompt": "What should you verify before accepting the claim that 'the server is down'?",
+        "context": "One user cannot open a mapped drive after changing their password; coworkers can still open the same share.",
+        "type": "single_choice",
+        "options": [
+            {"id": "scope", "label": "Confirm coworker access and test the share separately from this user's saved credentials"},
+            {"id": "reboot-server", "label": "Restart the file server immediately"},
+            {"id": "permissions", "label": "Grant the user Full Control"},
+            {"id": "printer", "label": "Clear the executive's printer jam first"},
+        ],
+        "correct": ["scope"],
+        "explanation": (
+            "Working coworkers prove the service is not broadly down. In a real ticket, that scope evidence plus "
+            "the recent password change points toward stale saved credentials before any server change."
+        ),
+    },
+    {
+        "id": "safe-handoff",
+        "prompt": "The shared-drive fault is server-side and outside your access. What is the best handoff?",
+        "context": "You confirmed multiple affected users, recorded the exact error, and reproduced the failed share path.",
+        "type": "single_choice",
+        "options": [
+            {"id": "handoff", "label": "Escalate with scope, error, evidence, next requested action, and the promised update time"},
+            {"id": "wait", "label": "Wait silently until a senior technician notices"},
+            {"id": "guess", "label": "Tell users the server disk probably failed"},
+            {"id": "close", "label": "Close the ticket because the repair is outside your access"},
+        ],
+        "correct": ["handoff"],
+        "explanation": (
+            "A useful escalation preserves confirmed facts and communication commitments without guessing the cause. "
+            "The next technician can act immediately, and affected users still receive an honest update."
+        ),
+    },
+]
+
+
+WEEKS_3_4_CORE_LESSONS = {
+    3: {
+        "Accounts, Profiles, and Permissions": 30,
+        "The Investigator's Toolkit": 30,
+        "Command-Line Diagnostics": 45,
+    },
+    4: {
+        "Priority, Impact, and Not Making It Worse": 35,
+        "Talking to Humans": 30,
+    },
+}
+WEEKS_3_4_OPTIONAL_LESSON_ESTIMATES = {
+    "Windows Update and Defender Basics": 30,
+}
+WEEKS_3_4_REQUIRED_QUIZZES = {3: {2, 3, 4}, 4: {5}}
+WEEKS_3_4_REQUIRED_VIDEOS = {3: {117, 118}, 4: {169}}
+WEEK_3_CLI_LAB_SEED_KEY = "weeks-3-4-windows-cli-v1"
+WEEK_4_TRIAGE_LAB_SEED_KEY = "weeks-3-4-queue-triage-v1"
+WEEK_4_TROUBLESHOOT_LAB_SEED_KEY = "weeks-3-4-queue-troubleshoot-v1"
+WEEK_4_VIDEO_RELOCATIONS = {
+    **{video_id: 2 for video_id in (1, 3, 45, 46, 47, 48, 49, 50, 51, 52)},
+    **{video_id: 8 for video_id in (2, 4)},
+    5: 7,
+    62: 5,
+    181: 23,
+}
+WEEKS_3_4_COPY_REPLACEMENTS = (
+    ("implication: password reset paths are COMPLETELY different for each.", "implication: each account type has a different password-reset path."),
+    ("PROFILES: a profile is the user's world (Desktop, Documents, HKCU).", "PROFILES: a profile contains the user's Desktop, Documents, and personal Windows settings."),
+    ("NTFS PERMISSIONS: Read/Write/Modify/Full Control; DENY beats ALLOW; permissions inherit down folders; effective access = what actually applies after group math.", "WINDOWS FILE PERMISSIONS (NTFS): Read, Write, Modify, and Full Control; an explicit Deny can override an Allow; permissions normally inherit from parent folders. Effective access is the final result after all user and group permissions are combined."),
+    ("granting Full Control to 'just make it work' (it works — and fails the least-privilege anchor); editing permissions on a folder you haven't backed up.", "granting Full Control to 'just make it work' (it grants more access than the task needs); editing permissions without recording the original settings."),
+    ("Processes for CPU/RAM/disk hogs; Startup for login slowness; Details for PIDs (pairs with netstat -ano).", "Processes for CPU, memory, and disk use; Startup for login slowness; Details for process identifiers (PIDs), which pair with netstat -ano."),
+    ("reading only the newest event instead of the FIRST error in the chain", "reading only the newest event instead of the earliest relevant error in the chain"),
+    ("The Windows support seven, and what their output MEANS:", "Seven Windows support commands, and what their output means:"),
+    ("ipconfig /all → your identity on the network. Read: IP (169.254.x.x = DHCP failed), gateway (empty = no route out), DNS servers (wrong = 'internet down' with working IP).", "ipconfig /all → your identity on the network. Read: IP address (169.254.x.x usually means the automatic address service, DHCP, did not answer), gateway (empty means no route out), and Domain Name System (DNS) servers, which translate names into addresses."),
+    ("netstat -ano → who is talking; pair PID with Task Manager Details.", "netstat -ano → which connections are active; pair its process identifier (PID) with Task Manager Details."),
+    ("sequence (DISM repairs the store sfc repairs from).", "sequence. Deployment Image Servicing and Management (DISM) repairs the component store that System File Checker (SFC) uses as its source."),
+    ("sequence (DISM repairs the component store that SFC uses as its source).", "sequence. Deployment Image Servicing and Management (DISM) repairs the component store that System File Checker (SFC) uses as its source."),
+    ("chkdsk SAFETY: /f needs a reboot lock; NEVER on a mechanically clicking drive.", "CHECK DISK SAFETY: chkdsk /f may need exclusive access and a reboot. If a mechanical drive is clicking, stop repair writes and use the approved data-recovery path."),
+    ("A VIP's jammed printer FEELS urgent; a department share outage IS urgent. Learn to defend the order out loud — that defense is graded in Simulation 1.", "A senior executive's jammed printer may feel urgent; a department share outage has much wider impact. Learn to explain the order using evidence."),
+    ("PRACTICAL ITIL VOCABULARY (Nexus original summary — enough to be dangerous):", "COMMON SERVICE-DESK TERMS:"),
+    ("when NOT to act is a graded anchor (safe_fix_or_escalation).", "when not to act is part of choosing a safe fix or escalation."),
+)
+
+
+def _content_int(value: str | None) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _reorder_week_by_learning_role(db: Session, week: TrainingWeek) -> int:
+    rows = (
+        db.query(TrainingWeekActivity)
+        .filter_by(training_week_id=week.id)
+        .order_by(TrainingWeekActivity.display_order, TrainingWeekActivity.id)
+        .all()
+    )
+    if not rows:
+        return 0
+    role_order = {"learn": 0, "check": 1, "practice": 2, "troubleshoot": 3, "prove": 4}
+    desired = sorted(
+        rows,
+        key=lambda row: (
+            role_order.get(learning_role_for(row.activity_type, row.metadata_json), 5),
+            row.display_order,
+            row.id,
+        ),
+    )
+    if [row.id for row in desired] == [row.id for row in rows] and [row.display_order for row in rows] == list(range(1, len(rows) + 1)):
+        return 0
+    changed = sum(
+        current.id != expected.id or current.display_order != position
+        for position, (current, expected) in enumerate(zip(rows, desired), start=1)
+    )
+    temporary_start = max(row.display_order for row in rows) + len(rows) + 1
+    for offset, row in enumerate(rows):
+        row.display_order = temporary_start + offset
+        db.flush()
+    for position, row in enumerate(desired, start=1):
+        row.display_order = position
+        db.flush()
+    return changed
+
+
+def _apply_week_3_4_question_corrections(db: Session) -> int:
+    """Apply editorial corrections to canonical quizzes by ID and question order."""
+    corrections = {
+        (2, 3): {
+            "question_text": "NTFS: GroupA grants Modify, while GroupB has an explicit Write DENY. What is the effective ability to save changes to the file?",
+            "explanation": "The explicit Write deny blocks saving even though another group grants Modify. In support, confirm whether a deny is explicit or inherited before changing the access control list; not every allow/deny conflict is this simple.",
+        },
+        (3, 1): {
+            "question_text": "Several related errors appear during one 20-minute failure. Which event is usually the best starting point for finding the cause?",
+            "explanation": "Start with the earliest event that is directly tied to the failing component, because later related errors may be consequences. Do not choose the oldest event blindly—match source, time, and symptom.",
+        },
+        (4, 1): {
+            "explanation": "A 169.254.x.x address is APIPA: Windows assigned it after DHCP did not answer. Check link and DHCP reachability before chasing DNS, because the missing usable lease and gateway are the evidence you would see on the workstation.",
+        },
+        (4, 2): {
+            "explanation": "A successful ping to 1.1.1.1 proves the local link, gateway, and an IP path are working. Failure only when using a name points to DNS; changing cabling or the gateway would ignore that evidence.",
+        },
+        (4, 3): {
+            "explanation": "Run DISM first so the Windows component store can supply healthy repair files, then run SFC to check and replace protected system files. Formatting, defragmenting, or repeating SFC does not repair a damaged source store.",
+        },
+        (4, 4): {
+            "explanation": "ipconfig shows addressing, ping separates reachability stages, and nslookup tests name resolution. gpresult is useful for policy problems, but it does not diagnose the basic network path in this symptom.",
+        },
+        (4, 5): {
+            "question_text": "A mechanical hard drive is clicking and contains needed files. What is the safest response before running chkdsk /f?",
+            "option_a": "Stop repair writes and escalate for data recovery or an approved backup-first process",
+            "option_b": "Run chkdsk /f repeatedly until the clicking stops",
+            "option_c": "Format the drive, then restore whatever remains",
+            "option_d": "Defragment the drive before checking its health",
+            "correct_answer": "A",
+            "correct_answers": None,
+            "explanation": "Clicking suggests physical failure, and repair writes can make the remaining data harder to recover. Preserve the device state and use the approved recovery path; chkdsk repairs logical filesystem errors, not failed hardware.",
+        },
+        (4, 6): {
+            "explanation": "gpresult /r reports which Group Policy Objects applied to the computer and user. In a real support case, compare that result with the expected policy before forcing updates or changing settings.",
+        },
+        (5, 1): {
+            "question_text": "Three tickets arrive together. Which one should be worked first?",
+            "option_a": "A VIP's personal printer jam, with another printer available",
+            "option_b": "A shared-drive outage blocking a 40-person department with no stated workaround",
+            "option_c": "One user's password reset request",
+            "option_d": "Whichever ticket appears first in the queue",
+            "correct_answer": "B",
+            "correct_answers": None,
+            "explanation": "The department outage has the highest confirmed impact and no workaround, so it comes first. VIP status and quick wins matter for communication and scheduling, but they do not outweigh a broad blocked service under this course's priority rubric.",
+        },
+        (5, 2): {
+            "explanation": "Functional escalation means the case needs deeper technical skill; hierarchical escalation means it needs authority or approval. A technician sees the difference when they know how to act but are not authorized, versus when they lack the specialist knowledge.",
+        },
+        (5, 3): {
+            "explanation": "Nothing failed: the user is asking for new access, so this is a service request. An incident restores a broken service, while a change is the controlled implementation that may follow an approved request.",
+        },
+        (5, 4): {
+            "explanation": "Urgency changes priority, not authorization. Record the requester, business reason, scope, and approver; granting even temporary read access before approval would bypass the control protecting HR data.",
+        },
+        (5, 5): {
+            "explanation": "A handoff needs current state, evidence-backed eliminations, the exact next step, and promises already made. 'See above' forces the next technician to reconstruct the case and often makes the user repeat information.",
+        },
+        (5, 6): {
+            "explanation": "Send the promised update even without a fix: state what is confirmed, what is happening now, and when the next update will arrive. Silence breaks trust; closing or escalating does not replace communication.",
+        },
+    }
+    updated = 0
+    quizzes = db.query(Quiz).filter(Quiz.id.in_({key[0] for key in corrections})).all()
+    for quiz in quizzes:
+        questions = db.query(Question).filter_by(quiz_id=quiz.id).order_by(Question.id).all()
+        for ordinal, question in enumerate(questions, start=1):
+            values = corrections.get((quiz.id, ordinal))
+            if not values:
+                continue
+            if any(getattr(question, field) != value for field, value in values.items()):
+                for field, value in values.items():
+                    setattr(question, field, value)
+                updated += 1
+    return updated
+
+
+def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
+    """Converge the two beginner Windows/queue modules without identity churn."""
+    bind = db.get_bind()
+    if not inspect(bind).has_table(TrainingWeekActivity.__tablename__):
+        return {"updated": 0, "skipped": True, "reason": "migration_not_applied"}
+    weeks = {
+        week.week_number: week
+        for week in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_((3, 4))).all()
+    }
+    if set(weeks) != {3, 4}:
+        return {"updated": 0, "skipped": True, "reason": "weeks_missing"}
+    # Fresh migrations create week containers before ordinary seed content.
+    # Do not allocate templates in that intermediate state because later
+    # practical upgrades deliberately target stable numeric lab IDs.
+    # seed_curriculum.py calls this again after all normal content seeds.
+    seeded_week_ids = {
+        row[0]
+        for row in db.query(TrainingWeekActivity.training_week_id)
+        .filter(
+            TrainingWeekActivity.training_week_id.in_(
+                {week.id for week in weeks.values()}
+            ),
+            TrainingWeekActivity.activity_type.in_(("lesson", "video", "quiz")),
+        )
+        .distinct()
+        .all()
+    }
+    if seeded_week_ids != {week.id for week in weeks.values()}:
+        return {"updated": 0, "skipped": True, "reason": "curriculum_not_seeded"}
+
+    result = {
+        "updated_weeks": 0,
+        "updated_lessons": 0,
+        "updated_questions": 0,
+        "updated_templates": 0,
+        "created_templates": 0,
+        "updated_activities": 0,
+        "created_activities": 0,
+        "deleted_activities": 0,
+        "moved_activities": 0,
+        "reordered_activities": 0,
+        "skipped": False,
+    }
+
+    for number, minutes in {3: 270, 4: 150}.items():
+        if weeks[number].estimated_minutes != minutes:
+            weeks[number].estimated_minutes = minutes
+            result["updated_weeks"] += 1
+
+    modules = {row.code: row for row in db.query(Module).filter(Module.code.in_(("MOD-003", "MOD-004"))).all()}
+    for code, hours in {"MOD-003": 5, "MOD-004": 3}.items():
+        module = modules.get(code)
+        if module is not None and module.estimated_hours != hours:
+            module.estimated_hours = hours
+            result["updated_lessons"] += 1
+
+    lesson_by_id = {}
+    for number, required_lessons in WEEKS_3_4_CORE_LESSONS.items():
+        module = modules.get(f"MOD-{number:03d}")
+        if module is None:
+            continue
+        for lesson in db.query(Lesson).filter_by(module_id=module.id).all():
+            lesson_by_id[lesson.id] = lesson
+            minutes = required_lessons.get(
+                lesson.title,
+                WEEKS_3_4_OPTIONAL_LESSON_ESTIMATES.get(lesson.title, lesson.estimated_minutes),
+            )
+            if lesson.estimated_minutes != minutes:
+                lesson.estimated_minutes = minutes
+                result["updated_lessons"] += 1
+            updated_summary = lesson.summary or ""
+            for old, new in WEEKS_3_4_COPY_REPLACEMENTS:
+                updated_summary = updated_summary.replace(old, new)
+            if lesson.title == "Command-Line Diagnostics":
+                updated_summary = updated_summary.replace(
+                    "sfc /scannow then DISM /Online /Cleanup-Image /RestoreHealth",
+                    "DISM /Online /Cleanup-Image /RestoreHealth, then sfc /scannow",
+                )
+                updated_outcomes = [
+                    item.replace("sfc → DISM", "DISM → SFC")
+                    for item in (lesson.outcomes or [])
+                ]
+            else:
+                updated_outcomes = lesson.outcomes or []
+            if lesson.summary != updated_summary or lesson.outcomes != updated_outcomes:
+                lesson.summary = updated_summary
+                lesson.outcomes = updated_outcomes
+                result["updated_lessons"] += 1
+
+    quiz_by_id = {
+        quiz.id: quiz
+        for quiz in db.query(Quiz).filter(Quiz.id.in_({2, 3, 4, 5})).all()
+    }
+    for number, required_ids in WEEKS_3_4_REQUIRED_QUIZZES.items():
+        for quiz_id in required_ids:
+            quiz = quiz_by_id.get(quiz_id)
+            if quiz is None:
+                continue
+            purpose = quiz.quiz_purpose if quiz.quiz_purpose == "gate" else "required"
+            values = {
+                "is_required": True,
+                "show_in_weekly_checklist": True,
+                "quiz_purpose": purpose,
+                "prerequisite_week": number - 1,
+            }
+            if any(getattr(quiz, field) != value for field, value in values.items()):
+                for field, value in values.items():
+                    setattr(quiz, field, value)
+                result["updated_activities"] += 1
+
+    result["updated_questions"] = _apply_week_3_4_question_corrections(db)
+
+    legacy_week_three_lab = db.get(LabTemplate, 3)
+    week_three_lab = next(
+        (
+            lab
+            for lab in db.query(LabTemplate).all()
+            if (lab.environment_requirements or {}).get("_nexus_seed_key")
+            == WEEK_3_CLI_LAB_SEED_KEY
+        ),
+        None,
+    )
+    if legacy_week_three_lab is not None:
+        values = {
+            "title": "Windows Command-Line Diagnostics",
+            "description": "Run Windows support commands in the Nexus practice terminal, read the output, and explain what the evidence rules in or out.",
+            "lab_type": "structured_cli",
+            "week_number": 3,
+            "difficulty": 1,
+            "estimated_minutes": 30,
+            "is_published": True,
+            "environment_requirements": {
+                "_nexus_seed_key": WEEK_3_CLI_LAB_SEED_KEY,
+            },
+            "setup_instructions": "Use each command button as a prompt. Read the simulated output before answering; the goal is diagnosis, not memorizing command names.",
+            "success_criteria": {
+                "questions": WINDOWS_DIAGNOSTICS_QUESTIONS,
+                "required_commands": WEEK_3_CLI_COMMANDS,
+                "terminal_profile": "windows",
+            },
+            "required_evidence": {},
+            "hints": {},
+        }
+
+        # Lab 3 previously backed a Phase 4C.1 evidence case. LabRun records
+        # reference only the template ID, so rewriting that template would
+        # make submitted answers render against questions the learner never
+        # saw. Allocate a new identity when any historical run exists and
+        # leave the old template intact for review.
+        legacy_has_historical_runs = (
+            db.query(LabRun.id)
+            .filter(LabRun.lab_template_id == legacy_week_three_lab.id)
+            .first()
+            is not None
+        )
+        if week_three_lab is not None and week_three_lab.id != legacy_week_three_lab.id:
+            values["title"] = "Windows Command-Line Diagnostics Practice"
+        if week_three_lab is None and legacy_has_historical_runs:
+            values["title"] = "Windows Command-Line Diagnostics Practice"
+            week_three_lab = LabTemplate(**values)
+            db.add(week_three_lab)
+            db.flush()
+            result["created_templates"] += 1
+        elif week_three_lab is None:
+            week_three_lab = legacy_week_three_lab
+        if any(getattr(week_three_lab, field) != value for field, value in values.items()):
+            for field, value in values.items():
+                setattr(week_three_lab, field, value)
+            result["updated_templates"] += 1
+
+        if week_three_lab.id != legacy_week_three_lab.id:
+            if legacy_week_three_lab.is_published:
+                legacy_week_three_lab.is_published = False
+                result["updated_templates"] += 1
+
+            replacement_stable_id = f"week-3-guided_lab-{week_three_lab.id}"
+            replacement_activity = db.query(TrainingWeekActivity).filter_by(
+                training_week_id=weeks[3].id,
+                activity_type="guided_lab",
+                stable_id=replacement_stable_id,
+            ).one_or_none()
+            legacy_stable_id = f"week-3-guided_lab-{legacy_week_three_lab.id}"
+            legacy_activities = db.query(TrainingWeekActivity).filter_by(
+                training_week_id=weeks[3].id,
+                activity_type="guided_lab",
+                content_ref=str(legacy_week_three_lab.id),
+                stable_id=legacy_stable_id,
+            ).all()
+
+            # The older Weeks 1-4 synchronizer runs first during a full seed
+            # replay and can recreate the canonical legacy-lab activity. If
+            # the replacement activity already exists, delete that recreated
+            # row instead of rewriting it to an identity that is already
+            # unique. Instructor-owned activities use distinct stable IDs and
+            # are deliberately left untouched.
+            if replacement_activity is not None:
+                for activity in legacy_activities:
+                    db.delete(activity)
+                    result["deleted_activities"] += 1
+            elif legacy_activities:
+                activity = legacy_activities[0]
+                activity.content_ref = str(week_three_lab.id)
+                activity.stable_id = replacement_stable_id
+                result["updated_activities"] += 1
+
+    triage = next(
+        (
+            lab
+            for lab in db.query(LabTemplate).all()
+            if (lab.environment_requirements or {}).get("_nexus_seed_key")
+            == WEEK_4_TRIAGE_LAB_SEED_KEY
+        ),
+        None,
+    )
+    if triage is None:
+        triage = next(
+            (
+                lab
+                for lab in db.query(LabTemplate).all()
+                if lab.title == "Prioritize the Queue"
+                and (lab.success_criteria or {}) == {"questions": TRIAGE_QUESTIONS}
+            ),
+            None,
+        )
+    triage_values = {
+        "title": "Prioritize the Queue",
+        "description": "Use impact, urgency, and available workarounds to choose a safe support order.",
+        "lab_type": "structured_diagnostic",
+        "week_number": 4,
+        "difficulty": 1,
+        "estimated_minutes": 20,
+        "is_published": True,
+        "environment_requirements": {
+            "_nexus_seed_key": WEEK_4_TRIAGE_LAB_SEED_KEY,
+        },
+        "setup_instructions": "Read every ticket first, then choose the priority supported by scope and workaround evidence.",
+        "success_criteria": {"questions": TRIAGE_QUESTIONS},
+        "required_evidence": {},
+        "hints": {},
+    }
+    if triage is None:
+        triage = LabTemplate(**triage_values)
+        db.add(triage)
+        db.flush()
+        result["created_templates"] += 1
+    elif any(getattr(triage, field) != value for field, value in triage_values.items()):
+        for field, value in triage_values.items():
+            setattr(triage, field, value)
+        result["updated_templates"] += 1
+
+    troubleshoot = next(
+        (
+            lab
+            for lab in db.query(LabTemplate).all()
+            if (lab.environment_requirements or {}).get("_nexus_seed_key")
+            == WEEK_4_TROUBLESHOOT_LAB_SEED_KEY
+        ),
+        None,
+    )
+    troubleshoot_values = {
+        "description": "Use scope, impact, urgency, and available workarounds to triage three related support tickets, then prepare a safe handoff.",
+        "lab_type": "structured_operations",
+        "week_number": 4,
+        "difficulty": 1,
+        "estimated_minutes": 30,
+        "is_published": True,
+        "environment_requirements": {
+            "_nexus_seed_key": WEEK_4_TROUBLESHOOT_LAB_SEED_KEY,
+        },
+        "setup_instructions": "Read all three tickets before choosing an order. Separate confirmed evidence from assumptions and choose the handoff another technician could act on.",
+        "success_criteria": {"questions": WEEK_4_TROUBLESHOOT_QUESTIONS},
+        "required_evidence": {},
+        "hints": {},
+    }
+    if troubleshoot is None:
+        troubleshoot = LabTemplate(title="Work the Queue: Three Tickets", **troubleshoot_values)
+        db.add(troubleshoot)
+        db.flush()
+        result["created_templates"] += 1
+    elif any(getattr(troubleshoot, field) != value for field, value in troubleshoot_values.items()):
+        for field, value in troubleshoot_values.items():
+            setattr(troubleshoot, field, value)
+        result["updated_templates"] += 1
+
+    week_three_rows = db.query(TrainingWeekActivity).filter_by(training_week_id=weeks[3].id).all()
+    old_week_three_cases = [
+        row for row in week_three_rows
+        if row.activity_type == "service_desk_scenario"
+        and row.stable_id == f"week-3-service_desk_scenario-{row.content_ref}"
+    ]
+    inc2501 = next((row for row in old_week_three_cases if row.content_ref == "inc2501"), None)
+    obsolete_cases = [
+        row for row in old_week_three_cases if row.content_ref in {"password-reset", "mfa-reset"}
+    ]
+    if inc2501 is None and obsolete_cases:
+        inc2501 = obsolete_cases.pop(0)
+    for duplicate in obsolete_cases:
+        if duplicate is not inc2501:
+            db.delete(duplicate)
+            result["deleted_activities"] += 1
+    if inc2501 is None:
+        inc2501 = TrainingWeekActivity(
+            training_week_id=weeks[3].id,
+            stable_id="week-3-service_desk_scenario-inc2501",
+            activity_type="service_desk_scenario",
+            content_ref="inc2501",
+            display_order=max((row.display_order for row in week_three_rows), default=0) + 1,
+            is_required=True,
+            estimated_minutes=30,
+            prerequisite_mode="soft",
+            metadata_json={},
+        )
+        db.add(inc2501)
+        result["created_activities"] += 1
+    else:
+        values = {
+            "stable_id": "week-3-service_desk_scenario-inc2501",
+            "content_ref": "inc2501",
+            "is_required": True,
+            "estimated_minutes": 30,
+        }
+        if any(getattr(inc2501, field) != value for field, value in values.items()):
+            for field, value in values.items():
+                setattr(inc2501, field, value)
+            result["updated_activities"] += 1
+
+    for row in db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[4].id,
+        activity_type="service_desk_scenario",
+        content_ref="mfa-reset",
+        stable_id="week-4-service_desk_scenario-mfa-reset",
+    ).all():
+        db.delete(row)
+        result["deleted_activities"] += 1
+
+    relocation_weeks = {
+        week.week_number: week
+        for week in db.query(TrainingWeek)
+        .filter(TrainingWeek.week_number.in_(set(WEEK_4_VIDEO_RELOCATIONS.values())))
+        .all()
+    }
+    target_orders = {
+        number: db.query(func.max(TrainingWeekActivity.display_order))
+        .filter_by(training_week_id=week.id)
+        .scalar()
+        or 0
+        for number, week in relocation_weeks.items()
+    }
+    for row in db.query(TrainingWeekActivity).filter(
+        TrainingWeekActivity.training_week_id == weeks[4].id,
+        TrainingWeekActivity.activity_type == "video",
+        TrainingWeekActivity.content_ref.in_(
+            {str(value) for value in WEEK_4_VIDEO_RELOCATIONS}
+        ),
+    ).all():
+        # A reused content ID does not make an instructor/import assignment ours.
+        if row.stable_id != f"week-4-video-{row.content_ref}":
+            continue
+        video_id = int(row.content_ref)
+        target_number = WEEK_4_VIDEO_RELOCATIONS[video_id]
+        target_week = relocation_weeks.get(target_number)
+        duplicate = (
+            db.query(TrainingWeekActivity)
+            .filter_by(
+                training_week_id=target_week.id,
+                activity_type="video",
+                content_ref=str(video_id),
+            )
+            .first()
+            if target_week
+            else None
+        )
+        if duplicate is not None:
+            db.delete(row)
+            result["deleted_activities"] += 1
+        elif target_week is not None:
+            target_orders[target_number] += 1
+            row.training_week_id = target_week.id
+            row.stable_id = f"week-{target_number}-video-{video_id}"
+            row.display_order = target_orders[target_number]
+            row.is_required = False
+            row.metadata_json = mapping_metadata(video_id)
+            result["moved_activities"] += 1
+        else:
+            # Focused fixtures may omit the destination week. Removing the
+            # bad Week 4 assignment is still safer than retaining deadlocked
+            # or unrelated required content.
+            db.delete(row)
+            result["deleted_activities"] += 1
+    for row in db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[4].id,
+        activity_type="capstone",
+        content_ref="1",
+        stable_id="week-4-capstone-1",
+    ).all():
+        db.delete(row)
+        result["deleted_activities"] += 1
+
+    required_lab_ids_by_week = {
+        3: {week_three_lab.id} if week_three_lab is not None else set(),
+        4: {lab.id for lab in (triage, troubleshoot) if lab is not None},
+    }
+    all_activities = db.query(TrainingWeekActivity).filter(
+        TrainingWeekActivity.training_week_id.in_((weeks[3].id, weeks[4].id))
+    ).all()
+    for activity in all_activities:
+        number = 3 if activity.training_week_id == weeks[3].id else 4
+        if activity.stable_id != f"week-{number}-{activity.activity_type}-{activity.content_ref}":
+            continue
+        should_be_required = activity.is_required
+        minutes = activity.estimated_minutes
+        if activity.activity_type == "lesson":
+            lesson = lesson_by_id.get(_content_int(activity.content_ref))
+            if lesson and lesson.title in WEEKS_3_4_CORE_LESSONS[number]:
+                should_be_required = True
+            elif lesson and lesson.title in WEEKS_3_4_OPTIONAL_LESSON_ESTIMATES:
+                should_be_required = False
+            minutes = lesson.estimated_minutes if lesson else minutes
+        elif (
+            activity.activity_type == "video"
+            and _content_int(activity.content_ref) in WEEKS_3_4_REQUIRED_VIDEOS[number]
+        ):
+            should_be_required = True
+        elif (
+            activity.activity_type == "quiz"
+            and _content_int(activity.content_ref) in WEEKS_3_4_REQUIRED_QUIZZES[number]
+        ):
+            should_be_required = True
+            minutes = 15
+        elif (
+            activity.activity_type == "guided_lab"
+            and _content_int(activity.content_ref) in required_lab_ids_by_week[number]
+        ):
+            should_be_required = True
+            lab = db.get(LabTemplate, _content_int(activity.content_ref))
+            minutes = lab.estimated_minutes if lab else minutes
+        elif activity.activity_type == "service_desk_scenario" and number == 3 and activity.content_ref == "inc2501":
+            should_be_required = True
+            minutes = 30
+        if activity.is_required != should_be_required or activity.estimated_minutes != minutes:
+            activity.is_required = should_be_required
+            activity.estimated_minutes = minutes
+            result["updated_activities"] += 1
+
+    troubleshoot_activity = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[4].id,
+        activity_type="guided_lab",
+        content_ref=str(troubleshoot.id),
+        stable_id=f"week-4-guided_lab-{troubleshoot.id}",
+    ).first()
+    if troubleshoot_activity is None:
+        max_order = db.query(func.max(TrainingWeekActivity.display_order)).filter_by(training_week_id=weeks[4].id).scalar() or 0
+        troubleshoot_activity = TrainingWeekActivity(
+            training_week_id=weeks[4].id,
+            stable_id=f"week-4-guided_lab-{troubleshoot.id}",
+            activity_type="guided_lab",
+            content_ref=str(troubleshoot.id),
+            display_order=max_order + 1,
+            is_required=True,
+            estimated_minutes=troubleshoot.estimated_minutes,
+            prerequisite_mode="soft",
+            metadata_json={"learning_role": "troubleshoot"},
+        )
+        db.add(troubleshoot_activity)
+        db.flush()
+        result["created_activities"] += 1
+    else:
+        metadata = dict(troubleshoot_activity.metadata_json or {})
+        metadata["learning_role"] = "troubleshoot"
+        values = {
+            "is_required": True,
+            "estimated_minutes": troubleshoot.estimated_minutes,
+            "metadata_json": metadata,
+        }
+        if any(getattr(troubleshoot_activity, field) != value for field, value in values.items()):
+            for field, value in values.items():
+                setattr(troubleshoot_activity, field, value)
+            result["updated_activities"] += 1
+
+    triage_activity = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[4].id,
+        activity_type="guided_lab",
+        content_ref=str(triage.id),
+        stable_id=f"week-4-guided_lab-{triage.id}",
+    ).first()
+    if triage_activity is None:
+        max_order = db.query(func.max(TrainingWeekActivity.display_order)).filter_by(
+            training_week_id=weeks[4].id
+        ).scalar() or 0
+        triage_activity = TrainingWeekActivity(
+            training_week_id=weeks[4].id,
+            stable_id=f"week-4-guided_lab-{triage.id}",
+            activity_type="guided_lab",
+            content_ref=str(triage.id),
+            display_order=max_order + 1,
+            is_required=True,
+            estimated_minutes=triage.estimated_minutes,
+            prerequisite_mode="soft",
+            metadata_json={"learning_role": "practice"},
+        )
+        db.add(triage_activity)
+        db.flush()
+        result["created_activities"] += 1
+
+    db.flush()
+    for week in weeks.values():
+        result["reordered_activities"] += _reorder_week_by_learning_role(db, week)
+    db.commit()
+    return result
 
 
 WEEK_3_CLI_COMMANDS = [

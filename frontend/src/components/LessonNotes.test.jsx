@@ -1,0 +1,78 @@
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import LessonNotes from "./LessonNotes";
+import { getLessonNote, saveLessonNote } from "../services/api";
+import { getCurrentStudent } from "../hooks/useAuth";
+vi.mock("../services/api", () => ({ getLessonNote: vi.fn(), saveLessonNote: vi.fn() }));
+vi.mock("../hooks/useAuth", () => ({ getCurrentStudent: vi.fn() }));
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+beforeEach(() => { vi.resetAllMocks(); localStorage.clear(); getCurrentStudent.mockReturnValue({ id: 7 }); getLessonNote.mockResolvedValue({ data: { content: "Saved note" } }); saveLessonNote.mockResolvedValue({ data: {} }); });
+it("does not turn a failed note load into an editable empty note", async () => {
+  getLessonNote.mockRejectedValueOnce(new Error("offline"));
+  render(<LessonNotes lessonId={1} />);
+  await screen.findByRole("button", { name: "Retry loading notes" });
+  expect(screen.getByRole("textbox")).toBeDisabled();
+  expect(saveLessonNote).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Retry loading notes" }));
+  await screen.findByDisplayValue("Saved note");
+  expect(screen.getByRole("textbox")).toBeEnabled();
+});
+it("recovers an unsaved note after refresh only when the learner chooses to restore it", async () => {
+  const first = render(<LessonNotes lessonId={1} />);
+  await screen.findByDisplayValue("Saved note");
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "Draft from this browser" } });
+  first.unmount();
+  render(<LessonNotes lessonId={1} />);
+  await screen.findByRole("button", { name: "Restore draft" });
+  expect(screen.getByRole("textbox")).toHaveValue("Saved note");
+  expect(saveLessonNote).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect(screen.getByRole("textbox")).toHaveValue("Draft from this browser");
+  fireEvent.click(screen.getByRole("button", { name: "Save notes" }));
+  await screen.findByText("Saved to your account");
+  expect(saveLessonNote).toHaveBeenCalledWith(1, "Draft from this browser", { suppressToast: true });
+});
+it("isolates note drafts between learners", async () => {
+  localStorage.setItem("nexus:lesson-note:7:1", "Private learner A note");
+  getCurrentStudent.mockReturnValue({ id: 8 });
+  render(<LessonNotes lessonId={1} />);
+  await screen.findByDisplayValue("Saved note");
+  expect(screen.queryByText("Private learner A note")).not.toBeInTheDocument();
+});
+it("preserves newer edits while an older save completes and serializes writes", async () => {
+  let finish;
+  saveLessonNote.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+  render(<LessonNotes lessonId={1} />);
+  await screen.findByDisplayValue("Saved note");
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "First edit" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save notes" }));
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "Newer edit" } });
+  expect(screen.getByRole("button", { name: "Saving notes…" })).toBeDisabled();
+  await act(async () => finish({ data: {} }));
+  expect(screen.getByRole("textbox")).toHaveValue("Newer edit");
+  expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
+  expect(localStorage.getItem("nexus:lesson-note:7:1")).toBe("Newer edit");
+  fireEvent.click(screen.getByRole("button", { name: "Save notes" }));
+  await screen.findByText("Saved to your account");
+  expect(saveLessonNote).toHaveBeenLastCalledWith(1, "Newer edit", { suppressToast: true });
+});
+it("keeps failed saves visible and retryable even without browser storage", async () => {
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("denied"); });
+  saveLessonNote.mockRejectedValueOnce(new Error("offline"));
+  render(<LessonNotes lessonId={1} />);
+  await screen.findByDisplayValue("Saved note");
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "Keep this note" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save notes" }));
+  await screen.findByText(/Notes could not be saved to your account/);
+  expect(screen.getByRole("textbox")).toHaveValue("Keep this note");
+  expect(screen.getByText(/Browser draft storage is unavailable/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Save notes" }));
+  await screen.findByText("Saved to your account");
+});
+it("autosaves after typing pauses", async () => {
+  render(<LessonNotes lessonId={1} />);
+  await screen.findByDisplayValue("Saved note");
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "Automatic note" } });
+  await waitFor(() => expect(saveLessonNote).toHaveBeenCalledWith(1, "Automatic note", { suppressToast: true }), { timeout: 2500 });
+  await screen.findByText("Saved to your account");
+});

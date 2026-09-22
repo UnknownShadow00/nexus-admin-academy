@@ -289,7 +289,8 @@ def test_completely_fresh_seed_contains_orientation_and_is_idempotent(tmp_path):
     # scenarios replace the required curriculum path instead. The Weeks 3-24
     # quality syncs preserve the historical rows and add deterministic practice
     # activities where the required path previously had no real skill exercise.
-    # 320 = 288 (post-Phase-4B.1) + 32 (Phase 4B.2 Intune/endpoint content).
+    # The Week 3-4 launch pass replaces future-topic activities with two
+    # beginner troubleshooting activities while preserving the total count.
     assert first["activity_count"] == 320
     assert first["legacy_support_ticket_count"] == 0
     assert first["active_video_count"] == 137

@@ -431,6 +431,10 @@ jobs:
         # under a minute against this isolated stack.
         run: npx playwright test tests/e2e/my-training.spec.js --reporter=list
 
+      - name: Run Playwright (student recovery and mobile quiz)
+        working-directory: frontend
+        run: npx playwright test tests/e2e/student-recovery.spec.js --workers=1 --reporter=list
+
       - name: Run Playwright (Nexus <-> Service Desk integration)
         working-directory: frontend
         # Requires both apps behind one browser origin. start_local_stack.sh

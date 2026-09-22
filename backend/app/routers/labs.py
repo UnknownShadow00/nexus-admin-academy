@@ -205,6 +205,31 @@ def _get_published_lab(db: Session, lab_id: int) -> LabTemplate:
     return lab
 
 
+def _get_lab_with_owned_run(
+    db: Session,
+    lab_id: int,
+    student_id: int,
+    *,
+    active_run_required: bool = False,
+) -> tuple[LabTemplate, LabRun | None]:
+    """Allow retired labs only for the learner who already owns the run."""
+    lab = db.get(LabTemplate, lab_id)
+    run = _get_lab_run(db, lab_id, student_id)
+    active_statuses = {"assigned", "not_started", "in_progress"}
+    if (
+        lab is None
+        or (
+            not lab.is_published
+            and (
+                run is None
+                or (active_run_required and run.status not in active_statuses)
+            )
+        )
+    ):
+        raise HTTPException(status_code=404, detail="Lab not found")
+    return lab, run
+
+
 def _get_lab_run(db: Session, lab_id: int, student_id: int) -> LabRun | None:
     return (
         db.query(LabRun)
@@ -257,7 +282,7 @@ def _v2_run_context(db: Session, student: Student, run: LabRun):
 
 def _authorize_existing_run(db: Session, student: Student, run: LabRun, lab: LabTemplate):
     """Authorize a trusted V2 run or apply the ordinary legacy week gate."""
-    if _v2_run_context(db, student, run) is None:
+    if _v2_run_context(db, student, run) is None and lab.is_published:
         require_week_reached(db, student, lab.week_number)
 
 
@@ -502,11 +527,12 @@ def get_lab(
     v2_module_key: str | None = None,
     v2_assessment_key: str | None = None,
 ):
-    lab = _get_published_lab(db, lab_id)
-    _lab_access_context(
+    lab, run = _get_lab_with_owned_run(db, lab_id, current_student.id)
+    v2_context = _lab_access_context(
         db, lab_id, v2_module_key, v2_assessment_key, current_student
     )
-    run = _get_lab_run(db, lab_id, current_student.id)
+    if v2_context is None and run is None:
+        require_week_reached(db, current_student, lab.week_number)
     data = _serialize_lab(lab, run)
     if run:
         artifacts = (
@@ -586,8 +612,7 @@ def get_vm_status(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
-    lab = _get_published_lab(db, lab_id)
-    run = _get_lab_run(db, lab_id, current_student.id)
+    lab, run = _get_lab_with_owned_run(db, lab_id, current_student.id)
     if not run:
         raise HTTPException(status_code=404, detail="Lab run not found")
     _authorize_existing_run(db, current_student, run, lab)
@@ -610,8 +635,7 @@ def create_vm_access(
     db: Session = Depends(get_db),
     current_student: Student = Depends(get_current_student),
 ):
-    lab = _get_published_lab(db, lab_id)
-    run = _get_lab_run(db, lab_id, current_student.id)
+    lab, run = _get_lab_with_owned_run(db, lab_id, current_student.id)
     if not run:
         raise HTTPException(status_code=404, detail="Lab run not found")
     _authorize_existing_run(db, current_student, run, lab)
@@ -657,11 +681,14 @@ def verify_evidence_workbench(
     final scoring still happens only in submit_lab. It gates simulated
     after-state evidence so an incorrect action cannot appear successful.
     """
-    lab = _get_published_lab(db, lab_id)
+    lab, run = _get_lab_with_owned_run(
+        db, lab_id, current_student.id, active_run_required=True
+    )
     if _lab_access_context(
         db, lab_id, v2_module_key, v2_assessment_key, current_student
     ) is None:
-        require_week_reached(db, current_student, lab.week_number)
+        if run is None:
+            require_week_reached(db, current_student, lab.week_number)
     criteria = lab.success_criteria or {}
     workbench_key, workbench = _configured_workbench(criteria)
     questions = criteria.get("questions", [])
@@ -680,7 +707,6 @@ def verify_evidence_workbench(
                 "message": "The selected path did not produce the expected state. Re-open the evidence and revise the unsupported decision.",
             }
         )
-    run = _get_lab_run(db, lab_id, current_student.id)
     now = datetime.now(UTC)
     if run is None:
         run = LabRun(
@@ -715,12 +741,15 @@ def submit_lab(
     v2_module_key: str | None = None,
     v2_assessment_key: str | None = None,
 ):
-    lab = _get_published_lab(db, lab_id)
+    lab, run = _get_lab_with_owned_run(
+        db, lab_id, current_student.id, active_run_required=True
+    )
     v2_context = _lab_access_context(
         db, lab_id, v2_module_key, v2_assessment_key, current_student
     )
     if v2_context is None:
-        require_week_reached(db, current_student, lab.week_number)
+        if run is None:
+            require_week_reached(db, current_student, lab.week_number)
     is_structured_lab = (lab.lab_type or "").startswith("structured_")
     if v2_context and not is_structured_lab and not payload.notes.strip():
         raise HTTPException(
@@ -744,7 +773,6 @@ def submit_lab(
                 )
         workbench_key, workbench = _configured_workbench(lab.success_criteria or {})
         if workbench_key:
-            run = _get_lab_run(db, lab_id, current_student.id)
             try:
                 verification_record = json.loads(run.feedback) if run and run.feedback else {}
             except (json.JSONDecodeError, TypeError):
@@ -784,7 +812,6 @@ def submit_lab(
                         else "Complete every required support-note field before submitting"
                     ),
                 )
-    run = _get_lab_run(db, lab_id, current_student.id)
     now = datetime.now(UTC)
 
     if run is None:
@@ -864,9 +891,13 @@ async def upload_lab_evidence(
         raise HTTPException(status_code=404, detail="Lab run not found")
     if run.student_id != current_student.id:
         raise HTTPException(status_code=403, detail="Not allowed to upload evidence for this lab run")
-    lab = _get_published_lab(db, run.lab_template_id)
-    if _v2_run_context(db, current_student, run) is None:
-        require_week_reached(db, current_student, lab.week_number)
+    lab, _ = _get_lab_with_owned_run(
+        db,
+        run.lab_template_id,
+        current_student.id,
+        active_run_required=True,
+    )
+    _authorize_existing_run(db, current_student, run, lab)
     if run.status not in {"assigned", "in_progress"}:
         raise HTTPException(
             status_code=409,
