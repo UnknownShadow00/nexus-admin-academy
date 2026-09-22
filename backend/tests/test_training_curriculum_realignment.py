@@ -1,5 +1,7 @@
 from app.models.cli_lab import CliLab
-from app.models.lab import LabTemplate
+from conftest import make_student
+
+from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.quiz import Question, Quiz
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
@@ -456,6 +458,30 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
     _add_lab(db, 3, "Windows Command-Line Diagnostics", 3, "structured_evidence_case")
     _add_lab(db, 6, "Prioritize the Queue", 4, "structured_diagnostic")
     db.flush()
+    legacy_lab = db.get(LabTemplate, 3)
+    legacy_lab.success_criteria = {
+        "questions": [
+            {"id": "scope", "prompt": "What is the scope?"},
+            {"id": "cause", "prompt": "What is the likely cause?"},
+            {"id": "action", "prompt": "What is the safe next action?"},
+        ]
+    }
+    legacy_criteria = legacy_lab.success_criteria
+    historical_student = make_student(db, username="week-three-history")
+    historical_run = LabRun(
+        lab_template_id=legacy_lab.id,
+        student_id=historical_student.id,
+        status="submitted",
+        final_score=100,
+        structured_feedback={
+            "questions": [
+                {"id": "scope", "is_correct": True},
+                {"id": "cause", "is_correct": True},
+                {"id": "action", "is_correct": True},
+            ]
+        },
+    )
+    db.add(historical_run)
     display_order = {3: 0, 4: 0}
 
     def add_activity(week_number, activity_type, content_ref, *, required=False, metadata=None):
@@ -575,7 +601,14 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
         )
     } == {181}
 
-    cli = db.get(LabTemplate, 3)
+    cli_activity = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[3].id,
+        activity_type="guided_lab",
+        is_required=True,
+    ).one()
+    cli = db.get(LabTemplate, int(cli_activity.content_ref))
+    assert cli.id != legacy_lab.id
+    assert cli.title == "Windows Command-Line Diagnostics Practice"
     assert cli.lab_type == "structured_cli"
     assert cli.success_criteria["required_commands"] == [
         "hostname",
@@ -586,6 +619,13 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
         "tracert intranet.nexus.internal",
         "netstat -ano",
     ]
+    db.refresh(legacy_lab)
+    db.refresh(historical_run)
+    assert legacy_lab.success_criteria == legacy_criteria
+    assert historical_run.lab_template_id == legacy_lab.id
+    assert [
+        item["id"] for item in historical_run.structured_feedback["questions"]
+    ] == ["scope", "cause", "action"]
     week_four_labs = db.query(TrainingWeekActivity).filter_by(
         training_week_id=weeks[4].id,
         activity_type="guided_lab",

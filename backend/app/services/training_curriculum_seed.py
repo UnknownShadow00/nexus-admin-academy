@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from app.models.capstone import CapstoneTemplate
 from app.models.cli_lab import CliLab
 from app.models.curriculum_video import CurriculumVideo
-from app.models.lab import LabTemplate
+from app.models.lab import LabRun, LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.progression import PromotionGate, Role
 from app.models.quiz import Question, Quiz
@@ -706,8 +706,9 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
 
     result["updated_questions"] = _apply_week_3_4_question_corrections(db)
 
-    week_three_lab = db.get(LabTemplate, 3)
-    if week_three_lab is not None:
+    legacy_week_three_lab = db.get(LabTemplate, 3)
+    week_three_lab = legacy_week_three_lab
+    if legacy_week_three_lab is not None:
         values = {
             "title": "Windows Command-Line Diagnostics",
             "description": "Run Windows support commands in the Nexus practice terminal, read the output, and explain what the evidence rules in or out.",
@@ -726,10 +727,44 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
             "required_evidence": {},
             "hints": {},
         }
+
+        # Lab 3 previously backed a Phase 4C.1 evidence case. LabRun records
+        # reference only the template ID, so rewriting that template would
+        # make submitted answers render against questions the learner never
+        # saw. Allocate a new identity when any historical run exists and
+        # leave the old template intact for review.
+        has_historical_runs = (
+            db.query(LabRun.id)
+            .filter(LabRun.lab_template_id == legacy_week_three_lab.id)
+            .first()
+            is not None
+        )
+        if has_historical_runs:
+            values["title"] = "Windows Command-Line Diagnostics Practice"
+            week_three_lab = (
+                db.query(LabTemplate)
+                .filter(LabTemplate.title == values["title"])
+                .first()
+            )
+            if week_three_lab is None:
+                week_three_lab = LabTemplate(**values)
+                db.add(week_three_lab)
+                db.flush()
+                result["created_templates"] += 1
         if any(getattr(week_three_lab, field) != value for field, value in values.items()):
             for field, value in values.items():
                 setattr(week_three_lab, field, value)
             result["updated_templates"] += 1
+
+        if week_three_lab.id != legacy_week_three_lab.id:
+            for activity in db.query(TrainingWeekActivity).filter_by(
+                training_week_id=weeks[3].id,
+                activity_type="guided_lab",
+                content_ref=str(legacy_week_three_lab.id),
+            ).all():
+                activity.content_ref = str(week_three_lab.id)
+                activity.stable_id = f"week-3-guided_lab-{week_three_lab.id}"
+                result["updated_activities"] += 1
 
     triage = db.get(LabTemplate, 6) or db.query(LabTemplate).filter_by(title="Prioritize the Queue").first()
     if triage is not None:
