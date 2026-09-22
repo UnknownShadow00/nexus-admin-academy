@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 
+import { getCurrentStudent } from "../hooks/useAuth";
 import BackLink from "../components/BackLink";
+import LessonNotes from "../components/LessonNotes";
 import OrientationPracticePanel from "../components/OrientationPracticePanel";
 import TicketNoteExercise from "../components/TicketNoteExercise";
-import { completeLesson, getLesson, getLessonNote, saveLessonNote } from "../services/api";
+import { completeLesson, getLesson } from "../services/api";
 
 function getYouTubeEmbedUrl(url) {
   if (!url) return null;
@@ -49,76 +51,32 @@ function relatedActivityCtaLabel(activityType) {
   return "Start related activity";
 }
 
-function LessonNotes({ lessonId, onSaved, orientation }) {
-  const [content, setContent] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saved, setSaved] = useState(false);
-  const editedRef = useRef(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    editedRef.current = false;
-    getLessonNote(lessonId, { suppressToast: true })
-      .then((response) => { if (!cancelled) setContent(response.data?.content || ""); })
-      .catch(() => { if (!cancelled) setContent(""); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [lessonId]);
-
-  useEffect(() => {
-    if (loading || !editedRef.current) return;
-    const timer = setTimeout(async () => {
-      try {
-        await saveLessonNote(lessonId, content, { suppressToast: true });
-        editedRef.current = false;
-        setSaved(true);
-        onSaved?.();
-        setTimeout(() => setSaved(false), 2000);
-      } catch {
-        editedRef.current = true;
-      }
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [content, lessonId, loading, onSaved]);
-
-  return (
-    <section className="panel">
-      <h2 className="text-xl font-bold">Optional notes</h2>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Notes are a study aid and never affect lesson completion. They save automatically to your account.</p>
-      <textarea
-        className="input-field mt-3 w-full"
-        disabled={loading}
-        onChange={(event) => {
-          editedRef.current = true;
-          setContent(event.target.value);
-        }}
-        placeholder={orientation ? "Optional: note where you will look when you are unsure what comes next." : "Optional notes for this lesson..."}
-        rows={5}
-        value={content}
-      />
-      <p className={`mt-2 text-sm font-medium text-emerald-600 transition-opacity dark:text-emerald-300 ${saved ? "opacity-100" : "opacity-0"}`}>Saved</p>
-    </section>
-  );
+export default function LessonPage() {
+  const { lessonId } = useParams();
+  return <LessonContent key={`${getCurrentStudent()?.id}:${lessonId}`} />;
 }
 
-export default function LessonPage() {
+function LessonContent() {
   const { lessonId } = useParams();
   const [lesson, setLesson] = useState(null);
   const [error, setError] = useState(null);
   const [orientationRefresh, setOrientationRefresh] = useState(0);
   const [completing, setCompleting] = useState(false);
+  const [completionError, setCompletionError] = useState("");
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLesson(null);
     setError(null);
+    setCompletionError("");
     getLesson(lessonId, { suppressToast: true })
       .then((response) => { if (!cancelled) setLesson(response.data); })
       .catch((requestError) => {
         if (!cancelled) {
           const locked = requestError?.response?.status === 403;
           setError({
+            locked,
             message: locked ? requestError?.userMessage || "Complete the current module's required work first." : "This lesson could not be loaded.",
             nextRoute: requestError?.response?.data?.data?.next_action_route || "/learning-path",
             requiredModuleTitle: requestError?.response?.data?.data?.required_module_title,
@@ -126,17 +84,21 @@ export default function LessonPage() {
         }
       });
     return () => { cancelled = true; };
-  }, [lessonId]);
+  }, [lessonId, retry]);
 
-  if (error) return <main className="mx-auto max-w-3xl p-6"><BackLink className="mb-4 inline-flex items-center gap-1 text-blue-600" fallbackLabel="Learning Path" fallbackTo="/learning-path" /><div className="panel" role="alert"><h1 className="text-xl font-bold">{error.requiredModuleTitle ? `${error.requiredModuleTitle} locked` : "Lesson locked"}</h1><p className="mt-2 text-slate-700 dark:text-slate-300">{error.message}</p><Link className="btn-primary mt-4" to={error.nextRoute}>Complete remaining work</Link></div></main>;
+  if (error) return <main className="mx-auto max-w-3xl p-6"><BackLink className="mb-4 inline-flex items-center gap-1 text-blue-600" fallbackLabel="Learning Path" fallbackTo="/learning-path" /><div className="panel" role="alert"><h1 className="text-xl font-bold">{error.locked ? error.requiredModuleTitle ? `${error.requiredModuleTitle} locked` : "Lesson locked" : "Lesson unavailable"}</h1><p className="mt-2 text-slate-700 dark:text-slate-300">{error.message}</p>{error.locked ? <Link className="btn-primary mt-4" to={error.nextRoute}>Complete remaining work</Link> : <button className="btn-primary mt-4" onClick={() => setRetry((value) => value + 1)} type="button">Retry lesson</button>}</div></main>;
   if (!lesson) return <main className="mx-auto max-w-4xl p-6"><div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
 
   async function markComplete() {
+    if (completing) return;
+    setCompletionError("");
     setCompleting(true);
     try {
       await completeLesson(lesson.id, { suppressToast: true });
       setLesson((current) => ({ ...current, is_complete: true }));
       setOrientationRefresh((value) => value + 1);
+    } catch {
+      setCompletionError("Lesson completion could not be saved. Please try Mark lesson complete again.");
     } finally {
       setCompleting(false);
     }
@@ -164,6 +126,18 @@ export default function LessonPage() {
           >{lesson.summary}</ReactMarkdown>
         ) : <LessonSummary summary={lesson.summary} /> : null}
       </header>
+      {lesson.is_orientation ? <section className="panel space-y-3">
+        <h2 className="text-xl font-bold">Before your first quiz: what goes in a ticket?</h2>
+        <p>A ticket is the shared record of a support request. Imagine Maya says, “I cannot sign in to my work laptop.”</p>
+        <ul className="list-disc space-y-2 pl-5">
+          <li><strong>Intake:</strong> record who needs help, which device they use, and what happened. Ask for the exact error before choosing a fix.</li>
+          <li><strong>Category:</strong> group similar problems, such as account access. Consistent categories help the team spot recurring issues in reports.</li>
+          <li><strong>Progress notes:</strong> record each check and its result: “Confirmed the error and checked the account status.” These help the next technician continue your work.</li>
+          <li><strong>Escalation:</strong> first-line support (L1) handles initial checks. If the fix needs specialist access or expertise, pass the evidence to second-line support (L2).</li>
+          <li><strong>Resolution summary:</strong> when the problem is solved, record the fix and how you confirmed it worked. This is different from the running progress notes.</li>
+        </ul>
+        <p className="text-sm text-slate-600 dark:text-slate-300">Remember: identify the user, device, and problem; document what you tried; involve the right person. The quiz below checks these ideas. You can retry it and review explanations.</p>
+      </section> : null}
       {Array.isArray(lesson.outcomes) && lesson.outcomes.length > 0 ? (
         <section className="panel">
           <h2 className="text-xl font-bold">In this lesson, you'll learn</h2>
@@ -190,6 +164,7 @@ export default function LessonPage() {
           {lesson.is_complete ? "Lesson complete" : completing ? "Saving…" : "Mark lesson complete"}
         </button>
       </section> : null}
+      {completionError ? <p className="panel" role="alert">{completionError}</p> : null}
       {lesson.is_orientation ? <OrientationPracticePanel completing={completing} onMarkComplete={markComplete} refreshKey={orientationRefresh} /> : null}
       <LessonNotes lessonId={lesson.id} orientation={lesson.is_orientation} />
     </main>

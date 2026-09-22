@@ -23,19 +23,22 @@ function Step({ complete, children }) {
 export default function OrientationPracticePanel({ completing, onMarkComplete, refreshKey = 0 }) {
   const [progress, setProgress] = useState(null);
   const [nextAction, setNextAction] = useState(null);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setProgress(null);
+    setError(false);
     getOrientationProgress({ suppressToast: true })
       .then((response) => {
         if (!cancelled) setProgress(response.data || null);
       })
       .catch(() => {
-        if (!cancelled) setProgress(null);
+        if (!cancelled) setError(true);
       });
     return () => { cancelled = true; };
-  }, [refreshKey]);
+  }, [refreshKey, retry]);
 
   useEffect(() => {
     if (!progress?.is_complete || !progress?.week_one_unlocked) {
@@ -52,6 +55,8 @@ export default function OrientationPracticePanel({ completing, onMarkComplete, r
       });
     return () => { cancelled = true; };
   }, [progress?.is_complete, progress?.week_one_unlocked]);
+
+  if (error) return <section className="panel" role="alert"><p>Your orientation checklist could not be loaded. Your progress has not changed.</p><button className="btn-secondary mt-3" onClick={() => setRetry((value) => value + 1)} type="button">Retry checklist</button></section>;
 
   if (!progress) {
     return <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">Loading your orientation checklist…</div>;

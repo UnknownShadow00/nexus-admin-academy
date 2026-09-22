@@ -1,179 +1,45 @@
-﻿import { useEffect, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
-
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import BackLink from "../components/BackLink";
-import { getCurrentStudent } from "../hooks/useAuth";
+import QuizReviewScreen from "../components/QuizReviewScreen";
 import Spinner from "../components/Spinner";
+import { getCurrentStudent } from "../hooks/useAuth";
 import { getQuizReview } from "../services/api";
-
-const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
-
-function normalizeAnswers(value) {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim()).filter(Boolean);
-  }
-  if (!value) return [];
-  return String(value)
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function buildOptions(row, question) {
-  const rowOptions = row?.options || {};
-  return OPTION_LETTERS.map((letter) => ({
-    letter,
-    text: rowOptions[letter] || question[`option_${letter.toLowerCase()}`] || "",
-  })).filter((option) => option.text);
-}
-
-function OptionRow({ letter, text, correctAnswers, studentAnswers }) {
-  const isCorrect = correctAnswers.includes(letter);
-  const isStudentPick = studentAnswers.includes(letter);
-  const isStudentWrong = isStudentPick && !isCorrect;
-
-  let cls = "flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm ";
-  if (isCorrect) {
-    cls += "border-green-400 bg-green-100 text-green-900 font-semibold dark:border-green-700 dark:bg-green-900/30 dark:text-green-200";
-  } else if (isStudentWrong) {
-    cls += "border-red-400 bg-red-100 text-red-900 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200";
-  } else {
-    cls += "border-slate-200 bg-white text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400";
-  }
-
-  return (
-    <div className={cls}>
-      <span
-        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold ${
-          isCorrect ? "border-green-600 bg-green-600 text-white" : isStudentWrong ? "border-red-500 bg-red-500 text-white" : "border-slate-300 text-slate-400 dark:border-slate-600"
-        }`}
-      >
-        {letter}
-      </span>
-      <span className="flex-1">{text}</span>
-      {isCorrect && isStudentPick ? <span className="ml-auto text-xs font-bold text-green-700 dark:text-green-400">Correct</span> : null}
-      {isCorrect && !isStudentPick ? <span className="ml-auto text-xs font-bold text-green-600 dark:text-green-400">Correct answer</span> : null}
-      {isStudentWrong ? <span className="ml-auto text-xs font-bold text-red-600 dark:text-red-400">Your answer</span> : null}
-    </div>
-  );
-}
 
 export default function QuizReviewPage() {
   const { quizId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const studentId = getCurrentStudent()?.id;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
-    getQuizReview(quizId, studentId)
-      .then((res) => setData(res.data))
-      .catch(() => setError("No attempt found. Take the quiz first."))
-      .finally(() => setLoading(false));
-  }, [quizId, studentId]);
-
-  if (loading) {
-    return (
-      <main className="mx-auto max-w-4xl p-6">
-        <Spinner text="Loading review..." />
-      </main>
-    );
-  }
-
-  if (error) {
-    return (
-      <main className="mx-auto max-w-4xl p-6">
-        <p className="text-slate-500 dark:text-slate-400">{error}</p>
-        <BackLink className="mt-3 inline-flex text-blue-600" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />
-      </main>
-    );
-  }
-
-  const { title, score, total, xp_awarded: xpAwarded, results, questions } = data;
-  const pct = Math.round((score / total) * 100);
-  const byId = {};
-  (results || []).forEach((row) => {
-    byId[row.question_id] = row;
-  });
+    let cancelled = false;
+    setLoading(true);
+    setData(null);
+    setError(null);
+    getQuizReview(quizId, studentId, { suppressToast: true })
+      .then((response) => { if (!cancelled) setData(response.data); })
+      .catch((requestError) => {
+        if (cancelled) return;
+        const missingAttempt = requestError?.response?.status === 404
+          && requestError?.response?.data?.detail === "No attempt found for this quiz";
+        setError({
+          missingAttempt,
+          message: missingAttempt ? "You have not submitted this quiz yet. Take it to see your answers and explanations." : requestError?.userMessage || "Your quiz review could not be loaded. Try again. Your saved attempts have not been changed.",
+        });
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [quizId, retryKey, studentId]);
 
   return (
-    <main className="mx-auto max-w-4xl space-y-4 p-6">
-      <BackLink className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />
-
-      <div className="rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 p-8 text-center text-white shadow-lg">
-        <h1 className="mb-3 text-lg font-semibold text-blue-200">{title}</h1>
-        <p className="text-7xl font-bold">
-          {score}
-          <span className="text-4xl text-blue-300">/{total}</span>
-        </p>
-        <p className="mt-2 text-2xl font-semibold">{pct}%</p>
-        {xpAwarded > 0 ? <p className="mt-2 text-blue-100">+{xpAwarded} XP earned</p> : null}
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-lg border p-4 text-center dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-2xl font-bold text-green-600">{score}</p>
-          <p className="text-xs text-slate-500">Correct</p>
-        </div>
-        <div className="rounded-lg border p-4 text-center dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-2xl font-bold text-red-500">{total - score}</p>
-          <p className="text-xs text-slate-500">Wrong</p>
-        </div>
-        <div className="rounded-lg border p-4 text-center dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-2xl font-bold text-blue-600">{pct}%</p>
-          <p className="text-xs text-slate-500">Score</p>
-        </div>
-      </div>
-
-      <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Answer Review</h2>
-      {(questions || []).map((question, index) => {
-        const row = byId[question.id];
-        const studentAnswers = normalizeAnswers(row?.student_answer);
-        const correctAnswers = normalizeAnswers(row?.correct_answers || row?.correct_answer || question.correct_answers || question.correct_answer);
-        const isCorrect = row?.is_correct;
-        const options = buildOptions(row, question);
-
-        return (
-          <div
-            key={question.id}
-            className={`rounded-xl border p-5 ${
-              isCorrect ? "border-green-200 dark:border-green-900" : studentAnswers.length ? "border-red-200 dark:border-red-900" : "border-slate-200 dark:border-slate-700"
-            }`}
-          >
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <p className="font-semibold text-slate-900 dark:text-slate-100">
-                Q{index + 1}. {question.question_text}
-              </p>
-              <span className={`shrink-0 text-lg font-bold ${isCorrect ? "text-green-600" : studentAnswers.length ? "text-red-500" : "text-slate-400"}`}>
-                {isCorrect ? "✓" : studentAnswers.length ? "✗" : "—"}
-              </span>
-            </div>
-            <div className="space-y-2">
-              {options.map((option) => (
-                <OptionRow
-                  key={option.letter}
-                  letter={option.letter}
-                  text={option.text}
-                  correctAnswers={correctAnswers}
-                  studentAnswers={studentAnswers}
-                />
-              ))}
-            </div>
-            {!studentAnswers.length ? <p className="mt-2 text-xs italic text-slate-400">Not answered</p> : null}
-            {row?.explanation ? (
-              <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm italic text-slate-600 dark:bg-slate-800 dark:text-slate-300">Tip: {row.explanation}</p>
-            ) : null}
-          </div>
-        );
-      })}
-
-      <div className="flex gap-3">
-        <Link to={`/quizzes/${quizId}`} state={location.state} className="btn-primary flex-1 text-center">
-          Retake Quiz
-        </Link>
-        <BackLink className="btn-secondary flex-1 justify-center text-center" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />
-      </div>
+    <main className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6">
+      <BackLink className="btn-secondary" fallbackLabel="Back to Quizzes" fallbackTo="/quizzes" />
+      {loading ? <Spinner text="Loading review..." /> : error ? <section className="panel"><h1 className="text-xl font-bold">{error.missingAttempt ? "Take your first attempt" : "Quiz review unavailable"}</h1><p role="alert" className="mt-2 text-slate-700 dark:text-slate-300">{error.message}</p>{error.missingAttempt ? <Link className="btn-primary mt-4" to={`/quizzes/${quizId}`} state={location.state}>Take quiz</Link> : <button type="button" className="btn-primary mt-4" onClick={() => setRetryKey((value) => value + 1)}>Try again</button>}</section> : data ? <QuizReviewScreen quiz={{ title: data.title, questions: data.questions }} result={data} retakeLabel="Retake Quiz" onRetake={() => navigate(`/quizzes/${quizId}`, { state: location.state })} /> : null}
     </main>
   );
 }

@@ -111,13 +111,13 @@ test("student authentication rejects invalid credentials and protects private ro
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page).toHaveURL(/\/$/);
   await page.goto("/skills");
-  await expect(page.getByRole("heading", { name: "Skills", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Skills", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
   // /progress is a preserved alias for the old route name.
   await page.goto("/progress");
   await expect(page).toHaveURL(/\/skills$/);
-  await expect(page.getByRole("heading", { name: "Skills", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Browser Training Student" }).click();
   await expect(page).toHaveURL(/\/login$/);
@@ -206,7 +206,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   }
   await expect(page.getByText("Capstones", { exact: true })).toHaveCount(0);
   await page.goto("/skills");
-  await expect(page.getByRole("heading", { name: "Skills", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Training Progress", exact: true })).toBeVisible();
   await expect(page.getByText("Course progress", { exact: true })).toBeVisible();
   await expect(page.getByText("Modules Completed", { exact: true })).toBeVisible();
@@ -270,7 +270,7 @@ test("student follows My Training on desktop and mobile", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /Begin Your IT Training|Continue where you left off/ })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await page.goto("/skills");
-  await expect(page.getByRole("heading", { name: "Skills", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Progress", exact: true })).toBeVisible();
   await assertNoHorizontalOverflow(page);
   await page.goto(orientationLessonPath);
   await expect(page.getByRole("heading", { name: "Welcome to Nexus", exact: true })).toBeVisible();
@@ -404,8 +404,9 @@ test("required Nexus-authored quiz grades and reviews every answer", async ({ pa
 
   await page.goto("/quizzes/1/review");
   await expect(page.getByRole("heading", { name: "Answer Review" })).toBeVisible();
-  // Ten selected correct options (the multi-select has three) plus the score summary label.
-  await expect(page.getByText("Correct", { exact: true })).toHaveCount(11);
+  // Each question has a text status; selected correct options retain their own labels.
+  await expect(page.getByText("Correct", { exact: true })).toHaveCount(8);
+  await expect(page.getByText("Correct answer · Your answer", { exact: true })).toHaveCount(10);
 });
 
 test("Week 0 unlock is student-scoped, persistent, and links back from Service Desk", async ({ page, browser }) => {
@@ -481,7 +482,7 @@ test("Week 0 unlock is student-scoped, persistent, and links back from Service D
     const orientationSaved = page.waitForResponse((response) => response.url().endsWith(`/api/lessons/${orientationLessonId}/notes`) && response.request().method() === "PUT" && response.ok());
     await orientationNote.fill("I will open Home and follow the next My Training activity.");
     await orientationSaved;
-    await expect(page.locator("p.opacity-100").getByText("Saved", { exact: true })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Saved to your account" })).toBeVisible();
 
     await page.getByRole("button", { name: "Mark lesson complete", exact: true }).click();
     await expect(page.getByRole("button", { name: "Orientation complete", exact: true })).toBeVisible();

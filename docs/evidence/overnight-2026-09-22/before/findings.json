@@ -1,0 +1,72 @@
+[
+  {
+    "area": "quiz",
+    "width": 375,
+    "dimensions": {
+      "client": 375,
+      "scroll": 375
+    }
+  },
+  {
+    "area": "quiz",
+    "width": 390,
+    "dimensions": {
+      "client": 390,
+      "scroll": 390
+    }
+  },
+  {
+    "area": "quiz",
+    "width": 768,
+    "dimensions": {
+      "client": 768,
+      "scroll": 768
+    }
+  },
+  {
+    "area": "quiz-focus",
+    "details": {
+      "element": "INPUT",
+      "width": 1,
+      "height": 1,
+      "labelOutline": "none",
+      "labelShadow": "none"
+    }
+  },
+  {
+    "area": "quiz-refresh",
+    "resumesAt": 1,
+    "originalQuestionRetained": false,
+    "draftKeys": [
+      "quiz_progress_42"
+    ]
+  },
+  {
+    "area": "quiz-review-failure",
+    "reproduced": "HTTP 500 displayed as no attempt"
+  },
+  {
+    "area": "lesson-failure",
+    "reproduced": "HTTP 500 displayed as Lesson locked"
+  },
+  {
+    "area": "cli-route",
+    "url": "/cli-labs/meet-cli-001",
+    "heading": [
+      "First Contact"
+    ]
+  },
+  {
+    "area": "service-desk",
+    "dimensions": {
+      "client": 375,
+      "scroll": 375
+    },
+    "headings": [
+      "PDF editor closes while exporting annotated drawings"
+    ]
+  },
+  {
+    "disposableStudentDeleted": true
+  }
+]

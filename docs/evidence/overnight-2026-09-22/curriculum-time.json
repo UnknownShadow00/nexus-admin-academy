@@ -1,0 +1,710 @@
+[
+  {
+    "week": 0,
+    "required_known_activity_minutes": 18,
+    "videos": [
+      {
+        "id": 182,
+        "title": "How to Pass Your A+ 220-1201 and 220-1202 Exams",
+        "duration": "15:22",
+        "is_required": 0
+      },
+      {
+        "id": 166,
+        "title": "Ticketing Systems",
+        "duration": "13:48",
+        "is_required": 0
+      },
+      {
+        "id": 168,
+        "title": "Document Types",
+        "duration": "7:29",
+        "is_required": 0
+      }
+    ]
+  },
+  {
+    "week": 1,
+    "required_known_activity_minutes": 85,
+    "videos": [
+      {
+        "id": 167,
+        "title": "Asset Management",
+        "duration": "4:51",
+        "is_required": 0
+      },
+      {
+        "id": 176,
+        "title": "Professionalism",
+        "duration": "4:47",
+        "is_required": 1
+      },
+      {
+        "id": 177,
+        "title": "Communication",
+        "duration": "7:00",
+        "is_required": 1
+      }
+    ]
+  },
+  {
+    "week": 2,
+    "required_known_activity_minutes": 185,
+    "videos": [
+      {
+        "id": 19,
+        "title": "Display Types",
+        "duration": "9:13",
+        "is_required": 0
+      },
+      {
+        "id": 20,
+        "title": "Display Attributes",
+        "duration": "12:01",
+        "is_required": 0
+      },
+      {
+        "id": 30,
+        "title": "An Overview of Memory",
+        "duration": "8:38",
+        "is_required": 1
+      },
+      {
+        "id": 31,
+        "title": "Memory Technologies",
+        "duration": "8:44",
+        "is_required": 0
+      },
+      {
+        "id": 32,
+        "title": "Storage Devices",
+        "duration": "14:54",
+        "is_required": 1
+      },
+      {
+        "id": 33,
+        "title": "RAID",
+        "duration": "8:08",
+        "is_required": 0
+      },
+      {
+        "id": 34,
+        "title": "Motherboard Form Factors",
+        "duration": "6:18",
+        "is_required": 0
+      },
+      {
+        "id": 35,
+        "title": "Motherboard Expansion Slots",
+        "duration": "7:14",
+        "is_required": 1
+      },
+      {
+        "id": 36,
+        "title": "Motherboard Connections",
+        "duration": "5:45",
+        "is_required": 1
+      },
+      {
+        "id": 37,
+        "title": "Motherboard Compatibility",
+        "duration": "3:29",
+        "is_required": 1
+      },
+      {
+        "id": 38,
+        "title": "The BIOS",
+        "duration": "4:42",
+        "is_required": 0
+      },
+      {
+        "id": 39,
+        "title": "BIOS Settings",
+        "duration": "19:29",
+        "is_required": 0
+      },
+      {
+        "id": 40,
+        "title": "HSM and TPM",
+        "duration": "7:47",
+        "is_required": 0
+      },
+      {
+        "id": 41,
+        "title": "CPU Features",
+        "duration": "5:13",
+        "is_required": 0
+      },
+      {
+        "id": 42,
+        "title": "Expansion Cards",
+        "duration": "6:17",
+        "is_required": 0
+      },
+      {
+        "id": 43,
+        "title": "Cooling",
+        "duration": "6:37",
+        "is_required": 0
+      },
+      {
+        "id": 44,
+        "title": "Computer Power",
+        "duration": "15:31",
+        "is_required": 1
+      },
+      {
+        "id": 1,
+        "title": "Laptop Hardware",
+        "duration": "16:42",
+        "is_required": 0
+      },
+      {
+        "id": 3,
+        "title": "Mobile Device Accessories",
+        "duration": "7:18",
+        "is_required": 0
+      },
+      {
+        "id": 45,
+        "title": "Multifunction Devices",
+        "duration": "14:25",
+        "is_required": 0
+      },
+      {
+        "id": 46,
+        "title": "Laser Printer Maintenance",
+        "duration": "7:30",
+        "is_required": 0
+      },
+      {
+        "id": 47,
+        "title": "Inkjet Printers",
+        "duration": "3:29",
+        "is_required": 0
+      },
+      {
+        "id": 48,
+        "title": "Inkjet Printer Maintenance",
+        "duration": "3:54",
+        "is_required": 0
+      },
+      {
+        "id": 49,
+        "title": "Thermal Printers",
+        "duration": "3:39",
+        "is_required": 0
+      },
+      {
+        "id": 50,
+        "title": "Thermal Printer Maintenance",
+        "duration": "4:16",
+        "is_required": 0
+      },
+      {
+        "id": 51,
+        "title": "Impact Printers",
+        "duration": "6:19",
+        "is_required": 0
+      },
+      {
+        "id": 52,
+        "title": "Impact Printer Maintenance",
+        "duration": "3:11",
+        "is_required": 0
+      }
+    ]
+  },
+  {
+    "week": 3,
+    "required_known_activity_minutes": 210,
+    "videos": [
+      {
+        "id": 108,
+        "title": "Operating Systems Overview",
+        "duration": "12:59",
+        "is_required": 0
+      },
+      {
+        "id": 109,
+        "title": "File Systems",
+        "duration": "5:51",
+        "is_required": 0
+      },
+      {
+        "id": 110,
+        "title": "Installing Operating Systems",
+        "duration": "16:50",
+        "is_required": 0
+      },
+      {
+        "id": 111,
+        "title": "Upgrading Windows",
+        "duration": "8:34",
+        "is_required": 0
+      },
+      {
+        "id": 112,
+        "title": "An Overview of Windows",
+        "duration": "9:09",
+        "is_required": 0
+      },
+      {
+        "id": 113,
+        "title": "Windows Features",
+        "duration": "8:54",
+        "is_required": 0
+      },
+      {
+        "id": 114,
+        "title": "Task Manager",
+        "duration": "4:52",
+        "is_required": 0
+      },
+      {
+        "id": 115,
+        "title": "The Microsoft Management Console",
+        "duration": "15:22",
+        "is_required": 0
+      },
+      {
+        "id": 116,
+        "title": "Additional Windows Tools",
+        "duration": "12:25",
+        "is_required": 0
+      },
+      {
+        "id": 117,
+        "title": "Windows Command Line Tools",
+        "duration": "31:07",
+        "is_required": 1
+      },
+      {
+        "id": 118,
+        "title": "The Windows Network Command Line",
+        "duration": "18:24",
+        "is_required": 1
+      },
+      {
+        "id": 119,
+        "title": "The Windows Control Panel",
+        "duration": "23:09",
+        "is_required": 0
+      },
+      {
+        "id": 120,
+        "title": "Windows Settings",
+        "duration": "6:34",
+        "is_required": 0
+      },
+      {
+        "id": 131,
+        "title": "Installing Applications",
+        "duration": "16:27",
+        "is_required": 0
+      }
+    ]
+  },
+  {
+    "week": 4,
+    "required_known_activity_minutes": 130,
+    "videos": [
+      {
+        "id": 169,
+        "title": "Change Management",
+        "duration": "21:42",
+        "is_required": 1
+      },
+      {
+        "id": 175,
+        "title": "Privacy, Licensing, and Policies",
+        "duration": "10:54",
+        "is_required": 0
+      },
+      {
+        "id": 180,
+        "title": "Remote Access",
+        "duration": "12:49",
+        "is_required": 0
+      }
+    ]
+  },
+  {
+    "week": 5,
+    "required_known_activity_minutes": 70,
+    "videos": [
+      {
+        "id": 62,
+        "title": "Troubleshooting Printers",
+        "duration": "11:54",
+        "is_required": 0
+      },
+      {
+        "id": 57,
+        "title": "Troubleshooting Hardware",
+        "duration": "25:15",
+        "is_required": 0
+      },
+      {
+        "id": 58,
+        "title": "Troubleshooting Storage Devices",
+        "duration": "17:04",
+        "is_required": 0
+      },
+      {
+        "id": 59,
+        "title": "Troubleshooting Display Issues",
+        "duration": "18:52",
+        "is_required": 0
+      },
+      {
+        "id": 60,
+        "title": "Troubleshooting Mobile Devices",
+        "duration": "17:52",
+        "is_required": 0
+      },
+      {
+        "id": 125,
+        "title": "macOS Overview",
+        "duration": "11:24",
+        "is_required": 0
+      },
+      {
+        "id": 126,
+        "title": "macOS System Preferences",
+        "duration": "6:36",
+        "is_required": 0
+      },
+      {
+        "id": 127,
+        "title": "macOS Features",
+        "duration": "11:17",
+        "is_required": 0
+      },
+      {
+        "id": 162,
+        "title": "Troubleshooting Windows",
+        "duration": "17:30",
+        "is_required": 1
+      },
+      {
+        "id": 163,
+        "title": "Troubleshooting Mobile Devices",
+        "duration": "11:30",
+        "is_required": 0
+      },
+      {
+        "id": 164,
+        "title": "Troubleshooting Mobile Device Security",
+        "duration": "12:16",
+        "is_required": 0
+      },
+      {
+        "id": 165,
+        "title": "Troubleshooting Security Issues",
+        "duration": "10:16",
+        "is_required": 0
+      }
+    ]
+  },
+  {
+    "week": 6,
+    "required_known_activity_minutes": 70,
+    "videos": [
+      {
+        "id": 139,
+        "title": "Windows Security Settings",
+        "duration": "13:44",
+        "is_required": 1
+      }
+    ]
+  },
+  {
+    "week": 7,
+    "required_known_activity_minutes": 40,
+    "videos": [
+      {
+        "id": 5,
+        "title": "Mobile Device Management",
+        "duration": "8:31",
+        "is_required": 0
+      },
+      {
+        "id": 133,
+        "title": "Physical Security",
+        "duration": "10:06",
+        "is_required": 0
+      },
+      {
+        "id": 134,
+        "title": "Physical Access Security",
+        "duration": "8:37",
+        "is_required": 0
+      },
+      {
+        "id": 137,
+        "title": "Defender Antivirus",
+        "duration": "5:01",
+        "is_required": 1
+      },
+      {
+        "id": 138,
+        "title": "Windows Firewall",
+        "duration": "5:20",
+        "is_required": 1
+      },
+      {
+        "id": 143,
+        "title": "Malware",
+        "duration": "17:23",
+        "is_required": 1
+      },
+      {
+        "id": 144,
+        "title": "Anti-malware Tools",
+        "duration": "12:45",
+        "is_required": 0
+      },
+      {
+        "id": 156,
+        "title": "Removing Malware",
+        "duration": "11:30",
+        "is_required": 0
+      },
+      {
+        "id": 157,
+        "title": "Security Best Practices",
+        "duration": "15:15",
+        "is_required": 0
+      },
+      {
+        "id": 158,
+        "title": "Mobile Device Security",
+        "duration": "10:28",
+        "is_required": 0
+      }
+    ]
+  },
+  {
+    "week": 8,
+    "required_known_activity_minutes": 45,
+    "videos": [
+      {
+        "id": 2,
+        "title": "Connecting Mobile Devices",
+        "duration": "6:08",
+        "is_required": 0
+      },
+      {
+        "id": 4,
+        "title": "Mobile Device Networks",
+        "duration": "10:14",
+        "is_required": 0
+      },
+      {
+        "id": 6,
+        "title": "Introduction to IP",
+        "duration": "19:04",
+        "is_required": 1
+      },
+      {
+        "id": 7,
+        "title": "Common Ports",
+        "duration": "12:52",
+        "is_required": 0
+      },
+      {
+        "id": 8,
+        "title": "Wireless Network Technologies",
+        "duration": "7:16",
+        "is_required": 0
+      },
+      {
+        "id": 16,
+        "title": "Internet Connection Types",
+        "duration": "7:33",
+        "is_required": 0
+      },
+      {
+        "id": 17,
+        "title": "Network Types",
+        "duration": "4:46",
+        "is_required": 0
+      },
+      {
+        "id": 18,
+        "title": "Network Tools",
+        "duration": "11:48",
+        "is_required": 1
+      },
+      {
+        "id": 61,
+        "title": "Troubleshooting Networks",
+        "duration": "15:14",
+        "is_required": 1
+      },
+      {
+        "id": 121,
+        "title": "Windows Network Technologies",
+        "duration": "8:37",
+        "is_required": 0
+      },
+      {
+        "id": 122,
+        "title": "Configuring Windows Firewall",
+        "duration": "6:32",
+        "is_required": 0
+      },
+      {
+        "id": 123,
+        "title": "Windows IP Address Configuration",
+        "duration": "6:45",
+        "is_required": 1
+      },
+      {
+        "id": 124,
+        "title": "Windows Network Connections",
+        "duration": "13:08",
+        "is_required": 0
+      }
+    ]
+  },
+  {
+    "week": 9,
+    "required_known_activity_minutes": 40,
+    "videos": [
+      {
+        "id": 14,
+        "title": "IPv4 and IPv6",
+        "duration": "8:45",
+        "is_required": 1
+      },
+      {
+        "id": 15,
+        "title": "Assigning IP Addresses",
+        "duration": "8:26",
+        "is_required": 1
+      }
+    ]
+  },
+  {
+    "week": 10,
+    "required_known_activity_minutes": 15,
+    "videos": [
+      {
+        "id": 12,
+        "title": "VLANs and VPNs",
+        "duration": "7:32",
+        "is_required": 1
+      },
+      {
+        "id": 13,
+        "title": "Network Devices",
+        "duration": "18:01",
+        "is_required": 1
+      },
+      {
+        "id": 21,
+        "title": "Network Cables",
+        "duration": "12:14",
+        "is_required": 0
+      },
+      {
+        "id": 22,
+        "title": "568A and 568B Colors",
+        "duration": "5:41",
+        "is_required": 0
+      },
+      {
+        "id": 23,
+        "title": "Optical Fiber",
+        "duration": "4:14",
+        "is_required": 0
+      },
+      {
+        "id": 24,
+        "title": "Peripheral Cables",
+        "duration": "8:59",
+        "is_required": 0
+      },
+      {
+        "id": 25,
+        "title": "Video Cables",
+        "duration": "7:03",
+        "is_required": 0
+      },
+      {
+        "id": 26,
+        "title": "Storage Cables",
+        "duration": "4:10",
+        "is_required": 0
+      },
+      {
+        "id": 27,
+        "title": "Adapters and Converters",
+        "duration": "4:05",
+        "is_required": 0
+      },
+      {
+        "id": 28,
+        "title": "Copper Connectors",
+        "duration": "8:33",
+        "is_required": 0
+      },
+      {
+        "id": 29,
+        "title": "Fiber Connectors",
+        "duration": "2:49",
+        "is_required": 0
+      }
+    ]
+  },
+  {
+    "week": 11,
+    "required_known_activity_minutes": 45,
+    "videos": [
+      {
+        "id": 9,
+        "title": "Network Services",
+        "duration": "17:03",
+        "is_required": 1
+      },
+      {
+        "id": 10,
+        "title": "DNS Configuration",
+        "duration": "18:18",
+        "is_required": 1
+      },
+      {
+        "id": 11,
+        "title": "DHCP",
+        "duration": "10:46",
+        "is_required": 1
+      }
+    ]
+  },
+  {
+    "week": 12,
+    "required_known_activity_minutes": 45,
+    "videos": [
+      {
+        "id": 141,
+        "title": "Wireless Encryption",
+        "duration": "6:19",
+        "is_required": 0
+      },
+      {
+        "id": 142,
+        "title": "Authentication Methods",
+        "duration": "7:58",
+        "is_required": 0
+      },
+      {
+        "id": 160,
+        "title": "Securing a SOHO Network",
+        "duration": "15:03",
+        "is_required": 0
+      }
+    ]
+  }
+]
