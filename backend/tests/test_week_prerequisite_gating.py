@@ -11,19 +11,20 @@ from app.models.lab import LabTemplate
 from app.models.learning import Lesson, Module
 from app.models.lesson_progress import StudentLessonProgress
 from app.models.progression import Role, StudentRole
-from app.models.quiz import QUIZ_STATUS_PUBLISHED, Quiz, QuizAttempt
+from app.models.quiz import QUIZ_STATUS_PUBLISHED, Question, Quiz, QuizAttempt
 from app.models.ticket import Ticket
 from app.models.video_watch import VideoWatch
 from app.routers.capstones import has_unlocked_capstones, router as capstones_router
 from app.routers.cli_labs import router as cli_labs_router
 from app.routers.labs import router as labs_router
+from app.routers.quizzes import router as quizzes_router
 from app.routers.students import router as students_router
 from app.routers.tickets import router as tickets_router
 from seed import seed_capstones
 from seed_phase_g import seed_phase_g
 
 
-client = make_client(tickets_router, labs_router, cli_labs_router, capstones_router, students_router)
+client = make_client(tickets_router, labs_router, cli_labs_router, capstones_router, students_router, quizzes_router)
 
 
 def _ticket_payload(student_id):
@@ -182,6 +183,102 @@ def test_later_week_ticket_remains_locked_by_general_week_rule(db):
         "next_action_route": "/training",
     }
     assert response.json()["error"] == "You'll unlock this when you reach Windows Fundamentals & Diagnostics."
+
+
+def test_locked_week_three_lab_detail_cannot_be_read_through_direct_url(db):
+    student = make_student(db, username="direct-lab-reader")
+    _seed_week_zero_gate(db)
+    lab = _seed_hands_on_week_one(db)[1]
+    lab.week_number = 3
+    db.commit()
+
+    response = client.get(f"/api/labs/{lab.id}", headers=auth_headers(student))
+
+    assert response.status_code == 403
+    assert response.json()["code"] == "PREREQUISITE_NOT_MET"
+    assert response.json()["data"]["required_week"] == 3
+    assert response.json()["data"]["current_week"] == 0
+
+
+def test_locked_week_three_quiz_detail_and_submit_cannot_bypass_direct_url(db):
+    student = make_student(db, username="direct-quiz-reader")
+    _seed_week_zero_gate(db)
+    quiz = Quiz(
+        title="Week 3 direct URL check",
+        week_number=3,
+        question_count=1,
+        status=QUIZ_STATUS_PUBLISHED,
+        quiz_purpose="required",
+        is_required=True,
+        show_in_weekly_checklist=True,
+        answer_keys_validated=True,
+        editorial_status="validated",
+        is_active=True,
+    )
+    db.add(quiz)
+    db.flush()
+    question = Question(
+        quiz_id=quiz.id,
+        question_text="Which answer is supported?",
+        option_a="Supported",
+        option_b="Unsupported",
+        option_c="Unsupported",
+        option_d="Unsupported",
+        correct_answer="A",
+        explanation="The evidence supports A.",
+    )
+    db.add(question)
+    db.commit()
+
+    detail = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student))
+    submit = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={"student_id": student.id, "answers": {str(question.id): "A"}},
+        headers=auth_headers(student),
+    )
+
+    assert detail.status_code == 403
+    assert submit.status_code == 403
+    assert detail.json()["code"] == "PREREQUISITE_NOT_MET"
+    assert submit.json()["code"] == "PREREQUISITE_NOT_MET"
+
+
+def test_existing_quiz_attempt_remains_reviewable_after_prerequisite_changes(db):
+    student = make_student(db, username="quiz-history-reader")
+    _seed_week_zero_gate(db)
+    quiz = Quiz(
+        title="Historical Week 3 check",
+        week_number=3,
+        question_count=1,
+        status=QUIZ_STATUS_PUBLISHED,
+        quiz_purpose="practice",
+        is_required=False,
+        show_in_weekly_checklist=False,
+        answer_keys_validated=True,
+        editorial_status="validated",
+        is_active=True,
+    )
+    db.add(quiz)
+    db.flush()
+    db.add_all(
+        [
+            Question(
+                quiz_id=quiz.id,
+                question_text="Historical question",
+                option_a="A",
+                option_b="B",
+                option_c="C",
+                option_d="D",
+                correct_answer="A",
+            ),
+            QuizAttempt(student_id=student.id, quiz_id=quiz.id, answers={}, results=[], score=0, xp_awarded=0),
+        ]
+    )
+    db.commit()
+
+    response = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student))
+
+    assert response.status_code == 200
 
 
 def test_a_plus_video_progress_never_changes_hands_on_week_access(db):

@@ -202,18 +202,20 @@ MODULES = [
                     "Three concepts generate half of desktop tickets:\n"
                     "ACCOUNTS: local accounts live on one machine; Microsoft accounts sync settings and "
                     "enable cloud recovery; domain accounts (Week 13) are managed centrally. Support "
-                    "implication: password reset paths are COMPLETELY different for each.\n"
-                    "PROFILES: a profile is the user's world (Desktop, Documents, HKCU). Corrupt-profile "
+                    "implication: each account type has a different password-reset path.\n"
+                    "PROFILES: a profile contains the user's Desktop, Documents, and personal Windows "
+                    "settings. A corrupt-profile "
                     "signature: user logs in, everything looks factory-fresh, files 'gone'. Files are "
                     "usually NOT gone — Windows loaded a TEMP profile. Event Viewer → User Profile Service "
                     "events 1511/1515 confirm it.\n"
-                    "NTFS PERMISSIONS: Read/Write/Modify/Full Control; DENY beats ALLOW; permissions "
-                    "inherit down folders; effective access = what actually applies after group math.\n\n"
+                    "WINDOWS FILE PERMISSIONS (NTFS): Read, Write, Modify, and Full Control; an explicit "
+                    "Deny can override an Allow; permissions normally inherit from parent folders. "
+                    "Effective access is the final result after all user and group permissions are combined.\n\n"
                     "GUIDED PRACTICE (evidence drill): create local test user 'labuser'; create folder "
                     "C:\\PracticeShare; grant labuser Read only; prove with screenshots that labuser can "
                     "open but not modify a file. Delete the account after.\n\n"
-                    "COMMON MISTAKES: granting Full Control to 'just make it work' (it works — and fails "
-                    "the least-privilege anchor); editing permissions on a folder you haven't backed up."
+                    "COMMON MISTAKES: granting Full Control to 'just make it work' (it grants more access "
+                    "than the task needs); editing permissions without recording the original settings."
                 ),
                 "outcomes": [
                     "Create and inspect local users and groups; explain local vs Microsoft account support implications",
@@ -232,8 +234,8 @@ MODULES = [
                     "EVENT VIEWER: Windows Logs → System and Application. Read Level (Error/Warning), "
                     "Source, Event ID, and timestamp. Event IDs are searchable — 'Event 7000 service name' "
                     "finds the answer faster than any guess. Filter Current Log is your friend.\n"
-                    "TASK MANAGER: Processes for CPU/RAM/disk hogs; Startup for login slowness; Details "
-                    "for PIDs (pairs with netstat -ano).\n"
+                    "TASK MANAGER: Processes for CPU, memory, and disk use; Startup for login slowness; "
+                    "Details for process identifiers (PIDs), which pair with netstat -ano.\n"
                     "SERVICES: services.msc — check Status and Startup Type; a stopped 'Automatic' service "
                     "is a clue. Know when NOT to kill a process: unsaved user work, database/system "
                     "processes — stop the service properly instead of killing the process.\n"
@@ -242,8 +244,8 @@ MODULES = [
                     "GUIDED PRACTICE (scavenger hunt, screenshot each): (1) any Error in System log from "
                     "the last 7 days with Source and ID visible; (2) your top memory process; (3) startup "
                     "impact list; (4) Disk Management showing free space on C:.\n\n"
-                    "COMMON MISTAKES: reading only the newest event instead of the FIRST error in the "
-                    "chain; killing a process the user needed; ignoring Warnings that precede Errors."
+                    "COMMON MISTAKES: reading only the newest event instead of the earliest relevant "
+                    "error in the chain; killing a process the user needed; ignoring Warnings that precede Errors."
                 ),
                 "outcomes": [
                     "Pull a relevant error from Event Viewer and interpret Source, ID, level, and time",
@@ -258,18 +260,22 @@ MODULES = [
                 "lesson_order": 3,
                 "estimated_minutes": 120,
                 "summary": (
-                    "The Windows support seven, and what their output MEANS:\n"
-                    "ipconfig /all → your identity on the network. Read: IP (169.254.x.x = DHCP failed), "
-                    "gateway (empty = no route out), DNS servers (wrong = 'internet down' with working IP).\n"
+                    "Seven Windows support commands, and what their output means:\n"
+                    "ipconfig /all → your identity on the network. Read: IP address (169.254.x.x usually "
+                    "means the automatic address service, DHCP, did not answer), gateway (empty means no "
+                    "route out), and Domain Name System (DNS) servers, which translate names into addresses.\n"
                     "ping → reachability. Ping the gateway (local net ok?), then 1.1.1.1 (internet ok?), "
                     "then a NAME (DNS ok?). This three-step splits any 'no internet' ticket.\n"
                     "tracert → WHERE the path dies.\n"
                     "nslookup → asks DNS directly; compare against a known resolver (nslookup site 1.1.1.1).\n"
-                    "netstat -ano → who is talking; pair PID with Task Manager Details.\n"
+                    "netstat -ano → which connections are active; pair its process identifier (PID) with "
+                    "Task Manager Details.\n"
                     "whoami /groups, gpresult /r → who Windows thinks you are and which policies applied.\n"
-                    "sfc /scannow then DISM /Online /Cleanup-Image /RestoreHealth → system file repair "
-                    "sequence (DISM repairs the store sfc repairs from).\n"
-                    "chkdsk SAFETY: /f needs a reboot lock; NEVER on a mechanically clicking drive.\n\n"
+                    "DISM /Online /Cleanup-Image /RestoreHealth, then sfc /scannow → system file repair "
+                    "sequence. Deployment Image Servicing and Management (DISM) repairs the component "
+                    "store that System File Checker (SFC) uses as its source.\n"
+                    "CHECK DISK SAFETY: chkdsk /f may need exclusive access and a reboot. If a mechanical "
+                    "drive is clicking, stop repair writes and use the approved data-recovery path.\n\n"
                     "ACTIVITY: practice the toolkit on an approved Windows machine or training VM, and keep "
                     "notes on what each command's output tells you.\n\n"
                     "COMMON MISTAKES: running commands without reading output; pasting screenshots with no "
@@ -277,7 +283,7 @@ MODULES = [
                 ),
                 "outcomes": [
                     "Run and interpret ipconfig /all, ping, tracert, nslookup, netstat -ano, whoami, gpresult /r",
-                    "Execute the sfc → DISM repair sequence and read its outcomes",
+                    "Execute the DISM → SFC repair sequence and read its outcomes",
                     "State chkdsk safety rules and when not to run it",
                 ],
                 "required_notes_template": NOTES_TEMPLATE,
@@ -327,16 +333,16 @@ MODULES = [
                 "estimated_minutes": 90,
                 "summary": (
                     "PRIORITY = IMPACT × URGENCY. Impact: how many people / how core a process. Urgency: "
-                    "how time-bound. A VIP's jammed printer FEELS urgent; a department share outage IS "
-                    "urgent. Learn to defend the order out loud — that defense is graded in Simulation 1.\n\n"
-                    "PRACTICAL ITIL VOCABULARY (Nexus original summary — enough to be dangerous):\n"
+                    "how time-bound. A senior executive's jammed printer may feel urgent; a department "
+                    "share outage has much wider impact. Learn to explain the order using evidence.\n\n"
+                    "COMMON SERVICE-DESK TERMS:\n"
                     "- INCIDENT: something broke; restore service.\n"
                     "- SERVICE REQUEST: nothing broke; user needs a thing (access, install).\n"
                     "- CHANGE: planned modification with approval and a rollback plan.\n"
                     "- ESCALATION: functional (needs deeper skill) vs hierarchical (needs authority).\n\n"
                     "THE TICKET YOU DON'T TOUCH: change-freeze windows, requests requiring approval "
                     "(access to HR folders!), anything where your change could widen an outage. Knowing "
-                    "when NOT to act is a graded anchor (safe_fix_or_escalation).\n\n"
+                    "when not to act is part of choosing a safe fix or escalation.\n\n"
                     "HANDOFF NOTES: next tech continues without re-asking the user: current state, what's "
                     "been ruled out (with evidence), exact next step you'd take, and any promise made to "
                     "the user (deadline, callback).\n\n"

@@ -14,11 +14,28 @@ from app.services.fsrs_service import create_cards_for_wrong_answers
 from app.services.mastery_service import record_quiz_mastery
 from app.services.quiz_progression import assigned_remediation_ids, triggered_remediation_ids
 from app.services.quiz_visibility import v1_student_visible_quiz_filters
+from app.services.progression_service import require_week_reached
 from app.services.xp_service import award_xp
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/quizzes", tags=["quizzes"])
 logger = logging.getLogger(__name__)
+
+
+def _require_quiz_access(db: Session, student: Student, quiz: Quiz) -> None:
+    """Gate direct quiz URLs while preserving assigned remediation and history."""
+    if student.is_mentor:
+        return
+    prior_attempt = db.query(QuizAttempt.id).filter(
+        QuizAttempt.student_id == student.id,
+        QuizAttempt.quiz_id == quiz.id,
+    ).first()
+    if prior_attempt is not None:
+        return
+    remediation_ids = assigned_remediation_ids(db, student.id) | triggered_remediation_ids(db, student.id)
+    if quiz.id in remediation_ids:
+        return
+    require_week_reached(db, student, quiz.week_number)
 
 
 def _grade_answer(question, raw_answer) -> tuple[object, bool]:
@@ -124,6 +141,7 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
     )
     if not quiz:
         raise HTTPException(status_code=404, detail="Quiz not found")
+    _require_quiz_access(db, current_student, quiz)
 
     attempts = []
     if scoped_student_id:
@@ -201,6 +219,10 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
+    # Authorization is based on the signed-in learner. Mentors may submit on
+    # behalf of an owned learner without manufacturing that learner's week
+    # progress; ordinary students are already constrained to their own ID.
+    _require_quiz_access(db, current_student, quiz)
 
     mark_student_active(db, student_id)
 

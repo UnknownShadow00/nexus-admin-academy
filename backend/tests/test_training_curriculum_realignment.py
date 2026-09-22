@@ -1,13 +1,14 @@
 from app.models.cli_lab import CliLab
 from app.models.lab import LabTemplate
 from app.models.learning import Lesson, Module
-from app.models.quiz import Quiz
+from app.models.quiz import Question, Quiz
 from app.models.service_desk import ServiceDeskScenario, ServiceDeskScenarioVersion
 from app.models.training import TrainingWeek, TrainingWeekActivity
 from app.services.training_curriculum_seed import (
     _revision_includes,
     reconcile_optional_lesson_requirements,
     sync_initial_training_activities,
+    sync_weeks_3_4_prelaunch_quality,
     sync_weeks_3_6_quality,
     sync_weeks_7_10_quality,
     sync_weeks_11_14_quality,
@@ -335,6 +336,294 @@ def test_weeks_3_6_quality_sync_builds_aligned_required_paths_idempotently(db):
     ]
 
     second = sync_weeks_3_6_quality(db)
+    assert second["created_templates"] == 0
+    assert second["created_activities"] == 0
+    assert second["updated_activities"] == 0
+
+
+def test_weeks_3_4_prelaunch_quality_waits_for_normal_seed_content(db):
+    """Fresh migrations must not consume fixed lab IDs before seed.py runs."""
+    _add_week(db, 3)
+    _add_week(db, 4)
+    db.commit()
+
+    result = sync_weeks_3_4_prelaunch_quality(db)
+
+    assert result == {
+        "updated": 0,
+        "skipped": True,
+        "reason": "curriculum_not_seeded",
+    }
+    assert db.query(LabTemplate).count() == 0
+
+
+def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_deadlocks(db):
+    weeks = {
+        number: _add_week(db, number)
+        for number in (1, 2, 3, 4, 5, 7, 8, 23)
+    }
+    modules = {
+        3: Module(code="MOD-003", title="Windows 11 as Your Workbench", module_order=4, estimated_hours=15),
+        4: Module(code="MOD-004", title="Working the Queue", module_order=5, estimated_hours=13),
+    }
+    db.add_all(modules.values())
+    db.flush()
+    lesson_specs = {
+        3: (
+            ("Accounts, Profiles, and Permissions", 90),
+            ("The Investigator's Toolkit", 90),
+            ("Command-Line Diagnostics", 120),
+            ("Windows Update and Defender Basics", 60),
+        ),
+        4: (
+            ("Priority, Impact, and Not Making It Worse", 90),
+            ("Talking to Humans", 60),
+        ),
+    }
+    lessons = {}
+    for week_number, specs in lesson_specs.items():
+        for order, (title, minutes) in enumerate(specs, start=1):
+            lesson = Lesson(
+                module_id=modules[week_number].id,
+                title=title,
+                lesson_order=order,
+                estimated_minutes=minutes,
+                status="published",
+                summary={
+                    "Command-Line Diagnostics": (
+                        "The Windows support seven, and what their output MEANS:\n"
+                        "ipconfig /all → your identity on the network. Read: IP "
+                        "(169.254.x.x = DHCP failed), gateway (empty = no route "
+                        "out), DNS servers (wrong = 'internet down' with working IP).\n"
+                        "netstat -ano → who is talking; pair PID with Task Manager Details.\n"
+                        "Run sfc /scannow then DISM /Online /Cleanup-Image /RestoreHealth."
+                    ),
+                    "Accounts, Profiles, and Permissions": (
+                        "PROFILES: a profile is the user's world (Desktop, Documents, HKCU). "
+                        "NTFS PERMISSIONS: Read/Write/Modify/Full Control; DENY beats ALLOW; "
+                        "permissions inherit down folders; effective access = what actually "
+                        "applies after group math."
+                    ),
+                    "Priority, Impact, and Not Making It Worse": (
+                        "PRACTICAL ITIL VOCABULARY (Nexus original summary — enough to be dangerous): "
+                        "when NOT to act is a graded anchor (safe_fix_or_escalation)."
+                    ),
+                }.get(title, f"Beginner lesson for {title}."),
+                outcomes=(
+                    ["Execute the sfc → DISM repair sequence and read its outcomes"]
+                    if title == "Command-Line Diagnostics"
+                    else []
+                ),
+            )
+            db.add(lesson)
+            db.flush()
+            lessons[title] = lesson
+
+    for quiz_id, title, week_number in (
+        (2, "Windows Accounts and Permissions", 3),
+        (3, "The Investigator's Toolkit", 3),
+        (4, "Windows Command-Line Diagnostics", 3),
+        (5, "Help-Desk Operations", 4),
+    ):
+        quiz = Quiz(
+            id=quiz_id,
+            title=title,
+            week_number=week_number,
+            quiz_purpose="practice",
+            is_required=False,
+            show_in_weekly_checklist=False,
+            status="published",
+            editorial_status="validated",
+            answer_keys_validated=True,
+            is_active=True,
+        )
+        db.add(quiz)
+        db.flush()
+        db.add(
+            Question(
+                quiz_id=quiz.id,
+                question_text="Placeholder audited question",
+                option_a="Supported answer",
+                option_b="Distractor",
+                option_c="Distractor",
+                option_d="Distractor",
+                correct_answer="A",
+                explanation="Placeholder explanation.",
+            )
+        )
+
+    _add_lab(db, 3, "Windows Command-Line Diagnostics", 3, "structured_evidence_case")
+    _add_lab(db, 6, "Prioritize the Queue", 4, "structured_diagnostic")
+    db.flush()
+    display_order = {3: 0, 4: 0}
+
+    def add_activity(week_number, activity_type, content_ref, *, required=False, metadata=None):
+        display_order[week_number] += 1
+        db.add(
+            TrainingWeekActivity(
+                training_week_id=weeks[week_number].id,
+                stable_id=f"week-{week_number}-{activity_type}-{content_ref}",
+                activity_type=activity_type,
+                content_ref=str(content_ref),
+                display_order=display_order[week_number],
+                is_required=required,
+                prerequisite_mode="soft",
+                metadata_json=metadata or {},
+            )
+        )
+
+    for title in lesson_specs[3]:
+        add_activity(3, "lesson", lessons[title[0]].id)
+    for video_id in (108, 117, 118):
+        add_activity(3, "video", video_id)
+    for quiz_id in (2, 3, 4):
+        add_activity(3, "quiz", quiz_id)
+    add_activity(3, "guided_lab", 3, required=True)
+    add_activity(3, "service_desk_scenario", "password-reset")
+
+    for title in lesson_specs[4]:
+        add_activity(4, "lesson", lessons[title[0]].id)
+    for video_id in (1, 2, 4, 5, 46, 62, 169, 181):
+        add_activity(4, "video", video_id)
+    add_activity(4, "quiz", 5)
+    add_activity(4, "guided_lab", 6, required=True)
+    add_activity(4, "service_desk_scenario", "mfa-reset")
+    db.commit()
+
+    first = sync_weeks_3_4_prelaunch_quality(db)
+    assert first["skipped"] is False
+
+    lessons_by_id = {lesson.id: lesson for lesson in lessons.values()}
+    required_titles = {
+        number: {
+            lessons_by_id[int(row.content_ref)].title
+            for row in db.query(TrainingWeekActivity).filter_by(
+                training_week_id=weeks[number].id,
+                activity_type="lesson",
+                is_required=True,
+            )
+        }
+        for number in (3, 4)
+    }
+    assert required_titles[3] == {
+        "Accounts, Profiles, and Permissions",
+        "The Investigator's Toolkit",
+        "Command-Line Diagnostics",
+    }
+    assert required_titles[4] == {
+        "Priority, Impact, and Not Making It Worse",
+        "Talking to Humans",
+    }
+    assert lessons["Windows Update and Defender Basics"].estimated_minutes == 30
+
+    required_quizzes = {
+        number: {
+            int(row.content_ref)
+            for row in db.query(TrainingWeekActivity).filter_by(
+                training_week_id=weeks[number].id,
+                activity_type="quiz",
+                is_required=True,
+            )
+        }
+        for number in (3, 4)
+    }
+    assert required_quizzes == {3: {2, 3, 4}, 4: {5}}
+
+    week_three_cases = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[3].id,
+        activity_type="service_desk_scenario",
+    ).all()
+    assert [(row.content_ref, row.is_required) for row in week_three_cases] == [("inc2501", True)]
+    assert db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[4].id,
+        activity_type="service_desk_scenario",
+    ).count() == 0
+    assert {
+        int(row.content_ref)
+        for row in db.query(TrainingWeekActivity).filter_by(
+            training_week_id=weeks[2].id,
+            activity_type="video",
+        )
+    } == {1, 46}
+    assert {
+        int(row.content_ref)
+        for row in db.query(TrainingWeekActivity).filter_by(
+            training_week_id=weeks[5].id,
+            activity_type="video",
+        )
+    } == {62}
+    assert {
+        int(row.content_ref)
+        for row in db.query(TrainingWeekActivity).filter_by(
+            training_week_id=weeks[7].id,
+            activity_type="video",
+        )
+    } == {5}
+    assert {
+        int(row.content_ref)
+        for row in db.query(TrainingWeekActivity).filter_by(
+            training_week_id=weeks[8].id,
+            activity_type="video",
+        )
+    } == {2, 4}
+    assert {
+        int(row.content_ref)
+        for row in db.query(TrainingWeekActivity).filter_by(
+            training_week_id=weeks[23].id,
+            activity_type="video",
+        )
+    } == {181}
+
+    cli = db.get(LabTemplate, 3)
+    assert cli.lab_type == "structured_cli"
+    assert cli.success_criteria["required_commands"] == [
+        "hostname",
+        "whoami",
+        "ipconfig /all",
+        "ping 192.168.1.1",
+        "nslookup intranet.nexus.internal",
+        "tracert intranet.nexus.internal",
+        "netstat -ano",
+    ]
+    week_four_labs = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[4].id,
+        activity_type="guided_lab",
+        is_required=True,
+    ).all()
+    assert {learning_role_for(row.activity_type, row.metadata_json) for row in week_four_labs} == {
+        "practice",
+        "troubleshoot",
+    }
+
+    for number in (3, 4):
+        ordered = db.query(TrainingWeekActivity).filter_by(
+            training_week_id=weeks[number].id
+        ).order_by(TrainingWeekActivity.display_order).all()
+        ranks = {
+            "learn": 0,
+            "check": 1,
+            "practice": 2,
+            "troubleshoot": 3,
+            "prove": 4,
+        }
+        assert [ranks[learning_role_for(row.activity_type, row.metadata_json)] for row in ordered] == sorted(
+            ranks[learning_role_for(row.activity_type, row.metadata_json)] for row in ordered
+        )
+
+    command_lesson = lessons["Command-Line Diagnostics"]
+    assert "DISM" in command_lesson.summary
+    assert command_lesson.summary.index("DISM") < command_lesson.summary.index("sfc")
+    assert "Domain Name System (DNS)" in command_lesson.summary
+    assert "process identifier (PID)" in command_lesson.summary
+    assert "DISM → SFC" in command_lesson.outcomes[0]
+    accounts_lesson = lessons["Accounts, Profiles, and Permissions"]
+    assert "HKCU" not in accounts_lesson.summary
+    assert "WINDOWS FILE PERMISSIONS (NTFS)" in accounts_lesson.summary
+    priority_lesson = lessons["Priority, Impact, and Not Making It Worse"]
+    assert "safe_fix_or_escalation" not in priority_lesson.summary
+    assert "COMMON SERVICE-DESK TERMS" in priority_lesson.summary
+
+    second = sync_weeks_3_4_prelaunch_quality(db)
     assert second["created_templates"] == 0
     assert second["created_activities"] == 0
     assert second["updated_activities"] == 0

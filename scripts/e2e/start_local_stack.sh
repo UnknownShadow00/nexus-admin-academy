@@ -64,6 +64,8 @@ FRESH_B_USERNAME_GEN="browser-fresh-student-b"
 FRESH_B_PASSWORD_GEN="$(rand)"
 ENDPOINT_USERNAME_GEN="browser-endpoint-student"
 ENDPOINT_PASSWORD_GEN="$(rand)"
+W34_USERNAME_GEN="browser-weeks-3-4-student"
+W34_PASSWORD_GEN="$(rand)"
 
 export DATABASE_URL="sqlite:///$SCRATCH_DIR/e2e.db"
 export JWT_SECRET_KEY="$(rand)$(rand)"
@@ -163,6 +165,15 @@ print(student.id)
 db.close()
 PY
 )"
+
+# Build one disposable learner through the real Weeks 0-4 completion model.
+# This fixture lets browser tests inspect historical Week 3/4 screens without
+# weakening direct-URL gates or borrowing a real student's records.
+NEXUS_E2E_W34_USERNAME="$W34_USERNAME_GEN" \
+NEXUS_E2E_W34_PASSWORD="$W34_PASSWORD_GEN" \
+PYTHONPATH="$BACKEND_DIR" \
+    "$BACKEND_PYTHON" "$REPO_ROOT/scripts/e2e/audit_weeks_3_4_journey.py" \
+    > "$SCRATCH_DIR/weeks-3-4-journey.json"
 export V2_CURRICULUM_ENABLED=true
 export V2_PILOT_STUDENT_IDS="$PILOT_STUDENT_ID"
 
@@ -456,6 +467,8 @@ STACK_ENV="$SCRATCH_DIR/stack.env"
     echo "NEXUS_E2E_NONPILOT_PASSWORD=$QUALIFIED_PASSWORD_GEN"
     echo "NEXUS_E2E_ENDPOINT_USERNAME=$ENDPOINT_USERNAME_GEN"
     echo "NEXUS_E2E_ENDPOINT_PASSWORD=$ENDPOINT_PASSWORD_GEN"
+    echo "NEXUS_E2E_W34_USERNAME=$W34_USERNAME_GEN"
+    echo "NEXUS_E2E_W34_PASSWORD=$W34_PASSWORD_GEN"
 } > "$STACK_ENV"
 chmod 600 "$STACK_ENV"
 

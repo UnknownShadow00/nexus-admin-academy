@@ -14,6 +14,7 @@ from app.services.training_curriculum_seed import (
     reconcile_video_requirements,
     sync_initial_training_activities,
     sync_weeks_1_4_practice_realignment,
+    sync_weeks_3_4_prelaunch_quality,
     sync_weeks_3_6_quality,
     sync_weeks_7_10_quality,
     sync_weeks_11_14_quality,
@@ -208,6 +209,11 @@ try:
         if _revision_includes(current_revision, "0061_integrated_support_prove")
         else {"skipped": f"requires 0061; database is {current_revision or 'unversioned'}"}
     )
+    weeks_3_4_prelaunch_result = (
+        sync_weeks_3_4_prelaunch_quality(db)
+        if _revision_includes(current_revision, "0072_weeks_3_4_prelaunch_quality")
+        else {"skipped": f"requires 0072; database is {current_revision or 'unversioned'}"}
+    )
     print(
         f"Curriculum seeded successfully; references: {reference_result}; "
         f"weekly activities: {training_result}; Week 0 requirements: {week_zero_result}; Optional lessons: {optional_lesson_result}; "
@@ -221,7 +227,8 @@ try:
         f"Beginner learning rollout: {beginner_rollout_result}; "
         f"Windows/AD/server practical upgrade: {windows_ad_server_result}; "
         f"Network/Linux/cloud practical upgrade: {network_linux_cloud_result}; "
-        f"Integrated support final shift: {integrated_support_final_shift_result}"
+        f"Integrated support final shift: {integrated_support_final_shift_result}; "
+        f"Weeks 3-4 pre-launch quality: {weeks_3_4_prelaunch_result}"
     )
 finally:
     db.close()

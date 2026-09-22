@@ -503,9 +503,11 @@ def get_lab(
     v2_assessment_key: str | None = None,
 ):
     lab = _get_published_lab(db, lab_id)
-    _lab_access_context(
+    v2_context = _lab_access_context(
         db, lab_id, v2_module_key, v2_assessment_key, current_student
     )
+    if v2_context is None:
+        require_week_reached(db, current_student, lab.week_number)
     run = _get_lab_run(db, lab_id, current_student.id)
     data = _serialize_lab(lab, run)
     if run:
