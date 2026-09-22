@@ -1236,3 +1236,45 @@ def test_weeks_23_24_quality_sync_moves_integrated_quiz_and_adds_final_practice(
     assert second["created_templates"] == 0
     assert second["created_activities"] == 0
     assert second["updated_activities"] == 0
+
+
+def test_weeks_3_4_relocation_preserves_distinct_instructor_assignments(db):
+    weeks = {number: _add_week(db, number) for number in (2, 3, 4, 5)}
+    db.flush()
+    canonical = []
+    for number, video in ((2, 1), (3, 117), (4, 1), (4, 62)):
+        row = TrainingWeekActivity(
+            training_week_id=weeks[number].id, stable_id=f"week-{number}-video-{video}",
+            activity_type="video", content_ref=str(video), display_order=len(canonical) + 1,
+            is_required=False, metadata_json={},
+        )
+        db.add(row)
+        canonical.append(row)
+    custom = []
+    for number, kind, ref in (
+        (4, "video", "1"), (4, "video", "62"),
+        (3, "service_desk_scenario", "password-reset"),
+        (3, "service_desk_scenario", "inc2501"),
+        (4, "service_desk_scenario", "mfa-reset"), (4, "capstone", "1"),
+    ):
+        row = TrainingWeekActivity(
+            training_week_id=weeks[number].id, stable_id=f"instructor-{number}-{kind}-{ref}",
+            activity_type=kind, content_ref=ref, display_order=20 + len(custom),
+            is_required=True, estimated_minutes=77,
+            metadata_json={"instructor_note": "Preserve this assignment"},
+        )
+        db.add(row)
+        custom.append(row)
+    db.commit()
+    fields = ("training_week_id", "stable_id", "activity_type", "content_ref", "is_required", "estimated_minutes", "metadata_json")
+    expected = {row.id: tuple(getattr(row, field) for field in fields) for row in custom}
+    for _ in range(2):
+        sync_weeks_3_4_prelaunch_quality(db)
+        for row_id, values in expected.items():
+            row = db.get(TrainingWeekActivity, row_id)
+            assert row is not None
+            assert tuple(getattr(row, field) for field in fields) == values
+    assert db.query(TrainingWeekActivity).filter_by(stable_id="week-4-video-1").first() is None
+    moved = db.query(TrainingWeekActivity).filter_by(stable_id="week-5-video-62").one()
+    assert moved.training_week_id == weeks[5].id
+    assert moved.is_required is False

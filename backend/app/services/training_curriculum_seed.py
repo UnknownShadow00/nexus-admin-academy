@@ -860,7 +860,11 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
         result["updated_templates"] += 1
 
     week_three_rows = db.query(TrainingWeekActivity).filter_by(training_week_id=weeks[3].id).all()
-    old_week_three_cases = [row for row in week_three_rows if row.activity_type == "service_desk_scenario"]
+    old_week_three_cases = [
+        row for row in week_three_rows
+        if row.activity_type == "service_desk_scenario"
+        and row.stable_id == f"week-3-service_desk_scenario-{row.content_ref}"
+    ]
     inc2501 = next((row for row in old_week_three_cases if row.content_ref == "inc2501"), None)
     obsolete_cases = [
         row for row in old_week_three_cases if row.content_ref in {"password-reset", "mfa-reset"}
@@ -901,6 +905,7 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
         training_week_id=weeks[4].id,
         activity_type="service_desk_scenario",
         content_ref="mfa-reset",
+        stable_id="week-4-service_desk_scenario-mfa-reset",
     ).all():
         db.delete(row)
         result["deleted_activities"] += 1
@@ -925,6 +930,9 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
             {str(value) for value in WEEK_4_VIDEO_RELOCATIONS}
         ),
     ).all():
+        # A reused content ID does not make an instructor/import assignment ours.
+        if row.stable_id != f"week-4-video-{row.content_ref}":
+            continue
         video_id = int(row.content_ref)
         target_number = WEEK_4_VIDEO_RELOCATIONS[video_id]
         target_week = relocation_weeks.get(target_number)
@@ -960,6 +968,7 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
         training_week_id=weeks[4].id,
         activity_type="capstone",
         content_ref="1",
+        stable_id="week-4-capstone-1",
     ).all():
         db.delete(row)
         result["deleted_activities"] += 1
@@ -973,6 +982,8 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
     ).all()
     for activity in all_activities:
         number = 3 if activity.training_week_id == weeks[3].id else 4
+        if activity.stable_id != f"week-{number}-{activity.activity_type}-{activity.content_ref}":
+            continue
         should_be_required = activity.is_required
         minutes = activity.estimated_minutes
         if activity.activity_type == "lesson":
@@ -1012,6 +1023,7 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
         training_week_id=weeks[4].id,
         activity_type="guided_lab",
         content_ref=str(troubleshoot.id),
+        stable_id=f"week-4-guided_lab-{troubleshoot.id}",
     ).first()
     if troubleshoot_activity is None:
         max_order = db.query(func.max(TrainingWeekActivity.display_order)).filter_by(training_week_id=weeks[4].id).scalar() or 0
@@ -1046,6 +1058,7 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
         training_week_id=weeks[4].id,
         activity_type="guided_lab",
         content_ref=str(triage.id),
+        stable_id=f"week-4-guided_lab-{triage.id}",
     ).first()
     if triage_activity is None:
         max_order = db.query(func.max(TrainingWeekActivity.display_order)).filter_by(

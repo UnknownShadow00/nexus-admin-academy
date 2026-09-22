@@ -60,6 +60,7 @@ export default function QuizTaker({ quizId, studentId }) {
   const loadQuiz = () => {
     const loadVersion = ++loadVersionRef.current;
     setLoading(true);
+    setQuiz(null);
     setLoadError("");
     getQuiz(quizId, studentId, { suppressToast: true })
       .then((res) => {

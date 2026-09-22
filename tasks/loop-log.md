@@ -2585,3 +2585,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/labs.py, backend/tests/test_week_prerequisite_gating.py, tasks/loop-log.md
 - Result: PASS — assigned/in-progress regressions reproduced before the fix; 50 lab/gating/availability tests and 62 V2/security tests pass afterward. Published future labs, other students' runs, and submitted retired runs remain blocked. Ruff passes. Isolated audit tooling upgraded to remove bootstrap pip/setuptools advisories; environment pip-audit now reports no known vulnerabilities. No application dependency or production changes.
 - Next: Push for current-head CI and automated review; do not merge or deploy.
+
+## 2026-09-22T09:34:00Z Task Completed
+- Task: Address the latest PR #39 review findings for failed quiz route loads, seed-owned activity relocation, and revoked/inactive V2 authorization on retired lab runs.
+- Files changed: frontend/src/components/QuizTaker.jsx; frontend/src/components/QuizTaker.test.jsx; backend/app/routers/labs.py; backend/app/services/training_curriculum_seed.py; backend/tests/test_training_curriculum_realignment.py; backend/tests/test_v2_runtime_stabilization.py; tasks/loop-log.md
+- Result: PASS — one frontend and four backend regression cases failed before correction. All 70 frontend tests and 84 focused backend tests now pass; Ruff, compilation, build, npm audit, and manifest pip-audit pass. Distinct instructor video/scenario/capstone assignments keep their identity and metadata; V2 provenance is validated before any retired legacy week-gate exception.
+- Next: Push and run current-head CI. Codex account review quota is exhausted for PR #40, so record any unavailable final automated review as a follow-up; do not merge or deploy.

@@ -282,7 +282,7 @@ def _v2_run_context(db: Session, student: Student, run: LabRun):
 
 def _authorize_existing_run(db: Session, student: Student, run: LabRun, lab: LabTemplate):
     """Authorize a trusted V2 run or apply the ordinary legacy week gate."""
-    if lab.is_published and _v2_run_context(db, student, run) is None:
+    if _v2_run_context(db, student, run) is None and lab.is_published:
         require_week_reached(db, student, lab.week_number)
 
 
