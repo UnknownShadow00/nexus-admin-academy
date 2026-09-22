@@ -1,0 +1,2718 @@
+[
+  {
+    "week_number": 0,
+    "title": "Welcome to Nexus",
+    "description": "Learn how Nexus works and practice the support workflow without pressure.",
+    "learning_goals": "[\"Find your way around Nexus\", \"Use the six-step troubleshooting process\"]",
+    "estimated_minutes": 60,
+    "activities": [
+      {
+        "stable_id": "week-0-lesson-1",
+        "activity_type": "lesson",
+        "content_ref": "1",
+        "is_required": 1,
+        "estimated_minutes": 3,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Welcome to Nexus: Your First Week"
+      },
+      {
+        "stable_id": "week-0-video-182",
+        "activity_type": "video",
+        "content_ref": "182",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 42,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "Week 0 has one approved orientation assessment; no exam-strategy quiz is approved."
+        },
+        "title": "How to Pass Your A+ 220-1201 and 220-1202 Exams"
+      },
+      {
+        "stable_id": "week-0-video-166",
+        "activity_type": "video",
+        "content_ref": "166",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 42,
+          "quiz_mapping_basis": "exact",
+          "quiz_mapping_confidence": "Exact",
+          "quiz_mapping_evidence": "Existing video.quiz_title exactly matches approved Ticketing Systems Quiz."
+        },
+        "title": "Ticketing Systems"
+      },
+      {
+        "stable_id": "week-0-video-168",
+        "activity_type": "video",
+        "content_ref": "168",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 42,
+          "quiz_mapping_basis": "exact",
+          "quiz_mapping_confidence": "Exact",
+          "quiz_mapping_evidence": "Existing video.quiz_title exactly matches approved Ticketing Systems Quiz."
+        },
+        "title": "Document Types"
+      },
+      {
+        "stable_id": "week-0-quiz-42",
+        "activity_type": "quiz",
+        "content_ref": "42",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Ticketing Systems Quiz"
+      }
+    ]
+  },
+  {
+    "week_number": 1,
+    "title": "IT Support and Ticket Basics",
+    "description": "Learn how support work is recorded, communicated, and completed.",
+    "learning_goals": "[\"Write a useful ticket\", \"Communicate clearly with a user\", \"Recognize common support requests\"]",
+    "estimated_minutes": 180,
+    "activities": [
+      {
+        "stable_id": "week-1-lesson-2",
+        "activity_type": "lesson",
+        "content_ref": "2",
+        "is_required": 1,
+        "estimated_minutes": 25,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Anatomy of a Good Ticket"
+      },
+      {
+        "stable_id": "week-1-lesson-3",
+        "activity_type": "lesson",
+        "content_ref": "3",
+        "is_required": 1,
+        "estimated_minutes": 10,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Meet the Command Line"
+      },
+      {
+        "stable_id": "week-1-video-167",
+        "activity_type": "video",
+        "content_ref": "167",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 1,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "Asset records support Week 1 ticket documentation, but no narrower approved asset quiz exists."
+        },
+        "title": "Asset Management"
+      },
+      {
+        "stable_id": "week-1-video-176",
+        "activity_type": "video",
+        "content_ref": "176",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 1,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Professional communication is directly assessed by Ticket Writing Fundamentals."
+        },
+        "title": "Professionalism"
+      },
+      {
+        "stable_id": "week-1-video-177",
+        "activity_type": "video",
+        "content_ref": "177",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 1,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Professional communication is directly assessed by Ticket Writing Fundamentals."
+        },
+        "title": "Communication"
+      },
+      {
+        "stable_id": "week-1-quiz-1",
+        "activity_type": "quiz",
+        "content_ref": "1",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Ticket Writing Fundamentals"
+      },
+      {
+        "stable_id": "week-1-networking_lab-meet-cli-001",
+        "activity_type": "networking_lab",
+        "content_ref": "meet-cli-001",
+        "is_required": 1,
+        "estimated_minutes": 5,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "no such table: cli_labs"
+      },
+      {
+        "stable_id": "week-1-service_desk_scenario-locked-user-account",
+        "activity_type": "service_desk_scenario",
+        "content_ref": "locked-user-account",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Can't sign in after lunch"
+      }
+    ]
+  },
+  {
+    "week_number": 2,
+    "title": "Computer Hardware",
+    "description": "Build a beginner-friendly mental model of the parts inside a computer.",
+    "learning_goals": "[\"Identify core PC components\", \"Explain storage, memory, CPU, power, and firmware symptoms\"]",
+    "estimated_minutes": 300,
+    "activities": [
+      {
+        "stable_id": "week-2-lesson-4",
+        "activity_type": "lesson",
+        "content_ref": "4",
+        "is_required": 1,
+        "estimated_minutes": 45,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Storage: Symptoms Before Specs"
+      },
+      {
+        "stable_id": "week-2-lesson-5",
+        "activity_type": "lesson",
+        "content_ref": "5",
+        "is_required": 1,
+        "estimated_minutes": 45,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "RAM, CPU, Power, and POST"
+      },
+      {
+        "stable_id": "week-2-lesson-6",
+        "activity_type": "lesson",
+        "content_ref": "6",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "BIOS/UEFI and Boot Order"
+      },
+      {
+        "stable_id": "week-2-video-19",
+        "activity_type": "video",
+        "content_ref": "19",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Week 2 hardware quiz is broader than display technology."
+        },
+        "title": "Display Types"
+      },
+      {
+        "stable_id": "week-2-video-20",
+        "activity_type": "video",
+        "content_ref": "20",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Week 2 hardware quiz is broader than display technology."
+        },
+        "title": "Display Attributes"
+      },
+      {
+        "stable_id": "week-2-video-30",
+        "activity_type": "video",
+        "content_ref": "30",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "An Overview of Memory"
+      },
+      {
+        "stable_id": "week-2-video-31",
+        "activity_type": "video",
+        "content_ref": "31",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "Memory Technologies"
+      },
+      {
+        "stable_id": "week-2-video-32",
+        "activity_type": "video",
+        "content_ref": "32",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "Storage Devices"
+      },
+      {
+        "stable_id": "week-2-video-33",
+        "activity_type": "video",
+        "content_ref": "33",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "RAID"
+      },
+      {
+        "stable_id": "week-2-video-34",
+        "activity_type": "video",
+        "content_ref": "34",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "Motherboard Form Factors"
+      },
+      {
+        "stable_id": "week-2-video-35",
+        "activity_type": "video",
+        "content_ref": "35",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "Motherboard Expansion Slots"
+      },
+      {
+        "stable_id": "week-2-video-36",
+        "activity_type": "video",
+        "content_ref": "36",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "Motherboard Connections"
+      },
+      {
+        "stable_id": "week-2-video-37",
+        "activity_type": "video",
+        "content_ref": "37",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "Motherboard Compatibility"
+      },
+      {
+        "stable_id": "week-2-video-38",
+        "activity_type": "video",
+        "content_ref": "38",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "The BIOS"
+      },
+      {
+        "stable_id": "week-2-video-39",
+        "activity_type": "video",
+        "content_ref": "39",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "BIOS Settings"
+      },
+      {
+        "stable_id": "week-2-video-40",
+        "activity_type": "video",
+        "content_ref": "40",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "HSM and TPM"
+      },
+      {
+        "stable_id": "week-2-video-41",
+        "activity_type": "video",
+        "content_ref": "41",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "CPU Features"
+      },
+      {
+        "stable_id": "week-2-video-42",
+        "activity_type": "video",
+        "content_ref": "42",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz assesses memory, storage, motherboard, BIOS, CPU, power, and thermal symptoms."
+        },
+        "title": "Expansion Cards"
+      },
+      {
+        "stable_id": "week-2-video-43",
+        "activity_type": "video",
+        "content_ref": "43",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "exact",
+          "quiz_mapping_confidence": "Exact",
+          "quiz_mapping_evidence": "Existing video.quiz_title exactly matches approved Core PC Hardware Troubleshooting Quiz."
+        },
+        "title": "Cooling"
+      },
+      {
+        "stable_id": "week-2-video-44",
+        "activity_type": "video",
+        "content_ref": "44",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The hardware quiz directly assesses power delivery and PSU failure symptoms."
+        },
+        "title": "Computer Power"
+      },
+      {
+        "stable_id": "week-2-quiz-78",
+        "activity_type": "quiz",
+        "content_ref": "78",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Core PC Hardware Troubleshooting Quiz"
+      },
+      {
+        "stable_id": "week-2-guided_lab-4",
+        "activity_type": "guided_lab",
+        "content_ref": "4",
+        "is_required": 1,
+        "estimated_minutes": 20,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Hardware Component Identification"
+      },
+      {
+        "stable_id": "week-2-service_desk_scenario-inc2404",
+        "activity_type": "service_desk_scenario",
+        "content_ref": "inc2404",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "USB headset develops static during longer calls"
+      },
+      {
+        "stable_id": "week-2-video-1",
+        "activity_type": "video",
+        "content_ref": "1",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Laptop hardware is assessed by the approved broad hardware troubleshooting quiz."
+        },
+        "title": "Laptop Hardware"
+      },
+      {
+        "stable_id": "week-2-video-3",
+        "activity_type": "video",
+        "content_ref": "3",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved hardware assessment is the closest available check for optional mobile-accessory and printer-hardware resources."
+        },
+        "title": "Mobile Device Accessories"
+      },
+      {
+        "stable_id": "week-2-video-45",
+        "activity_type": "video",
+        "content_ref": "45",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved hardware assessment is the closest available check for optional mobile-accessory and printer-hardware resources."
+        },
+        "title": "Multifunction Devices"
+      },
+      {
+        "stable_id": "week-2-video-46",
+        "activity_type": "video",
+        "content_ref": "46",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved hardware assessment is the closest available check for optional mobile-accessory and printer-hardware resources."
+        },
+        "title": "Laser Printer Maintenance"
+      },
+      {
+        "stable_id": "week-2-video-47",
+        "activity_type": "video",
+        "content_ref": "47",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved hardware assessment is the closest available check for optional mobile-accessory and printer-hardware resources."
+        },
+        "title": "Inkjet Printers"
+      },
+      {
+        "stable_id": "week-2-video-48",
+        "activity_type": "video",
+        "content_ref": "48",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved hardware assessment is the closest available check for optional mobile-accessory and printer-hardware resources."
+        },
+        "title": "Inkjet Printer Maintenance"
+      },
+      {
+        "stable_id": "week-2-video-49",
+        "activity_type": "video",
+        "content_ref": "49",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved hardware assessment is the closest available check for optional mobile-accessory and printer-hardware resources."
+        },
+        "title": "Thermal Printers"
+      },
+      {
+        "stable_id": "week-2-video-50",
+        "activity_type": "video",
+        "content_ref": "50",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved hardware assessment is the closest available check for optional mobile-accessory and printer-hardware resources."
+        },
+        "title": "Thermal Printer Maintenance"
+      },
+      {
+        "stable_id": "week-2-video-51",
+        "activity_type": "video",
+        "content_ref": "51",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved hardware assessment is the closest available check for optional mobile-accessory and printer-hardware resources."
+        },
+        "title": "Impact Printers"
+      },
+      {
+        "stable_id": "week-2-video-52",
+        "activity_type": "video",
+        "content_ref": "52",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved hardware assessment is the closest available check for optional mobile-accessory and printer-hardware resources."
+        },
+        "title": "Impact Printer Maintenance"
+      }
+    ]
+  },
+  {
+    "week_number": 3,
+    "title": "Windows Fundamentals",
+    "description": "Use Windows commands to identify the computer, test network reachability, check DNS, and gather evidence before changing anything.",
+    "learning_goals": "[\"hostname and whoami confirm which computer and user you are supporting.\", \"ipconfig /all shows the IP address, gateway, DHCP state, and DNS servers; a 169.254 address usually means DHCP failed.\", \"Ping the gateway, then an internet IP, then a name to separate local, internet, and DNS failures.\", \"nslookup tests DNS directly, tracert shows the route, and netstat -ano links connections to process IDs.\"]",
+    "estimated_minutes": 270,
+    "activities": [
+      {
+        "stable_id": "week-3-lesson-7",
+        "activity_type": "lesson",
+        "content_ref": "7",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Accounts, Profiles, and Permissions"
+      },
+      {
+        "stable_id": "week-3-lesson-8",
+        "activity_type": "lesson",
+        "content_ref": "8",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "The Investigator's Toolkit"
+      },
+      {
+        "stable_id": "week-3-lesson-9",
+        "activity_type": "lesson",
+        "content_ref": "9",
+        "is_required": 1,
+        "estimated_minutes": 45,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Command-Line Diagnostics"
+      },
+      {
+        "stable_id": "week-3-lesson-10",
+        "activity_type": "lesson",
+        "content_ref": "10",
+        "is_required": 0,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Windows Update and Defender Basics"
+      },
+      {
+        "stable_id": "week-3-video-108",
+        "activity_type": "video",
+        "content_ref": "108",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 3,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Windows toolkit quiz is the broadest Week 3 Windows assessment."
+        },
+        "title": "Operating Systems Overview"
+      },
+      {
+        "stable_id": "week-3-video-109",
+        "activity_type": "video",
+        "content_ref": "109",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 3,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Windows toolkit quiz is the broadest Week 3 Windows assessment."
+        },
+        "title": "File Systems"
+      },
+      {
+        "stable_id": "week-3-video-110",
+        "activity_type": "video",
+        "content_ref": "110",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 3,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Windows toolkit quiz is the broadest Week 3 Windows assessment."
+        },
+        "title": "Installing Operating Systems"
+      },
+      {
+        "stable_id": "week-3-video-111",
+        "activity_type": "video",
+        "content_ref": "111",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 3,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Windows toolkit quiz is the broadest Week 3 Windows assessment."
+        },
+        "title": "Upgrading Windows"
+      },
+      {
+        "stable_id": "week-3-video-112",
+        "activity_type": "video",
+        "content_ref": "112",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 3,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Windows toolkit quiz is the broadest Week 3 Windows assessment."
+        },
+        "title": "An Overview of Windows"
+      },
+      {
+        "stable_id": "week-3-video-113",
+        "activity_type": "video",
+        "content_ref": "113",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 3,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Windows toolkit quiz is the broadest Week 3 Windows assessment."
+        },
+        "title": "Windows Features"
+      },
+      {
+        "stable_id": "week-3-video-114",
+        "activity_type": "video",
+        "content_ref": "114",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 3,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Investigator's Toolkit assesses Task Manager, MMC/service, Event Viewer, and diagnostic-tool use."
+        },
+        "title": "Task Manager"
+      },
+      {
+        "stable_id": "week-3-video-115",
+        "activity_type": "video",
+        "content_ref": "115",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 3,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Investigator's Toolkit assesses Task Manager, MMC/service, Event Viewer, and diagnostic-tool use."
+        },
+        "title": "The Microsoft Management Console"
+      },
+      {
+        "stable_id": "week-3-video-116",
+        "activity_type": "video",
+        "content_ref": "116",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 3,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Investigator's Toolkit assesses Task Manager, MMC/service, Event Viewer, and diagnostic-tool use."
+        },
+        "title": "Additional Windows Tools"
+      },
+      {
+        "stable_id": "week-3-video-117",
+        "activity_type": "video",
+        "content_ref": "117",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 4,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Windows Command-Line Diagnostics directly assesses the commands taught by these videos."
+        },
+        "title": "Windows Command Line Tools"
+      },
+      {
+        "stable_id": "week-3-video-118",
+        "activity_type": "video",
+        "content_ref": "118",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 4,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Windows Command-Line Diagnostics directly assesses the commands taught by these videos."
+        },
+        "title": "The Windows Network Command Line"
+      },
+      {
+        "stable_id": "week-3-video-119",
+        "activity_type": "video",
+        "content_ref": "119",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 3,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Windows toolkit quiz is the broadest Week 3 Windows assessment."
+        },
+        "title": "The Windows Control Panel"
+      },
+      {
+        "stable_id": "week-3-video-120",
+        "activity_type": "video",
+        "content_ref": "120",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 3,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Windows toolkit quiz is the broadest Week 3 Windows assessment."
+        },
+        "title": "Windows Settings"
+      },
+      {
+        "stable_id": "week-3-video-131",
+        "activity_type": "video",
+        "content_ref": "131",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 3,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Windows toolkit quiz is the broadest Week 3 Windows assessment."
+        },
+        "title": "Installing Applications"
+      },
+      {
+        "stable_id": "week-3-quiz-2",
+        "activity_type": "quiz",
+        "content_ref": "2",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Windows Accounts and Permissions"
+      },
+      {
+        "stable_id": "week-3-quiz-3",
+        "activity_type": "quiz",
+        "content_ref": "3",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "The Investigator's Toolkit"
+      },
+      {
+        "stable_id": "week-3-quiz-4",
+        "activity_type": "quiz",
+        "content_ref": "4",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Windows Command-Line Diagnostics"
+      },
+      {
+        "stable_id": "week-3-guided_lab-3",
+        "activity_type": "guided_lab",
+        "content_ref": "3",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Windows Command-Line Diagnostics"
+      },
+      {
+        "stable_id": "week-3-service_desk_scenario-inc2501",
+        "activity_type": "service_desk_scenario",
+        "content_ref": "inc2501",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "My Desktop and Documents have disappeared"
+      }
+    ]
+  },
+  {
+    "week_number": 4,
+    "title": "Working the Queue",
+    "description": "Work the queue by business impact and urgency, then communicate a safe next step without overpromising.",
+    "learning_goals": "[\"P1 is a broad outage with no workaround; P2 is major degradation; P3 is a limited interruption; P4 is a routine request.\", \"A workaround lowers urgency, while the number of affected users raises impact.\", \"An incident restores broken service; a service request asks for something new; risky changes and unauthorized access must be escalated.\", \"A useful handoff records the current state, evidence, exact next step, and any promised update time.\"]",
+    "estimated_minutes": 150,
+    "activities": [
+      {
+        "stable_id": "week-4-lesson-11",
+        "activity_type": "lesson",
+        "content_ref": "11",
+        "is_required": 1,
+        "estimated_minutes": 35,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Priority, Impact, and Not Making It Worse"
+      },
+      {
+        "stable_id": "week-4-lesson-12",
+        "activity_type": "lesson",
+        "content_ref": "12",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Talking to Humans"
+      },
+      {
+        "stable_id": "week-4-video-169",
+        "activity_type": "video",
+        "content_ref": "169",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 5,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Change control, policy/authorization, escalation, and remote support are assessed by Help-Desk Operations."
+        },
+        "title": "Change Management"
+      },
+      {
+        "stable_id": "week-4-video-175",
+        "activity_type": "video",
+        "content_ref": "175",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 5,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Change control, policy/authorization, escalation, and remote support are assessed by Help-Desk Operations."
+        },
+        "title": "Privacy, Licensing, and Policies"
+      },
+      {
+        "stable_id": "week-4-video-180",
+        "activity_type": "video",
+        "content_ref": "180",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 5,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Change control, policy/authorization, escalation, and remote support are assessed by Help-Desk Operations."
+        },
+        "title": "Remote Access"
+      },
+      {
+        "stable_id": "week-4-quiz-5",
+        "activity_type": "quiz",
+        "content_ref": "5",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Help-Desk Operations"
+      },
+      {
+        "stable_id": "week-4-guided_lab-6",
+        "activity_type": "guided_lab",
+        "content_ref": "6",
+        "is_required": 1,
+        "estimated_minutes": 20,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Prioritize the Queue"
+      },
+      {
+        "stable_id": "week-4-guided_lab-39",
+        "activity_type": "guided_lab",
+        "content_ref": "39",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "learning_role": "troubleshoot"
+        },
+        "title": "Work the Queue: Three Tickets"
+      }
+    ]
+  },
+  {
+    "week_number": 5,
+    "title": "Windows and Hardware Troubleshooting",
+    "description": "Isolate Windows startup, application, and disk problems with the least destructive useful test.",
+    "learning_goals": "[\"If normal boot fails but Safe Mode works, investigate a recent driver, startup app, or third-party service.\", \"Event 1000 identifies an application crash module; a hang while opening a network file may be a network problem wearing an app symptom.\", \"Test another Windows user to separate per-user configuration from a machine-wide application failure.\", \"Measure what consumes disk space, use approved cleanup tools, and verify both the space recovered and the cause.\"]",
+    "estimated_minutes": 300,
+    "activities": [
+      {
+        "stable_id": "week-5-lesson-13",
+        "activity_type": "lesson",
+        "content_ref": "13",
+        "is_required": 0,
+        "estimated_minutes": 90,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Startup Failures and Recovery Options"
+      },
+      {
+        "stable_id": "week-5-lesson-14",
+        "activity_type": "lesson",
+        "content_ref": "14",
+        "is_required": 0,
+        "estimated_minutes": 75,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Application Crashes and Hangs"
+      },
+      {
+        "stable_id": "week-5-lesson-15",
+        "activity_type": "lesson",
+        "content_ref": "15",
+        "is_required": 0,
+        "estimated_minutes": 60,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Disk-Space Incidents"
+      },
+      {
+        "stable_id": "week-5-video-57",
+        "activity_type": "video",
+        "content_ref": "57",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "exact",
+          "quiz_mapping_confidence": "Exact",
+          "quiz_mapping_evidence": "Existing video.quiz_title exactly matches approved Core PC Hardware Troubleshooting Quiz."
+        },
+        "title": "Troubleshooting Hardware"
+      },
+      {
+        "stable_id": "week-5-video-58",
+        "activity_type": "video",
+        "content_ref": "58",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Storage, display, and mobile-hardware symptoms are part of broad PC hardware troubleshooting."
+        },
+        "title": "Troubleshooting Storage Devices"
+      },
+      {
+        "stable_id": "week-5-video-59",
+        "activity_type": "video",
+        "content_ref": "59",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Storage, display, and mobile-hardware symptoms are part of broad PC hardware troubleshooting."
+        },
+        "title": "Troubleshooting Display Issues"
+      },
+      {
+        "stable_id": "week-5-video-60",
+        "activity_type": "video",
+        "content_ref": "60",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 78,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Storage, display, and mobile-hardware symptoms are part of broad PC hardware troubleshooting."
+        },
+        "title": "Troubleshooting Mobile Devices"
+      },
+      {
+        "stable_id": "week-5-video-125",
+        "activity_type": "video",
+        "content_ref": "125",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 6,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "Windows Deep Troubleshooting is the approved Week 5 troubleshooting assessment; no approved macOS quiz exists."
+        },
+        "title": "macOS Overview"
+      },
+      {
+        "stable_id": "week-5-video-126",
+        "activity_type": "video",
+        "content_ref": "126",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 6,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "Windows Deep Troubleshooting is the approved Week 5 troubleshooting assessment; no approved macOS quiz exists."
+        },
+        "title": "macOS System Preferences"
+      },
+      {
+        "stable_id": "week-5-video-127",
+        "activity_type": "video",
+        "content_ref": "127",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 6,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "Windows Deep Troubleshooting is the approved Week 5 troubleshooting assessment; no approved macOS quiz exists."
+        },
+        "title": "macOS Features"
+      },
+      {
+        "stable_id": "week-5-video-162",
+        "activity_type": "video",
+        "content_ref": "162",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 6,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Windows troubleshooting quiz assesses startup, application, and device/app fault isolation."
+        },
+        "title": "Troubleshooting Windows"
+      },
+      {
+        "stable_id": "week-5-video-163",
+        "activity_type": "video",
+        "content_ref": "163",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 6,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Windows troubleshooting quiz assesses startup, application, and device/app fault isolation."
+        },
+        "title": "Troubleshooting Mobile Devices"
+      },
+      {
+        "stable_id": "week-5-video-164",
+        "activity_type": "video",
+        "content_ref": "164",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 8,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Endpoint Security assesses malware, credential compromise, firewall, and safe response."
+        },
+        "title": "Troubleshooting Mobile Device Security"
+      },
+      {
+        "stable_id": "week-5-video-165",
+        "activity_type": "video",
+        "content_ref": "165",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 8,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Endpoint Security assesses malware, credential compromise, firewall, and safe response."
+        },
+        "title": "Troubleshooting Security Issues"
+      },
+      {
+        "stable_id": "week-5-quiz-6",
+        "activity_type": "quiz",
+        "content_ref": "6",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Windows Deep Troubleshooting"
+      },
+      {
+        "stable_id": "week-5-guided_lab-7",
+        "activity_type": "guided_lab",
+        "content_ref": "7",
+        "is_required": 1,
+        "estimated_minutes": 25,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "learning_role": "troubleshoot"
+        },
+        "title": "Isolate the Windows Failure"
+      },
+      {
+        "stable_id": "week-5-service_desk_scenario-inc2502",
+        "activity_type": "service_desk_scenario",
+        "content_ref": "inc2502",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Excel closes when I work on the monthly report"
+      },
+      {
+        "stable_id": "week-5-video-62",
+        "activity_type": "video",
+        "content_ref": "62",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 6,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Printer fault isolation supports the Windows troubleshooting assessment."
+        },
+        "title": "Troubleshooting Printers"
+      }
+    ]
+  },
+  {
+    "week_number": 6,
+    "title": "Accounts and Permissions",
+    "description": "Resolve account and file-access requests without bypassing identity checks, approval, or least privilege.",
+    "learning_goals": "[\"Verify identity before a password reset, and investigate the saved credential that causes a recurring lockout.\", \"Remote file access uses both share and NTFS permissions; the most restrictive effective result wins.\", \"After a group change, sign out and back in so Windows creates a fresh access token.\", \"Urgency is not authorization: package sensitive access requests with the business reason and approver, then escalate.\"]",
+    "estimated_minutes": 210,
+    "activities": [
+      {
+        "stable_id": "week-6-lesson-16",
+        "activity_type": "lesson",
+        "content_ref": "16",
+        "is_required": 0,
+        "estimated_minutes": 75,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Account Lifecycle Support"
+      },
+      {
+        "stable_id": "week-6-lesson-17",
+        "activity_type": "lesson",
+        "content_ref": "17",
+        "is_required": 0,
+        "estimated_minutes": 90,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "NTFS vs Share Permissions, For Real"
+      },
+      {
+        "stable_id": "week-6-lesson-18",
+        "activity_type": "lesson",
+        "content_ref": "18",
+        "is_required": 0,
+        "estimated_minutes": 45,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Access Requests and the Escalation Rail"
+      },
+      {
+        "stable_id": "week-6-video-139",
+        "activity_type": "video",
+        "content_ref": "139",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 7,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Windows security settings support the account, share, and effective-permission objectives."
+        },
+        "title": "Windows Security Settings"
+      },
+      {
+        "stable_id": "week-6-quiz-7",
+        "activity_type": "quiz",
+        "content_ref": "7",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Accounts and Permissions in Practice"
+      },
+      {
+        "stable_id": "week-6-guided_lab-8",
+        "activity_type": "guided_lab",
+        "content_ref": "8",
+        "is_required": 1,
+        "estimated_minutes": 25,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "learning_role": "troubleshoot"
+        },
+        "title": "Make the Safe Access Decision"
+      },
+      {
+        "stable_id": "week-6-service_desk_scenario-password-reset",
+        "activity_type": "service_desk_scenario",
+        "content_ref": "password-reset",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Sign-in stops before the desktop loads"
+      },
+      {
+        "stable_id": "week-6-service_desk_scenario-inc2505",
+        "activity_type": "service_desk_scenario",
+        "content_ref": "inc2505",
+        "is_required": 0,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "I cannot open the team folder"
+      }
+    ]
+  },
+  {
+    "week_number": 7,
+    "title": "Endpoint Security",
+    "description": "Recognize endpoint threats, contain risk without destroying evidence, and escalate at the right moment.",
+    "learning_goals": "[\"For active compromise: disconnect the network, keep power on, preserve what the user saw, and escalate with a timeline.\", \"If credentials entered a fake page, reset them from a trusted device and revoke active sessions immediately.\", \"Defender Protection History records the detection and action; quick, full, and offline scans serve different levels of suspicion.\", \"Turning off the firewall can isolate a cause, but it is never the final fix; restore it and use the narrow approved rule.\"]",
+    "estimated_minutes": 300,
+    "activities": [
+      {
+        "stable_id": "week-7-lesson-19",
+        "activity_type": "lesson",
+        "content_ref": "19",
+        "is_required": 0,
+        "estimated_minutes": 75,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Defender and the Windows Firewall"
+      },
+      {
+        "stable_id": "week-7-lesson-20",
+        "activity_type": "lesson",
+        "content_ref": "20",
+        "is_required": 0,
+        "estimated_minutes": 90,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Malware Response and Phishing Triage"
+      },
+      {
+        "stable_id": "week-7-lesson-21",
+        "activity_type": "lesson",
+        "content_ref": "21",
+        "is_required": 0,
+        "estimated_minutes": 75,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Remote Desktop and Remote Support"
+      },
+      {
+        "stable_id": "week-7-video-133",
+        "activity_type": "video",
+        "content_ref": "133",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 8,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Endpoint Security quiz assesses malware, phishing, firewall, Defender, and safe response."
+        },
+        "title": "Physical Security"
+      },
+      {
+        "stable_id": "week-7-video-134",
+        "activity_type": "video",
+        "content_ref": "134",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 8,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Endpoint Security quiz assesses malware, phishing, firewall, Defender, and safe response."
+        },
+        "title": "Physical Access Security"
+      },
+      {
+        "stable_id": "week-7-video-137",
+        "activity_type": "video",
+        "content_ref": "137",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 8,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Endpoint Security quiz assesses malware, phishing, firewall, Defender, and safe response."
+        },
+        "title": "Defender Antivirus"
+      },
+      {
+        "stable_id": "week-7-video-138",
+        "activity_type": "video",
+        "content_ref": "138",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 8,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Endpoint Security quiz assesses malware, phishing, firewall, Defender, and safe response."
+        },
+        "title": "Windows Firewall"
+      },
+      {
+        "stable_id": "week-7-video-143",
+        "activity_type": "video",
+        "content_ref": "143",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 8,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Endpoint Security quiz assesses malware, phishing, firewall, Defender, and safe response."
+        },
+        "title": "Malware"
+      },
+      {
+        "stable_id": "week-7-video-144",
+        "activity_type": "video",
+        "content_ref": "144",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 8,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Endpoint Security quiz assesses malware, phishing, firewall, Defender, and safe response."
+        },
+        "title": "Anti-malware Tools"
+      },
+      {
+        "stable_id": "week-7-video-156",
+        "activity_type": "video",
+        "content_ref": "156",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 8,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Endpoint Security quiz assesses malware, phishing, firewall, Defender, and safe response."
+        },
+        "title": "Removing Malware"
+      },
+      {
+        "stable_id": "week-7-video-157",
+        "activity_type": "video",
+        "content_ref": "157",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 8,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Endpoint Security quiz assesses malware, phishing, firewall, Defender, and safe response."
+        },
+        "title": "Security Best Practices"
+      },
+      {
+        "stable_id": "week-7-video-158",
+        "activity_type": "video",
+        "content_ref": "158",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 8,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Endpoint Security quiz assesses malware, phishing, firewall, Defender, and safe response."
+        },
+        "title": "Mobile Device Security"
+      },
+      {
+        "stable_id": "week-7-quiz-8",
+        "activity_type": "quiz",
+        "content_ref": "8",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Endpoint Security and Remote Support"
+      },
+      {
+        "stable_id": "week-7-guided_lab-9",
+        "activity_type": "guided_lab",
+        "content_ref": "9",
+        "is_required": 1,
+        "estimated_minutes": 25,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "learning_role": "troubleshoot"
+        },
+        "title": "Choose the Safe Endpoint Response"
+      },
+      {
+        "stable_id": "week-7-service_desk_scenario-inc2508",
+        "activity_type": "service_desk_scenario",
+        "content_ref": "inc2508",
+        "is_required": 0,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "I may have used a fake sign-in page"
+      },
+      {
+        "stable_id": "week-7-video-5",
+        "activity_type": "video",
+        "content_ref": "5",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 8,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Mobile-device management supports the endpoint security and policy objectives."
+        },
+        "title": "Mobile Device Management"
+      }
+    ]
+  },
+  {
+    "week_number": 8,
+    "title": "Client Networking",
+    "description": "Use a repeatable command sequence to separate local, upstream, and DNS failures on a Windows client.",
+    "learning_goals": "[\"Start with ipconfig /all: 169.254 means DHCP failed; a missing or off-subnet gateway blocks remote traffic.\", \"Ping the gateway, then 1.1.1.1, then a hostname so each result narrows the fault domain.\", \"If an alternate resolver works while the configured resolver fails, diagnose the configured DNS server or client setting.\", \"Do not hide DHCP failure with an unmanaged static address; it can create a later address conflict.\"]",
+    "estimated_minutes": 300,
+    "activities": [
+      {
+        "stable_id": "week-8-lesson-22",
+        "activity_type": "lesson",
+        "content_ref": "22",
+        "is_required": 0,
+        "estimated_minutes": 90,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "The Client-Side Network Triage Tree"
+      },
+      {
+        "stable_id": "week-8-lesson-23",
+        "activity_type": "lesson",
+        "content_ref": "23",
+        "is_required": 0,
+        "estimated_minutes": 60,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Network Printing Without Tears"
+      },
+      {
+        "stable_id": "week-8-lesson-24",
+        "activity_type": "lesson",
+        "content_ref": "24",
+        "is_required": 0,
+        "estimated_minutes": 60,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Running a Real Queue"
+      },
+      {
+        "stable_id": "week-8-video-6",
+        "activity_type": "video",
+        "content_ref": "6",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Client Network Triage quiz assesses addressing, DNS, DHCP, tools, firewall, and network fault domains."
+        },
+        "title": "Introduction to IP"
+      },
+      {
+        "stable_id": "week-8-video-7",
+        "activity_type": "video",
+        "content_ref": "7",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Client Network Triage quiz assesses addressing, DNS, DHCP, tools, firewall, and network fault domains."
+        },
+        "title": "Common Ports"
+      },
+      {
+        "stable_id": "week-8-video-8",
+        "activity_type": "video",
+        "content_ref": "8",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Client Network Triage quiz assesses addressing, DNS, DHCP, tools, firewall, and network fault domains."
+        },
+        "title": "Wireless Network Technologies"
+      },
+      {
+        "stable_id": "week-8-video-16",
+        "activity_type": "video",
+        "content_ref": "16",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Client Network Triage quiz assesses addressing, DNS, DHCP, tools, firewall, and network fault domains."
+        },
+        "title": "Internet Connection Types"
+      },
+      {
+        "stable_id": "week-8-video-17",
+        "activity_type": "video",
+        "content_ref": "17",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Client Network Triage quiz assesses addressing, DNS, DHCP, tools, firewall, and network fault domains."
+        },
+        "title": "Network Types"
+      },
+      {
+        "stable_id": "week-8-video-18",
+        "activity_type": "video",
+        "content_ref": "18",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Client Network Triage quiz assesses addressing, DNS, DHCP, tools, firewall, and network fault domains."
+        },
+        "title": "Network Tools"
+      },
+      {
+        "stable_id": "week-8-video-61",
+        "activity_type": "video",
+        "content_ref": "61",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Client Network Triage quiz assesses addressing, DNS, DHCP, tools, firewall, and network fault domains."
+        },
+        "title": "Troubleshooting Networks"
+      },
+      {
+        "stable_id": "week-8-video-121",
+        "activity_type": "video",
+        "content_ref": "121",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Client Network Triage quiz assesses addressing, DNS, DHCP, tools, firewall, and network fault domains."
+        },
+        "title": "Windows Network Technologies"
+      },
+      {
+        "stable_id": "week-8-video-122",
+        "activity_type": "video",
+        "content_ref": "122",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Client Network Triage quiz assesses addressing, DNS, DHCP, tools, firewall, and network fault domains."
+        },
+        "title": "Configuring Windows Firewall"
+      },
+      {
+        "stable_id": "week-8-video-123",
+        "activity_type": "video",
+        "content_ref": "123",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Client Network Triage quiz assesses addressing, DNS, DHCP, tools, firewall, and network fault domains."
+        },
+        "title": "Windows IP Address Configuration"
+      },
+      {
+        "stable_id": "week-8-video-124",
+        "activity_type": "video",
+        "content_ref": "124",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "The Client Network Triage quiz assesses addressing, DNS, DHCP, tools, firewall, and network fault domains."
+        },
+        "title": "Windows Network Connections"
+      },
+      {
+        "stable_id": "week-8-quiz-9",
+        "activity_type": "quiz",
+        "content_ref": "9",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Client Network Triage"
+      },
+      {
+        "stable_id": "week-8-guided_lab-2",
+        "activity_type": "guided_lab",
+        "content_ref": "2",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "learning_role": "troubleshoot"
+        },
+        "title": "Diagnose the Client Network"
+      },
+      {
+        "stable_id": "week-8-service_desk_scenario-inc2407",
+        "activity_type": "service_desk_scenario",
+        "content_ref": "inc2407",
+        "is_required": 0,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Internal sites fail while IP connectivity still works"
+      },
+      {
+        "stable_id": "week-8-capstone-2",
+        "activity_type": "capstone",
+        "content_ref": "2",
+        "is_required": 0,
+        "estimated_minutes": 240,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {}
+      },
+      {
+        "stable_id": "week-8-video-2",
+        "activity_type": "video",
+        "content_ref": "2",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Mobile connectivity and mobile networking support the Client Network Triage objectives."
+        },
+        "title": "Connecting Mobile Devices"
+      },
+      {
+        "stable_id": "week-8-video-4",
+        "activity_type": "video",
+        "content_ref": "4",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 9,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Mobile connectivity and mobile networking support the Client Network Triage objectives."
+        },
+        "title": "Mobile Device Networks"
+      }
+    ]
+  },
+  {
+    "week_number": 9,
+    "title": "IP Addressing and Packet Flow",
+    "description": "Read an IPv4 address and mask well enough to spot a bad gateway, find the subnet, and avoid assigning network or broadcast addresses.",
+    "learning_goals": "[\"Hosts on the same subnet use ARP and switch directly; different subnets send traffic to the default gateway.\", \"/24 has 254 usable hosts; /25 splits the last octet in half; /26 uses blocks of 64; /27 uses 32; /28 uses 16.\", \"Network is the first address in a block, broadcast is the last, and usable hosts sit between them.\", \"For entry-level support, use block size to answer 'same subnet?' and validate a static address\\u2014not to design a complex VLSM plan.\"]",
+    "estimated_minutes": 240,
+    "activities": [
+      {
+        "stable_id": "week-9-lesson-25",
+        "activity_type": "lesson",
+        "content_ref": "25",
+        "is_required": 0,
+        "estimated_minutes": 90,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "IPv4 Addressing You Can Reason With"
+      },
+      {
+        "stable_id": "week-9-lesson-26",
+        "activity_type": "lesson",
+        "content_ref": "26",
+        "is_required": 0,
+        "estimated_minutes": 120,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Practical Subnetting for Support"
+      },
+      {
+        "stable_id": "week-9-lesson-27",
+        "activity_type": "lesson",
+        "content_ref": "27",
+        "is_required": 0,
+        "estimated_minutes": 90,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "ARP, MAC Learning, and Packet Flow"
+      },
+      {
+        "stable_id": "week-9-video-14",
+        "activity_type": "video",
+        "content_ref": "14",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 10,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "IPv4 Addressing and Subnetting directly assesses the addressing concepts in these videos."
+        },
+        "title": "IPv4 and IPv6"
+      },
+      {
+        "stable_id": "week-9-video-15",
+        "activity_type": "video",
+        "content_ref": "15",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 10,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "IPv4 Addressing and Subnetting directly assesses the addressing concepts in these videos."
+        },
+        "title": "Assigning IP Addresses"
+      },
+      {
+        "stable_id": "week-9-quiz-10",
+        "activity_type": "quiz",
+        "content_ref": "10",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "IPv4 Addressing and Subnetting"
+      },
+      {
+        "stable_id": "week-9-quiz-11",
+        "activity_type": "quiz",
+        "content_ref": "11",
+        "is_required": 0,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Packet Flow, ARP, and MAC Learning"
+      },
+      {
+        "stable_id": "week-9-networking_lab-dev-nf-encap-001",
+        "activity_type": "networking_lab",
+        "content_ref": "dev-nf-encap-001",
+        "is_required": 0,
+        "estimated_minutes": 8,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "no such table: cli_labs"
+      },
+      {
+        "stable_id": "week-9-networking_lab-dev-nf-checkpoint-001",
+        "activity_type": "networking_lab",
+        "content_ref": "dev-nf-checkpoint-001",
+        "is_required": 0,
+        "estimated_minutes": 10,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "no such table: cli_labs"
+      },
+      {
+        "stable_id": "week-9-guided_lab-1",
+        "activity_type": "guided_lab",
+        "content_ref": "1",
+        "is_required": 1,
+        "estimated_minutes": 25,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "IP Addressing & Subnetting Practice"
+      }
+    ]
+  },
+  {
+    "week_number": 10,
+    "title": "Switching and VLAN Basics",
+    "description": "Read switch state, recover a disabled port, and place an access port in the correct VLAN using the existing Cisco CLI simulator.",
+    "learning_goals": "[\"The prompt shows the CLI mode: > user, # privileged, (config)# global configuration, and (config-if)# interface configuration.\", \"Use show interfaces status and show vlan brief before changing a port, then run no shutdown only when the evidence supports it.\", \"An access port belongs to one VLAN; a device moved to a port in the wrong VLAN may receive the wrong subnet or no lease.\", \"Use change \\u2192 verify \\u2192 save so a working running-config survives reboot.\"]",
+    "estimated_minutes": 300,
+    "activities": [
+      {
+        "stable_id": "week-10-lesson-28",
+        "activity_type": "lesson",
+        "content_ref": "28",
+        "is_required": 0,
+        "estimated_minutes": 90,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Cisco CLI Modes and Verification"
+      },
+      {
+        "stable_id": "week-10-lesson-29",
+        "activity_type": "lesson",
+        "content_ref": "29",
+        "is_required": 0,
+        "estimated_minutes": 90,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "VLANs and Access Ports"
+      },
+      {
+        "stable_id": "week-10-lesson-30",
+        "activity_type": "lesson",
+        "content_ref": "30",
+        "is_required": 0,
+        "estimated_minutes": 75,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Interface Status and Basic Port Troubleshooting"
+      },
+      {
+        "stable_id": "week-10-video-12",
+        "activity_type": "video",
+        "content_ref": "12",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 12,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Cisco CLI, VLANs, and Interfaces assesses VLAN and switching-device behavior."
+        },
+        "title": "VLANs and VPNs"
+      },
+      {
+        "stable_id": "week-10-video-13",
+        "activity_type": "video",
+        "content_ref": "13",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 12,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Cisco CLI, VLANs, and Interfaces assesses VLAN and switching-device behavior."
+        },
+        "title": "Network Devices"
+      },
+      {
+        "stable_id": "week-10-video-21",
+        "activity_type": "video",
+        "content_ref": "21",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 12,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Week 10 networking quiz is broader than individual cable and connector videos."
+        },
+        "title": "Network Cables"
+      },
+      {
+        "stable_id": "week-10-video-22",
+        "activity_type": "video",
+        "content_ref": "22",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 12,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Week 10 networking quiz is broader than individual cable and connector videos."
+        },
+        "title": "568A and 568B Colors"
+      },
+      {
+        "stable_id": "week-10-video-23",
+        "activity_type": "video",
+        "content_ref": "23",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 12,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Week 10 networking quiz is broader than individual cable and connector videos."
+        },
+        "title": "Optical Fiber"
+      },
+      {
+        "stable_id": "week-10-video-24",
+        "activity_type": "video",
+        "content_ref": "24",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 12,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Week 10 networking quiz is broader than individual cable and connector videos."
+        },
+        "title": "Peripheral Cables"
+      },
+      {
+        "stable_id": "week-10-video-25",
+        "activity_type": "video",
+        "content_ref": "25",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 12,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Week 10 networking quiz is broader than individual cable and connector videos."
+        },
+        "title": "Video Cables"
+      },
+      {
+        "stable_id": "week-10-video-26",
+        "activity_type": "video",
+        "content_ref": "26",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 12,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Week 10 networking quiz is broader than individual cable and connector videos."
+        },
+        "title": "Storage Cables"
+      },
+      {
+        "stable_id": "week-10-video-27",
+        "activity_type": "video",
+        "content_ref": "27",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 12,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Week 10 networking quiz is broader than individual cable and connector videos."
+        },
+        "title": "Adapters and Converters"
+      },
+      {
+        "stable_id": "week-10-video-28",
+        "activity_type": "video",
+        "content_ref": "28",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 12,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Week 10 networking quiz is broader than individual cable and connector videos."
+        },
+        "title": "Copper Connectors"
+      },
+      {
+        "stable_id": "week-10-video-29",
+        "activity_type": "video",
+        "content_ref": "29",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 12,
+          "quiz_mapping_basis": "week_fallback",
+          "quiz_mapping_confidence": "Week-level fallback",
+          "quiz_mapping_evidence": "The approved Week 10 networking quiz is broader than individual cable and connector videos."
+        },
+        "title": "Fiber Connectors"
+      },
+      {
+        "stable_id": "week-10-quiz-12",
+        "activity_type": "quiz",
+        "content_ref": "12",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Cisco CLI, VLANs, and Interfaces"
+      },
+      {
+        "stable_id": "week-10-networking_lab-dev-sw-act-01",
+        "activity_type": "networking_lab",
+        "content_ref": "dev-sw-act-01",
+        "is_required": 0,
+        "estimated_minutes": 7,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "no such table: cli_labs"
+      },
+      {
+        "stable_id": "week-10-networking_lab-dev-sw-act-04",
+        "activity_type": "networking_lab",
+        "content_ref": "dev-sw-act-04",
+        "is_required": 0,
+        "estimated_minutes": 7,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "_0062_optionalized_from_required": true
+        },
+        "title": "no such table: cli_labs"
+      },
+      {
+        "stable_id": "week-10-networking_lab-dev-sw-act-09",
+        "activity_type": "networking_lab",
+        "content_ref": "dev-sw-act-09",
+        "is_required": 0,
+        "estimated_minutes": 12,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "no such table: cli_labs"
+      },
+      {
+        "stable_id": "week-10-networking_lab-dev-sw-act-14",
+        "activity_type": "networking_lab",
+        "content_ref": "dev-sw-act-14",
+        "is_required": 0,
+        "estimated_minutes": 8,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "no such table: cli_labs"
+      },
+      {
+        "stable_id": "week-10-networking_lab-dev-sw-act-18",
+        "activity_type": "networking_lab",
+        "content_ref": "dev-sw-act-18",
+        "is_required": 0,
+        "estimated_minutes": 8,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "_0062_optionalized_from_required": true
+        },
+        "title": "no such table: cli_labs"
+      }
+    ]
+  },
+  {
+    "week_number": 11,
+    "title": "Routing and Network Services",
+    "description": "Trace a network-service failure across VLAN trunks, gateways, DHCP relay, routing, and DNS.",
+    "learning_goals": "[\"An access port carries one VLAN; a trunk carries tagged VLANs, and both ends must agree on allowed and native VLANs.\", \"Same-VLAN traffic is switched; traffic to another subnet needs a reachable gateway, an up router/SVI interface, and a route.\", \"A whole VLAN getting APIPA while other VLANs work points to that VLAN's DHCP relay/helper path.\", \"IP works but names fail means gather DNS evidence; do not call it a total network outage.\"]",
+    "estimated_minutes": 270,
+    "activities": [
+      {
+        "stable_id": "week-11-lesson-31",
+        "activity_type": "lesson",
+        "content_ref": "31",
+        "is_required": 0,
+        "estimated_minutes": 90,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Trunks and the Native VLAN"
+      },
+      {
+        "stable_id": "week-11-lesson-32",
+        "activity_type": "lesson",
+        "content_ref": "32",
+        "is_required": 0,
+        "estimated_minutes": 90,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Inter-VLAN Routing and Static Routes"
+      },
+      {
+        "stable_id": "week-11-lesson-33",
+        "activity_type": "lesson",
+        "content_ref": "33",
+        "is_required": 0,
+        "estimated_minutes": 75,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "DHCP Relay, NAT, Firewall, VPN, and Wireless \u2014 Awareness"
+      },
+      {
+        "stable_id": "week-11-video-9",
+        "activity_type": "video",
+        "content_ref": "9",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 13,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Trunks, Routing, and Network Services directly assesses DHCP, DNS, routing, and network services."
+        },
+        "title": "Network Services"
+      },
+      {
+        "stable_id": "week-11-video-10",
+        "activity_type": "video",
+        "content_ref": "10",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 13,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Trunks, Routing, and Network Services directly assesses DHCP, DNS, routing, and network services."
+        },
+        "title": "DNS Configuration"
+      },
+      {
+        "stable_id": "week-11-video-11",
+        "activity_type": "video",
+        "content_ref": "11",
+        "is_required": 1,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 13,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Trunks, Routing, and Network Services directly assesses DHCP, DNS, routing, and network services."
+        },
+        "title": "DHCP"
+      },
+      {
+        "stable_id": "week-11-quiz-13",
+        "activity_type": "quiz",
+        "content_ref": "13",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Trunks, Routing, and Network Services"
+      },
+      {
+        "stable_id": "week-11-networking_lab-dev-sw-act-23",
+        "activity_type": "networking_lab",
+        "content_ref": "dev-sw-act-23",
+        "is_required": 0,
+        "estimated_minutes": 12,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "no such table: cli_labs"
+      },
+      {
+        "stable_id": "week-11-networking_lab-exam-first-switch",
+        "activity_type": "networking_lab",
+        "content_ref": "exam-first-switch",
+        "is_required": 0,
+        "estimated_minutes": 10,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "no such table: cli_labs"
+      },
+      {
+        "stable_id": "week-11-guided_lab-10",
+        "activity_type": "guided_lab",
+        "content_ref": "10",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "learning_role": "troubleshoot"
+        },
+        "title": "Trace the Network Service Failure"
+      }
+    ]
+  },
+  {
+    "week_number": 12,
+    "title": "Secure Network Administration",
+    "description": "Troubleshoot shared network equipment safely and hand off evidence that another technician can use.",
+    "learning_goals": "[\"Manage switches with encrypted SSH, keep a verified off-device configuration backup, and read logs before changing state.\", \"Err-disabled plus a port-security violation is a security clue: remove or approve the trigger before recovering the port.\", \"Work bottom-up: physical link, VLAN/trunk, addressing/routing, then DNS, firewall, and application.\", \"For shared infrastructure, change one thing, verify it, know the rollback, and escalate broad-impact changes with scope and command evidence.\"]",
+    "estimated_minutes": 240,
+    "activities": [
+      {
+        "stable_id": "week-12-lesson-34",
+        "activity_type": "lesson",
+        "content_ref": "34",
+        "is_required": 0,
+        "estimated_minutes": 90,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Secure Switch Administration"
+      },
+      {
+        "stable_id": "week-12-lesson-35",
+        "activity_type": "lesson",
+        "content_ref": "35",
+        "is_required": 0,
+        "estimated_minutes": 90,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Structured Network Troubleshooting"
+      },
+      {
+        "stable_id": "week-12-video-141",
+        "activity_type": "video",
+        "content_ref": "141",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 14,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Secure network administration assesses authentication, SSH, port security, and SOHO controls."
+        },
+        "title": "Wireless Encryption"
+      },
+      {
+        "stable_id": "week-12-video-142",
+        "activity_type": "video",
+        "content_ref": "142",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 14,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Secure network administration assesses authentication, SSH, port security, and SOHO controls."
+        },
+        "title": "Authentication Methods"
+      },
+      {
+        "stable_id": "week-12-video-160",
+        "activity_type": "video",
+        "content_ref": "160",
+        "is_required": 0,
+        "estimated_minutes": null,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "quiz_id": 14,
+          "quiz_mapping_basis": "topic_group",
+          "quiz_mapping_confidence": "Strong topical",
+          "quiz_mapping_evidence": "Secure network administration assesses authentication, SSH, port security, and SOHO controls."
+        },
+        "title": "Securing a SOHO Network"
+      },
+      {
+        "stable_id": "week-12-quiz-14",
+        "activity_type": "quiz",
+        "content_ref": "14",
+        "is_required": 1,
+        "estimated_minutes": 15,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "Network Troubleshooting and Secure Admin"
+      },
+      {
+        "stable_id": "week-12-networking_lab-exam-ssh",
+        "activity_type": "networking_lab",
+        "content_ref": "exam-ssh",
+        "is_required": 0,
+        "estimated_minutes": 14,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {},
+        "title": "no such table: cli_labs"
+      },
+      {
+        "stable_id": "week-12-guided_lab-11",
+        "activity_type": "guided_lab",
+        "content_ref": "11",
+        "is_required": 1,
+        "estimated_minutes": 30,
+        "prerequisite_activity_id": null,
+        "prerequisite_mode": "soft",
+        "metadata": {
+          "learning_role": "troubleshoot"
+        },
+        "title": "Make the Safe Network Admin Decision"
+      }
+    ]
+  }
+]

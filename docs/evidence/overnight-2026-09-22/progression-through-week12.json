@@ -1,0 +1,192 @@
+{
+  "type": "isolated progression model audit; required completion records synthesized, not browser completion",
+  "checkpoints": [
+    {
+      "week": 0,
+      "before": 0,
+      "switch_labs_unlocked": false,
+      "required": [
+        "lesson:1",
+        "quiz:42"
+      ],
+      "after": 1,
+      "hybrid_locked": true
+    },
+    {
+      "week": 1,
+      "before": 1,
+      "switch_labs_unlocked": false,
+      "required": [
+        "lesson:2",
+        "lesson:3",
+        "video:176",
+        "video:177",
+        "quiz:1",
+        "networking_lab:meet-cli-001",
+        "service_desk_scenario:locked-user-account"
+      ],
+      "after": 2,
+      "hybrid_locked": true
+    },
+    {
+      "week": 2,
+      "before": 2,
+      "switch_labs_unlocked": false,
+      "required": [
+        "lesson:4",
+        "lesson:5",
+        "lesson:6",
+        "video:30",
+        "video:32",
+        "video:35",
+        "video:36",
+        "video:37",
+        "video:44",
+        "quiz:78",
+        "guided_lab:4",
+        "service_desk_scenario:inc2404"
+      ],
+      "after": 3,
+      "hybrid_locked": true
+    },
+    {
+      "week": 3,
+      "before": 3,
+      "switch_labs_unlocked": false,
+      "required": [
+        "lesson:7",
+        "lesson:8",
+        "lesson:9",
+        "video:117",
+        "video:118",
+        "quiz:2",
+        "quiz:3",
+        "quiz:4",
+        "guided_lab:3",
+        "service_desk_scenario:inc2501"
+      ],
+      "after": 4,
+      "hybrid_locked": true
+    },
+    {
+      "week": 4,
+      "before": 4,
+      "switch_labs_unlocked": false,
+      "required": [
+        "lesson:11",
+        "lesson:12",
+        "video:169",
+        "quiz:5",
+        "guided_lab:6",
+        "guided_lab:39"
+      ],
+      "after": 5,
+      "hybrid_locked": true
+    },
+    {
+      "week": 5,
+      "before": 5,
+      "switch_labs_unlocked": false,
+      "required": [
+        "video:162",
+        "quiz:6",
+        "guided_lab:7",
+        "service_desk_scenario:inc2502"
+      ],
+      "after": 6,
+      "hybrid_locked": true
+    },
+    {
+      "week": 6,
+      "before": 6,
+      "switch_labs_unlocked": false,
+      "required": [
+        "video:139",
+        "quiz:7",
+        "guided_lab:8",
+        "service_desk_scenario:password-reset"
+      ],
+      "after": 7,
+      "hybrid_locked": true
+    },
+    {
+      "week": 7,
+      "before": 7,
+      "switch_labs_unlocked": false,
+      "required": [
+        "video:137",
+        "video:138",
+        "video:143",
+        "quiz:8",
+        "guided_lab:9"
+      ],
+      "after": 8,
+      "hybrid_locked": true
+    },
+    {
+      "week": 8,
+      "before": 8,
+      "switch_labs_unlocked": false,
+      "required": [
+        "video:6",
+        "video:18",
+        "video:61",
+        "video:123",
+        "quiz:9",
+        "guided_lab:2"
+      ],
+      "after": 9,
+      "hybrid_locked": true
+    },
+    {
+      "week": 9,
+      "before": 9,
+      "switch_labs_unlocked": false,
+      "required": [
+        "video:14",
+        "video:15",
+        "quiz:10",
+        "guided_lab:1"
+      ],
+      "after": 10,
+      "hybrid_locked": true
+    },
+    {
+      "week": 10,
+      "before": 10,
+      "switch_labs_unlocked": false,
+      "required": [
+        "video:12",
+        "video:13",
+        "quiz:12"
+      ],
+      "after": 11,
+      "hybrid_locked": true
+    },
+    {
+      "week": 11,
+      "before": 11,
+      "switch_labs_unlocked": true,
+      "required": [
+        "video:9",
+        "video:10",
+        "video:11",
+        "quiz:13",
+        "guided_lab:10"
+      ],
+      "after": 12,
+      "hybrid_locked": true
+    },
+    {
+      "week": 12,
+      "before": 12,
+      "switch_labs_unlocked": true,
+      "required": [
+        "quiz:14",
+        "guided_lab:11"
+      ],
+      "after": 13,
+      "hybrid_locked": true
+    }
+  ]
+}

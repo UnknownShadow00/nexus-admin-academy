@@ -2591,3 +2591,33 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/components/QuizTaker.jsx; frontend/src/components/QuizTaker.test.jsx; backend/app/routers/labs.py; backend/app/services/training_curriculum_seed.py; backend/tests/test_training_curriculum_realignment.py; backend/tests/test_v2_runtime_stabilization.py; tasks/loop-log.md
 - Result: PASS — one frontend and four backend regression cases failed before correction. All 70 frontend tests and 84 focused backend tests now pass; Ruff, compilation, build, npm audit, and manifest pip-audit pass. Distinct instructor video/scenario/capstone assignments keep their identity and metadata; V2 provenance is validated before any retired legacy week-gate exception.
 - Next: Push and run current-head CI. Codex account review quota is exhausted for PR #40, so record any unavailable final automated review as a follow-up; do not merge or deploy.
+
+## [2026-09-22 08:48:33 UTC] Task Completed
+- Task: Complete the evidence-based student experience audit, research, curriculum map, concrete quiz/onboarding/Service Desk specifications, and prelaunch prioritization before product implementation.
+- Files changed: docs/NEXUS_STUDENT_EXPERIENCE_MASTER_AUDIT.md; tasks/loop-log.md
+- Result: PASS — 16 meaningful findings with evidence, reproduction, root cause, implementation concepts, risk, tests, timing, and effort; 0 P0, 6 P1, 9 P2, 1 P3. Browser fault injection confirmed false lesson locks, false missing quiz history, invisible answer focus, and refresh reshuffling. Synthetic isolated progression reached Week 13 with Hybrid disabled.
+- Next: Implement the high-confidence subset, validate it, finish PR #39 CI/review, and write the final overnight report.
+
+## [2026-09-22T09:22:00Z] Task Completed
+- Task: Implement the audited quiz, lesson, notes, orientation, and Progress recovery improvements in an isolated main-based branch, with representative browser/design evidence.
+- Files changed: frontend/src/components/{QuizTaker,QuizReviewScreen,LessonNotes,OrientationPracticePanel}.jsx; frontend/src/pages/{QuizPage,QuizReviewPage,LessonPage,TrainingProgressPage}.jsx; frontend/src/utils/quizDraft.js; frontend unit/browser tests; scripts/e2e/start_local_stack.sh; .github/workflows/ci.yml; docs/NEXUS_STUDENT_EXPERIENCE_MASTER_AUDIT.md; docs/evidence/overnight-2026-09-22/; tasks/loop-log.md
+- Result: PASS for local unit/build/CLI/audit gates: 89 frontend tests, production build, 48 CLI lessons validated, CLI engine sanity, zero npm audit vulnerabilities. All 30 fresh-stack browser checks pass (27 core/recovery + 2 workspace + 1 beginner integrity); remote review is tracked in the final report. Port-collision preflight prevents tests targeting an unrelated server. No production, backend schema, broad curriculum, or Hybrid changes.
+- Next: Finish fresh browser validation, open the quality PR, verify CI/review, check combination with PR #39, and write the final report. Do not merge or deploy.
+
+## [2026-09-22T09:35:00Z] Task Completed
+- Task: Carry PR #39's latest failed-quiz-route regression into the independent student-experience branch.
+- Files changed: frontend/src/components/QuizTaker.test.jsx, tasks/loop-log.md
+- Result: PASS — the quality implementation already clears prior quiz state; the added regression confirms old questions cannot render after the next route fails. All 90 frontend tests pass. GitHub Codex review for PR #40 is unavailable because the account review quota is exhausted.
+- Next: Finish combined validation and final CI/report; obtain an independent review when quota is restored or from a human reviewer. No merge or deployment.
+
+## [2026-09-22T09:43:00Z] Task Completed
+- Task: Prepare and verify an isolated combination of PR #39 b4d5711 and student-experience code ab79185 without merging either PR.
+- Files changed: PR #40's frontend, browser harness, audit, and evidence files applied on PR #39; resolved frontend/src/components/QuizTaker.jsx, frontend/src/components/QuizTaker.test.jsx, and tasks/loop-log.md by retaining the newer quiz implementation/tests and both append-only histories.
+- Result: PASS — 93 frontend tests, 84 focused backend tests, build, npm audit, and all 30 fresh-stack browser checks pass. Fresh migration is 0072; integrity_check is ok with zero foreign-key violations. The model still reaches Week 13, opens the broader switch gate at Week 11, and keeps Hybrid unavailable. No production changes or PR merges.
+- Next: Preserve the combination as a reviewable branch; require an independent review after Codex quota restoration and reconcile PR #40 after PR #39 is accepted. Do not deploy or merge during this run.
+
+## [2026-09-22T09:56:23Z] Task Completed
+- Task: Finish the complete overnight audit and prelaunch handoff, resolve returned PR #39 findings, validate both implementation candidates and their combined application, and preserve safe evidence and follow-ups.
+- Files changed: docs/NEXUS_OVERNIGHT_PRELAUNCH_REPORT.md; docs/NEXUS_STUDENT_EXPERIENCE_MASTER_AUDIT.md; docs/evidence/overnight-2026-09-22/README.md; docs/evidence/overnight-2026-09-22/VALIDATION.md; tasks/loop-log.md
+- Result: PASS for completed audit, scoped fixes, validation, reporting, and safety requirements. PR #39 b4d5711 and PR #40 ab79185 each pass all six CI jobs; full backend CI reports 1,213/1,192 passed respectively, each with 7 skips. Quality frontend: 90 passed. Resolved combination 4fc0193: 93 frontend, 84 focused backend, and 30 fresh-stack browser checks pass. All 19 PR #39 review threads are resolved. Final independent review remains unavailable due account quota, so no final automated approval or merge-ready label is claimed. Disposable stacks/databases/credential-bearing traces removed; original production and Weeks 3–4 worktrees preserved.
+- Next: Verify the documentation-only PR #40 CI rerun; obtain independent review after quota restoration or from a human; use the documented tested conflict resolution when combining PRs; reconcile existing Admin Students work and verify the seven real accounts separately. Do not merge or deploy as part of this task.
