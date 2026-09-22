@@ -26,7 +26,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 REVISION_0060 = "0060_network_linux_cloud_practical_upgrade"
 REVISION_0061 = "0061_integrated_support_prove"
 REVISION_0062 = "0062_beginner_learning_rollout"
-RECONCILED_HEAD = "0072_weeks_3_4_prelaunch_quality"
+RECONCILED_HEAD = "0073_mfa_week7_curriculum_card"
 
 client = make_client(router)
 labs_client = make_client(labs_router)
@@ -121,12 +121,12 @@ def test_migration_upgrade_converts_week_23_24_and_adds_gate(tmp_path):
         assert week2_order[("quiz", "78")] < week2_order[("guided_lab", "4")]
         assert week2_order[("guided_lab", "4")] < week2_order[("service_desk_scenario", "inc2404")]
 
-    assert _active_totals(database_path) == (35, 320, 150, 170)
+    assert _active_totals(database_path) == (35, 321, 150, 171)
     assert _role_counts(database_path) == {
         "learn": 216,
         "check": 38,
         "practice": 21,
-        "troubleshoot": 38,
+        "troubleshoot": 39,
         "prove": 7,
     }
 

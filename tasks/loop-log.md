@@ -2633,3 +2633,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/services/training_curriculum_seed.py; backend/tests/test_training_curriculum_realignment.py; tasks/loop-log.md
 - Result: PASS — the regression reproduced the SQLite unique stable_id failure before the fix. The synchronizer now deletes the recreated canonical legacy activity when its replacement already exists, leaves instructor-owned stable identities untouched, and is a no-op on the following replay. Full backend: 1,218 passed, 2 skipped; 43 affected curriculum/seed/gating/password-migration tests passed; Ruff, compilation, pip check, and manifest pip-audit passed.
 - Next: Push the review fix, require replacement CI on PR #41, resolve the addressed review thread, and stop before merge or deployment.
+
+## 2026-09-22 22:20:06 UTC Task Completed
+- Task: Correct Week 4 MFA curriculum placement and verify the 0072 to 0073 data-only upgrade in an isolated worktree.
+- Files changed: .github/workflows/ci.yml, backend/app/services/training_curriculum_seed.py, backend/seed_curriculum.py, backend/alembic/versions/0073_mfa_week7_curriculum_card.py, backend/tests/test_week4_mfa_card_migration.py, backend/tests/test_service_desk_progression.py, backend/tests/test_training_curriculum_realignment.py, backend/tests/test_orientation_seed.py, backend/tests/test_phase4c3_final_shift.py, backend/tests/test_v2_runtime_migration_0068.py, tasks/loop-log.md
+- Result: pass; 1222 backend tests passed, exact Weeks 3–4 audit passed on fresh and upgraded production-copy data, and migration/history checks passed.
+- Next: Review pull request CI and Codex findings; merge and deploy only after separate approval.
