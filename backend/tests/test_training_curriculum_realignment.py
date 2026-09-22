@@ -736,10 +736,39 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
     assert "safe_fix_or_escalation" not in priority_lesson.summary
     assert "COMMON SERVICE-DESK TERMS" in priority_lesson.summary
 
+    # A normal seed replay runs the older Weeks 1-4 practice synchronizer
+    # before this prelaunch synchronizer. With a historical run on legacy lab
+    # 3, that replay must not leave both the recreated legacy activity and the
+    # replacement activity competing for the replacement stable identity.
+    _add_lab(db, 1, "Legacy Week 1 Lab", 1, "legacy")
+    _add_lab(db, 2, "Legacy Week 2 Lab", 2, "legacy")
+    _add_lab(db, 4, "Hardware Component Identification", 2, "structured_identification")
+    db.commit()
+    practice_replay = sync_weeks_1_4_practice_realignment(db)
+    assert practice_replay["skipped"] is False
+
     second = sync_weeks_3_4_prelaunch_quality(db)
     assert second["created_templates"] == 0
     assert second["created_activities"] == 0
-    assert second["updated_activities"] == 0
+    assert second["deleted_activities"] == 1
+    assert db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[3].id,
+        activity_type="guided_lab",
+        stable_id=f"week-3-guided_lab-{legacy_lab.id}",
+    ).count() == 0
+    replacement_activities = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[3].id,
+        activity_type="guided_lab",
+        stable_id=f"week-3-guided_lab-{cli.id}",
+        content_ref=str(cli.id),
+    ).all()
+    assert len(replacement_activities) == 1
+
+    third = sync_weeks_3_4_prelaunch_quality(db)
+    assert third["created_templates"] == 0
+    assert third["created_activities"] == 0
+    assert third["updated_activities"] == 0
+    assert third["deleted_activities"] == 0
 
 
 def test_weeks_3_6_quality_sync_preserves_promotion_gate_quiz_purpose(db):

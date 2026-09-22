@@ -771,13 +771,35 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
             if legacy_week_three_lab.is_published:
                 legacy_week_three_lab.is_published = False
                 result["updated_templates"] += 1
-            for activity in db.query(TrainingWeekActivity).filter_by(
+
+            replacement_stable_id = f"week-3-guided_lab-{week_three_lab.id}"
+            replacement_activity = db.query(TrainingWeekActivity).filter_by(
+                training_week_id=weeks[3].id,
+                activity_type="guided_lab",
+                stable_id=replacement_stable_id,
+            ).one_or_none()
+            legacy_stable_id = f"week-3-guided_lab-{legacy_week_three_lab.id}"
+            legacy_activities = db.query(TrainingWeekActivity).filter_by(
                 training_week_id=weeks[3].id,
                 activity_type="guided_lab",
                 content_ref=str(legacy_week_three_lab.id),
-            ).all():
+                stable_id=legacy_stable_id,
+            ).all()
+
+            # The older Weeks 1-4 synchronizer runs first during a full seed
+            # replay and can recreate the canonical legacy-lab activity. If
+            # the replacement activity already exists, delete that recreated
+            # row instead of rewriting it to an identity that is already
+            # unique. Instructor-owned activities use distinct stable IDs and
+            # are deliberately left untouched.
+            if replacement_activity is not None:
+                for activity in legacy_activities:
+                    db.delete(activity)
+                    result["deleted_activities"] += 1
+            elif legacy_activities:
+                activity = legacy_activities[0]
                 activity.content_ref = str(week_three_lab.id)
-                activity.stable_id = f"week-3-guided_lab-{week_three_lab.id}"
+                activity.stable_id = replacement_stable_id
                 result["updated_activities"] += 1
 
     triage = next(
