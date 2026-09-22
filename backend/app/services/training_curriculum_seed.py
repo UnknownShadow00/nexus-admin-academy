@@ -977,12 +977,21 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
         minutes = activity.estimated_minutes
         if activity.activity_type == "lesson":
             lesson = lesson_by_id.get(_content_int(activity.content_ref))
-            should_be_required = bool(lesson and lesson.title in WEEKS_3_4_CORE_LESSONS[number])
+            if lesson and lesson.title in WEEKS_3_4_CORE_LESSONS[number]:
+                should_be_required = True
+            elif lesson and lesson.title in WEEKS_3_4_OPTIONAL_LESSON_ESTIMATES:
+                should_be_required = False
             minutes = lesson.estimated_minutes if lesson else minutes
-        elif activity.activity_type == "video":
-            should_be_required = _content_int(activity.content_ref) in WEEKS_3_4_REQUIRED_VIDEOS[number]
-        elif activity.activity_type == "quiz":
-            should_be_required = _content_int(activity.content_ref) in WEEKS_3_4_REQUIRED_QUIZZES[number]
+        elif (
+            activity.activity_type == "video"
+            and _content_int(activity.content_ref) in WEEKS_3_4_REQUIRED_VIDEOS[number]
+        ):
+            should_be_required = True
+        elif (
+            activity.activity_type == "quiz"
+            and _content_int(activity.content_ref) in WEEKS_3_4_REQUIRED_QUIZZES[number]
+        ):
+            should_be_required = True
             minutes = 15
         elif (
             activity.activity_type == "guided_lab"

@@ -35,6 +35,11 @@ def _require_quiz_access(db: Session, student: Student, quiz: Quiz) -> None:
     remediation_ids = assigned_remediation_ids(db, student.id) | triggered_remediation_ids(db, student.id)
     if quiz.id in remediation_ids:
         return
+    if quiz.quiz_purpose == QUIZ_PURPOSE_REMEDIATION:
+        raise HTTPException(
+            status_code=403,
+            detail="This review quiz becomes available when your instructor assigns it or a quiz result recommends it.",
+        )
     if (
         quiz.show_in_practice_library
         and not quiz.is_required

@@ -2,6 +2,8 @@
 
 from datetime import datetime, timezone
 
+import pytest
+
 from conftest import auth_headers, make_client, make_student
 
 from app.models.capstone import CapstoneTemplate
@@ -321,6 +323,52 @@ def test_future_optional_practice_library_quiz_remains_available(db):
 
     assert detail.status_code == 200
     assert submit.status_code == 200
+
+
+@pytest.mark.parametrize("week_number", [0, 9])
+def test_unassigned_remediation_quiz_cannot_use_practice_library_bypass(db, week_number):
+    student = make_student(db, username="unassigned-remediation-reader")
+    _seed_week_zero_gate(db)
+    quiz = Quiz(
+        title="Unassigned remediation",
+        week_number=week_number,
+        question_count=1,
+        status=QUIZ_STATUS_PUBLISHED,
+        quiz_purpose="remediation",
+        is_required=False,
+        show_in_weekly_checklist=False,
+        show_in_practice_library=True,
+        answer_keys_validated=True,
+        editorial_status="validated",
+        is_active=True,
+    )
+    db.add(quiz)
+    db.flush()
+    db.add(
+        Question(
+            quiz_id=quiz.id,
+            question_text="Which answer is supported?",
+            option_a="Supported",
+            option_b="Unsupported",
+            option_c="Unsupported",
+            option_d="Unsupported",
+            correct_answer="A",
+        )
+    )
+    db.commit()
+
+    detail = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student))
+
+    submit = client.post(
+        f"/api/quizzes/{quiz.id}/submit",
+        json={"student_id": student.id, "answers": {}},
+        headers=auth_headers(student),
+    )
+
+    assert submit.status_code == 403
+    assert db.query(QuizAttempt).filter_by(student_id=student.id, quiz_id=quiz.id).count() == 0
+    assert detail.status_code == 403
+    assert "instructor assigns" in detail.json()["detail"]
 
 
 def test_existing_quiz_attempt_remains_reviewable_after_prerequisite_changes(db):

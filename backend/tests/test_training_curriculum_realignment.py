@@ -541,6 +541,8 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
         add_activity(3, "video", video_id)
     for quiz_id in (2, 3, 4):
         add_activity(3, "quiz", quiz_id)
+    add_activity(3, "quiz", custom_quiz.id, required=True)
+    add_activity(3, "video", 999, required=True)
     add_activity(3, "guided_lab", 3, required=True)
     add_activity(3, "guided_lab", 7, required=False)
     add_activity(3, "service_desk_scenario", "password-reset")
@@ -597,7 +599,13 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
         }
         for number in (3, 4)
     }
-    assert required_quizzes == {3: {2, 3, 4}, 4: {5}}
+    assert required_quizzes == {3: {2, 3, 4, custom_quiz.id}, 4: {5}}
+    custom_video_activity = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[3].id,
+        activity_type="video",
+        content_ref="999",
+    ).one()
+    assert custom_video_activity.is_required is True
 
     week_three_cases = db.query(TrainingWeekActivity).filter_by(
         training_week_id=weeks[3].id,
