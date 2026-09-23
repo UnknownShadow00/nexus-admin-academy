@@ -290,8 +290,8 @@ def test_completely_fresh_seed_contains_orientation_and_is_idempotent(tmp_path):
     # quality syncs preserve the historical rows and add deterministic practice
     # activities where the required path previously had no real skill exercise.
     # The Week 3-4 launch pass replaces future-topic activities with two
-    # beginner troubleshooting activities while preserving the total count.
-    assert first["activity_count"] == 320
+    # beginner troubleshooting activities; Week 7 also presents optional MFA.
+    assert first["activity_count"] == 321
     assert first["legacy_support_ticket_count"] == 0
     assert first["active_video_count"] == 137
     assert first["mod_001_prerequisite"] is None

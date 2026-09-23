@@ -24,6 +24,7 @@ client = make_client(router)
 def test_weekly_service_desk_mapping_keeps_the_endpoint_security_case():
     assert SERVICE_DESK_WEEKS[7] == "inc2508"
     assert SERVICE_DESK_WEEKS[8] == "inc2407"
+    assert 4 not in SERVICE_DESK_WEEKS
 
 
 def test_foundational_prototypes_publish_as_current_immutable_versions_idempotently(db):
@@ -640,6 +641,40 @@ def test_direct_api_reports_topic_prerequisite_for_topic_locked_case(
     assert response.json()["detail"]["code"] == "SERVICE_DESK_TOPIC_LOCKED"
     assert response.json()["detail"]["data"]["required_week"] == 1
     assert "learning activities" in response.json()["detail"]["error"]
+
+
+def test_mfa_direct_access_waits_for_week_7_topic(monkeypatch, db):
+    student = make_student(db, "mfa-week-seven-boundary")
+    scenarios = _seed_pack_assignments(db, student)
+    _enable_topic_gating(db, 6)
+    db.add(TrainingWeek(
+        week_number=7, display_order=7, title="Week 7",
+        learning_goals=[], is_active=True,
+    ))
+    db.commit()
+    scenario, _ = scenarios["mfa-reset"]
+    assignment_id = _assignment_id(db, student, scenario)
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 6,
+    )
+    early = client.post(
+        f"/api/service-desk/assignments/{assignment_id}/attempts",
+        headers=auth_headers(student),
+    )
+    assert early.status_code == 403
+    assert early.json()["detail"]["code"] == "SERVICE_DESK_TOPIC_LOCKED"
+    assert early.json()["detail"]["data"]["required_week"] == 7
+
+    monkeypatch.setattr(
+        "app.services.service_desk_progression.derive_current_week",
+        lambda _student_id, _db: 7,
+    )
+    reached = client.post(
+        f"/api/service-desk/assignments/{assignment_id}/attempts",
+        headers=auth_headers(student),
+    )
+    assert reached.status_code == 201
 
 
 def test_required_case_unlocks_when_topic_has_no_required_learning(

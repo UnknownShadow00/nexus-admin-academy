@@ -100,13 +100,81 @@ SERVICE_DESK_WEEKS = {
     1: "locked-user-account",
     2: "inc2404",
     3: "password-reset",
-    4: "mfa-reset",
     5: "inc2502",
     6: "inc2505",
     7: "inc2508",
     8: "inc2407",
     14: "inc2510",
 }
+OPTIONAL_SERVICE_DESK_WEEKS = {7: "mfa-reset"}
+
+
+def sync_mfa_week7_activity(db: Session) -> dict:
+    """Move only the old seeded Week 4 MFA card, retaining its row identity."""
+    if not inspect(db.get_bind()).has_table(TrainingWeekActivity.__tablename__):
+        return {"skipped": "activities_missing"}
+    weeks = {
+        row.week_number: row
+        for row in db.query(TrainingWeek).filter(TrainingWeek.week_number.in_((4, 7))).all()
+    }
+    if set(weeks) != {4, 7}:
+        return {"skipped": "weeks_missing"}
+    # The migration runs before ordinary content seeding on fresh installs.
+    if not db.query(TrainingWeekActivity.id).first():
+        return {"skipped": "curriculum_not_seeded"}
+
+    target_id = "week-7-service_desk_scenario-mfa-reset"
+    legacy_ids = {
+        "week-4-service_desk_scenario-inc2509",
+        "week-4-service_desk_scenario-mfa-reset",
+    }
+    old_rows = db.query(TrainingWeekActivity).filter(
+        TrainingWeekActivity.training_week_id == weeks[4].id,
+        TrainingWeekActivity.activity_type == "service_desk_scenario",
+        TrainingWeekActivity.content_ref == "mfa-reset",
+        TrainingWeekActivity.stable_id.in_(legacy_ids),
+    ).all()
+    target = db.query(TrainingWeekActivity).filter_by(stable_id=target_id).first()
+    other_week7_mfa = db.query(TrainingWeekActivity).filter(
+        TrainingWeekActivity.training_week_id == weeks[7].id,
+        TrainingWeekActivity.activity_type == "service_desk_scenario",
+        TrainingWeekActivity.content_ref == "mfa-reset",
+        TrainingWeekActivity.stable_id != target_id,
+    ).first()
+    if len(old_rows) > 1 or (old_rows and (target or other_week7_mfa)):
+        raise ValueError("ambiguous seeded MFA curriculum activities; manual review required")
+    if target:
+        if target.training_week_id != weeks[7].id or target.content_ref != "mfa-reset":
+            raise ValueError("Week 7 MFA stable ID has unexpected ownership")
+        return {"skipped": "already_present"}
+    if other_week7_mfa:
+        return {"skipped": "instructor_week7_activity_present"}
+    next_order = (
+        db.query(func.max(TrainingWeekActivity.display_order))
+        .filter_by(training_week_id=weeks[7].id).scalar() or 0
+    ) + 1
+    if old_rows:
+        row = old_rows[0]
+        row.training_week_id = weeks[7].id
+        row.stable_id = target_id
+        row.display_order = next_order
+        row.is_required = False
+        db.flush()
+        return {"moved": 1, "activity_id": row.id}
+    row = TrainingWeekActivity(
+        training_week_id=weeks[7].id,
+        stable_id=target_id,
+        activity_type="service_desk_scenario",
+        content_ref="mfa-reset",
+        display_order=next_order,
+        is_required=False,
+        estimated_minutes=30,
+        prerequisite_mode="soft",
+        metadata_json={},
+    )
+    db.add(row)
+    db.flush()
+    return {"created": 1, "activity_id": row.id}
 
 
 def service_desk_activity_is_required(week_number: int, scenario_key: str) -> bool:
@@ -923,14 +991,8 @@ def sync_weeks_3_4_prelaunch_quality(db: Session) -> dict:
                 setattr(inc2501, field, value)
             result["updated_activities"] += 1
 
-    for row in db.query(TrainingWeekActivity).filter_by(
-        training_week_id=weeks[4].id,
-        activity_type="service_desk_scenario",
-        content_ref="mfa-reset",
-        stable_id="week-4-service_desk_scenario-mfa-reset",
-    ).all():
-        db.delete(row)
-        result["deleted_activities"] += 1
+    # Revision 0073 relocates either historic seeded MFA identity in place.
+    # Leave it intact here so an upgrade from 0071 retains the activity ID.
 
     relocation_weeks = {
         week.week_number: week
@@ -3428,6 +3490,17 @@ def sync_initial_training_activities(db: Session) -> dict:
             service_desk_activity_is_required(week_number, scenario_key),
             30,
         )
+    # Pinned historical migration tests seed older revisions with the current
+    # code. Their pre-0073 layout must stay reproducible until 0073 relocates it.
+    current_revision = (
+        db.execute(text("SELECT version_num FROM alembic_version")).scalar_one_or_none()
+        if inspect(bind).has_table("alembic_version") else None
+    )
+    if _revision_includes(current_revision, "0073_mfa_week7_curriculum_card"):
+        for week_number, scenario_key in OPTIONAL_SERVICE_DESK_WEEKS.items():
+            add(week_number, "service_desk_scenario", scenario_key, False, 30)
+    else:
+        add(4, "service_desk_scenario", "mfa-reset", False, 30)
 
     cli_labs = {row.id: row for row in db.query(CliLab).filter(CliLab.id.in_(set(CLI_WEEKS))).all()}
     for lab_id, week_number in CLI_WEEKS.items():

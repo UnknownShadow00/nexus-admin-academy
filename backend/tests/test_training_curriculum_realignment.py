@@ -10,6 +10,7 @@ from app.services.training_curriculum_seed import (
     _revision_includes,
     reconcile_optional_lesson_requirements,
     sync_initial_training_activities,
+    sync_mfa_week7_activity,
     sync_weeks_3_4_prelaunch_quality,
     sync_weeks_3_6_quality,
     sync_weeks_7_10_quality,
@@ -151,24 +152,21 @@ def test_weeks_1_4_practice_realignment_converges_seeded_curriculum(db):
 
     initial = sync_initial_training_activities(db)
 
-    # sync_initial_training_activities already seeds each week's Apply step
-    # (a service_desk_scenario activity) ahead of the realignment run, as in
-    # the real curriculum — reuse those to assert Practice lands *before*
-    # Apply, not just appended after it.
+    # Week 4 has queue practice, without the future MFA Service Desk card.
+    # The first three weeks retain their seeded Service Desk activities.
     apply_activities = {
         number: db.query(TrainingWeekActivity)
         .filter_by(training_week_id=week.id, activity_type="service_desk_scenario")
         .one()
-        for number, week in ((n, db.query(TrainingWeek).filter_by(week_number=n).one()) for n in range(1, 5))
+        for number, week in ((n, db.query(TrainingWeek).filter_by(week_number=n).one()) for n in range(1, 4))
     }
     assert apply_activities[1].is_required is True
     assert apply_activities[2].is_required is True
     assert apply_activities[3].is_required is False
-    assert apply_activities[4].is_required is False
 
     first = sync_weeks_1_4_practice_realignment(db)
 
-    assert initial["created"] == 9
+    assert initial["created"] == 8
     assert first["created_templates"] == 1
     assert db.get(LabTemplate, 1).is_published is False
     assert db.get(LabTemplate, 2).is_published is False
@@ -195,8 +193,8 @@ def test_weeks_1_4_practice_realignment_converges_seeded_curriculum(db):
     ).one()
     assert week_one_cli.display_order < apply_activities[1].display_order
 
-    # Practice must be sequenced before Apply, not appended after it.
-    for number in (2, 3, 4):
+    # Practice must be sequenced before the first two Service Desk cases.
+    for number in (2, 3):
         week = weeks[number]
         practice = db.query(TrainingWeekActivity).filter_by(training_week_id=week.id, activity_type="guided_lab").one()
         apply_activity = db.get(TrainingWeekActivity, apply_activities[number].id)
@@ -560,6 +558,8 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
 
     first = sync_weeks_3_4_prelaunch_quality(db)
     assert first["skipped"] is False
+    assert sync_mfa_week7_activity(db)["moved"] == 1
+    db.commit()
     db.refresh(custom_question)
     assert custom_question.question_text == "Instructor-authored duplicate-title question"
     assert custom_question.correct_answer == "A"
@@ -619,6 +619,13 @@ def test_weeks_3_4_prelaunch_quality_builds_beginner_paths_without_future_topic_
         training_week_id=weeks[4].id,
         activity_type="service_desk_scenario",
     ).count() == 0
+    week_seven_mfa = db.query(TrainingWeekActivity).filter_by(
+        training_week_id=weeks[7].id,
+        activity_type="service_desk_scenario",
+        content_ref="mfa-reset",
+    ).one()
+    assert week_seven_mfa.stable_id == "week-7-service_desk_scenario-mfa-reset"
+    assert week_seven_mfa.is_required is False
     assert {
         int(row.content_ref)
         for row in db.query(TrainingWeekActivity).filter_by(
