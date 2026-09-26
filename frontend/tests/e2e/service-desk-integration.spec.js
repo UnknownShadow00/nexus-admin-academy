@@ -1027,6 +1027,9 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await studentLogin(page, studentBUsername, studentBPassword);
     await page.goto("/service-desk/tickets/INC2404");
     await expect(page.getByText("INC2404").first()).toBeVisible();
+    await page.goto("/service-desk/tools/company-chat?contact=directory-user-elliot-ward&ticket=INC2404");
+    await page.getByRole("button", { name: "Ask user to retest original symptom" }).click();
+    await expect(page.getByText("The replacement is not ready", { exact: false }).first()).toBeVisible();
 
     await page.goto("/service-desk/tools/asset-management");
     await page.getByPlaceholder("Search assets").fill("NX-9052");
@@ -1050,6 +1053,10 @@ test.describe("Service Desk integration (requires an integrated stack)", () => {
     await page.getByPlaceholder("Search assets").fill("NX-9052");
     await page.getByText("NX-9052", { exact: true }).first().click();
     await page.getByRole("button", { name: "Confirm clean audio with replacement" }).click();
+
+    await page.goto("/service-desk/tools/company-chat?contact=directory-user-elliot-ward&ticket=INC2404");
+    await page.getByRole("button", { name: "Ask user to retest original symptom" }).click();
+    await expect(page.getByText("The static did not return", { exact: false }).first()).toBeVisible();
 
     await page.goto("/service-desk/tickets/INC2404");
     await openTicketRail(page);

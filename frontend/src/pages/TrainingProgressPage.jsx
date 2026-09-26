@@ -2,6 +2,7 @@ import { Award, CheckCircle2, FlaskConical, PlayCircle, Target, Ticket, Trophy }
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getServiceDeskProgressSummary, getTrainingProgress } from "../services/api";
+import { TrainingDestination } from "../components/TrainingDestination";
 
 function Metric({ label, metric, Icon, note }) {
   return (
@@ -49,6 +50,7 @@ export default function TrainingProgressPage() {
           <p className="mt-2 text-4xl font-bold">{data.overall_training.percent}%</p>
           <p className="mt-2 text-sm text-slate-300">{data.overall_training.completed} of {data.overall_training.total} required activities complete</p>
           {current ? <p className="mt-3 text-sm text-white">Current module: {current.title}</p> : null}
+          {data.current_activity?.destination_route ? <TrainingDestination activity={data.current_activity} className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-white px-4 py-2 font-semibold text-slate-950" >Continue {data.current_activity.activity_label}</TrainingDestination> : null}
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><Metric label="Videos Watched" metric={data.videos} Icon={PlayCircle} /><Metric label="Quizzes Completed" metric={data.quizzes} Icon={Trophy} note={`Average quiz score: ${data.quizzes.average_score_percent ?? 0}% · Best quiz score: ${data.quizzes.best_score_percent ?? 0}%`} /><Metric label="Required Practice" metric={data.practice} Icon={FlaskConical} /><Metric label="Guided Labs" metric={data.guided_labs} Icon={CheckCircle2} /><Metric label="Tickets" metric={data.service_desk} Icon={Ticket} /><Metric label="Modules Completed" metric={{ completed: data.modules_completed, total: data.total_modules, percent: data.total_modules ? Math.round(data.modules_completed / data.total_modules * 100) : 0 }} Icon={Target} /></div>
         <div className="grid gap-4 md:grid-cols-2">

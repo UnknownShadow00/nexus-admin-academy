@@ -14,6 +14,7 @@ function signature(quiz) {
   // Include content and attempt count so changed questions or a submission in
   // another tab cannot silently reuse a draft from the old attempt.
   return JSON.stringify([
+    quiz.presentation_hash || null,
     quiz.attempts?.length || 0,
     [...(quiz.questions || [])].sort((a, b) => a.id - b.id).map((question) => [
       question.id, question.question_text, Boolean(question.is_multi_select),

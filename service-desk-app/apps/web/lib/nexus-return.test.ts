@@ -7,6 +7,7 @@ describe('isSafeNexusReturnPath', () => {
     expect(isSafeNexusReturnPath('/training/week/1')).toBe(true);
     expect(isSafeNexusReturnPath('/training/week/24')).toBe(true);
     expect(isSafeNexusReturnPath('/training')).toBe(true);
+    expect(isSafeNexusReturnPath('/training/module/module.endpoint.pc_hardware')).toBe(true);
     expect(isSafeNexusReturnPath('/learning-v2/modules/module.aplus.core1.networking')).toBe(true);
   });
 
@@ -26,6 +27,8 @@ describe('isSafeNexusReturnPath', () => {
     expect(isSafeNexusReturnPath('/training/week/1/../../admin')).toBe(false);
     expect(isSafeNexusReturnPath('/training/week/abc')).toBe(false);
     expect(isSafeNexusReturnPath('/training/week/0')).toBe(false);
+    expect(isSafeNexusReturnPath('/training/module/../../admin')).toBe(false);
+    expect(isSafeNexusReturnPath('/training/module/%2F%2Fevil.example')).toBe(false);
     expect(isSafeNexusReturnPath('/learning-v2/modules/../../admin')).toBe(false);
   });
 
@@ -48,5 +51,8 @@ describe('nexusReturnLabel', () => {
 
   it('uses beginner wording for a V2 module', () => {
     expect(nexusReturnLabel('/learning-v2/modules/module.aplus.core1.networking')).toBe('Back to your module');
+  });
+  it('labels a legacy module return correctly', () => {
+    expect(nexusReturnLabel('/training/module/module.endpoint.pc_hardware')).toBe('Back to your module');
   });
 });

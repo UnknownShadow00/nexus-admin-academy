@@ -98,6 +98,12 @@ def _service_desk_ticket_key(stable_key: str) -> str:
     return foundational_ids.get(stable_key.lower(), stable_key.upper())
 
 
+def _service_desk_destination(stable_key: str, return_to: str) -> str:
+    """The one Nexus Learning launch URL contract for a Service Desk case."""
+    ticket_key = _service_desk_ticket_key(stable_key)
+    return f"/service-desk/tickets/{ticket_key}?returnTo={quote(return_to, safe='')}"
+
+
 def _module_route_for_week(week_number: int) -> str:
     module = module_for_week(week_number)
     return f"/training/module/{module.stable_id}" if module else f"/training/week/{week_number}"
@@ -499,13 +505,11 @@ class _TrainingContext:
                     else access.get("unavailable_reason")
                     or "Complete the earlier Service Desk cases first."
                 )
-            ticket_key = _service_desk_ticket_key(scenario.stable_key)
             # Kept in sync with the allowlist in service-desk-app/apps/web/lib/nexus-return.ts.
-            return_to = quote(_module_route_for_week(week_number), safe="")
             return _ResolvedContent(
                 title=scenario.title,
                 description=scenario.description,
-                destination_route=None if permission_locked else f"/service-desk/tickets/{ticket_key}?returnTo={return_to}",
+                destination_route=None if permission_locked else _service_desk_destination(scenario.stable_key, _module_route_for_week(week_number)),
                 estimated_minutes=activity.estimated_minutes,
                 permission_locked=permission_locked,
                 permission_reason=permission_reason,
@@ -1364,6 +1368,7 @@ def build_training_progress(db: Session, student: Student) -> dict:
         "current_week": overview["current_week"],
         "current_stage": overview["current_stage"],
         "current_module": overview["current_module"],
+        "current_activity": overview["current_activity"],
         "weeks_completed": sum(1 for _, state, _ in week_states if state["is_complete"]),
         "total_weeks": len(week_states),
         "modules_completed": sum(1 for _, state, _ in week_states if state["is_complete"]),

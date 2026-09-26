@@ -22,6 +22,7 @@ import { TicketIssueDetails } from './TicketIssueDetails';
 import { useSessionHydrated, useTicketSession } from './TicketSessionProvider';
 import { WorkspaceToolLauncher } from './WorkspaceToolLauncher';
 import { CurrentStage, WorkflowRail } from './WorkflowRail';
+import { useNexusReturnTarget } from './useNexusReturnTarget';
 
 const ORIENTATION_KEY = 'sd:first-guided-orientation-seen';
 const TOOL_HINT_KEYS = [
@@ -35,6 +36,7 @@ const TOOL_HINT_KEYS = [
 type PhonePane = 'work' | 'evidence' | 'notes';
 
 export function TicketWorkspace({ ticketId }: { ticketId: string }) {
+  const nexusReturn = useNexusReturnTarget();
   const {
     assignmentByTicket,
     authoritativeGradeByTicket,
@@ -129,6 +131,7 @@ export function TicketWorkspace({ ticketId }: { ticketId: string }) {
         >
           Back to queue
         </Link>
+        {nexusReturn ? <a className="ml-3 inline-flex min-h-10 items-center text-sm font-semibold underline" href={nexusReturn.href}>{nexusReturn.label}</a> : null}
       </div>
     );
   }

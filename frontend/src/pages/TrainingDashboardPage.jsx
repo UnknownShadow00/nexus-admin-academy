@@ -2,6 +2,7 @@ import { ArrowRight, Check, ChevronRight, Clock, Lock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import TrainingSubnav from "../components/TrainingSubnav";
+import { TrainingDestination } from "../components/TrainingDestination";
 import { getTrainingDashboard } from "../services/api";
 
 const statusLabels = { available: "Available", not_started: "Available", in_progress: "Current", complete: "Complete", locked: "Locked" };
@@ -76,7 +77,7 @@ export default function TrainingDashboardPage() {
           <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">{module.purpose}</p>
           <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0 flex-1"><div className="mb-2 flex justify-between text-sm"><span>{module.required_complete} of {module.required_total} required activities complete</span><strong>{module.completion_percent}%</strong></div><div className="h-3 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white transition-all" style={{ width: `${module.completion_percent}%` }} /></div>{next ? <p className="mt-3 truncate text-sm text-blue-100">Current activity: {next.activity_label} — {next.title}</p> : null}</div>
-            <Link to={actionRoute} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-blue-700 shadow hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">{actionLabel}<ArrowRight size={18} /></Link>
+            <TrainingDestination activity={next} to={actionRoute} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-blue-700 shadow hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">{actionLabel}<ArrowRight size={18} /></TrainingDestination>
           </div>
         </section>
       ) : <section className="panel"><h2 className="text-xl font-semibold">No active training modules</h2><p className="mt-2 text-slate-600 dark:text-slate-300">Ask an administrator to check the curriculum structure.</p></section>}

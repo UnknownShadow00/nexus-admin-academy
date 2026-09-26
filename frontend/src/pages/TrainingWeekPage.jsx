@@ -4,6 +4,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import BackLink from "../components/BackLink";
 import TicketNoteExercise from "../components/TicketNoteExercise";
 import TrainingSubnav from "../components/TrainingSubnav";
+import { TrainingDestination } from "../components/TrainingDestination";
 import { JOB_RELEVANCE_TAGS, JobRelevanceBadge } from "../components/ui/Badge";
 import { getTrainingModule, getTrainingWeek, markTrainingVideoWatched } from "../services/api";
 import { setMonitoringContext } from "../monitoring/sentry";
@@ -40,8 +41,7 @@ function ActivityCard({ activity, cliPracticeRoute, isNext = false, onWatched, r
           {activity.activity_type === "video" && !activity.complete ? <button type="button" onClick={() => onWatched(activity)} className="btn-secondary min-h-10">Mark Watched</button> : null}
           {quiz?.available ? <Link className="btn-secondary min-h-10" to={quiz.action === "review" ? quiz.review_route : quiz.route} state={{ returnTo }}>{quiz.action === "review" ? `Review Quiz${quiz.score_percent != null ? ` · ${quiz.score_percent}%` : ""}` : "Take Quiz"}</Link> : null}
           {isWeekOneCliLesson && cliPracticeRoute ? <Link className="btn-primary min-h-10" to={cliPracticeRoute} state={{ returnTo }}>Start CLI Practice</Link> : null}
-          {!isInlineWeekOneLesson && activity.activity_type === "service_desk_scenario" && activity.destination_route ? <a className="btn-primary min-h-10" href={activity.destination_route} onClick={() => setMonitoringContext(contextForServiceDeskNavigation(activity.destination_route, activity).tags)}>{actionLabel}</a> : null}
-          {!isInlineWeekOneLesson && activity.activity_type !== "video" && activity.activity_type !== "service_desk_scenario" && activity.destination_route ? <Link className="btn-primary min-h-10" to={activity.destination_route} state={{ returnTo }}>{actionLabel}</Link> : null}
+          {!isInlineWeekOneLesson && activity.activity_type !== "video" && activity.destination_route ? <TrainingDestination activity={activity} className="btn-primary min-h-10" state={{ returnTo }} onClick={activity.activity_type === "service_desk_scenario" ? () => setMonitoringContext(contextForServiceDeskNavigation(activity.destination_route, activity).tags) : undefined}>{actionLabel}</TrainingDestination> : null}
         </div>
       </div>
     </article>

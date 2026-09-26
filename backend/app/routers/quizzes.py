@@ -1,4 +1,6 @@
 ﻿import logging
+import hashlib
+import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
@@ -20,6 +22,48 @@ from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/quizzes", tags=["quizzes"])
 logger = logging.getLogger(__name__)
+
+
+def _question_options(question) -> dict[str, str]:
+    return {
+        letter: value.strip()
+        for letter in "ABCDEFGH"
+        if isinstance(value := getattr(question, f"option_{letter.lower()}"), str) and value.strip()
+    }
+
+
+def _presentation_hash(questions) -> str:
+    content = [
+        [q.id, q.question_text, _question_options(q), q.all_correct_answers, q.is_multi_select]
+        for q in sorted(questions, key=lambda row: row.id)
+    ]
+    return hashlib.sha256(json.dumps(content, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def _validate_presentation(questions, payload) -> dict[int, list[str]]:
+    by_id = {q.id: q for q in questions}
+    for question in questions:
+        options = _question_options(question)
+        if len(options) < 2 or not set(question.all_correct_answers).issubset(options):
+            raise HTTPException(409, "This quiz has an invalid answer key. Ask your instructor to review it before trying again.")
+    if payload.presentation_hash is None and payload.presented_questions is None:
+        # Existing API clients are supported; the submitted attempt still gets
+        # a complete immutable server snapshot in results below.
+        return {q.id: list(_question_options(q)) for q in questions}
+    if payload.presentation_hash != _presentation_hash(questions):
+        raise HTTPException(409, "This quiz changed while you were taking it. Reload to see the current questions; your answers were not scored.")
+    shown = payload.presented_questions or []
+    if len(shown) != len(questions) or {row.get("id") for row in shown} != set(by_id):
+        raise HTTPException(422, "The submitted question presentation does not match this quiz.")
+    order = {}
+    for row in shown:
+        question = by_id[row["id"]]
+        letters = row.get("options")
+        expected = set(_question_options(question))
+        if not isinstance(letters, list) or not all(isinstance(letter, str) for letter in letters) or len(letters) != len(expected) or set(letters) != expected:
+            raise HTTPException(422, "A submitted question is missing one or more answer options.")
+        order[question.id] = letters
+    return order
 
 
 def _require_quiz_access(db: Session, student: Student, quiz: Quiz) -> None:
@@ -166,7 +210,7 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
             {
                 "attempt_number": i + 1,
                 "score": row.score,
-                "total": quiz.question_count or len(quiz.questions),
+                "total": len(row.results) if isinstance(row.results, list) and row.results else quiz.question_count or len(quiz.questions),
                 "xp_awarded": row.xp_awarded or 0,
                 "is_first_attempt": i == 0,
                 "created_at": row.completed_at.isoformat() if row.completed_at else None,
@@ -199,6 +243,7 @@ def get_quiz_details(quiz_id: int, student_id: int | None = None, db: Session = 
                 }
                 for question in quiz.questions
             ],
+            "presentation_hash": _presentation_hash(quiz.questions),
             "attempts": attempts,
             "quiz_purpose": quiz.quiz_purpose,
             "is_required": quiz.is_required,
@@ -238,6 +283,10 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
     mark_student_active(db, student_id)
 
     questions = sorted(quiz.questions, key=lambda q: q.id)
+    presented_order = _validate_presentation(questions, payload)
+    if payload.presented_questions is not None:
+        by_id = {question.id: question for question in questions}
+        questions = [by_id[row["id"]] for row in payload.presented_questions]
     total_questions = len(questions)
     if total_questions < 1:
         raise HTTPException(status_code=500, detail="Invalid quiz (no questions)")
@@ -248,6 +297,8 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
 
     for i, question in enumerate(questions, start=1):
         raw_answer = answers.get(str(question.id)) or answers.get(str(i))
+        if raw_answer and not set(raw_answer.split(",")).issubset(_question_options(question)):
+            raise HTTPException(422, "An answer refers to an option that was not presented.")
         student_answer, is_correct = _grade_answer(question, raw_answer)
         if is_correct:
             correct_count += 1
@@ -275,6 +326,8 @@ def submit_quiz(quiz_id: int, payload: QuizSubmitRequest, db: Session = Depends(
                     "G": question.option_g or "",
                     "H": question.option_h or "",
                 },
+                "presented_option_order": presented_order[question.id],
+                "presentation_hash": _presentation_hash(questions),
             }
         )
 
@@ -374,7 +427,7 @@ def get_quiz_review(quiz_id: int, student_id: int, db: Session = Depends(get_db)
                 "quiz_id": quiz_id,
                 "title": quiz.title,
                 "score": attempt.score,
-                "total": len(quiz.questions),
+                "total": len(attempt.results) if isinstance(attempt.results, list) and attempt.results else quiz.question_count or len(quiz.questions),
                 "xp_awarded": attempt.xp_awarded,
                 "is_first_attempt": (attempt.first_attempt_xp or 0) > 0,
                 "avg_seconds_per_question": round(avg_seconds, 1) if avg_seconds is not None else None,

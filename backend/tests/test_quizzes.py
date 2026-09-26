@@ -4,8 +4,95 @@ from conftest import auth_headers, make_client, make_student
 from app.models.quiz import EDITORIAL_STATUS_VALIDATED, QUIZ_STATUS_PUBLISHED, Question, Quiz, QuizAttempt
 from app.routers.admin_quiz import router as admin_quiz_router
 from app.routers.quizzes import router
+from app.routers.students import router as students_router
+from app.services.training_reference_seed import _load as load_training_reference
+from app.services.question_validation import validate_question
 
 client = make_client(router, admin_quiz_router)
+
+
+def test_week_zero_to_two_authored_options_contain_their_answer_keys():
+    for quiz in load_training_reference()["quizzes"]:
+        if quiz["week_number"] > 2:
+            continue
+        for question in quiz["questions"]:
+            result = validate_question(question)
+            assert result.valid, (quiz["id"], question["question_text"], result.errors)
+
+
+def test_presented_options_are_snapshotted_and_review_uses_attempt_content(db):
+    student = make_student(db)
+    quiz = _seed_quiz(db, title="Immutable option review", week_number=0)
+    quiz.question_count = 1
+    question = Question(quiz_id=quiz.id, question_text="Which choice covers all causes?", option_a="Dust", option_b="Heat", option_c="Power", option_d="Software", option_e="Memory", option_f="All of the above", correct_answer="F", explanation="Several causes apply.")
+    db.add(question)
+    db.commit()
+    detail = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student)).json()["data"]
+    assert detail["questions"][0]["option_f"] == "All of the above"
+    shown = [{"id": question.id, "options": ["F", "A", "B", "C", "D", "E"]}]
+    submitted = client.post(f"/api/quizzes/{quiz.id}/submit", headers=auth_headers(student), json={"student_id": student.id, "answers": {str(question.id): "F"}, "presentation_hash": detail["presentation_hash"], "presented_questions": shown})
+    assert submitted.status_code == 200, submitted.text
+    result = submitted.json()["data"]
+    assert result["score"] == 1
+    assert result["results"][0]["presented_option_order"] == shown[0]["options"]
+    assert result["results"][0]["options"]["F"] == "All of the above"
+    question.option_f = "Changed after attempt"
+    question.correct_answer = "A"
+    db.commit()
+    review = client.get(f"/api/quizzes/{quiz.id}/review/{student.id}", headers=auth_headers(student)).json()["data"]
+    assert review["results"][0]["options"]["F"] == "All of the above"
+    assert review["results"][0]["correct_answer"] == "F"
+    stale = client.post(f"/api/quizzes/{quiz.id}/submit", headers=auth_headers(student), json={"student_id": student.id, "answers": {str(question.id): "F"}, "presentation_hash": detail["presentation_hash"], "presented_questions": shown})
+    assert stale.status_code == 409
+    assert db.query(QuizAttempt).filter_by(student_id=student.id, quiz_id=quiz.id).count() == 1
+
+
+def test_correct_answer_cannot_be_hidden_or_submitted_unpresented(db):
+    student = make_student(db)
+    quiz = _seed_quiz(db, title="Option parity", week_number=0)
+    question = _seed_question(db, quiz.id)
+    detail = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student)).json()["data"]
+    base = {"student_id": student.id, "answers": {str(question.id): "A"}, "presentation_hash": detail["presentation_hash"]}
+    missing = client.post(f"/api/quizzes/{quiz.id}/submit", headers=auth_headers(student), json={**base, "presented_questions": [{"id": question.id, "options": ["B", "C", "D"]}]})
+    assert missing.status_code == 422
+    question.correct_answer = "H"
+    db.commit()
+    invalid = client.post(f"/api/quizzes/{quiz.id}/submit", headers=auth_headers(student), json={"student_id": student.id, "answers": {str(question.id): "H"}})
+    assert invalid.status_code == 409
+    assert db.query(QuizAttempt).filter_by(student_id=student.id, quiz_id=quiz.id).count() == 0
+
+
+def test_review_question_numbers_follow_the_order_presented_to_learner(db):
+    student = make_student(db)
+    quiz = _seed_quiz(db, title="Shuffled question parity", week_number=0)
+    first = _seed_question(db, quiz.id)
+    second = Question(quiz_id=quiz.id, question_text="Second authored prompt", option_a="Wrong", option_b="All of the above", correct_answer="B")
+    db.add(second)
+    db.commit()
+    detail = client.get(f"/api/quizzes/{quiz.id}", headers=auth_headers(student)).json()["data"]
+    shown = [{"id": second.id, "options": ["B", "A"]}, {"id": first.id, "options": ["D", "C", "B", "A"]}]
+    submitted = client.post(f"/api/quizzes/{quiz.id}/submit", headers=auth_headers(student), json={"student_id": student.id, "answers": {str(first.id): "A", str(second.id): "B"}, "presentation_hash": detail["presentation_hash"], "presented_questions": shown})
+    assert submitted.status_code == 200, submitted.text
+    assert [(row["question_number"], row["question_id"]) for row in submitted.json()["data"]["results"]] == [(1, second.id), (2, first.id)]
+    reviewed = client.get(f"/api/quizzes/{quiz.id}/review/{student.id}", headers=auth_headers(student)).json()["data"]
+    assert [row["question_id"] for row in reviewed["results"]] == [second.id, first.id]
+
+
+def test_today_recent_quiz_scores_include_denominator_and_percentage(db):
+    student = make_student(db)
+    for index, (score, total) in enumerate(((17, 19), (7, 8), (4, 4), (0, 8))):
+        quiz = _seed_quiz(db, title=f"Recent score {index}", week_number=0)
+        quiz.question_count = total
+        db.add(QuizAttempt(student_id=student.id, quiz_id=quiz.id, answers={}, results=[], score=score,
+                           xp_awarded=0, best_score=score, first_attempt_xp=0))
+        db.commit()
+    stats_client = make_client(students_router)
+    response = stats_client.get(f"/api/students/{student.id}/stats", headers=auth_headers(student))
+    assert response.status_code == 200, response.text
+    recent = [item for item in response.json()["recent_activity"] if item["type"] == "quiz"]
+    assert {(item["score"], item["score_total"], item["score_percent"]) for item in recent} == {
+        (17, 19, 89), (7, 8, 88), (4, 4, 100), (0, 8, 0)
+    }
 
 
 def _seed_quiz(db, title="Networks 101", week_number=1, status=QUIZ_STATUS_PUBLISHED):
@@ -137,6 +224,21 @@ def test_get_quiz_review_returns_latest_attempt_and_preserves_older_history(db):
     assert payload["score"] == 1
     assert payload["results"][0]["student_answer"] == "A"
     assert db.query(QuizAttempt).filter_by(student_id=student.id, quiz_id=quiz.id).count() == 2
+
+
+def test_legacy_review_without_results_uses_authored_denominator(db):
+    student = make_student(db)
+    quiz = _seed_quiz(db, title="Legacy Result", week_number=1)
+    question = _seed_question(db, quiz.id)
+    quiz.question_count = 1
+    db.add(QuizAttempt(student_id=student.id, quiz_id=quiz.id, answers={str(question.id): "A"},
+                       results=[], score=1, xp_awarded=0, best_score=1, first_attempt_xp=0))
+    db.commit()
+
+    response = client.get(f"/api/quizzes/{quiz.id}/review/{student.id}", headers=auth_headers(student))
+
+    assert response.status_code == 200
+    assert response.json()["data"]["total"] == 1
 
 
 def test_admin_can_publish_draft_quiz(monkeypatch, db):

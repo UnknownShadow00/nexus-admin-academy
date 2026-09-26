@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models.curriculum_video import CurriculumVideo
 from app.models.quiz import Question, Quiz
+from app.services.question_validation import validate_question
 
 
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "training_reference_content.json"
@@ -43,6 +44,10 @@ def ensure_training_reference_content(db: Session) -> dict:
     db.flush()
     for payload in data["quizzes"]:
         questions = payload.pop("questions")
+        for index, question in enumerate(questions, start=1):
+            validation = validate_question(question)
+            if not validation.valid:
+                raise RuntimeError(f"Seed quiz {payload['id']} question {index} has invalid answer options")
         expected_id = int(payload["id"])
         existing = db.query(Quiz).filter(Quiz.id == expected_id).first()
         if existing:

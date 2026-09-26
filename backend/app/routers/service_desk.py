@@ -1289,6 +1289,19 @@ def _action_allowed(
         "inc2405",
         "inc2406",
     }
+    if key == "inc2404" and definition.is_process_profile and event_type == "chat.request_resolution_confirmation":
+        required = (
+            ("asset.record_isolation", {"assetTag": "NX-9052", "test": "affected-headset-known-good-workstation"}),
+            ("asset.record_isolation", {"assetTag": "NX-9052", "test": "known-good-headset-affected-workstation"}),
+            ("asset.change_status", {"assetTag": "NX-9052", "status": "damaged"}),
+            ("shipping.create", {"recipientDirectoryUserId": "directory-user-elliot-ward", "equipment": [{"name": "Headset", "quantity": 1}]}),
+            ("asset.record_isolation", {"assetTag": "NX-9052", "test": "replacement-clean-audio"}),
+        )
+        return all(
+            any(event.trusted is True and event.success is True and event.event_type == action
+                and payload_matches(event.payload_json or {}, expected) for event in events)
+            for action, expected in required
+        )
     if key not in ordered_workflows:
         return True
 

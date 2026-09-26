@@ -168,6 +168,22 @@ function hasSuccessfulResolutionConfirmation(
   );
 }
 
+function headsetRetestReady(attempt: Attempt): boolean {
+  const checks = attempt.assetOverlays['NX-9052']?.events ?? [];
+  const hasCheck = (test: string) => checks.some((event) =>
+    event.success && event.type === 'asset.record_isolation' && event.payload.test === test,
+  );
+  const damaged = checks.some((event) => event.success && event.type === 'asset.change_status' && event.payload.status === AssetStatus.Damaged);
+  const shipped = Object.values(attempt.shipments).some((shipment) =>
+    shipment.status === 'shipped' &&
+    shipment.address.recipientDirectoryUserId === 'directory-user-elliot-ward' &&
+    shipment.equipment.some((item) => item.name === 'Headset' && item.quantity > 0),
+  );
+  return hasCheck('affected-headset-known-good-workstation') &&
+    hasCheck('known-good-headset-affected-workstation') &&
+    damaged && shipped && hasCheck('replacement-clean-audio');
+}
+
 function ticketRejectReason(
   attempt: Attempt,
   overlay: TicketOverlay,
@@ -256,6 +272,10 @@ function ticketRejectReason(
         return 'This ticket is already closed or resolved.';
       }
       {
+        if (action.payload.ticketId === 'INC2404' && action.payload.verifiedResolved &&
+            !hasSuccessfulResolutionConfirmation(attempt, 'INC2404')) {
+          return 'Requester confirmation is still required. Ask Elliot to test a longer call and confirm whether the static returns.';
+        }
         if (accountUserId) {
           if (!action.payload.verifiedResolved) {
             return 'Starter account cases must be closed as verified resolved.';
@@ -649,6 +669,7 @@ function createChatThreadOverlay(): ChatThreadOverlay {
 }
 
 const CHAT_REQUESTER_BY_TICKET: Readonly<Record<string, string>> = {
+  INC2404: 'directory-user-elliot-ward',
   INC2405: 'directory-user-sloane-rivera',
   INC2406: 'directory-user-harper-kim',
   INC2511: 'directory-user-taylor-morgan',
@@ -658,7 +679,7 @@ const CHAT_REQUESTER_BY_TICKET: Readonly<Record<string, string>> = {
   INC3002: 'directory-user-hr-adebayo-coker',
 };
 
-function chatRejectReason(action: ChatSimulationAction): string | null {
+function chatRejectReason(attempt: Attempt, action: ChatSimulationAction): string | null {
   const contact = getDirectoryUserById(action.payload.contactId);
   if (!contact) {
     return 'The requested chat contact does not exist in this simulation.';
@@ -685,6 +706,10 @@ function chatRejectReason(action: ChatSimulationAction): string | null {
     )
   ) {
     return 'That approved verification method is not available in this ticket context.';
+  }
+  if (action.type === 'chat.request_resolution_confirmation' &&
+      action.payload.ticketId === 'INC2404' && !headsetRetestReady(attempt)) {
+    return 'The replacement is not ready for Elliot’s longer-call retest. Isolate the headset fault, ship the replacement, and confirm clean audio first.';
   }
 
   if (action.type === 'chat.send_message') {
@@ -771,7 +796,9 @@ function applyValidChatAction(
       const scenario = getRemoteDesktopScenarioByTicket(
         action.payload.ticketId,
       );
-      const fixed = directoryUserId
+      const fixed = action.payload.ticketId === 'INC2404'
+        ? headsetRetestReady(attempt)
+        : directoryUserId
         ? attempt.directoryOverlays[directoryUserId]?.accessVerified === true
         : scenario
           ? attempt.remoteDesktopOverlays[scenario.assetTag]?.scenarioProgress[
@@ -792,9 +819,13 @@ function applyValidChatAction(
           {
             id: `${eventId}-contact-reply`,
             fromStudent: false,
-            body: fixed
-              ? 'I repeated the original task in a fresh session. It now works and I can continue.'
-              : 'I tried the original task again, but I am still seeing the same problem.',
+            body: action.payload.ticketId === 'INC2404'
+              ? fixed
+                ? 'I tested the replacement headset on a longer call. The static did not return, and the audio is clear.'
+                : 'I cannot confirm the longer-call retest yet. Please finish the replacement and clean-audio check first.'
+              : fixed
+                ? 'I repeated the original task in a fresh session. It now works and I can continue.'
+                : 'I tried the original task again, but I am still seeing the same problem.',
             triggerKey: fixed
               ? 'original-symptom-confirmed-fixed'
               : 'original-symptom-still-broken',
@@ -3408,7 +3439,7 @@ export function applyAction(
     const contactId = action.payload.contactId;
     const currentOverlay =
       attempt.chatThreads[contactId] ?? createChatThreadOverlay();
-    const rejectReason = chatRejectReason(action);
+    const rejectReason = chatRejectReason(attempt, action);
     const event = createEvent(
       attempt,
       actorId,
