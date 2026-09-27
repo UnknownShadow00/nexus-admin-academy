@@ -1,12 +1,12 @@
-"""Nexus V2 Phase 2A per-student module progress (development flow).
+"""Server-derived Nexus V2 learning evidence and module mastery.
 
-This records what a student has done in a V2 module and rolls it up for the
-student's own view. It is deliberately NOT authoritative: no promotion gate,
-mastery calculation, XP ledger, login streak, or legacy TrainingWeek reads
-``v2_module_activity``. Nothing here migrates or touches existing students.
+This is authoritative for V2 presentation only. Legacy TrainingWeek, XP,
+promotion and certification mastery ledgers do not read it.
 """
 
 from __future__ import annotations
+
+from datetime import date, datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -18,7 +18,11 @@ from app.models.certification import (
     LearningResourceLink,
     LessonV2Meta,
     ModuleAssessment,
+    StudentResourceActivity,
 )
+from app.models.flashcard import FlashcardReview
+from app.models.quiz import Question
+from app.models.v2_evidence import V2EvidenceRecord, V2EvidenceRequirement
 from app.models.v2_progress import (
     V2_ACTIVITY_EXPLAIN,
     V2_ACTIVITY_MODULE_QUIZ,
@@ -41,6 +45,10 @@ _DONE_STATUSES = {V2_STATUS_COMPLETED, V2_STATUS_PASSED}
 
 class V2ProgressError(ValueError):
     """Bad input to the progress service (unknown activity type / status)."""
+
+
+class V2EvidenceConflict(V2ProgressError):
+    """A viewing action was requested before its prerequisite was recorded."""
 
 
 def record_activity(
@@ -157,10 +165,37 @@ def _module_or_none(db: Session, module_key: str) -> CertificationModule | None:
 
 
 def _module_resource_links(db: Session, module: CertificationModule, lesson_meta_ids: list[int]):
-    return db.query(LearningResourceLink).filter(
+    return db.query(LearningResourceLink).join(
+        LearningResource, LearningResource.id == LearningResourceLink.resource_id,
+    ).filter(
         (LearningResourceLink.certification_module_id == module.id)
-        | (LearningResourceLink.lesson_v2_meta_id.in_(lesson_meta_ids or [-1]))
+        | (LearningResourceLink.lesson_v2_meta_id.in_(lesson_meta_ids or [-1])),
+        LearningResource.active.is_(True),
     ).all()
+
+
+def record_trusted_evidence(
+    db: Session, *, student_id: int, requirement_id: int, source_ref: str,
+) -> V2EvidenceRecord:
+    """Future interaction/apply engines call this after validating an attempt.
+
+    No student route exposes this function. The source is required so a future
+    attempt/grade can be audited; recording an opened resource never calls it.
+    """
+    requirement = db.get(V2EvidenceRequirement, requirement_id)
+    if not requirement or not requirement.active or not source_ref.strip():
+        raise V2ProgressError("A valid active requirement and source are required.")
+    row = db.query(V2EvidenceRecord).filter_by(
+        student_id=student_id, requirement_id=requirement_id,
+    ).one_or_none()
+    if row is None:
+        row = V2EvidenceRecord(
+            student_id=student_id, requirement_id=requirement_id,
+            source_ref=source_ref.strip(), satisfied_at=datetime.now(timezone.utc),
+        )
+        db.add(row)
+        db.flush()
+    return row
 
 
 def module_progress(db: Session, student_id: int, module_key: str) -> dict:
@@ -200,10 +235,16 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
         resource_id: any(link.is_required for link in resource_links if link.resource_id == resource_id)
         for resource_id in resource_ids
     }
-    resource_key_by_id = {
-        rid: key
-        for rid, key in db.query(LearningResource.id, LearningResource.resource_key).filter(
+    resource_by_id = {
+        rid: (key, kind)
+        for rid, key, kind in db.query(LearningResource.id, LearningResource.resource_key, LearningResource.resource_type).filter(
             LearningResource.id.in_(resource_ids or [-1])
+        )
+    }
+    resource_activity_by_id = {
+        row.resource_id: row for row in db.query(StudentResourceActivity).filter(
+            StudentResourceActivity.student_id == student_id,
+            StudentResourceActivity.resource_id.in_(resource_ids or [-1]),
         )
     }
 
@@ -240,24 +281,26 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
         if lv["activity"] and lv["activity"]["status"] in _DONE_STATUSES
     )
 
-    resources_view = [
-        {
+    resources_view = []
+    for rid, (key, kind) in sorted(resource_by_id.items(), key=lambda item: item[1][0]):
+        tracked = resource_activity_by_id.get(rid)
+        resources_view.append({
             "resource_key": key,
+            "resource_type": kind,
             "required": resource_required.get(rid, False),
+            "exposure_satisfied": bool(tracked and (tracked.watched_at if kind == "video" else tracked.opened_at)),
+            "status": "watched" if tracked and tracked.watched_at else "in_progress" if tracked and tracked.opened_at else "not_started",
+            "evidence": {
+                "opened_at": tracked.opened_at.isoformat() if tracked and tracked.opened_at else None,
+                "watched_at": tracked.watched_at.isoformat() if tracked and tracked.watched_at else None,
+                "historical_self_reported_complete": bool(tracked and tracked.completed),
+                "historical_completed_at": tracked.completed_at.isoformat() if tracked and tracked.completed_at else None,
+            },
             "activity": _activity_view(by_ref.get((V2_ACTIVITY_RESOURCE, key))),
-        }
-        for rid, key in sorted(resource_key_by_id.items(), key=lambda item: item[1])
-    ]
-    resources_done = sum(
-        1
-        for rv in resources_view
-        if rv["activity"] and rv["activity"]["status"] in _DONE_STATUSES
-    )
+        })
+    resources_done = sum(1 for rv in resources_view if rv["exposure_satisfied"])
     required_resources = [rv for rv in resources_view if rv["required"]]
-    required_resources_done = sum(
-        1 for rv in required_resources
-        if rv["activity"] and rv["activity"]["status"] in _DONE_STATUSES
-    )
+    required_resources_done = sum(1 for rv in required_resources if rv["exposure_satisfied"])
 
     role_views: dict[str, list] = {
         V2_ACTIVITY_QUICK_CHECK: [],
@@ -288,14 +331,11 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
         )
 
     quiz_entry = next(iter(role_views[V2_ACTIVITY_MODULE_QUIZ]), None)
-    module_quiz_passed = bool(
-        quiz_entry and quiz_entry["activity"] and quiz_entry["activity"]["passed"]
-    )
 
     quick_checks_done = sum(
         1
         for qc in role_views[V2_ACTIVITY_QUICK_CHECK]
-        if qc["activity"] and qc["activity"]["status"] in _DONE_STATUSES | {V2_STATUS_PASSED}
+        if qc["activity"] and qc["activity"]["passed"] is True
     )
 
     prompt_keys = [
@@ -307,16 +347,88 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
     explain_done = sum(
         1 for key in prompt_keys
         if by_ref.get((V2_ACTIVITY_EXPLAIN, key))
-        and by_ref[(V2_ACTIVITY_EXPLAIN, key)].status in _DONE_STATUSES
+        and by_ref[(V2_ACTIVITY_EXPLAIN, key)].passed is True
     )
     practical_entry = next(iter(role_views[V2_ACTIVITY_PRACTICAL]), None)
     service_desk_entry = next(iter(role_views[V2_ACTIVITY_SERVICE_DESK]), None)
-    practical_done = not practical_entry or bool(
-        practical_entry["activity"] and practical_entry["activity"]["status"] in _DONE_STATUSES
+    required_assessments = [a for a in assessments if a.config.get("required", True)]
+    assessment_evidence = {
+        (a.assessment_role, a.assessment_key): bool(
+            by_ref.get((a.assessment_role, a.assessment_key))
+            and by_ref[(a.assessment_role, a.assessment_key)].passed is True
+        ) for a in required_assessments
+    }
+    knowledge_roles = {V2_ACTIVITY_QUICK_CHECK, V2_ACTIVITY_MODULE_QUIZ}
+    apply_roles = {V2_ACTIVITY_PRACTICAL, V2_ACTIVITY_SERVICE_DESK}
+    check_required = any(a.assessment_role in knowledge_roles and not assessment_evidence[(a.assessment_role, a.assessment_key)] for a in required_assessments)
+    checks_passed = all(assessment_evidence[(a.assessment_role, a.assessment_key)] for a in required_assessments if a.assessment_role in knowledge_roles)
+    applies_passed = all(assessment_evidence[(a.assessment_role, a.assessment_key)] for a in required_assessments if a.assessment_role in apply_roles)
+    requirements = db.query(V2EvidenceRequirement).filter_by(module_id=module.id, active=True).all()
+    requirement_ids = [r.id for r in requirements]
+    satisfied_ids = {
+        rid for (rid,) in db.query(V2EvidenceRecord.requirement_id).filter(
+            V2EvidenceRecord.student_id == student_id,
+            V2EvidenceRecord.requirement_id.in_(requirement_ids or [-1]),
+        )
+    }
+    required_interactions = [r for r in requirements if r.is_required and r.evidence_type == "interaction"]
+    required_applies = [r for r in requirements if r.is_required and r.evidence_type == "apply"]
+    interactions_done = all(r.id in satisfied_ids for r in required_interactions)
+    extra_applies_done = all(r.id in satisfied_ids for r in required_applies)
+    required_prompts = prompt_keys
+    prompts_passed = all(by_ref.get((V2_ACTIVITY_EXPLAIN, key)) and by_ref[(V2_ACTIVITY_EXPLAIN, key)].passed is True for key in required_prompts)
+    # Never award mastery for a module that has only self-reported exposure or
+    # an old passive lesson click. At least one trusted check, interaction or
+    # apply requirement must be configured and satisfied.
+    trusted_requirement_exists = bool(
+        required_interactions or required_applies or required_prompts
+        or any(a.assessment_role in knowledge_roles | apply_roles for a in required_assessments)
     )
-    service_desk_done = not service_desk_entry or bool(
-        service_desk_entry["activity"] and service_desk_entry["activity"]["status"] in _DONE_STATUSES
+    mastered = bool(
+        trusted_requirement_exists
+        and required_resources_done == len(required_resources)
+        and checks_passed and applies_passed and interactions_done
+        and extra_applies_done and prompts_passed
     )
+    quiz_ids = [a.quiz_id for a in assessments if a.quiz_id]
+    review_due = bool(quiz_ids and db.query(FlashcardReview.id).join(
+        Question, Question.id == FlashcardReview.question_id,
+    ).filter(
+        FlashcardReview.student_id == student_id,
+        FlashcardReview.due_date <= date.today(),
+        Question.quiz_id.in_(quiz_ids),
+    ).first())
+    any_progress = bool(acts or resource_activity_by_id)
+    any_watched = bool(any(rv["evidence"]["watched_at"] for rv in required_resources))
+    missing_resource = next((rv for rv in required_resources if not rv["exposure_satisfied"]), None)
+    if mastered:
+        mastery_status = "mastered"
+        next_action = "Continue"
+    else:
+        if check_required and any_watched:
+            mastery_status = "check_required"
+        elif any_watched:
+            mastery_status = "watched"
+        elif any_progress:
+            mastery_status = "in_progress"
+        else:
+            mastery_status = "not_started"
+        if checks_passed and any(a.assessment_role in knowledge_roles for a in required_assessments):
+            mastery_status = "passed"
+        if missing_resource:
+            next_action = "Open video" if missing_resource["resource_type"] == "video" and not missing_resource["evidence"]["opened_at"] else "Mark video watched" if missing_resource["resource_type"] == "video" else "Open resource"
+        elif not interactions_done:
+            next_action = "Try interactive practice"
+        elif check_required:
+            next_action = "Check understanding"
+        elif not applies_passed or not extra_applies_done:
+            next_action = "Apply your learning"
+        elif not prompts_passed:
+            next_action = "Explain what you know"
+        elif not trusted_requirement_exists:
+            next_action = "Ask your mentor to add a knowledge check"
+        else:
+            next_action = "Continue"
 
     return {
         "module_key": module_key,
@@ -328,9 +440,10 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
         },
         "resources": {
             "total": len(resources_view),
-            "completed": resources_done,
+            "exposed": resources_done,
+            "watched": sum(1 for rv in resources_view if rv["evidence"]["watched_at"]),
             "required": len(required_resources),
-            "required_completed": required_resources_done,
+            "required_exposed": required_resources_done,
             "items": resources_view,
         },
         "quick_checks": {
@@ -343,16 +456,17 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
         "service_desk": service_desk_entry,
         "explain": role_views[V2_ACTIVITY_EXPLAIN],
         "explain_prompts": {"total": len(prompt_keys), "completed": explain_done},
-        "module_complete": bool(
-            len(lesson_keys)
-            and lessons_done == len(lesson_keys)
-            and required_resources_done == len(required_resources)
-            and quick_checks_done == len(role_views[V2_ACTIVITY_QUICK_CHECK])
-            and module_quiz_passed
-            and practical_done
-            and service_desk_done
-            and explain_done == len(prompt_keys)
-        ),
+        "evidence": {
+            "opened": any(rv["evidence"]["opened_at"] for rv in resources_view),
+            "watched": any_watched,
+            "check_passed": checks_passed and bool([a for a in required_assessments if a.assessment_role in knowledge_roles]),
+            "interaction_completed": interactions_done and bool(required_interactions),
+            "apply_passed": applies_passed and extra_applies_done and bool(required_applies or any(a.assessment_role in apply_roles for a in required_assessments)),
+        },
+        "status": mastery_status,
+        "next_action": next_action,
+        "review_due": review_due,
+        "module_complete": mastered,
     }
 
 

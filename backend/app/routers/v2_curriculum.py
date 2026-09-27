@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -26,7 +26,7 @@ from app.services.v2_curriculum_service import (
     submit_assessment,
     submit_explain,
 )
-from app.services.v2_progress_service import V2ProgressError, record_activity
+from app.services.v2_progress_service import V2EvidenceConflict, V2ProgressError, record_activity
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/v2/curriculum", tags=["v2-curriculum"])
@@ -43,8 +43,9 @@ def _not_found(exc: V2ProgressError):
 
 
 class ResourceActivityRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     opened: bool = False
-    completed: bool = False
+    watched: bool = False
 
 
 class AssessmentSubmitRequest(BaseModel):
@@ -126,10 +127,12 @@ def post_resource_activity(
     db: Session = Depends(get_db),
     student: Student = Depends(require_v2_student_access),
 ):
-    if not body.opened and not body.completed:
+    if not body.opened and not body.watched:
         raise HTTPException(status_code=422, detail="Choose an activity to record.")
     try:
-        return ok(resource_activity(db, student.id, module_key, resource_key, opened=body.opened, completed=body.completed))
+        return ok(resource_activity(db, student.id, module_key, resource_key, opened=body.opened, watched=body.watched))
+    except V2EvidenceConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except V2ProgressError as exc:
         _not_found(exc)
 

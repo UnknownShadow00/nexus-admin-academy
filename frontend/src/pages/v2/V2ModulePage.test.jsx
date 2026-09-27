@@ -28,6 +28,8 @@ describe("V2ModulePage", () => {
     expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
     expect(screen.getByText("First dynamic lesson")).toBeVisible();
     expect(screen.getByText("Second dynamic lesson")).toBeVisible();
+    expect(screen.getByText("Lesson marked complete")).toBeVisible();
+    expect(screen.queryByText("Mastered")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/next-dynamic");
     expect(api.getV2Module).toHaveBeenCalledWith("module.dynamic", { suppressToast: true });
   });

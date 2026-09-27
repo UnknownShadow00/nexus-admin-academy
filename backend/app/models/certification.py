@@ -608,6 +608,9 @@ class StudentResourceActivity(Base):
         ForeignKey("v2_resources.id", ondelete="CASCADE"), nullable=False, index=True
     )
     opened_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # A self report, never proof of playback or understanding. Existing
+    # completed/completed_at rows are retained as history and are not backfilled.
+    watched_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     completed_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reported_score: Mapped[int | None] = mapped_column(Integer, nullable=True)

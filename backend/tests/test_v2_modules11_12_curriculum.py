@@ -317,6 +317,6 @@ def test_modules10_12_sequence_mentor_visibility_and_resource_mastery_separation
     )
     resource_activity(db, student.id, module_key, required["key"], opened=True)
     after = module_view(db, student.id, module_key)["progress"]
-    assert before["resources"]["required_completed"] == 0
-    assert after["resources"]["required_completed"] == 0
+    assert before["resources"]["required_exposed"] == 0
+    assert after["resources"]["required_exposed"] == (0 if required["type"] == "video" else 1)
     assert after["module_complete"] is False

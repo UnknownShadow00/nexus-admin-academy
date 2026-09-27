@@ -83,8 +83,13 @@ def test_authenticated_full_module_rehearsal(db, monkeypatch):
             if resource["required"]:
                 assert client.post(
                     f"/api/v2/curriculum/modules/{MODULE}/resources/{resource['key']}/activity",
-                    headers=headers, json={"opened": True, "completed": True},
+                    headers=headers, json={"opened": True},
                 ).status_code == 200
+                if resource["type"] == "video":
+                    assert client.post(
+                        f"/api/v2/curriculum/modules/{MODULE}/resources/{resource['key']}/activity",
+                        headers=headers, json={"watched": True},
+                    ).status_code == 200
         assert client.post(
             f"/api/v2/curriculum/modules/{MODULE}/lessons/{lesson['key']}/complete",
             headers=headers,

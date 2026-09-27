@@ -53,6 +53,7 @@ from app.models.v2_progress import (
     V2ExplainSubmission,
     V2ModuleActivity,
 )
+from app.models.v2_evidence import V2EvidenceRecord, V2EvidenceRequirement
 from app.routers.admin_students import router as admin_students_router
 from app.services.admin_auth import verify_admin
 from app.services.student_deletion import (
@@ -324,6 +325,13 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
     )
     db.add(certification_module)
     db.flush()
+    evidence_requirement = V2EvidenceRequirement(
+        module_id=certification_module.id,
+        evidence_type="interaction",
+        ref_key="delete.shared",
+    )
+    db.add(evidence_requirement)
+    db.flush()
     module_assessment = ModuleAssessment(
         assessment_key="assess.deletion.shared", certification_module_id=certification_module.id,
         assessment_role="module_quiz", title="Deletion assessment", quiz_id=quiz.id,
@@ -384,6 +392,10 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
                 student_id=student_id, resource_id=resource.id,
                 completed=True, student_note="Owned resource note",
             ),
+            V2EvidenceRecord(
+                student_id=student_id, requirement_id=evidence_requirement.id,
+                source_ref="test-interaction:owned-deletion",
+            ),
         ]
     )
     db.flush()
@@ -433,6 +445,10 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
         QuizAttempt(student_id=other_id, quiz_id=quiz.id, answers={}, score=80, xp_awarded=0, best_score=80, first_attempt_xp=0),
         XPLedger(student_id=other_id, source_type="test", source_id=2, delta=5),
         ServiceDeskAssignment(student_id=other_id, scenario_id=scenario.id, mode="simulation", assigned_by="test"),
+        V2EvidenceRecord(
+            student_id=other_id, requirement_id=evidence_requirement.id,
+            source_ref="test-interaction:control",
+        ),
     ])
     db.commit()
 
@@ -478,6 +494,8 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
     assert db.query(QuizAttempt).filter_by(student_id=other_id).count() == 1
     assert db.query(XPLedger).filter_by(student_id=other_id).count() == 1
     assert db.query(ServiceDeskAssignment).filter_by(student_id=other_id).count() == 1
+    assert db.query(V2EvidenceRecord).filter_by(student_id=other_id).count() == 1
+    assert db.query(V2EvidenceRequirement).filter_by(id=evidence_requirement.id).count() == 1
 
 
 def test_student_delete_rolls_back_everything_when_cleanup_fails(db, monkeypatch):

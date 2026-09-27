@@ -65,6 +65,7 @@ V2_STATUS_COMPLETED = "completed"
 V2_STATUS_PASSED = "passed"
 V2_STATUS_FAILED = "failed"
 V2_STATUS_NEEDS_REVIEW = "needs_review"
+V2_STATUS_WATCHED = "watched"
 V2_STATUS_VALUES = {
     V2_STATUS_NOT_STARTED,
     V2_STATUS_IN_PROGRESS,
@@ -72,6 +73,7 @@ V2_STATUS_VALUES = {
     V2_STATUS_PASSED,
     V2_STATUS_FAILED,
     V2_STATUS_NEEDS_REVIEW,
+    V2_STATUS_WATCHED,
 }
 
 _ACTIVITY_TYPE_SQL = "('lesson','resource','quick_check','module_quiz','practical','service_desk','explain')"

@@ -55,6 +55,7 @@ from app.models.v2_progress import (
     V2AssessmentAttemptQuestion,
     V2ModuleActivity,
 )
+from app.models.v2_evidence import V2EvidenceRequirement
 from app.services.grading_queue import (
     SOURCE_FREE_RESPONSE,
     SOURCE_INTERVIEW,
@@ -71,7 +72,7 @@ from app.services.service_desk_scenario_validation import (
     scenario_has_supported_grading_profile,
 )
 from app.services.v2_assessment_selector import ConstraintSelectionError, select_constrained
-from app.services.v2_progress_service import V2ProgressError, module_progress, record_activity
+from app.services.v2_progress_service import V2EvidenceConflict, V2ProgressError, module_progress, record_activity
 from app.services.v2_service_desk_onboarding import (
     SERVICE_DESK_PREVIOUS_ORIENTATION_REQUIRED,
     service_desk_onboarding_blocker,
@@ -162,10 +163,14 @@ def _resource_view(
         "duration": resource.duration,
         "url": _safe_url(resource.url),
         "required": bool(link.is_required),
-        "status": "completed" if tracked and tracked.completed else "in_progress" if tracked and tracked.opened_at else "not_started",
+        "status": "watched" if tracked and tracked.watched_at else "in_progress" if tracked and tracked.opened_at else "not_started",
         "opened_at": tracked.opened_at.isoformat() if tracked and tracked.opened_at else None,
-        "completed": bool(tracked and tracked.completed),
-        "completed_at": tracked.completed_at.isoformat() if tracked and tracked.completed_at else None,
+        "watched_at": tracked.watched_at.isoformat() if tracked and tracked.watched_at else None,
+        "self_reported_watched": bool(tracked and tracked.watched_at),
+        "exposure_satisfied": bool(tracked and (tracked.watched_at if resource.resource_type == "video" else tracked.opened_at)),
+        "historical_self_reported_complete": bool(tracked and tracked.completed),
+        "historical_completed_at": tracked.completed_at.isoformat() if tracked and tracked.completed_at else None,
+        "next_action": "Open video" if resource.resource_type == "video" and not (tracked and tracked.opened_at) else "Mark video watched" if resource.resource_type == "video" and not (tracked and tracked.watched_at) else "Continue",
     }
 
 
@@ -451,11 +456,14 @@ def entry_view(db: Session, student_id: int) -> dict:
     for module in modules:
         if not _lessons(db, module.id):
             continue
-        # Only surface modules with the complete Nexus learning formula. This
-        # keeps old foundation fixtures/drafts out of the student entry page
-        # without hardcoding a module key or lesson count.
+        # Keep existing draft modules hidden. Future authored interaction/apply
+        # requirements allow a smaller group without the original full set of
+        # assessment roles; no existing module has those requirements yet.
         roles = {row.assessment_role for row in _assessments(db, module.id)}
-        if not STUDENT_MODULE_ROLES.issubset(roles):
+        authored_evidence = db.query(V2EvidenceRequirement.id).filter_by(
+            module_id=module.id, active=True, is_required=True,
+        ).first()
+        if not STUDENT_MODULE_ROLES.issubset(roles) and not authored_evidence:
             continue
         view = module_view(db, student_id, module.module_key)
         explain_feedback = next(({
@@ -512,7 +520,7 @@ def resolve_continue(view: dict) -> dict:
     for lesson in view["lessons"]:
         base = f"/learning-v2/modules/{module_key}/lessons/{lesson['key']}"
         required_resource = next(
-            (resource for resource in lesson["resources"] if resource["required"] and not resource["completed"]),
+            (resource for resource in lesson["resources"] if resource["required"] and not resource["exposure_satisfied"]),
             None,
         )
         if required_resource:
@@ -575,9 +583,16 @@ def resolve_continue(view: dict) -> dict:
             "unavailable": blocked.get("unavailable"),
             "status": blocked["progress"]["status"], "estimated_minutes": None,
         }
+    if not view["progress"]["module_complete"]:
+        return {
+            "kind": "evidence", "label": view["progress"]["next_action"],
+            "title": view["module"]["title"],
+            "route": f"/learning-v2/modules/{module_key}",
+            "status": view["progress"]["status"], "estimated_minutes": None,
+        }
     return {
-        "kind": "complete", "label": "Review module", "title": "Module complete",
-        "route": f"/learning-v2/modules/{module_key}", "status": "completed",
+        "kind": "complete", "label": "Review module", "title": "Module mastered",
+        "route": f"/learning-v2/modules/{module_key}", "status": "mastered",
         "estimated_minutes": None,
     }
 
@@ -941,7 +956,7 @@ def submit_assessment(db: Session, student_id: int, module_key: str, assessment_
     return _attempt_result(attempt, assessment)
 
 
-def resource_activity(db: Session, student_id: int, module_key: str, resource_key: str, *, opened=False, completed=False) -> dict:
+def resource_activity(db: Session, student_id: int, module_key: str, resource_key: str, *, opened=False, watched=False) -> dict:
     module = _module(db, module_key)
     resource = db.query(LearningResource).filter_by(resource_key=resource_key, active=True).one_or_none()
     if resource is None:
@@ -963,16 +978,19 @@ def resource_activity(db: Session, student_id: int, module_key: str, resource_ke
     now = datetime.now(timezone.utc)
     if opened and row.opened_at is None:
         row.opened_at = now
-    if completed:
-        row.completed = True
-        row.completed_at = row.completed_at or now
+    if watched:
+        if resource.resource_type != "video":
+            raise V2EvidenceConflict("Only a video can be marked watched.")
+        if row.opened_at is None:
+            raise V2EvidenceConflict("Open the video before marking it watched.")
+        row.watched_at = row.watched_at or now
     record_activity(
         db, student_id=student_id, module_key=module_key, activity_type=V2_ACTIVITY_RESOURCE,
-        ref_key=resource_key, status=V2_STATUS_COMPLETED if row.completed else V2_STATUS_IN_PROGRESS,
-        detail={"opened_at": row.opened_at.isoformat() if row.opened_at else None, "completed_at": row.completed_at.isoformat() if row.completed_at else None},
+        ref_key=resource_key, status="watched" if row.watched_at else V2_STATUS_IN_PROGRESS,
+        detail={"opened_at": row.opened_at.isoformat() if row.opened_at else None, "watched_at": row.watched_at.isoformat() if row.watched_at else None},
     )
     db.commit()
-    return {"resource_key": resource_key, "opened_at": row.opened_at, "completed": row.completed, "completed_at": row.completed_at}
+    return {"resource_key": resource_key, "opened_at": row.opened_at, "watched_at": row.watched_at, "status": "watched" if row.watched_at else "in_progress"}
 
 
 def launch_service_desk(db: Session, student_id: int, module_key: str, assessment_key: str) -> dict:

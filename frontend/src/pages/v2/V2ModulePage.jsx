@@ -36,6 +36,7 @@ export default function V2ModulePage() {
     <header className="max-w-4xl">
       <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">{examCode} · {data.certification.domain?.title}</p>
       <h1 className="mt-2 text-3xl font-bold text-slate-950 dark:text-white sm:text-4xl">{data.module.title}</h1>
+      <div className="mt-3 flex gap-2"><V2Status status={data.progress.status} />{data.progress.review_due ? <V2Status status="review_due" /> : null}</div>
       <p className="mt-3 text-lg leading-8 text-slate-600 dark:text-slate-300">{data.module.description}</p>
       <Link className="btn-primary mt-6 inline-flex min-h-12 items-center gap-2" to={data.continue.route}>{data.continue.label}<ArrowRight size={18} aria-hidden="true" /></Link>
     </header>
@@ -46,7 +47,7 @@ export default function V2ModulePage() {
           <Link className="panel group flex items-center gap-4 p-4 hover:border-blue-300 hover:shadow-sm dark:hover:border-blue-700" to={`/learning-v2/modules/${data.module.key}/lessons/${lesson.key}`}>
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 font-bold text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300">{index + 1}</span>
             <div className="min-w-0 flex-1"><h3 className="font-bold text-slate-950 dark:text-white">{lesson.title}</h3><p className="mt-1 text-sm text-slate-500">{lesson.estimated_minutes ? `About ${lesson.estimated_minutes} min` : "Lesson"}{lesson.importance === "job_critical" ? " · Useful on the job" : ""}</p></div>
-            <V2Status status={lesson.progress.status} />
+            {["completed", "passed"].includes(lesson.progress.status) ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">Lesson marked complete</span> : <V2Status status={lesson.progress.status} />}
           </Link>
         </li>)}
       </ol>
