@@ -60,11 +60,11 @@ def test_resource_and_lesson_completion_persist_and_move_continue(db, monkeypatc
     lesson = client.get(f"/api/v2/curriculum/modules/{MODULE}/lessons/{LESSON}", headers=auth_headers(student)).json()["data"]["lesson"]
     resource = next(row for row in lesson["resources"] if row["required"])
     client.post(f"/api/v2/curriculum/modules/{MODULE}/resources/{resource['key']}/activity", json={"opened": True}, headers=auth_headers(student))
-    client.post(f"/api/v2/curriculum/modules/{MODULE}/resources/{resource['key']}/activity", json={"completed": True}, headers=auth_headers(student))
+    client.post(f"/api/v2/curriculum/modules/{MODULE}/resources/{resource['key']}/activity", json={"watched": True}, headers=auth_headers(student))
     client.post(f"/api/v2/curriculum/modules/{MODULE}/lessons/{LESSON}/complete", headers=auth_headers(student))
     reloaded = client.get(f"/api/v2/curriculum/modules/{MODULE}/lessons/{LESSON}", headers=auth_headers(student)).json()["data"]["lesson"]
     assert reloaded["progress"]["status"] == "completed"
-    assert next(row for row in reloaded["resources"] if row["key"] == resource["key"])["completed"] is True
+    assert next(row for row in reloaded["resources"] if row["key"] == resource["key"])["status"] == "watched"
 
 
 def test_quick_check_uses_bank_supports_short_answer_and_records_attempt(db, monkeypatch):
@@ -158,9 +158,9 @@ def test_continue_walks_every_required_stage_and_optional_resources_do_not_block
     for lesson in view["lessons"]:
         for resource in lesson["resources"]:
             if resource["required"]:
-                resource_activity(
-                    db, student.id, MODULE, resource["key"], completed=True
-                )
+                resource_activity(db, student.id, MODULE, resource["key"], opened=True)
+                if resource["type"] == "video":
+                    resource_activity(db, student.id, MODULE, resource["key"], watched=True)
         record_activity(
             db, student_id=student.id, module_key=MODULE,
             activity_type="lesson", ref_key=lesson["key"],
@@ -200,7 +200,7 @@ def test_continue_walks_every_required_stage_and_optional_resources_do_not_block
     complete = module_view(db, student.id, MODULE)
     assert complete["continue"]["kind"] == "complete"
     assert complete["progress"]["module_complete"] is True
-    assert complete["progress"]["resources"]["completed"] < complete["progress"]["resources"]["total"]
+    assert complete["progress"]["resources"]["exposed"] < complete["progress"]["resources"]["total"]
 
 
 def test_unknown_module_is_a_student_safe_404(db, monkeypatch):

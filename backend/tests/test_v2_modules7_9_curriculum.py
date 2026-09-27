@@ -258,6 +258,6 @@ def test_new_modules_are_mentor_visible_and_opening_resources_is_not_mastery(db,
     )
     resource_activity(db, student.id, module_key, first_required["key"], opened=True)
     after = module_view(db, student.id, module_key)["progress"]
-    assert before["resources"]["required_completed"] == 0
-    assert after["resources"]["required_completed"] == 0
+    assert before["resources"]["required_exposed"] == 0
+    assert after["resources"]["required_exposed"] == (0 if first_required["type"] == "video" else 1)
     assert after["module_complete"] is False

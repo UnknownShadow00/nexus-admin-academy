@@ -377,7 +377,9 @@ def module_report(db: Session, student_id: int, module_key: str) -> dict:
     quiz_activity = quiz.get("activity") or {}
     required_resources = [{
         "resource_key": resource["key"], "resource": resource["title"],
-        "lesson": lesson["title"], "completed": resource["completed"],
+        "lesson": lesson["title"], "exposure_satisfied": resource["exposure_satisfied"],
+        "status": resource["status"],
+        "historical_self_reported_complete": resource["historical_self_reported_complete"],
     } for lesson in student_view["lessons"] for resource in lesson["resources"] if resource["required"]]
     blockers: list[dict] = []
     pending_assessment = (
@@ -510,8 +512,8 @@ def module_report(db: Session, student_id: int, module_key: str) -> dict:
         "completion": {
             "module_complete": progress["module_complete"],
             "lessons_completed": progress["lessons"]["completed"], "lessons_total": progress["lessons"]["total"],
-            "resources_completed": progress["resources"]["completed"], "resources_total": progress["resources"]["total"],
-            "required_resources_completed": progress["resources"]["required_completed"],
+            "resources_exposed": progress["resources"]["exposed"], "resources_total": progress["resources"]["total"],
+            "required_resources_exposed": progress["resources"]["required_exposed"],
             "required_resources_total": progress["resources"]["required"],
         },
         "module_quiz": {"score": quiz_activity.get("score"), "passed": quiz_activity.get("passed"),

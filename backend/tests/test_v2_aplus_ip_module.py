@@ -479,14 +479,9 @@ def test_approved_quick_checks_module_quiz_and_continue_are_open(loaded, monkeyp
     for lesson in view["lessons"]:
         for resource in lesson["resources"]:
             if resource["required"]:
-                resource_activity(
-                    loaded,
-                    student.id,
-                    MODULE_KEY,
-                    resource["key"],
-                    opened=True,
-                    completed=True,
-                )
+                resource_activity(loaded, student.id, MODULE_KEY, resource["key"], opened=True)
+                if resource["type"] == "video":
+                    resource_activity(loaded, student.id, MODULE_KEY, resource["key"], watched=True)
         record_activity(
             loaded,
             student_id=student.id,
@@ -602,7 +597,7 @@ def test_progress_and_mentor_report(loaded):
             loaded, student_id=student.id, module_key=MODULE_KEY,
             activity_type="lesson", ref_key=key, status="completed",
         )
-    # Resource completion (where supported).
+    # A historical completed activity row alone is not new viewing evidence.
     res_key = (
         loaded.query(LearningResource.resource_key)
         .filter(LearningResource.resource_key.like("res.aplus.ipcfg.%"))
@@ -640,7 +635,7 @@ def test_progress_and_mentor_report(loaded):
     prog = module_progress(loaded, student.id, MODULE_KEY)
     assert prog["lessons"]["total"] == 5
     assert prog["lessons"]["completed"] == 5
-    assert prog["resources"]["completed"] == 1
+    assert prog["resources"]["exposed"] == 0
     assert prog["module_quiz"]["activity"]["score"] == 58
     assert prog["module_complete"] is False  # quiz not passed
 

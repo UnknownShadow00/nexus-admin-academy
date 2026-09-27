@@ -36,6 +36,7 @@ export default function V2ModulePage() {
     <header className="max-w-4xl">
       <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">{examCode} · {data.certification.domain?.title}</p>
       <h1 className="mt-2 text-3xl font-bold text-slate-950 dark:text-white sm:text-4xl">{data.module.title}</h1>
+      <div className="mt-3 flex gap-2"><V2Status status={data.progress.status} />{data.progress.review_due ? <V2Status status="review_due" /> : null}</div>
       <p className="mt-3 text-lg leading-8 text-slate-600 dark:text-slate-300">{data.module.description}</p>
       <Link className="btn-primary mt-6 inline-flex min-h-12 items-center gap-2" to={data.continue.route}>{data.continue.label}<ArrowRight size={18} aria-hidden="true" /></Link>
     </header>

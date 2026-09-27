@@ -4,7 +4,13 @@ const labels = {
   not_started: "Not started",
   in_progress: "In progress",
   completed: "Completed",
-  passed: "Completed",
+  passed: "Passed",
+  mastered: "Mastered",
+  watched: "Watched",
+  check_required: "Check required",
+  review_due: "Review due",
+  optional: "Optional",
+  locked: "Locked",
   failed: "Needs another try",
   needs_review: "Waiting for grading",
 };
@@ -14,12 +20,15 @@ export function statusLabel(status) {
 }
 
 export default function V2Status({ status = "not_started" }) {
-  const done = ["completed", "passed"].includes(status);
-  const waiting = status === "needs_review";
+  const done = ["completed", "passed", "mastered"].includes(status);
+  const waiting = ["needs_review", "watched", "check_required"].includes(status);
   const failed = status === "failed";
+  const review = status === "review_due";
   const Icon = done ? CheckCircle2 : waiting ? Clock3 : failed ? RotateCcw : Circle;
   const classes = done
     ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+    : review
+      ? "bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300"
     : waiting
       ? "bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
       : failed

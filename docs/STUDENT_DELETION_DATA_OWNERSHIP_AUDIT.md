@@ -90,6 +90,13 @@ owners, including when a legacy SQLite connection has foreign-key enforcement
 disabled. Shared module, resource, assessment, quiz, prompt, and question
 records remain untouched.
 
+### Revision 0074 addendum
+
+`v2_evidence_records` is student owned and is included in the explicit
+student-deletion map. `v2_evidence_requirements` is shared authored content
+and is not deleted with a student. The new `watched_at` column remains on the
+existing student-owned resource activity row.
+
 ### Revision 0071 addendum
 
 Forced first-login password rotation adds `student_auth_states` as an optional

@@ -122,7 +122,9 @@ def test_entry_and_continue_are_generic_across_modules(db):
     for lesson in reference["lessons"]:
         for resource in lesson["resources"]:
             if resource["required"]:
-                resource_activity(db, student.id, keys[0], resource["key"], completed=True)
+                resource_activity(db, student.id, keys[0], resource["key"], opened=True)
+                if resource["type"] == "video":
+                    resource_activity(db, student.id, keys[0], resource["key"], watched=True)
         record_activity(db, student_id=student.id, module_key=keys[0], activity_type="lesson",
                         ref_key=lesson["key"], status="completed", commit=True)
         record_activity(db, student_id=student.id, module_key=keys[0], activity_type="quick_check",

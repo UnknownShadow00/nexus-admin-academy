@@ -119,7 +119,7 @@ def _complete_module_except_first_explain(db, student):
     for lesson in view["lessons"]:
         for resource in lesson["resources"]:
             if resource["required"]:
-                resource_activity(db, student.id, MODULE, resource["key"], completed=True)
+                resource_activity(db, student.id, MODULE, resource["key"], opened=True, watched=True)
         record_activity(
             db, student_id=student.id, module_key=MODULE, activity_type="lesson",
             ref_key=lesson["key"], status="completed",

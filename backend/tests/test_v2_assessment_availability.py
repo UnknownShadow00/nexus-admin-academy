@@ -130,7 +130,7 @@ def _finish_everything_before_the_module_quiz(db, student):
         for resource in lesson["resources"]:
             if resource["required"]:
                 from app.services.v2_curriculum_service import resource_activity
-                resource_activity(db, student.id, MODULE, resource["key"], opened=True, completed=True)
+                resource_activity(db, student.id, MODULE, resource["key"], opened=True, watched=True)
         record_activity(
             db, student_id=student.id, module_key=MODULE,
             activity_type="lesson", ref_key=lesson["key"], status="completed", commit=True,
