@@ -370,6 +370,13 @@ SCENARIO_OBJECTIVES: dict[str, ScenarioObjectiveDefinition] = {
                         {"assetTag": "NX-9052", "test": "replacement-clean-audio"},
                     ),
                 ),
+                _objective(
+                    "requester-confirmed-longer-call-retest",
+                    EvidenceRule(
+                        "chat.request_resolution_confirmation",
+                        {"ticketId": "INC2404", "contactId": "directory-user-elliot-ward"},
+                    ),
+                ),
             ),
         ),
         ProcessCategory(

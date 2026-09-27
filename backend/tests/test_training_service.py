@@ -1100,3 +1100,10 @@ def test_week_zero_reconciliation_keeps_only_orientation_and_checkpoint_required
     assert first == {"updated": 3, "skipped": False}
     assert second == {"updated": 0, "skipped": False}
     assert [row.is_required for row in activities] == [True, False, False, True, False]
+
+
+def test_required_service_desk_destination_uses_one_encoded_module_return():
+    from app.services.training_service import _service_desk_destination
+
+    assert _service_desk_destination("locked-user-account", "/training/module/module.orientation.nexus") == "/service-desk/tickets/INC2511?returnTo=%2Ftraining%2Fmodule%2Fmodule.orientation.nexus"
+    assert _service_desk_destination("inc2404", "/training/module/module.endpoint.pc_hardware") == "/service-desk/tickets/INC2404?returnTo=%2Ftraining%2Fmodule%2Fmodule.endpoint.pc_hardware"

@@ -65,6 +65,22 @@ describe("QuizTaker learning and recovery", () => {
 
   const mount = (studentId = 7) => render(<MemoryRouter><QuizTaker quizId={1} studentId={studentId} /></MemoryRouter>);
 
+  it("presents E–H options and submits their exact stable letters", async () => {
+    getQuiz.mockResolvedValue({ data: { ...quiz, presentation_hash: "snapshot-1", questions: [{ id: 5, question_text: "Which causes apply?", option_a: "Dust", option_b: "Heat", option_c: "Power", option_d: "Software", option_e: "Memory", option_f: "All of the above", correct_answer: "F" }] } });
+    submitQuiz.mockResolvedValue({ data: { score: 1, total: 1, passed: true, results: [{ question_id: 5, question_text: "Which causes apply?", options: { A: "Dust", B: "Heat", C: "Power", D: "Software", E: "Memory", F: "All of the above" }, presented_option_order: ["A", "B", "C", "D", "E", "F"], student_answer: "F", correct_answer: "F", is_correct: true }] } });
+    mount();
+    await screen.findByText("Question 1 of 1");
+    expect(screen.getByRole("radio", { name: /All of the above/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: /All of the above/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit Quiz" }));
+    await screen.findByText("Passed", { exact: true });
+    const payload = submitQuiz.mock.calls[0][1];
+    expect(payload.answers).toEqual({ 5: "F" });
+    expect(payload.presentation_hash).toBe("snapshot-1");
+    expect(payload.presented_questions).toEqual([{ id: 5, options: expect.arrayContaining(["A", "B", "C", "D", "E", "F"]) }]);
+    expect(screen.getByText("All of the above")).toBeInTheDocument();
+  });
+
   it("restores the same question, option order, and answer after a refresh", async () => {
     const first = mount();
     await screen.findByText("Question 1 of 4");

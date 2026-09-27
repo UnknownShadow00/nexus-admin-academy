@@ -81,6 +81,7 @@ export function CompanyChatThread({ contact, thread }: CompanyChatThreadProps) {
   const pinned = thread?.pinned ?? false;
   const messages = thread?.messages ?? [];
   const ticketByContact: Readonly<Record<string, string>> = {
+    'directory-user-elliot-ward': 'INC2404',
     'directory-user-camille-reyes': 'INC2513',
     'directory-user-harper-kim': 'INC2406',
     'directory-user-jordan-lee': 'INC2512',

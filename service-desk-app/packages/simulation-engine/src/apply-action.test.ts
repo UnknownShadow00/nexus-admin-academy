@@ -1,4 +1,5 @@
 import {
+  AssetStatus,
   AVERY_BROOKS_DIRECTORY_USER_ID,
   SLOANE_RIVERA_DIRECTORY_USER_ID,
   TICKET_FIXTURES,
@@ -23,7 +24,39 @@ function apply(
   return applyAction(attempt, ACTOR_ID, action);
 }
 
+function readyHeadsetAttempt() {
+  let attempt = createAttempt();
+  const actions: SimulationAction[] = [
+    { type: 'asset.record_isolation', payload: { assetTag: 'NX-9052', test: 'affected-headset-known-good-workstation' } },
+    { type: 'asset.record_isolation', payload: { assetTag: 'NX-9052', test: 'known-good-headset-affected-workstation' } },
+    { type: 'asset.change_status', payload: { assetTag: 'NX-9052', status: AssetStatus.Damaged } },
+    { type: 'shipping.create', payload: { recipientDirectoryUserId: 'directory-user-elliot-ward', recipientName: 'Elliot Ward', street: '120 Cedar Street', city: 'Seattle', state: 'WA', postalCode: '98101', senderDepartment: 'IT Department', equipment: [{ name: 'Headset', quantity: 1 }], computerAssetTag: null, speed: 'express', includeReturnLabel: true } },
+    { type: 'asset.record_isolation', payload: { assetTag: 'NX-9052', test: 'replacement-clean-audio' } },
+    { type: 'chat.request_resolution_confirmation', payload: { contactId: 'directory-user-elliot-ward', ticketId: 'INC2404' } },
+  ];
+  for (const action of actions) {
+    const result = apply(attempt, action);
+    expect(result.event.success).toBe(true);
+    attempt = result.attempt;
+  }
+  return attempt;
+}
+
 describe('applyAction happy paths', () => {
+  it('keeps INC2404 pending until Elliot confirms a longer-call retest', () => {
+    const early = apply(createAttempt(), { type: 'chat.request_resolution_confirmation', payload: { contactId: 'directory-user-elliot-ward', ticketId: 'INC2404' } });
+    expect(early.event.success).toBe(false);
+    expect(early.event.rejectReason).toContain('not ready');
+    const prematureClose = apply(early.attempt, { type: 'ticket.close', payload: { ticketId: 'INC2404', resolutionNote: 'Replacement shipped.', verifiedResolved: true } });
+    expect(prematureClose.event.success).toBe(false);
+    expect(prematureClose.event.rejectReason).toContain('Ask Elliot to test a longer call');
+
+    const ready = readyHeadsetAttempt();
+    expect(ready.chatThreads['directory-user-elliot-ward']?.messages.at(-1)).toMatchObject({
+      triggerKey: 'original-symptom-confirmed-fixed',
+      body: expect.stringContaining('static did not return'),
+    });
+  });
   it('records the minimal endpoint device vocabulary against its related ticket', () => {
     const inspected = apply(createAttempt(), {
       type: 'device.inspect_record',
@@ -180,7 +213,7 @@ describe('applyAction happy paths', () => {
     expect(revealed.event.success).toBe(true);
     expect(revealed.attempt.ticketOverlays.INC2402?.hintsRevealedCount).toBe(1);
 
-    const closed = apply(createAttempt(), {
+    const closed = apply(readyHeadsetAttempt(), {
       type: 'ticket.close',
       payload: {
         ticketId: 'INC2404',
@@ -556,7 +589,7 @@ describe('objective evaluation', () => {
   const fixtures: readonly Ticket[] = [highFixture];
 
   it('awards full priority points for a verified resolution', () => {
-    const closed = apply(createAttempt(), {
+    const closed = apply(readyHeadsetAttempt(), {
       type: 'ticket.close',
       payload: {
         ticketId: highFixture.id,
@@ -596,7 +629,7 @@ describe('objective evaluation', () => {
   });
 
   it('deducts five points for each hint after the first free hint', () => {
-    let attempt = createAttempt();
+    let attempt = readyHeadsetAttempt();
     for (const step of [1, 2, 3]) {
       attempt = apply(attempt, {
         type: 'ticket.reveal_hint',

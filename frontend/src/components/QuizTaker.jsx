@@ -141,6 +141,8 @@ export default function QuizTaker({ quizId, studentId }) {
         student_id: studentId,
         answers: Object.fromEntries(Object.entries(answers).map(([id, answer]) => [id, Array.isArray(answer) ? [...answer].sort().join(",") : answer])),
         time_per_question: finalTimings,
+        presentation_hash: quiz.presentation_hash,
+        presented_questions: questions.map((item) => ({ id: item.id, options: item.shuffledOptions.map((option) => option.realLetter) })),
       }, { suppressToast: true });
       if (version !== loadVersionRef.current) return;
       setResult(response.data);

@@ -18,7 +18,10 @@ export default function QuizReviewScreen({ quiz, result, onRetake, retakeLabel =
   const byId = Object.fromEntries((result.results || []).map((row) => [row.question_id, row]));
   const total = result.total || 0;
   const percent = total > 0 ? Math.round((result.score / total) * 100) : 0;
-  const rows = (quiz.questions || []).map((question, index) => ({ question, index, review: byId[question.id] }));
+  const savedResults = result.results || [];
+  const rows = savedResults.length
+    ? savedResults.map((review, index) => ({ question: (quiz.questions || []).find((item) => item.id === review.question_id) || { id: review.question_id }, index, review }))
+    : (quiz.questions || []).map((question, index) => ({ question, index, review: byId[question.id] }));
   const missed = rows.filter(({ review }) => !review?.is_correct);
   const shown = missedOnly ? missed : rows;
   const passed = result.passed;
@@ -51,6 +54,7 @@ export default function QuizReviewScreen({ quiz, result, onRetake, retakeLabel =
         const correctAnswers = answerLetters(review?.correct_answers || review?.correct_answer || question.correct_answers || question.correct_answer);
         const correct = Boolean(review?.is_correct);
         const options = review?.options || Object.fromEntries(OPTION_LETTERS.map((letter) => [letter, question[`option_${letter.toLowerCase()}`] || ""]));
+        const optionOrder = review?.presented_option_order || OPTION_LETTERS;
         const explanation = review?.explanation || question.explanation;
         const status = correct ? "Correct" : studentAnswers.length ? "Incorrect" : "Not answered";
         return (
@@ -58,7 +62,7 @@ export default function QuizReviewScreen({ quiz, result, onRetake, retakeLabel =
             <p className={`mb-2 text-sm font-semibold ${correct ? "text-green-800 dark:text-green-300" : "text-amber-800 dark:text-amber-200"}`}>{status}</p>
             <h3 className="mb-3 break-words font-semibold text-slate-950 dark:text-slate-100">Q{index + 1}. {review?.question_text || question.question_text}</h3>
             <ul className="space-y-2">
-              {OPTION_LETTERS.filter((letter) => options[letter]).map((letter) => {
+              {optionOrder.filter((letter) => options[letter]).map((letter) => {
                 const right = correctAnswers.includes(letter);
                 const selected = studentAnswers.includes(letter);
                 return <li key={letter} className={`min-w-0 rounded-lg border p-3 text-sm ${right ? "border-green-400 bg-green-50 text-green-950 dark:border-green-700 dark:bg-green-950/30 dark:text-green-100" : selected ? "border-red-300 bg-red-50 text-red-950 dark:border-red-700 dark:bg-red-950/30 dark:text-red-100" : "border-slate-200 text-slate-700 dark:border-slate-700 dark:text-slate-300"}`}><p className="break-words">{options[letter]}</p>{right || selected ? <p className="mt-1 text-xs font-semibold">{right && selected ? "Correct answer · Your answer" : right ? "Correct answer" : "Your answer"}</p> : null}</li>;

@@ -443,6 +443,10 @@ jobs:
         # this spec needs into $GITHUB_ENV above.
         run: npx playwright test tests/e2e/service-desk-integration.spec.js --reporter=list
 
+      - name: Run Playwright (Phase 0A beginner trust path)
+        working-directory: frontend
+        run: npx playwright test tests/e2e/phase0a-live-path.spec.js --workers=1 --reporter=list
+
       - name: Persistent P1 workspace interactions (before completing beginner assignment)
         working-directory: frontend
         run: npx playwright test tests/e2e/p1-service-desk-workspace.spec.js --workers=1 --reporter=list

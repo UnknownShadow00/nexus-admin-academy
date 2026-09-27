@@ -312,6 +312,8 @@ def get_student_stats(
             QuizAttempt.completed_at.label("timestamp"),
             Quiz.title.label("title"),
             QuizAttempt.score.label("score"),
+            QuizAttempt.results.label("results"),
+            Quiz.question_count.label("question_count"),
             QuizAttempt.xp_awarded.label("xp"),
         )
         .join(Quiz, Quiz.id == QuizAttempt.quiz_id)
@@ -340,20 +342,28 @@ def get_student_stats(
         .all()
     )
 
-    recent_activity = [
-        {
+    def quiz_activity_row(row):
+        total = len(row.results) if isinstance(row.results, list) and row.results else row.question_count
+        return {
             "type": "quiz",
             "title": row.title,
             "score": row.score,
+            "score_total": total,
+            "score_percent": round(100 * row.score / total) if row.score is not None and total else None,
             "xp": row.xp,
             "timestamp": row.timestamp,
         }
+
+    recent_activity = [
+        quiz_activity_row(row)
         for row in quiz_activity
     ] + [
         {
             "type": "service_desk",
             "title": row.title,
             "score": row.score,
+            "score_total": 100,
+            "score_percent": row.score,
             "xp": None,
             "timestamp": row.timestamp,
         }

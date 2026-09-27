@@ -104,6 +104,8 @@ class QuizSubmitRequest(BaseModel):
     student_id: int = Field(ge=1)
     answers: dict[str, str]
     time_per_question: dict[str, int] | None = Field(default=None)
+    presentation_hash: str | None = None
+    presented_questions: list[dict] | None = None
 
     @field_validator("answers")
     @classmethod

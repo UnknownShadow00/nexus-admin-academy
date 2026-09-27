@@ -248,6 +248,20 @@ def complete_process_workflow(client, student, attempt_id, stable_key):
                 },
             )
             assert response.status_code == 201, response.text
+        if stable_key == "inc2404" and category.name == "diagnosis":
+            # A clean retest is only meaningful once the fault has also been
+            # isolated away from the workstation.
+            response = client.post(
+                path,
+                headers=headers,
+                json={
+                    "idempotency_key": "headset-known-good-cross-check",
+                    "event_type": "asset.record_isolation",
+                    "tool": "asset",
+                    "payload": {"assetTag": "NX-9052", "test": "known-good-headset-affected-workstation"},
+                },
+            )
+            assert response.status_code == 201, response.text
 
 
 @pytest.mark.parametrize(
@@ -1845,7 +1859,7 @@ def test_inc2404_isolation_path_scores_higher_than_immediate_replacement(db):
         ),
     ]
     immediate = grade_for("inc2404-immediate", replacement)
-    assert immediate["passed"] is True and immediate["overall_score"] == 60
+    assert immediate["passed"] is False
 
     student = make_student(db, username="inc2404-isolated")
     client = make_client(service_desk.router)
@@ -1863,7 +1877,26 @@ def test_inc2404_isolation_path_scores_higher_than_immediate_replacement(db):
         headers=auth_headers(student),
         json={"idempotency_key": "complete"},
     ).json()
+    assert isolated["passed"] is True
     assert isolated["overall_score"] == 100 > immediate["overall_score"]
+
+
+def test_inc2404_direct_confirmation_cannot_skip_headset_retest(db):
+    student = make_student(db, username="inc2404-no-false-confirmation")
+    assignment = setup_assignment(db, student, stable_key="inc2404", priority="medium", process_profile=True)
+    client = make_client(service_desk.router)
+    attempt_id = start(client, student, assignment).json()["id"]
+    path = f"/api/service-desk/attempts/{attempt_id}/actions"
+    headers = auth_headers(student)
+    confirmation = {"event_type": "chat.request_resolution_confirmation", "tool": "chat", "payload": {"ticketId": "INC2404", "contactId": "directory-user-elliot-ward"}}
+    before = client.post(path, headers=headers, json={"idempotency_key": "before", **confirmation})
+    assert before.status_code == 409
+    assert client.post(path, headers=headers, json={"idempotency_key": "ship", "event_type": "shipping.create", "tool": "shipping", "payload": {"recipientDirectoryUserId": "directory-user-elliot-ward", "equipment": [{"name": "Headset", "quantity": 1}]}}).status_code == 201
+    after_shipping = client.post(path, headers=headers, json={"idempotency_key": "after-shipping", **confirmation})
+    assert after_shipping.status_code == 409
+    assert client.post(path, headers=headers, json={"idempotency_key": "clean", "event_type": "asset.record_isolation", "tool": "asset", "payload": {"assetTag": "NX-9052", "test": "replacement-clean-audio"}}).status_code == 201
+    after_technician_test = client.post(path, headers=headers, json={"idempotency_key": "after-tech-test", **confirmation})
+    assert after_technician_test.status_code == 409
 
 
 @pytest.mark.parametrize(

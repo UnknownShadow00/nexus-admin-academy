@@ -9,7 +9,9 @@ import { checkInStudent, getLabs, getServiceDeskProgressSummary, getStudentStats
 import { getV2Learning } from "../services/api";
 import { useV2Access } from "../hooks/useV2Access";
 import V2Status from "../components/v2/V2Status";
+import { TrainingDestination } from "../components/TrainingDestination";
 import { iconSizes, scoreBand } from "../utils/theme";
+import { recentActivityScore } from "../utils/recentActivityScore";
 
 function SkeletonCard() {
   return <div className="panel h-28 animate-pulse dark:border-slate-700 dark:bg-slate-900" />;
@@ -174,7 +176,7 @@ export default function StudentHome() {
           </div>
         ) : null}
         {v2Learning?.current ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{v2Learning.current.progress.lessons.completed} of {v2Learning.current.progress.lessons.total} lessons complete</span><strong>{v2Learning.current.progress.module_complete ? "Complete" : "In progress"}</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${v2Learning.current.progress.lessons.total ? Math.round(v2Learning.current.progress.lessons.completed / v2Learning.current.progress.lessons.total * 100) : 0}%` }} /></div></div> : training?.current_module ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{training.current_module.required_complete} of {training.current_module.required_total} required activities complete</span><strong>{training.current_module.completion_percent}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${training.current_module.completion_percent}%` }} /></div></div> : null}
-        <Link className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 font-bold text-blue-700 hover:bg-blue-50" to={continueTarget.to}>{continueTarget.label}</Link>
+        <TrainingDestination activity={v2Learning?.current ? null : training?.next_activity} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 font-bold text-blue-700 hover:bg-blue-50" to={continueTarget.to}>{continueTarget.label}</TrainingDestination>
       </section>
 
       {v2Learning?.current ? (
@@ -278,7 +280,7 @@ export default function StudentHome() {
         </div>
         {recent.length ? recent.map((item, index) => {
           const Icon = item.type === "service_desk" ? Ticket : BookOpen;
-          const scorePct = item.score != null ? item.score : null;
+          const score = recentActivityScore(item);
           return (
             <div key={`${item.type}-${index}`} className="flex items-start justify-between gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
               <div className="flex min-w-0 items-start gap-3">
@@ -290,8 +292,8 @@ export default function StudentHome() {
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.timestamp ? new Date(item.timestamp).toLocaleString() : "Recent update"}</p>
                 </div>
               </div>
-              {item.score != null ? (
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${scoreBand.classes[scoreBand(scorePct)]}`}>Score {item.score}%</span>
+              {score ? (
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${scoreBand.classes[scoreBand(score.percent)]}`}>{score.label}</span>
               ) : item.xp != null ? (
                 <div className="shrink-0"><XPBadge amount={item.xp} /></div>
               ) : null}
