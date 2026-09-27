@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="270" viewBox="0 0 720 270" role="img" aria-labelledby="t d">
+  <title id="t">Three simplified computer ports</title><desc id="d">Three silhouettes numbered 1 to 3. Port 1 is rectangular, port 2 is wider with angled sides, and port 3 is round.</desc>
+  <rect width="720" height="270" rx="18" fill="#f8fafc"/><text x="360" y="38" text-anchor="middle" font-family="sans-serif" font-size="23" font-weight="bold" fill="#0f172a">Look at the shape before connecting</text>
+  <g fill="#e2e8f0" stroke="#334155" stroke-width="6"><rect x="78" y="95" width="150" height="83" rx="6"/><path d="M320 95h160l-16 83H336z"/><circle cx="605" cy="136" r="44"/></g><rect x="99" y="121" width="108" height="18" rx="2" fill="#64748b"/><path d="M347 128h108" stroke="#64748b" stroke-width="8"/>
+  <g font-family="sans-serif" font-size="18" text-anchor="middle" fill="#0f172a"><text x="153" y="217">1 · rectangular</text><text x="400" y="217">2 · wide, angled</text><text x="605" y="217">3 · round</text></g>
+  <text x="360" y="250" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#334155">Teaching shapes only. Real ports vary by device.</text>
+</svg>

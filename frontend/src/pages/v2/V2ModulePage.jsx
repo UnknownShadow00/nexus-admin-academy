@@ -31,10 +31,11 @@ export default function V2ModulePage() {
   const practical = byRole("practical");
   const serviceDesk = byRole("service_desk");
   const examCode = data.certification.version.exam_codes?.[0];
+  const beginner = data.certification.version.key === "nexus_beginner_aplus_v1";
   return <main className="mx-auto max-w-6xl space-y-8 p-4 pb-20 sm:p-6">
     <V2Breadcrumbs certification={data.certification} module={data.module} />
     <header className="max-w-4xl">
-      <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">{examCode} · {data.certification.domain?.title}</p>
+      <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">{beginner ? "Beginner A+ foundation" : examCode} · {data.certification.domain?.title}</p>
       <h1 className="mt-2 text-3xl font-bold text-slate-950 dark:text-white sm:text-4xl">{data.module.title}</h1>
       <div className="mt-3 flex gap-2"><V2Status status={data.progress.status} />{data.progress.review_due ? <V2Status status="review_due" /> : null}</div>
       <p className="mt-3 text-lg leading-8 text-slate-600 dark:text-slate-300">{data.module.description}</p>
@@ -60,16 +61,16 @@ export default function V2ModulePage() {
         {moduleQuiz ? <AssessmentCard item={moduleQuiz} moduleKey={data.module.key} Icon={HelpCircle} action="Take the quiz" route={(item, key) => `/learning-v2/modules/${key}/assessments/${item.key}`} /> : null}
         {practical ? <AssessmentCard item={practical} moduleKey={data.module.key} Icon={FlaskConical} action="Open practical" route={(item, key) => `/learning-v2/modules/${key}/practical/${item.key}`} /> : null}
         {serviceDesk ? <AssessmentCard item={serviceDesk} moduleKey={data.module.key} Icon={Ticket} action="Troubleshoot a ticket" route={(item, key) => `/learning-v2/modules/${key}/service-desk/${item.key}`} /> : null}
-        <div className="panel flex min-h-40 flex-col"><span className="w-fit rounded-xl bg-blue-50 p-2.5 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"><MessageSquareText size={21} aria-hidden="true" /></span><h3 className="mt-4 font-bold">Explain it in your own words</h3><p className="mt-1 text-sm text-slate-500">{data.progress.explain_prompts.completed} of {data.progress.explain_prompts.total} complete</p>{data.explain_prompts[0] ? <Link className="mt-auto pt-4 text-sm font-semibold text-blue-600 dark:text-blue-400" to={`/learning-v2/modules/${data.module.key}/explain/${data.explain_prompts.find((p) => !["completed", "passed"].includes(p.progress.status))?.key || data.explain_prompts[0].key}`}>Open Explain →</Link> : <p className="mt-auto pt-4 text-sm text-slate-500">No prompt available</p>}</div>
+        {data.explain_prompts.length ? <div className="panel flex min-h-40 flex-col"><span className="w-fit rounded-xl bg-blue-50 p-2.5 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"><MessageSquareText size={21} aria-hidden="true" /></span><h3 className="mt-4 font-bold">Explain it in your own words</h3><p className="mt-1 text-sm text-slate-500">{data.progress.explain_prompts.completed} of {data.progress.explain_prompts.total} complete</p><Link className="mt-auto pt-4 text-sm font-semibold text-blue-600 dark:text-blue-400" to={`/learning-v2/modules/${data.module.key}/explain/${data.explain_prompts.find((p) => !["completed", "passed"].includes(p.progress.status))?.key || data.explain_prompts[0].key}`}>Open Explain →</Link></div> : null}
       </div>
     </section>
-    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Module progress">
-      <div className="panel"><p className="text-sm text-slate-500">Lessons</p><p className="mt-1 text-xl font-bold">{data.progress.lessons.completed} / {data.progress.lessons.total}</p></div>
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label={beginner ? "Stage progress" : "Module progress"}>
+      {!beginner ? <div className="panel"><p className="text-sm text-slate-500">Lessons</p><p className="mt-1 text-xl font-bold">{data.progress.lessons.completed} / {data.progress.lessons.total}</p></div> : null}
       <div className="panel"><p className="text-sm text-slate-500">Quick Checks</p><p className="mt-1 text-xl font-bold">{data.progress.quick_checks.completed} / {data.progress.quick_checks.total}</p></div>
-      <div className="panel"><p className="text-sm text-slate-500">Module Quiz</p><p className="mt-1 text-xl font-bold">{data.progress.module_quiz?.activity?.score != null ? `${data.progress.module_quiz.activity.score}%${data.progress.module_quiz.activity.passed ? " ✓" : ""}` : "Not started"}</p></div>
-      <div className="panel"><p className="text-sm text-slate-500">Practical</p><div className="mt-2"><V2Status status={data.progress.practical?.activity?.status} /></div></div>
-      <div className="panel"><p className="text-sm text-slate-500">Service Desk</p><div className="mt-2"><V2Status status={data.progress.service_desk?.activity?.status} /></div></div>
-      <div className="panel"><p className="text-sm text-slate-500">Explain</p><p className="mt-1 text-xl font-bold">{data.progress.explain_prompts.completed} / {data.progress.explain_prompts.total}</p></div>
+      <div className="panel"><p className="text-sm text-slate-500">{beginner ? "Final checkpoint" : "Module Quiz"}</p><p className="mt-1 text-xl font-bold">{data.progress.module_quiz?.activity?.score != null ? `${data.progress.module_quiz.activity.score}%${data.progress.module_quiz.activity.passed ? " ✓" : ""}` : "Not started"}</p></div>
+      {practical ? <div className="panel"><p className="text-sm text-slate-500">Practical</p><div className="mt-2"><V2Status status={data.progress.practical?.activity?.status} /></div></div> : null}
+      {serviceDesk ? <div className="panel"><p className="text-sm text-slate-500">Service Desk</p><div className="mt-2"><V2Status status={data.progress.service_desk?.activity?.status} /></div></div> : null}
+      {data.explain_prompts.length ? <div className="panel"><p className="text-sm text-slate-500">Explain</p><p className="mt-1 text-xl font-bold">{data.progress.explain_prompts.completed} / {data.progress.explain_prompts.total}</p></div> : null}
     </section>
     <p className="sr-only"><BriefcaseBusiness />This module connects learning to workplace practice.</p>
   </main>;

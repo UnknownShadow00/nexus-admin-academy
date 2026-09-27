@@ -1,0 +1,93 @@
+# Original Nexus diagrams. Each required link is paired with short lesson text,
+# a native interaction, and a five-question checkpoint; opening is exposure only.
+resources:
+  - resource_key: res.nexus.beginner.s1.supports
+    title: Picture — What IT supports
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s1-supports.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s1.supports, required: true, order: 1}]
+  - resource_key: res.nexus.beginner.s1.support_work
+    title: Picture — A support conversation
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s1-support-work.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s1.support_work, required: true, order: 1}]
+  - resource_key: res.nexus.beginner.s1.safe_thinking
+    title: Picture — Pause before risky changes
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s1-safe-thinking.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s1.safe_thinking, required: true, order: 1}]
+  - resource_key: res.nexus.beginner.s2.inside
+    title: Picture — Inside a computer
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s2-inside.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s2.inside, required: true, order: 1}]
+  - resource_key: res.nexus.beginner.s2.hardware_software_recap
+    title: Optional recap — hardware or software?
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s1-supports.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s2.inside, required: false, order: 2}]
+  - resource_key: res.nexus.beginner.s2.connections
+    title: Picture — Basic port shapes
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s2-connections.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s2.connections, required: true, order: 1}]
+  - resource_key: res.nexus.beginner.s2.files_apps
+    title: Picture — Files, folders, and applications
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s2-files-apps.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s2.files_apps, required: true, order: 1}]
+  - resource_key: res.nexus.beginner.s3.desktop
+    title: Picture — Windows desktop
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s3-desktop.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s3.desktop, required: true, order: 1}]
+  - resource_key: res.nexus.beginner.s3.accounts_files
+    title: Picture — An account and a file path
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s3-accounts-files.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s3.accounts_files, required: true, order: 1}]
+  - resource_key: res.nexus.beginner.s3.care
+    title: Picture — Windows tools
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s3-care.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s3.care, required: true, order: 1}]

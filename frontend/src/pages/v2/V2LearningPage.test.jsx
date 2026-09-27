@@ -45,4 +45,20 @@ describe("V2LearningPage multi-module certification view", () => {
     render(<MemoryRouter><V2LearningPage /></MemoryRouter>);
     expect(await screen.findByText("CompTIA A+ Core 2 (220-1202) · 220-1202")).toBeInTheDocument();
   });
+  it("shows ordered beginner stages and explains the locked next stage", async () => {
+    const first = moduleRow("module.nexus.beginner.stage1", "Stage 1 — What Is IT?");
+    const second = moduleRow("module.nexus.beginner.stage2", "Stage 2 — Computer Basics");
+    for (const item of [first, second]) {
+      item.certification = { name: "Beginner A+ Foundation", version: { key: "nexus_beginner_aplus_v1", label: "Beginner A+ · Version 1", exam_codes: [] } };
+      item.progress.lessons.total = 3;
+    }
+    second.locked = true;
+    second.lock_reason = "Finish Stage 1 before starting Stage 2.";
+    api.getV2Learning.mockResolvedValue({ data: { modules: [first, second], current: first } });
+    render(<MemoryRouter><V2LearningPage /></MemoryRouter>);
+    expect(await screen.findByRole("heading", { name: "Your stages" })).toBeVisible();
+    expect(screen.getByText("Finish Stage 1 before starting Stage 2.")).toBeVisible();
+    expect(screen.queryByRole("link", { name: /Stage 2 — Computer Basics/ })).not.toBeInTheDocument();
+    expect(screen.getByText("3 learning groups")).toBeVisible();
+  });
 });

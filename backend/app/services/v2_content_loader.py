@@ -29,6 +29,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from urllib.parse import urlsplit
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -630,12 +631,16 @@ def load_resources(db: Session, path: str, *, summary: LoadSummary | None = None
 def valid_external_url(value) -> bool:
     """Would a student actually be able to open this resource?
 
-    Mirrors the presentation layer's ``_safe_url``: only absolute http(s)
-    URLs with a host survive, and anything else is rendered as no link at all.
+    Also accepts a checked-in original diagram under the V2 interaction asset
+    directory. Arbitrary relative paths remain invalid.
     """
     if not value:
         return False
     parsed = urlsplit(str(value).strip())
+    if parsed.scheme == "" and parsed.netloc == "" and not parsed.query and not parsed.fragment:
+        if re.fullmatch(r"/v2-interactions/[a-z0-9-]+\.svg", parsed.path):
+            asset = os.path.join(os.path.dirname(_HERE), "frontend", "public", parsed.path.lstrip("/"))
+            return os.path.isfile(asset)
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
@@ -979,12 +984,14 @@ def load_question_banks(
             parser = parse_csv_file
         elif lower.endswith((".xlsx", ".xlsm")):
             parser = parse_xlsx_file
+        elif lower.startswith("beginner-stage-") and lower.endswith(".yaml"):
+            parser = None
         else:
             continue
         with open(os.path.join(questions_dir, name), "rb") as handle:
             data = handle.read()
         try:
-            rows = parser(data)
+            rows = parser(data) if parser else _beginner_question_rows(data, name)
         except ImportFileError as exc:
             raise ContentValidationError(f"{name}: {exc}") from exc
         result = confirm_import(
@@ -1004,6 +1011,49 @@ def load_question_banks(
             )
     _apply_question_bank_editorial_approvals(db, questions_dir, summary)
     return summary
+
+
+def _beginner_question_rows(data: bytes, name: str) -> list[dict]:
+    """Adapt concise, versioned beginner questions to the existing importer."""
+    document = yaml.safe_load(data)
+    if not isinstance(document, dict) or not isinstance(document.get("questions"), list):
+        raise ContentValidationError(f"{name}: questions must be a list")
+    rows = []
+    for index, question in enumerate(document["questions"]):
+        choices = question.get("choices") if isinstance(question, dict) else None
+        answer = question.get("answer") if isinstance(question, dict) else None
+        if not isinstance(choices, list) or len(choices) != 4 or type(answer) is not int or not 0 <= answer < 4:
+            raise ContentValidationError(f"{name}: questions[{index}] needs four choices and a zero-based answer")
+        group = str(question.get("group") or "").strip()
+        if not group:
+            raise ContentValidationError(f"{name}: questions[{index}] needs a group tag")
+        # Keep the source list easy to review while preventing a predictable
+        # answer position in the published bank.
+        shift = index % 4
+        displayed_choices = choices[-shift:] + choices[:-shift] if shift else choices
+        displayed_answer = (answer + shift) % 4
+        row = {
+            "quiz_title": document["quiz_title"],
+            "question_type": "single",
+            "question_text": question.get("text"),
+            "correct_answers": "ABCD"[displayed_answer],
+            "explanation": question.get("explanation"),
+            "difficulty": 1,
+            "tags": ",".join([group] + (["review-core"] if question.get("review") else [])),
+            "source": "Nexus beginner curriculum",
+            "published": False,
+            "certification": document["certification"],
+            "certification_version": document["certification_version"],
+            "domain": document["domain"],
+            "module": document["module"],
+            "objective_code": question.get("objective_code"),
+            "importance": "working_knowledge",
+            "source_name": "Nexus original beginner curriculum",
+            "permission_status": "owned",
+        }
+        row.update({f"option_{letter}": choice for letter, choice in zip("abcd", displayed_choices)})
+        rows.append(row)
+    return rows
 
 
 def _apply_question_bank_editorial_approvals(

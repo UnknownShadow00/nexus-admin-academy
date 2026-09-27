@@ -1,5 +1,7 @@
 # Job-Ready Curriculum Blueprint (Phase 4A)
 
+**Nexus V2 Phase 3A status (2026-09-27):** a separate versioned beginner A+ path now has review-candidate Stages 1–3. See `NEXUS_V2_PHASE_3A_STAGES_1_3.md`. The Stage labels and legacy Week mappings below describe the existing path and were not converted by this work.
+
 Status: Phase 4A — audit, classification, and blueprint. Structural (code-only)
 changes implemented; full sequence reorder deferred pending authorization (see
 "Structural constraint" below). Content authoring is Phase 4B/4C.

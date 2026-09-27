@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="240" viewBox="0 0 720 240" role="img" aria-labelledby="t d">
+  <title id="t">Application, folder, and file</title><desc id="d">A writing application opens a saved document file held inside a folder.</desc>
+  <rect width="720" height="240" rx="18" fill="#f8fafc"/><text x="360" y="38" text-anchor="middle" font-family="sans-serif" font-size="23" font-weight="bold" fill="#0f172a">Three different things</text>
+  <g font-family="sans-serif" font-size="18" text-anchor="middle" fill="#0f172a"><rect x="35" y="83" width="180" height="95" rx="12" fill="#dbeafe"/><text x="125" y="125">Application</text><text x="125" y="151" font-size="15">tool for a task</text><rect x="270" y="83" width="180" height="95" rx="12" fill="#fef3c7"/><text x="360" y="125">Folder</text><text x="360" y="151" font-size="15">groups files</text><rect x="505" y="83" width="180" height="95" rx="12" fill="#dcfce7"/><text x="595" y="125">File</text><text x="595" y="151" font-size="15">saved information</text></g>
+  <text x="360" y="217" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#334155">Ask whether the tool failed or the saved information is missing.</text>
+</svg>

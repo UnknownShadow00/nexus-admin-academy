@@ -1,0 +1,12 @@
+version_key: nexus_beginner_aplus_v1
+source_name: Nexus original beginner curriculum
+objectives:
+  - {code: B1.1, domain_key: S1, text: Distinguish common things IT supports from each other.}
+  - {code: B1.2, domain_key: S1, text: Describe what a support technician does for a user.}
+  - {code: B1.3, domain_key: S1, text: Choose a safe and honest next action when a problem is unclear.}
+  - {code: B2.1, domain_key: S2, text: Explain input, processing, memory, storage, and output using everyday examples.}
+  - {code: B2.2, domain_key: S2, text: Recognize common peripherals and choose a safe connection check.}
+  - {code: B2.3, domain_key: S2, text: Distinguish applications, files, and folders.}
+  - {code: B3.1, domain_key: S3, text: Explain what an operating system does and recognize Windows desktop parts.}
+  - {code: B3.2, domain_key: S3, text: Distinguish account roles and find a file using File Explorer.}
+  - {code: B3.3, domain_key: S3, text: Choose safe Windows settings, restart, and update actions.}

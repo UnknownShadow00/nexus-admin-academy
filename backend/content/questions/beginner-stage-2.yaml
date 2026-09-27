@@ -1,0 +1,100 @@
+quiz_title: Nexus Beginner Stage 2 — Checkpoint Bank
+certification: nexus_beginner_aplus
+certification_version: nexus_beginner_aplus_v1
+domain: S2
+module: module.nexus.beginner.stage2
+questions:
+  - group: s2-inside
+    objective_code: B2.1
+    text: What does the central processing unit (CPU) do?
+    choices: ["Processes instructions", "Stores saved files when power is off", "Shows pictures", "Connects a mouse to a desk"]
+    answer: 0
+    explanation: The CPU follows instructions and processes information.
+    review: true
+  - group: s2-inside
+    objective_code: B2.1
+    text: What is Random Access Memory (RAM) used for?
+    choices: ["Short-term working space for active tasks", "Long-term saved storage", "Power from the wall", "A place to plug in a monitor"]
+    answer: 0
+    explanation: RAM holds active work temporarily and clears when power is off.
+    review: true
+  - group: s2-inside
+    objective_code: B2.1
+    text: Where should a saved document remain after the computer is turned off?
+    choices: ["Storage such as a solid-state drive", "RAM only", "The screen", "The keyboard"]
+    answer: 0
+    explanation: Storage keeps saved files after power is off; RAM does not.
+    review: true
+  - group: s2-inside
+    objective_code: B2.1
+    text: You type a letter and see it on screen. Which order fits?
+    choices: ["Keyboard input; processing; screen output", "Screen input; keyboard output; storage", "Storage input; power output; keyboard", "RAM input; motherboard output; mouse"]
+    answer: 0
+    explanation: The keyboard supplies input, the computer processes it, and the screen displays output.
+  - group: s2-inside
+    objective_code: B2.1
+    text: What is the motherboard's basic job?
+    choices: ["Connect the main computer parts", "Keep files after power is off", "Display every image", "Replace the power supply"]
+    answer: 0
+    explanation: The motherboard is the main board that connects the parts.
+  - group: s2-connections
+    objective_code: B2.2
+    text: What is a peripheral?
+    choices: ["A connected device such as a mouse or printer", "The computer's operating system", "A saved document", "A user's account"]
+    answer: 0
+    explanation: A peripheral is a device connected to a computer.
+  - group: s2-connections
+    objective_code: B2.2
+    text: What is a port on a computer?
+    choices: ["A socket for a matching cable or accessory", "A file folder", "A type of user account", "A stored application"]
+    answer: 0
+    explanation: A port is a physical connection point; never force a plug into it.
+  - group: s2-connections
+    objective_code: B2.2
+    text: Which port commonly carries a picture to a monitor?
+    choices: ["High-Definition Multimedia Interface (HDMI)", "A round audio socket", "A power button", "A folder icon"]
+    answer: 0
+    explanation: HDMI commonly carries video to a monitor.
+  - group: s2-connections
+    objective_code: B2.2
+    text: A monitor is blank. What is a safe first check?
+    choices: ["Ask whether it has power and the correct input is selected", "Open the power supply", "Force a cable into a similar-looking port", "Replace the motherboard without asking"]
+    answer: 0
+    explanation: Power and input selection are safe checks before any disruptive action.
+  - group: s2-connections
+    objective_code: B2.2
+    text: You notice a burning smell near a computer. What should you do?
+    choices: ["Stop and ask a trained technician for help", "Open the power supply", "Keep using it until it stops", "Touch damaged wiring to check it"]
+    answer: 0
+    explanation: Damage or a burning smell is a reason to stop; do not open a power supply.
+  - group: s2-files-apps
+    objective_code: B2.3
+    text: What is a file?
+    choices: ["Saved information such as a photo or document", "The program used to write", "A physical port", "The computer's power supply"]
+    answer: 0
+    explanation: A file is saved information. An application can open or create it.
+    review: true
+  - group: s2-files-apps
+    objective_code: B2.3
+    text: What is a folder for?
+    choices: ["Grouping files so they are easier to find", "Processing instructions", "Supplying electrical power", "Displaying a picture"]
+    answer: 0
+    explanation: A folder organizes files; it is not the same thing as an application.
+  - group: s2-files-apps
+    objective_code: B2.3
+    text: What is an application?
+    choices: ["Software opened to do a task", "A saved document", "A storage drive", "A physical connector"]
+    answer: 0
+    explanation: An application is a tool such as a document editor or browser.
+  - group: s2-files-apps
+    objective_code: B2.3
+    text: Someone says “my document is gone.” What should you ask first?
+    choices: ["Which document and where did you last save it?", "Should I delete all folders?", "Can I replace the computer?", "Is every application broken?"]
+    answer: 0
+    explanation: Clarify whether the file is missing before changing an application or device.
+  - group: s2-files-apps
+    objective_code: B2.3
+    text: Which pair correctly names a file and an application?
+    choices: ["report.txt is a file; a document editor is an application", "A keyboard is a file; a screen is an application", "RAM is a file; storage is an application", "A folder is a file; a port is an application"]
+    answer: 0
+    explanation: The editor is software for work; report.txt is saved information.

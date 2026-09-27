@@ -1,0 +1,99 @@
+quiz_title: Nexus Beginner Stage 3 — Checkpoint Bank
+certification: nexus_beginner_aplus
+certification_version: nexus_beginner_aplus_v1
+domain: S3
+module: module.nexus.beginner.stage3
+questions:
+  - group: s3-desktop
+    objective_code: B3.1
+    text: What does an operating system (OS) do?
+    choices: ["Starts the computer and helps applications, files, and devices work", "Only writes documents", "Only stores passwords", "Only connects a mouse"]
+    answer: 0
+    explanation: The OS is the main software that manages the computer and supports applications.
+    review: true
+  - group: s3-desktop
+    objective_code: B3.1
+    text: Which is an operating system?
+    choices: ["Windows", "A web browser", "A document", "A printer"]
+    answer: 0
+    explanation: Windows is an operating system; a browser is an application that runs on it.
+  - group: s3-desktop
+    objective_code: B3.1
+    text: What does the Windows Start menu help you find?
+    choices: ["Applications and settings", "A broken cable inside the computer", "Paper documents on a desk", "The building power supply"]
+    answer: 0
+    explanation: The Start menu is a common way to find applications and settings.
+  - group: s3-desktop
+    objective_code: B3.1
+    text: What does the taskbar help you do?
+    choices: ["See and switch between open applications", "Replace memory", "Save a file after shutdown", "Change someone else's account"]
+    answer: 0
+    explanation: The taskbar shows open applications and helps you switch between them.
+  - group: s3-desktop
+    objective_code: B3.1
+    text: Why ask which operating system a person uses?
+    choices: ["The steps and screen may differ by system", "All systems use the same screens", "It tells you every cause at once", "It removes the need to ask about the problem"]
+    answer: 0
+    explanation: Windows, macOS, Linux, and phones can show different steps for the same task.
+  - group: s3-accounts-files
+    objective_code: B3.2
+    text: What is a standard user account mainly for?
+    choices: ["Everyday work with limited system changes", "Changing every computer for everyone", "Bypassing all permissions", "Replacing the operating system"]
+    answer: 0
+    explanation: A standard account supports normal work without broad administrator changes.
+  - group: s3-accounts-files
+    objective_code: B3.2
+    text: What can an administrator account do that a standard account usually cannot?
+    choices: ["Make wider system changes", "Turn a file into a physical device", "Prove every update is safe", "Ignore workplace permission rules"]
+    answer: 0
+    explanation: Administrator access allows broader changes, which still need authorization and care.
+    review: true
+  - group: s3-accounts-files
+    objective_code: B3.2
+    text: What is File Explorer used for?
+    choices: ["Finding files and folders", "Supplying power", "Showing only running applications", "Replacing a screen"]
+    answer: 0
+    explanation: File Explorer helps you move through folders and find files.
+  - group: s3-accounts-files
+    objective_code: B3.2
+    text: In Documents > Notes > plan.txt, what is plan.txt?
+    choices: ["A file inside the Notes folder", "An administrator account", "A physical port", "The Windows operating system"]
+    answer: 0
+    explanation: The path ends with the file name; the earlier names are folders.
+  - group: s3-accounts-files
+    objective_code: B3.2
+    text: Windows says you do not have permission to open a file. What should you do?
+    choices: ["Ask for appropriate help or access", "Use someone else's account", "Disable all permissions", "Delete the folder"]
+    answer: 0
+    explanation: Permission rules protect work. Ask rather than bypass them.
+  - group: s3-care
+    objective_code: B3.3
+    text: Which Windows tool shows running applications?
+    choices: ["Task Manager", "File Explorer", "A folder", "A monitor port"]
+    answer: 0
+    explanation: Task Manager shows running applications and basic activity.
+    review: true
+  - group: s3-care
+    objective_code: B3.3
+    text: Which Windows place is for changing an option such as display brightness?
+    choices: ["Settings", "A saved document", "File Explorer's file list", "A keyboard port"]
+    answer: 0
+    explanation: Settings is for changing Windows options; a file is stored information.
+  - group: s3-care
+    objective_code: B3.3
+    text: What should happen before restarting a work computer with an unsaved document?
+    choices: ["Ask the user to save work and agree on timing", "Restart immediately", "Delete the document", "Turn off future updates"]
+    answer: 0
+    explanation: Restarting closes programs; protect unsaved work first.
+  - group: s3-care
+    objective_code: B3.3
+    text: What is the basic difference between restart and shutdown?
+    choices: ["Restart starts Windows again; shutdown turns the computer off", "Restart deletes files; shutdown saves them", "Both install every application", "Both change account permissions"]
+    answer: 0
+    explanation: Restart closes and starts Windows again; shutdown turns the computer off.
+  - group: s3-care
+    objective_code: B3.3
+    text: A stranger sends a link to install a new program. What is a safe response?
+    choices: ["Check with the workplace before installing it", "Install it immediately", "Share an administrator password", "Disable updates first"]
+    answer: 0
+    explanation: Install only approved software from trusted sources with the right permission.

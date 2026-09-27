@@ -18,6 +18,7 @@ from app.services.v2_access import (
     v2_access_state,
     v2_master_enabled,
 )
+from app.services.v2_beginner_path import require_beginner_stage
 from app.services.v2_curriculum_service import (
     assessment_questions,
     entry_view,
@@ -89,7 +90,7 @@ def get_entry(
     return ok(entry_view(db, student.id))
 
 
-@router.get("/modules/{module_key}")
+@router.get("/modules/{module_key}", dependencies=[Depends(require_beginner_stage)])
 def get_module(
     module_key: str,
     db: Session = Depends(get_db),
@@ -101,7 +102,7 @@ def get_module(
         _not_found(exc)
 
 
-@router.get("/modules/{module_key}/lessons/{lesson_key}")
+@router.get("/modules/{module_key}/lessons/{lesson_key}", dependencies=[Depends(require_beginner_stage)])
 def get_lesson(
     module_key: str,
     lesson_key: str,
@@ -114,7 +115,7 @@ def get_lesson(
         _not_found(exc)
 
 
-@router.get("/modules/{module_key}/interactions/{interaction_key}")
+@router.get("/modules/{module_key}/interactions/{interaction_key}", dependencies=[Depends(require_beginner_stage)])
 def get_interaction(
     module_key: str, interaction_key: str,
     db: Session = Depends(get_db),
@@ -126,7 +127,7 @@ def get_interaction(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post("/modules/{module_key}/interactions/{interaction_key}/submit")
+@router.post("/modules/{module_key}/interactions/{interaction_key}/submit", dependencies=[Depends(require_beginner_stage)])
 def post_interaction(
     module_key: str, interaction_key: str, body: InteractionSubmitRequest,
     db: Session = Depends(get_db),
@@ -148,7 +149,7 @@ def post_interaction(
         raise HTTPException(status_code=409, detail="Please retry this interaction") from exc
 
 
-@router.post("/modules/{module_key}/lessons/{lesson_key}/complete")
+@router.post("/modules/{module_key}/lessons/{lesson_key}/complete", dependencies=[Depends(require_beginner_stage)])
 def complete_lesson(
     module_key: str,
     lesson_key: str,
@@ -166,7 +167,7 @@ def complete_lesson(
         _not_found(exc)
 
 
-@router.post("/modules/{module_key}/resources/{resource_key}/activity")
+@router.post("/modules/{module_key}/resources/{resource_key}/activity", dependencies=[Depends(require_beginner_stage)])
 def post_resource_activity(
     module_key: str,
     resource_key: str,
@@ -184,7 +185,7 @@ def post_resource_activity(
         _not_found(exc)
 
 
-@router.post("/modules/{module_key}/service-desk/{assessment_key}/launch")
+@router.post("/modules/{module_key}/service-desk/{assessment_key}/launch", dependencies=[Depends(require_beginner_stage)])
 def post_service_desk_launch(
     module_key: str,
     assessment_key: str,
@@ -197,7 +198,7 @@ def post_service_desk_launch(
         _not_found(exc)
 
 
-@router.get("/modules/{module_key}/assessments/{assessment_key}")
+@router.get("/modules/{module_key}/assessments/{assessment_key}", dependencies=[Depends(require_beginner_stage)])
 def get_assessment(
     module_key: str,
     assessment_key: str,
@@ -210,7 +211,7 @@ def get_assessment(
         _not_found(exc)
 
 
-@router.post("/modules/{module_key}/assessments/{assessment_key}/submit")
+@router.post("/modules/{module_key}/assessments/{assessment_key}/submit", dependencies=[Depends(require_beginner_stage)])
 def post_assessment(
     module_key: str,
     assessment_key: str,
@@ -228,7 +229,7 @@ def post_assessment(
         _not_found(exc)
 
 
-@router.post("/modules/{module_key}/assessments/{assessment_key}/attempts")
+@router.post("/modules/{module_key}/assessments/{assessment_key}/attempts", dependencies=[Depends(require_beginner_stage)])
 def start_assessment_attempt(
     module_key: str,
     assessment_key: str,
@@ -241,7 +242,7 @@ def start_assessment_attempt(
         _not_found(exc)
 
 
-@router.get("/modules/{module_key}/explain/{prompt_key}")
+@router.get("/modules/{module_key}/explain/{prompt_key}", dependencies=[Depends(require_beginner_stage)])
 def get_explain(
     module_key: str,
     prompt_key: str,
@@ -254,7 +255,7 @@ def get_explain(
         _not_found(exc)
 
 
-@router.post("/modules/{module_key}/explain/{prompt_key}/submit")
+@router.post("/modules/{module_key}/explain/{prompt_key}/submit", dependencies=[Depends(require_beginner_stage)])
 def post_explain(
     module_key: str,
     prompt_key: str,

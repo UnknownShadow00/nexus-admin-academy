@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -49,3 +49,15 @@ def create_cards_for_wrong_answers(db: Session, student_id: int, wrong_answers: 
         else:
             card.due_date = today
             card.last_wrong_answer = student_answer
+
+
+def create_cards_for_review_questions(db: Session, student_id: int, question_ids: set[int]) -> None:
+    """Queue selected, correctly answered questions for a light next-day review."""
+    tomorrow = date.today() + timedelta(days=1)
+    for question_id in sorted(question_ids):
+        question = db.get(Question, question_id)
+        if question is None or question.flagged_for_review or not validate_question_row(question).valid:
+            continue
+        existing = db.query(FlashcardReview.id).filter_by(student_id=student_id, question_id=question_id).first()
+        if existing is None:
+            db.add(FlashcardReview(student_id=student_id, question_id=question_id, due_date=tomorrow))
