@@ -18,8 +18,8 @@ const contents = {
 
 function answerData(type) {
   return {
-    interaction: { key: `interaction.pilot.${type}`, version: 1, type, title: "Practice activity", instructions: "Choose or enter your answer.", required: true, content: contents[type] },
-    progress: { status: "not_started", attempts: [], best_result: null, passed: false },
+    interaction: { key: `interaction.pilot.${type}`, version: 1, version_id: 77, type, title: "Practice activity", instructions: "Choose or enter your answer.", required: true, content: contents[type] },
+    progress: { status: "not_started", attempt_count: 0, best_result: null, passed: false },
   };
 }
 
@@ -33,9 +33,9 @@ describe("V2Interaction", () => {
   afterEach(cleanup);
   beforeEach(() => {
     vi.clearAllMocks();
-    api.submitV2Interaction.mockImplementation(async (_module, _key, response) => ({ data: {
+    api.submitV2Interaction.mockImplementation(async (_module, _key, _versionId, response) => ({ data: {
       ...answerData("safe_action"),
-      progress: { status: "passed", attempts: [{ id: 7 }], best_result: { passed: true }, passed: true },
+      progress: { status: "passed", attempt_count: 1, best_result: { passed: true }, passed: true },
       submission_result: { attempt_id: 7, passed: true, score: 100, feedback: "Correct. Safe first step.", correct_answer: "right" },
       response,
     } }));
@@ -46,14 +46,14 @@ describe("V2Interaction", () => {
     await userEvent.selectOptions(screen.getByLabelText("RAM"), "memory");
     await userEvent.selectOptions(screen.getByLabelText("RJ45"), "ethernet");
     await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
-    expect(api.submitV2Interaction).toHaveBeenCalledWith("module.demo", "interaction.pilot.matching", { matches: { a: "memory", b: "ethernet" } }, { suppressToast: true });
+    expect(api.submitV2Interaction).toHaveBeenCalledWith("module.demo", "interaction.pilot.matching", 77, { matches: { a: "memory", b: "ethernet" } }, { suppressToast: true });
   });
 
   it("reveals readable authored answers after submission", async () => {
     await mount("matching");
     api.submitV2Interaction.mockResolvedValueOnce({ data: {
       ...answerData("matching"),
-      progress: { status: "passed", attempts: [{ id: 8 }], best_result: { passed: true }, passed: true },
+      progress: { status: "passed", attempt_count: 1, best_result: { passed: true }, passed: true },
       submission_result: { passed: true, score: 100, feedback: "Correct.", correct_answer: ["RAM → Memory", "RJ45 → Ethernet"] },
     } });
     await userEvent.selectOptions(screen.getByLabelText("RAM"), "memory");
@@ -68,7 +68,7 @@ describe("V2Interaction", () => {
     expect(screen.getByRole("img", { name: "A computer port with eight contacts" })).toHaveAttribute("src", "/v2-interactions/ethernet-port.svg");
     await userEvent.click(screen.getByRole("radio", { name: "Safe choice" }));
     await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
-    expect(api.submitV2Interaction).toHaveBeenCalledWith("module.demo", "interaction.pilot.image_identification", { choice_id: "right" }, { suppressToast: true });
+    expect(api.submitV2Interaction).toHaveBeenCalledWith("module.demo", "interaction.pilot.image_identification", 77, { choice_id: "right" }, { suppressToast: true });
     expect(await screen.findByRole("status")).toHaveTextContent("Correct. Safe first step.");
   });
 
@@ -80,7 +80,7 @@ describe("V2Interaction", () => {
     await userEvent.keyboard("{Enter}");
     expect(within(list).getAllByRole("listitem")[0]).toHaveTextContent("Ask the user");
     await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
-    expect(api.submitV2Interaction).toHaveBeenCalledWith("module.demo", "interaction.pilot.ordering", { order: ["first", "last"] }, { suppressToast: true });
+    expect(api.submitV2Interaction).toHaveBeenCalledWith("module.demo", "interaction.pilot.ordering", 77, { order: ["first", "last"] }, { suppressToast: true });
   });
 
   it("renders command output as readable text with choices", async () => {
@@ -88,14 +88,14 @@ describe("V2Interaction", () => {
     expect(screen.getByText("IPv4 Address: 169.254.1.1")).toBeVisible();
     await userEvent.click(screen.getByRole("radio", { name: "Safe choice" }));
     await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
-    expect(api.submitV2Interaction).toHaveBeenCalledWith("module.demo", "interaction.pilot.command_output", { choice_id: "right" }, { suppressToast: true });
+    expect(api.submitV2Interaction).toHaveBeenCalledWith("module.demo", "interaction.pilot.command_output", 77, { choice_id: "right" }, { suppressToast: true });
   });
 
   it("uses a labeled typed answer field", async () => {
     await mount("typed_answer");
     await userEvent.type(screen.getByRole("textbox", { name: "Which command shows IP configuration?" }), "ipconfig");
     await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
-    expect(api.submitV2Interaction).toHaveBeenCalledWith("module.demo", "interaction.pilot.typed_answer", { answer: "ipconfig" }, { suppressToast: true });
+    expect(api.submitV2Interaction).toHaveBeenCalledWith("module.demo", "interaction.pilot.typed_answer", 77, { answer: "ipconfig" }, { suppressToast: true });
   });
 
   it("labels the safe-action scenario and choice without color dependence", async () => {
@@ -103,6 +103,23 @@ describe("V2Interaction", () => {
     expect(screen.getByText("Choose the safest next step.")).toBeVisible();
     await userEvent.click(screen.getByRole("radio", { name: "Safe choice" }));
     await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
-    expect(api.submitV2Interaction).toHaveBeenCalledWith("module.demo", "interaction.pilot.safe_action", { choice_id: "right" }, { suppressToast: true });
+    expect(api.submitV2Interaction).toHaveBeenCalledWith("module.demo", "interaction.pilot.safe_action", 77, { choice_id: "right" }, { suppressToast: true });
+  });
+
+  it("requires a fresh render after a stale-version conflict", async () => {
+    await mount("typed_answer");
+    api.submitV2Interaction.mockRejectedValueOnce({ response: { status: 409 }, userMessage: "This interaction changed. Reload it before submitting your answer." });
+    await userEvent.type(screen.getByRole("textbox"), "ipconfig");
+    await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Reload it");
+    expect(screen.getByRole("button", { name: "Check answer" })).toBeDisabled();
+    const updated = answerData("typed_answer");
+    updated.interaction.version_id = 78;
+    updated.interaction.version = 2;
+    api.getV2Interaction.mockResolvedValueOnce({ data: updated });
+    await userEvent.click(screen.getByRole("button", { name: "Reload interaction" }));
+    expect(await screen.findByText(/version 2/)).toBeVisible();
+    expect(screen.getByRole("textbox")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Check answer" })).toBeEnabled();
   });
 });

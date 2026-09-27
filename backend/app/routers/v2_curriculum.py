@@ -31,7 +31,7 @@ from app.services.v2_curriculum_service import (
 )
 from app.services.v2_progress_service import V2EvidenceConflict, V2ProgressError, record_activity
 from app.services.v2_interaction_service import (
-    InteractionUnavailable, InteractionValidationError, interaction_view,
+    InteractionStale, InteractionUnavailable, InteractionValidationError, interaction_view,
     submit_interaction,
 )
 from app.utils.responses import ok
@@ -66,6 +66,7 @@ class ExplainSubmitRequest(BaseModel):
 
 class InteractionSubmitRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    version_id: int = Field(..., gt=0, strict=True)
     response: dict
 
 
@@ -134,9 +135,11 @@ def post_interaction(
     if len(json.dumps(body.response)) > 4096:
         raise HTTPException(status_code=422, detail="Response is too large")
     try:
-        return ok(submit_interaction(db, student.id, module_key, interaction_key, body.response))
+        return ok(submit_interaction(db, student.id, module_key, interaction_key, body.version_id, body.response))
     except InteractionUnavailable as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except InteractionStale as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except InteractionValidationError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc

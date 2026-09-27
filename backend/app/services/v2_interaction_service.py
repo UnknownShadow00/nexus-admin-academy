@@ -7,7 +7,7 @@ import random
 import re
 from datetime import datetime, timezone
 
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.certification import CertificationModule, LessonV2Meta
@@ -22,6 +22,10 @@ class InteractionValidationError(ValueError):
 
 class InteractionUnavailable(ValueError):
     """An interaction is outside the requested published module."""
+
+
+class InteractionStale(ValueError):
+    """The displayed definition is no longer the published version."""
 
 
 def _nonempty(value, field: str) -> str:
@@ -162,6 +166,7 @@ def _public_content(definition: V2InteractionDefinition) -> dict:
 def _definition_view(definition: V2InteractionDefinition, lesson_key: str | None = None) -> dict:
     return {
         "key": definition.interaction_key, "version": definition.version,
+        "version_id": definition.id,
         "type": definition.interaction_type, "title": definition.title,
         "instructions": definition.instructions, "required": definition.required,
         "lesson_key": lesson_key,
@@ -192,11 +197,14 @@ def _published(db: Session, module_key: str, interaction_key: str | None = None,
 
 def interaction_list(db: Session, student_id: int, module_key: str, lesson_key: str | None = None) -> list[dict]:
     definitions = _published(db, module_key, lesson_key=lesson_key)
+    lesson_ids = {row.lesson_id for row in definitions if row.lesson_id is not None}
+    lesson_keys = dict(db.query(LessonV2Meta.id, LessonV2Meta.lesson_key).filter(
+        LessonV2Meta.id.in_(lesson_ids),
+    ).all()) if lesson_ids else {}
+    progress = _progress_summaries(db, student_id, [row.interaction_key for row in definitions])
     return [{
-        "interaction": _definition_view(
-            row, db.get(LessonV2Meta, row.lesson_id).lesson_key if row.lesson_id else None,
-        ),
-        "progress": _progress(db, student_id, row.interaction_key),
+        "interaction": _definition_view(row, lesson_keys.get(row.lesson_id)),
+        "progress": progress[row.interaction_key],
     } for row in definitions]
 
 
@@ -208,16 +216,68 @@ def _attempt_view(row: V2InteractionAttempt) -> dict:
     }
 
 
-def _progress(db: Session, student_id: int, key: str) -> dict:
-    attempts = db.query(V2InteractionAttempt).filter_by(student_id=student_id, interaction_key=key).order_by(V2InteractionAttempt.attempt_number).all()
-    best = max(attempts, key=lambda row: row.score) if attempts else None
-    passed = any(row.passed for row in attempts)
+RECENT_ATTEMPT_LIMIT = 5
+
+
+def _empty_progress() -> dict:
     return {
-        "status": "passed" if passed else "in_progress" if attempts else "not_started",
-        "attempts": [_attempt_view(row) for row in attempts],
-        "best_result": best.result_snapshot if best else None,
-        "passed": passed,
+        "status": "not_started", "attempt_count": 0, "passed": False,
+        "best_score": None, "best_result": None,
+        "latest_attempt_at": None, "latest_result": None,
     }
+
+
+def _progress_summaries(db: Session, student_id: int, keys: list[str]) -> dict[str, dict]:
+    """One bounded-result query for all requested interactions, regardless of retries."""
+    progress = {key: _empty_progress() for key in keys}
+    if not progress:
+        return progress
+    attempt = V2InteractionAttempt
+    ranked = select(
+        attempt.interaction_key.label("interaction_key"),
+        attempt.score.label("score"),
+        attempt.result_snapshot.label("result_snapshot"),
+        attempt.created_at.label("created_at"),
+        func.count().over(partition_by=attempt.interaction_key).label("attempt_count"),
+        func.max(case((attempt.passed.is_(True), 1), else_=0)).over(
+            partition_by=attempt.interaction_key,
+        ).label("passed_any"),
+        func.row_number().over(
+            partition_by=attempt.interaction_key,
+            order_by=(attempt.score.desc(), attempt.attempt_number.asc()),
+        ).label("best_rank"),
+        func.row_number().over(
+            partition_by=attempt.interaction_key,
+            order_by=attempt.attempt_number.desc(),
+        ).label("latest_rank"),
+    ).where(
+        attempt.student_id == student_id,
+        attempt.interaction_key.in_(progress),
+    ).subquery()
+    rows = db.execute(select(ranked).where(or_(
+        ranked.c.best_rank == 1, ranked.c.latest_rank == 1,
+    ))).mappings()
+    for row in rows:
+        item = progress[row["interaction_key"]]
+        item["attempt_count"] = row["attempt_count"]
+        item["passed"] = bool(row["passed_any"])
+        item["status"] = "passed" if item["passed"] else "in_progress"
+        if row["best_rank"] == 1:
+            item["best_score"] = row["score"]
+            item["best_result"] = row["result_snapshot"]
+        if row["latest_rank"] == 1:
+            item["latest_attempt_at"] = row["created_at"].isoformat()
+            item["latest_result"] = row["result_snapshot"]
+    return progress
+
+
+def _progress(db: Session, student_id: int, key: str) -> dict:
+    progress = _progress_summaries(db, student_id, [key])[key]
+    recent = db.query(V2InteractionAttempt).filter_by(
+        student_id=student_id, interaction_key=key,
+    ).order_by(V2InteractionAttempt.attempt_number.desc()).limit(RECENT_ATTEMPT_LIMIT).all()
+    progress["recent_attempts"] = [_attempt_view(row) for row in recent]
+    return progress
 
 
 def interaction_view(db: Session, student_id: int, module_key: str, key: str) -> dict:
@@ -291,11 +351,13 @@ def _grade(definition: V2InteractionDefinition, response: dict) -> tuple[int, bo
     return score, passed, result
 
 
-def submit_interaction(db: Session, student_id: int, module_key: str, key: str, response: dict) -> dict:
+def submit_interaction(db: Session, student_id: int, module_key: str, key: str, version_id: int, response: dict) -> dict:
     definitions = _published(db, module_key, interaction_key=key)
     if len(definitions) != 1:
         raise InteractionUnavailable("This interaction is not available.")
     definition = definitions[0]
+    if definition.id != version_id:
+        raise InteractionStale("This interaction changed. Reload it before submitting your answer.")
     score, passed, result = _grade(definition, response)
     attempt_number = (db.query(func.max(V2InteractionAttempt.attempt_number)).filter_by(student_id=student_id, interaction_key=key).scalar() or 0) + 1
     attempt = V2InteractionAttempt(

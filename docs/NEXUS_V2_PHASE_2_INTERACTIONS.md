@@ -75,9 +75,22 @@ least one exact accepted answer and an optional case sensitivity setting.
 The published learner API returns only the display subset of this config.
 
 GET `/api/v2/curriculum/modules/{module_key}/interactions/{interaction_key}`
-returns the current published interaction and its attempt history. POST to
-the same path plus `/submit` with `{ "response": ... }` grades on the server,
-commits one immutable attempt, and returns feedback and updated progress.
+returns the current published interaction, including its opaque `version_id`.
+POST to the same path plus `/submit` with
+`{ "version_id": <displayed version_id>, "response": ... }` grades only if
+that exact definition is still published for the requested key and module.
+A version change returns HTTP 409 and requires a fresh load and answer; the
+server never silently grades against newer content. An attempt snapshots the
+exact graded version and returns feedback and updated progress.
+
+Progress uses one batched SQL window query for all interactions in a module
+or lesson. It returns `attempt_count`, pass state, best score/result and latest
+attempt time/result without embedding history. An individual interaction view
+adds only the five most recent attempts, newest first. All older attempts
+remain in the database as immutable history. A future full-history view would
+need a separate paginated endpoint; no such UI is part of Phase 2.
+The aggregate query still scans a learner's matching attempt rows; a
+materialized progress counter is deferred until pilot usage shows a need.
 The module and lesson responses list the pilot interactions for navigation.
 An interaction version remains stored while attempts refer to it; removing
 all new interaction tables on downgrade discards Phase 2 attempts, so back up

@@ -22,9 +22,13 @@ export default function V2Interaction({ moduleKey, interactionKey }) {
   const [answer, setAnswer] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [stale, setStale] = useState(false);
   const [busy, setBusy] = useState(false);
   const load = useCallback(() => {
     setError("");
+    setStale(false);
+    setResult(null);
+    setData(null);
     getV2Interaction(moduleKey, interactionKey, { suppressToast: true }).then((response) => {
       setData(response.data);
       setAnswer(initialAnswer(response.data.interaction));
@@ -41,11 +45,15 @@ export default function V2Interaction({ moduleKey, interactionKey }) {
     setBusy(true);
     setError("");
     try {
-      const response = await submitV2Interaction(moduleKey, interactionKey, responseFor(interaction.type, answer), { suppressToast: true });
+      const response = await submitV2Interaction(moduleKey, interactionKey, interaction.version_id, responseFor(interaction.type, answer), { suppressToast: true });
       setData(response.data);
       setResult(response.data.submission_result);
     } catch (err) {
       setError(err?.userMessage || "Your answer could not be saved. Try again.");
+      if (err?.response?.status === 409) {
+        setStale(true);
+        setResult(null);
+      }
     } finally {
       setBusy(false);
     }
@@ -58,15 +66,16 @@ export default function V2Interaction({ moduleKey, interactionKey }) {
     <p id="interaction-instructions">{interaction.instructions}</p>
     <form className="space-y-5" onSubmit={submit} aria-describedby="interaction-instructions">
       <Renderer content={interaction.content} value={answer} onChange={setAnswer} />
-      <button className="btn-primary min-h-11 focus-visible:ring-2 focus-visible:ring-teal-600" type="submit" disabled={busy}>{busy ? "Checking..." : progress.attempts.length ? "Check again" : "Check answer"}</button>
+      <button className="btn-primary min-h-11 focus-visible:ring-2 focus-visible:ring-teal-600" type="submit" disabled={busy || stale}>{busy ? "Checking..." : progress.attempt_count ? "Check again" : "Check answer"}</button>
     </form>
     {error ? <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{error}</p> : null}
+    {stale ? <button className="btn-secondary" type="button" onClick={load}>Reload interaction</button> : null}
     {result ? <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-700" role="status" aria-live="polite">
       <p className="font-semibold">{result.passed ? "Passed" : "Try again"} · {result.score}%</p>
       <p className="mt-1">{result.feedback}</p>
       {result.correct_answer != null ? <div className="mt-2 text-sm"><p className="font-medium">Correct answer:</p>{Array.isArray(result.correct_answer) ? <ol className="ml-5 list-decimal">{result.correct_answer.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ol> : <p>{result.correct_answer}</p>}</div> : null}
       {result.next_action ? <p className="mt-2 text-sm font-medium">Next: {result.next_action}</p> : null}
     </div> : null}
-    <p className="text-sm text-slate-500">{progress.attempts.length} attempt{progress.attempts.length === 1 ? "" : "s"} saved. You can retry without penalty.</p>
+    <p className="text-sm text-slate-500">{progress.attempt_count} attempt{progress.attempt_count === 1 ? "" : "s"} saved. You can retry without penalty.</p>
   </section>;
 }
