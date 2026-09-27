@@ -2711,3 +2711,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/alembic/versions/0075_v2_learning_interactions.py, backend/app/routers/v2_curriculum.py, backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
 - Result: Focused migration and authoring tests passed (12), Ruff and compileall passed; final-head full backend and GitHub CI pending.
 - Next: Verify full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 13:03:00 UTC] Task Completed
+- Task: Included first V2 interaction attempts in server-derived module and entry progress so failed or optional practice no longer appears not started.
+- Files changed: backend/app/services/v2_progress_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused status regression passed, Ruff and compileall passed; final-head full backend and GitHub CI pending.
+- Next: Verify full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.

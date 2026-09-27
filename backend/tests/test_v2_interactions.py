@@ -113,6 +113,26 @@ def test_typed_answer_uses_narrow_authored_normalization(pilot, db):
     assert db.query(V2InteractionAttempt).filter_by(student_id=student.id, interaction_key="interaction.pilot.ipconfig-command").count() == 3
 
 
+def test_first_optional_interaction_attempt_sets_module_in_progress(pilot, db):
+    student, client = pilot
+    url = _url("ethernet-port")
+    assert module_progress(db, student.id, MODULE)["status"] == "not_started"
+    version_id = _version_id(client, student, url)
+    failed = client.post(url + "/submit", json={
+        "version_id": version_id, "response": {"choice_id": "hdmi"},
+    }, headers=auth_headers(student))
+    assert failed.status_code == 200
+    assert failed.json()["data"]["progress"]["status"] == "in_progress"
+    assert module_progress(db, student.id, MODULE)["status"] == "in_progress"
+    assert next(item for item in entry_view(db, student.id)["modules"] if item["module"]["key"] == MODULE)["progress"]["status"] == "in_progress"
+    passed = client.post(url + "/submit", json={
+        "version_id": version_id, "response": {"choice_id": "ethernet"},
+    }, headers=auth_headers(student))
+    assert passed.status_code == 200
+    assert passed.json()["data"]["progress"]["status"] == "passed"
+    assert module_progress(db, student.id, MODULE)["status"] == "in_progress"
+
+
 def test_authored_scored_threshold_is_applied_on_the_server(pilot, db):
     student, client = pilot
     definition = db.query(V2InteractionDefinition).filter_by(interaction_key="interaction.pilot.hardware-match").one()

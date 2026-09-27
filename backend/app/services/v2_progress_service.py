@@ -23,7 +23,7 @@ from app.models.certification import (
 from app.models.flashcard import FlashcardReview
 from app.models.quiz import Question
 from app.models.v2_evidence import V2EvidenceRecord, V2EvidenceRequirement
-from app.models.v2_interaction import V2InteractionDefinition
+from app.models.v2_interaction import V2InteractionAttempt, V2InteractionDefinition
 from app.models.v2_progress import (
     V2_ACTIVITY_EXPLAIN,
     V2_ACTIVITY_MODULE_QUIZ,
@@ -425,6 +425,13 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
         Question.quiz_id.in_(quiz_ids),
     ).first())
     any_progress = bool(acts or resource_activity_by_id)
+    if not any_progress:
+        any_progress = bool(db.query(V2InteractionAttempt.id).join(
+            V2InteractionDefinition, V2InteractionAttempt.definition_id == V2InteractionDefinition.id,
+        ).filter(
+            V2InteractionAttempt.student_id == student_id,
+            V2InteractionDefinition.module_id == module.id,
+        ).first())
     any_watched = bool(any(rv["evidence"]["watched_at"] for rv in required_resources))
     missing_resource = next((rv for rv in required_resources if not rv["exposure_satisfied"]), None)
     if mastered:

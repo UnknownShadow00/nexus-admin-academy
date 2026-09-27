@@ -57,6 +57,8 @@ cannot block module mastery. Feedback is authored and deterministic; the
 correct answer is revealed only after submission when the definition allows
 it. A single interaction is `not_started`, `in_progress` or `passed`, while
 module `mastered` remains a separate server status.
+An interaction attempt counts as module activity even if the interaction is
+optional or the first answer fails; module and entry views then show progress.
 
 Phase 2 does not include a CMS, AI grading, drag-only controls, OCR, a terminal
 simulator, the full V2 visual redesign, production deployment, curriculum
