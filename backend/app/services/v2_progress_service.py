@@ -425,6 +425,8 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
             next_action = "Apply your learning"
         elif not prompts_passed:
             next_action = "Explain what you know"
+        elif not trusted_requirement_exists:
+            next_action = "Ask your mentor to add a knowledge check"
         else:
             next_action = "Continue"
 

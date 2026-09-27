@@ -32,7 +32,7 @@ export default function V2LearningPage() {
           <h2 className="mt-2 text-2xl font-bold sm:text-3xl">{current.module.title}</h2>
           <p className="mt-3 text-blue-100">{current.module.description}</p>
           <div className="mt-5 flex flex-wrap gap-3 text-sm">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5"><BookOpen size={16} aria-hidden="true" />{lessons.completed} of {lessons.total} lessons completed</span>
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5"><BookOpen size={16} aria-hidden="true" />{lessons.completed} of {lessons.total} lessons marked complete</span>
             {current.progress.module_complete ? <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/20 px-3 py-1.5"><CheckCircle2 size={16} aria-hidden="true" />Module mastered</span> : null}
           </div>
         </div>
@@ -53,7 +53,7 @@ export default function V2LearningPage() {
           return <Link className="panel block hover:border-blue-300" key={item.module.key} to={`/learning-v2/modules/${item.module.key}`}>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.certification.version.label}</p>
             <h3 className="mt-1 font-bold">{item.module.title}</h3>
-            <p className="mt-2 text-sm text-slate-500">{statusLabel(item.progress.status)} · {item.progress.lessons.completed}/{item.progress.lessons.total} lessons</p>
+            <p className="mt-2 text-sm text-slate-500">{statusLabel(item.progress.status)} · {item.progress.lessons.completed}/{item.progress.lessons.total} lessons marked complete</p>
           </Link>;
         })}
       </div>

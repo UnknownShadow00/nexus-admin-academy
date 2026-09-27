@@ -148,7 +148,44 @@ def test_old_completed_row_is_history_not_new_watch_or_mastery(db, monkeypatch):
     progress = module_progress(db, student.id, MODULE)
     assert progress["module_complete"] is False
     assert progress["resources"]["required_exposed"] == 0
+    old_video = next(row for row in progress["resources"]["items"] if row["resource_key"] == video.resource_key)
+    assert old_video["evidence"]["historical_self_reported_complete"] is True
+    assert old_video["evidence"]["watched_at"] is None
     assert db.query(StudentResourceActivity).filter_by(student_id=student.id, resource_id=video.id).one().completed is True
+
+
+def test_lesson_completion_and_passive_viewing_never_master_module(db, monkeypatch):
+    student, module, video, _assessment, client = _foundation(db, monkeypatch)
+    for assessment in db.query(ModuleAssessment).filter_by(certification_module_id=module.id):
+        assessment.active = False
+    lesson = db.query(LessonV2Meta).filter_by(certification_module_id=module.id).first()
+    db.commit()
+    url = f"/api/v2/curriculum/modules/{MODULE}/lessons/{lesson.lesson_key}/complete"
+    assert client.post(url, headers=auth_headers(student)).status_code == 200
+    resource_activity(db, student.id, MODULE, video.resource_key, opened=True)
+    resource_activity(db, student.id, MODULE, video.resource_key, watched=True)
+    progress = module_progress(db, student.id, MODULE)
+    assert progress["lessons"]["completed"] == 1
+    assert progress["module_complete"] is False
+    assert progress["next_action"] == "Ask your mentor to add a knowledge check"
+
+
+def test_non_video_opening_satisfies_exposure_but_cannot_be_watched(db, monkeypatch):
+    student, module, _video, _assessment, client = _foundation(db, monkeypatch)
+    links = db.query(LearningResourceLink).filter_by(certification_module_id=module.id).all()
+    non_video = next((db.get(LearningResource, link.resource_id) for link in links if db.get(LearningResource, link.resource_id).resource_type != "video"), None)
+    if non_video is None:
+        lesson_ids = [row.id for row in db.query(LessonV2Meta).filter_by(certification_module_id=module.id)]
+        non_video = next(db.get(LearningResource, link.resource_id) for link in db.query(LearningResourceLink).filter(LearningResourceLink.lesson_v2_meta_id.in_(lesson_ids)) if db.get(LearningResource, link.resource_id).resource_type != "video")
+    db.query(LearningResourceLink).filter_by(resource_id=non_video.id).update({"is_required": True})
+    db.commit()
+    url = f"/api/v2/curriculum/modules/{MODULE}/resources/{non_video.resource_key}/activity"
+    assert client.post(url, json={"opened": True}, headers=auth_headers(student)).status_code == 200
+    assert client.post(url, json={"watched": True}, headers=auth_headers(student)).status_code == 409
+    item = next(row for row in module_progress(db, student.id, MODULE)["resources"]["items"] if row["resource_key"] == non_video.resource_key)
+    assert item["exposure_satisfied"] is True
+    assert item["status"] == "in_progress"
+    assert item["evidence"]["watched_at"] is None
 
 
 def test_student_api_rejects_mastery_and_direct_check_evidence(db, monkeypatch):
@@ -157,6 +194,9 @@ def test_student_api_rejects_mastery_and_direct_check_evidence(db, monkeypatch):
     assert client.post(url, json={"watched": True, "mastered": True}, headers=auth_headers(student)).status_code == 422
     assert client.post(url, json={"opened": True, "check_passed": True}, headers=auth_headers(student)).status_code == 422
     assert client.post(url, json={"completed": True}, headers=auth_headers(student)).status_code == 422
+    assert client.post(url, json={"interaction_completed": True}, headers=auth_headers(student)).status_code == 422
+    assert client.post(url, json={"apply_passed": True}, headers=auth_headers(student)).status_code == 422
+    assert client.post(url, json={"opened": True, "source_ref": "forged"}, headers=auth_headers(student)).status_code == 422
     assert client.post(url, json={"watched": True}, headers=auth_headers(student)).status_code == 409
     assert module_progress(db, student.id, MODULE)["module_complete"] is False
     assert assessment.pass_percent == 70  # existing published meaning is unchanged

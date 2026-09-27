@@ -55,3 +55,10 @@ Migration 0074 adds one nullable timestamp and two V2-only tables. It changes
 no student, legacy week, video watch, ticket, quiz attempt, XP, or existing V2
 row. Downgrade removes the new tables and timestamp, so a rollback after new
 V2 evidence is written must first preserve those records separately.
+
+Deleting an authored requirement cascades to its evidence records. This is
+intentional while V2 requirements are unpublished pilot content: a retired
+requirement cannot continue to count toward mastery. Preserve the requirement
+and its records before deletion if its attempt history needs an audit trail.
+Deleting a student also removes that student's evidence records through the
+explicit student-owned data cleanup.

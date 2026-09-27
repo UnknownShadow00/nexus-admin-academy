@@ -30,7 +30,8 @@ describe("V2LessonPage", () => {
   it("makes completion primary before completion and Next lesson primary after saving", async () => {
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/lessons/lesson.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/lessons/:lessonKey" element={<V2LessonPage />} /></Routes></MemoryRouter>);
     await userEvent.click(await screen.findByRole("button", { name: "Mark lesson complete" }));
-    expect(await screen.findByText("✓ Completed")).toBeVisible();
+    expect((await screen.findAllByText("Lesson marked complete")).length).toBeGreaterThan(0);
+    expect(screen.getByText("Lesson completion tracks navigation only; checks and practice determine mastery.")).toBeVisible();
     expect(screen.getByRole("link", { name: /Next lesson/ })).toHaveClass("btn-primary");
   });
   it("does not link to an unavailable quick check", async () => {

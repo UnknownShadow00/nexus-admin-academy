@@ -2663,3 +2663,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/pages/v2/V2LearningPage.jsx; frontend/src/pages/v2/V2LearningPage.test.jsx; tasks/loop-log.md
 - Result: pass in the focused frontend status test (3 passed) and production frontend build; watched/check-required no longer appears as not started.
 - Next: Push the focused UI correction and confirm all PR checks pass; do not merge or deploy.
+
+## [2026-09-27 07:12:37 UTC] Task Completed
+- Task: Final pre-merge review of PR #44; clarified V2 lesson history and passive-only next action, added focused evidence and UI tests, documented pilot requirement deletion cascade.
+- Files changed: backend/app/services/v2_progress_service.py, backend/tests/test_v2_mastery_evidence.py, docs/NEXUS_V2_PHASE_1_EVIDENCE.md, frontend/src/pages/admin/V2MentorStudentPage.jsx, frontend/src/pages/admin/V2MentorStudentPage.test.jsx, frontend/src/pages/v2/V2LearningPage.jsx, frontend/src/pages/v2/V2LessonPage.jsx, frontend/src/pages/v2/V2LessonPage.test.jsx, frontend/src/pages/v2/V2ModulePage.jsx, frontend/src/pages/v2/V2ModulePage.test.jsx, tasks/loop-log.md
+- Result: Pass locally: 1243 backend tests passed, 2 skipped; 104 frontend tests passed; migration rehearsal, build, Ruff, compilation, npm audit, and pip audit passed. Final GitHub CI pending on review-fix head.
+- Next: Confirm final GitHub CI, mergeability, review threads, main base, and clean PR worktree.
