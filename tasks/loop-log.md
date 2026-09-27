@@ -2693,3 +2693,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/alembic/versions/0075_v2_learning_interactions.py, backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, backend/tests/test_v2_interactions_migration.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
 - Result: Focused migration and authoring tests passed (8), Ruff and compileall passed; full backend suite and GitHub CI are pending on the follow-up head.
 - Next: Verify full backend and final-head GitHub CI, reply to and resolve all supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 12:30:00 UTC] Task Completed
+- Task: Closed the hidden-interaction module visibility gap identified in follow-up review by sharing effective requirement filtering between mastery and the learning entry list.
+- Files changed: backend/app/services/v2_curriculum_service.py, backend/app/services/v2_progress_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused hidden lesson and entry-list tests passed (2), Ruff and compileall passed; a fresh full backend suite and GitHub CI are pending on the follow-up head.
+- Next: Verify final-head full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.

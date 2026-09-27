@@ -15,6 +15,7 @@ from app.models.v2_interaction import V2InteractionAttempt, V2InteractionDefinit
 from app.routers.v2_curriculum import router
 from app.services.student_deletion import delete_student_owned_data, student_owned_row_counts
 from app.services.v2_content_loader import load_module
+from app.services.v2_curriculum_service import entry_view
 from app.services.v2_interaction_loader import DEFAULT_PILOT_PATH, load_interactions
 from app.services.v2_interaction_service import InteractionValidationError, interaction_list, validate_definition
 from app.services.v2_progress_service import module_progress, record_activity
@@ -336,6 +337,25 @@ def test_hidden_lesson_does_not_leave_unreachable_required_interaction(pilot, db
     lesson.status = "ready"
     db.commit()
     assert module_progress(db, student.id, MODULE)["module_complete"] is False
+
+
+def test_hidden_only_interaction_does_not_expose_dead_end_module(pilot, db):
+    student, _client = pilot
+    module = db.query(CertificationModule).filter_by(module_key=MODULE).one()
+    lesson = db.query(LessonV2Meta).filter_by(
+        certification_module_id=module.id,
+        lesson_key="lesson.aplus.core1.ip_configuration.ipv4_basics",
+    ).one()
+    for assessment in db.query(ModuleAssessment).filter_by(certification_module_id=module.id):
+        assessment.active = False
+    db.commit()
+    assert any(item["module"]["key"] == MODULE for item in entry_view(db, student.id)["modules"])
+    lesson.status = "draft"
+    db.commit()
+    assert not any(item["module"]["key"] == MODULE for item in entry_view(db, student.id)["modules"])
+    lesson.status = "ready"
+    db.commit()
+    assert any(item["module"]["key"] == MODULE for item in entry_view(db, student.id)["modules"])
 
 
 def test_110_retries_keep_immutable_history_but_progress_is_bounded(pilot, db):

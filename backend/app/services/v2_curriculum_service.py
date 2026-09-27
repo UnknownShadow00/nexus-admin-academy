@@ -55,7 +55,6 @@ from app.models.v2_progress import (
     V2AssessmentAttemptQuestion,
     V2ModuleActivity,
 )
-from app.models.v2_evidence import V2EvidenceRequirement
 from app.services.grading_queue import (
     SOURCE_FREE_RESPONSE,
     SOURCE_INTERVIEW,
@@ -72,7 +71,7 @@ from app.services.service_desk_scenario_validation import (
     scenario_has_supported_grading_profile,
 )
 from app.services.v2_assessment_selector import ConstraintSelectionError, select_constrained
-from app.services.v2_progress_service import V2EvidenceConflict, V2ProgressError, module_progress, record_activity
+from app.services.v2_progress_service import V2EvidenceConflict, V2ProgressError, active_evidence_requirements, module_progress, record_activity
 from app.services.v2_interaction_service import interaction_list
 from app.services.v2_service_desk_onboarding import (
     SERVICE_DESK_PREVIOUS_ORIENTATION_REQUIRED,
@@ -462,9 +461,7 @@ def entry_view(db: Session, student_id: int) -> dict:
         # requirements allow a smaller group without the original full set of
         # assessment roles; no existing module has those requirements yet.
         roles = {row.assessment_role for row in _assessments(db, module.id)}
-        authored_evidence = db.query(V2EvidenceRequirement.id).filter_by(
-            module_id=module.id, active=True, is_required=True,
-        ).first()
+        authored_evidence = any(row.is_required for row in active_evidence_requirements(db, module.id))
         if not STUDENT_MODULE_ROLES.issubset(roles) and not authored_evidence:
             continue
         view = module_view(db, student_id, module.module_key)
