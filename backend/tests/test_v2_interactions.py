@@ -17,7 +17,7 @@ from app.services.student_deletion import delete_student_owned_data, student_own
 from app.services.v2_content_loader import load_module
 from app.services.v2_interaction_loader import DEFAULT_PILOT_PATH, load_interactions
 from app.services.v2_interaction_service import InteractionValidationError, interaction_list, validate_definition
-from app.services.v2_progress_service import module_progress
+from app.services.v2_progress_service import module_progress, record_activity
 
 
 MODULE = "module.aplus.core1.ip_configuration"
@@ -261,6 +261,81 @@ def test_version_binding_cannot_target_other_or_unpublished_interaction(pilot, d
     assert client.post(url + "/submit", json=payload, headers=auth_headers(student)).status_code == 422
     assert db.query(V2InteractionAttempt).filter_by(student_id=student.id, interaction_key=published.interaction_key).count() == 0
     assert db.query(V2EvidenceRecord).filter_by(student_id=student.id).count() == 0
+
+
+def test_old_optional_pass_does_not_satisfy_new_required_version(pilot, db, tmp_path):
+    student, client = pilot
+    url = _url("ethernet-port")
+    original_id = _version_id(client, student, url)
+    old_pass = client.post(url + "/submit", json={
+        "version_id": original_id, "response": {"choice_id": "ethernet"},
+    }, headers=auth_headers(student))
+    assert old_pass.status_code == 200
+    assert old_pass.json()["data"]["progress"]["passed"] is True
+    assert db.query(V2EvidenceRecord).filter_by(student_id=student.id).count() == 0
+
+    manifest = yaml.safe_load(open(DEFAULT_PILOT_PATH, encoding="utf-8"))
+    item = copy.deepcopy(next(row for row in manifest["interactions"] if row["key"] == "interaction.pilot.ethernet-port"))
+    item["version"] = 2
+    item["required"] = True
+    item["title"] = "Required port identification"
+    path = tmp_path / "required-version.yaml"
+    path.write_text(yaml.safe_dump({"interactions": [item]}), encoding="utf-8")
+    load_interactions(db, str(path), commit=True)
+
+    current = client.get(url, headers=auth_headers(student)).json()["data"]
+    assert current["interaction"]["version"] == 2
+    assert current["progress"]["attempt_count"] == 1
+    assert current["progress"]["best_score"] == 100
+    assert current["progress"]["passed"] is False
+    assert current["progress"]["status"] == "in_progress"
+    module = client.get(f"{ROOT}/{MODULE}", headers=auth_headers(student)).json()["data"]
+    listed = next(row for row in module["interactions"] if row["interaction"]["key"] == item["key"])
+    assert listed["progress"]["passed"] is False
+
+    new_pass = client.post(url + "/submit", json={
+        "version_id": current["interaction"]["version_id"], "response": {"choice_id": "ethernet"},
+    }, headers=auth_headers(student))
+    assert new_pass.status_code == 200
+    assert new_pass.json()["data"]["progress"]["passed"] is True
+    assert new_pass.json()["data"]["progress"]["attempt_count"] == 2
+    assert db.query(V2EvidenceRecord).filter_by(student_id=student.id).count() == 1
+
+
+def test_hidden_lesson_does_not_leave_unreachable_required_interaction(pilot, db):
+    student, client = pilot
+    module = db.query(CertificationModule).filter_by(module_key=MODULE).one()
+    lesson = db.query(LessonV2Meta).filter_by(
+        certification_module_id=module.id,
+        lesson_key="lesson.aplus.core1.ip_configuration.ipv4_basics",
+    ).one()
+    lesson_ids = [row.id for row in db.query(LessonV2Meta).filter_by(certification_module_id=module.id)]
+    for link in db.query(LearningResourceLink).filter(
+        (LearningResourceLink.certification_module_id == module.id)
+        | (LearningResourceLink.lesson_v2_meta_id.in_(lesson_ids))
+    ):
+        link.is_required = False
+    assessment = db.query(ModuleAssessment).filter_by(certification_module_id=module.id, assessment_role="module_quiz").first()
+    for row in db.query(ModuleAssessment).filter_by(certification_module_id=module.id):
+        row.active = row.id == assessment.id
+    for prompt in db.query(InterviewPrompt).filter_by(certification_module_id=module.id):
+        prompt.active = False
+    db.commit()
+    record_activity(
+        db, student_id=student.id, module_key=MODULE,
+        activity_type="module_quiz", ref_key=assessment.assessment_key,
+        status="passed", passed=True, commit=True,
+    )
+    assert module_progress(db, student.id, MODULE)["module_complete"] is False
+    lesson.status = "draft"
+    db.commit()
+    assert client.get(_url("hardware-match"), headers=auth_headers(student)).status_code == 404
+    hidden = module_progress(db, student.id, MODULE)
+    assert hidden["module_complete"] is True
+    assert hidden["evidence"]["interaction_completed"] is False
+    lesson.status = "ready"
+    db.commit()
+    assert module_progress(db, student.id, MODULE)["module_complete"] is False
 
 
 def test_110_retries_keep_immutable_history_but_progress_is_bounded(pilot, db):

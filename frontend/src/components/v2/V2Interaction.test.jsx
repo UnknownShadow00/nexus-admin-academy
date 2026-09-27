@@ -122,4 +122,15 @@ describe("V2Interaction", () => {
     expect(screen.getByRole("textbox")).toHaveValue("");
     expect(screen.getByRole("button", { name: "Check answer" })).toBeEnabled();
   });
+
+  it("clears old pass feedback when a retry is rejected", async () => {
+    await mount("safe_action");
+    await userEvent.click(screen.getByRole("radio", { name: "Safe choice" }));
+    await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Passed");
+    api.submitV2Interaction.mockRejectedValueOnce({ response: { status: 422 }, userMessage: "Choose one unique answer." });
+    await userEvent.click(screen.getByRole("button", { name: "Check again" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Choose one unique answer.");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
 });

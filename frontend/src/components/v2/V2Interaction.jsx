@@ -44,6 +44,7 @@ export default function V2Interaction({ moduleKey, interactionKey }) {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setResult(null);
     try {
       const response = await submitV2Interaction(moduleKey, interactionKey, interaction.version_id, responseFor(interaction.type, answer), { suppressToast: true });
       setData(response.data);
@@ -52,7 +53,6 @@ export default function V2Interaction({ moduleKey, interactionKey }) {
       setError(err?.userMessage || "Your answer could not be saved. Try again.");
       if (err?.response?.status === 409) {
         setStale(true);
-        setResult(null);
       }
     } finally {
       setBusy(false);

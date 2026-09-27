@@ -89,6 +89,13 @@ attempt time/result without embedding history. An individual interaction view
 adds only the five most recent attempts, newest first. All older attempts
 remain in the database as immutable history. A future full-history view would
 need a separate paginated endpoint; no such UI is part of Phase 2.
+For a currently required interaction, `passed` reflects its trusted evidence
+record. A pass earned while an earlier version was optional remains in history
+but does not make the newly required activity appear complete.
+If an interaction's lesson is hidden, that published interaction has no learner
+route, so its loader-owned evidence requirement is ignored until the lesson is
+visible again. Standalone Phase 1 requirements and the mastery formula are
+unchanged. The learner UI clears prior feedback when any retry is rejected.
 The aggregate query still scans a learner's matching attempt rows; a
 materialized progress counter is deferred until pilot usage shows a need.
 The module and lesson responses list the pilot interactions for navigation.

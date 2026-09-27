@@ -11,7 +11,7 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.certification import CertificationModule, LessonV2Meta
-from app.models.v2_evidence import V2EvidenceRequirement
+from app.models.v2_evidence import V2EvidenceRecord, V2EvidenceRequirement
 from app.models.v2_interaction import INTERACTION_TYPES, V2InteractionAttempt, V2InteractionDefinition
 from app.services.v2_progress_service import record_trusted_evidence
 
@@ -201,7 +201,7 @@ def interaction_list(db: Session, student_id: int, module_key: str, lesson_key: 
     lesson_keys = dict(db.query(LessonV2Meta.id, LessonV2Meta.lesson_key).filter(
         LessonV2Meta.id.in_(lesson_ids),
     ).all()) if lesson_ids else {}
-    progress = _progress_summaries(db, student_id, [row.interaction_key for row in definitions])
+    progress = _progress_summaries(db, student_id, definitions)
     return [{
         "interaction": _definition_view(row, lesson_keys.get(row.lesson_id)),
         "progress": progress[row.interaction_key],
@@ -227,9 +227,9 @@ def _empty_progress() -> dict:
     }
 
 
-def _progress_summaries(db: Session, student_id: int, keys: list[str]) -> dict[str, dict]:
+def _progress_summaries(db: Session, student_id: int, definitions: list[V2InteractionDefinition]) -> dict[str, dict]:
     """One bounded-result query for all requested interactions, regardless of retries."""
-    progress = {key: _empty_progress() for key in keys}
+    progress = {row.interaction_key: _empty_progress() for row in definitions}
     if not progress:
         return progress
     attempt = V2InteractionAttempt
@@ -268,11 +268,30 @@ def _progress_summaries(db: Session, student_id: int, keys: list[str]) -> dict[s
         if row["latest_rank"] == 1:
             item["latest_attempt_at"] = row["created_at"].isoformat()
             item["latest_result"] = row["result_snapshot"]
+    required_keys = {row.interaction_key for row in definitions if row.required}
+    if required_keys:
+        satisfied_keys = {
+            key for (key,) in db.query(V2EvidenceRequirement.ref_key).join(
+                V2EvidenceRecord, V2EvidenceRecord.requirement_id == V2EvidenceRequirement.id,
+            ).filter(
+                V2EvidenceRequirement.module_id == definitions[0].module_id,
+                V2EvidenceRequirement.evidence_type == "interaction",
+                V2EvidenceRequirement.ref_key.in_(required_keys),
+                V2EvidenceRequirement.active.is_(True),
+                V2EvidenceRequirement.is_required.is_(True),
+                V2EvidenceRecord.student_id == student_id,
+            )
+        }
+        for key in required_keys:
+            item = progress[key]
+            item["passed"] = key in satisfied_keys
+            item["status"] = "passed" if item["passed"] else "in_progress" if item["attempt_count"] else "not_started"
     return progress
 
 
-def _progress(db: Session, student_id: int, key: str) -> dict:
-    progress = _progress_summaries(db, student_id, [key])[key]
+def _progress(db: Session, student_id: int, definition: V2InteractionDefinition) -> dict:
+    key = definition.interaction_key
+    progress = _progress_summaries(db, student_id, [definition])[key]
     recent = db.query(V2InteractionAttempt).filter_by(
         student_id=student_id, interaction_key=key,
     ).order_by(V2InteractionAttempt.attempt_number.desc()).limit(RECENT_ATTEMPT_LIMIT).all()
@@ -289,7 +308,7 @@ def interaction_view(db: Session, student_id: int, module_key: str, key: str) ->
         "interaction": _definition_view(
             row, db.get(LessonV2Meta, row.lesson_id).lesson_key if row.lesson_id else None,
         ),
-        "progress": _progress(db, student_id, key),
+        "progress": _progress(db, student_id, row),
     }
 
 
@@ -388,6 +407,6 @@ def submit_interaction(db: Session, student_id: int, module_key: str, key: str, 
         "interaction": _definition_view(
             definition, db.get(LessonV2Meta, definition.lesson_id).lesson_key if definition.lesson_id else None,
         ),
-        "progress": _progress(db, student_id, key),
+        "progress": _progress(db, student_id, definition),
         "submission_result": {"attempt_id": attempt.id, **result},
     }
