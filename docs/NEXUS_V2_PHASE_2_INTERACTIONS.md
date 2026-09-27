@@ -20,6 +20,9 @@ the exact definition version and also snapshots the authored definition,
 student response, grading result, score, pass decision and timestamp. Retries
 insert new rows. No student route updates or deletes an attempt. Student
 deletion explicitly removes owned attempts and evidence in one transaction.
+`v2_interaction_requirement_changes` records whether the loader created a
+requirement or reused a 0074 row, plus the prior flags for reused rows. This
+keeps rollback from deleting earlier Phase 1 evidence.
 
 The six initial types share a public view, strict submission validator and
 deterministic grader. Public views expose only display fields. Answer keys,
@@ -104,6 +107,9 @@ materialized progress counter is deferred until pilot usage shows a need.
 The module and lesson responses list the pilot interactions for navigation.
 An interaction version remains stored while attempts refer to it; removing
 all new interaction tables on downgrade discards Phase 2 attempts and removes
-their associated requirements and trusted evidence so 0074 cannot enforce
-unreachable interactions. Unrelated Phase 1 requirements and evidence remain.
+Phase 2-created requirements and trusted evidence so 0074 cannot enforce
+unreachable interactions. A small ownership ledger restores the prior flags
+on any 0074 requirement that the loader reused and retains its earlier trusted
+evidence; only records sourced from discarded Phase 2 attempts are removed.
+Unrelated Phase 1 requirements and evidence remain.
 Back up Phase 2 records before any rollback after pilot use.

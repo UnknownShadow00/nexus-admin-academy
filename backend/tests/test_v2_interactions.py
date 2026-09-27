@@ -11,7 +11,7 @@ from conftest import auth_headers, enroll_v2, make_client, make_student
 from app.models.certification import CertificationModule, InterviewPrompt, LearningResourceLink, LessonV2Meta, ModuleAssessment
 from app.models.student import Student
 from app.models.v2_evidence import V2EvidenceRecord, V2EvidenceRequirement
-from app.models.v2_interaction import V2InteractionAttempt, V2InteractionDefinition
+from app.models.v2_interaction import V2InteractionAttempt, V2InteractionDefinition, V2InteractionRequirementChange
 from app.routers.v2_curriculum import router
 from app.services.student_deletion import delete_student_owned_data, student_owned_row_counts
 from app.services.v2_content_loader import load_module
@@ -43,6 +43,29 @@ def _version_id(client, student, url):
     result = client.get(url, headers=auth_headers(student))
     assert result.status_code == 200
     return result.json()["data"]["interaction"]["version_id"]
+
+
+def test_loader_tracks_new_and_reused_requirement_ownership(db):
+    load_module(db, commit=True)
+    module = db.query(CertificationModule).filter_by(module_key=MODULE).one()
+    existing = V2EvidenceRequirement(
+        module_id=module.id, evidence_type="interaction",
+        ref_key="interaction.pilot.hardware-match", is_required=False, active=False,
+    )
+    db.add(existing)
+    db.commit()
+    load_interactions(db, commit=True)
+    reused = db.get(V2InteractionRequirementChange, existing.id)
+    assert reused.created is False
+    assert reused.previous_is_required is False
+    assert reused.previous_active is False
+    assert existing.is_required is True and existing.active is True
+    changes = db.query(V2InteractionRequirementChange).all()
+    assert len(changes) == 6
+    assert sum(row.created for row in changes) == 5
+    load_interactions(db, commit=True)
+    assert db.get(V2InteractionRequirementChange, existing.id).previous_active is False
+    assert db.query(V2InteractionRequirementChange).count() == 6
 
 
 @pytest.mark.parametrize("key,correct,wrong", [

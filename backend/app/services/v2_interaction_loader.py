@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models.certification import CertificationModule, LessonV2Meta
 from app.models.v2_evidence import V2EvidenceRequirement
-from app.models.v2_interaction import V2InteractionDefinition
+from app.models.v2_interaction import V2InteractionDefinition, V2InteractionRequirementChange
 from app.services.v2_interaction_service import InteractionValidationError, validate_definition
 
 
@@ -17,6 +17,18 @@ DEFAULT_PILOT_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "content", "interactions", "pilot-v2-interactions.yaml",
 )
+
+
+def _track_requirement_change(db: Session, requirement: V2EvidenceRequirement, *, created: bool) -> None:
+    """Remember the first loader mutation for a reversible 0075 rollback."""
+    db.flush()
+    if db.get(V2InteractionRequirementChange, requirement.id) is None:
+        db.add(V2InteractionRequirementChange(
+            requirement_id=requirement.id,
+            created=created,
+            previous_is_required=None if created else requirement.is_required,
+            previous_active=None if created else requirement.active,
+        ))
 
 
 def load_interactions(db: Session, path: str = DEFAULT_PILOT_PATH, *, commit: bool = False) -> dict:
@@ -101,6 +113,9 @@ def load_interactions(db: Session, path: str = DEFAULT_PILOT_PATH, *, commit: bo
                     module_id=module.id, evidence_type="interaction", ref_key=doc["key"],
                 )
                 db.add(requirement)
+                _track_requirement_change(db, requirement, created=True)
+            else:
+                _track_requirement_change(db, requirement, created=False)
             requirement.is_required = doc.get("required", False)
             requirement.active = True
         elif doc["key"] not in published and db.query(V2InteractionDefinition).filter_by(
@@ -110,6 +125,7 @@ def load_interactions(db: Session, path: str = DEFAULT_PILOT_PATH, *, commit: bo
                 module_id=module.id, evidence_type="interaction", ref_key=doc["key"],
             ).one_or_none()
             if requirement:
+                _track_requirement_change(db, requirement, created=False)
                 requirement.active = False
     db.flush()
     if commit:

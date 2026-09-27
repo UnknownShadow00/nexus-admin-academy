@@ -59,3 +59,16 @@ class V2InteractionAttempt(Base):
     score: Mapped[int] = mapped_column(Integer, nullable=False)
     passed: Mapped[bool] = mapped_column(Boolean, nullable=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class V2InteractionRequirementChange(Base):
+    """Track loader ownership so a 0075 rollback preserves existing 0074 evidence."""
+
+    __tablename__ = "v2_interaction_requirement_changes"
+
+    requirement_id: Mapped[int] = mapped_column(
+        ForeignKey("v2_evidence_requirements.id", ondelete="CASCADE"), primary_key=True,
+    )
+    created: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    previous_is_required: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    previous_active: Mapped[bool | None] = mapped_column(Boolean, nullable=True)

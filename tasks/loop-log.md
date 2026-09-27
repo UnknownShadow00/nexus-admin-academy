@@ -2699,3 +2699,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/services/v2_curriculum_service.py, backend/app/services/v2_progress_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
 - Result: Focused hidden lesson and entry-list tests passed (2), Ruff and compileall passed; a fresh full backend suite and GitHub CI are pending on the follow-up head.
 - Next: Verify final-head full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 12:40:55 UTC] Task Completed
+- Task: Preserved pre-existing 0074 interaction requirements and trusted evidence during 0075 rollback by tracking loader ownership and prior flags.
+- Files changed: backend/alembic/versions/0075_v2_learning_interactions.py, backend/app/models/__init__.py, backend/app/models/v2_interaction.py, backend/app/services/v2_interaction_loader.py, backend/tests/test_v2_interactions.py, backend/tests/test_v2_interactions_migration.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused interaction and migration suite passed (35), Ruff and compileall passed, Alembic still has one 0075 head; final-head full backend and GitHub CI pending.
+- Next: Verify full backend and GitHub CI, reply to and resolve all supported review threads, and leave merge and production deployment for separate authorization.

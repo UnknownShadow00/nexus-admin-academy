@@ -60,25 +60,48 @@ def upgrade() -> None:
     )
     for column in ("student_id", "definition_id", "interaction_key"):
         op.create_index(f"ix_v2_interaction_attempts_{column}", "v2_interaction_attempts", [column])
+    op.create_table(
+        "v2_interaction_requirement_changes",
+        sa.Column("requirement_id", sa.Integer(), sa.ForeignKey("v2_evidence_requirements.id", ondelete="CASCADE"), primary_key=True),
+        sa.Column("created", sa.Boolean(), nullable=False),
+        sa.Column("previous_is_required", sa.Boolean(), nullable=True),
+        sa.Column("previous_active", sa.Boolean(), nullable=True),
+    )
 
 
 def downgrade() -> None:
-    # The 0074 mastery service still reads interaction requirements. Remove
-    # only keys owned by definitions in this revision, including their trusted
-    # evidence, before the definitions and immutable attempts disappear.
+    # Restore 0074 requirements that the loader reused; remove only rows it
+    # created. Drop evidence sourced from attempts that this rollback discards.
     connection = op.get_bind()
-    owned_requirements = """
-        SELECT requirement.id FROM v2_evidence_requirements AS requirement
-        JOIN v2_interaction_definitions AS definition
-          ON definition.module_id = requirement.module_id
-         AND definition.interaction_key = requirement.ref_key
-        WHERE requirement.evidence_type = 'interaction'
-    """
-    connection.execute(sa.text(
-        f"DELETE FROM v2_evidence_records WHERE requirement_id IN ({owned_requirements})"
-    ))
-    connection.execute(sa.text(
-        f"DELETE FROM v2_evidence_requirements WHERE id IN ({owned_requirements})"
-    ))
+    connection.execute(sa.text("""
+        DELETE FROM v2_evidence_records
+        WHERE requirement_id IN (
+            SELECT requirement_id FROM v2_interaction_requirement_changes WHERE created = 1
+        ) OR (
+            requirement_id IN (
+                SELECT requirement_id FROM v2_interaction_requirement_changes WHERE created = 0
+            ) AND source_ref LIKE 'v2-interaction-attempt:%'
+        )
+    """))
+    connection.execute(sa.text("""
+        UPDATE v2_evidence_requirements
+        SET is_required = (
+            SELECT previous_is_required FROM v2_interaction_requirement_changes
+            WHERE requirement_id = v2_evidence_requirements.id
+        ), active = (
+            SELECT previous_active FROM v2_interaction_requirement_changes
+            WHERE requirement_id = v2_evidence_requirements.id
+        )
+        WHERE id IN (
+            SELECT requirement_id FROM v2_interaction_requirement_changes WHERE created = 0
+        )
+    """))
+    connection.execute(sa.text("""
+        DELETE FROM v2_evidence_requirements
+        WHERE id IN (
+            SELECT requirement_id FROM v2_interaction_requirement_changes WHERE created = 1
+        )
+    """))
+    op.drop_table("v2_interaction_requirement_changes")
     op.drop_table("v2_interaction_attempts")
     op.drop_table("v2_interaction_definitions")
