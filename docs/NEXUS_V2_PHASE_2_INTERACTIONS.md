@@ -14,6 +14,8 @@ published/retired state and validated JSON content. Only one version per key
 may be published for learners at a time. A new version is a new row; the old
 row is retired, never edited in place after attempts exist. Definition deletion
 is restricted when attempts refer to it. Authors retire versions instead.
+An existing published version cannot return to draft, and retired versions
+cannot reopen. Changes to published content require a new version row.
 The lesson loader rejects moving a lesson to another module while any authored
 interaction version references it; the interaction and its requirement would
 otherwise become unreachable from the learner's module view.

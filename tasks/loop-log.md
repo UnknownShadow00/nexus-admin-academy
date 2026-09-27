@@ -2747,3 +2747,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/services/v2_lesson_loader.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
 - Result: Focused lesson-move regression passed, Ruff and compileall passed; exact-head full backend and GitHub CI pending.
 - Next: Verify exact-head full backend and GitHub CI, reply to and resolve the review thread, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 14:02:48 UTC] Task Completed
+- Task: Enforced monotonic V2 interaction version status by rejecting published-to-draft transitions.
+- Files changed: backend/app/services/v2_interaction_loader.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused draft/version-history tests passed (3), Ruff and compileall passed; exact-head full backend and GitHub CI pending.
+- Next: Verify exact-head full backend and GitHub CI, reply to and resolve the review thread, and leave merge and production deployment for separate authorization.

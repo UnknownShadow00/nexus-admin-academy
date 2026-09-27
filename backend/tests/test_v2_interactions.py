@@ -620,6 +620,18 @@ def test_draft_version_preserves_published_requirement_and_key_stays_in_module(p
         load_interactions(db, str(path))
 
 
+def test_published_interaction_cannot_return_to_draft(pilot, db, tmp_path):
+    _student, _client = pilot
+    manifest = yaml.safe_load(open(DEFAULT_PILOT_PATH, encoding="utf-8"))
+    item = copy.deepcopy(next(row for row in manifest["interactions"] if row["key"] == "interaction.pilot.hardware-match"))
+    item["status"] = "draft"
+    path = tmp_path / "demote-version.yaml"
+    path.write_text(yaml.safe_dump({"interactions": [item]}), encoding="utf-8")
+    with pytest.raises(InteractionValidationError, match="published versions cannot return to draft"):
+        load_interactions(db, str(path))
+    assert db.query(V2InteractionDefinition).filter_by(interaction_key=item["key"], version=1).one().status == "published"
+
+
 @pytest.mark.parametrize("change", [
     {"key": " " + "k" * 160, "type": "typed_answer", "config": {"question": "Type it", "accepted_answers": ["yes"], "explanation": "x"}},
     {"type": "typed_answer", "title": "x" * 201, "config": {"question": "Type it", "accepted_answers": ["yes"], "explanation": "x"}},

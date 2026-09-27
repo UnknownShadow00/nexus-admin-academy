@@ -91,6 +91,8 @@ def load_interactions(db: Session, path: str = DEFAULT_PILOT_PATH, *, commit: bo
                 raise InteractionValidationError(f"{path}: version {doc['key']} v{doc['version']} changed; author a new version")
             if existing.status == "retired" and status != "retired":
                 raise InteractionValidationError(f"{path}: retired versions cannot be reopened")
+            if existing.status == "published" and status == "draft":
+                raise InteractionValidationError(f"{path}: published versions cannot return to draft; author a new version")
             if existing.status != status:
                 existing.status = status
             else:
