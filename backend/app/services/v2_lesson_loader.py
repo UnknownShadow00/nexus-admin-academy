@@ -36,6 +36,7 @@ from app.models.certification import (
     normalize_importance,
 )
 from app.services.v2_content_loader import ContentValidationError, LoadSummary
+from app.models.v2_interaction import V2InteractionDefinition
 
 _REQUIRED = ("lesson_key", "title", "certification_version", "domain", "module")
 
@@ -178,6 +179,12 @@ def load_lessons(
             db.flush()
             summary.record("lesson", "created")
         else:
+            if row.certification_module_id != module.id and db.query(V2InteractionDefinition.id).filter_by(
+                lesson_id=row.id,
+            ).first():
+                raise ContentValidationError(
+                    f"{rel}: lesson '{lesson_key}' has authored interactions and cannot move modules"
+                )
             summary.record("lesson", "updated" if _apply(row, fields) else "unchanged")
 
         _sync_lesson_objectives(db, row.id, objective_ids, summary)

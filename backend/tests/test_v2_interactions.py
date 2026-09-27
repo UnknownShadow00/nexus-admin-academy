@@ -18,9 +18,10 @@ from app.models.v2_evidence import V2EvidenceRecord, V2EvidenceRequirement
 from app.models.v2_interaction import V2InteractionAttempt, V2InteractionDefinition, V2InteractionRequirementChange
 from app.routers.v2_curriculum import router
 from app.services.student_deletion import delete_student_owned_data, student_owned_row_counts
-from app.services.v2_content_loader import load_module
+from app.services.v2_content_loader import ContentValidationError, load_module
 from app.services.v2_curriculum_service import entry_view
 from app.services.v2_interaction_loader import DEFAULT_PILOT_PATH, load_interactions
+from app.services.v2_lesson_loader import load_lessons
 from app.services.v2_interaction_service import InteractionValidationError, interaction_list, validate_definition
 from app.services import v2_interaction_service
 from app.services.v2_progress_service import module_progress, record_activity
@@ -503,6 +504,33 @@ def test_hidden_only_interaction_does_not_expose_dead_end_module(pilot, db):
     lesson.status = "ready"
     db.commit()
     assert any(item["module"]["key"] == MODULE for item in entry_view(db, student.id)["modules"])
+
+
+def test_lesson_with_interaction_cannot_move_to_another_module(pilot, db, tmp_path):
+    _student, _client = pilot
+    module = db.query(CertificationModule).filter_by(module_key=MODULE).one()
+    lesson = db.query(LessonV2Meta).filter_by(
+        certification_module_id=module.id,
+        lesson_key="lesson.aplus.core1.ip_configuration.ipv4_basics",
+    ).one()
+    version = db.get(CertificationVersion, module.certification_version_id)
+    moved_module = CertificationModule(
+        certification_version_id=version.id, module_key="module.pilot.moved",
+        title="Moved module", display_order=99,
+    )
+    db.add(moved_module)
+    db.commit()
+    path = tmp_path / "moved.md"
+    path.write_text("\n".join([
+        "---", f"lesson_key: {lesson.lesson_key}", "title: Moved lesson",
+        f"certification_version: {version.version_key}", f"domain: {lesson.domain_key}",
+        "module: module.pilot.moved", f"importance: {lesson.importance}",
+        f"learning_relationship: {lesson.learning_relationship}", "status: ready", "---", "Body.",
+    ]), encoding="utf-8")
+    with pytest.raises(ContentValidationError, match="has authored interactions and cannot move modules"):
+        load_lessons(db, str(tmp_path))
+    assert db.get(LessonV2Meta, lesson.id).certification_module_id == module.id
+    assert db.query(V2InteractionDefinition).filter_by(lesson_id=lesson.id).count() > 0
 
 
 def test_110_retries_keep_immutable_history_but_progress_is_bounded(pilot, db):
