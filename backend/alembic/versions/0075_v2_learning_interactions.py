@@ -76,10 +76,10 @@ def downgrade() -> None:
     connection.execute(sa.text("""
         DELETE FROM v2_evidence_records
         WHERE requirement_id IN (
-            SELECT requirement_id FROM v2_interaction_requirement_changes WHERE created = 1
+            SELECT requirement_id FROM v2_interaction_requirement_changes WHERE created IS TRUE
         ) OR (
             requirement_id IN (
-                SELECT requirement_id FROM v2_interaction_requirement_changes WHERE created = 0
+                SELECT requirement_id FROM v2_interaction_requirement_changes WHERE created IS FALSE
             ) AND source_ref LIKE 'v2-interaction-attempt:%'
         )
     """))
@@ -93,13 +93,13 @@ def downgrade() -> None:
             WHERE requirement_id = v2_evidence_requirements.id
         )
         WHERE id IN (
-            SELECT requirement_id FROM v2_interaction_requirement_changes WHERE created = 0
+            SELECT requirement_id FROM v2_interaction_requirement_changes WHERE created IS FALSE
         )
     """))
     connection.execute(sa.text("""
         DELETE FROM v2_evidence_requirements
         WHERE id IN (
-            SELECT requirement_id FROM v2_interaction_requirement_changes WHERE created = 1
+            SELECT requirement_id FROM v2_interaction_requirement_changes WHERE created IS TRUE
         )
     """))
     op.drop_table("v2_interaction_requirement_changes")

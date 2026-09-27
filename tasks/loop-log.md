@@ -2705,3 +2705,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/alembic/versions/0075_v2_learning_interactions.py, backend/app/models/__init__.py, backend/app/models/v2_interaction.py, backend/app/services/v2_interaction_loader.py, backend/tests/test_v2_interactions.py, backend/tests/test_v2_interactions_migration.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
 - Result: Focused interaction and migration suite passed (35), Ruff and compileall passed, Alembic still has one 0075 head; final-head full backend and GitHub CI pending.
 - Next: Verify full backend and GitHub CI, reply to and resolve all supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 12:54:22 UTC] Task Completed
+- Task: Corrected PostgreSQL-safe boolean predicates in the 0075 downgrade and validated authored IDs/answers against the interaction API response-size limit.
+- Files changed: backend/alembic/versions/0075_v2_learning_interactions.py, backend/app/routers/v2_curriculum.py, backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused migration and authoring tests passed (12), Ruff and compileall passed; final-head full backend and GitHub CI pending.
+- Next: Verify full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.

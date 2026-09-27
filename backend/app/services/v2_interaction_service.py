@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import random
 import re
 from datetime import datetime, timezone
@@ -29,6 +30,12 @@ class InteractionStale(ValueError):
 
 
 MAX_TYPED_ANSWER_LENGTH = 500
+MAX_INTERACTION_RESPONSE_LENGTH = 4096
+
+
+def _require_response_fits(response: dict) -> None:
+    if len(json.dumps(response)) > MAX_INTERACTION_RESPONSE_LENGTH:
+        raise InteractionValidationError("authored answer IDs exceed the submission size limit")
 
 
 def _nonempty(value, field: str) -> str:
@@ -100,6 +107,7 @@ def validate_definition(doc: dict) -> dict:
             _nonempty(pair.get("right"), "pair.right")
         if len(set(left_ids)) != len(left_ids) or len(set(right_ids)) != len(right_ids):
             raise InteractionValidationError("matching IDs must be unique")
+        _require_response_fits({"matches": {pair["id"]: pair["right_id"] for pair in pairs}})
     elif kind == "ordering":
         steps = config.get("steps")
         if not isinstance(steps, list) or len(steps) < 2:
@@ -112,6 +120,7 @@ def validate_definition(doc: dict) -> dict:
             _nonempty(step.get("text"), "step.text")
         if len(set(ids)) != len(ids):
             raise InteractionValidationError("ordering step IDs must be unique")
+        _require_response_fits({"order": ids})
     elif kind == "typed_answer":
         _nonempty(config.get("question"), "config.question")
         answers = config.get("accepted_answers")
@@ -121,6 +130,7 @@ def validate_definition(doc: dict) -> dict:
             _nonempty(answer, "accepted answer")
             if len(" ".join(answer.strip().split())) > MAX_TYPED_ANSWER_LENGTH:
                 raise InteractionValidationError("accepted answer exceeds the typed answer length limit")
+            _require_response_fits({"answer": " ".join(answer.strip().split())})
         if type(config.get("case_sensitive", False)) is not bool:
             raise InteractionValidationError("case_sensitive must be true or false")
     else:
@@ -128,6 +138,8 @@ def validate_definition(doc: dict) -> dict:
         correct = _nonempty(config.get("correct_choice_id"), "correct_choice_id")
         if correct not in {choice["id"] for choice in choices}:
             raise InteractionValidationError("correct choice must exist")
+        for choice in choices:
+            _require_response_fits({"choice_id": choice["id"]})
         if kind == "image_identification":
             image_url = _nonempty(config.get("image_url"), "image_url")
             if not image_url.startswith("/v2-interactions/") or ".." in image_url:

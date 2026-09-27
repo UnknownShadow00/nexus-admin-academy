@@ -31,7 +31,7 @@ from app.services.v2_curriculum_service import (
 )
 from app.services.v2_progress_service import V2EvidenceConflict, V2ProgressError, record_activity
 from app.services.v2_interaction_service import (
-    InteractionStale, InteractionUnavailable, InteractionValidationError, interaction_view,
+    MAX_INTERACTION_RESPONSE_LENGTH, InteractionStale, InteractionUnavailable, InteractionValidationError, interaction_view,
     submit_interaction,
 )
 from app.utils.responses import ok
@@ -132,7 +132,7 @@ def post_interaction(
     db: Session = Depends(get_db),
     student: Student = Depends(require_v2_student_access),
 ):
-    if len(json.dumps(body.response)) > 4096:
+    if len(json.dumps(body.response)) > MAX_INTERACTION_RESPONSE_LENGTH:
         raise HTTPException(status_code=422, detail="Response is too large")
     try:
         return ok(submit_interaction(db, student.id, module_key, interaction_key, body.version_id, body.response))

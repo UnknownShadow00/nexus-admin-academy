@@ -76,6 +76,8 @@ define unique `choices` IDs and a valid `correct_choice_id`; matching defines
 unique pair IDs; ordering defines unique step IDs; typed answer defines at
 least one accepted answer whose normalized text fits the 500-character learner
 limit, plus an optional case sensitivity setting.
+Authoring also checks the serialized complete answer or choice IDs against the
+API's 4096-character response limit, so a correct learner answer can be sent.
 The published learner API returns only the display subset of this config.
 
 GET `/api/v2/curriculum/modules/{module_key}/interactions/{interaction_key}`
@@ -112,4 +114,5 @@ unreachable interactions. A small ownership ledger restores the prior flags
 on any 0074 requirement that the loader reused and retains its earlier trusted
 evidence; only records sourced from discarded Phase 2 attempts are removed.
 Unrelated Phase 1 requirements and evidence remain.
+The downgrade SQL uses boolean predicates supported by SQLite and PostgreSQL.
 Back up Phase 2 records before any rollback after pilot use.
