@@ -28,6 +28,9 @@ class InteractionStale(ValueError):
     """The displayed definition is no longer the published version."""
 
 
+MAX_TYPED_ANSWER_LENGTH = 500
+
+
 def _nonempty(value, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise InteractionValidationError(f"{field} must be nonempty text")
@@ -116,6 +119,8 @@ def validate_definition(doc: dict) -> dict:
             raise InteractionValidationError("typed answer needs accepted answers")
         for answer in answers:
             _nonempty(answer, "accepted answer")
+            if len(" ".join(answer.strip().split())) > MAX_TYPED_ANSWER_LENGTH:
+                raise InteractionValidationError("accepted answer exceeds the typed answer length limit")
         if type(config.get("case_sensitive", False)) is not bool:
             raise InteractionValidationError("case_sensitive must be true or false")
     else:
@@ -345,7 +350,7 @@ def _grade(definition: V2InteractionDefinition, response: dict) -> tuple[int, bo
     elif kind == "typed_answer":
         _response_keys(response, "answer")
         answer = response["answer"]
-        if not isinstance(answer, str) or not answer.strip() or len(answer) > 500:
+        if not isinstance(answer, str) or not answer.strip() or len(answer) > MAX_TYPED_ANSWER_LENGTH:
             raise InteractionValidationError("Enter a short answer")
         case_sensitive = config.get("case_sensitive", False)
         accepted = {_normalized(item, case_sensitive=case_sensitive) for item in config["accepted_answers"]}

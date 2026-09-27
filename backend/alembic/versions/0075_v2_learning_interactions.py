@@ -63,5 +63,22 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # The 0074 mastery service still reads interaction requirements. Remove
+    # only keys owned by definitions in this revision, including their trusted
+    # evidence, before the definitions and immutable attempts disappear.
+    connection = op.get_bind()
+    owned_requirements = """
+        SELECT requirement.id FROM v2_evidence_requirements AS requirement
+        JOIN v2_interaction_definitions AS definition
+          ON definition.module_id = requirement.module_id
+         AND definition.interaction_key = requirement.ref_key
+        WHERE requirement.evidence_type = 'interaction'
+    """
+    connection.execute(sa.text(
+        f"DELETE FROM v2_evidence_records WHERE requirement_id IN ({owned_requirements})"
+    ))
+    connection.execute(sa.text(
+        f"DELETE FROM v2_evidence_requirements WHERE id IN ({owned_requirements})"
+    ))
     op.drop_table("v2_interaction_attempts")
     op.drop_table("v2_interaction_definitions")

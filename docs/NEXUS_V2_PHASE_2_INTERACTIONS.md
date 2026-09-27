@@ -71,7 +71,8 @@ optional `lesson_key`, `title`, `instructions`, `required`, `status`,
 an authored `explanation` and optional `reveal_correct` flag. Choice types
 define unique `choices` IDs and a valid `correct_choice_id`; matching defines
 unique pair IDs; ordering defines unique step IDs; typed answer defines at
-least one exact accepted answer and an optional case sensitivity setting.
+least one accepted answer whose normalized text fits the 500-character learner
+limit, plus an optional case sensitivity setting.
 The published learner API returns only the display subset of this config.
 
 GET `/api/v2/curriculum/modules/{module_key}/interactions/{interaction_key}`
@@ -100,5 +101,7 @@ The aggregate query still scans a learner's matching attempt rows; a
 materialized progress counter is deferred until pilot usage shows a need.
 The module and lesson responses list the pilot interactions for navigation.
 An interaction version remains stored while attempts refer to it; removing
-all new interaction tables on downgrade discards Phase 2 attempts, so back up
-those records before any rollback after pilot use.
+all new interaction tables on downgrade discards Phase 2 attempts and removes
+their associated requirements and trusted evidence so 0074 cannot enforce
+unreachable interactions. Unrelated Phase 1 requirements and evidence remain.
+Back up Phase 2 records before any rollback after pilot use.

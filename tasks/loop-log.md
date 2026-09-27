@@ -2687,3 +2687,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/services/v2_interaction_service.py, backend/app/services/v2_progress_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, frontend/src/components/v2/V2Interaction.jsx, frontend/src/components/v2/V2Interaction.test.jsx, tasks/loop-log.md
 - Result: Pass locally: 1274 backend tests passed and 2 skipped; focused interaction/mastery tests 41 passed; migration tests 2 passed; frontend tests 113 passed; frontend build, Ruff, compileall, npm audit, pip audit, and Alembic one-head check passed. GitHub CI pending on the follow-up head.
 - Next: Push the follow-up commit, verify final GitHub CI, reply to and resolve all supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 12:21:40 UTC] Task Completed
+- Task: Addressed two additional PR #45 review findings by cleaning Phase 2 requirements/evidence during 0075 downgrade and rejecting impossible overlong typed answers during authoring.
+- Files changed: backend/alembic/versions/0075_v2_learning_interactions.py, backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, backend/tests/test_v2_interactions_migration.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused migration and authoring tests passed (8), Ruff and compileall passed; full backend suite and GitHub CI are pending on the follow-up head.
+- Next: Verify full backend and final-head GitHub CI, reply to and resolve all supported review threads, and leave merge and production deployment for separate authorization.

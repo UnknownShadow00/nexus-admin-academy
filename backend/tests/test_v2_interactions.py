@@ -429,6 +429,7 @@ def test_draft_version_preserves_published_requirement_and_key_stays_in_module(p
     {"type": "matching", "config": {"pairs": [{"id": "one", "left": "One", "right_id": "same", "right": "A"}, {"id": "two", "left": "Two", "right_id": "same", "right": "B"}], "explanation": "x"}},
     {"type": "ordering", "config": {"steps": [{"id": "same", "text": "First"}, {"id": "same", "text": "Second"}], "explanation": "x"}},
     {"type": "typed_answer", "config": {"question": "Type it", "accepted_answers": [], "explanation": "x"}},
+    {"type": "typed_answer", "config": {"question": "Type it", "accepted_answers": ["x" * 501], "explanation": "x"}},
     {"type": "image_identification", "config": {"image_url": "https://random.test/a.png", "image_alt": "Port", "question": "Which?", "choices": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "correct_choice_id": "a", "explanation": "x"}},
     {"type": "command_output", "config": {"command": "ipconfig", "output": "", "question": "What?", "choices": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "correct_choice_id": "a", "explanation": "x"}},
     {"type": "safe_action", "config": {"scenario": "What next?", "choices": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "correct_choice_id": "missing", "explanation": "x"}},
