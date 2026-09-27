@@ -75,7 +75,8 @@ def validate_definition(doc: dict) -> dict:
     _nonempty(doc.get("module_key"), "module_key")
     if doc.get("lesson_key") is not None:
         _nonempty(doc["lesson_key"], "lesson_key")
-    _nonempty(doc.get("title"), "title")
+    if len(_nonempty(doc.get("title"), "title")) > 200:
+        raise InteractionValidationError("title must be 200 characters or fewer")
     _nonempty(doc.get("instructions"), "instructions")
     status = doc.get("status", "draft")
     if status not in {"draft", "published", "retired"}:

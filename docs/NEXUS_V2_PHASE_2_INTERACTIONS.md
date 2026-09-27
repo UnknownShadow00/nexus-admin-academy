@@ -73,7 +73,8 @@ the six pilot examples. The command is opt-in and is not part of deployment.
 The manifest fields are `key`, positive `version`, `type`, `module_key`,
 optional `lesson_key`, `title`, `instructions`, `required`, `status`,
 `display_order`, `pass_percent`, and type-specific `config`. Every config has
-an authored `explanation` and optional `reveal_correct` flag. Choice types
+an authored `explanation` and optional `reveal_correct` flag. Titles are at
+most 200 characters, matching the database column. Choice types
 define unique `choices` IDs and a valid `correct_choice_id`; matching defines
 unique pair IDs; ordering defines unique step IDs; typed answer defines at
 least one accepted answer whose normalized text fits the 500-character learner

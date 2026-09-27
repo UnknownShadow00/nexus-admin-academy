@@ -489,6 +489,7 @@ def test_draft_version_preserves_published_requirement_and_key_stays_in_module(p
 
 
 @pytest.mark.parametrize("change", [
+    {"type": "typed_answer", "title": "x" * 201, "config": {"question": "Type it", "accepted_answers": ["yes"], "explanation": "x"}},
     {"type": "matching", "config": {"pairs": [{"id": "one", "left": "One", "right_id": "same", "right": "A"}, {"id": "two", "left": "Two", "right_id": "same", "right": "B"}], "explanation": "x"}},
     {"type": "ordering", "config": {"steps": [{"id": "same", "text": "First"}, {"id": "same", "text": "Second"}], "explanation": "x"}},
     {"type": "typed_answer", "config": {"question": "Type it", "accepted_answers": [], "explanation": "x"}},
