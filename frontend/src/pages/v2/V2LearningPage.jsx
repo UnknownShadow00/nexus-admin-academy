@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getV2Learning } from "../../services/api";
 import { V2Error, V2Loading } from "../../components/v2/V2PageState";
+import { statusLabel } from "../../components/v2/V2Status";
 
 export default function V2LearningPage() {
   const [data, setData] = useState(null);
@@ -32,7 +33,7 @@ export default function V2LearningPage() {
           <p className="mt-3 text-blue-100">{current.module.description}</p>
           <div className="mt-5 flex flex-wrap gap-3 text-sm">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5"><BookOpen size={16} aria-hidden="true" />{lessons.completed} of {lessons.total} lessons completed</span>
-            {current.progress.module_complete ? <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/20 px-3 py-1.5"><CheckCircle2 size={16} aria-hidden="true" />Module complete</span> : null}
+            {current.progress.module_complete ? <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/20 px-3 py-1.5"><CheckCircle2 size={16} aria-hidden="true" />Module mastered</span> : null}
           </div>
         </div>
         <Link className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-blue-800 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" to={current.continue.route}>
@@ -49,12 +50,10 @@ export default function V2LearningPage() {
       <h2 id="modules-heading" className="text-xl font-bold">A+ modules</h2>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {data.modules.map((item) => {
-          const complete = item.progress.module_complete;
-          const started = item.progress.lessons.completed > 0 || Object.values(item.progress.assessments || {}).some((value) => value?.status && value.status !== "not_started");
           return <Link className="panel block hover:border-blue-300" key={item.module.key} to={`/learning-v2/modules/${item.module.key}`}>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.certification.version.label}</p>
             <h3 className="mt-1 font-bold">{item.module.title}</h3>
-            <p className="mt-2 text-sm text-slate-500">{complete ? "Complete" : started ? "In progress" : "Not started"} · {item.progress.lessons.completed}/{item.progress.lessons.total} lessons</p>
+            <p className="mt-2 text-sm text-slate-500">{statusLabel(item.progress.status)} · {item.progress.lessons.completed}/{item.progress.lessons.total} lessons</p>
           </Link>;
         })}
       </div>

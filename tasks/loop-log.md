@@ -2657,3 +2657,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/tests/test_phase4c3_final_shift.py; backend/tests/test_student_data_integrity.py; tasks/loop-log.md
 - Result: pass in all three previously failing cases, 16 surrounding integrity/mastery/migration tests, Ruff, and compileall.
 - Next: Push the test correction, rerun full PR CI, and review its results before requesting review; do not merge or deploy.
+
+## [2026-09-27T04:08:41Z] Task Completed
+- Task: Corrected the V2 learning overview card to display the server-derived mastery status after viewing activity.
+- Files changed: frontend/src/pages/v2/V2LearningPage.jsx; frontend/src/pages/v2/V2LearningPage.test.jsx; tasks/loop-log.md
+- Result: pass in the focused frontend status test (3 passed) and production frontend build; watched/check-required no longer appears as not started.
+- Next: Push the focused UI correction and confirm all PR checks pass; do not merge or deploy.
