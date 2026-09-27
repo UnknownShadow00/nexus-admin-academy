@@ -1,6 +1,6 @@
 # Nexus V2 Phase 3A — beginner A+ foundation, Stages 1–3
 
-Status: review candidate. This is a new versioned Nexus V2 path, not a conversion of legacy Weeks or of the existing A+ exam modules. Human editorial sign-off is required before any production content load.
+Status: authoring and automated validation complete; human editorial approval pending. This is a new versioned Nexus V2 path, not a conversion of legacy Weeks or of the existing A+ exam modules. Production content loading is prohibited until human editorial sign-off is recorded.
 
 ## Path and learning objectives
 
@@ -30,7 +30,7 @@ The versioned source files are `backend/content/certifications/nexus_beginner_ap
 
 Stage 2 also has optional `res.nexus.beginner.s2.hardware_software_recap`. Stage 3 has optional `interaction.nexus.beginner.s3.whoami_preview` (command/output recognition). Neither is a prerequisite.
 
-All nine checkpoints explicitly set `pass_percent: 80`; the database default remains 70 and published assessments are untouched. Each group has exactly five questions with one defensible answer and an explanation. The three versioned YAML question banks are imported through the existing question importer, and their byte hashes are bound in the editorial approval manifest for disposable pilot testing. The manifest notes that human editorial sign-off is still required before production loading.
+All nine checkpoints explicitly set `pass_percent: 80`; the database default remains 70 and published assessments are untouched. Each group has exactly five questions with one defensible answer and an explanation. The three versioned YAML question banks are imported through the existing question importer as draft banks. They have no entries in the production editorial approval manifest, so loading source files alone cannot publish them or mark their answer keys and explanations validated. A future human approval must add an exact-byte hash and question count to that manifest through the existing approval gate.
 
 ## Mastery and navigation
 
@@ -39,6 +39,8 @@ For every stage, the required evidence is all three diagram opens, all three tru
 `V2_BEGINNER_PATH_ENABLED=true` selects this path for allowlisted V2 pilot learners. The existing `V2_CURRICULUM_ENABLED` master flag and `V2_PILOT_STUDENT_IDS` allowlist still gate all V2 learner routes. With the beginner switch off, these stage modules are hidden and denied; the previous V2 catalog remains as it was. With it on, the entry page shows only Stages 1–3. Stage 2 requires Stage 1 mastery, and Stage 3 requires Stage 2 mastery; direct API calls receive the same prerequisite explanation. No Stage 4–10 cards or content were fabricated.
 
 The learner's `Continue` route finds a missing required resource first, then a required interaction, then the group checkpoint. It skips passive lesson completion for these three stages. The entry page shows the current stage, its purpose, the next action, and the reason a later stage is locked. The path switch is scoped to pilot use and defaults off.
+
+The same beginner version and stage-prerequisite policy protects direct V2 lab detail and new practical starts. A practical from the old V2 version is hidden when the beginner switch is on, including cached URLs. A previously launched run may finish across a path switch only while the learner retains V2 access and its module and assessment remain active. Detail, VM status/access, evidence upload, verification, and submission use the run's recorded student, lab, module, and assessment provenance; supplied module/assessment parameters must match it. A path switch never permits a new start under the old version. Legacy non-V2 lab rules remain unchanged.
 
 ## Lightweight review
 
@@ -54,7 +56,7 @@ Safety checks explicitly say to pause at damaged equipment or possible data loss
 
 ## Student journey and loading
 
-The disposable API journey creates a new learner, enables V2 only for that learner, and loads the content in an in-memory SQLite database. The learner opens each required teaching card, passes the native interaction, passes the five-question checkpoint, and reaches Stage 1, then Stage 2, then Stage 3 mastery. It tests an incorrect interaction and a failed checkpoint followed by successful retries; the next stage stays locked until all evidence is satisfied. It also proves the optional recap and command preview are not prerequisites. The journey uses no real student account or production data.
+The disposable API journey creates a new learner, enables V2 only for that learner, and loads the content in an in-memory SQLite database. The test first verifies that the repository manifest leaves the new banks draft. It then uses a temporary test-only approval manifest to simulate the future human gate in that disposable database; this fixture is not production approval. The learner opens each required teaching card, passes the native interaction, passes the five-question checkpoint, and reaches Stage 1, then Stage 2, then Stage 3 mastery. It tests an incorrect interaction and a failed checkpoint followed by successful retries; the next stage stays locked until all evidence is satisfied. It also proves the optional recap and command preview are not prerequisites. The journey uses no real student account or production data.
 
 Content files are loaded through the existing `load_module` pipeline; `load_interactions(db, path="content/interactions/nexus-beginner-aplus-v1.yaml")` is a separate explicit pilot operation. There is no new migration. The tests use the 0075 schema models in disposable databases. Production code and database remain at the separately controlled 0073 deployment baseline; this task performs no deploy, Alembic command against production, content load into production, V2 cohort enablement, or student migration.
 

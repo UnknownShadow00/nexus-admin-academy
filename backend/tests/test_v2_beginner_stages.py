@@ -1,6 +1,7 @@
 """Content integrity and disposable learner journey for the new beginner path."""
 
 from datetime import date, timedelta
+import hashlib
 from pathlib import Path
 import re
 
@@ -31,9 +32,58 @@ INTERACTIONS = ROOT / "content/interactions/nexus-beginner-aplus-v1.yaml"
 API = "/api/v2/curriculum/modules"
 
 
-def _load(db):
+def _disposable_approval_dir(tmp_path):
+    """Simulate the future approval gate only inside a disposable test DB."""
+    questions_dir = tmp_path / "disposable-approved-questions"
+    questions_dir.mkdir()
+    approvals = []
+    for bank in sorted((ROOT / "content/questions").glob("beginner-stage-*.yaml")):
+        raw = bank.read_bytes()
+        (questions_dir / bank.name).write_bytes(raw)
+        source = yaml.safe_load(raw)
+        approvals.append({
+            "filename": bank.name,
+            "quiz_title": source["quiz_title"],
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "reviewed_question_count": len(source["questions"]),
+            "editorial_status": "validated",
+            "review_note": "Simulated approval for disposable tests only; no human sign-off",
+        })
+    (questions_dir / "editorial-approvals.yaml").write_text(
+        yaml.safe_dump({"approvals": approvals}), encoding="utf-8"
+    )
+    return questions_dir
+
+
+def _load(db, tmp_path):
     load_module(db, commit=True)
+    load_module(db, questions_dir=str(_disposable_approval_dir(tmp_path)), commit=True)
     load_interactions(db, path=str(INTERACTIONS), commit=True)
+
+
+def test_beginner_banks_remain_draft_without_human_approval(db, tmp_path):
+    manifest = yaml.safe_load((ROOT / "content/questions/editorial-approvals.yaml").read_text())
+    assert not any(row["filename"].startswith("beginner-stage-") for row in manifest["approvals"])
+    load_module(db, commit=True)
+    for stage in range(1, 4):
+        bank = yaml.safe_load((ROOT / f"content/questions/beginner-stage-{stage}.yaml").read_text())
+        quiz = db.query(Quiz).filter_by(title=bank["quiz_title"]).one()
+        assert quiz.status != "published"
+        assert quiz.editorial_status != "validated"
+        assert quiz.answer_keys_validated is False
+        assert quiz.explanations_complete is False
+    old = db.query(Quiz).filter_by(title="A+ IP Configuration & Basic Connectivity — Module Bank").one()
+    assert old.status == "published" and old.editorial_status == "validated"
+    assert old.answer_keys_validated and old.explanations_complete
+
+    # A future reviewed manifest uses the existing exact-byte approval gate.
+    disposable = _disposable_approval_dir(tmp_path)
+    load_module(db, questions_dir=str(disposable), commit=True)
+    for stage in range(1, 4):
+        bank = yaml.safe_load((ROOT / f"content/questions/beginner-stage-{stage}.yaml").read_text())
+        quiz = db.query(Quiz).filter_by(title=bank["quiz_title"]).one()
+        assert quiz.status == "published" and quiz.editorial_status == "validated"
+        assert quiz.answer_keys_validated and quiz.explanations_complete
 
 
 def _correct_interaction_response(definition):
@@ -70,8 +120,8 @@ def _submit_check(client, student, db, module_key, assessment_key, *, fail_first
     assert passed.json()["data"]["passed"] is True
 
 
-def test_beginner_content_loads_on_existing_systems_and_is_pedagogically_bounded(db, monkeypatch):
-    _load(db)
+def test_beginner_content_loads_on_existing_systems_and_is_pedagogically_bounded(db, monkeypatch, tmp_path):
+    _load(db, tmp_path)
     repeat = load_module(db, commit=True)
     assert repeat["created"] == repeat["updated"] == 0
     assert load_interactions(db, path=str(INTERACTIONS), commit=True)["created"] == 0
@@ -157,8 +207,8 @@ def test_beginner_content_loads_on_existing_systems_and_is_pedagogically_bounded
     assert [item["module"]["key"] for item in entry_view(db, student.id)["modules"]] == list(STAGE_KEYS)
 
 
-def test_disposable_student_retries_and_unlocks_stages_in_order(db, monkeypatch):
-    _load(db)
+def test_disposable_student_retries_and_unlocks_stages_in_order(db, monkeypatch, tmp_path):
+    _load(db, tmp_path)
     student = make_student(db, username="beginner_journey")
     enroll_v2(monkeypatch, student)
     monkeypatch.setenv("V2_BEGINNER_PATH_ENABLED", "true")

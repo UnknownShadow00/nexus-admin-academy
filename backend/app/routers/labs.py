@@ -22,6 +22,7 @@ from app.services.auth_service import get_current_student
 from app.services.progression_service import require_week_reached
 from app.services.v2_progress_service import record_activity
 from app.services.v2_access import V2_UNAVAILABLE_DETAIL, student_has_v2_access
+from app.services.v2_beginner_path import enforce_beginner_module_policy
 from app.utils.responses import ok
 
 logger = logging.getLogger(__name__)
@@ -277,7 +278,7 @@ def _v2_run_context(db: Session, student: Student, run: LabRun):
     ).one_or_none()
     if module is None or assessment is None:
         raise HTTPException(status_code=404, detail=V2_UNAVAILABLE_DETAIL)
-    return activity
+    return activity, assessment, module
 
 
 def _authorize_existing_run(db: Session, student: Student, run: LabRun, lab: LabTemplate):
@@ -318,6 +319,7 @@ def _v2_lab_assessment(
     ).one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="This practical is not available.")
+    enforce_beginner_module_policy(db, student.id, module_key, module=row[1])
     return row
 
 
@@ -349,6 +351,32 @@ def _lab_access_context(
         # bypasses while leaving genuinely legacy labs unchanged.
         raise HTTPException(status_code=404, detail=V2_UNAVAILABLE_DETAIL)
     return context
+
+
+def _follow_up_context(
+    db: Session,
+    lab_id: int,
+    student: Student,
+    run: LabRun | None,
+    module_key: str | None,
+    assessment_key: str | None,
+):
+    """Continue an owned V2 run across a path switch using recorded provenance.
+
+    A path switch closes new launches. It does not invalidate a run already
+    launched under the former path while V2 access and its assessment remain
+    active. Supplied context must match that run exactly; it cannot select a
+    different practical. A run without V2 provenance still uses ordinary
+    launch authorization.
+    """
+    trusted = _v2_run_context(db, student, run) if run else None
+    if trusted:
+        activity, assessment, module = trusted
+        if ((module_key is not None and module_key != activity.module_key)
+                or (assessment_key is not None and assessment_key != activity.ref_key)):
+            raise HTTPException(status_code=404, detail=V2_UNAVAILABLE_DETAIL)
+        return assessment, module
+    return _lab_access_context(db, lab_id, module_key, assessment_key, student)
 
 
 def _safe_provisioning_error(exc: Exception) -> str:
@@ -528,8 +556,8 @@ def get_lab(
     v2_assessment_key: str | None = None,
 ):
     lab, run = _get_lab_with_owned_run(db, lab_id, current_student.id)
-    v2_context = _lab_access_context(
-        db, lab_id, v2_module_key, v2_assessment_key, current_student
+    v2_context = _follow_up_context(
+        db, lab_id, current_student, run, v2_module_key, v2_assessment_key
     )
     if v2_context is None and run is None:
         require_week_reached(db, current_student, lab.week_number)
@@ -684,8 +712,8 @@ def verify_evidence_workbench(
     lab, run = _get_lab_with_owned_run(
         db, lab_id, current_student.id, active_run_required=True
     )
-    if _lab_access_context(
-        db, lab_id, v2_module_key, v2_assessment_key, current_student
+    if _follow_up_context(
+        db, lab_id, current_student, run, v2_module_key, v2_assessment_key
     ) is None:
         if run is None:
             require_week_reached(db, current_student, lab.week_number)
@@ -744,8 +772,8 @@ def submit_lab(
     lab, run = _get_lab_with_owned_run(
         db, lab_id, current_student.id, active_run_required=True
     )
-    v2_context = _lab_access_context(
-        db, lab_id, v2_module_key, v2_assessment_key, current_student
+    v2_context = _follow_up_context(
+        db, lab_id, current_student, run, v2_module_key, v2_assessment_key
     )
     if v2_context is None:
         if run is None:

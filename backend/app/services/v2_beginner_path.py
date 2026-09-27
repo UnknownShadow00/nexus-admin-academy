@@ -38,20 +38,34 @@ def stage_lock_reason(db: Session, student_id: int, module_key: str) -> str | No
     return None
 
 
+def enforce_beginner_module_policy(
+    db: Session,
+    student_id: int,
+    module_key: str,
+    *,
+    module: CertificationModule | None = None,
+) -> None:
+    """Apply the same version visibility and stage locks at every V2 entry point."""
+    if not beginner_path_enabled():
+        if module_key in STAGE_KEYS:
+            raise HTTPException(status_code=404, detail="This stage is not available.")
+        return
+    if module is None:
+        module = db.query(CertificationModule).filter_by(module_key=module_key, active=True).one_or_none()
+    elif module.module_key != module_key or not module.active:
+        module = None
+    version = db.get(CertificationVersion, module.certification_version_id) if module else None
+    if version is None or version.version_key != BEGINNER_VERSION:
+        raise HTTPException(status_code=404, detail="This stage is not available.")
+    reason = stage_lock_reason(db, student_id, module_key)
+    if reason:
+        raise HTTPException(status_code=403, detail=reason)
+
+
 def require_beginner_stage(
     module_key: str,
     db: Session = Depends(get_db),
     student: Student = Depends(require_v2_student_access),
 ) -> None:
     """Protect every V2 module route when the beginner pilot path is active."""
-    if not beginner_path_enabled():
-        if module_key in STAGE_KEYS:
-            raise HTTPException(status_code=404, detail="This stage is not available.")
-        return
-    module = db.query(CertificationModule).filter_by(module_key=module_key, active=True).one_or_none()
-    version = db.get(CertificationVersion, module.certification_version_id) if module else None
-    if version is None or version.version_key != BEGINNER_VERSION:
-        raise HTTPException(status_code=404, detail="This stage is not available.")
-    reason = stage_lock_reason(db, student.id, module_key)
-    if reason:
-        raise HTTPException(status_code=403, detail=reason)
+    enforce_beginner_module_policy(db, student.id, module_key)
