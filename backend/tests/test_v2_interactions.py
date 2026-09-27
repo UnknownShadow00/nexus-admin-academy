@@ -1,14 +1,18 @@
 """Native V2 interaction grading, evidence, history and abuse boundaries."""
 
 import copy
+import threading
+import time
 import yaml
 
 import pytest
-from sqlalchemy import event
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker
 
 from conftest import auth_headers, enroll_v2, make_client, make_student
 
-from app.models.certification import CertificationModule, InterviewPrompt, LearningResourceLink, LessonV2Meta, ModuleAssessment
+from app.database import Base
+from app.models.certification import Certification, CertificationModule, CertificationVersion, InterviewPrompt, LearningResourceLink, LessonV2Meta, ModuleAssessment
 from app.models.student import Student
 from app.models.v2_evidence import V2EvidenceRecord, V2EvidenceRequirement
 from app.models.v2_interaction import V2InteractionAttempt, V2InteractionDefinition, V2InteractionRequirementChange
@@ -18,6 +22,7 @@ from app.services.v2_content_loader import load_module
 from app.services.v2_curriculum_service import entry_view
 from app.services.v2_interaction_loader import DEFAULT_PILOT_PATH, load_interactions
 from app.services.v2_interaction_service import InteractionValidationError, interaction_list, validate_definition
+from app.services import v2_interaction_service
 from app.services.v2_progress_service import module_progress, record_activity
 
 
@@ -282,6 +287,105 @@ def test_submission_rejects_displayed_version_after_new_publication(pilot, db, t
     assert attempt.definition_snapshot["title"] == item["title"]
     assert attempt.definition_snapshot["config"]["accepted_answers"] == ["ipconfig /all"]
     assert attempt.response_snapshot == {"answer": "ipconfig /all"}
+
+
+def test_publication_waits_for_in_flight_submission(tmp_path, monkeypatch):
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'interaction-race.db'}",
+        connect_args={"check_same_thread": False, "timeout": 5},
+    )
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+    key = "interaction.race.command"
+    module_key = "module.race"
+    with session_factory() as session:
+        cert = Certification(cert_key="race", name="Race test")
+        session.add(cert)
+        session.flush()
+        version = CertificationVersion(certification_id=cert.id, version_key="v1", label="Race", exam_codes=[])
+        session.add(version)
+        session.flush()
+        module = CertificationModule(certification_version_id=version.id, module_key=module_key, title="Race", display_order=0)
+        student = Student(name="Race student", email="race@test.local", total_xp=0)
+        session.add_all([module, student])
+        session.flush()
+        definition = V2InteractionDefinition(
+            interaction_key=key, version=1, interaction_type="typed_answer",
+            module_id=module.id, title="Version one", instructions="Type the answer",
+            config={"question": "Type the version one answer", "accepted_answers": ["one"], "explanation": "Version one."},
+            required=True, status="published",
+        )
+        requirement = V2EvidenceRequirement(
+            module_id=module.id, evidence_type="interaction", ref_key=key, is_required=True, active=True,
+        )
+        session.add_all([definition, requirement])
+        session.commit()
+        student_id, definition_id = student.id, definition.id
+    manifest = tmp_path / "race-v2.yaml"
+    manifest.write_text(yaml.safe_dump({"interactions": [{
+        "key": key, "version": 2, "type": "typed_answer", "module_key": module_key,
+        "title": "Version two", "instructions": "Type the answer", "required": True,
+        "status": "published", "config": {
+            "question": "Type the version two answer", "accepted_answers": ["two"], "explanation": "Version two.",
+        },
+    }]}), encoding="utf-8")
+
+    grade_entered = threading.Event()
+    release_grade = threading.Event()
+    publication_done = threading.Event()
+    errors = []
+    original_grade = v2_interaction_service._grade
+
+    def paused_grade(authored, response):
+        grade_entered.set()
+        if not release_grade.wait(5):
+            raise AssertionError("submission was not released")
+        return original_grade(authored, response)
+
+    monkeypatch.setattr(v2_interaction_service, "_grade", paused_grade)
+
+    def submit():
+        try:
+            with session_factory() as session:
+                v2_interaction_service.submit_interaction(
+                    session, student_id, module_key, key, definition_id, {"answer": "one"},
+                )
+        except Exception as exc:
+            errors.append(exc)
+
+    def publish():
+        try:
+            with session_factory() as session:
+                load_interactions(session, str(manifest), commit=True)
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            publication_done.set()
+
+    submission = threading.Thread(target=submit)
+    publisher = threading.Thread(target=publish)
+    submission.start()
+    try:
+        assert grade_entered.wait(5)
+        publisher.start()
+        time.sleep(0.2)
+        assert not publication_done.is_set()
+    finally:
+        release_grade.set()
+        submission.join(5)
+        if publisher.ident is not None:
+            publisher.join(5)
+    assert not errors
+    assert publication_done.is_set()
+    with session_factory() as session:
+        attempt = session.query(V2InteractionAttempt).one()
+        assert attempt.definition_id == definition_id
+        assert attempt.version == attempt.definition_snapshot["version"] == 1
+        assert attempt.passed is True
+        assert session.query(V2EvidenceRecord).filter_by(student_id=student_id).count() == 1
+        assert session.query(V2InteractionDefinition).filter_by(interaction_key=key, version=1).one().status == "retired"
+        assert session.query(V2InteractionDefinition).filter_by(interaction_key=key, version=2).one().status == "published"
+    engine.dispose()
 
 
 def test_version_binding_cannot_target_other_or_unpublished_interaction(pilot, db):

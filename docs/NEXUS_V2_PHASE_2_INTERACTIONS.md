@@ -91,6 +91,9 @@ that exact definition is still published for the requested key and module.
 A version change returns HTTP 409 and requires a fresh load and answer; the
 server never silently grades against newer content. An attempt snapshots the
 exact graded version and returns feedback and updated progress.
+Publication and submission hold the same module transaction lock, so a version
+cannot be retired between submission validation and attempt commit. SQLite
+uses a no-op module write for its writer lock; PostgreSQL uses a row lock.
 
 Progress uses one batched SQL window query for all interactions in a module
 or lesson. It returns `attempt_count`, pass state, best score/result and latest

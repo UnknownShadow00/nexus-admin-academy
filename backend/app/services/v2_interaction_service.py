@@ -8,7 +8,7 @@ import random
 import re
 from datetime import datetime, timezone
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import case, func, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.models.certification import CertificationModule, LessonV2Meta
@@ -213,6 +213,24 @@ def _published(db: Session, module_key: str, interaction_key: str | None = None,
     return query.order_by(V2InteractionDefinition.display_order, V2InteractionDefinition.id).all()
 
 
+def lock_interaction_module(db: Session, module_key: str) -> None:
+    """Serialize publication and submissions for a V2 module until commit."""
+    if db.get_bind().dialect.name == "sqlite":
+        # SQLite ignores FOR UPDATE. A no-op write takes its transaction-wide
+        # writer lock before reading the published interaction version.
+        matched = db.execute(text(
+            "UPDATE certification_modules SET id = id WHERE module_key = :key AND active = 1"
+        ), {"key": module_key}).rowcount
+        if not matched:
+            raise InteractionUnavailable("This interaction module is not available.")
+    else:
+        module_id = db.query(CertificationModule.id).filter_by(
+            module_key=module_key, active=True,
+        ).with_for_update().scalar()
+        if module_id is None:
+            raise InteractionUnavailable("This interaction module is not available.")
+
+
 def interaction_list(db: Session, student_id: int, module_key: str, lesson_key: str | None = None) -> list[dict]:
     definitions = _published(db, module_key, lesson_key=lesson_key)
     lesson_ids = {row.lesson_id for row in definitions if row.lesson_id is not None}
@@ -389,6 +407,7 @@ def _grade(definition: V2InteractionDefinition, response: dict) -> tuple[int, bo
 
 
 def submit_interaction(db: Session, student_id: int, module_key: str, key: str, version_id: int, response: dict) -> dict:
+    lock_interaction_module(db, module_key)
     definitions = _published(db, module_key, interaction_key=key)
     if len(definitions) != 1:
         raise InteractionUnavailable("This interaction is not available.")

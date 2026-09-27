@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.models.certification import CertificationModule, LessonV2Meta
 from app.models.v2_evidence import V2EvidenceRequirement
 from app.models.v2_interaction import V2InteractionDefinition, V2InteractionRequirementChange
-from app.services.v2_interaction_service import InteractionValidationError, validate_definition
+from app.services.v2_interaction_service import InteractionUnavailable, InteractionValidationError, lock_interaction_module, validate_definition
 
 
 DEFAULT_PILOT_PATH = os.path.join(
@@ -53,6 +53,11 @@ def load_interactions(db: Session, path: str = DEFAULT_PILOT_PATH, *, commit: bo
             if doc["key"] in published:
                 raise InteractionValidationError(f"{path}: multiple published versions of {doc['key']}")
             published.add(doc["key"])
+    for module_key in sorted({doc["module_key"] for doc in docs}):
+        try:
+            lock_interaction_module(db, module_key)
+        except InteractionUnavailable as exc:
+            raise InteractionValidationError(f"{path}: module {module_key} is unavailable") from exc
     created = retired = unchanged = 0
     for doc in docs:
         module = db.query(CertificationModule).filter_by(module_key=doc["module_key"], active=True).one_or_none()
