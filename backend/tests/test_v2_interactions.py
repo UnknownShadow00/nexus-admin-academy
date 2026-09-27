@@ -593,6 +593,7 @@ def test_draft_version_preserves_published_requirement_and_key_stays_in_module(p
 
 
 @pytest.mark.parametrize("change", [
+    {"key": " " + "k" * 160, "type": "typed_answer", "config": {"question": "Type it", "accepted_answers": ["yes"], "explanation": "x"}},
     {"type": "typed_answer", "title": "x" * 201, "config": {"question": "Type it", "accepted_answers": ["yes"], "explanation": "x"}},
     {"type": "typed_answer", "title": " " + "x" * 200 + " ", "config": {"question": "Type it", "accepted_answers": ["yes"], "explanation": "x"}},
     {"type": "matching", "config": {"pairs": [{"id": "one", "left": "One", "right_id": "same", "right": "A"}, {"id": "two", "left": "Two", "right_id": "same", "right": "B"}], "explanation": "x"}},
@@ -602,9 +603,13 @@ def test_draft_version_preserves_published_requirement_and_key_stays_in_module(p
     {"type": "typed_answer", "config": {"question": "Type it", "accepted_answers": ["🔌" * 500], "explanation": "x"}},
     {"type": "typed_answer", "config": {"question": "Type it", "accepted_answers": ["🔌" * 300], "explanation": "x"}},
     {"type": "matching", "config": {"pairs": [{"id": "left" + "x" * 2100, "left": "One", "right_id": "a", "right": "A"}, {"id": "right" + "x" * 2100, "left": "Two", "right_id": "b", "right": "B"}], "explanation": "x"}},
+    {"type": "matching", "config": {"pairs": [{"id": " a ", "left": "One", "right_id": "right-a", "right": "A"}, {"id": "b", "left": "Two", "right_id": "right-b", "right": "B"}], "explanation": "x"}},
     {"type": "ordering", "config": {"steps": [{"id": "first" + "x" * 2100, "text": "First"}, {"id": "second" + "x" * 2100, "text": "Second"}], "explanation": "x"}},
+    {"type": "ordering", "config": {"steps": [{"id": " " * 2100 + "a", "text": "First"}, {"id": " " * 2100 + "b", "text": "Second"}], "explanation": "x"}},
     {"type": "safe_action", "config": {"scenario": "What next?", "choices": [{"id": "a" * 4090, "label": "A"}, {"id": "b", "label": "B"}], "correct_choice_id": "a" * 4090, "explanation": "x"}},
+    {"type": "safe_action", "config": {"scenario": "What next?", "choices": [{"id": " a ", "label": "A"}, {"id": "b", "label": "B"}], "correct_choice_id": "a", "explanation": "x"}},
     {"type": "image_identification", "config": {"image_url": "https://random.test/a.png", "image_alt": "Port", "question": "Which?", "choices": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "correct_choice_id": "a", "explanation": "x"}},
+    {"type": "image_identification", "config": {"image_url": " /v2-interactions/port.svg ", "image_alt": "Port", "question": "Which?", "choices": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "correct_choice_id": "a", "explanation": "x"}},
     {"type": "command_output", "config": {"command": "ipconfig", "output": "", "question": "What?", "choices": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "correct_choice_id": "a", "explanation": "x"}},
     {"type": "safe_action", "config": {"scenario": "What next?", "choices": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "correct_choice_id": "missing", "explanation": "x"}},
 ])

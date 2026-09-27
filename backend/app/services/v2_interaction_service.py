@@ -49,6 +49,13 @@ def _nonempty(value, field: str) -> str:
     return value.strip()
 
 
+def _identifier(value, field: str) -> str:
+    identifier = _nonempty(value, field)
+    if value != identifier:
+        raise InteractionValidationError(f"{field} cannot have surrounding whitespace")
+    return identifier
+
+
 def _choices(config: dict, *, field: str = "choices") -> list[dict]:
     choices = config.get(field)
     if not isinstance(choices, list) or len(choices) < 2:
@@ -57,7 +64,7 @@ def _choices(config: dict, *, field: str = "choices") -> list[dict]:
     for choice in choices:
         if not isinstance(choice, dict):
             raise InteractionValidationError(f"{field} entries must be objects")
-        ids.append(_nonempty(choice.get("id"), f"{field}.id"))
+        ids.append(_identifier(choice.get("id"), f"{field}.id"))
         _nonempty(choice.get("label"), f"{field}.label")
     if len(set(ids)) != len(ids):
         raise InteractionValidationError(f"{field} IDs must be unique")
@@ -68,7 +75,7 @@ def validate_definition(doc: dict) -> dict:
     """Reject broken or ambiguous authoring before a definition is published."""
     if not isinstance(doc, dict):
         raise InteractionValidationError("interaction must be an object")
-    key = _nonempty(doc.get("key"), "key")
+    key = _identifier(doc.get("key"), "key")
     if len(key) > 160 or not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", key):
         raise InteractionValidationError("key must be a stable lowercase identifier")
     version = doc.get("version")
@@ -77,9 +84,9 @@ def validate_definition(doc: dict) -> dict:
     kind = doc.get("type")
     if kind not in INTERACTION_TYPES:
         raise InteractionValidationError("unknown interaction type")
-    _nonempty(doc.get("module_key"), "module_key")
+    _identifier(doc.get("module_key"), "module_key")
     if doc.get("lesson_key") is not None:
-        _nonempty(doc["lesson_key"], "lesson_key")
+        _identifier(doc["lesson_key"], "lesson_key")
     _nonempty(doc.get("title"), "title")
     if len(doc["title"]) > 200:
         raise InteractionValidationError("title must be 200 characters or fewer")
@@ -108,8 +115,8 @@ def validate_definition(doc: dict) -> dict:
         for pair in pairs:
             if not isinstance(pair, dict):
                 raise InteractionValidationError("matching pairs must be objects")
-            left_ids.append(_nonempty(pair.get("id"), "pair.id"))
-            right_ids.append(_nonempty(pair.get("right_id"), "pair.right_id"))
+            left_ids.append(_identifier(pair.get("id"), "pair.id"))
+            right_ids.append(_identifier(pair.get("right_id"), "pair.right_id"))
             _nonempty(pair.get("left"), "pair.left")
             _nonempty(pair.get("right"), "pair.right")
         if len(set(left_ids)) != len(left_ids) or len(set(right_ids)) != len(right_ids):
@@ -123,7 +130,7 @@ def validate_definition(doc: dict) -> dict:
         for step in steps:
             if not isinstance(step, dict):
                 raise InteractionValidationError("ordering steps must be objects")
-            ids.append(_nonempty(step.get("id"), "step.id"))
+            ids.append(_identifier(step.get("id"), "step.id"))
             _nonempty(step.get("text"), "step.text")
         if len(set(ids)) != len(ids):
             raise InteractionValidationError("ordering step IDs must be unique")
@@ -142,13 +149,13 @@ def validate_definition(doc: dict) -> dict:
             raise InteractionValidationError("case_sensitive must be true or false")
     else:
         choices = _choices(config)
-        correct = _nonempty(config.get("correct_choice_id"), "correct_choice_id")
+        correct = _identifier(config.get("correct_choice_id"), "correct_choice_id")
         if correct not in {choice["id"] for choice in choices}:
             raise InteractionValidationError("correct choice must exist")
         for choice in choices:
             _require_response_fits({"choice_id": choice["id"]})
         if kind == "image_identification":
-            image_url = _nonempty(config.get("image_url"), "image_url")
+            image_url = _identifier(config.get("image_url"), "image_url")
             if not image_url.startswith("/v2-interactions/") or ".." in image_url:
                 raise InteractionValidationError("image_url must use a local interaction asset")
             _nonempty(config.get("image_alt"), "image_alt")

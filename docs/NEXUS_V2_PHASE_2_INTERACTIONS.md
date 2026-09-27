@@ -82,6 +82,8 @@ least one accepted answer whose normalized text fits the 500 UTF-16 code unit le
 limit, plus an optional case sensitivity setting.
 Authoring also checks the serialized complete answer or choice IDs against the
 API's 4096-character response limit, so a correct learner answer can be sent.
+Keys, answer IDs, and asset paths cannot have surrounding whitespace; validation
+checks the same exact values the loader stores and learners submit.
 The published learner API returns only the display subset of this config.
 
 GET `/api/v2/curriculum/modules/{module_key}/interactions/{interaction_key}`
