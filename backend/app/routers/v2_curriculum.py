@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -27,6 +30,10 @@ from app.services.v2_curriculum_service import (
     submit_explain,
 )
 from app.services.v2_progress_service import V2EvidenceConflict, V2ProgressError, record_activity
+from app.services.v2_interaction_service import (
+    InteractionUnavailable, InteractionValidationError, interaction_view,
+    submit_interaction,
+)
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/v2/curriculum", tags=["v2-curriculum"])
@@ -55,6 +62,11 @@ class AssessmentSubmitRequest(BaseModel):
 
 class ExplainSubmitRequest(BaseModel):
     answer: str = Field(..., min_length=1, max_length=10000)
+
+
+class InteractionSubmitRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    response: dict
 
 
 @router.get("/access")
@@ -99,6 +111,38 @@ def get_lesson(
         return ok(lesson_view(db, student.id, module_key, lesson_key))
     except V2ProgressError as exc:
         _not_found(exc)
+
+
+@router.get("/modules/{module_key}/interactions/{interaction_key}")
+def get_interaction(
+    module_key: str, interaction_key: str,
+    db: Session = Depends(get_db),
+    student: Student = Depends(require_v2_student_access),
+):
+    try:
+        return ok(interaction_view(db, student.id, module_key, interaction_key))
+    except InteractionUnavailable as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/modules/{module_key}/interactions/{interaction_key}/submit")
+def post_interaction(
+    module_key: str, interaction_key: str, body: InteractionSubmitRequest,
+    db: Session = Depends(get_db),
+    student: Student = Depends(require_v2_student_access),
+):
+    if len(json.dumps(body.response)) > 4096:
+        raise HTTPException(status_code=422, detail="Response is too large")
+    try:
+        return ok(submit_interaction(db, student.id, module_key, interaction_key, body.response))
+    except InteractionUnavailable as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except InteractionValidationError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Please retry this interaction") from exc
 
 
 @router.post("/modules/{module_key}/lessons/{lesson_key}/complete")

@@ -49,7 +49,7 @@ def test_fresh_seed_puts_mfa_only_in_week_7(tmp_path):
     _run(url, "seed_curriculum.py")
 
     with sqlite3.connect(db_path) as connection:
-        assert connection.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "0074_v2_learning_evidence"
+        assert connection.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "0075_v2_learning_interactions"
         assert [(week, stable, required) for _, week, stable, required, _ in _activity_rows(connection, "mfa-reset")] == [
             (7, MFA_STABLE_ID, 0),
         ]

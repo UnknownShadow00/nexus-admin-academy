@@ -57,6 +57,7 @@ from app.models.v2_progress import (
     V2ModuleActivity,
 )
 from app.models.v2_evidence import V2EvidenceRequirement as V2EvidenceRequirement, V2EvidenceRecord as V2EvidenceRecord
+from app.models.v2_interaction import V2InteractionDefinition as V2InteractionDefinition, V2InteractionAttempt as V2InteractionAttempt
 from app.models.service_desk import (
     ServiceDeskScenario,
     ServiceDeskScenarioVersion,
