@@ -594,11 +594,13 @@ def test_draft_version_preserves_published_requirement_and_key_stays_in_module(p
 
 @pytest.mark.parametrize("change", [
     {"type": "typed_answer", "title": "x" * 201, "config": {"question": "Type it", "accepted_answers": ["yes"], "explanation": "x"}},
+    {"type": "typed_answer", "title": " " + "x" * 200 + " ", "config": {"question": "Type it", "accepted_answers": ["yes"], "explanation": "x"}},
     {"type": "matching", "config": {"pairs": [{"id": "one", "left": "One", "right_id": "same", "right": "A"}, {"id": "two", "left": "Two", "right_id": "same", "right": "B"}], "explanation": "x"}},
     {"type": "ordering", "config": {"steps": [{"id": "same", "text": "First"}, {"id": "same", "text": "Second"}], "explanation": "x"}},
     {"type": "typed_answer", "config": {"question": "Type it", "accepted_answers": [], "explanation": "x"}},
     {"type": "typed_answer", "config": {"question": "Type it", "accepted_answers": ["x" * 501], "explanation": "x"}},
     {"type": "typed_answer", "config": {"question": "Type it", "accepted_answers": ["🔌" * 500], "explanation": "x"}},
+    {"type": "typed_answer", "config": {"question": "Type it", "accepted_answers": ["🔌" * 300], "explanation": "x"}},
     {"type": "matching", "config": {"pairs": [{"id": "left" + "x" * 2100, "left": "One", "right_id": "a", "right": "A"}, {"id": "right" + "x" * 2100, "left": "Two", "right_id": "b", "right": "B"}], "explanation": "x"}},
     {"type": "ordering", "config": {"steps": [{"id": "first" + "x" * 2100, "text": "First"}, {"id": "second" + "x" * 2100, "text": "Second"}], "explanation": "x"}},
     {"type": "safe_action", "config": {"scenario": "What next?", "choices": [{"id": "a" * 4090, "label": "A"}, {"id": "b", "label": "B"}], "correct_choice_id": "a" * 4090, "explanation": "x"}},
@@ -610,6 +612,14 @@ def test_invalid_authoring_fails_before_publication(change):
     doc = {"key": "interaction.invalid", "version": 1, "module_key": MODULE, "title": "Bad", "instructions": "Try", **change}
     with pytest.raises(InteractionValidationError):
         validate_definition(doc)
+
+
+def test_typed_answer_accepts_the_browser_length_boundary():
+    validate_definition({
+        "key": "interaction.utf16.boundary", "version": 1, "type": "typed_answer",
+        "module_key": MODULE, "title": "Emoji recall", "instructions": "Type the answer",
+        "config": {"question": "Repeat the icons", "accepted_answers": ["🔌" * 250], "explanation": "Correct."},
+    })
 
 
 def test_student_deletion_removes_attempts_and_evidence_but_keeps_definition(pilot, db):

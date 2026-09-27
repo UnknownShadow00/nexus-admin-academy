@@ -38,6 +38,11 @@ def _require_response_fits(response: dict) -> None:
         raise InteractionValidationError("authored answer IDs exceed the submission size limit")
 
 
+def _utf16_units(value: str) -> int:
+    """HTML maxLength counts UTF-16 code units, including emoji as two."""
+    return len(value.encode("utf-16-le", "surrogatepass")) // 2
+
+
 def _nonempty(value, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise InteractionValidationError(f"{field} must be nonempty text")
@@ -75,7 +80,8 @@ def validate_definition(doc: dict) -> dict:
     _nonempty(doc.get("module_key"), "module_key")
     if doc.get("lesson_key") is not None:
         _nonempty(doc["lesson_key"], "lesson_key")
-    if len(_nonempty(doc.get("title"), "title")) > 200:
+    _nonempty(doc.get("title"), "title")
+    if len(doc["title"]) > 200:
         raise InteractionValidationError("title must be 200 characters or fewer")
     _nonempty(doc.get("instructions"), "instructions")
     status = doc.get("status", "draft")
@@ -129,7 +135,7 @@ def validate_definition(doc: dict) -> dict:
             raise InteractionValidationError("typed answer needs accepted answers")
         for answer in answers:
             _nonempty(answer, "accepted answer")
-            if len(" ".join(answer.strip().split())) > MAX_TYPED_ANSWER_LENGTH:
+            if _utf16_units(" ".join(answer.strip().split())) > MAX_TYPED_ANSWER_LENGTH:
                 raise InteractionValidationError("accepted answer exceeds the typed answer length limit")
             _require_response_fits({"answer": " ".join(answer.strip().split())})
         if type(config.get("case_sensitive", False)) is not bool:
@@ -381,7 +387,7 @@ def _grade(definition: V2InteractionDefinition, response: dict) -> tuple[int, bo
     elif kind == "typed_answer":
         _response_keys(response, "answer")
         answer = response["answer"]
-        if not isinstance(answer, str) or not answer.strip() or len(answer) > MAX_TYPED_ANSWER_LENGTH:
+        if not isinstance(answer, str) or not answer.strip() or _utf16_units(answer) > MAX_TYPED_ANSWER_LENGTH:
             raise InteractionValidationError("Enter a short answer")
         case_sensitive = config.get("case_sensitive", False)
         accepted = {_normalized(item, case_sensitive=case_sensitive) for item in config["accepted_answers"]}

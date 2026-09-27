@@ -74,10 +74,11 @@ The manifest fields are `key`, positive `version`, `type`, `module_key`,
 optional `lesson_key`, `title`, `instructions`, `required`, `status`,
 `display_order`, `pass_percent`, and type-specific `config`. Every config has
 an authored `explanation` and optional `reveal_correct` flag. Titles are at
-most 200 characters, matching the database column. Choice types
+most 200 characters including any surrounding whitespace, matching the stored
+value and database column. Choice types
 define unique `choices` IDs and a valid `correct_choice_id`; matching defines
 unique pair IDs; ordering defines unique step IDs; typed answer defines at
-least one accepted answer whose normalized text fits the 500-character learner
+least one accepted answer whose normalized text fits the 500 UTF-16 code unit learner
 limit, plus an optional case sensitivity setting.
 Authoring also checks the serialized complete answer or choice IDs against the
 API's 4096-character response limit, so a correct learner answer can be sent.

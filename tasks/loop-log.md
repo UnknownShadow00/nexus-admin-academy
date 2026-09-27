@@ -2729,3 +2729,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/services/v2_interaction_loader.py, backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
 - Result: Focused interaction and migration tests passed (41), including a concurrent publication/submission regression; Ruff and compileall passed. Final-head full backend and GitHub CI pending.
 - Next: Verify final-head full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 13:34:45 UTC] Task Completed
+- Task: Matched V2 title validation to the raw stored value and typed-answer validation to the browser's UTF-16 length limit.
+- Files changed: backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused authoring and typed-answer tests passed (16), prior full backend suite passed (1284 with 2 skipped), Ruff and compileall passed; exact-head full backend and GitHub CI pending.
+- Next: Verify exact-head full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.
