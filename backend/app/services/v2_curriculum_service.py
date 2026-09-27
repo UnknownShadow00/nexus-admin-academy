@@ -55,7 +55,6 @@ from app.models.v2_progress import (
     V2AssessmentAttemptQuestion,
     V2ModuleActivity,
 )
-from app.models.v2_evidence import V2EvidenceRequirement
 from app.services.grading_queue import (
     SOURCE_FREE_RESPONSE,
     SOURCE_INTERVIEW,
@@ -72,7 +71,8 @@ from app.services.service_desk_scenario_validation import (
     scenario_has_supported_grading_profile,
 )
 from app.services.v2_assessment_selector import ConstraintSelectionError, select_constrained
-from app.services.v2_progress_service import V2EvidenceConflict, V2ProgressError, module_progress, record_activity
+from app.services.v2_progress_service import V2EvidenceConflict, V2ProgressError, active_evidence_requirements, module_progress, record_activity
+from app.services.v2_interaction_service import interaction_list
 from app.services.v2_service_desk_onboarding import (
     SERVICE_DESK_PREVIOUS_ORIENTATION_REQUIRED,
     service_desk_onboarding_blocker,
@@ -441,6 +441,7 @@ def module_view(db: Session, student_id: int, module_key: str) -> dict:
         "assessments": assessment_views,
         "explain_prompts": prompts,
         "progress": progress,
+        "interactions": interaction_list(db, student_id, module_key),
     }
     result["continue"] = resolve_continue(result)
     return result
@@ -460,9 +461,7 @@ def entry_view(db: Session, student_id: int) -> dict:
         # requirements allow a smaller group without the original full set of
         # assessment roles; no existing module has those requirements yet.
         roles = {row.assessment_role for row in _assessments(db, module.id)}
-        authored_evidence = db.query(V2EvidenceRequirement.id).filter_by(
-            module_id=module.id, active=True, is_required=True,
-        ).first()
+        authored_evidence = any(row.is_required for row in active_evidence_requirements(db, module.id))
         if not STUDENT_MODULE_ROLES.issubset(roles) and not authored_evidence:
             continue
         view = module_view(db, student_id, module.module_key)
@@ -494,6 +493,7 @@ def lesson_view(db: Session, student_id: int, module_key: str, lesson_key: str) 
         "certification": _certification_view(db, module),
         "module": {"key": module.module_key, "title": module.title},
         "lesson": _lesson_view(db, student_id, lesson, assessments, include_content=True),
+        "interactions": interaction_list(db, student_id, module_key, lesson_key),
         "previous_lesson_key": lessons[index - 1].lesson_key if index else None,
         "next_lesson_key": lessons[index + 1].lesson_key if index + 1 < len(lessons) else None,
     }
@@ -529,6 +529,21 @@ def resolve_continue(view: dict) -> dict:
                 "route": base, "status": required_resource["status"],
                 "estimated_minutes": lesson["estimated_minutes"],
             }
+        required_interaction = next((
+            item for item in view.get("interactions", [])
+            if item["interaction"]["lesson_key"] == lesson["key"]
+            and item["interaction"]["required"]
+            and not item["progress"]["passed"]
+        ), None)
+        if required_interaction:
+            key = required_interaction["interaction"]["key"]
+            return {
+                "kind": "interaction", "label": "Try interactive practice",
+                "title": required_interaction["interaction"]["title"],
+                "route": f"/learning-v2/modules/{module_key}/interactions/{key}",
+                "status": required_interaction["progress"]["status"],
+                "estimated_minutes": None,
+            }
         if lesson["progress"]["status"] not in DONE:
             return {
                 "kind": "lesson", "label": "Continue learning", "title": lesson["title"],
@@ -546,6 +561,20 @@ def resolve_continue(view: dict) -> dict:
                 }
             _remember_blocked(qc)
 
+    module_interaction = next((
+        item for item in view.get("interactions", [])
+        if item["interaction"]["lesson_key"] is None
+        and item["interaction"]["required"] and not item["progress"]["passed"]
+    ), None)
+    if module_interaction:
+        key = module_interaction["interaction"]["key"]
+        return {
+            "kind": "interaction", "label": "Try interactive practice",
+            "title": module_interaction["interaction"]["title"],
+            "route": f"/learning-v2/modules/{module_key}/interactions/{key}",
+            "status": module_interaction["progress"]["status"],
+            "estimated_minutes": None,
+        }
     for role, label in ((V2_ACTIVITY_MODULE_QUIZ, "Take the Module Quiz"), (V2_ACTIVITY_PRACTICAL, "Start the practical"), (V2_ACTIVITY_SERVICE_DESK, "Troubleshoot a ticket")):
         item = next((a for a in view["assessments"] if a["role"] == role), None)
         if item and item["progress"]["status"] not in DONE:

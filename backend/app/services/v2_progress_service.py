@@ -23,6 +23,7 @@ from app.models.certification import (
 from app.models.flashcard import FlashcardReview
 from app.models.quiz import Question
 from app.models.v2_evidence import V2EvidenceRecord, V2EvidenceRequirement
+from app.models.v2_interaction import V2InteractionAttempt, V2InteractionDefinition
 from app.models.v2_progress import (
     V2_ACTIVITY_EXPLAIN,
     V2_ACTIVITY_MODULE_QUIZ,
@@ -198,6 +199,31 @@ def record_trusted_evidence(
     return row
 
 
+def active_evidence_requirements(db: Session, module_id: int) -> list[V2EvidenceRequirement]:
+    """Return authored requirements reachable in the current student view."""
+    requirements = db.query(V2EvidenceRequirement).filter_by(module_id=module_id, active=True).all()
+    interaction_keys = [r.ref_key for r in requirements if r.evidence_type == "interaction" and r.is_required]
+    if not interaction_keys:
+        return requirements
+    # A published interaction in a hidden lesson has no learner route. Its
+    # requirement applies again as soon as the lesson becomes visible.
+    hidden_keys = {
+        key for key, status in db.query(
+            V2InteractionDefinition.interaction_key, LessonV2Meta.status,
+        ).join(
+            LessonV2Meta, V2InteractionDefinition.lesson_id == LessonV2Meta.id,
+        ).filter(
+            V2InteractionDefinition.module_id == module_id,
+            V2InteractionDefinition.status == "published",
+            V2InteractionDefinition.interaction_key.in_(interaction_keys),
+        ) if status not in {"ready", "published"}
+    }
+    return [
+        row for row in requirements
+        if row.evidence_type != "interaction" or row.ref_key not in hidden_keys
+    ]
+
+
 def module_progress(db: Session, student_id: int, module_key: str) -> dict:
     """Roll up one student's activity for one V2 module (their own view)."""
     module = _module_or_none(db, module_key)
@@ -363,7 +389,7 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
     check_required = any(a.assessment_role in knowledge_roles and not assessment_evidence[(a.assessment_role, a.assessment_key)] for a in required_assessments)
     checks_passed = all(assessment_evidence[(a.assessment_role, a.assessment_key)] for a in required_assessments if a.assessment_role in knowledge_roles)
     applies_passed = all(assessment_evidence[(a.assessment_role, a.assessment_key)] for a in required_assessments if a.assessment_role in apply_roles)
-    requirements = db.query(V2EvidenceRequirement).filter_by(module_id=module.id, active=True).all()
+    requirements = active_evidence_requirements(db, module.id)
     requirement_ids = [r.id for r in requirements]
     satisfied_ids = {
         rid for (rid,) in db.query(V2EvidenceRecord.requirement_id).filter(
@@ -399,6 +425,13 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
         Question.quiz_id.in_(quiz_ids),
     ).first())
     any_progress = bool(acts or resource_activity_by_id)
+    if not any_progress:
+        any_progress = bool(db.query(V2InteractionAttempt.id).join(
+            V2InteractionDefinition, V2InteractionAttempt.definition_id == V2InteractionDefinition.id,
+        ).filter(
+            V2InteractionAttempt.student_id == student_id,
+            V2InteractionDefinition.module_id == module.id,
+        ).first())
     any_watched = bool(any(rv["evidence"]["watched_at"] for rv in required_resources))
     missing_resource = next((rv for rv in required_resources if not rv["exposure_satisfied"]), None)
     if mastered:

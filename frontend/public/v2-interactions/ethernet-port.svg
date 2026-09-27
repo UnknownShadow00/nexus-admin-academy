@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Computer port diagram</title>
+  <desc id="desc">A wide rectangular port with eight contact marks.</desc>
+  <rect width="320" height="220" rx="20" fill="#f8fafc"/>
+  <rect x="55" y="48" width="210" height="124" rx="12" fill="#334155"/>
+  <path d="M80 69h160v67h-28l-18 18h-68l-18-18H80z" fill="#e2e8f0" stroke="#94a3b8" stroke-width="4"/>
+  <g fill="#c88b34">
+    <rect x="98" y="70" width="10" height="30"/><rect x="114" y="70" width="10" height="30"/>
+    <rect x="130" y="70" width="10" height="30"/><rect x="146" y="70" width="10" height="30"/>
+    <rect x="162" y="70" width="10" height="30"/><rect x="178" y="70" width="10" height="30"/>
+    <rect x="194" y="70" width="10" height="30"/><rect x="210" y="70" width="10" height="30"/>
+  </g>
+</svg>

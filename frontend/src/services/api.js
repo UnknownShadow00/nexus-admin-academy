@@ -219,6 +219,10 @@ export const getV2Module = (moduleKey, requestOptions) =>
   request(() => api.get(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}`), requestOptions);
 export const getV2Lesson = (moduleKey, lessonKey, requestOptions) =>
   request(() => api.get(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/lessons/${encodeURIComponent(lessonKey)}`), requestOptions);
+export const getV2Interaction = (moduleKey, interactionKey, requestOptions) =>
+  request(() => api.get(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/interactions/${encodeURIComponent(interactionKey)}`), requestOptions);
+export const submitV2Interaction = (moduleKey, interactionKey, versionId, response, requestOptions) =>
+  request(() => api.post(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/interactions/${encodeURIComponent(interactionKey)}/submit`, { version_id: versionId, response }), requestOptions);
 export const completeV2Lesson = (moduleKey, lessonKey, requestOptions) =>
   request(() => api.post(`/api/v2/curriculum/modules/${encodeURIComponent(moduleKey)}/lessons/${encodeURIComponent(lessonKey)}/complete`), requestOptions);
 export const recordV2Resource = (moduleKey, resourceKey, payload, requestOptions) =>

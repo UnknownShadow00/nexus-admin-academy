@@ -1,0 +1,120 @@
+# Development/pilot examples only. Load explicitly with v2_interaction_loader.
+interactions:
+  - key: interaction.pilot.hardware-match
+    version: 1
+    type: matching
+    module_key: module.aplus.core1.ip_configuration
+    lesson_key: lesson.aplus.core1.ip_configuration.ipv4_basics
+    title: Match common computer parts
+    instructions: Choose the matching description for each part.
+    required: true
+    status: published
+    display_order: 10
+    pass_percent: 100
+    config:
+      pairs:
+        - {id: ram, left: RAM, right_id: memory, right: Short-term working memory}
+        - {id: rj45, left: RJ45, right_id: ethernet, right: Common Ethernet connector}
+        - {id: usb-c, left: USB-C, right_id: reversible, right: Reversible connector}
+      explanation: RAM holds active work; RJ45 commonly connects Ethernet; USB-C can be inserted either way.
+      reveal_correct: true
+
+  - key: interaction.pilot.ethernet-port
+    version: 1
+    type: image_identification
+    module_key: module.aplus.core1.ip_configuration
+    lesson_key: lesson.aplus.core1.ip_configuration.ipv4_basics
+    title: Identify the Ethernet port
+    instructions: Look at the diagram and choose the port type.
+    required: false
+    status: published
+    display_order: 20
+    config:
+      image_url: /v2-interactions/ethernet-port.svg
+      image_alt: Simple line diagram of a wide rectangular computer port with eight contact marks.
+      question: Which port is shown?
+      choices:
+        - {id: ethernet, label: Ethernet (RJ45)}
+        - {id: usb-c, label: USB-C}
+        - {id: hdmi, label: HDMI}
+      correct_choice_id: ethernet
+      explanation: An RJ45 Ethernet port is wide and has eight contact positions.
+      reveal_correct: true
+
+  - key: interaction.pilot.troubleshooting-order
+    version: 1
+    type: ordering
+    module_key: module.aplus.core1.ip_configuration
+    lesson_key: lesson.aplus.core1.ip_configuration.dhcp_and_apipa
+    title: Order the first troubleshooting steps
+    instructions: Use Move up and Move down to put these steps in a safe order.
+    required: false
+    status: published
+    display_order: 30
+    config:
+      steps:
+        - {id: ask, text: Ask the user what changed and what they see.}
+        - {id: check, text: Check the cable or Wi-Fi connection.}
+        - {id: test, text: Run a simple connection test.}
+      explanation: Gather the symptom, check the obvious connection, then test it.
+      reveal_correct: true
+
+  - key: interaction.pilot.ipconfig-output
+    version: 1
+    type: command_output
+    module_key: module.aplus.core1.ip_configuration
+    lesson_key: lesson.aplus.core1.ip_configuration.windows_commands
+    title: Read ipconfig output
+    instructions: Read the command output and choose what it tells you.
+    required: false
+    status: published
+    display_order: 40
+    config:
+      command: ipconfig
+      output: "IPv4 Address . . . . . : 169.254.10.22\nDefault Gateway . . . :"
+      question: What is the most likely issue?
+      choices:
+        - {id: dhcp, label: The computer did not receive a DHCP address.}
+        - {id: normal, label: This is a normal office IPv4 address.}
+        - {id: dns, label: The DNS server is responding correctly.}
+      correct_choice_id: dhcp
+      explanation: A 169.254 address commonly appears when DHCP does not provide an address.
+      reveal_correct: true
+
+  - key: interaction.pilot.ipconfig-command
+    version: 1
+    type: typed_answer
+    module_key: module.aplus.core1.ip_configuration
+    lesson_key: lesson.aplus.core1.ip_configuration.windows_commands
+    title: Recall a Windows network command
+    instructions: Type the command from memory.
+    required: false
+    status: published
+    display_order: 50
+    config:
+      question: Which Windows command displays IP configuration?
+      accepted_answers: [ipconfig, ipconfig.exe]
+      case_sensitive: false
+      explanation: ipconfig shows the current IP configuration in Windows.
+      reveal_correct: true
+
+  - key: interaction.pilot.safe-network-step
+    version: 1
+    type: safe_action
+    module_key: module.aplus.core1.ip_configuration
+    lesson_key: lesson.aplus.core1.ip_configuration.dhcp_and_apipa
+    title: Choose a safe first action
+    instructions: Choose the best next step for this user.
+    required: false
+    status: published
+    display_order: 60
+    config:
+      scenario: A user says their laptop lost network access during a meeting. What should you check first?
+      choices:
+        - {id: ask-check, label: Ask what changed and check the connection status.}
+        - {id: wipe, label: Reset the laptop without asking the user.}
+        - {id: ignore, label: Tell the user to wait until tomorrow.}
+      correct_choice_id: ask-check
+      safety_critical: true
+      explanation: Confirm the symptom and connection before making disruptive changes.
+      reveal_correct: true

@@ -54,6 +54,7 @@ from app.models.v2_progress import (
     V2ModuleActivity,
 )
 from app.models.v2_evidence import V2EvidenceRecord, V2EvidenceRequirement
+from app.models.v2_interaction import V2InteractionAttempt, V2InteractionDefinition
 from app.routers.admin_students import router as admin_students_router
 from app.services.admin_auth import verify_admin
 from app.services.student_deletion import (
@@ -332,6 +333,15 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
     )
     db.add(evidence_requirement)
     db.flush()
+    interaction_definition = V2InteractionDefinition(
+        interaction_key="interaction.delete.shared", version=1,
+        interaction_type="typed_answer", module_id=certification_module.id,
+        title="Shared deletion interaction", instructions="Answer the question.",
+        config={"question": "What?", "accepted_answers": ["yes"], "explanation": "Test"},
+        required=True, status="published",
+    )
+    db.add(interaction_definition)
+    db.flush()
     module_assessment = ModuleAssessment(
         assessment_key="assess.deletion.shared", certification_module_id=certification_module.id,
         assessment_role="module_quiz", title="Deletion assessment", quiz_id=quiz.id,
@@ -396,6 +406,13 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
                 student_id=student_id, requirement_id=evidence_requirement.id,
                 source_ref="test-interaction:owned-deletion",
             ),
+            V2InteractionAttempt(
+                student_id=student_id, definition_id=interaction_definition.id,
+                interaction_key=interaction_definition.interaction_key, version=1,
+                attempt_number=1, definition_snapshot={"question": "What?"},
+                response_snapshot={"answer": "yes"}, result_snapshot={"passed": True},
+                score=100, passed=True,
+            ),
         ]
     )
     db.flush()
@@ -449,6 +466,13 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
             student_id=other_id, requirement_id=evidence_requirement.id,
             source_ref="test-interaction:control",
         ),
+        V2InteractionAttempt(
+            student_id=other_id, definition_id=interaction_definition.id,
+            interaction_key=interaction_definition.interaction_key, version=1,
+            attempt_number=1, definition_snapshot={"question": "What?"},
+            response_snapshot={"answer": "yes"}, result_snapshot={"passed": True},
+            score=100, passed=True,
+        ),
     ])
     db.commit()
 
@@ -496,6 +520,8 @@ def test_populated_student_delete_removes_complete_owned_graph_and_preserves_sha
     assert db.query(ServiceDeskAssignment).filter_by(student_id=other_id).count() == 1
     assert db.query(V2EvidenceRecord).filter_by(student_id=other_id).count() == 1
     assert db.query(V2EvidenceRequirement).filter_by(id=evidence_requirement.id).count() == 1
+    assert db.query(V2InteractionAttempt).filter_by(student_id=other_id).count() == 1
+    assert db.get(V2InteractionDefinition, interaction_definition.id) is not None
 
 
 def test_student_delete_rolls_back_everything_when_cleanup_fails(db, monkeypatch):

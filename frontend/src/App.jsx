@@ -51,6 +51,7 @@ const V2MentorGradePage = lazy(() => import("./pages/admin/V2MentorGradePage"));
 const V2LearningPage = lazy(() => import("./pages/v2/V2LearningPage"));
 const V2ModulePage = lazy(() => import("./pages/v2/V2ModulePage"));
 const V2LessonPage = lazy(() => import("./pages/v2/V2LessonPage"));
+const V2InteractionPage = lazy(() => import("./pages/v2/V2InteractionPage"));
 const V2AssessmentPage = lazy(() => import("./pages/v2/V2AssessmentPage"));
 const V2ExplainPage = lazy(() => import("./pages/v2/V2ExplainPage"));
 const V2PracticalRedirect = lazy(() => import("./pages/v2/V2PracticalRedirect"));
@@ -420,6 +421,7 @@ export default function App() {
           <Route path="/learning-v2" element={<RequireAuth><V2LearningPage /></RequireAuth>} />
           <Route path="/learning-v2/modules/:moduleKey" element={<RequireAuth><V2ModulePage /></RequireAuth>} />
           <Route path="/learning-v2/modules/:moduleKey/lessons/:lessonKey" element={<RequireAuth><V2LessonPage /></RequireAuth>} />
+          <Route path="/learning-v2/modules/:moduleKey/interactions/:interactionKey" element={<RequireAuth><V2InteractionPage /></RequireAuth>} />
           <Route path="/learning-v2/modules/:moduleKey/assessments/:assessmentKey" element={<RequireAuth><V2AssessmentPage /></RequireAuth>} />
           <Route path="/learning-v2/modules/:moduleKey/explain/:promptKey" element={<RequireAuth><V2ExplainPage /></RequireAuth>} />
           <Route path="/learning-v2/modules/:moduleKey/practical/:assessmentKey" element={<RequireAuth><V2PracticalRedirect /></RequireAuth>} />

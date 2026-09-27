@@ -97,6 +97,13 @@ student-deletion map. `v2_evidence_requirements` is shared authored content
 and is not deleted with a student. The new `watched_at` column remains on the
 existing student-owned resource activity row.
 
+### Revision 0075 addendum
+
+`v2_interaction_attempts` is student owned and is removed explicitly with
+the student's evidence. Versioned `v2_interaction_definitions` are shared
+authored content and remain available for other students and historical
+attempts.
+
 ### Revision 0071 addendum
 
 Forced first-login password rotation adds `student_auth_states` as an optional

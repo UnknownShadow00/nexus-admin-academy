@@ -2669,3 +2669,87 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/services/v2_progress_service.py, backend/tests/test_v2_mastery_evidence.py, docs/NEXUS_V2_PHASE_1_EVIDENCE.md, frontend/src/pages/admin/V2MentorStudentPage.jsx, frontend/src/pages/admin/V2MentorStudentPage.test.jsx, frontend/src/pages/v2/V2LearningPage.jsx, frontend/src/pages/v2/V2LessonPage.jsx, frontend/src/pages/v2/V2LessonPage.test.jsx, frontend/src/pages/v2/V2ModulePage.jsx, frontend/src/pages/v2/V2ModulePage.test.jsx, tasks/loop-log.md
 - Result: Pass locally: 1243 backend tests passed, 2 skipped; 104 frontend tests passed; migration rehearsal, build, Ruff, compilation, npm audit, and pip audit passed. Final GitHub CI pending on review-fix head.
 - Next: Confirm final GitHub CI, mergeability, review threads, main base, and clean PR worktree.
+
+## [2026-09-27 10:42:59 UTC] Task Completed
+- Task: Built the native Nexus V2 pilot interaction engine with six accessible activity types, versioned definitions, immutable attempt history, trusted evidence integration, and an additive 0075 migration; prepared a focused review PR without deployment.
+- Files changed: backend/alembic/versions/0075_v2_learning_interactions.py, backend/app/models/__init__.py, backend/app/models/v2_interaction.py, backend/app/routers/v2_curriculum.py, backend/app/services/student_deletion.py, backend/app/services/v2_curriculum_service.py, backend/app/services/v2_interaction_loader.py, backend/app/services/v2_interaction_service.py, backend/content/interactions/pilot-v2-interactions.yaml, backend/seed_v2_interactions.py, backend/tests/test_phase4c3_final_shift.py, backend/tests/test_student_data_integrity.py, backend/tests/test_v2_interactions.py, backend/tests/test_v2_interactions_migration.py, backend/tests/test_v2_runtime_migration_0068.py, backend/tests/test_week4_mfa_card_migration.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, docs/STUDENT_DELETION_DATA_OWNERSHIP_AUDIT.md, frontend/public/v2-interactions/ethernet-port.svg, frontend/src/App.jsx, frontend/src/components/v2/V2Interaction.jsx, frontend/src/components/v2/V2Interaction.test.jsx, frontend/src/components/v2/V2InteractionRenderers.jsx, frontend/src/pages/v2/V2InteractionPage.jsx, frontend/src/pages/v2/V2LessonPage.jsx, frontend/src/pages/v2/V2ModulePage.jsx, frontend/src/services/api.js, tasks/loop-log.md
+- Result: Pass locally: full backend suite 1267 passed and 2 skipped; focused V2 interaction and migration suite 26 passed; frontend suite 111 passed; frontend build, Ruff, compileall, npm audit, pip audit, Alembic one-head check, and disposable 0074→0075→0074 migration passed. GitHub CI pending on the review PR.
+- Next: Open the PR, verify GitHub CI on its final head, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 11:34:22 UTC] Task Completed
+- Task: Addressed PR #45's two substantive review findings by binding submissions to the displayed interaction version and bounding normal attempt-history responses.
+- Files changed: backend/app/routers/v2_curriculum.py, backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, frontend/src/components/v2/V2Interaction.jsx, frontend/src/components/v2/V2Interaction.test.jsx, frontend/src/services/api.js, tasks/loop-log.md
+- Result: Pass locally: full backend suite 1272 passed and 2 skipped; focused interaction/migration suite 29 passed; frontend suite 112 passed; frontend build, Ruff, compileall, npm audit, pip audit, Alembic one-head check, and disposable migration tests passed. The 110-retry case keeps all attempts while limiting detail history to five and module/lesson history to none. GitHub CI pending on the review-fix head.
+- Next: Push the focused commit, verify final GitHub CI, reply to and resolve the two review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 12:07:47 UTC] Task Completed
+- Task: Addressed three additional PR #45 review findings revealed after the version-binding and bounded-history fix: hidden lesson requirements, optional-to-required pass state, and stale retry feedback.
+- Files changed: backend/app/services/v2_interaction_service.py, backend/app/services/v2_progress_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, frontend/src/components/v2/V2Interaction.jsx, frontend/src/components/v2/V2Interaction.test.jsx, tasks/loop-log.md
+- Result: Pass locally: 1274 backend tests passed and 2 skipped; focused interaction/mastery tests 41 passed; migration tests 2 passed; frontend tests 113 passed; frontend build, Ruff, compileall, npm audit, pip audit, and Alembic one-head check passed. GitHub CI pending on the follow-up head.
+- Next: Push the follow-up commit, verify final GitHub CI, reply to and resolve all supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 12:21:40 UTC] Task Completed
+- Task: Addressed two additional PR #45 review findings by cleaning Phase 2 requirements/evidence during 0075 downgrade and rejecting impossible overlong typed answers during authoring.
+- Files changed: backend/alembic/versions/0075_v2_learning_interactions.py, backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, backend/tests/test_v2_interactions_migration.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused migration and authoring tests passed (8), Ruff and compileall passed; full backend suite and GitHub CI are pending on the follow-up head.
+- Next: Verify full backend and final-head GitHub CI, reply to and resolve all supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 12:30:00 UTC] Task Completed
+- Task: Closed the hidden-interaction module visibility gap identified in follow-up review by sharing effective requirement filtering between mastery and the learning entry list.
+- Files changed: backend/app/services/v2_curriculum_service.py, backend/app/services/v2_progress_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused hidden lesson and entry-list tests passed (2), Ruff and compileall passed; a fresh full backend suite and GitHub CI are pending on the follow-up head.
+- Next: Verify final-head full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 12:40:55 UTC] Task Completed
+- Task: Preserved pre-existing 0074 interaction requirements and trusted evidence during 0075 rollback by tracking loader ownership and prior flags.
+- Files changed: backend/alembic/versions/0075_v2_learning_interactions.py, backend/app/models/__init__.py, backend/app/models/v2_interaction.py, backend/app/services/v2_interaction_loader.py, backend/tests/test_v2_interactions.py, backend/tests/test_v2_interactions_migration.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused interaction and migration suite passed (35), Ruff and compileall passed, Alembic still has one 0075 head; final-head full backend and GitHub CI pending.
+- Next: Verify full backend and GitHub CI, reply to and resolve all supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 12:54:22 UTC] Task Completed
+- Task: Corrected PostgreSQL-safe boolean predicates in the 0075 downgrade and validated authored IDs/answers against the interaction API response-size limit.
+- Files changed: backend/alembic/versions/0075_v2_learning_interactions.py, backend/app/routers/v2_curriculum.py, backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused migration and authoring tests passed (12), Ruff and compileall passed; final-head full backend and GitHub CI pending.
+- Next: Verify full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 13:03:00 UTC] Task Completed
+- Task: Included first V2 interaction attempts in server-derived module and entry progress so failed or optional practice no longer appears not started.
+- Files changed: backend/app/services/v2_progress_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused status regression passed, Ruff and compileall passed; final-head full backend and GitHub CI pending.
+- Next: Verify full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 13:12:20 UTC] Task Completed
+- Task: Rejected authored interaction titles longer than the 200-character database column permits.
+- Files changed: backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Invalid-authoring regression suite passed (12), Ruff and compileall passed; final-head full backend and GitHub CI pending.
+- Next: Verify final-head GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 13:22:54 UTC] Task Completed
+- Task: Serialized V2 interaction publication and submission so an authored version cannot retire between displayed-version validation and attempt commit.
+- Files changed: backend/app/services/v2_interaction_loader.py, backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused interaction and migration tests passed (41), including a concurrent publication/submission regression; Ruff and compileall passed. Final-head full backend and GitHub CI pending.
+- Next: Verify final-head full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 13:34:45 UTC] Task Completed
+- Task: Matched V2 title validation to the raw stored value and typed-answer validation to the browser's UTF-16 length limit.
+- Files changed: backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused authoring and typed-answer tests passed (16), prior full backend suite passed (1284 with 2 skipped), Ruff and compileall passed; exact-head full backend and GitHub CI pending.
+- Next: Verify exact-head full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 13:42:47 UTC] Task Completed
+- Task: Rejected surrounding whitespace in interaction keys, response IDs, and asset paths so validation matches persisted and submitted values.
+- Files changed: backend/app/services/v2_interaction_service.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused invalid-authoring tests passed (19), Ruff and compileall passed; exact-head full backend and GitHub CI pending.
+- Next: Verify exact-head full backend and GitHub CI, reply to and resolve supported review threads, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 13:52:10 UTC] Task Completed
+- Task: Prevented V2 lesson moves across modules while any interaction definition references the lesson.
+- Files changed: backend/app/services/v2_lesson_loader.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused lesson-move regression passed, Ruff and compileall passed; exact-head full backend and GitHub CI pending.
+- Next: Verify exact-head full backend and GitHub CI, reply to and resolve the review thread, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 14:02:48 UTC] Task Completed
+- Task: Enforced monotonic V2 interaction version status by rejecting published-to-draft transitions.
+- Files changed: backend/app/services/v2_interaction_loader.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
+- Result: Focused draft/version-history tests passed (3), Ruff and compileall passed; exact-head full backend and GitHub CI pending.
+- Next: Verify exact-head full backend and GitHub CI, reply to and resolve the review thread, and leave merge and production deployment for separate authorization.
