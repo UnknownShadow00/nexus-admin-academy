@@ -1,7 +1,7 @@
 """Content integrity and disposable learner journey for the new beginner path."""
 
-from datetime import date, timedelta
 from collections import Counter
+from datetime import date, timedelta
 import hashlib
 from pathlib import Path
 import re
@@ -21,7 +21,7 @@ from app.models.v2_interaction import V2InteractionDefinition
 from app.routers.flashcards import router as flashcards_router
 from app.routers.v2_curriculum import router
 from app.services.v2_beginner_path import STAGE_KEYS
-from app.services.v2_content_loader import load_module, valid_external_url
+from app.services.v2_content_loader import _beginner_question_rows, load_module, valid_external_url
 from app.services.v2_curriculum_service import entry_view, resource_activity
 from app.services.v2_interaction_loader import load_interactions
 from app.services.v2_interaction_service import validate_definition
@@ -87,26 +87,35 @@ def test_beginner_banks_remain_draft_without_human_approval(db, tmp_path):
         assert quiz.answer_keys_validated and quiz.explanations_complete
 
 
-def test_beginner_answer_positions_are_varied_and_first_choice_cannot_pass():
-    """Guard only the new 15-item banks; older banks have separate approvals."""
+def test_beginner_answer_positions_are_varied_and_fixed_choice_cannot_pass():
+    """Check authored and imported order for new banks only, not legacy banks."""
     for stage in range(1, 4):
-        bank = yaml.safe_load(
-            (ROOT / f"content/questions/beginner-stage-{stage}.yaml").read_text()
-        )
+        path = ROOT / f"content/questions/beginner-stage-{stage}.yaml"
+        bank = yaml.safe_load(path.read_text())
         questions = bank["questions"]
         assert len(questions) == 15
-        counts = Counter(question["answer"] for question in questions)
-        assert set(counts) <= {0, 1, 2, 3}
-        assert len(counts) >= 3
-        assert max(counts.values()) <= len(questions) / 2
+        source_positions = [question["answer"] for question in questions]
+        imported = _beginner_question_rows(path.read_bytes(), path.name)
+        assert len(imported) == len(questions)
+        displayed_positions = ["ABCD".index(row["correct_answers"]) for row in imported]
+        for positions in (source_positions, displayed_positions):
+            counts = Counter(positions)
+            assert set(counts) <= {0, 1, 2, 3}
+            assert len(counts) >= 3
+            assert max(counts.values()) * 2 <= len(questions)
+
+        for question, row in zip(questions, imported):
+            letter = row["correct_answers"].lower()
+            assert row[f"option_{letter}"] == question["choices"][question["answer"]]
 
         groups = {question["group"] for question in questions}
         assert len(groups) == 3
         for group in groups:
-            selected = [question for question in questions if question["group"] == group]
-            assert len(selected) == 5
-            # Each checkpoint requires 4/5 correct (80%). Always choosing A fails.
-            assert sum(question["answer"] == 0 for question in selected) < 4
+            indices = [index for index, question in enumerate(questions) if question["group"] == group]
+            assert len(indices) == 5
+            # Each checkpoint requires 4/5 correct (80%). No fixed choice passes.
+            for positions in (source_positions, displayed_positions):
+                assert max(Counter(positions[index] for index in indices).values()) < 4
 
 
 def _correct_interaction_response(definition):
