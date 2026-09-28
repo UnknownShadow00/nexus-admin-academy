@@ -2771,3 +2771,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/labs.py, backend/app/routers/service_desk.py, backend/app/services/v2_beginner_path.py, backend/tests/test_v2_beginner_service_desk_policy.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
 - Result: PASS locally — 1307 backend tests passed (2 skipped), 115 frontend tests passed, all 20 Service Desk quality/test/build/typecheck tasks passed, Ruff, compileall, dependency audits, Alembic one-head, and disposable migration rehearsal passed; exact-head GitHub CI pending.
 - Next: Verify exact-head GitHub CI, reply to and resolve the final review thread, and obtain human editorial approval before any separately authorized production content load. Do not merge or deploy.
+
+## [2026-09-28 00:41:10 UTC] Task Completed
+- Task: Addressed two newly surfaced PR #46 review blockers: allow trusted V2 attempts on reused admin Service Desk assignments to resume, and validate local teaching diagrams from a backend-packaged asset manifest.
+- Files changed: backend/app/routers/service_desk.py, backend/app/services/v2_content_loader.py, backend/content/assets/v2-interactions.json, backend/tests/test_v2_beginner_service_desk_policy.py, backend/tests/test_v2_required_resource_urls.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
+- Result: PASS focused — 131 V2 authorization, resource, mastery, interaction, and Stage journey tests passed; Ruff, compileall, and a backend-only Docker image asset check passed. Full backend and exact-head GitHub CI pending.
+- Next: Verify full backend and exact-head CI, reply to and resolve the two new review threads, and keep production loading gated on human editorial approval. Do not merge or deploy.

@@ -44,6 +44,10 @@ The same beginner version and stage-prerequisite policy protects direct V2 lab d
 
 The shared policy also protects Service Desk attempts. An old V2 assignment cannot create a new attempt after the beginner switch. The assignment list hides it unless an owned, in-progress attempt has a trusted V2 launch marker for the same scenario, mode, module, and assessment. Such a row is `resumable_only`; retrying the assignment URL returns that exact attempt and never creates another. The learner may use the existing attempt's read, event, snapshot, action, hint, and completion routes while V2 access and its active assessment relationship remain valid. After completion, the assignment is hidden again, while the completed attempt remains readable as history under the existing ownership and V2 access rules. A legacy non-V2 Service Desk assignment is unaffected. No Service Desk scenarios or UI were redesigned.
 
+If V2 reused a pre-existing admin assignment, its `assigned_by` value stays intact. Its matching trusted in-progress V2 attempt is likewise shown as resumable and can finish; the old V2 module and assessment query still cannot start a fresh attempt after completion. The assignment's separate legacy authorization remains available under its existing rules.
+
+Local teaching diagrams are allowlisted in `backend/content/assets/v2-interactions.json` with hashes checked against `frontend/public/v2-interactions/` by backend tests. The manifest ships inside the backend-only container, so required resource validation no longer depends on a sibling frontend directory at content-load time.
+
 ## Lightweight review
 
 Ten `review-core` questions cover IT, hardware, software, CPU, RAM, storage, files, the operating system, administrator access, and Task Manager. A correctly answered core question receives a next-day review card; a missed core question is due immediately. Both use the existing `FlashcardReview` and `fsrs_service` path. The existing rating scheduler remains unchanged. An enabled beginner pilot sees at most five due cards per request, and `review_due` appears separately from mastery. Review never blocks a stage or revokes mastery.

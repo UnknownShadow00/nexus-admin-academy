@@ -631,16 +631,27 @@ def load_resources(db: Session, path: str, *, summary: LoadSummary | None = None
 def valid_external_url(value) -> bool:
     """Would a student actually be able to open this resource?
 
-    Also accepts a checked-in original diagram under the V2 interaction asset
-    directory. Arbitrary relative paths remain invalid.
+    Also accepts a versioned local asset listed in the backend's manifest.
+    The frontend asset bytes are checked against that manifest in tests, while
+    the manifest itself is available in backend-only deployment images.
+    Arbitrary relative paths remain invalid.
     """
     if not value:
         return False
     parsed = urlsplit(str(value).strip())
     if parsed.scheme == "" and parsed.netloc == "" and not parsed.query and not parsed.fragment:
         if re.fullmatch(r"/v2-interactions/[a-z0-9-]+\.svg", parsed.path):
-            asset = os.path.join(os.path.dirname(_HERE), "frontend", "public", parsed.path.lstrip("/"))
-            return os.path.isfile(asset)
+            manifest_path = os.path.join(DEFAULT_CONTENT_DIR, "assets", "v2-interactions.json")
+            try:
+                with open(manifest_path, encoding="utf-8") as handle:
+                    assets = json.load(handle)["assets"]
+            except (OSError, ValueError, KeyError, TypeError):
+                return False
+            name = parsed.path.removeprefix("/v2-interactions/")
+            digest = assets.get(name) if isinstance(assets, dict) else None
+            return isinstance(digest, str) and re.fullmatch(
+                r"[0-9a-f]{64}", digest,
+            ) is not None
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 

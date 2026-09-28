@@ -44,6 +44,27 @@ def _old_launch(db, monkeypatch, *, username="sd_beginner_old"):
     return student, client, assignment
 
 
+def _reused_old_launch(db, monkeypatch):
+    scenario = _loaded(db)
+    student = make_student(db, username="sd_beginner_reused")
+    enroll_v2(monkeypatch, student)
+    assignment = ServiceDeskAssignment(
+        student_id=student.id, scenario_id=scenario.id, mode="learning",
+        assigned_by="admin",
+    )
+    db.add(assignment)
+    db.commit()
+    client = make_client(curriculum_router, service_desk_router)
+    launched = client.post(
+        f"/api/v2/curriculum/modules/{OLD_MODULE}/service-desk/{OLD_ASSESSMENT}/launch",
+        headers=auth_headers(student),
+    )
+    assert launched.status_code == 200, launched.text
+    db.refresh(assignment)
+    assert assignment.assigned_by == "admin"
+    return student, client, assignment
+
+
 def _start(client, student, assignment, **params):
     return client.post(
         f"/api/service-desk/assignments/{assignment.id}/attempts",
@@ -159,18 +180,6 @@ def test_trusted_old_attempt_resumes_writes_and_completes_without_new_launch(db,
     db.commit()
     assert assignment.id not in {item["id"] for item in client.get("/api/service-desk/assignments", headers=headers).json()}
     assert _start(client, student, assignment).status_code == 404
-    assignment.assigned_by = "manual"
-    db.commit()
-    assert _start(
-        client, student, assignment,
-        v2_module_key=OLD_MODULE, v2_assessment_key=OLD_ASSESSMENT,
-    ).status_code == 404
-    explicit = client.get(
-        "/api/service-desk/assignments",
-        params={"v2_module_key": OLD_MODULE, "v2_assessment_key": OLD_ASSESSMENT},
-        headers=headers,
-    )
-    assert explicit.status_code == 404
     assignment.assigned_by = original_source
     db.commit()
 
@@ -219,6 +228,45 @@ def test_trusted_old_attempt_resumes_writes_and_completes_without_new_launch(db,
     assert _start(client, student, assignment).status_code == 404
     assert assignment.id not in {item["id"] for item in client.get("/api/service-desk/assignments", headers=headers).json()}
     assert client.get(f"/api/service-desk/attempts/{attempt_id}", headers=headers).status_code == 200
+
+
+def test_reused_admin_assignment_resumes_only_its_trusted_old_v2_attempt(db, monkeypatch):
+    student, client, assignment = _reused_old_launch(db, monkeypatch)
+    params = {"v2_module_key": OLD_MODULE, "v2_assessment_key": OLD_ASSESSMENT}
+    first = _start(client, student, assignment, **params)
+    assert first.status_code == 201, first.text
+    attempt_id = first.json()["id"]
+    monkeypatch.setenv("V2_BEGINNER_PATH_ENABLED", "true")
+    headers = auth_headers(student)
+    for query in ({}, params):
+        listed = client.get("/api/service-desk/assignments", params=query, headers=headers)
+        assert listed.status_code == 200, listed.text
+        row = next(item for item in listed.json() if item["id"] == assignment.id)
+        assert row["resumable_only"] is True
+        assert row["most_recent_attempt"]["id"] == attempt_id
+    resumed = _start(client, student, assignment, **params)
+    assert resumed.status_code == 200 and resumed.json()["id"] == attempt_id
+    assert db.query(ServiceDeskAttempt).filter_by(student_id=student.id).count() == 1
+
+    # The reusable admin row remains legacy work, but its old V2 context can
+    # no longer authorize another V2 attempt after the trusted run finishes.
+    attempt = db.get(ServiceDeskAttempt, attempt_id)
+    attempt.status = "completed"
+    db.commit()
+    assert _start(client, student, assignment, **params).status_code == 404
+    assert client.get(f"/api/service-desk/attempts/{attempt_id}", headers=headers).status_code == 200
+
+
+def test_reused_admin_assignment_without_trusted_attempt_cannot_start_hidden_v2(db, monkeypatch):
+    student, client, assignment = _reused_old_launch(db, monkeypatch)
+    monkeypatch.setenv("V2_BEGINNER_PATH_ENABLED", "true")
+    params = {"v2_module_key": OLD_MODULE, "v2_assessment_key": OLD_ASSESSMENT}
+    assert client.get(
+        "/api/service-desk/assignments", params=params,
+        headers=auth_headers(student),
+    ).status_code == 404
+    assert _start(client, student, assignment, **params).status_code == 404
+    assert db.query(ServiceDeskAttempt).filter_by(student_id=student.id).count() == 0
 
 
 def test_current_beginner_context_and_legacy_service_desk_keep_their_routes(db, monkeypatch):

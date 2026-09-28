@@ -10,9 +10,14 @@ that a rule rather than an accident.
 Optional resources stay lenient on purpose; they never block anything.
 """
 
+import hashlib
+import json
+from pathlib import Path
+
 import pytest
 
 from app.models.certification import LearningResource, LearningResourceLink
+from app.services import v2_content_loader as content_loader
 from app.services.v2_content_loader import (
     ContentValidationError,
     load_all,
@@ -45,6 +50,31 @@ def test_absolute_http_urls_are_valid(url):
 )
 def test_unopenable_urls_are_rejected(url):
     assert valid_external_url(url) is False
+
+
+def test_local_asset_manifest_matches_frontend_bytes():
+    root = Path(__file__).resolve().parents[2]
+    manifest = json.loads((root / "backend/content/assets/v2-interactions.json").read_text())
+    public = root / "frontend/public/v2-interactions"
+    assert set(manifest["assets"]) == {path.name for path in public.glob("*.svg")}
+    for name, digest in manifest["assets"].items():
+        assert hashlib.sha256((public / name).read_bytes()).hexdigest() == digest
+        assert valid_external_url(f"/v2-interactions/{name}") is True
+
+
+def test_backend_only_image_can_validate_local_assets(db, monkeypatch, tmp_path):
+    source = Path(content_loader.DEFAULT_CONTENT_DIR) / "assets/v2-interactions.json"
+    packaged = tmp_path / "backend/content/assets/v2-interactions.json"
+    packaged.parent.mkdir(parents=True)
+    packaged.write_bytes(source.read_bytes())
+    monkeypatch.setattr(content_loader, "DEFAULT_CONTENT_DIR", str(tmp_path / "backend/content"))
+    assert not (tmp_path / "frontend").exists()
+    assert valid_external_url("/v2-interactions/beginner-s1-supports.svg") is True
+    assert valid_external_url("/v2-interactions/unlisted.svg") is False
+    content_loader.load_module(db, commit=False)
+    db.rollback()
+    packaged.unlink()
+    assert valid_external_url("/v2-interactions/beginner-s1-supports.svg") is False
 
 
 def _resource_yaml(tmp_path, *, url, required):

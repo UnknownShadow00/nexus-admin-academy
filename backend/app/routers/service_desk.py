@@ -442,10 +442,13 @@ def _resumable_v2_attempt(
     db: Session,
     student_id: int,
     assignment: ServiceDeskAssignment,
-    context: tuple[str, str],
+    context: tuple[str, str] | None,
 ) -> ServiceDeskAttempt | None:
     """Find only an owned, in-progress attempt with a trusted launch marker."""
-    if _assigned_v2_context(assignment) != context:
+    if (
+        _assignment_is_v2_curriculum(assignment)
+        and _assigned_v2_context(assignment) != context
+    ):
         return None
     rows = (
         db.query(ServiceDeskAttempt)
@@ -459,7 +462,14 @@ def _resumable_v2_attempt(
         .order_by(ServiceDeskAttempt.started_at.desc(), ServiceDeskAttempt.id.desc())
         .all()
     )
-    return next((row for row in rows if _attempt_v2_context(db, row) == context), None)
+    return next(
+        (
+            row for row in rows
+            if (marker := _attempt_v2_context(db, row)) is not None
+            and (context is None or marker == context)
+        ),
+        None,
+    )
 
 
 def _v2_launch_context(
@@ -638,6 +648,27 @@ def list_assignments(
                 if resumable is None:
                     continue
                 resume_only = True
+        elif requested_v2_context is None and student_has_v2_access(current_student):
+            # A V2 launch may reuse an existing admin assignment without
+            # changing assigned_by. Its trusted attempt can still be resumed.
+            candidate = _resumable_v2_attempt(db, current_student.id, assignment, None)
+            if candidate is not None:
+                candidate_context = _attempt_v2_context(db, candidate)
+                if candidate_context is not None:
+                    try:
+                        _v2_launch_context(
+                            db, current_student, assignment, *candidate_context,
+                        )
+                    except HTTPException:
+                        pass
+                    else:
+                        try:
+                            enforce_beginner_module_policy(
+                                db, current_student, candidate_context[0],
+                            )
+                        except HTTPException:
+                            resumable = candidate
+                            resume_only = True
         if requested_v2_resume_only and assignment.scenario_id == requested_v2_scenario_id:
             if assigned_context is not None and assigned_context != requested_v2_context:
                 continue
