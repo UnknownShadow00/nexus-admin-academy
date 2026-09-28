@@ -28,6 +28,7 @@ from app.services.v2_content_loader import (
 from app.services.v2_curriculum_service import entry_view, resource_activity
 from app.services.v2_interaction_loader import load_interactions
 from app.services.v2_interaction_service import validate_definition
+from app.services.quiz_visibility import v1_student_visible_quiz_filters
 from app.services.v2_progress_service import module_progress, record_activity
 from app.services.question_validation import validate_question_row
 
@@ -98,6 +99,10 @@ def test_beginner_banks_require_exact_human_approval_bytes(db, tmp_path):
         assert quiz.status == "published" and quiz.editorial_status == "validated"
         assert quiz.answer_keys_validated and quiz.explanations_complete
         assert quiz.show_in_practice_library is False
+        legacy_visible_ids = {
+            row[0] for row in db.query(Quiz.id).filter(*v1_student_visible_quiz_filters()).all()
+        }
+        assert quiz.id not in legacy_visible_ids
 
     changed_bank = approved / "beginner-stage-1.yaml"
     changed_bank.write_bytes(changed_bank.read_bytes() + b"\n# unapproved edit\n")
