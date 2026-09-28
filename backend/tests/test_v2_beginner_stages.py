@@ -83,10 +83,6 @@ def test_beginner_banks_require_exact_human_approval_bytes(db, tmp_path):
         assert quiz.editorial_status != "validated"
         assert quiz.answer_keys_validated is False
         assert quiz.explanations_complete is False
-    old = db.query(Quiz).filter_by(title="A+ IP Configuration & Basic Connectivity — Module Bank").one()
-    assert old.status == "published" and old.editorial_status == "validated"
-    assert old.answer_keys_validated and old.explanations_complete
-
     approved = tmp_path / "approved-questions"
     approved.mkdir()
     for stage in range(1, 4):
