@@ -7,93 +7,93 @@ questions:
   - group: s3-desktop
     objective_code: B3.1
     text: What does an operating system (OS) do?
-    choices: ["Starts the computer and helps applications, files, and devices work", "Only writes documents", "Only stores passwords", "Only connects a mouse"]
-    answer: 0
+    choices: ["Keeps saved files after power is off", "Writes every document for the user", "Provides electrical power to the computer", "Starts the computer and helps applications, files, and devices work"]
+    answer: 3
     explanation: The OS is the main software that manages the computer and supports applications.
     review: true
   - group: s3-desktop
     objective_code: B3.1
     text: Which is an operating system?
-    choices: ["Windows", "A web browser", "A document", "A printer"]
-    answer: 0
+    choices: ["A web browser", "Windows", "A document", "A printer"]
+    answer: 1
     explanation: Windows is an operating system; a browser is an application that runs on it.
   - group: s3-desktop
     objective_code: B3.1
     text: What does the Windows Start menu help you find?
-    choices: ["Applications and settings", "A broken cable inside the computer", "Paper documents on a desk", "The building power supply"]
-    answer: 0
-    explanation: The Start menu is a common way to find applications and settings.
+    choices: ["Only applications that are already open", "Folders where documents are saved", "Applications and settings", "Information about a user's account"]
+    answer: 2
+    explanation: The Start menu lets you find an application to open or reach Windows settings; the taskbar shows applications already open.
   - group: s3-desktop
     objective_code: B3.1
     text: What does the taskbar help you do?
-    choices: ["See and switch between open applications", "Replace memory", "Save a file after shutdown", "Change someone else's account"]
+    choices: ["See and switch between open applications", "Browse saved files and folders", "Change how bright the screen looks", "See who is signed in to the account"]
     answer: 0
     explanation: The taskbar shows open applications and helps you switch between them.
   - group: s3-desktop
     objective_code: B3.1
     text: Why ask which operating system a person uses?
-    choices: ["The steps and screen may differ by system", "All systems use the same screens", "It tells you every cause at once", "It removes the need to ask about the problem"]
-    answer: 0
+    choices: ["All systems use the same screens", "It tells you every cause at once", "It removes the need to ask about the problem", "The steps and screen may differ by system"]
+    answer: 3
     explanation: Windows, macOS, Linux, and phones can show different steps for the same task.
   - group: s3-accounts-files
     objective_code: B3.2
     text: What is a standard user account mainly for?
-    choices: ["Everyday work with limited system changes", "Changing every computer for everyone", "Bypassing all permissions", "Replacing the operating system"]
-    answer: 0
+    choices: ["Install software for everyone without approval", "Change permissions for every account", "Everyday work with limited system changes", "Replace Windows with another system"]
+    answer: 2
     explanation: A standard account supports normal work without broad administrator changes.
   - group: s3-accounts-files
     objective_code: B3.2
     text: What can an administrator account do that a standard account usually cannot?
-    choices: ["Make wider system changes", "Turn a file into a physical device", "Prove every update is safe", "Ignore workplace permission rules"]
-    answer: 0
+    choices: ["Open anyone’s private files without approval", "Make wider system changes", "Guarantee a new application is safe", "Make a document save itself automatically"]
+    answer: 1
     explanation: Administrator access allows broader changes, which still need authorization and care.
     review: true
   - group: s3-accounts-files
     objective_code: B3.2
     text: What is File Explorer used for?
-    choices: ["Finding files and folders", "Supplying power", "Showing only running applications", "Replacing a screen"]
+    choices: ["Finding files and folders", "Checking running applications", "Changing Windows options", "Finding the Start menu"]
     answer: 0
     explanation: File Explorer helps you move through folders and find files.
   - group: s3-accounts-files
     objective_code: B3.2
     text: In Documents > Notes > plan.txt, what is plan.txt?
-    choices: ["A file inside the Notes folder", "An administrator account", "A physical port", "The Windows operating system"]
-    answer: 0
-    explanation: The path ends with the file name; the earlier names are folders.
+    choices: ["The Notes folder", "The Documents folder", "A file inside the Notes folder", "An application for editing documents"]
+    answer: 2
+    explanation: In this example, plan.txt is the file inside Notes, which is inside Documents.
   - group: s3-accounts-files
     objective_code: B3.2
     text: Windows says you do not have permission to open a file. What should you do?
-    choices: ["Ask for appropriate help or access", "Use someone else's account", "Disable all permissions", "Delete the folder"]
-    answer: 0
+    choices: ["Use someone else's account", "Disable all permissions", "Delete the folder", "Ask for appropriate help or access"]
+    answer: 3
     explanation: Permission rules protect work. Ask rather than bypass them.
   - group: s3-care
     objective_code: B3.3
     text: Which Windows tool shows running applications?
-    choices: ["Task Manager", "File Explorer", "A folder", "A monitor port"]
-    answer: 0
-    explanation: Task Manager shows running applications and basic activity.
+    choices: ["File Explorer", "Task Manager", "Settings", "The Start menu"]
+    answer: 1
+    explanation: Task Manager lists applications that are running; File Explorer finds files, and Settings changes options.
     review: true
   - group: s3-care
     objective_code: B3.3
     text: Which Windows place is for changing an option such as display brightness?
-    choices: ["Settings", "A saved document", "File Explorer's file list", "A keyboard port"]
+    choices: ["Settings", "File Explorer", "Task Manager", "The Start menu"]
     answer: 0
-    explanation: Settings is for changing Windows options; a file is stored information.
+    explanation: Brightness is a Windows option, so use Settings; File Explorer finds files and Task Manager shows running applications.
   - group: s3-care
     objective_code: B3.3
     text: What should happen before restarting a work computer with an unsaved document?
-    choices: ["Ask the user to save work and agree on timing", "Restart immediately", "Delete the document", "Turn off future updates"]
-    answer: 0
+    choices: ["Restart immediately", "Delete the document", "Turn off future updates", "Ask the user to save work and agree on timing"]
+    answer: 3
     explanation: Restarting closes programs; protect unsaved work first.
   - group: s3-care
     objective_code: B3.3
     text: What is the basic difference between restart and shutdown?
-    choices: ["Restart starts Windows again; shutdown turns the computer off", "Restart deletes files; shutdown saves them", "Both install every application", "Both change account permissions"]
-    answer: 0
+    choices: ["Restart turns the computer off and leaves it off; shutdown starts Windows again", "Restart and shutdown both keep open applications running", "Restart starts Windows again; shutdown turns the computer off", "Shutdown starts Windows again without turning the computer off"]
+    answer: 2
     explanation: Restart closes and starts Windows again; shutdown turns the computer off.
   - group: s3-care
     objective_code: B3.3
     text: A stranger sends a link to install a new program. What is a safe response?
-    choices: ["Check with the workplace before installing it", "Install it immediately", "Share an administrator password", "Disable updates first"]
-    answer: 0
+    choices: ["Install it if the message claims it is urgent", "Check with the workplace before installing it", "Install it if its file name looks familiar", "Ask a coworker for their administrator password"]
+    answer: 1
     explanation: Install only approved software from trusted sources with the right permission.

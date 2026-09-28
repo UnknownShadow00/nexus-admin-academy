@@ -1,6 +1,7 @@
 """Content integrity and disposable learner journey for the new beginner path."""
 
 from datetime import date, timedelta
+from collections import Counter
 import hashlib
 from pathlib import Path
 import re
@@ -84,6 +85,28 @@ def test_beginner_banks_remain_draft_without_human_approval(db, tmp_path):
         quiz = db.query(Quiz).filter_by(title=bank["quiz_title"]).one()
         assert quiz.status == "published" and quiz.editorial_status == "validated"
         assert quiz.answer_keys_validated and quiz.explanations_complete
+
+
+def test_beginner_answer_positions_are_varied_and_first_choice_cannot_pass():
+    """Guard only the new 15-item banks; older banks have separate approvals."""
+    for stage in range(1, 4):
+        bank = yaml.safe_load(
+            (ROOT / f"content/questions/beginner-stage-{stage}.yaml").read_text()
+        )
+        questions = bank["questions"]
+        assert len(questions) == 15
+        counts = Counter(question["answer"] for question in questions)
+        assert set(counts) <= {0, 1, 2, 3}
+        assert len(counts) >= 3
+        assert max(counts.values()) <= len(questions) / 2
+
+        groups = {question["group"] for question in questions}
+        assert len(groups) == 3
+        for group in groups:
+            selected = [question for question in questions if question["group"] == group]
+            assert len(selected) == 5
+            # Each checkpoint requires 4/5 correct (80%). Always choosing A fails.
+            assert sum(question["answer"] == 0 for question in selected) < 4
 
 
 def _correct_interaction_response(definition):

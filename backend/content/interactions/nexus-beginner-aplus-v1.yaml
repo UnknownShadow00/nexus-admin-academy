@@ -78,20 +78,20 @@ interactions:
     module_key: module.nexus.beginner.stage2
     lesson_key: lesson.nexus.beginner.s2.connections
     title: Identify a basic port
-    instructions: Look at port 1 in the original diagram and choose its likely purpose.
+    instructions: Read the numbered shape descriptions or look at the diagram, then choose what fits port 1.
     required: true
     status: published
     display_order: 2
     config:
       image_url: /v2-interactions/beginner-s2-connections.svg
-      image_alt: Three numbered port outlines; port 1 is rectangular, port 2 is wide with angled sides, and port 3 is round.
+      image_alt: Simplified teaching diagram of three numbered ports. Port 1 is a short horizontal rectangular opening with a narrow bar inside. Port 2 is wider with angled sides. Port 3 is round. These are teaching shapes; real ports vary by device, so check the label and never force a plug.
       question: What would commonly connect to port 1?
       choices:
         - {id: keyboard, label: A keyboard with a matching USB plug}
         - {id: monitor, label: A monitor using an HDMI plug}
         - {id: headphones, label: Headphones using a round audio plug}
       correct_choice_id: keyboard
-      explanation: The rectangular port 1 represents USB; a matching USB keyboard can use it. Never force a plug.
+      explanation: In this teaching diagram, port 1 is a common USB shape with a narrow bar inside, so a keyboard with a matching USB plug can use it. Real ports vary by device; check the label and never force a plug.
       reveal_correct: true
   - key: interaction.nexus.beginner.s2.files_apps
     version: 1
@@ -162,7 +162,7 @@ interactions:
         - {id: laptop, label: LAPTOP-17}
         - {id: both, label: Neither part names an account}
       correct_choice_id: sam
-      explanation: The text after the backslash is the account name. Running commands comes later.
+      explanation: In this example output, Sam is the account name after the backslash. Running commands comes later.
       reveal_correct: true
   - key: interaction.nexus.beginner.s3.care
     version: 1

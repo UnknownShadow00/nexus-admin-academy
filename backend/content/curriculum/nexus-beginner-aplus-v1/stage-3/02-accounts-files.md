@@ -19,7 +19,7 @@ A **user account** tells Windows who is signed in. A **standard user** can do ev
 
 ## Finding a file
 
-**File Explorer** is the Windows application for finding files and folders. A **path** is an address that shows where a file is stored. For example, `Documents > Notes > plan.txt` means the file `plan.txt` is inside the Notes folder, inside Documents. The part after the last separator is the file, not an application.
+**File Explorer** is the Windows application for finding files and folders. A **path** is an address that shows where something is stored. In this example, `plan.txt` is the file inside the Notes folder, which is inside Documents: `Documents > Notes > plan.txt`.
 
 Open the account-and-folder picture, then put the steps for finding a file in order. The checkpoint asks what you can safely do when access is denied.
 
