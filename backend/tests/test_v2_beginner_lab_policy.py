@@ -5,8 +5,10 @@ import pytest
 from conftest import auth_headers, enroll_v2, make_client, make_student
 
 from app.models.certification import CertificationModule, ModuleAssessment
-from app.models.lab import LabTemplate
+from app.models.lab import LabRun, LabTemplate
+from app.models.squad_activity import SquadActivity
 from app.models.vm_assignment import VmAssignment
+from app.models.v2_progress import V2ModuleActivity
 from app.routers.labs import router as labs_router
 from app.services.v2_beginner_path import STAGE_KEYS
 from app.services.v2_content_loader import load_module
@@ -124,6 +126,40 @@ def test_cached_old_url_without_owned_run_is_hidden_and_existing_run_can_finish(
     submitted = client.post(url + "/submit", params=params, json={"notes": "Evidence checked"}, headers=auth_headers(owner))
     assert submitted.status_code == 200, submitted.text
     assert submitted.json()["data"]["status"] == "submitted"
+    run = db.get(LabRun, run_id)
+    submitted_state = (run.status, run.submitted_at, run.notes, run.verified_at)
+    activity = db.query(V2ModuleActivity).filter_by(
+        student_id=owner.id, module_key=OLD_MODULE,
+        activity_type="practical", ref_key=old.assessment_key,
+    ).one()
+    activity_state = (
+        activity.status, activity.passed, activity.score, dict(activity.detail or {}),
+    )
+    audit_count = db.query(SquadActivity).filter_by(
+        student_id=owner.id, activity_type="lab_submitted",
+    ).count()
+    for follow_up_params in ({}, params):
+        assert client.get(url, params=follow_up_params, headers=auth_headers(owner)).status_code == 200
+        verify_again = client.post(
+            url + "/verify", params=follow_up_params,
+            json={"answers": {}, "inspected_panel_ids": []},
+            headers=auth_headers(owner),
+        )
+        assert verify_again.status_code == 409
+        submit_again = client.post(
+            url + "/submit", params=follow_up_params,
+            json={"notes": "Rewritten evidence"}, headers=auth_headers(owner),
+        )
+        assert submit_again.status_code == 409
+    db.refresh(run)
+    assert (run.status, run.submitted_at, run.notes, run.verified_at) == submitted_state
+    db.refresh(activity)
+    assert (
+        activity.status, activity.passed, activity.score, activity.detail,
+    ) == activity_state
+    assert db.query(SquadActivity).filter_by(
+        student_id=owner.id, activity_type="lab_submitted",
+    ).count() == audit_count
     assert client.post(url + "/start", params=params, headers=auth_headers(owner)).status_code == 404
 
 

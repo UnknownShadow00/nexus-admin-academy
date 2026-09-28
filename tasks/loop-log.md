@@ -2777,3 +2777,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/service_desk.py, backend/app/services/v2_content_loader.py, backend/content/assets/v2-interactions.json, backend/tests/test_v2_beginner_service_desk_policy.py, backend/tests/test_v2_required_resource_urls.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
 - Result: PASS focused — 131 V2 authorization, resource, mastery, interaction, and Stage journey tests passed; Ruff, compileall, and a backend-only Docker image asset check passed. Full backend and exact-head GitHub CI pending.
 - Next: Verify full backend and exact-head CI, reply to and resolve the two new review threads, and keep production loading gated on human editorial approval. Do not merge or deploy.
+
+## [2026-09-28 01:15:29 UTC] Task Completed
+- Task: Closed a newly surfaced PR #46 V2 lab follow-up gap by rejecting verification and resubmission after a trusted run is submitted under the beginner switch, while preserving read-only history and mentor-reopened work.
+- Files changed: backend/app/routers/labs.py, backend/tests/test_v2_beginner_lab_policy.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
+- Result: PASS focused — 54 lab and V2 runtime tests passed, including run/activity/audit immutability checks after submission; Ruff and compileall passed. Full backend and exact-head GitHub CI pending.
+- Next: Verify full backend and exact-head CI, reply to and resolve the new lab review thread, and keep human editorial approval pending. Do not merge or deploy.

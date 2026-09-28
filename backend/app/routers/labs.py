@@ -22,7 +22,9 @@ from app.services.auth_service import get_current_student
 from app.services.progression_service import require_week_reached
 from app.services.v2_progress_service import record_activity
 from app.services.v2_access import V2_UNAVAILABLE_DETAIL, student_has_v2_access
-from app.services.v2_beginner_path import enforce_beginner_module_policy
+from app.services.v2_beginner_path import (
+    beginner_path_enabled, enforce_beginner_module_policy,
+)
 from app.utils.responses import ok
 
 logger = logging.getLogger(__name__)
@@ -363,6 +365,8 @@ def _follow_up_context(
     run: LabRun | None,
     module_key: str | None,
     assessment_key: str | None,
+    *,
+    writable: bool = False,
 ):
     """Continue an owned V2 run across a path switch using recorded provenance.
 
@@ -378,6 +382,11 @@ def _follow_up_context(
         if ((module_key is not None and module_key != activity.module_key)
                 or (assessment_key is not None and assessment_key != activity.ref_key)):
             raise HTTPException(status_code=404, detail=V2_UNAVAILABLE_DETAIL)
+        if (
+            writable and beginner_path_enabled()
+            and run.status not in {"assigned", "not_started", "in_progress"}
+        ):
+            raise HTTPException(status_code=409, detail="This practical run is no longer in progress.")
         return assessment, module
     return _lab_access_context(db, lab_id, module_key, assessment_key, student)
 
@@ -716,7 +725,8 @@ def verify_evidence_workbench(
         db, lab_id, current_student.id, active_run_required=True
     )
     if _follow_up_context(
-        db, lab_id, current_student, run, v2_module_key, v2_assessment_key
+        db, lab_id, current_student, run, v2_module_key, v2_assessment_key,
+        writable=True,
     ) is None:
         if run is None:
             require_week_reached(db, current_student, lab.week_number)
@@ -776,7 +786,8 @@ def submit_lab(
         db, lab_id, current_student.id, active_run_required=True
     )
     v2_context = _follow_up_context(
-        db, lab_id, current_student, run, v2_module_key, v2_assessment_key
+        db, lab_id, current_student, run, v2_module_key, v2_assessment_key,
+        writable=True,
     )
     if v2_context is None:
         if run is None:
