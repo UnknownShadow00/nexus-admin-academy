@@ -2765,3 +2765,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/routers/labs.py, backend/app/services/v2_beginner_path.py, backend/content/questions/editorial-approvals.yaml, backend/tests/test_v2_beginner_lab_policy.py, backend/tests/test_v2_beginner_stages.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
 - Result: PASS locally — 1301 backend tests passed (2 skipped), 115 frontend tests passed, frontend build, Ruff, compileall, dependency audits, disposable migration rehearsal, and zero unresolved review threads; final-head GitHub CI pending.
 - Next: Verify final-head GitHub CI and PR state; human editorial approval remains pending before any production content load. Do not merge or deploy in this task.
+
+## [2026-09-28 00:01:52 UTC] Task Completed
+- Task: Closed PR #46's remaining Service Desk authorization gap by applying the shared beginner-path policy to assignment listing and attempt starts while allowing only exact trusted in-progress V2 attempts to finish.
+- Files changed: backend/app/routers/labs.py, backend/app/routers/service_desk.py, backend/app/services/v2_beginner_path.py, backend/tests/test_v2_beginner_service_desk_policy.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
+- Result: PASS locally — 1307 backend tests passed (2 skipped), 115 frontend tests passed, all 20 Service Desk quality/test/build/typecheck tasks passed, Ruff, compileall, dependency audits, Alembic one-head, and disposable migration rehearsal passed; exact-head GitHub CI pending.
+- Next: Verify exact-head GitHub CI, reply to and resolve the final review thread, and obtain human editorial approval before any separately authorized production content load. Do not merge or deploy.

@@ -66,6 +66,7 @@ from app.services.service_desk_workspace_view import build_debrief, process_prog
 from app.services.v2_progress_service import reconcile_v2_service_desk_attempt
 from app.services.v2_service_desk_onboarding import service_desk_onboarding_blocker
 from app.services.v2_access import V2_UNAVAILABLE_DETAIL, student_has_v2_access
+from app.services.v2_beginner_path import enforce_beginner_module_policy
 from app.services.xp_service import award_xp
 
 router = APIRouter(prefix="/api/service-desk", tags=["service-desk"])
@@ -356,8 +357,24 @@ def _owned_attempt(
     if not attempt:
         raise HTTPException(404, "Attempt not found")
     ensure_student_access(student, attempt.student_id)
-    if _attempt_v2_context(db, attempt) and not student_has_v2_access(student):
-        raise HTTPException(404, V2_UNAVAILABLE_DETAIL)
+    v2_context = _attempt_v2_context(db, attempt)
+    if v2_context:
+        if attempt.status == "in_progress":
+            version = db.get(ServiceDeskScenarioVersion, attempt.scenario_version_id)
+            module = db.query(CertificationModule).filter_by(
+                module_key=v2_context[0], active=True,
+            ).one_or_none()
+            assessment = db.query(ModuleAssessment).filter_by(
+                certification_module_id=module.id if module else None,
+                assessment_key=v2_context[1], assessment_role="service_desk",
+                service_desk_scenario_id=version.scenario_id if version else None,
+                active=True,
+            ).one_or_none()
+            if assessment is None:
+                raise HTTPException(404, V2_UNAVAILABLE_DETAIL)
+        enforce_beginner_module_policy(
+            db, student, v2_context[0], existing_trusted=True,
+        )
     stable_key = (
         db.query(ServiceDeskScenario.stable_key)
         .join(
@@ -410,6 +427,41 @@ def _attempt_v2_context(
     return None
 
 
+def _assigned_v2_context(
+    assignment: ServiceDeskAssignment,
+) -> tuple[str, str] | None:
+    if not _assignment_is_v2_curriculum(assignment):
+        return None
+    parts = assignment.assigned_by.split(":", 2)
+    if len(parts) != 3 or not parts[1] or not parts[2]:
+        return None
+    return parts[1], parts[2]
+
+
+def _resumable_v2_attempt(
+    db: Session,
+    student_id: int,
+    assignment: ServiceDeskAssignment,
+    context: tuple[str, str],
+) -> ServiceDeskAttempt | None:
+    """Find only an owned, in-progress attempt with a trusted launch marker."""
+    if _assigned_v2_context(assignment) != context:
+        return None
+    rows = (
+        db.query(ServiceDeskAttempt)
+        .join(ServiceDeskScenarioVersion)
+        .filter(
+            ServiceDeskAttempt.student_id == student_id,
+            ServiceDeskAttempt.mode == assignment.mode,
+            ServiceDeskAttempt.status == "in_progress",
+            ServiceDeskScenarioVersion.scenario_id == assignment.scenario_id,
+        )
+        .order_by(ServiceDeskAttempt.started_at.desc(), ServiceDeskAttempt.id.desc())
+        .all()
+    )
+    return next((row for row in rows if _attempt_v2_context(db, row) == context), None)
+
+
 def _v2_launch_context(
     db: Session,
     student: Student,
@@ -417,12 +469,15 @@ def _v2_launch_context(
     module_key: str | None,
     assessment_key: str | None,
 ) -> tuple[str, str] | None:
-    if _assignment_is_v2_curriculum(assignment) and not (
-        module_key and assessment_key
-    ):
-        parts = assignment.assigned_by.split(":", 2)
-        if len(parts) == 3:
-            module_key, assessment_key = parts[1], parts[2]
+    if _assignment_is_v2_curriculum(assignment):
+        assigned = _assigned_v2_context(assignment)
+        if assigned is None or (
+            module_key is not None and module_key != assigned[0]
+        ) or (
+            assessment_key is not None and assessment_key != assigned[1]
+        ):
+            raise HTTPException(404, V2_UNAVAILABLE_DETAIL)
+        module_key, assessment_key = assigned
     if not module_key and not assessment_key:
         return None
     if not module_key or not assessment_key or not student_has_v2_access(student):
@@ -497,6 +552,8 @@ def list_assignments(
     requested_v2_scenario_id = None
     requested_v2_context = None
     requested_v2_completed = False
+    requested_v2_policy_error = None
+    requested_v2_resume_only = False
     if v2_module_key or v2_assessment_key:
         if (
             not v2_module_key
@@ -529,6 +586,10 @@ def list_assignments(
         requested_v2_scenario_id = assessment.service_desk_scenario_id
         requested_v2_context = (v2_module_key, v2_assessment_key)
         requested_v2_completed = activity.status == "passed"
+        try:
+            enforce_beginner_module_policy(db, current_student, v2_module_key, module=module)
+        except HTTPException as exc:
+            requested_v2_policy_error = exc
     progression = build_service_desk_progression(db, current_student)
     ensure_assigned_scenarios(db, current_student, progression)
     rows = (
@@ -544,12 +605,48 @@ def list_assignments(
         .order_by(ServiceDeskAssignment.id)
         .all()
     )
+    if requested_v2_policy_error:
+        if not any(
+            assignment.scenario_id == requested_v2_scenario_id
+            and _resumable_v2_attempt(
+                db, current_student.id, assignment, requested_v2_context,
+            )
+            for assignment, _ in rows
+        ):
+            raise requested_v2_policy_error
+        requested_v2_resume_only = True
     result = []
     for assignment, scenario in rows:
-        if _assignment_is_v2_curriculum(
-            assignment
-        ) and not student_has_v2_access(current_student):
-            continue
+        resume_only = False
+        resumable = None
+        assigned_context = _assigned_v2_context(assignment)
+        if _assignment_is_v2_curriculum(assignment):
+            if not student_has_v2_access(current_student) or assigned_context is None:
+                continue
+            try:
+                _v2_launch_context(
+                    db, current_student, assignment, *assigned_context,
+                )
+            except HTTPException:
+                continue
+            try:
+                enforce_beginner_module_policy(db, current_student, assigned_context[0])
+            except HTTPException:
+                resumable = _resumable_v2_attempt(
+                    db, current_student.id, assignment, assigned_context,
+                )
+                if resumable is None:
+                    continue
+                resume_only = True
+        if requested_v2_resume_only and assignment.scenario_id == requested_v2_scenario_id:
+            if assigned_context is not None and assigned_context != requested_v2_context:
+                continue
+            resumable = _resumable_v2_attempt(
+                db, current_student.id, assignment, requested_v2_context,
+            )
+            if resumable is None:
+                continue
+            resume_only = True
         access = scenario_access(progression, scenario.stable_key)
         if assignment.scenario_id == requested_v2_scenario_id:
             # Legacy guided history for the same stable scenario is not V2
@@ -570,13 +667,12 @@ def list_assignments(
         if assignment.mode == "learning":
             access = {**access, "experience_mode": "guided"}
         if _assignment_is_v2_curriculum(assignment) and requested_v2_context is None:
-            parts = assignment.assigned_by.split(":", 2)
-            if len(parts) == 3:
+            if assigned_context is not None:
                 owned_activity = db.query(V2ModuleActivity).filter_by(
                     student_id=current_student.id,
-                    module_key=parts[1],
+                    module_key=assigned_context[0],
                     activity_type="service_desk",
-                    ref_key=parts[2],
+                    ref_key=assigned_context[1],
                 ).one_or_none()
                 v2_completed = bool(
                     owned_activity and owned_activity.status == "passed"
@@ -588,6 +684,14 @@ def list_assignments(
                         "assessment" if v2_completed else "guided"
                     ),
                 }
+        if resume_only:
+            access = {
+                **access,
+                "unlocked": True,
+                "experience_mode": resumable.experience_mode,
+                "topic_blocked": False,
+                "unavailable_reason": None,
+            }
         if not access["unlocked"]:
             continue
         version = (
@@ -599,15 +703,13 @@ def list_assignments(
             .order_by(ServiceDeskScenarioVersion.version_number.desc())
             .first()
         )
-        latest_attempt = None
+        latest_attempt = resumable
         desired_context = None
-        if _assignment_is_v2_curriculum(assignment):
-            parts = assignment.assigned_by.split(":", 2)
-            if len(parts) == 3:
-                desired_context = (parts[1], parts[2])
+        if assigned_context is not None:
+            desired_context = assigned_context
         elif assignment.scenario_id == requested_v2_scenario_id:
             desired_context = requested_v2_context
-        if version:
+        if version and latest_attempt is None:
             candidates = (
                 db.query(ServiceDeskAttempt)
                 .join(
@@ -710,6 +812,7 @@ def list_assignments(
                 ),
                 "assigned_by": assignment.assigned_by,
                 "assigned_at": assignment.assigned_at,
+                "resumable_only": resume_only,
                 **access,
                 "difficulty_label": difficulty_label,
                 "difficulty_stars": difficulty_stars,
@@ -852,6 +955,21 @@ def start_attempt(
         v2_module_key,
         v2_assessment_key,
     )
+    if v2_context:
+        try:
+            enforce_beginner_module_policy(
+                db, current_student, v2_context[0],
+            )
+        except HTTPException:
+            resumable = _resumable_v2_attempt(
+                db, current_student.id, assignment, v2_context,
+            )
+            if resumable is None:
+                raise
+            enforce_beginner_module_policy(
+                db, current_student, v2_context[0], existing_trusted=True,
+            )
+            return _json_response(_attempt_dict(resumable), 200)
     scenario = db.get(ServiceDeskScenario, assignment.scenario_id)
     if not scenario or scenario.status != "active":
         raise HTTPException(404, "Assignment not found")

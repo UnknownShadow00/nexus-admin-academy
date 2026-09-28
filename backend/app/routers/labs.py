@@ -278,6 +278,9 @@ def _v2_run_context(db: Session, student: Student, run: LabRun):
     ).one_or_none()
     if module is None or assessment is None:
         raise HTTPException(status_code=404, detail=V2_UNAVAILABLE_DETAIL)
+    enforce_beginner_module_policy(
+        db, student, module.module_key, module=module, existing_trusted=True,
+    )
     return activity, assessment, module
 
 
@@ -319,7 +322,7 @@ def _v2_lab_assessment(
     ).one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="This practical is not available.")
-    enforce_beginner_module_policy(db, student.id, module_key, module=row[1])
+    enforce_beginner_module_policy(db, student, module_key, module=row[1])
     return row
 
 
