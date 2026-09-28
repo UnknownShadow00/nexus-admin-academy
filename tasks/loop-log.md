@@ -2795,3 +2795,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/content/questions/beginner-stage-1.yaml, backend/content/questions/beginner-stage-2.yaml, backend/content/questions/beginner-stage-3.yaml, backend/tests/test_v2_beginner_stages.py, docs/phase-3a-editorial-review.md, tasks/loop-log.md
 - Result: PASS — all three source and learner-view banks use all four positions with 3–4 correct answers per position; no five-item checkpoint has more than two correct answers in one position. Original correct answers preserved; 107 focused tests, Ruff, compileall, and high-severity dependency audit gates passed. Full backend rerun and exact-head CI in progress.
 - Next: Verify full backend and GitHub CI, resolve the rotation review thread, and obtain human editorial sign-off. Do not merge or deploy.
+
+## [2026-09-28 23:10:10 UTC] Task Completed
+- Task: Recorded human editorial approval for Nexus V2 beginner Stages 1–3 using exact current bank SHA-256 hashes and added focused gate coverage for validation, learner visibility, and later byte edits.
+- Files changed: backend/content/questions/editorial-approvals.yaml, backend/tests/test_v2_beginner_stages.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
+- Result: Partial — hashes/counts/date/status/note verified; frontend tests (115) and build passed; review threads remain resolved. Local backend validation could not start because SQLAlchemy/project dependencies are absent; npm audit reports one moderate undici advisory. Production operations were not run.
+- Next: Run exact-head GitHub CI and the full requested backend/dependency regression where tooling is available; verify production revision and cohort state read-only. Do not merge or deploy.

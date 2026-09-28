@@ -6,6 +6,7 @@ import hashlib
 from pathlib import Path
 import re
 
+import pytest
 import yaml
 
 from conftest import auth_headers, enroll_v2, make_client, make_student
@@ -21,7 +22,9 @@ from app.models.v2_interaction import V2InteractionDefinition
 from app.routers.flashcards import router as flashcards_router
 from app.routers.v2_curriculum import router
 from app.services.v2_beginner_path import STAGE_KEYS
-from app.services.v2_content_loader import _beginner_question_rows, load_module, valid_external_url
+from app.services.v2_content_loader import (
+    ContentValidationError, _beginner_question_rows, load_module, valid_external_url,
+)
 from app.services.v2_curriculum_service import entry_view, resource_activity
 from app.services.v2_interaction_loader import load_interactions
 from app.services.v2_interaction_service import validate_definition
@@ -62,10 +65,17 @@ def _load(db, tmp_path):
     load_interactions(db, path=str(INTERACTIONS), commit=True)
 
 
-def test_beginner_banks_remain_draft_without_human_approval(db, tmp_path):
+def test_beginner_banks_require_exact_human_approval_bytes(db, tmp_path):
     manifest = yaml.safe_load((ROOT / "content/questions/editorial-approvals.yaml").read_text())
-    assert not any(row["filename"].startswith("beginner-stage-") for row in manifest["approvals"])
-    load_module(db, commit=True)
+    approvals = {row["filename"]: row for row in manifest["approvals"] if row["filename"].startswith("beginner-stage-")}
+    assert set(approvals) == {f"beginner-stage-{stage}.yaml" for stage in range(1, 4)}
+
+    unreviewed = tmp_path / "unreviewed-questions"
+    unreviewed.mkdir()
+    for stage in range(1, 4):
+        bank = ROOT / f"content/questions/beginner-stage-{stage}.yaml"
+        (unreviewed / bank.name).write_bytes(bank.read_bytes())
+    load_module(db, questions_dir=str(unreviewed), commit=True)
     for stage in range(1, 4):
         bank = yaml.safe_load((ROOT / f"content/questions/beginner-stage-{stage}.yaml").read_text())
         quiz = db.query(Quiz).filter_by(title=bank["quiz_title"]).one()
@@ -77,14 +87,26 @@ def test_beginner_banks_remain_draft_without_human_approval(db, tmp_path):
     assert old.status == "published" and old.editorial_status == "validated"
     assert old.answer_keys_validated and old.explanations_complete
 
-    # A future reviewed manifest uses the existing exact-byte approval gate.
-    disposable = _disposable_approval_dir(tmp_path)
-    load_module(db, questions_dir=str(disposable), commit=True)
+    approved = tmp_path / "approved-questions"
+    approved.mkdir()
+    for stage in range(1, 4):
+        bank = ROOT / f"content/questions/beginner-stage-{stage}.yaml"
+        (approved / bank.name).write_bytes(bank.read_bytes())
+    (approved / "editorial-approvals.yaml").write_text(
+        yaml.safe_dump({"approvals": list(approvals.values())}, allow_unicode=True), encoding="utf-8"
+    )
+    load_module(db, questions_dir=str(approved), commit=True)
     for stage in range(1, 4):
         bank = yaml.safe_load((ROOT / f"content/questions/beginner-stage-{stage}.yaml").read_text())
         quiz = db.query(Quiz).filter_by(title=bank["quiz_title"]).one()
         assert quiz.status == "published" and quiz.editorial_status == "validated"
         assert quiz.answer_keys_validated and quiz.explanations_complete
+        assert quiz.show_in_practice_library is False
+
+    changed_bank = approved / "beginner-stage-1.yaml"
+    changed_bank.write_bytes(changed_bank.read_bytes() + b"\n# unapproved edit\n")
+    with pytest.raises(ContentValidationError, match="content changed after editorial approval"):
+        load_module(db, questions_dir=str(approved), commit=True)
 
 
 def test_beginner_answer_positions_are_varied_and_fixed_choice_cannot_pass():

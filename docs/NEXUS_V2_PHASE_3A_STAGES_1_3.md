@@ -1,6 +1,6 @@
 # Nexus V2 Phase 3A — beginner A+ foundation, Stages 1–3
 
-Status: authoring and automated validation complete; human editorial approval pending. This is a new versioned Nexus V2 path, not a conversion of legacy Weeks or of the existing A+ exam modules. Production content loading is prohibited until human editorial sign-off is recorded.
+Status: authoring, automated validation, and human editorial approval complete for Stages 1–3. This is a new versioned Nexus V2 path, not a conversion of legacy Weeks or of the existing A+ exam modules. Production content loading remains a separate, explicitly gated operation.
 
 ## Path and learning objectives
 
@@ -64,7 +64,7 @@ Safety checks explicitly say to pause at damaged equipment or possible data loss
 
 ## Student journey and loading
 
-The disposable API journey creates a new learner, enables V2 only for that learner, and loads the content in an in-memory SQLite database. The test first verifies that the repository manifest leaves the new banks draft. It then uses a temporary test-only approval manifest to simulate the future human gate in that disposable database; this fixture is not production approval. The learner opens each required teaching card, passes the native interaction, passes the five-question checkpoint, and reaches Stage 1, then Stage 2, then Stage 3 mastery. It tests an incorrect interaction and a failed checkpoint followed by successful retries; the next stage stays locked until all evidence is satisfied. It also proves the optional recap and command preview are not prerequisites. The journey uses no real student account or production data.
+The disposable API journey creates a new learner, enables V2 only for that learner, and loads the content in an in-memory SQLite database. It verifies the repository approval manifest against exact bank bytes and confirms the banks are published with validated answer keys and complete explanations in the disposable database. The journey fixture uses a temporary approval manifest only to isolate that flow from repository approval records. The learner opens each required teaching card, passes the native interaction, passes the five-question checkpoint, and reaches Stage 1, then Stage 2, then Stage 3 mastery. It tests an incorrect interaction and a failed checkpoint followed by successful retries; the next stage stays locked until all evidence is satisfied. It also proves the optional recap and command preview are not prerequisites. The journey uses no real student account or production data.
 
 Content files are loaded through the existing `load_module` pipeline; `load_interactions(db, path="content/interactions/nexus-beginner-aplus-v1.yaml")` is a separate explicit pilot operation. There is no new migration. The tests use the 0075 schema models in disposable databases. Production code and database remain at the separately controlled 0073 deployment baseline; this task performs no deploy, Alembic command against production, content load into production, V2 cohort enablement, or student migration.
 
