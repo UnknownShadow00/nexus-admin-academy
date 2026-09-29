@@ -30,7 +30,7 @@ The versioned source files are `backend/content/certifications/nexus_beginner_ap
 
 Stage 2 also has optional `res.nexus.beginner.s2.hardware_software_recap`. Stage 3 has optional `interaction.nexus.beginner.s3.whoami_preview` (command/output recognition). Neither is a prerequisite.
 
-All nine checkpoints explicitly set `pass_percent: 80`; the database default remains 70 and published assessments are untouched. Each group has exactly five questions with one defensible answer and an explanation. The three versioned YAML question banks are imported through the existing question importer as draft banks. They have no entries in the production editorial approval manifest, so loading source files alone cannot publish them or mark their answer keys and explanations validated. A future human approval must add an exact-byte hash and question count to that manifest through the existing approval gate.
+All nine checkpoints explicitly set `pass_percent: 80`; the database default remains 70 and published assessments are untouched. Each group has exactly five questions with one defensible answer and an explanation. The three versioned YAML question banks have validated entries in `editorial-approvals.yaml`, bound to the reviewed bytes by SHA-256 and question count. Loading these source files applies those approvals and publishes the banks; production content loading remains a separate gated operation.
 
 ## Mastery and navigation
 
