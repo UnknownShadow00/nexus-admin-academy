@@ -2801,3 +2801,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/content/questions/editorial-approvals.yaml, backend/tests/test_v2_beginner_stages.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
 - Result: Partial — hashes/counts/date/status/note verified; frontend tests (115) and build passed; review threads remain resolved. Local backend validation could not start because SQLAlchemy/project dependencies are absent; npm audit reports one moderate undici advisory. Production operations were not run.
 - Next: Run exact-head GitHub CI and the full requested backend/dependency regression where tooling is available; verify production revision and cohort state read-only. Do not merge or deploy.
+
+## [2026-09-29 00:02:00 UTC] Task Completed
+- Task: Recorded exact-byte human approval for Nexus V2 beginner Stages 1–3; covered editorial gate and learner visibility; preserved legacy Daily Review cards while keeping the V2 beginner review scoped to its own five-card queue.
+- Files changed: backend/content/questions/editorial-approvals.yaml, backend/tests/test_v2_beginner_stages.py, backend/tests/test_flashcards.py, backend/app/routers/flashcards.py, frontend/src/services/api.js, frontend/src/components/FlashcardReviewPanel.jsx, frontend/src/pages/v2/V2LearningPage.jsx, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
+- Result: Pass locally — full backend suite 1312 passed/2 skipped before the review-thread fix; focused beginner/flashcard tests 5 passed after it; frontend tests 115 passed; frontend build, Ruff, compileall, pip-audit, exact hashes, production read-only safety checks, and Alembic one-head passed. Exact-head GitHub CI for the latest review-thread fix is pending.
+- Next: Verify latest-head GitHub CI, resolve the newly surfaced review thread after confirming the fix, and report PR #46 ready for final merge review. Do not merge or deploy.

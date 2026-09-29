@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -61,8 +62,14 @@ def _serialize_card(card: FlashcardReview, question: Question | None = None) -> 
 
 
 @router.get("/due")
-def get_due_flashcards(db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
-    beginner = beginner_path_enabled() and student_has_v2_access(current_student)
+def get_due_flashcards(
+    scope: Literal["all", "beginner"] = "all",
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    beginner = scope == "beginner"
+    if beginner and not (beginner_path_enabled() and student_has_v2_access(current_student)):
+        raise HTTPException(status_code=404, detail="This learning experience is not available.")
     limit = 5 if beginner else 20
     query = (
         db.query(FlashcardReview, Question)

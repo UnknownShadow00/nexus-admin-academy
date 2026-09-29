@@ -539,7 +539,8 @@ export const authLogout = (requestOptions) => request(() => api.post("/auth/logo
 export const authChangePassword = (data, requestOptions) =>
   requestData(() => api.post("/auth/change-password", data), requestOptions);
 
-export const getDueFlashcards = (requestOptions) => request(() => api.get("/api/flashcards/due"), requestOptions);
+export const getDueFlashcards = (requestOptions, scope = "all") =>
+  request(() => api.get("/api/flashcards/due", { params: { scope } }), requestOptions);
 export const rateFlashcard = (cardId, rating, requestOptions) =>
   request(() => api.post(`/api/flashcards/${cardId}/rate`, { rating }), requestOptions);
 

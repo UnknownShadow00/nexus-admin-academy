@@ -33,7 +33,7 @@ function studentPickedOptions(card) {
     .filter(Boolean);
 }
 
-export default function FlashcardReviewPanel() {
+export default function FlashcardReviewPanel({ scope = "all" }) {
   const [cards, setCards] = useState([]);
   const [index, setIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -46,7 +46,7 @@ export default function FlashcardReviewPanel() {
     const loadCards = async () => {
       setLoading(true);
       try {
-        const response = await getDueFlashcards({ suppressToast: true });
+        const response = await getDueFlashcards({ suppressToast: true }, scope);
         if (active) {
           setCards(normalizeCards(response));
           setIndex(0);
@@ -64,7 +64,7 @@ export default function FlashcardReviewPanel() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [scope]);
 
   const card = cards[index];
   const options = useMemo(() => optionEntries(card), [card]);

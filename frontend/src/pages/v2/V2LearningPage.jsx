@@ -59,6 +59,6 @@ export default function V2LearningPage() {
         })}
       </div>
     </section>
-    {beginner && data.modules.some((item) => item.progress.review_due) ? <section className="panel" aria-labelledby="review-heading"><h2 id="review-heading" className="text-xl font-bold">Review due</h2><p className="mt-1 mb-4 text-sm text-slate-600 dark:text-slate-300">A few questions you missed are ready to revisit. Review never blocks your stage.</p><FlashcardReviewPanel /></section> : null}
+    {beginner && data.modules.some((item) => item.progress.review_due) ? <section className="panel" aria-labelledby="review-heading"><h2 id="review-heading" className="text-xl font-bold">Review due</h2><p className="mt-1 mb-4 text-sm text-slate-600 dark:text-slate-300">A few questions you missed are ready to revisit. Review never blocks your stage.</p><FlashcardReviewPanel scope="beginner" /></section> : null}
   </main>;
 }
