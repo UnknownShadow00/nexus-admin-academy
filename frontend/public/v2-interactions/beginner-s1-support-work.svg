@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="220" viewBox="0 0 720 220" role="img" aria-labelledby="t d">
+  <title id="t">A simple support conversation</title><desc id="d">Four connected boxes: listen, ask one question, check one safe possibility, verify with the user.</desc>
+  <rect width="720" height="220" rx="18" fill="#f8fafc"/><text x="360" y="40" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="bold" fill="#0f172a">Help in a clear order</text>
+  <g font-family="sans-serif" font-size="18" text-anchor="middle" fill="#0f172a"><rect x="25" y="82" width="145" height="75" rx="12" fill="#dbeafe"/><text x="97" y="127">1. Listen</text><rect x="200" y="82" width="145" height="75" rx="12" fill="#dcfce7"/><text x="272" y="127">2. Ask</text><rect x="375" y="82" width="145" height="75" rx="12" fill="#fef3c7"/><text x="447" y="127">3. Check</text><rect x="550" y="82" width="145" height="75" rx="12" fill="#ede9fe"/><text x="622" y="127">4. Verify</text></g>
+  <text x="360" y="193" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#334155">Tell the person what you actually found.</text>
+</svg>

@@ -2753,3 +2753,63 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/app/services/v2_interaction_loader.py, backend/tests/test_v2_interactions.py, docs/NEXUS_V2_PHASE_2_INTERACTIONS.md, tasks/loop-log.md
 - Result: Focused draft/version-history tests passed (3), Ruff and compileall passed; exact-head full backend and GitHub CI pending.
 - Next: Verify exact-head full backend and GitHub CI, reply to and resolve the review thread, and leave merge and production deployment for separate authorization.
+
+## [2026-09-27 21:49:47 UTC] Task Completed
+- Task: Authored and verified the gated Nexus V2 beginner A+ Stage 1–3 curriculum and disposable learner journey.
+- Files changed: backend/.env.example, backend/app/routers/flashcards.py, backend/app/routers/v2_curriculum.py, backend/app/services/fsrs_service.py, backend/app/services/v2_beginner_path.py, backend/app/services/v2_content_loader.py, backend/app/services/v2_curriculum_service.py, backend/content/certifications/nexus_beginner_aplus.yaml, backend/content/curriculum/nexus-beginner-aplus-v1/stage-1/01-what-it-supports.md, backend/content/curriculum/nexus-beginner-aplus-v1/stage-1/02-support-work.md, backend/content/curriculum/nexus-beginner-aplus-v1/stage-1/03-safe-thinking.md, backend/content/curriculum/nexus-beginner-aplus-v1/stage-2/01-inside.md, backend/content/curriculum/nexus-beginner-aplus-v1/stage-2/02-connections.md, backend/content/curriculum/nexus-beginner-aplus-v1/stage-2/03-files-apps.md, backend/content/curriculum/nexus-beginner-aplus-v1/stage-3/01-desktop.md, backend/content/curriculum/nexus-beginner-aplus-v1/stage-3/02-accounts-files.md, backend/content/curriculum/nexus-beginner-aplus-v1/stage-3/03-windows-care.md, backend/content/interactions/nexus-beginner-aplus-v1.yaml, backend/content/objectives/nexus-beginner-aplus-v1.yaml, backend/content/questions/beginner-stage-1.yaml, backend/content/questions/beginner-stage-2.yaml, backend/content/questions/beginner-stage-3.yaml, backend/content/questions/editorial-approvals.yaml, backend/content/resources/nexus-beginner-aplus-v1.yaml, backend/tests/test_v2_aplus_ip_module.py, backend/tests/test_v2_beginner_stages.py, docs/JOB_READY_CURRICULUM_BLUEPRINT.md, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, frontend/public/v2-interactions/beginner-s1-safe-thinking.svg, frontend/public/v2-interactions/beginner-s1-support-work.svg, frontend/public/v2-interactions/beginner-s1-supports.svg, frontend/public/v2-interactions/beginner-s2-connections.svg, frontend/public/v2-interactions/beginner-s2-files-apps.svg, frontend/public/v2-interactions/beginner-s2-inside.svg, frontend/public/v2-interactions/beginner-s3-accounts-files.svg, frontend/public/v2-interactions/beginner-s3-care.svg, frontend/public/v2-interactions/beginner-s3-desktop.svg, frontend/src/pages/v2/V2LearningPage.jsx, frontend/src/pages/v2/V2LearningPage.test.jsx, frontend/src/pages/v2/V2LessonPage.jsx, frontend/src/pages/v2/V2LessonPage.test.jsx, frontend/src/pages/v2/V2ModulePage.jsx, tasks/loop-log.md
+- Result: PASS — 1296 backend tests passed (2 skipped), 115 frontend tests passed, build/Ruff/compileall/audits and disposable migration rehearsal passed; production code and DB unchanged.
+- Next: Open the focused PR, confirm GitHub CI, and obtain human editorial review before any separately authorized production load.
+
+## [2026-09-27 22:53:54 UTC] Task Completed
+- Task: Fixed PR #46 beginner V2 practical authorization and removed premature editorial approval for Stage 1–3 question banks; replied to and resolved both findings.
+- Files changed: backend/app/routers/labs.py, backend/app/services/v2_beginner_path.py, backend/content/questions/editorial-approvals.yaml, backend/tests/test_v2_beginner_lab_policy.py, backend/tests/test_v2_beginner_stages.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
+- Result: PASS locally — 1301 backend tests passed (2 skipped), 115 frontend tests passed, frontend build, Ruff, compileall, dependency audits, disposable migration rehearsal, and zero unresolved review threads; final-head GitHub CI pending.
+- Next: Verify final-head GitHub CI and PR state; human editorial approval remains pending before any production content load. Do not merge or deploy in this task.
+
+## [2026-09-28 00:01:52 UTC] Task Completed
+- Task: Closed PR #46's remaining Service Desk authorization gap by applying the shared beginner-path policy to assignment listing and attempt starts while allowing only exact trusted in-progress V2 attempts to finish.
+- Files changed: backend/app/routers/labs.py, backend/app/routers/service_desk.py, backend/app/services/v2_beginner_path.py, backend/tests/test_v2_beginner_service_desk_policy.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
+- Result: PASS locally — 1307 backend tests passed (2 skipped), 115 frontend tests passed, all 20 Service Desk quality/test/build/typecheck tasks passed, Ruff, compileall, dependency audits, Alembic one-head, and disposable migration rehearsal passed; exact-head GitHub CI pending.
+- Next: Verify exact-head GitHub CI, reply to and resolve the final review thread, and obtain human editorial approval before any separately authorized production content load. Do not merge or deploy.
+
+## [2026-09-28 00:41:10 UTC] Task Completed
+- Task: Addressed two newly surfaced PR #46 review blockers: allow trusted V2 attempts on reused admin Service Desk assignments to resume, and validate local teaching diagrams from a backend-packaged asset manifest.
+- Files changed: backend/app/routers/service_desk.py, backend/app/services/v2_content_loader.py, backend/content/assets/v2-interactions.json, backend/tests/test_v2_beginner_service_desk_policy.py, backend/tests/test_v2_required_resource_urls.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
+- Result: PASS focused — 131 V2 authorization, resource, mastery, interaction, and Stage journey tests passed; Ruff, compileall, and a backend-only Docker image asset check passed. Full backend and exact-head GitHub CI pending.
+- Next: Verify full backend and exact-head CI, reply to and resolve the two new review threads, and keep production loading gated on human editorial approval. Do not merge or deploy.
+
+## [2026-09-28 01:15:29 UTC] Task Completed
+- Task: Closed a newly surfaced PR #46 V2 lab follow-up gap by rejecting verification and resubmission after a trusted run is submitted under the beginner switch, while preserving read-only history and mentor-reopened work.
+- Files changed: backend/app/routers/labs.py, backend/tests/test_v2_beginner_lab_policy.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
+- Result: PASS focused — 54 lab and V2 runtime tests passed, including run/activity/audit immutability checks after submission; Ruff and compileall passed. Full backend and exact-head GitHub CI pending.
+- Next: Verify full backend and exact-head CI, reply to and resolve the new lab review thread, and keep human editorial approval pending. Do not merge or deploy.
+
+## [2026-09-28 03:22:57 UTC] Task Completed
+- Task: Completed PR #46 Stage 1–3 editorial quality pass: rebalanced all 45 answer positions, improved weak distractors and explanations, corrected the Windows path example, clarified the port interaction, and documented all checkpoint reviews.
+- Files changed: backend/content/assets/v2-interactions.json, backend/content/curriculum/nexus-beginner-aplus-v1/stage-3/02-accounts-files.md, backend/content/interactions/nexus-beginner-aplus-v1.yaml, backend/content/questions/beginner-stage-1.yaml, backend/content/questions/beginner-stage-2.yaml, backend/content/questions/beginner-stage-3.yaml, backend/tests/test_v2_beginner_stages.py, docs/phase-3a-editorial-review.md, frontend/public/v2-interactions/beginner-s2-connections.svg, tasks/loop-log.md
+- Result: PASS editorial acceptance and focused tests (97), frontend tests/build (115), Ruff, compileall, dependency audit gates, and disposable migration rehearsal; full backend rerun and exact-head GitHub CI in progress. Production editorial approval remains excluded.
+- Next: Verify final full backend and GitHub CI, then obtain human editorial sign-off. Do not merge or deploy under this task.
+
+## [2026-09-28 04:06:30 UTC] Task Completed
+- Task: Corrected PR #46 answer placement against the existing beginner importer rotation after review identified a Stage 3 all-D learner-view checkpoint; updated the 45-item matrix and content test to check authored and displayed order.
+- Files changed: backend/content/questions/beginner-stage-1.yaml, backend/content/questions/beginner-stage-2.yaml, backend/content/questions/beginner-stage-3.yaml, backend/tests/test_v2_beginner_stages.py, docs/phase-3a-editorial-review.md, tasks/loop-log.md
+- Result: PASS — all three source and learner-view banks use all four positions with 3–4 correct answers per position; no five-item checkpoint has more than two correct answers in one position. Original correct answers preserved; 107 focused tests, Ruff, compileall, and high-severity dependency audit gates passed. Full backend rerun and exact-head CI in progress.
+- Next: Verify full backend and GitHub CI, resolve the rotation review thread, and obtain human editorial sign-off. Do not merge or deploy.
+
+## [2026-09-28 23:10:10 UTC] Task Completed
+- Task: Recorded human editorial approval for Nexus V2 beginner Stages 1–3 using exact current bank SHA-256 hashes and added focused gate coverage for validation, learner visibility, and later byte edits.
+- Files changed: backend/content/questions/editorial-approvals.yaml, backend/tests/test_v2_beginner_stages.py, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
+- Result: Partial — hashes/counts/date/status/note verified; frontend tests (115) and build passed; review threads remain resolved. Local backend validation could not start because SQLAlchemy/project dependencies are absent; npm audit reports one moderate undici advisory. Production operations were not run.
+- Next: Run exact-head GitHub CI and the full requested backend/dependency regression where tooling is available; verify production revision and cohort state read-only. Do not merge or deploy.
+
+## [2026-09-29 00:02:00 UTC] Task Completed
+- Task: Recorded exact-byte human approval for Nexus V2 beginner Stages 1–3; covered editorial gate and learner visibility; preserved legacy Daily Review cards while keeping the V2 beginner review scoped to its own five-card queue.
+- Files changed: backend/content/questions/editorial-approvals.yaml, backend/tests/test_v2_beginner_stages.py, backend/tests/test_flashcards.py, backend/app/routers/flashcards.py, frontend/src/services/api.js, frontend/src/components/FlashcardReviewPanel.jsx, frontend/src/pages/v2/V2LearningPage.jsx, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
+- Result: Pass locally — full backend suite 1312 passed/2 skipped before the review-thread fix; focused beginner/flashcard tests 5 passed after it; frontend tests 115 passed; frontend build, Ruff, compileall, pip-audit, exact hashes, production read-only safety checks, and Alembic one-head passed. Exact-head GitHub CI for the latest review-thread fix is pending.
+- Next: Verify latest-head GitHub CI, resolve the newly surfaced review thread after confirming the fix, and report PR #46 ready for final merge review. Do not merge or deploy.
+
+## [2026-09-29 00:52:24 UTC] Task Completed
+- Task: Finalized PR #46 human editorial approval, fixed surfaced learner-review and operator-guidance findings, verified production safety, and completed requested regression checks.
+- Files changed: backend/content/questions/editorial-approvals.yaml, backend/tests/test_v2_beginner_stages.py, backend/app/routers/flashcards.py, backend/tests/test_flashcards.py, frontend/src/services/api.js, frontend/src/components/FlashcardReviewPanel.jsx, frontend/src/pages/v2/V2LearningPage.jsx, docs/NEXUS_V2_PHASE_3A_STAGES_1_3.md, tasks/loop-log.md
+- Result: PASS — all 10 review threads resolved; local full backend 1312 passed/2 skipped; focused approval/importer/journey/mastery/interaction tests 119 passed and post-fix flashcard/stage tests 5 passed; frontend 115 passed/build passed; Ruff, compileall, npm high-severity audit, pip-audit, one-head Alembic, disposable migration rehearsal, and exact-head GitHub CI passed. Production remains at f9a92d0 and 0073_mfa_week7_curriculum_card with V2 disabled and zero Stage 1–3 quiz rows.
+- Next: None. PR remains unmerged and undeployed; do not load production content or begin Stages 4–10.

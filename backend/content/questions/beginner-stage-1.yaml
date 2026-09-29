@@ -1,0 +1,99 @@
+quiz_title: Nexus Beginner Stage 1 — Checkpoint Bank
+certification: nexus_beginner_aplus
+certification_version: nexus_beginner_aplus_v1
+domain: S1
+module: module.nexus.beginner.stage1
+questions:
+  - group: s1-supports
+    objective_code: B1.1
+    text: What does IT help people do at work?
+    choices: ["Replace every workplace tool without checking the problem", "Make each worker’s business decisions", "Write every document a business needs", "Use computers and information safely and reliably"]
+    answer: 3
+    explanation: Signing in, opening applications, and using information are technology needs IT supports; deciding business goals or replacing every tool is different work.
+    review: true
+  - group: s1-supports
+    objective_code: B1.1
+    text: Which example is hardware?
+    choices: ["A web browser", "A calendar application", "A sign-in account", "A keyboard"]
+    answer: 3
+    explanation: Hardware is a physical part you can touch.
+    review: true
+  - group: s1-supports
+    objective_code: B1.1
+    text: Which example is software?
+    choices: ["A screen", "A web browser", "A mouse", "A power cable"]
+    answer: 1
+    explanation: A browser is an application made of instructions the device runs.
+    review: true
+  - group: s1-supports
+    objective_code: B1.1
+    text: A laptop turns on, but a worker cannot sign in. Which area should support consider first?
+    choices: ["The worker’s saved files", "The keyboard hardware", "The worker's account", "The display settings"]
+    answer: 2
+    explanation: Sign-in problems often involve the account. Support should ask a few questions before deciding.
+  - group: s1-supports
+    objective_code: B1.1
+    text: A worker says a calendar will not open. What is a useful first question?
+    choices: ["Does it fail only on this device or on others too?", "Should I reinstall the calendar before asking more questions?", "Should I replace the laptop now?", "Can I mark the issue fixed before testing?"]
+    answer: 0
+    explanation: Comparing devices helps separate an application issue from a device or account issue.
+  - group: s1-support-work
+    objective_code: B1.2
+    text: What should a support technician do before changing a setting?
+    choices: ["Ask what the person expected and what happened", "Change several settings before asking", "Assume the application is broken", "Tell the person the problem is fixed"]
+    answer: 0
+    explanation: The symptom and expected result guide a safe check.
+  - group: s1-support-work
+    objective_code: B1.2
+    text: Why check one possibility at a time?
+    choices: ["It always fixes the problem", "You can tell which check helped", "It removes the need to ask questions", "It proves the user was wrong"]
+    answer: 1
+    explanation: Multiple changes at once make the cause harder to understand.
+  - group: s1-support-work
+    objective_code: B1.2
+    text: What is a help desk?
+    choices: ["A user account for signing in", "A computer repair workbench", "An application for writing documents", "A team or place where people ask for technology help"]
+    answer: 3
+    explanation: A help desk is where a person requests technology support and is connected with someone who can help.
+  - group: s1-support-work
+    objective_code: B1.2
+    text: After a safe check, what should the technician do?
+    choices: ["Assume the change worked because no error appeared", "Make another change before checking the result", "Test the result and tell the person what was found", "Close the request before the user tests it"]
+    answer: 2
+    explanation: Verification shows whether the check actually helped.
+  - group: s1-support-work
+    objective_code: B1.2
+    text: A user is confused by a support explanation. What is the best response?
+    choices: ["Use more unexplained terms", "Ignore the question", "Explain the next step in plain language", "Claim the problem is solved"]
+    answer: 2
+    explanation: Clear updates help the person know what is happening.
+  - group: s1-safe-thinking
+    objective_code: B1.3
+    text: You restarted an application but the user has not tested it. What is an honest update?
+    choices: ["It is fixed and verified", "There was never a problem", "I restarted it; the result still needs to be checked", "I completed every check"]
+    answer: 2
+    explanation: Trying a change is not proof that it solved the problem.
+  - group: s1-safe-thinking
+    objective_code: B1.3
+    text: What does it mean to verify a fix?
+    choices: ["Guess that the change worked", "Check whether the original problem is gone", "Repeat the user's complaint", "Close the request without testing"]
+    answer: 1
+    explanation: Verification compares the result with the original problem.
+  - group: s1-safe-thinking
+    objective_code: B1.3
+    text: The next change might erase a user's work. What should you do?
+    choices: ["Try it quickly", "Pause and ask an experienced technician", "Hide the risk from the user", "Tell the user it already worked"]
+    answer: 1
+    explanation: Possible data loss is a reason to stop and get appropriate help.
+  - group: s1-safe-thinking
+    objective_code: B1.3
+    text: What is escalating a problem?
+    choices: ["Passing it to someone with the right skill or permission", "Blaming the user", "Closing it without checking", "Making several random changes"]
+    answer: 0
+    explanation: Escalation is a responsible way to get the right help.
+  - group: s1-safe-thinking
+    objective_code: B1.3
+    text: Which sequence is a careful first approach to a problem?
+    choices: ["Ask what happened; check one safe possibility; test the result", "Change many settings; then ask", "Say it is fixed; then test", "Restart every device without asking"]
+    answer: 0
+    explanation: Gather the symptom, make one safe check, and verify what changed.

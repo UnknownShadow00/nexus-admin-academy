@@ -146,6 +146,37 @@ def test_daily_review_card_hides_blank_options_and_shows_all_correct_answers(db)
     assert card["quiz_title"] == "Help Desk Basics"
 
 
+def test_global_due_cards_preserve_legacy_backlog_for_beginner_learners(db, monkeypatch):
+    student = make_student(db, username="beginner_flashcard_scope")
+    legacy_quiz = _seed_quiz(db, title="Legacy Daily Review")
+    beginner_quiz = _seed_quiz(db, title="Nexus Beginner Stage 1 — Checkpoint Bank")
+    legacy_question = _seed_single_choice_question(db, legacy_quiz.id)
+    beginner_question = _seed_single_choice_question(db, beginner_quiz.id)
+    db.add_all([
+        FlashcardReview(student_id=student.id, question_id=legacy_question.id),
+        FlashcardReview(student_id=student.id, question_id=beginner_question.id),
+    ])
+    db.commit()
+    monkeypatch.setenv("V2_CURRICULUM_ENABLED", "true")
+    monkeypatch.setenv("V2_PILOT_STUDENT_IDS", str(student.id))
+    monkeypatch.setenv("V2_BEGINNER_PATH_ENABLED", "true")
+
+    global_response = client.get("/api/flashcards/due", headers=auth_headers(student))
+    assert global_response.status_code == 200
+    assert {card["quiz_title"] for card in global_response.json()["data"]} == {
+        "Legacy Daily Review", "Nexus Beginner Stage 1 — Checkpoint Bank",
+    }
+
+    beginner_response = client.get("/api/flashcards/due?scope=beginner", headers=auth_headers(student))
+    assert beginner_response.status_code == 200
+    assert [card["quiz_title"] for card in beginner_response.json()["data"]] == [
+        "Nexus Beginner Stage 1 — Checkpoint Bank",
+    ]
+
+    monkeypatch.setenv("V2_BEGINNER_PATH_ENABLED", "false")
+    assert client.get("/api/flashcards/due?scope=beginner", headers=auth_headers(student)).status_code == 404
+
+
 def test_rating_flashcard_does_not_change_quiz_score_or_award_xp(db):
     student = make_student(db)
     quiz = _seed_quiz(db)

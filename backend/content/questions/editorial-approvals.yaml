@@ -108,3 +108,24 @@ approvals:
   editorial_status: validated
   reviewed_at: '2026-09-03'
   review_note: External approved package c29667b031365cf30245ac1bf9bbc27cf6eec20f11527e0f2d7e62747583a980
+- filename: beginner-stage-1.yaml
+  quiz_title: Nexus Beginner Stage 1 — Checkpoint Bank
+  sha256: 9812091942edf5885ce2fbb9418ba006be0af8f3f05d9237810e3cd9eeece2ad
+  reviewed_question_count: 15
+  editorial_status: validated
+  reviewed_at: '2026-09-28'
+  review_note: Human editorial approval — Nexus V2 Phase 3A Stages 1–3
+- filename: beginner-stage-2.yaml
+  quiz_title: Nexus Beginner Stage 2 — Checkpoint Bank
+  sha256: 280ea340a45b6386ecdb536593ee465f1186567cc21c1f9cf7f2cddf948aafb9
+  reviewed_question_count: 15
+  editorial_status: validated
+  reviewed_at: '2026-09-28'
+  review_note: Human editorial approval — Nexus V2 Phase 3A Stages 1–3
+- filename: beginner-stage-3.yaml
+  quiz_title: Nexus Beginner Stage 3 — Checkpoint Bank
+  sha256: d4d6c1b500ccabcf0b8e46a0d8a07326072d337848a7fe5998859f35993ad363
+  reviewed_question_count: 15
+  editorial_status: validated
+  reviewed_at: '2026-09-28'
+  review_note: Human editorial approval — Nexus V2 Phase 3A Stages 1–3

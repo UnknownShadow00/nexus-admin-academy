@@ -1,0 +1,186 @@
+# Stable keys and immutable version 1. Pilot load is explicit.
+interactions:
+  - key: interaction.nexus.beginner.s1.supports
+    version: 1
+    type: matching
+    module_key: module.nexus.beginner.stage1
+    lesson_key: lesson.nexus.beginner.s1.supports
+    title: Match the problem area
+    instructions: Match each thing to a plain description.
+    required: true
+    status: published
+    display_order: 1
+    config:
+      pairs:
+        - {id: hardware, left: Hardware, right_id: physical, right: A physical part you can touch}
+        - {id: software, left: Software, right_id: instructions, right: Instructions a device runs}
+        - {id: account, left: Account, right_id: sign_in, right: A person's way to sign in}
+      explanation: Hardware is physical; software runs on it; an account identifies a person.
+      reveal_correct: true
+  - key: interaction.nexus.beginner.s1.support_work
+    version: 1
+    type: ordering
+    module_key: module.nexus.beginner.stage1
+    lesson_key: lesson.nexus.beginner.s1.support_work
+    title: Put a support conversation in order
+    instructions: Move the steps into a helpful order.
+    required: true
+    status: published
+    display_order: 2
+    config:
+      steps:
+        - {id: listen, text: Listen to what the person expected and what happened.}
+        - {id: ask, text: Ask one clear question about the problem.}
+        - {id: check, text: Check one safe possibility.}
+        - {id: verify, text: Test the result with the person and report what you know.}
+      explanation: Learn the symptom before changing anything; verify after a check.
+      reveal_correct: true
+  - key: interaction.nexus.beginner.s1.safe_thinking
+    version: 1
+    type: safe_action
+    module_key: module.nexus.beginner.stage1
+    lesson_key: lesson.nexus.beginner.s1.safe_thinking
+    title: Choose an honest update
+    instructions: Choose what you would say next.
+    required: true
+    status: published
+    display_order: 3
+    config:
+      scenario: You restarted an application, but the user has not tested it yet. What should you report?
+      choices:
+        - {id: honest, label: I restarted it; the user still needs to confirm it works.}
+        - {id: fixed, label: The issue is fixed and verified.}
+        - {id: silent, label: Say nothing and close the request.}
+      correct_choice_id: honest
+      safety_critical: true
+      explanation: Trying a change is not proof it worked. Record the action and say verification is pending.
+      reveal_correct: true
+  - key: interaction.nexus.beginner.s2.inside
+    version: 1
+    type: matching
+    module_key: module.nexus.beginner.stage2
+    lesson_key: lesson.nexus.beginner.s2.inside
+    title: Match the part to its job
+    instructions: Focus on function, not model numbers.
+    required: true
+    status: published
+    display_order: 1
+    config:
+      pairs:
+        - {id: cpu, left: CPU, right_id: process, right: Processes instructions}
+        - {id: ram, left: RAM, right_id: work, right: Holds active work for a short time}
+        - {id: storage, left: Storage, right_id: keep, right: Keeps saved files after power is off}
+      explanation: The CPU processes; RAM is short-term working space; storage persists.
+      reveal_correct: true
+  - key: interaction.nexus.beginner.s2.connections
+    version: 1
+    type: image_identification
+    module_key: module.nexus.beginner.stage2
+    lesson_key: lesson.nexus.beginner.s2.connections
+    title: Identify a basic port
+    instructions: Read the numbered shape descriptions or look at the diagram, then choose what fits port 1.
+    required: true
+    status: published
+    display_order: 2
+    config:
+      image_url: /v2-interactions/beginner-s2-connections.svg
+      image_alt: Simplified teaching diagram of three numbered ports. Port 1 is a short horizontal rectangular opening with a narrow bar inside. Port 2 is wider with angled sides. Port 3 is round. These are teaching shapes; real ports vary by device, so check the label and never force a plug.
+      question: What would commonly connect to port 1?
+      choices:
+        - {id: keyboard, label: A keyboard with a matching USB plug}
+        - {id: monitor, label: A monitor using an HDMI plug}
+        - {id: headphones, label: Headphones using a round audio plug}
+      correct_choice_id: keyboard
+      explanation: In this teaching diagram, port 1 is a common USB shape with a narrow bar inside, so a keyboard with a matching USB plug can use it. Real ports vary by device; check the label and never force a plug.
+      reveal_correct: true
+  - key: interaction.nexus.beginner.s2.files_apps
+    version: 1
+    type: typed_answer
+    module_key: module.nexus.beginner.stage2
+    lesson_key: lesson.nexus.beginner.s2.files_apps
+    title: Recall the saved-information term
+    instructions: Type one word from the lesson.
+    required: true
+    status: published
+    display_order: 3
+    config:
+      question: What do we call saved information such as a document or photo?
+      accepted_answers: [file, a file]
+      case_sensitive: false
+      explanation: A file is saved information; a folder groups files; an application opens or creates them.
+      reveal_correct: true
+  - key: interaction.nexus.beginner.s3.desktop
+    version: 1
+    type: matching
+    module_key: module.nexus.beginner.stage3
+    lesson_key: lesson.nexus.beginner.s3.desktop
+    title: Operating system or application?
+    instructions: Match each example to what it is.
+    required: true
+    status: published
+    display_order: 1
+    config:
+      pairs:
+        - {id: windows, left: Windows, right_id: operating_system, right: The operating system}
+        - {id: browser, left: Web browser, right_id: application, right: An application for websites}
+      explanation: Windows manages the computer; the browser runs on it.
+      reveal_correct: true
+  - key: interaction.nexus.beginner.s3.accounts_files
+    version: 1
+    type: ordering
+    module_key: module.nexus.beginner.stage3
+    lesson_key: lesson.nexus.beginner.s3.accounts_files
+    title: Find a file without guessing
+    instructions: Put these simple steps in order.
+    required: true
+    status: published
+    display_order: 2
+    config:
+      steps:
+        - {id: ask, text: Ask which user account and file are affected.}
+        - {id: explorer, text: Open File Explorer in that user's account.}
+        - {id: folder, text: Follow the folder path to the file.}
+        - {id: confirm, text: Confirm with the user that it is the file they meant.}
+      explanation: Identify the user and path before changing or moving anything.
+      reveal_correct: true
+  - key: interaction.nexus.beginner.s3.whoami_preview
+    version: 1
+    type: command_output
+    module_key: module.nexus.beginner.stage3
+    lesson_key: lesson.nexus.beginner.s3.accounts_files
+    title: Optional preview — read an account name
+    instructions: You do not need to run a command. Just read the example output.
+    required: false
+    status: published
+    display_order: 3
+    config:
+      command: whoami
+      output: 'LAPTOP-17\Sam'
+      question: Which part names the account currently running the command?
+      choices:
+        - {id: sam, label: Sam}
+        - {id: laptop, label: LAPTOP-17}
+        - {id: both, label: Neither part names an account}
+      correct_choice_id: sam
+      explanation: In this example output, Sam is the account name after the backslash. Running commands comes later.
+      reveal_correct: true
+  - key: interaction.nexus.beginner.s3.care
+    version: 1
+    type: safe_action
+    module_key: module.nexus.beginner.stage3
+    lesson_key: lesson.nexus.beginner.s3.care
+    title: Choose a safe Windows action
+    instructions: Choose what you would do before a restart.
+    required: true
+    status: published
+    display_order: 4
+    config:
+      scenario: A user has an unsaved document open. An update asks for a restart. What should you do first?
+      choices:
+        - {id: ask_save, label: Ask the user to save their work and agree on a safe time.}
+        - {id: restart_now, label: Restart immediately without asking.}
+        - {id: disable_updates, label: Turn off all future updates.}
+      correct_choice_id: ask_save
+      safety_critical: true
+      explanation: A restart may close unsaved work. Confirm timing and follow the workplace update process.
+      reveal_correct: true

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="260" viewBox="0 0 720 260" role="img" aria-labelledby="t d">
+  <title id="t">A user account and a file path</title><desc id="d">An account named Sam has a Documents folder containing Notes and a plan.txt file. Permission controls who may change it.</desc>
+  <rect width="720" height="260" rx="18" fill="#f8fafc"/><text x="360" y="40" text-anchor="middle" font-family="sans-serif" font-size="23" font-weight="bold" fill="#0f172a">Who is signed in? Where is the file?</text>
+  <g font-family="sans-serif" font-size="18" text-anchor="middle" fill="#0f172a"><rect x="35" y="90" width="145" height="85" rx="12" fill="#dbeafe"/><text x="107" y="139">Account: Sam</text><rect x="210" y="90" width="145" height="85" rx="12" fill="#e0f2fe"/><text x="282" y="139">Documents</text><rect x="385" y="90" width="145" height="85" rx="12" fill="#fef3c7"/><text x="457" y="139">Notes folder</text><rect x="560" y="90" width="125" height="85" rx="12" fill="#dcfce7"/><text x="622" y="139">plan.txt</text></g>
+  <text x="360" y="221" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#334155">A path shows the folder chain. Ask for permission before changing a file.</text>
+</svg>

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 from urllib.parse import urlsplit
 
 from sqlalchemy import func, or_
@@ -90,6 +91,9 @@ def _safe_url(value: str | None) -> str | None:
     if not value:
         return None
     parsed = urlsplit(value)
+    if not parsed.scheme and not parsed.netloc and not parsed.query and not parsed.fragment:
+        if re.fullmatch(r"/v2-interactions/[a-z0-9-]+\.svg", parsed.path):
+            return value
     return value if parsed.scheme in {"http", "https"} and parsed.netloc else None
 
 
@@ -448,6 +452,9 @@ def module_view(db: Session, student_id: int, module_key: str) -> dict:
 
 
 def entry_view(db: Session, student_id: int) -> dict:
+    from app.services.v2_beginner_path import BEGINNER_VERSION, beginner_path_enabled, stage_lock_reason
+
+    beginner = beginner_path_enabled()
     modules = db.query(CertificationModule).join(
         CertificationVersion, CertificationVersion.id == CertificationModule.certification_version_id
     ).filter(CertificationModule.active.is_(True)).order_by(
@@ -455,6 +462,9 @@ def entry_view(db: Session, student_id: int) -> dict:
     ).all()
     items = []
     for module in modules:
+        version = db.get(CertificationVersion, module.certification_version_id)
+        if (version.version_key == BEGINNER_VERSION) != beginner:
+            continue
         if not _lessons(db, module.id):
             continue
         # Keep existing draft modules hidden. Future authored interaction/apply
@@ -472,12 +482,14 @@ def entry_view(db: Session, student_id: int) -> dict:
             "route": f"/learning-v2/modules/{module.module_key}/explain/{prompt['key']}",
         } for prompt in reversed(view["explain_prompts"])
             if prompt["progress"]["status"] != "not_started"), None)
+        lock_reason = stage_lock_reason(db, student_id, module.module_key) if beginner else None
         items.append({
             "certification": view["certification"], "module": view["module"],
             "progress": view["progress"], "continue": view["continue"],
             "explain_feedback": explain_feedback,
+            "locked": bool(lock_reason), "lock_reason": lock_reason,
         })
-    current = next((item for item in items if not item["progress"]["module_complete"]), None)
+    current = next((item for item in items if not item["locked"] and not item["progress"]["module_complete"]), None)
     return {"modules": items, "current": current or (items[-1] if items else None)}
 
 
@@ -510,6 +522,9 @@ def resolve_continue(view: dict) -> dict:
     else in the module is actionable.
     """
     module_key = view["module"]["key"]
+    from app.services.v2_beginner_path import STAGE_KEYS
+
+    beginner_stage = module_key in STAGE_KEYS
     blocked: dict | None = None
 
     def _remember_blocked(item: dict) -> None:
@@ -544,7 +559,7 @@ def resolve_continue(view: dict) -> dict:
                 "status": required_interaction["progress"]["status"],
                 "estimated_minutes": None,
             }
-        if lesson["progress"]["status"] not in DONE:
+        if not beginner_stage and lesson["progress"]["status"] not in DONE:
             return {
                 "kind": "lesson", "label": "Continue learning", "title": lesson["title"],
                 "route": base, "status": lesson["progress"]["status"],
@@ -575,7 +590,7 @@ def resolve_continue(view: dict) -> dict:
             "status": module_interaction["progress"]["status"],
             "estimated_minutes": None,
         }
-    for role, label in ((V2_ACTIVITY_MODULE_QUIZ, "Take the Module Quiz"), (V2_ACTIVITY_PRACTICAL, "Start the practical"), (V2_ACTIVITY_SERVICE_DESK, "Troubleshoot a ticket")):
+    for role, label in ((V2_ACTIVITY_MODULE_QUIZ, "Take the final checkpoint" if beginner_stage else "Take the Module Quiz"), (V2_ACTIVITY_PRACTICAL, "Start the practical"), (V2_ACTIVITY_SERVICE_DESK, "Troubleshoot a ticket")):
         item = next((a for a in view["assessments"] if a["role"] == role), None)
         if item and item["progress"]["status"] not in DONE:
             if not item.get("available", False):
@@ -911,6 +926,27 @@ def finalize_assessment_attempt(db: Session, attempt: V2AssessmentAttempt, *, co
         status=attempt.status, score=attempt.score, passed=attempt.passed,
         detail={"latest_attempt_id": attempt.id},
     )
+    if attempt.module_key.startswith("module.nexus.beginner.stage"):
+        from app.services.fsrs_service import create_cards_for_review_questions, create_cards_for_wrong_answers
+
+        review_correct = {
+            row.question_id
+            for row in attempt.questions
+            if row.passed is True
+            and row.question_id is not None
+            and "review-core" in (db.get(Question, row.question_id).tags or [])
+        }
+        review_misses = {
+            row.question_id: row.submitted_answer
+            for row in attempt.questions
+            if row.passed is False
+            and row.question_id is not None
+            and "review-core" in (db.get(Question, row.question_id).tags or [])
+        }
+        if review_misses:
+            create_cards_for_wrong_answers(db, attempt.student_id, review_misses)
+        if review_correct:
+            create_cards_for_review_questions(db, attempt.student_id, review_correct)
     db.flush()
     if commit:
         db.commit()

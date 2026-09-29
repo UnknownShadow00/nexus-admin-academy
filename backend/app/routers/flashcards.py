@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -6,10 +7,12 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.flashcard import FlashcardReview
-from app.models.quiz import Question
+from app.models.quiz import Question, Quiz
 from app.models.student import Student
 from app.services.auth_service import get_current_student
 from app.services.fsrs_service import schedule_next
+from app.services.v2_access import student_has_v2_access
+from app.services.v2_beginner_path import beginner_path_enabled
 from app.utils.responses import ok
 
 router = APIRouter(prefix="/api/flashcards", tags=["flashcards"])
@@ -59,16 +62,26 @@ def _serialize_card(card: FlashcardReview, question: Question | None = None) -> 
 
 
 @router.get("/due")
-def get_due_flashcards(db: Session = Depends(get_db), current_student: Student = Depends(get_current_student)):
-    rows = (
+def get_due_flashcards(
+    scope: Literal["all", "beginner"] = "all",
+    db: Session = Depends(get_db),
+    current_student: Student = Depends(get_current_student),
+):
+    beginner = scope == "beginner"
+    if beginner and not (beginner_path_enabled() and student_has_v2_access(current_student)):
+        raise HTTPException(status_code=404, detail="This learning experience is not available.")
+    limit = 5 if beginner else 20
+    query = (
         db.query(FlashcardReview, Question)
         .join(Question, Question.id == FlashcardReview.question_id)
         .filter(FlashcardReview.student_id == current_student.id, FlashcardReview.due_date <= date.today())
-        .order_by(FlashcardReview.due_date.asc(), FlashcardReview.id.asc())
-        .limit(20)
-        .all()
     )
-    return ok([_serialize_card(card, question) for card, question in rows], total=len(rows), page=1, per_page=20)
+    if beginner:
+        query = query.join(Quiz, Quiz.id == Question.quiz_id).filter(
+            Quiz.title.like("Nexus Beginner Stage % — Checkpoint Bank")
+        )
+    rows = query.order_by(FlashcardReview.due_date.asc(), FlashcardReview.id.asc()).limit(limit).all()
+    return ok([_serialize_card(card, question) for card, question in rows], total=len(rows), page=1, per_page=limit)
 
 
 @router.post("/{card_id}/rate")

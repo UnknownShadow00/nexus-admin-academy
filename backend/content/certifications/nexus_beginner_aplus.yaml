@@ -1,0 +1,114 @@
+# A new Nexus path. It does not re-key or replace the existing A+ exam modules.
+certification:
+  cert_key: nexus_beginner_aplus
+  name: Beginner A+ Foundation
+  provider: Nexus
+  display_order: 1
+versions:
+  - version_key: nexus_beginner_aplus_v1
+    label: Beginner A+ · Version 1
+    exam_codes: []
+    is_current: true
+    source_name: Nexus original beginner curriculum
+    objectives_file: nexus-beginner-aplus-v1.yaml
+    domains:
+      - {domain_key: S1, title: "What Is IT?", display_order: 1}
+      - {domain_key: S2, title: Computer Basics, display_order: 2}
+      - {domain_key: S3, title: Operating Systems, display_order: 3}
+    modules:
+      - module_key: module.nexus.beginner.stage1
+        title: Stage 1 — What Is IT?
+        skill_promise: Understand what support technicians help with and choose honest, safe first actions.
+        certification_domain_key: S1
+        display_order: 1
+        assessments:
+          - assessment_key: assess.nexus.beginner.s1.supports
+            assessment_role: quick_check
+            title: Checkpoint — What IT supports
+            lesson_key: lesson.nexus.beginner.s1.supports
+            quiz_ref: Nexus Beginner Stage 1 — Checkpoint Bank
+            displayed_count: 5
+            pass_percent: 80
+            config: {tags_any: [s1-supports]}
+            display_order: 1
+          - assessment_key: assess.nexus.beginner.s1.support_work
+            assessment_role: quick_check
+            title: Checkpoint — Support work
+            lesson_key: lesson.nexus.beginner.s1.support_work
+            quiz_ref: Nexus Beginner Stage 1 — Checkpoint Bank
+            displayed_count: 5
+            pass_percent: 80
+            config: {tags_any: [s1-support-work]}
+            display_order: 2
+          - assessment_key: assess.nexus.beginner.s1.safe_thinking
+            assessment_role: module_quiz
+            title: Checkpoint — Think and act safely
+            quiz_ref: Nexus Beginner Stage 1 — Checkpoint Bank
+            displayed_count: 5
+            pass_percent: 80
+            config: {tags_any: [s1-safe-thinking]}
+            display_order: 3
+      - module_key: module.nexus.beginner.stage2
+        title: Stage 2 — Computer Basics
+        skill_promise: Explain what common computer parts do and make a safe first check.
+        certification_domain_key: S2
+        display_order: 2
+        assessments:
+          - assessment_key: assess.nexus.beginner.s2.inside
+            assessment_role: quick_check
+            title: Checkpoint — Inside a computer
+            lesson_key: lesson.nexus.beginner.s2.inside
+            quiz_ref: Nexus Beginner Stage 2 — Checkpoint Bank
+            displayed_count: 5
+            pass_percent: 80
+            config: {tags_any: [s2-inside]}
+            display_order: 1
+          - assessment_key: assess.nexus.beginner.s2.connections
+            assessment_role: quick_check
+            title: Checkpoint — Connections and peripherals
+            lesson_key: lesson.nexus.beginner.s2.connections
+            quiz_ref: Nexus Beginner Stage 2 — Checkpoint Bank
+            displayed_count: 5
+            pass_percent: 80
+            config: {tags_any: [s2-connections]}
+            display_order: 2
+          - assessment_key: assess.nexus.beginner.s2.files_apps
+            assessment_role: module_quiz
+            title: Checkpoint — Files and applications
+            quiz_ref: Nexus Beginner Stage 2 — Checkpoint Bank
+            displayed_count: 5
+            pass_percent: 80
+            config: {tags_any: [s2-files-apps]}
+            display_order: 3
+      - module_key: module.nexus.beginner.stage3
+        title: Stage 3 — Operating Systems
+        skill_promise: Find your way around Windows and explain safe account, file, and update choices.
+        certification_domain_key: S3
+        display_order: 3
+        assessments:
+          - assessment_key: assess.nexus.beginner.s3.desktop
+            assessment_role: quick_check
+            title: Checkpoint — The operating system and desktop
+            lesson_key: lesson.nexus.beginner.s3.desktop
+            quiz_ref: Nexus Beginner Stage 3 — Checkpoint Bank
+            displayed_count: 5
+            pass_percent: 80
+            config: {tags_any: [s3-desktop]}
+            display_order: 1
+          - assessment_key: assess.nexus.beginner.s3.accounts_files
+            assessment_role: quick_check
+            title: Checkpoint — Accounts and files
+            lesson_key: lesson.nexus.beginner.s3.accounts_files
+            quiz_ref: Nexus Beginner Stage 3 — Checkpoint Bank
+            displayed_count: 5
+            pass_percent: 80
+            config: {tags_any: [s3-accounts-files]}
+            display_order: 2
+          - assessment_key: assess.nexus.beginner.s3.care
+            assessment_role: module_quiz
+            title: Checkpoint — Windows care and safe actions
+            quiz_ref: Nexus Beginner Stage 3 — Checkpoint Bank
+            displayed_count: 5
+            pass_percent: 80
+            config: {tags_any: [s3-care]}
+            display_order: 3
