@@ -5,6 +5,7 @@ import { getV2Learning } from "../../services/api";
 import { V2Error, V2Loading } from "../../components/v2/V2PageState";
 import { statusLabel } from "../../components/v2/V2Status";
 import FlashcardReviewPanel from "../../components/FlashcardReviewPanel";
+import V2CorrectionAlerts from "../../components/v2/V2CorrectionAlerts";
 
 export default function V2LearningPage() {
   const [data, setData] = useState(null);
@@ -22,10 +23,11 @@ export default function V2LearningPage() {
   const lessons = current.progress.lessons;
   const examCode = current.certification.version.exam_codes?.[0] || current.certification.version.label;
   return <main className="mx-auto max-w-5xl space-y-6 p-4 pb-20 sm:p-6">
+    <V2CorrectionAlerts corrections={data.corrections} />
     <header>
       <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">Your learning</p>
       <h1 className="mt-1 text-3xl font-bold text-slate-950 dark:text-white">{current.certification.name}</h1>
-      <p className="mt-1 text-slate-600 dark:text-slate-300">{beginner ? "Stages 1–3 · Start here" : `${current.certification.version.label} · ${examCode}`}</p>
+      <p className="mt-1 text-slate-600 dark:text-slate-300">{beginner ? `Stages 1–${data.modules.length} · Start here` : `${current.certification.version.label} · ${examCode}`}</p>
     </header>
     <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-700 to-slate-950 p-5 text-white shadow-lg sm:p-8">
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -35,7 +37,7 @@ export default function V2LearningPage() {
           <p className="mt-3 text-blue-100">{current.module.description}</p>
           <div className="mt-5 flex flex-wrap gap-3 text-sm">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5"><BookOpen size={16} aria-hidden="true" />{beginner ? `${lessons.total} learning groups` : `${lessons.completed} of ${lessons.total} lessons marked complete`}</span>
-            {current.progress.module_complete ? <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/20 px-3 py-1.5"><CheckCircle2 size={16} aria-hidden="true" />{beginner ? "Stage mastered" : "Module mastered"}</span> : null}
+            {current.progress.module_complete ? <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/20 px-3 py-1.5"><CheckCircle2 size={16} aria-hidden="true" />{beginner ? "Stage mastered" : "Module mastered"}</span> : ["awaiting_mentor_review", "needs_correction"].includes(current.progress.status) ? <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1.5">{statusLabel(current.progress.status)}</span> : null}
           </div>
         </div>
         <Link className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-blue-800 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" to={current.continue.route}>

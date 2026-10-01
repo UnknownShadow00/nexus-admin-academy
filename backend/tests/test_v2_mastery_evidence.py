@@ -184,7 +184,7 @@ def test_non_video_opening_satisfies_exposure_but_cannot_be_watched(db, monkeypa
     assert client.post(url, json={"watched": True}, headers=auth_headers(student)).status_code == 409
     item = next(row for row in module_progress(db, student.id, MODULE)["resources"]["items"] if row["resource_key"] == non_video.resource_key)
     assert item["exposure_satisfied"] is True
-    assert item["status"] == "in_progress"
+    assert item["status"] == "viewed"
     assert item["evidence"]["watched_at"] is None
 
 

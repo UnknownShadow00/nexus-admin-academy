@@ -9,6 +9,7 @@ import { checkInStudent, getLabs, getServiceDeskProgressSummary, getStudentStats
 import { getV2Learning } from "../services/api";
 import { useV2Access } from "../hooks/useV2Access";
 import V2Status from "../components/v2/V2Status";
+import V2CorrectionAlerts from "../components/v2/V2CorrectionAlerts";
 import { TrainingDestination } from "../components/TrainingDestination";
 import { iconSizes, scoreBand } from "../utils/theme";
 import { recentActivityScore } from "../utils/recentActivityScore";
@@ -21,9 +22,9 @@ export function buildContinueTarget(v2Learning, training) {
   const v2 = v2Learning?.current;
   if (v2) {
     const next = v2.continue;
-    const activityType = ({ lesson: "Lesson", resource: "Required resource", quick_check: "Quick Check", module_quiz: "Module Quiz", practical: "Practical", service_desk: "Service Desk", explain: "Explain" })[next.kind] || "Course activity";
+    const activityType = ({ lesson: "Lesson", resource: "Required resource", quick_check: "Quick Check", module_quiz: "Module Quiz", practical: "Practical", review_pending: "Practical", correction: "Practical correction", service_desk: "Service Desk", explain: "Explain" })[next.kind] || "Course activity";
     const status = next.status || "not_started";
-    const label = ["needs_review", "failed", "passed"].includes(status)
+    const label = next.kind === "correction" ? "Fix & resubmit" : next.kind === "review_pending" ? "Awaiting mentor review" : ["needs_review", "failed", "passed"].includes(status)
       ? "Review result"
       : status === "completed" || next.kind === "complete"
         ? "Review result"
@@ -160,6 +161,7 @@ export default function StudentHome() {
           ? `${stats.name || "Student"}, here is the one thing to do next.`
           : "One clear next step at a time."}
       />
+      <V2CorrectionAlerts corrections={v2Learning?.corrections} />
 
       <section className="rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-700 p-5 text-white shadow-lg sm:p-7">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">{learningPhase?.label || "Learning Path"}</p>
@@ -175,7 +177,7 @@ export default function StudentHome() {
             <ArrowRight className="hidden shrink-0 text-blue-200 sm:block" size={20} aria-hidden="true" />
           </div>
         ) : null}
-        {v2Learning?.current ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{v2Learning.current.progress.lessons.completed} of {v2Learning.current.progress.lessons.total} lessons complete</span><strong>{v2Learning.current.progress.module_complete ? "Complete" : "In progress"}</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${v2Learning.current.progress.lessons.total ? Math.round(v2Learning.current.progress.lessons.completed / v2Learning.current.progress.lessons.total * 100) : 0}%` }} /></div></div> : training?.current_module ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{training.current_module.required_complete} of {training.current_module.required_total} required activities complete</span><strong>{training.current_module.completion_percent}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${training.current_module.completion_percent}%` }} /></div></div> : null}
+        {v2Learning?.current ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{(v2Learning.current.progress.groups?.completed ?? v2Learning.current.progress.lessons.completed)} of {(v2Learning.current.progress.groups?.total ?? v2Learning.current.progress.lessons.total)} learning groups complete</span><strong>{v2Learning.current.progress.module_complete ? "Mastered" : v2Learning.current.progress.status === "awaiting_mentor_review" ? "Awaiting mentor review" : v2Learning.current.progress.status === "needs_correction" ? "Needs correction" : "In progress"}</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${(v2Learning.current.progress.groups?.total ?? v2Learning.current.progress.lessons.total) ? Math.round((v2Learning.current.progress.groups?.completed ?? v2Learning.current.progress.lessons.completed) / (v2Learning.current.progress.groups?.total ?? v2Learning.current.progress.lessons.total) * 100) : 0}%` }} /></div></div> : training?.current_module ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{training.current_module.required_complete} of {training.current_module.required_total} required activities complete</span><strong>{training.current_module.completion_percent}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${training.current_module.completion_percent}%` }} /></div></div> : null}
         <TrainingDestination activity={v2Learning?.current ? null : training?.next_activity} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 font-bold text-blue-700 hover:bg-blue-50" to={continueTarget.to}>{continueTarget.label}</TrainingDestination>
       </section>
 

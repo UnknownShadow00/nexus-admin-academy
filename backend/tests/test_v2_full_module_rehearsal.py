@@ -146,6 +146,12 @@ def test_authenticated_full_module_rehearsal(db, monkeypatch):
         f"/api/labs/{practical.lab_template_id}/start",
         headers=headers, params=lab_params,
     ).status_code in {200, 202}
+    missing_legacy_evidence = client.post(
+        f"/api/labs/{practical.lab_template_id}/submit",
+        headers=headers, params=lab_params, json={"guided_note": {"reported": "This is not legacy evidence"}},
+    )
+    assert missing_legacy_evidence.status_code == 400
+    assert missing_legacy_evidence.json()["detail"] == "Describe the evidence you collected before submitting this practical"
     assert client.post(
         f"/api/labs/{practical.lab_template_id}/submit",
         headers=headers, params=lab_params,

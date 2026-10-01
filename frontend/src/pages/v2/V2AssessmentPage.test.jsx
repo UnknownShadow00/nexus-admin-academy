@@ -3,13 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const api = vi.hoisted(() => ({ getV2Assessment: vi.fn(), startV2AssessmentAttempt: vi.fn(), submitV2Assessment: vi.fn() }));
+const api = vi.hoisted(() => ({ getV2Assessment: vi.fn(), getV2Module: vi.fn(), startV2AssessmentAttempt: vi.fn(), submitV2Assessment: vi.fn() }));
 vi.mock("../../services/api", () => api);
 vi.mock("../../hooks/useAuth", () => ({ getCurrentStudent: () => ({ id: 7 }) }));
 import V2AssessmentPage from "./V2AssessmentPage";
 
 describe("V2AssessmentPage", () => {
-  beforeEach(() => { cleanup(); localStorage.clear(); const payload = { assessment: { key: "qc.dynamic", role: "quick_check", title: "Dynamic Quick Check", pass_percent: 60 }, attempt: { id: 99, attempt_number: 1, status: "in_progress" }, questions: [{ id: 42, type: "short_answer", question_text: "Which command shows IP settings?", options: [] }], attempts: [] }; api.getV2Assessment.mockResolvedValue({ data: payload }); api.startV2AssessmentAttempt.mockResolvedValue({ data: { ...payload, attempt: { ...payload.attempt, id: 100, attempt_number: 2 } } }); api.submitV2Assessment.mockResolvedValue({ data: { attempt_id: 99, score: 100, total: 1, passed: true, grading_state: "graded", pass_percent: 60, results: [{ question_id: 42, question_text: "Which command shows IP settings?", student_answer: "ipconfig", is_correct: true, correct_answer: null, explanation: "ipconfig displays the settings." }] } }); });
+  beforeEach(() => { cleanup(); localStorage.clear(); const payload = { assessment: { key: "qc.dynamic", role: "quick_check", title: "Dynamic Quick Check", pass_percent: 60 }, attempt: { id: 99, attempt_number: 1, status: "in_progress" }, questions: [{ id: 42, type: "short_answer", question_text: "Which command shows IP settings?", options: [] }], attempts: [] }; api.getV2Assessment.mockResolvedValue({ data: payload }); api.getV2Module.mockResolvedValue({ data: { continue: { route: "/learning-v2/modules/module.dynamic/lessons/next", label: "Continue learning" } } }); api.startV2AssessmentAttempt.mockResolvedValue({ data: { ...payload, attempt: { ...payload.attempt, id: 100, attempt_number: 2 } } }); api.submitV2Assessment.mockResolvedValue({ data: { attempt_id: 99, score: 100, total: 1, passed: true, grading_state: "graded", pass_percent: 60, results: [{ question_id: 42, question_text: "Which command shows IP settings?", student_answer: "ipconfig", is_correct: true, correct_answer: null, explanation: "ipconfig displays the settings." }] } }); });
   it("accepts a plain-language short answer and shows deterministic feedback", async () => {
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/assessments/qc.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/assessments/:assessmentKey" element={<V2AssessmentPage />} /></Routes></MemoryRouter>);
     const input = await screen.findByLabelText("Your answer");

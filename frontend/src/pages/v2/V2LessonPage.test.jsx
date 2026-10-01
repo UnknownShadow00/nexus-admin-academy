@@ -1,9 +1,9 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const api = vi.hoisted(() => ({ completeV2Lesson: vi.fn(), getV2Lesson: vi.fn(), recordV2Resource: vi.fn() }));
+const api = vi.hoisted(() => ({ completeV2Lesson: vi.fn(), getV2Lesson: vi.fn(), getV2Module: vi.fn(), recordV2Resource: vi.fn() }));
 vi.mock("../../services/api", () => api);
 import V2LessonPage from "./V2LessonPage";
 
@@ -15,7 +15,7 @@ const response = { data: {
 
 describe("V2LessonPage", () => {
   afterEach(cleanup);
-  beforeEach(() => { response.data.certification = { name: "Example Cert" }; response.data.lesson.progress.status = "not_started"; response.data.lesson.quick_check.available = true; response.data.lesson.resources[0].opened_at = null; response.data.lesson.resources[0].watched_at = null; response.data.lesson.resources[0].status = "not_started"; api.getV2Lesson.mockResolvedValue(response); api.completeV2Lesson.mockImplementation(async () => { response.data.lesson.progress.status = "completed"; return { data: { status: "completed" } }; }); api.recordV2Resource.mockImplementation(async (_module, _resource, activity) => { if (activity.opened) response.data.lesson.resources[0].opened_at = "2026-09-03T00:00:00Z"; if (activity.watched) { response.data.lesson.resources[0].watched_at = "2026-09-03T00:01:00Z"; response.data.lesson.resources[0].status = "watched"; }; return { data: {} }; }); vi.spyOn(window, "open").mockImplementation(() => null); });
+  beforeEach(() => { response.data.certification = { name: "Example Cert" }; response.data.lesson.progress.status = "not_started"; response.data.lesson.quick_check.available = true; response.data.lesson.resources[0].opened_at = null; response.data.lesson.resources[0].watched_at = null; response.data.lesson.resources[0].status = "not_started"; api.getV2Lesson.mockResolvedValue(response); api.getV2Module.mockResolvedValue({ data: { continue: { route: "/learning-v2/modules/module.dynamic/assessments/qc.dynamic", label: "Continue with Quick Check" } } }); api.completeV2Lesson.mockImplementation(async () => { response.data.lesson.progress.status = "completed"; return { data: { status: "completed" } }; }); api.recordV2Resource.mockImplementation(async (_module, _resource, activity) => { if (activity.opened) response.data.lesson.resources[0].opened_at = "2026-09-03T00:00:00Z"; if (activity.watched) { response.data.lesson.resources[0].watched_at = "2026-09-03T00:01:00Z"; response.data.lesson.resources[0].status = "watched"; }; return { data: {} }; }); vi.spyOn(window, "open").mockImplementation(() => null); });
   it("renders safe Markdown and records self-reported video viewing without mastery", async () => {
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/lessons/lesson.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/lessons/:lessonKey" element={<V2LessonPage />} /></Routes></MemoryRouter>);
     expect(await screen.findByRole("heading", { name: "Dynamic lesson" })).toBeVisible();
@@ -45,7 +45,25 @@ describe("V2LessonPage", () => {
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/lessons/lesson.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/lessons/:lessonKey" element={<V2LessonPage />} /></Routes></MemoryRouter>);
     expect(await screen.findByRole("heading", { name: "Dynamic lesson" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Mark lesson complete" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /See my next step/ })).toBeVisible();
+    expect(await screen.findByRole("link", { name: /Continue with Quick Check/ })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/assessments/qc.dynamic");
+    expect(screen.getByRole("link", { name: "Start Quick Check" })).toBeVisible();
+  });
+  it("refreshes a Nexus teaching resource and group to Viewed after opening", async () => {
+    const lessonData = structuredClone(response.data);
+    lessonData.certification.version = { key: "nexus_beginner_aplus_v1" };
+    lessonData.lesson.group_status = "not_started";
+    lessonData.lesson.resources = [{ key: "res.nexus.beginner.s4.clues", title: "Teaching card", provider: "Nexus", type: "reference", required: true, url: "/v2-interactions/beginner-s4-clues.svg", opened_at: null, status: "not_started", exposure_satisfied: false }];
+    api.getV2Lesson.mockImplementation(async () => ({ data: structuredClone(lessonData) }));
+    api.recordV2Resource.mockImplementation(async () => {
+      lessonData.lesson.resources[0] = { ...lessonData.lesson.resources[0], opened_at: "2026-09-03T00:00:00Z", status: "viewed", exposure_satisfied: true };
+      lessonData.lesson.group_status = "viewed";
+      return { data: { status: "viewed" } };
+    });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/lessons/lesson.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/lessons/:lessonKey" element={<V2LessonPage />} /></Routes></MemoryRouter>);
+    await userEvent.click(await screen.findByRole("button", { name: "View teaching card" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close teaching card" }));
+    await waitFor(() => expect(screen.getAllByText("Viewed / Opened").length).toBeGreaterThanOrEqual(2));
+    expect(screen.getByRole("button", { name: "View again" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Start Quick Check" })).toBeVisible();
   });
 });

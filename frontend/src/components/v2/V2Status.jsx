@@ -7,6 +7,9 @@ const labels = {
   passed: "Passed",
   mastered: "Mastered",
   watched: "Watched",
+  viewed: "Viewed / Opened",
+  awaiting_mentor_review: "Awaiting mentor review",
+  needs_correction: "Needs correction",
   check_required: "Check required",
   review_due: "Review due",
   optional: "Optional",
@@ -21,8 +24,8 @@ export function statusLabel(status) {
 
 export default function V2Status({ status = "not_started" }) {
   const done = ["completed", "passed", "mastered"].includes(status);
-  const waiting = ["needs_review", "watched", "check_required"].includes(status);
-  const failed = status === "failed";
+  const waiting = ["needs_review", "awaiting_mentor_review", "watched", "viewed", "check_required"].includes(status);
+  const failed = ["failed", "needs_correction"].includes(status);
   const review = status === "review_due";
   const Icon = done ? CheckCircle2 : waiting ? Clock3 : failed ? RotateCcw : Circle;
   const classes = done

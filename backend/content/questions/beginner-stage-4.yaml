@@ -1,0 +1,96 @@
+quiz_title: Nexus Beginner Stage 4 — Checkpoint Bank
+certification: nexus_beginner_aplus
+certification_version: nexus_beginner_aplus_v1
+domain: S4
+module: module.nexus.beginner.stage4
+questions:
+  - group: s4-find-protect
+    objective_code: B4.1
+    text: A named file is absent from the folder you were given. What can you report?
+    choices: ["Not seen in the folder you checked", "It is missing from the computer", "The application deleted it", "The user saved it in another folder"]
+    answer: 0
+    explanation: You checked one folder. Record that limit; another authorized location may still contain the file.
+  - group: s4-find-protect
+    objective_code: B4.1
+    text: In Documents > Work > rota.txt, what does .txt identify?
+    choices: ["The folder owner", "The signed-in account", "The file extension", "The application state"]
+    answer: 2
+    explanation: The characters after the final dot are the file extension, which hints at file type but does not prove content.
+  - group: s4-find-protect
+    objective_code: B4.1
+    text: The user names a document and the application used to open it. Which is the file?
+    choices: ["The program window", "The saved document", "The account menu", "The Work folder"]
+    answer: 1
+    explanation: A saved document is a file. The application opens it, the folder holds it, and the account identifies a user.
+  - group: s4-find-protect
+    objective_code: B4.1
+    text: You are only authorized to locate a file. Which action stays within that task?
+    choices: ["Move it to the user's Desktop", "Empty the user's Recycle Bin", "Copy it to another account", "Read its name at the supplied path"]
+    answer: 3
+    explanation: Locating requires observing the supplied path and file name. Copying, moving, and deleting change work or its location.
+  - group: s4-find-protect
+    objective_code: B4.1
+    text: An application has an unsaved note open. What should happen before a step that might close it?
+    choices: ["Close the application to retry", "Ask the user to save the note", "Assume the note saves itself", "Restart before asking the user"]
+    answer: 1
+    explanation: Ask the user to save work before a disruptive action; an open unsaved note may be lost.
+  - group: s4-access
+    objective_code: B4.2
+    text: Why check which Windows account is signed in before following a Documents path?
+    choices: ["Every account has the same files", "It proves the file is missing", "It grants access to other accounts", "The path may belong to that account"]
+    answer: 3
+    explanation: Documents can differ by account. The account name gives context, not permission to browse other users' files.
+  - group: s4-access
+    objective_code: B4.2
+    text: Windows shows Access denied at the supplied folder. What is the safe next step?
+    choices: ["Record the boundary and escalate", "Borrow the owner's password", "Change the folder permissions", "Try an admin account without approval"]
+    answer: 0
+    explanation: Access denied is a permission boundary. Document the location checked and request authorized help.
+  - group: s4-access
+    objective_code: B4.2
+    text: A coworker can technically open another person's folder. What decides whether they should?
+    choices: ["Whether they have a shared sign-in", "Whether the folder opens without error", "Whether the access is authorized", "Whether the file is in Downloads"]
+    answer: 2
+    explanation: Technical capability does not give authorization to inspect another person's files.
+  - group: s4-access
+    objective_code: B4.2
+    text: What does least privilege mean for a beginner file-location task?
+    choices: ["Use an administrator account by default", "Use only the access this check needs", "Request every user's password", "Change ownership before looking"]
+    answer: 1
+    explanation: Use the least access that the approved task needs. Wider access requires its own authorization.
+  - group: s4-access
+    objective_code: B4.2
+    text: The requested file belongs to another employee. You have no permission to inspect it. What should your note say?
+    choices: ["File broken; request replacement", "Password needed; ask a coworker", "Issue fixed; close the request", "Not authorized; ask the file owner"]
+    answer: 3
+    explanation: State the access limit and route the request to the authorized owner or support channel.
+  - group: s4-clues
+    objective_code: B4.3
+    text: A user says an application froze earlier. It is open now. Which first observation is safe?
+    choices: ["End the running process", "Reinstall the application", "Note its visible state", "Change an application setting"]
+    answer: 2
+    explanation: Observe and record the application's current state before considering any change that could interrupt work.
+  - group: s4-clues
+    objective_code: B4.3
+    text: Task Manager lists the affected application. What does that observation establish?
+    choices: ["Its process is listed", "The cause is confirmed", "The application works normally", "Its files are intact"]
+    answer: 0
+    explanation: A listed process is one clue about the current state. It does not prove the application works or identify a cause.
+  - group: s4-clues
+    objective_code: B4.3
+    text: A visible error message appears in the affected application. What belongs in the note?
+    choices: ["A guessed setting change", "A claim that Windows is damaged", "A claim the issue is resolved", "The message or a safe summary"]
+    answer: 3
+    explanation: Record the observed message accurately. A message alone is not a diagnosis or proof of resolution.
+  - group: s4-clues
+    objective_code: B4.3
+    text: A new program is suggested while you are gathering clues. What should you do?
+    choices: ["Install it from the first search result", "Record it and check workplace approval", "Use admin access to install it quietly", "Replace the affected application"]
+    answer: 1
+    explanation: Installation changes the device and requires workplace approval; Stage 4 observation does not require it.
+  - group: s4-clues
+    objective_code: B4.3
+    text: Which note is honest when the file path was checked but the user has not confirmed the result?
+    choices: ["Path checked; confirmation pending", "Path checked; problem resolved", "Path checked; application at fault", "Path checked; no further action"]
+    answer: 0
+    explanation: Separate what you observed from what the user has verified. Recommend confirmation as the next step.

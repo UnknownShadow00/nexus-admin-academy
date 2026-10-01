@@ -10,3 +10,6 @@ objectives:
   - {code: B3.1, domain_key: S3, text: Explain what an operating system does and recognize Windows desktop parts.}
   - {code: B3.2, domain_key: S3, text: Distinguish account roles and find a file using File Explorer.}
   - {code: B3.3, domain_key: S3, text: Choose safe Windows settings, restart, and update actions.}
+  - {code: B4.1, domain_key: S4, text: Locate a named file by a supplied path and protect saved and unsaved work.}
+  - {code: B4.2, domain_key: S4, text: Identify signed-in context and respect access and authorization boundaries.}
+  - {code: B4.3, domain_key: S4, text: Gather a read-only Windows or application observation and document what is reported, checked, found, and unverified.}

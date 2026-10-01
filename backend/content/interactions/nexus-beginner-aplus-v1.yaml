@@ -184,3 +184,59 @@ interactions:
       safety_critical: true
       explanation: A restart may close unsaved work. Confirm timing and follow the workplace update process.
       reveal_correct: true
+  - key: interaction.nexus.beginner.s4.find_protect
+    version: 1
+    type: ordering
+    module_key: module.nexus.beginner.stage4
+    lesson_key: lesson.nexus.beginner.s4.find_protect
+    title: Locate the supplied file safely
+    instructions: Put the safe locating steps in order. No file change is needed.
+    required: true
+    status: published
+    display_order: 1
+    config:
+      steps:
+        - {id: context, text: Confirm the authorized account, named file, and supplied path.}
+        - {id: protect, text: Notice unsaved work and leave it open; ask the user to save before any later disruptive step.}
+        - {id: follow, text: Follow the supplied path in File Explorer without moving the file.}
+        - {id: record, text: Record the folder checked and whether the named file was visible.}
+      explanation: Establish context and protect work, then inspect the specified folder and report only what you saw.
+      reveal_correct: true
+  - key: interaction.nexus.beginner.s4.access
+    version: 1
+    type: safe_action
+    module_key: module.nexus.beginner.stage4
+    lesson_key: lesson.nexus.beginner.s4.access
+    title: Respect an access boundary
+    instructions: Choose what to do after an access-denied message.
+    required: true
+    status: published
+    display_order: 2
+    config:
+      scenario: The supplied path opens, but Windows denies access to one folder. Your normal account cannot read it. What next?
+      choices:
+        - {id: escalate, label: Record the denied location and ask the authorized owner or support channel.}
+        - {id: borrow, label: Use a coworker's sign-in to check the folder.}
+        - {id: change, label: Change the folder permission until it opens.}
+      correct_choice_id: escalate
+      safety_critical: true
+      explanation: Access denied marks a permission boundary. Record what happened and request authorized help; never bypass it.
+      reveal_correct: true
+  - key: interaction.nexus.beginner.s4.clues
+    version: 1
+    type: matching
+    module_key: module.nexus.beginner.stage4
+    lesson_key: lesson.nexus.beginner.s4.clues
+    title: Match the tool to one observation
+    instructions: Match each Windows view to a read-only clue it can show.
+    required: true
+    status: published
+    display_order: 3
+    config:
+      pairs:
+        - {id: explorer, left: File Explorer, right_id: path, right: The supplied folder and file name}
+        - {id: affected_app, left: Affected application, right_id: message, right: Its visible state or error message}
+        - {id: task_manager, left: Task Manager, right_id: process, right: Whether its process is listed}
+        - {id: settings, left: Settings, right_id: option, right: The current Windows option}
+      explanation: Each view offers a different clue. Observe and record it without changing settings or ending work.
+      reveal_correct: true

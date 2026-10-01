@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.ai_usage_log import AIUsageLog
 from app.models.capstone import CapstoneRun, CapstoneTemplate
+from app.models.certification import CertificationModule
 from app.models.command_reference import CommandReference
 from app.models.evidence import EvidenceArtifact
 from app.models.incident import Incident, IncidentParticipant, IncidentTicket, RCASubmission, RootCause
@@ -60,6 +61,7 @@ class V2PracticalReviewRequest(BaseModel):
     decision: Literal["approve", "reject"]
     score: int | None = Field(default=None, ge=0, le=100)
     feedback: str = Field(min_length=1, max_length=4000)
+    rubric_results: dict[str, bool] | None = None
 
 
 @router.get("/settings/a-plus-unlock")
@@ -391,6 +393,7 @@ def list_v2_practical_reviews(db: Session = Depends(get_db)):
     lab_ids = {row.lab_template_id for row in runs.values()}
     students = {row.id: row for row in db.query(Student).filter(Student.id.in_(student_ids)).all()}
     labs = {row.id: row for row in db.query(LabTemplate).filter(LabTemplate.id.in_(lab_ids)).all()}
+    stage_titles = {row.module_key: row.title for row in db.query(CertificationModule).filter(CertificationModule.module_key.in_({activity.module_key for activity, _ in pending} or [""])).all()}
     artifacts_by_run: dict[int, list[EvidenceArtifact]] = {}
     if run_ids:
         for artifact in db.query(EvidenceArtifact).filter(
@@ -405,8 +408,11 @@ def list_v2_practical_reviews(db: Session = Depends(get_db)):
             "student_name": students.get(run.student_id).name if students.get(run.student_id) else "Unknown student",
             "lab_title": labs.get(run.lab_template_id).title if labs.get(run.lab_template_id) else "Unknown lab",
             "module_key": activity.module_key,
+            "stage_title": stage_titles.get(activity.module_key, activity.module_key),
             "assessment_key": activity.ref_key,
+            "status": "awaiting_mentor_review",
             "notes": run.notes,
+            "mentor_rubric": (labs.get(run.lab_template_id).success_criteria or {}).get("mentor_rubric", {}) if labs.get(run.lab_template_id) else {},
             "submitted_at": run.submitted_at,
             "artifacts": [
                 {
@@ -474,6 +480,18 @@ def review_v2_practical(
     if activity is None:
         raise HTTPException(status_code=409, detail="This V2 practical is not awaiting review")
 
+    lab = db.get(LabTemplate, run.lab_template_id)
+    rules = lab.required_evidence or {} if lab else {}
+    if payload.decision == "approve" and rules.get("mentor_review_required"):
+        artifact_count = db.query(EvidenceArtifact.id).filter_by(
+            submission_type="lab", submission_id=run.id, student_id=run.student_id,
+        ).count()
+        if artifact_count < int(rules.get("min_artifacts") or 0):
+            raise HTTPException(status_code=409, detail="Required practical evidence is missing")
+        rubric = (lab.success_criteria or {}).get("mentor_rubric") or {}
+        if rubric and (payload.rubric_results or {}) != dict.fromkeys(rubric, True):
+            raise HTTPException(status_code=400, detail="Confirm every mentor rubric criterion before approval")
+
     approved = payload.decision == "approve"
     score = payload.score if payload.score is not None else (100 if approved else 0)
     reviewed_at = datetime.now(timezone.utc)
@@ -485,6 +503,7 @@ def review_v2_practical(
         "evidence_review_required": False,
         "review_decision": payload.decision,
         "review_feedback": payload.feedback.strip(),
+        "rubric_results": payload.rubric_results or {},
         "reviewed_by": get_admin_username() or "admin",
         "reviewed_at": reviewed_at.isoformat(),
     }

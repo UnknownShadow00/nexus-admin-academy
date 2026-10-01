@@ -61,4 +61,18 @@ describe("V2LearningPage multi-module certification view", () => {
     expect(screen.queryByRole("link", { name: /Stage 2 — Computer Basics/ })).not.toBeInTheDocument();
     expect(screen.getByText("3 learning groups")).toBeVisible();
   });
+  it("shows Stage 4 without inventing later stage cards", async () => {
+    const stages = [1, 2, 3, 4].map((number) => moduleRow(`module.nexus.beginner.stage${number}`, `Stage ${number} — ${number === 4 ? "Everyday Windows Support" : "Foundation"}`));
+    for (const item of stages) {
+      item.certification = { name: "Beginner A+ Foundation", version: { key: "nexus_beginner_aplus_v1", label: "Beginner A+ · Version 1", exam_codes: [] } };
+      item.progress.lessons.total = 3;
+    }
+    stages[3].locked = true;
+    stages[3].lock_reason = "Finish Stage 3 before starting Stage 4.";
+    api.getV2Learning.mockResolvedValue({ data: { modules: stages, current: stages[2] } });
+    render(<MemoryRouter><V2LearningPage /></MemoryRouter>);
+    expect(await screen.findByText("Stages 1–4 · Start here")).toBeVisible();
+    expect(screen.getByText("Finish Stage 3 before starting Stage 4.")).toBeVisible();
+    expect(screen.queryByText(/Stage 5/)).not.toBeInTheDocument();
+  });
 });

@@ -125,10 +125,10 @@ def test_load_is_idempotent(db):
     for entity in ("lesson", "resource", "resource_link", "interview_prompt", "lab_template", "question"):
         assert c3["by_entity"].get(entity, {}).get("created", 0) == 0
         assert c3["by_entity"].get(entity, {}).get("updated", 0) == 0
-    # The three versioned beginner stage banks add 45 stable questions.
-    assert c3["by_entity"]["question"]["unchanged"] == 500 + 45
+    # Four versioned beginner stage banks add 60 stable questions.
+    assert c3["by_entity"]["question"]["unchanged"] == 500 + 60
     assert db.query(Question).filter(Question.quiz_id == _quiz_id(db)).count() == 40
-    assert c1["by_entity"]["question"]["created"] == 500 + 45
+    assert c1["by_entity"]["question"]["created"] == 500 + 60
 
 
 def _quiz_id(db) -> int:

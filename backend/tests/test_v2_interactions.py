@@ -91,18 +91,37 @@ def test_each_structured_type_grades_wrong_then_correct_and_allows_retry(pilot, 
     version_id = before.json()["data"]["interaction"]["version_id"]
     failed = client.post(url + "/submit", json={"version_id": version_id, "response": wrong}, headers=auth_headers(student))
     assert failed.status_code == 200
-    assert failed.json()["data"]["submission_result"]["passed"] is False
-    assert failed.json()["data"]["progress"]["status"] == "in_progress"
+    failed_data = failed.json()["data"]
+    failed_result = failed_data["submission_result"]
+    assert failed_result["passed"] is False
+    assert failed_result["score"] < 100 and "Not quite" in failed_result["feedback"]
+    assert "correct_answer" not in failed_result
+    assert "next_action" not in failed_result
+    assert failed_data["progress"]["status"] == "in_progress"
+    for saved in (failed_data["progress"]["best_result"], failed_data["progress"]["latest_result"], failed_data["progress"]["recent_attempts"][0]["result"]):
+        assert "correct_answer" not in saved
+    # Older failed snapshots may already contain a solution. Learner views must
+    # still remove it without changing the saved attempt or its retry count.
+    old_attempt = db.query(V2InteractionAttempt).filter_by(student_id=student.id, interaction_key=f"interaction.pilot.{key}").one()
+    old_attempt.result_snapshot = {**old_attempt.result_snapshot, "correct_answer": "old full solution", "feedback": "old answer explanation", "next_action": "Return to the module"}
+    db.commit()
+    history = client.get(url, headers=auth_headers(student)).json()["data"]["progress"]
+    assert history["attempt_count"] == 1
+    for saved in (history["best_result"], history["latest_result"], history["recent_attempts"][0]["result"]):
+        assert "correct_answer" not in saved and "old answer explanation" not in str(saved)
+        assert "next_action" not in saved
     passed = client.post(url + "/submit", json={"version_id": version_id, "response": correct}, headers=auth_headers(student))
     assert passed.status_code == 200
     assert passed.json()["data"]["submission_result"]["passed"] is True
     assert passed.json()["data"]["interaction"]["lesson_key"] == before.json()["data"]["interaction"]["lesson_key"]
-    assert passed.json()["data"]["submission_result"]["next_action"] == "Return to the module for your next step"
+    assert "next_action" not in passed.json()["data"]["submission_result"]
+    assert passed.json()["data"]["submission_result"]["correct_answer"]
     if key == "hardware-match":
         assert "RAM → Short-term working memory" in passed.json()["data"]["submission_result"]["correct_answer"]
     if key == "troubleshooting-order":
         assert passed.json()["data"]["submission_result"]["correct_answer"][0] == "Ask the user what changed and what they see."
     assert passed.json()["data"]["progress"]["status"] == "passed"
+    assert "correct_answer" not in passed.json()["data"]["progress"]["recent_attempts"][1]["result"]
     assert [row.attempt_number for row in db.query(V2InteractionAttempt).filter_by(student_id=student.id, interaction_key=f"interaction.pilot.{key}").order_by(V2InteractionAttempt.attempt_number)] == [1, 2]
     assert db.get(Student, student.id).total_xp == 0
 

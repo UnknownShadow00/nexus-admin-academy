@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -201,6 +202,53 @@ def _serialize_artifact(artifact: EvidenceArtifact) -> dict:
     }
 
 
+def _required_guided_evidence(db: Session, lab: LabTemplate, run: LabRun | None, notes: str) -> None:
+    """Require actual artifacts and a structured note for authored guided work."""
+    rules = lab.required_evidence or {}
+    if not rules.get("mentor_review_required"):
+        return
+    minimum = int(rules.get("min_artifacts") or 0)
+    count = db.query(EvidenceArtifact.id).filter_by(
+        submission_type="lab", submission_id=run.id if run else -1,
+        student_id=run.student_id if run else -1,
+    ).count()
+    if count < minimum:
+        raise HTTPException(status_code=400, detail=f"Upload at least {minimum} redacted screenshots before submitting")
+    for field in rules.get("note_fields") or []:
+        headings = ("Verified", "Not verified", "Verified / Not verified") if field == "Verified / Not verified" else (field,)
+        if not any(re.search(rf"(?im)^\s*{re.escape(heading)}\s*:\s*\S", notes) for heading in headings):
+            raise HTTPException(status_code=400, detail=f"Complete the {field} line in your evidence note")
+
+
+def _required_stage4_evidence(db: Session, run: LabRun | None) -> None:
+    artifact_types = {
+        kind for (kind,) in db.query(EvidenceArtifact.artifact_type).filter_by(
+            submission_type="lab", submission_id=run.id if run else -1,
+            student_id=run.student_id if run else -1,
+        )
+    }
+    if "file_path" not in artifact_types:
+        raise HTTPException(status_code=400, detail="Upload a File/path evidence screenshot before submitting")
+    if "windows_observation" not in artifact_types:
+        raise HTTPException(status_code=400, detail="Upload a Windows/application observation screenshot before submitting")
+
+
+def _stage4_guided_note(payload: LabSubmitRequest) -> str:
+    if payload.guided_note is None:
+        raise HTTPException(status_code=400, detail="Complete the Reported field")
+    fields = (
+        ("Reported", payload.guided_note.reported),
+        ("Checked", payload.guided_note.checked),
+        ("Found", payload.guided_note.found),
+        ("Verified / Not verified", payload.guided_note.verified_or_not_verified),
+        ("Next step", payload.guided_note.next_step),
+    )
+    for label, value in fields:
+        if not value.strip():
+            raise HTTPException(status_code=400, detail=f"Complete the {label} field")
+    return "\n".join(f"{label}: {value.strip()}" for label, value in fields)
+
+
 def _get_published_lab(db: Session, lab_id: int) -> LabTemplate:
     lab = db.query(LabTemplate).filter(LabTemplate.id == lab_id, LabTemplate.is_published.is_(True)).first()
     if not lab:
@@ -252,6 +300,15 @@ def _v2_run_activity(db: Session, student: Student, run: LabRun):
         (row for row in rows if (row.detail or {}).get("lab_run_id") == run.id),
         None,
     )
+
+
+def _practical_review_view(db: Session, student: Student, run: LabRun) -> dict | None:
+    activity = _v2_run_activity(db, student, run)
+    if activity is None:
+        return None
+    detail = activity.detail or {}
+    status = "awaiting_mentor_review" if activity.status == "needs_review" else "needs_correction" if detail.get("review_decision") == "reject" and activity.status in {"failed", "in_progress"} else activity.status
+    return {"status": status, "feedback": detail.get("review_feedback") if status == "needs_correction" else None}
 
 
 def _v2_run_context(db: Session, student: Student, run: LabRun):
@@ -583,6 +640,8 @@ def get_lab(
         )
         data["evidence_artifacts"] = [_serialize_artifact(artifact) for artifact in artifacts]
         data["vm_assignment"] = _serialize_vm(_assignment_for_run(db, run.id))
+        if v2_context:
+            data["review"] = _practical_review_view(db, current_student, run)
     else:
         data["evidence_artifacts"] = []
         data["vm_assignment"] = None
@@ -620,21 +679,27 @@ def start_lab(
     else:
         if run.started_at is None:
             run.started_at = datetime.now(UTC)
-        if run.status in {"assigned", "not_started"}:
+        if run.status in {"assigned", "not_started"} or (v2_context and run.status == "submitted"):
             run.status = "in_progress"
-
+            if v2_context:
+                run.submitted_at = None
+                run.final_score = None
+    db.flush()
+    if v2_context:
+        assessment, module = v2_context
+        activity = record_activity(
+            db, student_id=current_student.id, module_key=module.module_key,
+            activity_type="practical", ref_key=assessment.assessment_key,
+            status="in_progress", detail={"lab_run_id": run.id},
+            allow_regression=True,
+        )
+        activity.passed = None
+        activity.score = None
     db.commit()
     db.refresh(run)
     mark_student_active(db, current_student.id)
     if created:
         log_activity(db, current_student.id, "lab_started", lab.title, "Lab in progress")
-    if v2_context:
-        assessment, module = v2_context
-        record_activity(
-            db, student_id=current_student.id, module_key=module.module_key,
-            activity_type="practical", ref_key=assessment.assessment_key,
-            status="in_progress", detail={"lab_run_id": run.id}, commit=True,
-        )
 
     vm_data = {}
     if lab.proxmox_template_vmid:
@@ -642,7 +707,7 @@ def start_lab(
         response.status_code = 202
         vm_data = {"vm_assignment": _serialize_vm(assignment)}
 
-    return ok({"created": created, **vm_data, **_serialize_lab(lab, run)})
+    return ok({"created": created, **vm_data, **_serialize_lab(lab, run), **({"review": _practical_review_view(db, current_student, run)} if v2_context else {})})
 
 
 @router.get("/{lab_id}/vm-status")
@@ -793,11 +858,17 @@ def submit_lab(
         if run is None:
             require_week_reached(db, current_student, lab.week_number)
     is_structured_lab = (lab.lab_type or "").startswith("structured_")
-    if v2_context and not is_structured_lab and not payload.notes.strip():
+    stage4_guided = bool(v2_context and v2_context[1].module_key == "module.nexus.beginner.stage4" and v2_context[0].assessment_key == "assess.nexus.beginner.s4.windows_observation")
+    submission_notes = _stage4_guided_note(payload) if stage4_guided else payload.notes.strip()
+    if v2_context and not is_structured_lab and not stage4_guided and not submission_notes:
         raise HTTPException(
             status_code=400,
             detail="Describe the evidence you collected before submitting this practical",
         )
+    if stage4_guided:
+        _required_stage4_evidence(db, run)
+    elif v2_context and not is_structured_lab:
+        _required_guided_evidence(db, lab, run, submission_notes)
     questions = []
     if is_structured_lab:
         if not payload.answers:
@@ -871,7 +942,7 @@ def submit_lab(
 
     run.status = "submitted"
     run.submitted_at = now
-    run.notes = payload.notes.strip()
+    run.notes = submission_notes
     if is_structured_lab:
         feedback_questions = []
         correct_count = 0
@@ -891,6 +962,19 @@ def submit_lab(
     elif run.final_score is None:
         run.final_score = 10
 
+    if v2_context:
+        assessment, module = v2_context
+        practical_activity = record_activity(
+            db, student_id=current_student.id, module_key=module.module_key,
+            activity_type="practical", ref_key=assessment.assessment_key,
+            status="completed" if is_structured_lab else "needs_review",
+            passed=True if is_structured_lab else None,
+            detail={"lab_run_id": run.id, "evidence_review_required": not is_structured_lab},
+            allow_regression=True,
+        )
+        if not is_structured_lab:
+            practical_activity.passed = None
+            practical_activity.score = None
     db.commit()
     db.refresh(run)
     assignment = _assignment_for_run(db, run.id)
@@ -900,24 +984,7 @@ def submit_lab(
         background_tasks.add_task(_destroy_vm_task, assignment.id)
     mark_student_active(db, current_student.id)
     log_activity(db, current_student.id, "lab_submitted", lab.title, "Lab submitted")
-    if v2_context:
-        assessment, module = v2_context
-        practical_status = "completed" if is_structured_lab else "needs_review"
-        practical_passed = True if is_structured_lab else None
-        practical_activity = record_activity(
-            db, student_id=current_student.id, module_key=module.module_key,
-            activity_type="practical", ref_key=assessment.assessment_key,
-            status=practical_status, passed=practical_passed,
-            detail={"lab_run_id": run.id, "evidence_review_required": not is_structured_lab},
-            commit=True,
-        )
-        if not is_structured_lab:
-            # A resubmission after mentor rejection is pending again; do not
-            # leak the prior deterministic fail/score into the new review.
-            practical_activity.passed = None
-            practical_activity.score = None
-            db.commit()
-    return ok(_serialize_lab(lab, run))
+    return ok({**_serialize_lab(lab, run), **({"review": _practical_review_view(db, current_student, run)} if v2_context else {})})
 
 
 @router.post("/{lab_run_id}/evidence")

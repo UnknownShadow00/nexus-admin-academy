@@ -3,6 +3,7 @@ import { getV2Interaction, submitV2Interaction } from "../../services/api";
 import { V2Error, V2Loading } from "./V2PageState";
 import V2Status from "./V2Status";
 import { interactionRenderers } from "./V2InteractionRenderers";
+import V2NextStep from "./V2NextStep";
 
 function initialAnswer(interaction) {
   if (interaction.type === "matching") return {};
@@ -73,8 +74,8 @@ export default function V2Interaction({ moduleKey, interactionKey }) {
     {result ? <div className="rounded-lg border border-slate-200 p-4 dark:border-slate-700" role="status" aria-live="polite">
       <p className="font-semibold">{result.passed ? "Passed" : "Try again"} · {result.score}%</p>
       <p className="mt-1">{result.feedback}</p>
-      {result.correct_answer != null ? <div className="mt-2 text-sm"><p className="font-medium">Correct answer:</p>{Array.isArray(result.correct_answer) ? <ol className="ml-5 list-decimal">{result.correct_answer.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ol> : <p>{result.correct_answer}</p>}</div> : null}
-      {result.next_action ? <p className="mt-2 text-sm font-medium">Next: {result.next_action}</p> : null}
+      {result.passed && result.correct_answer != null ? <div className="mt-2 text-sm"><p className="font-medium">Correct answer:</p>{Array.isArray(result.correct_answer) ? <ol className="ml-5 list-decimal">{result.correct_answer.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ol> : <p>{result.correct_answer}</p>}</div> : null}
+      {result.passed ? <div className="mt-4"><V2NextStep moduleKey={moduleKey} showDescription /></div> : <button className="btn-secondary mt-4" type="button" onClick={() => setResult(null)}>Retry</button>}
     </div> : null}
     <p className="text-sm text-slate-500">{progress.attempt_count} attempt{progress.attempt_count === 1 ? "" : "s"} saved. You can retry without penalty.</p>
   </section>;

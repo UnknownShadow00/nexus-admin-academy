@@ -59,6 +59,8 @@ export default function AdminLabsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [reviewingRunId, setReviewingRunId] = useState(null);
+  const [rubricResults, setRubricResults] = useState({});
+  const [reviewFeedback, setReviewFeedback] = useState({});
 
   const loadTemplates = async () => {
     setLoading(true);
@@ -180,15 +182,18 @@ export default function AdminLabsPage() {
   };
 
   const handlePracticalReview = async (review, decision) => {
-    const feedback = window.prompt(
-      `${decision === "approve" ? "Approval" : "Rejection"} feedback for ${review.student_name}`,
-    );
-    if (!feedback?.trim()) return;
+    const feedback = (reviewFeedback[review.lab_run_id] || "").trim();
+    if (!feedback) { setError(`Write feedback for ${review.student_name} before ${decision === "approve" ? "approving" : "rejecting"}.`); return; }
     setReviewingRunId(review.lab_run_id);
     setError("");
     try {
-      await reviewAdminV2Practical(review.lab_run_id, { decision, feedback: feedback.trim() });
+      await reviewAdminV2Practical(review.lab_run_id, { decision, feedback, rubric_results: rubricResults[review.lab_run_id] || {} });
       await loadTemplates();
+      window.dispatchEvent(new Event("v2-practical-reviews-changed"));
+      setReviewFeedback((current) => { const next = { ...current }; delete next[review.lab_run_id]; return next; });
+      setRubricResults((current) => { const next = { ...current }; delete next[review.lab_run_id]; return next; });
+    } catch (err) {
+      setError(err?.userMessage || "The practical review could not be saved. Try again.");
     } finally {
       setReviewingRunId(null);
     }
@@ -205,6 +210,69 @@ export default function AdminLabsPage() {
           </button>
         }
       />
+
+            <section id="pending-reviews" className="panel scroll-mt-24 space-y-3 dark:border-slate-700 dark:bg-slate-900">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Pending Reviews / Grading Queue ({practicalReviews.length})</h2>
+        {error ? <p className="text-sm text-rose-700" role="alert">{error}</p> : null}
+        {practicalReviews.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">No guided practicals awaiting review.</p>
+        ) : (
+          <div className="space-y-3">
+            {practicalReviews.map((review) => (
+              <article key={review.lab_run_id} className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">{review.lab_title}</h3><p className="text-sm text-slate-500">{review.stage_title || review.module_key} · Awaiting mentor review</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">{review.student_name} · Submitted {review.submitted_at ? new Date(review.submitted_at).toLocaleString() : "recently"} · {review.submitted_at ? `${Math.max(0, Math.floor((Date.now() - new Date(review.submitted_at).getTime()) / 3600000))}h ago` : ""}</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm">{review.notes || "No evidence note supplied."}</p>
+                    {review.artifacts?.length ? (
+                      <ul className="mt-3 space-y-1 text-sm">
+                        {review.artifacts.map((artifact) => (
+                          <li key={artifact.id}>
+                            <a
+                              className="text-blue-600 underline dark:text-blue-300"
+                              href={buildApiUrl(artifact.file_url)}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {artifact.original_filename || `Evidence ${artifact.id}`}
+                            </a>
+                            <span className="ml-2 text-slate-500">({artifact.artifact_type})</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">No uploaded artifacts.</p>}
+                    {Object.entries(review.mentor_rubric || {}).length ? <fieldset className="mt-4 space-y-2"><legend className="font-semibold">Mentor rubric · confirm each criterion for approval</legend>{Object.entries(review.mentor_rubric).map(([key, description]) => <label className="flex items-start gap-2 text-sm" key={key}><input type="checkbox" checked={Boolean(rubricResults[review.lab_run_id]?.[key])} onChange={(event) => setRubricResults((current) => ({ ...current, [review.lab_run_id]: { ...current[review.lab_run_id], [key]: event.target.checked } }))} /><span><strong>{key.replaceAll("_", " ")}: </strong>{description}</span></label>)}</fieldset> : null}
+                  </div>
+                  <div className="min-w-56 space-y-3">
+                    <label className="block text-sm font-semibold" htmlFor={`feedback-${review.lab_run_id}`}>Mentor feedback</label>
+                    <textarea id={`feedback-${review.lab_run_id}`} className="input-field min-h-28 w-full" value={reviewFeedback[review.lab_run_id] || ""} onChange={(event) => setReviewFeedback((current) => ({ ...current, [review.lab_run_id]: event.target.value }))} placeholder="Explain what to correct or what was approved" />
+                    <div className="flex gap-2">
+                    <button
+                      className="btn-primary"
+                      type="button"
+                      disabled={reviewingRunId === review.lab_run_id || Object.keys(review.mentor_rubric || {}).some((key) => !rubricResults[review.lab_run_id]?.[key])}
+                      onClick={() => handlePracticalReview(review, "approve")}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="btn-danger"
+                      type="button"
+                      disabled={reviewingRunId === review.lab_run_id}
+                      onClick={() => handlePracticalReview(review, "reject")}
+                    >
+                      Reject
+                    </button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
 
       {showForm ? (
         <section className="panel space-y-4 dark:border-slate-700 dark:bg-slate-900">
@@ -412,62 +480,6 @@ export default function AdminLabsPage() {
             </tbody>
           </table>
         </div>
-      </section>
-
-      <section className="panel space-y-3 dark:border-slate-700 dark:bg-slate-900">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Guided Practical Reviews</h2>
-        {practicalReviews.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">No guided practicals awaiting review.</p>
-        ) : (
-          <div className="space-y-3">
-            {practicalReviews.map((review) => (
-              <article key={review.lab_run_id} className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold">{review.lab_title}</h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-300">{review.student_name}</p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm">{review.notes || "No evidence note supplied."}</p>
-                    {review.artifacts?.length ? (
-                      <ul className="mt-3 space-y-1 text-sm">
-                        {review.artifacts.map((artifact) => (
-                          <li key={artifact.id}>
-                            <a
-                              className="text-blue-600 underline dark:text-blue-300"
-                              href={buildApiUrl(artifact.file_url)}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              {artifact.original_filename || `Evidence ${artifact.id}`}
-                            </a>
-                            <span className="ml-2 text-slate-500">({artifact.artifact_type})</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">No uploaded artifacts.</p>}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      className="btn-primary"
-                      type="button"
-                      disabled={reviewingRunId === review.lab_run_id}
-                      onClick={() => handlePracticalReview(review, "approve")}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      className="btn-danger"
-                      type="button"
-                      disabled={reviewingRunId === review.lab_run_id}
-                      onClick={() => handlePracticalReview(review, "reject")}
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
       </section>
 
       <section className="panel space-y-3 dark:border-slate-700 dark:bg-slate-900">

@@ -20,6 +20,7 @@ STAGE_KEYS = (
     "module.nexus.beginner.stage1",
     "module.nexus.beginner.stage2",
     "module.nexus.beginner.stage3",
+    "module.nexus.beginner.stage4",
 )
 
 
