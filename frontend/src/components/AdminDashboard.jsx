@@ -1,14 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import CohortPanel from "./CohortPanel";
-import { createResource, generateQuiz } from "../services/api";
+import { createResource, generateQuiz, getAdminV2PracticalReviews } from "../services/api";
 
 export default function AdminDashboard() {
   const [quizForm, setQuizForm] = useState({ source_url: "", week_number: 1, title: "", domain_id: "1.0" });
   const [resourceForm, setResourceForm] = useState({ title: "", url: "", resource_type: "Video", week_number: 1, category: "" });
+  const [pendingCount, setPendingCount] = useState(0);
+  useEffect(() => { getAdminV2PracticalReviews({ suppressToast: true }).then(({ data }) => setPendingCount(data?.length || 0)).catch(() => setPendingCount(0)); }, []);
 
   return (
     <div className="space-y-4">
+      <Link className="panel flex items-center justify-between border-blue-200 font-semibold text-blue-700 hover:border-blue-500" to="/admin/labs#pending-reviews"><span>Pending Reviews / Grading Queue</span><span aria-label={`${pendingCount} pending reviews`}>{pendingCount} →</span></Link>
       <CohortPanel />
 
       <section className="grid gap-4 xl:grid-cols-2">

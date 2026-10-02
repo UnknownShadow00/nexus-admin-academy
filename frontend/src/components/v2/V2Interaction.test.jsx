@@ -2,7 +2,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const api = vi.hoisted(() => ({ getV2Interaction: vi.fn(), submitV2Interaction: vi.fn() }));
+const api = vi.hoisted(() => ({ getV2Interaction: vi.fn(), submitV2Interaction: vi.fn(), getV2Module: vi.fn() }));
 vi.mock("../../services/api", () => api);
 import V2Interaction from "./V2Interaction";
 
@@ -33,6 +33,7 @@ describe("V2Interaction", () => {
   afterEach(cleanup);
   beforeEach(() => {
     vi.clearAllMocks();
+    api.getV2Module.mockResolvedValue({ data: { continue: { route: "/learning-v2", label: "Continue learning" } } });
     api.submitV2Interaction.mockImplementation(async (_module, _key, _versionId, response) => ({ data: {
       ...answerData("safe_action"),
       progress: { status: "passed", attempt_count: 1, best_result: { passed: true }, passed: true },
@@ -51,6 +52,7 @@ describe("V2Interaction", () => {
 
   it("reveals readable authored answers after submission", async () => {
     await mount("matching");
+    api.getV2Module.mockResolvedValue({ data: { continue: { route: "/learning-v2/modules/module.demo/assessments/quick", label: "Continue with Quick Check", kind: "quick_check" } } });
     api.submitV2Interaction.mockResolvedValueOnce({ data: {
       ...answerData("matching"),
       progress: { status: "passed", attempt_count: 1, best_result: { passed: true }, passed: true },
@@ -61,6 +63,38 @@ describe("V2Interaction", () => {
     await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
     expect(await screen.findByText("RAM → Memory")).toBeVisible();
     expect(screen.getByText("RJ45 → Ethernet")).toBeVisible();
+    expect(await screen.findByText("Next: Continue with Quick Check")).toBeVisible();
+    expect(screen.getByRole("link", { name: /Continue with Quick Check/ })).toHaveAttribute("href", "/learning-v2/modules/module.demo/assessments/quick");
+    expect(screen.queryByText(/Return to the module for your next step/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["ordering", ["Ask the user", "Test connection"]],
+    ["safe_action", "Safe choice"],
+    ["matching", ["RAM → Memory", "RJ45 → Ethernet"]],
+  ])("keeps a failed %s solution out of the result and allows retry", async (type, solution) => {
+    await mount(type);
+    api.submitV2Interaction.mockResolvedValueOnce({ data: {
+      ...answerData(type),
+      progress: { status: "in_progress", attempt_count: 1, passed: false },
+      // A stale server response must not make a failed solution visible either.
+      submission_result: { passed: false, score: 50, feedback: "Recheck the prompt.", correct_answer: solution },
+    } });
+    if (type === "safe_action") await userEvent.click(screen.getByRole("radio", { name: "Unsafe choice" }));
+    if (type === "matching") {
+      await userEvent.selectOptions(screen.getByLabelText("RAM"), "ethernet");
+      await userEvent.selectOptions(screen.getByLabelText("RJ45"), "memory");
+    }
+    await userEvent.click(screen.getByRole("button", { name: "Check answer" }));
+    const result = await screen.findByRole("status");
+    expect(result).toHaveTextContent("Try again · 50%");
+    expect(result).toHaveTextContent("Recheck the prompt.");
+    expect(within(result).queryByText("Correct answer:")).not.toBeInTheDocument();
+    expect(within(result).getByRole("button", { name: "Retry" })).toBeVisible();
+    expect(screen.getByText("1 attempt saved. You can retry without penalty.")).toBeVisible();
+    await userEvent.click(within(result).getByRole("button", { name: "Retry" }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check again" })).toBeEnabled();
   });
 
   it("gives the image meaningful alt text and accessible choices", async () => {

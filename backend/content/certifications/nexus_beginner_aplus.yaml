@@ -15,6 +15,7 @@ versions:
       - {domain_key: S1, title: "What Is IT?", display_order: 1}
       - {domain_key: S2, title: Computer Basics, display_order: 2}
       - {domain_key: S3, title: Operating Systems, display_order: 3}
+      - {domain_key: S4, title: Everyday Windows Support, display_order: 4}
     modules:
       - module_key: module.nexus.beginner.stage1
         title: Stage 1 — What Is IT?
@@ -112,3 +113,41 @@ versions:
             pass_percent: 80
             config: {tags_any: [s3-care]}
             display_order: 3
+      - module_key: module.nexus.beginner.stage4
+        title: Stage 4 — Everyday Windows Support
+        skill_promise: Locate an approved work file, observe Windows and application clues, protect work, and document what remains unverified.
+        certification_domain_key: S4
+        display_order: 4
+        assessments:
+          - assessment_key: assess.nexus.beginner.s4.find_protect
+            assessment_role: quick_check
+            title: Checkpoint — Find and protect work
+            lesson_key: lesson.nexus.beginner.s4.find_protect
+            quiz_ref: Nexus Beginner Stage 4 — Checkpoint Bank
+            displayed_count: 5
+            pass_percent: 80
+            config: {tags_any: [s4-find-protect]}
+            display_order: 1
+          - assessment_key: assess.nexus.beginner.s4.access
+            assessment_role: quick_check
+            title: Checkpoint — Accounts and access boundaries
+            lesson_key: lesson.nexus.beginner.s4.access
+            quiz_ref: Nexus Beginner Stage 4 — Checkpoint Bank
+            displayed_count: 5
+            pass_percent: 80
+            config: {tags_any: [s4-access]}
+            display_order: 2
+          - assessment_key: assess.nexus.beginner.s4.clues
+            assessment_role: module_quiz
+            title: Checkpoint — Applications and Windows clues
+            quiz_ref: Nexus Beginner Stage 4 — Checkpoint Bank
+            displayed_count: 5
+            pass_percent: 80
+            config: {tags_any: [s4-clues]}
+            display_order: 3
+          - assessment_key: assess.nexus.beginner.s4.windows_observation
+            assessment_role: practical
+            title: Guided practical — Locate, observe, and document
+            lab_ref: Stage 4 — Windows observation practical
+            config: {required: true}
+            display_order: 4

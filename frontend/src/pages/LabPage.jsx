@@ -12,7 +12,25 @@ import Banner from "../components/ui/Banner";
 import PageHeader from "../components/ui/PageHeader";
 import { createLabVmAccess, getLab, getLabVmStatus, startLab, startV2Lab, submitLab, submitV2Lab, uploadLabEvidence, verifyEvidenceLab } from "../services/api";
 import { setMonitoringContext } from "../monitoring/sentry";
+import V2NextStep from "../components/v2/V2NextStep";
+import { getCurrentStudent } from "../hooks/useAuth";
 
+const stage4Fields = [
+  ["reported", "Reported", "What did the user report?"],
+  ["checked", "Checked", "What file, path, account, or setting did you inspect?"],
+  ["found", "Found", "What did you actually observe?"],
+  ["verified_or_not_verified", "Verified / Not verified", "What could you confirm, or what is still unverified?"],
+  ["next_step", "Next step", "What should happen next?"],
+];
+const emptyGuidedNote = Object.fromEntries(stage4Fields.map(([key]) => [key, ""]));
+function parseGuidedNote(notes) {
+  const result = { ...emptyGuidedNote };
+  for (const [key, label] of stage4Fields) {
+    const match = String(notes || "").match(new RegExp(`(?:^|\\n)${label.replace("/", "\\/")}:\\s*([^]*?)(?=\\n(?:Reported|Checked|Found|Verified \\/ Not verified|Next step):|$)`, "i"));
+    if (match) result[key] = match[1].trim();
+  }
+  return result;
+}
 const provisioningStatuses = new Set(["provisioning", "starting", "waiting_for_ip", "configuring_connection"]);
 
 const statusConfig = {
@@ -36,14 +54,19 @@ function LabSession() {
   const v2ModuleKey = searchParams.get("v2Module");
   const v2AssessmentKey = searchParams.get("v2Assessment");
   const isV2Practical = Boolean(v2ModuleKey && v2AssessmentKey);
+  const isStage4 = v2AssessmentKey === "assess.nexus.beginner.s4.windows_observation";
+  const draftKey = `stage4_practical_${getCurrentStudent()?.id || "anonymous"}_${labId}`;
   const [lab, setLab] = useState(null);
   const [guacUrl, setGuacUrl] = useState(null);
   const [vmAssignment, setVmAssignment] = useState(null);
   const [notes, setNotes] = useState("");
+  const [guidedNote, setGuidedNote] = useState(emptyGuidedNote);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState("");
   const [vmError, setVmError] = useState("");
   const [busy, setBusy] = useState(false);
   const [evidenceFile, setEvidenceFile] = useState(null);
+  const [evidenceKind, setEvidenceKind] = useState("file_path");
   const [evidenceArtifacts, setEvidenceArtifacts] = useState([]);
   const [evidenceMessage, setEvidenceMessage] = useState("");
   const [evidenceBusy, setEvidenceBusy] = useState(false);
@@ -63,6 +86,11 @@ function LabSession() {
         if (cancelled) return;
         setLab(res.data);
         setNotes(res.data?.notes || "");
+        if (isStage4) {
+          const stored = localStorage.getItem(draftKey);
+          try { setGuidedNote(stored ? { ...emptyGuidedNote, ...JSON.parse(stored) } : parseGuidedNote(res.data?.notes)); }
+          catch { localStorage.removeItem(draftKey); setGuidedNote(parseGuidedNote(res.data?.notes)); }
+        }
         setEvidenceArtifacts(res.data?.evidence_artifacts || []);
         setVmAssignment(res.data?.vm_assignment || null);
       })
@@ -77,7 +105,7 @@ function LabSession() {
     return () => {
       cancelled = true;
     };
-  }, [isV2Practical, labId, v2AssessmentKey, v2ModuleKey]);
+  }, [isV2Practical, isStage4, labId, draftKey, v2AssessmentKey, v2ModuleKey]);
 
   useEffect(() => {
     if (!lab) return;
@@ -134,6 +162,7 @@ function LabSession() {
       setNotes(res.data?.notes || "");
       setEvidenceArtifacts(res.data?.evidence_artifacts || []);
       setVmAssignment(res.data?.vm_assignment || null);
+      setFieldErrors({});
     } catch (err) {
       const lock = getPrerequisiteLock(err);
       if (lock) setPrerequisiteLock(lock);
@@ -144,15 +173,32 @@ function LabSession() {
   }
 
   async function handleSubmit() {
+    setVmError("");
+    if (isStage4) {
+      const errors = Object.fromEntries(stage4Fields.filter(([key]) => !guidedNote[key].trim()).map(([key, label]) => [key, `Complete ${label}.`]));
+      setFieldErrors(errors);
+      if (Object.keys(errors).length) return;
+      if (!evidenceArtifacts.some((artifact) => artifact.artifact_type === "file_path")) {
+        setVmError("Upload a File/path evidence screenshot before submitting");
+        return;
+      }
+      if (!evidenceArtifacts.some((artifact) => artifact.artifact_type === "windows_observation")) {
+        setVmError("Upload a Windows/application observation screenshot before submitting");
+        return;
+      }
+    }
     setBusy(true);
     try {
       const res = isV2Practical
-        ? await submitV2Lab(labId, v2ModuleKey, v2AssessmentKey, { notes, answers: {} })
+        ? await submitV2Lab(labId, v2ModuleKey, v2AssessmentKey, isStage4 ? { guided_note: guidedNote, answers: {} } : { notes, answers: {} })
         : await submitLab(labId, { notes });
       setLab(res.data);
       setNotes(res.data?.notes || "");
       setVmAssignment(null);
       setGuacUrl(null);
+      setVmError("");
+      setFieldErrors({});
+      if (isStage4) localStorage.removeItem(draftKey);
     } catch (err) {
       const lock = getPrerequisiteLock(err);
       if (lock) setPrerequisiteLock(lock);
@@ -198,14 +244,17 @@ function LabSession() {
     setEvidenceBusy(true);
     setEvidenceMessage("");
     try {
-      const res = await uploadLabEvidence(lab.run_id, evidenceFile);
+      const res = await uploadLabEvidence(lab.run_id, evidenceFile, isStage4 ? evidenceKind : "screenshot");
       const artifact = {
         artifact_id: res.data?.artifact_id,
         storage_key: res.data?.storage_key,
         original_filename: evidenceFile.name,
+        artifact_type: isStage4 ? evidenceKind : "screenshot",
       };
       setEvidenceArtifacts((items) => [artifact, ...items]);
+      setVmError("");
       setEvidenceFile(null);
+      if (isStage4 && evidenceKind === "file_path") setEvidenceKind("windows_observation");
       setEvidenceInputKey((key) => key + 1);
       setEvidenceMessage("Screenshot uploaded");
     } catch (err) {
@@ -249,19 +298,28 @@ function LabSession() {
   const isStructured = typeof lab.lab_type === "string" && lab.lab_type.startsWith("structured_");
   const structuredQuestions = isStructured ? lab.success_criteria?.questions : null;
   const requiresEvidence = Object.keys(lab.required_evidence?.evidence_types || lab.required_evidence || {}).length > 0;
+  const mentorReviewRequired = Boolean(lab.required_evidence?.mentor_review_required);
+  const practiceFileUrl = lab.success_criteria?.practice_file_url;
   const canUploadEvidence =
     requiresEvidence && ["in_progress", "assigned"].includes(lab.status) && Boolean(lab.run_id);
+  const needsCorrection = lab.review?.status === "needs_correction";
+  const waitingReview = lab.review?.status === "awaiting_mentor_review";
+  const approvedPractical = isStage4 && lab.review?.status === "passed" && lab.status === "submitted";
 
   return (
     <main className="mx-auto max-w-7xl space-y-4 p-6">
       <BackLink fallbackLabel={isV2Practical ? "Back to module" : "Guided Labs"} fallbackTo={isV2Practical ? `/learning-v2/modules/${v2ModuleKey}` : "/labs"} />
       <PageHeader
-        title={lab.title}
+        title={isStage4 ? "Stage 4 practical" : lab.title}
         subtitle={isV2Practical ? `${lab.estimated_minutes} minutes · Guided practical` : `Week ${lab.week_number} | ${lab.estimated_minutes} minutes | ${lab.lab_type}`}
         actions={<DifficultyBadge level={lab.difficulty} />}
       />
 
       <PrerequisiteLock lock={prerequisiteLock} />
+      {isStage4 && needsCorrection ? <section className="rounded-xl border border-rose-300 bg-rose-50 p-5 text-rose-900" role="alert"><h2 className="text-xl font-bold">Needs correction</h2><p className="mt-2 whitespace-pre-wrap">Mentor feedback: {lab.review.feedback || "Review your evidence and submit an updated practical."}</p><a className="btn-primary mt-4 inline-flex" href="#stage4-form">Fix & resubmit</a></section> : null}
+      {isStage4 && waitingReview ? <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-900" role="status"><h2 className="text-xl font-bold">Submitted — waiting for mentor review</h2><p className="mt-2">Your practical is saved. Your mentor will review the screenshots and support note.</p><div className="mt-4"><V2NextStep moduleKey={v2ModuleKey} label="Done / Continue learning" /></div></section> : null}
+      {approvedPractical ? <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-900" role="status"><h2 className="text-xl font-bold">Approved practical</h2><p>Your mentor approved this work. The stage is Mastered when all other requirements are complete.</p><div className="mt-4"><V2NextStep moduleKey={v2ModuleKey} /></div></section> : null}
+      {isStage4 && !waitingReview && !approvedPractical ? <section className="panel text-base leading-7"><h2 className="text-xl font-bold">What to do</h2><ol className="mt-3 list-decimal space-y-2 pl-6"><li>Find the supplied practice file. Check its exact folder and path without moving or deleting it.</li><li>Observe the relevant Windows or application view. Record only what you actually see.</li><li>Upload two redacted screenshots: screenshot 1 shows the file and path; screenshot 2 shows the Windows or application observation.</li><li>Complete the five short support-note fields, then submit for mentor review.</li></ol>{typeof practiceFileUrl === "string" && practiceFileUrl.startsWith("/v2-interactions/") ? <a className="mt-4 inline-flex font-semibold text-blue-700 underline" href={practiceFileUrl} download={lab.success_criteria?.practice_file_name || undefined}>Download practice file</a> : null}</section> : null}
 
       {vmError ? <Banner variant="error">{vmError}</Banner> : null}
 
@@ -291,7 +349,7 @@ function LabSession() {
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <article className="min-w-0 space-y-4 self-start lg:sticky lg:top-20">
-          <div className="panel dark:border-slate-700 dark:bg-slate-900">
+          {!isStage4 ? <><div className="panel dark:border-slate-700 dark:bg-slate-900">
             <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Scenario</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300">{lab.description}</p>
           </div>
@@ -299,11 +357,16 @@ function LabSession() {
           <div className="panel dark:border-slate-700 dark:bg-slate-900">
             <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Task and environment</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300">{lab.setup_instructions}</p>
-          </div>
+            {typeof practiceFileUrl === "string" && practiceFileUrl.startsWith("/v2-interactions/") ? <a className="mt-3 inline-flex font-semibold text-blue-700 underline dark:text-blue-300" href={practiceFileUrl} download={lab.success_criteria?.practice_file_name || undefined}>Download supplied practice file</a> : null}
+          </div></> : null}
 
+          {isStage4 && !lab.run_id && !prerequisiteLock ? <button className="btn-primary" onClick={handleStart} disabled={busy} type="button">{busy ? "Starting..." : "Start practical"}</button> : null}
           {canUploadEvidence && !prerequisiteLock ? (
             <div className="panel space-y-3 dark:border-slate-700 dark:bg-slate-900">
-              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Evidence Upload</h2>
+              <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200">{isStage4 ? "Your two screenshots" : "Evidence Upload"}</h2>
+              {mentorReviewRequired ? <p className="text-sm text-slate-600 dark:text-slate-300">Upload at least {lab.required_evidence.min_artifacts} screenshots. Crop or cover names, account details, private content, and unrelated windows before upload. Your mentor reviews the actual Windows views.</p> : null}
+              {isStage4 ? <ol className="list-decimal pl-5 text-base"><li>File/path evidence: show the practice file in its folder.</li><li>Windows/application observation: show the relevant view you checked.</li></ol> : null}
+              {isStage4 ? <label className="block text-sm font-semibold" htmlFor="stage4-evidence-kind">Evidence shown in this screenshot<select id="stage4-evidence-kind" className="input-field mt-2 w-full" value={evidenceKind} onChange={(event) => setEvidenceKind(event.target.value)}><option value="file_path">Screenshot 1 · File and path</option><option value="windows_observation">Screenshot 2 · Windows/application observation</option></select></label> : null}
               <div className="flex flex-col gap-3 sm:flex-row">
                 <input
                   key={evidenceInputKey}
@@ -321,7 +384,7 @@ function LabSession() {
                 <ul className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
                   {evidenceArtifacts.map((artifact) => (
                     <li key={artifact.artifact_id || artifact.id || artifact.storage_key} className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-950">
-                      {artifact.original_filename || artifact.storage_key}
+                      {isStage4 && artifact.artifact_type === "file_path" ? "File/path · " : isStage4 && artifact.artifact_type === "windows_observation" ? "Windows/application · " : ""}{artifact.original_filename || artifact.storage_key}
                     </li>
                   ))}
                 </ul>
@@ -329,7 +392,7 @@ function LabSession() {
             </div>
           ) : null}
 
-          {tasks.length > 0 ? (
+          {!isStage4 && tasks.length > 0 ? (
             <div className="panel dark:border-slate-700 dark:bg-slate-900">
               <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Verify</h2>
               <ul className="space-y-2">
@@ -343,7 +406,7 @@ function LabSession() {
             </div>
           ) : null}
 
-          {hints.length > 0 ? (
+          {!isStage4 && hints.length > 0 ? (
             <div className="panel dark:border-slate-700 dark:bg-slate-900">
               <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">Hints</h2>
               <ul className="space-y-2">
@@ -357,10 +420,10 @@ function LabSession() {
           ) : null}
         </article>
 
-        <aside className="panel min-w-0 h-fit space-y-4 dark:border-slate-700 dark:bg-slate-900">
+        <aside id="stage4-form" className="panel min-w-0 h-fit space-y-4 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-              {isStructured ? "Answer the exercise" : "Work and explain"}
+              {isStage4 ? "Your support note" : isStructured ? "Answer the exercise" : "Work and explain"}
             </h2>
             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${status.cls}`}>{status.label}</span>
           </div>
@@ -399,13 +462,18 @@ function LabSession() {
               busy={busy}
               onSubmit={handleStructuredSubmit}
             />
+          ) : isStage4 ? (
+            <div className="space-y-4">
+              {stage4Fields.map(([key, label, hint]) => <div key={key}><label className="block text-base font-semibold" htmlFor={`practical-${key}`}>{label}</label><p className="mb-2 text-sm text-slate-500">{hint}</p><textarea id={`practical-${key}`} className="input-field min-h-24 w-full text-base" aria-invalid={Boolean(fieldErrors[key])} aria-describedby={fieldErrors[key] ? `practical-${key}-error` : undefined} value={guidedNote[key]} readOnly={Boolean(prerequisiteLock) || busy || waitingReview || approvedPractical} onChange={(event) => { const value = event.target.value; setGuidedNote((old) => { const next = { ...old, [key]: value }; localStorage.setItem(draftKey, JSON.stringify(next)); return next; }); setFieldErrors((old) => ({ ...old, [key]: "" })); }} />{fieldErrors[key] ? <p id={`practical-${key}-error`} className="text-sm text-rose-700" role="alert">{fieldErrors[key]}</p> : null}</div>)}
+              {approvedPractical ? <button className="btn-secondary" onClick={handleStart} disabled={busy} type="button">Reopen practical</button> : !waitingReview ? <button className="btn-primary" onClick={handleSubmit} disabled={busy || Boolean(prerequisiteLock)} type="button">{busy ? "Submitting..." : needsCorrection ? "Resubmit practical" : "Submit practical"}</button> : <p className="font-semibold text-emerald-700">Submitted — waiting for mentor review.</p>}
+            </div>
           ) : (
             <>
               <label className="text-sm font-semibold" htmlFor="lab-work-notes">Your evidence and answers</label>
               <textarea
                 id="lab-work-notes"
                 className="input-field min-h-64 w-full"
-                placeholder="Record your evidence, diagnosis, work, and verification. When useful, end with one sentence: What caused the problem?"
+                placeholder={mentorReviewRequired ? "Reported:\nChecked:\nFound:\nVerified / Not verified:\nNext step:" : "Record your evidence, diagnosis, work, and verification. When useful, end with one sentence: What caused the problem?"}
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 readOnly={Boolean(prerequisiteLock) || busy || lab.status === "submitted"}
@@ -426,7 +494,7 @@ function LabSession() {
 
               <div className="text-xs text-slate-500 dark:text-slate-400">
                 {lab.status === "submitted"
-                  ? "This lab has been submitted."
+                  ? mentorReviewRequired ? "Submitted for mentor review. Mastery waits for an approved pass." : "This lab has been submitted."
                   : "Start the lab to mark it in progress, then submit your notes when finished."}
               </div>
             </>

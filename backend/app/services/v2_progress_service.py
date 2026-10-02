@@ -64,6 +64,7 @@ def record_activity(
     passed: bool | None = None,
     detail: dict | None = None,
     merge_detail: bool = True,
+    allow_regression: bool = False,
     commit: bool = False,
 ) -> V2ModuleActivity:
     """Upsert one activity row for (student, activity_type, ref_key).
@@ -121,7 +122,7 @@ def record_activity(
         # module_key is stable for a ref, but tolerate a corrected value.
         row.module_key = module_key or row.module_key
         already_passed = row.passed is True and row.status in _DONE_STATUSES
-        incoming_regresses = already_passed and (
+        incoming_regresses = not allow_regression and already_passed and (
             passed is False or (status is not None and status not in _DONE_STATUSES)
         )
         if incoming_regresses:
@@ -315,7 +316,7 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
             "resource_type": kind,
             "required": resource_required.get(rid, False),
             "exposure_satisfied": bool(tracked and (tracked.watched_at if kind == "video" else tracked.opened_at)),
-            "status": "watched" if tracked and tracked.watched_at else "in_progress" if tracked and tracked.opened_at else "not_started",
+            "status": "watched" if tracked and tracked.watched_at else "viewed" if tracked and tracked.opened_at and kind != "video" else "in_progress" if tracked and tracked.opened_at else "not_started",
             "evidence": {
                 "opened_at": tracked.opened_at.isoformat() if tracked and tracked.opened_at else None,
                 "watched_at": tracked.watched_at.isoformat() if tracked and tracked.watched_at else None,
@@ -400,6 +401,45 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
     required_interactions = [r for r in requirements if r.is_required and r.evidence_type == "interaction"]
     required_applies = [r for r in requirements if r.is_required and r.evidence_type == "apply"]
     interactions_done = all(r.id in satisfied_ids for r in required_interactions)
+    # Beginner learning groups are completed by their actual evidence, not the
+    # optional legacy lesson-complete click.
+    from app.services.v2_beginner_path import STAGE_KEYS
+    groups = []
+    if module_key in STAGE_KEYS:
+        published_interactions = db.query(V2InteractionDefinition).filter_by(
+            module_id=module.id, status="published", required=True,
+        ).all()
+        for lesson in lesson_metas:
+            linked_resource_ids = {link.resource_id for link in resource_links if link.lesson_v2_meta_id == lesson.id and link.is_required}
+            linked_interactions = [item for item in published_interactions if item.lesson_id == lesson.id]
+            linked_checks = [item for item in assessments if item.lesson_v2_meta_id == lesson.id and item.assessment_role == V2_ACTIVITY_QUICK_CHECK and item.config.get("required", True)]
+            complete = bool(linked_resource_ids or linked_interactions or linked_checks) and all(
+                resource_activity_by_id.get(rid) and (
+                    resource_activity_by_id[rid].watched_at if resource_by_id[rid][1] == "video" else resource_activity_by_id[rid].opened_at
+                ) for rid in linked_resource_ids
+            ) and all(
+                any(req.ref_key == item.interaction_key and req.id in satisfied_ids for req in required_interactions)
+                for item in linked_interactions
+            ) and all(assessment_evidence.get((item.assessment_role, item.assessment_key), False) for item in linked_checks)
+            practice_started = any(
+                by_ref.get((item.assessment_role, item.assessment_key)) for item in linked_checks
+            ) or any(
+                db.query(V2InteractionAttempt.id).filter_by(student_id=student_id, definition_id=item.id).first()
+                for item in linked_interactions
+            )
+            resource_started = any(rid in resource_activity_by_id for rid in linked_resource_ids)
+            resources_viewed = bool(linked_resource_ids) and all(
+                resource_by_id[rid][1] != "video"
+                and resource_activity_by_id.get(rid)
+                and resource_activity_by_id[rid].opened_at
+                for rid in linked_resource_ids
+            )
+            group_status = (
+                "completed" if complete else "in_progress" if practice_started
+                else "viewed" if resources_viewed else "in_progress" if resource_started
+                else "not_started"
+            )
+            groups.append({"lesson_key": lesson.lesson_key, "status": group_status, "complete": complete})
     extra_applies_done = all(r.id in satisfied_ids for r in required_applies)
     required_prompts = prompt_keys
     prompts_passed = all(by_ref.get((V2_ACTIVITY_EXPLAIN, key)) and by_ref[(V2_ACTIVITY_EXPLAIN, key)].passed is True for key in required_prompts)
@@ -446,8 +486,13 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
             mastery_status = "in_progress"
         else:
             mastery_status = "not_started"
-        if checks_passed and any(a.assessment_role in knowledge_roles for a in required_assessments):
+        if module_key not in STAGE_KEYS and checks_passed and any(a.assessment_role in knowledge_roles for a in required_assessments):
             mastery_status = "passed"
+        practical_activity = next((by_ref.get((V2_ACTIVITY_PRACTICAL, a.assessment_key)) for a in required_assessments if a.assessment_role == V2_ACTIVITY_PRACTICAL), None)
+        if practical_activity and practical_activity.status == "needs_review":
+            mastery_status = "awaiting_mentor_review"
+        elif practical_activity and practical_activity.status == "failed" and (practical_activity.detail or {}).get("review_decision") == "reject":
+            mastery_status = "needs_correction"
         if missing_resource:
             next_action = "Open video" if missing_resource["resource_type"] == "video" and not missing_resource["evidence"]["opened_at"] else "Mark video watched" if missing_resource["resource_type"] == "video" else "Open resource"
         elif not interactions_done:
@@ -471,6 +516,7 @@ def module_progress(db: Session, student_id: int, module_key: str) -> dict:
             "completed": lessons_done,
             "items": lessons_view,
         },
+        "groups": {"total": len(groups), "completed": sum(item["complete"] for item in groups), "items": groups},
         "resources": {
             "total": len(resources_view),
             "exposed": resources_done,

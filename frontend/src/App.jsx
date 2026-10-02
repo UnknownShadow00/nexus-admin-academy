@@ -12,7 +12,7 @@ import AdminLoginPage from "./pages/AdminLoginPage";
 import LoginPage from "./pages/LoginPage";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import StudentHome from "./pages/StudentHome";
-import { authLogout, globalSearch } from "./services/api";
+import { authLogout, getAdminV2PracticalReviews, globalSearch } from "./services/api";
 import { V2_CURRICULUM_ENABLED } from "./config/features";
 import { useV2Access } from "./hooks/useV2Access";
 
@@ -245,6 +245,7 @@ export default function App() {
   const currentStudent = authenticated ? getCurrentStudent() : null;
   const passwordChangeRequired = Boolean(currentStudent?.must_change_password);
   const [adminAuthenticated, setAdminAuthenticated] = useState(false);
+  const [pendingReviewCount, setPendingReviewCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState({ lessons: [], commands: [] });
   const [searchOpen, setSearchOpen] = useState(false);
@@ -262,10 +263,19 @@ export default function App() {
   const navItems = useMemo(() => {
     if (isAdminRoute) {
       if (!adminAuthenticated) return [];
-      return adminNavItems;
+      return [{ to: "/admin/labs#pending-reviews", label: `Pending Reviews (${pendingReviewCount})` }, ...adminNavItems];
     }
     return buildStudentNavItems(v2StudentEnabled);
-  }, [adminAuthenticated, isAdminRoute, v2StudentEnabled]);
+  }, [adminAuthenticated, isAdminRoute, pendingReviewCount, v2StudentEnabled]);
+
+  useEffect(() => {
+    if (!adminAuthenticated || !isAdminRoute) return undefined;
+    let active = true;
+    const refresh = () => getAdminV2PracticalReviews({ suppressToast: true }).then(({ data }) => { if (active) setPendingReviewCount(data?.length || 0); }).catch(() => { if (active) setPendingReviewCount(0); });
+    refresh();
+    window.addEventListener("v2-practical-reviews-changed", refresh);
+    return () => { active = false; window.removeEventListener("v2-practical-reviews-changed", refresh); };
+  }, [adminAuthenticated, isAdminRoute, location.pathname]);
 
   useEffect(() => {
     setMobileOpen(false);

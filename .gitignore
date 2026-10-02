@@ -16,6 +16,8 @@ pytest-cache-files*/
 backend/tests/_tmp/
 .tmp/
 node_modules/
+/frontend/node_modules
+.venv*/
 frontend/dist/
 coverage/
 htmlcov/

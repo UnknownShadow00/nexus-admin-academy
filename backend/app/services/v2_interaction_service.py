@@ -257,10 +257,30 @@ def interaction_list(db: Session, student_id: int, module_key: str, lesson_key: 
     } for row in definitions]
 
 
+_RETRY_HINTS = {
+    "matching": "Recheck what each item can actually show before matching it to a clue.",
+    "ordering": "Think about which checks must happen before the later steps.",
+    "typed_answer": "Re-read the prompt and check the exact term or command it asks for.",
+    "image_identification": "Look closely at the visible features before choosing.",
+    "command_output": "Read the output again and compare it with each choice.",
+    "safe_action": "Consider authorization, safety, and what the scenario lets you verify.",
+}
+
+
+def _public_result(result: dict, interaction_type: str, *, passed: bool) -> dict:
+    """Keep old failed snapshots from revealing answers through progress/history."""
+    public = {key: value for key, value in result.items() if key != "next_action"}
+    if not passed:
+        public.pop("correct_answer", None)
+        public["feedback"] = f"Not quite. {_RETRY_HINTS[interaction_type]}"
+    return public
+
+
 def _attempt_view(row: V2InteractionAttempt) -> dict:
     return {
         "id": row.id, "version": row.version, "attempt_number": row.attempt_number,
-        "response": row.response_snapshot, "result": row.result_snapshot,
+        "response": row.response_snapshot,
+        "result": _public_result(row.result_snapshot, row.definition_snapshot["type"], passed=row.passed),
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }
 
@@ -279,12 +299,14 @@ def _empty_progress() -> dict:
 def _progress_summaries(db: Session, student_id: int, definitions: list[V2InteractionDefinition]) -> dict[str, dict]:
     """One bounded-result query for all requested interactions, regardless of retries."""
     progress = {row.interaction_key: _empty_progress() for row in definitions}
+    types = {row.interaction_key: row.interaction_type for row in definitions}
     if not progress:
         return progress
     attempt = V2InteractionAttempt
     ranked = select(
         attempt.interaction_key.label("interaction_key"),
         attempt.score.label("score"),
+        attempt.passed.label("attempt_passed"),
         attempt.result_snapshot.label("result_snapshot"),
         attempt.created_at.label("created_at"),
         func.count().over(partition_by=attempt.interaction_key).label("attempt_count"),
@@ -313,10 +335,10 @@ def _progress_summaries(db: Session, student_id: int, definitions: list[V2Intera
         item["status"] = "passed" if item["passed"] else "in_progress"
         if row["best_rank"] == 1:
             item["best_score"] = row["score"]
-            item["best_result"] = row["result_snapshot"]
+            item["best_result"] = _public_result(row["result_snapshot"], types[row["interaction_key"]], passed=row["attempt_passed"])
         if row["latest_rank"] == 1:
             item["latest_attempt_at"] = row["created_at"].isoformat()
-            item["latest_result"] = row["result_snapshot"]
+            item["latest_result"] = _public_result(row["result_snapshot"], types[row["interaction_key"]], passed=row["attempt_passed"])
     required_keys = {row.interaction_key for row in definitions if row.required}
     if required_keys:
         satisfied_keys = {
@@ -412,10 +434,11 @@ def _grade(definition: V2InteractionDefinition, response: dict) -> tuple[int, bo
     correct = score == 100
     result = {
         "passed": passed, "correct": correct, "score": score,
-        "feedback": ("Correct. " if correct else "Passed with some mistakes. " if passed else "Not quite. ") + config["explanation"],
-        "correct_answer": correct_answer if config.get("reveal_correct", False) else None,
-        "next_action": "Return to the module for your next step" if passed else "Try again",
+        "feedback": ("Correct. " if correct else "Passed with some mistakes. ") + config["explanation"]
+        if passed else f"Not quite. {_RETRY_HINTS[kind]}",
     }
+    if passed and config.get("reveal_correct", False):
+        result["correct_answer"] = correct_answer
     return score, passed, result
 
 
@@ -458,5 +481,5 @@ def submit_interaction(db: Session, student_id: int, module_key: str, key: str, 
             definition, db.get(LessonV2Meta, definition.lesson_id).lesson_key if definition.lesson_id else None,
         ),
         "progress": _progress(db, student_id, definition),
-        "submission_result": {"attempt_id": attempt.id, **result},
+        "submission_result": {"attempt_id": attempt.id, **_public_result(result, definition.interaction_type, passed=passed)},
     }

@@ -91,3 +91,39 @@ resources:
     permission_status: owned
     active: true
     links: [{lesson_key: lesson.nexus.beginner.s3.care, required: true, order: 1}]
+  - resource_key: res.nexus.beginner.s4.find_protect
+    title: Picture — Find without moving
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s4-find-protect.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s4.find_protect, required: true, order: 1}]
+  - resource_key: res.nexus.beginner.s4.access
+    title: Picture — Account and permission boundary
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s4-access.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s4.access, required: true, order: 1}]
+  - resource_key: res.nexus.beginner.s4.clues
+    title: Picture — Choose one observation
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s4-clues.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s4.clues, required: true, order: 1}]
+  - resource_key: res.nexus.beginner.s4.note_recap
+    title: Optional recap — Short support note
+    resource_type: reference
+    provider: Nexus
+    url: /v2-interactions/beginner-s4-note-recap.svg
+    certification_version: nexus_beginner_aplus_v1
+    permission_status: owned
+    active: true
+    links: [{lesson_key: lesson.nexus.beginner.s4.clues, required: false, order: 2}]

@@ -1,0 +1,57 @@
+labs:
+  - title: Stage 4 — Windows observation practical
+    lab_type: guided
+    difficulty: 1
+    week_number: 0
+    estimated_minutes: 25
+    is_published: true
+    description: >-
+      A user reports that they cannot find a work file and an application was behaving
+      unexpectedly. On an approved Windows computer, locate the supplied practice file,
+      observe one application or Windows clue, and record what you can actually verify.
+    environment_requirements:
+      device: An approved Windows computer you are authorized to use.
+      access: Your own or an explicitly authorized standard user account.
+      boundary: Stop and tell your mentor if no approved Windows computer is available.
+    setup_instructions: >-
+      On an approved Windows computer, download the supplied harmless practice file to
+      your own Downloads folder. If the browser renames a duplicate download, report the
+      actual name instead of claiming the supplied name was found. Ask permission before inspecting any other account or
+      work file. Do not enter commands, install software, alter permissions, move or
+      delete files, end a process, or close unsaved work. If an application has unsaved
+      work, ask its owner to save it before any disruptive step. Redact names, account
+      details, addresses, unrelated windows, and private content before uploading.
+    success_criteria:
+      practice_file_url: /v2-interactions/nexus-stage4-practice.txt
+      practice_file_name: nexus-stage4-practice.txt
+      tasks:
+        - Identify the signed-in account context without recording a full personal account name.
+        - Follow Downloads > nexus-stage4-practice.txt in File Explorer and observe its name and .txt extension.
+        - Record whether the file is visible in that folder; a different result must remain unverified.
+        - Inspect one approved read-only clue in the affected application or Task Manager; do not change or close anything.
+        - State whether unsaved work was visible, leave it untouched, and submit a short Reported / Checked / Found / Verified or Not verified / Next step note.
+        - Upload at least two redacted screenshots showing the file location and the application or Windows observation.
+      mentor_rubric:
+        performed_evidence: One redacted screenshot shows the supplied file/path in File Explorer; another shows an actual application or Windows observation. A written guess alone fails.
+        correct_observation: The note accurately identifies the supplied file, path, account context, and one application or Windows clue.
+        safety: No unauthorized access, destructive action, process termination, or risk to unsaved work.
+        privacy_redaction: No password, private content, full account name, or unrelated personal data in evidence.
+        honest_verification: The note separates what was observed from what the user confirmed and states what remains unverified.
+        useful_documentation: Reported, Checked, Found, Verified or Not verified, and Next step are clear and actionable.
+    required_evidence:
+      mentor_review_required: true
+      min_artifacts: 2
+      note_fields: [Reported, Checked, Found, Verified / Not verified, Next step]
+      evidence_types:
+        - {type: screenshot, description: Redacted File Explorer view of the supplied path and file.}
+        - {type: screenshot, description: Redacted application or Task Manager observation.}
+    hints:
+      - The supplied file is a safe practice item. It is not a user's private work file.
+      - If the file is absent from Downloads, write which folder you checked; do not claim it is missing everywhere.
+      - If the reported application behavior is not visible now, write “not reproduced” or “not verified.”
+    model_solution: >-
+      A passing submission shows actual, redacted Windows evidence; names the authorized
+      account context and supplied path; records one read-only application or Windows
+      observation; protects unsaved work; and separates the report, checks, findings,
+      verification limit, and authorized next step. A mentor must reject guesses,
+      missing screenshots, exposed private data, unsafe actions, or fabricated verification.

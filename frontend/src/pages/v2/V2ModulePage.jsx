@@ -11,10 +11,10 @@ import { getV2Module } from "../../services/api";
 function AssessmentCard({ item, moduleKey, Icon, action, route }) {
   if (!item.available || !route) return <V2LockedActivity activity={item} moduleRoute={`/learning-v2/modules/${moduleKey}`} />;
   return <div className="panel flex min-h-40 flex-col">
-    <div className="flex items-start justify-between gap-3"><span className="rounded-xl bg-blue-50 p-2.5 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"><Icon size={21} aria-hidden="true" /></span><V2Status status={item.progress.status} /></div>
+    <div className="flex items-start justify-between gap-3"><span className="rounded-xl bg-blue-50 p-2.5 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"><Icon size={21} aria-hidden="true" /></span><V2Status status={item.role === "practical" && item.progress.status === "failed" && item.progress.detail?.review_decision === "reject" ? "needs_correction" : item.role === "practical" && item.progress.status === "needs_review" ? "awaiting_mentor_review" : item.progress.status} /></div>
     <h3 className="mt-4 font-bold text-slate-950 dark:text-white">{item.title}</h3>
     {item.question_count ? <p className="mt-1 text-sm text-slate-500">{item.question_count} questions · {item.pass_percent}% to pass</p> : null}
-    <Link className="mt-auto pt-4 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to={route(item, moduleKey)}>{action} →</Link>
+    <Link className="mt-auto pt-4 text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400" to={route(item, moduleKey)}>{item.role === "practical" && item.progress.status === "needs_review" ? "Awaiting mentor review" : item.role === "practical" && item.progress.status === "failed" ? "Fix & resubmit" : action} →</Link>
   </div>;
 }
 
@@ -22,8 +22,8 @@ export default function V2ModulePage() {
   const { moduleKey } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
-  const load = useCallback(() => { setError(""); getV2Module(moduleKey, { suppressToast: true }).then((res) => setData(res.data)).catch((err) => setError(err?.response?.status === 404 ? "That module could not be found." : err?.userMessage || "The module could not be loaded.")); }, [moduleKey]);
-  useEffect(load, [load]);
+  const load = useCallback(() => { setError(""); return getV2Module(moduleKey, { suppressToast: true }).then((res) => setData(res.data)).catch((err) => setError(err?.response?.status === 404 ? "That module could not be found." : err?.userMessage || "The module could not be loaded.")); }, [moduleKey]);
+  useEffect(() => { void load(); }, [load]);
   if (error) return <V2Error title="Module unavailable" message={error} onRetry={load} />;
   if (!data) return <V2Loading text="Loading module..." />;
   const byRole = (role) => data.assessments.find((item) => item.role === role);
@@ -48,7 +48,7 @@ export default function V2ModulePage() {
           <Link className="panel group flex items-center gap-4 p-4 hover:border-blue-300 hover:shadow-sm dark:hover:border-blue-700" to={`/learning-v2/modules/${data.module.key}/lessons/${lesson.key}`}>
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 font-bold text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-700 dark:bg-slate-800 dark:text-slate-300">{index + 1}</span>
             <div className="min-w-0 flex-1"><h3 className="font-bold text-slate-950 dark:text-white">{lesson.title}</h3><p className="mt-1 text-sm text-slate-500">{lesson.estimated_minutes ? `About ${lesson.estimated_minutes} min` : "Lesson"}{lesson.importance === "job_critical" ? " · Useful on the job" : ""}</p></div>
-            {["completed", "passed"].includes(lesson.progress.status) ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">Lesson marked complete</span> : <V2Status status={lesson.progress.status} />}
+            <V2Status status={beginner ? lesson.group_status || lesson.progress.status : lesson.progress.status} />
           </Link>
         </li>)}
       </ol>
@@ -56,7 +56,7 @@ export default function V2ModulePage() {
     {data.interactions?.some(({ interaction }) => !interaction.lesson_key) ? <section className="panel space-y-3" aria-labelledby="module-interactions-title"><h2 className="text-xl font-bold" id="module-interactions-title">Module practice</h2><ul className="space-y-2">{data.interactions.filter(({ interaction }) => !interaction.lesson_key).map(({ interaction, progress }) => <li className="flex items-center justify-between gap-3" key={interaction.key}><span>{interaction.title} · {interaction.required ? "Required" : "Optional"}</span><Link className="font-semibold text-blue-700 underline dark:text-blue-300" to={`/learning-v2/modules/${moduleKey}/interactions/${interaction.key}`}>{progress.passed ? "Practice again" : "Try interaction"}</Link></li>)}</ul></section> : null}
     {data.module_resources?.length ? <section aria-labelledby="module-resources-heading" className="panel space-y-4"><div><p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Further practice</p><h2 id="module-resources-heading" className="mt-1 text-2xl font-bold">Module resources</h2><p className="mt-1 text-sm text-slate-500">Opening a link does not complete it or count as mastery.</p></div>{data.module_resources.map((resource) => <V2ResourceCard key={resource.key} resource={resource} moduleKey={moduleKey} onChanged={load} />)}</section> : null}
     <section aria-labelledby="apply-heading">
-      <div className="mb-4 flex items-center gap-3"><Brain className="text-violet-600" aria-hidden="true" /><div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Check → Practice → Troubleshoot → Explain</p><h2 id="apply-heading" className="text-2xl font-bold">Put it together</h2></div></div>
+      <div className="mb-4 flex items-center gap-3"><Brain className="text-violet-600" aria-hidden="true" /><div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">{beginner ? "Check → Practice → Apply" : "Check → Practice → Troubleshoot → Explain"}</p><h2 id="apply-heading" className="text-2xl font-bold">Put it together</h2></div></div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {moduleQuiz ? <AssessmentCard item={moduleQuiz} moduleKey={data.module.key} Icon={HelpCircle} action="Take the quiz" route={(item, key) => `/learning-v2/modules/${key}/assessments/${item.key}`} /> : null}
         {practical ? <AssessmentCard item={practical} moduleKey={data.module.key} Icon={FlaskConical} action="Open practical" route={(item, key) => `/learning-v2/modules/${key}/practical/${item.key}`} /> : null}

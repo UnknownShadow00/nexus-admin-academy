@@ -167,7 +167,7 @@ def _resource_view(
         "duration": resource.duration,
         "url": _safe_url(resource.url),
         "required": bool(link.is_required),
-        "status": "watched" if tracked and tracked.watched_at else "in_progress" if tracked and tracked.opened_at else "not_started",
+        "status": "watched" if tracked and tracked.watched_at else "viewed" if tracked and tracked.opened_at and resource.resource_type != "video" else "in_progress" if tracked and tracked.opened_at else "not_started",
         "opened_at": tracked.opened_at.isoformat() if tracked and tracked.opened_at else None,
         "watched_at": tracked.watched_at.isoformat() if tracked and tracked.watched_at else None,
         "self_reported_watched": bool(tracked and tracked.watched_at),
@@ -429,6 +429,10 @@ def module_view(db: Session, student_id: int, module_key: str) -> dict:
     } for row in prompt_rows]
     assessment_views = [_assessment_view(db, student_id, row) for row in assessments]
     progress = module_progress(db, student_id, module_key)
+    group_statuses = {item["lesson_key"]: item["status"] for item in progress["groups"]["items"]}
+    for lesson in lessons:
+        if lesson["key"] in group_statuses:
+            lesson["group_status"] = group_statuses[lesson["key"]]
     result = {
         "certification": _certification_view(db, module),
         "module": {
@@ -461,6 +465,7 @@ def entry_view(db: Session, student_id: int) -> dict:
         CertificationVersion.id, CertificationModule.display_order, CertificationModule.id
     ).all()
     items = []
+    corrections = []
     for module in modules:
         version = db.get(CertificationVersion, module.certification_version_id)
         if (version.version_key == BEGINNER_VERSION) != beginner:
@@ -489,8 +494,19 @@ def entry_view(db: Session, student_id: int) -> dict:
             "explain_feedback": explain_feedback,
             "locked": bool(lock_reason), "lock_reason": lock_reason,
         })
+        for assessment in view["assessments"]:
+            activity = assessment["progress"]
+            if assessment["role"] == V2_ACTIVITY_PRACTICAL and activity["status"] == "failed" and (activity.get("detail") or {}).get("review_decision") == "reject":
+                corrections.append({
+                    "module_key": module.module_key,
+                    "stage_title": module.title,
+                    "assessment_key": assessment["key"],
+                    "practical_title": assessment["title"],
+                    "feedback": activity["detail"].get("review_feedback", ""),
+                    "route": f"/learning-v2/modules/{module.module_key}/practical/{assessment['key']}",
+                })
     current = next((item for item in items if not item["locked"] and not item["progress"]["module_complete"]), None)
-    return {"modules": items, "current": current or (items[-1] if items else None)}
+    return {"modules": items, "current": current or (items[-1] if items else None), "corrections": corrections}
 
 
 def lesson_view(db: Session, student_id: int, module_key: str, lesson_key: str) -> dict:
@@ -501,7 +517,7 @@ def lesson_view(db: Session, student_id: int, module_key: str, lesson_key: str) 
         raise V2ProgressError("This lesson is not available.")
     assessments = _assessments(db, module.id)
     index = lessons.index(lesson)
-    return {
+    result = {
         "certification": _certification_view(db, module),
         "module": {"key": module.module_key, "title": module.title},
         "lesson": _lesson_view(db, student_id, lesson, assessments, include_content=True),
@@ -509,6 +525,10 @@ def lesson_view(db: Session, student_id: int, module_key: str, lesson_key: str) 
         "previous_lesson_key": lessons[index - 1].lesson_key if index else None,
         "next_lesson_key": lessons[index + 1].lesson_key if index + 1 < len(lessons) else None,
     }
+    group = next((row for row in module_progress(db, student_id, module_key)["groups"]["items"] if row["lesson_key"] == lesson_key), None)
+    if group:
+        result["lesson"]["group_status"] = group["status"]
+    return result
 
 
 def resolve_continue(view: dict) -> dict:
@@ -593,6 +613,10 @@ def resolve_continue(view: dict) -> dict:
     for role, label in ((V2_ACTIVITY_MODULE_QUIZ, "Take the final checkpoint" if beginner_stage else "Take the Module Quiz"), (V2_ACTIVITY_PRACTICAL, "Start the practical"), (V2_ACTIVITY_SERVICE_DESK, "Troubleshoot a ticket")):
         item = next((a for a in view["assessments"] if a["role"] == role), None)
         if item and item["progress"]["status"] not in DONE:
+            if role == V2_ACTIVITY_PRACTICAL and item["progress"]["status"] == "needs_review":
+                return {"kind": "review_pending", "label": "Awaiting mentor review", "title": item["title"], "route": f"/learning-v2/modules/{module_key}/practical/{item['key']}", "status": "needs_review"}
+            if role == V2_ACTIVITY_PRACTICAL and item["progress"]["status"] == "failed" and (item["progress"].get("detail") or {}).get("review_decision") == "reject":
+                return {"kind": "correction", "label": "Fix & resubmit", "title": item["title"], "route": f"/learning-v2/modules/{module_key}/practical/{item['key']}", "status": "needs_correction"}
             if not item.get("available", False):
                 _remember_blocked(item)
                 continue
@@ -1051,11 +1075,11 @@ def resource_activity(db: Session, student_id: int, module_key: str, resource_ke
         row.watched_at = row.watched_at or now
     record_activity(
         db, student_id=student_id, module_key=module_key, activity_type=V2_ACTIVITY_RESOURCE,
-        ref_key=resource_key, status="watched" if row.watched_at else V2_STATUS_IN_PROGRESS,
+        ref_key=resource_key, status="watched" if row.watched_at else "viewed" if row.opened_at and resource.resource_type != "video" else V2_STATUS_IN_PROGRESS,
         detail={"opened_at": row.opened_at.isoformat() if row.opened_at else None, "watched_at": row.watched_at.isoformat() if row.watched_at else None},
     )
     db.commit()
-    return {"resource_key": resource_key, "opened_at": row.opened_at, "watched_at": row.watched_at, "status": "watched" if row.watched_at else "in_progress"}
+    return {"resource_key": resource_key, "opened_at": row.opened_at, "watched_at": row.watched_at, "status": "watched" if row.watched_at else "viewed" if row.opened_at and resource.resource_type != "video" else "in_progress"}
 
 
 def launch_service_desk(db: Session, student_id: int, module_key: str, assessment_key: str) -> dict:
