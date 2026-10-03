@@ -40,7 +40,7 @@ export default function V2ModulePage() {
       <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">{beginner ? "Beginner A+ foundation" : examCode} · {data.certification.domain?.title}</p>
       <h1 className="mt-2 text-3xl font-bold text-slate-950 dark:text-white sm:text-4xl">{data.module.title}</h1>
       <div className="mt-3 flex gap-2"><V2Status status={data.progress.status} />{data.progress.review_due ? <V2Status status="review_due" /> : null}</div>
-      {beginner && data.progress.status === "awaiting_mentor_review" && data.progress.continuation_granted ? <p className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">Awaiting mentor review. You can keep learning.</p> : null}
+      {beginner && data.progress.status === "awaiting_mentor_review" && data.continue.kind === "next_stage" ? <p className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">Awaiting mentor review. You can keep learning.</p> : null}
       {beginner && data.progress.status === "needs_correction" ? <p className="mt-3 text-sm font-medium text-rose-700 dark:text-rose-300">Needs correction. {correction?.progress?.detail?.review_feedback}</p> : null}
       <p className="mt-3 text-lg leading-8 text-slate-600 dark:text-slate-300">{data.module.description}</p>
       <Link className="btn-primary mt-6 inline-flex min-h-12 items-center gap-2" to={data.continue.route}>{data.continue.label}<ArrowRight size={18} aria-hidden="true" /></Link>

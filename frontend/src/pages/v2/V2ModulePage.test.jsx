@@ -73,6 +73,18 @@ describe("V2ModulePage", () => {
     expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
     expect(screen.queryByText("Awaiting mentor review. You can keep learning.")).not.toBeInTheDocument();
   });
+  it("does not claim later stage access at the terminal stage even with a grant", async () => {
+    api.getV2Module.mockResolvedValueOnce({ data: {
+      ...data,
+      certification: { ...data.certification, version: { key: "nexus_beginner_aplus_v1", exam_codes: [] } },
+      progress: { ...data.progress, status: "awaiting_mentor_review", continuation_granted: true },
+      continue: { kind: "review_pending", label: "Awaiting mentor review", route: "/learning-v2/modules/module.dynamic/practical/observation" },
+    } });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
+    expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
+    expect(screen.queryByText("Awaiting mentor review. You can keep learning.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Continue learning" })).not.toBeInTheDocument();
+  });
   it("keeps correction feedback and resubmit action while a rejected practical is being edited", async () => {
     api.getV2Module.mockResolvedValueOnce({ data: {
       ...data,

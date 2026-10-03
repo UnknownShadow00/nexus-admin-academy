@@ -64,10 +64,21 @@ it("validates each Stage 4 field, sends structured values, and clears errors aft
   expect(await screen.findByText("Temporary submission error")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Submit practical" }));
   expect(await screen.findByRole("heading", { name: "Awaiting mentor review" })).toBeVisible();
-  expect(screen.getByText(/You can keep learning/)).toBeVisible();
+  expect(screen.getByText(/Your practical is saved/)).toBeVisible();
+  expect(screen.queryByText(/You can keep learning/)).not.toBeInTheDocument();
+  expect(await screen.findByRole("link", { name: /Done · My Course/ })).toHaveAttribute("href", "/learning-v2");
   expect(screen.queryByText("Temporary submission error")).not.toBeInTheDocument();
   expect(screen.queryByText(/Complete Reported/)).not.toBeInTheDocument();
   expect(submitV2Lab).toHaveBeenLastCalledWith("1", "module.nexus.beginner.stage4", "assess.nexus.beginner.s4.windows_observation", { guided_note: { reported: fields.Reported, checked: fields.Checked, found: fields.Found, verified_or_not_verified: fields["Verified / Not verified"], next_step: fields["Next step"] }, answers: {} });
+});
+
+it("offers continued learning during review only when the server returns a next stage", async () => {
+  getLab.mockResolvedValue({ data: { ...lab, status: "submitted", review: { status: "awaiting_mentor_review" } } });
+  getV2Module.mockResolvedValue({ data: { continue: { kind: "next_stage", label: "Continue learning", route: "/learning-v2/modules/module.nexus.beginner.stage5" } } });
+  mount("/labs/1?v2Module=module.nexus.beginner.stage4&v2Assessment=assess.nexus.beginner.s4.windows_observation");
+  expect(await screen.findByRole("heading", { name: "Awaiting mentor review" })).toBeVisible();
+  expect(await screen.findByText(/You can keep learning/)).toBeVisible();
+  expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/learning-v2/modules/module.nexus.beginner.stage5");
 });
 
 it.each([

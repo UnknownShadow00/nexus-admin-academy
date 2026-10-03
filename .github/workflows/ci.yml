@@ -24,6 +24,19 @@ jobs:
   backend:
     name: Backend quality and tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: progression_test
+          POSTGRES_PASSWORD: ${{ github.run_id }}-progression-test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d progression_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -53,8 +66,11 @@ jobs:
 
       - name: Backend test suite
         working-directory: backend
+        env:
+          NEXUS_TEST_POSTGRES_URL: postgresql+psycopg://postgres:${{ github.run_id }}-progression-test@127.0.0.1:5432/progression_test
         # conftest.py self-configures JWT_SECRET_KEY, an in-memory SQLite
-        # DATABASE_URL, and COOKIE_SECURE — no extra env needed here.
+        # DATABASE_URL, and COOKIE_SECURE. The separate PostgreSQL URL runs
+        # the cross-transaction continuation regression on a disposable DB.
         # `python -m pytest` (not the bare `pytest` script) so cwd is on
         # sys.path and `import app.models` resolves.
         run: python -m pytest -q

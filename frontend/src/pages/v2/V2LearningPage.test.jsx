@@ -82,9 +82,21 @@ describe("V2LearningPage multi-module certification view", () => {
       item.certification = { name: "Beginner A+", version: { key: "nexus_beginner_aplus_v1", label: "Beginner", exam_codes: [] } };
     }
     older.progress.continuation_granted = true;
+    older.continue = { kind: "next_stage", label: "Continue learning", route: "/learning-v2/modules/module.nexus.beginner.stage2" };
     api.getV2Learning.mockResolvedValue({ data: { modules: [older, current], current, corrections: [] } });
     render(<MemoryRouter><V2LearningPage /></MemoryRouter>);
     expect(await screen.findByText("You can keep learning.")).toBeVisible();
     expect(screen.getByRole("link", { name: "Continue learning" })).toHaveAttribute("href", "/learning-v2/modules/module.nexus.beginner.stage2");
+  });
+  it("does not promise later learning for a pending terminal stage", async () => {
+    const terminal = moduleRow("module.nexus.beginner.stage4", "Stage 4", false, 3, "Beginner", "awaiting_mentor_review");
+    terminal.certification = { name: "Beginner A+", version: { key: "nexus_beginner_aplus_v1", label: "Beginner", exam_codes: [] } };
+    terminal.progress.continuation_granted = true;
+    terminal.continue = { kind: "review_pending", label: "Awaiting mentor review", title: "Practical review", route: "/learning-v2/modules/module.nexus.beginner.stage4/practical/observation" };
+    api.getV2Learning.mockResolvedValue({ data: { modules: [terminal], current: terminal, corrections: [] } });
+    render(<MemoryRouter><V2LearningPage /></MemoryRouter>);
+    expect(await screen.findByText("Awaiting mentor review · 5 learning groups")).toBeVisible();
+    expect(screen.queryByText("You can keep learning.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Continue learning" })).not.toBeInTheDocument();
   });
 });

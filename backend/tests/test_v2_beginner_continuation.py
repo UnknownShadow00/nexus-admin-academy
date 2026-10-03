@@ -2,9 +2,11 @@
 
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
+from threading import Barrier, BrokenBarrierError
+import os
 
-from sqlalchemy import create_engine
+import pytest
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from conftest import auth_headers, enroll_v2, make_client, make_student
@@ -330,6 +332,71 @@ def test_concurrent_grant_inserts_keep_one_row_and_transactions_usable(tmp_path)
         assert session.query(V2BeginnerContinuationGrant).count() == 1
     assert sorted(results) == [False, True]
     engine.dispose()
+
+
+@pytest.mark.skipif(not os.getenv("NEXUS_TEST_POSTGRES_URL"), reason="Requires disposable PostgreSQL test database")
+def test_different_final_requirements_commit_one_grant_under_concurrency(monkeypatch):
+    """Both writers flush before either evaluates; the second must recheck after the first commits."""
+    url = os.environ["NEXUS_TEST_POSTGRES_URL"]
+    assert url.rsplit("/", 1)[-1] == "progression_test", "Use the disposable progression_test database only"
+    engine = create_engine(url)
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, autoflush=False)
+    with Session() as session:
+        student = Student(name="Concurrent evidence", email="concurrent-evidence@local.test", username="concurrent_evidence", password_hash="test")
+        cert = Certification(cert_key="concurrent-evidence", name="Concurrent evidence")
+        session.add_all([student, cert])
+        session.flush()
+        version = CertificationVersion(certification_id=cert.id, version_key="concurrent-evidence-v1", label="Test", exam_codes=[])
+        session.add(version)
+        session.flush()
+        first = CertificationModule(certification_version_id=version.id, module_key=STAGE_KEYS[0], title="First", active=True)
+        second = CertificationModule(certification_version_id=version.id, module_key=STAGE_KEYS[1], title="Second", active=True)
+        session.add_all([first, second])
+        session.commit()
+        student_id, module_id = student.id, first.id
+
+    flushed = Barrier(2)
+    evaluated = Barrier(2)
+
+    def eligibility(session, learner_id, module_key):
+        passed = {key for (key,) in session.query(V2ModuleActivity.ref_key).filter_by(
+            student_id=learner_id, module_key=module_key, status="passed",
+        )}
+        # Without row serialization, both reads finish against incomplete
+        # committed evidence. With it, only the first reader reaches here
+        # until it commits; the timed wait then releases that writer.
+        try:
+            evaluated.wait(timeout=2)
+        except BrokenBarrierError:
+            pass
+        return {"continuation_eligible": {"final_x", "final_y"}.issubset(passed)}
+
+    monkeypatch.setattr("app.services.v2_progress_service.module_progress", eligibility)
+
+    def complete(ref_key):
+        with Session() as session:
+            @event.listens_for(session, "after_flush")
+            def wait_for_other_final_write(_session, _context):
+                if any(isinstance(row, V2ModuleActivity) and row.ref_key == ref_key for row in session.new):
+                    flushed.wait(timeout=10)
+
+            record_activity(session, student_id=student_id, module_key=STAGE_KEYS[0],
+                            activity_type="module_quiz", ref_key=ref_key,
+                            status="passed", passed=True, commit=True)
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            list(pool.map(complete, ("final_x", "final_y")))
+        with Session() as session:
+            assert {row.ref_key for row in session.query(V2ModuleActivity).filter_by(student_id=student_id)} == {"final_x", "final_y"}
+            assert session.query(V2BeginnerContinuationGrant).filter_by(
+                student_id=student_id, certification_module_id=module_id,
+            ).count() == 1
+            assert stage_lock_reason(session, student_id, STAGE_KEYS[1]) is None
+    finally:
+        Base.metadata.drop_all(engine)
+        engine.dispose()
 
 
 def test_duplicate_insert_savepoint_preserves_unrelated_write(db, monkeypatch, tmp_path):

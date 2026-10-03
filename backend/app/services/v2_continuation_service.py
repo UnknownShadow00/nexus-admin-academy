@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models.certification import CertificationModule
 from app.models.lab import LabRun, LabTemplate
+from app.models.student import Student
 from app.models.v2_continuation import V2BeginnerContinuationGrant
 from app.models.v2_progress import V2ModuleActivity
 
@@ -93,7 +94,15 @@ def ensure_beginner_continuation_grant(db: Session, student_id: int, module_key:
     if module_key not in STAGE_KEYS:
         return False
     module = db.query(CertificationModule).filter_by(module_key=module_key, active=True).one_or_none()
-    if module is None or has_beginner_continuation_grant(db, student_id, module.id):
+    if module is None:
+        return False
+    # Serialize evaluations for one learner. PostgreSQL's NO KEY UPDATE is
+    # compatible with the KEY SHARE locks acquired by evidence foreign keys;
+    # plain FOR UPDATE here would deadlock after concurrent evidence inserts.
+    # The second writer then sees the first writer's committed evidence.
+    # SQLite serializes the evidence writes themselves.
+    db.query(Student.id).filter_by(id=student_id).with_for_update(key_share=True).one()
+    if has_beginner_continuation_grant(db, student_id, module.id):
         return False
     if not module_progress(db, student_id, module_key)["continuation_eligible"]:
         return False
