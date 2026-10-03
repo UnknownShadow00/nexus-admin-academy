@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 export default defineConfig(() => {
@@ -16,6 +17,7 @@ export default defineConfig(() => {
   return {
     plugins: [
       react(),
+      tailwindcss(),
       ...(uploadSourceMaps ? [sentryVitePlugin({
         authToken: process.env.SENTRY_AUTH_TOKEN,
         org: process.env.SENTRY_ORG,
