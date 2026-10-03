@@ -52,6 +52,7 @@ from app.models.v2_progress import (
 )
 from app.models.v2_evidence import V2EvidenceRecord
 from app.models.v2_interaction import V2InteractionAttempt
+from app.models.v2_continuation import V2BeginnerContinuationGrant
 
 
 # Each tuple is (database table name, ORM model, ownership column).  Keep this
@@ -89,6 +90,7 @@ STUDENT_OWNED_MODELS: tuple[tuple[str, type, str], ...] = (
     ("v2_module_activity", V2ModuleActivity, "student_id"),
     ("v2_evidence_records", V2EvidenceRecord, "student_id"),
     ("v2_interaction_attempts", V2InteractionAttempt, "student_id"),
+    ("v2_beginner_continuation_grants", V2BeginnerContinuationGrant, "student_id"),
     ("pending_grades", PendingGrade, "student_id"),
     ("vm_assignments", VmAssignment, "student_id"),
     ("weekly_domain_leads", WeeklyDomainLead, "student_id"),

@@ -515,6 +515,9 @@ def review_v2_practical(
         run.status = "in_progress"
         run.submitted_at = None
         run.final_score = None
+    from app.services.v2_continuation_service import ensure_beginner_continuation_grant
+    db.flush()
+    ensure_beginner_continuation_grant(db, run.student_id, activity.module_key)
     db.commit()
     return ok({
         "lab_run_id": run.id,

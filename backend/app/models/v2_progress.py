@@ -1,9 +1,10 @@
 """Nexus V2 per-student module activity (Phase 2A).
 
 One row per (student, activity_type, ref_key). This is a **development-flow**
-progress record for the first end-to-end V2 module — it deliberately does NOT
-feed any legacy progression gate, XP ledger, mastery calculation, or the 40%
-A+ TrainingWeek gate. No legacy table is touched.
+progress record for the first end-to-end V2 module. It does not feed any
+legacy progression gate, XP ledger, or the 40% A+ TrainingWeek gate. Beginner
+continuation checks it together with resource, interaction and lab evidence;
+it is never the sole authority for a module grant. No legacy table is touched.
 
 ``activity_type`` values:
 
@@ -82,8 +83,7 @@ _ACTIVITY_TYPE_SQL = "('lesson','resource','quick_check','module_quiz','practica
 
 
 class V2ModuleActivity(Base):
-    """Development-flow progress record for a Nexus V2 module. Not authoritative
-    for any gate — no legacy progression system reads this table."""
+    """V2 activity rollup; no legacy progression system reads this table."""
 
     __tablename__ = "v2_module_activity"
     __table_args__ = (

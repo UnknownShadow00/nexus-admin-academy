@@ -75,4 +75,16 @@ describe("V2LearningPage multi-module certification view", () => {
     expect(screen.getByText("Finish Stage 3 before starting Stage 4.")).toBeVisible();
     expect(screen.queryByText(/Stage 5/)).not.toBeInTheDocument();
   });
+  it("keeps a pending earlier stage visible while the server selects newer learning", async () => {
+    const older = moduleRow("module.nexus.beginner.stage1", "Stage 1", false, 3, "Beginner", "awaiting_mentor_review");
+    const current = moduleRow("module.nexus.beginner.stage2", "Stage 2", false, 0, "Beginner", "not_started");
+    for (const item of [older, current]) {
+      item.certification = { name: "Beginner A+", version: { key: "nexus_beginner_aplus_v1", label: "Beginner", exam_codes: [] } };
+    }
+    older.progress.continuation_granted = true;
+    api.getV2Learning.mockResolvedValue({ data: { modules: [older, current], current, corrections: [] } });
+    render(<MemoryRouter><V2LearningPage /></MemoryRouter>);
+    expect(await screen.findByText("You can keep learning.")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Continue learning" })).toHaveAttribute("href", "/learning-v2/modules/module.nexus.beginner.stage2");
+  });
 });

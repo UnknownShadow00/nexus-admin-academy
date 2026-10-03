@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({ getV2Module: vi.fn() }));
 vi.mock("../../services/api", () => api);
@@ -23,6 +23,7 @@ const data = {
 
 describe("V2ModulePage", () => {
   beforeEach(() => api.getV2Module.mockResolvedValue({ data }));
+  afterEach(cleanup);
   it("renders curriculum and Continue entirely from the API", async () => {
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /><Route path="/next-dynamic" element={<p>Next activity</p>} /></Routes></MemoryRouter>);
     expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
@@ -44,5 +45,46 @@ describe("V2ModulePage", () => {
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
     expect(await screen.findByLabelText("Hands-on practical unavailable")).toHaveTextContent("This activity has not been prepared for students yet.");
     expect(screen.getByLabelText("Hands-on practical unavailable")).toHaveTextContent("Choose another available activity");
+  });
+  it("shows mentor review separately from the next learning stage and lists every practical", async () => {
+    api.getV2Module.mockResolvedValueOnce({ data: {
+      ...data,
+      certification: { ...data.certification, version: { key: "nexus_beginner_aplus_v1", label: "Beginner", exam_codes: [] } },
+      assessments: [
+        { key: "first", role: "practical", title: "First practical", available: true, progress: { status: "needs_review" } },
+        { key: "second", role: "practical", title: "Second practical", available: true, progress: { status: "passed" } },
+      ],
+      progress: { ...data.progress, status: "awaiting_mentor_review", continuation_granted: true },
+      continue: { kind: "next_stage", label: "Continue learning", title: "Next stage", route: "/learning-v2/modules/module.nexus.beginner.stage2" },
+    } });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
+    expect(await screen.findByText("Awaiting mentor review. You can keep learning.")).toBeVisible();
+    expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/learning-v2/modules/module.nexus.beginner.stage2");
+    expect(screen.getAllByText("First practical").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Second practical").length).toBeGreaterThan(0);
+  });
+  it("does not claim later stage access before a continuation grant exists", async () => {
+    api.getV2Module.mockResolvedValueOnce({ data: {
+      ...data,
+      certification: { ...data.certification, version: { key: "nexus_beginner_aplus_v1", exam_codes: [] } },
+      progress: { ...data.progress, status: "awaiting_mentor_review", continuation_granted: false },
+    } });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
+    expect(await screen.findByRole("heading", { name: "A module from the API" })).toBeVisible();
+    expect(screen.queryByText("Awaiting mentor review. You can keep learning.")).not.toBeInTheDocument();
+  });
+  it("keeps correction feedback and resubmit action while a rejected practical is being edited", async () => {
+    api.getV2Module.mockResolvedValueOnce({ data: {
+      ...data,
+      certification: { ...data.certification, version: { key: "nexus_beginner_aplus_v1", exam_codes: [] } },
+      assessments: [{ key: "correction", role: "practical", title: "Correct this practical", available: true,
+        progress: { status: "in_progress", detail: { review_decision: "reject", review_feedback: "Show the application view" } } }],
+      progress: { ...data.progress, status: "needs_correction", continuation_granted: true },
+      continue: { kind: "next_stage", label: "Continue learning", route: "/learning-v2/modules/next" },
+    } });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey" element={<V2ModulePage />} /></Routes></MemoryRouter>);
+    expect(await screen.findByText("Needs correction. Show the application view")).toBeVisible();
+    expect(screen.getByRole("link", { name: /Fix & resubmit/ })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/practical/correction");
+    expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/learning-v2/modules/next");
   });
 });

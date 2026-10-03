@@ -63,7 +63,8 @@ it("validates each Stage 4 field, sends structured values, and clears errors aft
   fireEvent.click(screen.getByRole("button", { name: "Submit practical" }));
   expect(await screen.findByText("Temporary submission error")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Submit practical" }));
-  expect(await screen.findByText("Submitted — waiting for mentor review")).toBeVisible();
+  expect(await screen.findByRole("heading", { name: "Awaiting mentor review" })).toBeVisible();
+  expect(screen.getByText(/You can keep learning/)).toBeVisible();
   expect(screen.queryByText("Temporary submission error")).not.toBeInTheDocument();
   expect(screen.queryByText(/Complete Reported/)).not.toBeInTheDocument();
   expect(submitV2Lab).toHaveBeenLastCalledWith("1", "module.nexus.beginner.stage4", "assess.nexus.beginner.s4.windows_observation", { guided_note: { reported: fields.Reported, checked: fields.Checked, found: fields.Found, verified_or_not_verified: fields["Verified / Not verified"], next_step: fields["Next step"] }, answers: {} });

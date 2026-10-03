@@ -20,6 +20,7 @@ from app.models.quiz import Question, Quiz
 from app.models.lab import LabRun, LabTemplate
 from app.models.v2_evidence import V2EvidenceRequirement
 from app.models.v2_interaction import V2InteractionDefinition
+from app.models.v2_continuation import V2BeginnerContinuationGrant
 from app.routers.flashcards import router as flashcards_router
 from app.routers.v2_curriculum import router
 from app.routers.labs import router as labs_router
@@ -461,6 +462,7 @@ def test_disposable_student_retries_and_unlocks_stages_in_order(db, monkeypatch,
         quiz = next(item for item in module_response.json()["data"]["assessments"] if item["role"] == "module_quiz")
         _submit_check(client, student, db, module_key, quiz["key"])
         assert module_progress(db, student.id, module_key)["module_complete"] is True
+        assert module_progress(db, student.id, module_key)["continuation_granted"] is True
         if stage_index < 2:
             assert entry_view(db, student.id)["current"]["module"]["key"] == STAGE_KEYS[stage_index + 1]
             assert client.get(f"{API}/{STAGE_KEYS[stage_index + 1]}", headers=headers).status_code == 200
@@ -531,6 +533,7 @@ def test_disposable_student_retries_and_unlocks_stages_in_order(db, monkeypatch,
     _submit_check(client, student, db, stage4, final["key"])
     assert module_progress(db, student.id, stage4)["module_complete"] is False
     assert module_progress(db, student.id, stage4)["next_action"] == "Apply your learning"
+    assert module_progress(db, student.id, stage4)["continuation_granted"] is False
     optional = next(item for item in module_progress(db, student.id, stage4)["resources"]["items"] if item["resource_key"] == "res.nexus.beginner.s4.note_recap")
     assert optional["required"] is False and optional["exposure_satisfied"] is False
 
@@ -575,6 +578,10 @@ def test_disposable_student_retries_and_unlocks_stages_in_order(db, monkeypatch,
     assert module_progress(db, student.id, stage4)["practical"]["activity"]["status"] == "needs_review"
     assert module_progress(db, student.id, stage4)["module_complete"] is False
     assert module_progress(db, student.id, stage4)["status"] == "awaiting_mentor_review"
+    grant = db.query(V2BeginnerContinuationGrant).filter_by(student_id=student.id, certification_module_id=practical.certification_module_id).one()
+    grant_id = grant.id
+    assert grant.grant_reason == "requirements_satisfied"
+    assert module_progress(db, student.id, stage4)["continuation_granted"] is True
     assert entry_view(db, student.id)["current"]["continue"]["kind"] == "review_pending"
     monkeypatch.setenv("ADMIN_API_KEY", "stage4-review-key")
     admin_headers = {"X-Admin-Key": "stage4-review-key"}
@@ -591,21 +598,30 @@ def test_disposable_student_retries_and_unlocks_stages_in_order(db, monkeypatch,
     approved = lab_client.post(review_url, json={"decision": "approve", "feedback": "Observed, safe, and redacted", "rubric_results": dict.fromkeys(rubric, True)}, headers=admin_headers)
     assert approved.status_code == 200, approved.text
     assert module_progress(db, student.id, stage4)["module_complete"] is True
+    assert db.query(V2BeginnerContinuationGrant).filter_by(student_id=student.id, certification_module_id=practical.certification_module_id).one().id == grant_id
     assert entry_view(db, student.id)["current"]["module"]["key"] == stage4
     reopened = lab_client.post(lab_url + "/start", params=params, headers=headers)
     assert reopened.status_code == 200, reopened.text
     assert module_progress(db, student.id, stage4)["module_complete"] is False
+    assert module_progress(db, student.id, stage4)["continuation_granted"] is True
     assert lab_client.post(lab_url + "/submit", params=params, json={"guided_note": guided_note}, headers=headers).status_code == 200
     assert module_progress(db, student.id, stage4)["status"] == "awaiting_mentor_review"
     rejected = lab_client.post(review_url, json={"decision": "reject", "feedback": "Please show the application view"}, headers=admin_headers)
     assert rejected.status_code == 200, rejected.text
     assert module_progress(db, student.id, stage4)["status"] == "needs_correction"
     assert module_progress(db, student.id, stage4)["module_complete"] is False
+    assert db.query(V2BeginnerContinuationGrant).filter_by(student_id=student.id, certification_module_id=practical.certification_module_id).one().id == grant_id
     assert entry_view(db, student.id)["corrections"][0]["feedback"] == "Please show the application view"
     assert lab_client.get(lab_url, params=params, headers=headers).json()["data"]["review"]["status"] == "needs_correction"
+    assert lab_client.post(lab_url + "/start", params=params, headers=headers).status_code == 200
+    assert module_progress(db, student.id, stage4)["status"] == "needs_correction"
+    assert entry_view(db, student.id)["corrections"][0]["feedback"] == "Please show the application view"
     resubmitted = lab_client.post(lab_url + "/submit", params=params, json={"guided_note": guided_note}, headers=headers)
     assert resubmitted.status_code == 200, resubmitted.text
     assert module_progress(db, student.id, stage4)["status"] == "awaiting_mentor_review"
     assert entry_view(db, student.id)["corrections"] == []
+    assert db.query(V2BeginnerContinuationGrant).filter_by(student_id=student.id, certification_module_id=practical.certification_module_id).count() == 1
     assert lab_client.post(review_url, json={"decision": "approve", "feedback": "Now verified", "rubric_results": dict.fromkeys(rubric, True)}, headers=admin_headers).status_code == 200
     assert module_progress(db, student.id, stage4)["status"] == "mastered"
+    assert entry_view(db, student.id)["corrections"] == []
+    assert db.query(V2BeginnerContinuationGrant).filter_by(student_id=student.id, certification_module_id=practical.certification_module_id).one().id == grant_id

@@ -56,6 +56,7 @@ from app.models.v2_progress import (
     V2ExplainSubmission,
     V2ModuleActivity,
 )
+from app.models.v2_continuation import V2BeginnerContinuationGrant
 from app.models.v2_evidence import V2EvidenceRequirement as V2EvidenceRequirement, V2EvidenceRecord as V2EvidenceRecord
 from app.models.v2_interaction import V2InteractionDefinition as V2InteractionDefinition, V2InteractionAttempt as V2InteractionAttempt, V2InteractionRequirementChange as V2InteractionRequirementChange
 from app.models.service_desk import (
@@ -139,6 +140,7 @@ __all__ = [
     "AIGrade",
     "MentorGradeOverride",
     "V2ModuleActivity",
+    "V2BeginnerContinuationGrant",
     "V2ExplainSubmission",
     "V2AssessmentAttempt",
     "V2AssessmentAttemptQuestion",
