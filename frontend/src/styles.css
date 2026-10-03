@@ -1,6 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source(none);
+@import "./tailwind-v3-theme.css";
+
+@source "../index.html";
+@source "./";
+@custom-variant dark (&:where(.dark, .dark *));
 
 .v2-markdown { color: inherit; line-height: 1.75; }
 .v2-markdown h2 { margin-top: 2rem; margin-bottom: .75rem; font-size: 1.4rem; font-weight: 750; color: rgb(15 23 42); }
@@ -23,6 +26,19 @@
 .dark .v2-markdown a { color: rgb(96 165 250); }
 
 @layer base {
+  /* Tailwind 3 used gray-200 for borders without an explicit color. */
+  *, ::before, ::after, ::backdrop, ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
   body {
     @apply bg-slate-50 font-sans text-slate-800 antialiased;
   }
@@ -67,6 +83,13 @@
 
   .xp-fill {
     animation: growWidth 850ms ease-out;
+  }
+}
+
+@layer utilities {
+  /* v3 gradients interpolated in sRGB; v4 uses Oklab by default. */
+  .bg-gradient-to-br {
+    --tw-gradient-position: to bottom right;
   }
 }
 
