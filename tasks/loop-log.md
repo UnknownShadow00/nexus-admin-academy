@@ -2914,3 +2914,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: backend/requirements.txt, frontend/package.json, frontend/package-lock.json, service-desk-app/package.json, service-desk-app/pnpm-lock.yaml, tasks/loop-log.md
 - Result: pass — PR #48 merged with all CI jobs green; Stage 4 integration retained question-bank SHA-256 295fcc93f0d117f1db7b91c9b2371e872d4bd5ebe17e19a428dac946f591cdd0; 97 focused backend and 135 frontend tests, frontend build, three audit gates, and git diff --check passed.
 - Next: Push Stage 4 merge and wait for PR #47 CI; no production deployment or migration.
+
+## 2026-10-03 20:51:37 UTC Task Completed
+- Task: Investigated the GHSA-vfj7-8cjw-p6xm frontend audit baseline in a fresh worktree and branch from origin/main, separate from PR #49.
+- Files changed: tasks/loop-log.md (local investigation record only).
+- Result: Main reproduces five high findings after npm ci; Tailwind 3.4.19 -> chokidar 3.6.0 / fast-glob 3.3.3 / micromatch 4.0.8 -> braces 3.0.3. The advisory lists no patched braces version, Tailwind 3.4.19 is the latest 3.x, and npm audit proposes only a breaking Tailwind 4.3.3 upgrade. Production dependencies audit clean; vulnerable tools are build-time dependencies. No supported small nonbreaking remediation, policy weakening, dependency edits, commit, push, or security PR.
+- Next: Plan Tailwind 3 to 4 migration separately with CSS compatibility and visual regression checks, ideally before UI redesign PR 1; keep the audit gate intact.
