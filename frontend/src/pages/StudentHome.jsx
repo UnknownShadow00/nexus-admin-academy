@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import FlashcardReviewPanel from "../components/FlashcardReviewPanel";
 import { XPBadge } from "../components/ui/Badge";
 import PageHeader from "../components/ui/PageHeader";
+import PageContainer from "../components/ui/PageContainer";
 import { getCurrentStudent } from "../hooks/useAuth";
 import { checkInStudent, getLabs, getServiceDeskProgressSummary, getStudentStats, getTrainingDashboard } from "../services/api";
 import { getV2Learning } from "../services/api";
@@ -116,23 +117,23 @@ export default function StudentHome() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-5xl space-y-4 p-6">
+      <PageContainer className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((item) => <SkeletonCard key={item} />)}
         </div>
-      </main>
+      </PageContainer>
     );
   }
 
   if (!stats) {
     return (
-      <main className="mx-auto max-w-3xl p-6">
+      <PageContainer width="reading">
         <div className="panel text-center" role="alert">
           <h1 className="text-xl font-bold text-slate-950 dark:text-white">Today is temporarily unavailable</h1>
           <p className="mt-2 text-slate-600 dark:text-slate-300">{loadError || "Sign in again to continue your training."}</p>
           <button className="btn-primary mt-4" onClick={() => setRetryKey((value) => value + 1)} type="button">Try Again</button>
         </div>
-      </main>
+      </PageContainer>
     );
   }
 
@@ -155,7 +156,7 @@ export default function StudentHome() {
   const hasFollowUpWidgets = Boolean(activeTicket || activeLab || recentFeedback || explainFeedback);
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-6">
+    <PageContainer className="space-y-6">
       <PageHeader
         title="Today"
         subtitle={v2Enabled
@@ -304,6 +305,6 @@ export default function StudentHome() {
           );
         }) : <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">No recent submissions yet.</p>}
       </section> : null}
-    </main>
+    </PageContainer>
   );
 }

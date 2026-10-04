@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { getServiceDeskProgressSummary, getTrainingProgress } from "../services/api";
 import { TrainingDestination } from "../components/TrainingDestination";
 import Banner from "../components/ui/Banner";
+import PageContainer from "../components/ui/PageContainer";
 import { getCurrentStudent } from "../hooks/useAuth";
 import { useV2Access } from "../hooks/useV2Access";
 
@@ -37,11 +38,11 @@ export default function TrainingProgressPage() {
     getServiceDeskProgressSummary({ suppressToast: true }).then((res) => { if (!cancelled) setServiceDeskSummary(res.data); }).catch(() => { if (!cancelled) setSummaryError(true); });
     return () => { cancelled = true; };
   }, [retry]);
-  if (error) return <main className="mx-auto max-w-3xl p-6"><div role="alert" className="panel"><h1 className="text-xl font-bold">Progress unavailable</h1><p className="mt-2">{error} Your completed work has not changed.</p><button className="btn-primary mt-3" onClick={() => setRetry((value) => value + 1)} type="button">Retry progress</button></div></main>;
-  if (!data) return <main className="mx-auto max-w-5xl p-6"><div className="h-56 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></main>;
+  if (error) return <PageContainer width="reading"><div role="alert" className="panel"><h1 className="text-xl font-bold">Progress unavailable</h1><p className="mt-2">{error} Your completed work has not changed.</p><button className="btn-primary mt-3" onClick={() => setRetry((value) => value + 1)} type="button">Retry progress</button></div></PageContainer>;
+  if (!data) return <PageContainer><div className="h-56 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" /></PageContainer>;
   const current = data.current_module;
   return (
-    <main className="mx-auto max-w-5xl space-y-8 p-4 pb-20 sm:p-6">
+    <PageContainer className="space-y-8">
       <div><h1 className="text-3xl font-bold text-slate-950 dark:text-white">Progress</h1><p className="mt-1 text-slate-600 dark:text-slate-300">What you've completed, and where the evidence of real skill comes from.</p></div>
       {v2Enabled ? <Banner variant="info"><span>These counts track earlier training activities. Your current course progress is in <Link className="font-semibold underline" to="/learning-v2">My Course</Link>.</span></Banner> : null}
 
@@ -97,6 +98,6 @@ export default function TrainingProgressPage() {
           </div>
         </section>
       ) : null}
-    </main>
+    </PageContainer>
   );
 }

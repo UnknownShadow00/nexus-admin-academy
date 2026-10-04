@@ -8,6 +8,8 @@ import V2Status from "../../components/v2/V2Status";
 import V2LockedActivity from "../../components/v2/V2LockedActivity";
 import { getV2Module } from "../../services/api";
 import { mentorFollowUpStatus, practicalDisplayStatus, stageProgressStatus } from "../../components/ui/statusFoundation";
+import PageContainer from "../../components/ui/PageContainer";
+import PageHeader from "../../components/ui/PageHeader";
 
 function AssessmentCard({ item, moduleKey, Icon, action, route, beginner = false }) {
   if (!item.available || !route) return <V2LockedActivity activity={item} moduleRoute={`/learning-v2/modules/${moduleKey}`} />;
@@ -37,17 +39,18 @@ export default function V2ModulePage() {
   const serviceDesk = byRole("service_desk");
   const examCode = data.certification.version.exam_codes?.[0];
   const mentorStatus = beginner ? mentorFollowUpStatus(data.progress) : null;
-  return <main className="mx-auto max-w-6xl space-y-8 p-4 pb-20 sm:p-6">
-    <V2Breadcrumbs certification={data.certification} module={data.module} />
-    <header className="max-w-4xl">
-      <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">{beginner ? "Beginner A+ foundation" : examCode} · {data.certification.domain?.title}</p>
-      <h1 className="mt-2 text-3xl font-bold text-slate-950 dark:text-white sm:text-4xl">{data.module.title}</h1>
-      <div className="mt-3 flex flex-wrap gap-2"><V2Status status={beginner ? stageProgressStatus(data.progress) : data.progress.status} />{mentorStatus ? <V2Status status={mentorStatus} /> : null}{data.progress.review_due ? <V2Status status="review_due" /> : null}</div>
+  return <PageContainer className="space-y-8">
+    <PageHeader
+      breadcrumb={<V2Breadcrumbs certification={data.certification} module={data.module} />}
+      eyebrow={`${beginner ? "Beginner A+ foundation" : examCode} · ${data.certification.domain?.title || "Course"}`}
+      title={data.module.title}
+      description={data.module.description}
+      status={<><V2Status status={beginner ? stageProgressStatus(data.progress) : data.progress.status} />{mentorStatus ? <V2Status status={mentorStatus} /> : null}{data.progress.review_due ? <V2Status status="review_due" /> : null}</>}
+      actions={<Link className="btn-primary min-h-12" to={data.continue.route}>{data.continue.kind === "review_pending" ? "View practical status" : data.continue.label}<ArrowRight size={18} aria-hidden="true" /></Link>}
+    >
       {mentorStatus === "awaiting_mentor_review" ? <p className="mt-3 text-sm font-medium text-violet-900 dark:text-violet-200">Your practical is with your mentor.{data.continue.kind === "next_stage" ? " You can keep learning." : ""}</p> : null}
       {mentorStatus === "needs_correction" ? <p className="mt-3 text-sm font-medium text-amber-950 dark:text-amber-200">Your mentor requested changes to the practical. You can keep learning while you update it.{correction?.progress?.detail?.review_feedback ? ` Feedback: ${correction.progress.detail.review_feedback}` : ""}</p> : null}
-      <p className="mt-3 text-lg leading-8 text-slate-600 dark:text-slate-300">{data.module.description}</p>
-      <Link className="btn-primary mt-6 inline-flex min-h-12 items-center gap-2" to={data.continue.route}>{data.continue.kind === "review_pending" ? "View practical status" : data.continue.label}<ArrowRight size={18} aria-hidden="true" /></Link>
-    </header>
+    </PageHeader>
     <section aria-labelledby="learn-heading">
       <div className="mb-4 flex items-center gap-3"><BookOpen className="text-blue-600" aria-hidden="true" /><div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Learn</p><h2 id="learn-heading" className="text-2xl font-bold">Build the foundation</h2></div></div>
       <ol className="space-y-3">
@@ -80,5 +83,5 @@ export default function V2ModulePage() {
       {data.explain_prompts.length ? <div className="panel"><p className="text-sm text-slate-500">Explain</p><p className="mt-1 text-xl font-bold">{data.progress.explain_prompts.completed} / {data.progress.explain_prompts.total}</p></div> : null}
     </section>
     <p className="sr-only"><BriefcaseBusiness />This module connects learning to workplace practice.</p>
-  </main>;
+  </PageContainer>;
 }

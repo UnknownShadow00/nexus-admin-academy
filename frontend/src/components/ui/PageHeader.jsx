@@ -1,11 +1,13 @@
-export default function PageHeader({ title, subtitle, actions }) {
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{title}</h1>
-        {subtitle ? <p className="text-sm text-slate-500 dark:text-slate-400">{subtitle}</p> : null}
-      </div>
-      {actions ? <div className="flex items-center justify-end gap-2">{actions}</div> : null}
+export default function PageHeader({ breadcrumb, eyebrow, title, description, subtitle, actions, status, children, className = "" }) {
+  return <header className={`page-header ${className}`.trim()}>
+    <div className="page-header-copy">
+      {breadcrumb ? <div className="mb-4">{breadcrumb}</div> : null}
+      {eyebrow ? <p className="type-label mb-2">{eyebrow}</p> : null}
+      <h1 className="type-page-title">{title}</h1>
+      {description || subtitle ? <p className="page-header-description">{description || subtitle}</p> : null}
+      {status ? <div className="mt-3 flex flex-wrap gap-2">{status}</div> : null}
+      {children}
     </div>
-  );
+    {actions ? <div className="page-header-actions">{actions}</div> : null}
+  </header>;
 }

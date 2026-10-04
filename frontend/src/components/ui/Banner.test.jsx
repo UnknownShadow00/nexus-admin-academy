@@ -5,7 +5,7 @@ import Banner from "./Banner";
 afterEach(cleanup);
 
 describe("Banner notices", () => {
-  it.each(["info", "success", "warning"])("announces %s feedback as status", (variant) => {
+  it.each(["info", "success", "warning", "mentor", "correction"])("announces %s feedback as status", (variant) => {
     render(<Banner variant={variant}>{variant} feedback</Banner>);
     expect(screen.getByRole("status")).toHaveTextContent(`${variant} feedback`);
   });
