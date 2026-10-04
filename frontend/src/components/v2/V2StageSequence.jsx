@@ -70,7 +70,7 @@ export default function V2StageSequence({ data, summary = false, next = null }) 
   const workName = data.certification.version?.key === "nexus_beginner_aplus_v1" ? "stage" : "module";
   return <ol className={`stage-sequence ${summary ? "stage-sequence-summary" : ""}`} aria-label={summary ? `Current ${workName} overview` : `${workName === "stage" ? "Stage" : "Module"} learning sequence`}>
     {items.map((item) => {
-      const upNext = next?.route === item.route && next?.title === item.title && item.available && !["review_pending", "correction", "complete", "blocked"].includes(next.kind);
+      const upNext = next?.route === item.route && item.kind !== "resource" && item.available && !["review_pending", "correction", "complete", "blocked"].includes(next.kind);
       return <li className={`stage-sequence-row ${upNext ? "stage-sequence-up-next" : ""}`} key={item.key} aria-current={upNext ? "step" : undefined} aria-label={!item.available ? `${item.title} unavailable` : undefined}>
         <div className="stage-sequence-copy">
           <p className="type-label">{item.type}</p>

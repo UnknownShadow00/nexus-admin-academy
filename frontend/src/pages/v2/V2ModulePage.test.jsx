@@ -50,10 +50,14 @@ describe("Stage work plan", () => {
 
   it("uses a learner-facing label for an internal Service Desk reference and keeps its route", async () => {
     const data = base({ assessments: [{ key: "assess.printers.service_desk", role: "service_desk",
-      title: "Service Desk — service_desk.aplus.printers.hr_queue", available: true, progress: { status: "not_started" } }] });
+      title: "Service Desk — service_desk.aplus.printers.hr_queue", available: true, progress: { status: "not_started" } }],
+      continue: { kind: "service_desk", label: "Troubleshoot a ticket",
+        title: "Service Desk — service_desk.aplus.printers.hr_queue",
+        route: "/learning-v2/modules/module.dynamic/service-desk/assess.printers.service_desk" } });
     show(data);
-    const link = await screen.findByRole("link", { name: "Troubleshoot a ticket" });
+    const link = await within(await screen.findByRole("list", { name: "Stage learning sequence" })).findByRole("link", { name: "Troubleshoot a ticket" });
     expect(link).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/service-desk/assess.printers.service_desk");
+    expect(link.closest("li")).toHaveAttribute("aria-current", "step");
     expect(screen.queryByText(/service_desk\.aplus\.printers\.hr_queue/)).not.toBeInTheDocument();
   });
 
