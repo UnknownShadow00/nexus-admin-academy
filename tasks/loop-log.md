@@ -3046,3 +3046,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
 - Result: PASS — the assertion now checks the real module title across the initial and restored sessions; git diff --check passes. The learning unlock, route, and persistence assertions remain intact.
 - Next: Push the test correction and inspect the replacement CI run and review threads.
+
+## [2026-10-04 22:09:36 UTC] Task Completed
+- Task: Updated the Phase 0A browser path after CI exposed a removed Today score summary; the quiz score remains asserted on its result page and Today now asserts its actual Up next presentation before continuing to the ticket.
+- Files changed: frontend/tests/e2e/phase0a-live-path.spec.js, tasks/loop-log.md.
+- Result: PASS for scoped test maintenance — no product behavior changed, the quiz result assertion remains, and git diff --check passes.
+- Next: Push the test update, wait for the replacement CI run, and inspect review threads.
