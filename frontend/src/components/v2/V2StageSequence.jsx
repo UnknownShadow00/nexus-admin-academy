@@ -50,7 +50,7 @@ export function stageSequenceItems(data, { summary = false } = {}) {
     if (!(assessment.role in assessmentNames)) continue;
     const routePart = assessment.role === "module_quiz" ? "assessments" : assessment.role === "service_desk" ? "service-desk" : "practical";
     const title = assessment.role === "service_desk" && /service_desk\.[\w.]+/.test(assessment.title)
-      ? "Work a support ticket" : assessment.title;
+      ? "Troubleshoot a ticket" : assessment.title;
     items.push({ key: `assessment-${assessment.key}`, kind: assessment.role, type: assessmentNames[assessment.role], title,
       status: assessment.role === "practical" ? practicalDisplayStatus(assessment.progress, beginner) : assessment.progress?.status,
       route: `${base}/${routePart}/${assessment.key}`, available: assessment.available !== false,
@@ -71,11 +71,13 @@ export default function V2StageSequence({ data, summary = false, next = null }) 
   return <ol className={`stage-sequence ${summary ? "stage-sequence-summary" : ""}`} aria-label={summary ? `Current ${workName} overview` : `${workName === "stage" ? "Stage" : "Module"} learning sequence`}>
     {items.map((item) => {
       const upNext = next?.route === item.route && item.kind !== "resource" && item.available && !["review_pending", "correction", "complete", "blocked"].includes(next.kind);
+      const title = item.kind === "service_desk" && upNext && next?.label === item.title
+        ? "Work a support ticket" : item.title;
       return <li className={`stage-sequence-row ${upNext ? "stage-sequence-up-next" : ""}`} key={item.key} aria-current={upNext ? "step" : undefined} aria-label={!item.available ? `${item.title} unavailable` : undefined}>
         <div className="stage-sequence-copy">
           <p className="type-label">{item.type}</p>
-          {item.available ? <Link className="stage-sequence-title" to={item.route}>{item.title}</Link>
-            : <span className="stage-sequence-title">{item.title}</span>}
+          {item.available ? <Link className="stage-sequence-title" to={item.route}>{title}</Link>
+            : <span className="stage-sequence-title">{title}</span>}
           {!item.available && item.unavailable?.reason ? <p className="type-meta mt-1">{item.unavailable.reason}</p> : null}
           {!item.available && item.unavailable?.required_action ? <p className="type-meta mt-1">{item.unavailable.required_action}</p> : null}
         </div>
