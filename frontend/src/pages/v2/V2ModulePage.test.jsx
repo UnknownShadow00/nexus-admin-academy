@@ -55,9 +55,10 @@ describe("Stage work plan", () => {
         title: "Service Desk — service_desk.aplus.printers.hr_queue",
         route: "/learning-v2/modules/module.dynamic/service-desk/assess.printers.service_desk" } });
     show(data);
-    const link = await within(await screen.findByRole("list", { name: "Stage learning sequence" })).findByRole("link", { name: "Troubleshoot a ticket" });
+    const link = await within(await screen.findByRole("list", { name: "Stage learning sequence" })).findByRole("link", { name: "Work a support ticket" });
     expect(link).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/service-desk/assess.printers.service_desk");
     expect(link.closest("li")).toHaveAttribute("aria-current", "step");
+    expect(screen.getAllByRole("link", { name: "Troubleshoot a ticket" })).toHaveLength(1);
     expect(screen.queryByText(/service_desk\.aplus\.printers\.hr_queue/)).not.toBeInTheDocument();
   });
 
