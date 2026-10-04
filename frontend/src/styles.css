@@ -5,6 +5,35 @@
 @source "./";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Small semantic layer over the retained Nexus/Tailwind v4 palette. */
+:root {
+  --nexus-canvas: #f8fafc;
+  --nexus-surface: #ffffff;
+  --nexus-inset: #f1f5f9;
+  --nexus-border: #cbd5e1;
+  --nexus-text: #1e293b;
+  --nexus-text-muted: #475569;
+  --nexus-action: #2563eb;
+  --nexus-action-hover: #1d4ed8;
+  --nexus-danger: #b91c1c;
+  --nexus-danger-hover: #991b1b;
+  --nexus-focus: #2563eb;
+}
+
+.dark {
+  --nexus-canvas: #020617;
+  --nexus-surface: #0f172a;
+  --nexus-inset: #1e293b;
+  --nexus-border: #475569;
+  --nexus-text: #f1f5f9;
+  --nexus-text-muted: #cbd5e1;
+  --nexus-action: #3b82f6;
+  --nexus-action-hover: #60a5fa;
+  --nexus-danger: #dc2626;
+  --nexus-danger-hover: #ef4444;
+  --nexus-focus: #93c5fd;
+}
+
 .v2-markdown { color: inherit; line-height: 1.75; }
 .v2-markdown h2 { margin-top: 2rem; margin-bottom: .75rem; font-size: 1.4rem; font-weight: 750; color: rgb(15 23 42); }
 .v2-markdown h3 { margin-top: 1.5rem; margin-bottom: .5rem; font-size: 1.15rem; font-weight: 700; }
@@ -40,11 +69,14 @@
   }
 
   body {
-    @apply bg-slate-50 font-sans text-slate-800 antialiased;
+    @apply font-sans antialiased;
+    background-color: var(--nexus-canvas);
+    color: var(--nexus-text);
   }
 
   .dark body {
-    @apply bg-slate-950 text-slate-100;
+    background-color: var(--nexus-canvas);
+    color: var(--nexus-text);
   }
 
   .dark h1, .dark h2, .dark h3, .dark h4 {
@@ -55,6 +87,8 @@
 @layer components {
   .panel {
     @apply rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 dark:border-slate-700 dark:bg-slate-900;
+    border-color: var(--nexus-border);
+    background-color: var(--nexus-surface);
   }
 
   .panel-compact {
@@ -66,15 +100,49 @@
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-blue-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:cursor-not-allowed disabled:bg-blue-300 dark:bg-blue-500 dark:hover:bg-blue-400;
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:bg-blue-300 disabled:shadow-none dark:bg-blue-500 dark:hover:bg-blue-400 dark:focus-visible:outline-blue-300 dark:disabled:bg-blue-900 dark:disabled:text-slate-300;
+    background-color: var(--nexus-action);
   }
+
+  .btn-primary:hover:not(:disabled) { background-color: var(--nexus-action-hover); }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-red-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-red-500/40 disabled:cursor-not-allowed disabled:bg-red-300 dark:bg-red-500 dark:hover:bg-red-400;
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors duration-150 hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:cursor-not-allowed disabled:bg-red-300 disabled:shadow-none dark:bg-red-600 dark:hover:bg-red-500 dark:focus-visible:outline-red-300 dark:disabled:bg-red-900 dark:disabled:text-slate-300;
+    background-color: var(--nexus-danger);
   }
 
+  .btn-danger:hover:not(:disabled) { background-color: var(--nexus-danger-hover); }
+
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:bg-blue-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500/40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-150 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800 dark:focus-visible:outline-blue-300;
+  }
+
+  .btn-quiet {
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg px-3 py-2 text-sm font-semibold text-blue-700 underline-offset-2 transition-colors duration-150 hover:bg-blue-50 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-blue-300 dark:hover:bg-slate-800 dark:focus-visible:outline-blue-300;
+  }
+
+  .btn-primary:focus-visible, .btn-secondary:focus-visible, .btn-quiet:focus-visible {
+    outline-color: var(--nexus-focus);
+  }
+
+  .notice {
+    @apply flex items-start gap-2 rounded-lg border px-3 py-3 text-sm font-medium;
+  }
+
+  .notice-info { @apply border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-100; }
+  .notice-success { @apply border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100; }
+  .notice-warning { @apply border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100; }
+  .notice-error { @apply border-rose-300 bg-rose-50 text-rose-900 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-100; }
+
+  .teaching-card-viewport {
+    @apply min-h-0 flex-1 overflow-auto overscroll-contain bg-slate-100 p-3 dark:bg-slate-800 sm:p-6;
+  }
+
+  .teaching-card-image {
+    display: block;
+    height: auto;
+    max-width: none;
+    margin-inline: auto;
   }
 
   .page-shell {
@@ -107,5 +175,14 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

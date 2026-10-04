@@ -1,6 +1,8 @@
-import { ExternalLink, X } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { recordV2Resource } from "../../services/api";
+import Banner from "../ui/Banner";
+import TeachingCardViewer from "./TeachingCardViewer";
 import V2Status from "./V2Status";
 
 export default function V2ResourceCard({ resource, moduleKey, onChanged }) {
@@ -9,19 +11,8 @@ export default function V2ResourceCard({ resource, moduleKey, onChanged }) {
   const [open, setOpen] = useState(false);
   const [confirmedStatus, setConfirmedStatus] = useState(null);
   const opener = useRef(null);
-  const closeButton = useRef(null);
   const internalCard = resource.url?.startsWith("/v2-interactions/beginner-s4-") && resource.url.endsWith(".svg");
   useEffect(() => setConfirmedStatus(null), [resource.key, resource.status, resource.opened_at, resource.watched_at]);
-  useEffect(() => {
-    if (!open) return undefined;
-    closeButton.current?.focus();
-    function keydown(event) {
-      if (event.key === "Escape") setOpen(false);
-      if (event.key === "Tab") { event.preventDefault(); closeButton.current?.focus(); }
-    }
-    document.addEventListener("keydown", keydown);
-    return () => { document.removeEventListener("keydown", keydown); opener.current?.focus(); };
-  }, [open]);
   async function update(activity) {
     setBusy(true);
     setError("");
@@ -37,18 +28,13 @@ export default function V2ResourceCard({ resource, moduleKey, onChanged }) {
   }
   function openCard() { setOpen(true); void update({ opened: true }); }
   return <article className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${resource.required ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>{resource.required ? "Required" : "Optional"}</span><h3 className="mt-3 font-bold">{resource.title}</h3><p className="mt-1 text-sm text-slate-500">{resource.provider || "Learning resource"} · {resource.type?.replaceAll("_", " ")}{resource.duration ? ` · ${resource.duration}` : ""}</p></div><V2Status status={confirmedStatus || resource.status} /></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${resource.required ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"}`}>{resource.required ? "Required" : "Optional"}</span><h3 className="mt-3 font-bold">{resource.title}</h3><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{resource.provider || "Learning resource"} · {resource.type?.replaceAll("_", " ")}{resource.duration ? ` · ${resource.duration}` : ""}</p></div><V2Status status={confirmedStatus || resource.status} /></div>
     <div className="mt-4 flex flex-wrap gap-2">
-      {resource.url ? internalCard ? <button ref={opener} className="btn-secondary" onClick={openCard} type="button">{resource.opened_at || confirmedStatus === "viewed" ? "View again" : "View teaching card"}</button> : <a className="btn-secondary inline-flex items-center gap-2" href={resource.url} onClick={() => update({ opened: true })} target="_blank" rel="noopener noreferrer">{resource.opened_at || confirmedStatus === "viewed" ? "Open again" : resource.type === "video" ? "Open video" : "Open resource"}<ExternalLink size={15} aria-hidden="true" /><span className="sr-only">(opens in a new tab)</span></a> : <span className="text-sm text-slate-500">This resource link is not available. Return to the module and choose another activity.</span>}
+      {resource.url ? internalCard ? <button ref={opener} className="btn-secondary" onClick={openCard} type="button">{resource.opened_at || confirmedStatus === "viewed" ? "View again" : "View teaching card"}</button> : <a className="btn-secondary inline-flex items-center gap-2" href={resource.url} onClick={() => update({ opened: true })} target="_blank" rel="noopener noreferrer">{resource.opened_at || confirmedStatus === "viewed" ? "Open again" : resource.type === "video" ? "Open video" : "Open resource"}<ExternalLink size={15} aria-hidden="true" /><span className="sr-only">(opens in a new tab)</span></a> : <span className="text-sm text-slate-600 dark:text-slate-300">This resource link is not available. Return to the module and choose another activity.</span>}
       {resource.type === "video" && resource.opened_at && !resource.watched_at ? <button className="btn-primary inline-flex items-center gap-2" disabled={busy} onClick={() => update({ watched: true })} type="button">{busy ? "Saving..." : "I watched this"}</button> : null}
     </div>
     {resource.type === "video" && resource.watched_at ? <p className="mt-3 text-sm font-semibold text-amber-700 dark:text-amber-300" role="status">Watched (self reported). Viewing alone does not grant mastery.</p> : null}
-    {error ? <p className="mt-3 text-sm text-rose-700 dark:text-rose-300" role="alert">{error}</p> : null}
-    {open ? <div className="fixed inset-0 z-50 bg-slate-950/60" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
-      <aside aria-label={resource.title} aria-modal="true" className="absolute inset-y-0 right-0 flex w-full max-w-3xl flex-col bg-white shadow-2xl dark:bg-slate-900" role="dialog">
-        <div className="flex items-center justify-between border-b border-slate-200 p-4 dark:border-slate-700"><h2 className="text-lg font-bold">{resource.title}</h2><button ref={closeButton} aria-label="Close teaching card" className="rounded-lg p-2 focus-visible:ring-2 focus-visible:ring-blue-500" onClick={() => setOpen(false)} type="button"><X /></button></div>
-        <div className="flex flex-1 items-center justify-center overflow-auto p-3 sm:p-6"><img alt={resource.title} className="max-h-full w-full object-contain" src={resource.url} /></div>
-      </aside>
-    </div> : null}
+    {error ? <div className="mt-3"><Banner variant="error">{error}</Banner></div> : null}
+    {open ? <TeachingCardViewer title={resource.title} src={resource.url} opener={opener} onClose={() => setOpen(false)} /> : null}
   </article>;
 }
