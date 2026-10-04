@@ -3028,3 +3028,27 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/src/App.jsx, frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
 - Result: PASS — the drawer now closes when the matching desktop breakpoint is reached and moves focus from the drawer to the brand link. Focused disposable browser UAT verified the drawer detaches, focus moves, and Admin Sign Out works after a 375-to-1440px resize; 180 frontend tests pass across 38 files. The CI failure was my-training.spec.js line 344, where the still-open drawer intercepted the sign-out click.
 - Next: Push the fix, inspect the new CI run and review threads, and leave PR #53 unmerged.
+
+## [2026-10-04 21:50:49 UTC] Task Completed
+- Task: Merged PR #53 after verifying its head, green CI, mergeability, and empty review threads; built a focused Today page redesign from the new main in a fresh worktree.
+- Files changed: frontend/src/pages/StudentHome.jsx, frontend/src/pages/StudentHome.test.jsx, frontend/src/styles.css, frontend/tests/e2e/my-training.spec.js, frontend/tests/e2e/v2-copy-shell.spec.js, tasks/loop-log.md.
+- Result: PASS for local acceptance — 187 frontend tests pass, npm audit reports zero vulnerabilities, production frontend build and both CLI checks pass, and disposable Playwright visual checks cover normal, mentor, correction, waiting, and mastered states at desktop/mobile in light/dark. Stage 4 content and Alembic head remain unchanged; no backend, progression, curriculum, or production changes.
+- Next: Commit and push PR 4, inspect GitHub CI and reviews, and leave PR 4 unmerged.
+
+## [2026-10-04 21:55:04 UTC] Task Completed
+- Task: Corrected Today priority when an earlier practical needs changes after the currently selected stage is mastered; the remaining correction is now the main action with its own stage context.
+- Files changed: frontend/src/pages/StudentHome.jsx, frontend/src/pages/StudentHome.test.jsx, tasks/loop-log.md.
+- Result: PASS — 188 frontend tests across 38 files, production frontend build, npm audit with zero vulnerabilities, and git diff --check. Server continuation and mastery values are unchanged.
+- Next: Push the focused follow-up, update PR #54 validation notes, and inspect the replacement GitHub CI run.
+
+## [2026-10-04 21:59:26 UTC] Task Completed
+- Task: Corrected the Week 0 Playwright assertion after CI showed the redesigned Today page uses the module title in context rather than the former combined stage-and-module heading.
+- Files changed: frontend/tests/e2e/my-training.spec.js, tasks/loop-log.md.
+- Result: PASS — the assertion now checks the real module title across the initial and restored sessions; git diff --check passes. The learning unlock, route, and persistence assertions remain intact.
+- Next: Push the test correction and inspect the replacement CI run and review threads.
+
+## [2026-10-04 22:09:36 UTC] Task Completed
+- Task: Updated the Phase 0A browser path after CI exposed a removed Today score summary; the quiz score remains asserted on its result page and Today now asserts its actual Up next presentation before continuing to the ticket.
+- Files changed: frontend/tests/e2e/phase0a-live-path.spec.js, tasks/loop-log.md.
+- Result: PASS for scoped test maintenance — no product behavior changed, the quiz result assertion remains, and git diff --check passes.
+- Next: Push the test update, wait for the replacement CI run, and inspect review threads.

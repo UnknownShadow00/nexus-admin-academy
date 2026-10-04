@@ -31,7 +31,7 @@ test("copy-backed pilot shell survives logout while non-pilot stays out", async 
 
   await login(page, pilot, pilotPassword);
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: pilotModule }).first()).toBeVisible();
+  await expect(page.getByText(pilotModule).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "My Course" })).toBeVisible();
   await page.getByRole("link", { name: "My Course" }).click();
   await expect(page.getByRole("heading", { name: "CompTIA A+" })).toBeVisible();
