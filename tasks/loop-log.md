@@ -3064,3 +3064,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: tasks/loop-log.md (repository); /tmp/nexus-ui-pr6-practical-plan.md, /tmp/nexus-ui-pr7-mentor-review-plan.md, /tmp/nexus-service-desk-ui-audit-2026-10.md, /tmp/nexus-ui-cross-workflow-consistency.md, /tmp/nexus-service-desk-ui-audit-20261004-232800/ (outside git).
 - Result: PASS for read-only research and available-state visual capture; later Service Desk stage transitions and result screens were source-audited but could not be captured from the gated disposable fixture.
 - Next: Wait for all GitHub CI jobs and review, keep PR #55 open, and seed an authorized Service Desk attempt for complete future visual UAT.
+
+## [2026-10-04 23:18:48 UTC] Task Completed
+- Task: Corrected Stage continuation copy so a practical with changes requested is not described as still with the mentor, and added regression coverage.
+- Files changed: frontend/src/pages/v2/V2ModulePage.jsx, frontend/src/pages/v2/V2ModulePage.test.jsx, tasks/loop-log.md.
+- Result: PASS — focused 8 tests, full 190 frontend tests, production build, npm audit with zero vulnerabilities, and git diff --check.
+- Next: Push the focused fix, wait for replacement GitHub CI and inspect review threads; keep PR #55 open.

@@ -29,7 +29,7 @@ function MentorFollowUp({ practicals, beginner, next }) {
         </Link>
       </li>;
     })}</ul>
-    {next.kind === "next_stage" ? <p className="type-secondary mt-3">A later stage is available while this practical is with your mentor.</p> : null}
+    {next.kind === "next_stage" ? <p className="type-secondary mt-3">You can continue learning in a later stage while this practical is being reviewed or updated.</p> : null}
   </section>;
 }
 

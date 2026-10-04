@@ -80,6 +80,8 @@ describe("Stage work plan", () => {
     expect(screen.getAllByText("Changes requested").length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /Fix & resubmit/ })).toHaveAttribute("href", "/learning-v2/modules/module.dynamic/practical/support");
     expect(screen.getByRole("link", { name: "Continue learning" })).toHaveAttribute("href", "/learning-v2/modules/next");
+    expect(screen.getByText("You can continue learning in a later stage while this practical is being reviewed or updated.")).toBeVisible();
+    expect(screen.queryByText("A later stage is available while this practical is with your mentor.")).not.toBeInTheDocument();
   });
 
   it("shows Approved practical without claiming stage mastery", async () => {
