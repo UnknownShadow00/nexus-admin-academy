@@ -305,7 +305,7 @@ test("admin can open Curriculum Structure under Learning Content", async ({ page
   await adminLogin(page);
   const monitor = monitorPage(page);
   await page.getByRole("button", { name: /Learning Content/ }).click();
-  await page.getByRole("menuitem", { name: "Curriculum Structure" }).click();
+  await page.getByRole("link", { name: "Curriculum Structure" }).click();
   await expect(page.getByRole("heading", { name: "Curriculum Structure" })).toBeVisible();
   await expect(page.getByText("References valid")).toBeVisible();
   await expect(page.getByText("137 of 137", { exact: false })).toBeVisible();

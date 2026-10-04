@@ -233,9 +233,10 @@ test("Weeks 3-4 key student screens do not overflow at mobile width", async ({ p
 });
 
 test("admin Curriculum Structure reflects the early-module realignment", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await adminLogin(page);
   await page.getByRole("button", { name: /Learning Content/ }).click();
-  await page.getByRole("menuitem", { name: "Curriculum Structure" }).click();
+  await page.getByRole("link", { name: "Curriculum Structure" }).click();
   await expect(page.getByRole("heading", { name: "Curriculum Structure" })).toBeVisible();
   await expect(page.getByText("References valid")).toBeVisible();
 });

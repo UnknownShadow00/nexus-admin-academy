@@ -3016,3 +3016,9 @@ Network+, no prod seed/deploy/migration, no student UI work. Prod stays at
 - Files changed: frontend/tests/e2e/forced-password-change.spec.js, frontend/tests/e2e/my-training.spec.js, frontend/tests/e2e/v2-student-experience.spec.js, tasks/loop-log.md.
 - Result: PASS for in-scope test alignment — the first CI Playwright run timed out at forced-password-change.spec.js line 116 on the obsolete direct student-name button, then cleanup failed after the browser timed out. All four affected Playwright specs list successfully (9 tests); logout and protected-route assertions remain. No production or product-code changes in this follow-up.
 - Next: Push the test fix, wait for the new CI run, inspect all jobs and review threads, and leave PR #53 unmerged.
+
+## [2026-10-04 21:07:39 UTC] Task Completed
+- Task: Fixed PR #53 admin navigation Playwright selectors after the shell changed dropdown destinations from ARIA menu items to ordinary links; kept desktop fixture widths explicit.
+- Files changed: frontend/tests/e2e/my-training.spec.js, frontend/tests/e2e/question-import.spec.js, frontend/tests/e2e/weeks-1-4-quality.spec.js, tasks/loop-log.md.
+- Result: PASS for in-scope test alignment — 13 affected Playwright tests list successfully and git diff --check passes. The preceding CI run passed forced-password rotation and the learner desktop/mobile tests, then timed out at my-training.spec.js line 308 waiting for the obsolete menuitem role; destination and content assertions remain.
+- Next: Push this fix, wait for the next CI run, inspect all jobs and review threads, and leave PR #53 unmerged.

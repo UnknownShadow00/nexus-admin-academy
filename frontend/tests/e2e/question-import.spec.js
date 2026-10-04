@@ -54,8 +54,8 @@ test.describe("CSV/XLSX question importer", () => {
     await adminLogin(page);
 
     await page.getByRole("button", { name: "Learning Content" }).click();
-    await expect(page.getByRole("menuitem", { name: "ExamCompass Import" })).toBeVisible();
-    await page.getByRole("menuitem", { name: "Import Questions (CSV/XLSX)" }).click();
+    await expect(page.getByRole("link", { name: "ExamCompass Import" })).toBeVisible();
+    await page.getByRole("link", { name: "Import Questions (CSV/XLSX)" }).click();
 
     await expect(page).toHaveURL(/\/admin\/question-import$/);
     await expect(page.getByRole("heading", { name: "Import Questions" })).toBeVisible();
