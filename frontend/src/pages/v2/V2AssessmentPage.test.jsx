@@ -20,6 +20,17 @@ describe("V2AssessmentPage", () => {
     expect(api.submitV2Assessment).toHaveBeenCalledWith("module.dynamic", "qc.dynamic", 99, { 42: "ipconfig" }, { suppressToast: true });
   });
 
+  it("calls an incorrect graded answer Not quite rather than Needs review", async () => {
+    api.submitV2Assessment.mockResolvedValueOnce({ data: { attempt_id: 99, score: 0, total: 1, passed: false, grading_state: "graded", pass_percent: 60, results: [{ question_id: 42, question_text: "Which command shows IP settings?", student_answer: "ping", is_correct: false, correct_answer: null, explanation: "Review the IP settings command." }] } });
+    render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/assessments/qc.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/assessments/:assessmentKey" element={<V2AssessmentPage />} /></Routes></MemoryRouter>);
+    await userEvent.type(await screen.findByLabelText("Your answer"), "ping");
+    await userEvent.click(screen.getByRole("button", { name: "Submit answers" }));
+    expect(await screen.findByRole("heading", { name: "Not quite" })).toBeVisible();
+    expect(screen.getAllByText("Not quite")).toHaveLength(2);
+    expect(screen.queryByText("Needs review")).not.toBeInTheDocument();
+    expect(screen.getByText(/Score: 0% · Pass mark: 60%/)).toBeVisible();
+  });
+
   it("renders free-response assessment questions as writable text", async () => {
     const base = (await api.getV2Assessment()).data;
     api.getV2Assessment.mockResolvedValue({ data: {

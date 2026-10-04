@@ -59,7 +59,8 @@ describe("V2LearningPage multi-module certification view", () => {
     expect(await screen.findByRole("heading", { name: "Your stages" })).toBeVisible();
     expect(screen.getByText("Finish Stage 1 before starting Stage 2.")).toBeVisible();
     expect(screen.queryByRole("link", { name: /Stage 2 — Computer Basics/ })).not.toBeInTheDocument();
-    expect(screen.getByText("3 learning groups")).toBeVisible();
+    expect(screen.getByText("3 topics")).toBeVisible();
+    expect(screen.queryByText(/Version 1/)).not.toBeInTheDocument();
   });
   it("shows Stage 4 without inventing later stage cards", async () => {
     const stages = [1, 2, 3, 4].map((number) => moduleRow(`module.nexus.beginner.stage${number}`, `Stage ${number} — ${number === 4 ? "Everyday Windows Support" : "Foundation"}`));
@@ -95,7 +96,8 @@ describe("V2LearningPage multi-module certification view", () => {
     terminal.continue = { kind: "review_pending", label: "Awaiting mentor review", title: "Practical review", route: "/learning-v2/modules/module.nexus.beginner.stage4/practical/observation" };
     api.getV2Learning.mockResolvedValue({ data: { modules: [terminal], current: terminal, corrections: [] } });
     render(<MemoryRouter><V2LearningPage /></MemoryRouter>);
-    expect(await screen.findByText("Awaiting mentor review · 5 learning groups")).toBeVisible();
+    expect(await screen.findByText("In progress · 5 topics")).toBeVisible();
+    expect(screen.getAllByText("With your mentor").length).toBeGreaterThan(0);
     expect(screen.queryByText("You can keep learning.")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Continue learning" })).not.toBeInTheDocument();
   });

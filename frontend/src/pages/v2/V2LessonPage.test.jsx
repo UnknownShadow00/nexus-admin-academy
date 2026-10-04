@@ -62,7 +62,7 @@ describe("V2LessonPage", () => {
     render(<MemoryRouter initialEntries={["/learning-v2/modules/module.dynamic/lessons/lesson.dynamic"]}><Routes><Route path="/learning-v2/modules/:moduleKey/lessons/:lessonKey" element={<V2LessonPage />} /></Routes></MemoryRouter>);
     await userEvent.click(await screen.findByRole("button", { name: "View teaching card" }));
     await userEvent.click(screen.getByRole("button", { name: "Close teaching card" }));
-    await waitFor(() => expect(screen.getAllByText("Viewed / Opened").length).toBeGreaterThanOrEqual(2));
+    await waitFor(() => expect(screen.getAllByText("Opened").length).toBeGreaterThanOrEqual(2));
     expect(screen.getByRole("button", { name: "View again" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Start Quick Check" })).toBeVisible();
   });

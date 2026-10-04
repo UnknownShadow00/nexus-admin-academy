@@ -8,7 +8,8 @@ import { getCurrentStudent } from "../hooks/useAuth";
 import { checkInStudent, getLabs, getServiceDeskProgressSummary, getStudentStats, getTrainingDashboard } from "../services/api";
 import { getV2Learning } from "../services/api";
 import { useV2Access } from "../hooks/useV2Access";
-import V2Status from "../components/v2/V2Status";
+import V2Status, { statusLabel } from "../components/v2/V2Status";
+import { mentorFollowUpStatus, stageProgressStatus } from "../components/ui/statusFoundation";
 import V2CorrectionAlerts from "../components/v2/V2CorrectionAlerts";
 import { TrainingDestination } from "../components/TrainingDestination";
 import { iconSizes, scoreBand } from "../utils/theme";
@@ -23,8 +24,8 @@ export function buildContinueTarget(v2Learning, training) {
   if (v2) {
     const next = v2.continue;
     const activityType = ({ lesson: "Lesson", resource: "Required resource", quick_check: "Quick Check", module_quiz: "Module Quiz", practical: "Practical", review_pending: "Practical", correction: "Practical correction", service_desk: "Service Desk", explain: "Explain" })[next.kind] || "Course activity";
-    const status = next.status || "not_started";
-    const label = next.kind === "next_stage" ? "Continue learning" : next.kind === "correction" ? "Fix & resubmit" : next.kind === "review_pending" ? "Awaiting mentor review" : ["needs_review", "failed", "passed"].includes(status)
+    const status = next.kind === "review_pending" ? "awaiting_mentor_review" : next.kind === "correction" ? "needs_correction" : next.kind === "next_stage" ? "up_next" : next.status || "not_started";
+    const label = next.kind === "next_stage" ? "Continue learning" : next.kind === "correction" ? "Fix & resubmit" : next.kind === "review_pending" ? "View practical status" : ["needs_review", "failed", "passed"].includes(status)
       ? "Review result"
       : status === "completed" || next.kind === "complete"
         ? "Review result"
@@ -177,7 +178,7 @@ export default function StudentHome() {
             <ArrowRight className="hidden shrink-0 text-blue-200 sm:block" size={20} aria-hidden="true" />
           </div>
         ) : null}
-        {v2Learning?.current ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{(v2Learning.current.progress.groups?.completed ?? v2Learning.current.progress.lessons.completed)} of {(v2Learning.current.progress.groups?.total ?? v2Learning.current.progress.lessons.total)} learning groups complete</span><strong>{v2Learning.current.progress.module_complete ? "Mastered" : v2Learning.current.progress.status === "awaiting_mentor_review" ? "Awaiting mentor review" : v2Learning.current.progress.status === "needs_correction" ? "Needs correction" : "In progress"}</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${(v2Learning.current.progress.groups?.total ?? v2Learning.current.progress.lessons.total) ? Math.round((v2Learning.current.progress.groups?.completed ?? v2Learning.current.progress.lessons.completed) / (v2Learning.current.progress.groups?.total ?? v2Learning.current.progress.lessons.total) * 100) : 0}%` }} /></div></div> : training?.current_module ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{training.current_module.required_complete} of {training.current_module.required_total} required activities complete</span><strong>{training.current_module.completion_percent}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${training.current_module.completion_percent}%` }} /></div></div> : null}
+        {v2Learning?.current ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between gap-3 text-sm"><span>{(v2Learning.current.progress.groups?.completed ?? v2Learning.current.progress.lessons.completed)} of {(v2Learning.current.progress.groups?.total ?? v2Learning.current.progress.lessons.total)} topics complete</span><strong>{statusLabel(stageProgressStatus(v2Learning.current.progress))}</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${(v2Learning.current.progress.groups?.total ?? v2Learning.current.progress.lessons.total) ? Math.round((v2Learning.current.progress.groups?.completed ?? v2Learning.current.progress.lessons.completed) / (v2Learning.current.progress.groups?.total ?? v2Learning.current.progress.lessons.total) * 100) : 0}%` }} /></div>{mentorFollowUpStatus(v2Learning.current.progress) ? <p className="mt-2 text-sm text-blue-100">Practical: {statusLabel(mentorFollowUpStatus(v2Learning.current.progress))}.</p> : null}</div> : training?.current_module ? <div className="mt-4 max-w-2xl"><div className="mb-1 flex justify-between text-sm"><span>{training.current_module.required_complete} of {training.current_module.required_total} required activities complete</span><strong>{training.current_module.completion_percent}%</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-blue-950/40"><div className="h-full rounded-full bg-white" style={{ width: `${training.current_module.completion_percent}%` }} /></div></div> : null}
         <TrainingDestination activity={v2Learning?.current ? null : training?.next_activity} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-white px-5 py-3 font-bold text-blue-700 hover:bg-blue-50" to={continueTarget.to}>{continueTarget.label}</TrainingDestination>
       </section>
 
@@ -201,7 +202,7 @@ export default function StudentHome() {
         </section>
       ) : null}
 
-      {v2Enabled ? <section className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><h2 className="font-semibold">Extra practice</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">The legacy Learning Path and labs are optional during the V2 transition.</p><Link className="mt-2 inline-flex text-sm font-semibold text-blue-600 dark:text-blue-400" to="/learning-path">Open legacy Learning Path →</Link></section> : null}
+      {v2Enabled ? <section className="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><h2 className="font-semibold">Extra practice</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Optional activities are available alongside your course.</p><Link className="mt-2 inline-flex text-sm font-semibold text-blue-600 dark:text-blue-400" to="/learning-path">Open practice path →</Link></section> : null}
 
       {hasFollowUpWidgets ? (
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -63,22 +63,16 @@ it("validates each Stage 4 field, sends structured values, and clears errors aft
   fireEvent.click(screen.getByRole("button", { name: "Submit practical" }));
   expect(await screen.findByText("Temporary submission error")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Submit practical" }));
-  expect(await screen.findByRole("heading", { name: "Awaiting mentor review" })).toBeVisible();
-  expect(screen.getByText(/Your practical is saved/)).toBeVisible();
+  expect(await screen.findByRole("heading", { name: "With your mentor" })).toBeVisible();
+  expect(screen.getByText(/Your practical was sent to your mentor/)).toBeVisible();
   expect(screen.queryByText(/You can keep learning/)).not.toBeInTheDocument();
-  expect(await screen.findByRole("link", { name: /Done · My Course/ })).toHaveAttribute("href", "/learning-v2");
+  expect(await screen.findByRole("link", { name: /Back to My Course/ })).toHaveAttribute("href", "/learning-v2");
+  expect(screen.queryByText(/Done · My Course/)).not.toBeInTheDocument();
+  expect(screen.getByRole("textbox", { name: "Reported" })).toHaveAttribute("readonly");
+  expect(screen.queryByRole("button", { name: "Submit practical" })).not.toBeInTheDocument();
   expect(screen.queryByText("Temporary submission error")).not.toBeInTheDocument();
   expect(screen.queryByText(/Complete Reported/)).not.toBeInTheDocument();
   expect(submitV2Lab).toHaveBeenLastCalledWith("1", "module.nexus.beginner.stage4", "assess.nexus.beginner.s4.windows_observation", { guided_note: { reported: fields.Reported, checked: fields.Checked, found: fields.Found, verified_or_not_verified: fields["Verified / Not verified"], next_step: fields["Next step"] }, answers: {} });
-});
-
-it("offers continued learning during review only when the server returns a next stage", async () => {
-  getLab.mockResolvedValue({ data: { ...lab, status: "submitted", review: { status: "awaiting_mentor_review" } } });
-  getV2Module.mockResolvedValue({ data: { continue: { kind: "next_stage", label: "Continue learning", route: "/learning-v2/modules/module.nexus.beginner.stage5" } } });
-  mount("/labs/1?v2Module=module.nexus.beginner.stage4&v2Assessment=assess.nexus.beginner.s4.windows_observation");
-  expect(await screen.findByRole("heading", { name: "Awaiting mentor review" })).toBeVisible();
-  expect(await screen.findByText(/You can keep learning/)).toBeVisible();
-  expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/learning-v2/modules/module.nexus.beginner.stage5");
 });
 
 it.each([
@@ -97,8 +91,17 @@ it.each([
 it("shows mentor correction feedback and resubmission action", async () => {
   getLab.mockResolvedValue({ data: { ...lab, status: "in_progress", run_id: 42, review: { status: "needs_correction", feedback: "Show the application view" } } });
   mount("/labs/1?v2Module=module.nexus.beginner.stage4&v2Assessment=assess.nexus.beginner.s4.windows_observation");
-  expect(await screen.findByText("Mentor feedback: Show the application view")).toBeVisible();
+  expect(await screen.findByRole("heading", { name: "Changes requested" })).toBeVisible();
+  expect(screen.getByText("Mentor feedback: Show the application view")).toBeVisible();
   expect(screen.getByRole("link", { name: "Fix & resubmit" })).toHaveAttribute("href", "#stage4-form");
+});
+
+it("calls an approved practical Approved without claiming stage mastery", async () => {
+  getLab.mockResolvedValue({ data: { ...lab, status: "submitted", review: { status: "passed" } } });
+  mount("/labs/1?v2Module=module.nexus.beginner.stage4&v2Assessment=assess.nexus.beginner.s4.windows_observation");
+  expect(await screen.findByRole("heading", { name: "Approved" })).toBeVisible();
+  expect(screen.getByText(/stage is mastered only when the remaining requirements are complete/)).toBeVisible();
+  expect(screen.queryByText("Stage mastered")).not.toBeInTheDocument();
 });
 
 it("keeps Stage 4 field drafts through a page remount", async () => {

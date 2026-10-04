@@ -16,20 +16,21 @@ it("routes directly to the server-selected next activity", async () => {
 it("sends a waiting learner to My Course instead of looping back into the practical", async () => {
   getV2Module.mockResolvedValue({ data: { continue: { route: "/learning-v2/modules/stage4/practical/observation", label: "Awaiting mentor review", kind: "review_pending" } } });
   render(<MemoryRouter><V2NextStep moduleKey="stage4" /></MemoryRouter>);
-  expect(await screen.findByRole("link", { name: /Done · My Course/ })).toHaveAttribute("href", "/learning-v2");
+  expect(await screen.findByRole("link", { name: /Back to My Course/ })).toHaveAttribute("href", "/learning-v2");
+  expect(screen.queryByText(/Done · My Course/)).not.toBeInTheDocument();
 });
 
 it("shows saved practical copy without promising a terminal stage successor", async () => {
   getV2Module.mockResolvedValue({ data: { continue: { route: "/learning-v2/modules/stage4/practical/observation", label: "Awaiting mentor review", kind: "review_pending" } } });
   render(<MemoryRouter><V2NextStep moduleKey="stage4" pendingReview /></MemoryRouter>);
-  expect(await screen.findByText(/Your practical is saved/)).toBeVisible();
+  expect(await screen.findByText(/Your practical was sent to your mentor/)).toBeVisible();
   expect(screen.queryByText(/You can keep learning/)).not.toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /Done · My Course/ })).toHaveAttribute("href", "/learning-v2");
+  expect(screen.getByRole("link", { name: /Back to My Course/ })).toHaveAttribute("href", "/learning-v2");
 });
 
 it("offers the server-selected successor while mentor review is pending", async () => {
-  getV2Module.mockResolvedValue({ data: { continue: { route: "/learning-v2/modules/stage5", label: "Continue learning", kind: "next_stage" } } });
-  render(<MemoryRouter><V2NextStep moduleKey="stage4" pendingReview /></MemoryRouter>);
+  getV2Module.mockResolvedValue({ data: { continue: { route: "/learning-v2/modules/stage2", label: "Continue learning", kind: "next_stage" } } });
+  render(<MemoryRouter><V2NextStep moduleKey="stage1" pendingReview /></MemoryRouter>);
   expect(await screen.findByText(/You can keep learning/)).toBeVisible();
-  expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/learning-v2/modules/stage5");
+  expect(screen.getByRole("link", { name: /Continue learning/ })).toHaveAttribute("href", "/learning-v2/modules/stage2");
 });

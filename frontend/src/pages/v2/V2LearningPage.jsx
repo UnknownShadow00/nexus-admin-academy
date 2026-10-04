@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getV2Learning } from "../../services/api";
 import { V2Error, V2Loading } from "../../components/v2/V2PageState";
-import { statusLabel } from "../../components/v2/V2Status";
+import V2Status, { statusLabel } from "../../components/v2/V2Status";
+import { mentorFollowUpStatus, stageProgressStatus } from "../../components/ui/statusFoundation";
 import FlashcardReviewPanel from "../../components/FlashcardReviewPanel";
 import V2CorrectionAlerts from "../../components/v2/V2CorrectionAlerts";
 
@@ -36,12 +37,13 @@ export default function V2LearningPage() {
           <h2 className="mt-2 text-2xl font-bold sm:text-3xl">{current.module.title}</h2>
           <p className="mt-3 text-blue-100">{current.module.description}</p>
           <div className="mt-5 flex flex-wrap gap-3 text-sm">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5"><BookOpen size={16} aria-hidden="true" />{beginner ? `${lessons.total} learning groups` : `${lessons.completed} of ${lessons.total} lessons marked complete`}</span>
-            {current.progress.module_complete ? <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/20 px-3 py-1.5"><CheckCircle2 size={16} aria-hidden="true" />{beginner ? "Stage mastered" : "Module mastered"}</span> : ["awaiting_mentor_review", "needs_correction"].includes(current.progress.status) ? <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1.5">{statusLabel(current.progress.status)}</span> : null}
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5"><BookOpen size={16} aria-hidden="true" />{beginner ? `${lessons.total} topics` : `${lessons.completed} of ${lessons.total} lessons marked complete`}</span>
+            {current.progress.module_complete ? <span className="inline-flex items-center gap-2 rounded-full bg-emerald-400/20 px-3 py-1.5"><CheckCircle2 size={16} aria-hidden="true" />{beginner ? "Stage mastered" : "Module mastered"}</span> : beginner ? <V2Status status={stageProgressStatus(current.progress)} /> : null}
+            {beginner && mentorFollowUpStatus(current.progress) ? <V2Status status={mentorFollowUpStatus(current.progress)} /> : null}
           </div>
         </div>
         <Link className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-blue-800 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" to={current.continue.route}>
-          {current.continue.label}<ArrowRight size={18} aria-hidden="true" />
+          {current.continue.kind === "review_pending" ? "View practical status" : current.continue.label}<ArrowRight size={18} aria-hidden="true" />
         </Link>
       </div>
     </section>
@@ -54,7 +56,7 @@ export default function V2LearningPage() {
       <h2 id="modules-heading" className="text-xl font-bold">{beginner ? "Your stages" : "A+ modules"}</h2>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {data.modules.map((item) => {
-          const content = <><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.locked ? "Locked" : item.certification.version.label}</p><h3 className="mt-1 font-bold">{item.module.title}</h3><p className="mt-2 text-sm text-slate-500">{item.locked ? item.lock_reason : beginner ? `${statusLabel(item.progress.status)} · ${item.progress.lessons.total} learning groups` : `${statusLabel(item.progress.status)} · ${item.progress.lessons.completed}/${item.progress.lessons.total} lessons marked complete`}</p>{beginner && item.progress.status === "awaiting_mentor_review" && item.continue?.kind === "next_stage" ? <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">You can keep learning.</p> : null}</>;
+          const content = <><p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">{item.locked ? "Locked" : beginner ? "Beginner A+ foundation" : item.certification.version.label}</p><h3 className="mt-1 font-bold">{item.module.title}</h3><p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{item.locked ? item.lock_reason : beginner ? `${statusLabel(stageProgressStatus(item.progress))} · ${item.progress.lessons.total} topics` : `${statusLabel(item.progress.status)} · ${item.progress.lessons.completed}/${item.progress.lessons.total} lessons marked complete`}</p>{beginner && mentorFollowUpStatus(item.progress) ? <div className="mt-2"><V2Status status={mentorFollowUpStatus(item.progress)} /></div> : null}{beginner && item.progress.status === "awaiting_mentor_review" && item.continue?.kind === "next_stage" ? <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">You can keep learning.</p> : null}</>;
           return item.locked ? <div className="panel block" key={item.module.key} aria-disabled="true"><LockKeyhole size={18} aria-hidden="true" className="mb-2 text-slate-500" />{content}</div> : <Link className="panel block hover:border-blue-300" key={item.module.key} to={`/learning-v2/modules/${item.module.key}`}>
             {content}
           </Link>;

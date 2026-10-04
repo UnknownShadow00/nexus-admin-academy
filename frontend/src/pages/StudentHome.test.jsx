@@ -34,6 +34,6 @@ describe('Today V2 next step', () => {
       continue: { kind: 'review_pending', title: 'Practical review', route: '/learning-v2/modules/stage4/practical/observation', status: 'needs_review' },
       progress: { module_complete: false, continuation_granted: true },
     } });
-    expect(target).toMatchObject({ label: 'Awaiting mentor review', to: '/learning-v2/modules/stage4/practical/observation' });
+    expect(target).toMatchObject({ label: 'View practical status', status: 'awaiting_mentor_review', to: '/learning-v2/modules/stage4/practical/observation' });
   });
 });
